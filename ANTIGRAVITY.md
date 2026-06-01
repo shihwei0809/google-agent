@@ -33,7 +33,7 @@ Obsidian vault：G:\我的雲端硬碟\Secondbrain
 
 - **NotebookLM**：已登入 (shihwei0809@gmail.com)
 - **GitHub**：已登入 (shihwei0809)
-- **Firebase**：已安裝環境 / 待登入
+- **Firebase**：已登入 (驗證成功，帳號目前無專案)
 - **Obsidian**：已安裝並連接 (`mcpvault.cmd` 已就緒，連結路徑：`G:\我的雲端硬碟\Secondbrain`)
 - **規則檔**：`ANTIGRAVITY.md` 已建立且同步
 - **Git 狀態**：乾淨 (Clean)
