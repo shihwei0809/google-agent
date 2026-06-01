@@ -1163,7 +1163,7 @@
                 tag: "08 QC 放行",
                 title: "QC 授權放行端操作要領",
                 sub: "第三關：雙覆核與電子放行存證",
-                body: "• <b>主控看板接收</b>：QC 登錄網頁，讀取待稽核任務狀態與對刷狀態。<br>• <b>實體二次覆核</b>：QC 前往卸料區，現場親自肉眼核對儲槽與管路實體閥門是否對接匹配無誤。<br>• <b>單據與掃描核對</b>：QC 核對進出貨單據，確認是否有此槽號，並確認儲槽與管路實體掃描是否正確。<br>• <b>識別證刷卡放行</b>：覆核無誤後，QC 掃描個人識別證條碼授權放行，系統記錄電子軌跡，啟動卸料。",
+                body: "• <b>主控看板接收</b>：QC 登錄網頁，讀取待稽核任務狀態與對刷狀態。<br>• <b>二次覆核</b>：QC 核對進出貨單據，確認是否有此槽號，並確認儲槽與管路實體掃描是否正確。<br>• <b>識別證刷卡放行</b>：覆核無誤後，QC 掃描個人識別證條碼授權放行，系統記錄電子軌跡，啟動卸料。",
                 image: "../images/hs_qc_dashboard.png",
                 extra: ""
             },
@@ -1479,8 +1479,7 @@
                         <div id="qcActionArea" style="background-color:var(--bg-input); border:1px dashed var(--border-color); border-radius:12px; padding:20px; text-align:center; display:none; flex-direction:column; gap:15px; margin-top:10px;">
                             <div style="font-size:14px; font-weight:700;">當前覆核任務：櫃車 <strong id="qcSelectedTruckNo">-</strong></div>
                             <div style="text-align:left; font-size:12px; color:var(--text-gray); margin:5px 0 10px; display:flex; flex-direction:column; gap:6px; background-color:rgba(0,0,0,0.2); padding:10px; border-radius:8px; border:1px solid var(--border-color);">
-                                <div style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="chkPhysicalCheck" style="accent-color:var(--neon-green);" onchange="checkQcActionValid()"> <label for="chkPhysicalCheck" style="cursor:pointer; line-height: 1.4;"><b>實體二次覆核</b>：親自肉眼核對現場儲槽與管路實體閥門對接無誤</label></div>
-                                <div style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="chkDocCheck" style="accent-color:var(--neon-green);" onchange="checkQcActionValid()"> <label for="chkDocCheck" style="cursor:pointer; line-height: 1.4;"><b>單據核對</b>：核對進出貨單據，確認槽號與實體掃描無誤</label></div>
+                                <div style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="chkDocCheck" style="accent-color:var(--neon-green);" onchange="checkQcActionValid()"> <label for="chkDocCheck" style="cursor:pointer; line-height: 1.4;"><b>二次覆核</b>：核對進出貨單據，確認是否有此槽號，並確認儲槽與管路實體掃描是否正確</label></div>
                             </div>
                             <button class="action-btn" id="qcAuthBtn" onclick="authorizeQCTask()" style="background-color:var(--gold); color:var(--bg-dark); font-weight:900;" disabled>💳 掃描 QC 識別證，授權放行</button>
                             <div class="qc-stamp" id="qcStampBadge">已安全放行</div>
@@ -1719,15 +1718,13 @@
             document.getElementById("qcStampBadge").classList.remove("show"); // Reset stamp
 
             // Reset checkboxes
-            document.getElementById("chkPhysicalCheck").checked = false;
             document.getElementById("chkDocCheck").checked = false;
             document.getElementById("qcAuthBtn").disabled = true;
         }
 
         function checkQcActionValid() {
-            const chk1 = document.getElementById("chkPhysicalCheck").checked;
-            const chk2 = document.getElementById("chkDocCheck").checked;
-            document.getElementById("qcAuthBtn").disabled = !(chk1 && chk2);
+            const chk = document.getElementById("chkDocCheck").checked;
+            document.getElementById("qcAuthBtn").disabled = !chk;
         }
 
         function authorizeQCTask() {
