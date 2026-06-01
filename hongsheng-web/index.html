@@ -6,6 +6,9 @@
     <title>鴻勝化學｜軟管對刷稽核系統 — 互動式教育訓練與模擬演練</title>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Firebase SDK (Compatibility version for easy integration via script tags) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --bg-dark: #0B0E14;
@@ -85,6 +88,12 @@
             font-weight: 700;
         }
 
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
         .mode-selector {
             display: flex;
             background-color: var(--bg-input);
@@ -109,6 +118,42 @@
             background-color: var(--blue);
             color: var(--text-white);
             box-shadow: 0 4px 12px rgba(47, 128, 237, 0.3);
+        }
+
+        /* Firebase Status Indicator */
+        .db-status-bar {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+        }
+
+        .db-status-bar:hover {
+            border-color: var(--blue);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-gray);
+        }
+
+        .status-dot.connected {
+            background-color: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+
+        .status-dot.local {
+            background-color: var(--gold);
+            box-shadow: 0 0 8px var(--gold);
         }
 
         /* Main Container */
@@ -635,6 +680,14 @@
             flex: 1;
         }
 
+        .qc-table-wrapper {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background-color: var(--bg-dark);
+        }
+
         .qc-table {
             width: 100%;
             border-collapse: collapse;
@@ -650,6 +703,9 @@
         .qc-table th {
             color: var(--text-gray);
             font-weight: 700;
+            background-color: var(--bg-card);
+            position: sticky;
+            top: 0;
         }
 
         .qc-table tbody tr {
@@ -662,7 +718,7 @@
         }
 
         .qc-table tbody tr.selected {
-            background-color: rgba(47, 128, 237, 0.05);
+            background-color: rgba(47, 128, 237, 0.1);
         }
 
         .status-badge {
@@ -675,6 +731,11 @@
         .status-badge.pending {
             background-color: rgba(212, 175, 55, 0.1);
             color: var(--gold);
+        }
+
+        .status-badge.pending_qc {
+            background-color: rgba(47, 128, 237, 0.1);
+            color: var(--blue);
         }
 
         .status-badge.released {
@@ -754,6 +815,44 @@
             flex: 1;
             animation: fadeIn 0.5s ease forwards;
         }
+
+        /* Firebase config drawer */
+        .db-drawer {
+            position: fixed;
+            top: 0;
+            right: -380px;
+            width: 380px;
+            height: 100vh;
+            background-color: var(--bg-card);
+            border-left: 2px solid var(--border-color);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            padding: 30px;
+            z-index: 999;
+            transition: right 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .db-drawer.open {
+            right: 0;
+        }
+
+        .db-drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-gray);
+            font-size: 24px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -766,11 +865,41 @@
                 <span>鴻勝化學｜智慧型現場安全控管系統</span>
             </div>
         </div>
-        <div class="mode-selector">
-            <button class="mode-btn active" onclick="switchMode('slides')">教學簡報模式</button>
-            <button class="mode-btn" onclick="switchMode('sim')">互動模擬演練</button>
+        <div class="header-controls">
+            <div class="db-status-bar" onclick="toggleDbDrawer()">
+                <div class="status-dot" id="dbStatusDot"></div>
+                <span id="dbStatusText">加載中...</span>
+            </div>
+            <div class="mode-selector">
+                <button class="mode-btn active" onclick="switchMode('slides')">教學簡報模式</button>
+                <button class="mode-btn" onclick="switchMode('sim')">互動模擬演練</button>
+            </div>
         </div>
     </header>
+
+    <!-- Firebase Connection Config Drawer -->
+    <div class="db-drawer" id="dbDrawer">
+        <div class="db-drawer-header">
+            <h3>🌐 Firebase 雲端連接設定</h3>
+            <button class="close-btn" onclick="toggleDbDrawer()">×</button>
+        </div>
+        <p style="font-size: 13px; color: var(--text-gray); line-height: 1.4;">
+            貼上您的 Firebase Web SDK 設定 JSON，將演練數據與雲端資料庫（Cloud Firestore）同步！
+        </p>
+        <div class="form-group">
+            <label for="dbConfigInput">JSON 貼上區</label>
+            <textarea id="dbConfigInput" class="form-control" style="height: 240px; font-family: monospace; font-size: 12px;" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "hongsheng-...",
+  "projectId": "hongsheng-...",
+  "storageBucket": "hongsheng-...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}'></textarea>
+        </div>
+        <button class="action-btn" onclick="saveFirebaseConfig()">儲存連線設定</button>
+        <button class="action-btn" style="background-color: var(--neon-red);" onclick="clearFirebaseConfig()">中斷並清除雲端設定</button>
+    </div>
 
     <main>
         <div class="container">
@@ -816,7 +945,7 @@
                                 <div class="terminal-body" id="termBody">
                                     <div class="terminal-big-icon">📱</div>
                                     <div class="terminal-title">請在右側完成人員登錄</div>
-                                    <div class="terminal-text">為落實稽核追蹤，必須先選取操作人員並建立櫃車任務。</div>
+                                    <div class="terminal-text">為落實安全稽核與軌跡存證，必須先在右方選擇操作員並輸入櫃號。</div>
                                 </div>
                                 <button class="terminal-footer-btn" id="termFooterBtn" disabled>等待右側資料設定</button>
                             </div>
@@ -835,6 +964,73 @@
     </main>
 
     <script>
+        // ==================== FIREBASE CONNECTOR ====================
+        let db = null;
+        let isFirebaseConnected = false;
+
+        function initFirebase() {
+            const statusDot = document.getElementById("dbStatusDot");
+            const statusText = document.getElementById("dbStatusText");
+            const configText = localStorage.getItem("firebase_config");
+
+            if (configText) {
+                try {
+                    const firebaseConfig = JSON.parse(configText);
+                    // Check if already initialized to prevent duplicate app errors
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(firebaseConfig);
+                    }
+                    db = firebase.firestore();
+                    isFirebaseConnected = true;
+                    statusDot.className = "status-dot connected";
+                    statusText.textContent = "🟢 雲端模式 (Firebase 連線)";
+                    document.getElementById("dbConfigInput").value = configText;
+                } catch (e) {
+                    console.error("Firebase initialization failed:", e);
+                    useLocalDatabaseFallback();
+                }
+            } else {
+                useLocalDatabaseFallback();
+            }
+        }
+
+        function useLocalDatabaseFallback() {
+            isFirebaseConnected = false;
+            db = null;
+            const statusDot = document.getElementById("dbStatusDot");
+            const statusText = document.getElementById("dbStatusText");
+            statusDot.className = "status-dot local";
+            statusText.textContent = "🟡 本地模式 (LocalStorage)";
+        }
+
+        function toggleDbDrawer() {
+            document.getElementById("dbDrawer").classList.toggle("open");
+        }
+
+        function saveFirebaseConfig() {
+            const configText = document.getElementById("dbConfigInput").value.trim();
+            if (!configText) return alert("請輸入有效的設定 JSON 物件！");
+            
+            try {
+                JSON.parse(configText); // Verify it is valid JSON
+                localStorage.setItem("firebase_config", configText);
+                initFirebase();
+                toggleDbDrawer();
+                alert("Firebase 連線設定成功！");
+                if (simState.step === 3) renderOpPanel(); // Refresh QC board
+            } catch (e) {
+                alert("JSON 語法錯誤，請確認貼上的內容格式是否正確！");
+            }
+        }
+
+        function clearFirebaseConfig() {
+            localStorage.removeItem("firebase_config");
+            useLocalDatabaseFallback();
+            toggleDbDrawer();
+            alert("已中斷 Firebase 連線，切換回本地 LocalStorage 運作！");
+            if (simState.step === 3) renderOpPanel(); // Refresh QC board
+        }
+
         // ==================== SLIDES DATA & CONTROLLER ====================
         const SLIDES = [
             {
@@ -1079,13 +1275,13 @@
         
         // Sim State variables
         let simState = {
-            step: 1, // 1: Login, 2: ScanSelect, 3: Scanning, 4: QC_View, 5: QC_Released, 6: Completed
+            step: 1, // 1: Login, 2: SOP/Scan, 3: QC Portal, 4: Complete
             operator: "",
             truckNo: "",
             scanType: "", // "correct" or "incorrect"
-            taskCreated: false,
-            termState: "welcome", // welcome, scanning, correct_match, incorrect_match, qc_authorized, complete
-            taskDatabase: [] // Mock database
+            termState: "welcome", // welcome, scanning, correct_match, incorrect_match, qc_portal, complete
+            currentTaskId: "",
+            activeTasks: [] // Used in local fallback mode
         };
 
         function initSimulator() {
@@ -1094,9 +1290,9 @@
                 operator: "",
                 truckNo: "",
                 scanType: "",
-                taskCreated: false,
                 termState: "welcome",
-                taskDatabase: []
+                currentTaskId: "",
+                activeTasks: JSON.parse(localStorage.getItem("local_tasks") || "[]")
             };
             renderTerminal();
             renderOpPanel();
@@ -1192,7 +1388,7 @@
                         • 作業櫃號：<b>${simState.truckNo}</b><br>
                         • 現場人員：<b>${simState.operator}</b><br>
                         • QC 授權人：<b>QC-09 稽核員</b><br>
-                        • 授權時間：<b>11:30:20 (系統存證)</b>
+                        • 授權時間：<b>即時安全授權放行完成</b>
                     </div>
                     <div class="terminal-text">卸料管路已解鎖，已完全符合教育訓練合規標準！</div>
                 `;
@@ -1257,41 +1453,39 @@
                 `;
             }
             else if (simState.step === 3) {
-                // QC Dashboard Portal
+                // Render QC dashboard (Either real-time Firestore or LocalStorage listener)
                 opPanel.innerHTML = `
                     <div class="sim-panel-title">
                         🛡️ QC 授權放行儀表板
                         <span class="sim-step-badge" style="background-color:var(--neon-green-glow); color:var(--neon-green);">QC 覆核審查</span>
                     </div>
                     <div class="qc-dashboard">
-                        <p style="font-size:13px;color:var(--text-gray);">請扮演 QC 稽核員。點選列表中剛才提交的任務，現場確認後刷識別證放行：</p>
-                        <table class="qc-table">
-                            <thead>
-                                <tr>
-                                    <th>櫃號</th>
-                                    <th>現場作業員</th>
-                                    <th>匹配代碼</th>
-                                    <th>對刷狀態</th>
-                                    <th>放行審查</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr class="selected" onclick="selectQCTask(this)">
-                                    <td><strong>${simState.truckNo}</strong></td>
-                                    <td>${simState.operator}</td>
-                                    <td>儲槽A / 軟管A</td>
-                                    <td><span class="status-badge pending">待稽核暫存</span></td>
-                                    <td><span style="color:var(--gold);font-weight:700;">● 待點擊</span></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <div id="qcActionArea" style="background-color:var(--bg-input); border:1px dashed var(--border-color); border-radius:12px; padding:20px; text-align:center; display:flex; flex-direction:column; gap:15px; margin-top:10px;">
-                            <div style="font-size:14px; font-weight:700;">當前覆核任務：櫃車 <strong>${simState.truckNo}</strong></div>
-                            <button class="action-btn" onclick="authorizeQCTask()" style="background-color:var(--gold); color:var(--bg-dark);">💳 掃描 QC 識別證，授權放行</button>
+                        <p style="font-size:13px;color:var(--text-gray);">點選列表中剛才提交的任務，現場覆核無誤後刷卡放行：</p>
+                        <div class="qc-table-wrapper">
+                            <table class="qc-table">
+                                <thead>
+                                    <tr>
+                                        <th>櫃號</th>
+                                        <th>現場作業員</th>
+                                        <th>匹配代碼</th>
+                                        <th>對刷狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="qcTaskTableBody">
+                                    <!-- Rendered dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="qcActionArea" style="background-color:var(--bg-input); border:1px dashed var(--border-color); border-radius:12px; padding:20px; text-align:center; display:none; flex-direction:column; gap:15px; margin-top:10px;">
+                            <div style="font-size:14px; font-weight:700;">當前覆核任務：櫃車 <strong id="qcSelectedTruckNo">-</strong></div>
+                            <button class="action-btn" onclick="authorizeQCTask()" style="background-color:var(--gold); color:var(--bg-dark); font-weight:900;">💳 掃描 QC 識別證，授權放行</button>
                             <div class="qc-stamp" id="qcStampBadge">已安全放行</div>
                         </div>
                     </div>
                 `;
+                
+                // Fetch tasks and render
+                loadQCTasks();
             }
             else if (simState.step === 4) {
                 // Completed! Show Checklist
@@ -1330,6 +1524,43 @@
             simState.operator = document.getElementById("opSelector").value;
             simState.truckNo = document.getElementById("truckInput").value.trim().toUpperCase();
             
+            // Create a unique Task ID
+            simState.currentTaskId = "TASK_" + Date.now();
+
+            // Create Task in Database (Firebase or LocalStorage)
+            const newTask = {
+                id: simState.currentTaskId,
+                operator: simState.operator,
+                truckNo: simState.truckNo,
+                manifoldCode: "儲槽A",
+                hoseCode: "",
+                status: "pending", // pending, pending_qc, released
+                scanResult: "",
+                createdTime: new Date().toISOString()
+            };
+
+            if (isFirebaseConnected && db) {
+                db.collection("hose_audit_tasks").doc(simState.currentTaskId).set(newTask)
+                .then(() => console.log("Task saved to Firebase Cloud!"))
+                .catch(e => console.error("Error saving task to Cloud:", e));
+            } else {
+                simState.activeTasks.push(newTask);
+                localStorage.setItem("local_tasks", JSON.stringify(simState.activeTasks));
+            }
+
+            // Real-time listener for this specific task to auto-react!
+            if (isFirebaseConnected && db) {
+                db.collection("hose_audit_tasks").doc(simState.currentTaskId).onSnapshot(doc => {
+                    const data = doc.data();
+                    if (data && data.status === "released" && simState.step === 2) {
+                        simState.step = 4;
+                        simState.termState = "complete";
+                        renderTerminal();
+                        renderOpPanel();
+                    }
+                });
+            }
+
             // Advance to Step 2
             simState.step = 2;
             simState.termState = "scanning";
@@ -1367,25 +1598,150 @@
                     beamBox.classList.add("red-alert");
                     simState.termState = "incorrect_match";
                     document.getElementById("submitFieldDataBtn").disabled = true;
+
+                    // Write alert block log to database (optional audit trail)
+                    updateTaskDatabase({
+                        hoseCode: "軟管B",
+                        scanResult: "mismatch_blocked"
+                    });
                 } else {
                     beamBox.classList.add("green-success");
                     simState.termState = "correct_match";
                     document.getElementById("submitFieldDataBtn").disabled = false;
+
+                    // Write match success to database
+                    updateTaskDatabase({
+                        hoseCode: "軟管A",
+                        scanResult: "match"
+                    });
                 }
                 renderTerminal();
             }, 1000);
         }
 
+        function updateTaskDatabase(updatedFields) {
+            if (isFirebaseConnected && db) {
+                db.collection("hose_audit_tasks").doc(simState.currentTaskId).update(updatedFields)
+                .catch(e => console.error("Error updating Cloud task:", e));
+            } else {
+                simState.activeTasks = simState.activeTasks.map(t => {
+                    if (t.id === simState.currentTaskId) {
+                        return { ...t, ...updatedFields };
+                    }
+                    return t;
+                });
+                localStorage.setItem("local_tasks", JSON.stringify(simState.activeTasks));
+            }
+        }
+
         function submitFieldData() {
+            updateTaskDatabase({ status: "pending_qc" });
             simState.step = 3;
             simState.termState = "qc_portal";
             renderTerminal();
             renderOpPanel();
         }
 
+        // QC Panel Load & Render
+        let selectedQcTaskId = "";
+
+        function loadQCTasks() {
+            const tbody = document.getElementById("qcTaskTableBody");
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">加載資料中...</td></tr>`;
+
+            if (isFirebaseConnected && db) {
+                // Real-time Firestore Sync!
+                db.collection("hose_audit_tasks").orderBy("createdTime", "desc").limit(10).onSnapshot(snapshot => {
+                    tbody.innerHTML = "";
+                    if (snapshot.empty) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-gray);">目前雲端無任何對刷任務，請先由左側建立。</td></tr>`;
+                        return;
+                    }
+                    snapshot.forEach(doc => {
+                        const task = doc.data();
+                        renderSingleQCTaskRow(tbody, task);
+                    });
+                });
+            } else {
+                // LocalStorage Fallback Load
+                tbody.innerHTML = "";
+                if (simState.activeTasks.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-gray);">目前本地無任何對刷任務，請先建立。</td></tr>`;
+                    return;
+                }
+                // Order descending by createdTime
+                const sorted = [...simState.activeTasks].sort((a,b) => new Date(b.createdTime) - new Date(a.createdTime));
+                sorted.forEach(task => {
+                    renderSingleQCTaskRow(tbody, task);
+                });
+            }
+        }
+
+        function renderSingleQCTaskRow(tbody, task) {
+            const tr = document.createElement("tr");
+            tr.dataset.id = task.id;
+            tr.dataset.truck = task.truckNo;
+            tr.onclick = function() { selectQCTask(this); };
+
+            let statusHTML = "";
+            if (task.status === "pending") {
+                statusHTML = `<span class="status-badge pending">作業中...</span>`;
+            } else if (task.status === "pending_qc") {
+                statusHTML = `<span class="status-badge pending_qc">待覆核</span>`;
+            } else if (task.status === "released") {
+                statusHTML = `<span class="status-badge released">已放行</span>`;
+            }
+
+            tr.innerHTML = `
+                <td><strong>${task.truckNo}</strong></td>
+                <td>${task.operator}</td>
+                <td>${task.manifoldCode || "儲槽A"} / ${task.hoseCode || "未完成對刷"}</td>
+                <td>${statusHTML}</td>
+            `;
+
+            tbody.appendChild(tr);
+        }
+
+        function selectQCTask(row) {
+            // Remove previous selection highlights
+            const rows = document.querySelectorAll("#qcTaskTableBody tr");
+            rows.forEach(r => r.classList.remove("selected"));
+
+            row.classList.add("selected");
+            selectedQcTaskId = row.dataset.id;
+
+            document.getElementById("qcSelectedTruckNo").textContent = row.dataset.truck;
+            document.getElementById("qcActionArea").style.display = "flex";
+            document.getElementById("qcStampBadge").classList.remove("show"); // Reset stamp
+        }
+
         function authorizeQCTask() {
+            if (!selectedQcTaskId) return;
+
             const stamp = document.getElementById("qcStampBadge");
             stamp.classList.add("show");
+
+            // Update database status to "released"
+            const updatedFields = {
+                status: "released",
+                qcAuthorizedBy: "QC-09 稽核員",
+                qcAuthorizedTime: new Date().toISOString()
+            };
+
+            if (isFirebaseConnected && db) {
+                db.collection("hose_audit_tasks").doc(selectedQcTaskId).update(updatedFields)
+                .then(() => console.log("Task authorized in Cloud!"))
+                .catch(e => console.error("Error authorizing Cloud task:", e));
+            } else {
+                simState.activeTasks = simState.activeTasks.map(t => {
+                    if (t.id === selectedQcTaskId) {
+                        return { ...t, ...updatedFields };
+                    }
+                    return t;
+                });
+                localStorage.setItem("local_tasks", JSON.stringify(simState.activeTasks));
+                loadQCTasks(); // Refresh table
+            }
 
             setTimeout(() => {
                 simState.step = 4;
@@ -1403,6 +1759,9 @@
             
             // Setup Simulator
             initSimulator();
+
+            // Initialize Cloud DB
+            initFirebase();
         };
     </script>
 </body>
