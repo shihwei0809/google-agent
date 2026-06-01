@@ -5,8 +5,8 @@
 專案名稱：GOOGLE AGENT (GOOGLE ANGET)
 專案用途：AntiGravity 懶人包 — 服務連接與工作流程設定
 主要工作目錄：g:\我的雲端硬碟\GOOGLE ANGET
-GitHub repo：無 (尚未初始化 Git 儲存庫)
-預設 branch：無 (尚未初始化 Git 儲存庫)
+GitHub repo：https://github.com/shihwei0809/google-agent
+預設 branch：main
 
 ## Obsidian 對應筆記
 
