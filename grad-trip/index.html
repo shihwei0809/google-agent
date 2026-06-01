@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>青春的足跡 — 五年級畢業旅行回憶錄</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&family=Noto+Serif+TC:wght@400;700;900&family=JetBrains+Mono:wght@300&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; background: #0A0A0A; color: #F5EFE2;
+    font-family: 'Noto Sans TC', sans-serif; overflow: hidden;
+  }
+  .stage {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  }
+  .beat {
+    position: absolute; inset: 0; opacity: 0;
+    transition: opacity 1.0s ease;
+  }
+  .beat.active { opacity: 1; }
+  .beat .img {
+    position: absolute; inset: 0; background-size: cover; background-position: center;
+    transform: scale(1.0);
+    transition: transform var(--dur, 10s) linear;
+  }
+  .beat.active .img { transform: scale(1.08); }
+  
+  /* 暗角遮罩 — 增添電影質感 */
+  .vignette {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 40%, rgba(0,0,0,0.65) 100%),
+      linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.65) 100%);
+  }
+
+  /* 溫馨文藝字卡 */
+  .card {
+    position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    text-align: center; padding: 0 10%;
+    font-family: 'Noto Serif TC', serif; font-weight: 900;
+    font-size: clamp(42px, 5.5vw, 84px); letter-spacing: 0.08em;
+    color: #F5EFE2; text-shadow: 0 4px 30px rgba(0,0,0,0.7);
+    opacity: 0; transform: translateY(calc(-50% + 20px));
+    transition: opacity 1.5s ease 0.5s, transform 1.5s ease 0.5s;
+    line-height: 1.4;
+  }
+  .beat.active .card { opacity: 1; transform: translateY(-50%); }
+
+  /* 旁白字幕 */
+  .subtitle {
+    position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%);
+    max-width: 80%; padding: 14px 28px; border-radius: 8px;
+    background: rgba(0,0,0,0.65); color: #FFFFFF;
+    font-family: 'Noto Sans TC', sans-serif; font-weight: 400;
+    font-size: clamp(20px, 2.2vw, 32px); line-height: 1.5; text-align: center;
+    opacity: 0; transition: opacity 0.8s ease 1.0s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .beat.active .subtitle { opacity: 1; }
+
+  /* 左上角編號 */
+  .chapter {
+    position: absolute; top: 28px; left: 32px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 300;
+    font-size: 14px; letter-spacing: 0.2em; color: rgba(245,239,226,0.6);
+    z-index: 10;
+  }
+
+  /* 細金進度條 */
+  .progress {
+    position: absolute; left: 0; bottom: 0; height: 3px; background: #E8B14A;
+    width: 0%; transition: width 0.2s linear; box-shadow: 0 0 8px rgba(232,177,74,0.6);
+    z-index: 11;
+  }
+
+  /* 啟動遮罩 */
+  .start-screen {
+    position: fixed; inset: 0; background: #0A0A0A; z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; gap: 32px;
+  }
+  .start-screen .title {
+    font-family: 'Noto Serif TC', serif; font-weight: 900;
+    font-size: clamp(40px, 6vw, 72px); color: #F5EFE2; letter-spacing: 0.1em;
+    text-align: center; line-height: 1.3;
+  }
+  .start-screen .sub {
+    font-family: 'Noto Sans TC', sans-serif; color: rgba(245,239,226,0.55); font-size: 18px;
+    letter-spacing: 0.15em;
+  }
+  .start-screen .play {
+    width: 90px; height: 90px; border: 2px solid #E8B14A; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; color: #E8B14A;
+    transition: all 0.3s ease;
+  }
+  .start-screen:hover .play { background: #E8B14A; color: #0A0A0A; }
+  .start-screen.hidden { display: none; }
+
+  /* 終點頁面的特殊發光特效 */
+  .beat[data-beat="11"] .card { color: #FFFFFF; text-shadow: 0 0 32px rgba(232,177,74,0.8); }
+</style>
+</head>
+<body>
+
+<div class="start-screen" id="startScreen">
+  <div class="title">五年級畢業旅行回憶錄<br><span style="font-size:32px;color:#E8B14A;font-weight:700;">— 青春的足跡 —</span></div>
+  <div class="play">
+    <svg width="24" height="28" viewBox="0 0 24 28"><path d="M2 2 L22 14 L2 26 Z" fill="currentColor"/></svg>
+  </div>
+  <div class="sub">點擊播放回憶錄 · 01:47</div>
+</div>
+
+<div class="stage" id="stage"></div>
+<div class="progress" id="progress"></div>
+
+<!-- 雙聲道音軌：BGM 背景音樂 + 旁白口白 -->
+<audio id="bgm" src="assets/audio/bgm.mp3" preload="auto" loop></audio>
+<audio id="narration" preload="auto"></audio>
+
+<script>
+const BEATS = [
+  { i: 1,  dur: 10.0, label: "01/11 — INTRO",       img: "dawn.png",      card: "在沒人看見的清晨",               sub: "在沒人看見的清晨，大巴已經靜候著我們。這是我們，小學五年級的畢業旅行。" },
+  { i: 2,  dur: 9.3,  label: "02/11 — DEPARTURE",   img: "bus.png",       card: "揮手告別，向夢想出發",           sub: "提著滿滿的行李，揮手告別爸媽。我們的笑臉，在晨光中肆意綻放。" },
+  { i: 3,  dur: 9.2,  label: "03/11 — ON THE WAY",  img: "highway.png",   card: "駛向藍天與青山",                 sub: "大巴緩緩駛上高速公路，兩旁的青山向後飛退，帶我們駛向夢想的遊樂園。" },
+  { i: 4,  dur: 9.5,  label: "04/11 — ARRIVAL",     img: "park.png",      card: "第一張大合照的青春",             sub: "終於抵達樂園的大門！大家笑著、鬧著，留下了第一張充滿朝氣的合照。" },
+  { i: 5,  dur: 9.6,  label: "05/11 — JOY RIDE",    img: "ride.png",      card: "風在耳邊呼嘯的旋律",             sub: "坐在旋轉木馬和雲霄飛車上，風在耳邊呼嘯，這一刻，是純粹的快樂與驚呼。" },
+  { i: 6,  dur: 10.1, label: "06/11 — DUSK FALL",   img: "camp_prep.png", card: "當夜幕緩緩降臨",                 sub: "隨著夜幕低垂，營火在草地上高高堆起。微涼的晚風中，期待在悄悄蔓延。" },
+  { i: 7,  dur: 10.0, label: "07/11 — CAMPFIRE",    img: "party.png",     card: "環繞烈火的溫暖歌聲",             sub: "手拉著手，圍繞著熊熊烈火唱歌跳舞。火光映紅了每一張真摯而無憂的臉龐。" },
+  { i: 8,  dur: 10.0, label: "08/11 — SPARKS",      img: "sparks.png",    card: "飛向星空的點點回憶",             sub: "營火的火星飛向浩瀚的星空，像繁星般耀眼。這個夜晚，註定會被永遠記得。" },
+  { i: 9,  dur: 10.0, label: "09/11 — NIGHT CHAT",  img: "hotel.png",     card: "床邊傾聽的小秘密",               sub: "回到旅館，穿上睡衣圍坐在床邊聊天。那些小秘密，在溫暖的燈光下流淌。" },
+  { i: 10, dur: 10.0, label: "10/11 — LAST DAY",    img: "packing.png",   card: "帶著回憶，收拾行囊",             sub: "第二天清晨，把行李重新收好。看著窗外的晨光，心中有一點小小的捨不得。" },
+  { i: 11, dur: 10.0, label: "11/11 — FOREVER",     img: "beach.png",     card: "這段青春，有你同行",             sub: "來到最後的沙灘，我們一起把帽子拋向天空。這段青春，有你同行，真好。" },
+];
+
+const TOTAL_DUR = BEATS.reduce((s, b) => s + b.dur, 0);
+const FADE_START = TOTAL_DUR - 6.0;  // 影片最後 6 秒音樂淡出
+
+const stage = document.getElementById('stage');
+const bgm = document.getElementById('bgm');
+const narr = document.getElementById('narration');
+const progress = document.getElementById('progress');
+const startScreen = document.getElementById('startScreen');
+
+// 動態建立 DOM 節點
+BEATS.forEach(b => {
+  const el = document.createElement('div');
+  el.className = 'beat';
+  el.dataset.beat = b.i;
+  el.style.setProperty('--dur', b.dur + 's');
+  el.innerHTML = `
+    <div class="img" style="background-image:url('assets/images/${b.img}')"></div>
+    <div class="vignette"></div>
+    <div class="chapter">${b.label}</div>
+    <div class="card">${b.card}</div>
+    ${b.sub ? `<div class="subtitle">${b.sub}</div>` : ''}
+  `;
+  stage.appendChild(el);
+});
+
+const beatEls = [...document.querySelectorAll('.beat')];
+
+let currentSlide = 0;
+let slideStartTime = 0;
+let totalElapsed = 0;
+let rafId = null;
+
+function showSlide(i) {
+  beatEls.forEach((el, idx) => el.classList.toggle('active', idx === i));
+  const b = BEATS[i];
+  
+  // 撥放口白並進行音樂壓低 (Ducking)
+  narr.src = `assets/narration/page-${String(b.i).padStart(2,'0')}.mp3`;
+  narr.play().catch(()=>{});
+  
+  // 當旁白播放時，將背景 BGM 壓低至 30%
+  bgm.volume = 0.28;
+  
+  // 旁白播完後，將背景 BGM 緩慢拉回 80% (除最後淡出外)
+  narr.onended = () => {
+    const t = (Date.now() - slideStartTime) / 1000 + totalElapsed;
+    if (t < FADE_START) {
+      bgm.volume = 0.75;
+    }
+  };
+}
+
+function animateTimeline() {
+  const elapsed = (Date.now() - slideStartTime) / 1000;
+  const b = BEATS[currentSlide];
+
+  // 更新細金進度條
+  const totalPercent = ((totalElapsed + elapsed) / TOTAL_DUR) * 100;
+  progress.style.width = Math.min(totalPercent, 100) + '%';
+
+  // 結尾背景音樂與旁白全局淡出
+  const currentTotalTime = totalElapsed + elapsed;
+  if (currentTotalTime >= FADE_START && currentTotalTime < TOTAL_DUR) {
+    const fadeFactor = 1 - (currentTotalTime - FADE_START) / (TOTAL_DUR - FADE_START);
+    bgm.volume = Math.max(0, 0.75 * fadeFactor);
+  }
+
+  // 檢查是否該切換到下一個 slide
+  if (elapsed >= b.dur) {
+    totalElapsed += b.dur;
+    currentSlide++;
+    if (currentSlide < BEATS.length) {
+      slideStartTime = Date.now();
+      showSlide(currentSlide);
+    } else {
+      cancelAnimationFrame(rafId);
+      bgm.pause();
+      bgm.volume = 0;
+      narr.pause();
+      progress.style.width = '100%';
+      return;
+    }
+  }
+  rafId = requestAnimationFrame(animateTimeline);
+}
+
+// 支援自動無遮罩渲染 (Playwright 錄製時使用)
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('render') === 'true') {
+  startScreen.classList.add('hidden');
+  bgm.volume = 0.75;
+  bgm.play().catch(()=>{});
+  slideStartTime = Date.now();
+  showSlide(0);
+  animateTimeline();
+} else {
+  startScreen.addEventListener('click', () => {
+    startScreen.classList.add('hidden');
+    bgm.volume = 0.75;
+    bgm.play().catch(()=>{});
+    slideStartTime = Date.now();
+    showSlide(0);
+    animateTimeline();
+  });
+}
+</script>
+</body>
+</html>
