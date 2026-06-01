@@ -28,3 +28,12 @@ Obsidian vault：G:\我的雲端硬碟\Secondbrain
 - 不要 commit NotebookLM 個人匯出清單或筆記本 ID 清單。
 - 不要自動納入無關 git 變更。
 - 不要儲存學生真名；正式資料只用班級代號與座號。
+
+## 技能安裝與登入狀態 (更新時間：2026-06-01)
+
+- **NotebookLM**：已登入 (shihwei0809@gmail.com)
+- **GitHub**：已登入 (shihwei0809)
+- **Firebase**：已安裝環境 / 待登入
+- **Obsidian**：已安裝並連接 (`mcpvault.cmd` 已就緒，連結路徑：`G:\我的雲端硬碟\Secondbrain`)
+- **規則檔**：`ANTIGRAVITY.md` 已建立且同步
+- **Git 狀態**：乾淨 (Clean)
