@@ -1,0 +1,18 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "*.py",
+      "*.ps1",
+      "*.pptx",
+      "clasp-netlify-mcp-guide/**",
+      "claude-html-slide-builder/**",
+      "claude-video-specs/**",
+      "grad-trip/**",
+      "isotank-training/**"
+    ]
+  }
+}
