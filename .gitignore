@@ -30,3 +30,9 @@ yarn-error.log*
 ~$*.pptx
 ~$*.docx
 ~$*.xlsx
+
+# Local nested git folders (ignored to prevent broken git submodules)
+clasp-netlify-mcp-guide/
+claude-html-slide-builder/
+claude-video-specs/
+
