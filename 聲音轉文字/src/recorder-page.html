@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>NoType Recorder</title></head>
+<body>
+<script>
+  let mediaStream = null;
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let isRecording = false;
+
+  let audioContext = null;
+  let analyser = null;
+  let maxVolume = 0;
+
+  async function initMicrophone() {
+    if (mediaStream) return;
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        sampleRate: 16000,
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
+    });
+  }
+
+  // 開始錄音
+  window.recorderBridge.onStartRecording(async () => {
+    try {
+      await initMicrophone();
+      audioChunks = [];
+      isRecording = true;
+
+      // 建立音量監測
+      if (!audioContext) {
+        audioContext = new AudioContext();
+      }
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+      
+      const source = audioContext.createMediaStreamSource(mediaStream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+
+      maxVolume = 0;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Float32Array(bufferLength);
+
+      function checkVolume() {
+        if (!isRecording) return;
+        analyser.getFloatTimeDomainData(dataArray);
+        let peak = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const val = Math.abs(dataArray[i]);
+          if (val > peak) {
+            peak = val;
+          }
+        }
+        if (peak > maxVolume) {
+          maxVolume = peak;
+        }
+        requestAnimationFrame(checkVolume);
+      }
+      
+      requestAnimationFrame(checkVolume);
+
+      // 使用 WebM Opus 壓縮格式錄製，大幅縮小檔案體積
+      mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'audio/webm;codecs=opus' });
+      
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunks.push(e.data);
+        }
+      };
+
+      const startTime = Date.now();
+
+      mediaRecorder.onstop = async () => {
+        const duration = Date.now() - startTime;
+        console.log('[recorder] 錄音長度:', duration, 'ms, 最大振幅:', maxVolume);
+        
+        // 判定門檻：錄音小於 400ms 或最大振幅低於 0.02 (代表僅有背景雜音且無說話)
+        if (duration < 400 || maxVolume < 0.02) {
+          console.log('[recorder] 錄音過短或音量過低，判定為無發音，跳過傳輸');
+          window.recorderBridge.sendAudioData(null, 'silent');
+          return;
+        }
+
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const arrayBuffer = await blob.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // 直接傳遞 Uint8Array，避免使用 Array.from() 產生巨大的 IPC 序列化開銷
+        window.recorderBridge.sendAudioData(uint8Array, 'audio/webm');
+      };
+
+      mediaRecorder.start();
+      console.log('[recorder] 開始 MediaRecorder (audio/webm;codecs=opus) 錄音與音量監測');
+    } catch (err) {
+      console.error('錄音啟動失敗:', err);
+    }
+  });
+
+  // 停止錄音
+  window.recorderBridge.onStopRecording(() => {
+    if (!isRecording || !mediaRecorder) return;
+    isRecording = false;
+    mediaRecorder.stop();
+    console.log('[recorder] 停止 MediaRecorder 錄音');
+  });
+</script>
+</body>
+</html>
