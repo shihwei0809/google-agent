@@ -963,6 +963,47 @@ body {
   width: 100%;
 }
 
+.image-upload-control {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.image-upload-control .upload-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-radius: var(--border-radius-md);
+  transition: all var(--transition-speed);
+}
+
+.image-upload-control .upload-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.upload-progress-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--primary-color);
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--border-radius-md);
+  padding: 8px 12px;
+}
+
+.upload-progress-container i {
+  color: var(--primary-color);
+}
+
 .img-preview-container {
   position: relative;
   border-radius: var(--border-radius-md);

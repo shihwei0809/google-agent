@@ -19,6 +19,19 @@ function doPost(e) {
     
     // Parse to validate JSON formatting
     var parsed = JSON.parse(rawData);
+    
+    // 1. Handle Image Upload Action
+    if (parsed && parsed.action === "uploadImage") {
+      if (!parsed.base64 || !parsed.fileName || !parsed.mimeType) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Missing image upload parameters" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var fileUrl = saveUploadedFile(parsed.base64, parsed.fileName, parsed.mimeType);
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", url: fileUrl }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 2. Handle Board Sync Actions
     if (parsed && typeof parsed.boards === "object" && typeof parsed.activeDate === "string") {
       saveBoardData(rawData);
       return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data synchronized successfully" }))
@@ -94,4 +107,42 @@ function saveBoardData(jsonString) {
   } catch (e) {
     // If running as standalone script, active spreadsheet might not exist, which is fine
   }
+}
+
+// --------------------------------------------------------------------------
+// Image Upload Helper (Google Drive Storage)
+// --------------------------------------------------------------------------
+
+function saveUploadedFile(base64Data, fileName, mimeType) {
+  var folderName = "品保課留言板圖片";
+  var folders = DriveApp.getFoldersByName(folderName);
+  var folder;
+  
+  if (folders.hasNext()) {
+    folder = folders.next();
+  } else {
+    folder = DriveApp.createFolder(folderName);
+  }
+  
+  // Strip potential data URL prefix (e.g. "data:image/png;base64,")
+  var base64Clean = base64Data;
+  if (base64Data.indexOf(",") !== -1) {
+    base64Clean = base64Data.split(",")[1];
+  }
+  
+  var decoded = Utilities.base64Decode(base64Clean);
+  var blob = Utilities.newBlob(decoded, mimeType, fileName);
+  var file = folder.createFile(blob);
+  
+  // Set sharing permission so anyone with the link can view it (essential for <img> tag display)
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  
+  // Construct a direct image display URL (using uc?export=view&id=FILE_ID)
+  return "https://drive.google.com/uc?export=view&id=" + file.getId();
+}
+
+// Dummy function for administrator to trigger DriveApp authorization dialog in editor UI
+function authorizeDrive() {
+  var root = DriveApp.getRootFolder();
+  Logger.log("Drive authorized. Root folder name: " + root.getName());
 }

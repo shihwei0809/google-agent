@@ -212,6 +212,9 @@ const cardTitleInput = document.getElementById("cardTitleInput");
 const cardContentInput = document.getElementById("cardContentInput");
 const cardLinkInput = document.getElementById("cardLinkInput");
 const cardImgInput = document.getElementById("cardImgInput");
+const triggerUploadBtn = document.getElementById("triggerUploadBtn");
+const cardImgFileInput = document.getElementById("cardImgFileInput");
+const uploadProgressContainer = document.getElementById("uploadProgressContainer");
 const imgPreviewContainer = document.getElementById("imgPreviewContainer");
 const formImgPreview = document.getElementById("formImgPreview");
 const removeImgPreviewBtn = document.getElementById("removeImgPreviewBtn");
@@ -1251,6 +1254,10 @@ function openCardFormModal(colId, cardId = null) {
   cardForm.reset();
   imgPreviewContainer.style.display = "none";
   formImgPreview.src = "";
+  if (uploadProgressContainer) uploadProgressContainer.style.display = "none";
+  if (triggerUploadBtn) triggerUploadBtn.disabled = false;
+  if (document.getElementById("saveCardBtn")) document.getElementById("saveCardBtn").disabled = false;
+  if (cardImgFileInput) cardImgFileInput.value = "";
   
   columnIdInput.value = colId;
   cardIdInput.value = cardId || "";
@@ -1712,6 +1719,93 @@ function setupEventListeners() {
     imgPreviewContainer.style.display = "none";
     formImgPreview.src = "";
   });
+  
+  // Trigger file upload selection
+  if (triggerUploadBtn && cardImgFileInput) {
+    triggerUploadBtn.addEventListener("click", () => {
+      cardImgFileInput.click();
+    });
+  }
+
+  // Handle file selection and upload to Google Drive via GAS
+  if (cardImgFileInput) {
+    cardImgFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        showToast("只能上傳圖片檔案", "danger");
+        cardImgFileInput.value = "";
+        return;
+      }
+
+      // Check size (limit to 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        showToast("圖片大小不能超過 10MB", "danger");
+        cardImgFileInput.value = "";
+        return;
+      }
+
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const base64Data = event.target.result;
+        
+        // Update UI to show loading state
+        if (uploadProgressContainer) uploadProgressContainer.style.display = "flex";
+        if (triggerUploadBtn) triggerUploadBtn.disabled = true;
+        
+        const saveCardBtn = document.getElementById("saveCardBtn");
+        if (saveCardBtn) saveCardBtn.disabled = true; // prevent saving while uploading
+        
+        const payload = {
+          action: "uploadImage",
+          base64: base64Data,
+          fileName: file.name,
+          mimeType: file.type
+        };
+
+        // POST to GAS Web App URL
+        fetch(GAS_API_URL, {
+          method: "POST",
+          mode: "cors",
+          body: JSON.stringify(payload)
+        })
+          .then(res => {
+            if (!res.ok) throw new Error("Upload response not OK");
+            return res.json();
+          })
+          .then(data => {
+            if (data && data.status === "success" && data.url) {
+              // Update input and preview
+              cardImgInput.value = data.url;
+              formImgPreview.src = data.url;
+              imgPreviewContainer.style.display = "block";
+              showToast("圖片已成功上傳至雲端硬碟！");
+            } else {
+              throw new Error((data && data.message) || "Upload failed");
+            }
+          })
+          .catch(err => {
+            console.error("Image upload error:", err);
+            showToast("圖片上傳失敗，請確認網路與授權是否正常", "danger");
+          })
+          .finally(() => {
+            // Reset UI states
+            if (uploadProgressContainer) uploadProgressContainer.style.display = "none";
+            if (triggerUploadBtn) triggerUploadBtn.disabled = false;
+            if (saveCardBtn) saveCardBtn.disabled = false;
+            cardImgFileInput.value = ""; // clear input
+          });
+      };
+      reader.onerror = function() {
+        showToast("讀取檔案失敗", "danger");
+        cardImgFileInput.value = "";
+      };
+      reader.readAsDataURL(file);
+    });
+  }
   
   // Background selection list
   document.querySelectorAll(".bg-option-item").forEach(item => {
