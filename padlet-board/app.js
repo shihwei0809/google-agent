@@ -620,6 +620,22 @@ function copyShareLink() {
     });
 }
 
+// Google Drive URL Auto-converter helper
+function convertDriveLink(url) {
+  if (!url) return url;
+  // Match standard share link: https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+  const match1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (match1 && match1[1]) {
+    return `https://drive.google.com/uc?export=view&id=${match1[1]}`;
+  }
+  // Match open/id link: https://drive.google.com/open?id=FILE_ID
+  const match2 = url.match(/id=([a-zA-Z0-9_-]+)/);
+  if (match2 && match2[1] && url.includes("drive.google.com")) {
+    return `https://drive.google.com/uc?export=view&id=${match2[1]}`;
+  }
+  return url;
+}
+
 // ==========================================================================
 // Main Lifecycle Operations
 // ==========================================================================
@@ -1676,7 +1692,12 @@ function setupEventListeners() {
   
   // Custom image preview in Card Modal
   cardImgInput.addEventListener("input", (e) => {
-    const url = e.target.value.trim();
+    let url = e.target.value.trim();
+    const converted = convertDriveLink(url);
+    if (converted !== url) {
+      cardImgInput.value = converted;
+      url = converted;
+    }
     if (url) {
       formImgPreview.src = url;
       imgPreviewContainer.style.display = "block";
