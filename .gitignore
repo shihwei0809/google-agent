@@ -36,3 +36,5 @@ clasp-netlify-mcp-guide/
 claude-html-slide-builder/
 claude-video-specs/
 
+# Netlify
+.netlify/
