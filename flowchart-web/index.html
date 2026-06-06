@@ -64,9 +64,12 @@
     <header class="top-bar">
       <div class="top-bar-left">
         <h2 id="topBarTitle">01. I P A 流程圖</h2>
-        <span class="badge" id="totalCapacityBadge" style="background-color: rgba(251, 191, 36, 0.15); color: var(--color-process); font-weight: 700; font-size: 0.8rem; padding: 4px 8px; border-radius: 6px;">共 2850 KL</span>
+        <span class="badge" id="totalCapacityBadge" style="background-color: rgba(251, 191, 36, 0.15); color: var(--color-process); font-weight: 700; font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; white-space: nowrap;">共 2850 KL</span>
         <button class="control-btn" id="renameTabBtn" style="display: none; padding: 4px 8px; font-size: 0.75rem; margin-left: 8px; border-color: var(--color-process); color: var(--color-process); background: transparent;">
           <span>📝 改名</span>
+        </button>
+        <button class="control-btn" id="editTotalCapacityBtn" style="display: none; padding: 4px 8px; font-size: 0.75rem; margin-left: 4px; border-color: var(--color-process); color: var(--color-process); background: transparent;">
+          <span>📊 修改產能描述</span>
         </button>
         <button class="control-btn" id="deleteTabBtn" style="display: none; padding: 4px 8px; font-size: 0.75rem; margin-left: 4px; border-color: var(--color-offgrade); color: var(--color-offgrade); background: transparent;">
           <span>❌ 刪除</span>
@@ -405,7 +408,7 @@
   </div>
 
   <!-- Liquid Level Recording Modal -->
-  <div id="liquidLevelModal" class="modal-overlay" style="display:none;">
+  <div id="liquidLevelModal" class="modal-overlay">
     <div class="modal-box" style="max-width:480px;">
       <div class="modal-header">
         <h3>📊 液位記錄</h3>
@@ -439,6 +442,10 @@
         <div style="display:flex; gap:8px; margin-top:12px;">
           <button id="saveLiquidLevelBtn" class="action-btn action-btn-primary" style="flex:1;">💾 儲存記錄</button>
           <button id="viewLiquidLevelBtn" class="action-btn" style="flex:1;">📋 查看紀錄</button>
+        </div>
+        <div style="margin-top:8px;">
+          <button id="importDailyReportBtn" class="action-btn" style="width:100%; background:rgba(99, 102, 241, 0.15); border:1.5px solid var(--color-accent); color:var(--color-accent); font-weight:700;">📥 匯入 Excel/CSV 日報表</button>
+          <input type="file" id="importDailyReportFile" accept=".xlsx,.xlsm,.csv" style="display: none;" />
         </div>
       </div>
       <!-- Records Table -->

@@ -1356,10 +1356,8 @@ function applyLayoutAndReload() {
     currentTab = Object.keys(flowchartData)[0] || "ipa";
   }
   
-  updateResetButtonVisibility();
-  renderFlowchart();
-  updateConnectionEditorUI();
   initNav(); // Re-initialize navigation to reflect any dynamic tabs
+  switchTab(currentTab);
 }
 
 // Load from Firebase
@@ -1408,6 +1406,7 @@ if (editModeBtn) {
     
     if (addTabSidebarContainer) addTabSidebarContainer.style.display = isEditingMode ? "block" : "none";
     if (renameTabBtn) renameTabBtn.style.display = isEditingMode ? "inline-flex" : "none";
+    if (editTotalCapacityBtn) editTotalCapacityBtn.style.display = isEditingMode ? "inline-flex" : "none";
     if (deleteTabBtn) deleteTabBtn.style.display = isEditingMode ? "inline-flex" : "none";
     
     if (isEditingMode) {
@@ -1703,6 +1702,7 @@ if (clearConnPtsBtn) {
 // Dynamic tab management listeners
 const addTabBtn = document.getElementById("addTabBtn");
 const renameTabBtn = document.getElementById("renameTabBtn");
+const editTotalCapacityBtn = document.getElementById("editTotalCapacityBtn");
 const deleteTabBtn = document.getElementById("deleteTabBtn");
 
 if (addTabBtn) {
@@ -1755,6 +1755,19 @@ if (renameTabBtn) {
     saveCurrentLayoutToLocal();
     applyLayoutAndReload();
     alert("🎉 流程名稱修改成功！");
+  };
+}
+
+if (editTotalCapacityBtn) {
+  editTotalCapacityBtn.onclick = () => {
+    const data = flowchartData[currentTab];
+    const newCapacity = prompt("請輸入新的總產能描述：", data.totalCapacity);
+    if (newCapacity === null) return;
+    
+    data.totalCapacity = newCapacity.trim();
+    saveCurrentLayoutToLocal();
+    applyLayoutAndReload();
+    alert("🎉 總產能描述修改成功！");
   };
 }
 
@@ -2281,7 +2294,11 @@ function getLiquidRecords() {
   catch (e) { return []; }
 }
 function saveLiquidRecords(records) {
-  localStorage.setItem(LL_STORAGE_KEY, JSON.stringify(records));
+  try {
+    localStorage.setItem(LL_STORAGE_KEY, JSON.stringify(records));
+  } catch (e) {
+    console.error("Failed to save liquid records to localStorage", e);
+  }
 }
 
 function getTabOptions() {
@@ -2367,66 +2384,414 @@ function exportLLRecordsCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
-// 液位記錄 Modal 初始化
+// 液位記錄 - 全域功能與動態事件綁定
+if (document.getElementById('llDate')) {
+  document.getElementById('llDate').value = new Date().toISOString().slice(0, 10);
+}
 {
-  var _llModal = document.getElementById('liquidLevelModal');
-  var _llOpenBtn = document.getElementById('openLiquidLevelBtn');
-  var _llCloseBtn = document.getElementById('closeLiquidLevelModal');
-  var _llTabSel = document.getElementById('llTabSelect');
-  var _llSaveBtn = document.getElementById('saveLiquidLevelBtn');
-  var _llViewBtn = document.getElementById('viewLiquidLevelBtn');
-  var _llExportBtn = document.getElementById('exportLiquidLevelBtn');
-  var _llDateInput = document.getElementById('llDate');
-  if (_llOpenBtn && _llModal) {
-    if (_llDateInput) _llDateInput.value = new Date().toISOString().slice(0, 10);
-    _llOpenBtn.onclick = function() {
+  const openBtn = document.getElementById("openLiquidLevelBtn");
+  const closeBtn = document.getElementById("closeLiquidLevelModal");
+  const saveBtn = document.getElementById("saveLiquidLevelBtn");
+  const viewBtn = document.getElementById("viewLiquidLevelBtn");
+  const exportBtn = document.getElementById("exportLiquidLevelBtn");
+  const modal = document.getElementById("liquidLevelModal");
+  const tabSel = document.getElementById("llTabSelect");
+
+  if (openBtn && modal) {
+    openBtn.onclick = () => {
       populateLLTabSelect();
-      var area = document.getElementById('llRecordsArea');
-      if (area) area.style.display = 'none';
-      _llModal.style.display = 'flex';
+      const area = document.getElementById("llRecordsArea");
+      if (area) area.style.display = "none";
+      modal.classList.add("active");
     };
-    if (_llCloseBtn) _llCloseBtn.onclick = function() { _llModal.style.display = 'none'; };
-    _llModal.addEventListener('click', function(e) { if (e.target === _llModal) _llModal.style.display = 'none'; });
-    if (_llTabSel) _llTabSel.addEventListener('change', function() { populateLLTankSelect(_llTabSel.value); });
-    if (_llSaveBtn) _llSaveBtn.onclick = function() {
-      var tabKey = _llTabSel ? _llTabSel.value : '';
-      var tankSel = document.getElementById('llTankSelect');
-      var tankId = tankSel ? tankSel.value : '';
-      var date = _llDateInput ? _llDateInput.value : '';
-      var levelEl = document.getElementById('llValue');
-      var volEl = document.getElementById('llVolume');
-      var noteEl = document.getElementById('llNote');
-      var level = levelEl ? levelEl.value : '';
+  }
+  if (closeBtn && modal) {
+    closeBtn.onclick = () => {
+      modal.classList.remove("active");
+    };
+  }
+  if (modal) {
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.classList.remove("active");
+    };
+  }
+  if (saveBtn) {
+    saveBtn.onclick = () => {
+      const tabSelEl = document.getElementById('llTabSelect');
+      const tankSel = document.getElementById('llTankSelect');
+      const llDateEl = document.getElementById('llDate');
+      const levelEl = document.getElementById('llValue');
+      const volEl = document.getElementById('llVolume');
+      const noteEl = document.getElementById('llNote');
+      const tabKey = tabSelEl ? tabSelEl.value : '';
+      const tankId = tankSel ? tankSel.value : '';
+      const date = llDateEl ? llDateEl.value : '';
+      const level = levelEl ? levelEl.value : '';
       if (!tankId) { alert('請選擇槽體'); return; }
       if (!date) { alert('請填寫日期'); return; }
       if (level === '') { alert('請輸入液位 (%)'); return; }
-      var names = getTabOptions();
-      var record = {
+      const names = getTabOptions();
+      const record = {
         timestamp: Date.now(), date: date, tabKey: tabKey,
         tabName: (names[tabKey] || tabKey),
         tankId: tankId, level: parseFloat(level),
         volume: (volEl && volEl.value) ? parseFloat(volEl.value) : '',
         note: noteEl ? noteEl.value.trim() : ''
       };
-      var records = getLiquidRecords();
+      const records = getLiquidRecords();
       records.push(record);
       saveLiquidRecords(records);
       if (tankSel) tankSel.value = '';
       if (levelEl) levelEl.value = '';
       if (volEl) volEl.value = '';
       if (noteEl) noteEl.value = '';
-      alert('已儲存 ' + tankId + ' 液位 ' + level + '%');
+      alert('✅ 已儲存 ' + tankId + ' 液位 ' + level + '%');
       renderLLRecords();
     };
-    if (_llViewBtn) _llViewBtn.onclick = function() {
-      var area = document.getElementById('llRecordsArea');
+  }
+  if (viewBtn) {
+    viewBtn.onclick = () => {
+      const area = document.getElementById('llRecordsArea');
       if (!area) return;
       if (area.style.display === 'none') renderLLRecords();
       else area.style.display = 'none';
     };
-    if (_llExportBtn) _llExportBtn.onclick = exportLLRecordsCSV;
+  }
+  if (exportBtn) {
+    exportBtn.onclick = () => {
+      exportLLRecordsCSV();
+    };
+  }
+  if (tabSel) {
+    tabSel.addEventListener("change", () => {
+      populateLLTankSelect(tabSel.value);
+    });
+  }
+  
+  const importReportBtn = document.getElementById("importDailyReportBtn");
+  const importReportFile = document.getElementById("importDailyReportFile");
+  if (importReportBtn && importReportFile) {
+    importReportBtn.onclick = () => {
+      importReportFile.click();
+    };
+    importReportFile.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      importLiquidLevelExcel(file);
+      importReportFile.value = ''; // reset
+    };
   }
 }
+
+// 載入 SheetJS 函式庫 (用於讀取 Excel)
+function loadSheetJS() {
+  return new Promise((resolve, reject) => {
+    if (window.XLSX) {
+      resolve(window.XLSX);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    script.onload = () => resolve(window.XLSX);
+    script.onerror = () => reject(new Error("無法載入 Excel 解析庫，請確認網路連線。"));
+    document.head.appendChild(script);
+  });
+}
+
+// 簡單的 CSV 解析器
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  return lines.map(line => {
+    const cells = [];
+    let insideQuote = false;
+    let currentCell = '';
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"') {
+        insideQuote = !insideQuote;
+      } else if (char === ',' && !insideQuote) {
+        cells.push(currentCell.trim());
+        currentCell = '';
+      } else {
+        currentCell += char;
+      }
+    }
+    cells.push(currentCell.trim());
+    return cells;
+  });
+}
+
+// 匯入 Excel/CSV 日報表並寫入儲槽與歷史紀錄
+// 匯入 Excel/CSV 日報表並寫入儲槽與歷史紀錄
+async function importLiquidLevelExcel(file) {
+  const processRows = async (rows, dateStr) => {
+    let currentBlockTanks = null;
+    let importCount = 0;
+    const newRecords = [];
+    
+    // 用於記錄每個槽體在該報表中的最新液位 (key: tankId, value: { fill, nodeRef })
+    // 以便稍後一次性更新 flowchartData 的 node.fill，避免 8:00 與 16:00 覆蓋順序混亂
+    const latestTankLevels = {};
+
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      if (!row || row.length === 0) continue;
+
+      // 1. 識別儲槽 ID 標題列：檢查該列是否有包含 TK-xxx 等儲槽名稱 (非重複)
+      const tankCols = [];
+      for (let c = 0; c < row.length; c++) {
+        const val = row[c];
+        if (val !== undefined && val !== null && val !== '') {
+          const strVal = String(val).trim();
+          const match = strVal.match(/\b(TK-?\d+[A-Z]?)\b/i);
+          if (match) {
+            tankCols.push({ id: match[1].toUpperCase(), col: c });
+          }
+        }
+      }
+
+      // 檢查是否具有 3 個以上不重複的儲槽 ID，以過濾掉一般描述列或密度表
+      const uniqueIds = new Set(tankCols.map(t => t.id));
+      if (uniqueIds.size >= 3) {
+        currentBlockTanks = tankCols;
+        continue;
+      }
+
+      // 2. 識別液位數值列：當前已找到儲槽標題，且該列前幾欄包含 "液位" 字眼
+      if (currentBlockTanks) {
+        let isLevelRow = false;
+        let levelColIdx = -1;
+        // 通常在 Col 1 或 Col 2
+        for (const c_idx of [1, 2]) {
+          if (c_idx < row.length && row[c_idx] !== undefined && row[c_idx] !== null) {
+            if (String(row[c_idx]).includes('液位')) {
+              isLevelRow = true;
+              levelColIdx = c_idx;
+              break;
+            }
+          }
+        }
+
+        if (isLevelRow) {
+          // 時間通常在液位標籤的左邊一欄
+          const timeColIdx = levelColIdx - 1;
+          const timeVal = (timeColIdx >= 0 && timeColIdx < row.length) ? row[timeColIdx] : null;
+          let timeStr = "08:00"; // 預設
+          if (timeVal !== undefined && timeVal !== null) {
+            let rawTimeStr = String(timeVal).trim();
+            if (rawTimeStr.includes('16:00') || rawTimeStr.includes('16:00:00')) {
+              timeStr = "16:00";
+            } else if (rawTimeStr.includes('08:00') || rawTimeStr.includes('8:00') || rawTimeStr.includes('08:00:00')) {
+              timeStr = "08:00";
+            } else {
+              const timeMatch = rawTimeStr.match(/(\d{1,2}):(\d{2})/);
+              if (timeMatch) {
+                timeStr = `${timeMatch[1].padStart(2, '0')}:${timeMatch[2]}`;
+              } else if (rawTimeStr && rawTimeStr !== 'None') {
+                timeStr = rawTimeStr;
+              }
+            }
+          }
+
+          // 解析該列中每個儲槽對應的液位數值
+          for (const tank of currentBlockTanks) {
+            const col = tank.col;
+            if (col < row.length) {
+              const val = row[col];
+              if (val !== undefined && val !== null && val !== '') {
+                const numValue = parseFloat(val);
+                if (!isNaN(numValue)) {
+                  let fillPercent = 0;
+                  if (numValue <= 100) {
+                    fillPercent = numValue; // 直接是百分比
+                  } else {
+                    fillPercent = (numValue / 6000) * 100; // 毫米 (mm) 轉百分比
+                  }
+                  fillPercent = Math.min(100, Math.max(0, Math.round(fillPercent * 10) / 10));
+
+                  // 在 flowchartData 的所有分頁中尋找對應的儲槽節點
+                  let matchedNode = null;
+                  let matchedTabKey = null;
+                  for (const tabKey of Object.keys(flowchartData)) {
+                    const node = flowchartData[tabKey].nodes.find(n => n.id === tank.id);
+                    if (node) {
+                      matchedNode = node;
+                      matchedTabKey = tabKey;
+                      break;
+                    }
+                  }
+
+                  if (matchedNode) {
+                    let capacityKL = parseFloat(matchedNode.capacity);
+                    if (isNaN(capacityKL)) capacityKL = 100;
+                    const volumeKL = Math.round((fillPercent / 100) * capacityKL * 10) / 10;
+
+                    // 記錄至歷史液位紀錄
+                    const record = {
+                      timestamp: Date.now() + importCount,
+                      date: dateStr,
+                      tabKey: matchedTabKey,
+                      tabName: flowchartData[matchedTabKey].title.split(" (")[0],
+                      tankId: tank.id,
+                      level: fillPercent,
+                      volume: volumeKL,
+                      note: `${timeStr} (日報表自動匯入)`
+                    };
+                    newRecords.push(record);
+                    importCount++;
+
+                    // 儲存最新液位（16:00 會覆蓋 08:00，或以時間序較後者優先）
+                    const existingUpdate = latestTankLevels[tank.id];
+                    if (!existingUpdate || timeStr === "16:00" || (existingUpdate.timeLabel !== "16:00" && timeStr > existingUpdate.timeLabel)) {
+                      latestTankLevels[tank.id] = {
+                        fill: fillPercent,
+                        timeLabel: timeStr,
+                        nodeRef: matchedNode
+                      };
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    if (importCount > 0) {
+      // 一次性更新所有匹配儲槽的 fill 屬性
+      Object.keys(latestTankLevels).forEach(tankId => {
+        const update = latestTankLevels[tankId];
+        update.nodeRef.fill = update.fill;
+      });
+
+      // 儲存至本地歷史紀錄
+      const existing = getLiquidRecords();
+      saveLiquidRecords([...existing, ...newRecords]);
+      
+      // 儲存 layout 至本地
+      saveCurrentLayoutToLocal();
+      
+      // 重新加載與渲染
+      applyLayoutAndReload();
+
+      // 若為管理者且 Firebase 啟用，自動同步至雲端
+      if (isManager && typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+        try {
+          const db = firebase.firestore();
+          await db.collection('flowcharts').doc('current_layout').set({
+            dataset: flowchartData,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedBy: "manager"
+          });
+          cloudLayoutData = JSON.parse(JSON.stringify(flowchartData));
+          alert(`🎉 成功從日報表匯入並自動更新 ${Object.keys(latestTankLevels).length} 個相對應儲槽（共 ${importCount} 筆數據）！\n☁️ 數據已自動同步發布至雲端資料庫！`);
+        } catch (cloudErr) {
+          console.error("Firestore auto-sync error:", cloudErr);
+          alert(`🎉 成功從日報表匯入並自動更新 ${Object.keys(latestTankLevels).length} 個相對應儲槽（共 ${importCount} 筆數據）！\n⚠️ 但雲端發布同步失敗：${cloudErr.message}`);
+        }
+      } else {
+        alert(`🎉 成功從日報表匯入並自動寫入 ${Object.keys(latestTankLevels).length} 個相對應儲槽（共 ${importCount} 筆數據）！\n⚠️ 此資料已儲存於您的本機。若要更新至雲端讓所有人都看見，請點擊「管理登入」發布同步。`);
+      }
+    } else {
+      alert("⚠️ 未在檔案中匹配到任何現有的儲槽 ID，請確認檔案內容格式。");
+    }
+  };
+
+  try {
+    // 預設日期為今天
+    let importDate = new Date().toISOString().slice(0, 10);
+    let year = new Date().getFullYear();
+    const filenameMatch = file.name.match(/\b(20\d{2})\b/);
+    if (filenameMatch) {
+      year = parseInt(filenameMatch[1], 10);
+    }
+
+    if (file.name.endsWith('.csv')) {
+      // 嘗試從檔名解析日期 (如 6.4 或 6_4 或 06-04)
+      const fileDateMatch = file.name.match(/(\d{1,2})[._-](\d{1,2})/);
+      if (fileDateMatch) {
+        const mm = parseInt(fileDateMatch[1], 10);
+        const dd = parseInt(fileDateMatch[2], 10);
+        if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+          importDate = `${year}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+        }
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const text = e.target.result;
+          const rows = parseCSV(text);
+          await processRows(rows, importDate);
+        } catch (err) {
+          alert("❌ 解析 CSV 檔案失敗：" + err.message);
+        }
+      };
+      reader.readAsText(file, 'utf-8');
+    } else {
+      const XLSX = await loadSheetJS();
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          
+          // 偵測日期分頁
+          const dateSheets = workbook.SheetNames.filter(name => /^\d+(\.\d+)?$/.test(name.trim()));
+          let targetSheetName = workbook.SheetNames[0];
+          
+          if (dateSheets.length > 0) {
+            const latestSheet = dateSheets[dateSheets.length - 1];
+            const userChoice = prompt(
+              `偵測到此日報表包含以下日期的數據分頁：\n${dateSheets.join(', ')}\n\n系統預設將匯入最新日期 [${latestSheet}] 的數據。\n若要匯入其他日期，請在下方輸入該分頁名稱（例如：6.4），否則直接點擊「確定」繼續：`,
+              latestSheet
+            );
+            if (userChoice === null) return; // 使用者取消匯入
+            if (userChoice.trim()) {
+              targetSheetName = userChoice.trim();
+            }
+          }
+
+          const sheet = workbook.Sheets[targetSheetName];
+          if (!sheet) {
+            alert(`❌ 找不到分頁 [${targetSheetName}]，匯入取消。`);
+            return;
+          }
+
+          // 從分頁名稱（如 6.4）更新 importDate
+          const dateParts = targetSheetName.split('.');
+          if (dateParts.length === 2) {
+            const mm = parseInt(dateParts[0], 10);
+            const dd = parseInt(dateParts[1], 10);
+            if (!isNaN(mm) && !isNaN(dd)) {
+              importDate = `${year}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+            }
+          } else {
+            // 如果分頁名稱不是 M.D，試試從檔名解析日期
+            const fileDateMatch = file.name.match(/(\d{1,2})[._-](\d{1,2})/);
+            if (fileDateMatch) {
+              const mm = parseInt(fileDateMatch[1], 10);
+              const dd = parseInt(fileDateMatch[2], 10);
+              if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+                importDate = `${year}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+              }
+            }
+          }
+
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+          await processRows(rows, importDate);
+        } catch (err) {
+          alert("❌ 解析 Excel 檔案失敗：" + err.message);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  } catch (err) {
+    alert("❌ 處理檔案失敗：" + err.message);
+  }
+}
+
 
 function scrollToBottom() {
 
@@ -2642,7 +3007,13 @@ async function sendChatMessageToGroq(messageText) {
     const tabData = flowchartData[tabKey];
     stateSummary.f[tabKey] = {
       t: tabData.title.split(" (")[0],
-      g: tabData.groups.map(g => ({ id: g.id, n: g.name })),
+      tc: tabData.totalCapacity,
+      g: tabData.groups.map(g => ({ 
+        id: g.id, 
+        n: g.name, 
+        c: g.capacity,
+        hasInput: (tabKey === "cpne3" && (g.id === "check-group" || g.id === "finish-group")) || g.id.startsWith("process-block")
+      })),
       n: tabData.nodes.map(n => {
         const gMatch = tabData.groups.find(g => 
           !g.id.startsWith("process-block") && 
@@ -2670,10 +3041,12 @@ ${JSON.stringify(stateSummary)}
 - f: 全站所有分頁 (flowcharts)
 - c: 當前分頁 ID (currentTab)，如 "ipa"
 - t: 分頁標題 (title)
+- tc: 該分頁的總產能/總容量 (totalCapacity)
 - g: 該分頁的群組列表 (groups)
 - n: 該分頁的槽體/節點列表 (nodes)
 - c: 該分頁的管道連線列表 (connections)
-- 在群組/槽體中：n 代表名稱 (name)，c 代表容量 (capacity)，t 代表類別 (type: raw/process/finish/offgrade)，f 代表液位百分比 (fill)，g 代表所屬群組名稱 (group name)
+- 在群組中：n 代表名稱 (name)，c 代表容量/產能 (capacity)，hasInput 代表是否在畫布上具有可編輯的「輸入產能」輸入框 (boolean)
+- 在槽體中：n 代表名稱 (name)，c 代表容量 (capacity)，t 代表類別 (type: raw/process/finish/offgrade)，f 代表液位百分比 (fill)，g 代表所屬群組名稱 (group name)
 - 在連線中：f 代表起點 (from)，t 代表終點 (to)，l 代表標籤 (label)
 
 使用者可以向你詢問關於全站任何分頁、槽體或管線的問題，或是下達修改/新增指令。
@@ -2686,6 +3059,9 @@ ${JSON.stringify(stateSummary)}
 6. 新增分頁/流程圖 (add_tab): data 格式 { key, title, use_template }。其中 key 建議格式為 "flow_" + 數字 (例如 "flow_123" 或隨機)，title 為分頁標題 (例如 "10. IPHQS6與S7流程圖")，use_template 為布林值 (是否預設建立原料、製程、成品、待驗、下腳料等 5 個群組，預設為 true)。
 7. 修改分頁名稱 (rename_tab): data 格式 { title }，目標分頁由 "tab" 指定。
 8. 刪除分頁/流程圖 (delete_tab): data 格式 {}，目標分頁由 "tab" 指定。
+9. 輸入群組產能 (input_group_capacity): data 格式 { id, capacity }。當使用者說要在某個群組/製程的「輸入產能」輸入框中輸入或新增產能數值時（例如「幫我輸入成品 CPNE3 的產能為 1300」或「製程輸入產能 1200」），請呼叫此 action。此操作會將數值填入畫面上對應的輸入框中，不會修改分頁的總產能描述。
+10. 更新群組屬性 (update_group): data 格式 { id, name, capacity }。當要修改群組的名稱，或是修改沒有輸入框的群組的靜態容量文字時，請呼叫此 action。
+11. 更新分頁屬性 (update_tab): data 格式 { title, totalCapacity }，目標分頁由 "tab" 指定。當使用者說要修改整個產品流程圖的總產能描述或名稱時，請呼叫此 action。
 
 對於 actions 中的每一個操作，你都必須指定目標分頁，例如：
 {
@@ -2988,6 +3364,88 @@ function executeAIActions(actions) {
         break;
       }
       
+      case 'input_group_capacity': {
+        const { id, capacity } = action.data || {};
+        const group = data.groups.find(g => g.id === id);
+        if (group) {
+          const inputKey = `${targetTab}_${id}`;
+          window.capacityInputs[inputKey] = capacity;
+          localStorage.setItem('flowchart_capacity_inputs', JSON.stringify(window.capacityInputs));
+          logs.push(`[${flowchartData[targetTab].title.split(" (")[0]}] ✏️ 成功設定群組「${group.name}」輸入產能為：${capacity}`);
+          layoutUpdated = true;
+          shouldSwitchTab = targetTab;
+        } else {
+          logs.push(`❌ 設定輸入產能失敗：找不到 ID "${id}" 的群組`);
+        }
+        break;
+      }
+      
+      case 'update_group': {
+        const { id, name, capacity } = action.data || {};
+        const group = data.groups.find(g => g.id === id);
+        if (group) {
+          if (name !== undefined) group.name = name;
+          if (capacity !== undefined) group.capacity = capacity;
+          logs.push(`[${flowchartData[targetTab].title.split(" (")[0]}] ✏️ 成功更新群組：${id}`);
+          layoutUpdated = true;
+          shouldSwitchTab = targetTab;
+        } else {
+          logs.push(`❌ 更新群組失敗：找不到 ID "${id}" 的群組`);
+        }
+        break;
+      }
+      
+      case 'update_tab': {
+        const { title, totalCapacity } = action.data || {};
+        if (title !== undefined) {
+          const oldTitle = data.title;
+          data.title = title.trim();
+          logs.push(`🎉 成功將分頁「${oldTitle}」更名為：「${data.title}」`);
+          layoutUpdated = true;
+          needReloadAll = true;
+        }
+        if (totalCapacity !== undefined) {
+          data.totalCapacity = totalCapacity;
+          logs.push(`🎉 成功將分頁「${data.title}」總產能更新為：「${totalCapacity}」`);
+          layoutUpdated = true;
+          needReloadAll = true;
+        }
+        break;
+      }
+      
+      case 'update_group': {
+        const { id, name, capacity } = action.data || {};
+        const group = data.groups.find(g => g.id === id);
+        if (group) {
+          if (name !== undefined) group.name = name;
+          if (capacity !== undefined) group.capacity = capacity;
+          logs.push(`[${flowchartData[targetTab].title.split(" (")[0]}] ✏️ 成功更新群組：${id}`);
+          layoutUpdated = true;
+          shouldSwitchTab = targetTab;
+        } else {
+          logs.push(`❌ 更新群組失敗：找不到 ID "${id}" 的群組`);
+        }
+        break;
+      }
+      
+      case 'update_tab': {
+        const { title, totalCapacity } = action.data || {};
+        if (title !== undefined) {
+          const oldTitle = data.title;
+          data.title = title.trim();
+          logs.push(`🎉 成功將分頁「${oldTitle}」更名為：「${data.title}」`);
+          layoutUpdated = true;
+          needReloadAll = true;
+        }
+        if (totalCapacity !== undefined) {
+          data.totalCapacity = totalCapacity;
+          logs.push(`🎉 成功將分頁「${data.title}」總產能更新為：「${totalCapacity}」`);
+          layoutUpdated = true;
+          needReloadAll = true;
+        }
+        break;
+      }
+      
       default:
         logs.push(`⚠️ 未知操作類型：${action.type}`);
     }
@@ -3036,7 +3494,13 @@ async function sendChatMessageToGemini(messageText) {
     const tabData = flowchartData[tabKey];
     stateSummary.f[tabKey] = {
       t: tabData.title.split(" (")[0],
-      g: tabData.groups.map(g => ({ id: g.id, n: g.name })),
+      tc: tabData.totalCapacity,
+      g: tabData.groups.map(g => ({ 
+        id: g.id, 
+        n: g.name, 
+        c: g.capacity,
+        hasInput: (tabKey === "cpne3" && (g.id === "check-group" || g.id === "finish-group")) || g.id.startsWith("process-block")
+      })),
       n: tabData.nodes.map(n => {
         const gMatch = tabData.groups.find(g => 
           !g.id.startsWith("process-block") && 
@@ -3064,10 +3528,12 @@ ${JSON.stringify(stateSummary)}
 - f: 全站所有分頁 (flowcharts)
 - c: 當前分頁 ID (currentTab)，如 "ipa"
 - t: 分頁標題 (title)
+- tc: 該分頁的總產能/總容量 (totalCapacity)
 - g: 該分頁的群組列表 (groups)
 - n: 該分頁的槽體/節點列表 (nodes)
 - c: 該分頁的管道連線列表 (connections)
-- 在群組/槽體中：n 代表名稱 (name)，c 代表容量 (capacity)，t 代表類別 (type: raw/process/finish/offgrade)，f 代表液位百分比 (fill)，g 代表所屬群組名稱 (group name)
+- 在群組中：n 代表名稱 (name)，c 代表容量/產能 (capacity)，hasInput 代表是否在畫布上具有可編輯的「輸入產能」輸入框 (boolean)
+- 在槽體中：n 代表名稱 (name)，c 代表容量 (capacity)，t 代表類別 (type: raw/process/finish/offgrade)，f 代表液位百分比 (fill)，g 代表所屬群組名稱 (group name)
 - 在連線中：f 代表起點 (from)，t 代表終點 (to)，l 代表標籤 (label)
 
 使用者可以向你詢問關於全站任何分頁、槽體或管線的問題，或是下達修改/新增指令。
@@ -3080,6 +3546,9 @@ ${JSON.stringify(stateSummary)}
 6. 新增分頁/流程圖 (add_tab): data 格式 { key, title, use_template }。其中 key 建議格式為 "flow_" + 數字 (例如 "flow_123" 或隨機)，title 為分頁標題 (例如 "10. IPHQS6與S7流程圖")，use_template 為布林值 (是否預設建立原料、製程、成品、待驗、下腳料等 5 個群組，預設為 true)。
 7. 修改分頁名稱 (rename_tab): data 格式 { title }，目標分頁由 "tab" 指定。
 8. 刪除分頁/流程圖 (delete_tab): data 格式 {}，目標分頁由 "tab" 指定。
+9. 輸入群組產能 (input_group_capacity): data 格式 { id, capacity }。當使用者說要在某個群組/製程的「輸入產能」輸入框中輸入或新增產能數值時（例如「幫我輸入成品 CPNE3 的產能為 1300」或「製程輸入產能 1200」），請呼叫此 action。此操作會將數值填入畫面上對應的輸入框中，不會修改分頁的總產能描述。
+10. 更新群組屬性 (update_group): data 格式 { id, name, capacity }。當要修改群組的名稱，或是修改沒有輸入框的群組的靜態容量文字時，請呼叫此 action。
+11. 更新分頁屬性 (update_tab): data 格式 { title, totalCapacity }，目標分頁由 "tab" 指定。當使用者說要修改整個產品流程圖的總產能描述或名稱時，請呼叫此 action。
 
 對於 actions 中的每一個操作，你都必須指定目標分頁，例如：
 {

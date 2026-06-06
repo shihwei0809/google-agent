@@ -174,35 +174,32 @@ body {
 }
 
 .top-bar {
-  height: 70px;
+  min-height: 70px;
+  height: auto;
   border-bottom: 1px solid var(--border-subtle);
-  padding: 0 24px;
+  padding: 10px 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   background-color: rgba(15, 19, 26, 0.4);
   backdrop-filter: blur(10px);
-  overflow: hidden;
+  flex-wrap: wrap;
 }
 
 .top-bar-left {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 6px 12px;
+  gap: 8px;
   min-width: 0;
-  flex: 1 1 auto;
-  max-width: 420px;
-  overflow: hidden;
+  flex: 1;
 }
 
 .top-bar-left h2 {
   font-size: 1.1rem;
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
   max-width: 100%;
 }
 
