@@ -2182,15 +2182,72 @@ if (saveAiSettingsBtn) {
   };
 }
 
+const clearAiChatHistoryBtn = document.getElementById("clearAiChatHistoryBtn");
+if (clearAiChatHistoryBtn) {
+  clearAiChatHistoryBtn.onclick = () => {
+    if (confirm("確定要清除所有對話紀錄嗎？")) {
+      chatHistory = [];
+      localStorage.removeItem('flowchart_chat_history');
+      if (aiMessageList) {
+        aiMessageList.innerHTML = `
+          <div class="ai-message assistant">
+            <div class="ai-bubble">
+              您好！我是您的 <strong>HS-AI 流程圖助理</strong>。您可以：
+              <ul style="margin-left: 16px; margin-top: 4px; line-height: 1.5;">
+                <li>詢問目前的槽體狀態（如：「目前有哪些成品槽？」）</li>
+                <li>叫我操作流程圖（如：「幫我新增一個 150 KL 的成品槽，編號 TK-999，並從 check-group-ipa 連接過去」）</li>
+              </ul>
+              請點擊上方 ⚙️ 圖示設定您的 Groq API 金鑰，或直接輸入文字使用模擬 Demo 模式測試！
+            </div>
+          </div>
+        `;
+      }
+      alert("🎉 對話紀錄已成功清除！");
+      aiSettingsPanel.classList.remove("active");
+    }
+  };
+}
+
 function scrollToBottom() {
   if (aiMessageList) {
     aiMessageList.scrollTop = aiMessageList.scrollHeight;
   }
 }
 
-// Render a chat message bubble
-function appendMessageBubble(sender, text, isActionLog = false) {
+let chatHistory = [];
+
+function saveChatHistory() {
+  try {
+    localStorage.setItem('flowchart_chat_history', JSON.stringify(chatHistory));
+  } catch (e) {
+    console.error("Failed to save chat history", e);
+  }
+}
+
+function loadChatHistory() {
   if (!aiMessageList) return;
+  try {
+    const saved = localStorage.getItem('flowchart_chat_history');
+    if (saved) {
+      aiMessageList.innerHTML = "";
+      chatHistory = JSON.parse(saved);
+      chatHistory.forEach(msg => {
+        appendMessageBubble(msg.sender, msg.text, msg.isActionLog, false);
+      });
+    }
+  } catch (e) {
+    console.error("Failed to load chat history", e);
+  }
+}
+
+// Render a chat message bubble
+function appendMessageBubble(sender, text, isActionLog = false, shouldSave = true) {
+  if (!aiMessageList) return;
+  
+  if (shouldSave) {
+    chatHistory.push({ sender, text, isActionLog });
+    saveChatHistory();
+  }
   
   if (isActionLog) {
     const logEl = document.createElement("div");
@@ -2927,3 +2984,4 @@ if (aiChatInput) {
 // App Entry
 initNav();
 initFirebaseAndLoad();
+loadChatHistory();
