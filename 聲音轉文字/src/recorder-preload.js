@@ -10,4 +10,7 @@ contextBridge.exposeInMainWorld('recorderBridge', {
   sendAudioData: (buffer, mimeType) => {
     ipcRenderer.send('audio-data', buffer, mimeType);
   },
+  sendVolume: (volume) => {
+    ipcRenderer.send('volume-data', volume);
+  },
 });

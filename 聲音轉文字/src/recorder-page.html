@@ -61,6 +61,8 @@
         if (peak > maxVolume) {
           maxVolume = peak;
         }
+        // 實時將振幅傳送到主行程
+        window.recorderBridge.sendVolume(peak);
         requestAnimationFrame(checkVolume);
       }
       

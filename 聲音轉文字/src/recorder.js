@@ -1,17 +1,27 @@
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
 let overlayWindow = null;
 
+// 監聽並轉發實時音量數據給懸浮視窗
+ipcMain.on('volume-data', (_event, volume) => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send('update-volume', volume);
+  }
+});
+
 // 建立狀態浮動視窗
 function createOverlay() {
   if (overlayWindow) return overlayWindow;
 
+  const winWidth = 280;
+  const winHeight = 50;
+
   overlayWindow = new BrowserWindow({
-    width: 200,
-    height: 60,
+    width: winWidth,
+    height: winHeight,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -31,7 +41,12 @@ function createOverlay() {
   const { screen } = require('electron');
   const display = screen.getPrimaryDisplay();
   const { width, height } = display.workAreaSize;
-  overlayWindow.setPosition(width - 220, height - 80);
+  
+  // 置於螢幕底部正中央，距離底部約 40 像素
+  overlayWindow.setPosition(
+    Math.round((width - winWidth) / 2),
+    Math.round(height - winHeight - 40)
+  );
 
   overlayWindow.on('closed', () => {
     overlayWindow = null;
