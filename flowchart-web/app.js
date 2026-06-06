@@ -754,6 +754,14 @@ function renderFlowchart() {
           <text x="${g.x + 22}" y="${g.y + 5}" fill="${highlightStroke}" font-size="12.5" font-weight="800">${g.name}</text>
           <text x="${g.x + g.w - 18}" y="${g.y + 22}" fill="var(--text-secondary)" font-size="10.5" font-weight="700" text-anchor="end">${g.capacity}</text>
           ${extraInputs}
+          ${isSelected ? `
+          <!-- Resize Handle (bottom-right corner) -->
+          <rect class="svg-resize-handle" data-id="${g.id}" data-type="group-resize"
+            x="${g.x + g.w - 14}" y="${g.y + g.h - 14}" width="14" height="14" rx="3"
+            fill="var(--color-accent)" opacity="0.85" style="cursor:se-resize;" />
+          <path d="M${g.x+g.w-10} ${g.y+g.h-3} L${g.x+g.w-3} ${g.y+g.h-3} L${g.x+g.w-3} ${g.y+g.h-10}"
+            stroke="white" stroke-width="1.5" fill="none" pointer-events="none" />
+          ` : ''}
         </g>
       `;
     }
@@ -1082,6 +1090,8 @@ let dragStartMouseX = 0;
 let dragStartMouseY = 0;
 let dragStartItemX = 0;
 let dragStartItemY = 0;
+let dragStartItemW = 0;
+let dragStartItemH = 0;
 
 // Deep copy of original flowchart data for layout resetting
 const originalFlowchartData = JSON.parse(JSON.stringify(flowchartData));
@@ -1860,6 +1870,7 @@ canvasContainer.addEventListener('mousedown', (e) => {
   const pipeEl = e.target.closest('.svg-pipeline-clickable');
   const handleEl = e.target.closest('.svg-conn-handle');
   const labelEl = e.target.closest('.svg-conn-label') || e.target.closest('.svg-conn-label-bg');
+  const resizeEl = e.target.closest('.svg-resize-handle');
   
   const data = flowchartData[currentTab];
   
@@ -1975,6 +1986,24 @@ canvasContainer.addEventListener('mousedown', (e) => {
     return;
   }
   
+  // Check resize handle first (before group drag)
+  if (resizeEl) {
+    e.preventDefault();
+    const id = resizeEl.getAttribute('data-id');
+    dragItem = data.groups.find(g => g.id === id);
+    dragType = 'group-resize';
+    selectedItem = { type: 'group', id: id };
+    if (dragItem) {
+      dragStartMouseX = e.clientX;
+      dragStartMouseY = e.clientY;
+      dragStartItemW = dragItem.w;
+      dragStartItemH = dragItem.h;
+    }
+    updateSelectedNodeUI();
+    renderFlowchart();
+    return;
+  }
+
   let targetEl = nodeEl || groupEl;
   if (!targetEl) {
     selectedItem = null;
@@ -2030,6 +2059,15 @@ window.addEventListener('mousemove', (e) => {
     if (dragItem.x !== newX || dragItem.y !== newY) {
       dragItem.x = newX;
       dragItem.y = newY;
+      renderFlowchart();
+    }
+  } else if (dragType === 'group-resize') {
+    const minW = 60, minH = 40;
+    const newW = Math.max(minW, Math.round((dragStartItemW + dx) / 5) * 5);
+    const newH = Math.max(minH, Math.round((dragStartItemH + dy) / 5) * 5);
+    if (dragItem.w !== newW || dragItem.h !== newH) {
+      dragItem.w = newW;
+      dragItem.h = newH;
       renderFlowchart();
     }
   } else if (dragType === 'group') {
