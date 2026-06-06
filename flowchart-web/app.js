@@ -3169,6 +3169,9 @@ ${JSON.stringify(stateSummary)}
 
   if (!response.ok) {
     const errText = await response.text();
+    if (response.status === 429) {
+      throw new Error("QUOTA_EXCEEDED");
+    }
     throw new Error(`Groq API 錯誤 (${response.status}): ${errText}`);
   }
 
@@ -3661,6 +3664,9 @@ ${JSON.stringify(stateSummary)}
 
   if (!response.ok) {
     const errText = await response.text();
+    if (response.status === 429) {
+      throw new Error("QUOTA_EXCEEDED");
+    }
     throw new Error(`Gemini API 錯誤 (${response.status}): ${errText}`);
   }
 
@@ -3714,8 +3720,12 @@ async function handleSendAiMessage() {
     }
   } catch (err) {
     removeAiLoading(loadingEl);
-    appendMessageBubble("assistant", `❌ 發生錯誤：${err.message}`);
-    console.error(err);
+    if (err.message === "QUOTA_EXCEEDED") {
+      appendMessageBubble("assistant", "⚠️ **AI 每日使用額度已達上限**\n\n今日的 API 免費配額已用完，Eshine-AI 暫時無法回應。\n\n**解決方式：**\n- 明天額度自動重置後即可繼續使用。\n- 或請至 [Google AI Studio](https://aistudio.google.com/) 開啟付費方案，即可無限制使用。");
+    } else {
+      appendMessageBubble("assistant", `❌ 發生錯誤：${err.message}`);
+      console.error(err);
+    }
   } finally {
     aiChatInput.disabled = false;
     sendAiMessageBtn.disabled = false;
