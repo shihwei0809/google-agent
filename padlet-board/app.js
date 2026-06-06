@@ -1990,7 +1990,7 @@ function setupEventListeners() {
 // AI Assistant Core Logic (Gemini API Integration)
 // ==========================================================================
 
-const AI_SYSTEM_INSTRUCTION = `你是一個化學工廠品保/品管（QA/QC）與 ISO 9001 系統的專家。你的名字叫「AI品保助理」。
+const AI_SYSTEM_INSTRUCTION = `你是一個化學工廠品保/品管（QA/QC）與 ISO 9001 系統的專家。你的名字叫「小鴻」。
 你熟悉鴻勝化學的品質管理流程，包括格外品、久滯品、稽核巡檢、客訴改善對策（CAR）以及 5-Why 分析。
 請使用繁體中文（zh-TW）回答。請使用專業、嚴謹但友善的語氣。
 你的回答中如果包含項目符號，請使用 Markdown 格式（例如 -項目）。
@@ -2319,7 +2319,7 @@ function appendChatMessage(sender, text) {
 
   const metaSpan = document.createElement("span");
   metaSpan.className = "ai-message-meta";
-  metaSpan.innerText = sender === "user" ? "您" : "AI品保助理";
+  metaSpan.innerText = sender === "user" ? "您" : "小鴻";
 
   const bubbleDiv = document.createElement("div");
   bubbleDiv.className = "ai-message-bubble";
@@ -2359,7 +2359,7 @@ async function handleSendAiMessage(customText = null) {
   const typingDiv = document.createElement("div");
   typingDiv.className = "ai-message assistant typing-indicator-msg";
   typingDiv.innerHTML = `
-    <span class="ai-message-meta">AI品保助理</span>
+    <span class="ai-message-meta">小鴻</span>
     <div class="ai-message-bubble" style="padding: 10px 14px;">
       <div class="ai-typing-indicator">
         <div class="ai-typing-dot"></div>
@@ -2460,7 +2460,7 @@ async function runCardDiagnosis(colId, cardId) {
     if (!card.comments) card.comments = [];
     
     card.comments.push({
-      author: "🤖 AI品保顧問",
+      author: "🤖 小鴻",
       body: diagnosisResult,
       timestamp: Date.now()
     });
