@@ -1266,6 +1266,7 @@ function updateResetButtonVisibility() {
 // Update Sync Button text and style
 function updateSyncButtonUI() {
   const syncCloudBtn = document.getElementById("syncCloudBtn");
+  const logoutManagerBtn = document.getElementById("logoutManagerBtn");
   if (!syncCloudBtn) return;
   
   if (isManager) {
@@ -1273,11 +1274,13 @@ function updateSyncButtonUI() {
     syncCloudBtn.style.background = "rgba(52, 211, 153, 0.1)";
     syncCloudBtn.style.borderColor = "var(--color-finish)";
     syncCloudBtn.style.color = "var(--color-finish)";
+    if (logoutManagerBtn) logoutManagerBtn.style.display = "inline-flex";
   } else {
     syncCloudBtn.innerHTML = "<span>🔐 管理登入</span>";
     syncCloudBtn.style.background = "rgba(56, 189, 248, 0.1)";
     syncCloudBtn.style.borderColor = "var(--color-raw)";
     syncCloudBtn.style.color = "var(--color-raw)";
+    if (logoutManagerBtn) logoutManagerBtn.style.display = "none";
   }
 }
 
@@ -1488,6 +1491,21 @@ if (syncCloudBtn) {
           alert("❌ 同步失敗：" + err.message);
         }
       }
+    }
+  };
+}
+
+const logoutManagerBtn = document.getElementById("logoutManagerBtn");
+if (logoutManagerBtn) {
+  logoutManagerBtn.onclick = () => {
+    if (confirm("確定要登出管理者權限嗎？")) {
+      isManager = false;
+      localStorage.removeItem('flowchart_is_manager');
+      updateSyncButtonUI();
+      if (isEditingMode && editModeBtn) {
+        editModeBtn.click(); // 登出時自動關閉編輯模式
+      }
+      alert("🔒 已安全登出管理者權限。");
     }
   };
 }
