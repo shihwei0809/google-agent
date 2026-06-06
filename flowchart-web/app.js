@@ -2405,15 +2405,18 @@ ${JSON.stringify(stateSummary)}
 3. 新增管線/連線 (add_connection): data 格式 { from, to, label }。from 與 to 必須為現有的節點 ID 或群組 ID。
 4. 刪除管線/連線 (delete_connection): data 格式 { from, to }。
 5. 更新槽體屬性 (update_node): data 格式 { id, name, capacity, type, fill }。
+6. 新增分頁/流程圖 (add_tab): data 格式 { key, title, use_template }。其中 key 建議格式為 "flow_" + 數字 (例如 "flow_123" 或隨機)，title 為分頁標題 (例如 "10. IPHQS6與S7流程圖")，use_template 為布林值 (是否預設建立原料、製程、成品、待驗、下腳料等 5 個群組，預設為 true)。
+7. 修改分頁名稱 (rename_tab): data 格式 { title }，目標分頁由 "tab" 指定。
+8. 刪除分頁/流程圖 (delete_tab): data 格式 {}，目標分頁由 "tab" 指定。
 
 對於 actions 中的每一個操作，你都必須指定目標分頁，例如：
 {
   "response": "在此用自然語言（繁體中文）回答使用者的問題，或是描述你剛剛執行了哪些流程圖的編輯操作。",
   "actions": [
-    { "type": "add_node", "tab": "eg", "data": { "id": "TK-999", "name": "新成品槽", "capacity": "100 KL", "type": "finish" } }
+    { "type": "add_tab", "data": { "key": "flow_iphqs6s7", "title": "10. IPHQS6與S7流程圖", "use_template": true } }
   ]
 }
-其中 "tab" 欄位為目標分頁 ID（可選：ipa, eg, nmp, cpne4, cpne3, act, ebr, hear, ipahq），若未提供則預設為當前分頁。
+其中 "tab" 欄位為目標分頁 ID（可選：ipa, eg, nmp, cpne4, cpne3, act, ebr, hear, ipahq 或自訂 key），若未提供則預設為當前分頁。
 
 重要規則：
 - 當使用者提及某個產品關鍵字（例如 "IPA HQ"、"EG" 等）進行查詢時，你必須掃描「所有分頁」的「所有槽體名稱與群組名稱」。切勿因為某個分頁的標題完美契合該關鍵字，就忽略了其他分頁中名字包含該關鍵字之槽體（例如：分頁 1 "ipa" 中也包含名稱為 "IPAHQ成品槽" 的槽體，你也必須找出來並分類列出）。
@@ -2513,8 +2516,53 @@ function executeAIActions(actions) {
   const logs = [];
   let shouldSwitchTab = null;
   let layoutUpdated = false;
+  let needReloadAll = false;
   
   actions.forEach(action => {
+    // Specially handle add_tab before targetTab data check
+    if (action.type === 'add_tab') {
+      const { key, title, use_template } = action.data || {};
+      const tabKey = key || "flow_" + Date.now();
+      const tabTitle = title || "新產品流程圖";
+      const isTemplate = use_template !== false;
+
+      if (flowchartData[tabKey]) {
+        logs.push(`❌ 新增分頁失敗：Key "${tabKey}" 已存在`);
+        return;
+      }
+
+      let newTabObj = {
+        title: tabTitle,
+        totalCapacity: "編輯中",
+        groups: [],
+        nodes: [],
+        groupConnections: []
+      };
+
+      if (isTemplate) {
+        newTabObj.groups = [
+          { id: "raw-group", name: "原料區", capacity: "原料", x: 120, y: 80, w: 180, h: 500, type: "raw" },
+          { id: "process-block", name: "製程生產", capacity: "製程", x: 360, y: 180, w: 160, h: 80, type: "process" },
+          { id: "waste-group", name: "下腳料區", capacity: "下腳料", x: 360, y: 300, w: 180, h: 280, type: "offgrade" },
+          { id: "check-group", name: "Check Tank 待驗", capacity: "待驗", x: 600, y: 80, w: 180, h: 500, type: "process" },
+          { id: "finish-group", name: "成品區", capacity: "成品", x: 840, y: 80, w: 180, h: 500, type: "finish" }
+        ];
+        newTabObj.groupConnections = [
+          { from: "raw-group", to: "process-block", label: "" },
+          { from: "process-block", to: "waste-group", label: "格外品排料" },
+          { from: "process-block", to: "check-group", label: "待檢驗" },
+          { from: "check-group", to: "finish-group", label: "成品放行" }
+        ];
+      }
+
+      flowchartData[tabKey] = newTabObj;
+      logs.push(`🎉 成功新增產品分頁：「${tabTitle}」`);
+      layoutUpdated = true;
+      needReloadAll = true;
+      shouldSwitchTab = tabKey;
+      return;
+    }
+
     const targetTab = action.tab || currentTab;
     const data = flowchartData[targetTab];
     if (!data) {
@@ -2523,8 +2571,39 @@ function executeAIActions(actions) {
     }
     
     switch (action.type) {
+      case 'rename_tab': {
+        const { title } = action.data || {};
+        if (!title) {
+          logs.push(`❌ 修改名稱失敗：缺少名稱`);
+          break;
+        }
+        const oldTitle = data.title;
+        data.title = title.trim();
+        logs.push(`🎉 成功將分頁「${oldTitle}」更名為：「${data.title}」`);
+        layoutUpdated = true;
+        needReloadAll = true;
+        break;
+      }
+
+      case 'delete_tab': {
+        const keys = Object.keys(flowchartData);
+        if (keys.length <= 1) {
+          logs.push(`❌ 刪除分頁失敗：系統必須保留至少一個產品流程圖`);
+          break;
+        }
+        const oldTitle = data.title;
+        delete flowchartData[targetTab];
+        logs.push(`🗑️ 成功刪除產品分頁：「${oldTitle}」`);
+        layoutUpdated = true;
+        needReloadAll = true;
+        
+        const remainingKeys = Object.keys(flowchartData);
+        shouldSwitchTab = remainingKeys[0];
+        break;
+      }
+
       case 'add_node': {
-        const { id, name, capacity, type, x, y } = action.data;
+        const { id, name, capacity, type, x, y } = action.data || {};
         if (!id) {
           logs.push(`❌ 新增失敗：缺少 ID`);
           break;
@@ -2557,12 +2636,11 @@ function executeAIActions(actions) {
       }
       
       case 'delete_node': {
-        const { id } = action.data;
+        const { id } = action.data || {};
         const index = data.nodes.findIndex(n => n.id === id);
         if (index !== -1) {
           const name = data.nodes[index].name;
           data.nodes.splice(index, 1);
-          // Also remove connections linked to this node
           data.groupConnections = data.groupConnections.filter(c => c.from !== id && c.to !== id);
           logs.push(`[${flowchartData[targetTab].title.split(" (")[0]}] 🗑️ 成功刪除儲槽：${id} (${name})`);
           layoutUpdated = true;
@@ -2574,7 +2652,7 @@ function executeAIActions(actions) {
       }
       
       case 'add_connection': {
-        const { from, to, label } = action.data;
+        const { from, to, label } = action.data || {};
         if (!from || !to) {
           logs.push(`❌ 連線失敗：缺少起點或終點`);
           break;
@@ -2584,7 +2662,6 @@ function executeAIActions(actions) {
           logs.push(`❌ 連線失敗：${from} 至 ${to} 的連線已存在`);
           break;
         }
-        // Verify from/to exist
         const fromExists = data.nodes.some(n => n.id === from) || data.groups.some(g => g.id === from);
         const toExists = data.nodes.some(n => n.id === to) || data.groups.some(g => g.id === to);
         if (!fromExists || !toExists) {
@@ -2603,7 +2680,7 @@ function executeAIActions(actions) {
       }
       
       case 'delete_connection': {
-        const { from, to } = action.data;
+        const { from, to } = action.data || {};
         const initialLen = data.groupConnections.length;
         data.groupConnections = data.groupConnections.filter(c => !(c.from === from && c.to === to));
         if (data.groupConnections.length < initialLen) {
@@ -2617,7 +2694,7 @@ function executeAIActions(actions) {
       }
       
       case 'update_node': {
-        const { id, name, capacity, type, fill } = action.data;
+        const { id, name, capacity, type, fill } = action.data || {};
         const node = data.nodes.find(n => n.id === id);
         if (node) {
           if (name !== undefined) node.name = name;
@@ -2640,9 +2717,12 @@ function executeAIActions(actions) {
   
   if (layoutUpdated) {
     saveCurrentLayoutToLocal();
+    if (needReloadAll) {
+      applyLayoutAndReload();
+    }
     if (shouldSwitchTab && shouldSwitchTab !== currentTab) {
       switchTab(shouldSwitchTab);
-    } else {
+    } else if (!needReloadAll) {
       renderFlowchart();
       updateConnectionEditorUI();
     }
@@ -2719,15 +2799,18 @@ ${JSON.stringify(stateSummary)}
 3. 新增管線/連線 (add_connection): data 格式 { from, to, label }。from 與 to 必須為現有的節點 ID 或群組 ID。
 4. 刪除管線/連線 (delete_connection): data 格式 { from, to }。
 5. 更新槽體屬性 (update_node): data 格式 { id, name, capacity, type, fill }。
+6. 新增分頁/流程圖 (add_tab): data 格式 { key, title, use_template }。其中 key 建議格式為 "flow_" + 數字 (例如 "flow_123" 或隨機)，title 為分頁標題 (例如 "10. IPHQS6與S7流程圖")，use_template 為布林值 (是否預設建立原料、製程、成品、待驗、下腳料等 5 個群組，預設為 true)。
+7. 修改分頁名稱 (rename_tab): data 格式 { title }，目標分頁由 "tab" 指定。
+8. 刪除分頁/流程圖 (delete_tab): data 格式 {}，目標分頁由 "tab" 指定。
 
 對於 actions 中的每一個操作，你都必須指定目標分頁，例如：
 {
   "response": "在此用自然語言（繁體中文）回答使用者的問題，或是描述你剛剛執行了哪些流程圖的編輯操作。",
   "actions": [
-    { "type": "add_node", "tab": "eg", "data": { "id": "TK-999", "name": "新成品槽", "capacity": "100 KL", "type": "finish" } }
+    { "type": "add_tab", "data": { "key": "flow_iphqs6s7", "title": "10. IPHQS6與S7流程圖", "use_template": true } }
   ]
 }
-其中 "tab" 欄位為目標分頁 ID（可選：ipa, eg, nmp, cpne4, cpne3, act, ebr, hear, ipahq），若未提供則預設為當前分頁。
+其中 "tab" 欄位為目標分頁 ID（可選：ipa, eg, nmp, cpne4, cpne3, act, ebr, hear, ipahq 或自訂 key），若未提供則預設為當前分頁。
 
 重要規則：
 - 當使用者提及某個產品關鍵字（例如 "IPA HQ"、"EG" 等）進行查詢時，你必須掃描「所有分頁」的「所有槽體名稱與群組名稱」。切勿因為某個分頁的標題完美契合該關鍵字，就忽略了其他分頁中名字包含該關鍵字之槽體（例如：分頁 1 "ipa" 中也包含名稱為 "IPAHQ成品槽" 的槽體，你也必須找出來並分類列出）。
