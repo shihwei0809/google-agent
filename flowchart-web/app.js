@@ -3118,8 +3118,9 @@ ${JSON.stringify(stateSummary)}
         } else {
           // Mock Cross-Tab Query Response
           const totalTanks = Object.keys(flowchartData).reduce((sum, key) => sum + flowchartData[key].nodes.length, 0);
+          const currentData = flowchartData[currentTab] || { nodes: [], groupConnections: [] };
           responseText = `[Demo 模擬回應] 目前處於 Demo 模式（未設定金鑰）。
-* 共有 ${data.nodes.length} 個槽體節點與 ${data.groupConnections.length} 條管道。
+* 全站共有 ${totalTanks} 個槽體節點，當前分頁有 ${currentData.nodes.length} 個槽體與 ${currentData.groupConnections.length} 條管道。
 若要開啟 AI 的智慧自動編輯與精確查詢功能，請點擊右上角 ⚙️ 設定您的 Groq API 金鑰！`;
         }
         
@@ -3569,7 +3570,51 @@ ${JSON.stringify(stateSummary)}
 - 回覆一律使用繁體中文。`;
 
   if (!geminiApiKey) {
-    throw new Error("請先點擊 ⚙️ 設定您的 Gemini API 金鑰後再使用！");
+    // Demo / Mock Mode fallback for Gemini if no key is provided
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const lowerMsg = messageText.toLowerCase();
+        let responseText = "";
+        let actions = [];
+        
+        if (lowerMsg.includes("新增") || lowerMsg.includes("add") || lowerMsg.includes("放") || lowerMsg.includes("連")) {
+          // Detect mock add
+          if (lowerMsg.includes("槽") || lowerMsg.includes("tank")) {
+            const mockId = "TK-" + Math.floor(Math.random() * 900 + 100);
+            const isFinish = lowerMsg.includes("成品");
+            const isRaw = lowerMsg.includes("原料");
+            const type = isFinish ? "finish" : (isRaw ? "raw" : "process");
+            const name = isFinish ? "AI 成品槽" : (isRaw ? "AI 原料槽" : "AI 待驗槽");
+            const x = isFinish ? 860 : (isRaw ? 140 : 620);
+            
+            // Detect target tab
+            let targetTab = currentTab;
+            if (lowerMsg.includes("eg")) targetTab = "eg";
+            else if (lowerMsg.includes("nmp")) targetTab = "nmp";
+            else if (lowerMsg.includes("ipa")) targetTab = "ipa";
+            
+            actions.push({
+              type: "add_node",
+              tab: targetTab,
+              data: { id: mockId, name: name, capacity: "125 KL", type: type, x: x, y: 350 }
+            });
+            
+            responseText = `[Gemini Demo 模擬回應] 好的，我為您在分頁 "${targetTab}" 新增了槽體 ${mockId}。`;
+          } else {
+            responseText = `[Gemini Demo 模擬回應] 好的，收到指令，已模擬執行。`;
+          }
+        } else {
+          // Mock Cross-Tab Query Response
+          const totalTanks = Object.keys(flowchartData).reduce((sum, key) => sum + flowchartData[key].nodes.length, 0);
+          const currentData = flowchartData[currentTab] || { nodes: [], groupConnections: [] };
+          responseText = `[Gemini Demo 模擬回應] 目前處於 Demo 模式（未設定 Gemini 金鑰）。
+* 全站共有 ${totalTanks} 個槽體節點，當前分頁有 ${currentData.nodes.length} 個槽體與 ${currentData.groupConnections.length} 條管道。
+若要開啟 AI 的智慧自動編輯與精確查詢功能，請點擊右上角 ⚙️ 設定您的 Gemini API 金鑰！`;
+        }
+        
+        resolve({ response: responseText, actions: actions });
+      }, 1200);
+    });
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`;
