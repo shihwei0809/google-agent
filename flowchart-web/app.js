@@ -2192,7 +2192,7 @@ if (clearAiChatHistoryBtn) {
         aiMessageList.innerHTML = `
           <div class="ai-message assistant">
             <div class="ai-bubble">
-              您好！我是您的 <strong>HS-AI 流程圖助理</strong>。您可以：
+              您好！我是您的 <strong>ESHINE-AI 流程圖助理</strong>。您可以：
               <ul style="margin-left: 16px; margin-top: 4px; line-height: 1.5;">
                 <li>詢問目前的槽體狀態（如：「目前有哪些成品槽？」）</li>
                 <li>叫我操作流程圖（如：「幫我新增一個 150 KL 的成品槽，編號 TK-999，並從 check-group-ipa 連接過去」）</li>
