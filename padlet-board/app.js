@@ -2058,6 +2058,9 @@ async function callGemini(promptText, systemInstruction = AI_SYSTEM_INSTRUCTION)
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
+    if (response.status === 429) {
+      throw new Error("QUOTA_EXCEEDED");
+    }
     const errMsg = errData?.error?.message || `HTTP 錯誤碼: ${response.status}`;
     throw new Error(errMsg);
   }
@@ -2380,7 +2383,12 @@ async function handleSendAiMessage(customText = null) {
     appendChatMessage("assistant", aiResponse);
   } catch (err) {
     typingDiv.remove();
-    appendChatMessage("assistant", `❌ 發生錯誤: ${err.message}\n請點擊上方設定齒輪檢查 API 金鑰。`);
+    if (err.message === "QUOTA_EXCEEDED") {
+      appendChatMessage("assistant", "⚠️ **AI 每日使用額度已達上限**\n\n今日的 Gemini API 免費配額（20 次）已用完，小鴻暫時無法回應。\n\n**解決方式：**\n- 明天額度自動重置後即可繼續使用。\n- 或請管理員至 [Google AI Studio](https://aistudio.google.com/) 開啟付費方案，即可無限制使用。");
+      showToast("⚠️ AI 每日使用額度已達上限，請明天再試或開啟付費方案", "danger");
+    } else {
+      appendChatMessage("assistant", `❌ 發生錯誤: ${err.message}\n請點擊上方設定齒輪檢查 API 金鑰。`);
+    }
   }
 }
 
@@ -2417,7 +2425,11 @@ async function handleAiPolish() {
     showToast("卡片內容已完成 AI 潤飾！");
   } catch (err) {
     console.error("AI Polish error:", err);
-    showToast(`潤飾失敗: ${err.message}`, "danger");
+    if (err.message === "QUOTA_EXCEEDED") {
+      showToast("⚠️ AI 每日使用額度已達上限，請明天再試或請管理員開啟付費方案", "danger");
+    } else {
+      showToast(`潤飾失敗: ${err.message}`, "danger");
+    }
   } finally {
     polishBtn.disabled = false;
     polishBtn.innerHTML = origHtml;
@@ -2472,7 +2484,11 @@ async function runCardDiagnosis(colId, cardId) {
     showToast("AI 診斷已完成，已新增為卡片留言！");
   } catch (err) {
     console.error("AI Diagnosis error:", err);
-    showToast(`AI 診斷失敗: ${err.message}`, "danger");
+    if (err.message === "QUOTA_EXCEEDED") {
+      showToast("⚠️ AI 每日使用額度已達上限，請明天再試或請管理員開啟付費方案", "danger");
+    } else {
+      showToast(`AI 診斷失敗: ${err.message}`, "danger");
+    }
     if (diagnoseBtn) {
       diagnoseBtn.disabled = false;
       diagnoseBtn.innerHTML = origBtnContent;
