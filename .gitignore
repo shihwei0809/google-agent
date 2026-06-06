@@ -38,3 +38,7 @@ claude-video-specs/
 
 # Netlify
 .netlify/
+
+# Firebase
+.firebase/
+
