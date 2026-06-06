@@ -86,10 +86,7 @@
             <span>操作說明</span>
           </button>
 
-          <button id="aiSidebarBtn" class="btn btn-secondary" title="AI 助理" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%); border: 1px solid rgba(168, 85, 247, 0.4);">
-            <i data-lucide="sparkles" style="color: #c084fc;"></i>
-            <span>AI 助理</span>
-          </button>
+
 
           <div class="dropdown">
             <button id="dataMenuBtn" class="btn btn-secondary" title="資料管理">
@@ -431,6 +428,12 @@
     <button class="col-menu-item" id="colRenameBtn"><i data-lucide="edit"></i> 重命名欄位</button>
     <button class="col-menu-item col-menu-danger" id="colDeleteBtn"><i data-lucide="trash-2"></i> 刪除此欄位</button>
   </div>
+
+  <!-- Floating AI Assistant Button -->
+  <button id="aiSidebarBtn" class="ai-floating-btn" title="打開 AI 助理">
+    <i data-lucide="bot" class="ai-floating-icon"></i>
+    <span>AI 助理</span>
+  </button>
 
   <!-- AI Assistant Sidebar -->
   <div class="ai-sidebar" id="aiSidebar">

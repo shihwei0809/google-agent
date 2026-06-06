@@ -1878,3 +1878,45 @@ body {
   50% { opacity: 1; }
 }
 
+/* Floating AI Assistant Button */
+.ai-floating-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 998;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 30px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(167, 139, 250, 0.85) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: white;
+  font-family: var(--font-family);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.35);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: floating-bounce 3s ease-in-out infinite;
+}
+
+.ai-floating-btn:hover {
+  transform: translateY(-5px) scale(1.03);
+  box-shadow: 0 12px 30px rgba(167, 139, 250, 0.45);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ai-floating-icon {
+  width: 16px;
+  height: 16px;
+  color: white;
+}
+
+@keyframes floating-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
