@@ -2247,26 +2247,21 @@ function saveLiquidRecords(records) {
 }
 
 function getTabOptions() {
-  const tabNames = {};
-  for (let i = 1; i <= 9; i++) tabNames[i] = `分頁${i}`;
-  if (typeof tabsData !== 'undefined') {
-    Object.keys(tabsData).forEach(k => {
-      if (tabsData[k] && tabsData[k].name) tabNames[k] = tabsData[k].name;
-    });
-  }
-  return tabNames;
+  const result = {};
+  Object.keys(flowchartData).forEach(k => {
+    result[k] = flowchartData[k].title || k;
+  });
+  return result;
 }
 
 function populateLLTabSelect() {
   const sel = document.getElementById('llTabSelect');
   if (!sel) return;
   sel.innerHTML = '';
-  const names = getTabOptions();
-  Object.keys(names).forEach(k => {
-    if (!tabsData || !tabsData[k]) return;
+  Object.keys(flowchartData).forEach(k => {
     const opt = document.createElement('option');
     opt.value = k;
-    opt.textContent = `分頁${k}` + (names[k] !== `分頁${k}` ? ` – ${names[k]}` : '');
+    opt.textContent = flowchartData[k].title || k;
     sel.appendChild(opt);
   });
   if (sel.options.length > 0) populateLLTankSelect(sel.value);
@@ -2276,13 +2271,13 @@ function populateLLTankSelect(tabKey) {
   const sel = document.getElementById('llTankSelect');
   if (!sel) return;
   sel.innerHTML = '<option value="">-- 請選擇槽體 --</option>';
-  if (typeof tabsData === 'undefined' || !tabsData[tabKey]) return;
-  const nodes = tabsData[tabKey].nodes || [];
+  if (!flowchartData[tabKey]) return;
+  const nodes = flowchartData[tabKey].nodes || [];
   nodes.forEach(n => {
     if (!n.id) return;
     const opt = document.createElement('option');
     opt.value = n.id;
-    opt.textContent = n.id + (n.label ? ` (${n.label})` : '') + (n.capacity ? ` [${n.capacity}KL]` : '');
+    opt.textContent = n.id + (n.name ? ` (${n.name})` : '') + (n.capacity ? ` [${n.capacity}]` : '');
     sel.appendChild(opt);
   });
 }
