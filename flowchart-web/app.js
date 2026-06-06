@@ -2367,7 +2367,8 @@ function exportLLRecordsCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
-(function initLiquidLevelModal() {
+window.addEventListener('load', function() {
+  try {
   const modal = document.getElementById('liquidLevelModal');
   const openBtn = document.getElementById('openLiquidLevelBtn');
   const closeBtn = document.getElementById('closeLiquidLevelModal');
@@ -2376,7 +2377,8 @@ function exportLLRecordsCSV() {
   const viewBtn = document.getElementById('viewLiquidLevelBtn');
   const exportBtn = document.getElementById('exportLiquidLevelBtn');
   const llDateInput = document.getElementById('llDate');
-  if (!modal || !openBtn) return;
+  if (!modal) { console.error('liquidLevelModal not found'); return; }
+  if (!openBtn) { console.error('openLiquidLevelBtn not found'); return; }
   if (llDateInput) llDateInput.value = new Date().toISOString().slice(0, 10);
 
   openBtn.onclick = () => {
@@ -2404,7 +2406,7 @@ function exportLLRecordsCSV() {
     const names = getTabOptions();
     const record = {
       timestamp: Date.now(), date, tabKey,
-      tabName: names[tabKey] || `分頁${tabKey}`,
+      tabName: names[tabKey] || tabKey,
       tankId, level: parseFloat(level),
       volume: volEl && volEl.value ? parseFloat(volEl.value) : '',
       note: noteEl ? noteEl.value.trim() : ''
@@ -2427,7 +2429,8 @@ function exportLLRecordsCSV() {
     else area.style.display = 'none';
   };
   if (exportBtn) exportBtn.onclick = exportLLRecordsCSV;
-})();
+  } catch(err) { console.error('initLiquidLevelModal error:', err); }
+});
 
 function scrollToBottom() {
 
