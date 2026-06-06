@@ -1457,7 +1457,7 @@ if (syncCloudBtn) {
   syncCloudBtn.onclick = async () => {
     if (!isManager) {
       const passcode = prompt("請輸入管理者授權密碼：");
-      if (passcode === "hongsheng888" || passcode === "hsadmin") {
+      if (passcode === "7588555" || passcode === "1234") {
         isManager = true;
         localStorage.setItem('flowchart_is_manager', 'true');
         updateSyncButtonUI();
@@ -2367,70 +2367,66 @@ function exportLLRecordsCSV() {
   a.click(); URL.revokeObjectURL(url);
 }
 
-window.addEventListener('load', function() {
-  try {
-  const modal = document.getElementById('liquidLevelModal');
-  const openBtn = document.getElementById('openLiquidLevelBtn');
-  const closeBtn = document.getElementById('closeLiquidLevelModal');
-  const tabSel = document.getElementById('llTabSelect');
-  const saveBtn = document.getElementById('saveLiquidLevelBtn');
-  const viewBtn = document.getElementById('viewLiquidLevelBtn');
-  const exportBtn = document.getElementById('exportLiquidLevelBtn');
-  const llDateInput = document.getElementById('llDate');
-  if (!modal) { console.error('liquidLevelModal not found'); return; }
-  if (!openBtn) { console.error('openLiquidLevelBtn not found'); return; }
-  if (llDateInput) llDateInput.value = new Date().toISOString().slice(0, 10);
-
-  openBtn.onclick = () => {
-    populateLLTabSelect();
-    const area = document.getElementById('llRecordsArea');
-    if (area) area.style.display = 'none';
-    modal.style.display = 'flex';
-  };
-  if (closeBtn) closeBtn.onclick = () => { modal.style.display = 'none'; };
-  modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
-  if (tabSel) tabSel.addEventListener('change', () => populateLLTankSelect(tabSel.value));
-
-  if (saveBtn) saveBtn.onclick = () => {
-    const tabKey = tabSel ? tabSel.value : '';
-    const tankSel = document.getElementById('llTankSelect');
-    const tankId = tankSel ? tankSel.value : '';
-    const date = llDateInput ? llDateInput.value : '';
-    const levelEl = document.getElementById('llValue');
-    const volEl = document.getElementById('llVolume');
-    const noteEl = document.getElementById('llNote');
-    const level = levelEl ? levelEl.value : '';
-    if (!tankId) { alert('請選擇槽體'); return; }
-    if (!date)   { alert('請填寫日期'); return; }
-    if (level === '') { alert('請輸入液位 (%)'); return; }
-    const names = getTabOptions();
-    const record = {
-      timestamp: Date.now(), date, tabKey,
-      tabName: names[tabKey] || tabKey,
-      tankId, level: parseFloat(level),
-      volume: volEl && volEl.value ? parseFloat(volEl.value) : '',
-      note: noteEl ? noteEl.value.trim() : ''
+// 液位記錄 Modal 初始化
+{
+  var _llModal = document.getElementById('liquidLevelModal');
+  var _llOpenBtn = document.getElementById('openLiquidLevelBtn');
+  var _llCloseBtn = document.getElementById('closeLiquidLevelModal');
+  var _llTabSel = document.getElementById('llTabSelect');
+  var _llSaveBtn = document.getElementById('saveLiquidLevelBtn');
+  var _llViewBtn = document.getElementById('viewLiquidLevelBtn');
+  var _llExportBtn = document.getElementById('exportLiquidLevelBtn');
+  var _llDateInput = document.getElementById('llDate');
+  if (_llOpenBtn && _llModal) {
+    if (_llDateInput) _llDateInput.value = new Date().toISOString().slice(0, 10);
+    _llOpenBtn.onclick = function() {
+      populateLLTabSelect();
+      var area = document.getElementById('llRecordsArea');
+      if (area) area.style.display = 'none';
+      _llModal.style.display = 'flex';
     };
-    const records = getLiquidRecords();
-    records.push(record);
-    saveLiquidRecords(records);
-    if (tankSel) tankSel.value = '';
-    if (levelEl) levelEl.value = '';
-    if (volEl) volEl.value = '';
-    if (noteEl) noteEl.value = '';
-    alert(`✅ 已儲存 ${tankId} 液位 ${level}%`);
-    renderLLRecords();
-  };
-
-  if (viewBtn) viewBtn.onclick = () => {
-    const area = document.getElementById('llRecordsArea');
-    if (!area) return;
-    if (area.style.display === 'none') renderLLRecords();
-    else area.style.display = 'none';
-  };
-  if (exportBtn) exportBtn.onclick = exportLLRecordsCSV;
-  } catch(err) { console.error('initLiquidLevelModal error:', err); }
-});
+    if (_llCloseBtn) _llCloseBtn.onclick = function() { _llModal.style.display = 'none'; };
+    _llModal.addEventListener('click', function(e) { if (e.target === _llModal) _llModal.style.display = 'none'; });
+    if (_llTabSel) _llTabSel.addEventListener('change', function() { populateLLTankSelect(_llTabSel.value); });
+    if (_llSaveBtn) _llSaveBtn.onclick = function() {
+      var tabKey = _llTabSel ? _llTabSel.value : '';
+      var tankSel = document.getElementById('llTankSelect');
+      var tankId = tankSel ? tankSel.value : '';
+      var date = _llDateInput ? _llDateInput.value : '';
+      var levelEl = document.getElementById('llValue');
+      var volEl = document.getElementById('llVolume');
+      var noteEl = document.getElementById('llNote');
+      var level = levelEl ? levelEl.value : '';
+      if (!tankId) { alert('請選擇槽體'); return; }
+      if (!date) { alert('請填寫日期'); return; }
+      if (level === '') { alert('請輸入液位 (%)'); return; }
+      var names = getTabOptions();
+      var record = {
+        timestamp: Date.now(), date: date, tabKey: tabKey,
+        tabName: (names[tabKey] || tabKey),
+        tankId: tankId, level: parseFloat(level),
+        volume: (volEl && volEl.value) ? parseFloat(volEl.value) : '',
+        note: noteEl ? noteEl.value.trim() : ''
+      };
+      var records = getLiquidRecords();
+      records.push(record);
+      saveLiquidRecords(records);
+      if (tankSel) tankSel.value = '';
+      if (levelEl) levelEl.value = '';
+      if (volEl) volEl.value = '';
+      if (noteEl) noteEl.value = '';
+      alert('已儲存 ' + tankId + ' 液位 ' + level + '%');
+      renderLLRecords();
+    };
+    if (_llViewBtn) _llViewBtn.onclick = function() {
+      var area = document.getElementById('llRecordsArea');
+      if (!area) return;
+      if (area.style.display === 'none') renderLLRecords();
+      else area.style.display = 'none';
+    };
+    if (_llExportBtn) _llExportBtn.onclick = exportLLRecordsCSV;
+  }
+}
 
 function scrollToBottom() {
 
