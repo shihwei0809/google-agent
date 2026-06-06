@@ -2208,7 +2208,196 @@ if (clearAiChatHistoryBtn) {
   };
 }
 
+// ── Header 清除對話按鈕（🗑️）──
+const clearChatHeaderBtn = document.getElementById("clearChatHeaderBtn");
+if (clearChatHeaderBtn) {
+  clearChatHeaderBtn.onclick = () => {
+    if (confirm("確定要清除所有對話紀錄嗎？")) {
+      chatHistory = [];
+      localStorage.removeItem('flowchart_chat_history');
+      if (aiMessageList) {
+        aiMessageList.innerHTML = `
+          <div class="ai-message assistant">
+            <div class="ai-bubble">
+              您好！我是您的 <strong>ESHINE-AI 流程圖助理</strong>。您可以：
+              <ul style="margin-left: 16px; margin-top: 4px; line-height: 1.5;">
+                <li>詢問目前的槽體狀態（如：「目前有哪些成品槽？」）</li>
+                <li>叫我操作流程圖（如：「幫我新增一個 150 KL 的成品槽，編號 TK-999，並從 check-group-ipa 連接過去」）</li>
+              </ul>
+              請點擊上方 ⚙️ 圖示設定您的 Groq API 金鑰，或直接輸入文字使用模擬 Demo 模式測試！
+            </div>
+          </div>
+        `;
+      }
+    }
+  };
+}
+
+// ══════════════════════════════════════════════════
+// 液位記錄 Modal
+// ══════════════════════════════════════════════════
+const LL_STORAGE_KEY = 'eshine_liquid_level_records';
+
+function getLiquidRecords() {
+  try { return JSON.parse(localStorage.getItem(LL_STORAGE_KEY)) || []; }
+  catch (e) { return []; }
+}
+function saveLiquidRecords(records) {
+  localStorage.setItem(LL_STORAGE_KEY, JSON.stringify(records));
+}
+
+function getTabOptions() {
+  const tabNames = {};
+  for (let i = 1; i <= 9; i++) tabNames[i] = `分頁${i}`;
+  if (typeof tabsData !== 'undefined') {
+    Object.keys(tabsData).forEach(k => {
+      if (tabsData[k] && tabsData[k].name) tabNames[k] = tabsData[k].name;
+    });
+  }
+  return tabNames;
+}
+
+function populateLLTabSelect() {
+  const sel = document.getElementById('llTabSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  const names = getTabOptions();
+  Object.keys(names).forEach(k => {
+    if (!tabsData || !tabsData[k]) return;
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = `分頁${k}` + (names[k] !== `分頁${k}` ? ` – ${names[k]}` : '');
+    sel.appendChild(opt);
+  });
+  if (sel.options.length > 0) populateLLTankSelect(sel.value);
+}
+
+function populateLLTankSelect(tabKey) {
+  const sel = document.getElementById('llTankSelect');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- 請選擇槽體 --</option>';
+  if (typeof tabsData === 'undefined' || !tabsData[tabKey]) return;
+  const nodes = tabsData[tabKey].nodes || [];
+  nodes.forEach(n => {
+    if (!n.id) return;
+    const opt = document.createElement('option');
+    opt.value = n.id;
+    opt.textContent = n.id + (n.label ? ` (${n.label})` : '') + (n.capacity ? ` [${n.capacity}KL]` : '');
+    sel.appendChild(opt);
+  });
+}
+
+function renderLLRecords() {
+  const area = document.getElementById('llRecordsArea');
+  const tableDiv = document.getElementById('llRecordsTable');
+  if (!area || !tableDiv) return;
+  const records = getLiquidRecords();
+  if (records.length === 0) {
+    tableDiv.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:12px;padding:12px;">尚無紀錄</p>';
+  } else {
+    const sorted = [...records].sort((a, b) => b.timestamp - a.timestamp);
+    tableDiv.innerHTML = `
+      <table>
+        <thead><tr><th>日期</th><th>分頁</th><th>槽體</th><th>液位%</th><th>容量KL</th><th>備註</th><th></th></tr></thead>
+        <tbody>
+          ${sorted.map(r => `
+            <tr>
+              <td>${r.date}</td><td>${r.tabName}</td><td>${r.tankId}</td>
+              <td>${r.level}%</td><td>${r.volume || '-'}</td><td>${r.note || '-'}</td>
+              <td><button onclick="deleteLLRecord(${r.timestamp})" style="background:none;border:none;color:#f87171;cursor:pointer;font-size:12px;" title="刪除">🗑</button></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+  area.style.display = 'block';
+}
+
+window.deleteLLRecord = function(timestamp) {
+  if (!confirm('確定刪除此筆紀錄？')) return;
+  saveLiquidRecords(getLiquidRecords().filter(r => r.timestamp !== timestamp));
+  renderLLRecords();
+};
+
+function exportLLRecordsCSV() {
+  const records = getLiquidRecords();
+  if (records.length === 0) { alert('尚無紀錄可匯出'); return; }
+  const header = ['日期','分頁','槽體ID','液位(%)','實際容量(KL)','備註','紀錄時間'];
+  const rows = records.map(r => [
+    r.date, r.tabName, r.tankId, r.level, r.volume || '', r.note || '',
+    new Date(r.timestamp).toLocaleString('zh-TW')
+  ]);
+  const csv = '\uFEFF' + [header, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `液位記錄_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+(function initLiquidLevelModal() {
+  const modal = document.getElementById('liquidLevelModal');
+  const openBtn = document.getElementById('openLiquidLevelBtn');
+  const closeBtn = document.getElementById('closeLiquidLevelModal');
+  const tabSel = document.getElementById('llTabSelect');
+  const saveBtn = document.getElementById('saveLiquidLevelBtn');
+  const viewBtn = document.getElementById('viewLiquidLevelBtn');
+  const exportBtn = document.getElementById('exportLiquidLevelBtn');
+  const llDateInput = document.getElementById('llDate');
+  if (!modal || !openBtn) return;
+  if (llDateInput) llDateInput.value = new Date().toISOString().slice(0, 10);
+
+  openBtn.onclick = () => {
+    populateLLTabSelect();
+    const area = document.getElementById('llRecordsArea');
+    if (area) area.style.display = 'none';
+    modal.style.display = 'flex';
+  };
+  if (closeBtn) closeBtn.onclick = () => { modal.style.display = 'none'; };
+  modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
+  if (tabSel) tabSel.addEventListener('change', () => populateLLTankSelect(tabSel.value));
+
+  if (saveBtn) saveBtn.onclick = () => {
+    const tabKey = tabSel ? tabSel.value : '';
+    const tankSel = document.getElementById('llTankSelect');
+    const tankId = tankSel ? tankSel.value : '';
+    const date = llDateInput ? llDateInput.value : '';
+    const levelEl = document.getElementById('llValue');
+    const volEl = document.getElementById('llVolume');
+    const noteEl = document.getElementById('llNote');
+    const level = levelEl ? levelEl.value : '';
+    if (!tankId) { alert('請選擇槽體'); return; }
+    if (!date)   { alert('請填寫日期'); return; }
+    if (level === '') { alert('請輸入液位 (%)'); return; }
+    const names = getTabOptions();
+    const record = {
+      timestamp: Date.now(), date, tabKey,
+      tabName: names[tabKey] || `分頁${tabKey}`,
+      tankId, level: parseFloat(level),
+      volume: volEl && volEl.value ? parseFloat(volEl.value) : '',
+      note: noteEl ? noteEl.value.trim() : ''
+    };
+    const records = getLiquidRecords();
+    records.push(record);
+    saveLiquidRecords(records);
+    if (tankSel) tankSel.value = '';
+    if (levelEl) levelEl.value = '';
+    if (volEl) volEl.value = '';
+    if (noteEl) noteEl.value = '';
+    alert(`✅ 已儲存 ${tankId} 液位 ${level}%`);
+    renderLLRecords();
+  };
+
+  if (viewBtn) viewBtn.onclick = () => {
+    const area = document.getElementById('llRecordsArea');
+    if (!area) return;
+    if (area.style.display === 'none') renderLLRecords();
+    else area.style.display = 'none';
+  };
+  if (exportBtn) exportBtn.onclick = exportLLRecordsCSV;
+})();
+
 function scrollToBottom() {
+
   if (aiMessageList) {
     aiMessageList.scrollTop = aiMessageList.scrollHeight;
   }

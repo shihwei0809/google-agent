@@ -323,6 +323,8 @@
         <span id="aiChatHeaderSubtitle" class="ai-chat-header-subtitle">基於 Groq AI</span>
       </div>
       <div class="ai-chat-header-actions">
+        <button id="openLiquidLevelBtn" title="液位記錄">📊</button>
+        <button id="clearChatHeaderBtn" title="清除對話紀錄">🗑️</button>
         <button id="aiChatSettingsBtn" title="設定 Groq API 金鑰">⚙️</button>
         <button id="aiChatCloseBtn" title="關閉">×</button>
       </div>
@@ -373,7 +375,6 @@
       </div>
 
       <button id="saveAiSettingsBtn" class="action-btn action-btn-primary" style="width: 100%; height: 32px; padding: 0;">儲存設定</button>
-      <button id="clearAiChatHistoryBtn" class="action-btn" style="width: 100%; height: 32px; padding: 0; margin-top: 8px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; cursor: pointer; transition: all 0.2s;">清除對話紀錄</button>
       <div class="hint" style="margin-top: 8px; font-size: 10px; color: var(--text-secondary); line-height: 1.4;">
         提示：金鑰將僅儲存於您的瀏覽器本地 (localStorage)，直接對接官方 API。若不提供金鑰，系統將以 Groq Demo 模擬模式運作。
       </div>
@@ -397,6 +398,54 @@
     <div class="ai-chat-input-area">
       <textarea id="aiChatInput" placeholder="輸入訊息... (Enter 傳送，Shift+Enter 換行)" rows="1"></textarea>
       <button id="sendAiMessageBtn">傳送</button>
+    </div>
+  </div>
+
+  <!-- Liquid Level Recording Modal -->
+  <div id="liquidLevelModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box" style="max-width:480px;">
+      <div class="modal-header">
+        <h3>📊 液位記錄</h3>
+        <button id="closeLiquidLevelModal" class="modal-close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="llTabSelect">分頁（廠區）：</label>
+          <select id="llTabSelect"></select>
+        </div>
+        <div class="form-group">
+          <label for="llTankSelect">槽體：</label>
+          <select id="llTankSelect"><option value="">-- 請先選擇分頁 --</option></select>
+        </div>
+        <div class="form-group">
+          <label for="llDate">記錄日期：</label>
+          <input type="date" id="llDate" />
+        </div>
+        <div class="form-group">
+          <label for="llValue">液位 (%)：</label>
+          <input type="number" id="llValue" min="0" max="100" step="0.1" placeholder="例：75.5" />
+        </div>
+        <div class="form-group">
+          <label for="llVolume">實際容量 (KL)：</label>
+          <input type="number" id="llVolume" min="0" step="0.01" placeholder="選填" />
+        </div>
+        <div class="form-group">
+          <label for="llNote">備註：</label>
+          <input type="text" id="llNote" placeholder="選填" />
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button id="saveLiquidLevelBtn" class="action-btn action-btn-primary" style="flex:1;">💾 儲存記錄</button>
+          <button id="viewLiquidLevelBtn" class="action-btn" style="flex:1;">📋 查看紀錄</button>
+        </div>
+      </div>
+      <!-- Records Table -->
+      <div id="llRecordsArea" style="display:none; margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <strong style="font-size:13px;">📋 歷史紀錄</strong>
+          <button id="exportLiquidLevelBtn" class="action-btn" style="padding:4px 10px; font-size:11px;">匯出 CSV</button>
+        </div>
+        <div id="llRecordsTable" style="max-height:220px; overflow-y:auto;"></div>
+      </div>
     </div>
   </div>
 

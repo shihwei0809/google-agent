@@ -911,3 +911,97 @@ body.light-mode .ai-chat-input-area {
   background: rgba(241, 245, 249, 0.4);
 }
 
+/* ── Modal Overlay & Box ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+.modal-box {
+  background: var(--glass-bg, rgba(15, 23, 42, 0.95));
+  border: 1px solid var(--border-color, rgba(255,255,255,0.12));
+  border-radius: 16px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.25s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1));
+}
+.modal-header h3 { margin: 0; font-size: 16px; }
+.modal-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+.modal-close-btn:hover { background: rgba(255,255,255,0.1); }
+.modal-body { padding: 16px 20px; }
+.modal-body .form-group { margin-bottom: 12px; }
+.modal-body label { display: block; font-size: 12px; color: var(--text-secondary, #94a3b8); margin-bottom: 4px; }
+.modal-body input,
+.modal-body select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color, rgba(255,255,255,0.15));
+  background: rgba(255,255,255,0.06);
+  color: var(--text-primary, #e2e8f0);
+  font-size: 13px;
+  outline: none;
+  transition: border 0.2s;
+}
+.modal-body input:focus,
+.modal-body select:focus { border-color: var(--accent-primary, #818cf8); }
+.modal-body select option { background: #1e293b; }
+
+/* liquid level records table */
+#llRecordsTable table { width: 100%; border-collapse: collapse; font-size: 11px; }
+#llRecordsTable th,
+#llRecordsTable td {
+  padding: 5px 8px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+#llRecordsTable th { color: var(--text-secondary, #94a3b8); font-weight: 600; }
+#llRecordsTable tr:hover td { background: rgba(255,255,255,0.04); }
+
+/* header 🗑️ button hover red */
+#clearChatHeaderBtn:hover { color: #f87171 !important; }
+
+/* light mode modal */
+body.light-mode .modal-box {
+  background: rgba(255,255,255,0.97);
+  border-color: rgba(0,0,0,0.1);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.15);
+}
+body.light-mode .modal-body input,
+body.light-mode .modal-body select {
+  background: rgba(0,0,0,0.04);
+  color: #1e293b;
+  border-color: rgba(0,0,0,0.15);
+}
+body.light-mode #llRecordsTable th { color: #64748b; }
+body.light-mode #llRecordsTable td { color: #1e293b; }
+
