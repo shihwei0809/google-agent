@@ -246,6 +246,28 @@ try {
 const adminBadge = document.getElementById("adminBadge");
 const adminLoginBtn = document.getElementById("adminLoginBtn");
 
+// AI Assistant DOM Elements
+const aiSidebar = document.getElementById("aiSidebar");
+const aiSidebarBtn = document.getElementById("aiSidebarBtn");
+const closeAiSidebarBtn = document.getElementById("closeAiSidebarBtn");
+const aiSidebarOverlay = document.getElementById("aiSidebarOverlay");
+const aiConfigBtn = document.getElementById("aiConfigBtn");
+const aiWelcomeContainer = document.getElementById("aiWelcomeContainer");
+const aiChatMessages = document.getElementById("aiChatMessages");
+const aiChatInput = document.getElementById("aiChatInput");
+const sendAiMessageBtn = document.getElementById("sendAiMessageBtn");
+const aiStatusIndicator = document.getElementById("aiStatusIndicator");
+const aiStatusText = document.getElementById("aiStatusText");
+const aiPolishBtn = document.getElementById("aiPolishBtn");
+
+// AI Key Modal DOM Elements
+const aiKeyModal = document.getElementById("aiKeyModal");
+const geminiApiKeyInput = document.getElementById("geminiApiKeyInput");
+const cancelAiKeyBtn = document.getElementById("cancelAiKeyBtn");
+const saveAiKeyBtn = document.getElementById("saveAiKeyBtn");
+const closeAiKeyModalBtn = document.getElementById("closeAiKeyModalBtn");
+
+
 // Columns Action Dropdown Context Menu
 const colMenuDropdown = document.getElementById("colMenuDropdown");
 const colRenameBtn = document.getElementById("colRenameBtn");
@@ -656,6 +678,7 @@ function init() {
   }
   
   updateAdminUI();
+  updateAiStatus();
   
   // Check URL query parameters for custom date (e.g. ?date=2026-06-04)
   const urlParams = new URLSearchParams(window.location.search);
@@ -1078,6 +1101,18 @@ function createCardElement(card, colId) {
   
   footer.appendChild(likeBtn);
   footer.appendChild(commentBtn);
+  
+  // Add AI Diagnose button
+  const diagnoseBtn = document.createElement("button");
+  diagnoseBtn.className = "btn-card-diagnose";
+  diagnoseBtn.innerHTML = `<i data-lucide="sparkles"></i> <span>AI診斷</span>`;
+  diagnoseBtn.title = "對此卡片進行AI 5-Why分析與建議";
+  diagnoseBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    runCardDiagnosis(colId, card.id);
+  });
+  footer.appendChild(diagnoseBtn);
+  
   cardEl.appendChild(footer);
   
   // 5. Comments Area
@@ -1846,6 +1881,68 @@ function setupEventListeners() {
   guideBtn.addEventListener("click", () => guideModal.classList.add("show"));
   closeGuideModalBtn.addEventListener("click", () => guideModal.classList.remove("show"));
   closeGuideConfirmBtn.addEventListener("click", () => guideModal.classList.remove("show"));
+
+  // AI Sidebar triggers
+  if (aiSidebarBtn) {
+    aiSidebarBtn.addEventListener("click", openAiSidebar);
+  }
+  if (closeAiSidebarBtn) {
+    closeAiSidebarBtn.addEventListener("click", closeAiSidebar);
+  }
+  if (aiSidebarOverlay) {
+    aiSidebarOverlay.addEventListener("click", closeAiSidebar);
+  }
+  if (aiConfigBtn) {
+    aiConfigBtn.addEventListener("click", openAiKeyModal);
+  }
+
+  // Key Modal controllers
+  if (closeAiKeyModalBtn) {
+    closeAiKeyModalBtn.addEventListener("click", closeAiKeyModal);
+  }
+  if (cancelAiKeyBtn) {
+    cancelAiKeyBtn.addEventListener("click", closeAiKeyModal);
+  }
+  if (saveAiKeyBtn) {
+    saveAiKeyBtn.addEventListener("click", () => {
+      const newKey = geminiApiKeyInput.value;
+      saveGeminiApiKey(newKey);
+      closeAiKeyModal();
+      showToast("API 金鑰設定成功！");
+    });
+  }
+
+  // Auto resize chat textarea
+  if (aiChatInput) {
+    aiChatInput.addEventListener("input", () => {
+      aiChatInput.style.height = "auto";
+      aiChatInput.style.height = (aiChatInput.scrollHeight) + "px";
+    });
+
+    aiChatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendAiMessage();
+      }
+    });
+  }
+
+  if (sendAiMessageBtn) {
+    sendAiMessageBtn.addEventListener("click", () => handleSendAiMessage());
+  }
+
+  // Quick Prompt buttons
+  document.querySelectorAll(".ai-quick-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const prompt = btn.getAttribute("data-prompt");
+      handleSendAiMessage(prompt);
+    });
+  });
+
+  // Card Modal AI Polish
+  if (aiPolishBtn) {
+    aiPolishBtn.addEventListener("click", handleAiPolish);
+  }
   
   // Handle ESC / Left / Right / Space keys for slideshow and other overlays
   document.addEventListener("keydown", (e) => {
@@ -1856,6 +1953,8 @@ function setupEventListeners() {
       closeColumnMenu();
       closeSlideshow();
       closeShareModal();
+      closeAiSidebar();
+      closeAiKeyModal();
     }
     
     // Slideshow specific keyboard navigation
@@ -1869,6 +1968,352 @@ function setupEventListeners() {
       }
     }
   });
+}
+
+// ==========================================================================
+// AI Assistant Core Logic (Gemini API Integration)
+// ==========================================================================
+
+const AI_SYSTEM_INSTRUCTION = `你是一個化學工廠品保/品管（QA/QC）與 ISO 9001 系統的專家。你的名字叫「AI品保助理」。
+你熟悉鴻勝化學的品質管理流程，包括格外品、久滯品、稽核巡檢、客訴改善對策（CAR）以及 5-Why 分析。
+請使用繁體中文（zh-TW）回答。請使用專業、嚴謹但友善的語氣。
+你的回答中如果包含項目符號，請使用 Markdown 格式（例如 -項目）。
+如果問答與看板當前狀況有關，請直接參考上下文提供的看板內容回答。`;
+
+// Gemini API Key Helpers
+function getGeminiApiKey() {
+  return localStorage.getItem("hsqa_gemini_api_key") || "";
+}
+
+function saveGeminiApiKey(key) {
+  localStorage.setItem("hsqa_gemini_api_key", key.trim());
+  updateAiStatus();
+}
+
+function updateAiStatus() {
+  if (!aiStatusIndicator || !aiStatusText) return;
+  const key = getGeminiApiKey();
+  if (key) {
+    aiStatusIndicator.style.color = "#10b981"; // green
+    aiStatusIndicator.classList.add("active");
+    aiStatusText.innerText = "服務就緒";
+  } else {
+    aiStatusIndicator.style.color = "#ef4444"; // red
+    aiStatusIndicator.classList.remove("active");
+    aiStatusText.innerText = "金鑰未設定";
+  }
+}
+
+// Call Gemini API
+async function callGemini(promptText, systemInstruction = AI_SYSTEM_INSTRUCTION) {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    openAiKeyModal();
+    throw new Error("請先設定 Gemini API Key");
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+  const requestBody = {
+    contents: [
+      {
+        parts: [
+          { text: promptText }
+        ]
+      }
+    ]
+  };
+
+  if (systemInstruction) {
+    requestBody.systemInstruction = {
+      parts: [
+        { text: systemInstruction }
+      ]
+    };
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    const errMsg = errData?.error?.message || `HTTP 錯誤碼: ${response.status}`;
+    throw new Error(errMsg);
+  }
+
+  const resData = await response.json();
+  const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("API 未返回文字內容");
+  }
+
+  return text;
+}
+
+// Extract current board content as Markdown context
+function getBoardContext() {
+  let context = `【鴻勝化學品保課留言板 - 今日看板資訊】\n`;
+  context += `今日日期: ${masterData.activeDate}\n`;
+  context += `看板標題: ${state.boardTitle}\n`;
+  context += `看板描述: ${state.boardDescription}\n\n`;
+  context += `【當前看板卡片列表】\n`;
+
+  state.columns.forEach(col => {
+    context += `■ 欄位: ${col.title}\n`;
+    if (col.cards.length === 0) {
+      context += `  (尚無卡片)\n`;
+    } else {
+      col.cards.forEach(card => {
+        context += `  - 卡片 [ID: ${card.id}]: ${card.title} (作者: ${card.author || "訪客"})\n`;
+        context += `    內文: ${card.content || "無"}\n`;
+        if (card.comments && card.comments.length > 0) {
+          context += `    留言:\n`;
+          card.comments.forEach(c => {
+            context += `      * ${c.author}: ${c.body}\n`;
+          });
+        }
+      });
+    }
+    context += `\n`;
+  });
+
+  return context;
+}
+
+// Sidebar open/close controllers
+function openAiSidebar() {
+  aiSidebar.classList.add("show");
+  aiSidebarOverlay.classList.add("show");
+  aiSidebarOverlay.style.display = "block";
+  updateAiStatus();
+}
+
+function closeAiSidebar() {
+  aiSidebar.classList.remove("show");
+  aiSidebarOverlay.classList.remove("show");
+  setTimeout(() => {
+    if (!aiSidebar.classList.contains("show")) {
+      aiSidebarOverlay.style.display = "none";
+    }
+  }, 300);
+}
+
+// Open settings Modal
+function openAiKeyModal() {
+  geminiApiKeyInput.value = getGeminiApiKey();
+  aiKeyModal.classList.add("show");
+}
+
+function closeAiKeyModal() {
+  aiKeyModal.classList.remove("show");
+}
+
+// Render markdown helper (simple formatting for display)
+function formatMarkdown(text) {
+  if (!text) return "";
+  
+  let html = text;
+  
+  // HTML escape to prevent XSS
+  html = html
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+    
+  // Blockquotes
+  html = html.replace(/^&gt;\s+(.+)$/gm, "<blockquote>$1</blockquote>");
+  
+  // Bold
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  
+  // Code block & inline code
+  html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
+  
+  // Lists
+  html = html.replace(/^\s*-\s+(.+)$/gm, "<li>$1</li>");
+  html = html.replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>");
+  
+  // Paragraphs
+  html = html.replace(/(?:\r\n|\r|\n)/g, "<br>");
+  
+  return html;
+}
+
+// Append chat message to sidebar UI
+function appendChatMessage(sender, text) {
+  aiWelcomeContainer.style.display = "none";
+  aiChatMessages.style.display = "flex";
+
+  const msgDiv = document.createElement("div");
+  msgDiv.className = `ai-message ${sender}`;
+
+  const metaSpan = document.createElement("span");
+  metaSpan.className = "ai-message-meta";
+  metaSpan.innerText = sender === "user" ? "您" : "AI品保助理";
+
+  const bubbleDiv = document.createElement("div");
+  bubbleDiv.className = "ai-message-bubble";
+  bubbleDiv.innerHTML = formatMarkdown(text);
+
+  msgDiv.appendChild(metaSpan);
+  msgDiv.appendChild(bubbleDiv);
+  aiChatMessages.appendChild(msgDiv);
+
+  // Scroll to bottom
+  aiSidebarBodyScrollToBottom();
+}
+
+function aiSidebarBodyScrollToBottom() {
+  const sidebarBody = aiSidebar.querySelector(".ai-sidebar-body");
+  sidebarBody.scrollTop = sidebarBody.scrollHeight;
+}
+
+// Handle sending message in sidebar
+async function handleSendAiMessage(customText = null) {
+  const messageText = (customText !== null ? customText : aiChatInput.value).trim();
+  if (!messageText) return;
+
+  if (customText === null) {
+    aiChatInput.value = "";
+    aiChatInput.style.height = "auto";
+  }
+
+  if (!getGeminiApiKey()) {
+    openAiKeyModal();
+    showToast("請先設定 Gemini API Key", "danger");
+    return;
+  }
+
+  appendChatMessage("user", messageText);
+
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "ai-message assistant typing-indicator-msg";
+  typingDiv.innerHTML = `
+    <span class="ai-message-meta">AI品保助理</span>
+    <div class="ai-message-bubble" style="padding: 10px 14px;">
+      <div class="ai-typing-indicator">
+        <div class="ai-typing-dot"></div>
+        <div class="ai-typing-dot"></div>
+        <div class="ai-typing-dot"></div>
+      </div>
+    </div>
+  `;
+  aiChatMessages.appendChild(typingDiv);
+  aiSidebarBodyScrollToBottom();
+
+  const boardState = getBoardContext();
+  const fullPrompt = `當前留言板狀態:\n${boardState}\n\n使用者提問: ${messageText}`;
+
+  try {
+    const aiResponse = await callGemini(fullPrompt);
+    typingDiv.remove();
+    appendChatMessage("assistant", aiResponse);
+  } catch (err) {
+    typingDiv.remove();
+    appendChatMessage("assistant", `❌ 發生錯誤: ${err.message}\n請點擊上方設定齒輪檢查 API 金鑰。`);
+  }
+}
+
+// AI Content Polish (Form optimization helper)
+async function handleAiPolish() {
+  const title = cardTitleInput.value.trim();
+  const content = cardContentInput.value.trim();
+  
+  if (!content) {
+    showToast("請先輸入卡片內容再進行潤飾", "danger");
+    return;
+  }
+
+  const polishBtn = document.getElementById("aiPolishBtn");
+  const origHtml = polishBtn.innerHTML;
+  
+  polishBtn.disabled = true;
+  polishBtn.innerHTML = `<i data-lucide="loader" class="animate-spin" style="width: 12px; height: 12px;"></i> 潤飾中...`;
+  lucide.createIcons();
+
+  const polishPrompt = `你是一個專業的化工廠品保工程師。請幫我將以下通報草稿，潤飾並重新整理成結構清晰、用詞專業的品保通報文件。
+請保留原本草稿中的所有重要數據（如數值、人名、線別、批號）。
+請以下列結構重寫：
+- 【異常現象與描述】:
+- 【暫定影響範疇】:
+- 【建議處置與即時圍堵措施】:
+
+原本的標題為：${title || "未命名"}
+原本的卡片內容為：\n${content}`;
+
+  try {
+    const polishedResult = await callGemini(polishPrompt, "你是一個專門寫品保與客訴通報的專家，擅長使用項目符號與清晰段落。");
+    cardContentInput.value = polishedResult;
+    showToast("卡片內容已完成 AI 潤飾！");
+  } catch (err) {
+    console.error("AI Polish error:", err);
+    showToast(`潤飾失敗: ${err.message}`, "danger");
+  } finally {
+    polishBtn.disabled = false;
+    polishBtn.innerHTML = origHtml;
+    lucide.createIcons();
+  }
+}
+
+// AI Diagnosis posted as comments
+async function runCardDiagnosis(colId, cardId) {
+  const col = state.columns.find(c => c.id === colId);
+  if (!col) return;
+  const card = col.cards.find(c => c.id === cardId);
+  if (!card) return;
+
+  const cardEl = document.querySelector(`.board-card[data-card-id="${cardId}"]`);
+  const diagnoseBtn = cardEl?.querySelector(".btn-card-diagnose");
+  const origBtnContent = diagnoseBtn ? diagnoseBtn.innerHTML : "";
+  
+  if (diagnoseBtn) {
+    diagnoseBtn.disabled = true;
+    diagnoseBtn.innerHTML = `<i data-lucide="loader" class="animate-spin" style="width: 11px; height: 11px;"></i> 診斷中...`;
+    lucide.createIcons();
+  }
+
+  showToast("AI 診斷分析啟動中...");
+
+  const diagnosePrompt = `你是一個品質分析與客訴處理（CAR）專家，熟悉 5-Why 根因分析。
+請針對以下這張留言板上的品質事件卡片（包含標題與內文描述），進行專業診斷。
+請提供：
+1. 簡要的【5-Why 分析推導】（大膽猜測可能的原因，並標記需現場查證事項）
+2. 【長期防呆與糾正措施建議（Corrective Action）】
+
+卡片欄位: ${col.title}
+卡片標題: ${card.title}
+卡片內文: ${card.content || "無詳細內文"}`;
+
+  try {
+    const diagnosisResult = await callGemini(diagnosePrompt, "你是一個專業的化學品保分析專家。請產出精簡、專業、可以直接寫進品保工作報告的 5-Why 分析。");
+    
+    if (!card.comments) card.comments = [];
+    
+    card.comments.push({
+      author: "🤖 AI品保顧問",
+      body: diagnosisResult,
+      timestamp: Date.now()
+    });
+    
+    card.commentsOpen = true;
+
+    saveState();
+    renderBoard();
+    showToast("AI 診斷已完成，已新增為卡片留言！");
+  } catch (err) {
+    console.error("AI Diagnosis error:", err);
+    showToast(`AI 診斷失敗: ${err.message}`, "danger");
+    if (diagnoseBtn) {
+      diagnoseBtn.disabled = false;
+      diagnoseBtn.innerHTML = origBtnContent;
+      lucide.createIcons();
+    }
+  }
 }
 
 // Run Startup

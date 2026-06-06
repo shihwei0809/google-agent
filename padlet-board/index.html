@@ -86,6 +86,11 @@
             <span>操作說明</span>
           </button>
 
+          <button id="aiSidebarBtn" class="btn btn-secondary" title="AI 助理" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.25) 0%, rgba(168, 85, 247, 0.25) 100%); border: 1px solid rgba(168, 85, 247, 0.4);">
+            <i data-lucide="sparkles" style="color: #c084fc;"></i>
+            <span>AI 助理</span>
+          </button>
+
           <div class="dropdown">
             <button id="dataMenuBtn" class="btn btn-secondary" title="資料管理">
               <i data-lucide="database"></i>
@@ -160,7 +165,12 @@
           </div>
 
           <div class="form-group">
-            <label for="cardContentInput">卡片內容</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label for="cardContentInput" style="margin-bottom: 0;">卡片內容</label>
+              <button type="button" id="aiPolishBtn" class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; height: auto; display: flex; align-items: center; gap: 4px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff;">
+                <i data-lucide="sparkles" style="width: 12px; height: 12px;"></i> AI 潤飾
+              </button>
+            </div>
             <textarea id="cardContentInput" placeholder="在此輸入內容描述..." rows="4" required spellcheck="false"></textarea>
           </div>
 
@@ -410,6 +420,93 @@
   <div class="col-menu-dropdown" id="colMenuDropdown" style="display: none;">
     <button class="col-menu-item" id="colRenameBtn"><i data-lucide="edit"></i> 重命名欄位</button>
     <button class="col-menu-item col-menu-danger" id="colDeleteBtn"><i data-lucide="trash-2"></i> 刪除此欄位</button>
+  </div>
+
+  <!-- AI Assistant Sidebar -->
+  <div class="ai-sidebar" id="aiSidebar">
+    <div class="ai-sidebar-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="sparkles" class="ai-icon-sparkle" style="color: #a78bfa; width: 18px; height: 18px;"></i>
+        <div>
+          <h3 style="margin: 0; font-size: 0.95rem; color: white; font-weight: 700;">AI 品保助理</h3>
+          <span style="font-size: 0.65rem; color: #a5b4fc; display: flex; align-items: center; gap: 4px; margin-top: 1px;">
+            <span class="ai-status-indicator" id="aiStatusIndicator" style="color: #ef4444; font-size: 0.5rem; vertical-align: middle; line-height: 1;">●</span> <span id="aiStatusText">金鑰未設定</span>
+          </span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="aiConfigBtn" class="ai-header-btn" title="設定 API Key" style="background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 4px; transition: all 0.2s;">
+          <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
+        </button>
+        <button id="closeAiSidebarBtn" class="ai-header-btn" title="關閉側邊欄" style="background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 4px; transition: all 0.2s;">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+    </div>
+    
+    <div class="ai-sidebar-body">
+      <!-- Welcome Message & Prompts -->
+      <div class="ai-welcome-container" id="aiWelcomeContainer">
+        <div class="ai-avatar-glow" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(167, 139, 250, 0.15); border: 1px solid rgba(167, 139, 250, 0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; box-shadow: 0 0 15px rgba(167, 139, 250, 0.3); animation: pulse-glow 2s infinite alternate;">
+          <i data-lucide="bot" style="width: 26px; height: 26px; color: #a78bfa;"></i>
+        </div>
+        <h4 style="margin: 0 0 8px 0; font-size: 1rem; color: white; text-align: center; font-family: 'Outfit', sans-serif;">您好！我是您的 AI 品保助手</h4>
+        <p style="margin: 0 0 20px 0; font-size: 0.8rem; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.5; padding: 0 10px;">
+          我可以幫您分析當前的品質異常、提供 5-Why 建議、起草 CAR 改善計畫或解答 ISO 規範疑問。請試試看點擊下方快捷提示：
+        </p>
+        <div class="ai-quick-prompts" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+          <button class="ai-quick-btn" data-prompt="請總結今天看板上的所有品質異常事件。" style="text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 8px; color: rgba(255,255,255,0.85); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif; outline: none;">📋 總結今日異常</button>
+          <button class="ai-quick-btn" data-prompt="對於今日的品質異常，有哪些緊急隔離與圍堵措施建議？" style="text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 8px; color: rgba(255,255,255,0.85); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif; outline: none;">🚨 建議圍堵對策</button>
+          <button class="ai-quick-btn" data-prompt="如何進行標準的 5-Why 分析？請以今日的品質異常為例。" style="text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 8px; color: rgba(255,255,255,0.85); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif; outline: none;">🔍 5-Why 分析教學</button>
+          <button class="ai-quick-btn" data-prompt="請問 ISO 9001 中，針對不合格品管制（Control of nonconforming outputs）的要求是什麼？" style="text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 8px; color: rgba(255,255,255,0.85); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif; outline: none;">📖 查詢 ISO 9001 規範</button>
+        </div>
+      </div>
+      
+      <!-- Chat Messages List -->
+      <div class="ai-chat-messages" id="aiChatMessages" style="display: none;"></div>
+    </div>
+    
+    <div class="ai-sidebar-footer">
+      <div class="ai-input-wrapper">
+        <textarea id="aiChatInput" placeholder="輸入品保問題..." rows="1" spellcheck="false"></textarea>
+        <button id="sendAiMessageBtn" title="發送">
+          <i data-lucide="send"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="ai-sidebar-overlay" id="aiSidebarOverlay"></div>
+
+  <!-- AI API Key Config Modal -->
+  <div class="modal-overlay" id="aiKeyModal">
+    <div class="modal-content glass-card" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3>AI 服務金鑰設定</h3>
+        <button class="close-modal-btn" id="closeAiKeyModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
+          請輸入您的 <strong>Google Gemini API Key</strong>。本金鑰僅儲存在您的本機瀏覽器中，直接向 Google API 發送請求，安全無虞。
+        </p>
+        <div class="form-group">
+          <label for="geminiApiKeyInput">Gemini API Key</label>
+          <div class="input-with-icon">
+            <i data-lucide="key"></i>
+            <input type="password" id="geminiApiKeyInput" placeholder="貼上 AI Studio 取得的 api_key..." spellcheck="false" style="padding-left: 36px;">
+          </div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: -8px; margin-bottom: 20px;">
+          沒有金鑰？ <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--primary-color); text-decoration: underline;">免費申請一個 Google Gemini 金鑰</a>
+        </div>
+        <div class="modal-footer" style="padding-top: 12px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" id="cancelAiKeyBtn">取消</button>
+          <button type="button" class="btn btn-primary" id="saveAiKeyBtn">儲存金鑰</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Custom JS Application Logic -->
