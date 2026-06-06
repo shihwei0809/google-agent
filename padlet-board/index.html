@@ -165,11 +165,21 @@
           </div>
 
           <div class="form-group">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
               <label for="cardContentInput" style="margin-bottom: 0;">卡片內容</label>
-              <button type="button" id="aiPolishBtn" class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; height: auto; display: flex; align-items: center; gap: 4px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff;">
-                <i data-lucide="sparkles" style="width: 12px; height: 12px;"></i> AI 潤飾
-              </button>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" id="cardMicBtn" class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; height: auto; display: flex; align-items: center; gap: 4px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.3); color: #a7f3d0;">
+                  <i data-lucide="mic" style="width: 12px; height: 12px;"></i> 語音輸入
+                </button>
+                <select id="aiPolishType" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; font-size: 0.75rem; border-radius: var(--border-radius-sm); padding: 3px 6px; outline: none; cursor: pointer; font-family: var(--font-family); height: 24px;">
+                  <option value="polish" style="background: #1e1b4b; color: white;">✨ AI 潤飾</option>
+                  <option value="bullet" style="background: #1e1b4b; color: white;">📋 條列化</option>
+                  <option value="summarize" style="background: #1e1b4b; color: white;">🔍 總結摘要</option>
+                </select>
+                <button type="button" id="aiPolishBtn" class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; height: auto; display: flex; align-items: center; gap: 4px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff;">
+                  執行
+                </button>
+              </div>
             </div>
             <textarea id="cardContentInput" placeholder="在此輸入內容描述..." rows="4" required spellcheck="false"></textarea>
           </div>
@@ -469,6 +479,9 @@
     <div class="ai-sidebar-footer">
       <div class="ai-input-wrapper">
         <textarea id="aiChatInput" placeholder="輸入品保問題..." rows="1" spellcheck="false"></textarea>
+        <button type="button" id="aiMicBtn" title="語音輸入" style="background: none; border: none; color: #a78bfa; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, color 0.2s; margin-right: 4px;">
+          <i data-lucide="mic" style="width: 16px; height: 16px;"></i>
+        </button>
         <button id="sendAiMessageBtn" title="發送">
           <i data-lucide="send"></i>
         </button>

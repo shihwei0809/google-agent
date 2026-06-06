@@ -267,6 +267,12 @@ const cancelAiKeyBtn = document.getElementById("cancelAiKeyBtn");
 const saveAiKeyBtn = document.getElementById("saveAiKeyBtn");
 const closeAiKeyModalBtn = document.getElementById("closeAiKeyModalBtn");
 
+// Voice Input & Editing DOM Elements
+const cardMicBtn = document.getElementById("cardMicBtn");
+const aiMicBtn = document.getElementById("aiMicBtn");
+const aiPolishType = document.getElementById("aiPolishType");
+
+
 
 // Columns Action Dropdown Context Menu
 const colMenuDropdown = document.getElementById("colMenuDropdown");
@@ -1943,6 +1949,16 @@ function setupEventListeners() {
   if (aiPolishBtn) {
     aiPolishBtn.addEventListener("click", handleAiPolish);
   }
+
+  // Card Modal Voice Input
+  if (cardMicBtn) {
+    cardMicBtn.addEventListener("click", () => toggleSpeechRecognition(cardMicBtn, cardContentInput));
+  }
+
+  // AI Sidebar Chat Voice Input
+  if (aiMicBtn) {
+    aiMicBtn.addEventListener("click", () => toggleSpeechRecognition(aiMicBtn, aiChatInput));
+  }
   
   // Handle ESC / Left / Right / Space keys for slideshow and other overlays
   document.addEventListener("keydown", (e) => {
@@ -2091,6 +2107,155 @@ function openAiSidebar() {
   aiSidebarOverlay.classList.add("show");
   aiSidebarOverlay.style.display = "block";
   updateAiStatus();
+}
+
+// AI Content Polish (Form optimization helper)
+async function handleAiPolish() {
+  const title = cardTitleInput.value.trim();
+  const content = cardContentInput.value.trim();
+  
+  if (!content) {
+    showToast("請先輸入卡片內容再進行處置", "danger");
+    return;
+  }
+
+  const type = aiPolishType ? aiPolishType.value : "polish";
+  const polishBtn = document.getElementById("aiPolishBtn");
+  const origHtml = polishBtn.innerHTML;
+  
+  polishBtn.disabled = true;
+  
+  let actionText = "處理中...";
+  let systemInstruction = "你是一個專門寫品保與客訴通報的專家，擅長使用項目符號與清晰段落。";
+  let prompt = "";
+
+  if (type === "polish") {
+    actionText = "潤飾中...";
+    prompt = `你是一個專業的化工廠品保工程師。請幫我將以下通報草稿，潤飾並重新整理成結構清晰、用詞專業的品保通報文件。
+請保留原本草稿中的所有重要數據（如數值、人名、線別、批號）。
+請以下列結構重寫：
+- 【異常現象與描述】:
+- 【暫定影響範疇】:
+- 【建議處置與即時圍堵措施】:
+
+原本的標題為：${title || "未命名"}
+原本的卡片內容為：\n${content}`;
+  } else if (type === "bullet") {
+    actionText = "整理中...";
+    prompt = `你是一個品質分析專家。請幫我將以下通報內容重新整理，轉換成項目符號（Bullet points）條列格式。請保留所有的關鍵數據與時間人員：\n${content}`;
+    systemInstruction = "你是一個善於提煉要點並以條列格式呈現的品保專家。";
+  } else if (type === "summarize") {
+    actionText = "總結中...";
+    prompt = `你是一個化學工廠品保部主管。請幫我將以下詳細的品質事件或規章描述，簡化總結成一段不超過 120 字的精簡摘要，並提煉出最核心的結論或行動項目：\n${content}`;
+    systemInstruction = "你擅長寫精簡、精確的品保主管摘要，字數嚴格控制。";
+  }
+
+  polishBtn.innerHTML = `<i data-lucide="loader" class="animate-spin" style="width: 12px; height: 12px;"></i> ${actionText}`;
+  lucide.createIcons();
+
+  try {
+    const polishedResult = await callGemini(prompt, systemInstruction);
+    cardContentInput.value = polishedResult;
+    
+    // Trigger input to resize textarea
+    cardContentInput.dispatchEvent(new Event('input'));
+    
+    showToast("AI 文本編輯完成！");
+  } catch (err) {
+    console.error("AI Polish error:", err);
+    showToast(`處置失敗: ${err.message}`, "danger");
+  } finally {
+    polishBtn.disabled = false;
+    polishBtn.innerHTML = origHtml;
+    lucide.createIcons();
+  }
+}
+
+// Voice Recognition Toggle Helper (Web Speech API)
+let speechRecognitionInstance = null;
+let currentRecordingBtn = null;
+
+function initSpeechRecognition() {
+  if (speechRecognitionInstance) return speechRecognitionInstance;
+  
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) return null;
+
+  const recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.lang = 'zh-TW';
+  recognition.interimResults = false;
+
+  return recognition;
+}
+
+function toggleSpeechRecognition(btnEl, targetInputEl) {
+  const recognition = initSpeechRecognition();
+  if (!recognition) {
+    showToast("您的瀏覽器不支援語音辨識 (推薦使用 Chrome/Edge 瀏覽器)", "danger");
+    return;
+  }
+
+  if (currentRecordingBtn) {
+    if (currentRecordingBtn === btnEl) {
+      recognition.stop();
+      return;
+    } else {
+      currentRecordingBtn.click(); // Stop the other active recording
+    }
+  }
+
+  currentRecordingBtn = btnEl;
+  const origContent = btnEl.innerHTML;
+  const isCardMic = btnEl === cardMicBtn;
+
+  if (isCardMic) {
+    btnEl.innerHTML = `<i data-lucide="mic-off" style="width: 12px; height: 12px; color: #f87171;"></i> 聆聽中...`;
+    btnEl.style.background = "rgba(248, 113, 113, 0.15)";
+    btnEl.style.borderColor = "rgba(248, 113, 113, 0.3)";
+    btnEl.style.color = "#fca5a5";
+  } else {
+    btnEl.innerHTML = `<i data-lucide="mic-off" style="width: 16px; height: 16px; color: #f87171;"></i>`;
+    btnEl.title = "停止語音輸入";
+    btnEl.style.color = "#f87171";
+  }
+  lucide.createIcons();
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    if (transcript) {
+      const currentVal = targetInputEl.value;
+      targetInputEl.value = currentVal ? (currentVal + " " + transcript) : transcript;
+      targetInputEl.dispatchEvent(new Event('input'));
+      showToast("語音輸入成功！");
+    }
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Speech recognition error:", event.error);
+    if (event.error !== "no-speech") {
+      showToast(`語音辨識錯誤: ${event.error}`, "danger");
+    }
+  };
+
+  recognition.onend = () => {
+    btnEl.innerHTML = origContent;
+    if (isCardMic) {
+      btnEl.style.background = "rgba(52, 211, 153, 0.15)";
+      btnEl.style.borderColor = "rgba(52, 211, 153, 0.3)";
+      btnEl.style.color = "#a7f3d0";
+    } else {
+      btnEl.title = "語音輸入";
+      btnEl.style.color = "#a78bfa";
+    }
+    lucide.createIcons();
+    
+    if (currentRecordingBtn === btnEl) {
+      currentRecordingBtn = null;
+    }
+  };
+
+  recognition.start();
 }
 
 function closeAiSidebar() {
