@@ -47,3 +47,5 @@ claude-video-specs/
 *.ppt
 *.pptx
 
+# Media
+*.mp4
