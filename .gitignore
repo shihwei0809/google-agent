@@ -49,3 +49,10 @@ claude-video-specs/
 
 # Media
 *.mp4
+
+# Archives & Executables
+*.zip
+*.tar.gz
+*.rar
+*.exe
+*.dll
