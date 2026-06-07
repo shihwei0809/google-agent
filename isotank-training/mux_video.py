@@ -36,4 +36,4 @@ cmd = [
 ]
 
 subprocess.run(cmd, check=True)
-print(f"✓ 合成完成！最終影片路徑：{final_output}")
+print(f"[OK] 合成完成！最終影片路徑：{final_output}")

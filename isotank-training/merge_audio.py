@@ -54,4 +54,4 @@ cmd = [
 # 在 renders/ 目錄下執行以解決 ffmpeg 讀取相對路徑的問題
 subprocess.run(cmd, check=True, cwd=renders_dir)
 
-print(f"✓ master_audio.mp3 合成完成：{master_audio}")
+print(f"[OK] master_audio.mp3 合成完成：{master_audio}")

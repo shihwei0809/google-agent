@@ -52,8 +52,21 @@
   }
 
   .stage {
-    position: fixed; inset: 0; background: var(--paper);
-    display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; background: #15181C;
+    overflow: hidden;
+  }
+
+  .stage-scale-wrapper {
+    position: absolute;
+    width: 1920px;
+    height: 1080px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    background: var(--paper);
+    overflow: hidden;
+    box-shadow: 0 20px 80px rgba(0,0,0,0.5);
   }
 
   .slide {
@@ -86,13 +99,13 @@
   /* 旁白字幕條 */
   .subtitle {
     position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%);
-    max-width: 88%; width: 1400px; padding: 18px 36px; border-radius: 12px;
-    background: rgba(21, 24, 28, 0.95); color: #fff;
+    max-width: 88%; width: 1400px; padding: 10px 20px;
+    background: transparent; color: #fff;
     font-family: 'GenSeki TW', sans-serif; font-weight: 700;
     font-size: 32px; line-height: 1.4; text-align: center;
     opacity: 0; transition: opacity 0.4s ease;
     z-index: 100;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95), -2px -2px 4px rgba(0, 0, 0, 0.95), 2px -2px 4px rgba(0, 0, 0, 0.95), -2px 2px 4px rgba(0, 0, 0, 0.95);
   }
   .subtitle.show { opacity: 1; }
 
@@ -120,6 +133,47 @@
     position: absolute; left: 0; bottom: 0; height: 6px; background: var(--teal);
     width: 0%; transition: width 0.2s linear;
     z-index: 101;
+  }
+
+  /* 字幕開關按鈕 */
+  .cc-toggle-btn {
+    position: fixed; top: 30px; right: 30px; z-index: 1002;
+    background: rgba(21, 24, 28, 0.7); backdrop-filter: blur(10px);
+    border: 2px solid var(--line); color: #fff; border-radius: 50%;
+    width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-family: 'GenSeki TW', sans-serif; font-weight: 700;
+    font-size: 20px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  .cc-toggle-btn:hover {
+    background: var(--teal); border-color: var(--teal); transform: scale(1.05);
+  }
+  .cc-toggle-btn.off {
+    color: rgba(255,255,255,0.4); background: rgba(21, 24, 28, 0.4);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .cc-toggle-btn.off::after {
+    content: ''; position: absolute; width: 40px; height: 2px;
+    background: #E74C3C; transform: rotate(-45deg);
+  }
+  body.subtitles-disabled .subtitle {
+    display: none !important;
+  }
+  body.rendering .cc-toggle-btn,
+  body.rendering .speed-toggle-btn {
+    display: none !important;
+  }
+
+  /* 播放速度按鈕 */
+  .speed-toggle-btn {
+    position: fixed; top: 30px; right: 105px; z-index: 1002;
+    background: rgba(21, 24, 28, 0.7); backdrop-filter: blur(10px);
+    border: 2px solid var(--line); color: #fff; border-radius: 50%;
+    width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-family: 'GenSeki TW', sans-serif; font-weight: 700;
+    font-size: 16px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  .speed-toggle-btn:hover {
+    background: var(--teal); border-color: var(--teal); transform: scale(1.05);
   }
 
   /* ============ Slide 1 — 封面 ============ */
@@ -395,6 +449,10 @@
 </head>
 <body>
 
+<!-- 控制按鈕 -->
+<button class="speed-toggle-btn" id="speedToggle" title="切換播放速度">1.0x</button>
+<button class="cc-toggle-btn" id="ccToggle" title="切換字幕顯示">CC</button>
+
 <!-- 點擊開始畫面 (錄製時會帶上 ?render=true 參數，藉由 CSS 隱藏並自動播放) -->
 <div class="start-screen" id="startScreen">
   <div class="t">ISOTANK 化學品卸料<br>安全與進貨訓練</div>
@@ -403,6 +461,7 @@
 </div>
 
 <div class="stage" id="stage">
+  <div class="stage-scale-wrapper" id="stageScaleWrapper">
 
   <!-- ====== Slide 1 — 封面 ====== -->
   <div class="slide slide-1">
@@ -448,7 +507,38 @@
         <div style="font-size:30px; font-weight:900; color:var(--ink-soft); margin-bottom:10px;">★ 個人防護裝備 (PPE) 著裝要求：</div>
         <div class="ppe-grid">
           <div class="ppe-card" id="ppe1"><div class="emoji">🛡️</div><h4>重型防化服</h4></div>
-          <div class="ppe-card" id="ppe2"><div class="emoji">🥽</div><h4>防護面罩</h4></div>
+          <div class="ppe-card" id="ppe2">
+            <div class="emoji" style="display: flex; align-items: center; justify-content: center; height: 72px;">
+              <svg width="72" height="72" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Head harnesses -->
+                <path d="M15 45 C 5 45, 5 35, 15 35 M85 45 C 95 45, 95 35, 85 35" stroke="#2C3E50" stroke-width="4" stroke-linecap="round"/>
+                <path d="M30 25 C 30 15, 70 15, 70 25" stroke="#2C3E50" stroke-width="3" fill="none" stroke-linecap="round"/>
+                
+                <!-- Mask body -->
+                <path d="M25 45 C25 25, 75 25, 75 45 C75 60, 68 80, 50 85 C32 80, 25 60, 25 45 Z" fill="#2F3542" stroke="#1E2229" stroke-width="4" stroke-linejoin="round"/>
+                
+                <!-- Goggles visor -->
+                <path d="M30 40 C30 32, 70 32, 70 40 C70 47, 65 52, 50 52 C35 52, 30 47, 30 40 Z" fill="#70A1FF" stroke="#1E2229" stroke-width="3" stroke-linejoin="round" opacity="0.9"/>
+                <path d="M38 36 L48 36 C43 36, 40 45, 35 45 Z" fill="#FFFFFF" opacity="0.4"/>
+                <path d="M58 36 L68 36 C63 36, 60 45, 55 45 Z" fill="#FFFFFF" opacity="0.4"/>
+                
+                <!-- Breathing valve -->
+                <circle cx="50" cy="60" r="10" fill="#747D8C" stroke="#1E2229" stroke-width="3"/>
+                <circle cx="50" cy="60" r="6" fill="#2F3542"/>
+                
+                <!-- Left filter canister -->
+                <rect x="12" y="52" width="16" height="24" rx="4" transform="rotate(15 20 64)" fill="#57606F" stroke="#1E2229" stroke-width="3"/>
+                <path d="M14 56 L26 59" stroke="#2F3542" stroke-width="2"/>
+                <path d="M16 64 L28 67" stroke="#2F3542" stroke-width="2"/>
+                
+                <!-- Right filter canister -->
+                <rect x="72" y="52" width="16" height="24" rx="4" transform="rotate(-15 80 64)" fill="#57606F" stroke="#1E2229" stroke-width="3"/>
+                <path d="M86 56 L74 59" stroke="#2F3542" stroke-width="2"/>
+                <path d="M84 64 L72 67" stroke="#2F3542" stroke-width="2"/>
+              </svg>
+            </div>
+            <h4>防毒面具與眼罩</h4>
+          </div>
           <div class="ppe-card" id="ppe3"><div class="emoji">🧤</div><h4>耐酸鹼長手套</h4></div>
         </div>
       </div>
@@ -484,7 +574,7 @@
           <!-- 接地電阻顯示 -->
           <g id="resistanceMeter" opacity="0" transform="translate(560, 200)">
             <rect x="0" y="0" width="180" height="70" rx="10" fill="#27AE60" stroke="#FAF7EE" stroke-width="4"/>
-            <text x="90" y="45" font-size="28" font-weight="900" fill="#FAF7EE" text-anchor="middle" font-family="GenSeki TW">&lt; 2.5 Ω OK</text>
+            <text x="90" y="45" font-size="28" font-weight="900" fill="#FAF7EE" text-anchor="middle" font-family="GenSeki TW">&lt; 10 Ω OK</text>
           </g>
 
           <!-- 防溢流堤 (Spill Bund) -->
@@ -663,6 +753,7 @@
 
   <!-- 共用字幕條 -->
   <div class="subtitle" id="subtitle"></div>
+  </div> <!-- stage-scale-wrapper -->
 </div>
 
 <div class="progress" id="progress"></div>
@@ -673,7 +764,7 @@
 const PAGES = [
   { i:1, dur:12.9, sub:"歡迎收看 ISOTANK 化學品卸料安全訓練課程。今天我們用三分鐘，徹底掌握進貨安全的每一個關鍵步驟。" },
   { i:2, dur:14.3, sub:"高危險化學品卸料，是一場與隱形危機的博弈。微小的靜電火花，或細微的接頭洩漏，都可能釀成不可挽回的災害。" },
-  { i:3, dur:13.8, sub:"卸料前，必須核對單據、標籤與安全資料表。同時，必須著裝完整的防化服、防護面罩與耐酸鹼手套。" },
+  { i:3, dur:13.8, sub:"卸料前，必須核對單據、標籤與安全資料表。同時，必須著裝完整的防化服、防毒面具與眼罩、以及耐酸鹼手套。" },
   { i:4, dur:15.6, sub:"接著是雙重防護。將車輪鎖定，並在車體下方架設防溢流圍堤。隨後夾緊靜電接地夾，確認接地電阻小於十歐姆。" },
   { i:5, dur:14.7, sub:"連接管路時，氣相平衡管必須先接，液相輸送管後接。接好後，引入低壓氮氣，在接頭塗抹肥皂水進行氣密測試。" },
   { i:6, dur:14.0, sub:"緩慢開啟卸料閥，卸料期間，操作人員不得離開現場。必須嚴格監控管路壓力、儲槽液位與是否有異常氣味。" },
@@ -689,6 +780,97 @@ const audio = document.getElementById('audio');
 const sub = document.getElementById('subtitle');
 const startScreen = document.getElementById('startScreen');
 const progress = document.getElementById('progress');
+const ccToggle = document.getElementById('ccToggle');
+const speedToggle = document.getElementById('speedToggle');
+const scaleWrapper = document.getElementById('stageScaleWrapper');
+
+// ===== 視窗自適應縮放 (Auto-Scale to fit screen) =====
+function resizeStage() {
+  const baseWidth = 1920;
+  const baseHeight = 1080;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const scale = Math.min(w / baseWidth, h / baseHeight);
+  scaleWrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+window.addEventListener('resize', resizeStage);
+resizeStage();
+
+// ===== 播放速度控制與變速安全定時器 =====
+let playbackRate = 1.0;
+try {
+  const savedRate = localStorage.getItem('playback-rate');
+  if (savedRate) {
+    playbackRate = parseFloat(savedRate);
+  }
+} catch (e) {}
+speedToggle.textContent = `${playbackRate.toFixed(2).replace(/\.00$/, '')}x`;
+
+let activeTimeouts = [];
+function safeTimeout(fn, delay) {
+  const t = setTimeout(fn, delay / playbackRate);
+  activeTimeouts.push(t);
+  return t;
+}
+function clearAllTimeouts() {
+  activeTimeouts.forEach(clearTimeout);
+  activeTimeouts = [];
+}
+
+speedToggle.addEventListener('click', () => {
+  const oldRate = playbackRate;
+  if (playbackRate === 1.0) playbackRate = 1.25;
+  else if (playbackRate === 1.25) playbackRate = 1.5;
+  else if (playbackRate === 1.5) playbackRate = 2.0;
+  else if (playbackRate === 2.0) playbackRate = 0.75;
+  else playbackRate = 1.0;
+
+  speedToggle.textContent = `${playbackRate}x`;
+  audio.playbackRate = playbackRate;
+
+  try {
+    localStorage.setItem('playback-rate', playbackRate);
+  } catch (e) {}
+
+  // 變速時重新計算當前投影片定時器，確保動畫與口白對齊
+  if (startScreen.classList.contains('hidden') && currentSlide < PAGES.length) {
+    const elapsedInSlide = (Date.now() - slideStartTime) / 1000;
+    slideStartTime = Date.now() - (elapsedInSlide * (oldRate / playbackRate)) * 1000;
+    
+    clearAllTimeouts();
+    const p = PAGES[currentSlide];
+    if (p.i === 3) playSlide3();
+    if (p.i === 4) playSlide4();
+    if (p.i === 5) playSlide5();
+    if (p.i === 6) playSlide6();
+    if (p.i === 7) playSlide7();
+  }
+});
+
+// Enforce audio playbackRate on play
+audio.addEventListener('play', () => {
+  audio.playbackRate = playbackRate;
+});
+
+// ===== 字幕開關設定與儲存 =====
+let subsDisabled = false;
+try {
+  subsDisabled = localStorage.getItem('subtitles-disabled') === 'true';
+} catch (e) {}
+
+if (subsDisabled) {
+  document.body.classList.add('subtitles-disabled');
+  ccToggle.classList.add('off');
+}
+
+ccToggle.addEventListener('click', () => {
+  subsDisabled = !subsDisabled;
+  document.body.classList.toggle('subtitles-disabled', subsDisabled);
+  ccToggle.classList.toggle('off', subsDisabled);
+  try {
+    localStorage.setItem('subtitles-disabled', subsDisabled);
+  } catch (e) {}
+});
 
 // ===== Slide 1: 飄浮粒子 =====
 const particles = document.getElementById('particles');
@@ -717,14 +899,14 @@ function playSlide3() {
   [p1, p2, p3].forEach(el => el.classList.remove('highlight'));
 
   // Checklist checks
-  setTimeout(() => c1.classList.add('checked'), 2200);
-  setTimeout(() => c2.classList.add('checked'), 4500);
-  setTimeout(() => c3.classList.add('checked'), 6800);
+  safeTimeout(() => c1.classList.add('checked'), 2200);
+  safeTimeout(() => c2.classList.add('checked'), 4500);
+  safeTimeout(() => c3.classList.add('checked'), 6800);
 
   // PPE highlights
-  setTimeout(() => p1.classList.add('highlight'), 8500);
-  setTimeout(() => p2.classList.add('highlight'), 9600);
-  setTimeout(() => p3.classList.add('highlight'), 10800);
+  safeTimeout(() => p1.classList.add('highlight'), 8500);
+  safeTimeout(() => p2.classList.add('highlight'), 9600);
+  safeTimeout(() => p3.classList.add('highlight'), 10800);
 }
 
 // ===== Slide 4: Safe Prep Animation =====
@@ -747,18 +929,18 @@ function playSlide4() {
   groundWire.style.strokeDashoffset = '600';
 
   // Step 1: Chock wheels
-  setTimeout(() => {
+  safeTimeout(() => {
     cWheel.classList.add('active');
     wL.style.opacity = '1';
     wR.style.opacity = '1';
   }, 1500);
 
   // Step 2: Deploy Spill Bund
-  setTimeout(() => {
+  safeTimeout(() => {
     cContain.classList.add('active');
     bundBorder.style.transition = 'opacity 0.6s ease';
     bundBorder.style.opacity = '1';
-    setTimeout(() => {
+    safeTimeout(() => {
       bundFill.style.transition = 'opacity 1s ease';
       bundFill.style.opacity = '1';
       bundText.style.transition = 'opacity 0.6s ease';
@@ -767,11 +949,11 @@ function playSlide4() {
   }, 4800);
 
   // Step 3: Connect Grounding Wire
-  setTimeout(() => {
+  safeTimeout(() => {
     cGround.classList.add('active');
     groundWire.style.transition = 'stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)';
     groundWire.style.strokeDashoffset = '0';
-    setTimeout(() => {
+    safeTimeout(() => {
       resMeter.style.transition = 'opacity 0.5s ease';
       resMeter.style.opacity = '1';
     }, 1800);
@@ -798,33 +980,33 @@ function playSlide5() {
   [sGas, sLiq, sLeak].forEach(el => el.className = 'pipe-step');
 
   // Step 1: Connect Gas Pipe
-  setTimeout(() => {
+  safeTimeout(() => {
     sGas.classList.add('active');
     gasPipeReal.style.transition = 'stroke-dashoffset 1.5s linear';
     gasPipeReal.style.strokeDashoffset = '0';
-    setTimeout(() => {
+    safeTimeout(() => {
       gasText.style.transition = 'opacity 0.5s';
       gasText.style.opacity = '1';
     }, 1200);
   }, 1800);
 
   // Step 2: Connect Liquid Pipe
-  setTimeout(() => {
+  safeTimeout(() => {
     sLiq.classList.add('active');
     liquidPipe.style.transition = 'stroke-dashoffset 1.5s linear';
     liquidPipe.style.strokeDashoffset = '0';
-    setTimeout(() => {
+    safeTimeout(() => {
       liqText.style.transition = 'opacity 0.5s';
       liqText.style.opacity = '1';
     }, 1200);
   }, 5800);
 
   // Step 3: Leak Test
-  setTimeout(() => {
+  safeTimeout(() => {
     sLeak.classList.add('active-coral');
     bubbles.style.transition = 'opacity 0.5s';
     bubbles.style.opacity = '1';
-    setTimeout(() => {
+    safeTimeout(() => {
       // Transition leak bubbles test from searching to OK
       bubbles.style.opacity = '0';
       bubbleOk.style.transition = 'opacity 0.5s';
@@ -852,7 +1034,7 @@ function playSlide6() {
   if (monitorTimer) clearInterval(monitorTimer);
 
   monitorTimer = setInterval(() => {
-    let elapsed = (Date.now() - startT) / 1000;
+    let elapsed = ((Date.now() - startT) / 1000) * playbackRate;
     if (elapsed > 14.0) elapsed = 14.0;
     
     // Format timestamp
@@ -926,9 +1108,9 @@ function playSlide7() {
 
   [r1, r2, r3].forEach(el => el.className = 'road-node');
 
-  setTimeout(() => r1.classList.add('active'), 1500);
-  setTimeout(() => r2.classList.add('active'), 5500);
-  setTimeout(() => r3.classList.add('active-coral'), 10000);
+  safeTimeout(() => r1.classList.add('active'), 1500);
+  safeTimeout(() => r2.classList.add('active'), 5500);
+  safeTimeout(() => r3.classList.add('active-coral'), 10000);
 }
 
 // ===== Playback Sync Controller =====
@@ -938,6 +1120,7 @@ let slideStartTime = 0;
 let rafId = null;
 
 function showSlide(i) {
+  clearAllTimeouts(); // 清除本頁的所有定時器
   slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
   const p = PAGES[i];
   sub.textContent = p.sub;
@@ -945,6 +1128,8 @@ function showSlide(i) {
 
   // Load and play corresponding page TTS narration audio
   audio.src = `assets/narration/page-${String(p.i).padStart(2,'0')}.mp3`;
+  audio.defaultPlaybackRate = playbackRate;
+  audio.playbackRate = playbackRate;
   audio.play().catch(()=>{});
 
   // Reset animations and run page-specific actions
@@ -959,7 +1144,8 @@ function showSlide(i) {
 
 // Global Animation Loop
 function animateTimeline() {
-  const elapsed = (Date.now() - slideStartTime) / 1000;
+  // 使用 playbackRate 計算時間軸進度
+  const elapsed = ((Date.now() - slideStartTime) / 1000) * playbackRate;
   const p = PAGES[currentSlide];
 
   // Update progress bar
@@ -984,7 +1170,11 @@ function animateTimeline() {
 
 // Handle Auto-Play query parameters for Playwright recording (avoids click screen)
 const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('nosub') === 'true') {
+  document.body.classList.add('subtitles-disabled');
+}
 if (urlParams.get('render') === 'true') {
+  document.body.classList.add('rendering');
   startScreen.classList.add('hidden');
   slideStartTime = Date.now();
   showSlide(0);

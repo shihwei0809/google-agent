@@ -23,7 +23,7 @@ const fs = require('fs');
   const page = await context.newPage();
   
   // 使用 ?render=true 啟用自動無遮罩渲染
-  const fileUrl = 'file:///' + path.join(__dirname, 'index.html').replace(/\\/g, '/') + '?render=true';
+  const fileUrl = 'file:///' + path.join(__dirname, 'index.html').replace(/\\/g, '/') + '?render=true&nosub=true';
   console.log('Loading page:', fileUrl);
   
   await page.goto(fileUrl);
