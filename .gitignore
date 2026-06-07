@@ -42,3 +42,8 @@ claude-video-specs/
 # Firebase
 .firebase/
 
+# Documents (PDF & PowerPoint)
+*.pdf
+*.ppt
+*.pptx
+
