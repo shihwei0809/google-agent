@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-CWA Weather Monitor and Notifier (每小時狀態機版)
-抓取中央氣象署彰化縣線西鄉的即時體感溫度觀測資料。
+CWA Weather Monitor and Notifier (CWA Open Data API 版)
+透過 CWA Open Data API 拓取彰化縣線西鄉線西站即時觀測資料，自行計算體感溫度。
 當溫度首次超標或首次回落時發送通知，並提供狀態防重複機制。
 """
 
@@ -17,6 +17,7 @@ import urllib.error
 import smtplib
 import csv
 import io
+import math
 from email.mime.text import MIMEText
 from email.header import Header
 
@@ -77,6 +78,15 @@ def fetch_url(url):
     context = ssl._create_unverified_context()
     with urllib.request.urlopen(req, timeout=15, context=context) as response:
         return response.read().decode("utf-8")
+
+def calc_apparent_temp(temp, rh, wind):
+    """依 CWA 公式計算體感溫度 AT
+    AT = T + 0.33*e - 0.70*V - 4.0
+    e  = (RH/100) * 6.105 * exp(17.27*T / (237.7+T))
+    """
+    e = (rh / 100.0) * 6.105 * math.exp((17.27 * temp) / (237.7 + temp))
+    at = temp + 0.33 * e - 0.70 * wind - 4.0
+    return round(at, 1)
 
 def send_heartbeat(url, state_name=None, sync_type="heartbeat"):
     """發送心跳與狀態同步給 Google Apps Script 雲端 Web App"""
@@ -189,25 +199,42 @@ def fetch_recipients_from_google_sheet(csv_url):
     return recipients, threshold_override
 
 def check_weather(config):
-    """抓取即時觀測溫度"""
-    tid = config.get("tid", "1000704")
-    
-    # 抓取即時觀測
-    gt_url = f"https://www.cwa.gov.tw/Data/js/GT/TableData_GT_T_{tid[:5]}.js"
-    print(f"正在抓取即時觀測資料... ({gt_url})")
-    gt_content = fetch_url(gt_url)
-    gt_data = parse_js_var(gt_content, "GT")
-    gt_time_data = parse_js_var(gt_content, "GT_Time")
-    
-    obs_time_str = gt_time_data.get("C", "")  # 例如 "06/09<br>(二)<br>15:00"
-    display_time = obs_time_str.replace("<br>", " ")
-    
-    town_obs = gt_data.get(tid)
-    if not town_obs:
-        raise ValueError(f"在即時資料中找不到 TID {tid} 的數據。")
-        
-    c_at = float(town_obs.get("C_AT", 0))
-    return c_at, display_time
+    """透過 CWA Open Data API 抓取線西站即時觀測並計算體感溫度"""
+    api_key    = config.get("cwa_api_key", "")
+    station_id = config.get("cwa_station_id", "C0G900")
+
+    if not api_key:
+        raise ValueError("請在 config.json 中設定 cwa_api_key。")
+
+    url = (
+        f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001"
+        f"?Authorization={api_key}&StationId={station_id}"
+    )
+    print(f"正在透過 CWA Open Data API 抓取觀測資料... (站點: {station_id})")
+    content = fetch_url(url)
+    data = json.loads(content)
+
+    stations = data.get("records", {}).get("Station", [])
+    if not stations:
+        raise ValueError(f"CWA API 回傳空資料，StationId={station_id}")
+
+    s        = stations[0]
+    we       = s.get("WeatherElement", {})
+    obs_time = s.get("ObsTime", {}).get("DateTime", "")
+
+    temp = float(we.get("AirTemperature", -99))
+    rh   = float(we.get("RelativeHumidity", -99))
+    wind = float(we.get("WindSpeed", -99))
+
+    if temp == -99 or rh == -99:
+        raise ValueError(f"站點 {station_id} 觀測資料異常（-99），無法計算體感溫度。")
+
+    if wind == -99:
+        wind = 0.0  # 風速感測器故障時當作無風處理
+
+    at = calc_apparent_temp(temp, rh, wind)
+    print(f"觀測時間: {obs_time}, 乾球溫度: {temp}°C, 相對濕度: {rh}%, 風速: {wind} m/s → 體感溫度: {at}°C")
+    return at, obs_time
 
 def send_line_notifications(line_config, message, recipients):
     """發送 LINE 訊息通知（支援 Multicast API 一次推播多人）"""

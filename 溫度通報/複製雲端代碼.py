@@ -21,7 +21,18 @@ function onOpen() {
 }
 
 /**
- * CWA 體感溫度監控與 LINE/Email 自動通報系統 (Google Apps Script 雲端每小時狀態機版)
+ * 依 CWA 公式計算體感溫度 (AT)
+ * AT = T + 0.33*e - 0.70*V - 4.0
+ * e  = (RH/100) * 6.105 * exp(17.27*T / (237.7+T))
+ */
+function calcApparentTemp(temp, rh, wind) {
+  var e = (rh / 100.0) * 6.105 * Math.exp((17.27 * temp) / (237.7 + temp));
+  var at = temp + 0.33 * e - 0.70 * wind - 4.0;
+  return Math.round(at * 10) / 10;
+}
+
+/**
+ * CWA 體感溫度監控與 LINE/Email 自動通報系統 (Google Apps Script 雲端 CWA Open Data API 版)
  */
 function checkWeatherAndNotify() {
   // 檢查本機最後執行時間，如果本機在 75 分鐘內有執行過，則雲端跳過本次排程 (本機優先)
@@ -93,36 +104,39 @@ function checkWeatherAndNotify() {
     return;
   }
   
-  // 2. 獲取中央氣象署即時觀測資料 (TID=1000704 為彰化縣線西鄉)
-  var tid = "1000704";
-  var cid = tid.substring(0, 5); // 10007
+  // 2. 透過 CWA Open Data API 獲取線西站即時觀測資料
+  var apiKey = "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28";
+  var stationId = "C0G900"; // 線西站
+  var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=" + apiKey + "&StationId=" + stationId;
   
-  var gtUrl = "https://www.cwa.gov.tw/Data/js/GT/TableData_GT_T_" + cid + ".js";
-  var gtResponse = UrlFetchApp.fetch(gtUrl);
-  var gtContent = gtResponse.getContentText("UTF-8");
-  
-  var gtMatch = gtContent.match(/(?:var\s+)?GT\s*=\s*(\{[\s\S]*?\})\s*;/);
-  var gtTimeMatch = gtContent.match(/(?:var\s+)?GT_Time\s*=\s*(\{[\s\S]*?\})\s*;/);
-  
-  if (!gtMatch || !gtTimeMatch) {
-    Logger.log("解析中央氣象署即時觀測資料失敗，停止執行。");
+  var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
+  if (apiResponse.getResponseCode() !== 200) {
+    Logger.log("CWA API 請求失敗，狀態碼: " + apiResponse.getResponseCode());
+    return;
+  }
+  var apiData = JSON.parse(apiResponse.getContentText("UTF-8"));
+  var stations = apiData.records.Station;
+  if (!stations || stations.length === 0) {
+    Logger.log("CWA API 回傳空資料，StationId=" + stationId);
     return;
   }
   
-  var gtData = eval("(" + gtMatch[1] + ")");
-  var gtTimeData = eval("(" + gtTimeMatch[1] + ")");
+  var s = stations[0];
+  var we = s.WeatherElement;
+  var displayTime = s.ObsTime.DateTime; // ISO 格式，例如 "2026-06-09T19:00:00+08:00"
   
-  var obsTimeStr = gtTimeData["C"] || ""; // 例如 "06/09<br>(二)<br>16:00"
-  var displayTime = obsTimeStr.replace(/<br>/g, " ");
+  var rawTemp = parseFloat(we.AirTemperature);
+  var rawRh   = parseFloat(we.RelativeHumidity);
+  var rawWind = parseFloat(we.WindSpeed);
   
-  var townObs = gtData[tid];
-  if (!townObs) {
-    Logger.log("在氣象署觀測資料中找不到 TID " + tid + " 的數據。");
+  if (rawTemp === -99 || rawRh === -99) {
+    Logger.log("站點 " + stationId + " 觀測資料異常（-99），停止執行。");
     return;
   }
+  if (rawWind === -99) rawWind = 0;
   
-  var currentAT = parseFloat(townObs["C_AT"]); // 當前體感溫度
-  Logger.log("當前即時觀測時間: " + displayTime + "，體感溫度為: " + currentAT + "°C");
+  var currentAT = calcApparentTemp(rawTemp, rawRh, rawWind);
+  Logger.log("觀測時間: " + displayTime + "，乾球: " + rawTemp + "°C，RH: " + rawRh + "%，風速: " + rawWind + " m/s → 體感: " + currentAT + "°C");
   
   // 3. 狀態機邏輯比對
   var properties = PropertiesService.getScriptProperties();
@@ -386,33 +400,37 @@ function testNotifyForce() {
     }
   }
   
-  var tid = "1000704";
-  var cid = tid.substring(0, 5);
-  var gtUrl = "https://www.cwa.gov.tw/Data/js/GT/TableData_GT_T_" + cid + ".js";
-  var gtResponse = UrlFetchApp.fetch(gtUrl);
-  var gtContent = gtResponse.getContentText("UTF-8");
+  var apiKey = "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28";
+  var stationId = "C0G900";
+  var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=" + apiKey + "&StationId=" + stationId;
   
-  var gtMatch = gtContent.match(/(?:var\s+)?GT\s*=\s*(\{[\s\S]*?\})\s*;/);
-  var gtTimeMatch = gtContent.match(/(?:var\s+)?GT_Time\s*=\s*(\{[\s\S]*?\})\s*;/);
-  
-  if (!gtMatch || !gtTimeMatch) {
-    SpreadsheetApp.getUi().alert("【錯誤】解析中央氣象署即時觀測資料失敗，無法進行測試。");
+  var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
+  if (apiResponse.getResponseCode() !== 200) {
+    SpreadsheetApp.getUi().alert("【錯誤】CWA API 請求失敗，狀態碼: " + apiResponse.getResponseCode());
+    return;
+  }
+  var apiData = JSON.parse(apiResponse.getContentText("UTF-8"));
+  var stations = apiData.records.Station;
+  if (!stations || stations.length === 0) {
+    SpreadsheetApp.getUi().alert("【錯誤】CWA API 回傳空資料，StationId=" + stationId);
     return;
   }
   
-  var gtData = eval("(" + gtMatch[1] + ")");
-  var gtTimeData = eval("(" + gtTimeMatch[1] + ")");
+  var s = stations[0];
+  var we = s.WeatherElement;
+  var displayTime = s.ObsTime.DateTime;
   
-  var obsTimeStr = gtTimeData["C"] || "";
-  var displayTime = obsTimeStr.replace(/<br>/g, " ");
+  var rawTemp = parseFloat(we.AirTemperature);
+  var rawRh   = parseFloat(we.RelativeHumidity);
+  var rawWind = parseFloat(we.WindSpeed);
   
-  var townObs = gtData[tid];
-  if (!townObs) {
-    SpreadsheetApp.getUi().alert("【錯誤】在即時資料中找不到彰化縣線西鄉的數據。");
+  if (rawTemp === -99 || rawRh === -99) {
+    SpreadsheetApp.getUi().alert("【錯誤】站點 " + stationId + " 觀測資料異常（-99），無法進行測試。");
     return;
   }
+  if (rawWind === -99) rawWind = 0;
   
-  var currentAT = parseFloat(townObs["C_AT"]);
+  var currentAT = calcApparentTemp(rawTemp, rawRh, rawWind);
   var today = new Date();
   var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
   
