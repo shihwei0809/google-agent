@@ -73,12 +73,29 @@ function doPost(e) {
 // --------------------------------------------------------------------------
 
 function getBoardData() {
+  // Ensure log spreadsheet is created and initialized
+  var properties = PropertiesService.getScriptProperties();
+  var spreadsheetId = properties.getProperty("log_spreadsheet_id");
+  if (!spreadsheetId) {
+    try {
+      var ss = SpreadsheetApp.create("雲端留言板-操作日誌");
+      spreadsheetId = ss.getId();
+      properties.setProperty("log_spreadsheet_id", spreadsheetId);
+      var sheet = ss.getSheets()[0];
+      sheet.setName("操作紀錄");
+      sheet.appendRow(["時間", "操作動作", "目標對象/標題", "詳細說明"]);
+      sheet.getRange("A1:D1").setFontWeight("bold").setBackground("#e0e7ff");
+      sheet.setFrozenRows(1);
+    } catch (e) {
+      Logger.log("Failed to create log spreadsheet on GET: " + e.toString());
+    }
+  }
+
   // 1. Read from script key-value property store (up to 9MB, fast, highly reliable)
-  var data = PropertiesService.getScriptProperties().getProperty("board_data");
+  var data = properties.getProperty("board_data");
   if (data) {
     try {
       var parsed = JSON.parse(data);
-      var spreadsheetId = PropertiesService.getScriptProperties().getProperty("log_spreadsheet_id");
       if (spreadsheetId) {
         parsed.logSpreadsheetUrl = "https://docs.google.com/spreadsheets/d/" + spreadsheetId + "/edit";
       }
@@ -96,7 +113,6 @@ function getBoardData() {
       if (cellVal) {
         try {
           var parsed = JSON.parse(cellVal);
-          var spreadsheetId = PropertiesService.getScriptProperties().getProperty("log_spreadsheet_id");
           if (spreadsheetId) {
             parsed.logSpreadsheetUrl = "https://docs.google.com/spreadsheets/d/" + spreadsheetId + "/edit";
           }
@@ -112,8 +128,8 @@ function getBoardData() {
 
   // 3. Fallback to empty default data if script is fresh
   var defaultVal = {
-    boardTitle: "品保課協作與品質管理看板",
-    boardDescription: "品保部公告、品質異常通報、SOP規章、稽核巡檢與客訴改善追蹤看板 (雙擊空白處或點擊欄位下方 [+] 新增卡片)",
+    boardTitle: "資材課工作交接與品質管理看板",
+    boardDescription: "資材部公告、品質管理與工作交接、SOP規章、稽核巡檢與客訴改善追蹤看板 (雙擊空白處或點擊欄位下方 [+] 新增卡片)",
     bgType: "image",
     bgValue: "https://images.unsplash.com/photo-1531685250784-7569952593d2?q=80&w=1200",
     columns: [
@@ -125,7 +141,6 @@ function getBoardData() {
     ]
   };
   
-  var spreadsheetId = PropertiesService.getScriptProperties().getProperty("log_spreadsheet_id");
   if (spreadsheetId) {
     defaultVal.logSpreadsheetUrl = "https://docs.google.com/spreadsheets/d/" + spreadsheetId + "/edit";
   }
@@ -201,7 +216,7 @@ function logToSpreadsheet(action, target, detail) {
 // --------------------------------------------------------------------------
 
 function saveUploadedFile(base64Data, fileName, mimeType) {
-  var folderName = "品保課留言板圖片";
+  var folderName = "資材課留言板圖片";
   var folders = DriveApp.getFoldersByName(folderName);
   var folder;
   

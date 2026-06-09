@@ -4,8 +4,8 @@
 
 // Prepopulated high-fidelity demo data based on user screenshot
 const DEFAULT_DATA = {
-  boardTitle: "品保課協作與品質管理看板",
-  boardDescription: "品保部公告、品質異常通報、SOP規章、稽核巡檢與客訴改善追蹤看板 (雙擊空白處或點擊欄位下方 [+] 新增卡片)",
+  boardTitle: "資材課工作交接與品質管理看板",
+  boardDescription: "資材部公告、品質管理與工作交接、SOP規章、稽核巡檢與客訴改善追蹤看板 (雙擊空白處或點擊欄位下方 [+] 新增卡片)",
   bgType: "image",
   bgValue: "https://images.unsplash.com/photo-1531685250784-7569952593d2?q=80&w=1200", // Clean subtle texture background
   columns: [
@@ -17,13 +17,13 @@ const DEFAULT_DATA = {
           id: "card-1-1",
           author: "課長",
           title: "格外品與久滯品處理管理辦法宣導",
-          content: "針對格外品之處理與儲存管理辦法宣導，請品保人員及現場同仁務必遵守作業規範。相關流程及判定細則可參閱最新修訂的『C50110-INV-05 格外品處理、儲存管理辦法(3.0版)』文件與格外品久滯品流程圖。",
+          content: "針對格外品之處理與儲存管理辦法宣導，請資材人員及現場同仁務必遵守作業規範。相關流程及判定細則可參閱最新修訂的『C50110-INV-05 格外品處理、儲存管理辦法(3.0版)』文件與格外品久滯品流程圖。",
           link: "",
           image: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?q=80&w=600",
           likes: 3,
           liked: true,
           comments: [
-            { author: "品保小組長", body: "現場同仁已在今日早會上完成宣導，並將紙本流程圖張貼於看板。", timestamp: Date.now() - 1 * 24 * 60 * 60 * 1000 }
+            { author: "資材小組長", body: "現場同仁已在今日早會上完成宣導，並將紙本流程圖張貼於看板。", timestamp: Date.now() - 1 * 24 * 60 * 60 * 1000 }
           ],
           timestamp: Date.now() - 2 * 24 * 60 * 60 * 1000
         },
@@ -47,9 +47,9 @@ const DEFAULT_DATA = {
       cards: [
         {
           id: "card-2-1",
-          author: "品保工程師",
-          title: "A線包裝密封不完整異常處理",
-          content: "巡檢發現 A 線在進行產品封口包裝時，部分封口有熱熔不良導致密封不完整的情況。已通知現場產線停機檢查封口溫度，並將受影響批次隔離，啟動格外品處置流程。",
+          author: "資材專員",
+          title: "A區原料入庫包裝密封不完整異常處理",
+          content: "巡檢發現 A 區原料在進行入庫封口包裝時，部分封口有熱熔不良導致密封不完整的情況。已通知現場產線停機檢查封口溫度，並將受影響批次隔離，啟動格外品處置流程。",
           link: "",
           image: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=600",
           likes: 2,
@@ -111,9 +111,9 @@ const DEFAULT_DATA = {
       cards: [
         {
           id: "card-4-1",
-          author: "品保工程師",
+          author: "資材專員",
           title: "客戶反應產品外觀刮傷改善對策",
-          content: "針對客戶反應上批出貨有外觀微小刮傷的問題，品保已召開跨部門改善會議。決議在包裝輸送帶加裝保護防刮泡棉，並將外觀檢驗的刮傷判定加入生產線首件檢查點。",
+          content: "針對客戶反應上批出貨有外觀微小刮傷的問題，資材與品保已召開跨部門改善會議。決議在包裝輸送帶加裝保護防刮泡棉，並將外觀檢驗的刮傷判定加入首件檢查點。",
           link: "",
           image: "",
           likes: 2,
@@ -131,9 +131,9 @@ const DEFAULT_DATA = {
       cards: [
         {
           id: "card-5-1",
-          author: "品保課",
-          title: "品保知識宣導活動意見募集",
-          content: "下半年的品質宣導教育即將展開，各位同仁對宣導活動形式、品質競賽或是培訓課程有任何想法，歡迎隨時在此卡片下方留言或張貼新卡片建議！",
+          author: "資材課",
+          title: "資材與品質知識宣導活動意見募集",
+          content: "下半年的品質與交接宣導教育即將展開，各位同仁對宣導活動形式、品質競賽或是培訓課程有任何想法，歡迎隨時在此卡片下方留言或張貼新卡片建議！",
           link: "",
           image: "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=600",
           likes: 1,
@@ -1780,7 +1780,7 @@ function exportJson() {
   const url = URL.createObjectURL(blob);
   
   const link = document.createElement("a");
-  const filename = `品保留言板歷史備份_${masterData.activeDate}_data.json`;
+  const filename = `資材留言板歷史備份_${masterData.activeDate}_data.json`;
   link.href = url;
   link.download = filename;
   
@@ -2197,8 +2197,8 @@ function setupEventListeners() {
 // AI Assistant Core Logic (Gemini API Integration)
 // ==========================================================================
 
-const AI_SYSTEM_INSTRUCTION = `你是一個化學工廠品保/品管（QA/QC）與 ISO 9001 系統的專家。你的名字叫「小鴻」。
-你熟悉鴻勝化學的品質管理流程，包括格外品、久滯品、稽核巡檢、客訴改善對策（CAR）以及 5-Why 分析。
+const AI_SYSTEM_INSTRUCTION = `你是一個化學工廠資材管理、工作交接與品質管理的專家。你的名字叫「小鴻」。
+你熟悉鴻勝化學的資材管理與品質流程，包括格外品、久滯品、工作交接、稽核巡檢、改善對策以及 5-Why 分析。
 請使用繁體中文（zh-TW）回答。請使用專業、嚴謹但友善的語氣。
 你的回答中如果包含項目符號，請使用 Markdown 格式（例如 -項目）。
 如果問答與看板當前狀況有關，請直接參考上下文提供的看板內容回答。`;
@@ -2385,7 +2385,7 @@ async function callGemini(promptText, systemInstruction = AI_SYSTEM_INSTRUCTION)
 
 // Extract current board content as Markdown context
 function getBoardContext() {
-  let context = `【鴻勝化學品保課留言板 - 今日看板資訊】\n`;
+  let context = `【鴻勝化學資材課留言板 - 今日看板資訊】\n`;
   context += `今日日期: ${masterData.activeDate}\n`;
   context += `看板標題: ${state.boardTitle}\n`;
   context += `看板描述: ${state.boardDescription}\n\n`;
@@ -2438,12 +2438,12 @@ async function handleAiPolish() {
   polishBtn.disabled = true;
   
   let actionText = "處理中...";
-  let systemInstruction = "你是一個專門寫品保與客訴通報的專家，擅長使用項目符號與清晰段落。";
+  let systemInstruction = "你是一個專門寫資材、品質與工作交接通報的專家，擅長使用項目符號與清晰段落。";
   let prompt = "";
 
   if (type === "polish") {
     actionText = "潤飾中...";
-    prompt = `你是一個專業的化工廠品保工程師。請幫我將以下通報草稿，潤飾並重新整理成結構清晰、用詞專業的品保通報文件。
+    prompt = `你是一個專業的化工廠資材與品質工程師。請幫我將以下通報草稿，潤飾並重新整理成結構清晰、用詞專業的通報文件。
 請保留原本草稿中的所有重要數據（如數值、人名、線別、批號）。
 請以下列結構重寫：
 - 【異常現象與描述】:
@@ -2454,12 +2454,12 @@ async function handleAiPolish() {
 原本的卡片內容為：\n${content}`;
   } else if (type === "bullet") {
     actionText = "整理中...";
-    prompt = `你是一個品質分析專家。請幫我將以下通報內容重新整理，轉換成項目符號（Bullet points）條列格式。請保留所有的關鍵數據與時間人員：\n${content}`;
-    systemInstruction = "你是一個善於提煉要點並以條列格式呈現的品保專家。";
+    prompt = `你是一個品質與資材管理分析專家。請幫我將以下通報內容重新整理，轉換成項目符號（Bullet points）條列格式。請保留所有的關鍵數據與時間人員：\n${content}`;
+    systemInstruction = "你是一個善於提煉要點並以條列格式呈現的資材與品質專家。";
   } else if (type === "summarize") {
     actionText = "總結中...";
-    prompt = `你是一個化學工廠品保部主管。請幫我將以下詳細的品質事件或規章描述，簡化總結成一段不超過 120 字的精簡摘要，並提煉出最核心的結論或行動項目：\n${content}`;
-    systemInstruction = "你擅長寫精簡、精確的品保主管摘要，字數嚴格控制。";
+    prompt = `你是一個化學工廠資材主管。請幫我將以下詳細的事件或規章描述，簡化總結成一段不超過 120 字的精簡摘要，並提煉出最核心的結論或行動項目：\n${content}`;
+    systemInstruction = "你擅長寫精簡、精確的資材主管摘要，字數嚴格控制。";
   }
 
   polishBtn.innerHTML = `<i data-lucide="loader" class="animate-spin" style="width: 12px; height: 12px;"></i> ${actionText}`;
@@ -2728,7 +2728,7 @@ async function handleAiPolish() {
   polishBtn.innerHTML = `<i data-lucide="loader" class="animate-spin" style="width: 12px; height: 12px;"></i> 潤飾中...`;
   lucide.createIcons();
 
-  const polishPrompt = `你是一個專業的化工廠品保工程師。請幫我將以下通報草稿，潤飾並重新整理成結構清晰、用詞專業的品保通報文件。
+  const polishPrompt = `你是一個專業的化工廠資材與品質工程師。請幫我將以下通報草稿，潤飾並重新整理成結構清晰、用詞專業的通報文件。
 請保留原本草稿中的所有重要數據（如數值、人名、線別、批號）。
 請以下列結構重寫：
 - 【異常現象與描述】:
@@ -2739,7 +2739,7 @@ async function handleAiPolish() {
 原本的卡片內容為：\n${content}`;
 
   try {
-    const polishedResult = await callGemini(polishPrompt, "你是一個專門寫品保與客訴通報的專家，擅長使用項目符號與清晰段落。");
+    const polishedResult = await callGemini(polishPrompt, "你是一個專門寫資材、品質與工作交接通報的專家，擅長使用項目符號與清晰段落。");
     cardContentInput.value = polishedResult;
     showToast("卡片內容已完成 AI 潤飾！");
   } catch (err) {
@@ -2786,7 +2786,7 @@ async function runCardDiagnosis(colId, cardId) {
 卡片內文: ${card.content || "無詳細內文"}`;
 
   try {
-    const diagnosisResult = await callGemini(diagnosePrompt, "你是一個專業的化學品保分析專家。請產出精簡、專業、可以直接寫進品保工作報告的 5-Why 分析。");
+    const diagnosisResult = await callGemini(diagnosePrompt, "你是一個專業的化學資材與品質分析專家。請產出精簡、專業、可以直接寫進工作報告的 5-Why 分析。");
     
     if (!card.comments) card.comments = [];
     
