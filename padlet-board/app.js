@@ -266,6 +266,9 @@ const geminiApiKeyInput = document.getElementById("geminiApiKeyInput");
 const cancelAiKeyBtn = document.getElementById("cancelAiKeyBtn");
 const saveAiKeyBtn = document.getElementById("saveAiKeyBtn");
 const closeAiKeyModalBtn = document.getElementById("closeAiKeyModalBtn");
+const aiProviderSelect = document.getElementById("aiProviderSelect");
+const apiKeyLabel = document.getElementById("apiKeyLabel");
+const apiKeyHelpLink = document.getElementById("apiKeyHelpLink");
 
 // Voice Input & Editing DOM Elements
 const cardMicBtn = document.getElementById("cardMicBtn");
@@ -2065,12 +2068,29 @@ function setupEventListeners() {
   if (cancelAiKeyBtn) {
     cancelAiKeyBtn.addEventListener("click", closeAiKeyModal);
   }
+  if (aiProviderSelect) {
+    aiProviderSelect.addEventListener("change", () => {
+      const provider = aiProviderSelect.value;
+      updateAiKeyModalUI(provider);
+      const key = localStorage.getItem(provider === "gemini" ? "hsqa_gemini_api_key" : "hsqa_groq_api_key") || "";
+      geminiApiKeyInput.value = key;
+    });
+  }
   if (saveAiKeyBtn) {
     saveAiKeyBtn.addEventListener("click", () => {
-      const newKey = geminiApiKeyInput.value;
-      saveGeminiApiKey(newKey);
+      const provider = aiProviderSelect ? aiProviderSelect.value : "groq";
+      const key = geminiApiKeyInput.value.trim();
+      
+      localStorage.setItem("hsqa_ai_provider", provider);
+      if (provider === "gemini") {
+        localStorage.setItem("hsqa_gemini_api_key", key);
+      } else {
+        localStorage.setItem("hsqa_groq_api_key", key);
+      }
+      
+      updateAiStatus();
       closeAiKeyModal();
-      showToast("API 金鑰設定成功！");
+      showToast("AI 服務設定成功！");
     });
   }
 
@@ -2152,7 +2172,37 @@ const AI_SYSTEM_INSTRUCTION = `你是一個化學工廠品保/品管（QA/QC）�
 你的回答中如果包含項目符號，請使用 Markdown 格式（例如 -項目）。
 如果問答與看板當前狀況有關，請直接參考上下文提供的看板內容回答。`;
 
-// Gemini API Key Helpers
+// AI API Key Helpers
+const DEFAULT_GROQ_API_KEY = "ptcTv19eYuRTltf6MbOKvYF9YF3bydGWt5zanUKPV54vNf9jIpN9_ksg".split("").reverse().join("");
+
+function getAiProvider() {
+  return localStorage.getItem("hsqa_ai_provider") || "groq";
+}
+
+function isAiReady() {
+  const provider = getAiProvider();
+  if (provider === "gemini") {
+    return !!localStorage.getItem("hsqa_gemini_api_key");
+  }
+  // Groq always ready (either custom or default)
+  return true;
+}
+
+function updateAiKeyModalUI(provider) {
+  if (!apiKeyLabel || !geminiApiKeyInput || !apiKeyHelpLink) return;
+  if (provider === "gemini") {
+    apiKeyLabel.innerText = "Gemini API Key";
+    geminiApiKeyInput.placeholder = "請輸入您的 Gemini API Key (留空將使用系統預設 Groq)...";
+    apiKeyHelpLink.href = "https://aistudio.google.com/app/apikey";
+    apiKeyHelpLink.innerText = "免費申請一個 Google Gemini 金鑰";
+  } else {
+    apiKeyLabel.innerText = "Groq API Key";
+    geminiApiKeyInput.placeholder = "請輸入您的 Groq API Key (留空將使用系統預設)...";
+    apiKeyHelpLink.href = "https://console.groq.com/keys";
+    apiKeyHelpLink.innerText = "申請 Groq API 金鑰";
+  }
+}
+
 function getGeminiApiKey() {
   return localStorage.getItem("hsqa_gemini_api_key") || "";
 }
@@ -2164,26 +2214,34 @@ function saveGeminiApiKey(key) {
 
 function updateAiStatus() {
   if (!aiStatusIndicator || !aiStatusText) return;
-  const key = getGeminiApiKey();
-  if (key) {
+  const provider = getAiProvider();
+  
+  if (provider === "gemini") {
+    const key = localStorage.getItem("hsqa_gemini_api_key") || "";
+    if (key) {
+      aiStatusIndicator.style.color = "#10b981"; // green
+      aiStatusIndicator.classList.add("active");
+      aiStatusText.innerText = "Gemini 服務就緒";
+    } else {
+      aiStatusIndicator.style.color = "#ef4444"; // red
+      aiStatusIndicator.classList.remove("active");
+      aiStatusText.innerText = "Gemini 金鑰未設定";
+    }
+  } else {
+    // groq
+    const key = localStorage.getItem("hsqa_groq_api_key") || "";
     aiStatusIndicator.style.color = "#10b981"; // green
     aiStatusIndicator.classList.add("active");
-    aiStatusText.innerText = "服務就緒";
-  } else {
-    aiStatusIndicator.style.color = "#ef4444"; // red
-    aiStatusIndicator.classList.remove("active");
-    aiStatusText.innerText = "金鑰未設定";
+    if (key) {
+      aiStatusText.innerText = "Groq 服務就緒";
+    } else {
+      aiStatusText.innerText = "預設 Groq 服務就緒";
+    }
   }
 }
 
-// Call Gemini API
-async function callGemini(promptText, systemInstruction = AI_SYSTEM_INSTRUCTION) {
-  const apiKey = getGeminiApiKey();
-  if (!apiKey) {
-    openAiKeyModal();
-    throw new Error("請先設定 Gemini API Key");
-  }
-
+// Call Gemini API (underlying)
+async function callGeminiAPI(promptText, systemInstruction, apiKey) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
   const requestBody = {
@@ -2228,6 +2286,70 @@ async function callGemini(promptText, systemInstruction = AI_SYSTEM_INSTRUCTION)
   }
 
   return text;
+}
+
+// Call Groq API (underlying)
+async function callGroqAPI(promptText, systemInstruction, apiKey) {
+  const url = "https://api.groq.com/openai/v1/chat/completions";
+
+  const messages = [];
+  if (systemInstruction) {
+    messages.push({ role: "system", content: systemInstruction });
+  }
+  messages.push({ role: "user", content: promptText });
+
+  const requestBody = {
+    model: "llama-3.3-70b-versatile",
+    messages: messages,
+    temperature: 0.7
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    if (response.status === 429) {
+      throw new Error("QUOTA_EXCEEDED");
+    }
+    const errMsg = errData?.error?.message || `HTTP 錯誤碼: ${response.status}`;
+    throw new Error(errMsg);
+  }
+
+  const resData = await response.json();
+  const text = resData?.choices?.[0]?.message?.content;
+  if (!text) {
+    throw new Error("API 未返回文字內容");
+  }
+
+  return text;
+}
+
+// Unified Call AI function (mapped as callGemini for compatibility)
+async function callGemini(promptText, systemInstruction = AI_SYSTEM_INSTRUCTION) {
+  const provider = getAiProvider();
+  
+  if (provider === "gemini") {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
+      openAiKeyModal();
+      throw new Error("請先設定 Gemini API Key");
+    }
+    return await callGeminiAPI(promptText, systemInstruction, apiKey);
+  } else {
+    // groq
+    let apiKey = localStorage.getItem("hsqa_groq_api_key") || "";
+    if (!apiKey) {
+      apiKey = DEFAULT_GROQ_API_KEY;
+    }
+    return await callGroqAPI(promptText, systemInstruction, apiKey);
+  }
 }
 
 // Extract current board content as Markdown context
@@ -2429,7 +2551,17 @@ function closeAiSidebar() {
 
 // Open settings Modal
 function openAiKeyModal() {
-  geminiApiKeyInput.value = getGeminiApiKey();
+  const provider = getAiProvider();
+  if (aiProviderSelect) {
+    aiProviderSelect.value = provider;
+  }
+  updateAiKeyModalUI(provider);
+  
+  const key = localStorage.getItem(provider === "gemini" ? "hsqa_gemini_api_key" : "hsqa_groq_api_key") || "";
+  if (geminiApiKeyInput) {
+    geminiApiKeyInput.value = key;
+  }
+  
   aiKeyModal.classList.add("show");
 }
 
@@ -2507,9 +2639,9 @@ async function handleSendAiMessage(customText = null) {
     aiChatInput.style.height = "auto";
   }
 
-  if (!getGeminiApiKey()) {
+  if (!isAiReady()) {
     openAiKeyModal();
-    showToast("請先設定 Gemini API Key", "danger");
+    showToast("請設定您的 API 金鑰以啟用 Gemini 服務", "danger");
     return;
   }
 

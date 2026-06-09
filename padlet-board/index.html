@@ -508,28 +508,35 @@
   <div class="modal-overlay" id="aiKeyModal">
     <div class="modal-content glass-card" style="max-width: 450px;">
       <div class="modal-header">
-        <h3>AI 服務金鑰設定</h3>
+        <h3>AI 服務設定</h3>
         <button class="close-modal-btn" id="closeAiKeyModalBtn">
           <i data-lucide="x"></i>
         </button>
       </div>
       <div class="modal-body" style="padding: 20px;">
         <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
-          請輸入您的 <strong>Google Gemini API Key</strong>。本金鑰僅儲存在您的本機瀏覽器中，直接向 Google API 發送請求，安全無虞。
+          設定您的 AI 助理服務。您可以選擇使用 <strong>Google Gemini</strong> 或 <strong>Groq Cloud</strong>。若您無自訂金鑰，系統將預設使用內建的 Groq 服務。
         </p>
         <div class="form-group">
-          <label for="geminiApiKeyInput">Gemini API Key</label>
+          <label for="aiProviderSelect">AI 服務商</label>
+          <select id="aiProviderSelect" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: white; font-family: var(--font-family); outline: none; margin-bottom: 15px; cursor: pointer;">
+            <option value="groq" style="background: #1e1b4b; color: white;">Groq Cloud (Llama 3.3)</option>
+            <option value="gemini" style="background: #1e1b4b; color: white;">Google Gemini (2.5 Flash)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="geminiApiKeyInput" id="apiKeyLabel">Gemini API Key</label>
           <div class="input-with-icon">
             <i data-lucide="key"></i>
-            <input type="password" id="geminiApiKeyInput" placeholder="貼上 AI Studio 取得的 api_key..." spellcheck="false" style="padding-left: 36px;">
+            <input type="password" id="geminiApiKeyInput" placeholder="請輸入 API Key (留空將使用系統預設 Groq)..." spellcheck="false" style="padding-left: 36px;">
           </div>
         </div>
         <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: -8px; margin-bottom: 20px;">
-          沒有金鑰？ <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--primary-color); text-decoration: underline;">免費申請一個 Google Gemini 金鑰</a>
+          沒有金鑰？ <a href="https://aistudio.google.com/app/apikey" id="apiKeyHelpLink" target="_blank" style="color: var(--primary-color); text-decoration: underline;">免費申請一個 Google Gemini 金鑰</a>
         </div>
         <div class="modal-footer" style="padding-top: 12px; margin-top: 10px;">
           <button type="button" class="btn btn-secondary" id="cancelAiKeyBtn">取消</button>
-          <button type="button" class="btn btn-primary" id="saveAiKeyBtn">儲存金鑰</button>
+          <button type="button" class="btn btn-primary" id="saveAiKeyBtn">儲存設定</button>
         </div>
       </div>
     </div>
