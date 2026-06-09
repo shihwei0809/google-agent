@@ -1920,3 +1920,59 @@ body {
   50% { transform: translateY(-5px); }
 }
 
+/* ==========================================================================
+   Drag and Drop Styles
+   ========================================================================== */
+
+/* Cards dragging styles */
+.board-card[draggable="true"] {
+  cursor: grab;
+}
+
+.board-card[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.board-card.dragging {
+  opacity: 0.4;
+  border: 1px dashed var(--primary-color) !important;
+  box-shadow: none !important;
+  transform: scale(0.98);
+}
+
+.board-card.dragging-placeholder {
+  pointer-events: none;
+}
+
+.cards-container {
+  min-height: 120px; /* Ensure drop zone is always reachable even when empty */
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  border: 2px dashed transparent;
+  border-radius: var(--border-radius-md);
+}
+
+.cards-container.drag-over {
+  background: rgba(99, 102, 241, 0.05) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Columns dragging styles */
+.board-column[draggable="true"] {
+  cursor: grab;
+}
+
+.board-column[draggable="true"] .column-header {
+  cursor: grab;
+}
+
+.board-column.dragging-column {
+  opacity: 0.3;
+  border: 2px dashed rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.02) !important;
+  box-shadow: none !important;
+}
+
+.board-column.col-drag-over {
+  border-left: 3px solid var(--primary-color) !important;
+  background: rgba(255, 255, 255, 0.04);
+}

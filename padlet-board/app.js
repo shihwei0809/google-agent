@@ -234,7 +234,7 @@ const closeGuideModalBtn = document.getElementById("closeGuideModalBtn");
 const closeGuideConfirmBtn = document.getElementById("closeGuideConfirmBtn");
 
 // Admin Mode state & definitions
-const ADMIN_PASSWORD = "hsqa";
+const ADMIN_PASSWORDS = ["1234", "7588555"];
 let isAdminMode = sessionStorage.getItem("hsqa_is_admin") === "true";
 let myCreatedCards = [];
 try {
@@ -366,7 +366,7 @@ function toggleAdminMode() {
   } else {
     const pw = prompt("請輸入管理員密碼以啟用管理權限：");
     if (pw === null) return;
-    if (pw === ADMIN_PASSWORD || pw === "1234") {
+    if (ADMIN_PASSWORDS.includes(pw)) {
       isAdminMode = true;
       sessionStorage.setItem("hsqa_is_admin", "true");
       showToast("已登入管理員模式！");
@@ -871,6 +871,63 @@ function renderBoard() {
     colEl.className = "board-column";
     colEl.dataset.columnId = column.id;
     
+    // Drag & Drop for Columns (Admin Mode Only)
+    if (isAdminMode) {
+      colEl.setAttribute("draggable", "true");
+      
+      colEl.addEventListener("dragstart", (e) => {
+        // Prevent column drag if the user is dragging a card
+        if (e.target.classList.contains("board-card") || e.target.closest(".board-card")) {
+          return;
+        }
+        e.dataTransfer.setData("text/column-id", column.id);
+        colEl.classList.add("dragging-column");
+      });
+      
+      colEl.addEventListener("dragend", () => {
+        colEl.classList.remove("dragging-column");
+        document.querySelectorAll(".board-column").forEach(col => {
+          col.classList.remove("col-drag-over");
+        });
+      });
+      
+      colEl.addEventListener("dragover", (e) => {
+        if (e.dataTransfer.types.includes("text/column-id")) {
+          e.preventDefault();
+          colEl.classList.add("col-drag-over");
+        }
+      });
+      
+      colEl.addEventListener("dragleave", () => {
+        colEl.classList.remove("col-drag-over");
+      });
+      
+      colEl.addEventListener("drop", (e) => {
+        if (e.dataTransfer.types.includes("text/column-id")) {
+          e.preventDefault();
+          colEl.classList.remove("col-drag-over");
+          
+          const draggedColId = e.dataTransfer.getData("text/column-id");
+          const targetColId = column.id;
+          
+          if (draggedColId === targetColId) return;
+          
+          const draggedIdx = state.columns.findIndex(c => c.id === draggedColId);
+          const targetIdx = state.columns.findIndex(c => c.id === targetColId);
+          
+          if (draggedIdx !== -1 && targetIdx !== -1) {
+            // Reorder the columns array
+            const [draggedCol] = state.columns.splice(draggedIdx, 1);
+            state.columns.splice(targetIdx, 0, draggedCol);
+            
+            saveState();
+            renderBoard();
+            showToast("已調整欄位排列順序");
+          }
+        }
+      });
+    }
+    
     // Header
     const colHeader = document.createElement("div");
     colHeader.className = "column-header";
@@ -927,6 +984,65 @@ function renderBoard() {
     // Cards Container
     const cardsContainer = document.createElement("div");
     cardsContainer.className = "cards-container";
+    cardsContainer.dataset.columnId = column.id;
+    
+    // Cards Container Drag & Drop Event Listeners
+    cardsContainer.addEventListener("dragover", (e) => {
+      if (!isAdminMode) return;
+      if (e.dataTransfer.types.includes("text/card-id")) {
+        e.preventDefault();
+        cardsContainer.classList.add("drag-over");
+      }
+    });
+    
+    cardsContainer.addEventListener("dragleave", () => {
+      cardsContainer.classList.remove("drag-over");
+    });
+    
+    cardsContainer.addEventListener("drop", (e) => {
+      if (!isAdminMode) return;
+      if (e.dataTransfer.types.includes("text/card-id")) {
+        e.preventDefault();
+        cardsContainer.classList.remove("drag-over");
+        
+        const cardId = e.dataTransfer.getData("text/card-id");
+        const sourceColId = e.dataTransfer.getData("text/source-col-id");
+        const targetColId = column.id;
+        
+        if (!cardId || !sourceColId) return;
+        
+        // Find source column and card
+        const sourceCol = state.columns.find(c => c.id === sourceColId);
+        if (!sourceCol) return;
+        
+        const cardIdx = sourceCol.cards.findIndex(c => c.id === cardId);
+        if (cardIdx === -1) return;
+        
+        // Remove from source
+        const [draggedCard] = sourceCol.cards.splice(cardIdx, 1);
+        
+        // Find target column
+        const targetCol = state.columns.find(c => c.id === targetColId);
+        if (!targetCol) return;
+        
+        // Calculate insertion index based on vertical cursor position
+        const afterElement = getDragAfterElement(cardsContainer, e.clientY);
+        if (afterElement == null) {
+          targetCol.cards.push(draggedCard);
+        } else {
+          const afterCardId = afterElement.dataset.cardId;
+          const afterIdx = targetCol.cards.findIndex(c => c.id === afterCardId);
+          if (afterIdx !== -1) {
+            targetCol.cards.splice(afterIdx, 0, draggedCard);
+          } else {
+            targetCol.cards.push(draggedCard);
+          }
+        }
+        
+        saveState();
+        renderBoard();
+      }
+    });
     
     // Filter cards if search query is active
     let cardsToRender = column.cards;
@@ -957,6 +1073,31 @@ function createCardElement(card, colId) {
   cardEl.className = "board-card";
   cardEl.dataset.cardId = card.id;
   cardEl.dataset.columnId = colId;
+  
+  // Drag and Drop Support for Cards (Admin Mode Only)
+  cardEl.setAttribute("draggable", isAdminMode ? "true" : "false");
+  
+  cardEl.addEventListener("dragstart", (e) => {
+    if (!isAdminMode) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.setData("text/card-id", card.id);
+    e.dataTransfer.setData("text/source-col-id", colId);
+    cardEl.classList.add("dragging");
+    // Use setTimeout to allow browser to generate the drag image from the styled element first
+    setTimeout(() => {
+      cardEl.classList.add("dragging-placeholder");
+    }, 0);
+  });
+  
+  cardEl.addEventListener("dragend", () => {
+    cardEl.classList.remove("dragging");
+    cardEl.classList.remove("dragging-placeholder");
+    document.querySelectorAll(".cards-container").forEach(container => {
+      container.classList.remove("drag-over");
+    });
+  });
   
   // 1. Card Header Metadata
   const cardHead = document.createElement("div");
@@ -1211,6 +1352,21 @@ function timeAgo(timestamp) {
   if (interval >= 1) return interval + " 分鐘前";
   
   return "剛剛";
+}
+
+// Helper: Calculate insertion position when dragging a card
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll(".board-card:not(.dragging)")];
+  
+  return draggableElements.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset: offset, element: child };
+    } else {
+      return closest;
+    }
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
 // ==========================================================================
