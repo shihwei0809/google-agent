@@ -332,11 +332,11 @@ def send_email_notifications(email_config, subject, body, recipients):
 def main():
     force_run = "--force" in sys.argv
     
-    # 1. 檢查是否在監測時段 (08:00 - 20:00) 內，避免非工作時間打擾人員
+    # 1. 檢查是否在監測時段 (08:00 - 24:00) 內，避免非工作時間打擾人員
     tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
     current_hour = datetime.datetime.now(tz_taiwan).hour
-    if (current_hour < 8 or current_hour > 20) and not force_run:
-        print(f"目前時間為 {current_hour:02d}:00，不在監測時段 (08:00 - 20:00) 內，跳過監測。")
+    if (current_hour < 8 or current_hour >= 24) and not force_run:
+        print(f"目前時間為 {current_hour:02d}:00，不在監測時段 (08:00 - 24:00) 內，跳過監測。")
         sys.exit(0)
         
     config = load_config()

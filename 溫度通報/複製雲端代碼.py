@@ -37,11 +37,11 @@ function checkWeatherAndNotify() {
     }
   }
 
-  // 檢查是否在監測時段 (08:00 - 20:00) 內，避免非工作時間打擾人員
+  // 檢查是否在監測時段 (08:00 - 24:00) 內，避免非工作時間打擾人員
   var today = new Date();
   var currentHour = parseInt(Utilities.formatDate(today, "GMT+8", "HH"));
-  if (currentHour < 8 || currentHour > 20) {
-    Logger.log("目前時間為 " + currentHour + " 點，不在監測時段 (08:00 - 20:00) 內，跳過執行。");
+  if (currentHour < 8 || currentHour >= 24) {
+    Logger.log("目前時間為 " + currentHour + " 點，不在監測時段 (08:00 - 24:00) 內，跳過執行。");
     return;
   }
   
