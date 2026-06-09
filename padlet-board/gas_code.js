@@ -31,13 +31,31 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     
-    // 2. Handle Board Sync Actions
+    // 2. Handle New Board Sync Action with Log Details
+    if (parsed && parsed.action === "syncData") {
+      if (!parsed.boardData) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Missing boardData in syncData action" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var boardDataString = JSON.stringify(parsed.boardData);
+      saveBoardData(boardDataString);
+      
+      // Log to spreadsheet
+      logToSpreadsheet(parsed.logAction, parsed.logTarget, parsed.logDetail);
+      
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data synchronized and logged successfully" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 3. Fallback: Handle Legacy Direct Sync Actions
     if (parsed && typeof parsed.boards === "object" && typeof parsed.activeDate === "string") {
       saveBoardData(rawData);
+      logToSpreadsheet("系統資料同步", "看板資料庫", "手動/自動直接同步");
       return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Data synchronized successfully" }))
         .setMimeType(ContentService.MimeType.JSON);
     } else if (parsed && typeof parsed.boardTitle === "string" && Array.isArray(parsed.columns)) {
       saveBoardData(rawData);
+      logToSpreadsheet("系統資料同步", "舊版看板資料庫", "手動/自動直接同步");
       return ContentService.createTextOutput(JSON.stringify({ status: "success", message: "Legacy data synchronized successfully" }))
         .setMimeType(ContentService.MimeType.JSON);
     } else {
@@ -58,7 +76,16 @@ function getBoardData() {
   // 1. Read from script key-value property store (up to 9MB, fast, highly reliable)
   var data = PropertiesService.getScriptProperties().getProperty("board_data");
   if (data) {
-    return data;
+    try {
+      var parsed = JSON.parse(data);
+      var spreadsheetId = PropertiesService.getScriptProperties().getProperty("log_spreadsheet_id");
+      if (spreadsheetId) {
+        parsed.logSpreadsheetUrl = "https://docs.google.com/spreadsheets/d/" + spreadsheetId + "/edit";
+      }
+      return JSON.stringify(parsed);
+    } catch (e) {
+      return data;
+    }
   }
   
   // 2. Fallback: Read from Sheet named "DB" if a spreadsheet is linked
@@ -67,7 +94,16 @@ function getBoardData() {
     if (sheet) {
       var cellVal = sheet.getRange("A1").getValue();
       if (cellVal) {
-        return cellVal;
+        try {
+          var parsed = JSON.parse(cellVal);
+          var spreadsheetId = PropertiesService.getScriptProperties().getProperty("log_spreadsheet_id");
+          if (spreadsheetId) {
+            parsed.logSpreadsheetUrl = "https://docs.google.com/spreadsheets/d/" + spreadsheetId + "/edit";
+          }
+          return JSON.stringify(parsed);
+        } catch (e) {
+          return cellVal;
+        }
       }
     }
   } catch (e) {
@@ -75,7 +111,7 @@ function getBoardData() {
   }
 
   // 3. Fallback to empty default data if script is fresh
-  return JSON.stringify({
+  var defaultVal = {
     boardTitle: "品保課協作與品質管理看板",
     boardDescription: "品保部公告、品質異常通報、SOP規章、稽核巡檢與客訴改善追蹤看板 (雙擊空白處或點擊欄位下方 [+] 新增卡片)",
     bgType: "image",
@@ -87,7 +123,14 @@ function getBoardData() {
       { id: "col-4", title: "客訴與改善追蹤 (CAR)", cards: [] },
       { id: "col-5", title: "回饋與建議", cards: [] }
     ]
-  });
+  };
+  
+  var spreadsheetId = PropertiesService.getScriptProperties().getProperty("log_spreadsheet_id");
+  if (spreadsheetId) {
+    defaultVal.logSpreadsheetUrl = "https://docs.google.com/spreadsheets/d/" + spreadsheetId + "/edit";
+  }
+  
+  return JSON.stringify(defaultVal);
 }
 
 function saveBoardData(jsonString) {
@@ -106,6 +149,50 @@ function saveBoardData(jsonString) {
     }
   } catch (e) {
     // If running as standalone script, active spreadsheet might not exist, which is fine
+  }
+}
+
+// 3. Operation Log Spreadsheet Writer
+function logToSpreadsheet(action, target, detail) {
+  try {
+    var properties = PropertiesService.getScriptProperties();
+    var spreadsheetId = properties.getProperty("log_spreadsheet_id");
+    var ss = null;
+
+    if (spreadsheetId) {
+      try {
+        ss = SpreadsheetApp.openById(spreadsheetId);
+      } catch (e) {
+        ss = null;
+      }
+    }
+
+    if (!ss) {
+      // Create new Spreadsheet
+      ss = SpreadsheetApp.create("雲端留言板-操作日誌");
+      spreadsheetId = ss.getId();
+      properties.setProperty("log_spreadsheet_id", spreadsheetId);
+      
+      var sheet = ss.getSheets()[0];
+      sheet.setName("操作紀錄");
+      sheet.appendRow(["時間", "操作動作", "目標對象/標題", "詳細說明"]);
+      sheet.getRange("A1:D1").setFontWeight("bold").setBackground("#e0e7ff");
+      sheet.setFrozenRows(1);
+    } else {
+      var sheet = ss.getSheetByName("操作紀錄");
+      if (!sheet) {
+        sheet = ss.insertSheet("操作紀錄");
+        sheet.appendRow(["時間", "操作動作", "目標對象/標題", "詳細說明"]);
+        sheet.getRange("A1:D1").setFontWeight("bold").setBackground("#e0e7ff");
+        sheet.setFrozenRows(1);
+      }
+    }
+
+    var now = new Date();
+    var formattedDate = Utilities.formatDate(now, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+    sheet.appendRow([formattedDate, action || "同步資料", target || "", detail || ""]);
+  } catch (err) {
+    Logger.log("Failed to log operation: " + err.toString());
   }
 }
 

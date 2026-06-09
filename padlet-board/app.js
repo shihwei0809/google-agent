@@ -201,6 +201,7 @@ const boardDatePicker = document.getElementById("boardDatePicker");
 const datePickerWrapper = document.getElementById("datePickerWrapper");
 const dataMenuBtn = document.getElementById("dataMenuBtn");
 const dataDropdown = document.getElementById("dataDropdown");
+const viewLogBtn = document.getElementById("viewLogBtn");
 
 // Modals DOM
 const cardModal = document.getElementById("cardModal");
@@ -768,6 +769,16 @@ function init() {
     });
 }
 
+function updateLogButtonUI() {
+  if (!viewLogBtn) return;
+  if (masterData && masterData.logSpreadsheetUrl) {
+    viewLogBtn.href = masterData.logSpreadsheetUrl;
+    viewLogBtn.style.display = "flex";
+  } else {
+    viewLogBtn.style.display = "none";
+  }
+}
+
 let isListenersSetup = false;
 function completeInit() {
   // Set Title & Descr text
@@ -783,11 +794,14 @@ function completeInit() {
     isListenersSetup = true;
   }
   
+  // Update log spreadsheet link if available
+  updateLogButtonUI();
+  
   // Build Lucide icons
   lucide.createIcons();
 }
 
-function saveState() {
+function saveState(actionName = "同步資料", targetTitle = "", detail = "") {
   // Update current active board inside masterData
   const activeDate = masterData.activeDate || getTodayString();
   masterData.boards[activeDate] = state;
@@ -803,12 +817,21 @@ function saveState() {
   
   updateSyncIndicator("saving");
   
+  // Format the post payload with log details
+  const payload = {
+    action: "syncData",
+    boardData: masterData,
+    logAction: actionName,
+    logTarget: targetTitle,
+    logDetail: detail
+  };
+  
   // Sync to GAS Backend in background
   // Content-Type text/plain prevents CORS preflight OPTIONS request
   fetch(GAS_API_URL, {
     method: "POST",
     mode: "cors",
-    body: JSON.stringify(masterData)
+    body: JSON.stringify(payload)
   })
     .then(res => {
       if (!res.ok) throw new Error("Sync failed");
@@ -923,7 +946,7 @@ function renderBoard() {
             const [draggedCol] = state.columns.splice(draggedIdx, 1);
             state.columns.splice(targetIdx, 0, draggedCol);
             
-            saveState();
+            saveState("調整欄位順序", draggedCol.title, `由第 ${draggedIdx + 1} 欄移至第 ${targetIdx + 1} 欄`);
             renderBoard();
             showToast("已調整欄位排列順序");
           }
@@ -946,8 +969,9 @@ function renderBoard() {
       if (!isAdminMode) return;
       const newTitle = colTitle.innerText.trim();
       if (newTitle && newTitle !== column.title) {
+        const oldTitle = column.title;
         column.title = newTitle;
-        saveState();
+        saveState("重新命名欄位", newTitle, `原名稱: ${oldTitle}`);
         showToast("已更新欄位名稱");
       } else {
         colTitle.innerText = column.title; // restore
@@ -1042,7 +1066,7 @@ function renderBoard() {
           }
         }
         
-        saveState();
+        saveState("拖曳卡片", draggedCard.title, `由「${sourceCol.title}」移至「${targetCol.title}」`);
         renderBoard();
       }
     });
@@ -1245,7 +1269,7 @@ function createCardElement(card, colId) {
   let commentsOpen = card.commentsOpen || false;
   commentBtn.addEventListener("click", () => {
     card.commentsOpen = !card.commentsOpen;
-    saveState();
+    saveState("展開/收合留言", card.title);
     renderBoard();
   });
   
@@ -1387,7 +1411,7 @@ function addColumn() {
     cards: []
   };
   state.columns.push(newCol);
-  saveState();
+  saveState("新增欄位", newCol.title);
   renderBoard();
   showToast("已新增新欄位！");
   
@@ -1435,8 +1459,10 @@ function deleteColumn() {
   if (!activeColMenuId) return;
   
   if (confirm("您確定要刪除這個欄位及其中所有的卡片嗎？此操作不可還原。")) {
+    const col = state.columns.find(c => c.id === activeColMenuId);
+    const colTitle = col ? col.title : "未命名";
     state.columns = state.columns.filter(col => col.id !== activeColMenuId);
-    saveState();
+    saveState("刪除欄位", colTitle);
     renderBoard();
     showToast("欄位已刪除", "danger");
   }
@@ -1559,7 +1585,9 @@ function handleCardSubmit(e) {
     showToast("卡片張貼成功！");
   }
   
-  saveState();
+  const isEdit = !!cardId;
+  const actionName = isEdit ? "修改卡片" : "新增卡片";
+  saveState(actionName, title, `作者: ${author} | 欄位: ${col.title}`);
   closeCardFormModal();
   renderBoard();
 }
@@ -1572,11 +1600,13 @@ function deleteCard(colId, cardId) {
   if (confirm("您確定要刪除這張卡片嗎？")) {
     const col = state.columns.find(c => c.id === colId);
     if (col) {
+      const card = col.cards.find(c => c.id === cardId);
+      const title = card ? card.title : "未命名";
       col.cards = col.cards.filter(card => card.id !== cardId);
       // Remove from myCreatedCards if present
       myCreatedCards = myCreatedCards.filter(id => id !== cardId);
       localStorage.setItem("hsqa_my_created_cards", JSON.stringify(myCreatedCards));
-      saveState();
+      saveState("刪除卡片", title, `欄位: ${col.title}`);
       renderBoard();
       showToast("卡片已刪除", "danger");
     }
@@ -1595,7 +1625,8 @@ function toggleLike(colId, cardId) {
         card.likes = (card.likes || 0) + 1;
         card.liked = true;
       }
-      saveState();
+      const userName = localStorage.getItem("padlet_last_author") || "訪客";
+      saveState(card.liked ? "卡片點讚" : "取消點讚", card.title, `人員: ${userName}`);
       renderBoard();
     }
   }
@@ -1618,7 +1649,7 @@ function submitComment(colId, cardId, bodyText) {
         timestamp: Date.now()
       });
       
-      saveState();
+      saveState("發表留言", card.title, `留言者: ${author} | 內容: ${commentText}`);
       renderBoard();
       showToast("留言已送出");
     }
@@ -1653,7 +1684,7 @@ function selectBgOption(e) {
   
   state.bgType = bgType;
   state.bgValue = bgValue;
-  saveState();
+  saveState("變更背景", bgType === "image" ? "圖片背景" : "純色背景", bgValue);
   updateBackground();
   
   // Shift active class
@@ -1672,7 +1703,7 @@ function applyCustomBg() {
   
   state.bgType = "image";
   state.bgValue = url;
-  saveState();
+  saveState("變更背景", "自訂圖片背景", url);
   updateBackground();
   closeBgModal();
   showToast("自訂背景已套用");
@@ -1684,7 +1715,7 @@ boardTitle.addEventListener("blur", () => {
   const title = boardTitle.innerText.trim();
   if (title) {
     state.boardTitle = title;
-    saveState();
+    saveState("變更看板標題", title);
     showToast("已更新留言板標題");
   } else {
     boardTitle.innerText = state.boardTitle; // restore
@@ -1702,7 +1733,7 @@ boardDescription.addEventListener("blur", () => {
   if (!isAdminMode) return;
   const desc = boardDescription.innerText.trim();
   state.boardDescription = desc;
-  saveState();
+  saveState("變更看板描述", desc);
   showToast("已更新留言板描述");
 });
 
@@ -1773,7 +1804,7 @@ function importJson(e) {
       
       if (migrated) {
         masterData = migrated;
-        saveState();
+        saveState("匯入備份", "看板資料庫", "透過JSON檔案還原資料");
         setActiveBoardAndInit();
         showToast("留言板歷史資料還原成功！");
       } else {
@@ -1796,7 +1827,7 @@ function clearAllBoardData() {
       localStorage.removeItem("padlet_board_data");
     }
     setupDefaultMasterData();
-    saveState();
+    saveState("重設看板", "看板資料庫", "清除並還原為預設欄位與卡片");
     setActiveBoardAndInit();
     showToast("留言板已重設至預設狀態", "danger");
   }
@@ -1827,7 +1858,7 @@ function setupEventListeners() {
         const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + "?date=" + selectedDate;
         window.history.replaceState({ path: newUrl }, '', newUrl);
         
-        saveState();
+        saveState("切換看板日期", selectedDate);
         updateBackground();
         renderBoard();
         showToast("切換至看板日期: " + selectedDate);
@@ -2767,7 +2798,7 @@ async function runCardDiagnosis(colId, cardId) {
     
     card.commentsOpen = true;
 
-    saveState();
+    saveState("AI 5-Why 診斷", card.title, "小鴻已生成診斷並新增為卡片留言");
     renderBoard();
     showToast("AI 診斷已完成，已新增為卡片留言！");
   } catch (err) {
