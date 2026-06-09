@@ -1,0 +1,27 @@
+{
+  "tid": "1000704",
+  "town_name": "彰化縣線西鄉",
+  "temperature_threshold": 28.0,
+  "mode": "both",
+  "google_sheet_csv_url": "",
+  "web_app_url": "",
+  "line": {
+    "enabled": true,
+    "channel_access_token": "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=",
+    "to": [
+      "U2027149eee2292abfe9dc3e2fb4b9ee9",
+      "C10943136364033b036ffb3d607034462"
+    ]
+  },
+  "email": {
+    "enabled": true,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "shihwei0809@gmail.com",
+    "smtp_password": "fekzixzcmzjjbhmg",
+    "to_email": [
+      "shihwei0809@gmail.com"
+    ],
+    "from_email": "shihwei0809@gmail.com"
+  }
+}
