@@ -26,6 +26,7 @@ function onOpen() {
   ui.createMenu('🌡️ 溫度通報系統')
       .addItem('🧪 測試即時通報 (強制發送)', 'testNotifyForce')
       .addItem('🔄 重置防重複鎖定', 'clearNotifiedState')
+      .addItem('📏 重設欄寬為最佳預設', 'resetColumnWidths')
       .addToUi();
 }
 
@@ -318,6 +319,14 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
     
     // 凍結第一列
     logSheet.setFrozenRows(1);
+    
+    // 設定預設寬度 (只在新建分頁時執行，避免之後覆蓋使用者手動拉寬)
+    logSheet.setColumnWidth(1, 170); // 通報時間
+    logSheet.setColumnWidth(2, 140); // 溫度閾值設定 (°C)
+    logSheet.setColumnWidth(3, 140); // 通報環境溫度 (°C)
+    logSheet.setColumnWidth(4, 170); // 氣象觀測時間
+    logSheet.setColumnWidth(5, 140); // 警報狀態
+    logSheet.setColumnWidth(6, 200); // 通知狀態
   } else {
     // 檢查並自動將舊表頭更新為新的環境溫度表頭 (支援自動遷移舊資料庫)
     try {
@@ -520,6 +529,36 @@ function clearNotifiedState() {
 }
 
 /**
+ * 手動或自動重設當前月份紀錄分頁的欄寬為最佳預設值
+ */
+function resetColumnWidths() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var today = new Date();
+  var formattedMonth = Utilities.formatDate(today, "GMT+8", "yyyy-MM");
+  var sheetName = "紀錄_" + formattedMonth;
+  var logSheet = ss.getSheetByName(sheetName);
+  
+  if (logSheet) {
+    logSheet.setColumnWidth(1, 170); // 通報時間
+    logSheet.setColumnWidth(2, 140); // 溫度閾值設定 (°C)
+    logSheet.setColumnWidth(3, 140); // 通報環境溫度 (°C)
+    logSheet.setColumnWidth(4, 170); // 氣象觀測時間
+    logSheet.setColumnWidth(5, 140); // 警報狀態
+    logSheet.setColumnWidth(6, 200); // 通知狀態
+    
+    try {
+      SpreadsheetApp.getUi().alert("【成功】已將當月紀錄分頁（" + sheetName + "）的欄寬重設為最佳預設值！");
+    } catch (e) {
+      // 靜態呼叫時無視 ui 錯誤
+    }
+  } else {
+    try {
+      SpreadsheetApp.getUi().alert("【提示】找不到當月紀錄分頁（" + sheetName + "），請等候系統自動建立或手動執行一次測試。");
+    } catch (e) {}
+  }
+}
+
+/**
  * 接收 LINE Webhook 事件與本機心跳同步信號
  */
 function doPost(e) {
@@ -654,18 +693,19 @@ function doPost(e) {
 
 ### 方法 A：使用頂端自訂選單
 1. 重新整理試算表後，頂端選單列將會自動出現：**`🌡️ 溫度通報系統`**。
-2. 點選它會展開兩個子項目：
+2. 點選它會展開三個子項目：
    * **`🧪 測試即時通報 (強制發送)`**：直接抓取目前的彰化縣線西鄉環境溫度，並強制發送通知（會忽略工作時間限制與前次狀態機鎖定）。發送完成後會自動彈出提示視窗。
    * **`🔄 重置防重複鎖定`**：一鍵清除防重複通知鎖定，下一小時如果溫度超標將會再次觸發通報。
+   * **`📏 重設欄寬為最佳預設`**：一鍵將當前月份的紀錄分頁欄位寬度重設為最美觀的預設寬度（通報時間 170px, 欄位各 140-200px），避免欄位擠壓或跑掉。
 
 ### 方法 B：插入圖形按鈕（直接放在工作表內）
 1. 在您的工作表點選 **「插入」 -> 「繪圖」**。
-2. 畫一個按鈕形狀（例如矩形），加上文字「🧪 測試通報」，存檔並放入工作表中。
-3. 再重複一次，畫另一個按鈕，文字寫「🔄 重置重複鎖定」，存檔。
-4. 右鍵點擊按鈕圖示，再點選圖示右上角的 **「三個點 (更多動作)」 -> 「指派指令碼 (Assign script)」**。
+2. 畫三個按鈕形狀（例如矩形），加上文字「🧪 測試通報」、「🔄 重置重複鎖定」與「📏 重設欄寬」。
+3. 右鍵點擊按鈕圖示，再點選圖示右上角的 **「三個點 (更多動作)」 -> 「指派指令碼 (Assign script)」**。
    * 「測試通報」按鈕指派：**`testNotifyForce`**
    * 「重置重複鎖定」按鈕指派：**`clearNotifiedState`**
-5. 指派完成後，任何人員只要在試算表中直接點擊按鈕，就能直接觸發測試通報與重置防重複鎖定！
+   * 「重設欄寬」按鈕指派：**`resetColumnWidths`**
+4. 指派完成後，任何人員只要在試算表中直接點擊按鈕，就能直接觸發對應功能！
 
 ---
 

@@ -17,6 +17,7 @@ function onOpen() {
   ui.createMenu('🌡️ 溫度通報系統')
       .addItem('🧪 測試即時通報 (強制發送)', 'testNotifyForce')
       .addItem('🔄 重置防重複鎖定', 'clearNotifiedState')
+      .addItem('📏 重設欄寬為最佳預設', 'resetColumnWidths')
       .addToUi();
 }
 
@@ -309,6 +310,14 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
     
     // 凍結第一列
     logSheet.setFrozenRows(1);
+    
+    // 設定預設寬度 (只在新建分頁時執行，避免之後覆蓋使用者手動拉寬)
+    logSheet.setColumnWidth(1, 170); // 通報時間
+    logSheet.setColumnWidth(2, 140); // 溫度閾值設定 (°C)
+    logSheet.setColumnWidth(3, 140); // 通報環境溫度 (°C)
+    logSheet.setColumnWidth(4, 170); // 氣象觀測時間
+    logSheet.setColumnWidth(5, 140); // 警報狀態
+    logSheet.setColumnWidth(6, 200); // 通知狀態
   } else {
     // 檢查並自動將舊表頭更新為新的環境溫度表頭 (支援自動遷移舊資料庫)
     try {
@@ -508,6 +517,36 @@ function clearNotifiedState() {
   props.deleteProperty("LAST_STATE");
   props.deleteProperty("LAST_NOTIFIED_DATE"); // 相容舊版鎖定
   SpreadsheetApp.getUi().alert("【成功】防重複狀態已重置！\n系統目前的防重複通知鎖定已清除，下一小時如果溫度超標將會再次觸發通報。");
+}
+
+/**
+ * 手動或自動重設當前月份紀錄分頁的欄寬為最佳預設值
+ */
+function resetColumnWidths() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var today = new Date();
+  var formattedMonth = Utilities.formatDate(today, "GMT+8", "yyyy-MM");
+  var sheetName = "紀錄_" + formattedMonth;
+  var logSheet = ss.getSheetByName(sheetName);
+  
+  if (logSheet) {
+    logSheet.setColumnWidth(1, 170); // 通報時間
+    logSheet.setColumnWidth(2, 140); // 溫度閾值設定 (°C)
+    logSheet.setColumnWidth(3, 140); // 通報環境溫度 (°C)
+    logSheet.setColumnWidth(4, 170); // 氣象觀測時間
+    logSheet.setColumnWidth(5, 140); // 警報狀態
+    logSheet.setColumnWidth(6, 200); // 通知狀態
+    
+    try {
+      SpreadsheetApp.getUi().alert("【成功】已將當月紀錄分頁（" + sheetName + "）的欄寬重設為最佳預設值！");
+    } catch (e) {
+      // 靜態呼叫時無視 ui 錯誤
+    }
+  } else {
+    try {
+      SpreadsheetApp.getUi().alert("【提示】找不到當月紀錄分頁（" + sheetName + "），請等候系統自動建立或手動執行一次測試。");
+    } catch (e) {}
+  }
 }
 
 /**
