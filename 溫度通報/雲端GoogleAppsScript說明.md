@@ -358,11 +358,7 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
   if (lastRow > 1) {
     logSheet.getRange(lastRow, 1, 1, headers[0].length).setHorizontalAlignment("center");
   }
-  
-  // 自動調整欄寬
-  for (var col = 1; col <= headers[0].length; col++) {
-    logSheet.autoResizeColumn(col);
-  }
+
   
   Logger.log("已將通報紀錄寫入分頁: " + sheetName);
 }
