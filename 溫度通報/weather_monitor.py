@@ -88,7 +88,7 @@ def calc_apparent_temp(temp, rh, wind):
     at = temp + 0.33 * e - 0.70 * wind - 4.0
     return round(at, 1)
 
-def send_heartbeat(url, state_name=None, sync_type="heartbeat"):
+def send_heartbeat(url, state_name=None, sync_type="heartbeat", current_temp=None, obs_time=None, threshold=None, alert_state=None, status_text=None):
     """發送心跳與狀態同步給 Google Apps Script 雲端 Web App"""
     payload = {
         "action": "heartbeat",
@@ -96,6 +96,16 @@ def send_heartbeat(url, state_name=None, sync_type="heartbeat"):
     }
     if state_name:
         payload["local_state"] = state_name
+    if current_temp is not None:
+        payload["current_temp"] = current_temp
+    if obs_time is not None:
+        payload["obs_time"] = obs_time
+    if threshold is not None:
+        payload["threshold"] = threshold
+    if alert_state is not None:
+        payload["alert_state"] = alert_state
+    if status_text is not None:
+        payload["status_text"] = status_text
         
     try:
         data = json.dumps(payload).encode("utf-8")
@@ -199,7 +209,7 @@ def fetch_recipients_from_google_sheet(csv_url):
     return recipients, threshold_override
 
 def check_weather(config):
-    """透過 CWA Open Data API 抓取線西站即時觀測並計算體感溫度"""
+    """透過 CWA Open Data API 抓取線西站即時環境溫度"""
     api_key    = config.get("cwa_api_key", "")
     station_id = config.get("cwa_station_id", "C0G900")
 
@@ -223,18 +233,16 @@ def check_weather(config):
     obs_time = s.get("ObsTime", {}).get("DateTime", "")
 
     temp = float(we.get("AirTemperature", -99))
-    rh   = float(we.get("RelativeHumidity", -99))
-    wind = float(we.get("WindSpeed", -99))
 
-    if temp == -99 or rh == -99:
-        raise ValueError(f"站點 {station_id} 觀測資料異常（-99），無法計算體感溫度。")
+    if temp == -99:
+        raise ValueError(f"站點 {station_id} 觀測資料異常（-99），無法取得環境溫度。")
 
-    if wind == -99:
-        wind = 0.0  # 風速感測器故障時當作無風處理
+    # 格式化時間，去除 "T" 與 "+08:00"
+    if obs_time and "T" in obs_time:
+        obs_time = obs_time.replace("T", " ")[:19]
 
-    at = calc_apparent_temp(temp, rh, wind)
-    print(f"觀測時間: {obs_time}, 乾球溫度: {temp}°C, 相對濕度: {rh}%, 風速: {wind} m/s → 體感溫度: {at}°C")
-    return at, obs_time
+    print(f"觀測時間: {obs_time}, 環境溫度: {temp}°C")
+    return temp, obs_time
 
 def send_line_notifications(line_config, message, recipients):
     """發送 LINE 訊息通知（支援 Multicast API 一次推播多人）"""
@@ -420,14 +428,14 @@ def main():
         
     # 3. 檢查氣象數據
     try:
-        current_at, display_time = check_weather(config)
+        current_temp, display_time = check_weather(config)
     except Exception as e:
         print(f"【錯誤】獲取即時觀測數據失敗: {e}", file=sys.stderr)
         sys.exit(1)
         
     # 4. 狀態機邏輯比對
     last_state = state.get("last_state", "COOL")
-    is_hot = current_at > threshold
+    is_hot = current_temp > threshold
     
     should_notify = False
     notify_subject = ""
@@ -438,33 +446,44 @@ def main():
     if is_hot:
         if last_state != "HOT" or force_run:
             should_notify = True
-            notify_subject = f"【高溫警報】{town_name}目前體感溫度已達 {current_at}°C，超過設定閾值！"
+            notify_subject = f"【高溫警報】{town_name}目前環境溫度已達 {current_temp}°C，超過設定閾值！"
             
-            notify_body = f"【{town_name} 體感高溫警報】\n"
-            notify_body += f"當前體感溫度：{current_at}°C ⚠️ (已超過設定閾值 {threshold}°C)\n"
+            notify_body = f"【{town_name} 環境高溫警報】\n"
+            notify_body += f"當前環境溫度：{current_temp}°C ⚠️ (已超過設定閾值 {threshold}°C)\n"
             notify_body += f"氣象觀測時間：{display_time}\n"
             notify_body += f"通報時間：{formatted_time}\n\n"
+            notify_body += "※ 請相關人員開啟灑水設備降溫循環過濾器。\n"
             notify_body += "※ 請相關人員注意防暑、多補充水分，並採取防範措施。"
         else:
-            print(f"當前體感溫度 {current_at}°C 超標，但前次已通報高溫，跳過重複通知。")
+            print(f"當前環境溫度 {current_temp}°C 超標，但前次已通報高溫，跳過重複通知。")
     else:
         if last_state == "HOT" or force_run:
             should_notify = True
-            notify_subject = f"【高溫解除】{town_name}目前體感溫度已回落至 {current_at}°C，低於設定閾值。"
+            notify_subject = f"【高溫解除】{town_name}目前環境溫度已回落至 {current_temp}°C，低於設定閾值。"
             
-            notify_body = f"【{town_name} 體感溫度回落通知】\n"
-            notify_body += f"當前體感溫度：{current_at}°C ✅ (已降至設定閾值 {threshold}°C 以下)\n"
+            notify_body = f"【{town_name} 環境溫度回落通知】\n"
+            notify_body += f"當前環境溫度：{current_temp}°C ✅ (已降至設定閾值 {threshold}°C 以下)\n"
             notify_body += f"氣象觀測時間：{display_time}\n"
             notify_body += f"通報時間：{formatted_time}\n\n"
             notify_body += "※ 目前高溫警報已解除，氣溫已回落至安全範圍。"
         else:
-            print(f"當前體感溫度 {current_at}°C 正常，且前次狀態為正常，跳過通知。")
+            print(f"當前環境溫度 {current_temp}°C 正常，且前次狀態為正常，跳過通知。")
             
     if not should_notify:
         # 本機執行成功但未觸發通知，發送一般心跳給雲端，回報本機已完成觀測
         if web_app_url:
             print("本機已完成本次溫度觀測，發送觀測成功心跳給雲端...")
-            send_heartbeat(web_app_url, sync_type="heartbeat")
+            alert_state_text = "高溫持續中" if is_hot else "正常 (未超標)"
+            status_text = "未發送 (重複或正常)"
+            send_heartbeat(
+                web_app_url, 
+                sync_type="heartbeat",
+                current_temp=current_temp,
+                obs_time=display_time,
+                threshold=threshold,
+                alert_state=alert_state_text,
+                status_text=status_text
+            )
         sys.exit(0)
         
     print("\n--- 觸發通知內容 ---")
@@ -490,11 +509,35 @@ def main():
         print("狀態已更新，記錄前次狀態。")
         if web_app_url:
             print("正在向雲端同步更新後的警報狀態...")
-            send_heartbeat(web_app_url, new_state, sync_type="update")
+            alert_state_text = "高溫超標警報" if is_hot else "溫度回落正常"
+            status_arr = []
+            if line_sent: status_arr.append("LINE")
+            if email_sent: status_arr.append("Email")
+            status_text = f"{' & '.join(status_arr)} 已發送" if status_arr else "發送失敗"
+            send_heartbeat(
+                web_app_url, 
+                state_name=new_state, 
+                sync_type="update",
+                current_temp=current_temp,
+                obs_time=display_time,
+                threshold=threshold,
+                alert_state=alert_state_text,
+                status_text=status_text
+            )
     else:
         print("未成功發送任何通知，不更新狀態。")
         if web_app_url:
-            send_heartbeat(web_app_url, sync_type="heartbeat")
+            alert_state_text = "高溫超標警報" if is_hot else "溫度回落正常"
+            status_text = "發送失敗"
+            send_heartbeat(
+                web_app_url, 
+                sync_type="heartbeat",
+                current_temp=current_temp,
+                obs_time=display_time,
+                threshold=threshold,
+                alert_state=alert_state_text,
+                status_text=status_text
+            )
 
 if __name__ == "__main__":
     main()

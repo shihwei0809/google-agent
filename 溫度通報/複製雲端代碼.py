@@ -21,18 +21,7 @@ function onOpen() {
 }
 
 /**
- * 依 CWA 公式計算體感溫度 (AT)
- * AT = T + 0.33*e - 0.70*V - 4.0
- * e  = (RH/100) * 6.105 * exp(17.27*T / (237.7+T))
- */
-function calcApparentTemp(temp, rh, wind) {
-  var e = (rh / 100.0) * 6.105 * Math.exp((17.27 * temp) / (237.7 + temp));
-  var at = temp + 0.33 * e - 0.70 * wind - 4.0;
-  return Math.round(at * 10) / 10;
-}
-
-/**
- * CWA 體感溫度監控與 LINE/Email 自動通報系統 (Google Apps Script 雲端 CWA Open Data API 版)
+ * CWA 環境溫度監控與 LINE/Email 自動通報系統 (Google Apps Script 雲端 CWA Open Data API 版)
  */
 function checkWeatherAndNotify() {
   // 檢查本機最後執行時間，如果本機在 75 分鐘內有執行過，則雲端跳過本次排程 (本機優先)
@@ -104,7 +93,7 @@ function checkWeatherAndNotify() {
     return;
   }
   
-  // 2. 透過 CWA Open Data API 獲取線西站即時觀測資料
+  // 2. 透過 CWA Open Data API 獲取線西站即時環境溫度
   var apiKey = "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28";
   var stationId = "C0G900"; // 線西站
   var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=" + apiKey + "&StationId=" + stationId;
@@ -123,27 +112,24 @@ function checkWeatherAndNotify() {
   
   var s = stations[0];
   var we = s.WeatherElement;
-  var displayTime = s.ObsTime.DateTime; // ISO 格式，例如 "2026-06-09T19:00:00+08:00"
+  var rawObsTime = s.ObsTime.DateTime; // ISO 格式，例如 "2026-06-09T19:00:00+08:00"
+  var displayTime = rawObsTime ? rawObsTime.replace("T", " ").substring(0, 19) : "";
   
-  var rawTemp = parseFloat(we.AirTemperature);
-  var rawRh   = parseFloat(we.RelativeHumidity);
-  var rawWind = parseFloat(we.WindSpeed);
+  var currentTemp = parseFloat(we.AirTemperature);
   
-  if (rawTemp === -99 || rawRh === -99) {
-    Logger.log("站點 " + stationId + " 觀測資料異常（-99），停止執行。");
+  if (currentTemp === -99) {
+    Logger.log("站點 " + stationId + " 觀測環境溫度異常（-99），停止執行。");
     return;
   }
-  if (rawWind === -99) rawWind = 0;
   
-  var currentAT = calcApparentTemp(rawTemp, rawRh, rawWind);
-  Logger.log("觀測時間: " + displayTime + "，乾球: " + rawTemp + "°C，RH: " + rawRh + "%，風速: " + rawWind + " m/s → 體感: " + currentAT + "°C");
+  Logger.log("觀測時間: " + displayTime + "，環境溫度: " + currentTemp + "°C");
   
   // 3. 狀態機邏輯比對
   var properties = PropertiesService.getScriptProperties();
   var lastState = properties.getProperty("LAST_STATE"); // 前次狀態: "HOT" 或 "COOL"
   
   var shouldNotify = false;
-  var isHot = currentAT > threshold;
+  var isHot = currentTemp > threshold;
   var alertStateText = "";
   var notifySubject = "";
   var notifyBody = "";
@@ -153,33 +139,36 @@ function checkWeatherAndNotify() {
   
   if (isHot) {
     // 高溫狀態
-    alertStateText = "高溫超標警報";
     if (lastState !== "HOT") {
       shouldNotify = true;
-      notifySubject = "【高溫警報】彰化縣線西鄉目前體感溫度已達 " + currentAT + "°C，超過設定閾值！";
+      alertStateText = "高溫超標警報";
+      notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定閾值！";
       
-      notifyBody = "【" + sheet.getName() + " 體感高溫警報】\n";
-      notifyBody += "當前體感溫度：" + currentAT + "°C ⚠️ (已超過設定閾值 " + threshold + "°C)\n";
+      notifyBody = "【" + sheet.getName() + " 環境高溫警報】\n";
+      notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定閾值 " + threshold + "°C)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
+      notifyBody += "※ 請相關人員開啟灑水設備降溫循環過濾器。\n";
       notifyBody += "※ 請相關人員注意防暑、多補充水分，並採取防範措施。";
     } else {
+      alertStateText = "高溫持續中";
       Logger.log("目前處於高溫超標狀態，但前次已通報過，跳過重複通知。");
     }
   } else {
     // 正常狀態
-    alertStateText = "溫度回落正常";
     if (lastState === "HOT") {
       // 從超標回落到正常，需要通知
       shouldNotify = true;
-      notifySubject = "【高溫解除】彰化縣線西鄉目前體感溫度已回落至 " + currentAT + "°C，低於設定閾值。";
+      alertStateText = "溫度回落正常";
+      notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定閾值。";
       
-      notifyBody = "【" + sheet.getName() + " 體感溫度回落通知】\n";
-      notifyBody += "當前體感溫度：" + currentAT + "°C ✅ (已降至設定閾值 " + threshold + "°C 以下)\n";
+      notifyBody = "【" + sheet.getName() + " 環境溫度回落通知】\n";
+      notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定閾值 " + threshold + "°C 以下)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
       notifyBody += "※ 目前高溫警報已解除，氣溫已回落至安全範圍。";
     } else {
+      alertStateText = "正常 (未超標)";
       Logger.log("目前處於低於閾值狀態，且前次亦為正常，跳過通知。");
     }
   }
@@ -262,22 +251,34 @@ function checkWeatherAndNotify() {
       }
     }
     
-    // 成功發送後，更新狀態機狀態，並寫入紀錄分頁
+    // 成功發送後，更新狀態機狀態
     if (lineSent || emailSent) {
       properties.setProperty("LAST_STATE", isHot ? "HOT" : "COOL");
-      try {
-        logNotificationToSheet(threshold, currentAT, displayTime, alertStateText, lineSent, emailSent, "雲端備援");
-      } catch (logErr) {
-        Logger.log("寫入通報紀錄分頁失敗: " + logErr.message);
-      }
     }
+  }
+  
+  // 5. 無論是否發送通報，皆將讀取到的值記錄到分頁（通知狀態標示發送情況），以利後續追查數據
+  var statusText = "";
+  if (shouldNotify) {
+    var statusArr = [];
+    if (lineSent) statusArr.push("LINE");
+    if (emailSent) statusArr.push("Email");
+    statusText = statusArr.length > 0 ? (statusArr.join(" & ") + " 已發送") : "發送失敗";
+  } else {
+    statusText = "未發送 (重複或正常)";
+  }
+  
+  try {
+    logNotificationToSheet(threshold, currentTemp, displayTime, alertStateText, statusText, "雲端備援");
+  } catch (logErr) {
+    Logger.log("寫入通報紀錄分頁失敗: " + logErr.message);
   }
 }
 
 /**
  * 將通報紀錄寫入當月分頁，若分頁不存在則自動建立
  */
-function logNotificationToSheet(threshold, currentAT, displayTime, alertStateText, lineSent, emailSent, senderType) {
+function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateText, statusText, senderType) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var today = new Date();
   
@@ -289,7 +290,7 @@ function logNotificationToSheet(threshold, currentAT, displayTime, alertStateTex
   var logSheet = ss.getSheetByName(sheetName);
   
   var headers = [
-    ["通報時間", "溫度閾值設定 (°C)", "通報體感溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
+    ["通報時間", "溫度閾值設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
   ];
   
   // 如果當月分頁不存在，則建立它
@@ -309,11 +310,11 @@ function logNotificationToSheet(threshold, currentAT, displayTime, alertStateTex
     // 凍結第一列
     logSheet.setFrozenRows(1);
   } else {
-    // 檢查並自動將舊表頭更新為新的體感溫度表頭 (支援自動遷移舊資料庫)
+    // 檢查並自動將舊表頭更新為新的環境溫度表頭 (支援自動遷移舊資料庫)
     try {
       var currentHeaders = logSheet.getRange(1, 1, 1, headers[0].length).getValues()[0];
-      if (currentHeaders[2] && currentHeaders[2].indexOf("最高") !== -1) {
-        logSheet.getRange(1, 3).setValue("通報體感溫度 (°C)");
+      if (currentHeaders[2] && (currentHeaders[2].indexOf("最高") !== -1 || currentHeaders[2].indexOf("體感") !== -1)) {
+        logSheet.getRange(1, 3).setValue("通報環境溫度 (°C)");
       }
       if (currentHeaders[3] && currentHeaders[3].indexOf("時段") !== -1) {
         logSheet.getRange(1, 4).setValue("氣象觀測時間");
@@ -326,23 +327,19 @@ function logNotificationToSheet(threshold, currentAT, displayTime, alertStateTex
     }
   }
   
-  // 整理通知狀態文字
-  var statusArr = [];
-  if (lineSent) statusArr.push("LINE");
-  if (emailSent) statusArr.push("Email");
-  var statusText = statusArr.join(" & ") + " 已發送";
+  var finalStatusText = statusText;
   if (senderType) {
-    statusText += " (" + senderType + ")";
+    finalStatusText += " (" + senderType + ")";
   }
   
   // 新增紀錄列
   var rowData = [
     formattedTime, 
     threshold, 
-    currentAT, 
+    currentTemp, 
     displayTime, 
     alertStateText, 
-    statusText
+    finalStatusText
   ];
   
   logSheet.appendRow(rowData);
@@ -418,25 +415,22 @@ function testNotifyForce() {
   
   var s = stations[0];
   var we = s.WeatherElement;
-  var displayTime = s.ObsTime.DateTime;
+  var rawObsTime = s.ObsTime.DateTime;
+  var displayTime = rawObsTime ? rawObsTime.replace("T", " ").substring(0, 19) : "";
   
-  var rawTemp = parseFloat(we.AirTemperature);
-  var rawRh   = parseFloat(we.RelativeHumidity);
-  var rawWind = parseFloat(we.WindSpeed);
+  var currentTemp = parseFloat(we.AirTemperature);
   
-  if (rawTemp === -99 || rawRh === -99) {
+  if (currentTemp === -99) {
     SpreadsheetApp.getUi().alert("【錯誤】站點 " + stationId + " 觀測資料異常（-99），無法進行測試。");
     return;
   }
-  if (rawWind === -99) rawWind = 0;
   
-  var currentAT = calcApparentTemp(rawTemp, rawRh, rawWind);
   var today = new Date();
   var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
   
-  var notifySubject = "【測試通報】彰化縣線西鄉當前體感溫度已達 " + currentAT + "°C";
+  var notifySubject = "【測試通報】發送測試：環境溫度為 " + currentTemp + "°C";
   var notifyBody = "【" + sheet.getName() + " 測試通報】\n";
-  notifyBody += "當前體感溫度：" + currentAT + "°C (設定閾值 " + threshold + "°C)\n";
+  notifyBody += "當前環境溫度：" + currentTemp + "°C (設定閾值 " + threshold + "°C)\n";
   notifyBody += "氣象觀測時間：" + displayTime + "\n";
   notifyBody += "測試觸發時間：" + formattedTime + "\n\n";
   notifyBody += "※ 此為手動測試通報，目的為驗證 LINE 與 Email 通報通道是否暢通。";
@@ -507,7 +501,7 @@ function testNotifyForce() {
   if (emailSent) statusArr.push("Email");
   var statusText = statusArr.length > 0 ? (statusArr.join(" & ") + " 已發送") : "無成功通道";
   
-  SpreadsheetApp.getUi().alert("【測試通報發送完成】\n目前觀測體感溫度：" + currentAT + "°C\n發送通道：" + statusText + "\n\n請確認您的 LINE 或是信箱是否收到測試訊息。");
+  SpreadsheetApp.getUi().alert("【測試通報發送完成】\n目前觀測環境溫度：" + currentTemp + "°C\n發送通道：" + statusText + "\n\n請確認您的 LINE 或是信箱是否收到測試訊息。");
 }
 
 /**
@@ -541,6 +535,26 @@ function doPost(e) {
         // 本機發送了更新狀態，雲端同步更新狀態
         props.setProperty("LAST_STATE", localState);
         cloudState = localState;
+      }
+      
+      // 如果本機傳來了觀測資料，則寫入試算表紀錄
+      if (postData.current_temp !== undefined) {
+        try {
+          var senderType = "本機執行";
+          if (syncType === "heartbeat") {
+            senderType += " (心跳)";
+          }
+          logNotificationToSheet(
+            postData.threshold || 28.0, 
+            postData.current_temp, 
+            postData.obs_time || "", 
+            postData.alert_state || "", 
+            postData.status_text || "", 
+            senderType
+          );
+        } catch (logErr) {
+          Logger.log("本機心跳寫入試算表失敗: " + logErr.message);
+        }
       }
       
       var response = {
