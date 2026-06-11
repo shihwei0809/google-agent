@@ -1,876 +1,122 @@
-# 雲端執行指引：使用 Google Apps Script 實現 24 小時免開機通報
+# 雲端執行與 HMI 部署指引：使用 Google Apps Script 實現 24 小時免開機與管理網頁 (v4.0)
 
-如果您希望系統在**電腦關機時也能自動運作**，最完美且 **100% 免費** 的做法是將程式碼直接部署在您的 **Google 試算表雲端腳本 (Google Apps Script)** 中。
+如果希望系統在**電腦關機時也能自動運作**，最完美且 **100% 免費** 的做法是將程式碼直接部署在您的 **Google 試算表雲端腳本 (Google Apps Script)** 中。
 
-### 💡 雲端版的優勢：
-1. **完全免開機**：程式託管在 Google 雲端伺服器，24 小時自動定時執行。
-2. **一天僅通知一次（防打擾）**：系統會自動抓取**今日整天的預報溫度**，將所有超過 28°C 的時段整理在**同一封訊息**中發送。每天只會通報一次，人員不會因為頻繁通知而忽略。
-3. **免 SMTP 與免密碼寄信**：直接調用 Google 官方郵件服務發信，安全且不需在設定檔中曝露您的信箱密碼。
-4. **與試算表完美整合**：直接讀取您當前的 Google 試算表，完全不需將試算表「發布到網路 (CSV)」。
-5. **自動產生當月紀錄分頁**：每次成功發送警報，系統會自動在您的 Google 試算表中尋找或新建名稱為「紀錄_年-月」的分頁（例如：`紀錄_2026-06`），並自動把通報時間、高溫明細等資訊追加進去，且具備精美格式美化，方便後續稽核與查詢。
+本系統自 v4.0 起引進了全新的 **HMI 雲端人機介面管理網頁**，管理人員不需直接連進 Google 試算表，只需開啟瀏覽網址，即可在精美的深色科技風網頁中即時監看溫度、修改設定、管理通報名冊並查詢歷史紀錄。
 
 ---
 
-## 🛠️ 第一步：貼上雲端程式碼
+## 🛠️ 第一步：本地生成部署代碼
+
+本系統提供專屬的部署檔案生成工具 `複製雲端代碼.py`。
+1. 在您本地的 `溫度通報` 目錄中，按兩下或執行此程式：
+   ```bash
+   python 複製雲端代碼.py
+   ```
+2. 程式執行後會自動在同目錄下生成兩個檔案：
+   - `Code.gs`：Google Apps Script 的後端主要邏輯與資料庫 RPC API。
+   - `Index.html`：HMI 網頁的前端結構、深色毛玻璃 CSS 樣式及 JavaScript 互動邏輯。
+3. 同時，命令提示字元會顯示互動選單，您可以選擇將後端程式碼 `[1]` 或網頁代碼 `[2]` 複製到系統剪貼簿。
+
+---
+
+## ☁️ 第二步：在 Google Apps Script 中建立檔案
 
 1. 開啟您在雲端硬碟建立的聯絡人試算表。
 2. 點選上方選單的 **「擴充功能」 -> 「Apps Script」**。
-3. 清除編輯器內的所有預設程式碼，並貼上以下程式碼：
-
-```javascript
-/**
- * 當試算表開啟時，自動建立頂端自訂選單，方便人員點選測試與重置
- */
-function onOpen() {
-  var ui = SpreadsheetApp.getUi();
-  ui.createMenu('🌡️ 溫度通報系統')
-      .addItem('🧪 測試即時通報 (強制發送)', 'testNotifyForce')
-      .addItem('⚙️ 套用設定並更新排程', 'applySettingsAndTriggers')
-      .addItem('🔄 重置防重複鎖定', 'clearNotifiedState')
-      .addItem('📏 重設欄寬為最佳預設', 'resetColumnWidths')
-      .addToUi();
-      
-  // 開啟試算表時自動檢查並建立「系統設定」分頁
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var configSheet = ss.getSheetByName("系統設定");
-    if (!configSheet) {
-      createDefaultConfigSheet(ss);
-    }
-  } catch (e) {}
-}
-
-/**
- * 建立預設的「系統設定」分頁並美化排版
- */
-function createDefaultConfigSheet(ss) {
-  var configSheet = ss.insertSheet("系統設定");
-  
-  var headers = [["設定項目", "設定值", "說明"]];
-  var data = [
-    ["溫度警報閾值 (°C)", 28.0, "當環境溫度高於此溫度時發送高溫警報，回落低於此值時發送解除警報"],
-    ["監測開始時間 (點)", 8, "每日開始監控的整點時間 (0-23)"],
-    ["監測結束時間 (點)", 24, "每日結束監控的整點時間 (0-23，可跨夜如開始22、結束6)"],
-    ["監測頻率 (分鐘)", 60, "監測執行間隔分鐘數，可設為 10, 15, 30, 60 等"]
-  ];
-  
-  // 寫入標頭與資料
-  configSheet.getRange(1, 1, 1, 3).setValues(headers);
-  configSheet.getRange(2, 1, data.length, 3).setValues(data);
-  
-  // 美化表頭：深藍底色 (#1F4E79)、白字、粗體、置中
-  configSheet.getRange(1, 1, 1, 3)
-             .setBackground("#1F4E79")
-             .setFontColor("#FFFFFF")
-             .setFontWeight("bold")
-             .setHorizontalAlignment("center");
-             
-  // 凍結第一列
-  configSheet.setFrozenRows(1);
-  
-  // 資料列排版對齊
-  configSheet.getRange(2, 1, data.length, 1).setHorizontalAlignment("center").setFontWeight("bold");
-  configSheet.getRange(2, 2, data.length, 1).setHorizontalAlignment("center");
-  configSheet.getRange(2, 3, data.length, 1).setHorizontalAlignment("left");
-  
-  // 設定適當欄寬
-  configSheet.setColumnWidth(1, 160); // 設定項目
-  configSheet.setColumnWidth(2, 100); // 設定值
-  configSheet.setColumnWidth(3, 400); // 說明
-  
-  return configSheet;
-}
-
-/**
- * 讀取系統設定分頁中的配置參數 (具備自動建立與相容舊版之降級機制)
- */
-function loadConfigFromSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var configSheet = ss.getSheetByName("系統設定");
-  
-  // 如果找不到，自動建立預設設定分頁
-  if (!configSheet) {
-    try {
-      configSheet = createDefaultConfigSheet(ss);
-      Logger.log("「系統設定」分頁不存在，已自動建立並填入預設值。");
-    } catch (e) {
-      Logger.log("自動建立「系統設定」分頁失敗: " + e.message);
-    }
-  }
-  
-  var config = {
-    threshold: 28.0,
-    startHour: 8,
-    endHour: 24,
-    frequency: 60
-  };
-  
-  if (!configSheet) {
-    return config;
-  }
-  
-  var data = configSheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    var key = String(data[i][0]).trim();
-    var val = String(data[i][1]).trim();
-    var key_lower = key.toLowerCase();
-    
-    if (key_lower.includes("threshold") || key.includes("溫度") || key.includes("閥值") || key.includes("閾值")) {
-      var num = parseFloat(val);
-      if (!isNaN(num)) config.threshold = num;
-    } else if (key_lower.includes("start") || key.includes("開始") || key.includes("啟動")) {
-      var num = parseInt(val);
-      if (!isNaN(num)) config.startHour = num;
-    } else if (key_lower.includes("end") || key.includes("結束") || key.includes("停止")) {
-      var num = parseInt(val);
-      if (!isNaN(num)) config.endHour = num;
-    } else if (key_lower.includes("frequency") || key.includes("頻率") || key.includes("間隔")) {
-      var num = parseInt(val);
-      if (!isNaN(num)) config.frequency = num;
-    }
-  }
-  
-  return config;
-}
-
-/**
- * 手動或選單觸發：套用設定並更新雲端時間觸發器頻率
- */
-function applySettingsAndTriggers() {
-  var config = loadConfigFromSheet();
-  updateTriggerFrequency(config.frequency);
-  
-  try {
-    SpreadsheetApp.getUi().alert(
-      "【設定套用成功】\n\n" +
-      "系統已成功套用新參數：\n" +
-      "1. 溫度警報閾值：" + config.threshold + "°C\n" +
-      "2. 監測時段：" + config.startHour + ":00 - " + config.endHour + ":00\n" +
-      "3. 監測頻率：" + config.frequency + " 分鐘\n\n" +
-      "※ 雲端 Apps Script 定時觸發器已重新建立並開始生效！"
-    );
-  } catch (e) {
-    Logger.log("更新觸發器成功，頻率：" + config.frequency + " 分鐘");
-  }
-}
-
-/**
- * 動態重建指定分鐘數的定時觸發器
- */
-function updateTriggerFrequency(minutes) {
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'checkWeatherAndNotify') {
-      ScriptApp.deleteTrigger(triggers[i]);
-    }
-  }
-  
-  // 建立新時間型觸發條件，根據分鐘數對應至 Apps Script 支援的間隔
-  if (minutes === 10) {
-    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(10).create();
-  } else if (minutes === 15) {
-    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(15).create();
-  } else if (minutes === 30) {
-    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(30).create();
-  } else if (minutes === 60) {
-    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(1).create();
-  } else if (minutes === 120) {
-    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(2).create();
-  } else {
-    // 預設一小時
-    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(1).create();
-  }
-}
-
-/**
- * CWA 環境溫度監控與 LINE/Email 自動通報系統 (Google Apps Script 雲端 CWA Open Data API 版)
- */
-function checkWeatherAndNotify() {
-  // 1. 從「系統設定」分頁載入配置
-  var config = loadConfigFromSheet();
-  var threshold = config.threshold;
-  var startHour = config.startHour;
-  var endHour = config.endHour;
-  var frequency = config.frequency;
-
-  // 2. 檢查本機最後執行時間，如果本機在指定心跳時間內有執行過，則雲端跳過本次排程 (本機優先)
-  // 動態計算心跳超時時間：頻率 * 2.5，但最少 25 分鐘
-  var heartbeatTimeoutMinutes = Math.max(25, frequency * 2.5);
-  var properties = PropertiesService.getScriptProperties();
-  var lastLocalHeartbeat = properties.getProperty("LAST_LOCAL_HEARTBEAT");
-  if (lastLocalHeartbeat) {
-    var lastTime = parseInt(lastLocalHeartbeat);
-    var nowTime = new Date().getTime();
-    var diffMinutes = (nowTime - lastTime) / (1000 * 60);
-    if (diffMinutes < heartbeatTimeoutMinutes) {
-      Logger.log("偵測到本機近期已執行（約 " + Math.round(diffMinutes) + " 分鐘前，超時閾值為 " + heartbeatTimeoutMinutes + " 分鐘），雲端備援跳過本次排程。");
-      return;
-    }
-  }
-
-  // 取得第一個分頁 (聯絡人設定檔)，避免因為使用者點選其他分頁而讀錯資料
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-  var data = sheet.getDataRange().getValues();
-  
-  var emails = [];
-  var lineIds = [];
-  
-  // 欄位對應: Name (A), Email (B), LINE_ID (C), Enabled (D)
-  for (var i = 1; i < data.length; i++) {
-    var name = String(data[i][0]).trim();
-    var name_lower = name.toLowerCase();
-    var email = String(data[i][1]).trim();
-    var lineId = String(data[i][2]).trim();
-    var enabled = String(data[i][3]).trim().toUpperCase();
-    
-    // 忽略相容性用舊設定列，避免被當作聯絡人
-    if (name_lower.includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值") ||
-        name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
-        name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
-        name_lower.includes("frequency") || name.includes("頻率") || name.includes("間隔")) {
-      continue;
-    }
-    
-    // 排除已停用的人員
-    if (enabled !== "N" && enabled !== "NO" && enabled !== "FALSE") {
-      if (email && email.includes("@")) {
-        emails.push(email);
-      }
-      if (lineId) {
-        var prefix = lineId.charAt(0).toUpperCase();
-        if (prefix === "U" || prefix === "C" || prefix === "R") {
-          lineIds.push(lineId);
-        }
-      }
-    }
-  }
-  
-  // 3. 檢查是否在監測時段內，避免非工作時間打擾人員 (支援跨夜)
-  var today = new Date();
-  var currentHour = parseInt(Utilities.formatDate(today, "GMT+8", "HH"));
-  var isInTimeWindow = false;
-  if (startHour < endHour) {
-    isInTimeWindow = (currentHour >= startHour && currentHour < endHour);
-  } else {
-    isInTimeWindow = (currentHour >= startHour || currentHour < endHour);
-  }
-  
-  if (!isInTimeWindow) {
-    Logger.log("目前時間為 " + currentHour + " 點，不在監測時段 (" + startHour + ":00 - " + endHour + ":00) 內，跳過執行。");
-    return;
-  }
-  
-  Logger.log("當前警報溫度閥值設定為: " + threshold + "°C");
-  Logger.log("Email 收件人名單: " + emails);
-  Logger.log("LINE 推播名單: " + lineIds);
-  
-  if (emails.length === 0 && lineIds.length === 0) {
-    Logger.log("偵測不到任何有效的啟用收件者，停止執行。");
-    return;
-  }
-  
-  // 透過 CWA Open Data API 獲取伸港站即時環境溫度
-  var apiKey = "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28";
-  var stationId = "C2G870"; // 伸港站 (支援 10 分鐘即時更新)
-  var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=" + apiKey + "&StationId=" + stationId;
-  
-  var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
-  if (apiResponse.getResponseCode() !== 200) {
-    Logger.log("CWA API 請求失敗，狀態碼: " + apiResponse.getResponseCode());
-    return;
-  }
-  var apiData = JSON.parse(apiResponse.getContentText("UTF-8"));
-  var stations = apiData.records.Station;
-  if (!stations || stations.length === 0) {
-    Logger.log("CWA API 回傳空資料，StationId=" + stationId);
-    return;
-  }
-  
-  var s = stations[0];
-  var we = s.WeatherElement;
-  var rawObsTime = s.ObsTime.DateTime; // ISO 格式，例如 "2026-06-09T19:00:00+08:00"
-  var displayTime = rawObsTime ? rawObsTime.replace("T", " ").substring(0, 19) : "";
-  
-  var currentTemp = parseFloat(we.AirTemperature);
-  
-  if (currentTemp === -99) {
-    Logger.log("站點 " + stationId + " 觀測環境溫度異常（-99），停止執行。");
-    return;
-  }
-  
-  Logger.log("觀測時間: " + displayTime + "，環境溫度: " + currentTemp + "°C");
-  
-  // 狀態機邏輯比對
-  var lastState = properties.getProperty("LAST_STATE"); // 前次狀態: "HOT" 或 "COOL"
-  
-  var shouldNotify = false;
-  var isHot = currentTemp > threshold;
-  var alertStateText = "";
-  var notifySubject = "";
-  var notifyBody = "";
-  
-  var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  
-  if (isHot) {
-    // 高溫狀態
-    if (lastState !== "HOT") {
-      shouldNotify = true;
-      alertStateText = "高溫超標警報";
-      notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定閾值！";
-      
-      notifyBody = "【" + sheet.getName() + " 環境高溫警報】\n";
-      notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定閾值 " + threshold + "°C)\n";
-      notifyBody += "氣象觀測時間：" + displayTime + "\n";
-      notifyBody += "通報時間：" + formattedTime + "\n\n";
-      notifyBody += "※ 請相關人員開啟灑水設備降溫循環過濾器。\n";
-      notifyBody += "※ 請相關人員注意防暑、多補充水分，並採取防範措施。";
-    } else {
-      alertStateText = "高溫持續中";
-      Logger.log("目前處於高溫超標狀態，但前次已通報過，跳過重複通知。");
-    }
-  } else {
-    // 正常狀態
-    if (lastState === "HOT") {
-      // 從超標回落到正常，需要通知
-      shouldNotify = true;
-      alertStateText = "溫度回落正常";
-      notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定閾值。";
-      
-      notifyBody = "【" + sheet.getName() + " 環境溫度回落通知】\n";
-      notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定閾值 " + threshold + "°C 以下)\n";
-      notifyBody += "氣象觀測時間：" + displayTime + "\n";
-      notifyBody += "通報時間：" + formattedTime + "\n\n";
-      notifyBody += "※ 目前高溫警報已解除，氣溫已回落至安全範圍。";
-    } else {
-      alertStateText = "正常 (未超標)";
-      Logger.log("目前處於低於閾值狀態，且前次亦為正常，跳過通知。");
-    }
-  }
-  
-  // 送出通知與記錄
-  if (shouldNotify) {
-    Logger.log("觸發通知：「" + notifySubject + "」");
-    
-    var lineSent = false;
-    var emailSent = false;
-    
-    // A. 發送 LINE
-    var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
-    var userIds = [];
-    var groupIds = [];
-    for (var m = 0; m < lineIds.length; m++) {
-      var prefix = lineIds[m].charAt(0).toUpperCase();
-      if (prefix === "U") userIds.push(lineIds[m]);
-      else if (prefix === "C" || prefix === "R") groupIds.push(lineIds[m]);
-    }
-    
-    if (userIds.length > 0) {
-      var multicastUrl = "https://api.line.me/v2/bot/message/multicast";
-      var options = {
-        "method": "post",
-        "headers": {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + lineToken
-        },
-        "payload": JSON.stringify({
-          "to": userIds,
-          "messages": [{"type": "text", "text": notifyBody}]
-        }),
-        "muteHttpExceptions": true
-      };
-      var response = UrlFetchApp.fetch(multicastUrl, options);
-      if (response.getResponseCode() === 200) {
-        lineSent = true;
-        Logger.log("LINE Multicast 推播成功！");
-      } else {
-        Logger.log("LINE Multicast 推播失敗: " + response.getContentText());
-      }
-    }
-    
-    for (var g = 0; g < groupIds.length; g++) {
-      var pushUrl = "https://api.line.me/v2/bot/message/push";
-      var options = {
-        "method": "post",
-        "headers": {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + lineToken
-        },
-        "payload": JSON.stringify({
-          "to": groupIds[g],
-          "messages": [{"type": "text", "text": notifyBody}]
-        }),
-        "muteHttpExceptions": true
-      };
-      var response = UrlFetchApp.fetch(pushUrl, options);
-      if (response.getResponseCode() === 200) {
-        lineSent = true;
-        Logger.log("LINE 群組/聊天室推播成功！(ID: " + groupIds[g] + ")");
-      } else {
-        Logger.log("LINE 群組/聊天室推播失敗: " + response.getContentText() + " (ID: " + groupIds[g] + ")");
-      }
-    }
-    
-    // B. 發送電子郵件
-    if (emails.length > 0) {
-      try {
-        MailApp.sendEmail({
-          to: emails.join(","),
-          subject: notifySubject,
-          body: notifyBody
-        });
-        emailSent = true;
-        Logger.log("電子郵件寄送成功！");
-      } catch (e) {
-        Logger.log("電子郵件寄送失敗: " + e.message);
-      }
-    }
-    
-    // 成功發送後，更新狀態機狀態
-    if (lineSent || emailSent) {
-      properties.setProperty("LAST_STATE", isHot ? "HOT" : "COOL");
-    }
-  }
-  
-  // 無論是否發送通報，皆將讀取到的值記錄到分頁（通知狀態標示發送情況），以利後續追查數據
-  var statusText = "";
-  if (shouldNotify) {
-    var statusArr = [];
-    if (lineSent) statusArr.push("LINE");
-    if (emailSent) statusArr.push("Email");
-    statusText = statusArr.length > 0 ? (statusArr.join(" & ") + " 已發送") : "發送失敗";
-  } else {
-    statusText = "未發送 (重複或正常)";
-  }
-  
-  try {
-    logNotificationToSheet(threshold, currentTemp, displayTime, alertStateText, statusText, "雲端備援");
-  } catch (logErr) {
-    Logger.log("寫入通報紀錄分頁失敗: " + logErr.message);
-  }
-}
-
-/**
- * 將通報紀錄寫入當月分頁，若分頁不存在則自動建立
- */
-function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateText, statusText, senderType) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var today = new Date();
-  
-  var formattedMonth = Utilities.formatDate(today, "GMT+8", "yyyy-MM"); 
-  var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  
-  var sheetName = "紀錄_" + formattedMonth;
-  var logSheet = ss.getSheetByName(sheetName);
-  
-  var headers = [
-    ["通報時間", "溫度閾值設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
-  ];
-  
-  // 如果當月分頁不存在，則建立它
-  if (!logSheet) {
-    logSheet = ss.insertSheet(sheetName);
-    logSheet.getRange(1, 1, 1, headers[0].length).setValues(headers);
-    
-    // 美化表頭：深藍底色 (#1F4E79)、白字、置中、粗體
-    var headerRange = logSheet.getRange(1, 1, 1, headers[0].length);
-    headerRange.setBackground("#1F4E79")
-               .setFontColor("#FFFFFF")
-               .setFontWeight("bold")
-               .setHorizontalAlignment("center");
-    
-    // 凍結第一列
-    logSheet.setFrozenRows(1);
-    
-    // 設定預設寬度
-    logSheet.setColumnWidth(1, 170); // 通報時間
-    logSheet.setColumnWidth(2, 140); // 溫度閾值設定 (°C)
-    logSheet.setColumnWidth(3, 140); // 通報環境溫度 (°C)
-    logSheet.setColumnWidth(4, 170); // 氣象觀測時間
-    logSheet.setColumnWidth(5, 140); // 警報狀態
-    logSheet.setColumnWidth(6, 200); // 通知狀態
-  } else {
-    // 檢查並自動將舊表頭更新為新的環境溫度表頭
-    try {
-      var currentHeaders = logSheet.getRange(1, 1, 1, headers[0].length).getValues()[0];
-      if (currentHeaders[2] && (currentHeaders[2].indexOf("最高") !== -1 || currentHeaders[2].indexOf("體感") !== -1)) {
-        logSheet.getRange(1, 3).setValue("通報環境溫度 (°C)");
-      }
-      if (currentHeaders[3] && currentHeaders[3].indexOf("時段") !== -1) {
-        logSheet.getRange(1, 4).setValue("氣象觀測時間");
-      }
-      if (currentHeaders[4] && (currentHeaders[4].indexOf("超標") !== -1 || currentHeaders[4].indexOf("明細") !== -1)) {
-        logSheet.getRange(1, 5).setValue("警報狀態");
-      }
-    } catch (err) {
-      Logger.log("檢查並更新舊表頭失敗: " + err.message);
-    }
-  }
-  
-  var finalStatusText = statusText;
-  if (senderType) {
-    finalStatusText += " (" + senderType + ")";
-  }
-  
-  // 新增紀錄列
-  var rowData = [
-    formattedTime, 
-    threshold, 
-    currentTemp, 
-    displayTime, 
-    alertStateText, 
-    finalStatusText
-  ];
-  
-  logSheet.appendRow(rowData);
-  
-  // 格式美化：資料列置中對齊
-  var lastRow = logSheet.getLastRow();
-  if (lastRow > 1) {
-    logSheet.getRange(lastRow, 1, 1, headers[0].length).setHorizontalAlignment("center");
-  }
-  Logger.log("已將通報紀錄寫入分頁: " + sheetName);
-}
-
-/**
- * 測試即時通報 (強制發送，忽略工作時間與狀態鎖定)
- */
-function testNotifyForce() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheets()[0];
-  var data = sheet.getDataRange().getValues();
-  
-  var config = loadConfigFromSheet();
-  var threshold = config.threshold;
-  
-  var emails = [];
-  var lineIds = [];
-  
-  for (var i = 1; i < data.length; i++) {
-    var name = String(data[i][0]).trim();
-    var name_lower = name.toLowerCase();
-    var email = String(data[i][1]).trim();
-    var lineId = String(data[i][2]).trim();
-    var enabled = String(data[i][3]).trim().toUpperCase();
-    
-    if (name_lower.includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值") ||
-        name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
-        name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
-        name_lower.includes("frequency") || name.includes("頻率") || name.includes("間隔")) {
-      continue;
-    }
-    
-    if (enabled !== "N" && enabled !== "NO" && enabled !== "FALSE") {
-      if (email && email.includes("@")) {
-        emails.push(email);
-      }
-      if (lineId) {
-        var prefix = lineId.charAt(0).toUpperCase();
-        if (prefix === "U" || prefix === "C" || prefix === "R") {
-          lineIds.push(lineId);
-        }
-      }
-    }
-  }
-  
-  var apiKey = "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28";
-  var stationId = "C2G870"; // 伸港站
-  var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=" + apiKey + "&StationId=" + stationId;
-  
-  var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
-  if (apiResponse.getResponseCode() !== 200) {
-    SpreadsheetApp.getUi().alert("【錯誤】CWA API 請求失敗，狀態碼: " + apiResponse.getResponseCode());
-    return;
-  }
-  var apiData = JSON.parse(apiResponse.getContentText("UTF-8"));
-  var stations = apiData.records.Station;
-  if (!stations || stations.length === 0) {
-    SpreadsheetApp.getUi().alert("【錯誤】CWA API 回傳空資料，StationId=" + stationId);
-    return;
-  }
-  
-  var s = stations[0];
-  var we = s.WeatherElement;
-  var rawObsTime = s.ObsTime.DateTime;
-  var displayTime = rawObsTime ? rawObsTime.replace("T", " ").substring(0, 19) : "";
-  var currentTemp = parseFloat(we.AirTemperature);
-  
-  if (currentTemp === -99) {
-    SpreadsheetApp.getUi().alert("【錯誤】站點 " + stationId + " 觀測資料異常（-99），無法進行測試。");
-    return;
-  }
-  
-  var today = new Date();
-  var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  
-  var notifySubject = "【測試通報】發送測試：環境溫度為 " + currentTemp + "°C";
-  var notifyBody = "【" + sheet.getName() + " 測試通報】\n";
-  notifyBody += "當前環境溫度：" + currentTemp + "°C (設定閾值 " + threshold + "°C)\n";
-  notifyBody += "氣象觀測時間：" + displayTime + "\n";
-  notifyBody += "測試觸發時間：" + formattedTime + "\n\n";
-  notifyBody += "※ 此為手動測試通報，目的為驗證 LINE 與 Email 通報通道是否暢通。";
-  
-  var lineSent = false;
-  var emailSent = false;
-  
-  var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
-  var userIds = [];
-  var groupIds = [];
-  for (var m = 0; m < lineIds.length; m++) {
-    var prefix = lineIds[m].charAt(0).toUpperCase();
-    if (prefix === "U") userIds.push(lineIds[m]);
-    else if (prefix === "C" || prefix === "R") groupIds.push(lineIds[m]);
-  }
-  
-  if (userIds.length > 0) {
-    var multicastUrl = "https://api.line.me/v2/bot/message/multicast";
-    var options = {
-      "method": "post",
-      "headers": {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + lineToken
-      },
-      "payload": JSON.stringify({
-        "to": userIds,
-        "messages": [{"type": "text", "text": notifyBody}]
-      }),
-      "muteHttpExceptions": true
-    };
-    var response = UrlFetchApp.fetch(multicastUrl, options);
-    if (response.getResponseCode() === 200) lineSent = true;
-  }
-  
-  for (var g = 0; g < groupIds.length; g++) {
-    var pushUrl = "https://api.line.me/v2/bot/message/push";
-    var options = {
-      "method": "post",
-      "headers": {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer " + lineToken
-      },
-      "payload": JSON.stringify({
-        "to": groupIds[g],
-        "messages": [{"type": "text", "text": notifyBody}]
-      }),
-      "muteHttpExceptions": true
-    };
-    var response = UrlFetchApp.fetch(pushUrl, options);
-    if (response.getResponseCode() === 200) lineSent = true;
-  }
-  
-  if (emails.length > 0) {
-    try {
-      MailApp.sendEmail({
-        to: emails.join(","),
-        subject: notifySubject,
-        body: notifyBody
-      });
-      emailSent = true;
-    } catch (e) {
-      Logger.log("測試信件發送失敗: " + e.message);
-    }
-  }
-  
-  var statusArr = [];
-  if (lineSent) statusArr.push("LINE");
-  if (emailSent) statusArr.push("Email");
-  var statusText = statusArr.length > 0 ? (statusArr.join(" & ") + " 已發送") : "無成功通道";
-  
-  SpreadsheetApp.getUi().alert("【測試通報發送完成】\n目前觀測環境溫度：" + currentTemp + "°C\n發送通道：" + statusText + "\n\n請確認您的 LINE 或是信箱是否收到測試訊息。");
-}
-
-/**
- * 手動清除狀態（測試與重置用）
- */
-function clearNotifiedState() {
-  var props = PropertiesService.getScriptProperties();
-  props.deleteProperty("LAST_STATE");
-  props.deleteProperty("LAST_NOTIFIED_DATE"); 
-  SpreadsheetApp.getUi().alert("【成功】防重複狀態已重置！\n系統目前的防重複通知鎖定已清除，下一小時如果溫度超標將會再次觸發通報。");
-}
-
-/**
- * 手動或自動重設當前月份紀錄分頁的欄寬為最佳預設值
- */
-function resetColumnWidths() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var today = new Date();
-  var formattedMonth = Utilities.formatDate(today, "GMT+8", "yyyy-MM");
-  var sheetName = "紀錄_" + formattedMonth;
-  var logSheet = ss.getSheetByName(sheetName);
-  
-  if (logSheet) {
-    logSheet.setColumnWidth(1, 170); // 通報時間
-    logSheet.setColumnWidth(2, 140); // 溫度閾值設定 (°C)
-    logSheet.setColumnWidth(3, 140); // 通報環境溫度 (°C)
-    logSheet.setColumnWidth(4, 170); // 氣象觀測時間
-    logSheet.setColumnWidth(5, 140); // 警報狀態
-    logSheet.setColumnWidth(6, 200); // 通知狀態
-    
-    try {
-      SpreadsheetApp.getUi().alert("【成功】已將當月紀錄分頁（" + sheetName + "）的欄寬重設為最佳預設值！");
-    } catch (e) {}
-  } else {
-    try {
-      SpreadsheetApp.getUi().alert("【提示】找不到當月紀錄分頁（" + sheetName + "），請等候系統自動建立或手動執行一次測試。");
-    } catch (e) {}
-  }
-}
-
-/**
- * 接收 LINE Webhook 事件與本機心跳同步信號
- */
-function doPost(e) {
-  try {
-    var postData = JSON.parse(e.postData.contents);
-    
-    if (postData.action === "heartbeat") {
-      var props = PropertiesService.getScriptProperties();
-      props.setProperty("LAST_LOCAL_HEARTBEAT", new Date().getTime().toString());
-      
-      var syncType = postData.type || "heartbeat";
-      var localState = postData.local_state;
-      var cloudState = props.getProperty("LAST_STATE") || "COOL";
-      
-      if (syncType === "update" && localState) {
-        props.setProperty("LAST_STATE", localState);
-        cloudState = localState;
-      }
-      
-      if (postData.current_temp !== undefined) {
-        try {
-          var senderType = "本機執行";
-          if (syncType === "heartbeat") {
-            senderType += " (心跳)";
-          }
-          logNotificationToSheet(
-            postData.threshold || 28.0, 
-            postData.current_temp, 
-            postData.obs_time || "", 
-            postData.alert_state || "", 
-            postData.status_text || "", 
-            senderType
-          );
-        } catch (logErr) {
-          Logger.log("本機心跳寫入試算表失敗: " + logErr.message);
-        }
-      }
-      
-      var response = {
-        "status": "success",
-        "cloud_state": cloudState
-      };
-      return ContentService.createTextOutput(JSON.stringify(response))
-                           .setMimeType(ContentService.MimeType.JSON);
-    }
-    var events = postData.events;
-    
-    if (events && events.length > 0) {
-      for (var i = 0; i < events.length; i++) {
-        var event = events[i];
-        
-        if (event.type === "message" && event.message.type === "text") {
-          var userText = event.message.text.trim().toLowerCase();
-          
-          if (userText === "id" || userText === "查詢id" || userText === "查詢 id" || userText === "group id") {
-            var source = event.source || {};
-            var targetId = "";
-            var typeText = "";
-            
-            if (source.type === "group") {
-              targetId = source.groupId;
-              typeText = "群組 ID";
-            } else if (source.type === "room") {
-              targetId = source.roomId;
-              typeText = "聊天室 ID";
-            } else if (source.type === "user") {
-              targetId = source.userId;
-              typeText = "個人 ID";
-            }
-            
-            if (targetId) {
-              var ss = SpreadsheetApp.getActiveSpreadsheet();
-              var sheet = ss.getSheets()[0]; 
-              var today = new Date();
-              var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
-              sheet.appendRow(["【自動查詢】" + typeText, "請複製右邊的 ID：", targetId, "查詢時間: " + formattedTime]);
-            }
-          }
-        }
-      }
-    }
-  } catch (err) {}
-  return ContentService.createTextOutput("OK");
-}
-
-```
-
-4. 點選上方的 **「儲存專案 (Save project)」** 圖示。
+3. 建立後端程式 `Code.gs`：
+   - 預設會包含一個 `Code.gs` 檔案。清除編輯器內的所有預設程式碼。
+   - 在本地執行 `複製雲端代碼.py` 選擇 `[1]` 將後端程式碼複製到剪貼簿，然後貼回 Apps Script 編輯器中。
+4. 建立前端網頁 `Index.html`：
+   - 點選左側檔案列上方的 **「+」按鈕 -> 選擇「HTML」**。
+   - 將檔案命名為 **`Index`** (系統會自動加上 `.html` 變成 `Index.html`)。
+   - 清空預設內容。
+   - 執行 `複製雲端代碼.py` 選擇 `[2]` 將前端網頁代碼複製到剪貼簿，貼入該 HTML 檔案中。
+5. 點選上方選單的 **「儲存專案 (Save project)」** 圖示 (磁碟片符號)。
 
 ---
 
-## 🔑 第二步：首次執行與授權
+## 🌐 第三步：部署為 Web App 網頁應用程式 (取得人機網址)
 
-1. 在編輯器上方下拉選單選擇 **`checkWeatherAndNotify`**。
-2. 點選 **「執行 (Run)」** 按鈕。
-3. 系統會跳出「需要授權」視窗，點選 **「審查權限」**。
+部署 Web App 是本系統的核心步驟，這能讓人員開啟人機介面，並讓本機 Python 程式上傳心跳：
 
-4. 選擇您的 Google 帳戶 -> **「進階 (Advanced)」 -> 「前往『未命名專案』(安全)」 -> 「允許 (Allow)」**。
-5. 執行完成後，您可以在下方的「執行記錄」中看見輸出狀態！
+1. 點選 Apps Script 頁面右上角 **「部署 (Deploy)」 -> 「新建部署 (New deployment)」**。
+2. 點選左上角齒輪圖示，選取 **「網頁應用程式 (Web App)」**。
+3. 進行設定：
+   - **說明 (Description)**：輸入 `溫度通報系統 HMI v4.0`。
+   - **將網頁應用程式執行為 (Execute as)**：選擇 **「我 (您的帳戶)」**。
+   - **誰可以存取 (Who has access)**：選擇 **「所有人 (Anyone)」** (必須是 Anyone，否則本機 Python 無法傳送心跳，人員也無法讀寫設定)。
+4. 點選 **「部署 (Deploy)」**。
+5. **首次授權審查**：
+   - 點選 **「審查權限 (Authorize access)」**。
+   - 選擇您的 Google 帳戶。
+   - 看到「Google 尚未驗證此應用程式」時，點選左下角 **「進階 (Advanced)」**。
+   - 點選 **「前往『未命名專案/您的專案』(不安全)」**。
+   - 點選 **「允許 (Allow)」** 授予試算表、郵件與外部 API 權限。
+6. 部署完成後，複製產生的 **網頁應用程式網址 (Web App URL)** (格式通常為 `https://script.google.com/macros/s/AKfycb.../exec`)。
+7. **套用網址**：
+   - 將此網址填入本機 `config.json` 中的 `"web_app_url"` 欄位。
+   - 將此網址加入瀏覽器書籤，這就是您的 **HMI 人機管理網頁**！
 
 ---
 
-## ⏰ 第三步：一鍵同步與時間定時排程
+## 🔑 第四步：首次執行與授權
 
-本系統自 v3.4 起，新增了**動態觸發器管理**功能，讓您無須手動配置排程，直接透過選單一鍵完成：
+為了讓雲端時間觸發器正常運作：
+1. 在 Apps Script 編輯器上方選擇函數 **`checkWeatherAndNotify`**。
+2. 點選 **「執行 (Run)」**。
+3. 若提示權限審查，依照上述步驟允許。執行完成後查看下方執行紀錄，確認能正常取得氣象資料與寫入紀錄。
 
-1. 完成上述「首次執行與授權」後，返回您的 Google 試算表頁面並重新整理。
+---
+
+## ⏰ 第五步：一鍵同步與時間定時排程
+
+本系統自 v4.0 起，新增了**自動同步調整排程**功能，您無須手動配置排程，直接透過選單或 HMI 網頁一鍵完成：
+
+1. 返回您的 Google 試算表頁面並重新整理。
 2. 點選上方選單 **`🌡️ 溫度通報系統` -> `⚙️ 套用設定並更新排程`**。
 3. 系統將會：
-   * 在您的試算表中**自動建立 `系統設定` 分頁**（若不存在）。
-   * 讀取試算表中設定的 `監測頻率 (分鐘)`。
-   * 自動在背景建立對應頻率的「時間型觸發條件」！
-4. 之後若需更改頻率（如從 1 小時改為 30 分鐘），只需在試算表修改數字，並再次點選 **`⚙️ 套用設定並更新排程`** 即可，極為簡單便利！
-
-## 🕹️ 第四步：使用頂端自訂選單或圖形按鈕（免進程式碼測試）
-
-貼上新版程式碼並儲存後，重新整理 Google 試算表網頁，您可以使用以下兩種方式執行測試與重置：
-
-### 方法 A：使用頂端自訂選單
-1. 重新整理試算表後，頂端選單列將會自動出現：**`🌡️ 溫度通報系統`**。
-2. 點選它會展開三個子項目：
-   * **`🧪 測試即時通報 (強制發送)`**：直接抓取目前的彰化縣線西鄉環境溫度，並強制發送通知（會忽略工作時間限制與前次狀態機鎖定）。發送完成後會自動彈出提示視窗。
-   * **`🔄 重置防重複鎖定`**：一鍵清除防重複通知鎖定，下一小時如果溫度超標將會再次觸發通報。
-   * **`📏 重設欄寬為最佳預設`**：一鍵將當前月份的紀錄分頁欄位寬度重設為最美觀的預設寬度（通報時間 170px, 欄位各 140-200px），避免欄位擠壓或跑掉。
-
-### 方法 B：插入圖形按鈕（直接放在工作表內）
-1. 在您的工作表點選 **「插入」 -> 「繪圖」**。
-2. 畫三個按鈕形狀（例如矩形），加上文字「🧪 測試通報」、「🔄 重置重複鎖定」與「📏 重設欄寬」。
-3. 右鍵點擊按鈕圖示，再點選圖示右上角的 **「三個點 (更多動作)」 -> 「指派指令碼 (Assign script)」**。
-   * 「測試通報」按鈕指派：**`testNotifyForce`**
-   * 「重置重複鎖定」按鈕指派：**`clearNotifiedState`**
-   * 「重設欄寬」按鈕指派：**`resetColumnWidths`**
-4. 指派完成後，任何人員只要在試算表中直接點擊按鈕，就能直接觸發對應功能！
+   - 在您的試算表中**自動建立 `系統設定` 分頁** (若不存在)。
+   - 讀取試算表中設定的 `監測頻率 (分鐘)`。
+   - 自動在 Apps Script 背景建立對應頻率的「時間型觸發條件」！
+4. 之後若需更改頻率，您可以直接在 **HMI 設定網頁** 修改並點選儲存，雲端排程將會自動即時更新，極為便利！
 
 ---
 
-## 📝 版本更新與修改紀錄 (Changelog)
+## 🖥️ HMI 人機管理網頁功能指引
 
-1. **全面改用一般環境溫度**：
-   - 根據現場人員反饋，監控指標已從「體感溫度」改為中央氣象署觀測站的「一般環境溫度 (AirTemperature)」。
-2. **每小時持續寫入紀錄**：
-   - 無論是否發送通報（如重複跳過或氣溫正常），系統每小時執行皆會將觀測值寫入 `紀錄_YYYY-MM` 分頁。
-   - 新增本機執行時的「心跳寫入」機制：本機觀測完畢後會發送數據至雲端 Web App，由 Web App 代為寫入試算表，確保本機/雲端不論誰執行都有完整溫度觀測紀錄。
-3. **設備降溫提醒**：
-   - 高溫超標警報訊息內重新加入設備提示語：`※ 請相關人員開啟灑水設備降溫循環過濾器。`
-4. **Bug 修復**：
-   - 修復雲端程式碼 `testNotifyForce` 內誤用未定義變數 `currentAT` 的問題。
-   - 修復雲端程式碼 `doPost` 內誤用未定義變數 `props` 的問題。
-5. **紀錄表頭與分頁優化**：
-   - 自動按月建立 `紀錄_YYYY-MM` 分頁。
-   - 表頭採用全新欄位：`["通報時間", "溫度閾值設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]`。
-   - 具備表頭自動平滑遷移功能，舊的紀錄分頁會在首次執行時自動轉換為新欄位名稱。
-6. **群組 ID 查詢功能 (doPost Webhook)**：
-   - 內建 `doPost(e)` Webhook 處理程式。
-   - 防洗板機制：只有當使用者在 LINE 中傳送 `id` 或 `查詢id` 時，才會將取得的群組/個人 ID 自動寫入試算表第一個分頁最底端。
-7. **LINE 推播相容性優化**：
-   - LINE ID 大小寫字母自動容錯，支援個人 ID (Multicast) 與群組/聊天室 ID (Push)。
+當您開啟 Web App 網址後，人機介面網頁提供以下四大功能分頁：
+
+### 1. 📊 狀態儀表板 (Dashboard)
+- **即時氣溫圓形儀表 (Gauge)**：透過環形顏色指針顯示伸港測站最新溫度，顏色會依據氣溫自動轉變（正常：綠色、接近閾值：黃色、超標：紅色呼吸發光）。
+- **氣象發布時間**：顯示官方最新觀測發布時間，每 10 分鐘同步一次。
+- **本機心跳在線狀態**：顯示本機 Python 程式最後執行時間，若本機異常或電腦關機，狀態會顯示「離線警報」，此時雲端將自動接管通報任務。
+- **快速工具**：一鍵觸發強制發送測試、清除狀態鎖定、重設欄寬。
+
+### 2. ⚙️ 系統設定管理 (Settings)
+- **閾值拉桿**：直接拖曳滑桿來修改溫度閾值，支援小數點（如 `28.5`°C）。
+- **監測時段**：透過下拉選單調整每日開始與結束小時，自動支援跨夜設定（如開始 22 點、結束 6 點）。
+- **檢查頻率**：可選擇每 10, 15, 30, 60 分鐘檢查一次。
+- **儲存設定**：儲存後，雲端試算表設定檔將同步更新，Apps Script 時間排程亦會自動變更，無須打字。
+
+### 3. 👥 聯絡人名冊 (Contacts)
+- **聯絡人表格**：展示所有已設定人員名單與通報信箱、LINE ID。
+- **一鍵切換開關 (Toggle Switch)**：直接點擊開關即可「啟用」或「停用」某聯絡人，無須打字，變更會即時儲存至雲端。
+- **新增聯絡人**：點選右上角「新增聯絡收件人」開啟彈出式表單，輸入資料後一鍵新增。
+- **刪除聯絡人**：點擊每列後方的紅色垃圾桶圖示可將該人員移除。
+
+### 4. 📜 歷史通報紀錄 (History Logs)
+- **歷史明細**：即時下載本月 `紀錄_YYYY-MM` 的最新前 100 筆通報及心跳數據。
+- **篩選與搜尋**：提供搜尋框，輸入時間、警報狀態、通知管道等關鍵字，表格會即時過濾篩選。
+- **一鍵匯出 CSV**：點選「匯出本頁 CSV」即可將目前篩選後的紀錄下載為 Excel 相容 CSV 檔案，方便人員查核、統計與分析。
+
+---
+
+## 📝 雲端 RPC API 介面說明 (供後續維護參考)
+
+後端 `Code.gs` 提供以下給前端 `Index.html` 透過 `google.script.run` 呼叫的 RPC 介面：
+1. `getDashboardData()`：讀取當前 CWA 溫度、本機最後心跳時間、溫度閾值、監測時段等儀表板資訊。
+2. `saveSystemSettings(settings)`：寫入溫度閾值、監測時段與頻率至「系統設定」分頁，並重新配置 Apps Script 背景定時觸發器。
+3. `getContactsData()`：讀取第一分頁的聯絡人名冊 (排除設定欄位)。
+4. `saveContactsData(contactsList)`：儲存最新的聯絡人名單並保留第一分頁其他舊資料。
+5. `getHistoryLogs()`：獲取當月 `紀錄_YYYY-MM` 分頁中的歷史通報紀錄明細。
