@@ -56,3 +56,9 @@ claude-video-specs/
 *.rar
 *.exe
 *.dll
+
+# Secrets
+firebase_key.json
+config.json.bak
+credentials.json
+token.json

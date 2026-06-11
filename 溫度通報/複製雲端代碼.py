@@ -17,6 +17,7 @@ function onOpen() {
   ui.createMenu('🌡️ 溫度通報系統')
       .addItem('🧪 測試即時通報 (強制發送)', 'testNotifyForce')
       .addItem('⚙️ 套用設定並更新排程', 'applySettingsAndTriggers')
+      .addItem('🔄 同步資料至 Firebase', 'triggerFirebaseSyncManually')
       .addItem('🔄 重置防重複鎖定', 'clearNotifiedState')
       .addItem('📏 重設欄寬為最佳預設', 'resetColumnWidths')
       .addToUi();
@@ -54,7 +55,8 @@ function createDefaultConfigSheet(ss) {
     ["監測開始時間 (點)", 8, "每日開始監控的整點時間 (0-23)"],
     ["監測結束時間 (點)", 24, "每日結束監控的整點時間 (0-23，可跨夜如開始22、結束6)"],
     ["監測頻率 (分鐘)", 60, "監測執行間隔分鐘數，可設為 10, 15, 30, 60 等"],
-    ["管理網頁密碼", "admin888", "進入 HMI 設定管理及聯絡人頁面所需的驗證密碼，預設為 admin888"]
+    ["管理網頁密碼", "admin888", "進入 HMI 設定管理及聯絡人頁面所需的驗證密碼，預設為 admin888"],
+    ["Firebase 專案 ID", "hongsheng-temp-523", "用於實時同步網頁儀表板的 Firebase Project ID (例如: t-alarm-12345)"]
   ];
   
   // 寫入標頭與資料
@@ -78,8 +80,8 @@ function createDefaultConfigSheet(ss) {
   
   // 設定適當欄寬
   configSheet.setColumnWidth(1, 160); // 設定項目
-  configSheet.setColumnWidth(2, 100); // 設定值
-  configSheet.setColumnWidth(3, 400); // 說明
+  configSheet.setColumnWidth(2, 150); // 設定值
+  configSheet.setColumnWidth(3, 450); // 說明
   
   return configSheet;
 }
@@ -106,7 +108,8 @@ function loadConfigFromSheet() {
     startHour: 8,
     endHour: 24,
     frequency: 60,
-    password: "admin888"
+    password: "admin888",
+    firebaseProjectId: "hongsheng-temp-523"
   };
   
   if (!configSheet) {
@@ -133,6 +136,8 @@ function loadConfigFromSheet() {
       if (!isNaN(num)) config.frequency = num;
     } else if (key_lower.includes("password") || key.includes("密碼")) {
       config.password = val;
+    } else if (key_lower.includes("firebase") || key.includes("專案") || key_lower.includes("project")) {
+      config.firebaseProjectId = val;
     }
   }
   
@@ -256,12 +261,15 @@ function saveSystemSettings(settings, password) {
     configSheet = createDefaultConfigSheet(ss);
   }
   
+  var firebaseProjectId = settings.firebaseProjectId !== undefined ? settings.firebaseProjectId : (config.firebaseProjectId || "");
+  
   var data = [
     ["溫度警報閾值 (°C)", parseFloat(settings.threshold), "當環境溫度高於此溫度時發送高溫警報，回落低於此值時發送解除警報"],
     ["監測開始時間 (點)", parseInt(settings.startHour), "每日開始監控的整點時間 (0-23)"],
     ["監測結束時間 (點)", parseInt(settings.endHour), "每日結束監控的整點時間 (0-23，可跨夜如開始22、結束6)"],
     ["監測頻率 (分鐘)", parseInt(settings.frequency), "監測執行間隔分鐘數，可設為 10, 15, 30, 60 等"],
-    ["管理網頁密碼", settings.password || config.password, "進入 HMI 設定管理及聯絡人頁面所需的驗證密碼，預設為 admin888"]
+    ["管理網頁密碼", settings.password || config.password, "進入 HMI 設定管理及聯絡人頁面所需的驗證密碼，預設為 admin888"],
+    ["Firebase 專案 ID", firebaseProjectId, "用於實時同步網頁儀表板的 Firebase Project ID (例如: t-alarm-12345)"]
   ];
   
   configSheet.getRange(2, 1, data.length, 3).setValues(data);
@@ -287,7 +295,8 @@ function getContactsData() {
         name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
         name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
         name_lower.includes("frequency") || name.includes("頻率") || name.includes("間隔") ||
-        name_lower.includes("password") || name.includes("密碼")) {
+        name_lower.includes("password") || name.includes("密碼") ||
+        name_lower.includes("firebase") || name.includes("專案") || name_lower.includes("project")) {
       continue;
     }
     
@@ -325,7 +334,8 @@ function saveContactsData(contactsList, password) {
         name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
         name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
         name_lower.includes("frequency") || name.includes("頻率") || name.includes("間隔") ||
-        name_lower.includes("password") || name.includes("密碼")) {
+        name_lower.includes("password") || name.includes("密碼") ||
+        name_lower.includes("firebase") || name.includes("專案") || name_lower.includes("project")) {
       newValues.push(oldValues[i]);
     }
   }
@@ -384,7 +394,7 @@ function checkWeatherAndNotify() {
   var endHour = config.endHour;
   var frequency = config.frequency;
 
-  var heartbeatTimeoutMinutes = Math.max(25, frequency * 2.5);
+  var heartbeatTimeoutMinutes = Math.max(15, frequency * 1.1);
   var properties = PropertiesService.getScriptProperties();
   var lastLocalHeartbeat = properties.getProperty("LAST_LOCAL_HEARTBEAT");
   if (lastLocalHeartbeat) {
@@ -414,7 +424,8 @@ function checkWeatherAndNotify() {
         name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
         name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
         name_lower.includes("frequency") || name.includes("頻率") || name.includes("間隔") ||
-        name_lower.includes("password") || name.includes("密碼")) {
+        name_lower.includes("password") || name.includes("密碼") ||
+        name_lower.includes("firebase") || name.includes("專案") || name_lower.includes("project")) {
       continue;
     }
     
@@ -607,6 +618,28 @@ function checkWeatherAndNotify() {
   } catch (logErr) {
     Logger.log("寫入通報紀錄分頁失敗: " + logErr.message);
   }
+  
+  // 同步雲端備援資料至 Firebase realtime_data/status
+  try {
+    if (config.firebaseProjectId) {
+      var webAppUrl = ScriptApp.getService().getUrl() || "";
+      var fieldsToSync = {
+        "current_temp": parseFloat(currentTemp),
+        "threshold": parseFloat(threshold),
+        "obs_time": displayTime || "--",
+        "alert_state": alertStateText || (isHot ? "高溫持續中" : "正常 (未超標)"),
+        "status_text": statusText + " (雲端備援)",
+        "start_hour": parseInt(startHour),
+        "end_hour": parseInt(endHour),
+        "frequency": parseInt(frequency),
+        "password": config.password,
+        "web_app_url": webAppUrl
+      };
+      syncToFirebaseFromAppsScript(config.firebaseProjectId, fieldsToSync);
+    }
+  } catch (firebaseErr) {
+    Logger.log("雲端備援同步至 Firebase 失敗: " + firebaseErr.message);
+  }
 }
 
 /**
@@ -682,6 +715,26 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
     logSheet.getRange(lastRow, 1, 1, headers[0].length).setHorizontalAlignment("center");
   }
   Logger.log("已將通報紀錄寫入分頁: " + sheetName);
+  
+  // 同步通報紀錄至 Firebase history_logs 集合
+  try {
+    var config = loadConfigFromSheet();
+    var projectId = config.firebaseProjectId;
+    if (projectId) {
+      var logData = {
+        "time": formattedTime,
+        "threshold": parseFloat(threshold),
+        "temp": parseFloat(currentTemp),
+        "obs_time": displayTime,
+        "alert_state": alertStateText,
+        "status_text": finalStatusText,
+        "timestamp": new Date().getTime()
+      };
+      addHistoryLogToFirebase(projectId, logData);
+    }
+  } catch (firebaseErr) {
+    Logger.log("同步歷史紀錄至 Firebase 失敗: " + firebaseErr.message);
+  }
 }
 
 /**
@@ -720,7 +773,8 @@ function testNotifyForce(password) {
         name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
         name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
         name_lower.includes("frequency") || name.includes("頻率") || name.includes("間隔") ||
-        name_lower.includes("password") || name.includes("密碼")) {
+        name_lower.includes("password") || name.includes("密碼") ||
+        name_lower.includes("firebase") || name.includes("專案") || name_lower.includes("project")) {
       continue;
     }
     
@@ -939,6 +993,7 @@ function doPost(e) {
   try {
     var postData = JSON.parse(e.postData.contents);
     
+    // 1. 本機心跳與資料同步點
     if (postData.action === "heartbeat") {
       var props = PropertiesService.getScriptProperties();
       props.setProperty("LAST_LOCAL_HEARTBEAT", new Date().getTime().toString());
@@ -951,6 +1006,8 @@ function doPost(e) {
         props.setProperty("LAST_STATE", localState);
         cloudState = localState;
       }
+      
+      var config = loadConfigFromSheet();
       
       if (postData.current_temp !== undefined) {
         try {
@@ -971,6 +1028,30 @@ function doPost(e) {
         }
       }
       
+      // 同步心跳與溫度資料至 Firebase
+      try {
+        var projectId = config.firebaseProjectId;
+        if (projectId) {
+          var webAppUrl = ScriptApp.getService().getUrl() || "";
+          var fieldsToSync = {
+            "current_temp": postData.current_temp !== undefined ? parseFloat(postData.current_temp) : -99.0,
+            "threshold": postData.threshold !== undefined ? parseFloat(postData.threshold) : parseFloat(config.threshold),
+            "obs_time": postData.obs_time || "--",
+            "alert_state": postData.alert_state || (postData.current_temp > (postData.threshold || 28.0) ? "高溫超標警報" : "正常 (未超標)"),
+            "status_text": postData.status_text || "無紀錄",
+            "last_heartbeat": new Date().getTime(),
+            "start_hour": parseInt(config.startHour),
+            "end_hour": parseInt(config.endHour),
+            "frequency": parseInt(config.frequency),
+            "password": config.password,
+            "web_app_url": webAppUrl
+          };
+          syncToFirebaseFromAppsScript(projectId, fieldsToSync);
+        }
+      } catch (firebaseErr) {
+        Logger.log("同步心跳至 Firebase 失敗: " + firebaseErr.message);
+      }
+      
       var response = {
         "status": "success",
         "cloud_state": cloudState
@@ -978,8 +1059,86 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify(response))
                            .setMimeType(ContentService.MimeType.JSON);
     }
-    var events = postData.events;
     
+    // 2. 儲存設定 (來自 Firebase HMI)
+    if (postData.action === "saveSettings") {
+      var result = saveSystemSettings(postData.settings, postData.password);
+      try {
+        var config = loadConfigFromSheet();
+        var projectId = config.firebaseProjectId;
+        if (projectId) {
+          var webAppUrl = ScriptApp.getService().getUrl() || "";
+          var dbData = getDashboardData();
+          var fieldsToSync = {
+            "threshold": parseFloat(postData.settings.threshold),
+            "start_hour": parseInt(postData.settings.startHour),
+            "end_hour": parseInt(postData.settings.endHour),
+            "frequency": parseInt(postData.settings.frequency),
+            "password": postData.settings.password || config.password,
+            "web_app_url": webAppUrl,
+            "current_temp": parseFloat(dbData.currentTemp),
+            "obs_time": dbData.obsTime || "--",
+            "alert_state": dbData.lastState === "HOT" ? "高溫超標警報" : "正常 (未超標)",
+            "status_text": "設定已更新"
+          };
+          syncToFirebaseFromAppsScript(projectId, fieldsToSync);
+        }
+      } catch (firebaseErr) {
+        Logger.log("儲存設定後同步至 Firebase 失敗: " + firebaseErr.message);
+      }
+      return ContentService.createTextOutput(JSON.stringify(result))
+                           .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 3. 儲存聯絡人 (來自 Firebase HMI)
+    if (postData.action === "saveContacts") {
+      var result = saveContactsData(postData.contacts, postData.password);
+      return ContentService.createTextOutput(JSON.stringify(result))
+                           .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 4. 強制測試通報 (來自 Firebase HMI)
+    if (postData.action === "testNotifyForce") {
+      var result = testNotifyForce(postData.password);
+      return ContentService.createTextOutput(JSON.stringify(result))
+                           .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 5. 重置防重複通知狀態 (來自 Firebase HMI)
+    if (postData.action === "clearNotifiedState") {
+      var result = clearNotifiedState(postData.password);
+      try {
+        var config = loadConfigFromSheet();
+        var projectId = config.firebaseProjectId;
+        if (projectId) {
+          syncToFirebaseFromAppsScript(projectId, {
+            "alert_state": "正常 (未超標) [已重置]"
+          });
+        }
+      } catch (firebaseErr) {}
+      return ContentService.createTextOutput(JSON.stringify(result))
+                           .setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // 5.5. 手動觸發歷史紀錄與設定同步
+    if (postData.action === "syncHistory") {
+      var config = loadConfigFromSheet();
+      var projectId = config.firebaseProjectId;
+      if (projectId) {
+        var logs = getHistoryLogs();
+        syncHistoryLogsToFirebase(projectId, logs);
+        var contacts = getContactsData();
+        syncContactsToFirebase(projectId, contacts);
+        return ContentService.createTextOutput(JSON.stringify({ "status": "success", "synced_logs": logs.length }))
+                             .setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({ "status": "error", "message": "Firebase Project ID not set" }))
+                             .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    
+    // 6. LINE Webhook 事件處理
+    var events = postData.events;
     if (events && events.length > 0) {
       for (var i = 0; i < events.length; i++) {
         var event = events[i];
@@ -1014,8 +1173,243 @@ function doPost(e) {
         }
       }
     }
-  } catch (err) {}
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ "status": "error", "message": err.message }))
+                         .setMimeType(ContentService.MimeType.JSON);
+  }
   return ContentService.createTextOutput("OK");
+}
+
+/**
+ * 輔助函式：將 Javascript 資料型態包裝為 Firestore REST API 所需的 Value 格式
+ */
+function buildFirestoreValue(val) {
+  if (typeof val === 'number') {
+    if (Number.isInteger(val)) {
+      return { "integerValue": String(val) };
+    } else {
+      return { "doubleValue": val };
+    }
+  } else if (typeof val === 'boolean') {
+    return { "booleanValue": val };
+  } else {
+    return { "stringValue": String(val || "") };
+  }
+}
+
+/**
+ * 透過 REST API 將即時狀態寫入 Firebase Firestore realtime_data/status 文件
+ */
+function syncToFirebaseFromAppsScript(projectId, fields) {
+  if (!projectId) {
+    Logger.log("Firebase 專案 ID 未設定，跳過實時同步。");
+    return;
+  }
+  
+  var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/realtime_data/status";
+  
+  var firestoreFields = {};
+  for (var key in fields) {
+    firestoreFields[key] = buildFirestoreValue(fields[key]);
+  }
+  
+  var payload = {
+    "fields": firestoreFields
+  };
+  
+  var options = {
+    "method": "patch",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
+  
+  try {
+    var response = UrlFetchApp.fetch(url, options);
+    var code = response.getResponseCode();
+    if (code !== 200) {
+      Logger.log("同步至 Firebase 失敗，狀態碼: " + code + ", 回傳內容: " + response.getContentText());
+    } else {
+      Logger.log("成功同步資料至 Firebase!");
+    }
+  } catch (e) {
+    Logger.log("同步至 Firebase 發生異常: " + e.message);
+  }
+}
+
+/**
+ * 透過 REST API 將通報紀錄新增至 Firebase Firestore history_logs 集合
+ */
+function addHistoryLogToFirebase(projectId, logData) {
+  if (!projectId) return;
+  
+  var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/history_logs";
+  
+  var firestoreFields = {};
+  for (var key in logData) {
+    firestoreFields[key] = buildFirestoreValue(logData[key]);
+  }
+  
+  var payload = {
+    "fields": firestoreFields
+  };
+  
+  var options = {
+    "method": "post",
+    "contentType": "application/json",
+    "payload": JSON.stringify(payload),
+    "muteHttpExceptions": true
+  };
+  
+  try {
+    var response = UrlFetchApp.fetch(url, options);
+    var code = response.getResponseCode();
+    if (code !== 200 && code !== 201) {
+      Logger.log("新增 Firebase 歷史紀錄失敗，狀態碼: " + code + ", 回傳內容: " + response.getContentText());
+    } else {
+      Logger.log("成功新增 Firebase 歷史紀錄!");
+    }
+  } catch (e) {
+    Logger.log("新增 Firebase 歷史紀錄發生異常: " + e.message);
+  }
+}
+
+/**
+ * 手動同步：將 Google Sheets 的設定與聯絡人資料，一次同步至 Firebase Firestore
+ */
+function triggerFirebaseSyncManually() {
+  var config = loadConfigFromSheet();
+  var projectId = config.firebaseProjectId;
+  if (!projectId) {
+    SpreadsheetApp.getUi().alert("【錯誤】找不到 Firebase 專案 ID，請先在「系統設定」分頁填入！");
+    return;
+  }
+  
+  var ui = SpreadsheetApp.getUi();
+  var response = ui.alert("確定要手動同步資料至 Firebase 嗎？\n這將會更新 Firebase 實時資料庫中的系統設定與聯絡人名冊。", ui.ButtonSet.YES_NO);
+  if (response !== ui.Button.YES) {
+    return;
+  }
+  
+  try {
+    // 1. 取得當前 Web App URL
+    var webAppUrl = ScriptApp.getService().getUrl() || "";
+    
+    // 2. 取得儀表板當前資訊與溫度
+    var dbData = getDashboardData();
+    
+    // 3. 同步 status
+    var fieldsToSync = {
+      "current_temp": parseFloat(dbData.currentTemp),
+      "threshold": parseFloat(dbData.threshold),
+      "obs_time": dbData.obsTime || "--",
+      "alert_state": dbData.lastState === "HOT" ? "高溫超標警報" : "正常 (未超標)",
+      "status_text": "手動同步完成",
+      "last_heartbeat": dbData.lastLocalHeartbeat ? parseInt(dbData.lastLocalHeartbeat) : 0,
+      "start_hour": parseInt(dbData.startHour),
+      "end_hour": parseInt(dbData.endHour),
+      "frequency": parseInt(dbData.frequency),
+      "password": config.password,
+      "web_app_url": webAppUrl
+    };
+    syncToFirebaseFromAppsScript(projectId, fieldsToSync);
+    
+    // 4. 同步聯絡人名單
+    var contacts = getContactsData();
+    syncContactsToFirebase(projectId, contacts);
+    
+    // 5. 同步歷史紀錄名單
+    var logs = getHistoryLogs();
+    syncHistoryLogsToFirebase(projectId, logs);
+    
+    ui.alert("【同步成功】\n\n1. 系統設定已成功上傳！\n2. " + contacts.length + " 位聯絡人已成功上傳！\n3. " + Math.min(logs.length, 50) + " 筆歷史紀錄已成功上傳！\n4. Web App 網址已完成綁定！");
+  } catch (err) {
+    ui.alert("同步失敗，錯誤原因：" + err.message);
+  }
+}
+
+/**
+ * 輔助函式：透過 REST API 將聯絡人清單寫入 Firebase Firestore
+ */
+function syncContactsToFirebase(projectId, contacts) {
+  if (!projectId) return;
+  
+  for (var i = 0; i < contacts.length; i++) {
+    var c = contacts[i];
+    if (!c.name) continue;
+    var docId = encodeURIComponent(c.name);
+    var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/contacts/" + docId;
+    
+    var fields = {
+      "name": { "stringValue": c.name },
+      "email": { "stringValue": c.email || "" },
+      "lineId": { "stringValue": c.lineId || "" },
+      "enabled": { "booleanValue": c.enabled }
+    };
+    
+    var payload = {
+      "fields": fields
+    };
+    
+    var options = {
+      "method": "patch",
+      "contentType": "application/json",
+      "payload": JSON.stringify(payload),
+      "muteHttpExceptions": true
+    };
+    
+    UrlFetchApp.fetch(url, options);
+  }
+}
+
+/**
+ * 輔助函式：透過 REST API 將歷史紀錄寫入 Firebase Firestore
+ */
+function syncHistoryLogsToFirebase(projectId, logs) {
+  if (!projectId || !logs || logs.length === 0) return;
+  
+  // 為了避免觸發腳本執行超時，我們只同步最近的 50 筆紀錄
+  var limit = Math.min(logs.length, 50);
+  for (var i = 0; i < limit; i++) {
+    var log = logs[i];
+    if (!log.time) continue;
+    
+    var cleanTime = log.time.replace(/[^a-zA-Z0-9]/g, "_");
+    var docId = "log_" + cleanTime;
+    var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/history_logs/" + docId;
+    
+    var timestamp = 0;
+    try {
+      var parsedDate = new Date(log.time.replace(/-/g, "/"));
+      timestamp = parsedDate.getTime();
+    } catch(e) {}
+    if (isNaN(timestamp) || timestamp === 0) {
+      timestamp = new Date().getTime() - (i * 60 * 1000);
+    }
+    
+    var fields = {
+      "time": { "stringValue": log.time },
+      "threshold": { "doubleValue": log.threshold },
+      "temp": { "doubleValue": log.temp },
+      "obs_time": { "stringValue": log.obsTime || "" },
+      "alert_state": { "stringValue": log.alertState },
+      "status_text": { "stringValue": log.statusText },
+      "timestamp": { "integerValue": String(timestamp) }
+    };
+    
+    var payload = {
+      "fields": fields
+    };
+    
+    var options = {
+      "method": "patch",
+      "contentType": "application/json",
+      "payload": JSON.stringify(payload),
+      "muteHttpExceptions": true
+    };
+    
+    UrlFetchApp.fetch(url, options);
+  }
 }
 """
 
