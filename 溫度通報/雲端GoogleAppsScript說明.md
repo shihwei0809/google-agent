@@ -103,10 +103,10 @@ function checkWeatherAndNotify() {
     return;
   }
   
-  // 2. 透過 CWA Open Data API 獲取線西站即時環境溫度
+  // 2. 透過 CWA Open Data API 獲取伸港站即時環境溫度
   var apiKey = "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28";
-  var stationId = "C0G900"; // 線西站
-  var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=" + apiKey + "&StationId=" + stationId;
+  var stationId = "C2G870"; // 伸港站 (支援 10 分鐘即時更新)
+  var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=" + apiKey + "&StationId=" + stationId;
   
   var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
   if (apiResponse.getResponseCode() !== 200) {
@@ -412,8 +412,8 @@ function testNotifyForce() {
   }
   
   var apiKey = "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28";
-  var stationId = "C0G900";
-  var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001?Authorization=" + apiKey + "&StationId=" + stationId;
+  var stationId = "C2G870"; // 伸港站
+  var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=" + apiKey + "&StationId=" + stationId;
   
   var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
   if (apiResponse.getResponseCode() !== 200) {

@@ -217,7 +217,7 @@ def check_weather(config):
         raise ValueError("請在 config.json 中設定 cwa_api_key。")
 
     url = (
-        f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0001-001"
+        f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001"
         f"?Authorization={api_key}&StationId={station_id}"
     )
     print(f"正在透過 CWA Open Data API 抓取觀測資料... (站點: {station_id})")
