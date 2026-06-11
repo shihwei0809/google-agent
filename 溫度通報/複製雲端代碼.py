@@ -16,24 +16,185 @@ function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('🌡️ 溫度通報系統')
       .addItem('🧪 測試即時通報 (強制發送)', 'testNotifyForce')
+      .addItem('⚙️ 套用設定並更新排程', 'applySettingsAndTriggers')
       .addItem('🔄 重置防重複鎖定', 'clearNotifiedState')
       .addItem('📏 重設欄寬為最佳預設', 'resetColumnWidths')
       .addToUi();
+      
+  // 開啟試算表時自動檢查並建立「系統設定」分頁
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var configSheet = ss.getSheetByName("系統設定");
+    if (!configSheet) {
+      createDefaultConfigSheet(ss);
+    }
+  } catch (e) {}
+}
+
+/**
+ * 建立預設的「系統設定」分頁並美化排版
+ */
+function createDefaultConfigSheet(ss) {
+  var configSheet = ss.insertSheet("系統設定");
+  
+  var headers = [["設定項目", "設定值", "說明"]];
+  var data = [
+    ["溫度警報閾值 (°C)", 28.0, "當環境溫度高於此溫度時發送高溫警報，回落低於此值時發送解除警報"],
+    ["監測開始時間 (點)", 8, "每日開始監控的整點時間 (0-23)"],
+    ["監測結束時間 (點)", 24, "每日結束監控的整點時間 (0-23，可跨夜如開始22、結束6)"],
+    ["監測頻率 (分鐘)", 60, "監測執行間隔分鐘數，可設為 10, 15, 30, 60 等"]
+  ];
+  
+  // 寫入標頭與資料
+  configSheet.getRange(1, 1, 1, 3).setValues(headers);
+  configSheet.getRange(2, 1, data.length, 3).setValues(data);
+  
+  // 美化表頭：深藍底色 (#1F4E79)、白字、粗體、置中
+  configSheet.getRange(1, 1, 1, 3)
+             .setBackground("#1F4E79")
+             .setFontColor("#FFFFFF")
+             .setFontWeight("bold")
+             .setHorizontalAlignment("center");
+             
+  // 凍結第一列
+  configSheet.setFrozenRows(1);
+  
+  // 資料列排版對齊
+  configSheet.getRange(2, 1, data.length, 1).setHorizontalAlignment("center").setFontWeight("bold");
+  configSheet.getRange(2, 2, data.length, 1).setHorizontalAlignment("center");
+  configSheet.getRange(2, 3, data.length, 1).setHorizontalAlignment("left");
+  
+  // 設定適當欄寬
+  configSheet.setColumnWidth(1, 160); // 設定項目
+  configSheet.setColumnWidth(2, 100); // 設定值
+  configSheet.setColumnWidth(3, 400); // 說明
+  
+  return configSheet;
+}
+
+/**
+ * 讀取系統設定分頁中的配置參數 (具備自動建立與相容舊版之降級機制)
+ */
+function loadConfigFromSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var configSheet = ss.getSheetByName("系統設定");
+  
+  // 如果找不到，自動建立預設設定分頁
+  if (!configSheet) {
+    try {
+      configSheet = createDefaultConfigSheet(ss);
+      Logger.log("「系統設定」分頁不存在，已自動建立並填入預設值。");
+    } catch (e) {
+      Logger.log("自動建立「系統設定」分頁失敗: " + e.message);
+    }
+  }
+  
+  var config = {
+    threshold: 28.0,
+    startHour: 8,
+    endHour: 24,
+    frequency: 60
+  };
+  
+  if (!configSheet) {
+    return config;
+  }
+  
+  var data = configSheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var key = String(data[i][0]).trim();
+    var val = String(data[i][1]).trim();
+    var key_lower = key.toLowerCase();
+    
+    if (key_lower.includes("threshold") || key.includes("溫度") || key.includes("閥值") || key.includes("閾值")) {
+      var num = parseFloat(val);
+      if (!isNaN(num)) config.threshold = num;
+    } else if (key_lower.includes("start") || key.includes("開始") || key.includes("啟動")) {
+      var num = parseInt(val);
+      if (!isNaN(num)) config.startHour = num;
+    } else if (key_lower.includes("end") || key.includes("結束") || key.includes("停止")) {
+      var num = parseInt(val);
+      if (!isNaN(num)) config.endHour = num;
+    } else if (key_lower.includes("frequency") || key.includes("頻率") || key.includes("間隔")) {
+      var num = parseInt(val);
+      if (!isNaN(num)) config.frequency = num;
+    }
+  }
+  
+  return config;
+}
+
+/**
+ * 手動或選單觸發：套用設定並更新雲端時間觸發器頻率
+ */
+function applySettingsAndTriggers() {
+  var config = loadConfigFromSheet();
+  updateTriggerFrequency(config.frequency);
+  
+  try {
+    SpreadsheetApp.getUi().alert(
+      "【設定套用成功】\n\n" +
+      "系統已成功套用新參數：\n" +
+      "1. 溫度警報閾值：" + config.threshold + "°C\n" +
+      "2. 監測時段：" + config.startHour + ":00 - " + config.endHour + ":00\n" +
+      "3. 監測頻率：" + config.frequency + " 分鐘\n\n" +
+      "※ 雲端 Apps Script 定時觸發器已重新建立並開始生效！"
+    );
+  } catch (e) {
+    Logger.log("更新觸發器成功，頻率：" + config.frequency + " 分鐘");
+  }
+}
+
+/**
+ * 動態重建指定分鐘數的定時觸發器
+ */
+function updateTriggerFrequency(minutes) {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'checkWeatherAndNotify') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  
+  // 建立新時間型觸發條件，根據分鐘數對應至 Apps Script 支援的間隔
+  if (minutes === 10) {
+    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(10).create();
+  } else if (minutes === 15) {
+    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(15).create();
+  } else if (minutes === 30) {
+    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(30).create();
+  } else if (minutes === 60) {
+    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(1).create();
+  } else if (minutes === 120) {
+    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(2).create();
+  } else {
+    // 預設一小時
+    ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(1).create();
+  }
 }
 
 /**
  * CWA 環境溫度監控與 LINE/Email 自動通報系統 (Google Apps Script 雲端 CWA Open Data API 版)
  */
 function checkWeatherAndNotify() {
-  // 檢查本機最後執行時間，如果本機在 75 分鐘內有執行過，則雲端跳過本次排程 (本機優先)
+  // 1. 從「系統設定」分頁載入配置
+  var config = loadConfigFromSheet();
+  var threshold = config.threshold;
+  var startHour = config.startHour;
+  var endHour = config.endHour;
+  var frequency = config.frequency;
+
+  // 2. 檢查本機最後執行時間，如果本機在指定心跳時間內有執行過，則雲端跳過本次排程 (本機優先)
+  // 動態計算心跳超時時間：頻率 * 2.5，但最少 25 分鐘
+  var heartbeatTimeoutMinutes = Math.max(25, frequency * 2.5);
   var properties = PropertiesService.getScriptProperties();
   var lastLocalHeartbeat = properties.getProperty("LAST_LOCAL_HEARTBEAT");
   if (lastLocalHeartbeat) {
     var lastTime = parseInt(lastLocalHeartbeat);
     var nowTime = new Date().getTime();
     var diffMinutes = (nowTime - lastTime) / (1000 * 60);
-    if (diffMinutes < 75) {
-      Logger.log("偵測到本機近期已執行（約 " + Math.round(diffMinutes) + " 分鐘前），雲端備援跳過本次排程。");
+    if (diffMinutes < heartbeatTimeoutMinutes) {
+      Logger.log("偵測到本機近期已執行（約 " + Math.round(diffMinutes) + " 分鐘前，超時閾值為 " + heartbeatTimeoutMinutes + " 分鐘），雲端備援跳過本次排程。");
       return;
     }
   }
@@ -42,10 +203,6 @@ function checkWeatherAndNotify() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   var data = sheet.getDataRange().getValues();
   
-  // 1. 從試算表讀取收件者與溫度設定
-  var threshold = 28.0; // 預設 28 度
-  var startHour = 8;    // 預設 08:00
-  var endHour = 24;     // 預設 24:00
   var emails = [];
   var lineIds = [];
   
@@ -57,30 +214,11 @@ function checkWeatherAndNotify() {
     var lineId = String(data[i][2]).trim();
     var enabled = String(data[i][3]).trim().toUpperCase();
     
-    // 判斷是否為溫度閾值設定列
-    if (name_lower.includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值")) {
-      var numMatch = email.match(/(\d+(?:\.\d+)?)/);
-      if (numMatch) {
-        threshold = parseFloat(numMatch[1]);
-      }
-      continue;
-    }
-    
-    // 判斷是否為監測開始時間設定列
-    if (name_lower.includes("start") || name.includes("開始") || name.includes("啟動")) {
-      var numMatch = email.match(/(\d+)/);
-      if (numMatch) {
-        startHour = parseInt(numMatch[1]);
-      }
-      continue;
-    }
-    
-    // 判斷是否為監測結束時間設定列
-    if (name_lower.includes("end") || name.includes("結束") || name.includes("停止")) {
-      var numMatch = email.match(/(\d+)/);
-      if (numMatch) {
-        endHour = parseInt(numMatch[1]);
-      }
+    // 忽略相容性用舊設定列，避免被當作聯絡人
+    if (name_lower.includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值") ||
+        name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
+        name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
+        name_lower.includes("frequency") || name.includes("頻率") || name.includes("間隔")) {
       continue;
     }
     
@@ -98,7 +236,7 @@ function checkWeatherAndNotify() {
     }
   }
   
-  // 2. 檢查是否在監測時段內，避免非工作時間打擾人員 (支援跨夜)
+  // 3. 檢查是否在監測時段內，避免非工作時間打擾人員 (支援跨夜)
   var today = new Date();
   var currentHour = parseInt(Utilities.formatDate(today, "GMT+8", "HH"));
   var isInTimeWindow = false;
@@ -122,7 +260,7 @@ function checkWeatherAndNotify() {
     return;
   }
   
-  // 2. 透過 CWA Open Data API 獲取伸港站即時環境溫度
+  // 透過 CWA Open Data API 獲取伸港站即時環境溫度
   var apiKey = "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28";
   var stationId = "C2G870"; // 伸港站 (支援 10 分鐘即時更新)
   var apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=" + apiKey + "&StationId=" + stationId;
@@ -153,8 +291,7 @@ function checkWeatherAndNotify() {
   
   Logger.log("觀測時間: " + displayTime + "，環境溫度: " + currentTemp + "°C");
   
-  // 3. 狀態機邏輯比對
-  var properties = PropertiesService.getScriptProperties();
+  // 狀態機邏輯比對
   var lastState = properties.getProperty("LAST_STATE"); // 前次狀態: "HOT" 或 "COOL"
   
   var shouldNotify = false;
@@ -163,7 +300,6 @@ function checkWeatherAndNotify() {
   var notifySubject = "";
   var notifyBody = "";
   
-  var today = new Date();
   var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
   
   if (isHot) {
@@ -202,14 +338,14 @@ function checkWeatherAndNotify() {
     }
   }
   
-  // 4. 送出通知與記錄
+  // 送出通知與記錄
   if (shouldNotify) {
     Logger.log("觸發通知：「" + notifySubject + "」");
     
     var lineSent = false;
     var emailSent = false;
     
-    // A. 發送 LINE (多個個人 ID 採用 Multicast API，群組/聊天室採用 Push API)
+    // A. 發送 LINE
     var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
     var userIds = [];
     var groupIds = [];
@@ -286,7 +422,7 @@ function checkWeatherAndNotify() {
     }
   }
   
-  // 5. 無論是否發送通報，皆將讀取到的值記錄到分頁（通知狀態標示發送情況），以利後續追查數據
+  // 無論是否發送通報，皆將讀取到的值記錄到分頁（通知狀態標示發送情況），以利後續追查數據
   var statusText = "";
   if (shouldNotify) {
     var statusArr = [];
@@ -311,8 +447,7 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var today = new Date();
   
-  // 取得台灣時間 (UTC+8) 的 YYYY-MM 和詳細時間
-  var formattedMonth = Utilities.formatDate(today, "GMT+8", "yyyy-MM"); // 例如 "2026-06"
+  var formattedMonth = Utilities.formatDate(today, "GMT+8", "yyyy-MM"); 
   var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
   
   var sheetName = "紀錄_" + formattedMonth;
@@ -325,8 +460,6 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
   // 如果當月分頁不存在，則建立它
   if (!logSheet) {
     logSheet = ss.insertSheet(sheetName);
-    
-    // 設定表頭
     logSheet.getRange(1, 1, 1, headers[0].length).setValues(headers);
     
     // 美化表頭：深藍底色 (#1F4E79)、白字、置中、粗體
@@ -339,7 +472,7 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
     // 凍結第一列
     logSheet.setFrozenRows(1);
     
-    // 設定預設寬度 (只在新建分頁時執行，避免之後覆蓋使用者手動拉寬)
+    // 設定預設寬度
     logSheet.setColumnWidth(1, 170); // 通報時間
     logSheet.setColumnWidth(2, 140); // 溫度閾值設定 (°C)
     logSheet.setColumnWidth(3, 140); // 通報環境溫度 (°C)
@@ -347,7 +480,7 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
     logSheet.setColumnWidth(5, 140); // 警報狀態
     logSheet.setColumnWidth(6, 200); // 通知狀態
   } else {
-    // 檢查並自動將舊表頭更新為新的環境溫度表頭 (支援自動遷移舊資料庫)
+    // 檢查並自動將舊表頭更新為新的環境溫度表頭
     try {
       var currentHeaders = logSheet.getRange(1, 1, 1, headers[0].length).getValues()[0];
       if (currentHeaders[2] && (currentHeaders[2].indexOf("最高") !== -1 || currentHeaders[2].indexOf("體感") !== -1)) {
@@ -386,8 +519,6 @@ function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateT
   if (lastRow > 1) {
     logSheet.getRange(lastRow, 1, 1, headers[0].length).setHorizontalAlignment("center");
   }
-
-  
   Logger.log("已將通報紀錄寫入分頁: " + sheetName);
 }
 
@@ -399,21 +530,23 @@ function testNotifyForce() {
   var sheet = ss.getSheets()[0];
   var data = sheet.getDataRange().getValues();
   
-  var threshold = 28.0;
+  var config = loadConfigFromSheet();
+  var threshold = config.threshold;
+  
   var emails = [];
   var lineIds = [];
   
   for (var i = 1; i < data.length; i++) {
     var name = String(data[i][0]).trim();
+    var name_lower = name.toLowerCase();
     var email = String(data[i][1]).trim();
     var lineId = String(data[i][2]).trim();
     var enabled = String(data[i][3]).trim().toUpperCase();
     
-    if (name.toLowerCase().includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值")) {
-      var numMatch = email.match(/(\d+(?:\.\d+)?)/);
-      if (numMatch) {
-        threshold = parseFloat(numMatch[1]);
-      }
+    if (name_lower.includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值") ||
+        name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
+        name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
+        name_lower.includes("frequency") || name.includes("頻率") || name.includes("間隔")) {
       continue;
     }
     
@@ -450,7 +583,6 @@ function testNotifyForce() {
   var we = s.WeatherElement;
   var rawObsTime = s.ObsTime.DateTime;
   var displayTime = rawObsTime ? rawObsTime.replace("T", " ").substring(0, 19) : "";
-  
   var currentTemp = parseFloat(we.AirTemperature);
   
   if (currentTemp === -99) {
@@ -543,7 +675,7 @@ function testNotifyForce() {
 function clearNotifiedState() {
   var props = PropertiesService.getScriptProperties();
   props.deleteProperty("LAST_STATE");
-  props.deleteProperty("LAST_NOTIFIED_DATE"); // 相容舊版鎖定
+  props.deleteProperty("LAST_NOTIFIED_DATE"); 
   SpreadsheetApp.getUi().alert("【成功】防重複狀態已重置！\n系統目前的防重複通知鎖定已清除，下一小時如果溫度超標將會再次觸發通報。");
 }
 
@@ -567,9 +699,7 @@ function resetColumnWidths() {
     
     try {
       SpreadsheetApp.getUi().alert("【成功】已將當月紀錄分頁（" + sheetName + "）的欄寬重設為最佳預設值！");
-    } catch (e) {
-      // 靜態呼叫時無視 ui 錯誤
-    }
+    } catch (e) {}
   } else {
     try {
       SpreadsheetApp.getUi().alert("【提示】找不到當月紀錄分頁（" + sheetName + "），請等候系統自動建立或手動執行一次測試。");
@@ -584,10 +714,8 @@ function doPost(e) {
   try {
     var postData = JSON.parse(e.postData.contents);
     
-    // 處理本機與雲端的同步與心跳信號
     if (postData.action === "heartbeat") {
       var props = PropertiesService.getScriptProperties();
-      // 更新本機最後心跳時間為當前時間戳
       props.setProperty("LAST_LOCAL_HEARTBEAT", new Date().getTime().toString());
       
       var syncType = postData.type || "heartbeat";
@@ -595,12 +723,10 @@ function doPost(e) {
       var cloudState = props.getProperty("LAST_STATE") || "COOL";
       
       if (syncType === "update" && localState) {
-        // 本機發送了更新狀態，雲端同步更新狀態
         props.setProperty("LAST_STATE", localState);
         cloudState = localState;
       }
       
-      // 如果本機傳來了觀測資料，則寫入試算表紀錄
       if (postData.current_temp !== undefined) {
         try {
           var senderType = "本機執行";
@@ -633,11 +759,9 @@ function doPost(e) {
       for (var i = 0; i < events.length; i++) {
         var event = events[i];
         
-        // 只有收到文字訊息才處理
         if (event.type === "message" && event.message.type === "text") {
           var userText = event.message.text.trim().toLowerCase();
           
-          // 只有當使用者輸入查詢關鍵字時才紀錄，防止群組平時聊天洗板試算表
           if (userText === "id" || userText === "查詢id" || userText === "查詢 id" || userText === "group id") {
             var source = event.source || {};
             var targetId = "";
@@ -656,20 +780,16 @@ function doPost(e) {
             
             if (targetId) {
               var ss = SpreadsheetApp.getActiveSpreadsheet();
-              var sheet = ss.getSheets()[0]; // 取得第一個工作表
+              var sheet = ss.getSheets()[0]; 
               var today = new Date();
               var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
-              
-              // 在工作表最下方新增一列紀錄
               sheet.appendRow(["【自動查詢】" + typeText, "請複製右邊的 ID：", targetId, "查詢時間: " + formattedTime]);
             }
           }
         }
       }
     }
-  } catch (err) {
-    // 確保不會報錯
-  }
+  } catch (err) {}
   return ContentService.createTextOutput("OK");
 }
 """

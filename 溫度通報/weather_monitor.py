@@ -31,6 +31,7 @@ if hasattr(sys.stderr, 'reconfigure'):
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
 STATE_PATH = os.path.join(SCRIPT_DIR, "last_notified.json")
+RUN_STATE_PATH = os.path.join(SCRIPT_DIR, "last_run.json")
 
 def load_config():
     """載入設定檔 config.json"""
@@ -64,6 +65,27 @@ def save_state(state_name):
             }, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"【警告】儲存發送狀態失敗: {e}", file=sys.stderr)
+
+def load_last_run_timestamp():
+    """載入最後一次執行監測的時間戳"""
+    if os.path.exists(RUN_STATE_PATH):
+        try:
+            with open(RUN_STATE_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("last_run_timestamp", 0.0)
+        except Exception:
+            pass
+    return 0.0
+
+def save_last_run_timestamp(ts):
+    """儲存最後一次執行監測的時間戳"""
+    try:
+        with open(RUN_STATE_PATH, "w", encoding="utf-8") as f:
+            json.dump({
+                "last_run_timestamp": ts
+            }, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"【警告】儲存執行紀錄失敗: {e}", file=sys.stderr)
 
 import ssl
 
@@ -151,71 +173,134 @@ def parse_js_var(js_content, var_name):
                 
     raise ValueError(f"在 JavaScript 中找不到變數 {var_name}")
 
+def get_sheet_urls(url):
+    """
+    根據使用者填寫的試算表網址，解析並產生「聯絡人名單」與「系統設定」兩個分頁的 CSV 下載網址。
+    """
+    contacts_url = url
+    settings_url = None
+    
+    # 判斷是否為標準瀏覽器網址
+    match = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
+    if match and "pub" not in url:
+        spreadsheet_id = match.group(1)
+        contacts_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&gid=0"
+        settings_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}/export?format=csv&sheet=系統設定"
+    else:
+        # 如果是已發布網址，若是包含 pub? 的格式，我們試著替換參數
+        if "pub?" in url:
+            base_url = url.split("?")[0]
+            contacts_url = f"{base_url}?output=csv"
+            settings_url = f"{base_url}?output=csv&sheet=系統設定"
+            
+    return contacts_url, settings_url
+
 def fetch_recipients_from_google_sheet(csv_url):
-    """從 Google 試算表（已發布為 CSV）載入收件者清單與設定"""
+    """從 Google 試算表載入收件者清單與設定"""
     recipients = {"emails": [], "line_ids": []}
     threshold_override = None
     start_hour_override = None
     end_hour_override = None
+    frequency_override = None
+    
     if not csv_url or "YOUR_GOOGLE_SHEET" in csv_url:
-        return recipients, threshold_override, start_hour_override, end_hour_override
+        return recipients, threshold_override, start_hour_override, end_hour_override, frequency_override
         
+    contacts_url, settings_url = get_sheet_urls(csv_url)
+    
+    # 1. 嘗試下載並解析「系統設定」分頁
+    has_settings_sheet = False
+    if settings_url:
+        try:
+            print(f"正在從 Google 試算表下載【系統設定】分頁... ({settings_url})")
+            settings_data = fetch_url(settings_url)
+            f_settings = io.StringIO(settings_data)
+            reader_settings = csv.reader(f_settings)
+            rows = list(reader_settings)
+            
+            for row in rows[1:]: # 跳過表頭
+                if len(row) < 2:
+                    continue
+                key = row[0].strip()
+                val = row[1].strip()
+                key_lower = key.lower()
+                
+                # 溫度閾值
+                if any(k in key_lower for k in ("threshold", "溫度", "閥值", "閾值")):
+                    num_match = re.search(r"(\d+(?:\.\d+)?)", val)
+                    if num_match:
+                        threshold_override = float(num_match.group(1))
+                        print(f"【試算表設定】讀取溫度閾值：{threshold_override}°C")
+                        has_settings_sheet = True
+                
+                # 開始時間
+                elif any(k in key_lower for k in ("start", "開始", "啟動")):
+                    num_match = re.search(r"(\d+)", val)
+                    if num_match:
+                        start_hour_override = int(num_match.group(1))
+                        print(f"【試算表設定】讀取監測開始時間：{start_hour_override:02d}:00")
+                        has_settings_sheet = True
+                        
+                # 結束時間
+                elif any(k in key_lower for k in ("end", "結束", "停止")):
+                    num_match = re.search(r"(\d+)", val)
+                    if num_match:
+                        end_hour_override = int(num_match.group(1))
+                        print(f"【試算表設定】讀取監測結束時間：{end_hour_override:02d}:00")
+                        has_settings_sheet = True
+                        
+                # 監測頻率
+                elif any(k in key_lower for k in ("frequency", "頻率", "間隔")):
+                    num_match = re.search(r"(\d+)", val)
+                    if num_match:
+                        frequency_override = int(num_match.group(1))
+                        print(f"【試算表設定】讀取監測頻率：{frequency_override} 分鐘")
+                        has_settings_sheet = True
+        except Exception as e:
+            # 分頁不存在或下載失敗，略過並降級到舊版相容模式
+            print(f"【提示】無法從專屬「系統設定」分頁取得設定 (原因: {e})，將嘗試在聯絡人分頁中搜尋設定。")
+
+    # 2. 下載並解析「聯絡人名單」分頁
     try:
-        print(f"正在從 Google 試算表載入聯絡人資料... ({csv_url})")
-        csv_data = fetch_url(csv_url)
-        
-        # 使用 StringIO 將字串轉為類檔案物件以利 csv 讀取
-        f = io.StringIO(csv_data)
-        reader = csv.DictReader(f)
+        print(f"正在從 Google 試算表下載【聯絡人名單】... ({contacts_url})")
+        csv_data = fetch_url(contacts_url)
+        f_contacts = io.StringIO(csv_data)
+        reader = csv.DictReader(f_contacts)
         
         for row in reader:
-            # 清理鍵值與資料前後的空白
             row = {k.strip(): v.strip() for k, v in row.items() if k}
-            
             name = row.get("Name", "").strip()
             name_lower = name.lower()
             
-            # 檢查是否為溫度閾值設定列
-            if any(k in name_lower for k in ("threshold", "溫度", "閥值", "閾值")):
-                for col in ("Email", "LINE_ID", "Enabled"):
-                    val_str = row.get(col, "").strip()
-                    num_match = re.search(r"(\d+(?:\.\d+)?)", val_str)
-                    if num_match:
-                        try:
+            # 若無獨立設定分頁，使用相容模式解析混合在聯絡人名單中的設定列
+            if not has_settings_sheet:
+                if any(k in name_lower for k in ("threshold", "溫度", "閥值", "閾值")):
+                    for col in ("Email", "LINE_ID", "Enabled"):
+                        val_str = row.get(col, "").strip()
+                        num_match = re.search(r"(\d+(?:\.\d+)?)", val_str)
+                        if num_match:
                             threshold_override = float(num_match.group(1))
-                            print(f"【試算表設定】從試算表讀取到溫度閾值設定：{threshold_override}°C (將覆蓋本機設定)")
+                            print(f"【相容舊設定】讀取溫度閾值：{threshold_override}°C")
                             break
-                        except ValueError:
-                            pass
-                continue
-                
-            # 檢查是否為監測開始時間設定列
-            if any(k in name_lower for k in ("start", "開始", "啟動")):
-                for col in ("Email", "LINE_ID", "Enabled"):
-                    val_str = row.get(col, "").strip()
-                    num_match = re.search(r"(\d+)", val_str)
-                    if num_match:
-                        try:
+                    continue
+                if any(k in name_lower for k in ("start", "開始", "啟動")):
+                    for col in ("Email", "LINE_ID", "Enabled"):
+                        val_str = row.get(col, "").strip()
+                        num_match = re.search(r"(\d+)", val_str)
+                        if num_match:
                             start_hour_override = int(num_match.group(1))
-                            print(f"【試算表設定】從試算表讀取到監測開始時間：{start_hour_override:02d}:00 (將覆蓋本機設定)")
+                            print(f"【相容舊設定】讀取監測開始時間：{start_hour_override:02d}:00")
                             break
-                        except ValueError:
-                            pass
-                continue
-                
-            # 檢查是否為監測結束時間設定列
-            if any(k in name_lower for k in ("end", "結束", "停止")):
-                for col in ("Email", "LINE_ID", "Enabled"):
-                    val_str = row.get(col, "").strip()
-                    num_match = re.search(r"(\d+)", val_str)
-                    if num_match:
-                        try:
+                    continue
+                if any(k in name_lower for k in ("end", "結束", "停止")):
+                    for col in ("Email", "LINE_ID", "Enabled"):
+                        val_str = row.get(col, "").strip()
+                        num_match = re.search(r"(\d+)", val_str)
+                        if num_match:
                             end_hour_override = int(num_match.group(1))
-                            print(f"【試算表設定】從試算表讀取到監測結束時間：{end_hour_override:02d}:00 (將覆蓋本機設定)")
+                            print(f"【相容舊設定】讀取監測結束時間：{end_hour_override:02d}:00")
                             break
-                        except ValueError:
-                            pass
-                continue
+                    continue
             
             # 判斷是否啟用（預設啟用）
             enabled = row.get("Enabled", "Y").upper()
@@ -225,6 +310,10 @@ def fetch_recipients_from_google_sheet(csv_url):
             email = row.get("Email", "")
             line_id = row.get("LINE_ID", "")
             
+            # 排除設定關鍵字列被誤判為聯絡人
+            if any(k in name_lower for k in ("threshold", "溫度", "閥值", "閾值", "start", "開始", "啟動", "end", "結束", "停止", "frequency", "頻率", "間隔")):
+                continue
+                
             if email and "@" in email:
                 recipients["emails"].append(email)
             if line_id:
@@ -232,11 +321,11 @@ def fetch_recipients_from_google_sheet(csv_url):
                 if prefix in ("U", "C", "R"):
                     recipients["line_ids"].append(line_id)
                 
-        print(f"從 Google 試算表載入成功：Email x {len(recipients['emails'])} 人, LINE ID x {len(recipients['line_ids'])} 人")
+        print(f"聯絡人名單解析成功：Email x {len(recipients['emails'])} 人, LINE ID x {len(recipients['line_ids'])} 人")
     except Exception as e:
-        print(f"【警告】從 Google 試算表載入名單失敗: {e}", file=sys.stderr)
+        print(f"【警告】載入聯絡人名單失敗: {e}", file=sys.stderr)
         
-    return recipients, threshold_override, start_hour_override, end_hour_override
+    return recipients, threshold_override, start_hour_override, end_hour_override, frequency_override
 
 def check_weather(config):
     """透過 CWA Open Data API 抓取線西站即時環境溫度"""
@@ -400,24 +489,10 @@ def main():
     config = load_config()
     state = load_state()
     
-    # 進行本機與雲端的狀態同步與心跳報告 (Sync status)
-    web_app_url = config.get("web_app_url", "")
-    if web_app_url:
-        print("正在向雲端同步當前狀態與發送心跳...")
-        cloud_state = send_heartbeat(web_app_url, state.get("last_state", "COOL"), sync_type="sync")
-        if cloud_state:
-            if cloud_state != state.get("last_state"):
-                print(f"【同步完成】雲端狀態為 {cloud_state}，本機為 {state.get('last_state')}，已將本機同步為 {cloud_state}。")
-                state["last_state"] = cloud_state
-                save_state(cloud_state)
-    
-    # 取得今日日期字串
     tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
-    
     print(f"=== 啟動天氣監控排程 ({datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')}) ===")
         
-    # 2. 獲取收件者名單與設定
-    # A. 從本機 config 載入
+    # 1. 獲取收件者名單與設定 (合併試算表設定)
     local_emails = config.get("email", {}).get("to_email", [])
     if isinstance(local_emails, str):
         local_emails = [local_emails]
@@ -426,13 +501,23 @@ def main():
     if isinstance(local_line_ids, str):
         local_line_ids = [local_line_ids]
         
-    # B. 從 Google 試算表載入並與本機名單合併
-    sheet_recipients, threshold_override, start_hour_override, end_hour_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
+    # 從 Google 試算表下載收件者名單與配置參數 (包含獨立設定分頁)
+    sheet_recipients, threshold_override, start_hour_override, end_hour_override, frequency_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
     
-    # 若試算表有設定溫度閾值，覆蓋本機設定
-    if threshold_override is not None:
-        config["temperature_threshold"] = threshold_override
+    # 2. 進行監測頻率檢查與節流判定 (Throttling)
+    frequency = frequency_override if frequency_override is not None else config.get("frequency", 60)
+    
+    if not force_run:
+        last_run_ts = load_last_run_timestamp()
+        current_ts = datetime.datetime.now(tz_taiwan).timestamp()
+        elapsed_seconds = current_ts - last_run_ts
+        required_seconds = frequency * 60 - 30  # 允許30秒的時間誤差
         
+        if elapsed_seconds < required_seconds:
+            elapsed_minutes = round(elapsed_seconds / 60.0, 1)
+            print(f"【頻率限制】距離上次實際執行僅 {elapsed_minutes} 分鐘，未達設定監測頻率 {frequency} 分鐘，跳過本次執行。")
+            sys.exit(0)
+            
     # 3. 檢查監測時段是否相符
     start_hour = start_hour_override if start_hour_override is not None else config.get("start_hour", 8)
     end_hour = end_hour_override if end_hour_override is not None else config.get("end_hour", 24)
@@ -442,12 +527,27 @@ def main():
     is_in_time_window = False
     if start_hour < end_hour:
         is_in_time_window = (start_hour <= current_hour < end_hour)
-    else: # 跨夜時段，例如 22點至06點 (start=22, end=6)
+    else: # 跨夜時段，例如 22點至06點
         is_in_time_window = (current_hour >= start_hour or current_hour < end_hour)
         
     if not is_in_time_window and not force_run:
         print(f"目前時間為 {current_hour:02d}:00，不在監測時段 ({start_hour:02d}:00 - {end_hour:02d}:00) 內，跳過監測。")
         sys.exit(0)
+        
+    # 若試算表有設定溫度閾值，覆蓋本機設定
+    if threshold_override is not None:
+        config["temperature_threshold"] = threshold_override
+        
+    # 4. 若確認執行，才進行本機與雲端的狀態同步與心跳報告
+    web_app_url = config.get("web_app_url", "")
+    if web_app_url:
+        print("正在向雲端同步當前狀態與發送心跳...")
+        cloud_state = send_heartbeat(web_app_url, state.get("last_state", "COOL"), sync_type="sync")
+        if cloud_state:
+            if cloud_state != state.get("last_state"):
+                print(f"【同步完成】雲端狀態為 {cloud_state}，本機為 {state.get('last_state')}，已將本機同步為 {cloud_state}。")
+                state["last_state"] = cloud_state
+                save_state(cloud_state)
         
     threshold = config.get("temperature_threshold", 28.0)
         
@@ -523,6 +623,8 @@ def main():
                 alert_state=alert_state_text,
                 status_text=status_text
             )
+        # 儲存執行時間戳
+        save_last_run_timestamp(datetime.datetime.now(tz_taiwan).timestamp())
         sys.exit(0)
         
     print("\n--- 觸發通知內容 ---")
@@ -577,6 +679,9 @@ def main():
                 alert_state=alert_state_text,
                 status_text=status_text
             )
+            
+    # 儲存執行時間戳 (完成一次觀測與通報週期)
+    save_last_run_timestamp(datetime.datetime.now(tz_taiwan).timestamp())
 
 if __name__ == "__main__":
     main()
