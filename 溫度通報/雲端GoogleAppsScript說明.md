@@ -47,35 +47,48 @@ function checkWeatherAndNotify() {
     }
   }
 
-  // 檢查是否在監測時段 (08:00 - 24:00) 內，避免非工作時間打擾人員
-  var today = new Date();
-  var currentHour = parseInt(Utilities.formatDate(today, "GMT+8", "HH"));
-  if (currentHour < 8 || currentHour >= 24) {
-    Logger.log("目前時間為 " + currentHour + " 點，不在監測時段 (08:00 - 24:00) 內，跳過執行。");
-    return;
-  }
-  
   // 取得第一個分頁 (聯絡人設定檔)，避免因為使用者點選其他分頁而讀錯資料
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
   var data = sheet.getDataRange().getValues();
   
   // 1. 從試算表讀取收件者與溫度設定
   var threshold = 28.0; // 預設 28 度
+  var startHour = 8;    // 預設 08:00
+  var endHour = 24;     // 預設 24:00
   var emails = [];
   var lineIds = [];
   
   // 欄位對應: Name (A), Email (B), LINE_ID (C), Enabled (D)
   for (var i = 1; i < data.length; i++) {
     var name = String(data[i][0]).trim();
+    var name_lower = name.toLowerCase();
     var email = String(data[i][1]).trim();
     var lineId = String(data[i][2]).trim();
     var enabled = String(data[i][3]).trim().toUpperCase();
     
     // 判斷是否為溫度閾值設定列
-    if (name.toLowerCase().includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值")) {
+    if (name_lower.includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值")) {
       var numMatch = email.match(/(\d+(?:\.\d+)?)/);
       if (numMatch) {
         threshold = parseFloat(numMatch[1]);
+      }
+      continue;
+    }
+    
+    // 判斷是否為監測開始時間設定列
+    if (name_lower.includes("start") || name.includes("開始") || name.includes("啟動")) {
+      var numMatch = email.match(/(\d+)/);
+      if (numMatch) {
+        startHour = parseInt(numMatch[1]);
+      }
+      continue;
+    }
+    
+    // 判斷是否為監測結束時間設定列
+    if (name_lower.includes("end") || name.includes("結束") || name.includes("停止")) {
+      var numMatch = email.match(/(\d+)/);
+      if (numMatch) {
+        endHour = parseInt(numMatch[1]);
       }
       continue;
     }
@@ -92,6 +105,21 @@ function checkWeatherAndNotify() {
         }
       }
     }
+  }
+  
+  // 2. 檢查是否在監測時段內，避免非工作時間打擾人員 (支援跨夜)
+  var today = new Date();
+  var currentHour = parseInt(Utilities.formatDate(today, "GMT+8", "HH"));
+  var isInTimeWindow = false;
+  if (startHour < endHour) {
+    isInTimeWindow = (currentHour >= startHour && currentHour < endHour);
+  } else {
+    isInTimeWindow = (currentHour >= startHour || currentHour < endHour);
+  }
+  
+  if (!isInTimeWindow) {
+    Logger.log("目前時間為 " + currentHour + " 點，不在監測時段 (" + startHour + ":00 - " + endHour + ":00) 內，跳過執行。");
+    return;
   }
   
   Logger.log("當前警報溫度閥值設定為: " + threshold + "°C");

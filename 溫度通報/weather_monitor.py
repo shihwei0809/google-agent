@@ -155,8 +155,10 @@ def fetch_recipients_from_google_sheet(csv_url):
     """從 Google 試算表（已發布為 CSV）載入收件者清單與設定"""
     recipients = {"emails": [], "line_ids": []}
     threshold_override = None
+    start_hour_override = None
+    end_hour_override = None
     if not csv_url or "YOUR_GOOGLE_SHEET" in csv_url:
-        return recipients, threshold_override
+        return recipients, threshold_override, start_hour_override, end_hour_override
         
     try:
         print(f"正在從 Google 試算表載入聯絡人資料... ({csv_url})")
@@ -186,6 +188,34 @@ def fetch_recipients_from_google_sheet(csv_url):
                         except ValueError:
                             pass
                 continue
+                
+            # 檢查是否為監測開始時間設定列
+            if any(k in name_lower for k in ("start", "開始", "啟動")):
+                for col in ("Email", "LINE_ID", "Enabled"):
+                    val_str = row.get(col, "").strip()
+                    num_match = re.search(r"(\d+)", val_str)
+                    if num_match:
+                        try:
+                            start_hour_override = int(num_match.group(1))
+                            print(f"【試算表設定】從試算表讀取到監測開始時間：{start_hour_override:02d}:00 (將覆蓋本機設定)")
+                            break
+                        except ValueError:
+                            pass
+                continue
+                
+            # 檢查是否為監測結束時間設定列
+            if any(k in name_lower for k in ("end", "結束", "停止")):
+                for col in ("Email", "LINE_ID", "Enabled"):
+                    val_str = row.get(col, "").strip()
+                    num_match = re.search(r"(\d+)", val_str)
+                    if num_match:
+                        try:
+                            end_hour_override = int(num_match.group(1))
+                            print(f"【試算表設定】從試算表讀取到監測結束時間：{end_hour_override:02d}:00 (將覆蓋本機設定)")
+                            break
+                        except ValueError:
+                            pass
+                continue
             
             # 判斷是否啟用（預設啟用）
             enabled = row.get("Enabled", "Y").upper()
@@ -206,7 +236,7 @@ def fetch_recipients_from_google_sheet(csv_url):
     except Exception as e:
         print(f"【警告】從 Google 試算表載入名單失敗: {e}", file=sys.stderr)
         
-    return recipients, threshold_override
+    return recipients, threshold_override, start_hour_override, end_hour_override
 
 def check_weather(config):
     """透過 CWA Open Data API 抓取線西站即時環境溫度"""
@@ -367,13 +397,6 @@ def send_email_notifications(email_config, subject, body, recipients):
 def main():
     force_run = "--force" in sys.argv
     
-    # 1. 檢查是否在監測時段 (08:00 - 24:00) 內，避免非工作時間打擾人員
-    tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
-    current_hour = datetime.datetime.now(tz_taiwan).hour
-    if (current_hour < 8 or current_hour >= 24) and not force_run:
-        print(f"目前時間為 {current_hour:02d}:00，不在監測時段 (08:00 - 24:00) 內，跳過監測。")
-        sys.exit(0)
-        
     config = load_config()
     state = load_state()
     
@@ -404,11 +427,27 @@ def main():
         local_line_ids = [local_line_ids]
         
     # B. 從 Google 試算表載入並與本機名單合併
-    sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
+    sheet_recipients, threshold_override, start_hour_override, end_hour_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
     
     # 若試算表有設定溫度閾值，覆蓋本機設定
     if threshold_override is not None:
         config["temperature_threshold"] = threshold_override
+        
+    # 3. 檢查監測時段是否相符
+    start_hour = start_hour_override if start_hour_override is not None else config.get("start_hour", 8)
+    end_hour = end_hour_override if end_hour_override is not None else config.get("end_hour", 24)
+    
+    current_hour = datetime.datetime.now(tz_taiwan).hour
+    
+    is_in_time_window = False
+    if start_hour < end_hour:
+        is_in_time_window = (start_hour <= current_hour < end_hour)
+    else: # 跨夜時段，例如 22點至06點 (start=22, end=6)
+        is_in_time_window = (current_hour >= start_hour or current_hour < end_hour)
+        
+    if not is_in_time_window and not force_run:
+        print(f"目前時間為 {current_hour:02d}:00，不在監測時段 ({start_hour:02d}:00 - {end_hour:02d}:00) 內，跳過監測。")
+        sys.exit(0)
         
     threshold = config.get("temperature_threshold", 28.0)
         
