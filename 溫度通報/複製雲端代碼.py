@@ -1056,11 +1056,6 @@ function doPost(e) {
         if (projectId) {
           var webAppUrl = ScriptApp.getService().getUrl() || "";
           var fieldsToSync = {
-            "current_temp": postData.current_temp !== undefined ? parseFloat(postData.current_temp) : -99.0,
-            "threshold": postData.threshold !== undefined ? parseFloat(postData.threshold) : parseFloat(config.threshold),
-            "obs_time": postData.obs_time || "--",
-            "alert_state": postData.alert_state || (postData.current_temp > (postData.threshold || 28.0) ? "高溫超標警報" : "正常 (未超標)"),
-            "status_text": postData.status_text || "無紀錄",
             "last_heartbeat": new Date().getTime(),
             "start_hour": parseInt(config.startHour),
             "end_hour": parseInt(config.endHour),
@@ -1068,6 +1063,23 @@ function doPost(e) {
             "password": config.password,
             "web_app_url": webAppUrl
           };
+          if (postData.current_temp !== undefined) {
+            fieldsToSync["current_temp"] = parseFloat(postData.current_temp);
+          }
+          if (postData.threshold !== undefined) {
+            fieldsToSync["threshold"] = parseFloat(postData.threshold);
+          } else {
+            fieldsToSync["threshold"] = parseFloat(config.threshold);
+          }
+          if (postData.obs_time) {
+            fieldsToSync["obs_time"] = postData.obs_time;
+          }
+          if (postData.alert_state) {
+            fieldsToSync["alert_state"] = postData.alert_state;
+          }
+          if (postData.status_text) {
+            fieldsToSync["status_text"] = postData.status_text;
+          }
           syncToFirebaseFromAppsScript(projectId, fieldsToSync);
         }
       } catch (firebaseErr) {
@@ -1228,11 +1240,16 @@ function syncToFirebaseFromAppsScript(projectId, fields) {
     return;
   }
   
-  var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/realtime_data/status";
-  
+  var updateMask = "";
   var firestoreFields = {};
   for (var key in fields) {
     firestoreFields[key] = buildFirestoreValue(fields[key]);
+    updateMask += (updateMask ? "&" : "") + "updateMask.fieldPaths=" + key;
+  }
+  
+  var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/realtime_data/status";
+  if (updateMask) {
+    url += "?" + updateMask;
   }
   
   var payload = {
