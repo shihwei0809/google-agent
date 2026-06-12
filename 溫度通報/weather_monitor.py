@@ -626,8 +626,8 @@ def send_email_notifications(email_config, subject, body, recipients):
         
     msg = MIMEText(body, "plain", "utf-8")
     msg["Subject"] = Header(subject, "utf-8")
-    msg["From"] = Header(from_email, "utf-8")
-    msg["To"] = Header(", ".join(recipients), "utf-8")
+    msg["From"] = from_email
+    msg["To"] = ", ".join(recipients)
     
     try:
         if smtp_port == 465:
