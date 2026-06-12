@@ -367,11 +367,27 @@ function getHistoryLogs() {
   var values = logSheet.getDataRange().getValues();
   var logs = [];
   for (var i = values.length - 1; i >= 1; i--) {
+    var rawTime = values[i][0];
+    var timeStr = "";
+    if (rawTime instanceof Date) {
+      timeStr = Utilities.formatDate(rawTime, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+    } else {
+      timeStr = String(rawTime || "");
+    }
+
+    var rawObs = values[i][3];
+    var obsTimeStr = "";
+    if (rawObs instanceof Date) {
+      obsTimeStr = Utilities.formatDate(rawObs, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+    } else {
+      obsTimeStr = String(rawObs || "");
+    }
+
     logs.push({
-      time: String(values[i][0]),
+      time: timeStr,
       threshold: parseFloat(values[i][1]),
       temp: parseFloat(values[i][2]),
-      obsTime: String(values[i][3]),
+      obsTime: obsTimeStr,
       alertState: String(values[i][4]),
       statusText: String(values[i][5])
     });
