@@ -1041,6 +1041,57 @@ input[type="range"]::-webkit-slider-thumb:hover {
     .content-area {
         margin-left: 0;
         padding: 16px;
+        width: 100%;
+    }
+    
+    .top-bar {
+        padding: 0 12px;
+        height: 50px;
+    }
+    
+    .top-bar .logo {
+        font-size: 15px;
+        gap: 6px;
+    }
+    
+    .top-bar .logo small {
+        display: none;
+    }
+    
+    .status-indicators {
+        gap: 8px;
+    }
+    
+    .indicator {
+        padding: 4px 8px;
+        font-size: 11px;
+        gap: 4px;
+    }
+    
+    .app-layout {
+        padding-top: 50px;
+    }
+    
+    .glass-card {
+        padding: 16px;
+    }
+    
+    .auth-input-group {
+        flex-direction: column;
+    }
+    
+    .auth-input-group button {
+        width: 100%;
+    }
+    
+    .glass-modal {
+        padding: 16px;
+        width: 95%;
+    }
+    
+    .config-drawer {
+        width: 100%;
+        max-width: 320px;
     }
     
     .bottom-nav {
