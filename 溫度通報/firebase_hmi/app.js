@@ -920,13 +920,13 @@ function updateTrendChart(logs) {
     const labels = validLogs.map(log => {
         // 如果是歷史模式且總數據量大，X軸標記加上日期 (MM-DD HH:MM)
         if (chartMode === "history" && logs.length > 400) {
-            const t = log.obs_time || log.time;
+            const t = log.time;
             if (t && t.length >= 16) {
                 return t.substring(5, 16);
             }
             return t;
         }
-        return getShortTime(log.obs_time || log.time);
+        return getShortTime(log.time);
     });
     
     // 取得當前設定的警報閾值，繪製輔助線

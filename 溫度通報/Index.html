@@ -2504,13 +2504,13 @@
       const validLogs = displayLogs.filter(log => !isNaN(parseFloat(log.temp)) && parseFloat(log.temp) !== -99);
       const labels = validLogs.map(log => {
         if (chartMode === "history" && logs.length > 400) {
-          const t = log.obs_time || log.time;
+          const t = log.time;
           if (t && t.length >= 16) {
             return t.substring(5, 16);
           }
           return t;
         }
-        return getShortTime(log.obs_time || log.time);
+        return getShortTime(log.time);
       });
 
       const threshold = (appState.dashboard && appState.dashboard.threshold) ? parseFloat(appState.dashboard.threshold) : 28.0;
