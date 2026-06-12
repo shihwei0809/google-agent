@@ -149,7 +149,10 @@ def _get_firebase_token():
         from google.auth.transport.requests import Request as GRequest
         creds = service_account.Credentials.from_service_account_file(
             key_path,
-            scopes=["https://www.googleapis.com/auth/datastore"]
+            scopes=[
+                "https://www.googleapis.com/auth/datastore",
+                "https://www.googleapis.com/auth/spreadsheets.readonly"
+            ]
         )
         creds.refresh(GRequest())
         with open(key_path) as f:
@@ -394,6 +397,101 @@ def fetch_recipients_from_google_sheet(csv_url):
         print(f"從 Google 試算表載入成功：Email x {len(recipients['emails'])} 人, LINE ID x {len(recipients['line_ids'])} 人")
     except Exception as e:
         print(f"【警告】從 Google 試算表載入名單失敗: {e}", file=sys.stderr)
+        
+    return recipients, threshold_override
+
+def get_first_sheet_name(token, spreadsheet_id):
+    """透過 Google Sheets API 取得試算表中第一個分頁的名稱"""
+    import urllib.parse
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}?fields=sheets(properties(title))"
+    req = urllib.request.Request(
+        url,
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10, context=_fb_ssl_ctx) as response:
+            meta = json.loads(response.read().decode("utf-8"))
+            sheets = meta.get("sheets", [])
+            if sheets:
+                return sheets[0].get("properties", {}).get("title")
+    except Exception as e:
+        print(f"【警告】動態取得分頁名稱失敗: {e}", file=sys.stderr)
+    return "工作表1"
+
+def fetch_recipients_from_google_sheet_api(token, spreadsheet_id):
+    """透過 Google Sheets API (使用 service account token) 載入收件者清單與設定"""
+    import urllib.parse
+    recipients = {"emails": [], "line_ids": []}
+    threshold_override = None
+    if not spreadsheet_id:
+        return recipients, threshold_override
+        
+    try:
+        sheet_name = get_first_sheet_name(token, spreadsheet_id)
+        print(f"正在透過 Google Sheets API 載入聯絡人資料... (試算表 ID: {spreadsheet_id}, 分頁: {sheet_name})")
+        
+        # 讀取 A 到 D 欄
+        range_notation = "A:D"
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{urllib.parse.quote(sheet_name + '!' + range_notation)}"
+        req = urllib.request.Request(
+            url,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        with urllib.request.urlopen(req, timeout=15, context=_fb_ssl_ctx) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            values = res_data.get("values", [])
+            
+        if not values:
+            print("【警告】Google Sheets 回傳空資料")
+            return recipients, threshold_override
+            
+        # 第一列為表頭
+        headers = [h.strip() for h in values[0]]
+        
+        # 將其後的列轉換為 Dictionary 以利比對
+        for row in values[1:]:
+            row_dict = {}
+            for idx, header in enumerate(headers):
+                if idx < len(row):
+                    row_dict[header] = row[idx].strip()
+                else:
+                    row_dict[header] = ""
+                    
+            name = row_dict.get("Name", "").strip()
+            name_lower = name.lower()
+            
+            # 檢查是否為溫度閾值設定列
+            if any(k in name_lower for k in ("threshold", "溫度", "閥值", "閾值")):
+                for col in ("Email", "LINE_ID", "Enabled"):
+                    val_str = row_dict.get(col, "").strip()
+                    num_match = re.search(r"(\d+(?:\.\d+)?)", val_str)
+                    if num_match:
+                        try:
+                            threshold_override = float(num_match.group(1))
+                            print(f"【試算表設定】從試算表讀取到溫度閾值設定：{threshold_override}°C (將覆蓋本機設定)")
+                            break
+                        except ValueError:
+                            pass
+                continue
+                
+            # 判斷是否啟用（預設啟用）
+            enabled = row_dict.get("Enabled", "Y").upper()
+            if enabled not in ("Y", "YES", "TRUE", "1", ""):
+                continue
+                
+            email = row_dict.get("Email", "")
+            line_id = row_dict.get("LINE_ID", "")
+            
+            if email and "@" in email:
+                recipients["emails"].append(email)
+            if line_id:
+                prefix = line_id[0].upper()
+                if prefix in ("U", "C", "R"):
+                    recipients["line_ids"].append(line_id)
+                    
+        print(f"從 Google 試算表 (API) 載入成功：Email x {len(recipients['emails'])} 人, LINE ID x {len(recipients['line_ids'])} 人")
+    except Exception as e:
+        print(f"【警告】透過 Google Sheets API 載入名單失敗: {e}", file=sys.stderr)
         
     return recipients, threshold_override
 
@@ -646,7 +744,19 @@ def main():
         local_line_ids = [local_line_ids]
         
     # B. 從 Google 試算表載入並與本機名單合併
-    sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
+    spreadsheet_id = config.get("spreadsheet_id", "")
+    sheet_recipients = {"emails": [], "line_ids": []}
+    threshold_override = None
+    
+    if spreadsheet_id:
+        token, _ = _get_firebase_token()
+        if token:
+            sheet_recipients, threshold_override = fetch_recipients_from_google_sheet_api(token, spreadsheet_id)
+        else:
+            print("【警告】找不到憑證 Token，無法使用 Google Sheets API，嘗試備用 CSV 機制...")
+            sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
+    else:
+        sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
     
     # 若試算表有設定溫度閾值，覆蓋本機設定
     if threshold_override is not None:
