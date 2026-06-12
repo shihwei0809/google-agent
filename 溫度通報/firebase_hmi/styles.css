@@ -310,7 +310,10 @@ body {
 
 @media (min-width: 900px) {
     .dashboard-grid {
-        grid-template-columns: 1.2fr 1fr;
+        grid-template-columns: 1fr 1fr;
+    }
+    .chart-card {
+        grid-column: 1 / -1;  /* 趨勢圖橫跨兩欄，填滿整行 */
     }
 }
 
