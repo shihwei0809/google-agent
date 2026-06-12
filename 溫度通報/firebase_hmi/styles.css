@@ -247,7 +247,8 @@ body {
     flex-grow: 1;
     margin-left: var(--sidebar-width);
     padding: 24px;
-    max-width: 1200px;
+    width: calc(100% - var(--sidebar-width));
+    box-sizing: border-box;
     margin-bottom: 60px; /* 為手機端底部導覽列預留 */
 }
 
