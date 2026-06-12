@@ -1,0 +1,8 @@
+*.csv
+last_notified.json
+last_run.json
+cwa_changhwa.json
+__pycache__/
+scratch/
+24 小時趨勢備份/
+/firebase_key.json

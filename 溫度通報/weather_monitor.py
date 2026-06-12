@@ -34,6 +34,40 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
 STATE_PATH = os.path.join(SCRIPT_DIR, "last_notified.json")
 
+# 本機 CSV 備份路徑
+LOCAL_HISTORY_CSV = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報與心跳明細.csv")
+
+def get_realtime_backup_path():
+    """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾"""
+    tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+    date_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d')
+    file_name = f"{date_str}_24小時趨勢備份.csv"
+    
+    # 優先嘗試寫入 Google Drive 虛擬硬碟 G:\
+    g_drive_dir = r"G:\我的雲端硬碟\GOOGLE ANGET\溫度通報\24 小時趨勢備份"
+    try:
+        os.makedirs(g_drive_dir, exist_ok=True)
+        return os.path.join(g_drive_dir, file_name)
+    except Exception:
+        # 若 G 槽未掛載或無寫入權限，回退到本地目錄下
+        local_dir = os.path.join(SCRIPT_DIR, "24 小時趨勢備份")
+        os.makedirs(local_dir, exist_ok=True)
+        return os.path.join(local_dir, file_name)
+
+def append_to_local_csv(file_path, headers, row_data):
+    """將資料寫入本機 CSV 檔案，若檔案不存在則自動建立並寫入表頭"""
+    import csv
+    file_exists = os.path.exists(file_path)
+    try:
+        # 使用 utf-8-sig 以便 Excel 開啟時不亂碼 (BOM)
+        with open(file_path, "a", encoding="utf-8-sig", newline="") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(headers)
+            writer.writerow(row_data)
+    except Exception as e:
+        print(f"【本機備份警告】寫入 {os.path.basename(file_path)} 失敗: {e}", file=sys.stderr)
+
 def load_config():
     """載入設定檔 config.json"""
     if not os.path.exists(CONFIG_PATH):
@@ -545,6 +579,16 @@ def main():
     except Exception as e:
         print(f"【警告】寫入即時觀測紀錄失敗: {e}", file=sys.stderr)
         
+    # 同時備份寫入 Google Drive 雲端同步目錄（自動以日期分檔，若失敗則退回本機目錄）
+    try:
+        realtime_backup_path = get_realtime_backup_path()
+        now_time_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
+        headers = ["記錄時間", "環境溫度 (°C)", "氣象觀測時間", "時間戳 (ms)"]
+        now_ms = int(time.time() * 1000)
+        append_to_local_csv(realtime_backup_path, headers, [now_time_str, current_temp, display_time, now_ms])
+    except Exception as e:
+        print(f"【本機備份警告】寫入即時溫度備份失敗: {e}", file=sys.stderr)
+        
     # 4. 更新即時狀態 (儀表板溫度計與在線心跳指標)
     try:
         send_heartbeat_firebase(
@@ -674,6 +718,13 @@ def main():
             alert_state=alert_state_text,
             status_text="未發送 (重複或正常)"
         )
+        # 寫入本機歷史通報紀錄
+        try:
+            headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
+            append_to_local_csv(LOCAL_HISTORY_CSV, headers, 
+                [formatted_time, threshold, current_temp, display_time, alert_state_text, "未發送 (重複或正常)"])
+        except Exception as e:
+            print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
         # 同時嘗試舊的 GAS 路徑（若有設定 web_app_url）
         if web_app_url:
             send_heartbeat(web_app_url, sync_type="heartbeat",
@@ -716,6 +767,13 @@ def main():
             obs_time=display_time, alert_state=alert_str,
             status_text=status_str
         )
+        # 寫入本機歷史通報紀錄
+        try:
+            headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
+            append_to_local_csv(LOCAL_HISTORY_CSV, headers, 
+                [formatted_time, threshold, current_temp, display_time, alert_str, status_str])
+        except Exception as e:
+            print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
         if web_app_url:
             send_heartbeat(web_app_url, new_state, sync_type="update",
                 current_temp=current_temp, threshold=threshold,
@@ -730,6 +788,13 @@ def main():
             obs_time=display_time, alert_state=alert_str2,
             status_text="發送失敗"
         )
+        # 寫入本機歷史通報紀錄
+        try:
+            headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
+            append_to_local_csv(LOCAL_HISTORY_CSV, headers, 
+                [formatted_time, threshold, current_temp, display_time, alert_str2, "發送失敗"])
+        except Exception as e:
+            print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
         if web_app_url:
             send_heartbeat(web_app_url, sync_type="heartbeat",
                 current_temp=current_temp, threshold=threshold,
