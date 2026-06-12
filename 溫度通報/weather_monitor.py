@@ -169,6 +169,80 @@ def send_heartbeat_firebase(current_temp=None, threshold=None, obs_time=None,
         print(f"【Firebase 心跳】寫入失敗: {e}", file=sys.stderr)
 # ─────────────────────────────────────────────────────────────────────
 
+def add_realtime_log_to_firebase(current_temp, obs_time):
+    """將即時 10 分鐘觀測數據寫入 Firestore realtime_logs，並自動清理 24 小時前舊資料"""
+    token, project_id = _get_firebase_token()
+    if not token:
+        return
+    url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/realtime_logs"
+    now_ms = int(time.time() * 1000)
+    
+    # 1. 寫入 10 分鐘即時記錄
+    doc_id = "rt_" + str(now_ms)
+    doc_url = f"{url}/{doc_id}"
+    
+    def _fs(v):
+        if isinstance(v, float): return {"doubleValue": v}
+        return {"stringValue": str(v)}
+        
+    fields = {
+        "temp": _fs(current_temp),
+        "time": _fs(datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S')),
+        "obs_time": _fs(obs_time),
+        "timestamp": {"integerValue": str(now_ms)}
+    }
+    
+    payload = json.dumps({"fields": fields}).encode("utf-8")
+    req = urllib.request.Request(
+        doc_url, data=payload, method="PATCH",
+        headers={"Authorization": f"Bearer {token}",
+                 "Content-Type": "application/json"}
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10, context=_fb_ssl_ctx):
+            pass
+        print("【Firebase 即時紀錄】已寫入 realtime_logs")
+    except Exception as e:
+        print(f"【Firebase 即時紀錄】寫入失敗: {e}", file=sys.stderr)
+        
+    # 2. 自動清理 24 小時前的舊資料
+    try:
+        cutoff_ms = now_ms - 24 * 60 * 60 * 1000
+        query_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents:runQuery"
+        query_payload = {
+            "structuredQuery": {
+                "from": [{"collectionId": "realtime_logs"}],
+                "where": {
+                    "fieldFilter": {
+                        "field": {"fieldPath": "timestamp"},
+                        "op": "LESS_THAN",
+                        "value": {"integerValue": str(cutoff_ms)}
+                    }
+                }
+            }
+        }
+        req_query = urllib.request.Request(
+            query_url, data=json.dumps(query_payload).encode("utf-8"), method="POST",
+            headers={"Authorization": f"Bearer {token}",
+                     "Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req_query, timeout=10, context=_fb_ssl_ctx) as resp:
+            results = json.loads(resp.read().decode("utf-8"))
+            for res in results:
+                doc = res.get("document")
+                if doc:
+                    doc_name = doc.get("name")
+                    del_url = f"https://firestore.googleapis.com/v1/{doc_name}"
+                    req_del = urllib.request.Request(
+                        del_url, method="DELETE",
+                        headers={"Authorization": f"Bearer {token}"}
+                    )
+                    with urllib.request.urlopen(req_del, timeout=5, context=_fb_ssl_ctx):
+                        pass
+        print("【Firebase 即時紀錄】已清理 24 小時前舊資料")
+    except Exception as e:
+        print(f"【Firebase 即時紀錄】清理舊資料失敗: {e}", file=sys.stderr)
+
 def send_heartbeat(url, state_name=None, sync_type="heartbeat", current_temp=None, threshold=None, obs_time=None, alert_state=None, status_text=None):
     """發送心跳與狀態同步給 Google Apps Script 雲端 Web App"""
     payload = {
@@ -456,8 +530,34 @@ def main():
     config = load_config()
     state = load_state()
     frequency = config.get("frequency", 60)
+    threshold = config.get("temperature_threshold", 28.0)
     
-    # 進行本機排程自動節流 (依據 config.json 設定的頻率)
+    # 2. 獲取 CWA 氣象數據 (無論是否節流都需要獲取即時數據)
+    try:
+        current_temp, display_time = check_weather(config)
+    except Exception as e:
+        print(f"【錯誤】獲取即時觀測數據失敗: {e}", file=sys.stderr)
+        sys.exit(1)
+        
+    # 3. 將 10 分鐘即時觀測數據寫入 Firestore realtime_logs (供 HMI 即時 24H 趨勢圖呈現)
+    try:
+        add_realtime_log_to_firebase(current_temp, display_time)
+    except Exception as e:
+        print(f"【警告】寫入即時觀測紀錄失敗: {e}", file=sys.stderr)
+        
+    # 4. 更新即時狀態 (儀表板溫度計與在線心跳指標)
+    try:
+        send_heartbeat_firebase(
+            current_temp=current_temp,
+            threshold=threshold,
+            obs_time=display_time,
+            alert_state="正常 (未超標)" if current_temp <= threshold else "高溫超標警報",
+            status_text="即時觀測更新"
+        )
+    except Exception as e:
+        print(f"【警告】更新即時心跳失敗: {e}", file=sys.stderr)
+        
+    # 5. 進行本機排程自動節流 (僅節流通知與試算表寫入)
     if not force_run:
         last_run_str = state.get("last_run_time")
         if last_run_str:
@@ -466,7 +566,7 @@ def main():
                 now_time = datetime.datetime.now(tz_taiwan)
                 diff_minutes = (now_time - last_run_time).total_seconds() / 60.0
                 if diff_minutes < (frequency - 2): # 減 2 分鐘做為微小時間差容錯
-                    print(f"【節流跳過】距離上一次執行僅 {diff_minutes:.1f} 分鐘，未達設定頻率 {frequency} 分鐘。")
+                    print(f"【節流跳過】距離上一次執行僅 {diff_minutes:.1f} 分鐘，未達設定頻率 {frequency} 分鐘。已成功更新即時溫度與 24H 趨勢圖。")
                     sys.exit(0)
             except Exception as e:
                 print(f"【警告】解析上次執行時間失敗: {e}", file=sys.stderr)
@@ -520,12 +620,7 @@ def main():
         print("【錯誤】未偵測到任何有效的 Email 或 LINE 收件者，無法通報。", file=sys.stderr)
         sys.exit(1)
         
-    # 3. 檢查氣象數據
-    try:
-        current_temp, display_time = check_weather(config)
-    except Exception as e:
-        print(f"【錯誤】獲取即時觀測數據失敗: {e}", file=sys.stderr)
-        sys.exit(1)
+    # 3. 已在開頭完成氣象數據抓取與即時日誌上傳
         
     # 4. 狀態機邏輯比對
     last_state = state.get("last_state", "COOL")

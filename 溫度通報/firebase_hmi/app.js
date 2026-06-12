@@ -883,14 +883,21 @@ function listenHistoryLogsForChart() {
     // 註銷舊監聽
     if (chartUnsubscribe) chartUnsubscribe();
     
-    // 監聽最近 150 筆歷史通報紀錄 (約 25 小時的監控點)
-    chartUnsubscribe = db.collection("history_logs")
+    // 即時 24H：改監聽 realtime_logs 集合（每 10 分鐘 CWA 觀測寫入，自動保留 24 小時）
+    chartUnsubscribe = db.collection("realtime_logs")
       .orderBy("timestamp", "desc")
-      .limit(150)
+      .limit(200)
       .onSnapshot((snapshot) => {
           allLogsForChart = [];
           snapshot.forEach(doc => {
-              allLogsForChart.push(doc.data());
+              const d = doc.data();
+              // 統一欄位格式：X 軸用 obs_time（氣象站實際觀測時間）
+              allLogsForChart.push({
+                  temp: d.temp,
+                  time: d.obs_time || d.time,   // 優先用 obs_time，fallback 用 time
+                  obs_time: d.obs_time || d.time,
+                  timestamp: d.timestamp
+              });
           });
           
           // 排序改為時間正序 (過去 -> 現在)
@@ -899,7 +906,7 @@ function listenHistoryLogsForChart() {
           // 繪製或更新圖表
           updateTrendChart(allLogsForChart);
       }, (error) => {
-          console.error("監聽歷史紀錄圖表失敗:", error);
+          console.error("監聽即時觀測紀錄圖表失敗:", error);
       });
 }
 
