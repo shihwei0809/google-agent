@@ -883,10 +883,12 @@ function listenHistoryLogsForChart() {
     // 註銷舊監聽
     if (chartUnsubscribe) chartUnsubscribe();
     
-    // 即時 24H：改監聽 realtime_logs 集合（每 10 分鐘 CWA 觀測寫入，自動保留 24 小時）
+    // 即時 24H：只抓「現在往前 24 小時」的 realtime_logs 資料（每 10 分鐘 CWA 觀測）
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    
     chartUnsubscribe = db.collection("realtime_logs")
-      .orderBy("timestamp", "desc")
-      .limit(200)
+      .where("timestamp", ">=", oneDayAgo)
+      .orderBy("timestamp", "asc")
       .onSnapshot((snapshot) => {
           allLogsForChart = [];
           snapshot.forEach(doc => {
@@ -900,10 +902,7 @@ function listenHistoryLogsForChart() {
               });
           });
           
-          // 排序改為時間正序 (過去 -> 現在)
-          allLogsForChart.reverse();
-          
-          // 繪製或更新圖表
+          // 已按 timestamp asc 排序，直接繪製（過去 -> 現在）
           updateTrendChart(allLogsForChart);
       }, (error) => {
           console.error("監聽即時觀測紀錄圖表失敗:", error);
