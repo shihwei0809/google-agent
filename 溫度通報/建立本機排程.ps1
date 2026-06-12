@@ -10,15 +10,23 @@ if (-not (Test-Path $ScriptPath)) {
     Exit
 }
 
-# 尋找 python.exe 的路徑
-$PythonExe = "python"
-$wherePython = where.exe python 2>$null
-if ($wherePython) {
-    # 優先使用全域安裝的 Python
+# 優先尋找 pythonw.exe (無視窗背景執行版) 以免彈出 CMD 視窗，若找不到則退回 python.exe
+$PythonExe = "pythonw"
+$wherePython = where.exe pythonw 2>$null
+if (-not $wherePython) {
+    $wherePython = where.exe python 2>$null
+    if ($wherePython) {
+        $PythonExe = $wherePython[0]
+    } else {
+        Write-Error "找不到 pythonw.exe 或 python.exe，請確認這台電腦已安裝 Python 並加入環境變數！"
+        pause
+        Exit
+    }
+} else {
     $PythonExe = $wherePython[0]
 }
 
-Write-Host "偵測到 Python 路徑: $PythonExe" -ForegroundColor Cyan
+Write-Host "偵測到 Python 執行檔路徑: $PythonExe" -ForegroundColor Cyan
 Write-Host "偵測到監控腳本路徑: $ScriptPath" -ForegroundColor Cyan
 
 # 建立 Windows 工作排程 (以 SYSTEM 身分在背景默默執行，不彈出視窗)

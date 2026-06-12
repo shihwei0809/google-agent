@@ -1,17 +1,20 @@
 @echo off
 chcp 65001 >nul
 echo 正在偵測 Python 路徑...
-where python > temp_py.txt 2>nul
+where pythonw > temp_py.txt 2>nul
 if errorlevel 1 (
-    echo [錯誤] 找不到 python 執行檔，請確認這台電腦已安裝 Python 並加入環境變數！
-    del temp_py.txt 2>nul
-    pause
-    exit /b
+    where python > temp_py.txt 2>nul
+    if errorlevel 1 (
+        echo [錯誤] 找不到 pythonw 或 python 執行檔，請確認這台電腦已安裝 Python 並加入環境變數！
+        del temp_py.txt 2>nul
+        pause
+        exit /b
+    )
 )
 
 set /p PY_PATH=<temp_py.txt
 del temp_py.txt 2>nul
-echo 偵測到 Python: %PY_PATH%
+echo 偵測到 Python 執行檔: %PY_PATH%
 
 set SCRIPT_PATH=%~dp0weather_monitor.py
 echo 偵測到監控腳本: %SCRIPT_PATH%
