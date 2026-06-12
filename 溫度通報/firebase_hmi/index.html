@@ -9,7 +9,7 @@
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- CSS 樣式表 -->
-    <link rel="stylesheet" href="styles.css?v=4.2">
+    <link rel="stylesheet" href="styles.css?v=4.6">
     <!-- Firebase SDK (v9 相容版 CDN) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -115,6 +115,36 @@
                                 <button class="tool-btn" onclick="triggerFastAction('testNotifyForce')"><i class="fa-solid fa-paper-plane"></i> 強制測試</button>
                                 <button class="tool-btn" onclick="triggerFastAction('clearNotifiedState')"><i class="fa-solid fa-redo"></i> 重置鎖定</button>
                             </div>
+                        </div>
+                    </div>
+                    <!-- 溫度變化趨勢圖 -->
+                    <div class="glass-card chart-card">
+                        <div class="chart-header">
+                            <h3 id="chartTitle">📈 即時24小時溫度趨勢</h3>
+                            <div class="chart-modes">
+                                <button class="mode-btn active" id="btnChartRealtime" onclick="setChartMode('realtime')"><i class="fa-solid fa-clock-rotate-left"></i> 即時 24H</button>
+                                <button class="mode-btn" id="btnChartHistory" onclick="setChartMode('history')"><i class="fa-solid fa-calendar-days"></i> 歷史查詢</button>
+                            </div>
+                        </div>
+                        
+                        <!-- 歷史查詢篩選列 (預設隱藏) -->
+                        <div class="chart-filter-row" id="chartFilterRow" style="display: none;">
+                            <div class="filter-group">
+                                <label>開始日期</label>
+                                <input type="date" id="chartStartDate">
+                            </div>
+                            <div class="filter-group">
+                                <label>結束日期</label>
+                                <input type="date" id="chartEndDate">
+                            </div>
+                            <button class="btn-query" id="btnChartQuery" onclick="queryHistoricalChartData()"><i class="fa-solid fa-magnifying-glass"></i> 查詢</button>
+                            <div class="chart-loader" id="chartLoader" style="display: none;">
+                                <i class="fa-solid fa-spinner fa-spin"></i> 載入中...
+                            </div>
+                        </div>
+
+                        <div class="chart-container">
+                            <canvas id="tempTrendChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -307,7 +337,9 @@
     <!-- 浮動 Toast 通知 -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <!-- Chart.js 圖表庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- JS 邏輯 -->
-    <script src="app.js?v=4.2"></script>
+    <script src="app.js?v=4.6"></script>
 </body>
 </html>

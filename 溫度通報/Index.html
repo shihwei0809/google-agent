@@ -1024,6 +1024,165 @@
         width: 100%;
       }
     }
+
+    /* ==================== 溫度變化趨勢圖 (Chart) ==================== */
+    .chart-card {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    .chart-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0;
+    }
+
+    .chart-modes {
+      display: flex;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    .mode-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition);
+    }
+
+    .mode-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .mode-btn.active {
+      color: var(--text-main);
+      background: var(--primary);
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+    }
+
+    /* 歷史篩選列 */
+    .chart-filter-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 15px;
+      margin-bottom: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      padding: 15px;
+      border-radius: 10px;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .filter-group label {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .filter-group input[type="date"] {
+      background: rgba(10, 15, 30, 0.6);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-family: var(--font-inter);
+      font-size: 13px;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    .filter-group input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+
+    .filter-group input[type="date"]:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
+    }
+
+    .btn-query {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      color: var(--text-main);
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      height: 35px;
+      transition: var(--transition);
+    }
+
+    .btn-query:hover {
+      background: var(--primary);
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .chart-loader {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--primary);
+      height: 35px;
+      font-weight: 600;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 320px;
+    }
+
+    @media (max-width: 900px) {
+      .chart-container {
+        height: 260px;
+      }
+      .chart-filter-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .filter-group {
+        width: 100%;
+      }
+      .btn-query {
+        width: 100%;
+        justify-content: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1151,6 +1310,37 @@
             </div>
           </div>
           
+        </div>
+
+        <!-- 溫度變化趨勢圖 -->
+        <div class="glass-card chart-card" style="margin-top: 1.5rem; margin-bottom: 1.5rem;">
+          <div class="chart-header">
+            <h3 id="chartTitle">📈 即時24小時溫度趨勢</h3>
+            <div class="chart-modes">
+              <button class="mode-btn active" id="btnChartRealtime" onclick="setChartMode('realtime')"><i class="fa-solid fa-clock-rotate-left"></i> 即時 24H</button>
+              <button class="mode-btn" id="btnChartHistory" onclick="setChartMode('history')"><i class="fa-solid fa-calendar-days"></i> 歷史查詢</button>
+            </div>
+          </div>
+          
+          <!-- 歷史查詢篩選列 (預設隱藏) -->
+          <div class="chart-filter-row" id="chartFilterRow" style="display: none;">
+            <div class="filter-group">
+              <label>開始日期</label>
+              <input type="date" id="chartStartDate">
+            </div>
+            <div class="filter-group">
+              <label>結束日期</label>
+              <input type="date" id="chartEndDate">
+            </div>
+            <button class="btn-query" id="btnChartQuery" onclick="queryHistoricalChartData()"><i class="fa-solid fa-magnifying-glass"></i> 查詢</button>
+            <div class="chart-loader" id="chartLoader" style="display: none;">
+              <i class="fa-solid fa-spinner fa-spin"></i> 載入中...
+            </div>
+          </div>
+
+          <div class="chart-container">
+            <canvas id="tempTrendChart"></canvas>
+          </div>
         </div>
         
         <!-- Quick Actions -->
@@ -1394,6 +1584,11 @@
 
   <!-- Toast Notification Area -->
   <div class="toast-container" id="toast-container"></div>
+
+  <!-- Chart.js and Firebase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
   <!-- Script logic -->
   <script>
@@ -2193,6 +2388,379 @@
       }
     }
 
+    // ==================== Firebase & Chart 邏輯 ====================
+    const DEFAULT_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCarGS9LH9Kgu0mr0W8NCmNmNkAsQxF4Sg",
+      authDomain: "hongsheng-temp-523.firebaseapp.com",
+      projectId: "hongsheng-temp-523",
+      storageBucket: "hongsheng-temp-523.firebasestorage.app",
+      messagingSenderId: "263225895201",
+      appId: "1:263225895201:web:ef6139877e5d2aca32f660"
+    };
+
+    let db = null;
+    let firebaseApp = null;
+    let chartUnsubscribe = null;
+    let trendChart = null;
+    let allLogsForChart = [];
+    let chartMode = "realtime";
+    let historyChartLogs = [];
+
+    function loadAndInitFirebase() {
+      const savedConfig = localStorage.getItem("firebase_config");
+      let config = DEFAULT_FIREBASE_CONFIG;
+      if (savedConfig) {
+        try {
+          config = JSON.parse(savedConfig);
+          if (config && config.projectId !== "hongsheng-temp-523") {
+            config = DEFAULT_FIREBASE_CONFIG;
+          }
+        } catch (e) {
+          console.error("Firebase config parse error, using default.");
+        }
+      }
+      initFirebase(config);
+    }
+
+    function initFirebase(config) {
+      try {
+        if (firebase.apps.length > 0) {
+          firebaseApp = firebase.app();
+        } else {
+          firebaseApp = firebase.initializeApp(config);
+        }
+        db = firebase.firestore();
+        console.log("Firebase initialized successfully");
+        
+        initChartDateInputs();
+        listenHistoryLogsForChart();
+      } catch (e) {
+        console.error("Firebase 初始化失敗:", e);
+      }
+    }
+
+    function initChartDateInputs() {
+      const startInput = document.getElementById("chartStartDate");
+      const endInput = document.getElementById("chartEndDate");
+      if (!startInput || !endInput) return;
+      
+      const today = new Date();
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(today.getDate() - 7);
+      
+      endInput.value = formatDateToYYYYMMDD(today);
+      startInput.value = formatDateToYYYYMMDD(sevenDaysAgo);
+    }
+
+    function formatDateToYYYYMMDD(date) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function listenHistoryLogsForChart() {
+      if (!db) return;
+      
+      if (chartUnsubscribe) {
+        chartUnsubscribe();
+        chartUnsubscribe = null;
+      }
+      
+      const oneDayAgo = Date.now() - (25 * 60 * 60 * 1000);
+      
+      chartUnsubscribe = db.collection("history_logs")
+        .where("timestamp", ">=", oneDayAgo)
+        .orderBy("timestamp", "asc")
+        .onSnapshot((querySnapshot) => {
+          allLogsForChart = [];
+          querySnapshot.forEach(doc => {
+            allLogsForChart.push(doc.data());
+          });
+          
+          if (allLogsForChart.length > 150) {
+            allLogsForChart = allLogsForChart.slice(allLogsForChart.length - 150);
+          }
+          
+          if (chartMode === "realtime") {
+            updateTrendChart(allLogsForChart);
+          }
+        }, (error) => {
+          console.error("即時圖表監聽失敗:", error);
+        });
+    }
+
+    function updateTrendChart(logs) {
+      const ctx = document.getElementById('tempTrendChart');
+      if (!ctx) return;
+
+      let displayLogs = logs;
+      if (logs.length > 200) {
+        const step = Math.ceil(logs.length / 200);
+        displayLogs = logs.filter((_, idx) => idx % step === 0);
+      }
+
+      const chartData = displayLogs.map(log => parseFloat(log.temp)).filter(temp => !isNaN(temp) && temp !== -99);
+      const validLogs = displayLogs.filter(log => !isNaN(parseFloat(log.temp)) && parseFloat(log.temp) !== -99);
+      const labels = validLogs.map(log => {
+        if (chartMode === "history" && logs.length > 400) {
+          const t = log.obs_time || log.time;
+          if (t && t.length >= 16) {
+            return t.substring(5, 16);
+          }
+          return t;
+        }
+        return getShortTime(log.obs_time || log.time);
+      });
+
+      const threshold = (appState.dashboard && appState.dashboard.threshold) ? parseFloat(appState.dashboard.threshold) : 28.0;
+      const thresholdLine = Array(labels.length).fill(threshold);
+
+      if (trendChart) {
+        trendChart.data.labels = labels;
+        trendChart.data.datasets[0].data = chartData;
+        trendChart.data.datasets[1].data = thresholdLine;
+        trendChart.data.datasets[1].label = `警報閾值 (${threshold.toFixed(1)}°C)`;
+        trendChart.update('none');
+      } else {
+        const chartCtx = ctx.getContext('2d');
+        trendChart = new Chart(chartCtx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: '觀測溫度 (°C)',
+                data: chartData,
+                borderColor: '#22d3ee',
+                borderWidth: 2,
+                pointBackgroundColor: '#22d3ee',
+                pointBorderColor: 'rgba(255,255,255,0.8)',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: '#22d3ee',
+                pointRadius: labels.length > 50 ? 0 : 3,
+                pointHoverRadius: 5,
+                fill: true,
+                backgroundColor: createChartGradient(chartCtx),
+                tension: 0.3
+              },
+              {
+                label: `警報閾值 (${threshold.toFixed(1)}°C)`,
+                data: thresholdLine,
+                borderColor: '#ef4444',
+                borderWidth: 1.5,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              intersect: false,
+              mode: 'index'
+            },
+            plugins: {
+              legend: {
+                position: 'top',
+                labels: {
+                  color: '#f3f4f6',
+                  font: {
+                    family: "'Outfit', 'Noto Sans TC', sans-serif",
+                    size: 12
+                  }
+                }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(17, 25, 40, 0.95)',
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                borderWidth: 1,
+                titleColor: '#f3f4f6',
+                bodyColor: '#22d3ee',
+                titleFont: {
+                  family: "'Outfit', 'Noto Sans TC', sans-serif",
+                  weight: 'bold'
+                },
+                bodyFont: {
+                  family: "'Outfit', 'Noto Sans TC', sans-serif"
+                },
+                padding: 10,
+                displayColors: true
+              }
+            },
+            scales: {
+              x: {
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.05)',
+                  drawBorder: false
+                },
+                ticks: {
+                  color: '#9ca3af',
+                  font: {
+                    family: "'Outfit', 'Noto Sans TC', sans-serif",
+                    size: 10
+                  },
+                  maxTicksLimit: window.innerWidth < 600 ? 6 : 12
+                }
+              },
+              y: {
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.05)',
+                  drawBorder: false
+                },
+                ticks: {
+                  color: '#9ca3af',
+                  font: {
+                    family: "'Outfit', 'Noto Sans TC', sans-serif",
+                    size: 11
+                  }
+                },
+                suggestedMin: 20,
+                suggestedMax: 35
+              }
+            }
+          }
+        });
+      }
+    }
+
+    function createChartGradient(ctx) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, 'rgba(34, 211, 238, 0.25)');
+      gradient.addColorStop(1, 'rgba(34, 211, 238, 0.0)');
+      return gradient;
+    }
+
+    function getShortTime(obsTimeStr) {
+      if (!obsTimeStr) return "";
+      const parts = obsTimeStr.split(" ");
+      if (parts.length < 2) return obsTimeStr;
+      const timeParts = parts[1].split(":");
+      if (timeParts.length < 2) return parts[1];
+      return `${timeParts[0]}:${timeParts[1]}`;
+    }
+
+    function setChartMode(mode) {
+      if (chartMode === mode) return;
+      chartMode = mode;
+      
+      const btnRealtime = document.getElementById("btnChartRealtime");
+      const btnHistory = document.getElementById("btnChartHistory");
+      const filterRow = document.getElementById("chartFilterRow");
+      const title = document.getElementById("chartTitle");
+      
+      if (mode === "realtime") {
+        btnRealtime.classList.add("btn-primary");
+        btnRealtime.style.background = "";
+        btnRealtime.style.color = "";
+        
+        btnHistory.classList.remove("btn-primary");
+        btnHistory.style.background = "rgba(255,255,255,0.06)";
+        btnHistory.style.color = "var(--text-muted)";
+        
+        filterRow.style.display = "none";
+        title.innerHTML = '<i class="fa-solid fa-chart-line"></i> 即時24小時溫度趨勢';
+        
+        listenHistoryLogsForChart();
+      } else {
+        btnRealtime.classList.remove("btn-primary");
+        btnRealtime.style.background = "rgba(255,255,255,0.06)";
+        btnRealtime.style.color = "var(--text-muted)";
+        
+        btnHistory.classList.add("btn-primary");
+        btnHistory.style.background = "";
+        btnHistory.style.color = "";
+        
+        filterRow.style.display = "flex";
+        title.innerHTML = '<i class="fa-solid fa-chart-line"></i> 歷史區間溫度趨勢';
+        
+        if (chartUnsubscribe) {
+          chartUnsubscribe();
+          chartUnsubscribe = null;
+        }
+        
+        if (historyChartLogs.length > 0) {
+          updateTrendChart(historyChartLogs);
+        } else {
+          queryHistoricalChartData();
+        }
+      }
+    }
+
+    function queryHistoricalChartData() {
+      if (!db) {
+        showToast("Firebase 未連線，無法查詢！", "warning");
+        return;
+      }
+      
+      const startInput = document.getElementById("chartStartDate");
+      const endInput = document.getElementById("chartEndDate");
+      const loader = document.getElementById("chartLoader");
+      const btnQuery = document.getElementById("btnChartQuery");
+      
+      if (!startInput.value || !endInput.value) {
+        showToast("請選擇開始與結束日期！", "warning");
+        return;
+      }
+      
+      const startDate = new Date(startInput.value);
+      const endDate = new Date(endInput.value);
+      
+      if (startDate > endDate) {
+        showToast("開始日期不能晚於結束日期！", "warning");
+        return;
+      }
+      
+      const diffTime = Math.abs(endDate - startDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > 90) {
+        showToast("查詢區間最大限制為 90 天，以維護系統效能！", "warning");
+        return;
+      }
+      
+      startDate.setHours(0, 0, 0, 0);
+      const startMs = startDate.getTime();
+      
+      endDate.setHours(23, 59, 59, 999);
+      const endMs = endDate.getTime();
+      
+      loader.style.display = "flex";
+      btnQuery.disabled = true;
+      
+      db.collection("history_logs")
+        .where("timestamp", ">=", startMs)
+        .where("timestamp", "<=", endMs)
+        .orderBy("timestamp", "asc")
+        .get()
+        .then((querySnapshot) => {
+          historyChartLogs = [];
+          querySnapshot.forEach(doc => {
+            historyChartLogs.push(doc.data());
+          });
+          
+          if (historyChartLogs.length === 0) {
+            showToast("該時間區段內無觀測記錄！", "info");
+            if (trendChart) {
+              trendChart.destroy();
+              trendChart = null;
+            }
+          } else {
+            updateTrendChart(historyChartLogs);
+            showToast(`查詢成功，載入 ${historyChartLogs.length} 筆觀測點！`, "success");
+          }
+        })
+        .catch((error) => {
+          console.error("歷史資料庫查詢失敗:", error);
+          showToast("查詢失敗: " + error.message, "danger");
+        })
+        .finally(() => {
+          loader.style.display = "none";
+          btnQuery.disabled = false;
+        });
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       buildTimeOptions();
       
@@ -2205,6 +2773,9 @@
       
       renderSidebar();
       refreshDashboard();
+      
+      // 初始化 Firebase & 圖表
+      loadAndInitFirebase();
     });
   </script>
 

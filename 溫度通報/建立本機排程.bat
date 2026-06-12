@@ -18,7 +18,7 @@ echo 偵測到監控腳本: %SCRIPT_PATH%
 
 echo.
 echo 正在建立 Windows 工作排程 (WeatherMonitor)...
-schtasks /create /tn "WeatherMonitor" /tr "\"%PY_PATH%\" \"%SCRIPT_PATH%\"" /sc minute /mo 10 /st 08:00 /ru "SYSTEM" /f
+schtasks /create /tn "WeatherMonitor" /tr "\"%PY_PATH%\" \"%SCRIPT_PATH%\"" /sc hourly /mo 1 /st 07:58 /ru "SYSTEM" /f
 
 if errorlevel 1 (
     echo.

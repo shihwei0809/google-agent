@@ -23,9 +23,9 @@ Write-Host "偵測到監控腳本路徑: $ScriptPath" -ForegroundColor Cyan
 
 # 建立 Windows 工作排程 (以 SYSTEM 身分在背景默默執行，不彈出視窗)
 $Action = New-ScheduledTaskAction -Execute $PythonExe -Argument $ScriptPath -WorkingDirectory $ScriptDir
-$Trigger = New-ScheduledTaskTrigger -Daily -At "08:00"
+$Trigger = New-ScheduledTaskTrigger -Daily -At "07:58"
 $Trigger.Repetition = (New-Object -TypeName Microsoft.PowerShell.Cmdletization.GeneratedTypes.ScheduledTask.RepetitionPattern)
-$Trigger.Repetition.Interval = "PT10M" # 每 10 分鐘重複一次 (本機程式會自動判斷頻率節流)
+$Trigger.Repetition.Interval = "PT1H" # 每 1 小時重複一次 (本機程式會自動判斷頻率節流)
 $Trigger.Repetition.Duration = "P1D"   # 重複 1 天 (每天重複)
 
 $Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -MultipleInstances Parallel

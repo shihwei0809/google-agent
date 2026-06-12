@@ -141,13 +141,19 @@ function applySettingsAndTriggers() {
   updateTriggerFrequency(config.frequency);
   
   try {
+    updateSheetChangeTrigger();
+  } catch (triggerErr) {
+    Logger.log("建立試算表異動監聽器失敗: " + triggerErr.message);
+  }
+  
+  try {
     SpreadsheetApp.getUi().alert(
       "【設定套用成功】\n\n" +
       "系統已成功套用新參數：\n" +
       "1. 溫度警報閾值：" + config.threshold + "°C\n" +
       "2. 監測時段：" + config.startHour + ":00 - " + config.endHour + ":00\n" +
       "3. 監測頻率：" + config.frequency + " 分鐘\n\n" +
-      "※ 雲端 Apps Script 定時觸發器已重新建立並開始生效！"
+      "※ 雲端 Apps Script 定時與異動監聽觸發器已重新建立並開始生效！"
     );
   } catch (e) {
     Logger.log("更新觸發器成功，頻率：" + config.frequency + " 分鐘");
@@ -618,8 +624,6 @@ function checkWeatherAndNotify() {
         "obs_time": displayTime || "--",
         "alert_state": alertStateText || (isHot ? "高溫持續中" : "正常 (未超標)"),
         "status_text": statusText + " (雲端備援)",
-        "last_heartbeat": new Date().getTime(),
-        "heartbeat_source": "cloud",
         "start_hour": parseInt(startHour),
         "end_hour": parseInt(endHour),
         "frequency": parseInt(frequency),
@@ -1031,7 +1035,6 @@ function doPost(e) {
             "alert_state": postData.alert_state || (postData.current_temp > (postData.threshold || 28.0) ? "高溫超標警報" : "正常 (未超標)"),
             "status_text": postData.status_text || "無紀錄",
             "last_heartbeat": new Date().getTime(),
-            "heartbeat_source": "local",
             "start_hour": parseInt(config.startHour),
             "end_hour": parseInt(config.endHour),
             "frequency": parseInt(config.frequency),
@@ -1354,22 +1357,23 @@ function syncContactsToFirebase(projectId, contacts) {
   }
 }
 
-/**
- * 輔助函式：透過 REST API 將歷史紀錄寫入 Firebase Firestore
- */
 function syncHistoryLogsToFirebase(projectId, logs) {
-  if (!projectId || !logs || logs.length === 0) return;
-  
-  // 為了避免觸發腳本執行超時，我們只同步最近的 50 筆紀錄
+  if (!projectId) return;
+  if (!logs) logs = [];
+
+  // 1. 紀錄目前工作表上的有效文件 ID 列表
+  var activeDocIds = {};
   var limit = Math.min(logs.length, 50);
   for (var i = 0; i < limit; i++) {
     var log = logs[i];
     if (!log.time) continue;
-    
+
     var cleanTime = log.time.replace(/[^a-zA-Z0-9]/g, "_");
     var docId = "log_" + cleanTime;
+    activeDocIds[docId] = true;
+
     var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/history_logs/" + docId;
-    
+
     var timestamp = 0;
     try {
       var parsedDate = new Date(log.time.replace(/-/g, "/"));
@@ -1378,7 +1382,7 @@ function syncHistoryLogsToFirebase(projectId, logs) {
     if (isNaN(timestamp) || timestamp === 0) {
       timestamp = new Date().getTime() - (i * 60 * 1000);
     }
-    
+
     var fields = {
       "time": { "stringValue": log.time },
       "threshold": { "doubleValue": log.threshold },
@@ -1388,18 +1392,102 @@ function syncHistoryLogsToFirebase(projectId, logs) {
       "status_text": { "stringValue": log.statusText },
       "timestamp": { "integerValue": String(timestamp) }
     };
-    
+
     var payload = {
       "fields": fields
     };
-    
+
     var options = {
       "method": "patch",
       "contentType": "application/json",
       "payload": JSON.stringify(payload),
       "muteHttpExceptions": true
     };
-    
+
     UrlFetchApp.fetch(url, options);
+  }
+
+  // 2. 獲取 Firebase 實時資料庫（Firestore）現存的所有歷史紀錄文檔，進行比對與刪除廢棄項目
+  try {
+    var listUrl = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/history_logs?pageSize=300";
+    var listOptions = {
+      "method": "get",
+      "muteHttpExceptions": true
+    };
+    var response = UrlFetchApp.fetch(listUrl, listOptions);
+    var resData = JSON.parse(response.getContentText());
+    var documents = resData.documents || [];
+    
+    for (var d = 0; d < documents.length; d++) {
+      var doc = documents[d];
+      var nameParts = doc.name.split("/");
+      var docId = nameParts[nameParts.length - 1];
+      
+      // 如果該文檔不在目前工作表的有效 ID 內，則將其從 Firebase 中刪除
+      if (!activeDocIds[docId]) {
+        var deleteUrl = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/history_logs/" + docId;
+        var deleteOptions = {
+          "method": "delete",
+          "muteHttpExceptions": true
+        };
+        UrlFetchApp.fetch(deleteUrl, deleteOptions);
+      }
+    }
+  } catch (err) {
+    Logger.log("自動清除 Firebase 已廢棄歷史紀錄失敗: " + err.message);
+  }
+}
+
+/**
+ * 監聽試算表異動 (即時同步至 Firebase)
+ */
+function handleSheetChange(e) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
+  var sheetName = sheet.getName();
+  
+  // 檢查是否為聯絡名冊 (第一個分頁) 或歷史紀錄分頁 (名字以 "紀錄_" 開頭)
+  var isContactsSheet = (sheetName === ss.getSheets()[0].getName());
+  var isLogsSheet = (sheetName.indexOf("紀錄_") === 0);
+  
+  if (isContactsSheet || isLogsSheet) {
+    try {
+      var config = loadConfigFromSheet();
+      var projectId = config.firebaseProjectId;
+      if (!projectId) return;
+      
+      if (isContactsSheet) {
+        var contacts = getContactsData();
+        syncContactsToFirebase(projectId, contacts);
+      }
+      
+      if (isLogsSheet) {
+        var logs = getHistoryLogs();
+        syncHistoryLogsToFirebase(projectId, logs);
+      }
+    } catch (err) {
+      Logger.log("自動同步至 Firebase 發生異常: " + err.message);
+    }
+  }
+}
+
+/**
+ * 建立或更新試算表異動觸發條件 (Installable onChange Trigger)
+ */
+function updateSheetChangeTrigger() {
+  var triggers = ScriptApp.getProjectTriggers();
+  var exists = false;
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'handleSheetChange') {
+      exists = true;
+      break;
+    }
+  }
+  if (!exists) {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    ScriptApp.newTrigger('handleSheetChange')
+      .forSpreadsheet(ss)
+      .onChange()
+      .create();
   }
 }

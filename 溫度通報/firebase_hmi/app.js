@@ -4,6 +4,11 @@ let db = null;
 let firebaseApp = null;
 let realtimeUnsubscribe = null;
 let contactsUnsubscribe = null;
+let chartUnsubscribe = null;
+let trendChart = null;
+let allLogsForChart = [];
+let chartMode = "realtime";
+let historyChartLogs = [];
 
 // 頁面解鎖狀態
 let isSettingsUnlocked = false;
@@ -24,6 +29,7 @@ let currentHmiSettings = {
 document.addEventListener("DOMContentLoaded", () => {
     initTabNavigation();
     initSettingsHourOptions();
+    initChartDateInputs();
     loadAndInitFirebase();
 });
 
@@ -135,6 +141,7 @@ function initFirebase(config) {
         
         // 啟動首頁實時資料監聽
         listenRealtimeData();
+        listenHistoryLogsForChart();
     } catch (e) {
         console.error("Firebase 初始化失敗:", e);
         showToast("連線失敗: " + e.message, "error");
@@ -167,6 +174,13 @@ function clearFirebaseConfig() {
         // 註銷監聽器
         if (realtimeUnsubscribe) realtimeUnsubscribe();
         if (contactsUnsubscribe) contactsUnsubscribe();
+        if (chartUnsubscribe) chartUnsubscribe();
+        
+        if (trendChart) {
+            trendChart.destroy();
+            trendChart = null;
+        }
+        allLogsForChart = [];
         
         // 斷開應用
         if (firebaseApp) {
@@ -368,6 +382,11 @@ function updateDashboardUI(data) {
             hbIconBox.className = "hb-icon-container offline";
             showToast("警告：監控系統已完全離線，請立即檢查！", "error");
         }
+    }
+    
+    // 5. 更新折線圖
+    if (allLogsForChart.length > 0) {
+        updateTrendChart(allLogsForChart);
     }
 }
 
@@ -856,3 +875,321 @@ function escapeHtml(unsafe) {
          .replace(/"/g, "&quot;")
          .replace(/'/g, "&#039;");
 }
+
+// ==================== 10. 溫度變化趨勢圖繪製邏輯 ==================== */
+function listenHistoryLogsForChart() {
+    if (!db) return;
+    
+    // 註銷舊監聽
+    if (chartUnsubscribe) chartUnsubscribe();
+    
+    // 監聽最近 150 筆歷史通報紀錄 (約 25 小時的監控點)
+    chartUnsubscribe = db.collection("history_logs")
+      .orderBy("timestamp", "desc")
+      .limit(150)
+      .onSnapshot((snapshot) => {
+          allLogsForChart = [];
+          snapshot.forEach(doc => {
+              allLogsForChart.push(doc.data());
+          });
+          
+          // 排序改為時間正序 (過去 -> 現在)
+          allLogsForChart.reverse();
+          
+          // 繪製或更新圖表
+          updateTrendChart(allLogsForChart);
+      }, (error) => {
+          console.error("監聽歷史紀錄圖表失敗:", error);
+      });
+}
+
+function updateTrendChart(logs) {
+    const ctx = document.getElementById('tempTrendChart');
+    if (!ctx) return;
+    
+    // 降採樣邏輯：如果數據大於 200 點，則進行等距降採樣，確保瀏覽器繪製流暢
+    let displayLogs = logs;
+    if (logs.length > 200) {
+        const step = Math.ceil(logs.length / 200);
+        displayLogs = logs.filter((_, idx) => idx % step === 0);
+    }
+    
+    // 篩選出有效溫度數據
+    const chartData = displayLogs.map(log => parseFloat(log.temp)).filter(temp => !isNaN(temp) && temp !== -99);
+    const validLogs = displayLogs.filter(log => !isNaN(parseFloat(log.temp)) && parseFloat(log.temp) !== -99);
+    const labels = validLogs.map(log => {
+        // 如果是歷史模式且總數據量大，X軸標記加上日期 (MM-DD HH:MM)
+        if (chartMode === "history" && logs.length > 400) {
+            const t = log.obs_time || log.time;
+            if (t && t.length >= 16) {
+                return t.substring(5, 16);
+            }
+            return t;
+        }
+        return getShortTime(log.obs_time || log.time);
+    });
+    
+    // 取得當前設定的警報閾值，繪製輔助線
+    const threshold = parseFloat(currentHmiSettings.threshold) || 28.0;
+    const thresholdLine = Array(labels.length).fill(threshold);
+    
+    if (trendChart) {
+        // 更新數據
+        trendChart.data.labels = labels;
+        trendChart.data.datasets[0].data = chartData;
+        trendChart.data.datasets[1].data = thresholdLine;
+        trendChart.data.datasets[1].label = `警報閾值 (${threshold.toFixed(1)}°C)`;
+        trendChart.update('none');
+    } else {
+        // 首次初始化圖表
+        const chartCtx = ctx.getContext('2d');
+        trendChart = new Chart(chartCtx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '觀測溫度 (°C)',
+                        data: chartData,
+                        borderColor: '#22d3ee', // Cyan 400
+                        borderWidth: 2,
+                        pointBackgroundColor: '#22d3ee',
+                        pointBorderColor: 'rgba(255,255,255,0.8)',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: '#22d3ee',
+                        pointRadius: labels.length > 50 ? 0 : 3,
+                        pointHoverRadius: 5,
+                        fill: true,
+                        backgroundColor: createChartGradient(chartCtx),
+                        tension: 0.3
+                    },
+                    {
+                        label: `警報閾值 (${threshold.toFixed(1)}°C)`,
+                        data: thresholdLine,
+                        borderColor: '#ef4444', // Red 500
+                        borderWidth: 1.5,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#f3f4f6',
+                            font: {
+                                family: "'Outfit', 'Noto Sans TC', sans-serif",
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(17, 25, 40, 0.95)',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                        titleColor: '#f3f4f6',
+                        bodyColor: '#22d3ee',
+                        titleFont: {
+                            family: "'Outfit', 'Noto Sans TC', sans-serif",
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            family: "'Outfit', 'Noto Sans TC', sans-serif"
+                        },
+                        padding: 10,
+                        displayColors: true
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.05)',
+                            drawBorder: false
+                          },
+                          ticks: {
+                              color: '#9ca3af',
+                              font: {
+                                  family: "'Outfit', 'Noto Sans TC', sans-serif",
+                                  size: 10
+                              },
+                              maxTicksLimit: window.innerWidth < 600 ? 6 : 12
+                          }
+                      },
+                      y: {
+                          grid: {
+                              color: 'rgba(255, 255, 255, 0.05)',
+                              drawBorder: false
+                          },
+                          ticks: {
+                              color: '#9ca3af',
+                              font: {
+                                  family: "'Outfit', 'Noto Sans TC', sans-serif",
+                                  size: 11
+                              }
+                          },
+                          suggestedMin: 20,
+                          suggestedMax: 35
+                      }
+                  }
+              }
+          });
+      }
+  }
+
+  function createChartGradient(ctx) {
+      const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+      gradient.addColorStop(0, 'rgba(34, 211, 238, 0.25)');
+      gradient.addColorStop(1, 'rgba(34, 211, 238, 0.0)');
+      return gradient;
+  }
+
+  function getShortTime(obsTimeStr) {
+      if (!obsTimeStr) return "";
+      const parts = obsTimeStr.split(" ");
+      if (parts.length < 2) return obsTimeStr;
+      const timeParts = parts[1].split(":");
+      if (timeParts.length < 2) return parts[1];
+      return `${timeParts[0]}:${timeParts[1]}`;
+  }
+
+  // 初始化日期選擇器 (預設 7 天前到今天)
+  function initChartDateInputs() {
+      const startInput = document.getElementById("chartStartDate");
+      const endInput = document.getElementById("chartEndDate");
+      if (!startInput || !endInput) return;
+      
+      const today = new Date();
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(today.getDate() - 7);
+      
+      endInput.value = formatDateToYYYYMMDD(today);
+      startInput.value = formatDateToYYYYMMDD(sevenDaysAgo);
+  }
+
+  function formatDateToYYYYMMDD(date) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // 切換圖表模式
+  function setChartMode(mode) {
+      if (chartMode === mode) return;
+      chartMode = mode;
+      
+      const btnRealtime = document.getElementById("btnChartRealtime");
+      const btnHistory = document.getElementById("btnChartHistory");
+      const filterRow = document.getElementById("chartFilterRow");
+      const title = document.getElementById("chartTitle");
+      
+      if (mode === "realtime") {
+          btnRealtime.classList.add("active");
+          btnHistory.classList.remove("active");
+          filterRow.style.display = "none";
+          title.innerText = "📈 即時24小時溫度趨勢";
+          
+          // 重新開啟即時上報監聽
+          listenHistoryLogsForChart();
+      } else {
+          btnRealtime.classList.remove("active");
+          btnHistory.classList.add("active");
+          filterRow.style.display = "flex";
+          title.innerText = "📈 歷史區間溫度趨勢";
+          
+          // 關閉即時監聽，不讓即時數據打擾查詢
+          if (chartUnsubscribe) {
+              chartUnsubscribe();
+              chartUnsubscribe = null;
+          }
+          
+          // 若有已有查詢結果直接呈現，否則預設執行查詢
+          if (historyChartLogs.length > 0) {
+              updateTrendChart(historyChartLogs);
+          } else {
+              queryHistoricalChartData();
+          }
+      }
+  }
+
+  // 查詢歷史區間數據 (最大 90 天以防止讀取量暴增)
+  function queryHistoricalChartData() {
+      if (!db) {
+          showToast("Firebase 未連線，無法查詢！", "error");
+          return;
+      }
+      
+      const startInput = document.getElementById("chartStartDate");
+      const endInput = document.getElementById("chartEndDate");
+      const loader = document.getElementById("chartLoader");
+      const btnQuery = document.getElementById("btnChartQuery");
+      
+      if (!startInput.value || !endInput.value) {
+          showToast("請選擇開始與結束日期！", "error");
+          return;
+      }
+      
+      const startDate = new Date(startInput.value);
+      const endDate = new Date(endInput.value);
+      
+      if (startDate > endDate) {
+          showToast("開始日期不能晚於結束日期！", "error");
+          return;
+      }
+      
+      const diffTime = Math.abs(endDate - startDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (diffDays > 90) {
+          showToast("查詢區間最大限制為 90 天，以維護系統效能！", "warning");
+          return;
+      }
+      
+      startDate.setHours(0, 0, 0, 0);
+      const startMs = startDate.getTime();
+      
+      endDate.setHours(23, 59, 59, 999);
+      const endMs = endDate.getTime();
+      
+      loader.style.display = "flex";
+      btnQuery.disabled = true;
+      
+      db.collection("history_logs")
+        .where("timestamp", ">=", startMs)
+        .where("timestamp", "<=", endMs)
+        .orderBy("timestamp", "asc")
+        .get()
+        .then((querySnapshot) => {
+            historyChartLogs = [];
+            querySnapshot.forEach(doc => {
+                historyChartLogs.push(doc.data());
+            });
+            
+            if (historyChartLogs.length === 0) {
+                showToast("該時間區段內無觀測記錄！", "info");
+                if (trendChart) {
+                    trendChart.destroy();
+                    trendChart = null;
+                }
+            } else {
+                updateTrendChart(historyChartLogs);
+                showToast(`查詢成功，載入 ${historyChartLogs.length} 筆觀測點！`, "success");
+            }
+        })
+        .catch((error) => {
+            console.error("歷史資料庫查詢失敗:", error);
+            showToast("查詢失敗: " + error.message, "error");
+        })
+        .finally(() => {
+            loader.style.display = "none";
+            btnQuery.disabled = false;
+        });
+  }

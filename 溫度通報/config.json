@@ -1,4 +1,5 @@
 {
+  "frequency": 60,
   "tid": "1000704",
   "town_name": "彰化縣線西鄉",
   "cwa_api_key": "CWA-718BCC42-A79F-4138-99BC-81D9C317BE28",
@@ -6,7 +7,7 @@
   "temperature_threshold": 28.0,
   "mode": "both",
   "google_sheet_csv_url": "",
-  "web_app_url": "",
+  "web_app_url": "https://script.google.com/macros/s/AKfycbygJPZBmI2CUj4VfRUwN0gx1phqkbbdrYO5E-10jRWxOjoDCLyHbs0crFtfdarhEnwA/exec",
   "line": {
     "enabled": true,
     "channel_access_token": "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=",
