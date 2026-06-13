@@ -45,7 +45,8 @@ function createDefaultConfigSheet(ss) {
     ["監測結束時間 (點)", 24, "每日結束監控的整點時間 (0-23，可跨夜如開始22、結束6)"],
     ["監測頻率 (分鐘)", 60, "監測執行間隔分鐘數，可設為 10, 15, 30, 60 等"],
     ["管理網頁密碼", "admin888", "進入 HMI 設定管理及聯絡人頁面所需的驗證密碼，預設為 admin888"],
-    ["Firebase 專案 ID", "hongsheng-temp-523", "用於實時同步網頁儀表板的 Firebase Project ID (例如: t-alarm-12345)"]
+    ["Firebase 專案 ID", "hongsheng-temp-523", "用於實時同步網頁儀表板的 Firebase Project ID (例如: t-alarm-12345)"],
+    ["Teams Webhook URL", "", "傳送高溫警報與溫度回落通知的 MS Teams Webhook 連結 (選填)"]
   ];
   
   // 寫入標頭與資料
@@ -127,6 +128,8 @@ function loadConfigFromSheet() {
       config.password = val;
     } else if (key_lower.includes("firebase") || key.includes("專案") || key_lower.includes("project")) {
       config.firebaseProjectId = val;
+    } else if (key_lower.includes("teams") || key.includes("webhook")) {
+      config.teamsWebhookUrl = val;
     }
   }
   
@@ -550,6 +553,7 @@ function checkWeatherAndNotify() {
     Logger.log("觸發通知：「" + notifySubject + "」");
     var lineSent = false;
     var emailSent = false;
+    var teamsSent = false;
     
     var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
     var userIds = [];
@@ -609,7 +613,37 @@ function checkWeatherAndNotify() {
       }
     }
     
-    if (lineSent || emailSent) {
+    // 發送 Teams Webhook
+    var teamsWebhookUrl = config.teamsWebhookUrl;
+    if (teamsWebhookUrl && teamsWebhookUrl.indexOf("http") === 0) {
+      try {
+        var payload = {
+          "@type": "MessageCard",
+          "@context": "http://schema.org/extensions",
+          "themeColor": isHot ? "D9534F" : "5CB85C",
+          "summary": notifySubject,
+          "title": notifySubject,
+          "text": notifyBody.replace(/\n/g, "\n\n")
+        };
+        var options = {
+          "method": "post",
+          "contentType": "application/json",
+          "payload": JSON.stringify(payload),
+          "muteHttpExceptions": true
+        };
+        var response = UrlFetchApp.fetch(teamsWebhookUrl, options);
+        if (response.getResponseCode() === 200 || response.getResponseCode() === 202) {
+          teamsSent = true;
+          Logger.log("Teams Webhook 發送成功！");
+        } else {
+          Logger.log("Teams Webhook 發送失敗，狀態碼: " + response.getResponseCode() + ", 回傳: " + response.getContentText());
+        }
+      } catch (e) {
+        Logger.log("Teams Webhook 發送異常: " + e.message);
+      }
+    }
+    
+    if (lineSent || emailSent || teamsSent) {
       properties.setProperty("LAST_STATE", isHot ? "HOT" : "COOL");
     }
   }
@@ -619,6 +653,7 @@ function checkWeatherAndNotify() {
     var statusArr = [];
     if (lineSent) statusArr.push("LINE");
     if (emailSent) statusArr.push("Email");
+    if (teamsSent) statusArr.push("Teams");
     statusText = statusArr.length > 0 ? (statusArr.join(" & ") + " 已發送") : "發送失敗";
   } else {
     statusText = "未發送 (重複或正常)";

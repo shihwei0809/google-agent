@@ -649,6 +649,47 @@ def send_email_notifications(email_config, subject, body, recipients):
         print(f"【錯誤】發送電子郵件時發生異常: {e}", file=sys.stderr)
         return False
 
+def send_teams_notifications(teams_config, subject, message):
+    """發送 Microsoft Teams Webhook 通知"""
+    webhook_url = teams_config.get("webhook_url")
+    if not webhook_url or "YOUR_TEAMS" in webhook_url:
+        print("【警告】未設定有效的 Teams Webhook URL，跳過 Teams 發送。")
+        return False
+        
+    payload = {
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        "themeColor": "D9534F" if "警報" in subject else "5CB85C",
+        "summary": subject,
+        "title": subject,
+        "text": message.replace("\n", "\n\n")
+    }
+    
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        webhook_url, 
+        data=data, 
+        headers={"Content-Type": "application/json"}, 
+        method="POST"
+    )
+    
+    try:
+        with urllib.request.urlopen(req, timeout=10) as response:
+            status_code = response.getcode()
+            if status_code in [200, 202]:
+                print("Teams 訊息推播成功！")
+                return True
+            else:
+                print(f"【Teams API 錯誤】狀態碼 {status_code}", file=sys.stderr)
+                return False
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8")
+        print(f"【Teams API 錯誤】狀態碼 {e.code}: {err_body}", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"【錯誤】發送 Teams 時發生異常: {e}", file=sys.stderr)
+        return False
+
 def main():
     force_run = "--force" in sys.argv
     
@@ -851,6 +892,7 @@ def main():
     # 5. 開始發送
     line_sent = False
     email_sent = False
+    teams_sent = False
     
     # 發送 LINE
     if config.get("line", {}).get("enabled", True) and final_line_ids:
@@ -860,14 +902,19 @@ def main():
     if config.get("email", {}).get("enabled", True) and final_emails:
         email_sent = send_email_notifications(config["email"], notify_subject, notify_body, final_emails)
         
+    # 發送 Teams
+    if config.get("teams", {}).get("enabled", True) and config.get("teams", {}).get("webhook_url"):
+        teams_sent = send_teams_notifications(config["teams"], notify_subject, notify_body)
+        
     # 若成功發送任一通知，更新狀態防止重複發送
-    if line_sent or email_sent:
+    if line_sent or email_sent or teams_sent:
         new_state = "HOT" if is_hot else "COOL"
         save_state(new_state)
         print("狀態已更新，記錄前次狀態。")
         status_text_list = []
         if line_sent: status_text_list.append("LINE")
         if email_sent: status_text_list.append("Email")
+        if teams_sent: status_text_list.append("Teams")
         status_str = " & ".join(status_text_list) + " 已發送" if status_text_list else "發送失敗"
         alert_str = "高溫超標警報" if is_hot else "溫度回落正常"
         print("正在向 Firebase 同步更新後的警報狀態...")

@@ -26,5 +26,9 @@
       "shihwei0809@gmail.com"
     ],
     "from_email": "shihwei0809@gmail.com"
+  },
+  "teams": {
+    "enabled": true,
+    "webhook_url": "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/18fc24e04a0c4a2b97c100af08b2bce1/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=e8AjOzwQItiNynIkjq7MK5gN7KbvP1MSzr2u-tP_-8w"
   }
 }
