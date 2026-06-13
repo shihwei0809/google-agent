@@ -945,6 +945,34 @@ def create_pptx(pptx_path):
         p.font.color.rgb = text_white
         p.space_after = Pt(10)
 
+    # Slide 13: v4.8 Updates
+    slide = prs.slides.add_slide(blank_layout)
+    add_header(slide, "🆕 v4.8 版本更新摘要")
+    
+    add_card(slide, Inches(0.6), Inches(1.6), Inches(12.0), Inches(5.2))
+    upd_box3 = slide.shapes.add_textbox(Inches(0.8), Inches(1.8), Inches(11.6), Inches(4.8))
+    tf_upd3 = upd_box3.text_frame
+    tf_upd3.word_wrap = True
+    p_upd_t3 = tf_upd3.paragraphs[0]
+    p_upd_t3.text = "🆕 系統 v4.8 新增與修改亮點"
+    p_upd_t3.font.name = 'Microsoft JhengHei'
+    p_upd_t3.font.size = Pt(20)
+    p_upd_t3.font.bold = True
+    p_upd_t3.font.color.rgb = accent_cyan
+    p_upd_t3.space_after = Pt(15)
+    bullets_upd3 = [
+        "新增 Microsoft Teams Webhook 通報：本機 Python 程式與雲端 GAS 備援程式皆已支援發送高溫與回落警報至 Teams 頻道。",
+        "試算表設定檔動態載入：雲端 GAS 支援從「系統設定」工作表動態讀取「Teams Webhook URL」，免修改程式即可更新網址。",
+        "MessageCard 卡片美化：傳送至 Teams 頻道的訊息採用結構化 MessageCard 設計，高溫警報以紅色警示，正常回落以綠色標示。"
+    ]
+    for b in bullets_upd3:
+        p = tf_upd3.add_paragraph()
+        p.text = "• " + b
+        p.font.name = 'Microsoft JhengHei'
+        p.font.size = Pt(14)
+        p.font.color.rgb = text_white
+        p.space_after = Pt(10)
+
     prs.save(pptx_path)
     print(f"PPTX generated successfully at {pptx_path}")
 
@@ -967,5 +995,5 @@ if __name__ == "__main__":
     # 3. Generate PPTX
     create_pptx(pptx_out)
     
-    print("All formats (docx, pdf, pptx) v4.7 generated successfully!")
+    print("All formats (docx, pdf, pptx) v4.8 generated successfully!")
 
