@@ -9,7 +9,8 @@ import sys
 import subprocess
 
 # Google Apps Script 門面/後端程式碼 (Code.gs)
-GAS_CODE = r"""/**
+GAS_CODE = r"""
+/**
  * 當試算表開啟時，自動建立頂端自訂選單，方便人員點選測試與重置
  */
 function onOpen() {
@@ -56,7 +57,8 @@ function createDefaultConfigSheet(ss) {
     ["監測結束時間 (點)", 24, "每日結束監控的整點時間 (0-23，可跨夜如開始22、結束6)"],
     ["監測頻率 (分鐘)", 60, "監測執行間隔分鐘數，可設為 10, 15, 30, 60 等"],
     ["管理網頁密碼", "admin888", "進入 HMI 設定管理及聯絡人頁面所需的驗證密碼，預設為 admin888"],
-    ["Firebase 專案 ID", "hongsheng-temp-523", "用於實時同步網頁儀表板的 Firebase Project ID (例如: t-alarm-12345)"]
+    ["Firebase 專案 ID", "hongsheng-temp-523", "用於實時同步網頁儀表板的 Firebase Project ID (例如: t-alarm-12345)"],
+    ["Teams Webhook URL", "", "傳送高溫警報與溫度回落通知的 MS Teams Webhook 連結 (選填)"]
   ];
   
   // 寫入標頭與資料
@@ -138,6 +140,8 @@ function loadConfigFromSheet() {
       config.password = val;
     } else if (key_lower.includes("firebase") || key.includes("專案") || key_lower.includes("project")) {
       config.firebaseProjectId = val;
+    } else if (key_lower.includes("teams") || key.includes("webhook")) {
+      config.teamsWebhookUrl = val;
     }
   }
   
@@ -530,7 +534,7 @@ function checkWeatherAndNotify() {
       alertStateText = "高溫超標警報";
       notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定閾值！";
       
-      notifyBody = "【" + sheet.getName() + " 環境高溫警報】\n";
+      notifyBody = "【環境高溫警報】\n";
       notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定閾值 " + threshold + "°C)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
@@ -546,7 +550,7 @@ function checkWeatherAndNotify() {
       alertStateText = "溫度回落正常";
       notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定閾值。";
       
-      notifyBody = "【" + sheet.getName() + " 環境溫度回落通知】\n";
+      notifyBody = "【環境溫度回落通知】\n";
       notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定閾值 " + threshold + "°C 以下)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
@@ -561,6 +565,7 @@ function checkWeatherAndNotify() {
     Logger.log("觸發通知：「" + notifySubject + "」");
     var lineSent = false;
     var emailSent = false;
+    var teamsSent = false;
     
     var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
     var userIds = [];
@@ -620,7 +625,37 @@ function checkWeatherAndNotify() {
       }
     }
     
-    if (lineSent || emailSent) {
+    // 發送 Teams Webhook
+    var teamsWebhookUrl = config.teamsWebhookUrl;
+    if (teamsWebhookUrl && teamsWebhookUrl.indexOf("http") === 0) {
+      try {
+        var payload = {
+          "@type": "MessageCard",
+          "@context": "http://schema.org/extensions",
+          "themeColor": isHot ? "D9534F" : "5CB85C",
+          "summary": notifySubject,
+          "title": notifySubject,
+          "text": notifyBody.replace(/\n/g, "\n\n")
+        };
+        var options = {
+          "method": "post",
+          "contentType": "application/json",
+          "payload": JSON.stringify(payload),
+          "muteHttpExceptions": true
+        };
+        var response = UrlFetchApp.fetch(teamsWebhookUrl, options);
+        if (response.getResponseCode() === 200 || response.getResponseCode() === 202) {
+          teamsSent = true;
+          Logger.log("Teams Webhook 發送成功！");
+        } else {
+          Logger.log("Teams Webhook 發送失敗，狀態碼: " + response.getResponseCode() + ", 回傳: " + response.getContentText());
+        }
+      } catch (e) {
+        Logger.log("Teams Webhook 發送異常: " + e.message);
+      }
+    }
+    
+    if (lineSent || emailSent || teamsSent) {
       properties.setProperty("LAST_STATE", isHot ? "HOT" : "COOL");
     }
   }
@@ -630,6 +665,7 @@ function checkWeatherAndNotify() {
     var statusArr = [];
     if (lineSent) statusArr.push("LINE");
     if (emailSent) statusArr.push("Email");
+    if (teamsSent) statusArr.push("Teams");
     statusText = statusArr.length > 0 ? (statusArr.join(" & ") + " 已發送") : "發送失敗";
   } else {
     statusText = "未發送 (重複或正常)";
@@ -662,6 +698,51 @@ function checkWeatherAndNotify() {
   } catch (firebaseErr) {
     Logger.log("雲端備援同步至 Firebase 失敗: " + firebaseErr.message);
   }
+}
+
+/**
+ * 將 10 分鐘即時觀測數據寫入當月的 24 小時記錄分頁
+ */
+function logRealtimeReadingToSheet(temp, obsTime, statusText) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var today = new Date();
+  
+  // 格式化為西元年份與月份 (例如 "2026-06")
+  var formattedMonth = Utilities.formatDate(today, "GMT+8", "yyyy-MM");
+  var sheetName = "24小時紀錄_" + formattedMonth;
+  
+  var sheet = ss.getSheetByName(sheetName);
+  
+  // 如果分頁不存在，自動建立並套用深綠色排版格式
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    var headers = [["記錄時間", "環境溫度 (°C)", "氣象觀測時間", "系統狀態"]];
+    sheet.getRange(1, 1, 1, 4).setValues(headers);
+    
+    // 美化表頭 (深綠底色 #2E7D32, 白字, 粗體, 置中)
+    sheet.getRange(1, 1, 1, 4)
+         .setBackground("#2E7D32")
+         .setFontColor("#FFFFFF")
+         .setFontWeight("bold")
+         .setHorizontalAlignment("center");
+         
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(1, 170); // 記錄時間
+    sheet.setColumnWidth(2, 140); // 環境溫度
+    sheet.setColumnWidth(3, 170); // 氣象觀測時間
+    sheet.setColumnWidth(4, 180); // 系統狀態
+  }
+  
+  // 寫入資料列
+  var nowStr = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+  var rowData = [[nowStr, parseFloat(temp), obsTime, statusText]];
+  sheet.appendRow(rowData[0]);
+  
+  // 對齊與字型設定
+  var lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow, 1, 1, 4).setFontName("Microsoft JhengHei");
+  sheet.getRange(lastRow, 1, 1, 3).setHorizontalAlignment("center");
+  sheet.getRange(lastRow, 4, 1, 1).setHorizontalAlignment("left");
 }
 
 /**
@@ -856,7 +937,7 @@ function testNotifyForce(password) {
   var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
   
   var notifySubject = "【測試通報】發送測試：環境溫度為 " + currentTemp + "°C";
-  var notifyBody = "【" + sheet.getName() + " 測試通報】\n";
+  var notifyBody = "【測試通報】\n";
   notifyBody += "當前環境溫度：" + currentTemp + "°C (設定閾值 " + threshold + "°C)\n";
   notifyBody += "氣象觀測時間：" + displayTime + "\n";
   notifyBody += "測試觸發時間：" + formattedTime + "\n\n";
@@ -1036,15 +1117,23 @@ function doPost(e) {
           var senderType = "本機執行";
           if (syncType === "heartbeat") {
             senderType += " (心跳)";
+            // 10 分鐘心跳紀錄分流至「24小時記錄」分頁
+            logRealtimeReadingToSheet(
+              postData.current_temp,
+              postData.obs_time || "",
+              postData.status_text || "正常"
+            );
+          } else {
+            // 警報狀態變更、測試通報才寫入「通報紀錄」分頁
+            logNotificationToSheet(
+              postData.threshold || 28.0, 
+              postData.current_temp, 
+              postData.obs_time || "", 
+              postData.alert_state || "", 
+              postData.status_text || "", 
+              senderType
+            );
           }
-          logNotificationToSheet(
-            postData.threshold || 28.0, 
-            postData.current_temp, 
-            postData.obs_time || "", 
-            postData.alert_state || "", 
-            postData.status_text || "", 
-            senderType
-          );
         } catch (logErr) {
           Logger.log("本機心跳寫入試算表失敗: " + logErr.message);
         }
@@ -1538,7 +1627,8 @@ function updateSheetChangeTrigger() {
 """
 
 # Google Apps Script 前端網頁程式碼 (Index.html)
-HTML_CODE = r"""<!DOCTYPE html>
+HTML_CODE = r"""
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">

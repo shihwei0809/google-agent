@@ -925,7 +925,7 @@ function testNotifyForce(password) {
   var formattedTime = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
   
   var notifySubject = "【測試通報】發送測試：環境溫度為 " + currentTemp + "°C";
-  var notifyBody = "【" + sheet.getName() + " 測試通報】\n";
+  var notifyBody = "【測試通報】\n";
   notifyBody += "當前環境溫度：" + currentTemp + "°C (設定閾值 " + threshold + "°C)\n";
   notifyBody += "氣象觀測時間：" + displayTime + "\n";
   notifyBody += "測試觸發時間：" + formattedTime + "\n\n";
