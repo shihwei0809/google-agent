@@ -696,9 +696,10 @@ function logRealtimeReadingToSheet(temp, obsTime, statusText) {
   var today = new Date();
   
   // 取得中文月份名稱 (例如 "六月")
+  var formattedYear = Utilities.formatDate(today, "GMT+8", "yyyy");
   var monthsCn = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
   var monthCn = monthsCn[today.getMonth()];
-  var sheetName = monthCn + "-24小時記錄";
+  var sheetName = formattedYear + "年" + monthCn + "-24小時記錄";
   
   var sheet = ss.getSheetByName(sheetName);
   
