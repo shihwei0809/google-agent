@@ -733,16 +733,45 @@ function logRealtimeReadingToSheet(temp, obsTime, statusText) {
     sheet.setColumnWidth(4, 180); // 系統狀態
   }
   
-  // 寫入資料列
-  var nowStr = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  var rowData = [[nowStr, parseFloat(temp), obsTime, statusText]];
-  sheet.appendRow(rowData[0]);
-  
-  // 對齊與字型設定
+  // 檢查是否已存在相同的氣象觀測時間
   var lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow, 1, 1, 4).setFontName("Microsoft JhengHei");
-  sheet.getRange(lastRow, 1, 1, 3).setHorizontalAlignment("center");
-  sheet.getRange(lastRow, 4, 1, 1).setHorizontalAlignment("left");
+  var isDuplicate = false;
+  
+  if (lastRow > 1) {
+    var obsTimes = sheet.getRange(2, 3, lastRow - 1, 1).getValues();
+    var targetObsTime = String(obsTime || "").trim();
+    for (var i = 0; i < obsTimes.length; i++) {
+      var existingObsTime = "";
+      if (obsTimes[i][0] instanceof Date) {
+        existingObsTime = Utilities.formatDate(obsTimes[i][0], "GMT+8", "yyyy-MM-dd HH:mm:ss");
+      } else {
+        existingObsTime = String(obsTimes[i][0] || "").trim();
+      }
+      
+      if (existingObsTime && existingObsTime === targetObsTime) {
+        var rowNum = i + 2;
+        var nowStr = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+        sheet.getRange(rowNum, 1).setValue(nowStr); // 更新記錄時間
+        sheet.getRange(rowNum, 2).setValue(parseFloat(temp)); // 更新環境溫度
+        sheet.getRange(rowNum, 4).setValue(statusText); // 更新系統狀態
+        isDuplicate = true;
+        break;
+      }
+    }
+  }
+  
+  if (!isDuplicate) {
+    // 寫入資料列
+    var nowStr = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+    var rowData = [[nowStr, parseFloat(temp), obsTime, statusText]];
+    sheet.appendRow(rowData[0]);
+    
+    // 對齊與字型設定
+    var newLastRow = sheet.getLastRow();
+    sheet.getRange(newLastRow, 1, 1, 4).setFontName("Microsoft JhengHei");
+    sheet.getRange(newLastRow, 1, 1, 3).setHorizontalAlignment("center");
+    sheet.getRange(newLastRow, 4, 1, 1).setHorizontalAlignment("left");
+  }
 }
 
 /**
