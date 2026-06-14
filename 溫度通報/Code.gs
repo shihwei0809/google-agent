@@ -522,7 +522,7 @@ function checkWeatherAndNotify() {
       alertStateText = "高溫超標警報";
       notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定閾值！";
       
-      notifyBody = "【" + sheet.getName() + " 環境高溫警報】\n";
+      notifyBody = "【環境高溫警報】\n";
       notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定閾值 " + threshold + "°C)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
@@ -538,7 +538,7 @@ function checkWeatherAndNotify() {
       alertStateText = "溫度回落正常";
       notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定閾值。";
       
-      notifyBody = "【" + sheet.getName() + " 環境溫度回落通知】\n";
+      notifyBody = "【環境溫度回落通知】\n";
       notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定閾值 " + threshold + "°C 以下)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
@@ -695,11 +695,9 @@ function logRealtimeReadingToSheet(temp, obsTime, statusText) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var today = new Date();
   
-  // 取得中文月份名稱 (例如 "六月")
-  var formattedYear = Utilities.formatDate(today, "GMT+8", "yyyy");
-  var monthsCn = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
-  var monthCn = monthsCn[today.getMonth()];
-  var sheetName = formattedYear + "年" + monthCn + "-24小時記錄";
+  // 格式化為西元年份與月份 (例如 "2026-06")
+  var formattedMonth = Utilities.formatDate(today, "GMT+8", "yyyy-MM");
+  var sheetName = "24小時紀錄_" + formattedMonth;
   
   var sheet = ss.getSheetByName(sheetName);
   
