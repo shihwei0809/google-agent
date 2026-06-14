@@ -737,10 +737,13 @@ def main():
             alert_state="正常 (未超標)" if current_temp <= threshold else "高溫超標警報",
             status_text="即時觀測更新"
         )
-        # 同時發送即時心跳給 GAS，更新 GAS 介面的在線時間（不寫入試算表歷史，以防洗版）
+        # 同時發送即時心跳與觀測數據給 GAS，更新 GAS 在線時間並由 GAS 寫入 24 小時紀錄
         web_app_url = config.get("web_app_url", "")
         if web_app_url:
-            send_heartbeat(web_app_url, sync_type="heartbeat")
+            send_heartbeat(web_app_url, sync_type="heartbeat",
+                current_temp=current_temp, threshold=threshold,
+                obs_time=display_time, alert_state="正常 (未超標)" if current_temp <= threshold else "高溫超標警報",
+                status_text="即時觀測更新")
     except Exception as e:
         print(f"【警告】更新即時心跳失敗: {e}", file=sys.stderr)
         
