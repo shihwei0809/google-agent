@@ -973,6 +973,33 @@ def create_pptx(pptx_path):
         p.font.color.rgb = text_white
         p.space_after = Pt(10)
 
+    # Slide 14: v4.9 Updates
+    slide = prs.slides.add_slide(blank_layout)
+    add_header(slide, "🆕 v4.9 版本更新摘要")
+    
+    add_card(slide, Inches(0.6), Inches(1.6), Inches(12.0), Inches(5.2))
+    upd_box4 = slide.shapes.add_textbox(Inches(0.8), Inches(1.8), Inches(11.6), Inches(4.8))
+    tf_upd4 = upd_box4.text_frame
+    tf_upd4.word_wrap = True
+    p_upd_t4 = tf_upd4.paragraphs[0]
+    p_upd_t4.text = "🆕 系統 v4.9 新增與修改亮點"
+    p_upd_t4.font.name = 'Microsoft JhengHei'
+    p_upd_t4.font.size = Pt(20)
+    p_upd_t4.font.bold = True
+    p_upd_t4.font.color.rgb = accent_cyan
+    p_upd_t4.space_after = Pt(15)
+    bullets_upd4 = [
+        "獨立的月度 24 小時記錄分頁：雲端 Apps Script 重構日誌寫入路由，日常每 10 分鐘心跳與溫度觀測，自動分流寫入「X月-24小時記錄」分頁，避免主通報紀錄分頁被洗版。",
+        "專屬綠色系排版風格：針對「24小時記錄」分頁套用專屬的深綠色主題表頭（#2E7D32）與排版格式，利於視覺區分，畫面更乾淨整潔。"
+    ]
+    for b in bullets_upd4:
+        p = tf_upd4.add_paragraph()
+        p.text = "• " + b
+        p.font.name = 'Microsoft JhengHei'
+        p.font.size = Pt(14)
+        p.font.color.rgb = text_white
+        p.space_after = Pt(10)
+
     prs.save(pptx_path)
     print(f"PPTX generated successfully at {pptx_path}")
 
@@ -995,5 +1022,5 @@ if __name__ == "__main__":
     # 3. Generate PPTX
     create_pptx(pptx_out)
     
-    print("All formats (docx, pdf, pptx) v4.8 generated successfully!")
+    print("All formats (docx, pdf, pptx) v4.9 generated successfully!")
 

@@ -689,6 +689,52 @@ function checkWeatherAndNotify() {
 }
 
 /**
+ * 將 10 分鐘即時觀測數據寫入當月的 24 小時記錄分頁
+ */
+function logRealtimeReadingToSheet(temp, obsTime, statusText) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var today = new Date();
+  
+  // 取得中文月份名稱 (例如 "六月")
+  var monthsCn = ["一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月"];
+  var monthCn = monthsCn[today.getMonth()];
+  var sheetName = monthCn + "-24小時記錄";
+  
+  var sheet = ss.getSheetByName(sheetName);
+  
+  // 如果分頁不存在，自動建立並套用深綠色排版格式
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    var headers = [["記錄時間", "環境溫度 (°C)", "氣象觀測時間", "系統狀態"]];
+    sheet.getRange(1, 1, 1, 4).setValues(headers);
+    
+    // 美化表頭 (深綠底色 #2E7D32, 白字, 粗體, 置中)
+    sheet.getRange(1, 1, 1, 4)
+         .setBackground("#2E7D32")
+         .setFontColor("#FFFFFF")
+         .setFontWeight("bold")
+         .setHorizontalAlignment("center");
+         
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(1, 170); // 記錄時間
+    sheet.setColumnWidth(2, 140); // 環境溫度
+    sheet.setColumnWidth(3, 170); // 氣象觀測時間
+    sheet.setColumnWidth(4, 180); // 系統狀態
+  }
+  
+  // 寫入資料列
+  var nowStr = Utilities.formatDate(today, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+  var rowData = [[nowStr, parseFloat(temp), obsTime, statusText]];
+  sheet.appendRow(rowData[0]);
+  
+  // 對齊與字型設定
+  var lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow, 1, 1, 4).setFontName("Microsoft JhengHei");
+  sheet.getRange(lastRow, 1, 1, 3).setHorizontalAlignment("center");
+  sheet.getRange(lastRow, 4, 1, 1).setHorizontalAlignment("left");
+}
+
+/**
  * 將通報紀錄寫入當月分頁，若分頁不存在則自動建立
  */
 function logNotificationToSheet(threshold, currentTemp, displayTime, alertStateText, statusText, senderType) {
@@ -1060,15 +1106,23 @@ function doPost(e) {
           var senderType = "本機執行";
           if (syncType === "heartbeat") {
             senderType += " (心跳)";
+            // 10 分鐘心跳紀錄分流至「24小時記錄」分頁
+            logRealtimeReadingToSheet(
+              postData.current_temp,
+              postData.obs_time || "",
+              postData.status_text || "正常"
+            );
+          } else {
+            // 警報狀態變更、測試通報才寫入「通報紀錄」分頁
+            logNotificationToSheet(
+              postData.threshold || 28.0, 
+              postData.current_temp, 
+              postData.obs_time || "", 
+              postData.alert_state || "", 
+              postData.status_text || "", 
+              senderType
+            );
           }
-          logNotificationToSheet(
-            postData.threshold || 28.0, 
-            postData.current_temp, 
-            postData.obs_time || "", 
-            postData.alert_state || "", 
-            postData.status_text || "", 
-            senderType
-          );
         } catch (logErr) {
           Logger.log("本機心跳寫入試算表失敗: " + logErr.message);
         }
