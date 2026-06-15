@@ -738,6 +738,16 @@ def main():
             alert_state="正常 (未超標)" if current_temp <= threshold else "高溫超標警報",
             status_text="即時觀測更新"
         )
+        # 寫入本機心跳明細紀錄 (10分鐘頻率，與 24小時紀錄同步)
+        try:
+            now_time_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
+            headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
+            append_to_local_csv(LOCAL_HEARTBEAT_CSV, headers, 
+                [now_time_str, threshold, current_temp, display_time, 
+                 "正常 (未超標)" if current_temp <= threshold else "高溫超標警報", "即時觀測更新"])
+        except Exception as e:
+            print(f"【本機備份警告】寫入本地心跳明細紀錄失敗: {e}", file=sys.stderr)
+
         # 同時發送即時心跳與觀測數據給 GAS，更新 GAS 在線時間並由 GAS 寫入 24 小時紀錄
         web_app_url = config.get("web_app_url", "")
         if web_app_url:
@@ -878,13 +888,8 @@ def main():
             alert_state=alert_state_text,
             status_text="未發送 (重複或正常)"
         )
-        # 寫入本機心跳明細紀錄
-        try:
-            headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
-            append_to_local_csv(LOCAL_HEARTBEAT_CSV, headers, 
-                [formatted_time, threshold, current_temp, display_time, alert_state_text, "未發送 (重複或正常)"])
-        except Exception as e:
-            print(f"【本機備份警告】寫入本地心跳明細紀錄失敗: {e}", file=sys.stderr)
+        # 已於 10 分鐘即時更新處同步寫入本地心跳明細，此處不再重複寫入
+        pass
         # 同時嘗試舊的 GAS 路徑（若有設定 web_app_url）
         if web_app_url:
             send_heartbeat(web_app_url, sync_type="heartbeat",
