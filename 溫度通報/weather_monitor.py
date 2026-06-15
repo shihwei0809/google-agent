@@ -204,14 +204,34 @@ def load_state():
     return {"last_state": "COOL"}
 
 def save_state(state_name, last_run_time_str=None):
-    """儲存發送狀態與最後執行時間"""
+    """儲存發送狀態與最後執行時間，如果為手動強制執行則不更新執行時間以防干擾排程"""
     try:
+        existing_data = {}
+        if os.path.exists(STATE_PATH):
+            try:
+                with open(STATE_PATH, "r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except Exception:
+                pass
+
         data = {"last_state": state_name}
-        if last_run_time_str:
-            data["last_run_time"] = last_run_time_str
+        is_force = "--force" in sys.argv
+
+        if is_force:
+            # 手動測試不更新執行時間，優先保留原本檔案內的執行時間
+            if "last_run_time" in existing_data:
+                data["last_run_time"] = existing_data["last_run_time"]
+            elif last_run_time_str:
+                data["last_run_time"] = last_run_time_str
+            else:
+                tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+                data["last_run_time"] = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
         else:
-            tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
-            data["last_run_time"] = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
+            if last_run_time_str:
+                data["last_run_time"] = last_run_time_str
+            else:
+                tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+                data["last_run_time"] = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
             
         with open(STATE_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
