@@ -749,11 +749,16 @@ def main():
         
     # 5. 進行本機排程自動節流 (僅節流通知與試算表寫入)
     if not force_run:
+        now_time = datetime.datetime.now(tz_taiwan)
+        # 如果設定為每小時 (60 分鐘) 執行，且當前分鐘不在 58 分附近，直接節流跳過主流程
+        if frequency == 60 and not (55 <= now_time.minute <= 59):
+            print(f"【時間未到】每小時排程設定於 58 分執行。當前為 {now_time.minute} 分，跳過主通報流程。已更新即時溫度。")
+            sys.exit(0)
+            
         last_run_str = state.get("last_run_time")
         if last_run_str:
             try:
                 last_run_time = datetime.datetime.strptime(last_run_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_taiwan)
-                now_time = datetime.datetime.now(tz_taiwan)
                 diff_minutes = (now_time - last_run_time).total_seconds() / 60.0
                 if diff_minutes < (frequency - 2): # 減 2 分鐘做為微小時間差容錯
                     print(f"【節流跳過】距離上一次執行僅 {diff_minutes:.1f} 分鐘，未達設定頻率 {frequency} 分鐘。已成功更新即時溫度與 24H 趨勢圖。")
