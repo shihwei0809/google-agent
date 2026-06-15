@@ -923,17 +923,7 @@ function updateTrendChart(logs) {
     // 篩選出有效溫度數據
     const chartData = displayLogs.map(log => parseFloat(log.temp)).filter(temp => !isNaN(temp) && temp !== -99);
     const validLogs = displayLogs.filter(log => !isNaN(parseFloat(log.temp)) && parseFloat(log.temp) !== -99);
-    const labels = validLogs.map(log => {
-        // 如果是歷史模式且總數據量大，X軸標記加上日期 (MM-DD HH:MM)
-        if (chartMode === "history" && logs.length > 400) {
-            const t = log.time;
-            if (t && t.length >= 16) {
-                return t.substring(5, 16);
-            }
-            return t;
-        }
-        return getShortTime(log.time);
-    });
+    const labels = validLogs.map(log => getShortTime(log.time));
     
     // 取得當前設定的警報閾值，繪製輔助線
     const threshold = parseFloat(currentHmiSettings.threshold) || 28.0;
@@ -1061,10 +1051,21 @@ function updateTrendChart(logs) {
   function getShortTime(obsTimeStr) {
       if (!obsTimeStr) return "";
       const parts = obsTimeStr.split(" ");
-      if (parts.length < 2) return obsTimeStr;
+      if (parts.length < 2) {
+          if (obsTimeStr.indexOf("T") !== -1) {
+              const isoParts = obsTimeStr.split("T");
+              const dateParts = isoParts[0].split("-");
+              const timeParts = isoParts[1].substring(0, 5);
+              const mmdd = dateParts.length >= 3 ? `${dateParts[1]}-${dateParts[2]}` : isoParts[0];
+              return `${mmdd} ${timeParts}`;
+          }
+          return obsTimeStr;
+      }
+      const dateParts = parts[0].split("-");
       const timeParts = parts[1].split(":");
       if (timeParts.length < 2) return parts[1];
-      return `${timeParts[0]}:${timeParts[1]}`;
+      const mmdd = dateParts.length >= 3 ? `${dateParts[1]}-${dateParts[2]}` : parts[0];
+      return `${mmdd} ${timeParts[0]}:${timeParts[1]}`;
   }
 
   // 初始化日期選擇器 (預設 7 天前到今天)
