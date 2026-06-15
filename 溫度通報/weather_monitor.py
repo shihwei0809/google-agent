@@ -34,8 +34,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
 STATE_PATH = os.path.join(SCRIPT_DIR, "last_notified.json")
 
-# 本機 CSV 備份路徑
-LOCAL_HISTORY_CSV = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報與心跳明細.csv")
+# 本機 CSV 備份路徑 (分開為歷史通報與心跳明細)
+LOCAL_NOTIFY_CSV = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報.csv")
+LOCAL_HEARTBEAT_CSV = os.path.join(SCRIPT_DIR, "本地歷史紀錄_心跳明細.csv")
 
 def get_realtime_backup_path():
     """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾"""
@@ -877,13 +878,13 @@ def main():
             alert_state=alert_state_text,
             status_text="未發送 (重複或正常)"
         )
-        # 寫入本機歷史通報紀錄
+        # 寫入本機心跳明細紀錄
         try:
             headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
-            append_to_local_csv(LOCAL_HISTORY_CSV, headers, 
+            append_to_local_csv(LOCAL_HEARTBEAT_CSV, headers, 
                 [formatted_time, threshold, current_temp, display_time, alert_state_text, "未發送 (重複或正常)"])
         except Exception as e:
-            print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
+            print(f"【本機備份警告】寫入本地心跳明細紀錄失敗: {e}", file=sys.stderr)
         # 同時嘗試舊的 GAS 路徑（若有設定 web_app_url）
         if web_app_url:
             send_heartbeat(web_app_url, sync_type="heartbeat",
@@ -935,7 +936,7 @@ def main():
         # 寫入本機歷史通報紀錄
         try:
             headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
-            append_to_local_csv(LOCAL_HISTORY_CSV, headers, 
+            append_to_local_csv(LOCAL_NOTIFY_CSV, headers, 
                 [formatted_time, threshold, current_temp, display_time, alert_str, status_str])
         except Exception as e:
             print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
@@ -956,7 +957,7 @@ def main():
         # 寫入本機歷史通報紀錄
         try:
             headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
-            append_to_local_csv(LOCAL_HISTORY_CSV, headers, 
+            append_to_local_csv(LOCAL_NOTIFY_CSV, headers, 
                 [formatted_time, threshold, current_temp, display_time, alert_str2, "發送失敗"])
         except Exception as e:
             print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
