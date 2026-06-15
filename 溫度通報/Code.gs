@@ -1134,12 +1134,24 @@ function doPost(e) {
           var senderType = "本機執行";
           if (syncType === "heartbeat") {
             senderType += " (心跳)";
-            // 10 分鐘心跳紀錄分流至「24小時記錄」分頁
-            logRealtimeReadingToSheet(
-              postData.current_temp,
-              postData.obs_time || "",
-              postData.status_text || "正常"
-            );
+            if (postData.status_text === "即時觀測更新") {
+              // 10 分鐘心跳紀錄分流至「24小時記錄」分頁
+              logRealtimeReadingToSheet(
+                postData.current_temp,
+                postData.obs_time || "",
+                postData.status_text || "正常"
+              );
+            } else {
+              // 其它狀態（如未發送、重複等例行心跳）寫入「通報紀錄」分頁
+              logNotificationToSheet(
+                postData.threshold || 28.0, 
+                postData.current_temp, 
+                postData.obs_time || "", 
+                postData.alert_state || "", 
+                postData.status_text || "", 
+                senderType
+              );
+            }
           } else {
             // 警報狀態變更、測試通報才寫入「通報紀錄」分頁
             logNotificationToSheet(
