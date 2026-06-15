@@ -1,4 +1,5 @@
 *.csv
+*.xlsx
 last_notified.json
 last_run.json
 cwa_changhwa.json

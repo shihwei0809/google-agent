@@ -34,26 +34,29 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
 STATE_PATH = os.path.join(SCRIPT_DIR, "last_notified.json")
 
-# 本機 CSV 備份路徑 (分開為歷史通報與心跳明細)
+# 本機 CSV & XLSX 備份路徑 (分開為歷史通報與心跳明細)
 LOCAL_NOTIFY_CSV = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報.csv")
 LOCAL_HEARTBEAT_CSV = os.path.join(SCRIPT_DIR, "本地歷史紀錄_心跳明細.csv")
+LOCAL_NOTIFY_XLSX = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報.xlsx")
+LOCAL_HEARTBEAT_XLSX = os.path.join(SCRIPT_DIR, "本地歷史紀錄_心跳明細.xlsx")
 
-def get_realtime_backup_path():
-    """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾"""
+def get_realtime_backup_paths():
+    """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾，同時返回 CSV 與 XLSX 路徑"""
     tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
     date_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d')
-    file_name = f"{date_str}_24小時趨勢備份.csv"
+    csv_file = f"{date_str}_24小時趨勢備份.csv"
+    xlsx_file = f"{date_str}_24小時趨勢備份.xlsx"
     
     # 優先嘗試寫入 Google Drive 虛擬硬碟 G:\
     g_drive_dir = r"G:\我的雲端硬碟\GOOGLE ANGET\溫度通報\24 小時趨勢備份"
     try:
         os.makedirs(g_drive_dir, exist_ok=True)
-        return os.path.join(g_drive_dir, file_name)
+        return os.path.join(g_drive_dir, csv_file), os.path.join(g_drive_dir, xlsx_file)
     except Exception:
         # 若 G 槽未掛載或無寫入權限，回退到本地目錄下
         local_dir = os.path.join(SCRIPT_DIR, "24 小時趨勢備份")
         os.makedirs(local_dir, exist_ok=True)
-        return os.path.join(local_dir, file_name)
+        return os.path.join(local_dir, csv_file), os.path.join(local_dir, xlsx_file)
 
 def append_to_local_csv(file_path, headers, row_data):
     """將資料寫入本機 CSV 檔案，若檔案不存在則自動建立並寫入表頭"""
@@ -66,6 +69,114 @@ def append_to_local_csv(file_path, headers, row_data):
             if not file_exists:
                 writer.writerow(headers)
             writer.writerow(row_data)
+    except Exception as e:
+        print(f"【本機備份警告】寫入 {os.path.basename(file_path)} 失敗: {e}", file=sys.stderr)
+
+def append_to_local_xlsx(file_path, headers, row_data):
+    """將資料寫入本機 XLSX 檔案，若檔案不存在則自動從 CSV 載入歷史資料或建立新工作表，並自動調整欄寬與格式"""
+    try:
+        import openpyxl
+        from openpyxl.utils import get_column_letter
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        # 若沒有安裝 openpyxl，則優雅地跳過以保持相容性
+        return
+
+    try:
+        file_exists = os.path.exists(file_path)
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "歷史紀錄"
+
+        # 如果 XLSX 不存在，但對應的 CSV 存在，則自動匯入舊資料
+        csv_path = file_path.replace(".xlsx", ".csv")
+        imported_from_csv = False
+        
+        if not file_exists and os.path.exists(csv_path):
+            try:
+                import csv
+                with open(csv_path, "r", encoding="utf-8-sig") as csv_f:
+                    reader = csv.reader(csv_f)
+                    rows = list(reader)
+                    if rows:
+                        for r in rows:
+                            converted_row = []
+                            for cell_val in r:
+                                try:
+                                    if "." in cell_val:
+                                        converted_row.append(float(cell_val))
+                                    else:
+                                        converted_row.append(int(cell_val))
+                                except ValueError:
+                                    converted_row.append(cell_val)
+                            ws.append(converted_row)
+                        imported_from_csv = True
+            except Exception as csv_e:
+                print(f"【匯入 CSV 警告】從 {os.path.basename(csv_path)} 匯入舊資料失敗: {csv_e}", file=sys.stderr)
+
+        if not file_exists and not imported_from_csv:
+            # 檔案與 CSV 都不存在，建立全新工作表並寫入表頭與當前列
+            ws.append(headers)
+            ws.append(row_data)
+        elif file_exists:
+            # 檔案已存在，載入並附加新資料
+            try:
+                wb = openpyxl.load_workbook(file_path)
+                ws = wb.active
+                ws.append(row_data)
+            except Exception:
+                # 檔案損壞則重新建立
+                ws.append(headers)
+                ws.append(row_data)
+        else:
+            # 已從 CSV 匯入舊資料，附加新資料（若新資料尚未寫入）
+            last_row_vals = [ws.cell(row=ws.max_row, column=c).value for c in range(1, len(row_data) + 1)]
+            csv_last_time = str(last_row_vals[0]) if last_row_vals and last_row_vals[0] else ""
+            new_time = str(row_data[0])
+            if csv_last_time != new_time:
+                ws.append(row_data)
+
+        # 設定字型、背景填充與對齊
+        header_font = Font(name="微軟正黑體", size=11, bold=True)
+        header_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+        header_align = Alignment(horizontal="center", vertical="center")
+        data_font = Font(name="微軟正黑體", size=11)
+        data_align = Alignment(horizontal="center", vertical="center")
+
+        # 格式化所有儲存格的樣式
+        for r_idx in range(1, ws.max_row + 1):
+            is_header = (r_idx == 1)
+            for c_idx in range(1, ws.max_column + 1):
+                cell = ws.cell(row=r_idx, column=c_idx)
+                if is_header:
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_align
+                else:
+                    cell.font = data_font
+                    if isinstance(cell.value, (int, float)):
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                    else:
+                        cell.alignment = data_align
+
+        # 自動調整欄寬
+        for col in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(col[0].column)
+            for cell in col:
+                if cell.value is not None:
+                    val_str = str(cell.value)
+                    width = 0
+                    for char in val_str:
+                        if ord(char) > 127:  # 中文與全形字元
+                            width += 2
+                        else:  # 英文與半形字元
+                            width += 1.1
+                    if width > max_len:
+                        max_len = width
+            ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+        wb.save(file_path)
     except Exception as e:
         print(f"【本機備份警告】寫入 {os.path.basename(file_path)} 失敗: {e}", file=sys.stderr)
 
@@ -721,11 +832,12 @@ def main():
         
     # 同時備份寫入 Google Drive 雲端同步目錄（自動以日期分檔，若失敗則退回本機目錄）
     try:
-        realtime_backup_path = get_realtime_backup_path()
+        realtime_csv_path, realtime_xlsx_path = get_realtime_backup_paths()
         now_time_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
         headers = ["記錄時間", "環境溫度 (°C)", "氣象觀測時間", "時間戳 (ms)"]
         now_ms = int(time.time() * 1000)
-        append_to_local_csv(realtime_backup_path, headers, [now_time_str, current_temp, display_time, now_ms])
+        append_to_local_csv(realtime_csv_path, headers, [now_time_str, current_temp, display_time, now_ms])
+        append_to_local_xlsx(realtime_xlsx_path, headers, [now_time_str, current_temp, display_time, now_ms])
     except Exception as e:
         print(f"【本機備份警告】寫入即時溫度備份失敗: {e}", file=sys.stderr)
         
@@ -743,6 +855,9 @@ def main():
             now_time_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
             headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
             append_to_local_csv(LOCAL_HEARTBEAT_CSV, headers, 
+                [now_time_str, threshold, current_temp, display_time, 
+                 "正常 (未超標)" if current_temp <= threshold else "高溫超標警報", "即時觀測更新"])
+            append_to_local_xlsx(LOCAL_HEARTBEAT_XLSX, headers, 
                 [now_time_str, threshold, current_temp, display_time, 
                  "正常 (未超標)" if current_temp <= threshold else "高溫超標警報", "即時觀測更新"])
         except Exception as e:
@@ -943,6 +1058,8 @@ def main():
             headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
             append_to_local_csv(LOCAL_NOTIFY_CSV, headers, 
                 [formatted_time, threshold, current_temp, display_time, alert_str, status_str])
+            append_to_local_xlsx(LOCAL_NOTIFY_XLSX, headers, 
+                [formatted_time, threshold, current_temp, display_time, alert_str, status_str])
         except Exception as e:
             print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
         if web_app_url:
@@ -963,6 +1080,8 @@ def main():
         try:
             headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
             append_to_local_csv(LOCAL_NOTIFY_CSV, headers, 
+                [formatted_time, threshold, current_temp, display_time, alert_str2, "發送失敗"])
+            append_to_local_xlsx(LOCAL_NOTIFY_XLSX, headers, 
                 [formatted_time, threshold, current_temp, display_time, alert_str2, "發送失敗"])
         except Exception as e:
             print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
