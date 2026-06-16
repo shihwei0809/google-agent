@@ -20,8 +20,8 @@ set SCRIPT_PATH=%~dp0weather_monitor.py
 echo 偵測到監控腳本: %SCRIPT_PATH%
 
 echo.
-echo 正在建立 Windows 工作排程 (WeatherMonitor)...
-schtasks /create /tn "WeatherMonitor" /tr "\"%PY_PATH%\" \"%SCRIPT_PATH%\"" /sc minute /mo 10 /st 07:58 /ru "SYSTEM" /f
+echo 正在建立 Windows 工作排程 (環境溫度監控通報系統)...
+schtasks /create /tn "環境溫度監控通報系統" /tr "\"%PY_PATH%\" \"%SCRIPT_PATH%\"" /sc minute /mo 10 /st 00:00 /ru "SYSTEM" /f
 
 if errorlevel 1 (
     echo.
