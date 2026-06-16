@@ -1,0 +1,7 @@
+subtitles/
+__pycache__/
+*.vtt
+*.mp4
+*.m4a
+*.mp3
+temp_sub.*

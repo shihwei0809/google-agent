@@ -1,0 +1,13 @@
+# 📌 Flowchart Web
+
+- **專案類型**: 自動偵測專案
+- **本機目錄**: `c:\GOOGLE ANGET\flowchart-web`
+- **偵測技術**: `CSS, Firebase, HTML, JavaScript`
+- **最後更新**: 2026-06-07 14:54:44
+
+## 📝 專案用途
+尚無描述，可在專案內新增 README.md 進行描述。
+
+## 🔗 相關資源與連結
+- [本機專案資料夾](file:///c:/GOOGLE%20ANGET/flowchart-web)
+- [返回專案總覽索引]([[Index]])
