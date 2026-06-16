@@ -627,6 +627,60 @@ def fetch_recipients_from_google_sheet_api(token, spreadsheet_id):
         
     return recipients, threshold_override
 
+def fetch_system_config_from_google_sheet_api(token, spreadsheet_id):
+    """透過 Google Sheets API (使用 service account token) 載入系統設定分頁中的設定參數"""
+    import urllib.parse
+    config_overrides = {}
+    if not spreadsheet_id:
+        return config_overrides
+        
+    try:
+        sheet_name = "系統設定"
+        print(f"正在透過 Google Sheets API 載入系統設定... (分頁: {sheet_name})")
+        
+        # 讀取 A 到 B 欄
+        range_notation = "A:B"
+        url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{urllib.parse.quote(sheet_name + '!' + range_notation)}"
+        req = urllib.request.Request(
+            url,
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        with urllib.request.urlopen(req, timeout=15, context=_fb_ssl_ctx) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            values = res_data.get("values", [])
+            
+        if not values:
+            return config_overrides
+            
+        # 表頭在第一列
+        for row in values[1:]:
+            if len(row) >= 2:
+                key = str(row[0]).strip()
+                val = str(row[1]).strip()
+                key_lower = key.lower()
+                
+                if any(k in key_lower for k in ("start", "開始", "啟動")):
+                    try:
+                        config_overrides["start_hour"] = int(val)
+                    except ValueError:
+                        pass
+                elif any(k in key_lower for k in ("end", "結束", "停止")):
+                    try:
+                        config_overrides["end_hour"] = int(val)
+                    except ValueError:
+                        pass
+                elif any(k in key_lower for k in ("frequency", "頻率", "間隔")):
+                    try:
+                        config_overrides["frequency"] = int(val)
+                    except ValueError:
+                        pass
+                        
+        print(f"從 Google 試算表 (API) 載入系統設定成功: {config_overrides}")
+    except Exception as e:
+        print(f"【警告】透過 Google Sheets API 載入系統設定失敗: {e}", file=sys.stderr)
+        
+    return config_overrides
+
 def check_weather(config):
     """透過 CWA Open Data API 抓取即時觀測的環境溫度"""
     api_key    = config.get("cwa_api_key", "")
@@ -824,18 +878,62 @@ def send_teams_notifications(teams_config, subject, message):
 
 def main():
     force_run = "--force" in sys.argv
-    
-    # 1. 檢查是否在監測時段 (07:00 - 24:00) 內，避免非工作時間打擾人員
-    tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
-    current_hour = datetime.datetime.now(tz_taiwan).hour
-    if (current_hour < 7 or current_hour >= 24) and not force_run:
-        print(f"目前時間為 {current_hour:02d}:00，不在監測時段 (07:00 - 24:00) 內，跳過監測。")
-        sys.exit(0)
-        
     config = load_config()
     state = load_state()
+    
+    # 預設監控時段與設定
+    start_hour = config.get("start_hour", 7)
+    end_hour = config.get("end_hour", 24)
     frequency = config.get("frequency", 60)
     threshold = config.get("temperature_threshold", 28.0)
+    
+    # 1. 嘗試從 Google 試算表載入最新聯絡人名冊與系統參數設定
+    spreadsheet_id = config.get("spreadsheet_id", "")
+    sheet_recipients = {"emails": [], "line_ids": []}
+    threshold_override = None
+    config_overrides = {}
+    
+    if spreadsheet_id:
+        token, _ = _get_firebase_token()
+        if token:
+            try:
+                sheet_recipients, threshold_override = fetch_recipients_from_google_sheet_api(token, spreadsheet_id)
+                config_overrides = fetch_system_config_from_google_sheet_api(token, spreadsheet_id)
+            except Exception as e:
+                print(f"【警告】動態載入雲端設定失敗: {e}", file=sys.stderr)
+        else:
+            print("【警告】找不到憑證 Token，無法使用 Google Sheets API，嘗試備用 CSV 機制...")
+            sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
+    else:
+        sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
+        
+    # 套用雲端覆蓋參數設定
+    if threshold_override is not None:
+        config["temperature_threshold"] = threshold_override
+        threshold = threshold_override
+    if "start_hour" in config_overrides:
+        config["start_hour"] = config_overrides["start_hour"]
+        start_hour = config_overrides["start_hour"]
+    if "end_hour" in config_overrides:
+        config["end_hour"] = config_overrides["end_hour"]
+        end_hour = config_overrides["end_hour"]
+    if "frequency" in config_overrides:
+        config["frequency"] = config_overrides["frequency"]
+        frequency = config_overrides["frequency"]
+
+    # 2. 檢查目前是否在監測時段內 (支援跨日排程，例如 08:00 - 24:00 或 22:00 - 06:00)
+    tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+    current_hour = datetime.datetime.now(tz_taiwan).hour
+    
+    is_in_time_window = False
+    if start_hour < end_hour:
+        is_in_time_window = (start_hour <= current_hour < end_hour)
+    else:
+        is_in_time_window = (current_hour >= start_hour or current_hour < end_hour)
+        
+    if not is_in_time_window and not force_run:
+        print(f"目前時間為 {current_hour:02d}:00，不在監測時段 ({start_hour:02d}:00 - {end_hour:02d}:00) 內，跳過監測。")
+        sys.exit(0)
     
     # 2. 獲取 CWA 氣象數據 (無論是否節流都需要獲取即時數據)
     try:
@@ -939,26 +1037,8 @@ def main():
         local_line_ids = [local_line_ids]
         
     # B. 從 Google 試算表載入並與本機名單合併
-    spreadsheet_id = config.get("spreadsheet_id", "")
-    sheet_recipients = {"emails": [], "line_ids": []}
-    threshold_override = None
+    # 已於 main() 開頭完成載入，此處直接使用已下載的 sheet_recipients 與 threshold
     
-    if spreadsheet_id:
-        token, _ = _get_firebase_token()
-        if token:
-            sheet_recipients, threshold_override = fetch_recipients_from_google_sheet_api(token, spreadsheet_id)
-        else:
-            print("【警告】找不到憑證 Token，無法使用 Google Sheets API，嘗試備用 CSV 機制...")
-            sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
-    else:
-        sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
-    
-    # 若試算表有設定溫度閾值，覆蓋本機設定
-    if threshold_override is not None:
-        config["temperature_threshold"] = threshold_override
-        
-    threshold = config.get("temperature_threshold", 28.0)
-        
     # 合併並去除重複
     final_emails = list(set(local_emails + sheet_recipients["emails"]))
     final_line_ids = list(set(local_line_ids + sheet_recipients["line_ids"]))
