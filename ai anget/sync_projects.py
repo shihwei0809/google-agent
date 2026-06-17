@@ -8,13 +8,16 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 
 # Target paths
-workspace_dir = r"c:\GOOGLE ANGET\ai anget"
+workspace_dir = os.path.dirname(os.path.abspath(__file__))
 kb_dir = os.path.join(workspace_dir, "知識庫")
 proj_cards_dir = os.path.join(kb_dir, "專案卡")
 index_path = os.path.join(kb_dir, "Index.md")
 
 # Source paths
-root_dir = r"c:\GOOGLE ANGET"
+root_dir = os.path.dirname(workspace_dir)
+root_dir_backslash = root_dir.replace("/", "\\")
+root_dir_double_backslash = root_dir_backslash.replace("\\", "\\\\")
+root_dir_url_friendly = root_dir.replace("\\", "/").replace(" ", "%20")
 html_dashboard_path = os.path.join(root_dir, "專案總覽.html")
 
 # Folders to exclude from project scanning
@@ -323,8 +326,8 @@ def generate_html(projects):
             const folderLink = document.getElementById('modalFolderLink');
             
             title.textContent = project.friendly_name;
-            meta.textContent = `本機目錄: c:\\GOOGLE ANGET\\${{project.folder_name}} | 最後更新: ${{project.last_modified}}`;
-            folderLink.href = `file:///c:/GOOGLE%20ANGET/${{encodeURIComponent(project.folder_name)}}`;
+            meta.textContent = `本機目錄: {root_dir_double_backslash}\\\\${{project.folder_name}} | 最後更新: ${{project.last_modified}}`;
+            folderLink.href = `file:///{root_dir_url_friendly}/${{encodeURIComponent(project.folder_name)}}`;
             
             // Synthesize Markdown body details
             const mdText = `
@@ -335,7 +338,7 @@ def generate_html(projects):
 ${{project.description}}
 
 ## 📁 資料夾路徑
-- **本機目錄實體路徑**：\\`c:\\\\GOOGLE ANGET\\\\${{project.folder_name}}\\`
+- **本機目錄實體路徑**：\\`{root_dir_double_backslash.replace('\\\\', '\\\\\\\\')}\\\\\\\\${{project.folder_name}}\\`
 - 點擊下方按鈕或複製此路徑，即可快速打開檔案總管。
             `;
             
@@ -414,13 +417,13 @@ def main():
         
         card_content = f"# 📌 {p['friendly_name']}\n\n"
         card_content += f"- **專案類型**: 自動偵測專案\n"
-        card_content += f"- **本機目錄**: `c:\\GOOGLE ANGET\\{p['folder_name']}`\n"
+        card_content += f"- **本機目錄**: `{root_dir_double_backslash}\\{p['folder_name']}`\n"
         card_content += f"- **偵測技術**: `{p['techs']}`\n"
         card_content += f"- **最後更新**: {p['last_modified']}\n\n"
         card_content += "## 📝 專案用途\n"
         card_content += f"{desc_to_write}\n\n"
         card_content += "## 🔗 相關資源與連結\n"
-        card_content += f"- [本機專案資料夾](file:///c:/GOOGLE%20ANGET/{p['folder_name'].replace(' ', '%20')})\n"
+        card_content += f"- [本機專案資料夾](file:///{root_dir_url_friendly}/{p['folder_name'].replace(' ', '%20')})\n"
         card_content += f"- [返回專案總覽索引]([[Index]])\n"
         
         with open(card_path, "w", encoding="utf-8") as f:

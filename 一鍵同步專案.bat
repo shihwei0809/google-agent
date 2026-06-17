@@ -1,11 +1,11 @@
 @echo off
 chcp 65001 > nul
 echo ==================================================
-echo   Syncing projects in c:\GOOGLE ANGET to Obsidian...
+echo   Syncing projects in %~dp0 to Obsidian...
 echo ==================================================
 echo.
 
-cd /d "c:\GOOGLE ANGET\ai anget"
+cd /d "%~dp0\ai anget"
 python sync_projects.py
 
 echo.
