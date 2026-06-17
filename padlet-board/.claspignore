@@ -1,6 +1,0 @@
-# Ignore all files by default
-**/*
-
-# Except the Apps Script backend and configuration manifest
-!gas_code.js
-!appsscript.json
