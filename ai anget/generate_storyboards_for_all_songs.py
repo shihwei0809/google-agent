@@ -191,6 +191,30 @@ master_scenes = [
         "name": "科技微觀終幕",
         "image": "A shining microchip zooming out into a constellation of connected data points and constellations, bright golden and blue lights, epic finale, 8k.",
         "motion": "Cinematic zoom-out from microchip to global data network, lights pulsing, epic climax."
+    },
+    {
+        "id": 31,
+        "name": "ESG永續報告",
+        "image": "A futuristic digital dashboard displaying ESG sustainability metrics and carbon reduction charts inside a modern corporate office, glowing green and blue graphs, high-tech interface, highly detailed, 8k.",
+        "motion": "Slow camera pan across the glowing ESG dashboard, green charts showing emission decrease, numbers updating in real-time."
+    },
+    {
+        "id": 32,
+        "name": "智慧中控室",
+        "image": "A futuristic intelligent chemical control room with a giant curved screen displaying real-time automation data and refinery status, blue and green neon lights, highly detailed, 8k.",
+        "motion": "Camera glides through the control room, displaying glowing monitoring interface, data streaming."
+    },
+    {
+        "id": 33,
+        "name": "廠房屋頂太陽能",
+        "image": "A modern chemical plant roof covered with sleek solar panels under a clear blue sky, with giant white wind turbines spinning in the green fields in the distance, highly detailed, 8k.",
+        "motion": "A gentle drone lift showing sun reflections on solar panels, wind turbines rotating in soft background."
+    },
+    {
+        "id": 34,
+        "name": "未來晶片應用",
+        "image": "A high-tech autonomous electric car driving through a futuristic smart city at sunset, neon light trails, transparent digital overlay highlighting the internal processor, highly detailed, 8k.",
+        "motion": "Electric car speeding forward with beautiful neon trails, camera zooms into transparent processor overlay."
     }
 ]
 
@@ -216,11 +240,19 @@ image_mapping = {
     18: "15_永續綠色科技廠房.png",
     19: "24_廢水回收.png",
     20: "14_廢溶劑綠色循環.png",
+    21: "27_綠色循環標章.png",
     22: "07_無塵自動化封裝線.png",
     23: "25_廠區安全巡檢.png",
     24: "16_AI_超級電腦機房.png",
     25: "26_超級電腦運算.png",
-    28: "17_環保港口與貨輪出海.png"
+    26: "28_物流裝箱.png",
+    27: "29_高雄港裝船.png",
+    28: "17_環保港口與貨輪出海.png",
+    29: "30_科技微觀終幕.png",
+    30: "31_ESG永續報告.png",
+    31: "32_智慧中控室.png",
+    32: "33_廠房屋頂太陽能.png",
+    33: "34_未來晶片應用.png"
 }
 
 def get_audio_duration(audio_path):

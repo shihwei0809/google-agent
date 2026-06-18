@@ -41,17 +41,17 @@
 
 ---
 
-### 📌 場景 03：分子模擬
+### 📌 場景 03：全息藍圖
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`02_化學分子模擬.png`
+* 📂 **圖片檔名**：`03_全息分子模型.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Holographic interface showing advanced chemical engineering simulation of a molecule, glowing blue and green atoms connecting, dark tech laboratory, 8k.
+  A glowing 3D holographic molecular model of a complex solvent structure floating over a digital blueprint interface, digital cybernetic grid background, neon cyan and green, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Holographic molecular design interface spinning slowly, digital chemical data streaming on screen.
+  The holographic molecule rotating slowly with subtle camera tilt, particles floating in air.
   ```
 
 ---
@@ -71,22 +71,7 @@
 
 ---
 
-### 📌 場景 05：QC 檢驗
-* ⏱️ **建議播放長度**：`7.66 秒`
-* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`05_專業化學_QC_檢驗.png`
-* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
-  ```text
-  A chemist in a white lab coat inspecting a flask of pure blue glowing solvent, advanced chemical quality control laboratory, glowing display screens, 8k.
-  ```
-* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
-  ```text
-  Close up of the chemist swirling the glass flask, background laboratory equipment lights blinking.
-  ```
-
----
-
-### 📌 場景 06：無塵室入口
+### 📌 場景 05：無塵室入口
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`18_無塵室入口.png`
@@ -101,22 +86,22 @@
 
 ---
 
-### 📌 場景 07：溶劑噴灑
+### 📌 場景 06：晶圓傳送
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`09_晶圓溶劑清洗.png`
+* 📂 **圖片檔名**：`08_晶圓傳送天車.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A macro close-up of high-purity chemical solvent being sprayed onto a reflective silicon wafer, microscopic liquid droplets, semiconductor cleaning process, 8k.
+  A high-tech photolithography machine, robotic gripper loading a shiny silicon wafer cassette, amber safety lights, semiconductor fabrication facility, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Liquid ripples and waves washing across the reflective wafer surface, slow motion spray.
+  Robotic arm lifting the wafer pod, smooth mechanical movement, warning lights flashing in background.
   ```
 
 ---
 
-### 📌 場景 08：晶圓清洗
+### 📌 場景 07：晶圓清洗
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`19_晶圓清洗.png`
@@ -131,7 +116,7 @@
 
 ---
 
-### 📌 場景 09：黃光區天車
+### 📌 場景 08：黃光區天車
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`12_自動化黃光區無塵室.png`
@@ -146,7 +131,7 @@
 
 ---
 
-### 📌 場景 10：DUV 雷射曝光
+### 📌 場景 09：DUV 雷射曝光
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`10_曝光顯影製程.png`
@@ -161,22 +146,22 @@
 
 ---
 
-### 📌 場景 11：EUV 極紫外光顯影
+### 📌 場景 10：電路形成
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`21_EUV極紫外光顯影.png`
+* 📂 **圖片檔名**：`11_雷射光刻奈米雕刻.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  An EUV light beam scanner projecting complex nanoscale patterns onto a silicon wafer, intense golden and purple laser glow, high-tech semiconductor fab, 8k.
+  An extreme close up of a silicon wafer with gold and violet nanoscale circuit lines forming, glowing electric currents, advanced microprocessor, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  EUV scanner projecting circuit patterns, gold laser beams sweeping across the silicon wafer surface.
+  Circuit lines lighting up with electric currents, energy pulsing across the microchip tracks.
   ```
 
 ---
 
-### 📌 場景 12：晶片切割
+### 📌 場景 11：晶片切割
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`22_晶片切割.png`
@@ -191,22 +176,7 @@
 
 ---
 
-### 📌 場景 13：先進封裝
-* ⏱️ **建議播放長度**：`7.66 秒`
-* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`23_先進封裝.png`
-* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
-  ```text
-  A robotic arm placing a tiny microchip onto a green substrate, advanced semiconductor packaging process, mechanical precision, glowing blue circuits, 8k.
-  ```
-* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
-  ```text
-  Robotic arm placing the chip, glowing blue circuits lighting up, smooth robotic assembly.
-  ```
-
----
-
-### 📌 場景 14：終端晶片展示
+### 📌 場景 12：終端晶片展示
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`13_高科技晶片核心.png`
@@ -221,22 +191,22 @@
 
 ---
 
-### 📌 場景 15：廢水回收
+### 📌 場景 13：綠色工廠
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`24_廢水回收.png`
+* 📂 **圖片檔名**：`15_永續綠色科技廠房.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A high-tech water purification facility, clean water flowing rapidly through glass tubes, glowing green digital leaf overlay, eco-friendly tech, 8k.
+  A modern chemical plant surrounded by wind turbines and solar panels, green sunrise, clean energy theme, sustainable ESG facility, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Clean water flowing through tubes, bubbles rising, green leaf icon pulsing on digital overlay screen.
+  Slow camera sweep of the plant, wind turbines spinning in background, solar panels reflecting the sun.
   ```
 
 ---
 
-### 📌 場景 16：溶劑回收管線
+### 📌 場景 14：溶劑回收管線
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`14_廢溶劑綠色循環.png`
@@ -251,7 +221,7 @@
 
 ---
 
-### 📌 場景 17：儲罐裝載
+### 📌 場景 15：儲罐裝載
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`07_無塵自動化封裝線.png`
@@ -266,7 +236,7 @@
 
 ---
 
-### 📌 場景 18：廠區安全巡檢
+### 📌 場景 16：廠區安全巡檢
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`25_廠區安全巡檢.png`
@@ -281,24 +251,25 @@
 
 ---
 
-### 📌 場景 19：高效能伺服器
+### 📌 場景 17：超級電腦運算
 * ⏱️ **建議播放長度**：`7.66 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`16_AI_超級電腦機房.png`
+* 📂 **圖片檔名**：`26_超級電腦運算.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Rows of server racks with neon green liquid cooling tubes, high-speed AI processors, blinking data streams, futuristic server room, 8k.
+  Abstract visualization of massive data transferring, lines of light and data streams rushing, glowing gold and blue paths on dark background, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Camera moving forward through server racks, liquid cooling tubes glowing, indicator lights blinking.
+  Data streams rushing, lines of light pulsing and transferring rapidly across the screen.
   ```
 
 ---
 
-### 📌 場景 20：物流裝箱
+### 📌 場景 18：物流裝箱
 * ⏱️ **建議播放長度**：`7.66 秒`
-* 🔴 **圖片狀態**：`【需在 Vids 中使用 AI 生成圖片】` (請複製下方 1. 圖片生成提示詞)
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`28_物流裝箱.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
   Inside a modern automated warehouse, robotic forklifts carrying cargo boxes marked with green ESG logos, sleek metallic shelves, 8k.
@@ -310,23 +281,25 @@
 
 ---
 
-### 📌 場景 21：高雄港裝船
+### 📌 場景 19：貨輪出海
 * ⏱️ **建議播放長度**：`7.66 秒`
-* 🔴 **圖片狀態**：`【需在 Vids 中使用 AI 生成圖片】` (請複製下方 1. 圖片生成提示詞)
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`17_環保港口與貨輪出海.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Giant gantry cranes loading green shipping containers onto a massive cargo ship, Kaohsiung harbor during a beautiful orange sunset, golden hour, 8k.
+  A majestic cargo container ship sailing across the open ocean under a beautiful orange sunset sky, cinematic drone shot, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Time-lapse of cranes loading cargo, sunset reflections on ocean water.
+  Cargo ship sailing forward on ocean waves, golden sunset reflecting on water.
   ```
 
 ---
 
-### 📌 場景 22：科技微觀終幕
+### 📌 場景 20：科技微觀終幕
 * ⏱️ **建議播放長度**：`7.66 秒`
-* 🔴 **圖片狀態**：`【需在 Vids 中使用 AI 生成圖片】` (請複製下方 1. 圖片生成提示詞)
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`30_科技微觀終幕.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
   A shining microchip zooming out into a constellation of connected data points and constellations, bright golden and blue lights, epic finale, 8k.
@@ -334,6 +307,36 @@
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
   Cinematic zoom-out from microchip to global data network, lights pulsing, epic climax.
+  ```
+
+---
+
+### 📌 場景 21：智慧中控室
+* ⏱️ **建議播放長度**：`7.66 秒`
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`32_智慧中控室.png`
+* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
+  ```text
+  A futuristic intelligent chemical control room with a giant curved screen displaying real-time automation data and refinery status, blue and green neon lights, highly detailed, 8k.
+  ```
+* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
+  ```text
+  Camera glides through the control room, displaying glowing monitoring interface, data streaming.
+  ```
+
+---
+
+### 📌 場景 22：未來晶片應用
+* ⏱️ **建議播放長度**：`7.66 秒`
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`34_未來晶片應用.png`
+* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
+  ```text
+  A high-tech autonomous electric car driving through a futuristic smart city at sunset, neon light trails, transparent digital overlay highlighting the internal processor, highly detailed, 8k.
+  ```
+* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
+  ```text
+  Electric car speeding forward with beautiful neon trails, camera zooms into transparent processor overlay.
   ```
 
 ---
