@@ -88,6 +88,11 @@ def main():
         # 1. Create directories
         os.makedirs(song_images_dir, exist_ok=True)
         
+        # Clear existing PNGs in song_images_dir to avoid duplicates
+        for f in os.listdir(song_images_dir):
+            if f.endswith(".png"):
+                os.remove(os.path.join(song_images_dir, f))
+        
         # 2. Copy MP3
         src_mp3_path = os.path.join(workspace_dir, mp3)
         dest_mp3_path = os.path.join(song_dir, mp3)
