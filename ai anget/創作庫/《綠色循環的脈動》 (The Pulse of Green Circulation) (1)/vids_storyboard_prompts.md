@@ -362,11 +362,11 @@
 * 📂 **圖片檔名**：`24_廠區安全巡檢.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  An autonomous robotic dog patrolling a high-tech chemical refinery plant, modern wind turbines and solar panels, sunset lighting, green energy theme, 8k.
+  A professional chemical plant inspector wearing safety gear and a helmet, walking and inspecting pipes in a modern high-tech refinery during sunset, wind turbines and solar panels in the distance, highly detailed, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Robotic dog walking and scanning the facility, cameras rotating, sunset background.
+  Technician walking slowly and checking valves, clipboard in hand, wind turbines spinning in soft sunset background.
   ```
 
 ---

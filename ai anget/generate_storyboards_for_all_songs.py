@@ -153,8 +153,8 @@ master_scenes = [
     {
         "id": 24,
         "name": "廠區安全巡檢",
-        "image": "An autonomous robotic dog patrolling a high-tech chemical refinery plant, modern wind turbines and solar panels, sunset lighting, green energy theme, 8k.",
-        "motion": "Robotic dog walking and scanning the facility, cameras rotating, sunset background."
+        "image": "A professional chemical plant inspector wearing safety gear and a helmet, walking and inspecting pipes in a modern high-tech refinery during sunset, wind turbines and solar panels in the distance, highly detailed, 8k.",
+        "motion": "Technician walking slowly and checking valves, clipboard in hand, wind turbines spinning in soft sunset background."
     },
     {
         "id": 25,
