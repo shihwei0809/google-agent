@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>讓工廠數據動起來｜學習歷程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --amber: #f59e0b;
+    --amber-light: #fbbf24;
+    --amber-dark: #d97706;
+    --red: #ef4444;
+    --red-dark: #dc2626;
+    --orange: #fb923c;
+    --green: #10b981;
+    --cyan: #06b6d4;
+    --bg: #0a0500;
+    --bg2: #100800;
+    --glass: rgba(245,158,11,0.06);
+    --glass-border: rgba(245,158,11,0.16);
+    --text: #fef3e2;
+    --text-dim: #9a7c55;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* ── Progress Bar ── */
+  #progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: linear-gradient(90deg, var(--red-dark), var(--amber), var(--orange));
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+    z-index: 100;
+    box-shadow: 0 0 12px var(--amber);
+  }
+
+  /* ── Slide Counter ── */
+  #counter {
+    position: fixed; bottom: 24px; right: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; color: var(--text-dim);
+    z-index: 100; letter-spacing: 0.08em;
+  }
+
+  /* ── Nav Dots ── */
+  #dots {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 100;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(245,158,11,0.2);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(245,158,11,0.25);
+  }
+  .dot.active {
+    background: var(--amber);
+    box-shadow: 0 0 8px var(--amber);
+    transform: scale(1.3);
+  }
+
+  /* ── Nav Arrows ── */
+  .nav-arrow {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.18);
+    color: var(--amber); font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 100;
+    transition: all 0.3s ease;
+  }
+  .nav-arrow:hover {
+    background: rgba(245,158,11,0.2);
+    box-shadow: 0 0 16px rgba(245,158,11,0.25);
+  }
+  #nav-prev { left: 16px; }
+  #nav-next { right: 16px; }
+
+  /* ── Hints ── */
+  #hints {
+    position: fixed; bottom: 24px; left: 28px;
+    font-size: 0.68rem; color: var(--text-dim);
+    z-index: 100; letter-spacing: 0.05em;
+  }
+  #hints kbd {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 3px; padding: 1px 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.66rem;
+  }
+
+  /* ── Fullscreen ── */
+  #fullscreen-btn {
+    position: fixed; top: 16px; right: 16px;
+    width: 36px; height: 36px; border-radius: 8px;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.18);
+    color: var(--amber); font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 100;
+    transition: all 0.3s ease;
+  }
+
+  /* ── Grid bg ── */
+  #grid-bg {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(245,158,11,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(245,158,11,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Slideshow ── */
+  #slideshow {
+    width: 100%; height: 100%;
+    position: relative; overflow: hidden;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 60px 80px 80px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(.4,0,.2,1);
+    transform: translateX(60px);
+  }
+  .slide.active {
+    opacity: 1; pointer-events: all;
+    transform: translateX(0);
+  }
+  .slide.prev {
+    opacity: 0; transform: translateX(-60px);
+  }
+
+  /* ── Background ambient ── */
+  .slide::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 60% at 15% 20%, rgba(245,158,11,0.06) 0%, transparent 55%),
+                radial-gradient(ellipse 50% 50% at 85% 80%, rgba(239,68,68,0.05) 0%, transparent 55%),
+                radial-gradient(ellipse 40% 40% at 50% 50%, rgba(251,146,60,0.03) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* ── Glass ── */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+  }
+
+  /* ── Typography ── */
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--amber); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before, .eyebrow::after {
+    content: ''; flex: 1; max-width: 60px;
+    height: 1px; background: linear-gradient(90deg, transparent, var(--amber));
+  }
+  .eyebrow::after { background: linear-gradient(90deg, var(--amber), transparent); }
+
+  h1.title-main {
+    font-size: clamp(2.2rem, 4vw, 3.4rem);
+    font-weight: 900; line-height: 1.15;
+    background: linear-gradient(135deg, var(--amber-light) 0%, var(--red) 50%, var(--orange) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; text-align: center;
+  }
+
+  h2.section-title {
+    font-size: clamp(1.4rem, 2.6vw, 2.2rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--amber-light), var(--red));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 6px;
+  }
+
+  .subtitle {
+    font-size: 1rem; color: var(--text-dim);
+    text-align: center;
+  }
+
+  /* ── Tags ── */
+  .tag {
+    display: inline-block; padding: 4px 12px;
+    border-radius: 100px; font-size: 0.72rem;
+    font-weight: 600; font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+  .tag-amber { background: rgba(245,158,11,0.14); color: var(--amber); border: 1px solid rgba(245,158,11,0.28); }
+  .tag-red { background: rgba(239,68,68,0.14); color: var(--red); border: 1px solid rgba(239,68,68,0.28); }
+  .tag-orange { background: rgba(251,146,60,0.14); color: var(--orange); border: 1px solid rgba(251,146,60,0.28); }
+  .tag-green { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
+  .tag-cyan { background: rgba(6,182,212,0.12); color: var(--cyan); border: 1px solid rgba(6,182,212,0.25); }
+
+  /* ── Grid ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; width: 100%; }
+
+  /* ── Quote card ── */
+  .quote-card {
+    padding: 22px 28px;
+    border-radius: 16px;
+    background: rgba(245,158,11,0.07);
+    border-left: 4px solid var(--amber);
+    border-top: 1px solid rgba(245,158,11,0.15);
+    border-right: 1px solid rgba(245,158,11,0.1);
+    border-bottom: 1px solid rgba(245,158,11,0.1);
+  }
+  .quote-mark {
+    font-size: 3rem; line-height: 0.8;
+    color: var(--amber); opacity: 0.5;
+    font-family: Georgia, serif;
+  }
+  .quote-text {
+    font-size: 0.95rem; line-height: 1.8;
+    color: var(--text); font-style: italic;
+    font-weight: 400;
+  }
+  .quote-source {
+    font-size: 0.72rem; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+    margin-top: 10px; letter-spacing: 0.08em;
+  }
+
+  /* ── Timeline ── */
+  .timeline-item {
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  .timeline-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--amber); flex-shrink: 0;
+    margin-top: 5px;
+    box-shadow: 0 0 10px var(--amber);
+    position: relative;
+  }
+  .timeline-dot::after {
+    content: ''; position: absolute;
+    top: 12px; left: 5px;
+    width: 2px; height: 40px;
+    background: linear-gradient(to bottom, rgba(245,158,11,0.4), transparent);
+  }
+  .timeline-content {
+    flex: 1; padding-bottom: 24px;
+  }
+  .timeline-title {
+    font-size: 0.92rem; font-weight: 600;
+    color: var(--amber-light); margin-bottom: 4px;
+  }
+  .timeline-text {
+    font-size: 0.82rem; color: var(--text-dim); line-height: 1.6;
+  }
+
+  /* ── Code block ── */
+  .code-block {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; line-height: 1.7;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid rgba(245,158,11,0.12);
+    border-radius: 10px; padding: 14px 18px;
+    color: #fde68a;
+    overflow: hidden;
+  }
+  .code-block .kw { color: var(--red); }
+  .code-block .fn { color: var(--amber); }
+  .code-block .cm { color: #5a4830; }
+  .code-block .str { color: var(--orange); }
+  .code-block .num { color: var(--cyan); }
+  .code-block .ok { color: var(--green); }
+
+  /* ── Skill tree ── */
+  .skill-node {
+    padding: 14px 18px;
+    border-radius: 12px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: default;
+  }
+  .skill-node:hover {
+    transform: translateY(-3px);
+  }
+  .skill-icon { font-size: 1.6rem; }
+  .skill-name { font-size: 0.82rem; font-weight: 700; margin-top: 6px; }
+  .skill-desc { font-size: 0.68rem; color: var(--text-dim); margin-top: 3px; line-height: 1.4; }
+  .skill-bar { height: 3px; border-radius: 2px; margin-top: 8px; }
+
+  /* ── Divider ── */
+  .divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--glass-border), transparent); margin: 14px 0; }
+
+  /* ── Milestone badge ── */
+  .milestone {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 14px; border-radius: 100px;
+    background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.22);
+    font-size: 0.78rem; font-weight: 600; color: var(--amber-light);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Emotion pills ── */
+  .emotion {
+    padding: 6px 16px; border-radius: 100px;
+    font-size: 0.82rem; font-weight: 600;
+  }
+  .emotion-excite { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  .emotion-struggle { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .emotion-proud { background: rgba(16,185,129,0.12); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
+
+  /* ── Slide 1 ── */
+  .s1-icon {
+    font-size: 5rem; margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* ── Animations ── */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .slide.active .anim-item {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease forwards;
+  }
+  .slide.active .anim-item:nth-child(1) { animation-delay: 0.05s; }
+  .slide.active .anim-item:nth-child(2) { animation-delay: 0.15s; }
+  .slide.active .anim-item:nth-child(3) { animation-delay: 0.25s; }
+  .slide.active .anim-item:nth-child(4) { animation-delay: 0.35s; }
+  .slide.active .anim-item:nth-child(5) { animation-delay: 0.45s; }
+  .slide.active .anim-item:nth-child(6) { animation-delay: 0.55s; }
+
+  /* ── Shimmer on text ── */
+  @keyframes shimmer-text {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  /* ── thought bubble ── */
+  .thought {
+    background: rgba(245,158,11,0.06);
+    border: 1px solid rgba(245,158,11,0.14);
+    border-radius: 14px;
+    padding: 14px 20px;
+    font-size: 0.87rem;
+    line-height: 1.75;
+    color: var(--text);
+    position: relative;
+  }
+  .thought::before {
+    content: '💭';
+    position: absolute; top: -10px; left: 14px;
+    font-size: 1.2rem;
+  }
+
+  /* ── APK mockup ── */
+  .phone-mockup {
+    width: 110px; flex-shrink: 0;
+    border: 2px solid rgba(245,158,11,0.3);
+    border-radius: 18px;
+    background: rgba(0,0,0,0.5);
+    padding: 12px 8px;
+    display: flex; flex-direction: column; gap: 6px;
+    align-items: center;
+  }
+  .phone-screen {
+    width: 100%; height: 70px;
+    border-radius: 8px;
+    background: rgba(245,158,11,0.08);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+    border: 1px solid rgba(245,158,11,0.15);
+  }
+  .phone-btn {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.25);
+  }
+</style>
+</head>
+<body>
+
+<div id="grid-bg"></div>
+<div id="progress-bar"></div>
+<div id="counter">01 / 09</div>
+<div id="dots"></div>
+<button class="nav-arrow" id="nav-prev">←</button>
+<button class="nav-arrow" id="nav-next">→</button>
+<div id="hints"><kbd>←</kbd><kbd>→</kbd> 切換　<kbd>F</kbd> 全螢幕</div>
+<button id="fullscreen-btn">⛶</button>
+
+<div id="slideshow">
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 1: Title
+  ════════════════════════════════════════════════════ -->
+  <div class="slide active" id="slide-1">
+    <div class="s1-icon anim-item">🔥</div>
+    <div class="eyebrow anim-item">第二類 · 從Excel到API串接</div>
+    <h1 class="title-main anim-item">讓工廠數據動起來<br>｜學習歷程</h1>
+    <p class="subtitle anim-item" style="max-width:500px;margin-top:14px;">
+      第一次寫Python、第一次串API、第一次讓掃描槍連上資料庫<br>這是我一邊踩坑、一邊把工廠痛點變成程式的過程
+    </p>
+    <div class="anim-item" style="margin-top:28px;display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+      <span class="tag tag-amber">🐍 Python 初心者</span>
+      <span class="tag tag-red">🔥 第一次串API</span>
+      <span class="tag tag-orange">📱 第一個APK</span>
+      <span class="tag tag-green">🏭 工廠實戰派</span>
+    </div>
+    <div class="anim-item" style="margin-top:24px;display:flex;gap:28px;">
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:900;color:var(--amber);">7</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);">個專案</div>
+      </div>
+      <div style="width:1px;background:var(--glass-border);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:900;color:var(--red);">N</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);">次踩坑</div>
+      </div>
+      <div style="width:1px;background:var(--glass-border);"></div>
+      <div style="text-align:center;">
+        <div style="font-size:2rem;font-weight:900;color:var(--green);">∞</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);">成就感</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 2: 學習起點
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-2">
+    <div class="eyebrow anim-item">學習起點</div>
+    <h2 class="section-title anim-item" style="text-align:center;">為什麼開始寫程式</h2>
+    <div class="anim-item" style="max-width:680px;width:100%;margin-top:20px;">
+      <div class="quote-card" style="margin-bottom:20px;">
+        <div class="quote-mark">"</div>
+        <div class="quote-text">
+          工廠有太多資訊靠人工傳遞——槽車司機進來，有人大喊一聲；出貨品項，靠人用眼睛核對；品質紀錄，記在紙本上然後找不到。我想用程式解決這件事，哪怕只是讓一個人少重複做一件事也好。
+        </div>
+        <div class="quote-source">— 開始寫第一個系統之前，我對自己說的話</div>
+      </div>
+    </div>
+    <div class="grid-3 anim-item" style="max-width:700px;">
+      <div class="glass" style="padding:18px;text-align:center;">
+        <div style="font-size:1.8rem;margin-bottom:8px;">😩</div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--red);margin-bottom:6px;">工廠的痛</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.6;">人工傳遞資訊<br>每天都在重工<br>資料消失在空氣中</div>
+      </div>
+      <div class="glass" style="padding:18px;text-align:center;">
+        <div style="font-size:1.8rem;margin-bottom:8px;">🤔</div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--amber);margin-bottom:6px;">我的想法</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.6;">掃描代替人眼<br>API代替填表<br>資料庫代替記憶</div>
+      </div>
+      <div class="glass" style="padding:18px;text-align:center;">
+        <div style="font-size:1.8rem;margin-bottom:8px;">💪</div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--green);margin-bottom:6px;">行動方案</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.6;">從最痛的問題<br>開始下手<br>一個一個解決</div>
+      </div>
+    </div>
+    <div class="anim-item" style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+      <span class="milestone">📍 起點：看著師傅用紙本抄寫槽車到廠紀錄</span>
+      <span class="milestone">🎯 目標：讓每筆資料都能自動記下來</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 3: 第一次寫Python演算法
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-3">
+    <div class="eyebrow anim-item">Chapter 01 · Python</div>
+    <h2 class="section-title anim-item">🐍 第一次寫Python演算法</h2>
+    <p class="subtitle anim-item" style="margin-bottom:20px;">IPA生產排程 · 雙儲槽容積預測</p>
+    <div class="grid-2 anim-item" style="max-width:860px;align-items:start;">
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="thought" style="margin-top:10px;">
+          一開始我只知道Python能寫for迴圈，根本不知道能拿來做什麼「演算法」。直到我試著把每個小時的流量數據跑一遍，印出來發現它真的預測出了溢槽時間，那個畫面我到現在還記得。
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <span class="emotion emotion-excite">😤 一開始完全搞不懂</span>
+          <span class="emotion emotion-proud">🎉 看到預測結果那刻</span>
+        </div>
+        <div class="glass" style="padding:16px;">
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:10px;font-family:'JetBrains Mono',monospace;">學到的關鍵概念</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="color:var(--amber);">▸</span>
+              <span style="font-size:0.85rem;">累加迭代 → 模擬時間序列</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="color:var(--amber);">▸</span>
+              <span style="font-size:0.85rem;">threshold判斷 → 條件式警報</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="color:var(--amber);">▸</span>
+              <span style="font-size:0.85rem;">雙迴圈並行 → 兩槽同步計算</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="code-block">
+<span class="cm"># 我寫的第一個真正有用的程式</span>
+<span class="cm"># 簡單，但跑出來的那一刻超興奮</span>
+
+tank_a = <span class="num">0</span>
+tank_b = <span class="num">0</span>
+LIMIT = <span class="num">100000</span>  <span class="cm"># 公升</span>
+
+<span class="kw">for</span> hour <span class="kw">in</span> <span class="fn">range</span>(<span class="num">24</span>):
+    tank_a += flow_a[hour]
+    tank_b += flow_b[hour]
+
+    <span class="kw">if</span> tank_a > LIMIT * <span class="num">0.9</span>:
+        <span class="fn">print</span>(<span class="str">f"⚠ A槽 {hour}時 快滿了！"</span>)
+    <span class="kw">if</span> tank_b > LIMIT * <span class="num">0.9</span>:
+        <span class="fn">print</span>(<span class="str">f"⚠ B槽 {hour}時 快滿了！"</span>)
+
+<span class="ok"># 輸出："⚠ A槽 14時 快滿了！"</span>
+<span class="ok"># 我：等等，它真的預測到了？！</span>
+        </div>
+        <div style="padding:12px 16px;border-radius:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);">
+          <span style="font-size:0.85rem;color:var(--green);">✨ 成就解鎖：for迴圈跑完我居然真的能預測溢槽時間，那一刻很有成就感</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 4: 第一次讓掃描槍說話
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-4">
+    <div class="eyebrow anim-item">Chapter 02 · 條碼掃描</div>
+    <h2 class="section-title anim-item">🔫 第一次讓掃描槍說話</h2>
+    <p class="subtitle anim-item" style="margin-bottom:20px;">IPAHQ槽車系統 · 掃描→比對→亮燈</p>
+    <div class="grid-2 anim-item" style="max-width:860px;align-items:start;">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="thought">
+          條碼槍掃完真的能比對資料庫然後亮綠燈，這件事讓我興奮了一整天。我沒想到一個這麼「工業感」的設備，連上PHP API，就這樣跟SQL資料庫說話了。
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="emotion emotion-excite">🤩 第一次見到綠燈亮起</span>
+          <span class="emotion emotion-struggle">😅 debug到深夜</span>
+        </div>
+        <!-- Flow -->
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.15);">
+            <span>📷</span>
+            <span style="font-size:0.85rem;">掃描槍輸入條碼字串</span>
+            <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--amber);">input event</span>
+          </div>
+          <div style="text-align:center;color:var(--amber);font-size:1rem;">↓</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(251,146,60,0.07);border:1px solid rgba(251,146,60,0.15);">
+            <span>⚡</span>
+            <span style="font-size:0.85rem;">JS捕捉Enter → fetch PHP API</span>
+            <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--orange);">POST /api</span>
+          </div>
+          <div style="text-align:center;color:var(--amber);font-size:1rem;">↓</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.15);">
+            <span>🗄️</span>
+            <span style="font-size:0.85rem;">PHP查SQL比對採購單</span>
+            <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:var(--cyan);">SELECT</span>
+          </div>
+          <div style="text-align:center;color:var(--amber);font-size:1rem;">↓</div>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;padding:10px;border-radius:10px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);text-align:center;">
+              <div style="font-size:1.2rem;">🟢</div>
+              <div style="font-size:0.78rem;font-weight:700;color:#34d399;">綠燈放行</div>
+            </div>
+            <div style="flex:1;padding:10px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);text-align:center;">
+              <div style="font-size:1.2rem;">🔴</div>
+              <div style="font-size:0.78rem;font-weight:700;color:#f87171;">紅燈警示</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="code-block">
+<span class="cm">// 前端：捕捉掃描槍Enter</span>
+input.addEventListener(<span class="str">'keydown'</span>, e => {
+  <span class="kw">if</span> (e.key === <span class="str">'Enter'</span>) {
+    <span class="fn">fetch</span>(<span class="str">'/api/verify.php'</span>, {
+      method: <span class="str">'POST'</span>,
+      body: JSON.<span class="fn">stringify</span>({
+        barcode: input.value
+      })
+    })
+    .<span class="fn">then</span>(r => r.<span class="fn">json</span>())
+    .<span class="fn">then</span>(data => {
+      <span class="kw">if</span> (data.match) {
+        <span class="fn">showGreenLight</span>(); <span class="cm">// 🟢</span>
+      } <span class="kw">else</span> {
+        <span class="fn">showRedLight</span>();  <span class="cm">// 🔴</span>
+      }
+    });
+  }
+});
+        </div>
+        <div class="glass" style="padding:14px 18px;">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--amber);letter-spacing:0.1em;margin-bottom:8px;">踩坑紀錄</div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <span style="color:var(--red);flex-shrink:0;">✕</span>
+              <span style="font-size:0.78rem;color:var(--text-dim);">掃描槍輸入速度太快，JS來不及組字串</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <span style="color:var(--red);flex-shrink:0;">✕</span>
+              <span style="font-size:0.78rem;color:var(--text-dim);">PHP的POST沒加Content-Type header</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-start;">
+              <span style="color:var(--amber);flex-shrink:0;">→</span>
+              <span style="font-size:0.78rem;color:var(--amber);">解法：監聽Enter而非每個keystroke</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 5: 學習GAS串接
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-5">
+    <div class="eyebrow anim-item">Chapter 03 · Google Apps Script</div>
+    <h2 class="section-title anim-item">📊 學習GAS串接</h2>
+    <p class="subtitle anim-item" style="margin-bottom:20px;">N系列出貨核對 · doPost讓我理解了webhook的概念</p>
+    <div class="grid-2 anim-item" style="max-width:860px;align-items:start;">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="thought">
+          GAS的doPost讓我理解了webhook的概念——原來程式可以被「叫醒」，而不是主動去問有沒有新資料。前端POST過去，GAS就醒來，把資料寫進試算表。這個架構讓我覺得：原來雲端是這樣運作的。
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="emotion emotion-excite">💡 webhook的頓悟時刻</span>
+          <span class="emotion emotion-proud">✅ 第一次用GAS當後端</span>
+        </div>
+        <!-- GAS concept -->
+        <div class="glass" style="padding:16px;">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--amber);letter-spacing:0.1em;margin-bottom:10px;">理解過程</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+              <span style="color:var(--text-dim);flex-shrink:0;font-size:0.72rem;margin-top:2px;">BEFORE</span>
+              <span style="font-size:0.82rem;color:var(--red);">我以為程式要一直輪詢問「有資料了嗎？」</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;">
+              <span style="color:var(--amber);flex-shrink:0;font-size:0.72rem;margin-top:2px;">AFTER</span>
+              <span style="font-size:0.82rem;color:var(--green);">原來可以等別人主動推過來，GAS就是接收推送的那一端</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="code-block">
+<span class="cm">// GAS Apps Script</span>
+<span class="kw">function</span> <span class="fn">doPost</span>(e) {
+  <span class="kw">const</span> data = JSON.<span class="fn">parse</span>(
+    e.postData.contents
+  );
+  <span class="kw">const</span> sheet = SpreadsheetApp
+    .<span class="fn">getActiveSheet</span>();
+
+  sheet.<span class="fn">appendRow</span>([
+    data.barcode,
+    data.item,
+    data.qty,
+    <span class="kw">new</span> <span class="fn">Date</span>()
+  ]);
+
+  <span class="kw">return</span> ContentService
+    .<span class="fn">createTextOutput</span>(
+      JSON.<span class="fn">stringify</span>({ok: <span class="kw">true</span>})
+    );
+}
+<span class="cm">// 前端POST一次，試算表就多一行</span>
+<span class="cm">// 這簡直是魔法</span>
+        </div>
+        <div style="padding:12px 16px;border-radius:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.18);">
+          <div style="font-size:0.78rem;font-weight:700;color:var(--green);margin-bottom:6px;">📌 關鍵學到</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <span style="font-size:0.8rem;color:var(--text-dim);">▸ webhook = 被動接收推送的端點</span>
+            <span style="font-size:0.8rem;color:var(--text-dim);">▸ doPost = GAS的接收入口</span>
+            <span style="font-size:0.8rem;color:var(--text-dim);">▸ deployAsWebApp = 公開為URL</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 6: 第一個Android APK
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-6">
+    <div class="eyebrow anim-item">Chapter 04 · Android</div>
+    <h2 class="section-title anim-item">📱 第一個Android APK</h2>
+    <p class="subtitle anim-item" style="margin-bottom:20px;">把網頁包成APK，第一次讓程式跑在手機裡</p>
+    <div class="grid-2 anim-item" style="max-width:860px;align-items:start;">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="thought">
+          我沒學過Android原生開發，但聽說Cordova可以把HTML包成APK。我不太確定這樣做對不對，但我試了，然後它真的裝到手機上跑起來了。第一次看到自己寫的介面在手機螢幕上運作，那種感覺很奇妙。
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="emotion emotion-struggle">😅 不確定這樣做對不對</span>
+          <span class="emotion emotion-proud">📲 它真的跑起來了！</span>
+        </div>
+        <!-- Tech flow -->
+        <div class="glass" style="padding:16px;">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--amber);margin-bottom:10px;letter-spacing:0.1em;">技術選型</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:0.82rem;">封裝框架</span>
+              <span class="tag tag-orange">Apache Cordova</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:0.82rem;">離線儲存</span>
+              <span class="tag tag-amber">SQLite Plugin</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:0.82rem;">網路偵測</span>
+              <span class="tag tag-cyan">Network Plugin</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:0.82rem;">上傳目標</span>
+              <span class="tag tag-green">GAS Webhook</span>
+            </div>
+          </div>
+        </div>
+        <!-- Offline logic -->
+        <div style="padding:12px 16px;border-radius:10px;background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.14);">
+          <div style="font-size:0.78rem;font-weight:700;color:var(--amber);margin-bottom:6px;">離線策略</div>
+          <div style="font-size:0.8rem;color:var(--text-dim);line-height:1.7;">
+            偵測到無網路 → 暫存SQLite<br>
+            恢復連線 → 自動批次上傳<br>
+            上傳成功 → 清除本地暫存
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="code-block" style="font-size:0.72rem;">
+<span class="cm">// 離線自動偵測與暫存邏輯</span>
+<span class="fn">document.addEventListener</span>(
+  <span class="str">'deviceready'</span>, () => {
+  <span class="kw">const</span> type = navigator.connection.type;
+
+  <span class="kw">if</span> (type === Connection.NONE) {
+    <span class="cm">// 無網路 → 存SQLite</span>
+    db.<span class="fn">transaction</span>(tx => {
+      tx.<span class="fn">executeSql</span>(
+        <span class="str">'INSERT INTO queue VALUES(?)'</span>,
+        [JSON.<span class="fn">stringify</span>(formData)]
+      );
+    });
+  } <span class="kw">else</span> {
+    <span class="cm">// 有網路 → 直接上傳</span>
+    <span class="fn">uploadToGAS</span>(formData);
+  }
+});
+
+<span class="cm">// 網路恢復時批次上傳</span>
+document.<span class="fn">addEventListener</span>(
+  <span class="str">'online'</span>,
+  <span class="fn">syncPendingQueue</span>
+);
+        </div>
+        <div style="padding:12px 16px;border-radius:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.18);">
+          <div style="font-size:0.82rem;color:var(--amber-light);">
+            🏭 工廠死角收不到網路是常事，這個離線機制讓系統在任何地方都能用
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 7: 資料庫遷移挑戰
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-7">
+    <div class="eyebrow anim-item">Chapter 05 · 資料庫設計</div>
+    <h2 class="section-title anim-item">🗄️ 資料庫遷移挑戰</h2>
+    <p class="subtitle anim-item" style="margin-bottom:20px;">三合一單 · schema設計錯了重建了三次，但搞定後資料總算有了家</p>
+    <div class="grid-2 anim-item" style="max-width:860px;align-items:start;">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="thought">
+          schema設計錯了重建了三次，但搞定後資料總算有了家。第一次設計資料庫時我把所有欄位塞進一張表，後來發現JOIN根本跑不了，只好重建。第三次才搞定正規化。
+        </div>
+        <!-- Failure steps -->
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.2);border:1px solid var(--red);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.72rem;font-weight:700;color:var(--red);">1</div>
+            <div style="flex:1;">
+              <div style="font-size:0.82rem;font-weight:600;color:var(--red);">第一次 ❌ 一張大表</div>
+              <div style="font-size:0.75rem;color:var(--text-dim);">所有欄位塞在一起，JOIN無法用，查詢超慢</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.5);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.72rem;font-weight:700;color:var(--red);">2</div>
+            <div style="flex:1;">
+              <div style="font-size:0.82rem;font-weight:600;color:var(--orange);">第二次 ⚠ 分太細</div>
+              <div style="font-size:0.75rem;color:var(--text-dim);">拆了七張表，查一筆資料要JOIN五次，崩潰</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(16,185,129,0.2);border:1px solid var(--green);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:0.72rem;font-weight:700;color:var(--green);">3</div>
+            <div style="flex:1;">
+              <div style="font-size:0.82rem;font-weight:600;color:var(--green);">第三次 ✅ 剛剛好</div>
+              <div style="font-size:0.75rem;color:var(--text-dim);">主表＋子表分離，外鍵關聯，資料總算有了家</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:12px 16px;border-radius:10px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.18);">
+          <div style="font-size:0.82rem;color:var(--green);">
+            💡 搞定後寫了 schema.sql 版控，以後部署再也不用手動建表了
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="code-block" style="font-size:0.7rem;">
+<span class="cm">-- 第三次：正確的schema設計</span>
+<span class="kw">CREATE TABLE</span> tri_orders (
+  id      <span class="kw">INT</span> <span class="kw">PRIMARY KEY AUTO_INCREMENT</span>,
+  form_no <span class="kw">VARCHAR</span>(<span class="num">20</span>) <span class="kw">UNIQUE</span>,
+  dept    <span class="kw">VARCHAR</span>(<span class="num">20</span>),
+  status  <span class="kw">ENUM</span>(<span class="str">'draft','done','cancel'</span>),
+  created <span class="kw">DATETIME DEFAULT NOW</span>()
+);
+
+<span class="kw">CREATE TABLE</span> tri_items (
+  id       <span class="kw">INT</span> <span class="kw">PRIMARY KEY AUTO_INCREMENT</span>,
+  order_id <span class="kw">INT</span>,
+  item_no  <span class="kw">VARCHAR</span>(<span class="num">30</span>),
+  qty      <span class="kw">INT</span>,
+  <span class="kw">FOREIGN KEY</span> (order_id)
+    <span class="kw">REFERENCES</span> tri_orders(id)
+);
+
+<span class="cm">-- 歷史資料匯入</span>
+<span class="kw">LOAD DATA INFILE</span> <span class="str">'history.csv'</span>
+<span class="kw">INTO TABLE</span> tri_orders ...
+        </div>
+        <div class="glass" style="padding:14px 18px;">
+          <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;font-family:'JetBrains Mono',monospace;">匯入成果</div>
+          <div style="display:flex;gap:16px;justify-content:space-around;">
+            <div style="text-align:center;">
+              <div style="font-size:1.6rem;font-weight:800;color:var(--amber);">3次</div>
+              <div style="font-size:0.7rem;color:var(--text-dim);">schema重建</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:1.6rem;font-weight:800;color:var(--green);">✅</div>
+              <div style="font-size:0.7rem;color:var(--text-dim);">歷史全匯入</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:1.6rem;font-weight:800;color:var(--cyan);">版控</div>
+              <div style="font-size:0.7rem;color:var(--text-dim);">schema.sql</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 8: 技能樹
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-8">
+    <div class="eyebrow anim-item">技能樹</div>
+    <h2 class="section-title anim-item" style="text-align:center;">這些專案讓我學會的技能</h2>
+    <p class="subtitle anim-item" style="margin-bottom:24px;">從零開始，靠工廠痛點逼出來的技術棧</p>
+    <div class="anim-item" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:820px;width:100%;">
+      <!-- Python -->
+      <div class="skill-node glass" style="padding:18px;">
+        <div class="skill-icon">🐍</div>
+        <div class="skill-name" style="color:var(--amber);">Python</div>
+        <div class="skill-desc">演算法・排程預測・資料處理</div>
+        <div class="skill-bar" style="background:linear-gradient(90deg,var(--amber),var(--orange));width:75%;"></div>
+        <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">中級 · 持續學習中</div>
+      </div>
+      <!-- PHP -->
+      <div class="skill-node glass" style="padding:18px;">
+        <div class="skill-icon">🐘</div>
+        <div class="skill-name" style="color:var(--orange);">PHP</div>
+        <div class="skill-desc">API開發・後端邏輯・資料處理</div>
+        <div class="skill-bar" style="background:linear-gradient(90deg,var(--orange),var(--red));width:70%;"></div>
+        <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">中級 · 實戰驗證</div>
+      </div>
+      <!-- SQL -->
+      <div class="skill-node glass" style="padding:18px;">
+        <div class="skill-icon">🗄️</div>
+        <div class="skill-name" style="color:var(--red);">SQL</div>
+        <div class="skill-desc">Schema設計・JOIN・資料遷移</div>
+        <div class="skill-bar" style="background:linear-gradient(90deg,var(--red-dark),var(--red));width:65%;"></div>
+        <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">中級 · 踩坑畢業</div>
+      </div>
+      <!-- GAS -->
+      <div class="skill-node glass" style="padding:18px;">
+        <div class="skill-icon">📊</div>
+        <div class="skill-name" style="color:var(--green);">Google Apps Script</div>
+        <div class="skill-desc">webhook・doPost・Sheets API</div>
+        <div class="skill-bar" style="background:linear-gradient(90deg,#059669,var(--green));width:70%;"></div>
+        <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">中級 · 實戰掌握</div>
+      </div>
+      <!-- Android -->
+      <div class="skill-node glass" style="padding:18px;">
+        <div class="skill-icon">📱</div>
+        <div class="skill-name" style="color:var(--cyan);">Android/Cordova</div>
+        <div class="skill-desc">WebView包裝・SQLite・APK打包</div>
+        <div class="skill-bar" style="background:linear-gradient(90deg,var(--cyan),#60e8ff);width:55%;"></div>
+        <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">入門進階 · 持續探索</div>
+      </div>
+      <!-- Barcode -->
+      <div class="skill-node glass" style="padding:18px;">
+        <div class="skill-icon">📷</div>
+        <div class="skill-name" style="color:var(--amber);">條碼掃描整合</div>
+        <div class="skill-desc">HID輸入・事件捕捉・防呆邏輯</div>
+        <div class="skill-bar" style="background:linear-gradient(90deg,var(--amber-dark),var(--amber));width:80%;"></div>
+        <div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px;">熟練 · 多系統實戰</div>
+      </div>
+    </div>
+    <div class="anim-item" style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <span class="tag tag-amber">📝 HTML / CSS / JS</span>
+      <span class="tag tag-red">🔧 Chart.js</span>
+      <span class="tag tag-orange">🔀 Git 版控</span>
+      <span class="tag tag-green">☁️ 雲端部署</span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 9: 反思
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-9">
+    <div class="eyebrow anim-item">反思與展望</div>
+    <h2 class="section-title anim-item" style="text-align:center;">每一個系統都是工廠的一個痛點</h2>
+    <div class="anim-item" style="max-width:680px;width:100%;margin-top:16px;">
+      <div class="quote-card" style="margin-bottom:20px;border-left-color:var(--red);">
+        <div class="quote-mark" style="color:var(--red);">"</div>
+        <div class="quote-text" style="font-size:1rem;">
+          每一個系統都是工廠的一個痛點。解決它讓我覺得學這些是值得的。不是為了考試、不是為了履歷，是因為有個真實的人，因為這個程式少重複做了一件煩人的事。
+        </div>
+        <div class="quote-source" style="color:var(--amber);">— 做完第七個系統之後</div>
+      </div>
+    </div>
+    <div class="grid-3 anim-item" style="max-width:700px;">
+      <div class="glass" style="padding:18px;text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:8px;">💡</div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--amber);margin-bottom:6px;">最大的收穫</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.6;">問題驅動學習比教材快十倍，工廠的痛點是最好的老師</div>
+      </div>
+      <div class="glass" style="padding:18px;text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:8px;">🔥</div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--red);margin-bottom:6px;">最難忘的時刻</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.6;">掃描槍第一次亮綠燈，那一刻的興奮感無法用語言描述</div>
+      </div>
+      <div class="glass" style="padding:18px;text-align:center;">
+        <div style="font-size:1.6rem;margin-bottom:8px;">🚀</div>
+        <div style="font-size:0.85rem;font-weight:600;color:var(--orange);margin-bottom:6px;">接下來想做</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);line-height:1.6;">把這些系統串成一個統一的工廠看板，資料互通</div>
+      </div>
+    </div>
+    <div class="anim-item" style="margin-top:20px;padding:16px 28px;border-radius:14px;background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(239,68,68,0.06));border:1px solid rgba(245,158,11,0.18);max-width:620px;text-align:center;">
+      <div style="font-size:0.85rem;color:var(--amber-light);font-weight:600;line-height:1.7;">
+        🏭 從不知道 for 迴圈能做什麼，到讓工廠的數據真正動起來<br>
+        <span style="color:var(--text-dim);font-size:0.8rem;">這段旅程還在繼續</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end slideshow -->
+
+<script>
+const TOTAL = 9;
+let current = 0;
+let isAnimating = false;
+
+const slides = document.querySelectorAll('.slide');
+const progressBar = document.getElementById('progress-bar');
+const counter = document.getElementById('counter');
+const dotsContainer = document.getElementById('dots');
+
+for (let i = 0; i < TOTAL; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'dot' + (i === 0 ? ' active' : '');
+  dot.addEventListener('click', () => goTo(i));
+  dotsContainer.appendChild(dot);
+}
+
+function update() {
+  const dots = dotsContainer.querySelectorAll('.dot');
+  progressBar.style.width = ((current + 1) / TOTAL * 100) + '%';
+  counter.textContent = String(current + 1).padStart(2,'0') + ' / ' + String(TOTAL).padStart(2,'0');
+  dots.forEach((d, i) => d.classList.toggle('active', i === current));
+}
+
+function goTo(n) {
+  if (isAnimating || n === current) return;
+  isAnimating = true;
+  const prev = current;
+  slides[prev].classList.remove('active');
+  slides[prev].classList.add('prev');
+  current = Math.max(0, Math.min(TOTAL - 1, n));
+  slides[current].classList.remove('prev');
+  slides[current].classList.add('active');
+  update();
+  setTimeout(() => {
+    slides[prev].classList.remove('prev');
+    isAnimating = false;
+  }, 600);
+}
+
+function next() { goTo(current + 1); }
+function prev() { goTo(current - 1); }
+
+document.getElementById('nav-next').addEventListener('click', next);
+document.getElementById('nav-prev').addEventListener('click', prev);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+});
+
+document.getElementById('fullscreen-btn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 50) dx > 0 ? next() : prev();
+}, { passive: true });
+
+update();
+</script>
+</body>
+</html>

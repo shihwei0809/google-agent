@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 代理工具與企劃 — 成果發表</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050810;
+      --slide-bg: #0b0f1a;
+      --glass: rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.08);
+      --primary: #7c3aed;
+      --primary-light: #a78bfa;
+      --accent: #06b6d4;
+      --accent-warm: #f59e0b;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --card-bg: rgba(255,255,255,0.03);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Noto Sans TC', 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      cursor: default;
+      user-select: none;
+    }
+
+    /* ────────────── Progress Bar ────────────── */
+    #progressBar {
+      position: fixed;
+      top: 0; left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+      z-index: 100;
+      box-shadow: 0 0 12px rgba(124,58,237,0.6);
+    }
+
+    /* ────────────── Slide Counter ────────────── */
+    #slideCounter {
+      position: fixed;
+      bottom: 28px;
+      right: 36px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      z-index: 100;
+      letter-spacing: 1px;
+    }
+
+    /* ────────────── Nav Arrows ────────────── */
+    .nav-arrow {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 44px; height: 44px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+      color: var(--muted);
+      font-size: 18px;
+    }
+    .nav-arrow:hover { background: rgba(124,58,237,0.2); color: var(--primary-light); border-color: var(--primary); }
+    #navLeft { left: 20px; }
+    #navRight { right: 20px; }
+
+    /* ────────────── Shortcut hint ────────────── */
+    #hints {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 16px;
+      z-index: 100;
+    }
+    .hint-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    /* ────────────── Slide Container ────────────── */
+    #slideContainer {
+      width: 100vw; height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 80px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(60px);
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .slide.active {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateX(0);
+    }
+    .slide.exiting {
+      opacity: 0;
+      transform: translateX(-60px);
+    }
+
+    /* ────────────── Common Slide Elements ────────────── */
+    .slide-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--primary-light);
+      margin-bottom: 16px;
+    }
+    .slide-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: clamp(32px, 5vw, 56px);
+      line-height: 1.1;
+      text-align: center;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #fff 0%, var(--primary-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .slide-subtitle {
+      font-size: 16px;
+      color: var(--muted);
+      text-align: center;
+      max-width: 640px;
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      backdrop-filter: blur(20px);
+      padding: 28px 32px;
+    }
+    .tag-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    /* ────────────── SLIDE 0: Title ────────────── */
+    #slide-0 {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124,58,237,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(6,182,212,0.12) 0%, transparent 70%),
+        var(--slide-bg);
+    }
+    .title-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(124,58,237,0.15);
+      border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 24px;
+      padding: 6px 18px;
+      font-size: 13px;
+      color: var(--primary-light);
+      margin-bottom: 28px;
+      font-weight: 600;
+    }
+    .big-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: clamp(40px, 7vw, 76px);
+      line-height: 1.05;
+      text-align: center;
+      background: linear-gradient(135deg, #ffffff 0%, #c4b5fd 50%, #67e8f9 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 24px;
+    }
+    .glow-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      display: inline-block;
+    }
+    .title-meta {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 32px;
+    }
+    .title-meta-divider { width: 1px; height: 20px; background: var(--glass-border); }
+
+    /* ────────────── SLIDE 1: Overview ────────────── */
+    #slide-1 {
+      background: radial-gradient(ellipse 70% 50% at 50% 50%, rgba(124,58,237,0.1) 0%, transparent 60%), var(--slide-bg);
+    }
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 960px;
+      margin-top: 8px;
+    }
+    .overview-card {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.25s;
+      cursor: default;
+    }
+    .overview-card:hover {
+      border-color: var(--primary);
+      background: rgba(124,58,237,0.08);
+      transform: translateY(-2px);
+    }
+    .overview-card .icon { font-size: 28px; }
+    .overview-card .name { font-size: 13px; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .overview-card .desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+    /* ────────────── SLIDE 2: 小鴻留言板 ────────────── */
+    #slide-2 {
+      background:
+        radial-gradient(ellipse 60% 40% at 0% 50%, rgba(124,58,237,0.15) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 100% 50%, rgba(6,182,212,0.08) 0%, transparent 60%),
+        var(--slide-bg);
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 1000px;
+      align-items: start;
+    }
+    .feature-list { display: flex; flex-direction: column; gap: 14px; }
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      transition: all 0.2s;
+    }
+    .feature-item:hover { border-color: rgba(167,139,250,0.3); background: rgba(124,58,237,0.06); }
+    .feature-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .feature-text .label { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+    .feature-text .sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .url-box {
+      background: rgba(6,182,212,0.08);
+      border: 1px solid rgba(6,182,212,0.2);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      margin-top: 16px;
+    }
+    .demo-screen {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .demo-titlebar {
+      height: 36px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--glass-border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+    }
+    .dot-r { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+    .dot-y { width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; }
+    .dot-g { width: 10px; height: 10px; border-radius: 50%; background: #10b981; }
+    .demo-titlebar-url {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .demo-body { padding: 20px; min-height: 220px; }
+    .chat-bubble { border-radius: 10px; padding: 10px 14px; font-size: 12px; line-height: 1.6; margin-bottom: 10px; max-width: 88%; }
+    .chat-bubble.ai {
+      background: rgba(124,58,237,0.15);
+      border: 1px solid rgba(124,58,237,0.2);
+      color: #ddd6fe;
+    }
+    .chat-bubble.user {
+      background: rgba(6,182,212,0.1);
+      border: 1px solid rgba(6,182,212,0.15);
+      color: #a5f3fc;
+      margin-left: auto;
+    }
+    .chat-meta { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .tech-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .badge-purple { background: rgba(124,58,237,0.15); border-color: rgba(167,139,250,0.3); color: var(--primary-light); }
+    .badge-cyan { background: rgba(6,182,212,0.12); border-color: rgba(6,182,212,0.3); color: var(--accent); }
+    .badge-green { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.3); color: var(--success); }
+    .badge-amber { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.3); color: var(--accent-warm); }
+
+    /* ────────────── SLIDE 3-7: Project Slides ────────────── */
+    .project-slide {
+      gap: 24px;
+    }
+    .project-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+    .project-icon-wrap {
+      width: 70px; height: 70px;
+      border-radius: 20px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+    }
+    .three-col {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      width: 100%;
+      max-width: 920px;
+    }
+    .info-card {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .info-card .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--primary-light);
+      margin-bottom: 10px;
+    }
+    .info-card .card-body {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+    .flow-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      max-width: 800px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .flow-box {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 13px;
+      text-align: center;
+    }
+    .flow-arrow { color: var(--muted); font-size: 18px; }
+    .code-block {
+      background: #0d1117;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #e6edf3;
+      line-height: 1.7;
+      width: 100%;
+      max-width: 600px;
+    }
+    .code-comment { color: #6e7681; }
+    .code-keyword { color: #ff7b72; }
+    .code-string { color: #a5d6ff; }
+    .code-func { color: #d2a8ff; }
+
+    /* ────────────── SLIDE 8: Journey Timeline ────────────── */
+    #slide-8 {
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 100%, rgba(124,58,237,0.12) 0%, transparent 70%),
+        var(--slide-bg);
+    }
+    .timeline {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      width: 100%;
+      max-width: 900px;
+      position: relative;
+      margin-top: 8px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      top: 22px; left: 24px; right: 24px;
+      height: 2px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+    }
+    .tl-step {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+    .tl-dot {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      border: 2px solid;
+      background: var(--slide-bg);
+      z-index: 1;
+    }
+    .tl-content {
+      text-align: center;
+      padding: 0 8px;
+    }
+    .tl-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .tl-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ────────────── SLIDE 9: Closing ────────────── */
+    #slide-9 {
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 50%, rgba(124,58,237,0.2) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 100% 0%, rgba(6,182,212,0.1) 0%, transparent 60%),
+        var(--slide-bg);
+    }
+    .closing-stats {
+      display: flex;
+      gap: 40px;
+      margin: 28px 0;
+    }
+    .stat-item { text-align: center; }
+    .stat-num {
+      font-family: 'Outfit', sans-serif;
+      font-size: 52px;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--primary-light), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1;
+    }
+    .stat-label { font-size: 13px; color: var(--muted); margin-top: 6px; }
+    .stat-divider { width: 1px; background: var(--glass-border); align-self: stretch; }
+    .quote-box {
+      max-width: 620px;
+      text-align: center;
+      font-size: 17px;
+      color: #cbd5e1;
+      line-height: 1.8;
+      font-style: italic;
+      padding: 24px 32px;
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      position: relative;
+    }
+    .quote-box::before {
+      content: '"';
+      position: absolute;
+      top: -16px; left: 24px;
+      font-size: 80px;
+      color: var(--primary);
+      line-height: 1;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      opacity: 0.5;
+    }
+
+    /* ────────────── Animations ────────────── */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(124,58,237,0.3); }
+      50% { box-shadow: 0 0 40px rgba(124,58,237,0.6); }
+    }
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-float { animation: float 4s ease-in-out infinite; }
+    .animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+    .fade-up { animation: fade-up 0.6s ease both; }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+    .delay-4 { animation-delay: 0.4s; }
+    .delay-5 { animation-delay: 0.5s; }
+  </style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div id="progressBar"></div>
+
+<!-- Nav Arrows -->
+<div class="nav-arrow" id="navLeft" onclick="prevSlide()">‹</div>
+<div class="nav-arrow" id="navRight" onclick="nextSlide()">›</div>
+
+<!-- Slide Counter -->
+<div id="slideCounter">01 / 10</div>
+
+<!-- Shortcuts -->
+<div id="hints">
+  <div class="hint-badge">← → 換頁</div>
+  <div class="hint-badge">Space 下一頁</div>
+  <div class="hint-badge">F 全螢幕</div>
+</div>
+
+<!-- ──────────────────────────────────────────── -->
+<div id="slideContainer">
+
+  <!-- ===== SLIDE 0: TITLE ===== -->
+  <div class="slide active" id="slide-0">
+    <div class="title-eyebrow fade-up">
+      <span class="glow-dot"></span>
+      第三類 · AI 代理工具與企劃
+    </div>
+    <div class="big-title fade-up delay-1">
+      讓 AI 成為<br>你的開發夥伴
+    </div>
+    <div class="slide-subtitle fade-up delay-2">
+      從智慧留言板、教室代理、到影片企劃自動化——<br>
+      這是一段從「使用工具」到「整合 AI」的完整學習歷程。
+    </div>
+    <div class="title-meta fade-up delay-3">
+      <span>🤖 6 個 AI 整合專案</span>
+      <div class="title-meta-divider"></div>
+      <span>📅 2025 — 2026</span>
+      <div class="title-meta-divider"></div>
+      <span>鴻勝化學 × Antigravity AI</span>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 1: OVERVIEW ===== -->
+  <div class="slide" id="slide-1">
+    <div class="slide-tag fade-up">本部影片涵蓋</div>
+    <div class="slide-title fade-up delay-1" style="font-size: clamp(24px,3.5vw,40px);">六個 AI 驅動的專案成果</div>
+    <div class="overview-grid fade-up delay-2">
+      <div class="overview-card">
+        <div class="icon">🤖</div>
+        <div class="name">留言板 AI 助理「小鴻」</div>
+        <div class="desc">語音辨識 × 5-Why 診斷 × 情境感知對話</div>
+      </div>
+      <div class="overview-card">
+        <div class="icon">🏫</div>
+        <div class="name">Google Classroom Agent</div>
+        <div class="desc">自動發課 × AI 即時批改 × 作業監控</div>
+      </div>
+      <div class="overview-card">
+        <div class="icon">🚀</div>
+        <div class="name">Clasp + Netlify 部署指南</div>
+        <div class="desc">前端 + GAS 後端自動化部署閉環</div>
+      </div>
+      <div class="overview-card">
+        <div class="icon">📑</div>
+        <div class="name">Claude HTML Slide Builder</div>
+        <div class="desc">文字教材 → Reveal.js 互動簡報自動生成</div>
+      </div>
+      <div class="overview-card">
+        <div class="icon">🎒</div>
+        <div class="name">畢業旅行影片企劃</div>
+        <div class="desc">Python 語音合成 × FFmpeg 影片自動混音</div>
+      </div>
+      <div class="overview-card">
+        <div class="icon">💄</div>
+        <div class="name">保養品客服機器人</div>
+        <div class="desc">垂直領域知識庫 × AI 客服自動對答</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 2: 留言板 AI 小鴻 ===== -->
+  <div class="slide" id="slide-2">
+    <div class="slide-tag fade-up">核心 AI 整合成果</div>
+    <div class="slide-title fade-up delay-1" style="font-size: clamp(22px,3vw,38px); margin-bottom: 20px;">🤖 留言板 AI 助理「小鴻」</div>
+    <div class="two-col fade-up delay-2" style="max-width: 1100px;">
+      <div class="feature-list">
+        <div class="feature-item">
+          <div class="feature-icon">🎙️</div>
+          <div class="feature-text">
+            <div class="label">語音辨識輸入（Speech-to-Text）</div>
+            <div class="sub">瀏覽器原生 Web Speech API，廠區現場口說即可通報，免鍵盤輸入</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">✨</div>
+          <div class="feature-text">
+            <div class="label">AI 文本三段式潤飾 / 條列 / 摘要</div>
+            <div class="sub">口語草稿一鍵改寫為標準品保通報格式（異常現象、影響範疇、圍堵措施）</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">🧠</div>
+          <div class="feature-text">
+            <div class="label">一鍵 AI 5-Why 異常診斷</div>
+            <div class="sub">讀取卡片事件後自動推導根因並產出 CAR 預防建議，以留言形式張貼</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">💬</div>
+          <div class="feature-text">
+            <div class="label">看板上下文感知對話</div>
+            <div class="sub">AI 自動讀取當日所有卡片，能回答「今天有什麼異常？」等即時問題</div>
+          </div>
+        </div>
+        <div class="badge-row">
+          <span class="tech-badge badge-purple">Google Gemini 2.5 Flash</span>
+          <span class="tech-badge badge-cyan">Web Speech API</span>
+          <span class="tech-badge badge-green">Netlify</span>
+          <span class="tech-badge badge-amber">Google GAS</span>
+        </div>
+        <div class="url-box">🌐 hongsheng-board.netlify.app</div>
+      </div>
+      <div>
+        <div class="demo-screen">
+          <div class="demo-titlebar">
+            <div class="dot-r"></div><div class="dot-y"></div><div class="dot-g"></div>
+            <div class="demo-titlebar-url">hongsheng-board.netlify.app</div>
+          </div>
+          <div class="demo-body">
+            <div class="chat-meta">小鴻 (AI助理)</div>
+            <div class="chat-bubble ai">您好！我是 AI 助理小鴻。今天看板上有 3 張卡片，其中 A 線密封包裝異常已標記為緊急通報。<br><br>需要我進行 5-Why 根因分析嗎？</div>
+            <div class="chat-meta" style="text-align:right;">您</div>
+            <div class="chat-bubble user">幫我分析今天的異常</div>
+            <div class="chat-meta" style="margin-top:8px;">小鴻 (AI助理)</div>
+            <div class="chat-bubble ai">🔍 5-Why 分析結果：<br>Why 1: 密封不良 → 熱熔溫度異常<br>Why 2: 溫控系統 → 感測器偏移<br>…<br>✅ CAR 建議：每班首件檢查 + 感測器定期校正</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 3: Classroom Agent ===== -->
+  <div class="slide project-slide" id="slide-3">
+    <div class="project-header fade-up">
+      <div class="project-icon-wrap animate-float" style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3);">🏫</div>
+      <div class="slide-tag">教育自動化</div>
+      <div class="slide-title" style="font-size: clamp(22px,3vw,38px); margin-bottom:4px;">Google Classroom Agent</div>
+      <div class="slide-subtitle" style="margin-bottom:0; font-size:14px;">串接 Google Classroom API，讓 AI 自動發課、監控繳交狀態並即時批改</div>
+    </div>
+    <div class="three-col fade-up delay-2">
+      <div class="info-card">
+        <div class="card-title">🎯 解決的痛點</div>
+        <div class="card-body">講師每次都要手動建立作業、點名確認繳交、逐份批改——重複勞動佔用大量備課時間</div>
+      </div>
+      <div class="info-card">
+        <div class="card-title">⚙️ 核心功能</div>
+        <div class="card-body">
+          • 自動批次建立課程單元<br>
+          • 輪詢監控學員繳交狀態<br>
+          • 繳交觸發 AI 初步評分<br>
+          • OAuth 2.0 安全授權
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="card-title">🛠️ 技術棧</div>
+        <div class="card-body">
+          <span class="tech-badge badge-green" style="margin:2px">Node.js</span>
+          <span class="tech-badge badge-cyan" style="margin:2px">Classroom API</span>
+          <span class="tech-badge badge-amber" style="margin:2px">Google OAuth 2.0</span>
+          <span class="tech-badge badge-purple" style="margin:2px">Gemini AI</span>
+        </div>
+      </div>
+    </div>
+    <div class="flow-row fade-up delay-3">
+      <div class="flow-box">📋<br><small>講師建課</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">🤖<br><small>Agent 發佈</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">📝<br><small>學員作答</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">⚡<br><small>觸發批改</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">✅<br><small>回饋報告</small></div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 4: Clasp + Netlify ===== -->
+  <div class="slide project-slide" id="slide-4">
+    <div class="project-header fade-up">
+      <div class="project-icon-wrap animate-float" style="background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3);">🚀</div>
+      <div class="slide-tag">自動化部署</div>
+      <div class="slide-title" style="font-size: clamp(22px,3vw,38px); margin-bottom:4px;">Clasp + Netlify 部署指南</div>
+      <div class="slide-subtitle" style="margin-bottom:0; font-size:14px;">讓 AI Agent 自動完成「前端推 Netlify + 後端 GAS 推 clasp」的完整部署閉環</div>
+    </div>
+    <div class="code-block fade-up delay-2">
+      <span class="code-comment"># 1. 安裝工具</span><br>
+      npm install -g @google/clasp netlify-cli<br><br>
+      <span class="code-comment"># 2. 登入授權</span><br>
+      clasp login &nbsp;&nbsp;<span class="code-comment"># Google 帳號授權</span><br>
+      netlify login &nbsp;<span class="code-comment"># Netlify 帳號授權</span><br><br>
+      <span class="code-comment"># 3. 一鍵部署 (Agent 自動執行)</span><br>
+      clasp push &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-comment"># 推送 GAS 後端</span><br>
+      netlify deploy --prod &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="code-comment"># 推送前端</span>
+    </div>
+    <div class="three-col fade-up delay-3" style="margin-top: 8px;">
+      <div class="info-card" style="text-align:center;">
+        <div style="font-size:28px; margin-bottom:8px;">📝</div>
+        <div class="card-title">GAS 後端</div>
+        <div class="card-body" style="font-size:12px;">clasp push → 自動同步至 Google Apps Script</div>
+      </div>
+      <div class="info-card" style="text-align:center; border-color: rgba(6,182,212,0.3);">
+        <div style="font-size:28px; margin-bottom:8px;">🔗</div>
+        <div class="card-title" style="color: var(--accent);">閉環核心</div>
+        <div class="card-body" style="font-size:12px;">API Key 安全管理<br>五大避坑注意事項</div>
+      </div>
+      <div class="info-card" style="text-align:center;">
+        <div style="font-size:28px; margin-bottom:8px;">🌐</div>
+        <div class="card-title">前端網頁</div>
+        <div class="card-body" style="font-size:12px;">netlify deploy → 自動推送 CDN 上線</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 5: Claude Slide Builder ===== -->
+  <div class="slide project-slide" id="slide-5">
+    <div class="project-header fade-up">
+      <div class="project-icon-wrap animate-float" style="background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3);">📑</div>
+      <div class="slide-tag">簡報自動生成</div>
+      <div class="slide-title" style="font-size: clamp(22px,3vw,38px); margin-bottom:4px;">Claude HTML Slide Builder</div>
+      <div class="slide-subtitle" style="margin-bottom:0; font-size:14px;">輸入文字教材 → AI 自動生成 Reveal.js 互動式網頁簡報 → 自動部署 GitHub Pages</div>
+    </div>
+    <div class="flow-row fade-up delay-2" style="gap: 12px;">
+      <div class="flow-box" style="padding: 14px 20px;">
+        📄 <strong>input.txt</strong><br><small style="color:var(--muted)">純文字教材</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="padding: 14px 20px; border-color: rgba(245,158,11,0.4);">
+        🤖 <strong>AI 建置腳本</strong><br><small style="color:var(--muted)">自動排版 + 圖示</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="padding: 14px 20px;">
+        🎨 <strong>Reveal.js 簡報</strong><br><small style="color:var(--muted)">動畫 + 程式碼高亮</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="padding: 14px 20px; border-color: rgba(16,185,129,0.4);">
+        🌐 <strong>GitHub Pages</strong><br><small style="color:var(--muted)">自動上線</small>
+      </div>
+    </div>
+    <div class="three-col fade-up delay-3" style="margin-top:8px;">
+      <div class="info-card">
+        <div class="card-title">⏱️ 效益</div>
+        <div class="card-body">原本需半天排版的教材，現在 3 分鐘自動產出可播放的互動簡報</div>
+      </div>
+      <div class="info-card">
+        <div class="card-title">🌟 特色功能</div>
+        <div class="card-body">
+          • 即時文字雲投票<br>
+          • 程式碼語法高亮<br>
+          • 響應式全螢幕模式
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="card-title">🛠️ 技術棧</div>
+        <div class="card-body">
+          <span class="tech-badge badge-amber" style="margin:2px">Python 3</span>
+          <span class="tech-badge badge-cyan" style="margin:2px">Reveal.js</span>
+          <span class="tech-badge badge-green" style="margin:2px">GitHub Actions</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 6: 畢旅企劃 ===== -->
+  <div class="slide project-slide" id="slide-6">
+    <div class="project-header fade-up">
+      <div class="project-icon-wrap animate-float" style="background: rgba(236,72,153,0.15); border: 1px solid rgba(236,72,153,0.3);">🎒</div>
+      <div class="slide-tag">多媒體自動化企劃</div>
+      <div class="slide-title" style="font-size: clamp(22px,3vw,38px); margin-bottom:4px;">畢業旅行影片企劃工具</div>
+      <div class="slide-subtitle" style="margin-bottom:0; font-size:14px;">用 Python 語音合成 + FFmpeg，把旅遊照片自動合成為有旁白配音的回憶 MP4 影片</div>
+    </div>
+    <div class="two-col fade-up delay-2" style="max-width: 900px;">
+      <div>
+        <div class="feature-list">
+          <div class="feature-item">
+            <div class="feature-icon">🎤</div>
+            <div class="feature-text">
+              <div class="label">edge-tts 語音合成</div>
+              <div class="sub">使用 Microsoft 雲端 TTS 引擎生成自然語音旁白 mp3</div>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🎬</div>
+            <div class="feature-text">
+              <div class="label">FFmpeg 自動混音合成</div>
+              <div class="sub">照片序列 + 旁白 + 背景音樂，一行指令輸出 MP4</div>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon">🔄</div>
+            <div class="feature-text">
+              <div class="label">流程可複用</div>
+              <div class="sub">任何「圖片 + 文字 = 影片」的場景都適用，例如公司教材配音</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="code-block">
+        <span class="code-comment"># 第一步：生成語音旁白</span><br>
+        python <span class="code-func">generate_narration.py</span><br><br>
+        <span class="code-comment"># 第二步：合成影片</span><br>
+        python <span class="code-func">mux_video.py</span><br><br>
+        <span class="code-comment"># 輸出：renders/ 資料夾</span><br>
+        <span class="code-string">graduation_trip_v1.mp4</span> ✅
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 7: 保養品機器人 ===== -->
+  <div class="slide project-slide" id="slide-7">
+    <div class="project-header fade-up">
+      <div class="project-icon-wrap animate-float" style="background: rgba(244,114,182,0.15); border: 1px solid rgba(244,114,182,0.3);">💄</div>
+      <div class="slide-tag">垂直領域 AI 客服</div>
+      <div class="slide-title" style="font-size: clamp(22px,3vw,38px); margin-bottom:4px;">保養品客服聊天機器人</div>
+      <div class="slide-subtitle" style="margin-bottom:0; font-size:14px;">把品牌知識庫餵給 AI，讓它扮演熟悉產品的專業客服，自動回答成分、功效與使用方式</div>
+    </div>
+    <div class="three-col fade-up delay-2">
+      <div class="info-card">
+        <div class="card-title">🧬 知識庫設計</div>
+        <div class="card-body">
+          將產品說明書、成分表、FAQ 結構化為 System Prompt，讓 AI 只在品牌知識範圍內回答
+        </div>
+      </div>
+      <div class="info-card" style="border-color: rgba(244,114,182,0.3);">
+        <div class="card-title" style="color: #f9a8d4;">💬 對答範例</div>
+        <div class="card-body" style="font-size:12px;">
+          Q: 這款精華液適合油性肌膚嗎？<br><br>
+          A: 非常適合！本品含有水楊酸成分，能有效控油並疏通毛孔，建議早晚各使用一次⋯
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="card-title">🚀 可延伸應用</div>
+        <div class="card-body">
+          同樣架構可應用於工廠 SOP 問答機器人、設備維護手冊查詢、或 ISO 規範解釋助手
+        </div>
+      </div>
+    </div>
+    <div class="flow-row fade-up delay-3">
+      <div class="flow-box">📚<br><small>品牌知識庫</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color: rgba(244,114,182,0.4);">🧠<br><small>System Prompt</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">💬<br><small>Gemini / GPT</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" style="border-color: rgba(16,185,129,0.4);">✅<br><small>專業客服回答</small></div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 8: Learning Journey ===== -->
+  <div class="slide" id="slide-8">
+    <div class="slide-tag fade-up">個人學習歷程</div>
+    <div class="slide-title fade-up delay-1" style="font-size: clamp(24px,3.5vw,42px);">從工具使用者到 AI 整合者</div>
+    <div class="timeline fade-up delay-2">
+      <div class="tl-step">
+        <div class="tl-dot" style="border-color: var(--success); color: var(--success);">🌱</div>
+        <div class="tl-content">
+          <div class="tl-label">起點</div>
+          <div class="tl-desc">學習 HTML/JS<br>建立第一個靜態網頁</div>
+        </div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-dot" style="border-color: var(--accent); color: var(--accent);">⚡</div>
+        <div class="tl-content">
+          <div class="tl-label">串接 API</div>
+          <div class="tl-desc">GAS / PHP / Firebase<br>連接工廠現有系統</div>
+        </div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-dot" style="border-color: var(--accent-warm); color: var(--accent-warm);">🤖</div>
+        <div class="tl-content">
+          <div class="tl-label">導入 AI</div>
+          <div class="tl-desc">Gemini / Groq<br>讓 AI 輔助工作流程</div>
+        </div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-dot" style="border-color: var(--primary-light); color: var(--primary-light);">🎯</div>
+        <div class="tl-content">
+          <div class="tl-label">AI 自動化</div>
+          <div class="tl-desc">Agent 自動部署<br>語音辨識 × 診斷 × 生成</div>
+        </div>
+      </div>
+      <div class="tl-step">
+        <div class="tl-dot" style="border-color: #fff; color: #fff;" style="animation: pulse-glow 2s infinite;">✨</div>
+        <div class="tl-content">
+          <div class="tl-label">整合者</div>
+          <div class="tl-desc">AI 是開發夥伴<br>持續進化中...</div>
+        </div>
+      </div>
+    </div>
+    <div class="three-col fade-up delay-3" style="margin-top: 16px; max-width: 800px;">
+      <div class="info-card" style="text-align:center;">
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">TOTAL PROJECTS</div>
+        <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:42px; color:var(--primary-light);">19</div>
+        <div style="font-size:12px; color:var(--muted);">跨三大類別</div>
+      </div>
+      <div class="info-card" style="text-align:center;">
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">AI FEATURES</div>
+        <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:42px; color:var(--accent);">8+</div>
+        <div style="font-size:12px; color:var(--muted);">AI 功能整合點</div>
+      </div>
+      <div class="info-card" style="text-align:center;">
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px;">DEPLOYED</div>
+        <div style="font-family:'Outfit',sans-serif; font-weight:800; font-size:42px; color:var(--success);">LIVE</div>
+        <div style="font-size:12px; color:var(--muted);">正式上線使用中</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 9: CLOSING ===== -->
+  <div class="slide" id="slide-9">
+    <div class="slide-tag fade-up">學習歷程 · 總結</div>
+    <div class="big-title fade-up delay-1" style="font-size: clamp(32px,5vw,60px);">謝謝收看</div>
+    <div class="quote-box fade-up delay-2">
+      從一個靜態頁面開始，到讓 AI 幫我說話、幫我寫報告、幫我診斷品質異常——<br>
+      這不只是技術的累積，而是工作方式的一次進化。
+    </div>
+    <div class="closing-stats fade-up delay-3">
+      <div class="stat-item"><div class="stat-num">19</div><div class="stat-label">完成專案</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><div class="stat-num">3</div><div class="stat-label">技術類別</div></div>
+      <div class="stat-divider"></div>
+      <div class="stat-item"><div class="stat-num">∞</div><div class="stat-label">持續進化</div></div>
+    </div>
+    <div class="badge-row fade-up delay-4" style="justify-content:center; margin-top: 8px;">
+      <span class="tech-badge badge-purple">Google Gemini</span>
+      <span class="tech-badge badge-cyan">Firebase</span>
+      <span class="tech-badge badge-green">Netlify</span>
+      <span class="tech-badge badge-amber">Google Apps Script</span>
+      <span class="tech-badge badge-purple">Web Speech API</span>
+      <span class="tech-badge badge-cyan">Node.js</span>
+      <span class="tech-badge badge-green">Python</span>
+    </div>
+  </div>
+
+</div><!-- /slideContainer -->
+
+<script>
+  const totalSlides = 10;
+  let current = 0;
+  let isAnimating = false;
+
+  const slides = document.querySelectorAll('.slide');
+  const progressBar = document.getElementById('progressBar');
+  const counter = document.getElementById('slideCounter');
+
+  function updateUI() {
+    progressBar.style.width = `${((current + 1) / totalSlides) * 100}%`;
+    counter.textContent = `${String(current + 1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
+  }
+
+  function goToSlide(next) {
+    if (isAnimating || next === current) return;
+    if (next < 0 || next >= totalSlides) return;
+    isAnimating = true;
+
+    const currentSlide = slides[current];
+    const nextSlide = slides[next];
+
+    currentSlide.classList.add('exiting');
+    currentSlide.classList.remove('active');
+
+    setTimeout(() => {
+      currentSlide.classList.remove('exiting');
+      nextSlide.classList.add('active');
+
+      // Re-trigger animations
+      nextSlide.querySelectorAll('.fade-up').forEach(el => {
+        el.style.animation = 'none';
+        el.offsetHeight;
+        el.style.animation = '';
+      });
+
+      current = next;
+      updateUI();
+      isAnimating = false;
+    }, 300);
+  }
+
+  function nextSlide() { goToSlide(current + 1); }
+  function prevSlide() { goToSlide(current - 1); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+    if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); }
+  });
+
+  // Touch swipe
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (dx < -50) nextSlide();
+    if (dx > 50) prevSlide();
+  });
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+    } else {
+      document.exitFullscreen();
+    }
+  }
+
+  updateUI();
+</script>
+</body>
+</html>

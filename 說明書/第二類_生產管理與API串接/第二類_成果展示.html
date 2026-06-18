@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生產管理與API串接｜成果展示</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #10b981;
+    --green-light: #34d399;
+    --green-dark: #059669;
+    --orange: #f59e0b;
+    --orange-light: #fbbf24;
+    --orange-dark: #d97706;
+    --red: #ef4444;
+    --cyan: #06b6d4;
+    --bg: #040a06;
+    --bg2: #071210;
+    --glass: rgba(16, 185, 129, 0.06);
+    --glass-border: rgba(16, 185, 129, 0.18);
+    --text: #e8f5f0;
+    --text-dim: #7ea898;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  /* ── Progress Bar ── */
+  #progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: linear-gradient(90deg, var(--green), var(--orange));
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+    z-index: 100;
+    box-shadow: 0 0 12px var(--green);
+  }
+
+  /* ── Slide Counter ── */
+  #counter {
+    position: fixed; bottom: 24px; right: 28px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; color: var(--text-dim);
+    z-index: 100; letter-spacing: 0.08em;
+  }
+
+  /* ── Nav Dots ── */
+  #dots {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 100;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(16,185,129,0.25);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(16,185,129,0.3);
+  }
+  .dot.active {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    transform: scale(1.3);
+  }
+
+  /* ── Nav Arrows ── */
+  .nav-arrow {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    width: 44px; height: 44px; border-radius: 50%;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.2);
+    color: var(--green); font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 100;
+    transition: all 0.3s ease;
+  }
+  .nav-arrow:hover {
+    background: rgba(16,185,129,0.25);
+    box-shadow: 0 0 16px rgba(16,185,129,0.3);
+  }
+  #nav-prev { left: 16px; }
+  #nav-next { right: 16px; }
+
+  /* ── Keyboard hints ── */
+  #hints {
+    position: fixed; bottom: 24px; left: 28px;
+    font-size: 0.68rem; color: var(--text-dim);
+    z-index: 100; letter-spacing: 0.05em;
+  }
+  #hints kbd {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 3px; padding: 1px 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.66rem;
+  }
+
+  /* ── Slide Container ── */
+  #slideshow {
+    width: 100%; height: 100%;
+    position: relative; overflow: hidden;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 60px 80px 80px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease, transform 0.6s cubic-bezier(.4,0,.2,1);
+    transform: translateX(60px);
+  }
+  .slide.active {
+    opacity: 1; pointer-events: all;
+    transform: translateX(0);
+  }
+  .slide.prev {
+    opacity: 0; transform: translateX(-60px);
+  }
+
+  /* ── Background Ambient ── */
+  .slide::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 60% at 15% 20%, rgba(16,185,129,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse 50% 50% at 85% 80%, rgba(245,158,11,0.05) 0%, transparent 55%),
+                radial-gradient(ellipse 40% 40% at 50% 50%, rgba(16,185,129,0.03) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* ── Grid background ── */
+  #grid-bg {
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(16,185,129,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(16,185,129,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Glass Card ── */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 20px;
+  }
+  .glass-strong {
+    background: rgba(16,185,129,0.09);
+    border: 1px solid rgba(16,185,129,0.22);
+    backdrop-filter: blur(24px);
+    border-radius: 16px;
+  }
+
+  /* ── Typography ── */
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--green); margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before, .eyebrow::after {
+    content: ''; flex: 1; max-width: 60px;
+    height: 1px; background: linear-gradient(90deg, transparent, var(--green));
+  }
+  .eyebrow::after { background: linear-gradient(90deg, var(--green), transparent); }
+
+  h1.title-main {
+    font-size: clamp(2.2rem, 4vw, 3.6rem);
+    font-weight: 900; line-height: 1.1;
+    background: linear-gradient(135deg, var(--green-light) 0%, var(--orange) 60%, var(--green) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; text-align: center; margin-bottom: 12px;
+  }
+
+  h2.section-title {
+    font-size: clamp(1.5rem, 2.8vw, 2.4rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--green-light), var(--orange));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 8px;
+  }
+
+  .subtitle {
+    font-size: 1.05rem; color: var(--text-dim);
+    font-weight: 400; text-align: center;
+  }
+
+  /* ── Tag Pills ── */
+  .tag {
+    display: inline-block;
+    padding: 4px 12px; border-radius: 100px;
+    font-size: 0.72rem; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.05em;
+  }
+  .tag-green { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .tag-orange { background: rgba(245,158,11,0.15); color: var(--orange); border: 1px solid rgba(245,158,11,0.3); }
+  .tag-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .tag-cyan { background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+
+  /* ── Stat Number ── */
+  .stat-num {
+    font-size: 3rem; font-weight: 900;
+    font-family: 'Outfit', sans-serif;
+    background: linear-gradient(135deg, var(--green-light), var(--orange));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; line-height: 1;
+  }
+
+  /* ── Flow Arrow ── */
+  .flow-arrow {
+    color: var(--green); font-size: 1.4rem;
+    display: flex; align-items: center;
+    animation: pulse-arrow 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-arrow {
+    0%, 100% { transform: translateX(0); opacity: 1; }
+    50% { transform: translateX(4px); opacity: 0.6; }
+  }
+
+  /* ── Light indicators ── */
+  .light-green {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 16px var(--green), 0 0 32px rgba(16,185,129,0.5);
+    animation: blink-green 2s ease-in-out infinite;
+  }
+  .light-red {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 16px var(--red), 0 0 32px rgba(239,68,68,0.5);
+  }
+  @keyframes blink-green {
+    0%, 100% { box-shadow: 0 0 16px var(--green), 0 0 32px rgba(16,185,129,0.5); }
+    50% { box-shadow: 0 0 24px var(--green), 0 0 48px rgba(16,185,129,0.7); }
+  }
+
+  /* ── Code snippet ── */
+  .code-block {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; line-height: 1.7;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(16,185,129,0.15);
+    border-radius: 10px; padding: 14px 18px;
+    color: #a7f3d0;
+    overflow: hidden;
+  }
+  .code-block .kw { color: var(--orange); }
+  .code-block .fn { color: var(--green-light); }
+  .code-block .cm { color: #4b7a68; }
+  .code-block .str { color: #86efac; }
+  .code-block .num { color: var(--cyan); }
+
+  /* ── Before/After ── */
+  .before-after {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    gap: 16px; align-items: center; width: 100%;
+  }
+  .ba-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em;
+    text-transform: uppercase; margin-bottom: 10px;
+  }
+
+  /* ── Tech stack icons row ── */
+  .tech-row {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    justify-content: center;
+  }
+  .tech-badge {
+    padding: 8px 16px; border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; font-weight: 700;
+    border: 1px solid rgba(16,185,129,0.2);
+    background: rgba(16,185,129,0.07);
+    color: var(--green-light);
+    transition: all 0.3s ease;
+  }
+  .tech-badge:hover {
+    background: rgba(16,185,129,0.15);
+    box-shadow: 0 0 12px rgba(16,185,129,0.2);
+    transform: translateY(-2px);
+  }
+  .tech-badge.orange {
+    border-color: rgba(245,158,11,0.2);
+    background: rgba(245,158,11,0.07);
+    color: var(--orange-light);
+  }
+  .tech-badge.cyan {
+    border-color: rgba(6,182,212,0.2);
+    background: rgba(6,182,212,0.07);
+    color: var(--cyan);
+  }
+
+  /* ── Responsive grid helpers ── */
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; width: 100%; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 20px; width: 100%; }
+
+  /* ── Animations ── */
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .slide.active .anim-item {
+    animation: fadeInUp 0.5s ease forwards;
+  }
+  .slide.active .anim-item:nth-child(1) { animation-delay: 0.1s; }
+  .slide.active .anim-item:nth-child(2) { animation-delay: 0.2s; }
+  .slide.active .anim-item:nth-child(3) { animation-delay: 0.3s; }
+  .slide.active .anim-item:nth-child(4) { animation-delay: 0.4s; }
+  .slide.active .anim-item:nth-child(5) { animation-delay: 0.5s; }
+
+  /* ── Progress bar for filling ── */
+  .bar-fill {
+    height: 6px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--green), var(--orange));
+    position: relative; overflow: hidden;
+  }
+  .bar-fill::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%);
+    animation: shimmer 2s infinite;
+    background-size: 200% 100%;
+  }
+  .bar-track {
+    height: 6px; border-radius: 3px;
+    background: rgba(16,185,129,0.1);
+    overflow: hidden;
+    width: 100%;
+  }
+
+  /* ── Slide 1 specific ── */
+  .s1-icon {
+    font-size: 5rem; margin-bottom: 16px;
+    animation: float 3s ease-in-out infinite;
+    display: block;
+  }
+  .s1-pills {
+    display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
+    margin-top: 24px;
+  }
+
+  /* ── Problem/Solution card ── */
+  .psa-card { padding: 18px 22px; border-radius: 14px; }
+  .psa-label {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+  .psa-text { font-size: 0.9rem; line-height: 1.6; color: var(--text); }
+
+  /* divider */
+  .divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--glass-border), transparent); margin: 16px 0; }
+
+  /* ── Fullscreen button ── */
+  #fullscreen-btn {
+    position: fixed; top: 16px; right: 16px;
+    width: 36px; height: 36px; border-radius: 8px;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.2);
+    color: var(--green); font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 100;
+    transition: all 0.3s ease;
+  }
+  #fullscreen-btn:hover { background: rgba(16,185,129,0.2); }
+</style>
+</head>
+<body>
+
+<div id="grid-bg"></div>
+<div id="progress-bar"></div>
+<div id="counter">01 / 09</div>
+<div id="dots"></div>
+<button class="nav-arrow" id="nav-prev">←</button>
+<button class="nav-arrow" id="nav-next">→</button>
+<div id="hints"><kbd>←</kbd><kbd>→</kbd> 切換　<kbd>F</kbd> 全螢幕</div>
+<button id="fullscreen-btn" title="全螢幕">⛶</button>
+
+<div id="slideshow">
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 1: Title
+  ════════════════════════════════════════════════════ -->
+  <div class="slide active" id="slide-1">
+    <span class="s1-icon">🏭</span>
+    <div class="eyebrow anim-item">第二類 · 7個系統 · 工廠數位化</div>
+    <h1 class="title-main anim-item">生產管理與API串接<br>｜成果展示</h1>
+    <p class="subtitle anim-item" style="max-width:560px;margin-top:12px;">
+      從排程演算法到掃描防錯、從GAS雲端到Android APK<br>讓工廠現場的每一個痛點都有數位解法
+    </p>
+    <div class="s1-pills anim-item">
+      <span class="tag tag-green">🐍 Python</span>
+      <span class="tag tag-orange">🐘 PHP + SQL</span>
+      <span class="tag tag-green">📊 Google Apps Script</span>
+      <span class="tag tag-cyan">📱 Android APK</span>
+      <span class="tag tag-orange">🔍 條碼掃描</span>
+    </div>
+    <div class="anim-item" style="margin-top:32px; display:flex; gap:32px;">
+      <div style="text-align:center;">
+        <div class="stat-num">7</div>
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">個系統</div>
+      </div>
+      <div style="width:1px;background:var(--glass-border);"></div>
+      <div style="text-align:center;">
+        <div class="stat-num">0</div>
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">溢槽事故</div>
+      </div>
+      <div style="width:1px;background:var(--glass-border);"></div>
+      <div style="text-align:center;">
+        <div class="stat-num">∞</div>
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-top:4px;">防呆次數</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 2: 核心理念
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-2">
+    <div class="eyebrow anim-item">核心理念</div>
+    <h2 class="section-title anim-item" style="text-align:center;margin-bottom:36px;">
+      用程式解決工廠裡的三大痛點
+    </h2>
+    <div class="grid-3 anim-item" style="max-width:900px;">
+      <div class="glass" style="padding:28px 24px;text-align:center;">
+        <div style="font-size:3rem;margin-bottom:12px;">👁️</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--green-light);margin-bottom:10px;">用掃描取代人眼</div>
+        <div style="font-size:0.88rem;color:var(--text-dim);line-height:1.7;">
+          人工核對容易疲勞出錯<br>條碼槍掃一下立刻比對<br>綠燈 = 放行，紅燈 = 警示
+        </div>
+        <div class="divider"></div>
+        <span class="tag tag-green" style="font-size:0.68rem;">IPAHQ · N系列 · 軟管KeyCode</span>
+      </div>
+      <div class="glass" style="padding:28px 24px;text-align:center;">
+        <div style="font-size:3rem;margin-bottom:12px;">📡</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--orange-light);margin-bottom:10px;">用API取代填表</div>
+        <div style="font-size:0.88rem;color:var(--text-dim);line-height:1.7;">
+          紙本表單延誤資訊流動<br>掃描→API→資料庫一條龍<br>即時寫入、即時查詢
+        </div>
+        <div class="divider"></div>
+        <span class="tag tag-orange" style="font-size:0.68rem;">PHP API · GAS · SQL</span>
+      </div>
+      <div class="glass" style="padding:28px 24px;text-align:center;">
+        <div style="font-size:3rem;margin-bottom:12px;">🚨</div>
+        <div style="font-size:1rem;font-weight:700;color:var(--cyan);margin-bottom:10px;">用即時警示取代事後追查</div>
+        <div style="font-size:0.88rem;color:var(--text-dim);line-height:1.7;">
+          問題發生才知道為時已晚<br>預測模型提前24H示警<br>QC看板即時呈現合格率
+        </div>
+        <div class="divider"></div>
+        <span class="tag tag-cyan" style="font-size:0.68rem;">Python演算法 · Chart.js看板</span>
+      </div>
+    </div>
+    <div class="anim-item" style="margin-top:24px;padding:16px 28px;border-radius:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.15);max-width:700px;text-align:center;">
+      <span style="color:var(--green-light);font-weight:600;font-size:0.92rem;">
+        💡 每一個系統的誕生，都是因為工廠裡有一個人正在重複做不必要的事
+      </span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 3: IPA生產排程
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-3">
+    <div class="eyebrow anim-item">Project 01 · Python演算法</div>
+    <h2 class="section-title anim-item">📊 IPA生產排程雙儲槽優化</h2>
+    <div class="grid-3 anim-item" style="max-width:960px;margin-top:20px;">
+      <!-- Problem -->
+      <div class="psa-card glass" style="border-left:3px solid var(--red);">
+        <div class="psa-label" style="color:var(--red);">⚠ 問題</div>
+        <div class="psa-text">
+          生產主管靠<strong>人工估算</strong>槽車容積，常常在換班時才發現快要溢槽，停線等待成本極高
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+          <span class="tag tag-red">人工估算</span>
+          <span class="tag tag-red">溢槽風險</span>
+          <span class="tag tag-red">停線損失</span>
+        </div>
+      </div>
+      <!-- Solution -->
+      <div class="psa-card glass" style="border-left:3px solid var(--orange);">
+        <div class="psa-label" style="color:var(--orange);">⚙ 解決方案</div>
+        <div class="code-block" style="font-size:0.72rem;">
+<span class="cm"># 雙儲槽24H容積預測</span>
+<span class="kw">for</span> hour <span class="kw">in</span> <span class="fn">range</span>(<span class="num">24</span>):
+  vol_a += flow_rate_a[hour]
+  vol_b += flow_rate_b[hour]
+  <span class="kw">if</span> vol_a > threshold:
+    <span class="fn">alert</span>(<span class="str">"Tank A overflow risk!"</span>)
+        </div>
+        <div style="margin-top:10px;font-size:0.83rem;color:var(--text-dim);">
+          Python演算法逐小時計算雙槽累積容積，提前預測溢流時間點
+        </div>
+      </div>
+      <!-- Result -->
+      <div class="psa-card glass" style="border-left:3px solid var(--green);">
+        <div class="psa-label" style="color:var(--green);">✅ 成效</div>
+        <div style="text-align:center;padding:12px 0;">
+          <div class="stat-num" style="font-size:2.4rem;">0</div>
+          <div style="color:var(--text-dim);font-size:0.85rem;margin-top:4px;">溢槽事故</div>
+        </div>
+        <div class="divider"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <div style="text-align:center;">
+            <div style="font-size:1.4rem;font-weight:800;color:var(--green-light);">24H</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">提前預測</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:1.4rem;font-weight:800;color:var(--orange);">2槽</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);">同步優化</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Volume chart mockup -->
+    <div class="anim-item glass" style="width:100%;max-width:700px;padding:20px;margin-top:20px;">
+      <div style="font-size:0.78rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin-bottom:12px;">容積預測曲線（模擬）</div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:60px;">
+        <!-- Simulated bar chart -->
+        <div style="background:linear-gradient(to top,var(--green),var(--green-light));width:100%;border-radius:3px 3px 0 0;" data-h="35%"></div>
+        <div style="background:linear-gradient(to top,var(--green),var(--green-light));width:100%;border-radius:3px 3px 0 0;" data-h="45%"></div>
+        <div style="background:linear-gradient(to top,var(--green),var(--green-light));width:100%;border-radius:3px 3px 0 0;" data-h="55%"></div>
+        <div style="background:linear-gradient(to top,var(--green),var(--green-light));width:100%;border-radius:3px 3px 0 0;" data-h="62%"></div>
+        <div style="background:linear-gradient(to top,var(--green),var(--green-light));width:100%;border-radius:3px 3px 0 0;" data-h="70%"></div>
+        <div style="background:linear-gradient(to top,var(--orange),var(--orange-light));width:100%;border-radius:3px 3px 0 0;" data-h="78%"></div>
+        <div style="background:linear-gradient(to top,var(--orange),var(--orange-light));width:100%;border-radius:3px 3px 0 0;" data-h="85%"></div>
+        <div style="background:linear-gradient(to top,var(--red),#f87171);width:100%;border-radius:3px 3px 0 0;" data-h="90%"></div>
+        <div style="background:linear-gradient(to top,var(--red),#f87171);width:100%;border-radius:3px 3px 0 0;" data-h="95%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;">
+        <span style="font-size:0.65rem;color:var(--text-dim);">00:00</span>
+        <span style="font-size:0.65rem;color:var(--orange);">⚠ 預警時間</span>
+        <span style="font-size:0.65rem;color:var(--red);">溢槽臨界</span>
+        <span style="font-size:0.65rem;color:var(--text-dim);">23:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 4: IPAHQ槽車掃描
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-4">
+    <div class="eyebrow anim-item">Project 02 · 防錯機制</div>
+    <h2 class="section-title anim-item">🚛 IPAHQ槽車確認與掃描系統</h2>
+    <p class="subtitle anim-item" style="margin-bottom:24px;">條碼掃描→比對採購單→即時判定→自動備份</p>
+
+    <!-- Flow diagram -->
+    <div class="anim-item" style="display:flex;align-items:center;gap:12px;max-width:900px;width:100%;flex-wrap:wrap;justify-content:center;">
+      <div class="glass" style="padding:16px 20px;text-align:center;min-width:130px;">
+        <div style="font-size:1.8rem;">📷</div>
+        <div style="font-size:0.82rem;font-weight:600;color:var(--green-light);margin-top:6px;">掃描條碼</div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">槽車側面<br>條碼標籤</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="glass" style="padding:16px 20px;text-align:center;min-width:130px;">
+        <div style="font-size:1.8rem;">🔍</div>
+        <div style="font-size:0.82rem;font-weight:600;color:var(--orange-light);margin-top:6px;">比對採購單</div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">PHP查詢<br>SQL資料庫</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="glass" style="padding:12px 18px;display:flex;align-items:center;gap:10px;border-color:rgba(16,185,129,0.3);">
+          <div class="light-green"></div>
+          <div>
+            <div style="font-size:0.82rem;font-weight:700;color:var(--green);">✓ 綠燈 放行</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);">廠商/品項/數量符合</div>
+          </div>
+        </div>
+        <div class="glass" style="padding:12px 18px;display:flex;align-items:center;gap:10px;border-color:rgba(239,68,68,0.3);">
+          <div class="light-red"></div>
+          <div>
+            <div style="font-size:0.82rem;font-weight:700;color:var(--red);">✕ 紅燈 警示</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);">資料不符，停止卸料</div>
+          </div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="glass" style="padding:16px 20px;text-align:center;min-width:130px;">
+        <div style="font-size:1.8rem;">☁️</div>
+        <div style="font-size:0.82rem;font-weight:600;color:var(--cyan);margin-top:6px;">自動備份</div>
+        <div style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;">GAS試算表<br>即時寫入</div>
+      </div>
+    </div>
+
+    <!-- Tech stack & benefits -->
+    <div class="grid-2 anim-item" style="max-width:700px;margin-top:20px;">
+      <div class="glass" style="padding:18px 20px;">
+        <div style="font-size:0.75rem;font-weight:700;color:var(--orange);letter-spacing:0.1em;margin-bottom:12px;">技術組成</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:0.85rem;">前端掃描介面</span>
+            <span class="tag tag-orange">HTML/JS</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:0.85rem;">比對邏輯</span>
+            <span class="tag tag-orange">PHP + SQL</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:0.85rem;">雲端備份</span>
+            <span class="tag tag-green">Google Sheets</span>
+          </div>
+        </div>
+      </div>
+      <div class="glass" style="padding:18px 20px;">
+        <div style="font-size:0.75rem;font-weight:700;color:var(--green);letter-spacing:0.1em;margin-bottom:12px;">防錯效益</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:4px;">人工核對錯誤率</div>
+            <div class="bar-track"><div class="bar-fill" style="width:40%;background:linear-gradient(90deg,var(--red),#f87171);"></div></div>
+            <div style="font-size:0.72rem;color:var(--red);margin-top:2px;">人工: 有風險</div>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:4px;">系統掃描準確率</div>
+            <div class="bar-track"><div class="bar-fill" style="width:100%;"></div></div>
+            <div style="font-size:0.72rem;color:var(--green);margin-top:2px;">系統: 100%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 5: N系列 + n系列
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-5">
+    <div class="eyebrow anim-item">Project 03 & 04 · 出貨核對 + 行動APP</div>
+    <h2 class="section-title anim-item" style="text-align:center;">📦 N系列條碼出貨核對 ＆ 📱 n系列GAS轉APK</h2>
+    <div class="grid-2 anim-item" style="max-width:900px;margin-top:20px;align-items:start;">
+      <!-- N系列 -->
+      <div class="glass" style="padding:24px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <span style="font-size:1.6rem;">📦</span>
+          <div>
+            <div style="font-weight:700;color:var(--green-light);">N系列條碼出貨核對</div>
+            <span class="tag tag-orange" style="margin-top:4px;">PHP API</span>
+          </div>
+        </div>
+        <div style="font-size:0.85rem;color:var(--text-dim);line-height:1.7;margin-bottom:14px;">
+          出貨前掃描外箱條碼，系統自動比對出貨單品項與數量，一鍵回傳後台完成出貨確認，杜絕漏裝錯裝。
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <div style="flex:1;text-align:center;padding:10px;background:rgba(16,185,129,0.08);border-radius:10px;border:1px solid rgba(16,185,129,0.15);">
+            <div style="font-size:1.2rem;font-weight:800;color:var(--green-light);">掃描</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);">外箱條碼</div>
+          </div>
+          <div class="flow-arrow" style="font-size:1rem;">→</div>
+          <div style="flex:1;text-align:center;padding:10px;background:rgba(245,158,11,0.08);border-radius:10px;border:1px solid rgba(245,158,11,0.15);">
+            <div style="font-size:1.2rem;font-weight:800;color:var(--orange-light);">比對</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);">出貨清單</div>
+          </div>
+          <div class="flow-arrow" style="font-size:1rem;">→</div>
+          <div style="flex:1;text-align:center;padding:10px;background:rgba(16,185,129,0.08);border-radius:10px;border:1px solid rgba(16,185,129,0.15);">
+            <div style="font-size:1.2rem;font-weight:800;color:var(--green-light);">回傳</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);">後台API</div>
+          </div>
+        </div>
+        <div class="code-block" style="font-size:0.7rem;">
+<span class="cm"># PHP API endpoint</span>
+<span class="kw">POST</span> /api/verify-shipment
+{barcode: <span class="str">"N-2024-001"</span>, qty: <span class="num">12</span>}
+→ {status: <span class="str">"OK"</span>, match: <span class="kw">true</span>}
+        </div>
+      </div>
+
+      <!-- n系列 -->
+      <div class="glass" style="padding:24px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <span style="font-size:1.6rem;">📱</span>
+          <div>
+            <div style="font-weight:700;color:var(--orange-light);">n系列GAS轉APK</div>
+            <span class="tag tag-cyan" style="margin-top:4px;">Android / SQLite</span>
+          </div>
+        </div>
+        <div style="font-size:0.85rem;color:var(--text-dim);line-height:1.7;margin-bottom:14px;">
+          將GAS表單包裝為Android APK，離線時資料暫存SQLite本地，有網路後自動批次上傳，工廠死角也能作業。
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(6,182,212,0.08);border-radius:8px;border:1px solid rgba(6,182,212,0.15);">
+            <span>📶</span>
+            <span style="font-size:0.82rem;"><strong style="color:var(--cyan);">有網路</strong> → 即時上傳GAS試算表</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:8px;border:1px solid rgba(245,158,11,0.15);">
+            <span>📵</span>
+            <span style="font-size:0.82rem;"><strong style="color:var(--orange);">無網路</strong> → 暫存SQLite，等待同步</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(16,185,129,0.08);border-radius:8px;border:1px solid rgba(16,185,129,0.15);">
+            <span>🔄</span>
+            <span style="font-size:0.82rem;"><strong style="color:var(--green);">恢復網路</strong> → 自動批次上傳</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="tag tag-cyan">Android APK</span>
+          <span class="tag tag-orange">Cordova</span>
+          <span class="tag tag-green">SQLite 離線快取</span>
+          <span class="tag tag-green">GAS doPost</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 6: 三合一單遷移
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-6">
+    <div class="eyebrow anim-item">Project 05 · 資料庫化</div>
+    <h2 class="section-title anim-item">🔄 三合一單 to PHP 遷移</h2>
+    <p class="subtitle anim-item" style="margin-bottom:24px;">Excel巨集 → PHP + SQL 資料庫化 · 歷史資料完整匯入</p>
+
+    <div class="before-after anim-item" style="max-width:860px;">
+      <!-- Before -->
+      <div class="glass" style="padding:22px;border-left:3px solid var(--red);">
+        <div class="ba-label" style="color:var(--red);">❌ BEFORE · Excel巨集時代</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--red);flex-shrink:0;">✕</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">VBA巨集僅能在特定電腦執行</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--red);flex-shrink:0;">✕</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">多人編輯衝突，版本混亂</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--red);flex-shrink:0;">✕</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">歷史資料散落在數十個Excel檔</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--red);flex-shrink:0;">✕</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">查詢需人工翻找檔案</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--red);flex-shrink:0;">✕</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">無法多工廠共用</span>
+          </div>
+        </div>
+        <div style="margin-top:14px;padding:10px;background:rgba(239,68,68,0.08);border-radius:8px;border:1px solid rgba(239,68,68,0.15);">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:#f87171;">
+            📄 三合一單_2023.xlsx<br>
+            📄 三合一單_2023_v2.xlsx<br>
+            📄 三合一單_2023_最新.xlsx<br>
+            <span style="color:var(--red);">📄 三合一單_2023_最最新.xlsx ← 😱</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Arrow -->
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="font-size:2rem;color:var(--green);animation:pulse-arrow 1.5s ease-in-out infinite;">⟹</div>
+        <div style="font-size:0.72rem;color:var(--text-dim);text-align:center;font-family:'JetBrains Mono',monospace;">資料庫化<br>遷移</div>
+      </div>
+
+      <!-- After -->
+      <div class="glass" style="padding:22px;border-left:3px solid var(--green);">
+        <div class="ba-label" style="color:var(--green);">✅ AFTER · PHP + SQL時代</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--green);flex-shrink:0;">✓</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">任何瀏覽器皆可開啟使用</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--green);flex-shrink:0;">✓</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">多人同時操作，資料不衝突</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--green);flex-shrink:0;">✓</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">歷史資料全數匯入SQL資料庫</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--green);flex-shrink:0;">✓</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">關鍵字搜尋，秒找歷史記錄</span>
+          </div>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <span style="color:var(--green);flex-shrink:0;">✓</span>
+            <span style="font-size:0.85rem;color:var(--text-dim);">schema.sql 版控，部署可重現</span>
+          </div>
+        </div>
+        <div class="code-block" style="font-size:0.7rem;margin-top:14px;">
+<span class="cm">-- schema.sql</span>
+<span class="kw">CREATE TABLE</span> tri_forms (
+  id <span class="kw">INT</span> <span class="kw">PRIMARY KEY</span>,
+  form_no <span class="kw">VARCHAR</span>(<span class="num">20</span>),
+  created_at <span class="kw">DATETIME</span>,
+  status <span class="kw">ENUM</span>(<span class="str">'pending','done'</span>)
+);
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 7: 軟管KeyCode + QC系統
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-7">
+    <div class="eyebrow anim-item">Project 06 & 07 · 防呆 + 品管</div>
+    <div class="grid-2 anim-item" style="max-width:900px;gap:24px;align-items:start;">
+      <!-- KeyCode -->
+      <div class="glass" style="padding:24px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <span style="font-size:2rem;">🔑</span>
+          <div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--green-light);">軟管Key-Code管理優化</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">防呆編碼 · 接頭防錯</div>
+          </div>
+        </div>
+        <div style="font-size:0.85rem;color:var(--text-dim);line-height:1.7;margin-bottom:16px;">
+          軟管接頭型號以條碼化Key-Code管理，掃描後立即比對工單要求規格，接頭不匹配直接亮<strong style="color:var(--red);">紅燈</strong>，杜絕接錯管路的安全風險。
+        </div>
+        <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;padding:10px;border-radius:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);text-align:center;">
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:6px;">接頭型號匹配</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <div class="light-green" style="width:14px;height:14px;"></div>
+              <span style="font-size:0.85rem;font-weight:700;color:var(--green);">綠燈</span>
+            </div>
+          </div>
+          <div style="flex:1;padding:10px;border-radius:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);text-align:center;">
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-bottom:6px;">接頭不匹配</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <div class="light-red" style="width:14px;height:14px;"></div>
+              <span style="font-size:0.85rem;font-weight:700;color:var(--red);">紅燈</span>
+            </div>
+          </div>
+        </div>
+        <div class="code-block" style="font-size:0.7rem;">
+<span class="cm"># Key-Code 編碼規則</span>
+KC-<span class="num">12</span>-DN25-SS  <span class="cm"># 12bar, DN25, 不鏽鋼</span>
+KC-<span class="num">06</span>-DN10-EP  <span class="cm"># 6bar, DN10, EPDM</span>
+→ 掃描即比對工單規格
+        </div>
+      </div>
+
+      <!-- QC系統 -->
+      <div class="glass" style="padding:24px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <span style="font-size:2rem;">📋</span>
+          <div>
+            <div style="font-size:1.1rem;font-weight:700;color:var(--orange-light);">QC系統客製化電子化</div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">自動寫入 · Chart.js趨勢圖</div>
+          </div>
+        </div>
+        <div style="font-size:0.85rem;color:var(--text-dim);line-height:1.7;margin-bottom:16px;">
+          QC檢驗數值自動寫入資料庫，Chart.js即時繪製合格率趨勢圖，中控看板一眼掌握品質狀態。
+        </div>
+        <!-- Mock chart -->
+        <div style="padding:14px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid rgba(245,158,11,0.15);margin-bottom:14px;">
+          <div style="font-size:0.7rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin-bottom:8px;">合格率趨勢（近7日）</div>
+          <div style="display:flex;align-items:flex-end;gap:6px;height:50px;">
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;">
+              <div style="background:var(--green);width:100%;border-radius:2px 2px 0 0;" data-h="88%"></div>
+              <div style="font-size:0.58rem;color:var(--text-dim);">一</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;">
+              <div style="background:var(--green);width:100%;border-radius:2px 2px 0 0;" data-h="92%"></div>
+              <div style="font-size:0.58rem;color:var(--text-dim);">二</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;">
+              <div style="background:var(--orange);width:100%;border-radius:2px 2px 0 0;" data-h="85%"></div>
+              <div style="font-size:0.58rem;color:var(--text-dim);">三</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;">
+              <div style="background:var(--green);width:100%;border-radius:2px 2px 0 0;" data-h="94%"></div>
+              <div style="font-size:0.58rem;color:var(--text-dim);">四</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;">
+              <div style="background:var(--green);width:100%;border-radius:2px 2px 0 0;" data-h="97%"></div>
+              <div style="font-size:0.58rem;color:var(--text-dim);">五</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;">
+              <div style="background:var(--green);width:100%;border-radius:2px 2px 0 0;" data-h="98%"></div>
+              <div style="font-size:0.58rem;color:var(--text-dim);">六</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:3px;">
+              <div style="background:var(--green-light);width:100%;border-radius:2px 2px 0 0;" data-h="99%"></div>
+              <div style="font-size:0.58rem;color:var(--text-dim);">日</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="tag tag-orange">Chart.js</span>
+          <span class="tag tag-green">即時數值寫入</span>
+          <span class="tag tag-cyan">中控看板</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 8: 整體效益
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-8">
+    <div class="eyebrow anim-item">整體效益總結</div>
+    <h2 class="section-title anim-item" style="text-align:center;margin-bottom:32px;">7個系統帶來的改變</h2>
+    <div class="grid-3 anim-item" style="max-width:860px;">
+      <div class="glass" style="padding:24px;text-align:center;">
+        <div style="font-size:2.8rem;font-weight:900;background:linear-gradient(135deg,var(--green-light),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">0</div>
+        <div style="font-size:1rem;font-weight:600;color:var(--green-light);margin:6px 0;">溢槽事故</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);">IPA排程系統上線後<br>溢槽事故歸零</div>
+      </div>
+      <div class="glass" style="padding:24px;text-align:center;">
+        <div style="font-size:2.8rem;font-weight:900;background:linear-gradient(135deg,var(--orange),var(--orange-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">7+</div>
+        <div style="font-size:1rem;font-weight:600;color:var(--orange-light);margin:6px 0;">自動化流程</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);">每天不再需要人工<br>重複處理的作業</div>
+      </div>
+      <div class="glass" style="padding:24px;text-align:center;">
+        <div style="font-size:2.8rem;font-weight:900;background:linear-gradient(135deg,var(--cyan),#60e8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">∞</div>
+        <div style="font-size:1rem;font-weight:600;color:var(--cyan);margin:6px 0;">資料庫化紀錄</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);">所有歷史紀錄永久<br>保存、隨時可查</div>
+      </div>
+      <div class="glass" style="padding:24px;text-align:center;">
+        <div style="font-size:2.8rem;font-weight:900;background:linear-gradient(135deg,var(--green-light),var(--cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">100%</div>
+        <div style="font-size:1rem;font-weight:600;color:var(--green-light);margin:6px 0;">掃描防錯準確率</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);">槽車、出貨、管路<br>三道防呆關卡</div>
+      </div>
+      <div class="glass" style="padding:24px;text-align:center;">
+        <div style="font-size:2.8rem;font-weight:900;background:linear-gradient(135deg,var(--orange),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">即時</div>
+        <div style="font-size:1rem;font-weight:600;color:var(--orange-light);margin:6px 0;">品質監控</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);">QC合格率趨勢<br>中控看板即時更新</div>
+      </div>
+      <div class="glass" style="padding:24px;text-align:center;">
+        <div style="font-size:2.8rem;font-weight:900;background:linear-gradient(135deg,var(--cyan),var(--orange));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">離線</div>
+        <div style="font-size:1rem;font-weight:600;color:var(--cyan);margin:6px 0;">也能作業</div>
+        <div style="font-size:0.78rem;color:var(--text-dim);">SQLite本地暫存<br>有網路自動同步</div>
+      </div>
+    </div>
+    <div class="anim-item" style="margin-top:20px;padding:14px 28px;border-radius:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);max-width:640px;text-align:center;">
+      <span style="color:var(--green-light);font-size:0.92rem;font-weight:600;">
+        🏭 工廠數位化不是一步到位，而是每個痛點解決一次，慢慢積累起來的
+      </span>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SLIDE 9: 技術架構全覽
+  ════════════════════════════════════════════════════ -->
+  <div class="slide" id="slide-9">
+    <div class="eyebrow anim-item">技術架構全覽</div>
+    <h2 class="section-title anim-item" style="text-align:center;margin-bottom:28px;">從前端到雲端的完整技術棧</h2>
+
+    <div class="anim-item" style="width:100%;max-width:860px;">
+      <!-- Layer diagram -->
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <!-- Layer 1 -->
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:90px;flex-shrink:0;text-align:right;font-size:0.72rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">前端介面</div>
+          <div style="flex:1;display:flex;gap:8px;">
+            <div class="tech-badge" style="flex:1;text-align:center;">HTML/JS</div>
+            <div class="tech-badge" style="flex:1;text-align:center;">條碼掃描API</div>
+            <div class="tech-badge" style="flex:1;text-align:center;">Chart.js看板</div>
+            <div class="tech-badge orange" style="flex:1;text-align:center;">Android APK</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding-left:102px;">
+          <div style="flex:1;text-align:center;font-size:1.2rem;color:var(--green-light);">⬇</div>
+        </div>
+        <!-- Layer 2 -->
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:90px;flex-shrink:0;text-align:right;font-size:0.72rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">API層</div>
+          <div style="flex:1;display:flex;gap:8px;">
+            <div class="tech-badge orange" style="flex:1;text-align:center;">PHP API</div>
+            <div class="tech-badge" style="flex:1;text-align:center;">GAS doPost</div>
+            <div class="tech-badge orange" style="flex:1;text-align:center;">Python演算法</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding-left:102px;">
+          <div style="flex:1;text-align:center;font-size:1.2rem;color:var(--green-light);">⬇</div>
+        </div>
+        <!-- Layer 3 -->
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:90px;flex-shrink:0;text-align:right;font-size:0.72rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">儲存層</div>
+          <div style="flex:1;display:flex;gap:8px;">
+            <div class="tech-badge orange" style="flex:1;text-align:center;">MySQL / SQL</div>
+            <div class="tech-badge cyan" style="flex:1;text-align:center;">SQLite 本地</div>
+            <div class="tech-badge cyan" style="flex:1;text-align:center;">Google Sheets</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding-left:102px;">
+          <div style="flex:1;text-align:center;font-size:1.2rem;color:var(--green-light);">⬇</div>
+        </div>
+        <!-- Layer 4 -->
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:90px;flex-shrink:0;text-align:right;font-size:0.72rem;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">使用者</div>
+          <div style="flex:1;display:flex;gap:8px;">
+            <div style="flex:1;padding:10px;text-align:center;border-radius:10px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.15);">
+              <div style="font-size:1rem;">👷</div>
+              <div style="font-size:0.72rem;color:var(--green-light);font-weight:600;">現場人員</div>
+            </div>
+            <div style="flex:1;padding:10px;text-align:center;border-radius:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.15);">
+              <div style="font-size:1rem;">👔</div>
+              <div style="font-size:0.72rem;color:var(--orange-light);font-weight:600;">生產主管</div>
+            </div>
+            <div style="flex:1;padding:10px;text-align:center;border-radius:10px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.15);">
+              <div style="font-size:1rem;">🔍</div>
+              <div style="font-size:0.72rem;color:var(--cyan);font-weight:600;">QC人員</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tech-row anim-item" style="margin-top:20px;max-width:700px;">
+      <span class="tag tag-green">🐍 Python</span>
+      <span class="tag tag-orange">🐘 PHP</span>
+      <span class="tag tag-orange">🗄 SQL</span>
+      <span class="tag tag-green">📊 GAS</span>
+      <span class="tag tag-cyan">📱 Android</span>
+      <span class="tag tag-cyan">🔌 SQLite</span>
+      <span class="tag tag-green">📈 Chart.js</span>
+    </div>
+  </div>
+
+</div><!-- end slideshow -->
+
+<script>
+const TOTAL = 9;
+let current = 0;
+let isAnimating = false;
+
+const slides = document.querySelectorAll('.slide');
+const progressBar = document.getElementById('progress-bar');
+const counter = document.getElementById('counter');
+const dotsContainer = document.getElementById('dots');
+
+// Create dots
+for (let i = 0; i < TOTAL; i++) {
+  const dot = document.createElement('div');
+  dot.className = 'dot' + (i === 0 ? ' active' : '');
+  dot.addEventListener('click', () => goTo(i));
+  dotsContainer.appendChild(dot);
+}
+
+// Init bar chart heights (canvas-free)
+document.querySelectorAll('[data-h]').forEach(el => {
+  el.style.height = el.getAttribute('data-h');
+  el.style.minHeight = '4px';
+});
+
+// Slide 5 bar chart
+document.querySelectorAll('.slide').forEach(slide => {
+  slide.querySelectorAll('[data-h]').forEach(el => {
+    el.style.height = el.getAttribute('data-h');
+  });
+});
+
+function update() {
+  const dots = dotsContainer.querySelectorAll('.dot');
+  progressBar.style.width = ((current + 1) / TOTAL * 100) + '%';
+  counter.textContent = String(current + 1).padStart(2,'0') + ' / ' + String(TOTAL).padStart(2,'0');
+  dots.forEach((d, i) => d.classList.toggle('active', i === current));
+}
+
+function goTo(n) {
+  if (isAnimating || n === current) return;
+  isAnimating = true;
+  const prev = current;
+  slides[prev].classList.remove('active');
+  slides[prev].classList.add('prev');
+  current = Math.max(0, Math.min(TOTAL - 1, n));
+  slides[current].classList.remove('prev');
+  slides[current].classList.add('active');
+  update();
+  setTimeout(() => {
+    slides[prev].classList.remove('prev');
+    isAnimating = false;
+  }, 600);
+}
+
+function next() { goTo(current + 1); }
+function prev() { goTo(current - 1); }
+
+document.getElementById('nav-next').addEventListener('click', next);
+document.getElementById('nav-prev').addEventListener('click', prev);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+});
+
+document.getElementById('fullscreen-btn').addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+});
+
+// Touch support
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(dx) > 50) dx > 0 ? next() : prev();
+}, { passive: true });
+
+update();
+</script>
+</body>
+</html>

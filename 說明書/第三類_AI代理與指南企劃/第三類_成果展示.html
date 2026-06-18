@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 代理工具與企劃｜成果展示</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --purple: #7c3aed;
+    --purple-light: #a78bfa;
+    --indigo: #4f46e5;
+    --cyan: #06b6d4;
+    --cyan-light: #67e8f9;
+    --bg: #050810;
+    --bg2: #080d1a;
+    --glass: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.08);
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+  }
+
+  /* ── Background ── */
+  .bg-orbs {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  }
+  .orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); opacity: 0.18;
+    animation: drift 12s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 600px; height: 600px; background: var(--purple); top: -200px; left: -150px; animation-delay: 0s; }
+  .orb-2 { width: 500px; height: 500px; background: var(--cyan); bottom: -150px; right: -100px; animation-delay: -4s; }
+  .orb-3 { width: 350px; height: 350px; background: var(--indigo); top: 40%; left: 50%; animation-delay: -8s; }
+
+  @keyframes drift {
+    from { transform: translate(0,0) scale(1); }
+    to   { transform: translate(30px,20px) scale(1.08); }
+  }
+
+  /* ── Progress bar ── */
+  #progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px; z-index: 100;
+    background: linear-gradient(90deg, var(--purple), var(--cyan));
+    transition: width 0.4s ease;
+    box-shadow: 0 0 12px var(--cyan);
+  }
+
+  /* ── Slide dots ── */
+  #dots {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 100;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    cursor: pointer; transition: all 0.3s ease;
+  }
+  .dot.active {
+    background: var(--cyan); width: 24px; border-radius: 4px;
+    box-shadow: 0 0 8px var(--cyan);
+  }
+
+  /* ── Nav buttons ── */
+  .nav-btn {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
+    color: white; font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; transition: all 0.2s ease;
+  }
+  .nav-btn:hover { background: rgba(124,58,237,0.3); border-color: var(--purple-light); }
+  #btn-prev { left: 16px; }
+  #btn-next { right: 16px; }
+
+  /* ── Slide counter ── */
+  #slide-counter {
+    position: fixed; top: 16px; right: 20px;
+    font-size: 12px; color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 100; letter-spacing: 1px;
+  }
+
+  /* ── Keyboard hint ── */
+  #hint {
+    position: fixed; bottom: 52px; right: 20px;
+    font-size: 11px; color: rgba(148,163,184,0.5);
+    z-index: 100;
+  }
+
+  /* ── Slides container ── */
+  #slides {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 60px 80px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    transform: translateY(20px);
+    z-index: 1;
+  }
+  .slide.active {
+    opacity: 1; pointer-events: all; transform: translateY(0);
+  }
+  .slide.exit {
+    opacity: 0; transform: translateY(-20px);
+  }
+
+  .slide-inner {
+    width: 100%; max-width: 1100px;
+    height: 100%; max-height: 680px;
+    display: flex; flex-direction: column;
+    justify-content: center;
+  }
+
+  /* ── Glass card ── */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 32px;
+  }
+  .glass-sm { border-radius: 14px; padding: 20px 24px; }
+
+  /* ── Typography ── */
+  .eyebrow {
+    font-size: 13px; font-weight: 600; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--cyan);
+    margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before {
+    content: ''; display: block;
+    width: 32px; height: 2px;
+    background: linear-gradient(90deg, var(--purple), var(--cyan));
+    border-radius: 2px;
+  }
+
+  h1.hero {
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 900; line-height: 1.1;
+    background: linear-gradient(135deg, #fff 0%, var(--purple-light) 40%, var(--cyan-light) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 20px;
+  }
+
+  h2.slide-title {
+    font-size: clamp(26px, 3.5vw, 44px);
+    font-weight: 800; line-height: 1.2;
+    background: linear-gradient(135deg, #fff 0%, var(--purple-light) 60%, var(--cyan) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 8px;
+  }
+
+  h3.card-title {
+    font-size: 18px; font-weight: 700; color: white; margin-bottom: 8px;
+  }
+
+  p.lead {
+    font-size: 18px; line-height: 1.7; color: var(--muted); font-weight: 300;
+  }
+  p.body { font-size: 15px; line-height: 1.6; color: var(--muted); }
+
+  /* ── Tags ── */
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    padding: 4px 10px; border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tag-purple { background: rgba(124,58,237,0.2); color: var(--purple-light); border: 1px solid rgba(124,58,237,0.3); }
+  .tag-cyan   { background: rgba(6,182,212,0.15); color: var(--cyan-light);   border: 1px solid rgba(6,182,212,0.3); }
+  .tag-indigo { background: rgba(79,70,229,0.2);  color: #a5b4fc;             border: 1px solid rgba(79,70,229,0.3); }
+
+  /* ── Grid layouts ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+
+  /* ── Feature list ── */
+  .feature-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .feature-list li {
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: 14px; color: var(--muted); line-height: 1.5;
+  }
+  .feature-list li .icon {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    background: rgba(124,58,237,0.2);
+  }
+
+  /* ── Stat box ── */
+  .stat-box {
+    text-align: center; padding: 24px 16px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 16px; backdrop-filter: blur(12px);
+  }
+  .stat-num {
+    font-size: 42px; font-weight: 900;
+    background: linear-gradient(135deg, var(--purple-light), var(--cyan-light));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; line-height: 1.1;
+  }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 6px; letter-spacing: 0.5px; }
+
+  /* ── Code block ── */
+  .code-block {
+    background: #0d1117; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.8; color: #c9d1d9;
+    overflow-x: auto;
+  }
+  .code-block .c-green  { color: #3fb950; }
+  .code-block .c-blue   { color: #79c0ff; }
+  .code-block .c-yellow { color: #e3b341; }
+  .code-block .c-purple { color: #d2a8ff; }
+  .code-block .c-gray   { color: #6e7681; }
+  .code-block .c-cyan   { color: #56d364; }
+
+  /* ── Chat bubble ── */
+  .chat-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .chat-msg { display: flex; gap: 8px; align-items: flex-start; }
+  .chat-msg.user { flex-direction: row-reverse; }
+  .chat-avatar {
+    width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 15px;
+  }
+  .chat-avatar.bot  { background: linear-gradient(135deg, var(--purple), var(--cyan)); }
+  .chat-avatar.user2{ background: rgba(255,255,255,0.1); }
+  .chat-bubble {
+    max-width: 78%; padding: 10px 14px; border-radius: 16px;
+    font-size: 13px; line-height: 1.5; color: var(--text);
+  }
+  .chat-bubble.bot  { background: rgba(124,58,237,0.25); border: 1px solid rgba(124,58,237,0.3); border-bottom-left-radius: 4px; }
+  .chat-bubble.user2{ background: rgba(6,182,212,0.15);  border: 1px solid rgba(6,182,212,0.25);  border-bottom-right-radius: 4px; }
+
+  /* ── Flow step ── */
+  .flow-steps { display: flex; align-items: center; gap: 0; flex-wrap: nowrap; overflow: hidden; }
+  .flow-step {
+    flex: 1; text-align: center; padding: 12px 8px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 12px; font-size: 12px; color: var(--muted);
+    position: relative;
+  }
+  .flow-step .step-icon { font-size: 20px; display: block; margin-bottom: 4px; }
+  .flow-step strong { display: block; color: white; font-size: 13px; margin-bottom: 2px; }
+  .flow-arrow { color: var(--purple-light); font-size: 18px; padding: 0 4px; flex-shrink: 0; }
+
+  /* ── Arch diagram ── */
+  .arch-layer {
+    display: flex; gap: 12px; align-items: center; justify-content: center;
+    margin-bottom: 8px;
+  }
+  .arch-node {
+    padding: 10px 16px; border-radius: 10px; font-size: 12px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+    text-align: center; flex: 1;
+  }
+  .arch-node.purple { background: rgba(124,58,237,0.25); border: 1px solid rgba(124,58,237,0.4); color: var(--purple-light); }
+  .arch-node.cyan   { background: rgba(6,182,212,0.2);   border: 1px solid rgba(6,182,212,0.4);   color: var(--cyan-light); }
+  .arch-node.indigo { background: rgba(79,70,229,0.2);   border: 1px solid rgba(79,70,229,0.4);   color: #a5b4fc; }
+  .arch-node.green  { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.35); color: #6ee7b7; }
+  .arch-arrow { text-align: center; color: var(--muted); font-size: 16px; margin: 2px 0; }
+
+  /* ── Animated gradient border ── */
+  .border-glow {
+    position: relative; border-radius: 20px; padding: 1px;
+    background: linear-gradient(135deg, var(--purple), var(--cyan), var(--indigo));
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
+  }
+  .border-glow-inner { border-radius: 19px; background: var(--bg2); }
+
+  @keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ── Pulse dot ── */
+  .pulse-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+    background: #10b981; margin-right: 6px;
+    box-shadow: 0 0 0 0 rgba(16,185,129,0.5);
+    animation: pulse-anim 2s infinite;
+  }
+  @keyframes pulse-anim {
+    0%  { box-shadow: 0 0 0 0 rgba(16,185,129,0.5); }
+    70% { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+    100%{ box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+  }
+
+  /* ── Slide 1 specific ── */
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3);
+    padding: 8px 16px; border-radius: 30px; font-size: 13px; color: var(--purple-light);
+    margin-bottom: 24px;
+  }
+  .hero-subtitle {
+    font-size: 18px; color: var(--muted); font-weight: 300; line-height: 1.6;
+    max-width: 600px;
+  }
+  .hero-url {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--cyan); opacity: 0.7; margin-top: 8px;
+  }
+
+  /* ── Section divider ── */
+  .divider {
+    height: 1px; background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+    margin: 16px 0;
+  }
+
+  /* ── Highlight text ── */
+  .hl-purple { color: var(--purple-light); font-weight: 600; }
+  .hl-cyan   { color: var(--cyan-light);   font-weight: 600; }
+  .hl-white  { color: white; font-weight: 600; }
+
+  /* ── Application card ── */
+  .app-card {
+    padding: 20px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 16px; backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+  .app-card:hover {
+    border-color: rgba(124,58,237,0.4);
+    background: rgba(124,58,237,0.08);
+    transform: translateY(-2px);
+  }
+  .app-card .app-icon { font-size: 28px; margin-bottom: 10px; }
+  .app-card h4 { font-size: 15px; color: white; font-weight: 700; margin-bottom: 6px; }
+  .app-card p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ── Number badge ── */
+  .num-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--indigo));
+    font-size: 13px; font-weight: 700; color: white; flex-shrink: 0;
+  }
+
+  /* ── Timeline ── */
+  .timeline { display: flex; flex-direction: column; gap: 12px; }
+  .timeline-item {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 14px 16px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 12px;
+  }
+  .timeline-icon { font-size: 20px; flex-shrink: 0; }
+  .timeline-content h4 { font-size: 14px; color: white; font-weight: 700; margin-bottom: 4px; }
+  .timeline-content p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* ── Two-pane ── */
+  .two-pane { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+
+  /* ── Wide card ── */
+  .wide-card {
+    padding: 24px; background: var(--glass);
+    border: 1px solid var(--glass-border); border-radius: 16px;
+  }
+
+  /* fullscreen */
+  body.fullscreen { cursor: none; }
+
+  /* Slide-in animation for content */
+  .slide.active .anim-up {
+    animation: slideUp 0.5s ease both;
+  }
+  .slide.active .anim-up:nth-child(1) { animation-delay: 0.05s; }
+  .slide.active .anim-up:nth-child(2) { animation-delay: 0.15s; }
+  .slide.active .anim-up:nth-child(3) { animation-delay: 0.25s; }
+  .slide.active .anim-up:nth-child(4) { animation-delay: 0.35s; }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div id="progress-bar"></div>
+<div id="slide-counter">01 / 10</div>
+<div id="dots"></div>
+<div id="hint">← → Space 切換 · F 全螢幕</div>
+<button class="nav-btn" id="btn-prev">&#8592;</button>
+<button class="nav-btn" id="btn-next">&#8594;</button>
+
+<div id="slides">
+
+  <!-- ═══ SLIDE 1: TITLE ═══ -->
+  <div class="slide active" data-slide="1">
+    <div class="slide-inner" style="flex-direction: row; gap: 60px; align-items: center;">
+      <div style="flex: 1.2;">
+        <div class="eyebrow anim-up">第三類 · 6個AI整合專案</div>
+        <h1 class="hero anim-up">AI 代理工具<br>與企劃<br><span style="font-size:0.65em">成果展示</span></h1>
+        <p class="hero-subtitle anim-up">從對話到自動化，六個橫跨<span class="hl-purple">語音辨識</span>、<span class="hl-cyan">API 整合</span>、<span class="hl-white">影片生成</span>的 AI 實作專案，展示 AI 在工作流程中的真實應用價值。</p>
+        <div class="hero-url anim-up">⚡ 2025 · 洪笙 AI 專案成果</div>
+      </div>
+      <div style="flex: 0.8; display: flex; flex-direction: column; gap: 12px;">
+        <div class="glass" style="padding: 20px; border-radius: 16px;" >
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(124,58,237,0.1); border-radius: 10px; border: 1px solid rgba(124,58,237,0.2);">
+              <span style="font-size: 22px;">🤖</span>
+              <div><div style="font-size: 13px; color: white; font-weight: 600;">留言板AI小鴻</div><div style="font-size: 11px; color: var(--muted);">語音 + 5-Why + 潤飾</div></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(6,182,212,0.08); border-radius: 10px; border: 1px solid rgba(6,182,212,0.2);">
+              <span style="font-size: 22px;">🏫</span>
+              <div><div style="font-size: 13px; color: white; font-weight: 600;">Classroom Agent</div><div style="font-size: 11px; color: var(--muted);">OAuth + AI批改</div></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(79,70,229,0.1); border-radius: 10px; border: 1px solid rgba(79,70,229,0.2);">
+              <span style="font-size: 22px;">🚀</span>
+              <div><div style="font-size: 13px; color: white; font-weight: 600;">Clasp+Netlify部署</div><div style="font-size: 11px; color: var(--muted);">自動化部署閉環</div></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(245,158,11,0.08); border-radius: 10px; border: 1px solid rgba(245,158,11,0.2);">
+              <span style="font-size: 22px;">📑</span>
+              <div><div style="font-size: 13px; color: white; font-weight: 600;">HTML Slide Builder</div><div style="font-size: 11px; color: var(--muted);">文字→簡報自動生成</div></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(16,185,129,0.08); border-radius: 10px; border: 1px solid rgba(16,185,129,0.2);">
+              <span style="font-size: 22px;">🎒</span>
+              <div><div style="font-size: 13px; color: white; font-weight: 600;">畢旅影片 + 保養品客服</div><div style="font-size: 11px; color: var(--muted);">edge-tts + FFmpeg</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 2: 核心理念 ═══ -->
+  <div class="slide" data-slide="2">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">核心理念</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 6px;">"AI不只是一個工具</h2>
+      <h2 class="slide-title anim-up" style="font-size: clamp(22px,3vw,38px); margin-bottom: 24px;">而是一個能代替你工作的夥伴"</h2>
+      <div class="grid-3 anim-up" style="margin-top: 8px;">
+        <div class="glass" style="padding: 28px 20px; text-align: center; border-color: rgba(124,58,237,0.25);">
+          <div style="font-size: 44px; margin-bottom: 12px;">💬</div>
+          <h3 style="font-size: 18px; color: var(--purple-light); font-weight: 700; margin-bottom: 10px;">對話 · Dialogue</h3>
+          <p style="font-size: 13px; color: var(--muted); line-height: 1.6;">讓 AI 理解工作脈絡，透過自然語言完成指令。從問答到上下文感知，讓每次對話都有價值。</p>
+          <div style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">
+            <span class="tag tag-purple">留言板AI小鴻</span>
+            <span class="tag tag-purple">保養品客服</span>
+          </div>
+        </div>
+        <div class="glass" style="padding: 28px 20px; text-align: center; border-color: rgba(6,182,212,0.25);">
+          <div style="font-size: 44px; margin-bottom: 12px;">✨</div>
+          <h3 style="font-size: 18px; color: var(--cyan-light); font-weight: 700; margin-bottom: 10px;">生成 · Generate</h3>
+          <p style="font-size: 13px; color: var(--muted); line-height: 1.6;">輸入素材，AI 輸出成品。文字生成簡報、照片生成影片、數據生成報告，重新定義「產出」的速度。</p>
+          <div style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">
+            <span class="tag tag-cyan">Slide Builder</span>
+            <span class="tag tag-cyan">畢旅影片</span>
+          </div>
+        </div>
+        <div class="glass" style="padding: 28px 20px; text-align: center; border-color: rgba(79,70,229,0.25);">
+          <div style="font-size: 44px; margin-bottom: 12px;">⚡</div>
+          <h3 style="font-size: 18px; color: #a5b4fc; font-weight: 700; margin-bottom: 10px;">自動化 · Automate</h3>
+          <p style="font-size: 13px; color: var(--muted); line-height: 1.6;">建立一次，重複執行。API 串接、自動批改、定時輪詢、一鍵部署，讓重複的工作不再消耗你的時間。</p>
+          <div style="margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;">
+            <span class="tag tag-indigo">Classroom Agent</span>
+            <span class="tag tag-indigo">Clasp部署</span>
+          </div>
+        </div>
+      </div>
+      <div class="glass anim-up" style="margin-top: 16px; padding: 16px 24px; text-align: center; border-color: rgba(255,255,255,0.06);">
+        <p style="font-size: 14px; color: var(--muted);">六個專案各自獨立，卻共享同一個核心技術架構：<span class="hl-white">Gemini API</span> ＋ <span class="hl-purple">結構化 Prompt</span> ＋ <span class="hl-cyan">前後端整合部署</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 3: 小鴻功能 ═══ -->
+  <div class="slide" data-slide="3">
+    <div class="slide-inner">
+      <div style="display: flex; gap: 28px; height: 100%; align-items: stretch;">
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 14px;">
+          <div class="eyebrow anim-up">專案 01</div>
+          <h2 class="slide-title anim-up" style="font-size: clamp(22px,3vw,36px);">🤖 留言板AI助理「小鴻」</h2>
+          <p class="body anim-up" style="margin-bottom: 4px;">部署於 <span class="hl-cyan">hongsheng-board.netlify.app</span> ，整合 Gemini 2.5 Flash，具備看板上下文感知能力的智慧助理。</p>
+          <div class="glass-sm glass anim-up" style="flex: 1;">
+            <div style="font-size: 12px; color: var(--cyan); font-weight: 600; letter-spacing: 1px; margin-bottom: 12px;">CORE FEATURES</div>
+            <ul class="feature-list">
+              <li>
+                <div class="icon" style="background: rgba(124,58,237,0.2);">🎙️</div>
+                <div><span class="hl-white">Web Speech 語音輸入</span><br><span style="font-size: 12px;">按住說話，自動轉文字，降低打字成本</span></div>
+              </li>
+              <li>
+                <div class="icon" style="background: rgba(6,182,212,0.15);">✍️</div>
+                <div><span class="hl-white">AI 文本潤飾</span><br><span style="font-size: 12px;">自動優化留言語氣與表達，保持專業性</span></div>
+              </li>
+              <li>
+                <div class="icon" style="background: rgba(245,158,11,0.15);">🔍</div>
+                <div><span class="hl-white">5-Why 根因診斷</span><br><span style="font-size: 12px;">輸入問題描述，AI 自動展開五層原因分析</span></div>
+              </li>
+              <li>
+                <div class="icon" style="background: rgba(16,185,129,0.15);">📊</div>
+                <div><span class="hl-white">看板上下文感知</span><br><span style="font-size: 12px;">讀取所有卡片內容，回答與專案相關的任何問題</span></div>
+              </li>
+              <li>
+                <div class="icon" style="background: rgba(239,68,68,0.15);">⚡</div>
+                <div><span class="hl-white">Token 額度提醒</span><br><span style="font-size: 12px;">即時監控 API 用量，防止意外超額</span></div>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div style="flex: 0.85; display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass anim-up" style="padding: 16px 18px; flex: 1;">
+            <div style="font-size: 11px; color: var(--muted); margin-bottom: 12px; letter-spacing: 1px;">💬 模擬對話</div>
+            <div class="chat-wrap">
+              <div class="chat-msg">
+                <div class="chat-avatar user2">👤</div>
+                <div class="chat-bubble user2">這個看板上，目前最高優先的問題是什麼？</div>
+              </div>
+              <div class="chat-msg">
+                <div class="chat-avatar bot">🤖</div>
+                <div class="chat-bubble bot">根據看板上的 <strong>12 張卡片</strong>，目前優先級最高的是「生產線異常警示系統未更新」，標籤為 🔴 緊急，已逾期 3 天。建議優先處理，需要我幫你進行 5-Why 分析嗎？</div>
+              </div>
+              <div class="chat-msg">
+                <div class="chat-avatar user2">👤</div>
+                <div class="chat-bubble user2">好，幫我分析一下</div>
+              </div>
+              <div class="chat-msg">
+                <div class="chat-avatar bot">🤖</div>
+                <div class="chat-bubble bot">
+                  🔍 <strong>5-Why 根因分析</strong><br>
+                  <span style="color: var(--muted); font-size: 12px; line-height: 1.8;">
+                  Why 1：警示系統未更新<br>
+                  Why 2：負責人未收到更新通知<br>
+                  Why 3：通知機制依賴手動發送<br>
+                  Why 4：尚未建立自動化 CI/CD 流程<br>
+                  Why 5：根本原因：<span style="color: var(--cyan-light);">缺乏標準化部署流程</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="glass anim-up" style="padding: 12px 16px; display: flex; align-items: center; gap: 12px;">
+            <span class="pulse-dot"></span>
+            <span style="font-size: 12px; color: var(--muted);">線上運行中</span>
+            <span class="tag tag-cyan" style="margin-left: auto;">Gemini 2.5 Flash</span>
+            <span class="tag tag-purple">Netlify</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 4: 小鴻技術架構 ═══ -->
+  <div class="slide" data-slide="4">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">技術架構</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 20px;">小鴻的技術棧</h2>
+      <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; flex: 1;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass anim-up" style="padding: 20px;">
+            <div class="arch-layer">
+              <div class="arch-node purple">🌐 前端 · Vanilla JS + CSS</div>
+            </div>
+            <div class="arch-arrow">↓ HTTPS 請求</div>
+            <div class="arch-layer">
+              <div class="arch-node indigo">⚙️ GAS Backend · Web App</div>
+            </div>
+            <div class="arch-arrow">↓ REST API</div>
+            <div class="arch-layer">
+              <div class="arch-node cyan">🧠 Gemini 2.5 Flash</div>
+            </div>
+            <div class="arch-arrow">↓ JSON 回應</div>
+            <div class="arch-layer">
+              <div class="arch-node green">✅ Netlify · CDN 部署</div>
+            </div>
+          </div>
+          <div class="glass anim-up" style="padding: 14px 16px;">
+            <div style="font-size: 11px; color: var(--cyan); letter-spacing: 1px; margin-bottom: 10px;">LIVE ENDPOINT</div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #a5b4fc; word-break: break-all;">
+              🔗 hongsheng-board.netlify.app
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="code-block anim-up" style="flex: 1;">
+            <div class="c-gray">// GAS Backend - 核心路由</div>
+            <div><span class="c-purple">function</span> <span class="c-blue">doPost</span>(e) {</div>
+            <div>  <span class="c-purple">const</span> { action, payload } = <span class="c-blue">JSON.parse</span>(e.postData.contents);</div>
+            <div>&nbsp;</div>
+            <div>  <span class="c-purple">switch</span>(action) {</div>
+            <div>    <span class="c-purple">case</span> <span class="c-yellow">'chat'</span>:</div>
+            <div>      <span class="c-purple">return</span> <span class="c-blue">handleChat</span>(payload);</div>
+            <div>    <span class="c-purple">case</span> <span class="c-yellow">'5why'</span>:</div>
+            <div>      <span class="c-purple">return</span> <span class="c-blue">handle5Why</span>(payload);</div>
+            <div>    <span class="c-purple">case</span> <span class="c-yellow">'polish'</span>:</div>
+            <div>      <span class="c-purple">return</span> <span class="c-blue">handlePolish</span>(payload);</div>
+            <div>  }</div>
+            <div>}</div>
+            <div>&nbsp;</div>
+            <div class="c-gray">// 看板上下文注入</div>
+            <div><span class="c-purple">function</span> <span class="c-blue">buildContext</span>(cards) {</div>
+            <div>  <span class="c-purple">return</span> <span class="c-yellow">`你是留言板助理小鴻。</span></div>
+            <div>  <span class="c-yellow">目前看板有 ${cards.length} 張卡片：</span></div>
+            <div>  <span class="c-yellow">${cards.map(c => c.title).join('\n')}`</span>;</div>
+            <div>}</div>
+          </div>
+          <div class="glass anim-up" style="padding: 14px 20px; display: flex; gap: 16px;">
+            <div style="text-align: center; flex: 1;">
+              <div style="font-size: 24px; font-weight: 800; color: var(--purple-light);">5</div>
+              <div style="font-size: 11px; color: var(--muted);">核心功能</div>
+            </div>
+            <div style="width: 1px; background: var(--glass-border);"></div>
+            <div style="text-align: center; flex: 1;">
+              <div style="font-size: 24px; font-weight: 800; color: var(--cyan-light);">2.5M</div>
+              <div style="font-size: 11px; color: var(--muted);">Context Window</div>
+            </div>
+            <div style="width: 1px; background: var(--glass-border);"></div>
+            <div style="text-align: center; flex: 1;">
+              <div style="font-size: 24px; font-weight: 800; color: #a5b4fc;">即時</div>
+              <div style="font-size: 11px; color: var(--muted);">串流回應</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 5: Classroom Agent ═══ -->
+  <div class="slide" data-slide="5">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">專案 02</div>
+      <h2 class="slide-title anim-up">🏫 Google Classroom Agent</h2>
+      <p class="body anim-up" style="margin-bottom: 18px;">透過 Classroom API + OAuth 2.0 串接，建立從<span class="hl-purple">建課</span>、<span class="hl-cyan">發作業</span>到<span class="hl-white">AI批改</span>的完整自動化閉環。</p>
+      <div class="grid-2 anim-up" style="gap: 18px; flex: 1;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass" style="padding: 18px;">
+            <div style="font-size: 12px; color: var(--cyan); letter-spacing: 1px; margin-bottom: 12px;">⚡ 自動化閉環流程</div>
+            <div class="flow-steps" style="flex-direction: column; gap: 8px; align-items: stretch;">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(124,58,237,0.15); border-radius: 10px; border: 1px solid rgba(124,58,237,0.25);">
+                <span>🔐</span><div><strong style="font-size: 13px; color: white;">OAuth 2.0 授權</strong><br><span style="font-size: 11px; color: var(--muted);">取得 Classroom API 存取權限</span></div>
+              </div>
+              <div style="text-align: center; color: var(--muted); font-size: 12px;">↓</div>
+              <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(6,182,212,0.1); border-radius: 10px; border: 1px solid rgba(6,182,212,0.2);">
+                <span>📚</span><div><strong style="font-size: 13px; color: white;">自動建課 & 發佈作業</strong><br><span style="font-size: 11px; color: var(--muted);">批次建立課程、設定截止日</span></div>
+              </div>
+              <div style="text-align: center; color: var(--muted); font-size: 12px;">↓</div>
+              <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(245,158,11,0.1); border-radius: 10px; border: 1px solid rgba(245,158,11,0.2);">
+                <span>👀</span><div><strong style="font-size: 13px; color: white;">作業繳交監控</strong><br><span style="font-size: 11px; color: var(--muted);">定時輪詢作業狀態，追蹤缺交學生</span></div>
+              </div>
+              <div style="text-align: center; color: var(--muted); font-size: 12px;">↓</div>
+              <div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: rgba(16,185,129,0.1); border-radius: 10px; border: 1px solid rgba(16,185,129,0.2);">
+                <span>🧠</span><div><strong style="font-size: 13px; color: white;">AI 自動批改</strong><br><span style="font-size: 11px; color: var(--muted);">Gemini 評分 + 生成個人化回饋</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="code-block" style="flex: 1;">
+            <div class="c-gray">// 自動批改作業</div>
+            <div><span class="c-purple">async function</span> <span class="c-blue">gradeSubmission</span>(submission) {</div>
+            <div>  <span class="c-purple">const</span> prompt = <span class="c-yellow">`</span></div>
+            <div>  <span class="c-yellow">批改標準：正確性 40%，邏輯 30%，表達 30%</span></div>
+            <div>  <span class="c-yellow">學生作答：${submission.content}</span></div>
+            <div>  <span class="c-yellow">請給分並提供繁體中文回饋`</span>;</div>
+            <div>&nbsp;</div>
+            <div>  <span class="c-purple">const</span> result = <span class="c-purple">await</span> <span class="c-blue">gemini</span>(prompt);</div>
+            <div>  <span class="c-purple">const</span> { score, feedback } = <span class="c-blue">parseGrade</span>(result);</div>
+            <div>&nbsp;</div>
+            <div>  <span class="c-gray">// 回傳成績到 Classroom</span></div>
+            <div>  <span class="c-purple">await</span> classroom.grades.<span class="c-blue">patch</span>({</div>
+            <div>    courseId, submissionId,</div>
+            <div>    <span class="c-blue">requestBody</span>: { assignedGrade: score }</div>
+            <div>  });</div>
+            <div>}</div>
+          </div>
+          <div class="glass" style="padding: 14px 16px; display: flex; gap: 12px; flex-wrap: wrap;">
+            <span class="tag tag-purple">Classroom API</span>
+            <span class="tag tag-cyan">OAuth 2.0</span>
+            <span class="tag tag-indigo">Gemini批改</span>
+            <span class="tag tag-purple">輪詢監控</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 6: Clasp+Netlify ═══ -->
+  <div class="slide" data-slide="6">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">專案 03</div>
+      <h2 class="slide-title anim-up">🚀 Clasp + Netlify 部署指南</h2>
+      <p class="body anim-up" style="margin-bottom: 18px;">前端 Netlify + 後端 Google Apps Script，透過 Clasp CLI 建立完整的<span class="hl-cyan">自動化部署閉環</span>，一套指令完成全棧推送。</p>
+      <div class="grid-2 anim-up" style="gap: 20px; flex: 1;">
+        <div class="code-block" style="font-size: 12px;">
+          <div class="c-gray"># ── 後端 GAS 部署 ──────────────────</div>
+          <div><span class="c-green">$</span> <span class="c-blue">clasp</span> login</div>
+          <div><span class="c-green">$</span> <span class="c-blue">clasp</span> create --title <span class="c-yellow">"PadletBot"</span> --type webapp</div>
+          <div><span class="c-green">$</span> <span class="c-blue">clasp</span> push</div>
+          <div><span class="c-green">$</span> <span class="c-blue">clasp</span> deploy --description <span class="c-yellow">"v1.0 production"</span></div>
+          <div>&nbsp;</div>
+          <div class="c-gray"># ── 前端 Netlify 部署 ──────────────</div>
+          <div><span class="c-green">$</span> <span class="c-blue">netlify</span> login</div>
+          <div><span class="c-green">$</span> <span class="c-blue">netlify</span> init</div>
+          <div><span class="c-green">$</span> <span class="c-blue">netlify</span> deploy --prod --dir <span class="c-yellow">./dist</span></div>
+          <div>&nbsp;</div>
+          <div class="c-gray"># ── 環境變數注入 ───────────────────</div>
+          <div><span class="c-green">$</span> <span class="c-blue">netlify</span> env:set GEMINI_API_KEY <span class="c-yellow">$KEY</span></div>
+          <div><span class="c-green">$</span> <span class="c-blue">netlify</span> env:set GAS_ENDPOINT <span class="c-yellow">$URL</span></div>
+          <div>&nbsp;</div>
+          <div class="c-gray"># ── 一鍵全棧更新腳本 ───────────────</div>
+          <div><span class="c-green">$</span> <span class="c-blue">./deploy.sh</span> <span class="c-yellow">--all</span></div>
+          <div>&nbsp;</div>
+          <div><span class="c-green">✓</span> GAS deployed → <span class="c-cyan">script.google.com/...</span></div>
+          <div><span class="c-green">✓</span> Netlify live  → <span class="c-cyan">hongsheng-board.netlify.app</span></div>
+          <div><span class="c-green">✓</span> Build time: <span class="c-yellow">12.3s</span></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="glass" style="padding: 20px;">
+            <div style="font-size: 12px; color: var(--cyan); letter-spacing: 1px; margin-bottom: 12px;">部署架構</div>
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
+              <div style="text-align: center; padding: 14px; background: rgba(79,70,229,0.15); border-radius: 12px; border: 1px solid rgba(79,70,229,0.3); flex: 1; min-width: 80px;">
+                <div style="font-size: 24px;">💻</div>
+                <div style="font-size: 12px; color: white; margin-top: 6px;">Local</div>
+                <div style="font-size: 10px; color: var(--muted);">VSCode</div>
+              </div>
+              <div style="color: var(--purple-light);">→</div>
+              <div style="text-align: center; padding: 14px; background: rgba(124,58,237,0.15); border-radius: 12px; border: 1px solid rgba(124,58,237,0.3); flex: 1; min-width: 80px;">
+                <div style="font-size: 24px;">📦</div>
+                <div style="font-size: 12px; color: white; margin-top: 6px;">GitHub</div>
+                <div style="font-size: 10px; color: var(--muted);">版本控制</div>
+              </div>
+              <div style="color: var(--cyan-light);">→</div>
+              <div style="display: flex; flex-direction: column; gap: 8px; flex: 1.2;">
+                <div style="text-align: center; padding: 10px; background: rgba(6,182,212,0.12); border-radius: 10px; border: 1px solid rgba(6,182,212,0.25);">
+                  <div style="font-size: 13px;">🌐 Netlify</div>
+                  <div style="font-size: 10px; color: var(--muted);">前端 CDN</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(16,185,129,0.1); border-radius: 10px; border: 1px solid rgba(16,185,129,0.25);">
+                  <div style="font-size: 13px;">⚙️ GAS</div>
+                  <div style="font-size: 10px; color: var(--muted);">後端 API</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="glass" style="padding: 16px 18px;">
+            <div style="font-size: 12px; color: var(--purple-light); letter-spacing: 1px; margin-bottom: 10px;">💡 核心價值</div>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px;">
+              <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start;"><span style="color: var(--cyan);">▸</span> 零伺服器費用，完全免費基礎設施</li>
+              <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start;"><span style="color: var(--cyan);">▸</span> 一份腳本部署前後端，降低維護成本</li>
+              <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px; align-items: flex-start;"><span style="color: var(--cyan);">▸</span> 可複製到任何 GAS + 靜態前端專案</li>
+            </ul>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="tag tag-cyan">clasp CLI</span>
+            <span class="tag tag-purple">Netlify</span>
+            <span class="tag tag-indigo">GitHub</span>
+            <span class="tag tag-purple">GAS</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 7: HTML Slide Builder ═══ -->
+  <div class="slide" data-slide="7">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">專案 04</div>
+      <h2 class="slide-title anim-up">📑 Claude HTML Slide Builder</h2>
+      <p class="body anim-up" style="margin-bottom: 16px;">輸入任何文字主題，AI 自動生成 <span class="hl-cyan">Reveal.js</span> 簡報，結合 <span class="hl-purple">wordcloud2.js</span> 視覺化，一鍵推送到 <span class="hl-white">GitHub Pages</span>。</p>
+      <div class="anim-up" style="flex: 1; display: flex; flex-direction: column; gap: 14px;">
+        <div class="glass" style="padding: 18px;">
+          <div style="display: flex; align-items: center; gap: 0; justify-content: space-between;">
+            <div style="text-align: center; flex: 1; padding: 12px;">
+              <div style="font-size: 28px; margin-bottom: 6px;">✍️</div>
+              <div style="font-size: 13px; color: white; font-weight: 600;">輸入主題</div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">純文字描述<br>或大綱</div>
+            </div>
+            <div style="font-size: 20px; color: var(--purple-light); padding: 0 6px;">→</div>
+            <div style="text-align: center; flex: 1; padding: 12px; background: rgba(124,58,237,0.1); border-radius: 12px; border: 1px solid rgba(124,58,237,0.2);">
+              <div style="font-size: 28px; margin-bottom: 6px;">🤖</div>
+              <div style="font-size: 13px; color: var(--purple-light); font-weight: 600;">Claude AI 生成</div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">HTML + CSS + JS<br>完整簡報</div>
+            </div>
+            <div style="font-size: 20px; color: var(--cyan-light); padding: 0 6px;">→</div>
+            <div style="text-align: center; flex: 1; padding: 12px;">
+              <div style="font-size: 28px; margin-bottom: 6px;">🎨</div>
+              <div style="font-size: 13px; color: white; font-weight: 600;">Reveal.js</div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">動態簡報<br>wordcloud</div>
+            </div>
+            <div style="font-size: 20px; color: var(--cyan-light); padding: 0 6px;">→</div>
+            <div style="text-align: center; flex: 1; padding: 12px; background: rgba(6,182,212,0.1); border-radius: 12px; border: 1px solid rgba(6,182,212,0.2);">
+              <div style="font-size: 28px; margin-bottom: 6px;">🚀</div>
+              <div style="font-size: 13px; color: var(--cyan-light); font-weight: 600;">GitHub Actions</div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">自動 CI/CD<br>Pages 部署</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid-2" style="gap: 14px; flex: 1;">
+          <div class="code-block" style="font-size: 11px;">
+            <div class="c-gray"># GitHub Actions workflow</div>
+            <div><span class="c-purple">name</span>: Deploy Slides</div>
+            <div><span class="c-purple">on</span>: [push]</div>
+            <div>&nbsp;</div>
+            <div><span class="c-purple">jobs</span>:</div>
+            <div>  <span class="c-blue">build</span>:</div>
+            <div>    <span class="c-purple">steps</span>:</div>
+            <div>    - <span class="c-blue">uses</span>: actions/checkout@v4</div>
+            <div>    - <span class="c-purple">name</span>: Build slides</div>
+            <div>      <span class="c-purple">run</span>: |</div>
+            <div>        <span class="c-green">python</span> generate_slides.py</div>
+            <div>        <span class="c-green">cp</span> output/*.html dist/</div>
+            <div>    - <span class="c-purple">name</span>: Deploy to Pages</div>
+            <div>      <span class="c-blue">uses</span>: peaceiris/actions-gh-pages@v4</div>
+            <div>      <span class="c-purple">with</span>:</div>
+            <div>        <span class="c-blue">publish_dir</span>: <span class="c-yellow">./dist</span></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div class="glass" style="padding: 16px; flex: 1;">
+              <div style="font-size: 12px; color: var(--cyan); margin-bottom: 10px; letter-spacing: 1px;">核心功能</div>
+              <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px;">
+                <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: #a5b4fc;">▸</span> 多主題樣式模板（深色/淺色/漸層）</li>
+                <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: #a5b4fc;">▸</span> 自動生成關鍵詞文字雲</li>
+                <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: #a5b4fc;">▸</span> 鍵盤導覽 / 觸控支援</li>
+                <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: #a5b4fc;">▸</span> 支援 Mermaid 流程圖嵌入</li>
+                <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: #a5b4fc;">▸</span> 推送 = 自動更新線上簡報</li>
+              </ul>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <span class="tag tag-purple">Claude API</span>
+              <span class="tag tag-cyan">Reveal.js</span>
+              <span class="tag tag-indigo">GitHub Actions</span>
+              <span class="tag tag-cyan">wordcloud2</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 8: 畢旅 + 保養品 ═══ -->
+  <div class="slide" data-slide="8">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">專案 05 & 06</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 20px;">影像生成 & 客服機器人</h2>
+      <div class="grid-2 anim-up" style="gap: 20px; flex: 1;">
+        <!-- 畢旅影片 -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass" style="padding: 20px; flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+              <span style="font-size: 28px;">🎒</span>
+              <div>
+                <h3 class="card-title" style="margin: 0;">畢業旅行影片企劃</h3>
+                <div style="font-size: 11px; color: var(--muted);">AI 語音 × 影片混音</div>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px;">
+              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(245,158,11,0.1); border-radius: 8px; border: 1px solid rgba(245,158,11,0.2);">
+                <span>🎙️</span>
+                <div>
+                  <div style="font-size: 12px; color: white; font-weight: 600;">edge-tts 語音合成</div>
+                  <div style="font-size: 11px; color: var(--muted);">微軟神經語音，支援繁中</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(16,185,129,0.08); border-radius: 8px; border: 1px solid rgba(16,185,129,0.2);">
+                <span>🎬</span>
+                <div>
+                  <div style="font-size: 12px; color: white; font-weight: 600;">FFmpeg 影片混音</div>
+                  <div style="font-size: 11px; color: var(--muted);">旁白+背景音樂+字幕</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(79,70,229,0.1); border-radius: 8px; border: 1px solid rgba(79,70,229,0.2);">
+                <span>📸</span>
+                <div>
+                  <div style="font-size: 12px; color: white; font-weight: 600;">照片序列 → MP4</div>
+                  <div style="font-size: 11px; color: var(--muted);">自動拼接+轉場效果</div>
+                </div>
+              </div>
+            </div>
+            <div class="code-block" style="font-size: 10px; padding: 10px 12px;">
+              <div class="c-gray"># 合成旁白 + 合併影片</div>
+              <div><span class="c-blue">edge-tts</span> --text <span class="c-yellow">"旁白文字"</span> -o voice.mp3</div>
+              <div><span class="c-blue">ffmpeg</span> -i photos/%03d.jpg -i voice.mp3 \</div>
+              <div>  -i bg_music.mp3 -filter_complex \</div>
+              <div>  <span class="c-yellow">"[1:a][2:a]amix"</span> output.mp4</div>
+            </div>
+          </div>
+        </div>
+        <!-- 保養品客服 -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass" style="padding: 20px; flex: 1;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+              <span style="font-size: 28px;">💄</span>
+              <div>
+                <h3 class="card-title" style="margin: 0;">保養品客服聊天機器人</h3>
+                <div style="font-size: 11px; color: var(--muted);">垂直領域 AI 客服</div>
+              </div>
+            </div>
+            <div class="chat-wrap" style="margin-bottom: 12px;">
+              <div class="chat-msg">
+                <div class="chat-avatar user2" style="width:26px;height:26px;font-size:12px;">👤</div>
+                <div class="chat-bubble user2" style="font-size: 12px;">我皮膚很乾，想找保濕精華</div>
+              </div>
+              <div class="chat-msg">
+                <div class="chat-avatar bot" style="width:26px;height:26px;font-size:12px;">💄</div>
+                <div class="chat-bubble bot" style="font-size: 12px;">根據您的膚質，推薦使用我們的 <strong>玻尿酸精華液</strong>，含三重分子玻尿酸，能深層鎖水 72 小時。您是油性還是混合偏乾？</div>
+              </div>
+              <div class="chat-msg">
+                <div class="chat-avatar user2" style="width:26px;height:26px;font-size:12px;">👤</div>
+                <div class="chat-bubble user2" style="font-size: 12px;">混合偏乾，T區還是有點油</div>
+              </div>
+              <div class="chat-msg">
+                <div class="chat-avatar bot" style="width:26px;height:26px;font-size:12px;">💄</div>
+                <div class="chat-bubble bot" style="font-size: 12px;">混乾膚質建議搭配<strong>輕感乳液</strong>，T 區薄塗、乾燥部位多層疊擦。本週 85 折優惠中！</div>
+              </div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <span class="tag tag-purple">垂直知識庫</span>
+              <span class="tag tag-cyan">System Prompt</span>
+              <span class="tag tag-indigo">多輪對話</span>
+              <span class="tag tag-purple">意圖識別</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 9: 可延伸應用 ═══ -->
+  <div class="slide" data-slide="9">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">潛在應用</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 8px;">這些AI技術在公司的應用場景</h2>
+      <p class="body anim-up" style="margin-bottom: 20px; color: var(--muted);">六個專案累積的技術棧，可直接移植到以下高價值場景：</p>
+      <div class="grid-3 anim-up" style="gap: 16px; margin-bottom: 16px;">
+        <div class="app-card">
+          <div class="app-icon">📋</div>
+          <h4>SOP 問答機器人</h4>
+          <p>將公司 SOP 文件作為知識庫，員工直接對話查詢流程，不再翻找文件。<br><span style="color: var(--purple-light); font-size: 11px;">▸ 技術來源：小鴻上下文感知</span></p>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">📊</div>
+          <h4>自動報表生成</h4>
+          <p>填入數據→AI 自動產出週報、月報、分析摘要，並發送到指定信箱。<br><span style="color: var(--cyan-light); font-size: 11px;">▸ 技術來源：Classroom Agent 自動化</span></p>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🎙️</div>
+          <h4>教材配音系統</h4>
+          <p>上傳教材文字，自動生成旁白音訊並合成教學影片，大幅降低製作成本。<br><span style="color: #a5b4fc; font-size: 11px;">▸ 技術來源：edge-tts + FFmpeg</span></p>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🤝</div>
+          <h4>客服自動回覆</h4>
+          <p>垂直領域知識庫+多輪對話設計，24/7 自動回覆常見問題，升級人工時提交摘要。<br><span style="color: var(--purple-light); font-size: 11px;">▸ 技術來源：保養品機器人架構</span></p>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🗂️</div>
+          <h4>提案簡報自動化</h4>
+          <p>輸入提案大綱，AI 生成結構完整的簡報，配合品牌視覺指南自動套版。<br><span style="color: var(--cyan-light); font-size: 11px;">▸ 技術來源：HTML Slide Builder</span></p>
+        </div>
+        <div class="app-card">
+          <div class="app-icon">🚀</div>
+          <h4>CI/CD 標準化</h4>
+          <p>Clasp+Netlify 部署模板可複製到任何內部工具，統一部署流程，降低上線成本。<br><span style="color: #a5b4fc; font-size: 11px;">▸ 技術來源：Clasp部署指南</span></p>
+        </div>
+      </div>
+      <div class="glass anim-up" style="padding: 14px 20px; text-align: center; border-color: rgba(6,182,212,0.15);">
+        <p style="font-size: 14px; color: var(--muted);">以上應用均基於<span class="hl-white">現有技術積累</span>，預估導入時間 <span class="hl-cyan">2-4 週</span>，無需額外購買授權，僅需 <span class="hl-purple">Gemini API 額度</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 10: 總結 ═══ -->
+  <div class="slide" data-slide="10">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">成果總結</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 20px; text-align: center;">六個專案，三種模態，無限可能</h2>
+      <div class="grid-3 anim-up" style="gap: 14px; margin-bottom: 16px;">
+        <div class="stat-box">
+          <div class="stat-num">6</div>
+          <div class="stat-label">AI 整合專案<br>完整交付</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num" style="font-size: 32px; background: linear-gradient(135deg, #a78bfa, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Gemini<br>+ Groq</div>
+          <div class="stat-label">雙 AI 模型<br>靈活切換</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-num">3</div>
+          <div class="stat-label">語音+文字+影像<br>三模態整合</div>
+        </div>
+      </div>
+      <div class="grid-2 anim-up" style="gap: 14px; margin-bottom: 16px;">
+        <div class="glass" style="padding: 18px;">
+          <div style="font-size: 12px; color: var(--purple-light); letter-spacing: 1px; margin-bottom: 12px;">🏆 關鍵技術成就</div>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px;">
+            <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--cyan);">✓</span> 看板上下文感知對話（全球少數實作）</li>
+            <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--cyan);">✓</span> Web Speech + AI 潤飾雙重語音處理</li>
+            <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--cyan);">✓</span> OAuth 2.0 + Classroom API 完整串接</li>
+            <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--cyan);">✓</span> 前後端自動化部署閉環（零費用基礎設施）</li>
+          </ul>
+        </div>
+        <div class="glass" style="padding: 18px;">
+          <div style="font-size: 12px; color: var(--cyan-light); letter-spacing: 1px; margin-bottom: 12px;">🚀 下一步計畫</div>
+          <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px;">
+            <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--purple-light);">→</span> 將小鴻擴展為多租戶 SaaS 平台</li>
+            <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--purple-light);">→</span> 導入 RAG 架構提升知識庫精準度</li>
+            <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--purple-light);">→</span> Classroom Agent 支援多校串接</li>
+            <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--purple-light);">→</span> 影片企劃結合 Sora / Kling 影像生成</li>
+          </ul>
+        </div>
+      </div>
+      <div class="border-glow anim-up">
+        <div class="border-glow-inner" style="padding: 16px 24px; text-align: center; border-radius: 19px;">
+          <p style="font-size: 15px; color: white; font-weight: 500;">AI 的價值不在於它有多聰明，而在於它<span style="color: var(--cyan-light);"> 節省了多少你本來要花的時間</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #slides -->
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const progressBar = document.getElementById('progress-bar');
+const counter = document.getElementById('slide-counter');
+const dotsEl = document.getElementById('dots');
+let current = 0;
+const total = slides.length;
+
+// Build dots
+slides.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', () => goTo(i));
+  dotsEl.appendChild(d);
+});
+
+function goTo(n, direction = 1) {
+  if (n < 0 || n >= total || n === current) return;
+
+  const prev = slides[current];
+  prev.classList.add('exit');
+  setTimeout(() => {
+    prev.classList.remove('active', 'exit');
+  }, 500);
+
+  current = n;
+  slides[current].classList.add('active');
+
+  // Update UI
+  const pct = ((current + 1) / total) * 100;
+  progressBar.style.width = pct + '%';
+  counter.textContent = String(current + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+}
+
+document.getElementById('btn-prev').addEventListener('click', () => goTo(current - 1));
+document.getElementById('btn-next').addEventListener('click', () => goTo(current + 1));
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+});
+
+// Touch / swipe
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+}, { passive: true });
+
+// Init progress bar
+progressBar.style.width = (1 / total * 100) + '%';
+</script>
+</body>
+</html>

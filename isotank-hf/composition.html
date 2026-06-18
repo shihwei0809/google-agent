@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920,height=1080">
+<title>儲槽進出貨安全訓練 – HyperFrames Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 1920px;
+    height: 1080px;
+    overflow: hidden;
+    font-family: 'Noto Sans TC', sans-serif;
+    background: #0a0e1a;
+    color: #fff;
+  }
+
+  /* ── 全域背景粒子層 ── */
+  .bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 900px 600px at 20% 50%, #0d2860 0%, transparent 70%),
+      radial-gradient(ellipse 700px 500px at 80% 30%, #0a2040 0%, transparent 70%),
+      #050810;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(30,100,200,.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,100,200,.08) 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  /* ── 投影片容器 ── */
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    animation: fadeIn .6s ease forwards;
+  }
+
+  @keyframes fadeIn  { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeOut { from { opacity:1; } to { opacity:0; } }
+  @keyframes slideUp { from { opacity:0; transform:translateY(40px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes slideLeft { from { opacity:0; transform:translateX(60px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes scaleIn { from { opacity:0; transform:scale(.85); } to { opacity:1; transform:scale(1); } }
+  @keyframes barGrow { from { width:0; } to { width: var(--w); } }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  @keyframes shimmer {
+    0%   { background-position: -800px 0; }
+    100% { background-position:  800px 0; }
+  }
+
+  /* ── 頂部徽章 ── */
+  .badge {
+    position: absolute; top: 48px; left: 80px;
+    display: flex; align-items: center; gap: 16px;
+    opacity: 0; animation: slideUp .5s .2s ease forwards;
+  }
+  .badge-icon {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: linear-gradient(135deg, #1e5cdb, #0d3fa6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; box-shadow: 0 4px 24px rgba(30,92,219,.5);
+  }
+  .badge-text { line-height: 1.3; }
+  .badge-title { font-size: 13px; color: #7ec8ff; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
+  .badge-sub   { font-size: 15px; color: rgba(255,255,255,.5); }
+
+  /* 頁碼 */
+  .page-num {
+    position: absolute; top: 54px; right: 80px;
+    font-size: 13px; color: rgba(255,255,255,.3); letter-spacing: 2px;
+    opacity: 0; animation: fadeIn .5s .4s ease forwards;
+  }
+
+  /* ── 進度條 ── */
+  .progress-bar {
+    position: absolute; bottom: 0; left: 0; height: 4px;
+    background: linear-gradient(90deg, #1e5cdb, #38bdf8);
+    border-radius: 2px;
+    opacity: 0; animation: fadeIn .5s .3s ease forwards;
+  }
+
+  /* ─────────────────────────────── PAGE 1 ─── */
+  .slide-1 .hero {
+    text-align: center;
+    opacity: 0; animation: scaleIn .8s .3s cubic-bezier(.16,1,.3,1) forwards;
+  }
+  .slide-1 .tag {
+    display: inline-block; padding: 6px 20px; border-radius: 100px;
+    background: rgba(30,92,219,.25); border: 1px solid rgba(30,92,219,.6);
+    font-size: 13px; letter-spacing: 3px; color: #7ec8ff; margin-bottom: 32px;
+    text-transform: uppercase;
+  }
+  .slide-1 h1 {
+    font-size: 72px; font-weight: 900; line-height: 1.1;
+    background: linear-gradient(135deg, #fff 30%, #7ec8ff 80%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 24px;
+  }
+  .slide-1 .sub {
+    font-size: 22px; color: rgba(255,255,255,.55); max-width: 760px; line-height: 1.8;
+    opacity: 0; animation: slideUp .6s .9s ease forwards;
+  }
+  .slide-1 .dots {
+    display: flex; gap: 12px; justify-content: center; margin-top: 52px;
+    opacity: 0; animation: slideUp .5s 1.3s ease forwards;
+  }
+  .slide-1 .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(30,92,219,.4); border: 1px solid rgba(30,92,219,.8);
+  }
+  .slide-1 .dot.active { background: #1e5cdb; width: 32px; border-radius: 5px; }
+
+  /* 裝飾圓 */
+  .deco-ring {
+    position: absolute; border-radius: 50%;
+    border: 1px solid rgba(30,92,219,.2);
+    animation: spin linear infinite;
+  }
+
+  /* ─────────────────────────────── PAGE 2 ─── */
+  .slide-2 .layout {
+    display: flex; gap: 80px; align-items: center;
+    width: 1600px;
+  }
+  .slide-2 .left-panel {
+    flex: 0 0 400px;
+    opacity: 0; animation: slideLeft .7s .4s ease forwards;
+  }
+  .slide-2 .chapter { font-size: 13px; color: #7ec8ff; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 16px; }
+  .slide-2 h2 { font-size: 52px; font-weight: 900; line-height: 1.2; margin-bottom: 20px; }
+  .slide-2 .divider {
+    width: 60px; height: 4px; border-radius: 2px;
+    background: linear-gradient(90deg, #1e5cdb, #38bdf8); margin-bottom: 24px;
+  }
+  .slide-2 .desc { font-size: 16px; color: rgba(255,255,255,.6); line-height: 1.9; }
+
+  .slide-2 .right-panel {
+    flex: 1; display: flex; flex-direction: column; gap: 20px;
+  }
+  .ppe-card {
+    display: flex; align-items: center; gap: 24px;
+    padding: 24px 32px; border-radius: 16px;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+    opacity: 0;
+  }
+  .ppe-card:nth-child(1) { animation: slideLeft .5s .6s ease forwards; }
+  .ppe-card:nth-child(2) { animation: slideLeft .5s .8s ease forwards; }
+  .ppe-card:nth-child(3) { animation: slideLeft .5s 1.0s ease forwards; }
+  .ppe-card:nth-child(4) { animation: slideLeft .5s 1.2s ease forwards; }
+  .ppe-icon {
+    width: 64px; height: 64px; border-radius: 16px; font-size: 32px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .ppe-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .ppe-card p  { font-size: 13px; color: rgba(255,255,255,.5); }
+  .status-pill {
+    margin-left: auto; padding: 6px 16px; border-radius: 100px; font-size: 12px; font-weight: 600;
+  }
+  .req { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+  .crit { background: rgba(234,179,8,.12); color: #fbbf24; border: 1px solid rgba(234,179,8,.3); }
+
+  /* ─────────────────────────────── PAGE 3 ─── */
+  .slide-3 .layout {
+    width: 1600px;
+  }
+  .slide-3 .top {
+    margin-bottom: 48px;
+    opacity: 0; animation: slideUp .6s .3s ease forwards;
+  }
+  .slide-3 .chapter { font-size: 13px; color: #7ec8ff; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; }
+  .slide-3 h2 { font-size: 52px; font-weight: 900; }
+  .slide-3 .steps {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px;
+  }
+  .step-card {
+    padding: 32px 28px; border-radius: 20px;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
+    position: relative; overflow: hidden;
+    opacity: 0;
+  }
+  .step-card:nth-child(1) { animation: slideUp .5s .6s ease forwards; }
+  .step-card:nth-child(2) { animation: slideUp .5s .75s ease forwards; }
+  .step-card:nth-child(3) { animation: slideUp .5s .9s ease forwards; }
+  .step-card:nth-child(4) { animation: slideUp .5s 1.05s ease forwards; }
+  .step-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .step-card.c1::before { background: linear-gradient(90deg,#f87171,#fb923c); }
+  .step-card.c2::before { background: linear-gradient(90deg,#fbbf24,#84cc16); }
+  .step-card.c3::before { background: linear-gradient(90deg,#38bdf8,#818cf8); }
+  .step-card.c4::before { background: linear-gradient(90deg,#a78bfa,#ec4899); }
+  .step-num {
+    font-size: 11px; letter-spacing: 2px; color: rgba(255,255,255,.3);
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  .step-icon { font-size: 40px; margin-bottom: 16px; }
+  .step-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 12px; }
+  .step-card p { font-size: 14px; color: rgba(255,255,255,.55); line-height: 1.8; }
+  .step-warning {
+    margin-top: 16px; padding: 10px 14px; border-radius: 10px;
+    background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.25);
+    font-size: 12px; color: #f87171; display: flex; align-items: center; gap: 8px;
+  }
+</style>
+</head>
+<body data-composition data-duration="30" data-fps="30" data-width="1920" data-height="1080">
+
+<div class="bg"></div>
+<div class="grid"></div>
+
+<!-- 裝飾圓環 -->
+<div class="deco-ring" style="width:600px;height:600px;top:-200px;right:-200px;animation-duration:60s;opacity:.3;"></div>
+<div class="deco-ring" style="width:300px;height:300px;bottom:-100px;left:100px;animation-duration:40s;opacity:.2;"></div>
+
+<!-- ═══════════ PAGE 1：封面（0–9s） ═══════════ -->
+<div class="slide slide-1" data-start="0" data-end="9">
+  <div class="badge">
+    <div class="badge-icon">🏭</div>
+    <div class="badge-text">
+      <div class="badge-title">化工廠安全訓練</div>
+      <div class="badge-sub">ISO Tank Operations</div>
+    </div>
+  </div>
+  <div class="page-num">01 / 03</div>
+
+  <div class="hero">
+    <div class="tag">標準作業程序 SOP</div>
+    <h1>儲槽進出貨<br>作業安全訓練</h1>
+    <p class="sub">
+      本課程依據廠區 C50110-INV-02-01 標準作業程序，<br>
+      涵蓋一般檢查、進出貨卸料、灌裝及安全規範完整說明。
+    </p>
+    <div class="dots">
+      <div class="dot active"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+  </div>
+
+  <div class="progress-bar" style="--w:33.3%; animation: fadeIn .5s .3s ease forwards, barGrow 8.5s .5s linear forwards;"></div>
+</div>
+
+<!-- ═══════════ PAGE 2：個人防護具（9–19s） ═══════════ -->
+<div class="slide slide-2" data-start="9" data-end="19">
+  <div class="badge">
+    <div class="badge-icon">🦺</div>
+    <div class="badge-text">
+      <div class="badge-title">作業前準備</div>
+      <div class="badge-sub">Pre-Operation Checklist</div>
+    </div>
+  </div>
+  <div class="page-num">02 / 03</div>
+
+  <div class="layout">
+    <div class="left-panel">
+      <div class="chapter">章節 02</div>
+      <h2>個人<br>防護具<br>著裝規範</h2>
+      <div class="divider"></div>
+      <p class="desc">
+        所有人員進入作業區前，<br>
+        必須完整著裝以下防護具，<br>
+        確保人身安全。
+      </p>
+    </div>
+    <div class="right-panel">
+      <div class="ppe-card">
+        <div class="ppe-icon" style="background:rgba(239,68,68,.15);">⛑️</div>
+        <div>
+          <h3>安全帽</h3>
+          <p>防止墜落物撞擊頭部，必須正確扣緊帽帶</p>
+        </div>
+        <div class="status-pill req">必要</div>
+      </div>
+      <div class="ppe-card">
+        <div class="ppe-icon" style="background:rgba(234,179,8,.1);">👟</div>
+        <div>
+          <h3>安全鞋</h3>
+          <p>鋼頭安全鞋，防止重物壓傷及化學品飛濺</p>
+        </div>
+        <div class="status-pill req">必要</div>
+      </div>
+      <div class="ppe-card">
+        <div class="ppe-icon" style="background:rgba(56,189,248,.1);">🥽</div>
+        <div>
+          <h3>護目鏡</h3>
+          <p>防護化學品噴濺傷害眼睛，作業全程配戴</p>
+        </div>
+        <div class="status-pill crit">關鍵</div>
+      </div>
+      <div class="ppe-card">
+        <div class="ppe-icon" style="background:rgba(167,139,250,.1);">🧤</div>
+        <div>
+          <h3>防護手套</h3>
+          <p>接觸化學品管線時，必須配戴耐化學品手套</p>
+        </div>
+        <div class="status-pill req">必要</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="progress-bar" style="--w:66.6%; animation: fadeIn .5s .3s ease forwards, barGrow 9.5s .5s linear forwards;"></div>
+</div>
+
+<!-- ═══════════ PAGE 3：槽車定位步驟（19–30s） ═══════════ -->
+<div class="slide slide-3" data-start="19" data-end="30">
+  <div class="badge">
+    <div class="badge-icon">🚛</div>
+    <div class="badge-text">
+      <div class="badge-title">ISO 槽車卸料</div>
+      <div class="badge-sub">Tank Truck Positioning</div>
+    </div>
+  </div>
+  <div class="page-num">03 / 03</div>
+
+  <div class="layout">
+    <div class="top">
+      <div class="chapter">章節 03</div>
+      <h2>槽車定位與安全固定程序</h2>
+    </div>
+    <div class="steps">
+      <div class="step-card c1">
+        <div class="step-num">Step 01</div>
+        <div class="step-icon">🚗</div>
+        <h3>引導定位</h3>
+        <p>引導槽車至卸料位，熄火、拉緊手煞車、關閉收音機</p>
+        <div class="step-warning">⚠️ 鑰匙需交由操作員保管</div>
+      </div>
+      <div class="step-card c2">
+        <div class="step-num">Step 02</div>
+        <div class="step-icon">📦</div>
+        <h3>ISO 放櫃</h3>
+        <p>ISO 槽車須執行放櫃作業並拔除車頭，才可開始後續操作</p>
+        <div class="step-warning">⚠️ 車頭駛離前確認接地完成</div>
+      </div>
+      <div class="step-card c3">
+        <div class="step-num">Step 03</div>
+        <div class="step-icon">⚡</div>
+        <h3>接地防靜電</h3>
+        <p>夾緊靜電接地線，電阻計確認接地電阻 &lt; 10 Ω 合格</p>
+        <div class="step-warning">⚠️ 不合格嚴禁作業</div>
+      </div>
+      <div class="step-card c4">
+        <div class="step-num">Step 04</div>
+        <div class="step-icon">🧱</div>
+        <h3>防護設施</h3>
+        <p>放置輪檔、三角錐、盛漏盤與滅火器，確保現場安全</p>
+        <div class="step-warning">⚠️ 高處作業須穿雙勾安全帶</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="progress-bar" style="--w:100%; animation: fadeIn .5s .3s ease forwards, barGrow 10.5s .5s linear forwards;"></div>
+</div>
+
+</body>
+</html>

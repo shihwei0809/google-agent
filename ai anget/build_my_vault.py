@@ -3,15 +3,14 @@ import re
 import shutil
 
 # Target Directories in current workspace
-workspace_dir = os.path.dirname(os.path.abspath(__file__))
+workspace_dir = r"c:\GOOGLE ANGET\ai anget"
 clipping_dir = os.path.join(workspace_dir, "Clipping")
 creation_dir = os.path.join(workspace_dir, "創作庫")
 kb_dir = os.path.join(workspace_dir, "知識庫")
 proj_cards_dir = os.path.join(kb_dir, "專案卡")
 
 # Source Files
-root_dir = os.path.dirname(workspace_dir)
-root_dir_double_backslash = root_dir.replace("/", "\\").replace("\\", "\\\\")
+root_dir = r"c:\GOOGLE ANGET"
 project_records_path = os.path.join(root_dir, "PROJECT_RECORDS.md")
 
 # Ensure target directories exist
@@ -113,7 +112,7 @@ def main():
         card_content = f"# 📌 {p['title']}\n\n"
         card_content += f"- **專案類型**: 核心開發專案\n"
         if p['folder']:
-            card_content += f"- **本機目錄**: `{root_dir_double_backslash}\\{p['folder']}`\n"
+            card_content += f"- **本機目錄**: `c:\\GOOGLE ANGET\\{p['folder']}`\n"
         if p['tech_stack']:
             card_content += f"- **技術棧**: `{p['tech_stack']}`\n"
         card_content += "\n## 📝 專案用途\n"

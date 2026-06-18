@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background-color: #f8f9fa; padding: 15px; font-family: "Microsoft JhengHei"; font-size: 0.85rem; }
+    .card { border-radius: 8px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 15px; }
+    .line-card { background: white; padding: 6px 8px; margin-bottom: 5px; border-radius: 6px; border: 1px solid #dee2e6; }
+    .line-card-a { border-left: 5px solid #0d6efd; }
+    .line-card-b { border-left: 5px solid #198754; }
+    .line-off { opacity: 0.5; filter: grayscale(1); border-left-color: #6c757d; }
+    .tank-header-a { background: #1a4d7c; color: white; padding: 6px 10px; font-weight: bold; border-radius: 6px 6px 0 0; }
+    .tank-header-b { background: #198754; color: white; padding: 6px 10px; font-weight: bold; border-radius: 6px 6px 0 0; }
+    .tank-header-recycle { background: #6f42c1; color: white; padding: 6px 10px; font-weight: bold; border-radius: 6px 6px 0 0; }
+    .tank-header-waste { background: #dc3545; color: white; padding: 6px 10px; font-weight: bold; border-radius: 6px 6px 0 0; }
+    
+    .table-sm th, .table-sm td { font-size: 0.75rem; vertical-align: middle; padding: 4px 2px !important; text-align: center !important; }
+    
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    .grid-input { width: 100%; min-width: 45px; box-sizing: border-box; padding: 0; margin: 0; border: 1px solid transparent; background: transparent; text-align: center !important; color: #0d6efd; font-weight: bold; font-size: 0.75rem; }
+    .grid-input:hover { border: 1px solid #0d6efd; background: #e3f2fd; outline: none; border-radius: 4px; }
+    
+    .grid-input-override { width: 100%; min-width: 45px; box-sizing: border-box; padding: 0; margin: 0; border: 1px solid transparent; background: transparent; text-align: center !important; font-size: 0.75rem; font-weight: bold; }
+    .grid-input-override:hover { border: 1px solid #ffc107; background: #fff3cd; outline: none; border-radius: 4px; cursor: pointer; }
+    .grid-input-override::placeholder { color: inherit; opacity: 1; }
+    .is-manual { color: #dc3545 !important; border-bottom: 2px solid #dc3545; } 
+    
+    .row-label { background: #f1f3f5; font-weight: bold; min-width: 90px; }
+    .stock-danger { background-color: #ff5252 !important; color: white !important; }
+    .text-recycle { color: #6f42c1; font-weight: bold; }
+    .text-waste { color: #dc3545; font-weight: bold; }
+    .transition-all { transition: all 0.4s ease-in-out; }
+    
+    .param-input { width: 52px; text-align: center; padding: 0.25rem; font-size: 0.8rem; }
+    .circ-input { color: #dc3545; font-weight: bold; background-color: #fff5f5; }
+    .param-label { font-size: 0.75rem; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h5 class="text-primary fw-bold">IPA 雙廠區排程系統</h5>
+      <div id="syncMsg" class="small text-muted fw-bold">系統讀取中...</div>
+    </div>
+
+    <div class="row g-2">
+      <div class="col-md-5">
+        <div class="card p-2 h-100">
+          <h6 class="fw-bold mb-2 text-primary border-bottom pb-1">鴻勝一廠 (溶四、五)</h6>
+          
+          <div id="box_溶四" class="line-card line-card-a d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-1"><input type="checkbox" id="on_溶四" checked onchange="triggerRecalc()"> <strong>溶四</strong></div>
+            <div class="d-flex align-items-center gap-1">
+              <span class="text-muted param-label">流速</span>
+              <input type="number" step="0.1" id="flow_溶四" value="1.4" class="form-control param-input" onchange="triggerRecalc()">
+              <span class="text-danger fw-bold param-label ms-1">塔循</span>
+              <input type="number" step="0.5" id="circ_溶四" value="0" class="form-control param-input circ-input" title="總停料時數(hr)" onchange="triggerRecalc()">
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <select id="source_溶四" class="form-select form-select-sm w-auto" onchange="triggerRecalc()"><option value="TK617">TK617</option><option value="TK618">TK618</option><option value="TK611">TK611(回)</option></select>
+              <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="auto_溶四" checked onchange="triggerRecalc()"><label class="form-check-label small text-nowrap">跳 611</label></div>
+            </div>
+          </div>
+          
+          <div id="box_溶五" class="line-card line-card-a line-off d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-1"><input type="checkbox" id="on_溶五" onchange="triggerRecalc()"> <strong>溶五</strong></div>
+            <div class="d-flex align-items-center gap-1">
+              <span class="text-muted param-label">流速</span>
+              <input type="number" step="0.1" id="flow_溶五" value="1.5" class="form-control param-input" onchange="triggerRecalc()">
+              <span class="text-danger fw-bold param-label ms-1">塔循</span>
+              <input type="number" step="0.5" id="circ_溶五" value="0" class="form-control param-input circ-input" title="總停料時數(hr)" onchange="triggerRecalc()">
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <select id="source_溶五" class="form-select form-select-sm w-auto" onchange="triggerRecalc()"><option value="TK617">TK617</option><option value="TK618">TK618</option><option value="TK611">TK611(回)</option></select>
+              <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="auto_溶五" checked onchange="triggerRecalc()"><label class="form-check-label small text-nowrap">跳 611</label></div>
+            </div>
+          </div>
+
+          <div class="mt-2 row g-1">
+            <div class="col-3"><small class="text-muted">617 初始</small><input type="number" step="0.1" id="tk617_init" value="85" class="form-control form-control-sm" onchange="triggerRecalc()"></div>
+            <div class="col-3"><small class="text-muted">618 初始</small><input type="number" step="0.1" id="tk618_init" value="150" class="form-control form-control-sm" onchange="triggerRecalc()"></div>
+            <div class="col-3"><small class="text-recycle">611(回收)</small><input type="number" step="0.1" id="tk611_init" value="100" class="form-control form-control-sm" onchange="triggerRecalc()"></div>
+            <div class="col-3"><small class="text-waste">613(死廢)</small><input type="number" step="0.1" id="tk613_init" value="0" class="form-control form-control-sm" onchange="triggerRecalc()"></div>
+          </div>
+          <div class="input-group input-group-sm mt-2">
+            <span class="input-group-text bg-light text-recycle fw-bold">♻️ 611 滿水優先消化啟動水位 (T)</span>
+            <input type="number" step="0.1" id="tk611_flush" value="120" class="form-control text-center fw-bold" onchange="triggerRecalc()">
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-5">
+        <div class="card p-2 h-100">
+          <div class="d-flex justify-content-between align-items-center border-bottom pb-1 mb-2">
+            <h6 class="fw-bold text-success mb-0">鴻勝二廠 (溶六、七)</h6>
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="show_groupB" checked onchange="toggleGroupB(); triggerRecalc()">
+              <label class="form-check-label small fw-bold text-muted">顯示預估表</label>
+            </div>
+          </div>
+          
+          <div id="box_溶六" class="line-card line-card-b line-off d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-1"><input type="checkbox" id="on_溶六" onchange="triggerRecalc()"> <strong>溶六</strong></div>
+            <div class="d-flex align-items-center gap-1">
+              <span class="text-muted param-label">流速</span>
+              <input type="number" step="0.1" id="flow_溶六" value="1.5" class="form-control param-input" onchange="triggerRecalc()">
+              <span class="text-danger fw-bold param-label ms-1">塔循</span>
+              <input type="number" step="0.5" id="circ_溶六" value="0" class="form-control param-input circ-input" title="總停料時數(hr)" onchange="triggerRecalc()">
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <select id="source_溶六" class="form-select form-select-sm w-auto" onchange="triggerRecalc()"><option value="TK627">TK627</option><option value="TK628">TK628</option><option value="TK614">TK614(回)</option></select>
+              <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="auto_溶六" checked onchange="triggerRecalc()"><label class="form-check-label small text-nowrap">跳 614</label></div>
+            </div>
+          </div>
+          
+          <div id="box_溶七" class="line-card line-card-b line-off d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-1"><input type="checkbox" id="on_溶七" onchange="triggerRecalc()"> <strong>溶七</strong></div>
+            <div class="d-flex align-items-center gap-1">
+              <span class="text-muted param-label">流速</span>
+              <input type="number" step="0.1" id="flow_溶七" value="1.5" class="form-control param-input" onchange="triggerRecalc()">
+              <span class="text-danger fw-bold param-label ms-1">塔循</span>
+              <input type="number" step="0.5" id="circ_溶七" value="0" class="form-control param-input circ-input" title="總停料時數(hr)" onchange="triggerRecalc()">
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <select id="source_溶七" class="form-select form-select-sm w-auto" onchange="triggerRecalc()"><option value="TK627">TK627</option><option value="TK628">TK628</option><option value="TK614">TK614(回)</option></select>
+              <div class="form-check form-switch mb-0"><input class="form-check-input" type="checkbox" id="auto_溶七" checked onchange="triggerRecalc()"><label class="form-check-label small text-nowrap">跳 614</label></div>
+            </div>
+          </div>
+
+          <div class="mt-2 row g-1">
+            <div class="col-3"><small class="text-muted">627 初始</small><input type="number" step="0.1" id="tk627_init" value="200" class="form-control form-control-sm" onchange="triggerRecalc()"></div>
+            <div class="col-3"><small class="text-muted">628 初始</small><input type="number" step="0.1" id="tk628_init" value="200" class="form-control form-control-sm" onchange="triggerRecalc()"></div>
+            <div class="col-3"><small class="text-recycle">614(回收)</small><input type="number" step="0.1" id="tk614_init" value="0" class="form-control form-control-sm" onchange="triggerRecalc()"></div>
+            <div class="col-3"><small class="text-waste">615(死廢)</small><input type="number" step="0.1" id="tk615_init" value="0" class="form-control form-control-sm" onchange="triggerRecalc()"></div>
+          </div>
+          <div class="input-group input-group-sm mt-2">
+            <span class="input-group-text bg-light text-recycle fw-bold">♻️ 614 滿水優先消化啟動水位 (T)</span>
+            <input type="number" step="0.1" id="tk614_flush" value="120" class="form-control text-center fw-bold" onchange="triggerRecalc()">
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-2">
+        <div class="card p-2 h-100 d-flex flex-column justify-content-between">
+          <div><label class="small fw-bold">生產良率 (%)</label><input type="number" step="0.1" id="yield" value="93.4" class="form-control fw-bold border-primary" onchange="triggerRecalc()"></div>
+          <button class="btn btn-primary w-100 fw-bold btn-sm py-2" onclick="triggerRecalc()">強制存檔</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-2 mt-1">
+      <div class="col-xl-6 transition-all" id="groupA_tables">
+        <div class="tank-header-a">TK617 明細</div><div class="card overflow-auto mb-2"><table class="table table-bordered table-sm text-center mb-0" id="table617"></table></div>
+        <div class="tank-header-a" style="background:#2c3e50;">TK618 明細</div><div class="card overflow-auto mb-2"><table class="table table-bordered table-sm text-center mb-0" id="table618"></table></div>
+        <div class="row g-1 mb-2">
+          <div class="col-6"><div class="tank-header-recycle">TK611 回收料</div><div class="card overflow-auto mb-0"><table class="table table-bordered table-sm text-center mb-0" id="table611"></table></div></div>
+          <div class="col-6"><div class="tank-header-waste">TK613 死廢液</div><div class="card overflow-auto mb-0"><table class="table table-bordered table-sm text-center mb-0" id="table613"></table></div></div>
+        </div>
+      </div>
+      
+      <div class="col-xl-6 transition-all" id="groupB_tables">
+        <div class="tank-header-b">TK627 明細</div><div class="card overflow-auto mb-2"><table class="table table-bordered table-sm text-center mb-0" id="table627"></table></div>
+        <div class="tank-header-b" style="background:#146c43;">TK628 明細</div><div class="card overflow-auto mb-2"><table class="table table-bordered table-sm text-center mb-0" id="table628"></table></div>
+        <div class="row g-1 mb-2">
+          <div class="col-6"><div class="tank-header-recycle" style="background:#0dcaf0;">TK614 回收料</div><div class="card overflow-auto mb-0"><table class="table table-bordered table-sm text-center mb-0" id="table614"></table></div></div>
+          <div class="col-6"><div class="tank-header-waste">TK615 死廢液</div><div class="card overflow-auto mb-0"><table class="table table-bordered table-sm text-center mb-0" id="table615"></table></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let globalGridData = {}; 
+    const allTanks = ['617','618','611','613','627','628','614','615'];
+
+    window.onload = function() {
+      google.script.run.withSuccessHandler(payload => {
+        if(payload && payload.settings) {
+          const s = payload.settings;
+          document.getElementById('yield').value = s.yield || 93.4;
+          if (s.show_groupB !== undefined) document.getElementById('show_groupB').checked = (s.show_groupB === true || s.show_groupB === "true");
+          if (s.tk611_flush !== undefined) document.getElementById('tk611_flush').value = s.tk611_flush;
+          if (s.tk614_flush !== undefined) document.getElementById('tk614_flush').value = s.tk614_flush;
+
+          allTanks.forEach(t => { if (s[`tk${t}_init`] !== undefined) document.getElementById(`tk${t}_init`).value = s[`tk${t}_init`]; });
+          
+          ['溶四','溶五','溶六','溶七'].forEach(n => {
+            if (s[`on_${n}`] !== undefined) document.getElementById(`on_${n}`).checked = (s[`on_${n}`] === true || s[`on_${n}`] === "true");
+            if (s[`flow_${n}`]) document.getElementById(`flow_${n}`).value = s[`flow_${n}`];
+            let circVal = s[`circ_${n}`] !== undefined ? s[`circ_${n}`] : (s[`boil_${n}`] || 0);
+            document.getElementById(`circ_${n}`).value = circVal;
+            if (s[`source_${n}`]) document.getElementById(`source_${n}`).value = s[`source_${n}`];
+            if (s[`auto_${n}`] !== undefined) document.getElementById(`auto_${n}`).checked = (s[`auto_${n}`] === true || s[`auto_${n}`] === "true");
+          });
+        }
+        globalGridData = payload.grid || {};
+        toggleGroupB(); 
+        triggerRecalc(); 
+      }).loadAllData();
+    };
+
+    function toggleGroupB() {
+      const showB = document.getElementById('show_groupB').checked;
+      const groupA = document.getElementById('groupA_tables');
+      const groupB = document.getElementById('groupB_tables');
+      if (showB) { groupB.style.display = 'block'; groupA.classList.remove('col-xl-12'); groupA.classList.add('col-xl-6'); } 
+      else { groupB.style.display = 'none'; groupA.classList.remove('col-xl-6'); groupA.classList.add('col-xl-12'); }
+    }
+
+    function triggerRecalc() {
+      ['溶四','溶五','溶六','溶七'].forEach(n => {
+        const box = document.getElementById(`box_${n}`);
+        document.getElementById(`on_${n}`).checked ? box.classList.remove('line-off') : box.classList.add('line-off');
+      });
+
+      const yieldVal = parseFloat(document.getElementById('yield').value) / 100;
+      let stocks = {};
+      allTanks.forEach(t => { stocks[t] = parseFloat(document.getElementById(`tk${t}_init`).value) || 0; });
+      
+      let histories = { 617:[], 618:[], 611:[], 613:[], 627:[], 628:[], 614:[], 615:[] };
+      let isFlushing611 = false;
+      let isFlushing614 = false;
+
+      let circLeft = {};
+      ['溶四','溶五','溶六','溶七'].forEach(n => { circLeft[n] = Math.max(0, parseFloat(document.getElementById(`circ_${n}`).value) || 0); });
+
+      for (let i = 0; i < 30; i++) {
+        let grid = {};
+        allTanks.forEach(t => { 
+          grid[`in_${t}`] = parseFloat(globalGridData[`${t}_in_${i}`]) || 0; 
+          grid[`trans_${t}`] = parseFloat(globalGridData[`${t}_trans_${i}`]) || 0; 
+        });
+
+        let out611 = parseFloat(globalGridData[`611_out_${i}`]) || 0;
+        let out614 = parseFloat(globalGridData[`614_out_${i}`]) || 0;
+        let out613 = parseFloat(globalGridData[`613_out_${i}`]) || 0;
+        let out615 = parseFloat(globalGridData[`615_out_${i}`]) || 0;
+
+        let temps = {};
+        ['617','618','627','628'].forEach(t => { temps[t] = stocks[t] + grid[`in_${t}`] + grid[`trans_${t}`]; });
+        ['611','614'].forEach(t => { temps[t] = stocks[t] + grid[`trans_${t}`] - eval(`out${t}`); });
+        ['613','615'].forEach(t => { temps[t] = stocks[t]; }); 
+
+        let uses = { 617:0, 618:0, 611:0, 613:0, 627:0, 628:0, 614:0, 615:0 };
+        let wasteTo611 = 0, wasteTo613 = 0, wasteTo614 = 0, wasteTo615 = 0;
+
+        let flushLimit611 = parseFloat(document.getElementById('tk611_flush').value) || 9999;
+        let flushLimit614 = parseFloat(document.getElementById('tk614_flush').value) || 9999;
+        
+        if (temps['611'] >= flushLimit611) isFlushing611 = true;
+        if (temps['611'] <= 10) isFlushing611 = false;
+        
+        if (temps['614'] >= flushLimit614) isFlushing614 = true;
+        if (temps['614'] <= 10) isFlushing614 = false;
+
+        // 鴻勝一廠
+        ['溶四','溶五'].forEach(n => {
+          if (document.getElementById(`on_${n}`).checked) {
+            let flow = parseFloat(document.getElementById(`flow_${n}`).value) || 0;
+            let todayCirc = Math.min(24, circLeft[n]);
+            circLeft[n] -= todayCirc;
+            
+            let activeHours = 24 - todayCirc;
+            let prod = flow * activeHours;
+            let need = prod / yieldVal;
+            let waste = need - prod; 
+            
+            let src = document.getElementById(`source_${n}`).value.replace('TK','');
+            let canAutoJump = document.getElementById(`auto_${n}`).checked;
+            let prioritizeRecycle = (src === '611') || isFlushing611;
+
+            if (prioritizeRecycle) {
+              let avail611 = Math.max(0, temps['611'] - uses['611']);
+              if (avail611 >= need) {
+                uses['611'] += need; wasteTo613 += waste; 
+              } else {
+                uses['611'] += avail611;
+                let shortage = need - avail611;
+                let ratio611 = need > 0 ? (avail611 / need) : 0;
+                wasteTo613 += (waste * ratio611); 
+                let fallbackSrc = (src === '611') ? '617' : src; 
+                uses[fallbackSrc] += shortage; wasteTo611 += (waste * (1 - ratio611)); 
+              }
+            } else {
+              if (canAutoJump) {
+                 let availNew = Math.max(0, temps[src] - uses[src] - 50); 
+                 if (availNew >= need) { uses[src] += need; wasteTo611 += waste; 
+                 } else {
+                    uses[src] += availNew; uses['611'] += (need - availNew);
+                    let ratioNew = need > 0 ? (availNew / need) : 0;
+                    wasteTo611 += (waste * ratioNew); wasteTo613 += (waste * (1 - ratioNew));
+                 }
+              } else { uses[src] += need; wasteTo611 += waste; }
+            }
+          }
+        });
+
+        // 鴻勝二廠
+        ['溶六','溶七'].forEach(n => {
+          if (document.getElementById(`on_${n}`).checked) {
+            let flow = parseFloat(document.getElementById(`flow_${n}`).value) || 0;
+            let todayCirc = Math.min(24, circLeft[n]);
+            circLeft[n] -= todayCirc;
+            
+            let activeHours = 24 - todayCirc;
+            let prod = flow * activeHours;
+            let need = prod / yieldVal;
+            let waste = need - prod; 
+            
+            let src = document.getElementById(`source_${n}`).value.replace('TK','');
+            let canAutoJump = document.getElementById(`auto_${n}`).checked;
+            let prioritizeRecycleB = (src === '614') || isFlushing614;
+
+            if (prioritizeRecycleB) {
+              let avail614 = Math.max(0, temps['614'] - uses['614']); 
+              if (avail614 >= need) {
+                uses['614'] += need; wasteTo615 += waste; 
+              } else {
+                uses['614'] += avail614;
+                let shortage = need - avail614;
+                let ratio614 = need > 0 ? (avail614 / need) : 0;
+                wasteTo615 += (waste * ratio614); 
+                let fallbackSrc = (src === '614') ? '627' : src; 
+                uses[fallbackSrc] += shortage; wasteTo614 += (waste * (1 - ratio614)); 
+              }
+            } else {
+              if (canAutoJump) {
+                 let availNew = Math.max(0, temps[src] - uses[src] - 50); 
+                 if (availNew >= need) { uses[src] += need; wasteTo614 += waste; 
+                 } else {
+                    uses[src] += availNew; uses['614'] += (need - availNew);
+                    let ratioNew = need > 0 ? (availNew / need) : 0;
+                    wasteTo614 += (waste * ratioNew); wasteTo615 += (waste * (1 - ratioNew));
+                 }
+              } else { uses[src] += need; wasteTo614 += waste; }
+            }
+          }
+        });
+
+        let auto_uses = { 617: uses['617'], 618: uses['618'], 611: uses['611'], 613: uses['613'], 627: uses['627'], 628: uses['628'], 614: uses['614'], 615: uses['615'] };
+        let auto_waste = { 611: wasteTo611, 613: wasteTo613, 614: wasteTo614, 615: wasteTo615 };
+
+        ['617','618','611','627','628','614'].forEach(t => { let m_use = globalGridData[`${t}_use_${i}`]; if (m_use !== undefined && m_use !== "") uses[t] = parseFloat(m_use); });
+        ['611','613','614','615'].forEach(t => {
+            let m_waste = globalGridData[`${t}_waste_${i}`];
+            if (m_waste !== undefined && m_waste !== "") {
+                if (t === '611') wasteTo611 = parseFloat(m_waste);
+                if (t === '613') wasteTo613 = parseFloat(m_waste);
+                if (t === '614') wasteTo614 = parseFloat(m_waste);
+                if (t === '615') wasteTo615 = parseFloat(m_waste);
+            }
+        });
+
+        temps['611'] += wasteTo611; temps['613'] += wasteTo613;
+        temps['614'] += wasteTo614; temps['615'] += wasteTo615;
+
+        ['617','618','627','628'].forEach(t => { histories[t].push({ start: stocks[t], in: grid[`in_${t}`], trans: grid[`trans_${t}`], auto_use: auto_uses[t], use: uses[t], end: (temps[t] - uses[t]), idx: i }); stocks[t] = histories[t][i].end; });
+
+        histories['611'].push({ start: stocks['611'], trans: grid[`trans_611`], out: out611, auto_waste: auto_waste['611'], waste: wasteTo611, auto_use: auto_uses['611'], use: uses['611'], end: (temps['611'] - uses['611']), idx: i }); stocks['611'] = histories['611'][i].end;
+        histories['614'].push({ start: stocks['614'], trans: grid[`trans_614`], out: out614, auto_waste: auto_waste['614'], waste: wasteTo614, auto_use: auto_uses['614'], use: uses['614'], end: (temps['614'] - uses['614']), idx: i }); stocks['614'] = histories['614'][i].end;
+        histories['613'].push({ start: stocks['613'], auto_waste: auto_waste['613'], waste: wasteTo613, out: out613, end: (stocks['613'] + wasteTo613 - out613), idx: i }); stocks['613'] = histories['613'][i].end;
+        histories['615'].push({ start: stocks['615'], auto_waste: auto_waste['615'], waste: wasteTo615, out: out615, end: (stocks['615'] + wasteTo615 - out615), idx: i }); stocks['615'] = histories['615'][i].end;
+      }
+
+      allTanks.forEach(t => renderTable(t, histories[t]));
+      
+      const payload = { settings: { yield: document.getElementById('yield').value, show_groupB: document.getElementById('show_groupB').checked, tk611_flush: document.getElementById('tk611_flush').value, tk614_flush: document.getElementById('tk614_flush').value }, grid: globalGridData };
+      allTanks.forEach(t => payload.settings[`tk${t}_init`] = document.getElementById(`tk${t}_init`).value);
+      ['溶四','溶五','溶六','溶七'].forEach(n => {
+        payload.settings[`on_${n}`] = document.getElementById(`on_${n}`).checked;
+        payload.settings[`flow_${n}`] = document.getElementById(`flow_${n}`).value;
+        payload.settings[`circ_${n}`] = document.getElementById(`circ_${n}`).value;
+        payload.settings[`source_${n}`] = document.getElementById(`source_${n}`).value;
+        payload.settings[`auto_${n}`] = document.getElementById(`auto_${n}`).checked;
+      });
+
+      document.getElementById('syncMsg').innerText = "儲存中...";
+      google.script.run.withSuccessHandler(m => document.getElementById('syncMsg').innerText = m).saveAllData(payload);
+    }
+
+    function updateGridVal(id, val) { globalGridData[id] = val; triggerRecalc(); }
+
+    function renderTable(tank, data) {
+      let d = new Date();
+      let isRecycle = (tank === '611' || tank === '614');
+      let isWaste = (tank === '613' || tank === '615');
+      
+      let html = `<thead><tr class="table-light"><th class="row-label">日期</th>`;
+      data.forEach((_, i) => {
+        let cur = new Date(); cur.setDate(d.getDate() + i);
+        let isHoliday = (cur.getDay() === 0 || cur.getDay() === 6);
+        html += `<th class="${isHoliday ? 'text-danger fw-bold' : ''}">${cur.getMonth()+1}/${cur.getDate()}</th>`;
+      });
+      html += `</tr></thead><tbody>`;
+
+      let rows = [ { l: "期初", k: "start" } ];
+      if (!isWaste && !isRecycle) { rows.push({ l: "調撥(+)", k: "trans", edit: true }, { l: "進貨(+)", k: "in", edit: true }); }
+      if (isRecycle) { rows.push({ l: "調撥(+)", k: "trans", edit: true }, { l: "出貨清運(-)", k: "out", edit: true, color: "text-primary fw-bold" }, { l: "排料(+)", k: "waste", override: true, color: "text-recycle" }); }
+      if (isWaste) { rows.push({ l: "死廢液(+)", k: "waste", override: true, color: "text-waste" }, { l: "出貨清運(-)", k: "out", edit: true, color: "text-primary fw-bold" }); }
+      if (!isWaste) rows.push({ l: "使用(-)", k: "use", override: true, color: "text-warning fw-bold" });
+      rows.push({ l: "結存", k: "end", isEnd: true });
+
+      rows.forEach(r => {
+        html += `<tr><td class="row-label">${r.l}</td>`;
+        data.forEach(item => {
+          if (r.edit) {
+            let val = globalGridData[`${tank}_${r.k}_${item.idx}`] || "";
+            html += `<td><input type="number" step="0.1" class="grid-input" value="${val}" onchange="updateGridVal('${tank}_${r.k}_${item.idx}', this.value)"></td>`;
+          } else if (r.override) {
+            let manualVal = globalGridData[`${tank}_${r.k}_${item.idx}`];
+            let isManual = (manualVal !== undefined && manualVal !== "");
+            let dispVal = isManual ? manualVal : "";
+            let autoVal = Math.round((item['auto_' + r.k] || 0) * 10) / 10;
+            let colorClass = isManual ? 'is-manual' : (r.color || '');
+            html += `<td><input type="number" step="0.1" class="grid-input-override ${colorClass}" placeholder="${autoVal}" value="${dispVal}" onchange="updateGridVal('${tank}_${r.k}_${item.idx}', this.value)" title="${isManual ? '已手動覆蓋數值' : '系統自動計算'}"></td>`;
+          } else {
+            let val = Math.round((item[r.k] || 0) * 10) / 10;
+            let style = (r.isEnd && val < (isRecycle||isWaste?0:50)) ? 'class="stock-danger"' : '';
+            html += `<td ${style} class="${r.color || ''}">${val}</td>`;
+          }
+        });
+        html += `</tr>`;
+      });
+      document.getElementById(`table${tank}`).innerHTML = html + `</tbody>`;
+    }
+  </script>
+</body>
+</html>

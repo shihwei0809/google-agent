@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>NoType Recorder</title></head>
+<body>
+<script>
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let stream = null;
+
+  // 初始化麥克風
+  async function initMicrophone() {
+    if (stream) return;
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        sampleRate: 16000,
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
+    });
+  }
+
+  // 選擇瀏覽器支援的錄音格式（優先用 ogg，Groq 可接受）
+  function getSupportedMimeType() {
+    const types = [
+      'audio/ogg;codecs=opus',
+      'audio/ogg',
+      'audio/mp4',
+      'audio/webm;codecs=opus',
+      'audio/webm',
+    ];
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        console.log('[recorder] 使用格式:', type);
+        return type;
+      }
+    }
+    return '';
+  }
+
+  // 開始錄音
+  window.recorderBridge.onStartRecording(async () => {
+    try {
+      await initMicrophone();
+      audioChunks = [];
+
+      const mimeType = getSupportedMimeType();
+      const options = mimeType ? { mimeType } : {};
+
+      mediaRecorder = new MediaRecorder(stream, options);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+        // 傳遞 mimeType 給主程序，讓它知道副檔名
+        const buffer = await blob.arrayBuffer();
+        const mimeInfo = mediaRecorder.mimeType || 'audio/ogg';
+        window.recorderBridge.sendAudioData(
+          Array.from(new Uint8Array(buffer)),
+          mimeInfo
+        );
+      };
+
+      mediaRecorder.start(100);
+    } catch (err) {
+      console.error('錄音啟動失敗:', err);
+    }
+  });
+
+  // 停止錄音
+  window.recorderBridge.onStopRecording(() => {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      mediaRecorder.stop();
+    }
+  });
+</script>
+</body>
+</html>

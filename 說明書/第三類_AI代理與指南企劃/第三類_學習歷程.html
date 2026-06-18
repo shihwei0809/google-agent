@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>從使用AI到整合AI｜學習歷程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --purple:      #8b5cf6;
+    --purple-deep: #7c3aed;
+    --pink:        #ec4899;
+    --pink-light:  #f9a8d4;
+    --lavender:    #a78bfa;
+    --rose:        #fb7185;
+    --bg:          #060408;
+    --bg2:         #0d0612;
+    --glass:       rgba(255,255,255,0.04);
+    --glass-border:rgba(255,255,255,0.08);
+    --text:        #f0e8ff;
+    --muted:       #c4aede;
+    --muted2:      #9d8ab0;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+  }
+
+  /* ── Starfield background ── */
+  .stars {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 70%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 20%, rgba(255,255,255,0.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 55%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 85%, rgba(255,255,255,0.15) 0%, transparent 100%),
+      radial-gradient(1px 1px at 45% 40%, rgba(255,255,255,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 20% 90%, rgba(255,255,255,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 75% 10%, rgba(255,255,255,0.25) 0%, transparent 100%);
+  }
+
+  .bg-orbs {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  }
+  .orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(90px); opacity: 0.15;
+    animation: driftOrb 14s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 700px; height: 700px; background: var(--purple); top: -250px; left: -200px; animation-delay: 0s; }
+  .orb-2 { width: 550px; height: 550px; background: var(--pink); bottom: -200px; right: -150px; animation-delay: -5s; }
+  .orb-3 { width: 400px; height: 400px; background: #6d28d9; top: 50%; left: 55%; animation-delay: -9s; }
+
+  @keyframes driftOrb {
+    from { transform: translate(0,0) scale(1); }
+    to   { transform: translate(25px,18px) scale(1.07); }
+  }
+
+  /* ── Progress bar ── */
+  #progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px; z-index: 100;
+    background: linear-gradient(90deg, var(--purple-deep), var(--pink), var(--lavender));
+    background-size: 200% 100%;
+    animation: gradientMove 3s ease infinite;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 12px var(--pink);
+  }
+  @keyframes gradientMove {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ── Dots ── */
+  #dots {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; z-index: 100;
+  }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: rgba(255,255,255,0.2); cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  .dot.active {
+    background: var(--pink); width: 24px; border-radius: 4px;
+    box-shadow: 0 0 8px var(--pink);
+  }
+
+  /* ── Nav buttons ── */
+  .nav-btn {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(10px);
+    color: white; font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100; transition: all 0.2s ease;
+  }
+  .nav-btn:hover { background: rgba(139,92,246,0.3); border-color: var(--lavender); }
+  #btn-prev { left: 16px; }
+  #btn-next { right: 16px; }
+
+  /* ── Counter ── */
+  #slide-counter {
+    position: fixed; top: 16px; right: 20px;
+    font-size: 12px; color: var(--muted2);
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 100; letter-spacing: 1px;
+  }
+
+  /* ── Date stamp ── */
+  #datestamp {
+    position: fixed; top: 16px; left: 20px;
+    font-size: 11px; color: var(--muted2);
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 100;
+  }
+
+  #hint {
+    position: fixed; bottom: 52px; right: 20px;
+    font-size: 11px; color: rgba(196,174,222,0.4); z-index: 100;
+  }
+
+  /* ── Slides ── */
+  #slides {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    padding: 60px 80px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease, transform 0.6s ease;
+    transform: translateY(24px);
+    z-index: 1;
+  }
+  .slide.active { opacity: 1; pointer-events: all; transform: translateY(0); }
+  .slide.exit   { opacity: 0; transform: translateY(-24px); }
+
+  .slide-inner {
+    width: 100%; max-width: 1100px;
+    height: 100%; max-height: 680px;
+    display: flex; flex-direction: column;
+    justify-content: center;
+  }
+
+  /* ── Glassmorphism ── */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 28px;
+  }
+  .glass-sm { border-radius: 14px; padding: 18px 22px; }
+
+  /* ── Typography ── */
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--pink);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .eyebrow::before {
+    content: ''; display: block; width: 28px; height: 2px;
+    background: linear-gradient(90deg, var(--purple), var(--pink));
+    border-radius: 2px;
+  }
+
+  h1.hero {
+    font-size: clamp(34px, 4.5vw, 58px);
+    font-weight: 900; line-height: 1.1;
+    background: linear-gradient(135deg, #fff 0%, var(--lavender) 40%, var(--pink-light) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 18px;
+  }
+
+  h2.slide-title {
+    font-size: clamp(24px, 3vw, 40px);
+    font-weight: 800; line-height: 1.2;
+    background: linear-gradient(135deg, #fff 0%, var(--lavender) 55%, var(--pink-light) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 8px;
+  }
+
+  p.lead { font-size: 17px; line-height: 1.8; color: var(--muted); font-weight: 300; }
+  p.body { font-size: 14px; line-height: 1.7; color: var(--muted); }
+
+  /* ── Quote style ── */
+  .quote-block {
+    padding: 24px 28px;
+    background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(236,72,153,0.08));
+    border: 1px solid rgba(167,139,250,0.2);
+    border-left: 4px solid var(--lavender);
+    border-radius: 0 16px 16px 0;
+    position: relative;
+  }
+  .quote-block::before {
+    content: '"';
+    position: absolute; top: 8px; left: 16px;
+    font-size: 60px; color: rgba(167,139,250,0.25);
+    font-family: 'Outfit', serif; line-height: 1;
+  }
+  .quote-text {
+    font-size: 18px; line-height: 1.8; color: var(--text);
+    font-weight: 400; padding-left: 12px; font-style: italic;
+  }
+  .quote-attr {
+    font-size: 12px; color: var(--muted2); margin-top: 8px; padding-left: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ── Diary card ── */
+  .diary-card {
+    background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(236,72,153,0.05));
+    border: 1px solid rgba(167,139,250,0.15);
+    border-radius: 16px; padding: 20px 22px;
+  }
+  .diary-date {
+    font-size: 11px; color: var(--pink); font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 1px; margin-bottom: 8px;
+  }
+  .diary-text {
+    font-size: 14px; line-height: 1.8; color: var(--muted);
+  }
+  .diary-text strong { color: var(--text); }
+  .diary-text .hl { color: var(--lavender); font-weight: 600; }
+  .diary-text .hl-pink { color: var(--pink-light); font-weight: 600; }
+
+  /* ── Tags ── */
+  .tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    padding: 4px 10px; border-radius: 20px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .tag-purple { background: rgba(139,92,246,0.2); color: var(--lavender); border: 1px solid rgba(139,92,246,0.3); }
+  .tag-pink   { background: rgba(236,72,153,0.15); color: var(--pink-light); border: 1px solid rgba(236,72,153,0.3); }
+  .tag-rose   { background: rgba(251,113,133,0.15); color: #fda4af; border: 1px solid rgba(251,113,133,0.3); }
+
+  /* ── Grid ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+  /* ── Skill tree ── */
+  .skill-item {
+    padding: 14px 16px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: all 0.3s ease;
+  }
+  .skill-item:hover { border-color: rgba(167,139,250,0.35); background: rgba(139,92,246,0.08); }
+  .skill-header { display: flex; align-items: center; gap: 8px; }
+  .skill-icon { font-size: 20px; }
+  .skill-name { font-size: 14px; color: white; font-weight: 600; }
+  .skill-level {
+    height: 4px; border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    overflow: hidden;
+  }
+  .skill-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--purple), var(--pink));
+    transition: width 1s ease;
+  }
+  .skill-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+  .skill-sub { font-size: 11px; color: var(--muted2); }
+
+  /* ── Timeline emotion ── */
+  .emo-timeline { display: flex; flex-direction: column; gap: 0; }
+  .emo-item {
+    display: flex; gap: 16px; align-items: flex-start;
+    padding: 14px 0;
+    border-left: 2px solid rgba(167,139,250,0.2);
+    padding-left: 20px;
+    position: relative;
+  }
+  .emo-item::before {
+    content: ''; position: absolute;
+    left: -6px; top: 20px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    box-shadow: 0 0 8px rgba(139,92,246,0.5);
+  }
+  .emo-emoji { font-size: 22px; flex-shrink: 0; }
+  .emo-content h4 { font-size: 14px; color: white; font-weight: 700; margin-bottom: 4px; }
+  .emo-content p  { font-size: 12px; color: var(--muted2); line-height: 1.6; }
+
+  /* ── Code ── */
+  .code-block {
+    background: #0a0615; border: 1px solid rgba(167,139,250,0.1);
+    border-radius: 12px; padding: 14px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; line-height: 1.8; color: #d4bfff;
+    overflow-x: auto;
+  }
+  .code-block .c-comment { color: #6e5a8a; }
+  .code-block .c-pink    { color: #f9a8d4; }
+  .code-block .c-purple  { color: #d8b4fe; }
+  .code-block .c-yellow  { color: #fde68a; }
+  .code-block .c-green   { color: #86efac; }
+  .code-block .c-blue    { color: #93c5fd; }
+
+  /* ── Floating note ── */
+  .sticky-note {
+    background: linear-gradient(135deg, rgba(236,72,153,0.12), rgba(139,92,246,0.08));
+    border: 1px solid rgba(249,168,212,0.2);
+    border-radius: 12px; padding: 16px 18px;
+    position: relative;
+  }
+  .sticky-note::after {
+    content: '📌';
+    position: absolute; top: -8px; left: 12px; font-size: 16px;
+  }
+
+  /* ── Glow card ── */
+  .glow-card {
+    padding: 1px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    background-size: 200% 200%;
+    animation: gradientShift 4s ease infinite;
+  }
+  .glow-card-inner {
+    border-radius: 17px;
+    background: var(--bg2);
+    padding: 20px 24px;
+  }
+  @keyframes gradientShift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* ── Milestone badge ── */
+  .milestone {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 12px;
+  }
+  .milestone-icon { font-size: 22px; flex-shrink: 0; }
+  .milestone h4 { font-size: 13px; color: white; font-weight: 600; margin-bottom: 2px; }
+  .milestone p  { font-size: 11px; color: var(--muted2); line-height: 1.4; }
+
+  /* ── Feeling meter ── */
+  .feeling-meter {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2);
+    border-radius: 10px;
+  }
+  .feeling-bar {
+    flex: 1; height: 6px; border-radius: 6px;
+    background: rgba(255,255,255,0.08); overflow: hidden;
+  }
+  .feeling-fill {
+    height: 100%; border-radius: 6px;
+    background: linear-gradient(90deg, var(--purple-deep), var(--pink));
+  }
+
+  /* ── Animations ── */
+  .slide.active .anim-up {
+    animation: slideUp 0.55s ease both;
+  }
+  .slide.active .anim-up:nth-child(1) { animation-delay: 0.05s; }
+  .slide.active .anim-up:nth-child(2) { animation-delay: 0.15s; }
+  .slide.active .anim-up:nth-child(3) { animation-delay: 0.25s; }
+  .slide.active .anim-up:nth-child(4) { animation-delay: 0.35s; }
+  .slide.active .anim-up:nth-child(5) { animation-delay: 0.45s; }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Animated skill bars */
+  .slide.active .skill-fill { animation: growBar 1.2s ease both; }
+  @keyframes growBar { from { width: 0 !important; } }
+
+  /* ── Heartbeat ── */
+  .heartbeat {
+    display: inline-block;
+    animation: heartbeat 1.5s ease infinite;
+  }
+  @keyframes heartbeat {
+    0%, 100% { transform: scale(1); }
+    14%       { transform: scale(1.2); }
+    28%       { transform: scale(1); }
+    42%       { transform: scale(1.15); }
+    70%       { transform: scale(1); }
+  }
+
+  /* ── Twinkle star ── */
+  .twinkle { animation: twinkle 2.5s ease-in-out infinite; }
+  @keyframes twinkle {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+
+  /* ── Chat ── */
+  .chat-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .chat-msg { display: flex; gap: 8px; align-items: flex-start; }
+  .chat-msg.user { flex-direction: row-reverse; }
+  .chat-avatar {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 13px;
+  }
+  .chat-avatar.bot  { background: linear-gradient(135deg, var(--purple), var(--pink)); }
+  .chat-avatar.user2{ background: rgba(255,255,255,0.1); }
+  .chat-bubble {
+    max-width: 82%; padding: 9px 13px; border-radius: 14px;
+    font-size: 12px; line-height: 1.6; color: var(--text);
+  }
+  .chat-bubble.bot  { background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.3); border-bottom-left-radius: 4px; }
+  .chat-bubble.user2{ background: rgba(236,72,153,0.12); border: 1px solid rgba(236,72,153,0.25); border-bottom-right-radius: 4px; }
+
+  /* ── Future card ── */
+  .future-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 14px; transition: all 0.3s ease;
+  }
+  .future-item:hover { border-color: rgba(236,72,153,0.3); background: rgba(236,72,153,0.06); }
+  .future-num {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--purple-deep), var(--pink));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: white;
+  }
+  .future-content h4 { font-size: 14px; color: white; font-weight: 700; margin-bottom: 4px; }
+  .future-content p  { font-size: 12px; color: var(--muted2); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div class="stars"></div>
+<div class="bg-orbs">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+
+<div id="progress-bar"></div>
+<div id="datestamp">📅 2025 · 學習歷程紀錄</div>
+<div id="slide-counter">01 / 10</div>
+<div id="dots"></div>
+<div id="hint">← → Space 切換 · F 全螢幕</div>
+<button class="nav-btn" id="btn-prev">&#8592;</button>
+<button class="nav-btn" id="btn-next">&#8594;</button>
+
+<div id="slides">
+
+  <!-- ═══ SLIDE 1: TITLE ═══ -->
+  <div class="slide active" data-slide="1">
+    <div class="slide-inner" style="flex-direction: row; gap: 60px; align-items: center;">
+      <div style="flex: 1.3;">
+        <div class="eyebrow anim-up">第三類 · 我與AI共事的這一年</div>
+        <h1 class="hero anim-up">從使用AI<br>到整合AI<br><span style="font-size: 0.6em; font-weight: 300;">學習歷程</span></h1>
+        <p class="lead anim-up" style="max-width: 560px; font-size: 16px;">這不是一份技術文件。這是我試圖讓 AI 幫我工作的過程——踩過的坑、感動的瞬間、還有那些讓我突然懂了的夜晚。</p>
+        <div style="margin-top: 20px; display: flex; gap: 8px; flex-wrap: wrap;" class="anim-up">
+          <span class="tag tag-purple">🤖 6個AI專案</span>
+          <span class="tag tag-pink">💬 語音辨識</span>
+          <span class="tag tag-purple">⚡ API整合</span>
+          <span class="tag tag-pink">🎬 影片生成</span>
+        </div>
+      </div>
+      <div style="flex: 0.7; display: flex; flex-direction: column; gap: 14px;">
+        <div class="glass anim-up" style="padding: 22px; border-color: rgba(167,139,250,0.15);">
+          <div style="font-size: 12px; color: var(--pink); letter-spacing: 1px; margin-bottom: 14px;">我的成長軌跡</div>
+          <div class="emo-timeline">
+            <div class="emo-item">
+              <span class="emo-emoji">😕</span>
+              <div class="emo-content">
+                <h4>AI 使用者</h4>
+                <p>只會問 ChatGPT，複製貼上</p>
+              </div>
+            </div>
+            <div class="emo-item">
+              <span class="emo-emoji">🤔</span>
+              <div class="emo-content">
+                <h4>第一次串 API</h4>
+                <p>搞懂了 key 要藏在後端</p>
+              </div>
+            </div>
+            <div class="emo-item">
+              <span class="emo-emoji">🤩</span>
+              <div class="emo-content">
+                <h4>AI 整合者</h4>
+                <p>AI 幫我跑程式、讀卡片、生影片</p>
+              </div>
+            </div>
+            <div class="emo-item">
+              <span class="emo-emoji">🚀</span>
+              <div class="emo-content">
+                <h4>現在</h4>
+                <p>還在學，但已不怕了</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 2: 一個問題 ═══ -->
+  <div class="slide" data-slide="2">
+    <div class="slide-inner" style="align-items: center; text-align: center;">
+      <div class="eyebrow anim-up" style="justify-content: center;">起點</div>
+      <h2 class="slide-title anim-up" style="font-size: clamp(20px,2.8vw,36px); text-align: center; margin-bottom: 28px;">一個問題改變了一切</h2>
+
+      <div class="glow-card anim-up" style="max-width: 680px; margin: 0 auto 28px;">
+        <div class="glow-card-inner">
+          <div style="font-size: 48px; margin-bottom: 14px;">💭</div>
+          <p style="font-size: clamp(18px,2.2vw,26px); line-height: 1.7; color: var(--text); font-weight: 400; font-style: italic;">
+            「如果 AI 能幫我做<span style="color: var(--lavender);"> 重複的事</span>，<br>我能做更多<span style="color: var(--pink-light);"> 有意義的事</span>嗎？」
+          </p>
+        </div>
+      </div>
+
+      <div class="grid-3 anim-up" style="gap: 14px; max-width: 720px; margin: 0 auto;">
+        <div class="diary-card" style="text-align: left;">
+          <div class="diary-date">起點</div>
+          <p class="diary-text">當時我每天花兩小時<strong>手動整理留言</strong>、回覆重複問題，覺得這些時間可以更有價值。</p>
+        </div>
+        <div class="diary-card" style="text-align: left; border-color: rgba(236,72,153,0.2);">
+          <div class="diary-date" style="color: var(--lavender);">轉折</div>
+          <p class="diary-text">我問自己：<strong>能不能讓 AI 理解看板上的卡片</strong>，然後直接回答我的問題？</p>
+        </div>
+        <div class="diary-card" style="text-align: left; border-color: rgba(167,139,250,0.2);">
+          <div class="diary-date" style="color: var(--pink-light);">決定</div>
+          <p class="diary-text">從那天起，我不再只是 AI 的<strong>使用者</strong>，我要成為 AI 的<span class="hl">整合者</span>。</p>
+        </div>
+      </div>
+
+      <div class="sticky-note anim-up" style="max-width: 500px; margin: 20px auto 0; text-align: left;">
+        <p style="font-size: 13px; color: var(--muted); padding-top: 8px; line-height: 1.7;">那一年我嘗試了六個專案。有成功、有卡住、有靈光一閃的時刻，也有凌晨三點還在debug的夜晚。這份學習歷程是我寫給自己看的。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 3: 第一次把AI放進產品 ═══ -->
+  <div class="slide" data-slide="3">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">里程碑 01</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 18px;">🤖 第一次把AI放進產品</h2>
+      <div class="grid-2 anim-up" style="gap: 22px; flex: 1; align-items: stretch;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="quote-block">
+            <p class="quote-text">第一次讓 AI 讀取看板上的所有卡片再回答問題，那個<span style="color: var(--lavender);"> 上下文感知</span>的能力讓我很震撼。</p>
+            <div class="quote-attr">— 我，某個週末下午</div>
+          </div>
+          <div class="diary-card" style="flex: 1;">
+            <div class="diary-date">開發日記</div>
+            <p class="diary-text">
+              一開始我以為只要把卡片標題傳進去就好，沒想到 AI 真的能<strong>讀懂脈絡</strong>——它知道哪張卡片是緊急的、哪些任務相關、甚至能推理出<span class="hl">隱藏的優先序</span>。<br><br>
+              那個下午我在辦公室大叫了一聲「幹！它真的看懂了！」然後被同事側目。<span style="font-size: 18px;">😂</span>
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="tag tag-purple">Gemini 2.5 Flash</span>
+            <span class="tag tag-pink">上下文注入</span>
+            <span class="tag tag-purple">GAS Backend</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass" style="padding: 16px 18px; flex: 1;">
+            <div style="font-size: 11px; color: var(--pink); letter-spacing: 1px; margin-bottom: 12px;">💬 那個讓我震撼的對話</div>
+            <div class="chat-wrap">
+              <div class="chat-msg user">
+                <div class="chat-avatar user2">我</div>
+                <div class="chat-bubble user2">看板上目前有哪些阻塞中的任務？</div>
+              </div>
+              <div class="chat-msg">
+                <div class="chat-avatar bot">🤖</div>
+                <div class="chat-bubble bot">根據看板內容，目前有 <strong>3 張卡片</strong>標記為阻塞：<br>1. 「API 金鑰尚未核准」— 等待主管審核<br>2. 「測試環境未就緒」— 相依於 DevOps<br>3. 「設計稿待確認」— 等待客戶回覆<br><br>建議先處理第 1 項，因為它阻擋了其他兩個任務。</div>
+              </div>
+              <div class="chat-msg user">
+                <div class="chat-avatar user2">我</div>
+                <div class="chat-bubble user2">（驚呆）它真的看懂了...</div>
+              </div>
+            </div>
+          </div>
+          <div class="feeling-meter">
+            <span style="font-size: 18px;">🤩</span>
+            <span style="font-size: 12px; color: var(--muted); min-width: 60px;">震撼指數</span>
+            <div class="feeling-bar"><div class="feeling-fill" style="width: 95%;"></div></div>
+            <span style="font-size: 12px; color: var(--lavender); font-weight: 600;">95%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 4: 語音辨識的挑戰 ═══ -->
+  <div class="slide" data-slide="4">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">里程碑 02</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 16px;">🎙️ 語音辨識的挑戰</h2>
+      <div class="grid-2 anim-up" style="gap: 22px; flex: 1;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="quote-block">
+            <p class="quote-text">Web Speech API 在工廠噪音環境下的準確率比我想像的高，但要處理<span style="color: var(--pink-light);"> 斷句</span>還是花了很多心思。</p>
+          </div>
+          <div class="diary-card" style="flex: 1;">
+            <div class="diary-date">踩坑紀錄</div>
+            <p class="diary-text">
+              原以為語音辨識很簡單，結果<span class="hl-pink">連中文標點符號都要自己處理</span>。<br><br>
+              「說話」→ 「說 話」（斷詞錯誤）<br>
+              「繼續」→ 「機修」（聽錯字）<br>
+              「API」→ 「阿批愛」🤣<br><br>
+              最後用 AI 後處理文字，把語音辨識結果再<strong>潤飾一次</strong>，才解決了大部分問題。那種「用AI修AI的錯」的感覺很奇妙。
+            </p>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="code-block" style="flex: 1;">
+            <div class="c-comment">// 語音辨識後處理</div>
+            <div><span class="c-purple">recognition</span>.onresult = (<span class="c-pink">event</span>) => {</div>
+            <div>  <span class="c-purple">const</span> raw = <span class="c-pink">event</span>.results[0][0].transcript;</div>
+            <div>&nbsp;</div>
+            <div>  <span class="c-comment">// 直接送出？不行，錯很多</span></div>
+            <div>  <span class="c-comment">// 先問 Gemini 幫我潤飾</span></div>
+            <div>  <span class="c-purple">const</span> polished = <span class="c-blue">await</span> <span class="c-green">polishText</span>(raw);</div>
+            <div>&nbsp;</div>
+            <div>  <span class="c-comment">// 「阿批愛」→「API」✓</span></div>
+            <div>  <span class="c-purple">return</span> polished;</div>
+            <div>};</div>
+            <div>&nbsp;</div>
+            <div class="c-comment">// Prompt 設計</div>
+            <div><span class="c-purple">const</span> prompt = <span class="c-yellow">`</span></div>
+            <div><span class="c-yellow">修正以下語音辨識文字，</span></div>
+            <div><span class="c-yellow">保留語意，修正錯字與斷句，</span></div>
+            <div><span class="c-yellow">輸出繁體中文：${raw}`</span>;</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div class="feeling-meter">
+              <span>😤</span>
+              <span style="font-size: 12px; color: var(--muted); min-width: 60px;">挫折指數</span>
+              <div class="feeling-bar"><div class="feeling-fill" style="width: 70%;"></div></div>
+              <span style="font-size: 12px; color: var(--pink-light);">70%</span>
+            </div>
+            <div class="feeling-meter">
+              <span>😌</span>
+              <span style="font-size: 12px; color: var(--muted); min-width: 60px;">解決後爽度</span>
+              <div class="feeling-bar"><div class="feeling-fill" style="width: 88%;"></div></div>
+              <span style="font-size: 12px; color: var(--lavender);">88%</span>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="tag tag-purple">Web Speech API</span>
+            <span class="tag tag-pink">Prompt 後處理</span>
+            <span class="tag tag-purple">繁中 NLP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 5: Classroom Agent ═══ -->
+  <div class="slide" data-slide="5">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">里程碑 03</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 16px;">🏫 第一次串接官方 API</h2>
+      <div class="grid-2 anim-up" style="gap: 22px; flex: 1;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="quote-block">
+            <p class="quote-text">第一次用 OAuth 串接 Google 官方 API，終於理解了 <span style="color: var(--lavender);">Token</span> 和 <span style="color: var(--pink-light);">Scope</span> 的概念。</p>
+          </div>
+          <div class="diary-card" style="flex: 1;">
+            <div class="diary-date">理解的瞬間</div>
+            <p class="diary-text">
+              我一直搞不懂為什麼要用 OAuth，直到我自己去串 Classroom API，才明白：<br><br>
+              <span class="hl">Token</span> = 「我是誰」的證明<br>
+              <span class="hl-pink">Scope</span> = 「我被允許做什麼」<br>
+              <strong>Refresh Token</strong> = 「不要每次都叫我重新登入」<br><br>
+              第一次成功呼叫 API、看到自己建立的課程出現在 Classroom 上，那種感覺比任何一次考試滿分都興奮。
+            </p>
+          </div>
+          <div class="milestone">
+            <span class="milestone-icon">🔐</span>
+            <div>
+              <h4>OAuth 2.0 完整流程</h4>
+              <p>Authorization Code Flow → Token Exchange → Refresh → API 呼叫</p>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass" style="padding: 18px; flex: 1;">
+            <div style="font-size: 11px; color: var(--pink); letter-spacing: 1px; margin-bottom: 12px;">🎓 學到的核心概念</div>
+            <div class="emo-timeline">
+              <div class="emo-item" style="border-color: rgba(167,139,250,0.25);">
+                <span class="emo-emoji">🔑</span>
+                <div class="emo-content">
+                  <h4>OAuth 授權流程</h4>
+                  <p>理解了 Client ID / Secret / Redirect URI 的分工</p>
+                </div>
+              </div>
+              <div class="emo-item" style="border-color: rgba(167,139,250,0.25);">
+                <span class="emo-emoji">📋</span>
+                <div class="emo-content">
+                  <h4>Scope 最小權限原則</h4>
+                  <p>只申請必要的 Classroom Scope，避免過度授權</p>
+                </div>
+              </div>
+              <div class="emo-item" style="border-color: rgba(167,139,250,0.25);">
+                <span class="emo-emoji">🔄</span>
+                <div class="emo-content">
+                  <h4>自動輪詢</h4>
+                  <p>每 5 分鐘檢查作業狀態，缺交就自動通知</p>
+                </div>
+              </div>
+              <div class="emo-item" style="border-color: rgba(167,139,250,0.25);">
+                <span class="emo-emoji">🧠</span>
+                <div class="emo-content">
+                  <h4>AI 批改設計</h4>
+                  <p>Prompt 包含評分標準，輸出結構化 JSON 成績</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="tag tag-purple">OAuth 2.0</span>
+            <span class="tag tag-pink">Classroom API</span>
+            <span class="tag tag-purple">AI批改</span>
+            <span class="tag tag-pink">輪詢監控</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 6: Clasp+Netlify ═══ -->
+  <div class="slide" data-slide="6">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">里程碑 04</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 16px;">🚀 學會讓AI部署自己</h2>
+      <div class="grid-2 anim-up" style="gap: 22px; flex: 1; align-items: start;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="quote-block">
+            <p class="quote-text">「現在我叫 AI 把程式推上去，<span style="color: var(--lavender);">牠真的會自己去做。</span>」</p>
+          </div>
+          <div class="diary-card" style="flex: 0 0 auto;">
+            <div class="diary-date">部署日記</div>
+            <p class="diary-text">
+              以前部署就是打開 FTP，手動上傳、手動改設定、然後祈禱沒壞。<br><br>
+              現在我寫了一個 <span class="hl">deploy.sh</span> 腳本，裡面呼叫 clasp 推 GAS、netlify CLI 推前端，整個流程 <span class="hl-pink">12 秒</span>搞定。<br><br>
+              最爽的是我請 Claude 幫我<strong>寫這個部署腳本</strong>，然後用它部署，讓 AI 幫我把 AI 的程式推上去。AI 自我部署，有種說不出的哲學感 😂
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="tag tag-purple">clasp CLI</span>
+            <span class="tag tag-pink">Netlify</span>
+            <span class="tag tag-purple">Shell Script</span>
+            <span class="tag tag-pink">CI/CD</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="code-block" style="flex: 0 0 auto;">
+            <div class="c-comment">#!/bin/bash</div>
+            <div class="c-comment"># deploy.sh — 這是 AI 幫我寫的</div>
+            <div class="c-comment"># 然後我用它來部署 AI 的程式 🤯</div>
+            <div>&nbsp;</div>
+            <div><span class="c-green">echo</span> <span class="c-yellow">"🚀 開始部署..."</span></div>
+            <div>&nbsp;</div>
+            <div class="c-comment"># 後端：推到 Google Apps Script</div>
+            <div><span class="c-blue">clasp</span> push &amp;&amp; <span class="c-blue">clasp</span> deploy \</div>
+            <div>  --description <span class="c-yellow">"$(date '+%Y-%m-%d %H:%M')"</span></div>
+            <div>&nbsp;</div>
+            <div class="c-comment"># 前端：推到 Netlify</div>
+            <div><span class="c-blue">netlify</span> deploy --prod --dir ./dist</div>
+            <div>&nbsp;</div>
+            <div><span class="c-green">echo</span> <span class="c-yellow">"✅ 部署完成！耗時 ${SECONDS}s"</span></div>
+          </div>
+          <div class="glass" style="padding: 16px 18px;">
+            <div style="font-size: 12px; color: var(--lavender); margin-bottom: 10px;">💡 這件事讓我學到</div>
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 8px;">
+              <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--pink);">▸</span> 自動化不是懶，是把精力留給真正重要的事</li>
+              <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--pink);">▸</span> 好的腳本比文件更有說服力</li>
+              <li style="font-size: 13px; color: var(--muted); display: flex; gap: 8px;"><span style="color: var(--pink);">▸</span> 請 AI 幫你寫工具，再用工具幫你做事</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 7: HTML Slide Builder ═══ -->
+  <div class="slide" data-slide="7">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">里程碑 05</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 16px;">📑 自動生成簡報</h2>
+      <div class="grid-2 anim-up" style="gap: 22px; flex: 1;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="quote-block">
+            <p class="quote-text">「文字進去、簡報出來，我第一次感受到<span style="color: var(--lavender);"> 生成式AI 的實際生產力</span>。」</p>
+          </div>
+          <div class="diary-card" style="flex: 1;">
+            <div class="diary-date">驚喜紀錄</div>
+            <p class="diary-text">
+              我試著把一份 <span class="hl">500 字的大綱</span>丟進去，AI 幫我生成了一份有動畫、有文字雲、有漸層配色的完整 HTML 簡報。<br><br>
+              然後我改了一個字，push，<span class="hl-pink">GitHub Actions 自動觸發</span>，60 秒後線上簡報更新了。<br><br>
+              我坐在那裡看著它跑，突然覺得——以前我花三小時做的簡報，現在 <strong>五分鐘</strong>就好了。那種感覺既興奮又有點被取代的恐慌。<span style="font-size: 16px;">😅</span>
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <span class="tag tag-purple">Claude API</span>
+            <span class="tag tag-pink">Reveal.js</span>
+            <span class="tag tag-purple">wordcloud2</span>
+            <span class="tag tag-pink">GitHub Actions</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass" style="padding: 18px; flex: 1;">
+            <div style="font-size: 11px; color: var(--pink); letter-spacing: 1px; margin-bottom: 14px;">📊 效率對比</div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div>
+                <div style="font-size: 12px; color: var(--muted2); margin-bottom: 6px;">Before：手動做簡報</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="flex: 1; height: 8px; border-radius: 8px; background: rgba(239,68,68,0.3); overflow: hidden;">
+                    <div style="width: 90%; height: 100%; background: #ef4444; border-radius: 8px;"></div>
+                  </div>
+                  <span style="font-size: 12px; color: #fca5a5;">3 小時</span>
+                </div>
+              </div>
+              <div>
+                <div style="font-size: 12px; color: var(--muted2); margin-bottom: 6px;">After：AI Slide Builder</div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="flex: 1; height: 8px; border-radius: 8px; background: rgba(139,92,246,0.2); overflow: hidden;">
+                    <div style="width: 3.5%; height: 100%; background: var(--lavender); border-radius: 8px;"></div>
+                  </div>
+                  <span style="font-size: 12px; color: var(--lavender);">5 分鐘</span>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top: 16px; padding: 12px; background: rgba(139,92,246,0.1); border-radius: 10px; border: 1px solid rgba(139,92,246,0.2);">
+              <div style="font-size: 22px; font-weight: 900; color: var(--lavender); text-align: center;">97% ↓</div>
+              <div style="font-size: 11px; color: var(--muted2); text-align: center; margin-top: 4px;">時間節省</div>
+            </div>
+            <div style="margin-top: 14px;">
+              <div style="font-size: 12px; color: var(--muted2); margin-bottom: 8px;">目前已生成簡報數</div>
+              <div style="display: flex; gap: 6px;">
+                <div style="text-align: center; padding: 10px; background: rgba(236,72,153,0.1); border-radius: 8px; flex: 1; border: 1px solid rgba(236,72,153,0.2);">
+                  <div style="font-size: 24px; font-weight: 800; color: var(--pink-light);">12+</div>
+                  <div style="font-size: 10px; color: var(--muted2);">份簡報</div>
+                </div>
+                <div style="text-align: center; padding: 10px; background: rgba(139,92,246,0.1); border-radius: 8px; flex: 1; border: 1px solid rgba(139,92,246,0.2);">
+                  <div style="font-size: 24px; font-weight: 800; color: var(--lavender);">36h+</div>
+                  <div style="font-size: 10px; color: var(--muted2);">省下的時間</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 8: 影片 + 客服 ═══ -->
+  <div class="slide" data-slide="8">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">里程碑 06</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 18px;">🎒 影片 & 💄 客服機器人</h2>
+      <div class="grid-2 anim-up" style="gap: 20px; flex: 1;">
+        <!-- 畢旅影片 -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="quote-block">
+            <p class="quote-text" style="font-size: 16px;">「把照片和文字交給程式，它幫我生出了有旁白的影片，<span style="color: var(--pink-light);">媽媽說很感動。</span>」</p>
+          </div>
+          <div class="diary-card" style="flex: 1;">
+            <div class="diary-date">🎒 畢業旅行影片企劃</div>
+            <p class="diary-text">
+              一開始只是想幫畢業旅行做個紀念影片，沒想到做著做著就變成了一個完整的 <span class="hl">自動化影片生成流水線</span>。<br><br>
+              把照片丟進去→<strong>edge-tts</strong> 合成旁白→<strong>FFmpeg</strong> 合成影片，整個過程大概 20 分鐘。<br><br>
+              媽媽看到有旁白在念她的名字，還有她和同學的照片，直接哭了。那一刻覺得技術有了溫度。<span style="font-size: 16px;">🥺</span>
+            </p>
+          </div>
+          <div class="feeling-meter">
+            <span>🥺</span>
+            <span style="font-size: 12px; color: var(--muted); min-width: 60px;">感動指數</span>
+            <div class="feeling-bar"><div class="feeling-fill" style="width: 100%;"></div></div>
+            <span style="font-size: 12px; color: var(--pink-light); font-weight: 600;">∞</span>
+          </div>
+        </div>
+        <!-- 保養品客服 -->
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="glass" style="padding: 18px; flex: 1;">
+            <div style="font-size: 11px; color: var(--pink); letter-spacing: 1px; margin-bottom: 10px;">💄 保養品客服機器人 · 設計心得</div>
+            <div class="emo-timeline">
+              <div class="emo-item" style="border-color: rgba(236,72,153,0.2);">
+                <span class="emo-emoji">📚</span>
+                <div class="emo-content">
+                  <h4>知識庫設計</h4>
+                  <p>把產品規格、成分、適用膚質整理成結構化文件，讓 AI 有依據可查</p>
+                </div>
+              </div>
+              <div class="emo-item" style="border-color: rgba(236,72,153,0.2);">
+                <span class="emo-emoji">✍️</span>
+                <div class="emo-content">
+                  <h4>System Prompt 調教</h4>
+                  <p>花了兩天調整語氣、邊界設定，讓機器人有「品牌個性」不只是回答機器</p>
+                </div>
+              </div>
+              <div class="emo-item" style="border-color: rgba(236,72,153,0.2);">
+                <span class="emo-emoji">🔄</span>
+                <div class="emo-content">
+                  <h4>多輪對話維護</h4>
+                  <p>學會如何在多輪對話中保持上下文，避免 AI 忘記剛才說了什麼</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="sticky-note">
+            <p style="font-size: 13px; color: var(--muted); padding-top: 8px; line-height: 1.6;">最大的收穫：<strong style="color: var(--lavender);">Prompt Engineering 不是魔法，是設計</strong>。你怎麼問，AI 就怎麼答。就像教一個新人，你需要清楚說明規則和邊界。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 9: 技能樹 ═══ -->
+  <div class="slide" data-slide="9">
+    <div class="slide-inner">
+      <div class="eyebrow anim-up">成長地圖</div>
+      <h2 class="slide-title anim-up" style="margin-bottom: 16px;">我的技能樹</h2>
+      <p class="body anim-up" style="margin-bottom: 18px; color: var(--muted2);">從這一年的六個專案中，累積出來的能力地圖</p>
+      <div class="grid-2 anim-up" style="gap: 14px; flex: 1;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="skill-item">
+            <div class="skill-header">
+              <span class="skill-icon">🧠</span>
+              <span class="skill-name">Prompt Engineering</span>
+            </div>
+            <div class="skill-level"><div class="skill-fill" style="width: 82%;"></div></div>
+            <div class="skill-tags">
+              <span class="tag tag-purple" style="font-size: 10px;">System Prompt</span>
+              <span class="tag tag-pink" style="font-size: 10px;">Few-shot</span>
+              <span class="tag tag-purple" style="font-size: 10px;">Context 設計</span>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-header">
+              <span class="skill-icon">🔌</span>
+              <span class="skill-name">API 整合</span>
+            </div>
+            <div class="skill-level"><div class="skill-fill" style="width: 78%;"></div></div>
+            <div class="skill-tags">
+              <span class="tag tag-pink" style="font-size: 10px;">REST API</span>
+              <span class="tag tag-purple" style="font-size: 10px;">OAuth 2.0</span>
+              <span class="tag tag-pink" style="font-size: 10px;">Gemini SDK</span>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-header">
+              <span class="skill-icon">⚙️</span>
+              <span class="skill-name">部署自動化</span>
+            </div>
+            <div class="skill-level"><div class="skill-fill" style="width: 72%;"></div></div>
+            <div class="skill-tags">
+              <span class="tag tag-purple" style="font-size: 10px;">clasp</span>
+              <span class="tag tag-pink" style="font-size: 10px;">Netlify</span>
+              <span class="tag tag-purple" style="font-size: 10px;">GitHub Actions</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="skill-item">
+            <div class="skill-header">
+              <span class="skill-icon">🎙️</span>
+              <span class="skill-name">語音 / 影片處理</span>
+            </div>
+            <div class="skill-level"><div class="skill-fill" style="width: 65%;"></div></div>
+            <div class="skill-tags">
+              <span class="tag tag-pink" style="font-size: 10px;">Web Speech API</span>
+              <span class="tag tag-purple" style="font-size: 10px;">edge-tts</span>
+              <span class="tag tag-pink" style="font-size: 10px;">FFmpeg</span>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-header">
+              <span class="skill-icon">🏗️</span>
+              <span class="skill-name">AI 系統架構設計</span>
+            </div>
+            <div class="skill-level"><div class="skill-fill" style="width: 70%;"></div></div>
+            <div class="skill-tags">
+              <span class="tag tag-purple" style="font-size: 10px;">前後端分離</span>
+              <span class="tag tag-pink" style="font-size: 10px;">知識庫設計</span>
+              <span class="tag tag-purple" style="font-size: 10px;">多輪對話</span>
+            </div>
+          </div>
+          <div class="skill-item">
+            <div class="skill-header">
+              <span class="skill-icon">🎨</span>
+              <span class="skill-name">AI 輔助前端開發</span>
+            </div>
+            <div class="skill-level"><div class="skill-fill" style="width: 88%;"></div></div>
+            <div class="skill-tags">
+              <span class="tag tag-pink" style="font-size: 10px;">Glassmorphism</span>
+              <span class="tag tag-purple" style="font-size: 10px;">CSS 動畫</span>
+              <span class="tag tag-pink" style="font-size: 10px;">互動設計</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SLIDE 10: 寫給未來的自己 ═══ -->
+  <div class="slide" data-slide="10">
+    <div class="slide-inner" style="align-items: center;">
+      <div class="eyebrow anim-up" style="justify-content: center;">寫給未來的自己</div>
+
+      <div class="glow-card anim-up" style="max-width: 650px; margin: 0 auto 20px;">
+        <div class="glow-card-inner" style="text-align: center; padding: 24px 32px;">
+          <div style="font-size: 52px; margin-bottom: 12px;" class="heartbeat">💜</div>
+          <p style="font-size: clamp(20px,2.5vw,28px); font-weight: 700; color: var(--text); line-height: 1.6; margin-bottom: 8px;">
+            「我還在學，<br>但我已經不怕了。」
+          </p>
+          <p style="font-size: 14px; color: var(--muted2); line-height: 1.7;">
+            一年前的我，以為 API 是很遠的事、OAuth 是只有工程師才懂的魔法、AI 只能問問題不能幫我工作。現在我知道，那只是還沒開始而已。
+          </p>
+        </div>
+      </div>
+
+      <div class="grid-2 anim-up" style="gap: 14px; max-width: 780px; margin: 0 auto 16px; width: 100%;">
+        <div class="future-item">
+          <div class="future-num">1</div>
+          <div class="future-content">
+            <h4>RAG 架構的知識庫</h4>
+            <p>讓 AI 讀懂更複雜的文件，不只是卡片標題，而是整份 SOP 手冊</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="future-num">2</div>
+          <div class="future-content">
+            <h4>多 Agent 協作</h4>
+            <p>讓多個 AI 分工合作，一個負責分析、一個負責撰寫、一個負責審核</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="future-num">3</div>
+          <div class="future-content">
+            <h4>AI 影像生成整合</h4>
+            <p>把 Kling / Sora 接進影片企劃流程，不再只能用靜態照片</p>
+          </div>
+        </div>
+        <div class="future-item">
+          <div class="future-num">4</div>
+          <div class="future-content">
+            <h4>把小鴻做成 SaaS</h4>
+            <p>讓其他人也可以一鍵部署自己的留言板 AI，而不只是我自己用</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="anim-up" style="max-width: 650px; text-align: center; margin: 0 auto;">
+        <p style="font-size: 13px; color: var(--muted2); line-height: 1.7;">
+          這份學習歷程不是結束，是下一段旅程的起點。<span class="twinkle">✨</span><br>
+          謝謝這一年每一個讓我學到東西的錯誤，和每一個讓我大叫「幹，成功了！」的瞬間。
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div><!-- #slides -->
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const progressBar = document.getElementById('progress-bar');
+const counter = document.getElementById('slide-counter');
+const dotsEl = document.getElementById('dots');
+let current = 0;
+const total = slides.length;
+
+// Build dots
+slides.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', () => goTo(i));
+  dotsEl.appendChild(d);
+});
+
+function goTo(n) {
+  if (n < 0 || n >= total || n === current) return;
+
+  const prev = slides[current];
+  prev.classList.add('exit');
+  setTimeout(() => {
+    prev.classList.remove('active', 'exit');
+  }, 600);
+
+  current = n;
+  slides[current].classList.add('active');
+
+  const pct = ((current + 1) / total) * 100;
+  progressBar.style.width = pct + '%';
+  counter.textContent = String(current + 1).padStart(2, '0') + ' / ' + String(total).padStart(2, '0');
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === current));
+}
+
+document.getElementById('btn-prev').addEventListener('click', () => goTo(current - 1));
+document.getElementById('btn-next').addEventListener('click', () => goTo(current + 1));
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); goTo(current - 1); }
+  if (e.key === 'f' || e.key === 'F') {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+}, { passive: true });
+
+progressBar.style.width = (1 / total * 100) + '%';
+</script>
+</body>
+</html>

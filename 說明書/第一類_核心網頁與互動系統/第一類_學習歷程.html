@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>從零開始的互動網頁旅程｜學習歷程</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Noto+Sans+TC:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --purple: #8b5cf6;
+    --violet: #7c3aed;
+    --pink: #ec4899;
+    --rose: #f43f5e;
+    --amber: #f59e0b;
+    --orange: #f97316;
+    --cyan: #06b6d4;
+    --green: #10b981;
+    --bg: #0d0614;
+    --glass: rgba(139,92,246,0.07);
+    --glass-border: rgba(139,92,246,0.2);
+    --text: #f0e8ff;
+    --muted: rgba(240,232,255,0.55);
+  }
+
+  html, body {
+    width:100%; height:100%; overflow:hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit','Noto Sans TC',sans-serif;
+  }
+
+  #progress-bar {
+    position:fixed; top:0; left:0; height:3px; z-index:1000;
+    background: linear-gradient(90deg, var(--violet), var(--purple), var(--pink), var(--rose));
+    transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
+    box-shadow: 0 0 12px var(--pink);
+  }
+
+  #counter {
+    position:fixed; bottom:24px; right:30px; z-index:1000;
+    font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--muted);
+    background: rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.15);
+    padding:6px 14px; border-radius:20px; backdrop-filter:blur(10px);
+  }
+
+  #nav-dots {
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    display:flex; gap:8px; z-index:1000;
+  }
+  .dot {
+    width:8px; height:8px; border-radius:50%;
+    background: rgba(139,92,246,0.3); border:1px solid rgba(139,92,246,0.4);
+    cursor:pointer; transition:all 0.3s ease;
+  }
+  .dot.active {
+    background: var(--purple); box-shadow: 0 0 10px var(--purple);
+    width:24px; border-radius:4px;
+  }
+
+  #hint {
+    position:fixed; bottom:24px; left:30px; z-index:1000;
+    font-size:12px; color:var(--muted); display:flex; gap:12px; align-items:center;
+  }
+  .hint-key {
+    background: rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2);
+    padding:2px 8px; border-radius:4px;
+    font-family:'JetBrains Mono',monospace; font-size:11px;
+  }
+
+  #slides { width:100vw; height:100vh; position:relative; }
+
+  .slide {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    padding:60px 80px 80px;
+    opacity:0; pointer-events:none;
+    transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.4,0,0.2,1);
+    transform: translateX(60px);
+  }
+  .slide.active { opacity:1; pointer-events:all; transform:translateX(0); }
+  .slide.prev { opacity:0; transform:translateX(-60px); }
+
+  .slide::before {
+    content:''; position:absolute; inset:0; z-index:0;
+    background:
+      radial-gradient(ellipse 60% 50% at 15% 25%, rgba(139,92,246,0.14) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 85% 75%, rgba(236,72,153,0.10) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 50% 50%, rgba(124,58,237,0.06) 0%, transparent 60%);
+  }
+
+  .slide-content { position:relative; z-index:1; width:100%; max-width:1200px; }
+
+  .eyebrow {
+    font-size:13px; font-weight:500; letter-spacing:0.15em; text-transform:uppercase;
+    color:var(--purple); opacity:0.9; margin-bottom:16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before {
+    content:''; display:inline-block; width:32px; height:2px;
+    background:linear-gradient(90deg,var(--violet),var(--pink)); border-radius:1px;
+  }
+
+  .slide-title {
+    font-size:clamp(36px,5vw,64px); font-weight:800; line-height:1.1;
+    background:linear-gradient(135deg,#f0e8ff 0%,var(--purple) 35%,var(--pink) 65%,var(--rose) 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    margin-bottom:24px;
+  }
+
+  .glass-card {
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:16px; backdrop-filter:blur(16px); padding:28px 32px;
+    transition:all 0.3s ease;
+  }
+  .glass-card:hover {
+    background:rgba(139,92,246,0.12); border-color:rgba(139,92,246,0.35);
+    transform:translateY(-3px); box-shadow:0 20px 40px rgba(139,92,246,0.15);
+  }
+
+  .tag {
+    display:inline-flex; align-items:center; gap:6px;
+    padding:4px 12px; border-radius:20px; font-size:12px; font-weight:500;
+    background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3);
+    color:var(--purple); font-family:'JetBrains Mono',monospace;
+  }
+  .tag.pink { background:rgba(236,72,153,0.15); border-color:rgba(236,72,153,0.3); color:#f9a8d4; }
+  .tag.amber { background:rgba(245,158,11,0.15); border-color:rgba(245,158,11,0.3); color:#fbbf24; }
+  .tag.cyan { background:rgba(6,182,212,0.15); border-color:rgba(6,182,212,0.3); color:#67e8f9; }
+  .tag.green { background:rgba(16,185,129,0.15); border-color:rgba(16,185,129,0.3); color:#34d399; }
+  .tag.rose { background:rgba(244,63,94,0.15); border-color:rgba(244,63,94,0.3); color:#fda4af; }
+  .tag.orange { background:rgba(249,115,22,0.15); border-color:rgba(249,115,22,0.3); color:#fdba74; }
+
+  .divider {
+    height:1px;
+    background:linear-gradient(90deg,transparent,var(--glass-border),transparent);
+    margin:20px 0;
+  }
+
+  .grid-bg {
+    position:absolute; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(139,92,246,0.04) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(139,92,246,0.04) 1px,transparent 1px);
+    background-size:60px 60px;
+  }
+
+  /* ─── Slide 1 ─── */
+  #slide-1 .title-hero { text-align:center; display:flex; flex-direction:column; align-items:center; }
+  #slide-1 .title-hero .eyebrow { justify-content:center; }
+  #slide-1 .slide-title { text-align:center; font-size:clamp(40px,5.5vw,68px); }
+  #slide-1 .subtitle-row { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:28px; }
+  #slide-1 .journey-stat {
+    display:flex; gap:40px; margin-top:36px; justify-content:center;
+  }
+  #slide-1 .js-item { text-align:center; }
+  #slide-1 .js-num {
+    font-family:'Outfit',sans-serif; font-size:40px; font-weight:900;
+    background:linear-gradient(135deg,var(--purple),var(--pink));
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  }
+  #slide-1 .js-label { font-size:13px; color:var(--muted); margin-top:4px; }
+  .glow-orb {
+    position:absolute; border-radius:50%; filter:blur(80px); pointer-events:none; z-index:0;
+  }
+
+  /* ─── Slide 2 ─── */
+  #slide-2 .timeline-start {
+    display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:28px; align-items:center;
+  }
+  #slide-2 .quote-block {
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:16px; padding:32px; backdrop-filter:blur(12px);
+    position:relative;
+  }
+  #slide-2 .quote-mark {
+    font-size:80px; line-height:0.8; color:var(--purple); opacity:0.4;
+    font-family:serif; position:absolute; top:20px; left:24px;
+  }
+  #slide-2 .quote-text {
+    font-size:20px; font-weight:500; line-height:1.6; color:var(--text);
+    margin-top:40px; font-style:italic;
+  }
+  #slide-2 .quote-who { font-size:13px; color:var(--muted); margin-top:16px; }
+  #slide-2 .context-cards { display:flex; flex-direction:column; gap:14px; }
+  #slide-2 .ctx-card {
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:12px; padding:16px 20px; backdrop-filter:blur(10px);
+    display:flex; gap:12px; align-items:flex-start;
+  }
+  #slide-2 .ctx-icon { font-size:22px; flex-shrink:0; margin-top:2px; }
+  #slide-2 .ctx-text h4 { font-size:14px; font-weight:600; margin-bottom:5px; }
+  #slide-2 .ctx-text p { font-size:13px; color:var(--muted); line-height:1.5; }
+  #slide-2 .timeline-bar {
+    margin-top:28px; display:flex; align-items:center; gap:0;
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:12px; padding:16px 24px; backdrop-filter:blur(10px);
+  }
+  #slide-2 .tb-dot {
+    width:14px; height:14px; border-radius:50%; flex-shrink:0;
+    border:2px solid var(--purple);
+    box-shadow:0 0 10px var(--purple);
+    background:var(--purple);
+  }
+  #slide-2 .tb-line {
+    flex:1; height:2px;
+    background:linear-gradient(90deg,var(--purple),var(--pink));
+    margin:0 8px;
+  }
+  #slide-2 .tb-end { font-size:22px; }
+
+  /* ─── Story slide template ─── */
+  .story-layout { display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:28px; align-items:start; }
+  .story-left { display:flex; flex-direction:column; gap:16px; }
+  .story-right { display:flex; flex-direction:column; gap:14px; }
+
+  .moment-card {
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:14px; padding:20px 24px; backdrop-filter:blur(12px);
+    position:relative; overflow:hidden;
+  }
+  .moment-card::before {
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+    background:linear-gradient(180deg, var(--purple), var(--pink));
+  }
+  .moment-emoji { font-size:24px; margin-bottom:10px; display:block; }
+  .moment-title { font-size:15px; font-weight:700; margin-bottom:8px; color:var(--text); }
+  .moment-text { font-size:13px; color:var(--muted); line-height:1.6; }
+
+  .struggle-card {
+    background:rgba(244,63,94,0.06); border:1px solid rgba(244,63,94,0.2);
+    border-radius:12px; padding:16px 20px;
+  }
+  .breakthrough-card {
+    background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2);
+    border-radius:12px; padding:16px 20px;
+  }
+  .insight-card {
+    background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.25);
+    border-radius:12px; padding:16px 20px;
+  }
+  .card-label {
+    font-size:11px; font-weight:700; letter-spacing:0.08em;
+    text-transform:uppercase; margin-bottom:8px;
+  }
+  .card-text { font-size:13px; color:var(--text); line-height:1.6; }
+
+  /* ─── Code snippet ─── */
+  .code-snippet {
+    background:rgba(0,0,0,0.4); border:1px solid rgba(139,92,246,0.2);
+    border-radius:10px; padding:14px 16px;
+    font-family:'JetBrains Mono',monospace; font-size:12px;
+    color:#c4b5fd; line-height:1.7; overflow:hidden;
+  }
+  .code-snippet .kw { color:#f9a8d4; }
+  .code-snippet .fn { color:#67e8f9; }
+  .code-snippet .str { color:#bbf7d0; }
+  .code-snippet .cm { color:#6b7280; font-style:italic; }
+
+  /* ─── Slide 7 – Lv 진화 ─── */
+  #slide-7 .lv-evo {
+    display:flex; flex-direction:column; gap:0; margin-top:24px;
+  }
+  #slide-7 .evo-item {
+    display:flex; align-items:stretch; gap:20px;
+    padding:0 0 0 0; position:relative;
+  }
+  #slide-7 .evo-left {
+    display:flex; flex-direction:column; align-items:center; gap:0; flex-shrink:0; width:60px;
+  }
+  #slide-7 .evo-badge {
+    width:56px; height:56px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:16px; color:white; flex-shrink:0;
+    position:relative; z-index:1;
+  }
+  #slide-7 .evo-connector {
+    width:2px; flex:1; min-height:16px;
+    background:linear-gradient(180deg,var(--purple),var(--pink));
+    margin:0 auto;
+  }
+  #slide-7 .evo-content {
+    flex:1; padding-bottom:16px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  #slide-7 .evo-card {
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:12px; padding:14px 18px; backdrop-filter:blur(10px);
+    display:flex; align-items:flex-start; gap:12px;
+  }
+  #slide-7 .evo-card-info h4 { font-size:14px; font-weight:700; margin-bottom:4px; }
+  #slide-7 .evo-card-info p { font-size:12px; color:var(--muted); line-height:1.5; }
+  #slide-7 .evo-card-info .breakthrough {
+    font-size:12px; color:#34d399; margin-top:4px;
+    display:flex; align-items:center; gap:6px;
+  }
+
+  /* ─── Slide 8 – 技能樹 ─── */
+  #slide-8 .skill-grid {
+    display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:24px;
+  }
+  #slide-8 .skill-cat {
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:14px; padding:18px; backdrop-filter:blur(12px);
+    transition:all 0.3s ease;
+  }
+  #slide-8 .skill-cat:hover {
+    transform:translateY(-3px); box-shadow:0 16px 32px rgba(139,92,246,0.2);
+  }
+  #slide-8 .sc-icon { font-size:28px; margin-bottom:10px; }
+  #slide-8 .sc-name { font-size:14px; font-weight:700; margin-bottom:10px; color:var(--text); }
+  #slide-8 .sc-items { display:flex; flex-direction:column; gap:6px; }
+  #slide-8 .sc-item {
+    display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted);
+  }
+  #slide-8 .sc-item::before {
+    content:''; width:4px; height:4px; border-radius:50%;
+    background:var(--purple); flex-shrink:0;
+  }
+  #slide-8 .mastery-bar {
+    height:3px; border-radius:2px; margin-top:12px;
+    background:rgba(139,92,246,0.15); overflow:hidden;
+  }
+  #slide-8 .mastery-fill {
+    height:100%; border-radius:2px;
+    background:linear-gradient(90deg,var(--violet),var(--pink));
+    transition:width 1.5s ease;
+  }
+
+  /* ─── Slide 9 – 反思 ─── */
+  #slide-9 .reflection-layout {
+    display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:28px;
+  }
+  #slide-9 .quote-big {
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:20px; padding:36px; backdrop-filter:blur(12px);
+    position:relative; overflow:hidden;
+  }
+  #slide-9 .quote-big::after {
+    content:''; position:absolute; bottom:-30px; right:-30px;
+    width:120px; height:120px; border-radius:50%;
+    background:radial-gradient(circle, var(--purple) 0%, transparent 70%);
+    opacity:0.2;
+  }
+  #slide-9 .big-q { font-size:60px; color:var(--purple); opacity:0.3; line-height:0.8; font-family:serif; }
+  #slide-9 .reflection-text {
+    font-size:17px; line-height:1.8; color:var(--text); margin-top:16px; font-weight:400;
+  }
+  #slide-9 .reflection-attr { font-size:13px; color:var(--muted); margin-top:20px; }
+  #slide-9 .next-steps { display:flex; flex-direction:column; gap:14px; }
+  #slide-9 .ns-item {
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:12px; padding:16px 20px; backdrop-filter:blur(10px);
+    display:flex; align-items:center; gap:14px;
+  }
+  #slide-9 .ns-num {
+    width:36px; height:36px; border-radius:50%;
+    background:linear-gradient(135deg,var(--violet),var(--pink));
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:14px; flex-shrink:0; color:white;
+  }
+  #slide-9 .ns-text h4 { font-size:14px; font-weight:600; margin-bottom:4px; }
+  #slide-9 .ns-text p { font-size:12px; color:var(--muted); }
+
+  /* Floating stars animation */
+  .stars { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0; }
+  .star {
+    position:absolute; border-radius:50%;
+    animation:twinkle ease-in-out infinite alternate;
+  }
+  @keyframes twinkle {
+    0% { opacity:0.1; transform:scale(0.8); }
+    100% { opacity:0.8; transform:scale(1.2); }
+  }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+<div id="counter"><span id="cur">1</span> / <span id="tot">9</span></div>
+<div id="nav-dots"></div>
+<div id="hint">
+  <span class="hint-key">←→</span> 換頁
+  <span class="hint-key">Space</span> 下一頁
+  <span class="hint-key">F</span> 全螢幕
+</div>
+
+<div id="slides">
+
+  <!-- ══════════════ SLIDE 1 ══════════════ -->
+  <div class="slide active" id="slide-1">
+    <div class="grid-bg"></div>
+    <div class="stars" id="stars"></div>
+    <!-- Glow orbs -->
+    <div class="glow-orb" style="width:400px;height:400px;background:var(--purple);opacity:0.08;top:-100px;left:-100px"></div>
+    <div class="glow-orb" style="width:350px;height:350px;background:var(--pink);opacity:0.07;bottom:-80px;right:-80px"></div>
+    <div class="slide-content">
+      <div class="title-hero">
+        <div class="eyebrow">學習歷程記錄 · 2025-2026</div>
+        <h1 class="slide-title">從零開始的<br>互動網頁旅程</h1>
+        <p style="font-size:18px;color:var(--muted);line-height:1.7;max-width:680px;text-align:center">
+          這不是一份完美的成果報告<br>這是我一路跌跌撞撞、debug 到深夜、<br>突然頓悟的真實學習故事
+        </p>
+        <div class="subtitle-row">
+          <span class="tag">🌱 從 HTML 基礎</span>
+          <span class="tag pink">🔥 到 Firebase 即時同步</span>
+          <span class="tag amber">🤖 到 AI 整合</span>
+          <span class="tag cyan">🖥️ 到 Electron 桌面應用</span>
+        </div>
+        <div class="journey-stat">
+          <div class="js-item"><div class="js-num">6</div><div class="js-label">個完整專案</div></div>
+          <div class="js-item"><div class="js-num">∞</div><div class="js-label">次 debug 時刻</div></div>
+          <div class="js-item"><div class="js-num">1</div><div class="js-label">個持續成長的我</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SLIDE 2 ══════════════ -->
+  <div class="slide" id="slide-2">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+      <div class="eyebrow">學習起點</div>
+      <h2 class="slide-title" style="font-size:clamp(28px,3.8vw,46px)">一切從一個問題開始</h2>
+      <div class="timeline-start">
+        <div class="quote-block">
+          <div class="quote-mark">"</div>
+          <div class="quote-text">
+            工廠裡的資訊，<br>怎麼讓人<strong style="color:var(--purple)">一眼</strong>就看懂？
+          </div>
+          <div class="quote-who">— 我在 2025 年問自己的第一個問題</div>
+        </div>
+        <div class="context-cards">
+          <div class="ctx-card">
+            <div class="ctx-icon">😤</div>
+            <div class="ctx-text">
+              <h4>當時的痛點</h4>
+              <p>生產現場的資訊全部鎖在 Excel 和紙本表單裡，每次要確認狀態都要找人問，效率極低</p>
+            </div>
+          </div>
+          <div class="ctx-card">
+            <div class="ctx-icon">💡</div>
+            <div class="ctx-text">
+              <h4>靈感乍現</h4>
+              <p>看到工業 SCADA 系統後，我想：用網頁做一個類似的東西應該可以吧？就這樣開始了</p>
+            </div>
+          </div>
+          <div class="ctx-card">
+            <div class="ctx-icon">🛠️</div>
+            <div class="ctx-text">
+              <h4>起點裝備</h4>
+              <p>只有基礎 HTML/CSS 知識，Google 搜尋、ChatGPT、YouTube 教學——這就是我的全部工具</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="timeline-bar">
+        <div class="tb-dot"></div>
+        <div class="tb-line"></div>
+        <span style="font-size:13px;color:var(--muted);font-style:italic;padding:0 12px">學習旅程開始</span>
+        <div class="tb-line"></div>
+        <div class="tb-end">🚀</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SLIDE 3 ══════════════ -->
+  <div class="slide" id="slide-3">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+      <div class="eyebrow">🎬 第一個專案</div>
+      <h2 class="slide-title" style="font-size:clamp(24px,3.5vw,40px)">flowchart-web 學習記錄</h2>
+      <div class="story-layout">
+        <div class="story-left">
+          <div class="moment-card">
+            <span class="moment-emoji">🗺️</span>
+            <div class="moment-title">「第一次嘗試 SVG 是最難的」</div>
+            <div class="moment-text">
+              我以為 SVG 就像畫圖一樣直觀，結果第一天全部時間都花在搞清楚
+              坐標系是怎麼運作的。<code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">viewBox</code>
+              和 <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">transform</code> 讓我頭痛了整整兩天
+            </div>
+          </div>
+          <div class="moment-card">
+            <span class="moment-emoji">🌊</span>
+            <div class="moment-title">「液位動畫讓我 debug 了兩天」</div>
+            <div class="moment-text">
+              我想做出那種槽體液面會波動的效果。查了資料發現要用
+              <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">clipPath</code>，
+              然後又花了兩天搞清楚為什麼動畫會「跳」而不是「流」。
+              最後用 requestAnimationFrame 才解決了
+            </div>
+          </div>
+          <div class="moment-card">
+            <span class="moment-emoji">🤖</span>
+            <div class="moment-title">「後來加入 AI，系統活起來了」</div>
+            <div class="moment-text">
+              整合 Gemini API 那一刻是我最興奮的時候。原本死板的流程圖
+              突然可以用中文問答，感覺像是賦予了它生命。後來加入 Groq 作備援，
+              第一次理解了「備援架構」的真正意義
+            </div>
+          </div>
+        </div>
+        <div class="story-right">
+          <div class="struggle-card">
+            <div class="card-label" style="color:#f87171">💢 最大挑戰</div>
+            <div class="card-text">SVG 坐標系的理解、clipPath 動畫的平滑化、Gemini API 的 CORS 問題 — 這三個加起來差點讓我放棄</div>
+          </div>
+          <div class="breakthrough-card">
+            <div class="card-label" style="color:#34d399">⚡ 突破時刻</div>
+            <div class="card-text">搞懂 <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px">requestAnimationFrame</code> 的工作原理之後，所有動畫問題都迎刃而解了。那一刻我真正理解了「瀏覽器渲染循環」</div>
+          </div>
+          <div class="insight-card">
+            <div class="card-label" style="color:#c4b5fd">💭 這個專案讓我學到</div>
+            <div class="card-text">純前端也能做出原本以為需要專業軟體才能做的視覺化效果。SVG 的靈活性遠超我的想像</div>
+          </div>
+          <div class="code-snippet">
+<span class="cm">// 液位動畫核心 — 花了我兩天才搞懂</span>
+<span class="kw">function</span> <span class="fn">animateLiquid</span>(level) {
+  <span class="kw">const</span> clip = <span class="fn">document.getElementById</span>(<span class="str">'liquidClip'</span>);
+  clip.style.height = level + <span class="str">'%'</span>;
+  <span class="fn">requestAnimationFrame</span>(() => <span class="fn">animateLiquid</span>(level));
+}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <span class="tag">SVG</span><span class="tag">clipPath</span><span class="tag cyan">rAF</span><span class="tag pink">Gemini API</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SLIDE 4 ══════════════ -->
+  <div class="slide" id="slide-4">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+      <div class="eyebrow">🔧 第二個專案</div>
+      <h2 class="slide-title" style="font-size:clamp(24px,3.5vw,40px)">hongsheng-web 學習記錄</h2>
+      <div class="story-layout">
+        <div class="story-right">
+          <div class="moment-card">
+            <span class="moment-emoji">🔥</span>
+            <div class="moment-title">「第一次接觸 Firebase，頭腦爆炸」</div>
+            <div class="moment-text">
+              之前都是純前端，所有資料存在 localStorage。Firebase 是我第一次
+              接觸「真正的後端服務」。光是搞清楚 SDK 要怎麼引入、authentication
+              是什麼、資料結構要怎麼設計，就花了我整整一個禮拜
+            </div>
+          </div>
+          <div class="moment-card">
+            <span class="moment-emoji">⚡</span>
+            <div class="moment-title">「學到了即時資料同步的原理」</div>
+            <div class="moment-text">
+              <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">onValue()</code>
+              這個函數讓我震驚。它不是你去問伺服器「有沒有新資料」，
+              而是伺服器主動推給你。WebSocket 的魔法第一次親眼所見
+            </div>
+          </div>
+          <div class="moment-card">
+            <span class="moment-emoji">🚨</span>
+            <div class="moment-title">「紅燈警示系統是有成就感的部分」</div>
+            <div class="moment-text">
+              條碼掃描防錯加上即時警示，第一次讓我感受到「做的東西真的有用」。
+              同事拿去試用，錯誤率明顯下降，這個回饋讓我很有動力繼續做
+            </div>
+          </div>
+        </div>
+        <div class="story-left">
+          <div class="struggle-card">
+            <div class="card-label" style="color:#f87171">💢 最難的地方</div>
+            <div class="card-text">Firebase 安全規則的設定讓我困惑很久。一開始把 rules 全部設為 public 就可以用，但我知道這樣在生產環境不行，花了很多時間研究正確的設定方式</div>
+          </div>
+          <div class="breakthrough-card">
+            <div class="card-label" style="color:#34d399">⚡ 突破時刻</div>
+            <div class="card-text">第一次看到兩台不同電腦上的瀏覽器同步更新狀態時，我站起來歡呼了。那個「即時同步」的感覺真的很震撼，我終於理解了 WebSocket 的威力</div>
+          </div>
+          <div class="insight-card">
+            <div class="card-label" style="color:#c4b5fd">💭 這個專案讓我學到</div>
+            <div class="card-text">後端不一定要自己架伺服器。Firebase 讓我在沒有 Node.js 後端知識的情況下，也能做出真正的多人即時應用</div>
+          </div>
+          <div class="code-snippet">
+<span class="cm">// 我最喜歡的那行程式碼</span>
+<span class="fn">onValue</span>(ref(db, <span class="str">'audit/status'</span>), (snapshot) => {
+  <span class="kw">const</span> status = snapshot.<span class="fn">val</span>();
+  <span class="cm">// 伺服器推過來了！不用輪詢！</span>
+  <span class="fn">updateUI</span>(status);
+});
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <span class="tag orange">Firebase</span><span class="tag">WebSocket</span><span class="tag rose">即時同步</span><span class="tag">條碼掃描</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SLIDE 5 ══════════════ -->
+  <div class="slide" id="slide-5">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+      <div class="eyebrow">🏭 第三個專案</div>
+      <h2 class="slide-title" style="font-size:clamp(24px,3.5vw,40px)">isotank-training 學習記錄</h2>
+      <div class="story-layout">
+        <div class="story-left">
+          <div class="moment-card">
+            <span class="moment-emoji">🌊</span>
+            <div class="moment-title">「用 CSS 動畫做出管道流動效果」</div>
+            <div class="moment-text">
+              SVG 的 <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">stroke-dasharray</code>
+              + <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">stroke-dashoffset</code>
+              動畫，可以做出液體在管道裡流動的視覺效果。
+              這個技巧在我之前做流程圖時完全不知道，ISOTANK 讓我真正掌握了 SVG 動畫的精髓
+            </div>
+          </div>
+          <div class="moment-card">
+            <span class="moment-emoji">🎬</span>
+            <div class="moment-title">「這是我第一個完整的教育訓練系統」</div>
+            <div class="moment-text">
+              9 個控制點、時間軸播放、暫停/跳轉功能 — 設計這套 UX 讓我第一次
+              認真思考「使用者體驗」是什麼。訓練員用起來方便嗎？學員看得懂嗎？
+              這些問題讓我開始從使用者角度思考
+            </div>
+          </div>
+          <div class="moment-card">
+            <span class="moment-emoji">📦</span>
+            <div class="moment-title">「離線可用是個重要的設計決策」</div>
+            <div class="moment-text">
+              工廠某些區域網路很不穩定，所以我刻意設計成純前端、無需網路連線。
+              這是我第一次把「部署限制」納入設計考量，學會了在技術選擇時
+              考慮實際使用環境
+            </div>
+          </div>
+        </div>
+        <div class="story-right">
+          <div class="struggle-card">
+            <div class="card-label" style="color:#f87171">💢 最難的地方</div>
+            <div class="card-text">時間軸的「暫停/繼續」邏輯比我想像的複雜。每個步驟有不同的動畫時長，同步這些動畫和說明文字的切換花了我很多時間</div>
+          </div>
+          <div class="breakthrough-card">
+            <div class="card-label" style="color:#34d399">⚡ 突破時刻</div>
+            <div class="card-text">用 Promise 鏈把每個訓練步驟串起來的那一刻。每個步驟 resolve 才進下一個，自然地實現了「等待用戶確認才繼續」的流程控制</div>
+          </div>
+          <div class="insight-card">
+            <div class="card-label" style="color:#c4b5fd">💭 這個專案讓我學到</div>
+            <div class="card-text">技術選擇要考慮使用環境。有時候「最強大的技術方案」並不是最好的選擇，離線可用的簡單方案才符合工廠現場的實際需求</div>
+          </div>
+          <div class="code-snippet">
+<span class="cm">/* 管道流動動畫 */</span>
+.pipe-flow {
+  stroke-dasharray: <span class="str">20 10</span>;
+  animation: flow <span class="str">1.5s</span> linear infinite;
+}
+@keyframes flow {
+  to { stroke-dashoffset: <span class="str">-30</span>; }
+}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <span class="tag">SVG stroke</span><span class="tag green">CSS Animation</span><span class="tag cyan">Promise鏈</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SLIDE 6 ══════════════ -->
+  <div class="slide" id="slide-6">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+      <div class="eyebrow">🎤 第四個專案</div>
+      <h2 class="slide-title" style="font-size:clamp(24px,3.5vw,40px)">NoType 語音助理 學習記錄</h2>
+      <div class="story-layout">
+        <div class="story-right">
+          <div class="moment-card">
+            <span class="moment-emoji">🖥️</span>
+            <div class="moment-title">「第一次嘗試 Electron 桌面應用」</div>
+            <div class="moment-text">
+              Electron 讓我的思維從「網頁」切換到「桌面應用」。
+              第一次 <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">npm start</code>
+              跑起來看到自己的網頁出現在一個獨立視窗裡時，感覺很神奇。
+              但隨之而來的是 Main Process / Renderer Process 的溝通讓我困惑了很久
+            </div>
+          </div>
+          <div class="moment-card">
+            <span class="moment-emoji">⌨️</span>
+            <div class="moment-title">「全域快捷鍵讓我理解了系統層級的事件」</div>
+            <div class="moment-text">
+              瀏覽器裡你只能監聽「你的網頁」的鍵盤事件。但 Electron 透過
+              <code style="background:rgba(255,255,255,0.08);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px">globalShortcut</code>
+              可以監聽整個作業系統的按鍵，即使視窗最小化也有效。
+              這讓我第一次理解了「系統層級」vs「應用層級」的差異
+            </div>
+          </div>
+          <div class="moment-card">
+            <span class="moment-emoji">🎯</span>
+            <div class="moment-title">「自動打字輸入是最有成就感的功能」</div>
+            <div class="moment-text">
+              用 robotjs 把識別結果「打」進任意視窗，這個功能讓同事第一次試用時
+              當場驚呼「這什麼魔法」。能打進 Excel、Word、任何輸入框，
+              看到別人因為你做的東西而驚訝，是繼續做下去的最大動力
+            </div>
+          </div>
+        </div>
+        <div class="story-left">
+          <div class="struggle-card">
+            <div class="card-label" style="color:#f87171">💢 最難的地方</div>
+            <div class="card-text">IPC (Inter-Process Communication) 在 Electron 裡的概念讓我花了很長時間理解。Main Process 和 Renderer 的通訊方式跟我之前理解的任何架構都不一樣</div>
+          </div>
+          <div class="breakthrough-card">
+            <div class="card-label" style="color:#34d399">⚡ 突破時刻</div>
+            <div class="card-text">第一次成功把錄音、傳送 API、接收識別結果、注入鍵盤事件這四步串起來，整個流程不到 3 秒完成，當下真的站起來拍手慶祝</div>
+          </div>
+          <div class="insight-card">
+            <div class="card-label" style="color:#c4b5fd">💭 這個專案讓我學到</div>
+            <div class="card-text">網頁技術不只能做網頁。Electron 打開了一扇門，讓我知道 HTML/CSS/JS 可以做桌面應用，未來還能做什麼我開始有更多想像</div>
+          </div>
+          <div class="code-snippet">
+<span class="cm">// 全域快捷鍵 — 突破瀏覽器限制</span>
+<span class="kw">const</span> { globalShortcut } = <span class="fn">require</span>(<span class="str">'electron'</span>);
+globalShortcut.<span class="fn">register</span>(<span class="str">'Alt+Space'</span>, () => {
+  <span class="cm">// 即使視窗最小化也會觸發！</span>
+  <span class="fn">startRecording</span>();
+});
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+            <span class="tag">Electron</span><span class="tag amber">globalShortcut</span><span class="tag rose">robotjs</span><span class="tag pink">Whisper</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SLIDE 7 ══════════════ -->
+  <div class="slide" id="slide-7">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+      <div class="eyebrow">🎓 第五個專案</div>
+      <h2 class="slide-title" style="font-size:clamp(24px,3.5vw,40px)">互動教學網站 — 每升一級都是一次突破</h2>
+      <div class="lv-evo">
+
+        <div class="evo-item">
+          <div class="evo-left">
+            <div class="evo-badge" style="background:linear-gradient(135deg,#0ea5e9,#06b6d4)">Lv1</div>
+            <div class="evo-connector"></div>
+          </div>
+          <div class="evo-content">
+            <div class="evo-card">
+              <div style="font-size:28px;flex-shrink:0">📝</div>
+              <div class="evo-card-info">
+                <h4>純前端靜態版 — 「原來只要 HTML 就能做到這樣」</h4>
+                <p>第一次做出互動式測驗，用 localStorage 暫存答題紀錄。雖然簡陋，但看到它能跑起來就很滿足</p>
+                <div class="breakthrough">⚡ 突破：理解了事件監聽和 DOM 操作的基礎</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="evo-item">
+          <div class="evo-left">
+            <div class="evo-badge" style="background:linear-gradient(135deg,#0891b2,#06b6d4)">Lv2</div>
+            <div class="evo-connector"></div>
+          </div>
+          <div class="evo-content">
+            <div class="evo-card">
+              <div style="font-size:28px;flex-shrink:0">📊</div>
+              <div class="evo-card-info">
+                <h4>GAS 試算表整合 — 「原來不用自己架伺服器」</h4>
+                <p>用 Google Apps Script 當免費後端，把答題資料存進 Google Sheets，第一次做出真正的「資料收集系統」</p>
+                <div class="breakthrough">⚡ 突破：理解了 fetch() 和 REST API 的基本概念</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="evo-item">
+          <div class="evo-left">
+            <div class="evo-badge" style="background:linear-gradient(135deg,#0d9488,#14b8a6)">Lv3</div>
+            <div class="evo-connector"></div>
+          </div>
+          <div class="evo-content">
+            <div class="evo-card">
+              <div style="font-size:28px;flex-shrink:0">👥</div>
+              <div class="evo-card-info">
+                <h4>多人即時互動 — 「全班進度同步，老師端看板」</h4>
+                <p>Firebase Realtime 讓全班學員的進度即時顯示在老師的看板上，第一次感受到「真實的多人系統」是什麼感覺</p>
+                <div class="breakthrough">⚡ 突破：WebSocket 即時通訊的真實應用</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="evo-item">
+          <div class="evo-left">
+            <div class="evo-badge" style="background:linear-gradient(135deg,#4f46e5,#6366f1)">Lv4</div>
+            <div class="evo-connector"></div>
+          </div>
+          <div class="evo-content">
+            <div class="evo-card">
+              <div style="font-size:28px;flex-shrink:0">🤖</div>
+              <div class="evo-card-info">
+                <h4>AI 自動批改 — 「讓 AI 當我的助教」</h4>
+                <p>Gemini API 批改問答題，每個學員都有個別化回饋。這讓我思考：AI 不只是「生成文字」，而是真的可以「理解語境」</p>
+                <div class="breakthrough">⚡ 突破：Prompt Engineering 的第一步實踐</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="evo-item">
+          <div class="evo-left">
+            <div class="evo-badge" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)">Lv5</div>
+          </div>
+          <div class="evo-content">
+            <div class="evo-card">
+              <div style="font-size:28px;flex-shrink:0">🏗️</div>
+              <div class="evo-card-info">
+                <h4>全端一條龍 — 「我真的可以做完整的系統了」</h4>
+                <p>後台管理、課程編輯器、學習分析儀表板，完整的教學平台。這是我目前最複雜的單一專案</p>
+                <div class="breakthrough">⚡ 突破：系統設計思維，從單頁功能到完整產品</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SLIDE 8 ══════════════ -->
+  <div class="slide" id="slide-8">
+    <div class="grid-bg"></div>
+    <div class="slide-content">
+      <div class="eyebrow">🌱 技能地圖</div>
+      <h2 class="slide-title" style="font-size:clamp(26px,3.5vw,42px)">我在這個類別學到的技術</h2>
+      <div class="skill-grid">
+        <div class="skill-cat">
+          <div class="sc-icon">🎨</div>
+          <div class="sc-name">前端基礎</div>
+          <div class="sc-items">
+            <div class="sc-item">HTML5 語義標籤</div>
+            <div class="sc-item">CSS3 動畫 & 變數</div>
+            <div class="sc-item">Flexbox / Grid</div>
+            <div class="sc-item">Vanilla JavaScript</div>
+            <div class="sc-item">DOM 操作 & 事件</div>
+          </div>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:90%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">熟練度 90%</div>
+        </div>
+        <div class="skill-cat">
+          <div class="sc-icon">🔥</div>
+          <div class="sc-name">Firebase & 後端</div>
+          <div class="sc-items">
+            <div class="sc-item">Realtime Database</div>
+            <div class="sc-item">Firestore</div>
+            <div class="sc-item">Authentication</div>
+            <div class="sc-item">Security Rules</div>
+            <div class="sc-item">Google Apps Script</div>
+          </div>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:72%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">熟練度 72%</div>
+        </div>
+        <div class="skill-cat">
+          <div class="sc-icon">🗺️</div>
+          <div class="sc-name">SVG & 動畫</div>
+          <div class="sc-items">
+            <div class="sc-item">SVG 座標系統</div>
+            <div class="sc-item">clipPath 動畫</div>
+            <div class="sc-item">stroke-dasharray</div>
+            <div class="sc-item">requestAnimationFrame</div>
+            <div class="sc-item">CSS @keyframes</div>
+          </div>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:80%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">熟練度 80%</div>
+        </div>
+        <div class="skill-cat">
+          <div class="sc-icon">🤖</div>
+          <div class="sc-name">AI & API 整合</div>
+          <div class="sc-items">
+            <div class="sc-item">Gemini API</div>
+            <div class="sc-item">Groq API</div>
+            <div class="sc-item">Whisper ASR</div>
+            <div class="sc-item">ElevenLabs TTS</div>
+            <div class="sc-item">Prompt Engineering</div>
+          </div>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:68%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">熟練度 68%</div>
+        </div>
+        <div class="skill-cat">
+          <div class="sc-icon">🖥️</div>
+          <div class="sc-name">Electron 桌面</div>
+          <div class="sc-items">
+            <div class="sc-item">Main/Renderer Process</div>
+            <div class="sc-item">IPC 通訊</div>
+            <div class="sc-item">globalShortcut</div>
+            <div class="sc-item">robotjs 注入</div>
+            <div class="sc-item">打包發布</div>
+          </div>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:60%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">熟練度 60%</div>
+        </div>
+        <div class="skill-cat">
+          <div class="sc-icon">🎯</div>
+          <div class="sc-name">設計思維</div>
+          <div class="sc-items">
+            <div class="sc-item">使用者情境分析</div>
+            <div class="sc-item">防錯機制設計</div>
+            <div class="sc-item">離線可用架構</div>
+            <div class="sc-item">深色 UI 設計</div>
+            <div class="sc-item">響應式佈局</div>
+          </div>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:75%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">熟練度 75%</div>
+        </div>
+        <div class="skill-cat">
+          <div class="sc-icon">⚡</div>
+          <div class="sc-name">Web API</div>
+          <div class="sc-items">
+            <div class="sc-item">Web Speech API</div>
+            <div class="sc-item">MediaRecorder</div>
+            <div class="sc-item">Fetch / Async-Await</div>
+            <div class="sc-item">localStorage</div>
+            <div class="sc-item">WebSocket 概念</div>
+          </div>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:82%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">熟練度 82%</div>
+        </div>
+        <div class="skill-cat">
+          <div class="sc-icon">🧠</div>
+          <div class="sc-name">工程思維</div>
+          <div class="sc-items">
+            <div class="sc-item">備援架構設計</div>
+            <div class="sc-item">模組化程式碼</div>
+            <div class="sc-item">錯誤處理機制</div>
+            <div class="sc-item">效能優化思考</div>
+            <div class="sc-item">逐步升級策略</div>
+          </div>
+          <div class="mastery-bar"><div class="mastery-fill" style="width:65%"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">熟練度 65%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SLIDE 9 ══════════════ -->
+  <div class="slide" id="slide-9">
+    <div class="grid-bg"></div>
+    <div class="glow-orb" style="width:500px;height:500px;background:var(--violet);opacity:0.06;top:50%;left:50%;transform:translate(-50%,-50%)"></div>
+    <div class="slide-content">
+      <div class="eyebrow">反思與下一步</div>
+      <h2 class="slide-title" style="font-size:clamp(28px,3.8vw,46px)">這段旅程教會我的事</h2>
+      <div class="reflection-layout">
+        <div class="quote-big">
+          <div class="big-q">"</div>
+          <div class="reflection-text">
+            我發現「做出來」比「學完再做」重要得多。<br><br>
+            每一個讓我 debug 到深夜的問題，<br>
+            都在我腦海裡留下了最深的印記。<br><br>
+            那些煩人的錯誤，<br>
+            後來都變成了我最熟悉的知識。<br><br>
+            而每一次「它終於跑起來了」的瞬間，<br>
+            都讓我更確定要繼續走下去。
+          </div>
+          <div class="reflection-attr">— 2025-2026 第一類學習歷程心得</div>
+        </div>
+        <div class="next-steps">
+          <div style="font-size:15px;font-weight:600;margin-bottom:4px;color:var(--purple)">🔭 下個目標</div>
+          <div class="ns-item">
+            <div class="ns-num">1</div>
+            <div class="ns-text">
+              <h4>深入 React / Vue 框架</h4>
+              <p>Vanilla JS 已經讓我理解了底層原理，現在是時候學習現代前端框架，提升開發效率</p>
+            </div>
+          </div>
+          <div class="ns-item">
+            <div class="ns-num">2</div>
+            <div class="ns-text">
+              <h4>Node.js 後端自主開發</h4>
+              <p>目前依賴 Firebase 和 GAS，下一步想自己寫 API server，掌握完整的全端開發能力</p>
+            </div>
+          </div>
+          <div class="ns-item">
+            <div class="ns-num">3</div>
+            <div class="ns-text">
+              <h4>深化 AI 應用開發</h4>
+              <p>從 API 呼叫者進化到真正理解 LLM 的開發者，探索 RAG、Fine-tuning 等進階應用</p>
+            </div>
+          </div>
+          <div class="ns-item">
+            <div class="ns-num">4</div>
+            <div class="ns-text">
+              <h4>開源第一個專案</h4>
+              <p>把其中一個工廠適用的系統整理後開源，讓更多人可以使用和改進</p>
+            </div>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+            <span class="tag">🌟 持續學習中</span>
+            <span class="tag pink">💜 感謝每個 bug</span>
+            <span class="tag amber">🚀 未完待續</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /slides -->
+
+<script>
+  const TOTAL = 9;
+  let current = 0;
+  let isAnimating = false;
+
+  const dotsEl = document.getElementById('nav-dots');
+  for (let i = 0; i < TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(d);
+  }
+
+  const slides = document.querySelectorAll('.slide');
+  const progressBar = document.getElementById('progress-bar');
+  const curEl = document.getElementById('cur');
+  const dots = document.querySelectorAll('.dot');
+
+  function updateUI() {
+    progressBar.style.width = ((current + 1) / TOTAL * 100) + '%';
+    curEl.textContent = current + 1;
+    dots.forEach((d, i) => d.classList.toggle('active', i === current));
+  }
+
+  function goTo(n) {
+    if (isAnimating || n === current) return;
+    isAnimating = true;
+    const prev = current;
+    slides[prev].classList.remove('active');
+    slides[prev].classList.add('prev');
+    current = Math.max(0, Math.min(TOTAL - 1, n));
+    slides[current].classList.remove('prev');
+    slides[current].classList.add('active');
+    updateUI();
+    setTimeout(() => {
+      slides[prev].classList.remove('prev');
+      isAnimating = false;
+    }, 500);
+  }
+
+  function next() { if (current < TOTAL - 1) goTo(current + 1); }
+  function prev() { if (current > 0) goTo(current - 1); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); next(); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+    if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+  });
+
+  let touchX = 0;
+  document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchX;
+    if (Math.abs(dx) > 50) { dx < 0 ? next() : prev(); }
+  });
+
+  // Stars for slide 1
+  function createStars() {
+    const wrap = document.getElementById('stars');
+    if (!wrap) return;
+    const colors = ['#8b5cf6','#ec4899','#f59e0b','#06b6d4','#f43f5e'];
+    for (let i = 0; i < 40; i++) {
+      const s = document.createElement('div');
+      s.className = 'star';
+      const size = Math.random() * 3 + 1;
+      s.style.cssText = `
+        width:${size}px; height:${size}px;
+        left:${Math.random()*100}%; top:${Math.random()*100}%;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        animation-duration:${Math.random()*3+2}s;
+        animation-delay:${Math.random()*4}s;
+      `;
+      wrap.appendChild(s);
+    }
+  }
+  createStars();
+  updateUI();
+</script>
+</body>
+</html>
