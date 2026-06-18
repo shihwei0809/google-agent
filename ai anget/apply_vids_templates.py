@@ -24,7 +24,7 @@ def get_audio_duration(audio_path):
         return hours * 3600 + minutes * 60 + seconds
     return None
 
-def apply_template(template_path, audio_path, output_path):
+def apply_template(template_path, audio_path, output_path, duration):
     cmd = [
         "ffmpeg", "-y",
         "-stream_loop", "-1",
@@ -34,9 +34,13 @@ def apply_template(template_path, audio_path, output_path):
         "-c:a", "aac",
         "-map", "0:v:0",
         "-map", "1:a:0",
-        "-shortest",
-        output_path
     ]
+    if duration:
+        cmd.extend(["-t", f"{duration:.3f}"])
+    else:
+        cmd.append("-shortest")
+    cmd.append(output_path)
+    
     try:
         subprocess.run(cmd, capture_output=True, text=True, check=True)
         return True
@@ -45,7 +49,7 @@ def apply_template(template_path, audio_path, output_path):
         return False
 
 def main():
-    print("🎬 開始執行 Google Vids 母片影片音軌批次套用程序...")
+    print("🎬 開始執行 Google Vids 母片影片音軌批次套用程序 (修復結尾無聲版)...")
     
     shanyi_exists = os.path.exists(template_shanyi)
     changbin_exists = os.path.exists(template_changbin)
@@ -80,11 +84,12 @@ def main():
         print(f"\n➔ 正在處理歌曲: 【{song_name}】")
         
         src_mp3 = dest_mp3_path if os.path.exists(dest_mp3_path) else os.path.join(workspace_dir, mp3)
+        duration = get_audio_duration(src_mp3)
         
         if shanyi_exists:
             output_shanyi = os.path.join(song_dir, f"{song_name}_純淨之光_Vids版.mp4")
             print(f"  [*] 套用 [勝一版] 模版...")
-            if apply_template(template_shanyi, src_mp3, output_shanyi):
+            if apply_template(template_shanyi, src_mp3, output_shanyi, duration):
                 print(f"  [✓] 成功生成: {os.path.basename(output_shanyi)}")
             else:
                 print(f"  [X] 生成 [勝一版] 失敗")
@@ -92,7 +97,7 @@ def main():
         if changbin_exists:
             output_changbin = os.path.join(song_dir, f"{song_name}_彰濱之翼_Vids版.mp4")
             print(f"  [*] 套用 [彰濱版] 模版...")
-            if apply_template(template_changbin, src_mp3, output_changbin):
+            if apply_template(template_changbin, src_mp3, output_changbin, duration):
                 print(f"  [✓] 成功生成: {os.path.basename(output_changbin)}")
             else:
                 print(f"  [X] 生成 [彰濱版] 失敗")
