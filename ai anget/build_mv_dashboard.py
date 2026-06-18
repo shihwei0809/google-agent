@@ -638,7 +638,7 @@ def main():
     <div class="sidebar">
         <div class="sidebar-header">
             <h1>AIGC 音樂影片主控台</h1>
-            <p>勝一化學專案 • 18 首歌曲</p>
+            <p>勝一化學專案 • <span id="totalSongsText">--</span> 首歌曲</p>
         </div>
         <div class="search-box">
             <input type="text" id="searchInput" placeholder="搜尋歌曲名稱或風格..." onkeyup="filterSongs()">
@@ -711,6 +711,9 @@ def main():
     <script>
         // Inject dynamic JSON data from Python
         const songs = __SONGS_DATA_JSON__;
+        
+        // Update total songs count dynamically
+        document.getElementById('totalSongsText').innerText = songs.length;
 
         // Initialize song list
         const songList = document.getElementById('songList');
