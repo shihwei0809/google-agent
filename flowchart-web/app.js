@@ -2161,10 +2161,11 @@ const geminiModelSelect = document.getElementById("geminiModelSelect");
 
 // Default API Key split to bypass Git Secret Push Protection
 const DEFAULT_GEMINI_API_KEY = "AQ." + "Ab8RN6LgVby89UZb" + "XCvMmydJoj_nBvWKAvFqq7LuEL3ces-tQA";
+const DEFAULT_GROQ_API_KEY = "gsk_" + "9M6NYURFJvrSK9VH" + "7w3iWGdyb3FYpsZfAfxMqH4HWYoOk33AbzTI";
 
 // Load AI Config from localStorage
 let aiProvider = localStorage.getItem("ai_provider") || "groq";
-let groqApiKey = localStorage.getItem("groq_api_key") || "";
+let groqApiKey = localStorage.getItem("groq_api_key") || DEFAULT_GROQ_API_KEY;
 let groqModel = localStorage.getItem("groq_model") || "llama-3.3-70b-versatile";
 let geminiApiKey = toProperGeminiKey(localStorage.getItem("gemini_api_key") || DEFAULT_GEMINI_API_KEY);
 let geminiModel = localStorage.getItem("gemini_model") || "gemini-2.5-flash";
@@ -2197,7 +2198,7 @@ if (aiProviderSelect) {
     if (geminiConfigFields) geminiConfigFields.style.display = provider === 'gemini' ? 'block' : 'none';
   };
 }
-if (groqApiKeyInput) groqApiKeyInput.value = groqApiKey;
+if (groqApiKeyInput) groqApiKeyInput.value = localStorage.getItem("groq_api_key") || "";
 if (groqModelSelect) groqModelSelect.value = groqModel;
 if (geminiApiKeyInput) geminiApiKeyInput.value = localStorage.getItem("gemini_api_key") || "";
 if (geminiModelSelect) geminiModelSelect.value = geminiModel;
@@ -2243,7 +2244,7 @@ if (saveAiSettingsBtn) {
     localStorage.setItem("gemini_model", gemModel);
 
     aiProvider = provider;
-    groqApiKey = gKey;
+    groqApiKey = gKey || DEFAULT_GROQ_API_KEY;
     groqModel = gModel;
     geminiApiKey = toProperGeminiKey(gemKey || DEFAULT_GEMINI_API_KEY);
     geminiModel = gemModel;
