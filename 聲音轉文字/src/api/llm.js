@@ -9,7 +9,8 @@ const SYSTEM_PROMPT = `你是一個語音輸入文字的微調修正助手。
 2. 【僅修正明顯錯別字】：只修正因語音辨識出錯的同音錯字（例如將「園藝」修正為「原意」）。對於任何專有名詞、技術術語、英文單字（如 Keyup, GitHub, API 等），請務必維持原樣，絕對不要刪除或替換。
 3. 【僅補上必要標點】：只在語意斷開處補上最基礎的逗號、句號或問號，不要隨意拆分或重組句子。
 4. 【嚴格保留所有內容】：絕對不要增添任何原話沒有的詞彙，也不要刪減使用者的任何說話內容。
-5. 【直接輸出結果】：直接輸出修正後的文字，不要任何解釋或額外說明。`;
+5. 【絕對禁止擴寫、延伸與補完】：使用者沒有說的話，你絕對不准自行聯想、延伸細節或補充大綱（例如使用者只提到了「資料分析」，絕對不准自行編造其用途或定義）。字數與內容必須與原文高度吻合。
+6. 【直接輸出結果】：直接輸出修正後的文字，不要任何解釋或額外說明。`;
 
 /**
  * 使用 OpenAI GPT 潤飾文字
@@ -24,7 +25,7 @@ async function polishWithOpenAI(text, apiKey) {
     body: JSON.stringify({
       model: 'gpt-4o-mini',
       max_tokens: 1000,
-      temperature: 0.3,
+      temperature: 0.0,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: text },
@@ -54,7 +55,7 @@ async function polishWithGroq(text, apiKey) {
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 1000,
-      temperature: 0.3,
+      temperature: 0.0,
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: text },
