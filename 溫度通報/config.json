@@ -7,6 +7,7 @@
   "temperature_threshold": 28.0,
   "mode": "both",
   "google_sheet_csv_url": "",
+  "spreadsheet_id": "1cE__uNZfCd3Zm0_RZT0YVmRhqyTXeT-nWbhw8N3s37s",
   "web_app_url": "https://script.google.com/macros/s/AKfycbygJPZBmI2CUj4VfRUwN0gx1phqkbbdrYO5E-10jRWxOjoDCLyHbs0crFtfdarhEnwA/exec",
   "line": {
     "enabled": true,
