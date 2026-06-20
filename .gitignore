@@ -62,3 +62,6 @@ firebase_key.json
 config.json.bak
 credentials.json
 token.json
+
+# Manual portal local copied projects
+說明書/projects/
