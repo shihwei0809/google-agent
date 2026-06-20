@@ -78,13 +78,13 @@ if portal_html_path.exists():
     
     # We replace the launchUrls in projectsData
     replacements = {
-        '"launchUrl": "../flowchart-web/index.html"': '"launchUrl": "./projects/flowchart-web/index.html"',
-        '"launchUrl": "../hongsheng-web/index.html"': '"launchUrl": "./projects/hongsheng-web/index.html"',
-        '"launchUrl": "../isotank-training/index.html"': '"launchUrl": "./projects/isotank-training/index.html"',
-        '"launchUrl": "../isotank-hf-demo/index.html"': '"launchUrl": "./projects/isotank-hf-demo/index.html"',
-        '"launchUrl": "../test/index.html"': '"launchUrl": "./projects/test/index.html"',
-        '"launchUrl": "../互動式網站/index.html"': '"launchUrl": "./projects/互動式網站/index.html"',
-        '"launchUrl": "../padlet-board/index.html"': '"launchUrl": "./projects/padlet-board/index.html"'
+        'launchUrl: "../flowchart-web/index.html"': 'launchUrl: "./projects/flowchart-web/index.html"',
+        'launchUrl: "../hongsheng-web/index.html"': 'launchUrl: "./projects/hongsheng-web/index.html"',
+        'launchUrl: "../isotank-training/index.html"': 'launchUrl: "./projects/isotank-training/index.html"',
+        'launchUrl: "../isotank-hf-demo/index.html"': 'launchUrl: "./projects/isotank-hf-demo/index.html"',
+        'launchUrl: "../test/index.html"': 'launchUrl: "./projects/test/index.html"',
+        'launchUrl: "../互動式網站/index.html"': 'launchUrl: "./projects/互動式網站/index.html"',
+        'launchUrl: "../padlet-board/index.html"': 'launchUrl: "./projects/padlet-board/index.html"'
     }
     
     updated = False
