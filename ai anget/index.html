@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent 知識庫建置器 & 控制台</title>
+    <!-- Google Fonts Outfit & Inter & Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 28, 45, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --secondary: #ec4899;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glow: rgba(99, 102, 241, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.1) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.08) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Header Styling */
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+            height: 60px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 1rem;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        h1 {
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #e2e8f0, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Glassmorphic Panel layout */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media (min-width: 800px) {
+            .grid-layout {
+                grid-template-columns: 2fr 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+
+        /* Features Section */
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            color: #fff;
+        }
+
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 1rem;
+            position: relative;
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            color: var(--primary);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        .step-content h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 0.25rem;
+        }
+
+        .step-content p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .step-content code {
+            background: rgba(255,255,255,0.06);
+            padding: 0.125rem 0.375rem;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Action Buttons */
+        .action-card {
+            display: block;
+            text-decoration: none;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(236, 72, 153, 0.05));
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 20px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .action-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary);
+            box-shadow: 0 10px 25px var(--glow);
+        }
+
+        .action-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .action-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Navigation List */
+        .nav-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0.85rem 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: #fff;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
+            padding-left: 1.25rem;
+        }
+
+        .nav-link-icon {
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+        }
+
+        .badge {
+            background: var(--primary);
+            color: #fff;
+            font-size: 0.75rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 99px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">🤖</div>
+            <h1>AI Agent 知識庫建置與開發平台</h1>
+            <p class="subtitle">自動化 YouTube 字幕提取、清洗與 Obsidian 三層式第二大腦建構系統</p>
+        </header>
+
+        <!-- Layout Grid -->
+        <div class="grid-layout">
+            <!-- Left panel: Project Features & Architecture -->
+            <div class="panel">
+                <h2 class="section-title">📂 專案核心功能與架構</h2>
+                <div class="step-list">
+                    <!-- Step 1 -->
+                    <div class="step-item">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>篩選影片與提取連結</h3>
+                            <p>針對指定 YouTube 頻道（如 @sensebar）進行影片爬取，篩選含有 AI Agent、Claude 等關鍵字的影片。</p>
+                            <p>主要工具：<code>extract_videos.py</code> ➔ 輸出 <code>sensebar_ai_urls.txt</code></p>
+                        </div>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="step-item">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>下載字幕與滾動文本清洗</h3>
+                            <p>使用 <code>yt-dlp</code> 下載影片字幕，並自動過濾時間軸標記、移除 HTML 標籤，並消除 YouTube 自動字幕產生的滾動重疊行，轉為高可讀性 Markdown 文字檔。</p>
+                            <p>主要工具：<code>download_all_subs.py</code></p>
+                        </div>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="step-item">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>三層 Obsidian 知識庫（第二大腦）</h3>
+                            <p>將檔案組織成三個獨立層級，利於 AI 存取與知識累積：</p>
+                            <p>• <code>Clipping/</code>：存放原始字幕逐字稿。<br>
+                               • <code>知識庫/</code>：由 Agent 自動摘要與重構的結構化筆記與索引。<br>
+                               • <code>創作庫/</code>：存放原創腳本、講義草稿和製作腳本。</p>
+                        </div>
+                    </div>
+                    <!-- Step 4 -->
+                    <div class="step-item">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>AI Agent 自動重構與教案生成</h3>
+                            <p>設定 ReAct 思考循環（Reasoning & Action），讓 Agent 自動消化 `Clipping` 的影片逐字稿，撰寫課程講義、考題 OCR 整理，並將產出的教案發布為教學駕駛艙。</p>
+                            <p>參考文件：<code>agents.md</code> (Stage 1 當前學習目標)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right panel: Sidebar Navigation -->
+            <div class="sidebar">
+                <!-- Music Hub Action -->
+                <a href="../aigc-music-video-hub/音樂影片專案總覽.html" class="action-card">
+                    <div class="action-title">🎵 音樂影片專案總覽 ➔</div>
+                    <div class="action-desc">前往觀看 Suno 自訂音樂影片（MV）展示與播放駕駛艙</div>
+                </a>
+
+                <!-- Quick Navigation Links -->
+                <div class="panel" style="padding: 1.5rem;">
+                    <h2 class="section-title" style="font-size: 1.1rem; margin-bottom: 1rem; padding-bottom: 0.5rem;">🔗 快捷功能導覽</h2>
+                    <div class="nav-list">
+                        <a href="../專案總覽.html" class="nav-link">
+                            <span class="nav-link-icon">🖥️</span>
+                            <span>本機專案總覽駕駛艙</span>
+                        </a>
+                        <a href="agents.md" class="nav-link">
+                            <span class="nav-link-icon">🗺️</span>
+                            <span>AI Agent 工作學習藍圖</span>
+                            <span class="badge">ReAct</span>
+                        </a>
+                        <a href="README.md" class="nav-link">
+                            <span class="nav-link-icon">📖</span>
+                            <span>專案完整英文 README</span>
+                        </a>
+                        <a href="知識庫/Index.md" class="nav-link">
+                            <span class="nav-link-icon">🗂️</span>
+                            <span>知識庫 Index 索引</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Run sync script indicator -->
+                <div class="panel" style="padding: 1.25rem; font-size: 0.8rem; color: var(--text-muted); border-style: dashed;">
+                    💡 <b>同步提示</b>：<br>
+                    若新增或修改了專案，可於本機執行 <code>python sync_projects.py</code>，這會自動重掃所有專案並更新<b>本機專案總覽駕駛艙</b>與 Obsidian 專案卡。
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

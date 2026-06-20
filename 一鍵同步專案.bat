@@ -5,7 +5,7 @@ echo   Syncing projects in c:\GOOGLE ANGET to Obsidian...
 echo ==================================================
 echo.
 
-cd /d "c:\GOOGLE ANGET\ai anget"
+cd /d "c:\GOOGLE ANGET\aigc-music-video-hub"
 python sync_projects.py
 
 echo.

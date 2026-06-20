@@ -160,6 +160,57 @@ foreach ($fileName in $configFiles) {
     }
 }
 
+# 5.5 從 Google Drive 備份中還原自訂技能與設定 (一鍵還原/轉移)
+Write-Host "`n🔄 正在檢查是否有 Google Drive 技能備份以進行自動還原..." -ForegroundColor Yellow
+$gdriveName = [string][char]0x6211 + [char]0x7684 + [char]0x96f2 + [char]0x7aef + [char]0x786c + [char]0x789f
+$gdrivePath = "G:\$gdriveName\GOOGLE ANGET"
+$backupSrc = Join-Path $gdrivePath "backup"
+
+if (Test-Path $backupSrc) {
+    # 還原全域設定 (config)
+    $backupConfig = Join-Path $backupSrc "config"
+    if (Test-Path $backupConfig) {
+        $localConfigDir = Join-Path $userProfile ".gemini\config"
+        if (-not (Test-Path $localConfigDir)) {
+            New-Item -ItemType Directory -Path $localConfigDir -Force | Out-Null
+        }
+        Copy-Item -Path "$backupConfig\*" -Destination $localConfigDir -Recurse -Force
+        Write-Host "🎉 成功還原全域設定與授權檔！" -ForegroundColor Green
+    }
+    
+    # 還原 Antigravity 提示詞技能
+    $backupAGSkills = Join-Path $backupSrc "antigravity\skills"
+    if (Test-Path $backupAGSkills) {
+        $localAGSkills = Join-Path $userProfile ".gemini\antigravity\skills"
+        if (-not (Test-Path $localAGSkills)) {
+            New-Item -ItemType Directory -Path $localAGSkills -Force | Out-Null
+        }
+        Copy-Item -Path "$backupAGSkills\*" -Destination $localAGSkills -Recurse -Force
+        Write-Host "🎉 成功還原 Antigravity 提示詞技能！" -ForegroundColor Green
+    }
+    
+    # 還原 Antigravity 使用者設定
+    $backupAGSettings = Join-Path $backupSrc "antigravity\user_settings.pb"
+    if (Test-Path $backupAGSettings) {
+        $localAGSettings = Join-Path $userProfile ".gemini\antigravity\user_settings.pb"
+        Copy-Item -Path $backupAGSettings -Destination $localAGSettings -Force
+        Write-Host "🎉 成功還原 Antigravity 使用者授權設定！" -ForegroundColor Green
+    }
+
+    # 還原本機工作區技能
+    $backupWorkspaceSkills = Join-Path $backupSrc "workspace_skills"
+    if (Test-Path $backupWorkspaceSkills) {
+        $localWorkspaceSkills = "C:\GOOGLE ANGET\skills"
+        if (-not (Test-Path $localWorkspaceSkills)) {
+            New-Item -ItemType Directory -Path $localWorkspaceSkills -Force | Out-Null
+        }
+        Copy-Item -Path "$backupWorkspaceSkills\*" -Destination $localWorkspaceSkills -Recurse -Force
+        Write-Host "🎉 成功還原工作區自訂技能！" -ForegroundColor Green
+    }
+} else {
+    Write-Host "ℹ️ 找不到雲端備份目錄，跳過自動還原。" -ForegroundColor Gray
+}
+
 # 6. 一鍵引導所有必要服務登入流程
 Write-Host "`n🔑 正在開啟外部帳號授權流程，請於彈出視窗中完成登入：" -ForegroundColor Yellow
 

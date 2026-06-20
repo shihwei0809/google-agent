@@ -1,13 +1,15 @@
 {
   "hosting": {
-    "public": ".",
+    "site": "aigc-music-video-hub",
+    "public": "aigc-music-video-hub",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "*.py",
-      "*.ps1",
-      "*.pptx",
+      "**/*.py",
+      "**/*.ps1",
+      "**/*.pptx",
+      "創作庫/**/圖片/**",
       "clasp-netlify-mcp-guide/**",
       "claude-html-slide-builder/**",
       "claude-video-specs/**",

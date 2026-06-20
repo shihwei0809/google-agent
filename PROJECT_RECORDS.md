@@ -76,6 +76,14 @@
 - **用途**：三類 Reveal-Slide 影音製作規格、自動安裝腳本以及打包為 Agent Skill 的開發工具包。
 - **技術棧**：Reveal.js, Bash, Python, Agent Skills Packager。
 
+### 15. 跨電腦一鍵備份與還原轉移系統 (C:\GOOGLE ANGET\ 根目錄)
+- **用途**：供 AI Agent 與開發者使用的一鍵備份、還原與跨電腦環境部署系統，支援自動排程備份。
+- **技術棧**：Windows PowerShell, Windows Task Scheduler, Batch 批次檔。
+- **功能特色**：
+  - **自動排程備份**：雙擊 `一鍵設定排程.bat` 可在 Windows 自動註冊排程任務，每月固定備份。
+  - **一鍵技能備份**：備份全域 MCP 設定、自訂技能 (Prompt Skills) 與本機工作區技能至 Google Drive。
+  - **一鍵轉移還原**：在新電腦上執行 `setup_new_computer.ps1` 可自動完成 Git、Node、Python 等環境安裝並還原所有技能。
+
 ---
 
 ## 🤖 給 AI Agent 的重要規範與同步機制
@@ -83,7 +91,7 @@
 1. **建立/變更專案後**：必須在 `說明書/` 對應目錄下建立或更新該專案的 Markdown 操作說明書。
 2. **更新說明書主入口**：必須在 `C:\GOOGLE ANGET\說明書\index.html` 的 `manualsData` 陣列中新增/更新該說明書之內容（需使用腳本進行 JSON 序列化，防止轉義錯誤），並同步更新 `說明書/README.md`。
 3. **更新專案紀錄檔**：在 `C:\GOOGLE ANGET\PROJECT_RECORDS.md`（本檔）中追加新專案之名稱、用途與技術棧，並更新最後修改時間。
-4. **雲端同步發佈**：完成上述文件修改後，執行 `netlify deploy --dir=說明書 --prod` 將說明書同步至線上託管空間 (https://google-anget-manuals-syhm.netlify.app/)。
+4. **雲端同步發佈**：完成上述文件修改後，執行 `netlify deploy --dir=說明書 --prod` 將說明書同步至線上託管空間 (https://cerulean-praline-6b314d.netlify.app/)。
 
 ---
 *最後更新時間：2026年6月20日*
