@@ -1,9 +1,64 @@
-subtitles/
-__pycache__/
-*.vtt
-*.mp4
-*.m4a
-*.mp3
-temp_sub.*
-/vids/
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.env
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# AI agents & tools
+.gemini/
+.copilot/
+.cursor/
+
+# Temporary / OS files
+.DS_Store
+
+# Office Temp files (PPTX temp files)
+~$*.pptx
+~$*.docx
+~$*.xlsx
+
+# Local nested git folders (ignored to prevent broken git submodules)
+clasp-netlify-mcp-guide/
+claude-html-slide-builder/
+claude-video-specs/
+
+# Netlify
+.netlify/
+
+# Firebase
+.firebase/
+
+# Documents (PDF & PowerPoint)
+*.pdf
+*.ppt
+*.pptx
+
+# Media
+*.mp4
+
+# Archives & Executables
+*.zip
+*.tar.gz
+*.rar
+*.exe
+*.dll
+
+# Secrets
+firebase_key.json
+config.json.bak
+credentials.json
+token.json
