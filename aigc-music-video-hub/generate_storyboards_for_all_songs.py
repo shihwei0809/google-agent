@@ -7,7 +7,7 @@ import subprocess
 # Configure sys.stdout to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
 
-workspace_dir = r"c:\GOOGLE ANGET\aigc-music-video-hub"
+workspace_dir = os.path.dirname(os.path.abspath(__file__))
 output_root = os.path.join(workspace_dir, "創作庫")
 
 # Master 30 scenes

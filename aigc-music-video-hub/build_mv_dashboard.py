@@ -7,7 +7,7 @@ import subprocess
 # Configure sys.stdout to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
 
-workspace_dir = r"c:\GOOGLE ANGET\ai anget"
+workspace_dir = os.path.dirname(os.path.abspath(__file__))
 output_root = os.path.join(workspace_dir, "創作庫")
 dashboard_html_path = os.path.join(workspace_dir, "音樂影片專案總覽.html")
 
@@ -144,6 +144,10 @@ def find_matching_lyrics(folder_name, lyrics_map):
     cleaned = folder_name.replace("《", "").replace("》", "").replace("—", "").replace("-", "")
     cleaned = re.sub(r"\s*\(.*?\)", "", cleaned).strip()
     
+    if "彰濱先鋒" in cleaned:
+        match_key = [k for k in lyrics_map if "2.6" in k]
+        if match_key: return lyrics_map[match_key[0]]
+        
     if "彰濱" in cleaned:
         if any(kw in cleaned for kw in ["中國風", "啟航", "二廠啟航"]):
             match_key = [k for k in lyrics_map if "2.3.1" in k]

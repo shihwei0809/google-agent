@@ -7,7 +7,7 @@ from pathlib import Path
 # Configure sys.stdout to UTF-8
 sys.stdout.reconfigure(encoding='utf-8')
 
-workspace_dir = Path(r"c:\GOOGLE ANGET\ai anget")
+workspace_dir = Path(os.path.dirname(os.path.abspath(__file__)))
 output_root = workspace_dir / "創作庫"
 images_dir = workspace_dir / "圖片"
 

@@ -597,5 +597,256 @@ window.__timelines['main'] = tl;
 </script>
 <!-- PORTAL_RETURN_BADGE_V1_END -->
 
+
+<!-- HF_STATIC_PLAYER_V1 -->
+<style>
+/* 播放器控制條樣式 */
+#hf-player-bar {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    height: 60px;
+    background: rgba(11, 15, 25, 0.85);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    border-radius: 30px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 242, 254, 0.1);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    z-index: 99998;
+    user-select: none;
+    transition: all 0.3s ease;
+}
+
+#hf-player-bar:hover {
+    border-color: rgba(0, 242, 254, 0.6);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 242, 254, 0.2);
+}
+
+.player-btn {
+    background: none;
+    border: none;
+    color: #00f2fe;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.player-btn:hover {
+    background-color: rgba(0, 242, 254, 0.15);
+    transform: scale(1.08);
+}
+
+.player-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.time-display {
+    font-family: monospace;
+    font-size: 13px;
+    color: #9ca3af;
+    min-width: 90px;
+    text-align: center;
+}
+
+/* 進度條 */
+.progress-container {
+    flex: 1;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+}
+
+.progress-bar-filled {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00f2fe, #3b82f6);
+    border-radius: 3px;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.progress-handle {
+    width: 12px;
+    height: 12px;
+    background-color: #ffffff;
+    border: 2px solid #00f2fe;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.8);
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+
+.progress-container:hover .progress-handle {
+    opacity: 1;
+}
+
+/* 音量控制 */
+.volume-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.volume-slider {
+    width: 80px;
+    cursor: pointer;
+    accent-color: #00f2fe;
+}
+
+/* 渲染模式下隱藏播放器 */
+@media print {
+    #hf-player-bar {
+        display: none !important;
+    }
+}
+</style>
+
+<div id="hf-player-bar">
+    <button class="player-btn" id="btn-play-pause" onclick="togglePlay()">
+        <!-- Play Icon -->
+        <svg id="svg-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <!-- Pause Icon -->
+        <svg id="svg-pause" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+    <button class="player-btn" id="btn-stop" onclick="stopPlay()">
+        <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+    </button>
+    
+    <div class="time-display" id="time-display">00:00 / 00:00</div>
+    
+    <div class="progress-container" id="progress-container" onclick="seekTimeline(event)">
+        <div class="progress-bar-filled" id="progress-bar-filled"></div>
+        <div class="progress-handle" id="progress-handle"></div>
+    </div>
+    
+    <div class="volume-container">
+        <svg width="16" height="16" fill="#00f2fe" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.1" value="0.8" oninput="changeVolume(this.value)">
+    </div>
+</div>
+
+<audio id="hf-audio" src="combined_audio.mp3" preload="auto"></audio>
+
+<script>
+(function() {
+    // 檢查是否在 HyperFrames CLI 渲染或 Studio 中
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('render') || urlParams.has('studio') || window.isHyperFramesRender) {
+        document.getElementById('hf-player-bar').style.display = 'none';
+        return;
+    }
+    
+    const audio = document.getElementById('hf-audio');
+    const playSvg = document.getElementById('svg-play');
+    const pauseSvg = document.getElementById('svg-pause');
+    const timeDisp = document.getElementById('time-display');
+    const progFilled = document.getElementById('progress-bar-filled');
+    const progHandle = document.getElementById('progress-handle');
+    const progContainer = document.getElementById('progress-container');
+    
+    let duration = 246; // 總時長(秒)，取自 data-duration
+    
+    // 初始化 timeline 初始位置，顯示首頁
+    window.addEventListener('load', function() {
+        if (window.gsap && window.__timelines && window.__timelines['main']) {
+            window.__timelines['main'].seek(0);
+        }
+        updateProgress();
+    });
+
+    // 格式化時間
+    function formatTime(secs) {
+        const m = Math.floor(secs / 60).toString().padStart(2, '0');
+        const s = Math.floor(secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
+    // 更新進度條與時間顯示
+    function updateProgress() {
+        const cur = audio.currentTime;
+        const total = audio.duration || duration;
+        
+        timeDisp.innerText = `${formatTime(cur)} / ${formatTime(total)}`;
+        
+        const pct = (cur / total) * 100;
+        progFilled.style.width = `${pct}%`;
+        progHandle.style.left = `${pct}%`;
+        
+        // 同步驅動 GSAP timeline
+        if (window.__timelines && window.__timelines['main']) {
+            window.__timelines['main'].seek(cur);
+        }
+    }
+
+    // 音訊進度更新監聽
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('ended', function() {
+        stopPlay();
+    });
+
+    // 點擊進度條跳轉
+    window.seekTimeline = function(e) {
+        const rect = progContainer.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        const total = audio.duration || duration;
+        const targetTime = pct * total;
+        
+        audio.currentTime = targetTime;
+        updateProgress();
+    };
+
+    // 播放/暫停
+    window.togglePlay = function() {
+        if (audio.paused) {
+            audio.play().then(() => {
+                playSvg.style.display = 'none';
+                pauseSvg.style.display = 'block';
+            }).catch(err => {
+                console.error("Autoplay restricted or error: ", err);
+                alert("請點擊確定以播放旁白語音與動畫簡報。");
+                audio.play();
+            });
+        } else {
+            audio.pause();
+            playSvg.style.display = 'block';
+            pauseSvg.style.display = 'none';
+        }
+    };
+
+    // 停止
+    window.stopPlay = function() {
+        audio.pause();
+        audio.currentTime = 0;
+        playSvg.style.display = 'block';
+        pauseSvg.style.display = 'none';
+        updateProgress();
+    };
+
+    // 調整音量
+    window.changeVolume = function(val) {
+        audio.volume = val;
+    };
+})();
+</script>
+<!-- HF_STATIC_PLAYER_V1_END -->
+
 </body>
 </html>
