@@ -598,6 +598,9 @@ window.__timelines['main'] = tl;
 <!-- PORTAL_RETURN_BADGE_V1_END -->
 
 
+
+
+
 <!-- HF_STATIC_PLAYER_V1 -->
 <style>
 /* 播放器控制條樣式 */
@@ -608,11 +611,11 @@ window.__timelines['main'] = tl;
     transform: translateX(-50%);
     width: 900px;
     height: 60px;
-    background: rgba(11, 15, 25, 0.85);
+    background: rgba(11, 15, 25, 0.9);
     backdrop-filter: blur(15px);
-    border: 1px solid rgba(0, 242, 254, 0.3);
+    border: 1px solid rgba(0, 242, 254, 0.4);
     border-radius: 30px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 242, 254, 0.1);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 242, 254, 0.15);
     display: flex;
     align-items: center;
     padding: 0 24px;
@@ -623,8 +626,8 @@ window.__timelines['main'] = tl;
 }
 
 #hf-player-bar:hover {
-    border-color: rgba(0, 242, 254, 0.6);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 242, 254, 0.2);
+    border-color: rgba(0, 242, 254, 0.7);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 242, 254, 0.25);
 }
 
 .player-btn {
@@ -642,7 +645,7 @@ window.__timelines['main'] = tl;
 }
 
 .player-btn:hover {
-    background-color: rgba(0, 242, 254, 0.15);
+    background-color: rgba(0, 242, 254, 0.2);
     transform: scale(1.08);
 }
 
@@ -664,7 +667,7 @@ window.__timelines['main'] = tl;
 .progress-container {
     flex: 1;
     height: 6px;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.15);
     border-radius: 3px;
     position: relative;
     cursor: pointer;
@@ -762,7 +765,7 @@ window.__timelines['main'] = tl;
     const progHandle = document.getElementById('progress-handle');
     const progContainer = document.getElementById('progress-container');
     
-    let duration = 246; // 總時長(秒)，取自 data-duration
+    let duration = 246; // 總時長(秒)
     
     // 初始化 timeline 初始位置，顯示首頁
     window.addEventListener('load', function() {
@@ -790,7 +793,30 @@ window.__timelines['main'] = tl;
         progFilled.style.width = `${pct}%`;
         progHandle.style.left = `${pct}%`;
         
-        // 同步驅動 GSAP timeline
+        // 1. 物理控制投影片的可見度，防止所有 Slide 頁面重疊
+        const slides = document.querySelectorAll('.slide.clip');
+        let currentSlideFound = false;
+        
+        // 依照時間判斷目前屬於哪一頁，隱藏其他所有頁面
+        slides.forEach(slide => {
+            const start = parseFloat(slide.getAttribute('data-start'));
+            const dur = parseFloat(slide.getAttribute('data-duration'));
+            const end = start + dur;
+            
+            if (cur >= start && cur < end) {
+                slide.style.setProperty('display', 'flex', 'important');
+                currentSlideFound = true;
+            } else {
+                slide.style.setProperty('display', 'none', 'important');
+            }
+        });
+        
+        // 防呆：如果剛好卡在間隙時間，預設顯示第一個
+        if (!currentSlideFound && slides.length > 0) {
+            slides[0].style.setProperty('display', 'flex', 'important');
+        }
+        
+        // 2. 同步驅動 GSAP timeline
         if (window.__timelines && window.__timelines['main']) {
             window.__timelines['main'].seek(cur);
         }
