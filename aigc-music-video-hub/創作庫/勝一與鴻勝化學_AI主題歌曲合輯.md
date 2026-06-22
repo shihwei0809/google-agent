@@ -73,7 +73,6 @@ EBR洗邊那一刻 像把雜質慢慢掃光
 當全世界都在驚嘆科技衝得多快
 別忘了有人先把慢 做到極致的愛
 勝一的精準 無可取代
-(Piano fades out, slow beat ends)
 ```
 
 ### 第二部分：鴻勝化學 (Hongsheng Chemical) 系列
@@ -153,12 +152,12 @@ is those who grind their lives into a drop of solvent!
 當全世界都在驚嘆科技衝得多快
 別忘了有人先把慢 做到極致的愛
 鴻勝的精準 無可取代
-(Piano fades out, slow beat ends)
 ```
 
 ### 第三部分：勝一 & 鴻勝 (聯合永續) 系列
 - **3.1 《永續的交響》 (勝一 & 鴻勝聯合永續 — 完整直述版)**
 - **3.2 《綠色聖衣的守護》 (勝一 & 鴻勝聯合永續 — Suno 規避版)**
+  - **3.3 《攜手未來》 (Suno版)**
 
 ---
 ---
@@ -172,9 +171,6 @@ is those who grind their lives into a drop of solvent!
 * **特點**：本機 `勝一化學_純淨之光_MV.mp4` 影片所採用的經典歌詞，描述勝一做為半導體無塵室幕後英雄的默默付出。
 
 ```text
-[Intro]
-(電子鼓點漸入，復古合成器明亮彈跳，夾雜著純淨化學原料流動的微弱水聲)
-
 [Verse 1 - Male]
 當暮色降臨 晶圓廠區的燈光亮起
 巨大的反應槽運作 這是未來的跳動
@@ -189,7 +185,7 @@ is those who grind their lives into a drop of solvent!
 
 [Chorus - Duet]
 勝一化工 默默耕耘的科技助手！
-提供最無瑕的溶劑 協助晶片的夢
+提供最無瑕的溶劑 協助晶片的誕生
 在極紫外光中 導引電流的線路
 我們隱身幕後 卻點亮了產業的薪火！
 
@@ -200,16 +196,23 @@ is those who grind their lives into a drop of solvent!
 回收再生的齒輪 在這塊土地運轉
 環保的承諾 寫在每一次的交貨
 
-[Bridge]
+[Bridge - Male]
 PGME、NBAC、還有環戊酮
 每一項精密的化學配方 都是對極限的挑戰
+[Bridge - Female]
 從南台灣的出發點 航向世界的科技之巔
 勝一的純淨之水 默默寫下科技的歷史！
 
-[Outro]
-每一滴精製成品 都有它的軌道
-純淨之光 守護著你我的微笑
-(清脆的放行成功嗶聲，音樂淡出)
+[Chorus - Duet]
+勝一化工 默默耕耘的科技助手！
+提供最無瑕的溶劑 協助晶片的夢
+在極紫外光中 導引電流的線路
+我們隱身幕後 卻點亮了產業的薪火！
+
+[Outro - Duet]
+極致的純淨 化學的力量
+在半導體的浪潮中 我們永遠站在前線
+Shiny Chemical... 支撐未來的力量！
 ```
 
 ---
@@ -363,7 +366,6 @@ EBR洗邊那一刻 像把雜質慢慢掃光
 當全世界都在驚嘆科技衝得多快
 別忘了有人先把慢 做到極致的愛
 勝一的精準 無可取代
-(Piano fades out, slow beat ends)
 ```
 
 ## 第二部分：鴻勝化學 (Hongsheng Chemical) 系列
@@ -877,7 +879,6 @@ is those who grind their lives into a drop of solvent!
 當全世界都在驚嘆科技衝得多快
 別忘了有人先把慢 做到極致的愛
 鴻勝的精準 無可取代
-(Piano fades out, slow beat ends)
 ```
 
 ## 第三部分：勝一 & 鴻勝 (聯合永續) 系列
@@ -993,5 +994,66 @@ is those who grind their lives into a drop of solvent!
 讓每一滴流動的智慧 繪出最完美的圓
 盛一與虹昇的守護 溫暖歲歲年年
 [Ocean waves sound, music fade out]
+[End]
+```
+
+---
+
+### 🎵 3.3 《攜手未來》 (Suno版)
+* **曲風設定 (Style)**：`modern pop rock, light rock, energetic, emotional, melodic pop, electric guitar, driving drums, male vocals`
+* **特點**：勝一與鴻勝聯名主題曲。描寫南台灣的高純度化學溶劑與彰濱二廠產能攜手前行，共創AI奈米時代未來。
+
+```text
+[Intro]
+[Electric guitar intro, steady light rock beat, building up]
+
+[Verse 1 - Shiny Chemical (勝一)]
+在高雄的土地上 勝一的晶瑩液體流淌
+PGMEA 的純度 是奈米世界第一道曙光
+EBR洗邊 抹去一切微小的滄桑
+在最潔淨的無塵室裡 我們為巨人守護著夢想
+
+[Verse 2 - Hongsheng Chemical (鴻勝)]
+在彰濱線西的海岸 鴻勝的風機在旋轉
+高純度IPA 在海風中守護著信仰
+二廠鋼骨聳立 拔地而起挑戰極限的重量
+迎戰AI浪潮 我們是科技最堅固的脊梁
+
+[Pre-Chorus - Combined]
+從2002的獨立出發 到今天的並肩作戰
+純淨度壓到極致 良率扛過無數難關
+在看不見的微米世界 我們的智慧在交融
+把最難的技術 做到像呼吸一樣自然
+
+[Chorus - Combined (Emotional Soaring)]
+從南台灣港口 到彰濱的海岸
+勝一與鴻勝 攜手衝破黑暗
+From micro droplets to the starry expanse,
+雙雄聯手 刻下科技最美的圖案！
+
+[Verse 3 - Combined (Melodic Rap)]
+無塵室像聖堂 連空氣都充滿了紀律
+高壓灌裝 穩定性做到近乎瘋狂的奇蹟
+量測、檢測像審判 把偏差壓到最底
+每一奈米的後面 都有我們在無聲地扛起
+這不是運氣 這是雙雄聯手的倔強
+把細節做到最強 把未來親手做亮！
+
+[Bridge - Combined (Epic Build-up)]
+當全世界都在驚嘆科技衝得多快
+別忘了有人先把慢 做到極致的愛
+極紫外光一閃 整個世界都變寬
+勝一與鴻勝的結合 是不可替代的誓言！
+
+[Chorus - Combined (Emotional Soaring)]
+從南台灣港口 到彰濱的海岸
+勝一與鴻勝 攜手衝破黑暗
+From micro droplets to the starry expanse,
+雙雄聯手 刻下科技最美的圖案！
+
+[Outro]
+在最小的尺度 做最大的安排
+勝一與鴻勝 攜手共創未來
+[Light rock synth outro, fading out]
 [End]
 ```

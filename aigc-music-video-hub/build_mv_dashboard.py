@@ -22,6 +22,91 @@ def get_audio_duration(audio_path):
         return hours * 3600 + minutes * 60 + seconds
     return 0
 
+def format_srt_time(seconds):
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+    millis = int((seconds - int(seconds)) * 1000)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d},{millis:03d}"
+
+def generate_introduction(folder_name):
+    cleaned = folder_name.lower()
+    if "彰濱" in cleaned or "changbin" in cleaned:
+        return "本曲以勝一化學彰濱二廠與綠色科技園區為主題，描繪濱海風機旋轉下的現代化精餾廠房。在純淨的溶劑與綠色永續綠能引領下，展現勝一化學深耕半導體與先進製程供應鏈的卓越實力！"
+    elif "虹昇" in cleaned or "智慧流動" in cleaned or "hongsheng" in cleaned:
+        return "本曲譜寫虹昇化學在工業溶劑回收、智慧化去化與綠色循環的科技藍圖。以高科技中控室與環保再生技術為核心，將廢溶劑化為純淨再生資源，譜寫循環經濟的永續交響曲！"
+    elif "綠色" in cleaned or "循環" in cleaned or "脈動" in cleaned or "pulse of green" in cleaned:
+        return "本曲以綠色永續發展（ESG）為主題，敘述節能減碳、廢水回收、綠色包裝與循環經濟的深遠實踐。讓綠色循環的脈動在大地上生生不息，共創對環境友好的綠色未來！"
+    elif "純淨" in cleaned or "purity" in cleaned or "液態精準" in cleaned or "liquid precision" in cleaned:
+        return "本曲展現對超高純度半導體級溶劑的極致工藝追求。從電子級無塵室的精密自動化分裝，到黃光區的晶圓清洗曝光，每一步都是對極致純淨與科技創新的承諾！"
+    elif "攜手未來" in cleaned or "弈融" in cleaned:
+        return "本曲展現團隊攜手共創永續未來的卓越力量。從港口的貨輪裝箱出海，到半導體晶片的智慧應用，勝一化學以專業與堅持，與您攜手同行，開創綠能永續的新時代！"
+    else:
+        return "勝一化學與鴻勝化學 AIGC 節能與永續發展主題歌曲，譜寫科技創新與環境友好的永續藍圖。"
+
+def generate_youtube_assets(folder_path, folder, lyrics, style_desc, duration):
+    # 1. lyrics.txt
+    lyrics_txt_path = os.path.join(folder_path, "lyrics.txt")
+    if not os.path.exists(lyrics_txt_path) and lyrics:
+        with open(lyrics_txt_path, "w", encoding="utf-8") as f:
+            f.write(lyrics)
+            
+    # 2. youtube_description.txt
+    desc_path = os.path.join(folder_path, "youtube_description.txt")
+    if not os.path.exists(desc_path) and lyrics:
+        intro = generate_introduction(folder)
+        style_clean = re.sub(r"^\*\s*\*\*.*?\*\*：\s*", "", style_desc).replace("`", "").strip()
+        with open(desc_path, "w", encoding="utf-8") as f:
+            f.write(f"《{folder}》 - {style_clean}\n")
+            f.write("勝一與鴻勝化學 AIGC 節能與永續主題歌曲\n\n")
+            f.write("🎬 影片介紹：\n")
+            f.write(f"{intro}\n\n")
+            if style_clean:
+                f.write("🎵 歌曲曲風：\n")
+                f.write(f"{style_clean}\n\n")
+            f.write("📝 完整歌詞：\n")
+            f.write(f"{lyrics}\n")
+            
+    # 3. {folder}.srt
+    srt_path = os.path.join(folder_path, f"{folder}.srt")
+    if not os.path.exists(srt_path) and lyrics and duration > 0:
+        lines = []
+        for line in lyrics.split("\n"):
+            line = line.strip()
+            if line and not line.startswith("[") and not line.endswith("]"):
+                lines.append(line)
+                
+        if lines:
+            duration_per_line = duration / len(lines)
+            with open(srt_path, "w", encoding="utf-8") as f:
+                for idx, line in enumerate(lines, 1):
+                    start_s = (idx - 1) * duration_per_line
+                    end_s = idx * duration_per_line - 0.2
+                    if end_s < start_s:
+                        end_s = start_s + 0.1
+                    f.write(f"{idx}\n")
+                    f.write(f"{format_srt_time(start_s)} --> {format_srt_time(end_s)}\n")
+                    f.write(f"{line}\n\n")
+
+def get_base_name(folder_name):
+    # Strip trailing numbers like (1), (2), (3) or (Remove Section)
+    name = re.sub(r"\s*\(\d+\)$", "", folder_name)
+    name = re.sub(r"\s*\(Remove\s+Section\)$", "", name, flags=re.IGNORECASE)
+    
+    # Remove any (1), (2) anywhere in the name, e.g., "永續的交響 (1)-史詩交響流行風" -> "永續的交響-史詩交響流行風"
+    name = re.sub(r"\s*\(\d+\)", "", name)
+    name = name.strip()
+    
+    # See if there's a style separator like "-" or "—"
+    for sep in ["-", "—"]:
+        if sep in name:
+            parts = name.split(sep)
+            prefix = parts[0].strip()
+            if prefix:
+                return prefix
+                
+    return name
+
 def parse_storyboard_md(md_path):
     if not os.path.exists(md_path):
         return []
@@ -61,14 +146,14 @@ def parse_storyboard_md(md_path):
                     time_limit = time_match.group(1)
             elif "🟢" in line:
                 status = "🟢"
-            elif "圖片檔名" in line:
+            elif "圖片檔名" in line or "本機對照圖片" in line:
                 fn_match = re.search(r"`(.*?)`", line)
                 if fn_match:
                     filename = fn_match.group(1)
-            elif "1. 圖片生成提示詞" in line:
+            elif "1. 圖片" in line:
                 recording_image = True
                 recording_motion = False
-            elif "2. 動態生成提示詞" in line:
+            elif "2. 動態" in line or "2. 影片" in line:
                 recording_image = False
                 recording_motion = True
             elif "```" in line:
@@ -148,6 +233,10 @@ def find_matching_lyrics(folder_name, lyrics_map):
         match_key = [k for k in lyrics_map if "2.6" in k]
         if match_key: return lyrics_map[match_key[0]]
         
+    if "攜手未來" in cleaned or "共創未來" in cleaned:
+        match_key = [k for k in lyrics_map if "3.3" in k]
+        if match_key: return lyrics_map[match_key[0]]
+        
     if "彰濱" in cleaned:
         if any(kw in cleaned for kw in ["中國風", "啟航", "二廠啟航"]):
             match_key = [k for k in lyrics_map if "2.3.1" in k]
@@ -224,6 +313,8 @@ def main():
         if not os.path.isdir(folder_path):
             continue
             
+        base_name = get_base_name(folder)
+            
         # Find MP3 inside folder
         mp3_file = None
         for f in os.listdir(folder_path):
@@ -240,6 +331,47 @@ def main():
         md_path = os.path.join(folder_path, "vids_storyboard_prompts.md")
         scenes = parse_storyboard_md(md_path)
         
+        # Auto-detect generated image files inside "圖片" directory
+        images_dir = os.path.join(folder_path, "圖片")
+        existing_images = {}
+        existing_filenames = set()
+        if os.path.exists(images_dir) and os.path.isdir(images_dir):
+            for f_name in os.listdir(images_dir):
+                if f_name.lower().endswith(('.png', '.jpg', '.jpeg', '.webp')):
+                    existing_filenames.add(f_name)
+                    # Match leading digits, e.g., "01_廠區遠景.png" -> "01"
+                    match = re.match(r"^(\d+)_", f_name)
+                    if match:
+                        num_str = match.group(1)
+                        # Normalize to 2-digit string
+                        normalized_num = f"{int(num_str):02d}"
+                        existing_images[normalized_num] = f_name
+
+        for scene in scenes:
+            scene_id = scene["id"]
+            md_filename = scene.get("filename", "")
+            
+            # 1. Prefer matching by exact filename written in the Markdown if it exists locally
+            if md_filename and md_filename in existing_filenames:
+                scene["status"] = "🟢"
+                scene["image_url"] = f"創作庫/{folder}/圖片/{md_filename}"
+            # 2. Fall back to prefix matching using the prefix from the markdown filename
+            else:
+                prefix_matched = False
+                if md_filename:
+                    fn_match = re.match(r"^(\d+)_", md_filename)
+                    if fn_match:
+                        normalized_id = f"{int(fn_match.group(1)):02d}"
+                        if normalized_id in existing_images:
+                            scene["status"] = "🟢"
+                            scene["filename"] = existing_images[normalized_id]
+                            scene["image_url"] = f"創作庫/{folder}/圖片/{existing_images[normalized_id]}"
+                            prefix_matched = True
+                
+                if not prefix_matched:
+                    scene["status"] = "🔴"
+                    scene["image_url"] = ""
+
         # relative paths for local HTML loading
         rel_mp3_path = f"創作庫/{folder}/{mp3_file}"
         
@@ -248,13 +380,68 @@ def main():
         mp4_path = os.path.join(folder_path, mp4_file)
         rel_mp4_path = f"創作庫/{folder}/{mp4_file}" if os.path.exists(mp4_path) else ""
         
-        # Match lyrics
-        matched = find_matching_lyrics(folder, lyrics_map)
-        lyrics_text = matched["lyrics"] if matched else ""
-        style_desc = matched["style"] if matched else ""
+        # Match lyrics - check local lyrics.txt first
+        local_lyrics_path = os.path.join(folder_path, "lyrics.txt")
+        if os.path.exists(local_lyrics_path):
+            matched = True
+            with open(local_lyrics_path, 'r', encoding='utf-8') as lf:
+                lyrics_text = lf.read().strip()
+            style_desc = ""
+            local_desc_path = os.path.join(folder_path, "youtube_description.txt")
+            if os.path.exists(local_desc_path):
+                with open(local_desc_path, 'r', encoding='utf-8') as df:
+                    desc_lines = df.read().split("\n")
+                    for line in desc_lines:
+                        if "歌曲曲風" in line or "曲風" in line:
+                            try:
+                                style_idx = desc_lines.index(line) + 1
+                                while style_idx < len(desc_lines) and not desc_lines[style_idx].strip():
+                                    style_idx += 1
+                                if style_idx < len(desc_lines):
+                                    style_desc = f"* **曲風設定 (Style)**：`{desc_lines[style_idx].strip()}`"
+                                    break
+                            except Exception:
+                                pass
+        else:
+            matched = find_matching_lyrics(folder, lyrics_map)
+            lyrics_text = matched["lyrics"] if matched else ""
+            style_desc = matched["style"] if matched else ""
+        
+        # Style overrides based on folder name keywords
+        style_overrides = [
+            ("古典中國風", "`Chinese traditional instruments, guzheng, erhu, bamboo flute, Chinese style pop, elegant, melodic, male and female duet` (優雅中國國樂流行)"),
+            ("中國風", "`Chinese traditional instruments, guzheng, erhu, bamboo flute, Chinese style pop, elegant, melodic, male and female duet` (優雅中國國樂流行)"),
+            ("史詩交響流行", "`epic orchestral pop, majestic, clean vocals, male and female duet, inspiring, cinematic, strings, brass, powerful drums, emotional build-up` (大氣壯麗交響樂流行)"),
+            ("交響流行", "`epic orchestral pop, majestic, clean vocals, male and female duet, inspiring, cinematic, strings, brass, powerful drums, emotional build-up` (大氣壯麗交響樂流行)"),
+            ("護國神山史詩電音", "`electronic pop, synth-pop, high-tech, futuristic, male and female duet, clean vocals, melodic, driving beat, inspiring` (護國神山史詩電音對唱)"),
+            ("電音", "`electronic pop, synth-pop, high-tech, futuristic, male and female duet, clean vocals, melodic, driving beat, inspiring` (電音風)"),
+            ("復古合成器", "`synthwave, retro 80s, electro-pop, driving bassline, male and female duet, melodic, energetic, catchy` (動感復古合成器流行)"),
+            ("合成器", "`synthwave, retro 80s, electro-pop, driving bassline, male and female duet, melodic, energetic, catchy` (動感復古合成器流行)"),
+            ("流行輕搖滾", "`modern pop rock, light rock, energetic, emotional, melodic pop, electric guitar, driving drums, male vocals` (流行輕搖滾)"),
+            ("輕搖滾", "`modern pop rock, light rock, energetic, emotional, melodic pop, electric guitar, driving drums, male vocals` (流行輕搖滾)"),
+            ("Cinematic Pop _ Anthem Rock", "`cinematic pop, stadium rock, anthemic, building up, inspiring, electric guitar, grand piano, driving beat, male vocals` (電影感與競技搖滾組合)"),
+            ("Cinematic Pop", "`cinematic pop, epic orchestral build, anthemic chorus, inspiring, storytelling, male vocals` (電影感流行)"),
+            ("電影感流行", "`cinematic pop, epic orchestral build, anthemic chorus, inspiring, storytelling, male vocals` (電影感流行)"),
+            ("Anthem Rock", "`anthem rock, stadium rock, driving beat, electric guitar, energetic, soaring male vocals` (競技體育搖滾)"),
+            ("勵志搖滾", "`anthem rock, stadium rock, driving beat, electric guitar, energetic, soaring male vocals` (競技體育搖滾)"),
+        ]
+        
+        # If it is the original "攜手未來" without extra style suffix, give it the original rap-pop style
+        is_original_future = "攜手未來" in folder and not any(kw in folder for kw in ["Cinematic", "Anthem", "搖滾", "組合", "輕搖滾", "流行"])
+        if is_original_future:
+            style_desc = "* **曲風設定 (Style)**：`emotional melodic rap, cinematic pop beat, grand piano, soaring strings, deep sub-bass, inspiring, dramatic male vocals, storytelling` (情感說唱流行)"
+        else:
+            for kw, tag in style_overrides:
+                if kw in folder:
+                    style_desc = f"* **曲風設定 (Style)**：{tag}"
+                    break
+        
+        # Generate YouTube assets if missing
+        generate_youtube_assets(folder_path, folder, lyrics_text, style_desc, duration)
         
         songs_data.append({
             "name": folder,
+            "base_name": base_name,
             "mp3": rel_mp3_path,
             "mp4": rel_mp4_path,
             "duration": f"{duration:.2f} 秒" if duration else "未知",
@@ -286,6 +473,27 @@ def main():
             --accent: #06b6d4;
             --accent-glow: rgba(6, 182, 212, 0.15);
             --card-hover-border: rgba(6, 182, 212, 0.4);
+        }
+
+        .version-btn {
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .version-btn:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+        }
+        .version-btn.active {
+            background-color: var(--primary-glow);
+            border-color: var(--primary);
+            color: var(--primary);
         }
 
         * {
@@ -801,6 +1009,9 @@ def main():
                 </div>
             </div>
 
+            <!-- Version selector tabs -->
+            <div id="versionSelector" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 24px;"></div>
+
             <!-- Media Preview Section -->
             <div class="media-section">
                 <!-- Audio Player -->
@@ -848,24 +1059,42 @@ def main():
         // Inject dynamic JSON data from Python
         const songs = __SONGS_DATA_JSON__;
         
+        // Group songs by base_name
+        const groups = {};
+        const groupOrder = []; // maintain order of appearance of base names
+        
+        songs.forEach((song, idx) => {
+            const base = song.base_name || song.name;
+            if (!groups[base]) {
+                groups[base] = [];
+                groupOrder.push(base);
+            }
+            groups[base].push({ ...song, globalIndex: idx });
+        });
+
         // Update total songs count dynamically
         document.getElementById('totalSongsText').innerText = songs.length;
 
-        // Initialize song list
+        // Active state
+        let activeBaseName = null;
+        let activeVariantIndex = 0;
+
+        // Initialize song list with base songs
         const songList = document.getElementById('songList');
-        songs.forEach((song, index) => {
+        groupOrder.forEach((baseName) => {
+            const variants = groups[baseName];
             const item = document.createElement('div');
             item.className = 'song-item';
-            item.onclick = () => selectSong(index);
+            item.onclick = () => selectGroup(baseName);
+            item.dataset.baseName = baseName;
             
-            // Generate clean name
-            let displayName = song.name;
+            const mainSong = variants[0];
             
             item.innerHTML = `
-                <h3>${displayName}</h3>
+                <h3>${baseName}</h3>
                 <div class="song-item-meta">
-                    <span>${song.duration}</span>
-                    <span class="scenes-tag">${song.scenes_count} 頁</span>
+                    <span>${variants.length} 個版本</span>
+                    <span class="scenes-tag">${mainSong.scenes_count} 頁</span>
                 </div>
             `;
             songList.appendChild(item);
@@ -877,8 +1106,8 @@ def main():
             const items = songList.getElementsByClassName('song-item');
             
             for (let i = 0; i < items.length; i++) {
-                const title = items[i].getElementsByTagName('h3')[0].innerText;
-                if (title.toUpperCase().indexOf(input) > -1) {
+                const baseName = items[i].dataset.baseName;
+                if (baseName.toUpperCase().indexOf(input) > -1) {
                     items[i].style.display = "";
                 } else {
                     items[i].style.display = "none";
@@ -896,26 +1125,80 @@ def main():
                 }, 2000);
             });
         }
-
-        // Handle song selection
-        function selectSong(index) {
-            // Remove active classes
+        
+        // Select a song group
+        function selectGroup(baseName) {
+            activeBaseName = baseName;
+            activeVariantIndex = 0;
+            
+            // Highlight sidebar item
             const items = songList.getElementsByClassName('song-item');
             for (let i = 0; i < items.length; i++) {
-                items[i].classList.remove('active');
+                if (items[i].dataset.baseName === baseName) {
+                    items[i].classList.add('active');
+                } else {
+                    items[i].classList.remove('active');
+                }
             }
             
-            // Add active to current
-            items[index].classList.add('active');
+            // Render version tabs and load default version
+            renderVersionSelector();
+            loadVariant(0);
+        }
+        
+        // Render version buttons
+        function renderVersionSelector() {
+            const container = document.getElementById('versionSelector');
+            container.innerHTML = '';
             
-            const song = songs[index];
+            const variants = groups[activeBaseName];
+            if (variants.length <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'flex';
+            
+            variants.forEach((variant, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'version-btn' + (index === activeVariantIndex ? ' active' : '');
+                
+                // Extract clean variant name
+                let vName = variant.name;
+                // If it starts with the base name, strip it
+                if (vName.startsWith(activeBaseName)) {
+                    vName = vName.substring(activeBaseName.length).replace(/^[-—\s]+/, '').trim();
+                }
+                // Fallback if empty
+                if (!vName) {
+                    vName = "原版";
+                }
+                
+                btn.innerText = vName;
+                btn.onclick = () => {
+                    // Update active tab button classes
+                    const btns = container.getElementsByClassName('version-btn');
+                    for (let i = 0; i < btns.length; i++) {
+                        btns[i].classList.remove('active');
+                    }
+                    btn.classList.add('active');
+                    
+                    activeVariantIndex = index;
+                    loadVariant(index);
+                };
+                container.appendChild(btn);
+            });
+        }
+        
+        // Load details of specific variant
+        function loadVariant(index) {
+            const song = groups[activeBaseName][index];
             
             // Hide empty state and show details
             document.getElementById('emptyState').style.display = 'none';
             const detailPanel = document.getElementById('songDetail');
             detailPanel.classList.add('active');
             
-            // Set basic details
+            // Set details
             document.getElementById('detailTitle').innerText = song.name;
             document.getElementById('detailDuration').innerText = song.duration;
             document.getElementById('detailScenesCount').innerText = song.scenes_count + ' 頁';
@@ -968,11 +1251,10 @@ def main():
                 if (scene.status === '🟢') {
                     statusClass = 'status-generated';
                     statusLabel = '🟢 本機已生成';
-                    // Load relative local image path
-                    const imgUrl = `圖片/${scene.filename}`;
+                    const imgUrl = scene.image_url || `圖片/${scene.filename}`;
                     imageHtml = `
                         <div class="scene-thumb">
-                            <img src="${imgUrl}" alt="${scene.name}" onerror="this.style.display='none'">
+                            <img src="${imgUrl}" alt="${scene.name}" onerror="if(!this.dataset.triedFallback){this.dataset.triedFallback=true; this.src='圖片/${scene.filename}';}else{this.style.display='none';}">
                             <span class="scene-duration-tag">${scene.time}</span>
                         </div>
                     `;
