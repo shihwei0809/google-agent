@@ -269,7 +269,7 @@
 ### 📌 場景 18：高效能伺服器
 * ⏱️ **建議播放長度**：`7.89 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`25_高效能伺服器.png`
+* 📂 **圖片檔名**：`36_高效能伺服器.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
   Rows of server racks with neon green liquid cooling tubes, high-speed AI processors, blinking data streams, futuristic AI server room, neon blue and green liquid cooling, highly detailed, photorealistic, 8k.
@@ -371,32 +371,32 @@
 
 ---
 
-### 📌 場景 25：無人搬運車
+### 📌 場景 25：吊掛isotank
 * ⏱️ **建議播放長度**：`7.89 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`51_無人搬運車.png`
+* 📂 **圖片檔名**：`51_吊掛isotank.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  An automated guided vehicle (AGV) transporting chemical drums through a high-tech warehouse aisle, glowing sensors, futuristic green energy refinery, highly detailed, photorealistic, 8k.
+  A professional corporate photograph of a large chemical Isotank container being lifted and hung by a giant yellow gantry crane onto a white transport truck container bed inside a modern clean refinery facility, bright daylight, blue sky, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Slow panning of the robotic vehicle moving along the warehouse floor smoothly.
+  Automated transport vehicle adjusting the tank container, loading bay crane lifting the container slowly, smooth flow.
   ```
 
 ---
 
-### 📌 場景 26：超純水純化
+### 📌 場景 26：冷卻塔與循環水
 * ⏱️ **建議播放長度**：`7.89 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`53_超純水純化.png`
+* 📂 **圖片檔名**：`53_冷卻塔與循環水.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Advanced multi-stage water purification system for electronic grade ultra-pure water, sparkling clear water inside glass chambers, futuristic cleanroom aesthetic, highly detailed, photorealistic, 8k.
+  Giant industrial cooling towers with swirling water vapor under a beautiful sunset sky, eco-friendly water recycling system, futuristic green energy refinery, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Purified water swirling gently inside the glass chamber, soft backlighting.
+  Water vapor gently rising from the cooling towers, sunset sky shifting colors slowly.
   ```
 
 ---

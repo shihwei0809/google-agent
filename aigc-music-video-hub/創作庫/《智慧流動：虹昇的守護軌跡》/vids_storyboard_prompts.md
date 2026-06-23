@@ -146,17 +146,17 @@
 
 ---
 
-### 📌 場景 10：吊掛isotank
+### 📌 場景 10：自動灌裝生產線
 * ⏱️ **建議播放長度**：`7.75 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`23_吊掛isotank.png`
+* 📂 **圖片檔名**：`23_自動灌裝生產線.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A professional corporate photograph of a large chemical Isotank container being lifted and hung by a giant yellow gantry crane onto a white transport truck container bed inside a modern clean refinery facility, bright daylight, blue sky, photorealistic, 8k.
+  Automated bottling line, shiny metallic containers filled with high-purity solvent on a fast-moving conveyor belt, glowing lasers inspect caps, futuristic cleanroom refinery, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Automated transport vehicle adjusting the tank container, loading bay crane lifting the container slowly, smooth flow.
+  Metallic bottles moving along the conveyor belt rapidly, robotic arms operating, glowing laser beam flashing, smooth mechanical motion.
   ```
 
 ---
@@ -326,17 +326,17 @@
 
 ---
 
-### 📌 場景 22：冷卻塔與循環水
+### 📌 場景 22：無人搬運車
 * ⏱️ **建議播放長度**：`7.75 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`52_冷卻塔與循環水.png`
+* 📂 **圖片檔名**：`52_無人搬運車.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Giant industrial cooling towers with swirling water vapor under a beautiful sunset sky, eco-friendly water recycling system, futuristic green energy refinery, highly detailed, photorealistic, 8k.
+  An automated guided vehicle (AGV) transporting chemical drums through a high-tech warehouse aisle, glowing sensors, futuristic green energy refinery, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Water vapor gently rising from the cooling towers, sunset sky shifting colors slowly.
+  Slow panning of the robotic vehicle moving along the warehouse floor smoothly.
   ```
 
 ---

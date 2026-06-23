@@ -266,17 +266,17 @@
 
 ---
 
-### 📌 場景 18：超純水純化
+### 📌 場景 18：冷卻塔與循環水
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`53_超純水純化.png`
+* 📂 **圖片檔名**：`53_冷卻塔與循環水.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Advanced multi-stage water purification system for electronic grade ultra-pure water, sparkling clear water inside glass chambers, futuristic cleanroom aesthetic, highly detailed, photorealistic, 8k.
+  Giant industrial cooling towers with swirling water vapor under a beautiful sunset sky, eco-friendly water recycling system, futuristic green energy refinery, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Purified water swirling gently inside the glass chamber, soft backlighting.
+  Water vapor gently rising from the cooling towers, sunset sky shifting colors slowly.
   ```
 
 ---
