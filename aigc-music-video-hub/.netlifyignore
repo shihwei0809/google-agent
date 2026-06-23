@@ -1,0 +1,22 @@
+# Netlify Ignore File
+# Ignore development and system folders, but DO NOT ignore media assets (mp3/mp4/png)
+
+.git/
+node_modules/
+venv/
+.gemini/
+.vercel/
+.netlify/
+dist/
+Clipping/
+subtitles/
+temp_sub.*
+apply_vids_templates.py
+backup_shiny_project.py
+build_my_vault.py
+download_all_subs.py
+extract_videos.py
+local_generator.py
+local_shiny_bgm.wav
+sync_projects.py
+sync_to_gdrive.py

@@ -65,3 +65,7 @@ graph TD
   - [ ] `requirements.txt` - 依賴包定義
   - [ ] `tools.py` - 自訂工具庫
   - [ ] `simple_agent.py` - ReAct 核心邏輯
+
+### 🎵 Suno 歌詞生成規範
+* **Suno 專用結構**：歌詞必須以 `[Verse]`, `[Chorus]`, `[Bridge]`, `[Outro]` 進行分段，以便 Suno 辨識曲式。
+* **嚴禁最下方出現圓括號**：最底下**絕對不能**使用圓括號註記音樂指令（例如 `(Piano fades out)`、`(waves crashing)`），因為 Suno 會將尾端括號內文字判定為歌詞並唸唱出來，破壞結尾。

@@ -148,9 +148,9 @@ master_scenes = [
     },
     {
         "id": 23,
-        "name": "儲罐裝載",
-        "image": "An automated bottling line filling containers with clear liquid, smooth mechanical nozzles, conveyor belt, high-tech industrial packaging, 8k.",
-        "motion": "Bottling machine nozzles moving up and down, filling containers, conveyor belt moving."
+        "name": "吊掛isotank",
+        "image": "A professional corporate photograph of a large chemical Isotank container being lifted and hung by a giant yellow gantry crane onto a white transport truck container bed inside a modern clean refinery facility, bright daylight, blue sky, photorealistic, 8k.",
+        "motion": "Automated transport vehicle adjusting the tank container, loading bay crane lifting the container slowly, smooth flow."
     },
     {
         "id": 24,
@@ -243,7 +243,7 @@ image_mapping = {
     19: "20_廢水回收.png",
     20: "21_溶劑回收管線.png",
     21: "22_綠色循環標章.png",
-    22: "23_儲罐裝載.png",
+    22: "23_吊掛isotank.png",
     23: "24_廠區安全巡檢.png",
     24: "25_高效能伺服器.png",
     25: "26_超級電腦運算.png",
