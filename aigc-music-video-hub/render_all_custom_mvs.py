@@ -12,17 +12,23 @@ workspace_dir = Path(os.path.dirname(os.path.abspath(__file__)))
 output_root = workspace_dir / "創作庫"
 images_dir = workspace_dir / "圖片"
 
-# The 34 default shared image filenames to skip rendering
+# The 60 default shared image filenames to skip rendering
 default_images = {
     "01_廠區遠景.png", "02_反應槽近景.png", "03_分子模擬.png", "04_全息藍圖.png",
-    "05_精細分裝.png", "06_QC_檢驗.png", "07_無塵室入口.png", "08_晶圓傳送.png",
+    "05_精細檢驗.png", "06_QC_檢驗.png", "07_無塵室入口.png", "08_晶圓傳送.png",
     "09_溶劑噴灑.png", "10_晶圓清洗.png", "11_烘烤乾燥.png", "12_黃光區天車.png",
     "13_DUV_雷射曝光.png", "14_EUV_極紫外光顯影.png", "15_電路形成.png", "16_晶片切割.png",
     "17_先進封裝.png", "18_終端晶片展示.png", "19_綠色工廠.png", "20_廢水回收.png",
-    "21_溶劑回收管線.png", "22_綠色循環標章.png", "23_儲罐裝載.png", "24_廠區安全巡檢.png",
-    "25_高效能伺服器.png", "26_超級電腦運算.png", "27_物流裝箱.png", "28_高雄港裝船.png",
+    "21_溶劑回收管線.png", "22_綠色循環標章.png", "23_自動灌裝生產線.png", "24_廠區安全巡檢.png",
+    "25_儲罐裝載.png", "26_超級電腦運算.png", "27_物流裝箱.png", "28_高雄港裝船.png",
     "29_貨輪出海.png", "30_科技微觀終幕.png", "31_ESG永續報告.png", "32_智慧中控室.png",
-    "33_廠房屋頂太陽能.png", "34_未來晶片應用.png"
+    "33_廠房屋頂太陽能.png", "34_未來晶片應用.png", "35_研發化驗室.png", "36_高效能伺服器.png",
+    "37_全球智慧物流.png", "38_晶片立體封裝.png", "39_碳中和監測.png", "40_高分子純化.png",
+    "41_環境安全監測.png", "42_綠色包裝桶裝.png", "43_晶圓載具清洗.png", "44_雲端運算中心.png",
+    "45_綠能儲能設備.png", "46_微小缺陷檢測.png", "47_配方自動混合.png", "48_低碳精餾製程.png",
+    "49_晶圓表面烘烤.png", "50_科技與綠能共榮.png", "51_吊掛isotank.png", "52_無人搬運車.png",
+    "53_冷卻塔與循環水.png", "54_超純水純化.png", "55_低碳綠色供應鏈.png", "56_超低溫化學儲存.png",
+    "57_電子顯微鏡分析.png", "58_智慧防護與安全.png", "59_雨水回收綠化.png", "60_碳捕集與利用.png"
 }
 
 def is_legacy_song(song_dir):
