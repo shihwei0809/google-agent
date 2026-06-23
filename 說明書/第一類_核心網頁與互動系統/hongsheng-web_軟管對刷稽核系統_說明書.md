@@ -1,5 +1,8 @@
 # 軟管對刷稽核系統 (hongsheng-web) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/hongsheng-web](https://github.com/shihwei0809/google-agent/tree/main/hongsheng-web)
+
+
 ## 專案簡介
 本專案為鴻勝化學的「軟管對刷稽核系統 — 互動式教育訓練與模擬演練」網頁應用程式。旨在幫助現場操作員通過暗黑科技風格的介面，進行模擬演練與 QC 檢驗培訓。
 

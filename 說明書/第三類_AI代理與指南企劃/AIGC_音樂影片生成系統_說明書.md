@@ -1,5 +1,8 @@
 # AIGC 音樂影片生成系統 (aigc-music-video-hub) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)
+
+
 ## 專案簡介
 本專案為 **勝一化學 AI 音樂影片 (AIGC Music Video Hub)** 的專案整合中心。它利用 Suno AI 生成企業宣傳與科普音樂，並搭配自動化腳本產出精緻的故事板 (Storyboard) 與影片畫面，最終使用 FFmpeg 合成帶有音軌的 MP4 高畫質音樂影片。本專案前端看板已託管於 Firebase Hosting 服務。
 

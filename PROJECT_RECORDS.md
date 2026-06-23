@@ -86,6 +86,41 @@
 
 ---
 
+## 🔗 GitHub 專案同步連結對照表
+
+本機所有專案的 GitHub 託管倉庫與目錄結構對應如下：
+
+| 本機目錄 / 專案名稱 | GitHub 倉庫 / 遠端目錄連結 |
+| :--- | :--- |
+| **`C:\GOOGLE ANGET` (主專案庫)** | [shihwei0809/google-agent](https://github.com/shihwei0809/google-agent) |
+| ├─ `flowchart-web` | [google-agent/flowchart-web](https://github.com/shihwei0809/google-agent/tree/main/flowchart-web) |
+| ├─ `hongsheng-web` | [google-agent/hongsheng-web](https://github.com/shihwei0809/google-agent/tree/main/hongsheng-web) |
+| ├─ `isotank-training` | [google-agent/isotank-training](https://github.com/shihwei0809/google-agent/tree/main/isotank-training) |
+| ├─ `isotank-hf-demo` | [google-agent/isotank-hf-demo](https://github.com/shihwei0809/google-agent/tree/main/isotank-hf-demo) |
+| ├─ `test` (大阪冒險電子書) | [google-agent/test](https://github.com/shihwei0809/google-agent/tree/main/test) |
+| ├─ `聲音轉文字` (NoType) | [google-agent/聲音轉文字](https://github.com/shihwei0809/google-agent/tree/main/聲音轉文字) |
+| ├─ `互動式網站` | [google-agent/互動式網站](https://github.com/shihwei0809/google-agent/tree/main/互動式網站) |
+| ├─ `IPAHQ槽車掃描系統代碼原始APP優化` | [google-agent/IPAHQ槽車掃描系統代碼原始APP優化](https://github.com/shihwei0809/google-agent/tree/main/IPAHQ槽車掃描系統代碼原始APP優化) |
+| ├─ `IPA-生產排程雙儲槽優化` | [google-agent/IPA-生產排程雙儲槽優化](https://github.com/shihwei0809/google-agent/tree/main/IPA-生產排程雙儲槽優化) |
+| ├─ `n系列GAS-轉-APK-離線核對上傳` | [google-agent/n系列GAS-轉-APK-離線核對上傳](https://github.com/shihwei0809/google-agent/tree/main/n系列GAS-轉-APK-離線核對上傳) |
+| ├─ `N系列BARCODE出貨核對` | [google-agent/N系列BARCODE出貨核對](https://github.com/shihwei0809/google-agent/tree/main/N系列BARCODE出貨核對) |
+| ├─ `QC-系統客製化電子化工廠` | [google-agent/QC-系統客製化電子化工廠](https://github.com/shihwei0809/google-agent/tree/main/QC-系統客製化電子化工廠) |
+| ├─ `三合一單-to-PHP-Migration` | [google-agent/三合一單-to-PHP-Migration](https://github.com/shihwei0809/google-agent/tree/main/三合一單-to-PHP-Migration) |
+| ├─ `軟管-Key-Code-管理優化方案` | [google-agent/軟管-Key-Code-管理優化方案](https://github.com/shihwei0809/google-agent/tree/main/軟管-Key-Code-管理優化方案) |
+| ├─ `溫度通報` | [google-agent/溫度通報](https://github.com/shihwei0809/google-agent/tree/main/溫度通報) |
+| ├─ `grad-trip` | [google-agent/grad-trip](https://github.com/shihwei0809/google-agent/tree/main/grad-trip) |
+| ├─ `保養品` | [google-agent/保養品](https://github.com/shihwei0809/google-agent/tree/main/保養品) |
+| ├─ `padlet-board` | [google-agent/padlet-board](https://github.com/shihwei0809/google-agent/tree/main/padlet-board) |
+| ├─ `ai anget` (Obsidian 知識庫) | [google-agent/ai anget](https://github.com/shihwei0809/google-agent/tree/main/ai anget) |
+| ├─ `aigc-music-video-hub` | [google-agent/aigc-music-video-hub](https://github.com/shihwei0809/google-agent/tree/main/aigc-music-video-hub) |
+| **`C:\GOOGLE ANGET\AI 克隆聲音`** | [shihwei0809/voxcpm2-voice-cloner](https://github.com/shihwei0809/voxcpm2-voice-cloner) |
+| **`C:\GOOGLE ANGET\Google Classroom anget`** | [mathruffian-dot/classroom-agent-kit](https://github.com/mathruffian-dot/classroom-agent-kit) |
+| **`C:\GOOGLE ANGET\clasp-netlify-mcp-guide`** | [mathruffian-dot/clasp-netlify-mcp-guide](https://github.com/mathruffian-dot/clasp-netlify-mcp-guide) |
+| **`C:\GOOGLE ANGET\claude-html-slide-builder`** | [mathruffian-dot/claude-html-slide-builder](https://github.com/mathruffian-dot/claude-html-slide-builder) |
+| **`C:\GOOGLE ANGET\claude-video-specs`** | [mathruffian-dot/claude-video-specs](https://github.com/mathruffian-dot/claude-video-specs) |
+
+---
+
 ## 🤖 給 AI Agent 的重要規範與同步機制
 為防止本機專案與說明書、紀錄檔脫節，**所有 AI Coding Agent 在此電腦上執行工作時必須遵守以下協議**：
 1. **建立/變更專案後**：必須在 `說明書/` 對應目錄下建立或更新該專案的 Markdown 操作說明書。
@@ -94,6 +129,6 @@
 4. **雲端同步發佈**：完成上述文件修改後，執行 `netlify deploy --dir=說明書 --prod` 將說明書同步至線上託管空間 (https://cerulean-praline-6b314d.netlify.app/)。
 
 ---
-*最後更新時間：2026年6月20日*
+*最後更新時間：2026年6月23日*
 
 

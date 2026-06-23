@@ -1,5 +1,8 @@
 # 產品製程流程圖系統 (flowchart-web) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/flowchart-web](https://github.com/shihwei0809/google-agent/tree/main/flowchart-web)
+
+
 ## 專案簡介
 此專案為鴻勝化學的「產品製程流程圖系統 (槽體製程管控系統)」，提供廠區槽體、原料、製程、成品槽及格外品之互動式流程圖與即時狀態監控。
 

@@ -46,4 +46,39 @@
 11. 📖 **[跨電腦一鍵備份與還原轉移說明書](第三類_AI代理與指南企劃/跨電腦一鍵備份與還原轉移_說明書.md)**
 
 ---
-*最後更新時間：2026年6月20日*
+
+## 🔗 GitHub 專案同步連結
+
+為了方便開發人員進行同步與本機拉取，以下為本機專案與線上 GitHub 倉庫之對應清單：
+
+| 專案名稱 | 分類 | GitHub 倉庫 / 目錄連結 |
+| :--- | :--- | :--- |
+| **Google Agent 主專案庫** | 核心 / 全部 | [shihwei0809/google-agent](https://github.com/shihwei0809/google-agent) |
+| ├─ flowchart-web | 第一類 | [google-agent/flowchart-web](https://github.com/shihwei0809/google-agent/tree/main/flowchart-web) |
+| ├─ hongsheng-web | 第一類 | [google-agent/hongsheng-web](https://github.com/shihwei0809/google-agent/tree/main/hongsheng-web) |
+| ├─ isotank-training | 第一類 | [google-agent/isotank-training](https://github.com/shihwei0809/google-agent/tree/main/isotank-training) |
+| ├─ isotank-hf-demo | 第一類 | [google-agent/isotank-hf-demo](https://github.com/shihwei0809/google-agent/tree/main/isotank-hf-demo) |
+| ├─ test (大阪冒險電子書) | 第一類 | [google-agent/test](https://github.com/shihwei0809/google-agent/tree/main/test) |
+| ├─ 聲音轉文字 (NoType) | 第一類 | [google-agent/聲音轉文字](https://github.com/shihwei0809/google-agent/tree/main/聲音轉文字) |
+| ├─ 互動式網站 | 第一類 | [google-agent/互動式網站](https://github.com/shihwei0809/google-agent/tree/main/互動式網站) |
+| ├─ IPAHQ 槽車掃描系統 | 第二類 | [google-agent/IPAHQ槽車掃描系統代碼原始APP優化](https://github.com/shihwei0809/google-agent/tree/main/IPAHQ槽車掃描系統代碼原始APP優化) |
+| ├─ IPA 生產排程雙儲槽優化 | 第二類 | [google-agent/IPA-生產排程雙儲槽優化](https://github.com/shihwei0809/google-agent/tree/main/IPA-生產排程雙儲槽優化) |
+| ├─ n系列 GAS 轉 APK | 第二類 | [google-agent/n系列GAS-轉-APK-離線核對上傳](https://github.com/shihwei0809/google-agent/tree/main/n系列GAS-轉-APK-離線核對上傳) |
+| ├─ N系列 條碼出貨核對 | 第二類 | [google-agent/N系列BARCODE出貨核對](https://github.com/shihwei0809/google-agent/tree/main/N系列BARCODE出貨核對) |
+| ├─ QC 系統客製化電子化工廠 | 第二類 | [google-agent/QC-系統客製化電子化工廠](https://github.com/shihwei0809/google-agent/tree/main/QC-系統客製化電子化工廠) |
+| ├─ 三合一單 to PHP Migration | 第二類 | [google-agent/三合一單-to-PHP-Migration](https://github.com/shihwei0809/google-agent/tree/main/三合一單-to-PHP-Migration) |
+| ├─ 軟管 Key-Code 管理 | 第二類 | [google-agent/軟管-Key-Code-管理優化方案](https://github.com/shihwei0809/google-agent/tree/main/軟管-Key-Code-管理優化方案) |
+| ├─ 溫度通報系統 | 第二類 | [google-agent/溫度通報](https://github.com/shihwei0809/google-agent/tree/main/溫度通報) |
+| ├─ grad-trip 畢業旅行企劃 | 第三類 | [google-agent/grad-trip](https://github.com/shihwei0809/google-agent/tree/main/grad-trip) |
+| ├─ 保養品 客服聊天機器人 | 第三類 | [google-agent/保養品](https://github.com/shihwei0809/google-agent/tree/main/保養品) |
+| ├─ padlet-board 留言板 | 第三類 | [google-agent/padlet-board](https://github.com/shihwei0809/google-agent/tree/main/padlet-board) |
+| ├─ ai anget Obsidian 知識庫 | 第三類 | [google-agent/ai anget](https://github.com/shihwei0809/google-agent/tree/main/ai anget) |
+| ├─ aigc-music-video-hub | 第三類 | [google-agent/aigc-music-video-hub](https://github.com/shihwei0809/google-agent/tree/main/aigc-music-video-hub) |
+| **AI 克隆聲音** | 第三類 / 獨立庫 | [shihwei0809/voxcpm2-voice-cloner](https://github.com/shihwei0809/voxcpm2-voice-cloner) |
+| **Google Classroom Agent** | 第三類 / 獨立庫 | [mathruffian-dot/classroom-agent-kit](https://github.com/mathruffian-dot/classroom-agent-kit) |
+| **Clasp + Netlify 部署指南** | 第三類 / 獨立庫 | [mathruffian-dot/clasp-netlify-mcp-guide](https://github.com/mathruffian-dot/clasp-netlify-mcp-guide) |
+| **Claude HTML Slide Builder** | 第三類 / 獨立庫 | [mathruffian-dot/claude-html-slide-builder](https://github.com/mathruffian-dot/claude-html-slide-builder) |
+| **Claude Video Specs** | 第三類 / 獨立庫 | [mathruffian-dot/claude-video-specs](https://github.com/mathruffian-dot/claude-video-specs) |
+
+---
+*最後更新時間：2026年6月23日*

@@ -1,5 +1,8 @@
 # QC 系統客製化電子化工廠 - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/QC-系統客製化電子化工廠](https://github.com/shihwei0809/google-agent/tree/main/QC-系統客製化電子化工廠)
+
+
 ## 專案簡介
 此專案為品管部門客製化的 QC 檢驗結果自動化登錄系統，實現化學品品質檢驗數據與工廠管理系統的對接。
 

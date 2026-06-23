@@ -1,5 +1,8 @@
 # n系列 GAS 轉 APK 與出貨系統 - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/n系列GAS-轉-APK-離線核對上傳](https://github.com/shihwei0809/google-agent/tree/main/n系列GAS-轉-APK-離線核對上傳)
+
+
 ## 專案簡介
 本專案將原本運行於 Google 試算表（GAS）的出貨登錄系統，封裝並轉換為 Android APK 安裝檔，供現場人員配戴手持 Android 掃描器使用，支援離線暫存與批次上傳。
 

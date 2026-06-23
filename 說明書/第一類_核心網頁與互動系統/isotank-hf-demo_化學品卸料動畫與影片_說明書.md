@@ -1,5 +1,8 @@
 # ISOTANK 化學品卸料安全訓練動畫與影片 (isotank-hf-demo) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/isotank-hf-demo](https://github.com/shihwei0809/google-agent/tree/main/isotank-hf-demo)
+
+
 ## 專案簡介
 本專案為鴻勝化學「ISOTANK 化學品卸料安全訓練」的動畫簡報與影片生成系統。本專案為 `isotank-training` 專案的全面升級版，使用最新的 **HyperFrames** 影音生成框架開發，採用深色暗黑科技感風格的網頁投影片（GSAP 動畫效果），配上微軟 Edge TTS 產生的台灣腔男聲旁白，並能自動渲染輸出高畫質的 MP4 教育訓練影片。
 

@@ -1,5 +1,8 @@
 # AI 克隆聲音 (AI-Voice-Cloning) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)
+
+
 ## 專案簡介
 本專案為基於 **VoxCPM2** 語音克隆模型所開發的本機語音生成與 Agent 工具包。它能夠克隆使用者或指定角色的音色與語調，並將任意文字轉換為該角色的語音輸出。本系統具備全自動硬體加速偵測，且深度整合了 AI Agent，讓使用者能透過自然語言指令直接呼叫進行語音生成與對話合成。
 

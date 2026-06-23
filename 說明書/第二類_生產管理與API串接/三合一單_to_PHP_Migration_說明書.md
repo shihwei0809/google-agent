@@ -1,5 +1,8 @@
 # 三合一單 to PHP Migration - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/三合一單-to-PHP-Migration](https://github.com/shihwei0809/google-agent/tree/main/三合一單-to-PHP-Migration)
+
+
 ## 專案簡介
 本指南與代碼用於將舊有的「三合一出貨確認單」系統（基於 Excel 巨集與 GAS），遷移至以 PHP + SQL 為架構的本地化工廠中央系統中。
 

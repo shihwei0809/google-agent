@@ -1,5 +1,8 @@
 # ISOTANK 化學品卸料安全訓練 (isotank-training) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/isotank-training](https://github.com/shihwei0809/google-agent/tree/main/isotank-training)
+
+
 ## 專案簡介
 本網頁為 ISOTANK 化學品進貨安全與卸料訓練的互動式安全教材，提供視覺化的 9 個安全步驟指導。
 

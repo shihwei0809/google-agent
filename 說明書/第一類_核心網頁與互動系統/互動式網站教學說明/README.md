@@ -1,5 +1,8 @@
 # 互動式教學系統 - 全面操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)
+
+
 本專案是一個基於「用 AI 打造互動教學網頁五個階段」所開發的教學套件本機實作版本。旨在幫助講師/訓練官建立高互動性的數位課堂，提升人員訓練效率。
 
 ---
