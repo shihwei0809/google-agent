@@ -45,7 +45,7 @@ master_scenes = [   {   'id': 1,
                  'detailed, photorealistic, 8k.',
         'motion': 'Robotic needle dispensing liquid, liquid splashing slightly inside, camera focus shifts, slow and '
                   'high precision, no morphing.',
-        'name': '精細分裝'},
+        'name': '精細檢驗'},
     {   'id': 6,
         'image': 'A chemist in a white lab coat inspecting a flask of pure blue glowing solvent, advanced chemical '
                  'quality control laboratory, glowing display screens, futuristic cleanroom aesthetic, neon green and '
@@ -333,7 +333,7 @@ image_mapping = {
     1: "02_反應槽近景.png",
     2: "03_分子模擬.png",
     3: "04_全息藍圖.png",
-    4: "05_精細分裝.png",
+    4: "05_精細檢驗.png",
     5: "06_QC_檢驗.png",
     6: "07_無塵室入口.png",
     7: "08_晶圓傳送.png",

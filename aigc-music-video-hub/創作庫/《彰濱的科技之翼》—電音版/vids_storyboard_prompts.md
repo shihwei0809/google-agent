@@ -17,296 +17,296 @@
 * 📂 **圖片檔名**：`01_廠區遠景.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A modern high-tech chemical refinery at night, glowing neon green and blue tubes, tall distillation towers, futuristic cyberpunk aesthetic, highly detailed, 8k.
+  A modern high-tech chemical refinery at night, glowing neon green and blue tubes, tall distillation towers, futuristic green energy refinery, sunset lighting, clean eco-friendly facility, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Slow drone shot panning over the refinery, neon lights pulsing along pipelines, steam rising gently, cinematic movement.
+  Slow drone shot panning over the refinery, neon lights pulsing along pipelines, steam rising gently, cinematic smooth movement.
   ```
 
 ---
 
-### 📌 場景 02：反應槽近景
+### 📌 場景 02：分子模擬
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`02_反應槽近景.png`
+* 📂 **圖片檔名**：`03_分子模擬.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Close-up of a polished stainless steel chemical reactor, glowing blue valves, metal pipelines, high-tech industrial facility, cyber-tech aesthetic, 8k.
+  Holographic interface showing advanced chemical engineering simulation of a molecule, glowing blue and green atoms connecting, dark tech laboratory, futuristic cleanroom aesthetic, neon green and blue accents, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Slow camera slide showing the pipes and valves, glowing blue liquid indicator lights blinking, subtle steam venting.
+  Holographic molecular design interface spinning slowly, digital chemical data streaming on screen, gentle camera rotation.
   ```
 
 ---
 
-### 📌 場景 03：全息藍圖
-* ⏱️ **建議播放長度**：`7.94 秒`
-* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`04_全息藍圖.png`
-* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
-  ```text
-  A glowing 3D holographic molecular model of a complex solvent structure floating over a digital blueprint interface, digital cybernetic grid background, neon cyan and green, 8k.
-  ```
-* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
-  ```text
-  The holographic molecule rotating slowly with subtle camera tilt, particles floating in air.
-  ```
-
----
-
-### 📌 場景 04：QC 檢驗
+### 📌 場景 03：QC 檢驗
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`06_QC_檢驗.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A chemist in a white lab coat inspecting a flask of pure blue glowing solvent, advanced chemical quality control laboratory, glowing display screens, 8k.
+  A chemist in a white lab coat inspecting a flask of pure blue glowing solvent, advanced chemical quality control laboratory, glowing display screens, futuristic cleanroom aesthetic, neon green and blue accents, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Close up of the chemist swirling the glass flask, background laboratory equipment lights blinking.
+  Close up of the chemist swirling the glass flask slowly, background laboratory equipment lights blinking gently.
   ```
 
 ---
 
-### 📌 場景 05：無塵室入口
+### 📌 場景 04：晶圓傳送
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`07_無塵室入口.png`
+* 📂 **圖片檔名**：`08_晶圓傳送.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A futuristic cleanroom air shower entrance, bright yellow warning lights, industrial robotic arms, ultra-clean environment, cyberpunk neon green accents, 8k.
+  A high-tech photolithography machine, robotic gripper loading a shiny silicon wafer cassette, amber safety lights, semiconductor fabrication facility, futuristic cleanroom aesthetic, neon green and blue accents, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  A slow camera pushing forward into the air shower entrance, yellow lights blinking, robotic arms moving.
+  Robotic arm lifting the wafer pod, smooth mechanical movement, warning lights flashing slowly in background.
   ```
 
 ---
 
-### 📌 場景 06：溶劑噴灑
-* ⏱️ **建議播放長度**：`7.94 秒`
-* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`09_溶劑噴灑.png`
-* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
-  ```text
-  A macro close-up of high-purity chemical solvent being sprayed onto a reflective silicon wafer, microscopic liquid droplets, semiconductor cleaning process, 8k.
-  ```
-* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
-  ```text
-  Liquid ripples and waves washing across the reflective wafer surface, slow motion spray.
-  ```
-
----
-
-### 📌 場景 07：烘烤乾燥
+### 📌 場景 05：烘烤乾燥
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`11_烘烤乾燥.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A silicon wafer inside a high-tech heating chamber, glowing orange heating elements, chemical vapor evaporating, precision thermal curing, 8k.
+  A silicon wafer inside a high-tech heating chamber, soft glowing orange thermographic heating elements, chemical vapor evaporating gently, precision thermal curing, futuristic cleanroom aesthetic, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Orange heating elements pulsing, thin chemical vapor rising and evaporating from the wafer.
+  Orange heating elements pulsing, thin chemical vapor rising and evaporating from the wafer slowly, gentle heat haze.
   ```
 
 ---
 
-### 📌 場景 08：DUV 雷射曝光
+### 📌 場景 06：DUV 雷射曝光
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`13_DUV_雷射曝光.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A deep ultraviolet DUV laser engraving circuit lines on a silicon wafer, glowing purple light paths, futuristic chip fabrication process, 8k.
+  A deep ultraviolet DUV laser engraving circuit lines on a silicon wafer, glowing purple light paths, futuristic chip fabrication process, futuristic cleanroom aesthetic, neon green and blue accents, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Laser beam scanning across the wafer, purple light carving nano circuits, bright sparks flashing.
+  Laser beam scanning across the wafer, purple light carving nano circuits, glowing purple circuit paths forming cleanly, no sparks.
   ```
 
 ---
 
-### 📌 場景 09：EUV 極紫外光顯影
-* ⏱️ **建議播放長度**：`7.94 秒`
-* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`14_EUV_極紫外光顯影.png`
-* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
-  ```text
-  An EUV light beam scanner projecting complex nanoscale patterns onto a silicon wafer, intense golden and purple laser glow, high-tech semiconductor fab, 8k.
-  ```
-* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
-  ```text
-  EUV scanner projecting circuit patterns, gold laser beams sweeping across the silicon wafer surface.
-  ```
-
----
-
-### 📌 場景 10：晶片切割
+### 📌 場景 07：晶片切割
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`16_晶片切割.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  An automated high-speed laser dicing machine cutting a silicon wafer into individual microchips, bright yellow sparks, precision mechanical blades, 8k.
+  An automated high-speed laser dicing machine cutting a silicon wafer into individual microchips, high-precision water cooling mist, precision mechanical blades, futuristic cleanroom aesthetic, neon green and blue accents, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Laser cutting the wafer, yellow sparks flying, precision robotic mechanics, macro zoom.
+  Laser cutting the wafer, liquid cooling mist, clean laser dicing process, precision robotic mechanics, macro zoom, no sparks.
   ```
 
 ---
 
-### 📌 場景 11：終端晶片展示
+### 📌 場景 08：綠色工廠
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`18_終端晶片展示.png`
+* 📂 **圖片檔名**：`19_綠色工廠.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A glowing futuristic CPU chip on a motherboard, neon pathways pulsing with cyan and violet light, high-speed computer processor, 8k.
+  A modern chemical plant surrounded by wind turbines and solar panels, green sunrise, clean energy theme, sustainable ESG facility, futuristic green energy refinery, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Cinematic macro zoom-in on the CPU, neon circuitry lines pulsing with data traffic.
+  Slow camera sweep of the plant, wind turbines spinning slowly in background, solar panels reflecting the sun.
   ```
 
 ---
 
-### 📌 場景 12：廢水回收
-* ⏱️ **建議播放長度**：`7.94 秒`
-* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`20_廢水回收.png`
-* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
-  ```text
-  A high-tech water purification facility, clean water flowing rapidly through glass tubes, glowing green digital leaf overlay, eco-friendly tech, 8k.
-  ```
-* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
-  ```text
-  Clean water flowing through tubes, bubbles rising, green leaf icon pulsing on digital overlay screen.
-  ```
-
----
-
-### 📌 場景 13：溶劑回收管線
+### 📌 場景 09：溶劑回收管線
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`21_溶劑回收管線.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Emerald green recycled solvent flowing through glass tubes in a circular loop, bubbles, sustainable chemical recycling plant, eco tech, 8k.
+  Emerald green recycled solvent flowing through glass tubes in a circular loop, bubbles, sustainable chemical recycling plant, eco tech, futuristic green energy refinery, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Recycled solvent flowing rapidly, bubbles rising, glowing green indicators flashing.
+  Recycled solvent flowing rapidly, bubbles rising, glowing green indicators flashing slowly.
   ```
 
 ---
 
-### 📌 場景 14：儲罐裝載
+### 📌 場景 10：廠區安全巡檢
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`23_儲罐裝載.png`
+* 📂 **圖片檔名**：`24_廠區安全巡檢.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  An automated bottling line filling containers with clear liquid, smooth mechanical nozzles, conveyor belt, high-tech industrial packaging, 8k.
+  A professional chemical plant inspector wearing safety gear and a helmet, walking and inspecting pipes in a modern high-tech refinery during sunset, wind turbines and solar panels in the distance, futuristic green energy refinery, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Bottling machine nozzles moving up and down, filling containers, conveyor belt moving.
+  Technician walking slowly and checking valves, clipboard in hand, wind turbines spinning in soft sunset background.
   ```
 
 ---
 
-### 📌 場景 15：高效能伺服器
+### 📌 場景 11：超級電腦運算
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`25_高效能伺服器.png`
+* 📂 **圖片檔名**：`26_超級電腦運算.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Rows of server racks with neon green liquid cooling tubes, high-speed AI processors, blinking data streams, futuristic server room, 8k.
+  Abstract visualization of massive data transferring, lines of light and data streams rushing, glowing gold and blue paths on dark background, futuristic AI server room, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Camera moving forward through server racks, liquid cooling tubes glowing, indicator lights blinking.
+  Data streams rushing, lines of light pulsing and transferring slowly and steadily across the screen.
   ```
 
 ---
 
-### 📌 場景 16：物流裝箱
+### 📌 場景 12：貨輪出海
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`27_物流裝箱.png`
+* 📂 **圖片檔名**：`29_貨輪出海.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Inside a modern automated warehouse, robotic forklifts carrying cargo boxes marked with green ESG logos, sleek metallic shelves, 8k.
+  A majestic cargo container ship sailing across the open ocean under a beautiful orange sunset sky, cinematic drone shot, clean environment, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Robotic forklifts moving boxes, wheels turning, automated warehouse systems operating.
+  Cargo ship sailing forward on ocean waves, golden sunset reflecting on water, slow drone pan.
   ```
 
 ---
 
-### 📌 場景 17：高雄港裝船
+### 📌 場景 13：ESG永續報告
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`28_高雄港裝船.png`
+* 📂 **圖片檔名**：`31_ESG永續報告.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  Giant gantry cranes loading green shipping containers onto a massive cargo ship, Kaohsiung harbor during a beautiful orange sunset, golden hour, 8k.
+  A futuristic digital dashboard displaying ESG sustainability metrics and carbon reduction charts inside a modern corporate office, glowing green and blue graphs, high-tech interface, modern corporate office, highly detailed, photorealistic, 8k.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Time-lapse of cranes loading cargo, sunset reflections on ocean water.
+  Slow camera pan across the glowing ESG dashboard, green charts showing emission decrease, numbers updating in real-time.
   ```
 
 ---
 
-### 📌 場景 18：科技微觀終幕
-* ⏱️ **建議播放長度**：`7.94 秒`
-* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`30_科技微觀終幕.png`
-* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
-  ```text
-  A shining microchip zooming out into a constellation of connected data points and constellations, bright golden and blue lights, epic finale, 8k.
-  ```
-* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
-  ```text
-  Cinematic zoom-out from microchip to global data network, lights pulsing, epic climax.
-  ```
-
----
-
-### 📌 場景 19：智慧中控室
-* ⏱️ **建議播放長度**：`7.94 秒`
-* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
-* 📂 **圖片檔名**：`32_智慧中控室.png`
-* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
-  ```text
-  A futuristic intelligent chemical control room with a giant curved screen displaying real-time automation data and refinery status, blue and green neon lights, highly detailed, 8k.
-  ```
-* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
-  ```text
-  Camera glides through the control room, displaying glowing monitoring interface, data streaming.
-  ```
-
----
-
-### 📌 場景 20：未來晶片應用
+### 📌 場景 14：未來晶片應用
 * ⏱️ **建議播放長度**：`7.94 秒`
 * 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
 * 📂 **圖片檔名**：`34_未來晶片應用.png`
 * ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
   ```text
-  A high-tech autonomous electric car driving through a futuristic smart city at sunset, neon light trails, transparent digital overlay highlighting the internal processor, highly detailed, 8k.
+  A high-tech autonomous electric car driving through a futuristic smart city at sunset, neon light trails, transparent digital overlay highlighting the internal processor, highly detailed, photorealistic, 8k. Clean aesthetic, no fire, no sparks.
   ```
 * ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
   ```text
-  Electric car speeding forward with beautiful neon trails, camera zooms into transparent processor overlay.
+  Electric car speeding forward with beautiful neon trails, camera zooms slowly into transparent processor overlay.
+  ```
+
+---
+
+### 📌 場景 15：全球智慧物流
+* ⏱️ **建議播放長度**：`7.94 秒`
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`37_全球智慧物流.png`
+* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
+  ```text
+  Holographic digital globe displaying trade and logistics routes from Kaohsiung port to global technology centers, neon light paths, clean environment, highly detailed, photorealistic, 8k. No fire, no sparks.
+  ```
+* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
+  ```text
+  Holographic globe rotating slowly, data lines pulsing along shipping routes.
+  ```
+
+---
+
+### 📌 場景 16：碳中和監測
+* ⏱️ **建議播放長度**：`7.94 秒`
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`39_碳中和監測.png`
+* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
+  ```text
+  Real-time sustainability dashboard showing zero-emission data and energy efficiency metrics in the chemical plant, glowing green leaf accents, modern corporate office, highly detailed, photorealistic, 8k.
+  ```
+* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
+  ```text
+  Soft pan across the monitoring interface, carbon reduction graphs updating slowly.
+  ```
+
+---
+
+### 📌 場景 17：綠色包裝桶裝
+* ⏱️ **建議播放長度**：`7.94 秒`
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`42_綠色包裝桶裝.png`
+* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
+  ```text
+  Robotic arms filling and sealing metallic drums marked with green recycling logos on an automated conveyor line, futuristic green energy refinery, highly detailed, photorealistic, 8k.
+  ```
+* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
+  ```text
+  Robotic arm stamping the logo, conveyor belt moving drums forward slowly.
+  ```
+
+---
+
+### 📌 場景 18：雲端運算中心
+* ⏱️ **建議播放長度**：`7.94 秒`
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`44_雲端運算中心.png`
+* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
+  ```text
+  Rows of high-density server cabinets, pulsing blue LED lights, liquid cooling tubes running along the racks, futuristic AI server room, highly detailed, photorealistic, 8k.
+  ```
+* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
+  ```text
+  Camera moving down the server aisle slowly, status indicator lights flashing gently.
+  ```
+
+---
+
+### 📌 場景 19：配方自動混合
+* ⏱️ **建議播放長度**：`7.94 秒`
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`47_配方自動混合.png`
+* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
+  ```text
+  Automated mixing system blending electronic chemicals inside a glass vessel, swirling colorful liquid, high-tech lab, futuristic cleanroom aesthetic, highly detailed, photorealistic, 8k.
+  ```
+* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
+  ```text
+  Liquid blending in a vortex inside the vessel, bubbles circulating slowly.
+  ```
+
+---
+
+### 📌 場景 20：科技與綠能共榮
+* ⏱️ **建議播放長度**：`7.94 秒`
+* 🟢 **圖片狀態**：`【已生成本機圖片】` (你可以直接在資料夾內的 `圖片/` 目錄找到此檔上傳)
+* 📂 **圖片檔名**：`50_科技與綠能共榮.png`
+* ✍️ **1. 圖片生成提示詞 (Text-to-Image)**：
+  ```text
+  An inspiring closing shot of the high-tech chemical plant surrounded by lush green forests and a clear blue sky, solar panels and wind turbines operating, futuristic green energy refinery, highly detailed, photorealistic, 8k.
+  ```
+* ✍️ **2. 動態生成提示詞 (Image-to-Video / Motion)**：
+  ```text
+  Slow drone rising, showing the clean facility harmonized with the surrounding green landscape, smooth flight.
   ```
 
 ---
