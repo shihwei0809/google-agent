@@ -801,60 +801,7 @@ window.addEventListener('DOMContentLoaded', async ()=>{
 });
 </script>
 
-<!-- PORTAL_RETURN_BADGE_V1 -->
-<script>
-(function() {
-    var badge = document.createElement('div');
-    badge.id = 'portal-return-badge';
-    badge.innerHTML = '🔙 返回專案大廳';
-    badge.style.position = 'fixed';
-    badge.style.top = '15px';
-    badge.style.right = '15px';
-    badge.style.zIndex = '99999';
-    badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
-    badge.style.border = '1px solid #00f2fe';
-    badge.style.color = '#00f2fe';
-    badge.style.padding = '8px 16px';
-    badge.style.borderRadius = '20px';
-    badge.style.fontFamily = 'sans-serif';
-    badge.style.fontSize = '13px';
-    badge.style.fontWeight = 'bold';
-    badge.style.cursor = 'pointer';
-    badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
-    badge.style.transition = 'all 0.3s ease';
-    
-    badge.onmouseover = function() {
-        badge.style.transform = 'scale(1.05)';
-        badge.style.backgroundColor = '#00f2fe';
-        badge.style.color = '#000';
-        badge.style.boxShadow = '0 0 20px rgba(0, 242, 254, 0.5)';
-    };
-    badge.onmouseout = function() {
-        badge.style.transform = 'scale(1)';
-        badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
-        badge.style.color = '#00f2fe';
-        badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
-    };
-    
-    badge.onclick = function() {
-        if (window.location.hostname.indexOf('netlify') !== -1) {
-            window.location.href = 'https://google-anget-manuals-syhm.netlify.app';
-        } else {
-            window.location.href = '../說明書/index.html';
-        }
-    };
-    
-    // Ensure body exists before appending
-    if (document.body) {
-        document.body.appendChild(badge);
-    } else {
-        window.addEventListener('DOMContentLoaded', function() {
-            document.body.appendChild(badge);
-        });
-    }
-})();
-</script>
-<!-- PORTAL_RETURN_BADGE_V1_END -->
+
 
 </body>
 </html>
