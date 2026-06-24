@@ -27,7 +27,8 @@ web_projects = [
     {"name": "isotank-hf-demo", "src": base_dir / "isotank-hf-demo"},
     {"name": "test", "src": base_dir / "test"},
     {"name": "互動式網站", "src": base_dir / "互動式網站"},
-    {"name": "padlet-board", "src": base_dir / "padlet-board"}
+    {"name": "padlet-board", "src": base_dir / "padlet-board"},
+    {"name": "hr_quiz_v2", "src": base_dir / "影片生成" / "hr_quiz_v2"}
 ]
 
 # Copy ignore patterns
@@ -84,7 +85,8 @@ if portal_html_path.exists():
         'launchUrl: "../isotank-hf-demo/index.html"': 'launchUrl: "./projects/isotank-hf-demo/index.html"',
         'launchUrl: "../test/index.html"': 'launchUrl: "./projects/test/index.html"',
         'launchUrl: "../互動式網站/index.html"': 'launchUrl: "./projects/互動式網站/index.html"',
-        'launchUrl: "../padlet-board/index.html"': 'launchUrl: "./projects/padlet-board/index.html"'
+        'launchUrl: "../padlet-board/index.html"': 'launchUrl: "./projects/padlet-board/index.html"',
+        'launchUrl: "../影片生成/hr_quiz_v2/index.html"': 'launchUrl: "./projects/hr_quiz_v2/index.html"'
     }
     
     updated = False

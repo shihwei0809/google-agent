@@ -28,6 +28,7 @@
 6. 📖 **[軟管 Key-Code 管理優化說明書](第二類_生產管理與API串接/軟管_KeyCode_管理優化方案_說明書.md)**
 7. 📖 **[QC 系統客製化電子化工廠說明書](第二類_生產管理與API串接/QC_系統客製化電子化工廠_說明書.md)**
 8. 📖 **[溫度通報系統 本機與雲端同步備援監控說明書](第二類_生產管理與API串接/溫度通報系統_本機與雲端同步備援監控_說明書.md)**
+9. 📖 **[員工教育訓練測驗系統說明書](第二類_生產管理與API串接/員工教育訓練測驗系統_說明書.md)**
 
 ---
 
@@ -69,6 +70,7 @@
 | ├─ 三合一單 to PHP Migration | 第二類 | [google-agent/三合一單-to-PHP-Migration](https://github.com/shihwei0809/google-agent/tree/main/三合一單-to-PHP-Migration) |
 | ├─ 軟管 Key-Code 管理 | 第二類 | [google-agent/軟管-Key-Code-管理優化方案](https://github.com/shihwei0809/google-agent/tree/main/軟管-Key-Code-管理優化方案) |
 | ├─ 溫度通報系統 | 第二類 | [google-agent/溫度通報](https://github.com/shihwei0809/google-agent/tree/main/溫度通報) |
+| ├─ 員工教育訓練測驗系統 (hr_quiz_v2) | 第二類 | [google-agent/影片生成/hr_quiz_v2](https://github.com/shihwei0809/google-agent/tree/main/影片生成/hr_quiz_v2) |
 | ├─ grad-trip 畢業旅行企劃 | 第三類 | [google-agent/grad-trip](https://github.com/shihwei0809/google-agent/tree/main/grad-trip) |
 | ├─ 保養品 客服聊天機器人 | 第三類 | [google-agent/保養品](https://github.com/shihwei0809/google-agent/tree/main/保養品) |
 | ├─ padlet-board 留言板 | 第三類 | [google-agent/padlet-board](https://github.com/shihwei0809/google-agent/tree/main/padlet-board) |
@@ -81,4 +83,4 @@
 | **Claude Video Specs** | 第三類 / 獨立庫 | [mathruffian-dot/claude-video-specs](https://github.com/mathruffian-dot/claude-video-specs) |
 
 ---
-*最後更新時間：2026年6月23日*
+*最後更新時間：2026年6月24日*
