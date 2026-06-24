@@ -1039,12 +1039,26 @@ def main():
     # B. 從 Google 試算表載入並與本機名單合併
     # 已於 main() 開頭完成載入，此處直接使用已下載的 sheet_recipients 與 threshold
     
-    # 合併並去除重複
-    final_emails = list(set(local_emails + sheet_recipients["emails"]))
+    # 合併並去除重複 (新增自動分割逗號、提取 Name <email> 中乾淨 Email 的防錯機制)
+    import email.utils
+    cleaned_emails = []
+    raw_emails_pool = local_emails + sheet_recipients["emails"]
+    for raw_item in raw_emails_pool:
+        if not raw_item:
+            continue
+        # 如果單一字串中含有多個逗號隔開的 Email，自動分割
+        parts = raw_item.split(",") if isinstance(raw_item, str) else [raw_item]
+        for part in parts:
+            part_str = str(part).strip()
+            if part_str:
+                _, addr = email.utils.parseaddr(part_str)
+                # 如果 parseaddr 成功解析出 @，則使用解析出的乾淨 Email；否則當作普通字串處理
+                addr = addr.strip() if (addr and "@" in addr) else part_str
+                if addr and "@" in addr and "RECIPIENT_EMAIL" not in addr and "YOUR_EMAIL" not in addr:
+                    cleaned_emails.append(addr)
+                    
+    final_emails = list(set(cleaned_emails))
     final_line_ids = list(set(local_line_ids + sheet_recipients["line_ids"]))
-    
-    # 清理掉無效字串 (例如 placeholder 範例)
-    final_emails = [e for e in final_emails if e and "RECIPIENT_EMAIL" not in e and "YOUR_EMAIL" not in e]
     final_line_ids = [l for l in final_line_ids if l and "YOUR_LINE" not in l]
     
     print(f"【聯絡人名單確認】電子郵件收件人: {final_emails} | LINE 推播收件人: {final_line_ids}")
