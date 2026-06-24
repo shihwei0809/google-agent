@@ -1,5 +1,8 @@
 # IPAHQ 槽車確認與掃描系統 - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/IPAHQ槽車掃描系統代碼原始APP優化](https://github.com/shihwei0809/google-agent/tree/main/IPAHQ槽車掃描系統代碼原始APP優化)
+
+
 ## 專案簡介
 本專案用於鴻勝化學的 IPAHQ 槽車進貨確認與掃描登記，透過條碼掃描防錯，確保卸料車號與採購單一致。
 

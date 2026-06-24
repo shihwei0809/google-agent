@@ -1,5 +1,8 @@
 # Level 4 & Level 5：AI 即時批改與對談 - 使用說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)
+
+
 ---
 
 ## 📝 模組概述

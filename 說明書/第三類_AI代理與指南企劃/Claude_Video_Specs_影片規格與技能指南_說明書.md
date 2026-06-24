@@ -1,5 +1,8 @@
 # Claude Video Specs 影片規格與技能指南 (claude-video-specs) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)
+
+
 ## 專案簡介
 本專案為 **三類影片製作規範與 AI Agent 自動化技能建置流程**。它為創作者與 AI Agent（如 Antigravity, Claude Code）定義了標準的影片製作流程與視覺設計依據，並提供自動化安裝與打包腳本，能將影片規格打包成 AI Agent 可直接呼叫的獨立「技能（Skill）」。
 

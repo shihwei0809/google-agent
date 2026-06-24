@@ -1,5 +1,8 @@
 # Clasp + Netlify 部署指南 - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[mathruffian-dot/clasp-netlify-mcp-guide](https://github.com/mathruffian-dot/clasp-netlify-mcp-guide)
+
+
 ## 專案簡介
 本專案提供標準安裝與部署指南，指導 AI Agent 如何將網頁前端自動部署至 Netlify，並將後端 Apps Script 透過 Google clasp 工具同步，實現無縫的雲端備份與部署。
 

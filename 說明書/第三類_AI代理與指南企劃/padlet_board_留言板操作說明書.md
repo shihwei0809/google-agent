@@ -1,5 +1,8 @@
 # Padlet 留言板系統 - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/padlet-board](https://github.com/shihwei0809/google-agent/tree/main/padlet-board)
+
+
 ## 專案簡介
 此專案實作了一個類 Padlet 風格的互動看板系統，使用者可以在板上自由新增便利貼、留言、與進行拖曳排版。
 

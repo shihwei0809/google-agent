@@ -1,5 +1,8 @@
 # 聲音轉文字 (NoType 語音助理) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/聲音轉文字](https://github.com/shihwei0809/google-agent/tree/main/聲音轉文字)
+
+
 ## 專案簡介
 NoType 是一個本機安裝的語音助理，允許使用者按下快捷鍵進行快速錄音，並自動透過 Whisper / Groq API 轉成文字，隨後模擬鍵盤將文字自動輸入至目前游標所在的任何應用程式中。
 

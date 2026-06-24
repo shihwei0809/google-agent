@@ -1,5 +1,8 @@
 # 軟管 Key-Code 管理優化方案 - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/軟管-Key-Code-管理優化方案](https://github.com/shihwei0809/google-agent/tree/main/軟管-Key-Code-管理優化方案)
+
+
 ## 專案簡介
 本方案針對鴻勝化學現場各製程管線的「軟管金鑰防錯編碼 (Key-Code)」進行條碼化與資料庫化管理，杜絕人工接錯管路的風險。
 

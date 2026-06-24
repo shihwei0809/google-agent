@@ -1,5 +1,8 @@
 # 畢業旅行與簡報企劃 (grad-trip) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)
+
+
 ## 專案簡介
 本專案用於生成國小畢旅二天一夜回憶錄的互動式電子書網頁與配音影片合成。
 

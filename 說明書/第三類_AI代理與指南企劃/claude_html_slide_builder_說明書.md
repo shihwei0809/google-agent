@@ -1,5 +1,8 @@
 # Claude HTML Slide Builder - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)
+
+
 ## 專案簡介
 此工具為專門設計給 Claude Code/Antigravity 使用的 Skill，能將純文字教材或教學大綱，自動重構並轉換為 Reveal.js 的互動式網頁簡報。
 

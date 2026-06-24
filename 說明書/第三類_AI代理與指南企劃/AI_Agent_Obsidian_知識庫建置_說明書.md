@@ -1,5 +1,8 @@
 # AI Agent Obsidian 知識庫建置 (ai-anget) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/ai anget](https://github.com/shihwei0809/google-agent/tree/main/ai anget)
+
+
 ## 專案簡介
 本專案定義並實作了一套供 AI Agent 自動執行的 **Obsidian 二次大腦知識庫自動建置與整理工作流**。系統能夠自動從指定的 YouTube 頻道中提取影片字幕、進行去重與清洗，並按照 Obsidian 三層架構（Clipping、創作庫、知識庫）進行整理，最後產出結構化的教學與簡報企劃。
 

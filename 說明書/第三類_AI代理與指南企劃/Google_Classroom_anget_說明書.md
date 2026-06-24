@@ -1,5 +1,8 @@
 # Google Classroom Agent - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[mathruffian-dot/classroom-agent-kit](https://github.com/mathruffian-dot/classroom-agent-kit)
+
+
 ## 專案簡介
 本專案為一個自動化 AI 代理服務，串接 Google Classroom API，能協助講師自動發布作業、管理學員作答、並自動批改上傳作業。
 

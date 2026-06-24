@@ -1,5 +1,8 @@
 # IPA 生產排程雙儲槽優化 - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/IPA-生產排程雙儲槽優化](https://github.com/shihwei0809/google-agent/tree/main/IPA-生產排程雙儲槽優化)
+
+
 ## 專案簡介
 本專案針對 IPA 生產排程進行雙儲槽（儲槽 A、儲槽 B）容量分配優化，通過演算法自動計算進出料排程，防止槽體溢流並達到最大產能配置。
 

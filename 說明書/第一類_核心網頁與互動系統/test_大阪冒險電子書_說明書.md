@@ -1,5 +1,8 @@
 # 大阪冒險之旅四格漫畫電子書 (test) - 操作說明書
 
+> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/test](https://github.com/shihwei0809/google-agent/tree/main/test)
+
+
 ## 專案簡介
 本專案為小妤一家四口大阪五天四夜旅遊的四格漫畫互動式電子書，內建雙語音播放（微軟原生台灣國語與 ElevenLabs 電影級語音）與角色試聽功能。
 

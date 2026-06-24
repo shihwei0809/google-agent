@@ -351,11 +351,15 @@ def main():
             scene_id = scene["id"]
             md_filename = scene.get("filename", "")
             
-            # 1. Prefer matching by exact filename written in the Markdown if it exists locally
+            # 1. Prefer matching by exact filename written in the Markdown if it exists locally in song's folder
             if md_filename and md_filename in existing_filenames:
                 scene["status"] = "🟢"
                 scene["image_url"] = f"創作庫/{folder}/圖片/{md_filename}"
-            # 2. Fall back to prefix matching using the prefix from the markdown filename
+            # 2. Check if the exact filename exists in the master "圖片" directory
+            elif md_filename and os.path.exists(os.path.join(workspace_dir, "圖片", md_filename)):
+                scene["status"] = "🟢"
+                scene["image_url"] = f"圖片/{md_filename}"
+            # 3. Fall back to prefix matching using the prefix from the markdown filename in song's folder
             else:
                 prefix_matched = False
                 if md_filename:
