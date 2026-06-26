@@ -520,10 +520,10 @@ function checkWeatherAndNotify() {
     if (lastState !== "HOT") {
       shouldNotify = true;
       alertStateText = "高溫超標警報";
-      notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定閾值！";
+      notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定溫度閾值！";
       
       notifyBody = "【環境高溫警報】\n";
-      notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定閾值 " + threshold + "°C)\n";
+      notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定溫度閾值 " + threshold + "°C)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
       notifyBody += "※ 請相關人員開啟灑水設備降溫循環過濾器。\n";
@@ -536,10 +536,10 @@ function checkWeatherAndNotify() {
     if (lastState === "HOT") {
       shouldNotify = true;
       alertStateText = "溫度回落正常";
-      notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定閾值。";
+      notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定溫度閾值。";
       
       notifyBody = "【環境溫度回落通知】\n";
-      notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定閾值 " + threshold + "°C 以下)\n";
+      notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定溫度閾值 " + threshold + "°C 以下)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
       notifyBody += "※ 目前高溫警報已解除，氣溫已回落至安全範圍。";
