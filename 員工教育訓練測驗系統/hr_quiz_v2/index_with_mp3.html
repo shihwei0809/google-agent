@@ -912,6 +912,14 @@ function applyData(data){
 // 控制設定視窗顯示/隱藏
 function toggleCfgModal(){
   const m=document.getElementById('cfg-modal');
+  if(!m.classList.contains('show')){
+    const pwd=prompt('請輸入管理員密碼以進入系統設定：');
+    if(pwd===null) return;
+    if(pwd!=='admin888'){
+      alert('密碼錯誤，拒絕存取！');
+      return;
+    }
+  }
   m.classList.toggle('show');
   if(m.classList.contains('show')){
     document.getElementById('cfg-api-url').value=APPS_SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE'?'':APPS_SCRIPT_URL;
