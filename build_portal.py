@@ -28,7 +28,7 @@ web_projects = [
     {"name": "test", "src": base_dir / "test"},
     {"name": "互動式網站", "src": base_dir / "互動式網站"},
     {"name": "padlet-board", "src": base_dir / "padlet-board"},
-    {"name": "hr_quiz_v2", "src": base_dir / "影片生成" / "hr_quiz_v2"}
+    {"name": "hr_quiz_v2", "src": base_dir / "員工教育訓練測驗系統" / "hr_quiz_v2"}
 ]
 
 # Copy ignore patterns

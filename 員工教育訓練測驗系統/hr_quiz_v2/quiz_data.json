@@ -1,0 +1,79 @@
+{
+  "status": "ok",
+  "title": "員工教育訓練測驗系統 — 工作規則",
+  "subtitle": "請仔細觀看簡報，看完後即可解鎖測驗進行答題。",
+  "slides": [
+    { "img": "slides/slide_01.png", "label": "第 1 頁｜簡介", "say": "歡迎參加本次教育訓練，請仔細聆聽每一頁的說明內容。" },
+    { "img": "slides/slide_02.png", "label": "第 2 頁｜工作規則", "say": "請在此填入第二頁的語音朗讀內容。" },
+    { "img": "slides/slide_03.png", "label": "第 3 頁", "say": "" },
+    { "img": "slides/slide_04.png", "label": "第 4 頁", "say": "" },
+    { "img": "slides/slide_05.png", "label": "第 5 頁", "say": "" },
+    { "img": "slides/slide_06.png", "label": "第 6 頁", "say": "" },
+    { "img": "slides/slide_07.png", "label": "第 7 頁", "say": "" },
+    { "img": "slides/slide_08.png", "label": "第 8 頁", "say": "" },
+    { "img": "slides/slide_09.png", "label": "第 9 頁", "say": "" },
+    { "img": "slides/slide_10.png", "label": "第 10 頁", "say": "" },
+    { "img": "slides/slide_11.png", "label": "第 11 頁", "say": "" },
+    { "img": "slides/slide_12.png", "label": "第 12 頁", "say": "" },
+    { "img": "slides/slide_13.png", "label": "第 13 頁", "say": "" },
+    { "img": "slides/slide_14.png", "label": "第 14 頁", "say": "" },
+    { "img": "slides/slide_15.png", "label": "第 15 頁", "say": "" },
+    { "img": "slides/slide_16.png", "label": "第 16 頁", "say": "" },
+    { "img": "slides/slide_17.png", "label": "第 17 頁", "say": "" },
+    { "img": "slides/slide_18.png", "label": "第 18 頁", "say": "" },
+    { "img": "slides/slide_19.png", "label": "第 19 頁", "say": "" },
+    { "img": "slides/slide_20.png", "label": "第 20 頁｜測驗說明", "say": "簡報播放完畢，請點擊「進入測驗」按鈕開始作答。" }
+  ],
+  "questions": [
+    {
+      "question": "新進同仁到職幾天後，實施第一次考核評估？",
+      "a": "A. 30天", "b": "B. 40天", "c": "C. 60天", "d": "D. 90天",
+      "answer": "B"
+    },
+    {
+      "question": "依本工作規則，考核成績未滿幾分將終止僱用？",
+      "a": "A. 50分", "b": "B. 55分", "c": "C. 60分", "d": "D. 70分",
+      "answer": "C"
+    },
+    {
+      "question": "正常工時規定，每週不得超過幾小時？",
+      "a": "A. 44小時", "b": "B. 48小時", "c": "C. 36小時", "d": "D. 40小時",
+      "answer": "D"
+    },
+    {
+      "question": "連續曠工幾日，公司可不經預告終止契約（免職）？",
+      "a": "A. 2日", "b": "B. 3日", "c": "C. 5日", "d": "D. 7日",
+      "answer": "B"
+    },
+    {
+      "question": "事假全年累計最多幾日？",
+      "a": "A. 7日", "b": "B. 10日", "c": "C. 14日", "d": "D. 21日",
+      "answer": "C"
+    },
+    {
+      "question": "婚假給予幾日且薪資照給？",
+      "a": "A. 3日", "b": "B. 5日", "c": "C. 6日", "d": "D. 8日",
+      "answer": "D"
+    },
+    {
+      "question": "特別休假最小動用單位為何？",
+      "a": "A. 1小時", "b": "B. 2小時", "c": "C. 半天", "d": "D. 1天",
+      "answer": "B"
+    },
+    {
+      "question": "託人代刷卡或代人刷卡者，雙方將受何種懲處？",
+      "a": "A. 警告乙次", "b": "B. 小過乙次", "c": "C. 大過乙次", "d": "D. 直接免職",
+      "answer": "C"
+    },
+    {
+      "question": "員工離職時，須於離職幾日前辦妥職務移交？",
+      "a": "A. 3日", "b": "B. 5日", "c": "C. 7日", "d": "D. 10日",
+      "answer": "D"
+    },
+    {
+      "question": "父母喪亡時，員工可請幾日喪假？",
+      "a": "A. 3日", "b": "B. 6日", "c": "C. 8日", "d": "D. 10日",
+      "answer": "C"
+    }
+  ]
+}
