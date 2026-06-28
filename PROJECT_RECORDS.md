@@ -107,6 +107,12 @@
 - **技術棧**：HTML, CSS, JavaScript, Google Apps Script (GAS)。
 - **功能特色**：簡報展示與測驗作答合一，內建繁體中文語音朗讀、可調速播放，測驗完成後自動將結果寫入 Google 試算表（透過 Apps Script 雲端 API）。支援本機免安裝 Python 內網啟動伺服器分享，以及 GitHub Pages 雲端部署。
 
+### 17. n系列 GAS 轉 APK 離線核對上傳 (n系列GAS-轉-APK-離線核對上傳)
+- **GitHub 專案連結**：[google-agent/n系列GAS-轉-APK-離線核對上傳](https://github.com/shihwei0809/google-agent/tree/main/n系列GAS-轉-APK-離線核對上傳)
+- **用途**：現場人員掃描與出貨核對條碼的原生 Android 應用程式。
+- **技術棧**：Kotlin, SQLite, Android SDK, OkHttp, ZXing Android Embedded, Google Apps Script (GAS)。
+- **功能特色**：提供離線儲存與自動同步、格式驗證、欄位自動跳轉聚焦，客製化高辨識度 UI，以及防休眠失憶狀態回復機制。
+
 ## 🔗 GitHub 專案同步連結對照表
 
 本機所有專案的 GitHub 託管倉庫與目錄結構對應如下：
@@ -151,6 +157,6 @@
 4. **雲端同步發佈**：完成上述文件修改後，執行 `netlify deploy --dir=說明書 --prod` 將說明書同步至線上託管空間 (https://cerulean-praline-6b314d.netlify.app/)。
 
 ---
-*最後更新時間：2026年06月24日*
+*最後更新時間：2026年06月28日*
 
 
