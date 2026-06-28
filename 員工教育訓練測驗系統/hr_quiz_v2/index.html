@@ -549,27 +549,49 @@ function pActivate(){
   }
 }
 
+// 輔助函式：偵測檔案是否存在（相容 file:// 與 http:// 協定）
+function checkFileExists(url) {
+  if (window.location.protocol === 'file:') {
+    return new Promise((resolve) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = url + '?t=' + Date.now();
+      link.onload = () => {
+        resolve(true);
+        link.remove();
+      };
+      link.onerror = () => {
+        resolve(false);
+        link.remove();
+      };
+      document.head.appendChild(link);
+    });
+  } else {
+    return fetch(url, { method: 'HEAD' })
+      .then(res => res.ok)
+      .catch(() => false);
+  }
+}
+
 // 偵測是否含有互動式簡報 (Reveal.js/GSAP) 網頁
 async function checkInteractiveSlides() {
-  try {
-    const response = await fetch('slides/index.html', { method: 'HEAD' });
-    if (response.ok) {
-      isInteractiveMode = true;
-      // 隱藏靜態簡報的所有控制與顯示，改為顯示 iframe
-      document.getElementById('pstage').style.display = 'none';
-      document.getElementById('pprog').style.display = 'none';
-      document.getElementById('pstart').style.display = 'none';
-      document.getElementById('pctrl').style.display = 'none';
-      
-      const iframe = document.getElementById('p-iframe');
-      iframe.src = 'slides/index.html';
-      iframe.style.display = 'block';
-      
-      // 鎖定開始測驗，顯示觀看警告
-      document.getElementById('btn-unlock').disabled = true;
-      document.getElementById('uhint').textContent = '⚠️ 請觀看完影片簡報後即可進行測驗';
-    }
-  } catch (e) {
+  const hasInteractive = await checkFileExists('slides/index.html');
+  if (hasInteractive) {
+    isInteractiveMode = true;
+    // 隱藏靜態簡報的所有控制與顯示，改為顯示 iframe
+    document.getElementById('pstage').style.display = 'none';
+    document.getElementById('pprog').style.display = 'none';
+    document.getElementById('pstart').style.display = 'none';
+    document.getElementById('pctrl').style.display = 'none';
+    
+    const iframe = document.getElementById('p-iframe');
+    iframe.src = 'slides/index.html';
+    iframe.style.display = 'block';
+    
+    // 鎖定開始測驗，顯示觀看警告
+    document.getElementById('btn-unlock').disabled = true;
+    document.getElementById('uhint').textContent = '⚠️ 請觀看完影片簡報後即可進行測驗';
+  } else {
     console.log("偵測不到互動式簡報，已自動降級至靜態圖片播放器模式。");
   }
 }
