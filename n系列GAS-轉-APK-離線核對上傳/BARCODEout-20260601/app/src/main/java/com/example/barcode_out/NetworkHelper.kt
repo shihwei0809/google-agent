@@ -13,8 +13,15 @@ object NetworkHelper {
 
     // 1. 發送 Teams 錯誤通知
     fun sendTeamsAlert(message: String) {
+        // Teams Workflow (Power Automate) 規定必須使用 MessageCard 或 AdaptiveCard 格式
         val json = JSONObject().apply {
-            put("text", "⚠️ 出貨核對異常\n$message")
+            put("@type", "MessageCard")
+            put("@context", "http://schema.org/extensions")
+            put("themeColor", "E81123") // 紅色警示
+            put("summary", "出貨核對異常")
+            put("title", "⚠️ 出貨核對異常")
+            // Teams MessageCard 支援 HTML 格式換行，將 \n 換成 <br>
+            put("text", message.replace("\n", "<br>"))
         }.toString()
 
         val requestBody = json.toRequestBody("application/json; charset=utf-8".toMediaType())
@@ -25,10 +32,12 @@ object NetworkHelper {
             .build()
 
         client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                e.printStackTrace()
+            override fun onFailure(call: Call, e: java.io.IOException) {
+                android.util.Log.e("TeamsWebhook", "Teams Webhook 發送失敗", e)
             }
             override fun onResponse(call: Call, response: Response) {
+                val body = response.body?.string() ?: ""
+                android.util.Log.i("TeamsWebhook", "Teams Webhook 回傳狀態碼: ${response.code}, 回傳內容: $body")
                 response.close()
             }
         })
