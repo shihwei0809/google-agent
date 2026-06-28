@@ -124,7 +124,7 @@ main{max-width:920px;margin:28px auto;padding:0 24px 60px}
 .rs{color:var(--muted);font-size:.86rem;line-height:1.6}
 .res-btn{margin-top:24px;background:var(--primary);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;width:100%}
 .res-btn:hover{background:var(--primary2)}
-@media(max-width:600px){main{padding:0 14px 48px}.card{padding:18px}#pbox{max-height:240px}}
+@media(max-width:600px){main{padding:0 14px 48px}.card{padding:18px}#pbox:not(.interactive){max-height:240px}#pbox.interactive{height:680px;max-height:none}}
 
 /* ═══ SETTINGS MODAL ═══ */
 .btn-cfg{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.72);border-radius:8px;padding:6px 14px;font-size:.8rem;cursor:pointer;transition:all .2s;font-family:inherit}
@@ -578,6 +578,7 @@ async function checkInteractiveSlides() {
     document.getElementById('pctrl').style.display = 'none';
     
     // 動態拉高外層容器，確保互動簡報內容與播放器完整展現
+    document.getElementById('pbox').classList.add('interactive');
     document.getElementById('pbox').style.maxHeight = 'none';
     document.getElementById('pbox').style.height = '720px';
     

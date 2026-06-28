@@ -374,6 +374,36 @@
         max-height: 320px;
       }
     }
+
+    @media (max-width: 600px) {
+      .control-bar {
+        height: auto;
+        flex-direction: column;
+        padding: 12px 16px;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .audio-controls {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .nav-buttons {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 16px;
+        font-size: 0.8rem;
+      }
+      .container {
+        height: calc(100vh - 120px);
+      }
+    }
   </style>
 </head>
 <body>

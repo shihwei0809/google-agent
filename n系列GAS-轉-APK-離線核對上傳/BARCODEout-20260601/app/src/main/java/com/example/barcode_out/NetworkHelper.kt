@@ -9,7 +9,7 @@ import java.io.IOException
 object NetworkHelper {
     private val client = OkHttpClient()
     private const val TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/63da736f43d74caa9e6d6f8d3f93f1c6/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PLSf5l86fsIVzKC4B5gq0CFDJYEpjynd3451r84gM4A"
-    private const val GAS_URL = "請在此填入您的_GAS_WEBAPP_URL"
+    private const val GAS_URL = "https://script.google.com/macros/s/AKfycbzJ3_OUBRFZd4VDHtfpmzRS_xJ2B0YMK-meTCOaEliMC7wScFD4Ll3ylXZxLLfbY4yT/exec"
 
     // 1. 發送 Teams 錯誤通知
     fun sendTeamsAlert(message: String) {
