@@ -585,7 +585,8 @@ async function checkInteractiveSlides() {
     document.getElementById('pctrl').style.display = 'none';
     
     // 動態拉高外層容器，確保互動簡報內容與播放器完整展現
-    document.getElementById('pbox').style.height = '650px';
+    document.getElementById('pbox').style.maxHeight = 'none';
+    document.getElementById('pbox').style.height = '720px';
     
     const iframe = document.getElementById('p-iframe');
     iframe.src = 'slides/index.html';
