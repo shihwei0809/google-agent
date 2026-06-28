@@ -35,7 +35,7 @@ class MainActivity : AppCompatActivity() {
 
             if (validationCheck != "OK") {
                 fields[targetFieldIndex]?.setText("")
-                NetworkHelper.sendLineAlert("掃描錯誤: $scannedCode \n原因: $validationCheck")
+                NetworkHelper.sendTeamsAlert("掃描錯誤: $scannedCode \n原因: $validationCheck")
                 Toast.makeText(this, "❌ 格式錯誤: $validationCheck", Toast.LENGTH_LONG).show()
             } else {
                 // 1. 填入條碼資料
@@ -99,25 +99,31 @@ class MainActivity : AppCompatActivity() {
             override fun onNothingSelected(p0: AdapterView<*>?) {}
         }
 
-        // 巡檢核對並存檔（本機資料庫）
+        // 巡檢核對並存檔（本機資料庫，包含本機比對防呆邏輯）
         findViewById<Button>(R.id.btnSubmit).setOnClickListener {
-            val f8Text = fields[8]?.text.toString().trim()
-            if (currentMode != "ship_az" && f8Text.isEmpty()) {
-                Toast.makeText(this, "❌ 四合一料號為必填！", Toast.LENGTH_SHORT).show()
+            val fieldValues = Array(17) { i -> fields[i]?.text.toString().trim() }
+            
+            // 執行本機欄位比對驗證
+            val validationError = performLocalCheck(fieldValues, currentMode)
+            if (validationError != null) {
+                // 彈出錯誤對話框提示人員，且不予存檔
+                showValidationErrorsDialog(validationError)
+                // 同步將核對異常訊息發送到 Teams
+                NetworkHelper.sendTeamsAlert("巡檢核對失敗 (場所: ${spLocation.selectedItem}, 模式: $currentMode)\n$validationError")
                 return@setOnClickListener
             }
 
             val jsonObj = JSONObject()
             val jsonArray = JSONArray()
             for (i in 0..16) {
-                jsonArray.put(fields[i]?.text.toString().trim())
+                jsonArray.put(fieldValues[i])
             }
             jsonObj.put("fields", jsonArray)
             jsonObj.put("mode", currentMode)
             jsonObj.put("location", spLocation.selectedItem.toString())
 
             dbHelper.insertRecord(jsonObj.toString())
-            Toast.makeText(this, "✅ 巡檢存檔成功", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "✅ 巡檢核對相符，本機存檔成功", Toast.LENGTH_SHORT).show()
 
             for (i in 0..16) fields[i]?.setText("")
             updateStatusText()
@@ -304,13 +310,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun validateBarcodeFormat(code: String): String {
-        val s = code.trim()
-        if (s.startsWith("7")) {
-            if (s.length != 29) return "[7開頭] 長度需 29 碼"
-            if (!s.contains("-T0", ignoreCase = true)) return "[7開頭] 需包含 '-T0'"
-        } else if (s.startsWith("1")) {
-            if (s.length != 20) return "[1開頭] 長度需 20 碼"
-            if (!s.endsWith("TS", ignoreCase = true)) return "[1開頭] 必須以 'TS' 結尾"
+        val errors = mutableListOf<String>()
+        validate17Series(code, "掃描條碼", errors)
+        if (errors.isNotEmpty()) {
+            return errors.joinToString("\n\n").replace(Regex("❌ \\[掃描條碼\\] ❌ "), "❌ ")
         }
         return "OK"
     }
@@ -319,5 +322,381 @@ class MainActivity : AppCompatActivity() {
     private fun updateStatusText() {
         val pendingCount = dbHelper.getAllPendingRecords().size
         tvStatus.text = "目前手機暫存：$pendingCount 筆"
+    }
+
+    // =========================================================================
+    // 🔏 本地比對法官邏輯 (由 GAS Code.gs 移植而來)
+    // =========================================================================
+
+    private fun showValidationErrorsDialog(errors: String) {
+        val scrollView = ScrollView(this).apply {
+            setPadding(45, 30, 45, 30)
+            val textView = TextView(this@MainActivity).apply {
+                text = errors
+                setTextColor(Color.BLACK)
+                textSize = 16f
+                setTypeface(null, Typeface.BOLD)
+            }
+            addView(textView)
+        }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("❌ 巡檢比對不符")
+            .setView(scrollView)
+            .setPositiveButton("確定", null)
+            .show()
+    }
+
+    private fun toHalfWidth(str: String?): String {
+        if (str.isNullOrEmpty()) return ""
+        val sb = StringBuilder()
+        for (ch in str) {
+            if (ch in '\uff01'..'\uff5e') {
+                sb.append((ch.code - 0xfee0).toChar())
+            } else if (ch == '\u3000') {
+                sb.append(' ')
+            } else {
+                sb.append(ch)
+            }
+        }
+        return sb.toString()
+    }
+
+    private fun normalizeBatch(str: String?): String {
+        if (str.isNullOrEmpty()) return ""
+        val half = toHalfWidth(str)
+        return half.replace(Regex("[^a-zA-Z0-9]"), "")
+    }
+
+    private fun extractRealBatch(fullString: String?): String {
+        if (fullString.isNullOrEmpty()) return ""
+        val s = fullString.trim()
+        if (s.contains("@") && s.contains("+")) {
+            val parts = s.split("@")
+            if (parts.size > 1) return parts[1]
+        }
+        return s
+    }
+
+    private fun extractBatchForWarehouse(fullString: String?): String {
+        var s = extractRealBatch(fullString)
+        if (s.contains("+")) s = s.split("+")[0]
+        if (s.contains(" ")) s = s.split(Regex("\\s+"))[0]
+        return s
+    }
+
+    private fun cleanMatMaster(str: String?): String {
+        if (str.isNullOrEmpty()) return ""
+        var s = str.trim().uppercase()
+        if (s.contains(" ")) s = s.split(" ")[0]
+        s = s.replace(Regex("^\\d+L"), "L")
+        return s
+    }
+
+    private fun extractRealMat(fullString: String?): String {
+        if (fullString.isNullOrEmpty()) return ""
+        val s = fullString.trim()
+        if (s.contains("@")) {
+            val parts = s.split("@")
+            val part1 = parts[0]
+            if (part1.length > 14) return part1.substring(14)
+            return part1
+        }
+        return cleanMatMaster(s)
+    }
+
+    private fun getBatchBase(str: String?): String {
+        val s = (str ?: "").trim()
+        return when {
+            s.contains("+") -> s.split("+")[0]
+            s.contains(" ") -> s.split(" ")[0]
+            else -> s
+        }
+    }
+
+    private fun check7SeriesFormat(code: String?): String {
+        val s = (code ?: "").trim()
+        if (s.startsWith("7")) {
+            if (s.length != 29) return "❌ 格式錯誤！\n👉 [7開頭] 長度需 29 碼 (目前 ${s.length})"
+            if (!s.uppercase().contains("-T0")) return "❌ 格式錯誤！\n👉 [7開頭] 需包含 '-T0'"
+        }
+        if (s.uppercase().contains("-T0") && !s.startsWith("7")) {
+            return "❌ 格式錯誤！\n👉 含有 '-T0' 必須以 '7' 開頭"
+        }
+        return "OK"
+    }
+
+    private fun check1SeriesFormat(code: String?): String {
+        val s = (code ?: "").trim()
+        if (s.startsWith("1")) {
+            if (s.length != 20) return "❌ 格式錯誤！\n👉 [1開頭] 長度需 20 碼 (目前 ${s.length})"
+            if (!s.uppercase().endsWith("TS")) return "❌ 格式錯誤！\n👉 [1開頭] 必須以 'TS' 結尾"
+        }
+        return "OK"
+    }
+
+    private fun validate17Series(valStr: String?, label: String, errors: MutableList<String>) {
+        if (valStr.isNullOrBlank()) return
+        val c1 = check1SeriesFormat(valStr)
+        if (c1 != "OK") errors.add("❌ [$label] $c1")
+        val c7 = check7SeriesFormat(valStr)
+        if (c7 != "OK") errors.add("❌ [$label] $c7")
+    }
+
+    data class VerifyResult(val pass: Boolean, val msg: String)
+
+    private fun verifyPairStrict(scanVal: String, masterVal: String): VerifyResult {
+        val scan = scanVal.trim()
+        val master = masterVal.trim()
+        if (scan.isEmpty() || master.isEmpty()) return VerifyResult(false, "資料空白")
+
+        if (scan.startsWith("1") && scan.length == 20 && scan.endsWith("TS")) {
+            if (scan == master) return VerifyResult(true, "OK")
+            if (scan.contains(master) && master.length > 5) return VerifyResult(true, "OK")
+            return VerifyResult(false, "1字頭比對失敗\n現場: $scan\n單據: $master")
+        }
+
+        val isQr = scan.contains("@")
+        if (isQr) {
+            var processedScan = ""
+            val parts = scan.split("@")
+            processedScan = if (parts.size > 1) parts[1] else scan
+            processedScan = processedScan.replace("+", "").replace(Regex("\\s+"), "")
+
+            var processedMaster = master
+            if (processedMaster.isNotEmpty()) processedMaster = processedMaster.substring(1)
+            processedMaster = processedMaster.replace(Regex("\\s+"), "")
+
+            return if (processedScan == processedMaster) {
+                VerifyResult(true, "OK")
+            } else {
+                VerifyResult(false, "QR比對失敗\n現場(去+): $processedScan\n單據(去首碼): $processedMaster")
+            }
+        }
+
+        if (scan == master) return VerifyResult(true, "OK")
+        if (scan.replace(Regex("\\s+"), "") == master.replace(Regex("\\s+"), "")) return VerifyResult(true, "OK")
+        return VerifyResult(false, "數值不一致\n現場: $scan\n單據: $master")
+    }
+
+    private fun performLocalCheck(f: Array<String>, mode: String): String? {
+        val allErrors = mutableListOf<String>()
+        val tankMap = listOf(
+            Triple(0, 1, "第一桶"),
+            Triple(2, 3, "第二桶"),
+            Triple(4, 5, "第三桶"),
+            Triple(6, 7, "第四桶")
+        )
+        val masterBatchIndices = listOf(9, 10, 11, 12)
+
+        if (mode == "ship_az") {
+            var activeTankCount = 0
+            var firstTankMaterial = ""
+            val rawBatches = mutableListOf<String>()
+            val seenAz = mutableMapOf<String, String>()
+
+            for (i in 0 until tankMap.size) {
+                val item = tankMap[i]
+                val rawBatch = f[item.first]
+                val rawMat = f[item.second]
+
+                if (rawBatch.isNotEmpty() || rawMat.isNotEmpty()) {
+                    activeTankCount++
+                    rawBatches.add(rawBatch)
+
+                    validate17Series(rawBatch, "${item.third} 批號", allErrors)
+                    // 【未來擴充區：AZ模式桶槽料號 檢查】
+                    // validate17Series(rawMat, "${item.third} 料號", allErrors)
+
+                    val norm = normalizeBatch(rawBatch)
+                    if (norm.isNotEmpty()) {
+                        if (seenAz.containsKey(norm)) {
+                            allErrors.add("❌ [${item.third}] 重複掃描！(與 ${seenAz[norm]} 相同)")
+                        } else {
+                            seenAz[norm] = item.third
+                        }
+                    }
+
+                    val cleanMat = cleanMatMaster(rawMat)
+                    if (firstTankMaterial.isEmpty()) firstTankMaterial = cleanMat
+                    if (cleanMat != firstTankMaterial) {
+                        allErrors.add("❌ [${item.third}] 料號異常！與第一桶不同。")
+                    }
+
+                    if (rawBatch.contains("@")) {
+                        val qrMat = extractRealMat(rawBatch)
+                        if (qrMat.isNotEmpty() && qrMat != cleanMat) {
+                            allErrors.add("❌ [${item.third}] 貼紙錯誤！QR料號與掃描料號不符")
+                        }
+                    }
+                }
+            }
+
+            if (activeTankCount == 0) return "⚠️ 未偵測到任何資料"
+
+            if (rawBatches.size > 1) {
+                val base1 = getBatchBase(rawBatches[0])
+                val len1 = rawBatches[0].length
+
+                for (k in 1 until rawBatches.size) {
+                    if (getBatchBase(rawBatches[k]) != base1) {
+                        allErrors.add("❌ AZ批號不一致！第${k + 1}桶與第1桶批號主體不同。")
+                    }
+                    val lenK = rawBatches[k].length
+                    if (Math.abs(len1 - lenK) > 10) {
+                        allErrors.add("❌ AZ長度異常！\n👉 第1桶長度: $len1\n👉 第${k + 1}桶長度: $lenK\n(可能發生重複掃描或殘留字元)")
+                    }
+                }
+            }
+        } else {
+            val rawMasterMat = f[8]
+            val masterMaterial = cleanMatMaster(rawMasterMat)
+            if (masterMaterial.isEmpty()) return "❌ [四合一料號] 為必填項目！"
+
+            validate17Series(rawMasterMat, "四合一料號", allErrors)
+
+            var activeTankCount = 0
+            val activeBatchesShort = mutableListOf<String>()
+            val collectedBatchBases = mutableListOf<Triple<String, String, String>>()
+            val seenDrumbatches = mutableMapOf<String, String>()
+
+            for (i in 0 until tankMap.size) {
+                val item = tankMap[i]
+                val tankRawBatch = f[item.first]
+                val tankInputMat = f[item.second]
+                val masterBatchVal = f[masterBatchIndices[i]]
+
+                if (tankRawBatch.isNotEmpty() || tankInputMat.isNotEmpty()) {
+                    activeTankCount++
+
+                    validate17Series(tankRawBatch, "${item.third} 批號", allErrors)
+                    // 【未來擴充區：現場桶槽料號 檢查】
+                    // validate17Series(tankInputMat, "${item.third} 料號", allErrors)
+                    // 【未來擴充區：四合一對應批號 檢查】
+                    // validate17Series(masterBatchVal, "四合一單據 (對應${item.third})", allErrors)
+
+                    val normBatch = normalizeBatch(tankRawBatch)
+                    if (normBatch.isNotEmpty()) {
+                        if (seenDrumbatches.containsKey(normBatch)) {
+                            allErrors.add("❌ [${item.third}] 重複掃描！(與 ${seenDrumbatches[normBatch]} 相同)")
+                        } else {
+                            seenDrumbatches[normBatch] = item.third
+                        }
+                    }
+
+                    val tankCleanMat = cleanMatMaster(tankInputMat)
+                    if (tankCleanMat != masterMaterial) {
+                        allErrors.add("❌ [${item.third}] 料號異常！\n👉 現場: $tankCleanMat\n👉 單據: $masterMaterial")
+                    }
+
+                    if (tankRawBatch.contains("@")) {
+                        val qrMat = extractRealMat(tankRawBatch)
+                        if (qrMat.isNotEmpty() && qrMat != tankCleanMat) {
+                            allErrors.add("❌ [${item.third}] 貼紙錯誤！\nQR內碼: $qrMat\n與掃描不符。")
+                        }
+                    }
+
+                    if (masterBatchVal.isEmpty()) {
+                        allErrors.add("❌ [${item.third}] 對應的「四合一單據批號」未輸入！")
+                    } else {
+                        val verifyResult = verifyPairStrict(tankRawBatch, masterBatchVal)
+                        if (!verifyResult.pass) {
+                            allErrors.add("❌ [${item.third}] 與四合一單據不符！\n👉 現場: $tankRawBatch\n👉 單據: $masterBatchVal")
+                        }
+                    }
+                    collectedBatchBases.add(Triple(item.third, getBatchBase(tankRawBatch), tankRawBatch))
+                    activeBatchesShort.add(extractBatchForWarehouse(tankRawBatch))
+                }
+            }
+
+            if (activeTankCount == 0) return "⚠️ 未偵測到任何現場桶槽資料！"
+
+            if (mode == "ship_full" && collectedBatchBases.size > 1) {
+                val standardBase = collectedBatchBases[0].second
+                for (k in 1 until collectedBatchBases.size) {
+                    if (collectedBatchBases[k].second != standardBase) {
+                        allErrors.add("❌ 整板批號異常！不同批號不可混在同板")
+                    }
+                }
+            }
+
+            var activeMasterCount = 0
+            for (m in 9..12) {
+                if (f[m].isNotEmpty()) activeMasterCount++
+            }
+            if (activeTankCount != activeMasterCount) {
+                allErrors.add("❌ 數量異常！現場 $activeTankCount 桶 vs 四合一 $activeMasterCount 筆")
+            }
+
+            val rawWhMat = f[13]
+            val cleanWhMat = cleanMatMaster(rawWhMat)
+            // 【未來擴充區：繳庫單料號 檢查】
+            // validate17Series(rawWhMat, "繳庫單料號", allErrors)
+            
+            if (cleanWhMat != masterMaterial) {
+                allErrors.add("❌ [繳庫單] 料號異常！")
+            }
+
+            val whBatch1 = f[14]
+            val whBatch2 = f[15]
+            val whBatch3 = f[16]
+            // 【未來擴充區：繳庫單批號 檢查】
+            // validate17Series(whBatch1, "繳庫批號1", allErrors)
+            // validate17Series(whBatch2, "繳庫批號2", allErrors)
+            // validate17Series(whBatch3, "繳庫批號3", allErrors)
+
+            if (whBatch1.isEmpty() && whBatch2.isEmpty() && whBatch3.isEmpty()) {
+                allErrors.add("❌ [繳庫單] 未掃描任何批號！")
+            } else {
+                val tempBatches = activeBatchesShort.toMutableList()
+                val checkAndRemove = { valStr: String ->
+                    if (valStr.isEmpty()) true
+                    else {
+                        var found = false
+                        val whNorm = normalizeBatch(extractBatchForWarehouse(valStr))
+                        for (i in 0 until tempBatches.size) {
+                            val fieldNorm = normalizeBatch(tempBatches[i])
+                            if (fieldNorm == whNorm || fieldNorm == "2$whNorm" || whNorm == "2$fieldNorm") {
+                                tempBatches.removeAt(i)
+                                found = true
+                                break
+                            }
+                        }
+                        found
+                    }
+                }
+
+                if (!checkAndRemove(whBatch1)) allErrors.add("❌ [繳庫單批號1] 異常！現場沒掃到。")
+                if (!checkAndRemove(whBatch2)) allErrors.add("❌ [繳庫單批號2] 異常！現場沒掃到。")
+                if (!checkAndRemove(whBatch3)) allErrors.add("❌ [繳庫單批號3] 異常！現場沒掃到。")
+
+                val whInputs = mutableListOf<String>()
+                if (whBatch1.isNotEmpty()) whInputs.add(normalizeBatch(extractBatchForWarehouse(whBatch1)))
+                if (whBatch2.isNotEmpty()) whInputs.add(normalizeBatch(extractBatchForWarehouse(whBatch2)))
+                if (whBatch3.isNotEmpty()) whInputs.add(normalizeBatch(extractBatchForWarehouse(whBatch3)))
+
+                val uniqueScannedBatches = mutableListOf<String>()
+                for (b in 0 until activeBatchesShort.size) {
+                    val bNorm = normalizeBatch(activeBatchesShort[b])
+                    if (!uniqueScannedBatches.contains(bNorm)) uniqueScannedBatches.add(bNorm)
+                }
+
+                for (u in 0 until uniqueScannedBatches.size) {
+                    val needed = uniqueScannedBatches[u]
+                    var foundInWh = false
+                    for (w in 0 until whInputs.size) {
+                        val input = whInputs[w]
+                        if (input == needed || input == "2$needed" || needed == "2$input") {
+                            foundInWh = true
+                            break
+                        }
+                    }
+                    if (!foundInWh) {
+                        allErrors.add("❌ 繳庫單漏打！現場有但繳庫單沒填。")
+                    }
+                }
+            }
+        }
+
+        return if (allErrors.isNotEmpty()) allErrors.joinToString("\n\n") else null
     }
 }

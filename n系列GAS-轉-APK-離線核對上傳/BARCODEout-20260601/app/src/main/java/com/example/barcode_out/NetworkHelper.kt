@@ -8,19 +8,20 @@ import java.io.IOException
 
 object NetworkHelper {
     private val client = OkHttpClient()
-    private const val LINE_TOKEN = "請在此填入您的_LINE_NOTIFY_TOKEN"
+    private const val TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/63da736f43d74caa9e6d6f8d3f93f1c6/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=PLSf5l86fsIVzKC4B5gq0CFDJYEpjynd3451r84gM4A"
     private const val GAS_URL = "請在此填入您的_GAS_WEBAPP_URL"
 
-    // 1. 發送 Line 錯誤通知
-    fun sendLineAlert(message: String) {
-        val formBody = FormBody.Builder()
-            .add("message", "\n⚠️ 出貨核對異常\n$message")
-            .build()
+    // 1. 發送 Teams 錯誤通知
+    fun sendTeamsAlert(message: String) {
+        val json = JSONObject().apply {
+            put("text", "⚠️ 出貨核對異常\n$message")
+        }.toString()
+
+        val requestBody = json.toRequestBody("application/json; charset=utf-8".toMediaType())
 
         val request = Request.Builder()
-            .url("https://notify-api.line.me/api/notify")
-            .addHeader("Authorization", "Bearer $LINE_TOKEN")
-            .post(formBody)
+            .url(TEAMS_WEBHOOK_URL)
+            .post(requestBody)
             .build()
 
         client.newCall(request).enqueue(object : Callback {
