@@ -216,9 +216,12 @@ main{max-width:920px;margin:28px auto;padding:0 24px 60px}
       <h2>觀看教育訓練簡報</h2>
       <p class="sub">簡報內容直接來自「工作規則管理簡報.pptx」，點擊「▶ 開始播放」啟用語音朗讀，自動換頁播完後進行測驗。</p>
 
-      <div id="pbox">
+      <div id="pbox" style="position:relative; width:100%; height:500px; max-height:80vh; overflow:hidden; background:#0b0f19;">
+        <!-- 跨網頁互動式簡報 iframe -->
+        <iframe id="p-iframe" src="" style="display:none; width:100%; height:100%; border:none; background:#0b0f19;"></iframe>
+
         <!-- Progress bar -->
-        <div id="pprog"><div id="ppfill"></div></div>
+        <div id="pprog" style="position:absolute; top:0; left:0; width:100%; z-index:10;"><div id="ppfill"></div></div>
 
         <!-- Activation overlay -->
         <div id="pstart" onclick="pActivate()">
@@ -230,12 +233,12 @@ main{max-width:920px;margin:28px auto;padding:0 24px 60px}
           </div>
         </div>
 
-        <!-- Slide images (will be populated by JS) -->
-        <div id="pstage"></div>
+        <!-- Slide images -->
+        <div id="pstage" style="width:100%; height:100%;"></div>
       </div>
 
       <!-- Controls -->
-      <div id="pctrl">
+      <div id="pctrl" style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:16px;">
         <button class="pb" id="pbprev" onclick="pPrev()">◀</button>
         <button class="pb" id="pvb" onclick="pToggleVoice()" style="width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.16)">🔊</button>
         <button class="pb" id="pbnext" onclick="pNext()">▶</button>
@@ -341,12 +344,18 @@ let SLIDES = [
 // ════════════════════════════════════════
 //  PLAYER STATE
 // ════════════════════════════════════════
+// ════════════════════════════════════════
+//  PLAYER STATE
+// ════════════════════════════════════════
 let cur=0, spk=false, auto=true, ready=false, utt=null, paused=false;
 let sentences=[];
 let sentenceIdx=0;
+let playedSlides = new Set(); // 記錄已經聽完的投影片頁數
+let isInteractiveMode = false; // 是否正在使用互動式簡報
 
 function initSlides(){
   const st=document.getElementById('pstage');
+  st.innerHTML = ''; // 清除舊投影片
   SLIDES.forEach((s,i)=>{
     const d=document.createElement('div');
     d.className='pimg'+(i===0?' active':'');
@@ -359,6 +368,11 @@ function initSlides(){
 
 function go(n){
   if(n<0||n>=SLIDES.length) return;
+  // 手動往後翻頁防刷：如果想往後翻，且當前頁 cur 還沒聽完，則予以攔截
+  if (n > cur && !playedSlides.has(cur)) {
+    alert("請先完整聽完當前頁面的語音配音喔！");
+    return;
+  }
   stopSpeak();
   document.getElementById('pi'+cur).classList.remove('active');
   cur=n;
@@ -370,15 +384,27 @@ function pNext(){go(cur+1);}
 function pPrev(){go(cur-1);}
 
 function refresh(){
+  if (isInteractiveMode) return; // 互動模式下由 iframe 自行控制
   document.getElementById('ppfill').style.width=((cur+1)/SLIDES.length*100)+'%';
   document.getElementById('pct').textContent=(cur+1)+' / '+SLIDES.length;
   document.getElementById('plb').textContent=SLIDES[cur].label;
   document.getElementById('pbprev').disabled=(cur===0);
-  document.getElementById('pbnext').disabled=(cur===SLIDES.length-1);
-  // Allow unlock after first slide started
-  if(ready){
-    document.getElementById('btn-unlock').disabled=false;
-    document.getElementById('uhint').textContent='看完所有頁面後點擊此按鈕';
+  
+  // 當前頁尚未聽完時，禁止按「下一頁」
+  document.getElementById('pbnext').disabled=(cur===SLIDES.length-1 || !playedSlides.has(cur));
+  
+  // 只有當全部頁數皆聽完，才解鎖「開始測驗」按鈕
+  if (ready) {
+    if(playedSlides.size === SLIDES.length){
+      document.getElementById('btn-unlock').disabled=false;
+      document.getElementById('uhint').textContent='✅ 已看畢所有簡報，點擊開始測驗';
+    } else {
+      document.getElementById('btn-unlock').disabled=true;
+      document.getElementById('uhint').textContent=`請觀看並聽完所有簡報 (目前已聽完 ${playedSlides.size} / ${SLIDES.length} 頁)`;
+    }
+  } else {
+    document.getElementById('btn-unlock').disabled=true;
+    document.getElementById('uhint').textContent='請先點擊開始播放教育訓練';
   }
 }
 
@@ -411,6 +437,8 @@ function speakSentence(){
   if(!window.speechSynthesis) return;
   if(sentenceIdx >= sentences.length){
     // 整頁朗讀完畢
+    playedSlides.add(cur);
+    refresh();
     spk = false;
     updVoiceBtn();
     if(auto && cur < SLIDES.length - 1){
@@ -510,8 +538,7 @@ function pToggleAuto(){
 function pActivate(){
   ready=true;
   document.getElementById('pstart').classList.add('gone');
-  document.getElementById('btn-unlock').disabled=false;
-  document.getElementById('uhint').textContent='看完所有頁面後點擊此按鈕';
+  refresh();
   if(speechSynthesis.getVoices().length===0){ 
     speechSynthesis.onvoiceschanged = () => {
       speechSynthesis.onvoiceschanged = null;
@@ -521,6 +548,46 @@ function pActivate(){
     speak(); 
   }
 }
+
+// 偵測是否含有互動式簡報 (Reveal.js/GSAP) 網頁
+async function checkInteractiveSlides() {
+  try {
+    const response = await fetch('slides/index.html', { method: 'HEAD' });
+    if (response.ok) {
+      isInteractiveMode = true;
+      // 隱藏靜態簡報的所有控制與顯示，改為顯示 iframe
+      document.getElementById('pstage').style.display = 'none';
+      document.getElementById('pprog').style.display = 'none';
+      document.getElementById('pstart').style.display = 'none';
+      document.getElementById('pctrl').style.display = 'none';
+      
+      const iframe = document.getElementById('p-iframe');
+      iframe.src = 'slides/index.html';
+      iframe.style.display = 'block';
+      
+      // 鎖定開始測驗，顯示觀看警告
+      document.getElementById('btn-unlock').disabled = true;
+      document.getElementById('uhint').textContent = '⚠️ 請觀看完影片簡報後即可進行測驗';
+    }
+  } catch (e) {
+    console.log("偵測不到互動式簡報，已自動降級至靜態圖片播放器模式。");
+  }
+}
+
+// 監聽來自 iframe 的簡報結束訊號
+window.addEventListener('message', (event) => {
+  if (event.data && (event.data.type === 'slide-completed' || event.data.type === 'video-completed')) {
+    document.getElementById('btn-unlock').disabled = false;
+    document.getElementById('uhint').textContent = '✅ 已看畢影片/簡報，點擊開始測驗';
+    // 標記為全部看完
+    ready = true; 
+  }
+});
+
+// 在網頁載入時啟動偵測
+window.addEventListener('DOMContentLoaded', () => {
+  checkInteractiveSlides();
+});
 
 // 監聽速度選擇器變更，如果在播放中則立即以新語速重新播放當前句子；如果在暫停中，則僅更新語速（等點擊播放時套用）
 document.getElementById('spd-sel').addEventListener('change', ()=>{
