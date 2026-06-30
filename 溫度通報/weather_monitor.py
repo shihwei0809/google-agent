@@ -41,22 +41,103 @@ LOCAL_NOTIFY_XLSX = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報.xl
 LOCAL_HEARTBEAT_XLSX = os.path.join(SCRIPT_DIR, "本地歷史紀錄_心跳明細.xlsx")
 
 def get_realtime_backup_paths():
-    """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾，同時返回 CSV 與 XLSX 路徑"""
+    """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾，返回月度 CSV 與年度 XLSX 及月份 Sheet 名"""
     tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
-    date_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d')
-    csv_file = f"{date_str}_24小時趨勢備份.csv"
-    xlsx_file = f"{date_str}_24小時趨勢備份.xlsx"
+    now = datetime.datetime.now(tz_taiwan)
+    year_str = now.strftime('%Y')
+    month_str = now.strftime('%Y-%m') # 例如 "2026-06"
+    sheet_name = f"{now.month}月" # 例如 "6月"
+    
+    csv_file = f"{month_str}_24小時趨勢備份.csv"
+    xlsx_file = f"{year_str}年_24小時趨勢備份.xlsx"
     
     # 優先嘗試寫入 Google Drive 虛擬硬碟 G:\
     g_drive_dir = r"G:\我的雲端硬碟\GOOGLE ANGET\溫度通報\24 小時趨勢備份"
     try:
         os.makedirs(g_drive_dir, exist_ok=True)
-        return os.path.join(g_drive_dir, csv_file), os.path.join(g_drive_dir, xlsx_file)
+        return os.path.join(g_drive_dir, csv_file), os.path.join(g_drive_dir, xlsx_file), sheet_name
     except Exception:
         # 若 G 槽未掛載或無寫入權限，回退到本地目錄下
         local_dir = os.path.join(SCRIPT_DIR, "24 小時趨勢備份")
         os.makedirs(local_dir, exist_ok=True)
-        return os.path.join(local_dir, csv_file), os.path.join(local_dir, xlsx_file)
+        return os.path.join(local_dir, csv_file), os.path.join(local_dir, xlsx_file), sheet_name
+
+def append_to_monthly_xlsx(file_path, sheet_name, headers, row_data):
+    """將資料寫入指定年份 XLSX 檔案的指定月份工作表 (sheet_name)"""
+    try:
+        import openpyxl
+        from openpyxl.utils import get_column_letter
+        from openpyxl.styles import Font, PatternFill, Alignment
+    except ImportError:
+        return
+
+    try:
+        file_exists = os.path.exists(file_path)
+        if file_exists:
+            try:
+                wb = openpyxl.load_workbook(file_path)
+            except Exception:
+                wb = openpyxl.Workbook()
+        else:
+            wb = openpyxl.Workbook()
+
+        # 獲取或建立指定工作表
+        if sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+        else:
+            ws = wb.create_sheet(title=sheet_name)
+            # 如果新建的工作表是第一個（且預設工作表存在且為空），可以刪除預設的 "Sheet"
+            if "Sheet" in wb.sheetnames and len(wb.sheetnames) > 1:
+                default_sheet = wb["Sheet"]
+                if default_sheet.max_row == 1 and default_sheet.cell(row=1, column=1).value is None:
+                    wb.remove(default_sheet)
+            ws.append(headers)
+
+        ws.append(row_data)
+
+        # 設定字型、背景填充與對齊
+        header_font = Font(name="微軟正黑體", size=11, bold=True)
+        header_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+        header_align = Alignment(horizontal="center", vertical="center")
+        data_font = Font(name="微軟正黑體", size=11)
+        data_align = Alignment(horizontal="center", vertical="center")
+
+        # 格式化所有儲存格的樣式
+        for r_idx in range(1, ws.max_row + 1):
+            is_header = (r_idx == 1)
+            for c_idx in range(1, ws.max_column + 1):
+                cell = ws.cell(row=r_idx, column=c_idx)
+                if is_header:
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = header_align
+                else:
+                    cell.font = data_font
+                    if isinstance(cell.value, (int, float)):
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                    else:
+                        cell.alignment = data_align
+
+        # 自動調整欄寬
+        for col in ws.columns:
+            max_len = 0
+            col_letter = get_column_letter(col[0].column)
+            for cell in col:
+                if cell.value is not None:
+                    val_str = str(cell.value)
+                    width = 0
+                    for char in val_str:
+                        if ord(char) > 127:  # 中文與全形字元
+                            width += 2
+                        else:
+                            width += 1.1
+                    if width > max_len:
+                        max_len = width
+            ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+        wb.save(file_path)
+    except Exception as e:
+        print(f"【本機備份警告】寫入 {os.path.basename(file_path)} 工作表 {sheet_name} 失敗: {e}", file=sys.stderr)
 
 def append_to_local_csv(file_path, headers, row_data):
     """將資料寫入本機 CSV 檔案，若檔案不存在則自動建立並寫入表頭"""
@@ -950,12 +1031,12 @@ def main():
         
     # 同時備份寫入 Google Drive 雲端同步目錄（自動以日期分檔，若失敗則退回本機目錄）
     try:
-        realtime_csv_path, realtime_xlsx_path = get_realtime_backup_paths()
+        realtime_csv_path, realtime_xlsx_path, sheet_name = get_realtime_backup_paths()
         now_time_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
         headers = ["記錄時間", "環境溫度 (°C)", "氣象觀測時間", "時間戳 (ms)"]
         now_ms = int(time.time() * 1000)
         append_to_local_csv(realtime_csv_path, headers, [now_time_str, current_temp, display_time, now_ms])
-        append_to_local_xlsx(realtime_xlsx_path, headers, [now_time_str, current_temp, display_time, now_ms])
+        append_to_monthly_xlsx(realtime_xlsx_path, sheet_name, headers, [now_time_str, current_temp, display_time, now_ms])
     except Exception as e:
         print(f"【本機備份警告】寫入即時溫度備份失敗: {e}", file=sys.stderr)
         
