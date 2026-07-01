@@ -1,20 +1,33 @@
 {
-  "hosting": {
-    "site": "aigc-music-video-hub",
-    "public": "aigc-music-video-hub",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      "**/*.py",
-      "**/*.ps1",
-      "**/*.pptx",
-      "創作庫/**/圖片/**",
-      "clasp-netlify-mcp-guide/**",
-      "claude-html-slide-builder/**",
-      "claude-video-specs/**",
-      "grad-trip/**",
-      "isotank-training/**"
-    ]
-  }
+  "hosting": [
+    {
+      "site": "aigc-music-video-hub",
+      "public": "aigc-music-video-hub",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "**/*.py",
+        "**/*.ps1",
+        "**/*.pptx",
+        "創作庫/**/圖片/**",
+        "clasp-netlify-mcp-guide/**",
+        "claude-html-slide-builder/**",
+        "claude-video-specs/**",
+        "grad-trip/**",
+        "isotank-training/**"
+      ]
+    },
+    {
+      "site": "nitrogen-valve-quiz",
+      "public": "員工教育訓練測驗系統/nitrogen_quiz",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "**/*.bat",
+        "**/*.ps1"
+      ]
+    }
+  ]
 }
