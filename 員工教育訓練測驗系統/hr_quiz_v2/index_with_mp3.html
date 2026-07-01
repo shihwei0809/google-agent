@@ -988,6 +988,9 @@ function applyData(data){
     const subEl = document.getElementById('main-subtitle');
     if(subEl) subEl.textContent = data.subtitle;
   }
+  if(data.apps_script_url && !localStorage.getItem('apps_script_url')){
+    APPS_SCRIPT_URL = data.apps_script_url;
+  }
   if(data.slides && data.slides.length>0){
     SLIDES=data.slides.map(s=>({img:s.img, label:s.label, say:s.say, audio:s.audio || ""}));
   }
