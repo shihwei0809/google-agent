@@ -43,7 +43,7 @@ object NetworkHelper {
         })
     }
 
-    // 2. 背景上傳至 GAS
+    // 2. 背景上傳至 GAS (同步傳輸，交由背景 Thread 阻塞處理)
     fun uploadToGAS(dbHelper: DatabaseHelper) {
         val pendingRecords = dbHelper.getAllPendingRecords()
 
@@ -51,27 +51,45 @@ object NetworkHelper {
             val id = record["id"]!!
             val barcode = record["barcode"]!!
 
-            val json = JSONObject().apply { put("barcode", barcode) }.toString()
-            val requestBody = json.toRequestBody("application/json; charset=utf-8".toMediaType())
+            val innerJson = record["barcode"]!!   // 實際存的是完整 JSON: {"fields":...}
+            
+            // 包裝成 GAS 預期的外層結構 {"barcode": "內部JSON字串"}
+            val outerJson = JSONObject().apply {
+                put("barcode", innerJson)
+            }.toString()
+
+            val requestBody = outerJson.toRequestBody("application/json; charset=utf-8".toMediaType())
 
             val request = Request.Builder()
                 .url(GAS_URL)
                 .post(requestBody)
                 .build()
 
-            client.newCall(request).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    // 網路不穩，保留在 SQLite 待下次上傳
-                }
+            // 改為同步執行，確保呼叫端 Thread 可以捕獲異常
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                response.close()
+                throw IOException("連線失敗，狀態碼: ${response.code}")
+            }
 
-                override fun onResponse(call: Call, response: Response) {
-                    if (response.isSuccessful) {
-                        // 上傳成功，從 SQLite 中移除
-                        dbHelper.deleteRecord(id)
-                    }
-                    response.close()
+            val responseBody = response.body?.string() ?: ""
+            response.close()
+
+            // 嚴格解析 GAS 回傳內容，避免 doPost 錯誤卻誤刪暫存
+            try {
+                val respJson = JSONObject(responseBody)
+                val status = respJson.optString("status")
+                if (status == "success") {
+                    // 雲端確認寫入成功，才從手機 SQLite 刪除
+                    dbHelper.deleteRecord(id)
+                } else {
+                    val msg = respJson.optString("message", "GAS 執行失敗")
+                    throw IOException(msg)
                 }
-            })
+            } catch (je: Exception) {
+                // 如果解析失敗（如回傳 HTML 錯誤網頁），也視同失敗
+                throw IOException("解析伺服器回傳失敗: $responseBody")
+            }
         }
     }
 }
