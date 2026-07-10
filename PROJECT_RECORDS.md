@@ -113,6 +113,25 @@
 - **技術棧**：Kotlin, SQLite, Android SDK, OkHttp, ZXing Android Embedded, Google Apps Script (GAS)。
 - **功能特色**：提供離線儲存與自動同步、格式驗證、欄位自動跳轉聚焦，客製化高辨識度 UI，以及防休眠失憶狀態回復機制。
 
+### 18. N系列 BARCODE 出貨核對系統 (N系列BARCODE出貨核對)
+- **GitHub 專案連結**：[google-agent/N系列BARCODE出貨核對](https://github.com/shihwei0809/google-agent/tree/main/N系列BARCODE出貨核對)
+- **用途**：現場人員掃描棧板、外箱與繳庫單條碼核對型號、批號一致性的網頁端系統。
+- **技術棧**：Google Apps Script (GAS), HTML, CSS, JavaScript, Microsoft Teams Webhook。
+- **功能特色**：提供實時批號一致性校驗、四合一標籤長度限制、心跳與異常檢測，並在出貨核對失敗或寫入系統異常時發送即時 Teams 警報通知。
+
+### 19. 專案源碼自動化 Markdown 備份與大廳系統 (portal_tools/export_sources.py)
+- **GitHub 專案連結**：[google-agent](https://github.com/shihwei0809/google-agent)
+- **用途**：自動化將核心專案原始碼同步備份為 Markdown 文件供 AI 助理快速閱讀，防止與本機脫節。
+- **技術棧**：Python 3.x。
+- **功能特色**：自動掃描各類原始碼（Kotlin, Python, GAS），動態轉換為 markdown 文件備份至 `說明書/sources_backup` 目錄，內建自動時間戳記與代碼語法高亮。
+
+### 20. 簡報自動語音影片生成器 (OCR測試)
+- **GitHub 專案連結**：[google-agent/OCR測試](https://github.com/shihwei0809/google-agent/tree/main/OCR測試)
+- **用途**：一鍵將 PDF 簡報檔案自動轉為高畫質語音導覽影片的工具。
+- **技術棧**：Python 3.12, PyMuPDF, EasyOCR, edge-tts, moviepy, FFmpeg, FastAPI, HTML/CSS/JS。
+- **功能特色**：提供深色質感網頁編輯介面（Port 8002），支援每頁簡報文字與旁白之圖文對照修改、台灣男生/女生發音即時試聽預覽、以及 50 倍速度極速影片合成與下載。
+
+
 ## 🔗 GitHub 專案同步連結對照表
 
 本機所有專案的 GitHub 託管倉庫與目錄結構對應如下：
@@ -157,6 +176,6 @@
 4. **雲端同步發佈**：完成上述文件修改後，執行 `netlify deploy --dir=說明書 --prod` 將說明書同步至線上託管空間 (https://cerulean-praline-6b314d.netlify.app/)。
 
 ---
-*最後更新時間：2026年06月28日*
+*最後更新時間：2026年07月10日*
 
 

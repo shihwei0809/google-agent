@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DeckEdit - 本地私密簡報轉檔工具</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --card-bg: rgba(17, 24, 39, 0.7);
+      --border: rgba(255, 255, 255, 0.08);
+      --primary: #2563eb;
+      --primary-glow: rgba(37, 99, 235, 0.4);
+      --secondary: #8b5cf6;
+      --secondary-glow: rgba(139, 92, 246, 0.4);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', 'Noto Sans TC', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 640px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 
+                  0 0 80px rgba(37, 99, 235, 0.05);
+      text-align: center;
+      position: relative;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 14px var(--primary-glow);
+    }
+
+    .logo-icon svg {
+      width: 26px;
+      height: 26px;
+      fill: white;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 15px;
+      margin-bottom: 32px;
+    }
+
+    /* 格式選擇器 */
+    .format-selector {
+      display: grid;
+      grid-cols: 2;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .format-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .format-btn svg {
+      width: 32px;
+      height: 32px;
+      fill: var(--text-muted);
+      transition: fill 0.3s;
+    }
+
+    .format-btn span {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      transition: color 0.3s;
+    }
+
+    .format-btn small {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    /* 點擊選中狀態 */
+    .format-btn.active[data-format="ppt"] {
+      border-color: var(--primary);
+      box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
+      background: rgba(37, 99, 235, 0.08);
+    }
+    .format-btn.active[data-format="ppt"] svg { fill: #3b82f6; }
+    .format-btn.active[data-format="ppt"] span { color: #ffffff; }
+
+    .format-btn.active[data-format="word"] {
+      border-color: var(--secondary);
+      box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+      background: rgba(139, 92, 246, 0.08);
+    }
+    .format-btn.active[data-format="word"] svg { fill: #a78bfa; }
+    .format-btn.active[data-format="word"] span { color: #ffffff; }
+
+    /* 拖曳上傳區域 */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 20px;
+      padding: 40px 20px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.01);
+      transition: all 0.3s;
+      position: relative;
+      margin-bottom: 24px;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--primary);
+      background: rgba(37, 99, 235, 0.03);
+    }
+
+    .dropzone-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    .dropzone p {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .dropzone-file-info {
+      font-weight: 600;
+      color: var(--text);
+      display: none;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    /* 轉換按鈕 */
+    .convert-btn {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      color: white;
+      border: none;
+      padding: 16px;
+      border-radius: 16px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .convert-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(37, 99, 235, 0.4);
+    }
+
+    .convert-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .convert-btn:disabled {
+      background: #374151;
+      color: #6b7280;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* 進度條與狀態 */
+    .status-area {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .progress-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 4px;
+      transition: width 0.4s ease;
+    }
+
+    .status-text {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .footer {
+      margin-top: 32px;
+      font-size: 12px;
+      color: #4b5563;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="logo-container">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3.5 9c.83 0 1.5-.67 1.5-1.5S16.33 9 15.5 9 14 9.67 14 10.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 9 8.5 9 7 9.67 7 10.5 7.67 12 8.5 12zm0 4.5c1.84 0 3.48-.96 4.43-2.42H4.07c.95 1.46 2.59 2.42 4.43 2.42z"/>
+        </svg>
+      </div>
+      <h1>DeckEdit Offline</h1>
+    </div>
+    <div class="subtitle">100% 私密。在本地瀏覽器內將圖片/PDF 轉換為可編輯的 Office 簡報</div>
+
+    <!-- 輸出格式選擇 -->
+    <div class="format-selector">
+      <div class="format-btn active" data-format="ppt">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
+        </svg>
+        <span>匯出至 PowerPoint</span>
+        <small>.pptx 簡報格式</small>
+      </div>
+      <div class="format-btn" data-format="word">
+        <svg viewBox="0 0 24 24">
+          <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+        </svg>
+        <span>匯出至 Word</span>
+        <small>.docx 報告格式</small>
+      </div>
+    </div>
+
+    <!-- 拖放上傳區 -->
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+      <div class="dropzone-icon" id="dropzoneIcon">📂</div>
+      <p id="dropzonePrompt">拖曳圖片/PDF 檔案至此處，或點擊選擇檔案</p>
+      <p class="dropzone-file-info" id="fileInfo"></p>
+      <input type="file" id="fileInput" accept="image/*, application/pdf">
+    </div>
+
+    <!-- 轉換按鈕 -->
+    <button class="convert-btn" id="convertBtn" disabled>
+      <span>開始轉檔與辨識</span>
+    </button>
+
+    <!-- 進度條 -->
+    <div class="status-area" id="statusArea">
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <div class="status-text" id="statusText">等待轉檔...</div>
+    </div>
+
+    <div class="footer">本軟體完全於本機電腦執行，不傳輸任何資料至外部網路。</div>
+  </div>
+
+  <script>
+    let selectedFile = null;
+    let selectedFormat = 'ppt'; // 預設 PPT
+
+    // 格式按鈕切換
+    const formatBtns = document.querySelectorAll('.format-btn');
+    formatBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        formatBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedFormat = btn.getAttribute('data-format');
+      });
+    });
+
+    // 拖曳上傳控制
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const dropzoneIcon = document.getElementById('dropzoneIcon');
+    const dropzonePrompt = document.getElementById('dropzonePrompt');
+    const fileInfo = document.getElementById('fileInfo');
+    const convertBtn = document.getElementById('convertBtn');
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+      dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    function handleFileSelect(file) {
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/bmp', 'application/pdf'];
+      if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.pdf')) {
+        alert('請上傳 JPG/PNG/BMP 圖片或 PDF 檔案！');
+        return;
+      }
+      
+      selectedFile = file;
+      dropzoneIcon.textContent = file.type === 'application/pdf' ? '📄' : '🖼️';
+      dropzonePrompt.style.display = 'none';
+      fileInfo.style.display = 'block';
+      fileInfo.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+      convertBtn.disabled = false;
+    }
+
+    // 轉換按鈕點擊
+    const statusArea = document.getElementById('statusArea');
+    const progressFill = document.getElementById('progressFill');
+    const statusText = document.getElementById('statusText');
+
+    convertBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      convertBtn.disabled = true;
+      statusArea.style.display = 'block';
+      progressFill.style.width = '10%';
+      statusText.textContent = '正在將檔案上傳至本機處理核心...';
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('format', selectedFormat);
+
+      // 進度條動畫模擬
+      let progress = 10;
+      const progressInterval = setInterval(() => {
+        if (progress < 85) {
+          progress += Math.floor(Math.random() * 5) + 2;
+          progressFill.style.width = `${progress}%`;
+          if (progress > 30 && progress < 60) {
+            statusText.textContent = '本地 OCR 正在逐頁解析文字中，請稍候...';
+          } else if (progress >= 60) {
+            statusText.textContent = '正在重建版面並寫入可編輯之 Office 檔案中...';
+          }
+        }
+      }, 800);
+
+      try {
+        const isLocalFile = window.location.protocol === 'file:';
+        const apiBase = isLocalFile ? 'http://localhost:8000' : '';
+
+        const response = await fetch(`${apiBase}/convert`, {
+          method: 'POST',
+          body: formData
+        });
+
+        clearInterval(progressInterval);
+
+        if (!response.ok) {
+          throw new Error('伺服器處理出錯');
+        }
+
+        const data = await response.json();
+        if (data.success) {
+          progressFill.style.width = '100%';
+          statusText.textContent = '🎉 轉換成功！檔案已自動為您下載。';
+          
+          // 自動觸發下載
+          const downloadUrl = `${apiBase}${data.download_url}?name=${encodeURIComponent(data.filename)}`;
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = data.filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          throw new Error(data.message || '轉檔失敗');
+        }
+      } catch (err) {
+        clearInterval(progressInterval);
+        progressFill.style.width = '100%';
+        progressFill.style.background = 'var(--error)';
+        statusText.innerHTML = `<span style="color:var(--error)">❌ 轉檔錯誤：${err.message}</span>`;
+        alert(`轉換失敗：${err.message}`);
+      } finally {
+        convertBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
