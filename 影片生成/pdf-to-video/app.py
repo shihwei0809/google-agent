@@ -176,6 +176,8 @@ async def generate_video(
     job_id: str = Form(...),
     scripts: str = Form(...),
     voice: str = Form(...),
+    rate: str = Form("-10%"),
+    auto_pause: str = Form("true"),
 ):
     job_dir = JOBS_DIR / job_id
     if not job_dir.exists():
@@ -189,13 +191,17 @@ async def generate_video(
     if voice not in ALL_VOICE_IDS:
         raise HTTPException(status_code=400, detail=f"不支援的聲音：{voice}")
 
+    is_auto_pause = auto_pause.lower() == "true"
+
     jobs[job_id] = {
         "status": "processing",
         "progress": 0,
         "total": len(scripts_list),
         "step": "準備中…",
     }
-    background_tasks.add_task(_run_generation, job_id, scripts_list, voice, job_dir)
+    background_tasks.add_task(
+        _run_generation, job_id, scripts_list, voice, rate, is_auto_pause, job_dir
+    )
     return {"job_id": job_id, "status": "processing"}
 
 
@@ -219,7 +225,14 @@ async def download_video(job_id: str):
     )
 
 
-async def _run_generation(job_id: str, scripts: list[str], voice: str, job_dir: Path):
+async def _run_generation(
+    job_id: str,
+    scripts: list[str],
+    voice: str,
+    rate: str,
+    auto_pause: bool,
+    job_dir: Path,
+):
     """Background task: TTS synthesis + video assembly."""
     try:
         from moviepy import AudioFileClip, ImageClip, concatenate_videoclips
@@ -239,7 +252,25 @@ async def _run_generation(job_id: str, scripts: list[str], voice: str, job_dir: 
 
             # TTS – use placeholder if page is blank
             tts_text = text.strip() if text.strip() else "本頁無文字內容。"
-            communicate = edge_tts.Communicate(tts_text, voice)
+
+            # Inject natural breaks at line breaks if auto_pause is enabled
+            if auto_pause and text.strip():
+                lines = tts_text.splitlines()
+                processed_lines = []
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    # Append period if line doesn't end with sentence-ending punctuation
+                    if line[-1] not in (
+                        "。", "，", "、", "！", "？", "；", "：",
+                        ".", ",", "!", "?", ";", ":", '"', "'", "」", "』"
+                    ):
+                        line += "。"
+                    processed_lines.append(line)
+                tts_text = " ".join(processed_lines)
+
+            communicate = edge_tts.Communicate(tts_text, voice, rate=rate)
             await communicate.save(audio_path)
 
             # Make 1920×1080 framed image

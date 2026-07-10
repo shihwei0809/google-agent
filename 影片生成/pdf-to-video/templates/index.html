@@ -447,6 +447,37 @@
           </div>
         </div>
       </div>
+
+      <!-- Speech Settings Card -->
+      <div class="card" style="margin-top: 20px; padding: 24px;">
+        <div style="font-weight: 700; margin-bottom: 20px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+          <span>⚙️</span> 語音節奏與語速設定
+        </div>
+        
+        <!-- Speech Rate -->
+        <div style="margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 (Speech Rate)</label>
+            <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">稍微慢速 (-10% · 推薦)</span>
+          </div>
+          <input type="range" id="rate-slider" min="-30" max="20" step="5" value="-10" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
+            <span>慢速 (-30%)</span>
+            <span>正常 (0%)</span>
+            <span>快速 (+20%)</span>
+          </div>
+        </div>
+
+        <!-- Auto Pause -->
+        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text); user-select: none;">
+          <input type="checkbox" id="auto-pause" checked style="width: 16px; height: 16px; accent-color: var(--accent); margin-top: 3px;">
+          <div>
+            <div style="font-weight: 600;">自動在簡報換行處加上停頓（強烈推薦）</div>
+            <div style="font-size: 0.78rem; color: var(--muted); margin-top: 4px; line-height: 1.4;">簡報內容通常為條列式且缺乏標點符號。開啟此功能後，系統會自動在換行處加入句號產生自然停頓，避免各點內容黏在一起唸。</div>
+          </div>
+        </label>
+      </div>
+
       <div class="nav-bar">
         <button class="btn btn-secondary" onclick="goStep(2)">← 回到腳本</button>
         <button class="btn btn-primary" id="btn-generate" disabled>🎬 開始生成影片</button>
@@ -690,10 +721,16 @@
       document.getElementById('done-section').style.display = 'none';
       document.getElementById('error-section').style.display = 'none';
 
+      const rateVal = parseInt(document.getElementById('rate-slider').value);
+      const rateStr = (rateVal >= 0 ? '+' : '') + rateVal + '%';
+      const autoPause = document.getElementById('auto-pause').checked;
+
       const formData = new FormData();
       formData.append('job_id', jobId);
       formData.append('scripts', JSON.stringify(scripts));
       formData.append('voice', selectedVoice);
+      formData.append('rate', rateStr);
+      formData.append('auto_pause', autoPause ? 'true' : 'false');
 
       try {
         const res = await fetch('/api/generate', { method: 'POST', body: formData });
@@ -745,6 +782,19 @@
       document.getElementById('error-section').style.display = 'block';
       document.getElementById('error-msg').textContent = msg;
     }
+
+    // Rate slider change display text
+    const rateSlider = document.getElementById('rate-slider');
+    const rateValue = document.getElementById('rate-value');
+    rateSlider.addEventListener('input', () => {
+      const val = parseInt(rateSlider.value);
+      let desc = '';
+      if (val === 0) desc = '正常 (0%)';
+      else if (val === -10) desc = '稍微慢速 (-10% · 最推薦)';
+      else if (val < 0) desc = `慢速 (${val}%)`;
+      else desc = `快速 (+${val}%)`;
+      rateValue.textContent = desc;
+    });
 
     // Init
     updateStepIndicator(1);
