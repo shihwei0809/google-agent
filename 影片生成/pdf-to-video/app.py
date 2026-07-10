@@ -427,7 +427,15 @@ async def _run_generation(
 
         def write_video():
             final = concatenate_videoclips(clips, method="compose")
-            final.write_videofile(output_path, fps=24, audio_codec="aac", logger=None)
+            final.write_videofile(
+                output_path, 
+                fps=5, 
+                codec="libx264",
+                audio_codec="aac", 
+                preset="ultrafast",
+                threads=4,
+                logger=None
+            )
             final.close()
             for c in clips:
                 c.close()

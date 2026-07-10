@@ -1010,7 +1010,7 @@
     // Rate slider change display text
     const rateSlider = document.getElementById('rate-slider');
     const rateValue = document.getElementById('rate-value');
-    rateSlider.addEventListener('input', () => {
+    function updateRateLabel() {
       const val = parseInt(rateSlider.value);
       let desc = '';
       if (val === 0) desc = '正常 (0%)';
@@ -1018,7 +1018,9 @@
       else if (val < 0) desc = `慢速 (${val}%)`;
       else desc = `快速 (+${val}%)`;
       rateValue.textContent = desc;
-    });
+    }
+    rateSlider.addEventListener('input', updateRateLabel);
+    updateRateLabel();
 
     // Init
     updateStepIndicator(1);
