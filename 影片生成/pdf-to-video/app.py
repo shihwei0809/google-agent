@@ -32,6 +32,12 @@ JOBS_DIR.mkdir(exist_ok=True)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
+
+# Add file handler for diagnostics
+file_handler = logging.FileHandler("server.log", encoding="utf-8")
+file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
+logger.addHandler(file_handler)
+
 executor = ThreadPoolExecutor(max_workers=2)
 
 # ─── Voice Groups ─────────────────────────────────────────────────────────────
@@ -116,46 +122,52 @@ async def get_voices():
 
 @app.post("/api/extract")
 def extract_pdf(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="請上傳 PDF 格式的檔案。")
-
-    job_id = str(uuid.uuid4())
-    job_dir = JOBS_DIR / job_id
-    job_dir.mkdir(parents=True, exist_ok=True)
-
     try:
-        contents = file.file.read()
-        doc = fitz.open(stream=contents, filetype="pdf")
+        if not file.filename.lower().endswith(".pdf"):
+            raise HTTPException(status_code=400, detail="請上傳 PDF 格式的檔案。")
+
+        job_id = str(uuid.uuid4())
+        job_dir = JOBS_DIR / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            contents = file.file.read()
+            doc = fitz.open(stream=contents, filetype="pdf")
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"PDF 讀取失敗：{e}")
+
+        if len(doc) == 0:
+            raise HTTPException(status_code=400, detail="PDF 檔案是空的。")
+
+        pages_data = []
+        for i, page in enumerate(doc):
+            text = page.get_text().strip()
+
+            # High-res PNG for video assembly
+            mat_hi = fitz.Matrix(2, 2)
+            pix_hi = page.get_pixmap(matrix=mat_hi)
+            pix_hi.save(str(job_dir / f"page_{i:03d}.png"))
+
+            # Thumbnail for browser preview (35%)
+            mat_th = fitz.Matrix(0.35, 0.35)
+            pix_th = page.get_pixmap(matrix=mat_th)
+            thumb_path = job_dir / f"thumb_{i:03d}.png"
+            pix_th.save(str(thumb_path))
+
+            pages_data.append({
+                "page_num": i + 1,
+                "text": text,
+                "thumbnail": f"/jobs/{job_id}/thumb_{i:03d}.png",
+            })
+
+        jobs[job_id] = {"status": "extracted", "total_pages": len(pages_data)}
+        logger.info("Extracted %d pages, job=%s", len(pages_data), job_id)
+        return {"job_id": job_id, "pages": pages_data}
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"PDF 讀取失敗：{e}")
-
-    if len(doc) == 0:
-        raise HTTPException(status_code=400, detail="PDF 檔案是空的。")
-
-    pages_data = []
-    for i, page in enumerate(doc):
-        text = page.get_text().strip()
-
-        # High-res PNG for video assembly
-        mat_hi = fitz.Matrix(2, 2)
-        pix_hi = page.get_pixmap(matrix=mat_hi)
-        pix_hi.save(str(job_dir / f"page_{i:03d}.png"))
-
-        # Thumbnail for browser preview (35%)
-        mat_th = fitz.Matrix(0.35, 0.35)
-        pix_th = page.get_pixmap(matrix=mat_th)
-        thumb_path = job_dir / f"thumb_{i:03d}.png"
-        pix_th.save(str(thumb_path))
-
-        pages_data.append({
-            "page_num": i + 1,
-            "text": text,
-            "thumbnail": f"/jobs/{job_id}/thumb_{i:03d}.png",
-        })
-
-    jobs[job_id] = {"status": "extracted", "total_pages": len(pages_data)}
-    logger.info("Extracted %d pages, job=%s", len(pages_data), job_id)
-    return {"job_id": job_id, "pages": pages_data}
+        logger.exception("Error extracting PDF")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"系統內部錯誤：{e}")
 
 
 @app.post("/api/generate")
