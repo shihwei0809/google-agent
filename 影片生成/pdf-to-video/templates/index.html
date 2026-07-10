@@ -425,7 +425,19 @@
     <!-- ── STEP 2: Script Editor ── -->
     <div class="step-panel" id="panel-2">
       <div class="card">
-        <div class="info-tip">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會以「本頁無文字內容」播報。</div>
+        <div class="info-tip" style="margin-bottom: 12px;">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會以「本頁無文字內容」播報。</div>
+        
+        <!-- Import/Export Action Bar -->
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+          <button class="btn btn-secondary" id="btn-export-script" style="font-size: 0.85rem; padding: 8px 16px; display: flex; align-items: center; gap: 6px;">
+            📥 匯出腳本文字 (.txt)
+          </button>
+          <button class="btn btn-secondary" id="btn-import-script-trigger" style="font-size: 0.85rem; padding: 8px 16px; display: flex; align-items: center; gap: 6px; position: relative; cursor: pointer;">
+            📤 匯入已修改腳本 (.txt)
+            <input type="file" id="script-file-input" accept=".txt" style="position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;">
+          </button>
+        </div>
+
         <div class="pages-scroll" id="pages-container"></div>
       </div>
       <div class="nav-bar">
@@ -647,6 +659,74 @@
         ta.addEventListener('input', () => { cc.textContent = ta.value.length + ' 字'; });
       });
     }
+
+    // ─── Export Scripts to .txt file ─────────────────────────────
+    document.getElementById('btn-export-script').addEventListener('click', () => {
+      if (!pagesData || pagesData.length === 0) {
+        alert("目前尚無可匯出的腳本資料。");
+        return;
+      }
+      let content = "";
+      pagesData.forEach((_, i) => {
+        const ta = document.getElementById(`script-${i}`);
+        const text = ta ? ta.value : "";
+        content += `=== 第 ${i + 1} 頁 ===\n${text}\n\n`;
+      });
+      
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const originalPdfName = document.getElementById('filename-label').textContent || "pdf";
+      a.download = `${originalPdfName.replace(".pdf", "")}_腳本.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // ─── Import Scripts from .txt file ───────────────────────────
+    document.getElementById('script-file-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const fileContent = evt.target.result;
+        const lines = fileContent.split(/\r?\n/);
+        let currentPage = null;
+        let pageScripts = {};
+        
+        for (let line of lines) {
+          const match = line.match(/^===\s*第\s*(\d+)\s*頁\s*===/);
+          if (match) {
+            currentPage = parseInt(match[1]) - 1; // 0-indexed
+            pageScripts[currentPage] = [];
+          } else if (currentPage !== null) {
+            pageScripts[currentPage].push(line);
+          }
+        }
+        
+        let count = 0;
+        for (let pageNum in pageScripts) {
+          const ta = document.getElementById(`script-${pageNum}`);
+          if (ta) {
+            const text = pageScripts[pageNum].join('\n').trim();
+            ta.value = text;
+            ta.dispatchEvent(new Event('input')); // Trigger char-count update
+            count++;
+          }
+        }
+        
+        if (count > 0) {
+          alert(`成功匯入 ${count} 頁的腳本內容！`);
+        } else {
+          alert("無法讀取腳本內容，請確認檔案格式是否正確 (必須包含 '=== 第 X 頁 ===' 標記)。");
+        }
+        
+        e.target.value = "";
+      };
+      
+      reader.readAsText(file, 'utf-8');
+    });
 
     document.getElementById('btn-to-voice').addEventListener('click', () => goStep(3));
 
