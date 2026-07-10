@@ -289,5 +289,14 @@ if __name__ == "__main__":
     parser.add_argument("--port", type=int, default=8000, help="Web app port (default: 8000)")
     args = parser.parse_args()
     
-    # 啟動 Uvicorn 伺服器
-    uvicorn.run(app, host="127.0.0.1", port=args.port)
+    import socket
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    print(f"\n[+] 伺服器啟動成功！")
+    print(f"    本機存取: http://localhost:{args.port}/")
+    print(f"    區網存取: http://{local_ip}:{args.port}/")
+    print(f"    任意 IP 均可透過上方區網 IP 連線，支援多人同時使用。")
+    print()
+    
+    # 啟動 Uvicorn 伺服器，host=0.0.0.0 表示允許區網所有裝置連線
+    uvicorn.run(app, host="0.0.0.0", port=args.port)
