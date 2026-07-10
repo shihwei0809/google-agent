@@ -165,7 +165,7 @@ def call_gemini_api(api_key: str, model: str, image_path: Path) -> str:
             ]
         }
         
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response = requests.post(url, json=payload, headers=headers, timeout=60)
         response.raise_for_status()
         data = response.json()
         text = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -211,7 +211,7 @@ def call_grok_api(api_key: str, model: str, image_path: Path) -> str:
             ]
         }
         
-        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response = requests.post(url, json=payload, headers=headers, timeout=60)
         response.raise_for_status()
         data = response.json()
         text = data["choices"][0]["message"]["content"]
@@ -252,8 +252,8 @@ def extract_pdf(
             img_path = job_dir / f"page_{i:03d}.png"
             pix_hi.save(str(img_path))
 
-            # 2. 輸出縮圖供瀏覽器預覽
-            mat_th = fitz.Matrix(0.35, 0.35)
+            # 2. 輸出縮圖供瀏覽器預覽與 AI 辨識 (改為清晰的 0.75 縮圖，體積大幅縮小解決上傳逾時)
+            mat_th = fitz.Matrix(0.75, 0.75)
             pix_th = page.get_pixmap(matrix=mat_th)
             thumb_path = job_dir / f"thumb_{i:03d}.png"
             pix_th.save(str(thumb_path))
@@ -263,14 +263,14 @@ def extract_pdf(
             if method == "gemini" and api_key:
                 try:
                     logger.info("Calling Gemini API for page %d...", i + 1)
-                    text = call_gemini_api(api_key, model, img_path)
+                    text = call_gemini_api(api_key, model, thumb_path)
                 except Exception as e:
                     logger.warning("Gemini extraction failed, falling back to digital text: %s", e)
                     text = page.get_text().strip()
             elif method == "grok" and api_key:
                 try:
                     logger.info("Calling Grok API for page %d...", i + 1)
-                    text = call_grok_api(api_key, model, img_path)
+                    text = call_grok_api(api_key, model, thumb_path)
                 except Exception as e:
                     logger.warning("Grok extraction failed, falling back to digital text: %s", e)
                     text = page.get_text().strip()
