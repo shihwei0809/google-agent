@@ -493,6 +493,7 @@
     let pagesData = [];
     let selectedVoice = null;
     let pollTimer = null;
+    let selectedFile = null;
 
     // ─── Step Navigation ─────────────────────────────────────
     function goStep(n) {
@@ -530,9 +531,18 @@
       e.preventDefault();
       dropzone.classList.remove('drag-over');
       const f = e.dataTransfer.files[0];
-      if (f) setFile(f);
+      if (f) {
+        selectedFile = f;
+        setFile(f);
+      }
     });
-    pdfInput.addEventListener('change', () => { if (pdfInput.files[0]) setFile(pdfInput.files[0]); });
+    pdfInput.addEventListener('change', () => {
+      const f = pdfInput.files[0];
+      if (f) {
+        selectedFile = f;
+        setFile(f);
+      }
+    });
 
     function setFile(f) {
       document.getElementById('filename-label').textContent = f.name;
@@ -543,12 +553,14 @@
 
     document.getElementById('btn-clear-file').addEventListener('click', () => {
       pdfInput.value = '';
+      selectedFile = null;
       fileSelected.classList.remove('show');
       btnExtract.disabled = true;
+      document.getElementById('debug-log').style.display = 'none';
     });
 
     btnExtract.addEventListener('click', async () => {
-      const file = pdfInput.files[0];
+      const file = selectedFile;
       if (!file) return;
 
       btnExtract.disabled = true;
