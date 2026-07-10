@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF 語音旁白影片生成器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Tokens ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f20;
+      --surface:  #0f1c35;
+      --card:     rgba(255,255,255,.06);
+      --border:   rgba(255,255,255,.12);
+      --text:     #e8edf5;
+      --muted:    #8899b4;
+      --accent:   #4f8ef7;
+      --accent2:  #a855f7;
+      --green:    #22c55e;
+      --red:      #ef4444;
+      --yellow:   #f59e0b;
+      --r:        16px;
+      --shadow:   0 20px 60px rgba(0,0,0,.4);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Noto Sans TC', 'Segoe UI', sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(79,142,247,.15), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(168,85,247,.12), transparent),
+        var(--bg);
+    }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    header p { color: var(--muted); font-size: .95rem; }
+
+    /* ── Step Indicator ─────────────────────────────────────── */
+    .steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 44px;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+    .step-item:last-child { flex: none; }
+    .step-dot {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .85rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: all .3s ease;
+    }
+    .step-dot.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(79,142,247,.5);
+    }
+    .step-dot.done {
+      background: var(--green);
+      border-color: transparent;
+      color: #fff;
+    }
+    .step-label {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-top: 6px;
+      white-space: nowrap;
+    }
+    .step-label.active { color: var(--accent); font-weight: 600; }
+    .step-connector {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      margin: 0 4px;
+      transition: background .3s;
+    }
+    .step-connector.done { background: var(--green); }
+    .step-block { display: flex; flex-direction: column; align-items: center; }
+
+    /* ── Cards ──────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 28px;
+      backdrop-filter: blur(12px);
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px;
+      border: none; border-radius: 50px;
+      font-size: .95rem; font-weight: 600; cursor: pointer;
+      transition: all .2s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,142,247,.4); }
+    .btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,.1); }
+    .btn-green {
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      color: #fff;
+      font-size: 1.05rem;
+      padding: 14px 32px;
+    }
+    .btn-green:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,197,94,.4); }
+    .btn:disabled { opacity: .5; pointer-events: none; }
+
+    /* ── Navigation bar ─────────────────────────────────────── */
+    .nav-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 28px;
+    }
+
+    /* ── Step Panels ─────────────────────────────────────────── */
+    .step-panel { display: none; animation: fadeIn .35s ease; }
+    .step-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+    /* ── Step 1: Upload ──────────────────────────────────────── */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--r);
+      padding: 60px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .25s;
+      position: relative;
+    }
+    .dropzone:hover, .dropzone.drag-over {
+      border-color: var(--accent);
+      background: rgba(79,142,247,.05);
+    }
+    .dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .dropzone .icon { font-size: 3.5rem; margin-bottom: 16px; }
+    .dropzone h2 { font-size: 1.3rem; margin-bottom: 8px; }
+    .dropzone p { color: var(--muted); font-size: .9rem; }
+    .file-selected {
+      margin-top: 16px;
+      padding: 12px 20px;
+      background: rgba(79,142,247,.12);
+      border-radius: 12px;
+      border: 1px solid rgba(79,142,247,.3);
+      display: none;
+      align-items: center; gap: 12px;
+    }
+    .file-selected.show { display: flex; }
+    .file-selected .filename { font-weight: 600; }
+    .file-selected .filesize { color: var(--muted); font-size: .85rem; }
+
+    /* ── Step 2: Script Editor ───────────────────────────────── */
+    .page-grid { display: flex; flex-direction: column; gap: 20px; }
+    .page-card {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 16px;
+    }
+    .page-card:hover { border-color: rgba(79,142,247,.3); }
+    .page-thumb {
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+      position: relative;
+    }
+    .page-thumb img { width: 100%; display: block; }
+    .page-num-badge {
+      position: absolute;
+      top: 6px; left: 6px;
+      background: rgba(0,0,0,.7);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+    .page-editor { display: flex; flex-direction: column; gap: 8px; }
+    .page-editor label { font-size: .8rem; color: var(--muted); font-weight: 600; }
+    .page-editor textarea {
+      flex: 1;
+      min-height: 140px;
+      resize: vertical;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      color: var(--text);
+      font-size: .88rem;
+      line-height: 1.65;
+      font-family: inherit;
+      transition: border-color .2s;
+    }
+    .page-editor textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(79,142,247,.05);
+    }
+    .page-editor .char-count { font-size: .75rem; color: var(--muted); text-align: right; }
+
+    /* Scrollable area for many pages */
+    .pages-scroll {
+      max-height: 62vh;
+      overflow-y: auto;
+      padding-right: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .pages-scroll::-webkit-scrollbar { width: 6px; }
+    .pages-scroll::-webkit-scrollbar-track { background: transparent; }
+    .pages-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Step 3: Voice Picker ────────────────────────────────── */
+    .voice-group { margin-bottom: 24px; }
+    .voice-group-title {
+      font-size: .85rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .voice-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .voice-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all .2s;
+      user-select: none;
+    }
+    .voice-card:hover { border-color: var(--accent); background: rgba(79,142,247,.06); }
+    .voice-card.selected {
+      border-color: var(--accent);
+      background: rgba(79,142,247,.12);
+      box-shadow: 0 0 16px rgba(79,142,247,.25);
+    }
+    .voice-card input { display: none; }
+    .voice-card-name { font-weight: 600; font-size: .9rem; }
+    .voice-card-id { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+    .selected-voice-preview {
+      margin-top: 20px;
+      padding: 16px 20px;
+      background: rgba(79,142,247,.08);
+      border: 1px solid rgba(79,142,247,.25);
+      border-radius: 12px;
+      display: none;
+    }
+    .selected-voice-preview.show { display: flex; align-items: center; gap: 12px; }
+
+    /* ── Step 4: Progress ────────────────────────────────────── */
+    .progress-section { text-align: center; padding: 20px; }
+    .progress-bar-wrap {
+      background: var(--surface);
+      border-radius: 999px;
+      height: 10px;
+      margin: 20px 0;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width .4s ease;
+    }
+    .progress-label { color: var(--muted); font-size: .9rem; margin-top: 8px; }
+    .status-icon { font-size: 3rem; margin-bottom: 16px; }
+    .status-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+    .error-box {
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      color: #fca5a5;
+      margin-top: 16px;
+      font-size: .9rem;
+      text-align: left;
+    }
+
+    /* ── Info tip ────────────────────────────────────────────── */
+    .info-tip {
+      background: rgba(79,142,247,.08);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 10px 14px;
+      font-size: .85rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* ── Loading spinner ─────────────────────────────────────── */
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 16px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .page-card { grid-template-columns: 1fr; }
+      .page-thumb { max-width: 200px; }
+      .steps { gap: 0; }
+      .step-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <h1>🎬 PDF 語音旁白影片生成器</h1>
+      <p>上傳 PDF → 檢視並修正腳本 → 選擇語音 → 自動生成旁白影片</p>
+    </header>
+
+    <!-- Step Indicator -->
+    <div class="steps" id="step-indicator">
+      <div class="step-block">
+        <div class="step-dot active" id="dot-1">1</div>
+        <div class="step-label active" id="lbl-1">上傳 PDF</div>
+      </div>
+      <div class="step-connector" id="conn-1"></div>
+      <div class="step-block">
+        <div class="step-dot" id="dot-2">2</div>
+        <div class="step-label" id="lbl-2">編輯腳本</div>
+      </div>
+      <div class="step-connector" id="conn-2"></div>
+      <div class="step-block">
+        <div class="step-dot" id="dot-3">3</div>
+        <div class="step-label" id="lbl-3">選擇語音</div>
+      </div>
+      <div class="step-connector" id="conn-3"></div>
+      <div class="step-block">
+        <div class="step-dot" id="dot-4">4</div>
+        <div class="step-label" id="lbl-4">生成影片</div>
+      </div>
+    </div>
+
+    <!-- ── STEP 1: Upload ── -->
+    <div class="step-panel active" id="panel-1">
+      <div class="card">
+        <div class="info-tip">💡 系統會自動讀取 PDF 各頁文字作為旁白腳本，支援繁體、簡體中文及多國語言。</div>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="pdf-input" accept=".pdf">
+          <div class="icon">📄</div>
+          <h2>拖曳 PDF 至此，或點擊選取</h2>
+          <p>支援 PDF 格式，頁數建議不超過 30 頁</p>
+        </div>
+        <div class="file-selected" id="file-selected">
+          <span>📎</span>
+          <div>
+            <div class="filename" id="filename-label"></div>
+            <div class="filesize" id="filesize-label"></div>
+          </div>
+          <button class="btn btn-secondary" id="btn-clear-file" style="margin-left:auto">✕ 清除</button>
+        </div>
+      </div>
+      <div class="nav-bar">
+        <span></span>
+        <button class="btn btn-primary" id="btn-extract" disabled>讀取 PDF &nbsp;→</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Script Editor ── -->
+    <div class="step-panel" id="panel-2">
+      <div class="card">
+        <div class="info-tip">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會以「本頁無文字內容」播報。</div>
+        <div class="pages-scroll" id="pages-container"></div>
+      </div>
+      <div class="nav-bar">
+        <button class="btn btn-secondary" onclick="goStep(1)">← 重新上傳</button>
+        <button class="btn btn-primary" id="btn-to-voice">選擇語音 →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: Voice Picker ── -->
+    <div class="step-panel" id="panel-3">
+      <div class="card">
+        <div class="info-tip">🎙️ 請選擇旁白語音。Edge TTS 語音無需額外費用，需要網路連線。</div>
+        <div id="voice-container"></div>
+        <div class="selected-voice-preview" id="voice-preview">
+          <span style="font-size:1.8rem">🎤</span>
+          <div>
+            <div style="font-weight:700">已選擇語音</div>
+            <div style="color:var(--muted);font-size:.85rem" id="voice-preview-text"></div>
+          </div>
+        </div>
+      </div>
+      <div class="nav-bar">
+        <button class="btn btn-secondary" onclick="goStep(2)">← 回到腳本</button>
+        <button class="btn btn-primary" id="btn-generate" disabled>🎬 開始生成影片</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 4: Generation ── -->
+    <div class="step-panel" id="panel-4">
+      <div class="card">
+        <div class="progress-section" id="progress-section">
+          <div class="spinner"></div>
+          <div class="status-title" id="status-title">準備生成…</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+          <div class="progress-label" id="progress-label">0 / 0 頁</div>
+          <div class="progress-label" id="step-label" style="margin-top:4px;color:var(--accent)"></div>
+        </div>
+
+        <div style="text-align:center;display:none;padding:20px" id="done-section">
+          <div class="status-icon">🎉</div>
+          <div class="status-title">影片生成完成！</div>
+          <p style="color:var(--muted);margin-bottom:24px">請點擊下方按鈕下載旁白影片。</p>
+          <a id="download-link" class="btn btn-green" href="#" download>⬇️ 下載影片 (MP4)</a>
+        </div>
+
+        <div style="display:none;padding:20px" id="error-section">
+          <div class="status-icon">❌</div>
+          <div class="status-title" style="color:var(--red)">生成失敗</div>
+          <div class="error-box" id="error-msg"></div>
+          <div style="margin-top:20px;text-align:center">
+            <button class="btn btn-secondary" onclick="goStep(3)">← 重試</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+
+  <script>
+    // ─── State ────────────────────────────────────────────────
+    let currentStep = 1;
+    let jobId = null;
+    let pagesData = [];
+    let selectedVoice = null;
+    let pollTimer = null;
+
+    // ─── Step Navigation ─────────────────────────────────────
+    function goStep(n) {
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`panel-${n}`).classList.add('active');
+      currentStep = n;
+      updateStepIndicator(n);
+    }
+
+    function updateStepIndicator(active) {
+      for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        const lbl = document.getElementById(`lbl-${i}`);
+        dot.classList.remove('active', 'done');
+        lbl.classList.remove('active');
+        if (i < active) { dot.classList.add('done'); dot.textContent = '✓'; }
+        else if (i === active) { dot.classList.add('active'); dot.textContent = i; lbl.classList.add('active'); }
+        else { dot.textContent = i; }
+      }
+      for (let i = 1; i <= 3; i++) {
+        const conn = document.getElementById(`conn-${i}`);
+        conn.classList.toggle('done', i < active);
+      }
+    }
+
+    // ─── Step 1: File Upload ──────────────────────────────────
+    const dropzone = document.getElementById('dropzone');
+    const pdfInput = document.getElementById('pdf-input');
+    const btnExtract = document.getElementById('btn-extract');
+    const fileSelected = document.getElementById('file-selected');
+
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) setFile(f);
+    });
+    pdfInput.addEventListener('change', () => { if (pdfInput.files[0]) setFile(pdfInput.files[0]); });
+
+    function setFile(f) {
+      document.getElementById('filename-label').textContent = f.name;
+      document.getElementById('filesize-label').textContent = `${(f.size / 1024 / 1024).toFixed(2)} MB`;
+      fileSelected.classList.add('show');
+      btnExtract.disabled = false;
+    }
+
+    document.getElementById('btn-clear-file').addEventListener('click', () => {
+      pdfInput.value = '';
+      fileSelected.classList.remove('show');
+      btnExtract.disabled = true;
+    });
+
+    btnExtract.addEventListener('click', async () => {
+      const file = pdfInput.files[0];
+      if (!file) return;
+
+      btnExtract.disabled = true;
+      btnExtract.textContent = '⏳ 讀取中…';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/extract', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '讀取失敗');
+
+        jobId = data.job_id;
+        pagesData = data.pages;
+        renderPages(pagesData);
+        await loadVoices();
+        goStep(2);
+      } catch (err) {
+        alert('❌ PDF 讀取失敗：' + err.message);
+      } finally {
+        btnExtract.disabled = false;
+        btnExtract.innerHTML = '讀取 PDF &nbsp;→';
+      }
+    });
+
+    // ─── Step 2: Render Pages ─────────────────────────────────
+    function renderPages(pages) {
+      const container = document.getElementById('pages-container');
+      container.innerHTML = '';
+
+      pages.forEach((p, i) => {
+        const card = document.createElement('div');
+        card.className = 'page-card';
+        card.innerHTML = `
+          <div class="page-thumb">
+            <img src="${p.thumbnail}" alt="第 ${p.page_num} 頁">
+            <div class="page-num-badge">第 ${p.page_num} 頁</div>
+          </div>
+          <div class="page-editor">
+            <label>旁白腳本（可直接編輯）</label>
+            <textarea id="script-${i}" placeholder="（本頁無文字，可手動輸入旁白腳本）">${escapeHtml(p.text)}</textarea>
+            <div class="char-count" id="cc-${i}">${p.text.length} 字</div>
+          </div>`;
+        container.appendChild(card);
+
+        const ta = card.querySelector('textarea');
+        const cc = card.querySelector('.char-count');
+        ta.addEventListener('input', () => { cc.textContent = ta.value.length + ' 字'; });
+      });
+    }
+
+    document.getElementById('btn-to-voice').addEventListener('click', () => goStep(3));
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ─── Step 3: Voice Picker ─────────────────────────────────
+    async function loadVoices() {
+      try {
+        const res = await fetch('/api/voices');
+        const groups = await res.json();
+        renderVoices(groups);
+      } catch (err) {
+        console.error('Failed to load voices:', err);
+      }
+    }
+
+    function renderVoices(groups) {
+      const container = document.getElementById('voice-container');
+      container.innerHTML = '';
+
+      for (const [groupName, voices] of Object.entries(groups)) {
+        const grp = document.createElement('div');
+        grp.className = 'voice-group';
+        grp.innerHTML = `<div class="voice-group-title">${groupName}</div>`;
+        const cards = document.createElement('div');
+        cards.className = 'voice-cards';
+
+        voices.forEach(v => {
+          const card = document.createElement('label');
+          card.className = 'voice-card';
+          card.dataset.voiceId = v.id;
+          card.dataset.voiceLabel = v.label;
+          card.innerHTML = `
+            <input type="radio" name="voice" value="${v.id}">
+            <div class="voice-card-name">${v.label}</div>
+            <div class="voice-card-id">${v.id}</div>`;
+          card.addEventListener('click', () => selectVoice(v.id, v.label, groupName));
+          cards.appendChild(card);
+        });
+
+        grp.appendChild(cards);
+        container.appendChild(grp);
+      }
+    }
+
+    function selectVoice(id, label, group) {
+      document.querySelectorAll('.voice-card').forEach(c => c.classList.remove('selected'));
+      const card = document.querySelector(`.voice-card[data-voice-id="${id}"]`);
+      if (card) card.classList.add('selected');
+
+      selectedVoice = id;
+      const preview = document.getElementById('voice-preview');
+      document.getElementById('voice-preview-text').textContent = `${group}  ·  ${label}`;
+      preview.classList.add('show');
+      document.getElementById('btn-generate').disabled = false;
+    }
+
+    // ─── Step 4: Generate ─────────────────────────────────────
+    document.getElementById('btn-generate').addEventListener('click', async () => {
+      if (!selectedVoice) return;
+
+      // Collect scripts from textareas
+      const scripts = pagesData.map((_, i) => {
+        const ta = document.getElementById(`script-${i}`);
+        return ta ? ta.value : '';
+      });
+
+      goStep(4);
+      document.getElementById('progress-section').style.display = 'block';
+      document.getElementById('done-section').style.display = 'none';
+      document.getElementById('error-section').style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('job_id', jobId);
+      formData.append('scripts', JSON.stringify(scripts));
+      formData.append('voice', selectedVoice);
+
+      try {
+        const res = await fetch('/api/generate', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '啟動失敗');
+
+        // Start polling
+        pollTimer = setInterval(pollStatus, 1500);
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    async function pollStatus() {
+      try {
+        const res = await fetch(`/api/status/${jobId}`);
+        const data = await res.json();
+
+        const total = data.total || pagesData.length;
+        const progress = data.progress || 0;
+        const pct = total ? Math.round(progress / total * 100) : 0;
+
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('progress-label').textContent = `${progress} / ${total} 頁`;
+        document.getElementById('step-label').textContent = data.step || '';
+        document.getElementById('status-title').textContent = '生成中…';
+
+        if (data.status === 'done') {
+          clearInterval(pollTimer);
+          showDone();
+        } else if (data.status === 'error') {
+          clearInterval(pollTimer);
+          showError(data.error || '未知錯誤');
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+    }
+
+    function showDone() {
+      document.getElementById('progress-section').style.display = 'none';
+      document.getElementById('done-section').style.display = 'block';
+      document.getElementById('download-link').href = `/api/download/${jobId}`;
+      updateStepIndicator(5); // all done
+    }
+
+    function showError(msg) {
+      document.getElementById('progress-section').style.display = 'none';
+      document.getElementById('error-section').style.display = 'block';
+      document.getElementById('error-msg').textContent = msg;
+    }
+
+    // Init
+    updateStepIndicator(1);
+  </script>
+</body>
+</html>

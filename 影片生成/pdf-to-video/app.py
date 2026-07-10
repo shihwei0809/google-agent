@@ -94,8 +94,11 @@ def make_frame_1920x1080(img_path: str) -> str:
     return out_path
 
 # ─── App ─────────────────────────────────────────────────────────────────────
+from fastapi.staticfiles import StaticFiles
+
 app = FastAPI(title="PDF 語音旁白影片生成器")
 templates = Jinja2Templates(directory="templates")
+app.mount("/jobs", StaticFiles(directory="jobs"), name="jobs")
 
 # In-memory job tracker
 jobs: dict[str, dict] = {}
@@ -112,7 +115,7 @@ async def get_voices():
 
 
 @app.post("/api/extract")
-async def extract_pdf(file: UploadFile = File(...)):
+def extract_pdf(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="請上傳 PDF 格式的檔案。")
 
@@ -120,8 +123,8 @@ async def extract_pdf(file: UploadFile = File(...)):
     job_dir = JOBS_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
-    contents = await file.read()
     try:
+        contents = file.file.read()
         doc = fitz.open(stream=contents, filetype="pdf")
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"PDF 讀取失敗：{e}")
@@ -141,12 +144,13 @@ async def extract_pdf(file: UploadFile = File(...)):
         # Thumbnail for browser preview (35%)
         mat_th = fitz.Matrix(0.35, 0.35)
         pix_th = page.get_pixmap(matrix=mat_th)
-        thumb_b64 = base64.b64encode(pix_th.tobytes("png")).decode()
+        thumb_path = job_dir / f"thumb_{i:03d}.png"
+        pix_th.save(str(thumb_path))
 
         pages_data.append({
             "page_num": i + 1,
             "text": text,
-            "thumbnail": thumb_b64,
+            "thumbnail": f"/jobs/{job_id}/thumb_{i:03d}.png",
         })
 
     jobs[job_id] = {"status": "extracted", "total_pages": len(pages_data)}
