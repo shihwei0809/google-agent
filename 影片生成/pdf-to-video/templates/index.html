@@ -681,9 +681,17 @@
         apiSettingsArea.style.display = 'block';
         modelSelect.innerHTML = '';
         if (selectedMethod === 'gemini') {
+          const opt35f = document.createElement('option');
+          opt35f.value = 'gemini-3.5-flash';
+          opt35f.textContent = 'Gemini 3.5 Flash (預設推薦)';
+          
+          const opt35p = document.createElement('option');
+          opt35p.value = 'gemini-3.5-pro';
+          opt35p.textContent = 'Gemini 3.5 Pro (極高水準)';
+
           const opt25 = document.createElement('option');
           opt25.value = 'gemini-2.5-flash';
-          opt25.textContent = 'Gemini 2.5 Flash (預設推薦)';
+          opt25.textContent = 'Gemini 2.5 Flash';
           
           const opt15f = document.createElement('option');
           opt15f.value = 'gemini-1.5-flash';
@@ -691,12 +699,14 @@
           
           const opt15p = document.createElement('option');
           opt15p.value = 'gemini-1.5-pro';
-          opt15p.textContent = 'Gemini 1.5 Pro (較慢但高水準)';
+          opt15p.textContent = 'Gemini 1.5 Pro';
           
           const opt20f = document.createElement('option');
           opt20f.value = 'gemini-2.0-flash';
           opt20f.textContent = 'Gemini 2.0 Flash';
           
+          modelSelect.appendChild(opt35f);
+          modelSelect.appendChild(opt35p);
           modelSelect.appendChild(opt25);
           modelSelect.appendChild(opt15f);
           modelSelect.appendChild(opt15p);
