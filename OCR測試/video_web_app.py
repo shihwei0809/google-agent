@@ -9,6 +9,7 @@ from datetime import datetime
 import fitz  # PyMuPDF
 from PIL import Image
 import numpy as np
+import edge_tts
 
 import uvicorn
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
@@ -111,19 +112,12 @@ async def preview_audio(text: str, voice: str = "zh-TW-HsiaoChenNeural", speed: 
     temp_filename = f"preview_{uuid.uuid4().hex}.mp3"
     temp_filepath = os.path.join(temp_dir, temp_filename)
     
-    cmd = [
-        "edge-tts",
-        "--voice", voice,
-        "--text", text,
-        "--write-media", temp_filepath,
-        "--rate", speed
-    ]
     try:
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        communicate = edge_tts.Communicate(text, voice, rate=speed)
+        await communicate.save(temp_filepath)
         return FileResponse(temp_filepath, media_type="audio/mpeg", filename=temp_filename)
-    except subprocess.CalledProcessError as e:
-        err = e.stderr.decode("utf-8", errors="ignore")
-        raise HTTPException(status_code=500, detail=f"語音生成失敗: {err}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"語音生成失敗: {e}")
 
 # 3. 第一階段：上傳 PDF 並執行 OCR 提取
 @app.post("/api/prepare")
@@ -231,18 +225,11 @@ async def generate_video(req: GenerateRequest):
                 create_silence_mp3(audio_path, 3.0)
             else:
                 print(f"  [{page_num}/{total_pages}] 正在生成語音：{text[:20]}...")
-                cmd = [
-                    "edge-tts",
-                    "--voice", req.voice,
-                    "--text", text,
-                    "--write-media", audio_path,
-                    "--rate", req.speed
-                ]
                 try:
-                    subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                except subprocess.CalledProcessError as e:
-                    err_msg = e.stderr.decode('utf-8', errors='ignore') if e.stderr else ''
-                    print(f"    [-] edge-tts 失敗：{err_msg[:100]}")
+                    communicate = edge_tts.Communicate(text, req.voice, rate=req.speed)
+                    await communicate.save(audio_path)
+                except Exception as e:
+                    print(f"    [-] edge-tts 失敗：{e}")
                     print(f"    [*] 降級使用 3 秒靜音...")
                     create_silence_mp3(audio_path, 3.0)
             
