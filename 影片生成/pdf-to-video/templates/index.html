@@ -416,6 +416,66 @@
         </div>
         <div id="debug-log" style="color: #fca5a5; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 16px; margin-top: 16px; font-family: monospace; font-size: 0.82rem; display: none; white-space: pre-wrap; text-align: left; line-height: 1.5;"></div>
       </div>
+
+      <!-- Extraction Method Settings Card -->
+      <div class="card" style="margin-top: 20px; padding: 24px;">
+        <div style="font-weight: 700; margin-bottom: 16px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+          <span>🤖</span> 簡報腳本解析設定
+        </div>
+        
+        <!-- Method Selector -->
+        <div style="margin-bottom: 20px;">
+          <label style="font-size: 0.9rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 10px;">解析模式 (Extraction Method)</label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; margin: 0;">
+              <input type="radio" name="extract-method" value="digital" checked style="accent-color: var(--accent);">
+              <div style="margin-left: 6px;">
+                <div style="font-size: 0.85rem; font-weight: 600;">本機傳統文字擷取</div>
+                <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">速度最快，不支援掃描簡報</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; margin: 0;">
+              <input type="radio" name="extract-method" value="easyocr" style="accent-color: var(--accent);">
+              <div style="margin-left: 6px;">
+                <div style="font-size: 0.85rem; font-weight: 600;">本地 OCR 影像辨識</div>
+                <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">較慢，無網路時可用</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; margin: 0;">
+              <input type="radio" name="extract-method" value="gemini" style="accent-color: var(--accent);">
+              <div style="margin-left: 6px;">
+                <div style="font-size: 0.85rem; font-weight: 600;">Google Gemini (推薦)</div>
+                <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">智慧配音稿，支援掃描與圖片</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; margin: 0;">
+              <input type="radio" name="extract-method" value="grok" style="accent-color: var(--accent);">
+              <div style="margin-left: 6px;">
+                <div style="font-size: 0.85rem; font-weight: 600;">xAI Grok</div>
+                <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">智慧配音稿，需要 Grok 金鑰</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- API Fields (Dynamically Shown) -->
+        <div id="api-settings-area" style="display: none; border-top: 1px dashed var(--border); padding-top: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px;">API 金鑰 (API Key)</label>
+              <input type="password" id="api-key-input" placeholder="請貼上您的 API Key" style="width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; box-sizing: border-box;">
+            </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px;">模型選擇 (Model)</label>
+              <select id="model-select" style="width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; height: 38px; outline: none; box-sizing: border-box;"></select>
+            </div>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--muted); line-height: 1.4;">
+            💡 使用 Gemini 或 Grok 時，系統會直接將投影片圖片送給多模態 AI 理解，並**自動重新撰寫流暢且語氣親切的中文播報旁白腳本**，相較於傳統 OCR，文字流暢度與專業度有極大提升。
+          </div>
+        </div>
+      </div>
+
       <div class="nav-bar">
         <span></span>
         <button class="btn btn-primary" id="btn-extract" disabled>讀取 PDF &nbsp;→</button>
@@ -602,15 +662,89 @@
       document.getElementById('debug-log').style.display = 'none';
     });
 
+    // ─── Step 1: Extraction Method Control ───────────────────
+    const apiSettingsArea = document.getElementById('api-settings-area');
+    const apiKeyInput = document.getElementById('api-key-input');
+    const modelSelect = document.getElementById('model-select');
+    const methodRadios = document.getElementsByName('extract-method');
+
+    function updateApiSettings() {
+      let selectedMethod = 'digital';
+      for (const r of methodRadios) {
+        if (r.checked) {
+          selectedMethod = r.value;
+          break;
+        }
+      }
+      
+      if (selectedMethod === 'gemini' || selectedMethod === 'grok') {
+        apiSettingsArea.style.display = 'block';
+        modelSelect.innerHTML = '';
+        if (selectedMethod === 'gemini') {
+          const opt25 = document.createElement('option');
+          opt25.value = 'gemini-2.5-flash';
+          opt25.textContent = 'Gemini 2.5 Flash (預設推薦)';
+          
+          const opt15f = document.createElement('option');
+          opt15f.value = 'gemini-1.5-flash';
+          opt15f.textContent = 'Gemini 1.5 Flash';
+          
+          const opt15p = document.createElement('option');
+          opt15p.value = 'gemini-1.5-pro';
+          opt15p.textContent = 'Gemini 1.5 Pro (較慢但高水準)';
+          
+          const opt20f = document.createElement('option');
+          opt20f.value = 'gemini-2.0-flash';
+          opt20f.textContent = 'Gemini 2.0 Flash';
+          
+          modelSelect.appendChild(opt25);
+          modelSelect.appendChild(opt15f);
+          modelSelect.appendChild(opt15p);
+          modelSelect.appendChild(opt20f);
+        } else if (selectedMethod === 'grok') {
+          const optGrok = document.createElement('option');
+          optGrok.value = 'grok-2-vision-1212';
+          optGrok.textContent = 'Grok 2 Vision';
+          modelSelect.appendChild(optGrok);
+        }
+      } else {
+        apiSettingsArea.style.display = 'none';
+      }
+    }
+
+    for (const r of methodRadios) {
+      r.addEventListener('change', updateApiSettings);
+    }
+    updateApiSettings(); // Initial call
+
     btnExtract.addEventListener('click', async () => {
       const file = selectedFile;
       if (!file) return;
 
+      let method = 'digital';
+      for (const r of methodRadios) {
+        if (r.checked) {
+          method = r.value;
+          break;
+        }
+      }
+      
+      const apiKey = apiKeyInput.value.trim();
+      const model = modelSelect.value;
+      
+      if ((method === 'gemini' || method === 'grok') && !apiKey) {
+        alert('⚠️ 使用 AI 模式需要輸入 API 金鑰！');
+        return;
+      }
+
       btnExtract.disabled = true;
-      btnExtract.textContent = '⏳ 讀取中…';
+      btnExtract.textContent = '⏳ 讀取與辨識中，請稍候…';
 
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('method', method);
+      formData.append('api_key', apiKey);
+      formData.append('model', model);
 
       try {
         const res = await fetch('/api/extract', { method: 'POST', body: formData });
@@ -626,8 +760,8 @@
         console.error(err);
         const logEl = document.getElementById('debug-log');
         logEl.style.display = 'block';
-        logEl.textContent = `❌ PDF 讀取失敗\nError: ${err.message}\nStack: ${err.stack || '無可用堆疊追蹤資訊'}`;
-        alert('❌ PDF 讀取失敗：' + err.message);
+        logEl.textContent = `❌ PDF 讀取與辨識失敗\nError: ${err.message}\nStack: ${err.stack || '無可用堆疊追蹤資訊'}`;
+        alert('❌ PDF 讀取與辨識失敗：' + err.message);
       } finally {
         btnExtract.disabled = false;
         btnExtract.innerHTML = '讀取 PDF &nbsp;→';

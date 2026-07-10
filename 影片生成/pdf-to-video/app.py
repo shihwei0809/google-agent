@@ -120,8 +120,113 @@ async def get_voices():
     return VOICE_GROUPS
 
 
+import base64
+import requests
+
+_easyocr_reader = None
+
+def get_easyocr_reader():
+    global _easyocr_reader
+    if _easyocr_reader is None:
+        import easyocr
+        logger.info("Initializing EasyOCR reader...")
+        _easyocr_reader = easyocr.Reader(['ch_tra', 'en'], gpu=False)
+    return _easyocr_reader
+
+def call_gemini_api(api_key: str, model: str, image_path: Path) -> str:
+    """Call Google Gemini API with a local image to generate presentation narration."""
+    try:
+        with open(image_path, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode("utf-8")
+            
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        headers = {"Content-Type": "application/json"}
+        
+        prompt = (
+            "你是一個專業的簡報導覽配音員。請根據這張簡報投影片的畫面內容，編寫一段適合語音朗讀、語氣自然流暢、"
+            "發音清晰的繁體中文簡報旁白腳本（字數約 120-250 字）。請注意：\n"
+            "1. 只回傳旁白文字內容，不要包含頁碼、簡報標題等無關標記。\n"
+            "2. 不要包含任何額外說明文字或引號，直接輸出旁白內容即可。"
+        )
+        
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inlineData": {
+                                "mimeType": "image/png",
+                                "data": img_b64
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+        return text.strip()
+    except Exception as e:
+        logger.error(f"Gemini API call failed: {e}")
+        raise e
+
+def call_grok_api(api_key: str, model: str, image_path: Path) -> str:
+    """Call xAI Grok API with a local image to generate presentation narration."""
+    try:
+        with open(image_path, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode("utf-8")
+            
+        url = "https://api.xai.ai/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        
+        prompt = (
+            "你是一個專業的簡報導覽配音員。請根據這張簡報投影片的畫面內容，編寫一段適合語音朗讀、語氣自然流暢、"
+            "發音清晰的繁體中文簡報旁白腳本（字數約 120-250 字）。請注意：\n"
+            "1. 只回傳旁白文字內容，不要包含頁碼、簡報標題等無關標記。\n"
+            "2. 不要包含任何額外說明文字或引號，直接輸出旁白內容即可。"
+        )
+        
+        payload = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/png;base64,{img_b64}"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        text = data["choices"][0]["message"]["content"]
+        return text.strip()
+    except Exception as e:
+        logger.error(f"Grok API call failed: {e}")
+        raise e
+
 @app.post("/api/extract")
-def extract_pdf(file: UploadFile = File(...)):
+def extract_pdf(
+    file: UploadFile = File(...),
+    method: str = Form("digital"),
+    api_key: str = Form(""),
+    model: str = Form(""),
+):
     try:
         if not file.filename.lower().endswith(".pdf"):
             raise HTTPException(status_code=400, detail="請上傳 PDF 格式的檔案。")
@@ -141,18 +246,46 @@ def extract_pdf(file: UploadFile = File(...)):
 
         pages_data = []
         for i, page in enumerate(doc):
-            text = page.get_text().strip()
-
-            # High-res PNG for video assembly
+            # 1. 輸出高解析度 PNG（API 與 OCR 需要底圖）
             mat_hi = fitz.Matrix(2, 2)
             pix_hi = page.get_pixmap(matrix=mat_hi)
-            pix_hi.save(str(job_dir / f"page_{i:03d}.png"))
+            img_path = job_dir / f"page_{i:03d}.png"
+            pix_hi.save(str(img_path))
 
-            # Thumbnail for browser preview (35%)
+            # 2. 輸出縮圖供瀏覽器預覽
             mat_th = fitz.Matrix(0.35, 0.35)
             pix_th = page.get_pixmap(matrix=mat_th)
             thumb_path = job_dir / f"thumb_{i:03d}.png"
             pix_th.save(str(thumb_path))
+
+            # 3. 根據所選模式提取或生成腳本
+            text = ""
+            if method == "gemini" and api_key:
+                try:
+                    logger.info("Calling Gemini API for page %d...", i + 1)
+                    text = call_gemini_api(api_key, model, img_path)
+                except Exception as e:
+                    logger.warning("Gemini extraction failed, falling back to digital text: %s", e)
+                    text = page.get_text().strip()
+            elif method == "grok" and api_key:
+                try:
+                    logger.info("Calling Grok API for page %d...", i + 1)
+                    text = call_grok_api(api_key, model, img_path)
+                except Exception as e:
+                    logger.warning("Grok extraction failed, falling back to digital text: %s", e)
+                    text = page.get_text().strip()
+            elif method == "easyocr":
+                try:
+                    logger.info("Running EasyOCR for page %d...", i + 1)
+                    reader = get_easyocr_reader()
+                    ocr_results = reader.readtext(str(img_path), detail=0, paragraph=True)
+                    text = "\n".join(ocr_results).strip()
+                except Exception as e:
+                    logger.warning("EasyOCR failed, falling back to digital text: %s", e)
+                    text = page.get_text().strip()
+            else:
+                # 預設：本機數位文字擷取
+                text = page.get_text().strip()
 
             pages_data.append({
                 "page_num": i + 1,
@@ -161,13 +294,14 @@ def extract_pdf(file: UploadFile = File(...)):
             })
 
         jobs[job_id] = {"status": "extracted", "total_pages": len(pages_data)}
-        logger.info("Extracted %d pages, job=%s", len(pages_data), job_id)
+        logger.info("Extracted %d pages, method=%s, job=%s", len(pages_data), method, job_id)
         return {"job_id": job_id, "pages": pages_data}
     except Exception as e:
         logger.exception("Error extracting PDF")
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"系統內部錯誤：{e}")
+
 
 
 @app.post("/api/generate")
