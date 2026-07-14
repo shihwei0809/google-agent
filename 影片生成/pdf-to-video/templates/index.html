@@ -261,6 +261,41 @@
     .pages-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
     /* ── Step 3: Voice Picker ────────────────────────────────── */
+    /* TTS Engine Tabs */
+    .tts-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 4px;
+      border: 1px solid var(--border);
+    }
+    .tts-tab {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .tts-tab.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(79,142,247,.35);
+    }
+    .tts-tab-panel { display: none; }
+    .tts-tab-panel.active { display: block; }
+
     .voice-group { margin-bottom: 24px; }
     .voice-group-title {
       font-size: .85rem;
@@ -290,9 +325,25 @@
       background: rgba(79,142,247,.12);
       box-shadow: 0 0 16px rgba(79,142,247,.25);
     }
+    .voice-card.gemini-selected {
+      border-color: var(--accent2);
+      background: rgba(168,85,247,.12);
+      box-shadow: 0 0 16px rgba(168,85,247,.25);
+    }
     .voice-card input { display: none; }
     .voice-card-name { font-weight: 600; font-size: .9rem; }
     .voice-card-id { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+    .voice-card-style {
+      display: inline-block;
+      font-size: .68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 99px;
+      background: rgba(168,85,247,.15);
+      color: var(--accent2);
+      margin-top: 5px;
+      letter-spacing: .03em;
+    }
     .selected-voice-preview {
       margin-top: 20px;
       padding: 16px 20px;
@@ -302,6 +353,50 @@
       display: none;
     }
     .selected-voice-preview.show { display: flex; align-items: center; gap: 12px; }
+    /* Gemini TTS API settings area */
+    .gemini-tts-settings {
+      background: rgba(168,85,247,.06);
+      border: 1px solid rgba(168,85,247,.2);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+
+    /* Voice preview button */
+    .play-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.75rem;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      line-height: 1;
+      padding: 0;
+    }
+    .play-btn:hover {
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+      transform: scale(1.1);
+    }
+    .play-btn.playing {
+      background: var(--green);
+      border-color: transparent;
+      color: #fff;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
 
     /* ── Step 4: Progress ────────────────────────────────────── */
     .progress-section { text-align: center; padding: 20px; }
@@ -462,8 +557,8 @@
         <div id="api-settings-area" style="display: none; border-top: 1px dashed var(--border); padding-top: 16px;">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
             <div>
-              <label style="font-size: 0.85rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px;">API 金鑰 (API Key)</label>
-              <input type="password" id="api-key-input" placeholder="請貼上您的 API Key" style="width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; box-sizing: border-box;">
+              <label style="font-size: 0.85rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px;">API 金鑰 (API Key) — 支援多組，每行一組</label>
+              <textarea id="api-key-input" placeholder="請貼上您的 API Key&#10;（支援多組，每行一組。當達到 API 流量上限時系統會自動更換下一組繼續解析）" style="width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; box-sizing: border-box; height: 90px; resize: vertical; font-family: monospace;"></textarea>
             </div>
             <div>
               <label style="font-size: 0.85rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px;">模型選擇 (Model)</label>
@@ -472,6 +567,40 @@
           </div>
           <div style="font-size: 0.75rem; color: var(--muted); line-height: 1.4;">
             💡 使用 Gemini 或 Grok 時，系統會直接將投影片圖片送給多模態 AI 理解，並**自動重新撰寫流暢且語氣親切的中文播報旁白腳本**，相較於傳統 OCR，文字流暢度與專業度有極大提升。
+          </div>
+        </div>
+      </div>
+
+      <!-- Job Rescue Card -->
+      <div class="card" style="margin-top: 20px; padding: 24px;">
+        <div style="font-weight: 700; margin-bottom: 0px; font-size: 1.05rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;" onclick="toggleRescuePanel()">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>🛠️</span> 舊專案救援與重新合成工具
+          </div>
+          <span id="rescue-arrow" style="font-size: 0.9rem; color: var(--muted); transition: transform 0.2s;">▼ 展開</span>
+        </div>
+        <div id="rescue-panel" style="display: none; margin-top: 16px; border-top: 1px dashed var(--border); padding-top: 16px;">
+          <div class="info-tip" style="margin-bottom:16px;">💡 如果您之前在最後一步「合成影片」時因故中斷，或是想將已生成的圖片與配音重新合併，可以直接在此選擇對應的專案目錄，一鍵重新合成影片（免消耗 API 額度）。</div>
+          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button class="btn btn-secondary" onclick="loadIncompleteJobs()" style="font-size:0.85rem; padding: 8px 16px;">🔄 重新整理專案列表</button>
+          </div>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; min-width: 600px;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border); color: var(--muted);">
+                  <th style="padding: 10px 8px;">時間</th>
+                  <th style="padding: 10px 8px;">專案 ID</th>
+                  <th style="padding: 10px 8px;">已生成內容</th>
+                  <th style="padding: 10px 8px;">影片狀態</th>
+                  <th style="padding: 10px 8px; text-align: right;">動作</th>
+                </tr>
+              </thead>
+              <tbody id="rescue-jobs-list">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--muted); padding: 20px;">點擊上方按鈕載入舊專案...</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -509,13 +638,58 @@
     <!-- ── STEP 3: Voice Picker ── -->
     <div class="step-panel" id="panel-3">
       <div class="card">
-        <div class="info-tip">🎙️ 請選擇旁白語音。Edge TTS 語音無需額外費用，需要網路連線。</div>
-        <div id="voice-container"></div>
-        <div class="selected-voice-preview" id="voice-preview">
-          <span style="font-size:1.8rem">🎤</span>
-          <div>
-            <div style="font-weight:700">已選擇語音</div>
-            <div style="color:var(--muted);font-size:.85rem" id="voice-preview-text"></div>
+        <!-- TTS Engine Tabs -->
+        <div class="tts-tabs" role="tablist">
+          <button class="tts-tab active" id="tab-edge" onclick="switchTtsTab('edge')">🎙️ Edge TTS（免費・無需 Key）</button>
+          <button class="tts-tab" id="tab-gemini" onclick="switchTtsTab('gemini')">✨ Gemini TTS（AI 自然情緒）</button>
+        </div>
+
+        <!-- Edge TTS Panel -->
+        <div class="tts-tab-panel active" id="tts-panel-edge">
+          <div class="info-tip" style="margin-bottom:16px">🎙️ Microsoft Edge TTS 語音，多語言、免費、需網路。</div>
+          <div id="voice-container"></div>
+          <div class="selected-voice-preview" id="voice-preview">
+            <span style="font-size:1.8rem">🎤</span>
+            <div>
+              <div style="font-weight:700">已選擇語音</div>
+              <div style="color:var(--muted);font-size:.85rem" id="voice-preview-text"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gemini TTS Panel -->
+        <div class="tts-tab-panel" id="tts-panel-gemini">
+          <div class="info-tip" style="margin-bottom:16px; border-left-color: var(--accent2); background: rgba(168,85,247,.08);">✨ Gemini TTS 採用大型語言模型生成語音，支援自然情緒、呼吸感、語調控制，中文效果極佳。需要 Gemini API Key（免費 quota 可用）。</div>
+
+          <!-- API Key & Model -->
+          <div class="gemini-tts-settings">
+            <div style="font-weight:700; margin-bottom:14px; font-size:.95rem; display:flex; align-items:center; gap:6px;">🔑 Gemini API 設定</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+              <div>
+                <label style="font-size:.82rem; font-weight:600; color:var(--muted); display:block; margin-bottom:6px;">API 金鑰 — 支援多組，每行一組</label>
+                <textarea id="gemini-tts-api-key" placeholder="AIza...&#10;（支援多組，每行一組。達到限制時會自動輪替）" style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px 12px; color:var(--text); font-size:.85rem; box-sizing:border-box; height: 90px; resize: vertical; font-family: monospace;"></textarea>
+              </div>
+              <div>
+                <label style="font-size:.82rem; font-weight:600; color:var(--muted); display:block; margin-bottom:6px;">TTS 模型</label>
+                <select id="gemini-tts-model" style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px 12px; color:var(--text); font-size:.83rem; height:38px; outline:none; box-sizing:border-box;">
+                  <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS（推薦）</option>
+                  <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（高品質）</option>
+                  <option value="gemini-3.1-flash-tts-preview">Gemini 3.1 Flash TTS（最新）</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gemini Voice Grid -->
+          <div style="font-size:.82rem; font-weight:700; color:var(--muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:.05em;">選擇語音角色（30 種）</div>
+          <div id="gemini-voice-container" class="voice-cards" style="margin-bottom:16px;"></div>
+
+          <div class="selected-voice-preview" id="gemini-voice-preview" style="background:rgba(168,85,247,.08); border-color:rgba(168,85,247,.25);">
+            <span style="font-size:1.8rem">🤖</span>
+            <div>
+              <div style="font-weight:700">已選擇 Gemini TTS 語音</div>
+              <div style="color:var(--muted);font-size:.85rem" id="gemini-voice-preview-text"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -526,10 +700,10 @@
           <span>⚙️</span> 語音節奏與語速設定
         </div>
         
-        <!-- Speech Rate -->
+        <!-- Speech Rate (Edge only note) -->
         <div style="margin-bottom: 24px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 (Speech Rate)</label>
+            <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 — Edge TTS 專用 (Gemini TTS 自動感知)</label>
             <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">稍微慢速 (-10% · 推薦)</span>
           </div>
           <input type="range" id="rate-slider" min="-30" max="20" step="5" value="-10" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
@@ -595,6 +769,8 @@
     let jobId = null;
     let pagesData = [];
     let selectedVoice = null;
+    let selectedGeminiVoice = null;
+    let currentTtsEngine = 'edge'; // 'edge' | 'gemini'
     let pollTimer = null;
     let selectedFile = null;
 
@@ -878,12 +1054,32 @@
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
+    // ─── Step 3: TTS Engine Tab Switch ───────────────────────────
+    function switchTtsTab(engine) {
+      currentTtsEngine = engine;
+      document.getElementById('tab-edge').classList.toggle('active', engine === 'edge');
+      document.getElementById('tab-gemini').classList.toggle('active', engine === 'gemini');
+      document.getElementById('tts-panel-edge').classList.toggle('active', engine === 'edge');
+      document.getElementById('tts-panel-gemini').classList.toggle('active', engine === 'gemini');
+      // Update generate button state
+      if (engine === 'edge') {
+        document.getElementById('btn-generate').disabled = !selectedVoice;
+      } else {
+        document.getElementById('btn-generate').disabled = !selectedGeminiVoice;
+      }
+    }
+
     // ─── Step 3: Voice Picker ─────────────────────────────────
     async function loadVoices() {
       try {
-        const res = await fetch('/api/voices');
-        const groups = await res.json();
+        const [edgeRes, geminiRes] = await Promise.all([
+          fetch('/api/voices'),
+          fetch('/api/gemini-tts-voices')
+        ]);
+        const groups = await edgeRes.json();
+        const geminiData = await geminiRes.json();
         renderVoices(groups);
+        renderGeminiVoices(geminiData.voices);
       } catch (err) {
         console.error('Failed to load voices:', err);
       }
@@ -901,15 +1097,22 @@
         cards.className = 'voice-cards';
 
         voices.forEach(v => {
-          const card = document.createElement('label');
+          const card = document.createElement('div');
           card.className = 'voice-card';
           card.dataset.voiceId = v.id;
           card.dataset.voiceLabel = v.label;
           card.innerHTML = `
-            <input type="radio" name="voice" value="${v.id}">
-            <div class="voice-card-name">${v.label}</div>
-            <div class="voice-card-id">${v.id}</div>`;
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;">
+              <div style="flex: 1; min-width: 0;">
+                <div class="voice-card-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.label}</div>
+                <div class="voice-card-id" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.id}</div>
+              </div>
+              <button class="play-btn" title="試聽語音">▶</button>
+            </div>`;
+          
           card.addEventListener('click', () => selectVoice(v.id, v.label, groupName));
+          const pbtn = card.querySelector('.play-btn');
+          pbtn.addEventListener('click', (e) => playPreview('edge', v.id, pbtn, e));
           cards.appendChild(card);
         });
 
@@ -919,20 +1122,135 @@
     }
 
     function selectVoice(id, label, group) {
-      document.querySelectorAll('.voice-card').forEach(c => c.classList.remove('selected'));
-      const card = document.querySelector(`.voice-card[data-voice-id="${id}"]`);
+      document.querySelectorAll('#voice-container .voice-card').forEach(c => c.classList.remove('selected'));
+      const card = document.querySelector(`#voice-container .voice-card[data-voice-id="${id}"]`);
       if (card) card.classList.add('selected');
 
       selectedVoice = id;
       const preview = document.getElementById('voice-preview');
       document.getElementById('voice-preview-text').textContent = `${group}  ·  ${label}`;
       preview.classList.add('show');
-      document.getElementById('btn-generate').disabled = false;
+      if (currentTtsEngine === 'edge') {
+        document.getElementById('btn-generate').disabled = false;
+      }
+    }
+
+    function renderGeminiVoices(voices) {
+      const container = document.getElementById('gemini-voice-container');
+      container.innerHTML = '';
+      voices.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'voice-card';
+        card.dataset.voiceId = v.id;
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;">
+            <div style="flex: 1; min-width: 0;">
+              <div class="voice-card-name">${v.label}</div>
+              <div class="voice-card-style">${v.style}</div>
+            </div>
+            <button class="play-btn" title="試聽語音">▶</button>
+          </div>`;
+        
+        card.addEventListener('click', () => selectGeminiVoice(v.id, v.label, v.style));
+        const pbtn = card.querySelector('.play-btn');
+        pbtn.addEventListener('click', (e) => playPreview('gemini', v.id, pbtn, e));
+        container.appendChild(card);
+      });
+    }
+
+    function selectGeminiVoice(id, label, style) {
+      document.querySelectorAll('#gemini-voice-container .voice-card').forEach(c => {
+        c.classList.remove('selected', 'gemini-selected');
+      });
+      const card = document.querySelector(`#gemini-voice-container .voice-card[data-voice-id="${id}"]`);
+      if (card) card.classList.add('gemini-selected');
+
+      selectedGeminiVoice = id;
+      const preview = document.getElementById('gemini-voice-preview');
+      document.getElementById('gemini-voice-preview-text').textContent = `${label}  ·  ${style}`;
+      preview.classList.add('show');
+      if (currentTtsEngine === 'gemini') {
+        document.getElementById('btn-generate').disabled = false;
+      }
+    }
+
+    // ─── Step 3: Voice Audition Play Preview ──────────────────────
+    let currentAudio = null;
+    let currentPlayBtn = null;
+
+    async function playPreview(engine, voiceId, btn, event) {
+      if (event) {
+        event.stopPropagation();
+      }
+
+      // If already playing this, pause it
+      if (currentAudio && currentPlayBtn === btn) {
+        currentAudio.pause();
+        resetPlayBtn();
+        return;
+      }
+
+      // Stop any playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        resetPlayBtn();
+      }
+
+      btn.textContent = '⏳';
+      btn.classList.add('playing');
+      currentPlayBtn = btn;
+
+      const formData = new FormData();
+      formData.append('engine', engine);
+      formData.append('voice', voiceId);
+      if (engine === 'gemini') {
+        const apiKey = document.getElementById('gemini-tts-api-key').value.trim();
+        if (!apiKey) {
+          alert('請先輸入上方 Gemini API 設定中的 API 金鑰後，再試聽語音。');
+          resetPlayBtn();
+          return;
+        }
+        formData.append('api_key', apiKey);
+        formData.append('model', document.getElementById('gemini-tts-model').value);
+      }
+
+      try {
+        const res = await fetch('/api/preview', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '試聽生成失敗');
+
+        currentAudio = new Audio(data.url);
+        btn.textContent = '🔊';
+        currentAudio.play();
+        currentAudio.onended = () => {
+          resetPlayBtn();
+        };
+      } catch (err) {
+        alert('試聽失敗：' + err.message);
+        resetPlayBtn();
+      }
+    }
+
+    function resetPlayBtn() {
+      if (currentPlayBtn) {
+        currentPlayBtn.textContent = '▶';
+        currentPlayBtn.classList.remove('playing');
+        currentPlayBtn = null;
+      }
+      currentAudio = null;
     }
 
     // ─── Step 4: Generate ─────────────────────────────────────
     document.getElementById('btn-generate').addEventListener('click', async () => {
-      if (!selectedVoice) return;
+      const isGemini = currentTtsEngine === 'gemini';
+
+      if (isGemini) {
+        if (!selectedGeminiVoice) { alert('請先選擇 Gemini TTS 語音。'); return; }
+        const key = document.getElementById('gemini-tts-api-key').value.trim();
+        if (!key) { alert('請輸入 Gemini API 金鑰。'); return; }
+      } else {
+        if (!selectedVoice) { alert('請先選擇 Edge TTS 語音。'); return; }
+      }
 
       // Collect scripts from textareas
       const scripts = pagesData.map((_, i) => {
@@ -952,9 +1270,20 @@
       const formData = new FormData();
       formData.append('job_id', jobId);
       formData.append('scripts', JSON.stringify(scripts));
-      formData.append('voice', selectedVoice);
       formData.append('rate', rateStr);
       formData.append('auto_pause', autoPause ? 'true' : 'false');
+      formData.append('tts_engine', isGemini ? 'gemini' : 'edge');
+
+      if (isGemini) {
+        formData.append('voice', selectedGeminiVoice);
+        formData.append('gemini_tts_voice', selectedGeminiVoice);
+        formData.append('gemini_tts_model', document.getElementById('gemini-tts-model').value);
+        formData.append('gemini_api_key', document.getElementById('gemini-tts-api-key').value.trim());
+      } else {
+        formData.append('voice', selectedVoice);
+        formData.append('gemini_tts_voice', '');
+        formData.append('gemini_api_key', '');
+      }
 
       try {
         const res = await fetch('/api/generate', { method: 'POST', body: formData });
@@ -1021,6 +1350,90 @@
     }
     rateSlider.addEventListener('input', updateRateLabel);
     updateRateLabel();
+
+    // ─── Step 1: Job Rescue Functions ────────────────────────────
+    function toggleRescuePanel() {
+      const panel = document.getElementById('rescue-panel');
+      const arrow = document.getElementById('rescue-arrow');
+      if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        arrow.textContent = '▲ 折疊';
+        loadIncompleteJobs();
+      } else {
+        panel.style.display = 'none';
+        arrow.textContent = '▼ 展開';
+      }
+    }
+
+    async function loadIncompleteJobs() {
+      const tbody = document.getElementById('rescue-jobs-list');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 20px;">⏳ 正在載入專案列表中...</td></tr>';
+      
+      try {
+        const res = await fetch('/api/jobs/list');
+        const data = await res.json();
+        const jobsList = data.jobs || [];
+        
+        if (jobsList.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 20px;">📭 目前無已生成的舊專案資料。</td></tr>';
+          return;
+        }
+        
+        tbody.innerHTML = '';
+        jobsList.forEach(j => {
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid var(--border)';
+          
+          const statusText = j.has_video 
+            ? '<span style="color: var(--green); font-weight: 600;">已生成影片</span>' 
+            : '<span style="color: #f59e0b; font-weight: 600;">無影片 (待合成)</span>';
+            
+          const actionBtn = j.has_video 
+            ? `<div style="display: flex; gap: 8px; justify-content: flex-end;">
+                 <button class="btn btn-secondary" onclick="startRebuild('${j.job_id}')" style="font-size:0.75rem; padding: 6px 12px; height: 30px;">🎬 重新合成</button>
+                 <a href="/api/download/${j.job_id}" class="btn btn-primary" style="font-size:0.75rem; padding: 6px 12px; text-decoration: none; height: 30px; line-height: 16px; display: inline-flex; align-items: center; box-sizing: border-box;">📥 下載影片</a>
+               </div>`
+            : `<div style="display: flex; justify-content: flex-end;">
+                 <button class="btn btn-primary" onclick="startRebuild('${j.job_id}')" style="font-size:0.75rem; padding: 6px 12px; height: 30px;">🎬 立即合成影片</button>
+               </div>`;
+               
+          tr.innerHTML = `
+            <td style="padding: 12px 8px; color: var(--muted);">${j.time}</td>
+            <td style="padding: 12px 8px; font-family: monospace; font-size:0.8rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${j.job_id}">${j.job_id}</td>
+            <td style="padding: 12px 8px;">🖼️ ${j.pages} 頁 / 🎵 ${j.audios} 音檔</td>
+            <td style="padding: 12px 8px;">${statusText}</td>
+            <td style="padding: 12px 8px; text-align: right;">${actionBtn}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--red); padding: 20px;">❌ 載入失敗：${err.message}</td></tr>`;
+      }
+    }
+
+    async function startRebuild(jId) {
+      if (!confirm(`確定要重新合成專案 (${jId}) 的現有檔案嗎？`)) {
+        return;
+      }
+      
+      jobId = jId;
+      goStep(4);
+      document.getElementById('progress-section').style.display = 'block';
+      document.getElementById('done-section').style.display = 'none';
+      document.getElementById('error-section').style.display = 'none';
+      document.getElementById('status-title').textContent = '準備中...';
+      
+      try {
+        const res = await fetch(`/api/jobs/rebuild/${jobId}`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '啟動重新合成失敗');
+        
+        // Start polling status
+        pollTimer = setInterval(pollStatus, 1500);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
 
     // Init
     updateStepIndicator(1);
