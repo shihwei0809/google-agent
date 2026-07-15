@@ -678,7 +678,13 @@ async def rescue_video_to_script(
             logger.info("Trying voice transcription with Gemini model: %s", model_name)
             gemini_url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={api_keys[0]}"
             try:
-                response = requests.post(gemini_url, json=payload, headers={"Content-Type": "application/json"}, timeout=120)
+                headers = {"Content-Type": "application/json; charset=utf-8"}
+                response = requests.post(
+                    gemini_url,
+                    data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+                    headers=headers,
+                    timeout=120
+                )
                 if response.status_code != 200:
                     last_error = f"{model_name} failed (HTTP {response.status_code}): {response.text}"
                     logger.warning(last_error)
@@ -699,11 +705,12 @@ async def rescue_video_to_script(
 
         # 4. 回傳 TXT 下載
         from fastapi.responses import Response
-        output_filename = Path(file.filename).stem + "_還原腳本.txt"
+        from urllib.parse import quote
+        safe_filename = quote(Path(file.filename).stem + "_還原腳本.txt")
         return Response(
             content=txt_content.encode("utf-8"),
             media_type="text/plain; charset=utf-8",
-            headers={"Content-Disposition": f'attachment; filename="{output_filename}"'},
+            headers={"Content-Disposition": f"attachment; filename*=utf-8''{safe_filename}"},
         )
 
     except Exception as e:
