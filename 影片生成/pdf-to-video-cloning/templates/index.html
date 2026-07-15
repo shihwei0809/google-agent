@@ -602,6 +602,35 @@
               </tbody>
             </table>
           </div>
+
+          <!-- 🎬 舊影片腳本還原工具 -->
+          <div style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px;">
+            <div style="font-weight: 700; margin-bottom: 12px; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; color: var(--accent);">
+              <span>🎬</span> 舊影片腳本還原工具 (語音聽寫分頁)
+            </div>
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border); border-radius: 8px; padding: 16px;">
+              <div style="font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; line-height: 1.4;">
+                💡 說明：如果您以前合成過影片，但原始腳本遺失了，您可以直接將 <b>.mp4 影片</b> 上傳至此。系統會自動提取音訊並呼叫 Gemini API 聽寫還原，將旁白字串格式化為標準的「頁面腳本文字檔 (.txt)」供您下載使用。
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 12px; align-items: end;">
+                <div>
+                  <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">選擇舊影片 (.mp4)</label>
+                  <input type="file" id="rescue-video-input" accept=".mp4" style="font-size: 0.8rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 6px; border-radius: 6px; width: 100%; box-sizing: border-box;">
+                </div>
+                <div>
+                  <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">Gemini API 金鑰 (用於聽寫還原)</label>
+                  <input type="password" id="rescue-gemini-key" placeholder="AIza..." style="font-size: 0.85rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; width: 100%; box-sizing: border-box; height: 35px;">
+                </div>
+                <div>
+                  <button class="btn btn-secondary" id="btn-rescue-video" style="height: 35px; font-size: 0.82rem; padding: 0 16px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                    🔍 開始還原腳本
+                  </button>
+                </div>
+              </div>
+              <div id="rescue-status" style="font-size: 0.8rem; color: var(--accent); margin-top: 10px; display: none;"></div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1562,6 +1591,78 @@
         showError(err.message);
       }
     }
+
+    // ─── 影片還原腳本事件 ──────────────────────────────────────────
+    const rescueVideoInput = document.getElementById('rescue-video-input');
+    const rescueGeminiKey = document.getElementById('rescue-gemini-key');
+    const btnRescueVideo = document.getElementById('btn-rescue-video');
+    const rescueStatus = document.getElementById('rescue-status');
+
+    // 記憶 Gemini Key
+    if (localStorage.getItem('rescue_gemini_key')) {
+      rescueGeminiKey.value = localStorage.getItem('rescue_gemini_key');
+    }
+    rescueGeminiKey.addEventListener('input', () => {
+      localStorage.setItem('rescue_gemini_key', rescueGeminiKey.value.trim());
+    });
+
+    btnRescueVideo.addEventListener('click', async () => {
+      const file = rescueVideoInput.files[0];
+      const apiKey = rescueGeminiKey.value.trim();
+
+      if (!file) {
+        alert('請先選擇舊的旁白影片 (.mp4) 檔案！');
+        return;
+      }
+      if (!apiKey) {
+        alert('請輸入 Gemini API 金鑰以進行語意聽寫！');
+        return;
+      }
+
+      btnRescueVideo.disabled = true;
+      btnRescueVideo.textContent = '⏳ 還原中…';
+      rescueStatus.style.display = 'block';
+      rescueStatus.textContent = '⏳ 正在提取音訊並上傳至 Gemini 聽寫還原中，此過程約需 1~2 分鐘，請勿關閉視窗...';
+      rescueStatus.style.color = 'var(--accent)';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('gemini_api_key', apiKey);
+
+      try {
+        const res = await fetch('/api/rescue/video-to-script', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.detail || '語音聽寫分析失敗');
+        }
+
+        // 讀取檔案流並觸發下載
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.name.replace(/\.[^/.]+$/, "") + "_還原腳本.txt";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        rescueStatus.textContent = '🎉 腳本還原成功！已自動下載為文字檔。您現在可以在第 2 步點擊「匯入」來載入此檔案！';
+        rescueStatus.style.color = 'var(--green)';
+      } catch (err) {
+        console.error(err);
+        rescueStatus.textContent = `❌ 還原失敗：${err.message}`;
+        rescueStatus.style.color = 'var(--red)';
+        alert('❌ 腳本還原失敗：' + err.message);
+      } finally {
+        btnRescueVideo.disabled = false;
+        btnRescueVideo.innerHTML = '🔍 開始還原腳本';
+      }
+    });
 
     // Init
     updateStepIndicator(1);

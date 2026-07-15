@@ -626,6 +626,128 @@ async def generate_video(
     return {"job_id": job_id, "status": "processing"}
 
 
+@app.post("/api/rescue/video-to-script")
+async def rescue_video_to_script(
+    file: UploadFile = File(...),
+    gemini_api_key: str = Form(...),
+):
+    """上傳已生成的 MP4 影片，提取音軌並呼叫 Gemini API 聽寫還原為腳本文字 (.txt)。"""
+    if not file.filename.lower().endswith(".mp4"):
+        raise HTTPException(status_code=400, detail="請上傳 MP4 格式的影片檔案。")
+
+    if not gemini_api_key.strip():
+        raise HTTPException(status_code=400, detail="請提供 Gemini API 金鑰以進行語音聽寫還原。")
+
+    import tempfile
+    import requests
+    from moviepy import VideoFileClip
+
+    temp_dir = Path(tempfile.gettempdir())
+    temp_mp4 = temp_dir / f"rescue_{uuid.uuid4().hex}.mp4"
+    temp_mp3 = temp_mp4.with_suffix(".mp3")
+
+    try:
+        # 1. 保存臨時影片檔
+        with open(temp_mp4, "wb") as f:
+            f.write(await file.read())
+
+        # 2. 提取音軌為 MP3
+        logger.info("Extracting audio from uploaded video: %s", file.filename)
+        try:
+            video = VideoFileClip(str(temp_mp4))
+            if video.audio is None:
+                raise ValueError("影片中不包含任何音軌。")
+            video.audio.write_audiofile(str(temp_mp3), logger=None)
+            video.close()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"影片音軌提取失敗：{e}")
+
+        # 3. 呼叫 Gemini 進行語音識別與腳本切分
+        logger.info("Uploading audio to Gemini for speech-to-text transcription...")
+        api_keys = parse_api_keys(gemini_api_key)
+        if not api_keys:
+            raise HTTPException(status_code=400, detail="無效的 API 金鑰。")
+        
+        # 讀取音訊內容
+        with open(temp_mp3, "rb") as f:
+            audio_bytes = f.read()
+
+        # 使用 Gemini API 聽寫還原
+        # 採用標準的 gemini-1.5-flash / gemini-2.5-flash 多模態語音處理
+        url = f"https://generativelink.org/v1/chat/completions" # 採用本專案一貫的 Gemini proxy / 直接 API
+        # 這邊使用現有的 call_gemini_api 邏輯或直接發送多模態 multipart/JSON
+        # 由於 Gemini 官方 REST API 支援上傳檔案，或直接把音檔轉 base64 包在 Request 內
+        audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+        
+        # 選擇金鑰並呼叫
+        headers = {
+            "Content-Type": "application/json",
+            "x-goog-api-key": api_keys[0]
+        }
+        
+        prompt = (
+            "你是一個專業的語音聽寫助理。這是一個簡報旁白影片的音訊檔案，請仔細聆聽，"
+            "將其中的語音內容逐字聽寫出來（使用繁體中文）。並且非常重要：\n"
+            "請根據語音中的明顯停頓、投影片切換感，將內容切分成每頁的旁白腳本，"
+            "並完全使用以下格式輸出：\n\n"
+            "=== 第 1 頁 ===\n"
+            "(該頁旁白文字)\n\n"
+            "=== 第 2 頁 ===\n"
+            "(該頁旁白文字)\n\n"
+            "不要輸出任何非格式內的引言、說明或額外字元。直接輸出格式化的腳本即可。"
+        )
+        
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": prompt},
+                    {
+                        "inlineData": {
+                            "mimeType": "audio/mp3",
+                            "data": audio_b64
+                        }
+                    }
+                ]
+            }]
+        }
+        
+        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_keys[0]}"
+        response = requests.post(gemini_url, json=payload, headers={"Content-Type": "application/json"}, timeout=120)
+        
+        if response.status_code != 200:
+            logger.error("Gemini StT failed: %s", response.text)
+            raise ValueError(f"Gemini API 回傳錯誤：{response.text}")
+            
+        data = response.json()
+        try:
+            txt_content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except Exception:
+            raise ValueError("Gemini 未能回傳有效辨識文字，請確認 API 金鑰是否正確或音質是否清晰。")
+
+        # 4. 回傳 TXT 下載
+        from fastapi.responses import Response
+        output_filename = Path(file.filename).stem + "_還原腳本.txt"
+        return Response(
+            content=txt_content.encode("utf-8"),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{output_filename}"'},
+        )
+
+    except Exception as e:
+        logger.exception("Error extracting script from video")
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"影片腳本還原失敗：{e}")
+    finally:
+        # 清除臨時檔案
+        if temp_mp4.exists():
+            try: temp_mp4.unlink()
+            except: pass
+        if temp_mp3.exists():
+            try: temp_mp3.unlink()
+            except: pass
+
+
 @app.get("/api/status/{job_id}")
 async def get_status(job_id: str):
     if job_id not in jobs:
