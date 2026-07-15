@@ -614,7 +614,8 @@
     <!-- ── STEP 2: Script Editor ── -->
     <div class="step-panel" id="panel-2">
       <div class="card">
-        <div class="info-tip" style="margin-bottom: 12px;">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會以「本頁無文字內容」播報。</div>
+        <div class="info-tip" style="margin-bottom: 12px;">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會以「本頁無文字內容」播報。
+        <br><span style="color: var(--yellow); font-weight: 600;">💡 建議：确認腳本完成後，先按「📥 匯出腳本文字」存檔備用，日後若需重新合成可直接從「📤 匯入」載入腳本，不需重新讀取 PDF。</span></div>
         
         <!-- Import/Export Action Bar -->
         <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
@@ -746,8 +747,22 @@
         <div style="text-align:center;display:none;padding:20px" id="done-section">
           <div class="status-icon">🎉</div>
           <div class="status-title">影片生成完成！</div>
-          <p style="color:var(--muted);margin-bottom:24px">請點擊下方按鈕下載旁白影片。</p>
-          <a id="download-link" class="btn btn-green" href="#" download>⬇️ 下載影片 (MP4)</a>
+          <p style="color:var(--muted);margin-bottom:24px">影片和腳本備份均已就緒，請選擇下載項目。</p>
+          <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-bottom:20px;">
+            <a id="download-link" class="btn btn-green" href="#" download>⬇️ 下載影片 (MP4)</a>
+            <a id="download-script-link" class="btn btn-secondary" href="#" download style="display:flex;align-items:center;gap:6px;">
+              📄 下載腳本備份 (.txt)
+            </a>
+          </div>
+          <div style="background:rgba(79,142,247,.08); border:1px solid rgba(79,142,247,.2); border-radius:12px; padding:16px; text-align:left; max-width:480px; margin:0 auto;">
+            <div style="font-weight:600; margin-bottom:8px; color:var(--accent); font-size:.9rem;">💡 下次如何用舊腳本重新合成</div>
+            <ol style="color:var(--muted); font-size:.82rem; line-height:1.8; margin:0; padding-left:20px;">
+              <li>上傳同一份 PDF（取得投影片圖片）</li>
+              <li>進入【Step 2 編輯腳本】後，點「📤 匯入已修改腳本」</li>
+              <li>選取剛才下載的 .txt 檔，腳本即會自動填入</li>
+              <li>選擇語音並重新合成！</li>
+            </ol>
+          </div>
         </div>
 
         <div style="display:none;padding:20px" id="error-section">
@@ -1327,6 +1342,10 @@
       document.getElementById('progress-section').style.display = 'none';
       document.getElementById('done-section').style.display = 'block';
       document.getElementById('download-link').href = `/api/download/${jobId}`;
+      // 設定腳本備份下載連結（後端已在合成時自動備份）
+      const scriptLink = document.getElementById('download-script-link');
+      scriptLink.href = `/api/script/${jobId}`;
+      scriptLink.download = `script_${jobId.slice(0, 8)}.txt`;
       updateStepIndicator(5); // all done
     }
 
