@@ -596,6 +596,23 @@ async def generate_video(
 
     is_auto_pause = auto_pause.lower() == "true"
 
+    # ── 自動備份腳本 ──────────────────────────────────────────────────────────
+    # 合成前將腳本存到 job 資料夾，讓使用者日後可下載並重新合成，不需重新讀取 PDF
+    import datetime
+    backup_path = job_dir / "script_backup.json"
+    try:
+        with open(backup_path, "w", encoding="utf-8") as f:
+            json.dump({
+                "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+                "voice": voice,
+                "tts_engine": tts_engine,
+                "total_pages": len(scripts_list),
+                "pages": scripts_list,
+            }, f, ensure_ascii=False, indent=2)
+        logger.info("Script backup saved to %s", backup_path)
+    except Exception as e:
+        logger.warning("Failed to save script backup: %s", e)
+
     jobs[job_id] = {
         "status": "processing",
         "progress": 0,
@@ -614,6 +631,32 @@ async def get_status(job_id: str):
     if job_id not in jobs:
         raise HTTPException(status_code=404, detail="工作不存在。")
     return jobs[job_id]
+
+
+@app.get("/api/script/{job_id}")
+async def download_script(job_id: str):
+    """下載指定工作的腳本備份（.txt 格式），可用於日後重新合成。"""
+    backup_path = JOBS_DIR / job_id / "script_backup.json"
+    if not backup_path.exists():
+        raise HTTPException(status_code=404, detail="找不到腳本備份，請重新合成一次以產生備份。")
+    try:
+        with open(backup_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        pages: list[str] = data.get("pages", [])
+        lines = []
+        for i, text in enumerate(pages):
+            lines.append(f"=== 第 {i + 1} 頁 ===")
+            lines.append(text)
+            lines.append("")
+        txt_content = "\n".join(lines)
+        from fastapi.responses import Response
+        return Response(
+            content=txt_content.encode("utf-8"),
+            media_type="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="script_{job_id[:8]}.txt"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"讀取備份失敗：{e}")
 
 
 @app.get("/api/download/{job_id}")
