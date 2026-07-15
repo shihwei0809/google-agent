@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF 語音旁白影片生成器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Reset & Tokens ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080f20;
+      --surface:  #0f1c35;
+      --card:     rgba(255,255,255,.06);
+      --border:   rgba(255,255,255,.12);
+      --text:     #e8edf5;
+      --muted:    #8899b4;
+      --accent:   #4f8ef7;
+      --accent2:  #a855f7;
+      --green:    #22c55e;
+      --red:      #ef4444;
+      --yellow:   #f59e0b;
+      --r:        16px;
+      --shadow:   0 20px 60px rgba(0,0,0,.4);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      font-family: 'Noto Sans TC', 'Segoe UI', sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(79,142,247,.15), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(168,85,247,.12), transparent),
+        var(--bg);
+    }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+    header p { color: var(--muted); font-size: .95rem; }
+
+    /* ── Step Indicator ─────────────────────────────────────── */
+    .steps {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 44px;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+    .step-item:last-child { flex: none; }
+    .step-dot {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .85rem;
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: all .3s ease;
+    }
+    .step-dot.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 0 20px rgba(79,142,247,.5);
+    }
+    .step-dot.done {
+      background: var(--green);
+      border-color: transparent;
+      color: #fff;
+    }
+    .step-label {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-top: 6px;
+      white-space: nowrap;
+    }
+    .step-label.active { color: var(--accent); font-weight: 600; }
+    .step-connector {
+      flex: 1;
+      height: 2px;
+      background: var(--border);
+      margin: 0 4px;
+      transition: background .3s;
+    }
+    .step-connector.done { background: var(--green); }
+    .step-block { display: flex; flex-direction: column; align-items: center; }
+
+    /* ── Cards ──────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 28px;
+      backdrop-filter: blur(12px);
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px;
+      border: none; border-radius: 50px;
+      font-size: .95rem; font-weight: 600; cursor: pointer;
+      transition: all .2s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(79,142,247,.4); }
+    .btn-secondary {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,.1); }
+    .btn-green {
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      color: #fff;
+      font-size: 1.05rem;
+      padding: 14px 32px;
+    }
+    .btn-green:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,197,94,.4); }
+    .btn:disabled { opacity: .5; pointer-events: none; }
+
+    /* ── Navigation bar ─────────────────────────────────────── */
+    .nav-bar {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 28px;
+    }
+
+    /* ── Step Panels ─────────────────────────────────────────── */
+    .step-panel { display: none; animation: fadeIn .35s ease; }
+    .step-panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+
+    /* ── Step 1: Upload ──────────────────────────────────────── */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: var(--r);
+      padding: 60px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .25s;
+      position: relative;
+    }
+    .dropzone:hover, .dropzone.drag-over {
+      border-color: var(--accent);
+      background: rgba(79,142,247,.05);
+    }
+    .dropzone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .dropzone .icon { font-size: 3.5rem; margin-bottom: 16px; }
+    .dropzone h2 { font-size: 1.3rem; margin-bottom: 8px; }
+    .dropzone p { color: var(--muted); font-size: .9rem; }
+    .file-selected {
+      margin-top: 16px;
+      padding: 12px 20px;
+      background: rgba(79,142,247,.12);
+      border-radius: 12px;
+      border: 1px solid rgba(79,142,247,.3);
+      display: none;
+      align-items: center; gap: 12px;
+    }
+    .file-selected.show { display: flex; }
+    .file-selected .filename { font-weight: 600; }
+    .file-selected .filesize { color: var(--muted); font-size: .85rem; }
+
+    /* ── Step 2: Script Editor ───────────────────────────────── */
+    .page-grid { display: flex; flex-direction: column; gap: 20px; }
+    .page-card {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 16px;
+    }
+    .page-card:hover { border-color: rgba(79,142,247,.3); }
+    .page-thumb {
+      border-radius: 8px;
+      overflow: hidden;
+      background: #000;
+      position: relative;
+    }
+    .page-thumb img { width: 100%; display: block; }
+    .page-num-badge {
+      position: absolute;
+      top: 6px; left: 6px;
+      background: rgba(0,0,0,.7);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+    .page-editor { display: flex; flex-direction: column; gap: 8px; }
+    .page-editor label { font-size: .8rem; color: var(--muted); font-weight: 600; }
+    .page-editor textarea {
+      flex: 1;
+      min-height: 140px;
+      resize: vertical;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      color: var(--text);
+      font-size: .88rem;
+      line-height: 1.65;
+      font-family: inherit;
+      transition: border-color .2s;
+    }
+    .page-editor textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      background: rgba(79,142,247,.05);
+    }
+    .page-editor .char-count { font-size: .75rem; color: var(--muted); text-align: right; }
+
+    /* Scrollable area for many pages */
+    .pages-scroll {
+      max-height: 62vh;
+      overflow-y: auto;
+      padding-right: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .pages-scroll::-webkit-scrollbar { width: 6px; }
+    .pages-scroll::-webkit-scrollbar-track { background: transparent; }
+    .pages-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Step 3: Voice Picker ────────────────────────────────── */
+    /* TTS Engine Tabs */
+    .tts-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 4px;
+      border: 1px solid var(--border);
+    }
+    .tts-tab {
+      flex: 1;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--muted);
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .tts-tab.active {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(79,142,247,.35);
+    }
+    .tts-tab-panel { display: none; }
+    .tts-tab-panel.active { display: block; }
+
+    .voice-group { margin-bottom: 24px; }
+    .voice-group-title {
+      font-size: .85rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .voice-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .voice-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all .2s;
+      user-select: none;
+    }
+    .voice-card:hover { border-color: var(--accent); background: rgba(79,142,247,.06); }
+    .voice-card.selected {
+      border-color: var(--accent);
+      background: rgba(79,142,247,.12);
+      box-shadow: 0 0 16px rgba(79,142,247,.25);
+    }
+    .voice-card.gemini-selected {
+      border-color: var(--accent2);
+      background: rgba(168,85,247,.12);
+      box-shadow: 0 0 16px rgba(168,85,247,.25);
+    }
+    .voice-card input { display: none; }
+    .voice-card-name { font-weight: 600; font-size: .9rem; }
+    .voice-card-id { font-size: .72rem; color: var(--muted); margin-top: 3px; }
+    .voice-card-style {
+      display: inline-block;
+      font-size: .68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 99px;
+      background: rgba(168,85,247,.15);
+      color: var(--accent2);
+      margin-top: 5px;
+      letter-spacing: .03em;
+    }
+    .selected-voice-preview {
+      margin-top: 20px;
+      padding: 16px 20px;
+      background: rgba(79,142,247,.08);
+      border: 1px solid rgba(79,142,247,.25);
+      border-radius: 12px;
+      display: none;
+    }
+    .selected-voice-preview.show { display: flex; align-items: center; gap: 12px; }
+    /* Gemini TTS API settings area */
+    .gemini-tts-settings {
+      background: rgba(168,85,247,.06);
+      border: 1px solid rgba(168,85,247,.2);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+    }
+
+    /* Voice preview button */
+    .play-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text);
+      font-size: 0.75rem;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      line-height: 1;
+      padding: 0;
+    }
+    .play-btn:hover {
+      background: var(--accent);
+      border-color: transparent;
+      color: #fff;
+      transform: scale(1.1);
+    }
+    .play-btn.playing {
+      background: var(--green);
+      border-color: transparent;
+      color: #fff;
+      animation: pulse 1.2s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+
+    /* ── Step 4: Progress ────────────────────────────────────── */
+    .progress-section { text-align: center; padding: 20px; }
+    .progress-bar-wrap {
+      background: var(--surface);
+      border-radius: 999px;
+      height: 10px;
+      margin: 20px 0;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width .4s ease;
+    }
+    .progress-label { color: var(--muted); font-size: .9rem; margin-top: 8px; }
+    .status-icon { font-size: 3rem; margin-bottom: 16px; }
+    .status-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+    .error-box {
+      background: rgba(239,68,68,.1);
+      border: 1px solid rgba(239,68,68,.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      color: #fca5a5;
+      margin-top: 16px;
+      font-size: .9rem;
+      text-align: left;
+    }
+
+    /* ── Info tip ────────────────────────────────────────────── */
+    .info-tip {
+      background: rgba(79,142,247,.08);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 10px 14px;
+      font-size: .85rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    /* ── Loading spinner ─────────────────────────────────────── */
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 16px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .page-card { grid-template-columns: 1fr; }
+      .page-thumb { max-width: 200px; }
+      .steps { gap: 0; }
+      .step-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <h1>🎬 PDF 語音旁白影片生成器</h1>
+      <p>上傳 PDF → 檢視並修正腳本 → 選擇語音 → 自動生成旁白影片</p>
+    </header>
+
+    <!-- Step Indicator -->
+    <div class="steps" id="step-indicator">
+      <div class="step-block">
+        <div class="step-dot active" id="dot-1">1</div>
+        <div class="step-label active" id="lbl-1">上傳 PDF</div>
+      </div>
+      <div class="step-connector" id="conn-1"></div>
+      <div class="step-block">
+        <div class="step-dot" id="dot-2">2</div>
+        <div class="step-label" id="lbl-2">編輯腳本</div>
+      </div>
+      <div class="step-connector" id="conn-2"></div>
+      <div class="step-block">
+        <div class="step-dot" id="dot-3">3</div>
+        <div class="step-label" id="lbl-3">選擇語音</div>
+      </div>
+      <div class="step-connector" id="conn-3"></div>
+      <div class="step-block">
+        <div class="step-dot" id="dot-4">4</div>
+        <div class="step-label" id="lbl-4">生成影片</div>
+      </div>
+    </div>
+
+    <!-- ── STEP 1: Upload ── -->
+    <div class="step-panel active" id="panel-1">
+      <div class="card">
+        <div class="info-tip">💡 系統會自動讀取 PDF 各頁文字作為旁白腳本，支援繁體、簡體中文及多國語言。</div>
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="pdf-input" accept=".pdf">
+          <div class="icon">📄</div>
+          <h2>拖曳 PDF 至此，或點擊選取</h2>
+          <p>支援 PDF 格式，頁數建議不超過 30 頁</p>
+        </div>
+        <div class="file-selected" id="file-selected">
+          <span>📎</span>
+          <div>
+            <div class="filename" id="filename-label"></div>
+            <div class="filesize" id="filesize-label"></div>
+          </div>
+          <button class="btn btn-secondary" id="btn-clear-file" style="margin-left:auto">✕ 清除</button>
+        </div>
+        <div id="debug-log" style="color: #fca5a5; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 16px; margin-top: 16px; font-family: monospace; font-size: 0.82rem; display: none; white-space: pre-wrap; text-align: left; line-height: 1.5;"></div>
+      </div>
+
+      <!-- Extraction Method Settings Card -->
+      <div class="card" style="margin-top: 20px; padding: 24px;">
+        <div style="font-weight: 700; margin-bottom: 16px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+          <span>🤖</span> 簡報腳本解析設定
+        </div>
+        
+        <!-- Method Selector -->
+        <div style="margin-bottom: 20px;">
+          <label style="font-size: 0.9rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 10px;">解析模式 (Extraction Method)</label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; margin: 0;">
+              <input type="radio" name="extract-method" value="digital" checked style="accent-color: var(--accent);">
+              <div style="margin-left: 6px;">
+                <div style="font-size: 0.85rem; font-weight: 600;">本機傳統文字擷取</div>
+                <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">速度最快，不支援掃描簡報</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; margin: 0;">
+              <input type="radio" name="extract-method" value="easyocr" style="accent-color: var(--accent);">
+              <div style="margin-left: 6px;">
+                <div style="font-size: 0.85rem; font-weight: 600;">本地 OCR 影像辨識</div>
+                <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">較慢，無網路時可用</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; margin: 0;">
+              <input type="radio" name="extract-method" value="gemini" style="accent-color: var(--accent);">
+              <div style="margin-left: 6px;">
+                <div style="font-size: 0.85rem; font-weight: 600;">Google Gemini (推薦)</div>
+                <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">智慧配音稿，支援掃描與圖片</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 12px; border-radius: 8px; cursor: pointer; margin: 0;">
+              <input type="radio" name="extract-method" value="grok" style="accent-color: var(--accent);">
+              <div style="margin-left: 6px;">
+                <div style="font-size: 0.85rem; font-weight: 600;">xAI Grok</div>
+                <div style="font-size: 0.72rem; color: var(--muted); margin-top: 2px;">智慧配音稿，需要 Grok 金鑰</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- API Fields (Dynamically Shown) -->
+        <div id="api-settings-area" style="display: none; border-top: 1px dashed var(--border); padding-top: 16px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px;">API 金鑰 (API Key) — 支援多組，每行一組</label>
+              <textarea id="api-key-input" placeholder="請貼上您的 API Key&#10;（支援多組，每行一組。當達到 API 流量上限時系統會自動更換下一組繼續解析）" style="width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; box-sizing: border-box; height: 90px; resize: vertical; font-family: monospace;"></textarea>
+            </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 6px;">模型選擇 (Model)</label>
+              <select id="model-select" style="width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.85rem; height: 38px; outline: none; box-sizing: border-box;"></select>
+            </div>
+          </div>
+          <div style="font-size: 0.75rem; color: var(--muted); line-height: 1.4;">
+            💡 使用 Gemini 或 Grok 時，系統會直接將投影片圖片送給多模態 AI 理解，並**自動重新撰寫流暢且語氣親切的中文播報旁白腳本**，相較於傳統 OCR，文字流暢度與專業度有極大提升。
+          </div>
+        </div>
+      </div>
+
+      <!-- Job Rescue Card -->
+      <div class="card" style="margin-top: 20px; padding: 24px;">
+        <div style="font-weight: 700; margin-bottom: 0px; font-size: 1.05rem; display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;" onclick="toggleRescuePanel()">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span>🛠️</span> 舊專案救援與重新合成工具
+          </div>
+          <span id="rescue-arrow" style="font-size: 0.9rem; color: var(--muted); transition: transform 0.2s;">▼ 展開</span>
+        </div>
+        <div id="rescue-panel" style="display: none; margin-top: 16px; border-top: 1px dashed var(--border); padding-top: 16px;">
+          <div class="info-tip" style="margin-bottom:16px;">💡 如果您之前在最後一步「合成影片」時因故中斷，或是想將已生成的圖片與配音重新合併，可以直接在此選擇對應的專案目錄，一鍵重新合成影片（免消耗 API 額度）。</div>
+          <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+            <button class="btn btn-secondary" onclick="loadIncompleteJobs()" style="font-size:0.85rem; padding: 8px 16px;">🔄 重新整理專案列表</button>
+          </div>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; min-width: 600px;">
+              <thead>
+                <tr style="border-bottom: 2px solid var(--border); color: var(--muted);">
+                  <th style="padding: 10px 8px;">時間</th>
+                  <th style="padding: 10px 8px;">專案 ID</th>
+                  <th style="padding: 10px 8px;">已生成內容</th>
+                  <th style="padding: 10px 8px;">影片狀態</th>
+                  <th style="padding: 10px 8px; text-align: right;">動作</th>
+                </tr>
+              </thead>
+              <tbody id="rescue-jobs-list">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--muted); padding: 20px;">點擊上方按鈕載入舊專案...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="nav-bar">
+        <span></span>
+        <button class="btn btn-primary" id="btn-extract" disabled>讀取 PDF &nbsp;→</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 2: Script Editor ── -->
+    <div class="step-panel" id="panel-2">
+      <div class="card">
+        <div class="info-tip" style="margin-bottom: 12px;">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會以「本頁無文字內容」播報。</div>
+        
+        <!-- Import/Export Action Bar -->
+        <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 16px;">
+          <button class="btn btn-secondary" id="btn-export-script" style="font-size: 0.85rem; padding: 8px 16px; display: flex; align-items: center; gap: 6px;">
+            📥 匯出腳本文字 (.txt)
+          </button>
+          <button class="btn btn-secondary" id="btn-import-script-trigger" style="font-size: 0.85rem; padding: 8px 16px; display: flex; align-items: center; gap: 6px; position: relative; cursor: pointer;">
+            📤 匯入已修改腳本 (.txt)
+            <input type="file" id="script-file-input" accept=".txt" style="position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;">
+          </button>
+        </div>
+
+        <div class="pages-scroll" id="pages-container"></div>
+      </div>
+      <div class="nav-bar">
+        <button class="btn btn-secondary" onclick="goStep(1)">← 重新上傳</button>
+        <button class="btn btn-primary" id="btn-to-voice">選擇語音 →</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 3: Voice Picker ── -->
+    <div class="step-panel" id="panel-3">
+      <div class="card">
+        <!-- TTS Engine Tabs -->
+        <div class="tts-tabs" role="tablist">
+          <button class="tts-tab active" id="tab-edge" onclick="switchTtsTab('edge')">🎙️ Edge TTS（免費）</button>
+          <button class="tts-tab" id="tab-gemini" onclick="switchTtsTab('gemini')">✨ Gemini TTS（AI 自然情緒）</button>
+          <button class="tts-tab" id="tab-cloning" onclick="switchTtsTab('cloning')">🗣️ VoxCPM2 本地克隆語音</button>
+        </div>
+
+        <!-- Voice Cloning Panel -->
+        <div class="tts-tab-panel" id="tts-panel-cloning">
+          <div class="info-tip" style="margin-bottom:16px; border-left-color: var(--accent); background: rgba(79,142,247,.08); display: flex; justify-content: space-between; align-items: center;">
+            <span>🗣️ VoxCPM2 聲音克隆，100% 在您的本機顯卡/CPU 上進行推理，完全免 API 額度與費用。</span>
+            <a href="http://localhost:7860" target="_blank" class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">🎙️ 錄製新聲音 (Port 7860)</a>
+          </div>
+
+          <div style="font-size:.82rem; font-weight:700; color:var(--muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:.05em;">選擇已錄製的克隆配音人</div>
+          <div id="cloning-voice-container" class="voice-cards" style="margin-bottom:16px;"></div>
+
+          <div class="selected-voice-preview" id="cloning-voice-preview" style="background:rgba(79,142,247,.08); border-color:rgba(79,142,247,.25);">
+            <span style="font-size:1.8rem">👤</span>
+            <div>
+              <div style="font-weight:700">已選擇本機克隆配音</div>
+              <div style="color:var(--muted);font-size:.85rem" id="cloning-voice-preview-text"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Edge TTS Panel -->
+        <div class="tts-tab-panel active" id="tts-panel-edge">
+          <div class="info-tip" style="margin-bottom:16px">🎙️ Microsoft Edge TTS 語音，多語言、免費、需網路。</div>
+          <div id="voice-container"></div>
+          <div class="selected-voice-preview" id="voice-preview">
+            <span style="font-size:1.8rem">🎤</span>
+            <div>
+              <div style="font-weight:700">已選擇語音</div>
+              <div style="color:var(--muted);font-size:.85rem" id="voice-preview-text"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gemini TTS Panel -->
+        <div class="tts-tab-panel" id="tts-panel-gemini">
+          <div class="info-tip" style="margin-bottom:16px; border-left-color: var(--accent2); background: rgba(168,85,247,.08);">✨ Gemini TTS 採用大型語言模型生成語音，支援自然情緒、呼吸感、語調控制，中文效果極佳。需要 Gemini API Key（免費 quota 可用）。</div>
+
+          <!-- API Key & Model -->
+          <div class="gemini-tts-settings">
+            <div style="font-weight:700; margin-bottom:14px; font-size:.95rem; display:flex; align-items:center; gap:6px;">🔑 Gemini API 設定</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+              <div>
+                <label style="font-size:.82rem; font-weight:600; color:var(--muted); display:block; margin-bottom:6px;">API 金鑰 — 支援多組，每行一組</label>
+                <textarea id="gemini-tts-api-key" placeholder="AIza...&#10;（支援多組，每行一組。達到限制時會自動輪替）" style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px 12px; color:var(--text); font-size:.85rem; box-sizing:border-box; height: 90px; resize: vertical; font-family: monospace;"></textarea>
+              </div>
+              <div>
+                <label style="font-size:.82rem; font-weight:600; color:var(--muted); display:block; margin-bottom:6px;">TTS 模型</label>
+                <select id="gemini-tts-model" style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px 12px; color:var(--text); font-size:.83rem; height:38px; outline:none; box-sizing:border-box;">
+                  <option value="gemini-2.5-flash-preview-tts">Gemini 2.5 Flash TTS（推薦）</option>
+                  <option value="gemini-2.5-pro-preview-tts">Gemini 2.5 Pro TTS（高品質）</option>
+                  <option value="gemini-3.1-flash-tts-preview">Gemini 3.1 Flash TTS（最新）</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gemini Voice Grid -->
+          <div style="font-size:.82rem; font-weight:700; color:var(--muted); margin-bottom:12px; text-transform:uppercase; letter-spacing:.05em;">選擇語音角色（30 種）</div>
+          <div id="gemini-voice-container" class="voice-cards" style="margin-bottom:16px;"></div>
+
+          <div class="selected-voice-preview" id="gemini-voice-preview" style="background:rgba(168,85,247,.08); border-color:rgba(168,85,247,.25);">
+            <span style="font-size:1.8rem">🤖</span>
+            <div>
+              <div style="font-weight:700">已選擇 Gemini TTS 語音</div>
+              <div style="color:var(--muted);font-size:.85rem" id="gemini-voice-preview-text"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Speech Settings Card -->
+      <div class="card" style="margin-top: 20px; padding: 24px;">
+        <div style="font-weight: 700; margin-bottom: 20px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
+          <span>⚙️</span> 語音節奏與語速設定
+        </div>
+        
+        <!-- Speech Rate (Edge only note) -->
+        <div style="margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 — Edge TTS 專用 (Gemini TTS 自動感知)</label>
+            <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">稍微慢速 (-10% · 推薦)</span>
+          </div>
+          <input type="range" id="rate-slider" min="-30" max="20" step="5" value="-10" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
+          <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
+            <span>慢速 (-30%)</span>
+            <span>正常 (0%)</span>
+            <span>快速 (+20%)</span>
+          </div>
+        </div>
+
+        <!-- Auto Pause -->
+        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text); user-select: none;">
+          <input type="checkbox" id="auto-pause" checked style="width: 16px; height: 16px; accent-color: var(--accent); margin-top: 3px;">
+          <div>
+            <div style="font-weight: 600;">自動在簡報換行處加上停頓（強烈推薦）</div>
+            <div style="font-size: 0.78rem; color: var(--muted); margin-top: 4px; line-height: 1.4;">簡報內容通常為條列式且缺乏標點符號。開啟此功能後，系統會自動在換行處加入句號產生自然停頓，避免各點內容黏在一起唸。</div>
+          </div>
+        </label>
+      </div>
+
+      <div class="nav-bar">
+        <button class="btn btn-secondary" onclick="goStep(2)">← 回到腳本</button>
+        <button class="btn btn-primary" id="btn-generate" disabled>🎬 開始生成影片</button>
+      </div>
+    </div>
+
+    <!-- ── STEP 4: Generation ── -->
+    <div class="step-panel" id="panel-4">
+      <div class="card">
+        <div class="progress-section" id="progress-section">
+          <div class="spinner"></div>
+          <div class="status-title" id="status-title">準備生成…</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+          <div class="progress-label" id="progress-label">0 / 0 頁</div>
+          <div class="progress-label" id="step-label" style="margin-top:4px;color:var(--accent)"></div>
+        </div>
+
+        <div style="text-align:center;display:none;padding:20px" id="done-section">
+          <div class="status-icon">🎉</div>
+          <div class="status-title">影片生成完成！</div>
+          <p style="color:var(--muted);margin-bottom:24px">請點擊下方按鈕下載旁白影片。</p>
+          <a id="download-link" class="btn btn-green" href="#" download>⬇️ 下載影片 (MP4)</a>
+        </div>
+
+        <div style="display:none;padding:20px" id="error-section">
+          <div class="status-icon">❌</div>
+          <div class="status-title" style="color:var(--red)">生成失敗</div>
+          <div class="error-box" id="error-msg"></div>
+          <div style="margin-top:20px;text-align:center">
+            <button class="btn btn-secondary" onclick="goStep(3)">← 重試</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /container -->
+
+  <script>
+    // ─── State ────────────────────────────────────────────────
+    let currentStep = 1;
+    let jobId = null;
+    let pagesData = [];
+    let selectedVoice = null;
+    let selectedGeminiVoice = null;
+    let selectedCloningVoice = null;
+    let currentTtsEngine = 'edge'; // 'edge' | 'gemini' | 'cloning'
+    let pollTimer = null;
+    let selectedFile = null;
+
+    // ─── Step Navigation ─────────────────────────────────────
+    function goStep(n) {
+      document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+      document.getElementById(`panel-${n}`).classList.add('active');
+      currentStep = n;
+      updateStepIndicator(n);
+    }
+
+    function updateStepIndicator(active) {
+      for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        const lbl = document.getElementById(`lbl-${i}`);
+        dot.classList.remove('active', 'done');
+        lbl.classList.remove('active');
+        if (i < active) { dot.classList.add('done'); dot.textContent = '✓'; }
+        else if (i === active) { dot.classList.add('active'); dot.textContent = i; lbl.classList.add('active'); }
+        else { dot.textContent = i; }
+      }
+      for (let i = 1; i <= 3; i++) {
+        const conn = document.getElementById(`conn-${i}`);
+        conn.classList.toggle('done', i < active);
+      }
+    }
+
+    // ─── Step 1: File Upload ──────────────────────────────────
+    const dropzone = document.getElementById('dropzone');
+    const pdfInput = document.getElementById('pdf-input');
+    const btnExtract = document.getElementById('btn-extract');
+    const fileSelected = document.getElementById('file-selected');
+
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) {
+        selectedFile = f;
+        setFile(f);
+      }
+    });
+    pdfInput.addEventListener('change', () => {
+      const f = pdfInput.files[0];
+      if (f) {
+        selectedFile = f;
+        setFile(f);
+      }
+    });
+
+    function setFile(f) {
+      document.getElementById('filename-label').textContent = f.name;
+      document.getElementById('filesize-label').textContent = `${(f.size / 1024 / 1024).toFixed(2)} MB`;
+      fileSelected.classList.add('show');
+      btnExtract.disabled = false;
+    }
+
+    document.getElementById('btn-clear-file').addEventListener('click', () => {
+      pdfInput.value = '';
+      selectedFile = null;
+      fileSelected.classList.remove('show');
+      btnExtract.disabled = true;
+      document.getElementById('debug-log').style.display = 'none';
+    });
+
+    // ─── Step 1: Extraction Method Control ───────────────────
+    const apiSettingsArea = document.getElementById('api-settings-area');
+    const apiKeyInput = document.getElementById('api-key-input');
+    const modelSelect = document.getElementById('model-select');
+    const methodRadios = document.getElementsByName('extract-method');
+
+    function updateApiSettings() {
+      let selectedMethod = 'digital';
+      for (const r of methodRadios) {
+        if (r.checked) {
+          selectedMethod = r.value;
+          break;
+        }
+      }
+      
+      if (selectedMethod === 'gemini' || selectedMethod === 'grok') {
+        apiSettingsArea.style.display = 'block';
+        modelSelect.innerHTML = '';
+        if (selectedMethod === 'gemini') {
+          const opt35f = document.createElement('option');
+          opt35f.value = 'gemini-3.5-flash';
+          opt35f.textContent = 'Gemini 3.5 Flash (預設推薦)';
+          
+          const opt35p = document.createElement('option');
+          opt35p.value = 'gemini-3.5-pro';
+          opt35p.textContent = 'Gemini 3.5 Pro (極高水準)';
+
+          const opt25 = document.createElement('option');
+          opt25.value = 'gemini-2.5-flash';
+          opt25.textContent = 'Gemini 2.5 Flash';
+          
+          const opt15f = document.createElement('option');
+          opt15f.value = 'gemini-1.5-flash';
+          opt15f.textContent = 'Gemini 1.5 Flash';
+          
+          const opt15p = document.createElement('option');
+          opt15p.value = 'gemini-1.5-pro';
+          opt15p.textContent = 'Gemini 1.5 Pro';
+          
+          const opt20f = document.createElement('option');
+          opt20f.value = 'gemini-2.0-flash';
+          opt20f.textContent = 'Gemini 2.0 Flash';
+          
+          modelSelect.appendChild(opt35f);
+          modelSelect.appendChild(opt35p);
+          modelSelect.appendChild(opt25);
+          modelSelect.appendChild(opt15f);
+          modelSelect.appendChild(opt15p);
+          modelSelect.appendChild(opt20f);
+        } else if (selectedMethod === 'grok') {
+          const optGrok = document.createElement('option');
+          optGrok.value = 'grok-2-vision-1212';
+          optGrok.textContent = 'Grok 2 Vision';
+          modelSelect.appendChild(optGrok);
+        }
+      } else {
+        apiSettingsArea.style.display = 'none';
+      }
+    }
+
+    for (const r of methodRadios) {
+      r.addEventListener('change', updateApiSettings);
+    }
+    updateApiSettings(); // Initial call
+
+    btnExtract.addEventListener('click', async () => {
+      const file = selectedFile;
+      if (!file) return;
+
+      let method = 'digital';
+      for (const r of methodRadios) {
+        if (r.checked) {
+          method = r.value;
+          break;
+        }
+      }
+      
+      const apiKey = apiKeyInput.value.trim();
+      const model = modelSelect.value;
+      
+      if ((method === 'gemini' || method === 'grok') && !apiKey) {
+        alert('⚠️ 使用 AI 模式需要輸入 API 金鑰！');
+        return;
+      }
+
+      btnExtract.disabled = true;
+      btnExtract.textContent = '⏳ 讀取與辨識中，請稍候…';
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('method', method);
+      formData.append('api_key', apiKey);
+      formData.append('model', model);
+
+      try {
+        const res = await fetch('/api/extract', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '讀取失敗');
+
+        jobId = data.job_id;
+        pagesData = data.pages;
+        renderPages(pagesData);
+        await loadVoices();
+        goStep(2);
+      } catch (err) {
+        console.error(err);
+        const logEl = document.getElementById('debug-log');
+        logEl.style.display = 'block';
+        logEl.textContent = `❌ PDF 讀取與辨識失敗\nError: ${err.message}\nStack: ${err.stack || '無可用堆疊追蹤資訊'}`;
+        alert('❌ PDF 讀取與辨識失敗：' + err.message);
+      } finally {
+        btnExtract.disabled = false;
+        btnExtract.innerHTML = '讀取 PDF &nbsp;→';
+      }
+    });
+
+    // ─── Step 2: Render Pages ─────────────────────────────────
+    function renderPages(pages) {
+      const container = document.getElementById('pages-container');
+      container.innerHTML = '';
+
+      pages.forEach((p, i) => {
+        const card = document.createElement('div');
+        card.className = 'page-card';
+        card.innerHTML = `
+          <div class="page-thumb">
+            <img src="${p.thumbnail}" alt="第 ${p.page_num} 頁">
+            <div class="page-num-badge">第 ${p.page_num} 頁</div>
+          </div>
+          <div class="page-editor">
+            <label>旁白腳本（可直接編輯）</label>
+            <textarea id="script-${i}" placeholder="（本頁無文字，可手動輸入旁白腳本）">${escapeHtml(p.text)}</textarea>
+            <div class="char-count" id="cc-${i}">${p.text.length} 字</div>
+          </div>`;
+        container.appendChild(card);
+
+        const ta = card.querySelector('textarea');
+        const cc = card.querySelector('.char-count');
+        ta.addEventListener('input', () => { cc.textContent = ta.value.length + ' 字'; });
+      });
+    }
+
+    // ─── Export Scripts to .txt file ─────────────────────────────
+    document.getElementById('btn-export-script').addEventListener('click', () => {
+      if (!pagesData || pagesData.length === 0) {
+        alert("目前尚無可匯出的腳本資料。");
+        return;
+      }
+      let content = "";
+      pagesData.forEach((_, i) => {
+        const ta = document.getElementById(`script-${i}`);
+        const text = ta ? ta.value : "";
+        content += `=== 第 ${i + 1} 頁 ===\n${text}\n\n`;
+      });
+      
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const originalPdfName = document.getElementById('filename-label').textContent || "pdf";
+      a.download = `${originalPdfName.replace(".pdf", "")}_腳本.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // ─── Import Scripts from .txt file ───────────────────────────
+    document.getElementById('script-file-input').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const fileContent = evt.target.result;
+        const lines = fileContent.split(/\r?\n/);
+        let currentPage = null;
+        let pageScripts = {};
+        
+        for (let line of lines) {
+          const match = line.match(/^===\s*第\s*(\d+)\s*頁\s*===/);
+          if (match) {
+            currentPage = parseInt(match[1]) - 1; // 0-indexed
+            pageScripts[currentPage] = [];
+          } else if (currentPage !== null) {
+            pageScripts[currentPage].push(line);
+          }
+        }
+        
+        let count = 0;
+        for (let pageNum in pageScripts) {
+          const ta = document.getElementById(`script-${pageNum}`);
+          if (ta) {
+            const text = pageScripts[pageNum].join('\n').trim();
+            ta.value = text;
+            ta.dispatchEvent(new Event('input')); // Trigger char-count update
+            count++;
+          }
+        }
+        
+        if (count > 0) {
+          alert(`成功匯入 ${count} 頁的腳本內容！`);
+        } else {
+          alert("無法讀取腳本內容，請確認檔案格式是否正確 (必須包含 '=== 第 X 頁 ===' 標記)。");
+        }
+        
+        e.target.value = "";
+      };
+      
+      reader.readAsText(file, 'utf-8');
+    });
+
+    document.getElementById('btn-to-voice').addEventListener('click', () => goStep(3));
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ─── Step 3: TTS Engine Tab Switch ───────────────────────────
+    function switchTtsTab(engine) {
+      currentTtsEngine = engine;
+      document.getElementById('tab-edge').classList.toggle('active', engine === 'edge');
+      document.getElementById('tab-gemini').classList.toggle('active', engine === 'gemini');
+      document.getElementById('tab-cloning').classList.toggle('active', engine === 'cloning');
+      document.getElementById('tts-panel-edge').classList.toggle('active', engine === 'edge');
+      document.getElementById('tts-panel-gemini').classList.toggle('active', engine === 'gemini');
+      document.getElementById('tts-panel-cloning').classList.toggle('active', engine === 'cloning');
+      
+      // Update generate button state
+      if (engine === 'edge') {
+        document.getElementById('btn-generate').disabled = !selectedVoice;
+      } else if (engine === 'gemini') {
+        document.getElementById('btn-generate').disabled = !selectedGeminiVoice;
+      } else {
+        document.getElementById('btn-generate').disabled = !selectedCloningVoice;
+      }
+    }
+
+    // ─── Step 3: Voice Picker ─────────────────────────────────
+    async function loadVoices() {
+      try {
+        const [edgeRes, geminiRes, cloningRes] = await Promise.all([
+          fetch('/api/voices'),
+          fetch('/api/gemini-tts-voices'),
+          fetch('/api/cloned-voices')
+        ]);
+        const groups = await edgeRes.json();
+        const geminiData = await geminiRes.json();
+        const cloningData = await cloningRes.json();
+        
+        renderVoices(groups);
+        renderGeminiVoices(geminiData.voices);
+        renderClonedVoices(cloningData.voices);
+      } catch (err) {
+        console.error('Failed to load voices:', err);
+      }
+    }
+
+    function renderClonedVoices(voices) {
+      const container = document.getElementById('cloning-voice-container');
+      container.innerHTML = '';
+      
+      if (!voices || voices.length === 0) {
+        container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--muted); padding: 20px; border: 1px dashed var(--border); border-radius: 8px;">⚠️ 尚未偵測到任何已複製聲音。請先點選上方「🎙️ 錄製新聲音」進行錄製。</div>`;
+        return;
+      }
+
+      voices.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'voice-card';
+        card.dataset.voiceId = v;
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;">
+            <div style="flex: 1; min-width: 0;">
+              <div class="voice-card-name">${v}</div>
+              <div class="voice-card-id">本機克隆音色</div>
+            </div>
+            <button class="play-btn" title="試聽語音">▶</button>
+          </div>`;
+        
+        card.addEventListener('click', () => selectCloningVoice(v));
+        const pbtn = card.querySelector('.play-btn');
+        pbtn.addEventListener('click', (e) => playPreview('cloning', v, pbtn, e));
+        container.appendChild(card);
+      });
+    }
+
+    function selectCloningVoice(id) {
+      document.querySelectorAll('#cloning-voice-container .voice-card').forEach(c => {
+        c.classList.remove('selected');
+      });
+      const card = document.querySelector(`#cloning-voice-container .voice-card[data-voice-id="${id}"]`);
+      if (card) card.classList.add('selected');
+
+      selectedCloningVoice = id;
+      const preview = document.getElementById('cloning-voice-preview');
+      document.getElementById('cloning-voice-preview-text').textContent = `本地克隆聲音  ·  ${id}`;
+      preview.classList.add('show');
+      if (currentTtsEngine === 'cloning') {
+        document.getElementById('btn-generate').disabled = false;
+      }
+    }
+
+    function renderVoices(groups) {
+      const container = document.getElementById('voice-container');
+      container.innerHTML = '';
+
+      for (const [groupName, voices] of Object.entries(groups)) {
+        const grp = document.createElement('div');
+        grp.className = 'voice-group';
+        grp.innerHTML = `<div class="voice-group-title">${groupName}</div>`;
+        const cards = document.createElement('div');
+        cards.className = 'voice-cards';
+
+        voices.forEach(v => {
+          const card = document.createElement('div');
+          card.className = 'voice-card';
+          card.dataset.voiceId = v.id;
+          card.dataset.voiceLabel = v.label;
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;">
+              <div style="flex: 1; min-width: 0;">
+                <div class="voice-card-name" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.label}</div>
+                <div class="voice-card-id" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${v.id}</div>
+              </div>
+              <button class="play-btn" title="試聽語音">▶</button>
+            </div>`;
+          
+          card.addEventListener('click', () => selectVoice(v.id, v.label, groupName));
+          const pbtn = card.querySelector('.play-btn');
+          pbtn.addEventListener('click', (e) => playPreview('edge', v.id, pbtn, e));
+          cards.appendChild(card);
+        });
+
+        grp.appendChild(cards);
+        container.appendChild(grp);
+      }
+    }
+
+    function selectVoice(id, label, group) {
+      document.querySelectorAll('#voice-container .voice-card').forEach(c => c.classList.remove('selected'));
+      const card = document.querySelector(`#voice-container .voice-card[data-voice-id="${id}"]`);
+      if (card) card.classList.add('selected');
+
+      selectedVoice = id;
+      const preview = document.getElementById('voice-preview');
+      document.getElementById('voice-preview-text').textContent = `${group}  ·  ${label}`;
+      preview.classList.add('show');
+      if (currentTtsEngine === 'edge') {
+        document.getElementById('btn-generate').disabled = false;
+      }
+    }
+
+    function renderGeminiVoices(voices) {
+      const container = document.getElementById('gemini-voice-container');
+      container.innerHTML = '';
+      voices.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'voice-card';
+        card.dataset.voiceId = v.id;
+        card.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;">
+            <div style="flex: 1; min-width: 0;">
+              <div class="voice-card-name">${v.label}</div>
+              <div class="voice-card-style">${v.style}</div>
+            </div>
+            <button class="play-btn" title="試聽語音">▶</button>
+          </div>`;
+        
+        card.addEventListener('click', () => selectGeminiVoice(v.id, v.label, v.style));
+        const pbtn = card.querySelector('.play-btn');
+        pbtn.addEventListener('click', (e) => playPreview('gemini', v.id, pbtn, e));
+        container.appendChild(card);
+      });
+    }
+
+    function selectGeminiVoice(id, label, style) {
+      document.querySelectorAll('#gemini-voice-container .voice-card').forEach(c => {
+        c.classList.remove('selected', 'gemini-selected');
+      });
+      const card = document.querySelector(`#gemini-voice-container .voice-card[data-voice-id="${id}"]`);
+      if (card) card.classList.add('gemini-selected');
+
+      selectedGeminiVoice = id;
+      const preview = document.getElementById('gemini-voice-preview');
+      document.getElementById('gemini-voice-preview-text').textContent = `${label}  ·  ${style}`;
+      preview.classList.add('show');
+      if (currentTtsEngine === 'gemini') {
+        document.getElementById('btn-generate').disabled = false;
+      }
+    }
+
+    // ─── Step 3: Voice Audition Play Preview ──────────────────────
+    let currentAudio = null;
+    let currentPlayBtn = null;
+
+    async function playPreview(engine, voiceId, btn, event) {
+      if (event) {
+        event.stopPropagation();
+      }
+
+      // If already playing this, pause it
+      if (currentAudio && currentPlayBtn === btn) {
+        currentAudio.pause();
+        resetPlayBtn();
+        return;
+      }
+
+      // Stop any playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        resetPlayBtn();
+      }
+
+      btn.textContent = '⏳';
+      btn.classList.add('playing');
+      currentPlayBtn = btn;
+
+      const formData = new FormData();
+      formData.append('engine', engine);
+      formData.append('voice', voiceId);
+      if (engine === 'gemini') {
+        const apiKey = document.getElementById('gemini-tts-api-key').value.trim();
+        if (!apiKey) {
+          alert('請先輸入上方 Gemini API 設定中的 API 金鑰後，再試聽語音。');
+          resetPlayBtn();
+          return;
+        }
+        formData.append('api_key', apiKey);
+        formData.append('model', document.getElementById('gemini-tts-model').value);
+      }
+
+      try {
+        const res = await fetch('/api/preview', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '試聽生成失敗');
+
+        currentAudio = new Audio(data.url);
+        btn.textContent = '🔊';
+        currentAudio.play();
+        currentAudio.onended = () => {
+          resetPlayBtn();
+        };
+      } catch (err) {
+        alert('試聽失敗：' + err.message);
+        resetPlayBtn();
+      }
+    }
+
+    function resetPlayBtn() {
+      if (currentPlayBtn) {
+        currentPlayBtn.textContent = '▶';
+        currentPlayBtn.classList.remove('playing');
+        currentPlayBtn = null;
+      }
+      currentAudio = null;
+    }
+
+    // ─── Step 4: Generate ─────────────────────────────────────
+    document.getElementById('btn-generate').addEventListener('click', async () => {
+      const isGemini = currentTtsEngine === 'gemini';
+      const isCloning = currentTtsEngine === 'cloning';
+
+      if (isGemini) {
+        if (!selectedGeminiVoice) { alert('請先選擇 Gemini TTS 語音。'); return; }
+        const key = document.getElementById('gemini-tts-api-key').value.trim();
+        if (!key) { alert('請輸入 Gemini API 金鑰。'); return; }
+      } else if (isCloning) {
+        if (!selectedCloningVoice) { alert('請先選擇本機克隆配音人。'); return; }
+      } else {
+        if (!selectedVoice) { alert('請先選擇 Edge TTS 語音。'); return; }
+      }
+
+      // Collect scripts from textareas
+      const scripts = pagesData.map((_, i) => {
+        const ta = document.getElementById(`script-${i}`);
+        return ta ? ta.value : '';
+      });
+
+      goStep(4);
+      document.getElementById('progress-section').style.display = 'block';
+      document.getElementById('done-section').style.display = 'none';
+      document.getElementById('error-section').style.display = 'none';
+
+      const rateVal = parseInt(document.getElementById('rate-slider').value);
+      const rateStr = (rateVal >= 0 ? '+' : '') + rateVal + '%';
+      const autoPause = document.getElementById('auto-pause').checked;
+
+      const formData = new FormData();
+      formData.append('job_id', jobId);
+      formData.append('scripts', JSON.stringify(scripts));
+      formData.append('rate', rateStr);
+      formData.append('auto_pause', autoPause ? 'true' : 'false');
+      formData.append('tts_engine', currentTtsEngine);
+
+      if (isGemini) {
+        formData.append('voice', selectedGeminiVoice);
+        formData.append('gemini_tts_voice', selectedGeminiVoice);
+        formData.append('gemini_tts_model', document.getElementById('gemini-tts-model').value);
+        formData.append('gemini_api_key', document.getElementById('gemini-tts-api-key').value.trim());
+      } else if (isCloning) {
+        formData.append('voice', selectedCloningVoice);
+        formData.append('gemini_tts_voice', '');
+        formData.append('gemini_api_key', '');
+      } else {
+        formData.append('voice', selectedVoice);
+        formData.append('gemini_tts_voice', '');
+        formData.append('gemini_api_key', '');
+      }
+
+      try {
+        const res = await fetch('/api/generate', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '啟動失敗');
+
+        // Start polling
+        pollTimer = setInterval(pollStatus, 1500);
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
+    async function pollStatus() {
+      try {
+        const res = await fetch(`/api/status/${jobId}`);
+        const data = await res.json();
+
+        const total = data.total || pagesData.length;
+        const progress = data.progress || 0;
+        const pct = total ? Math.round(progress / total * 100) : 0;
+
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('progress-label').textContent = `${progress} / ${total} 頁`;
+        document.getElementById('step-label').textContent = data.step || '';
+        document.getElementById('status-title').textContent = '生成中…';
+
+        if (data.status === 'done') {
+          clearInterval(pollTimer);
+          showDone();
+        } else if (data.status === 'error') {
+          clearInterval(pollTimer);
+          showError(data.error || '未知錯誤');
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+    }
+
+    function showDone() {
+      document.getElementById('progress-section').style.display = 'none';
+      document.getElementById('done-section').style.display = 'block';
+      document.getElementById('download-link').href = `/api/download/${jobId}`;
+      updateStepIndicator(5); // all done
+    }
+
+    function showError(msg) {
+      document.getElementById('progress-section').style.display = 'none';
+      document.getElementById('error-section').style.display = 'block';
+      document.getElementById('error-msg').textContent = msg;
+    }
+
+    // Rate slider change display text
+    const rateSlider = document.getElementById('rate-slider');
+    const rateValue = document.getElementById('rate-value');
+    function updateRateLabel() {
+      const val = parseInt(rateSlider.value);
+      let desc = '';
+      if (val === 0) desc = '正常 (0%)';
+      else if (val === -10) desc = '稍微慢速 (-10% · 最推薦)';
+      else if (val < 0) desc = `慢速 (${val}%)`;
+      else desc = `快速 (+${val}%)`;
+      rateValue.textContent = desc;
+    }
+    rateSlider.addEventListener('input', updateRateLabel);
+    updateRateLabel();
+
+    // ─── Step 1: Job Rescue Functions ────────────────────────────
+    function toggleRescuePanel() {
+      const panel = document.getElementById('rescue-panel');
+      const arrow = document.getElementById('rescue-arrow');
+      if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        arrow.textContent = '▲ 折疊';
+        loadIncompleteJobs();
+      } else {
+        panel.style.display = 'none';
+        arrow.textContent = '▼ 展開';
+      }
+    }
+
+    async function loadIncompleteJobs() {
+      const tbody = document.getElementById('rescue-jobs-list');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 20px;">⏳ 正在載入專案列表中...</td></tr>';
+      
+      try {
+        const res = await fetch('/api/jobs/list');
+        const data = await res.json();
+        const jobsList = data.jobs || [];
+        
+        if (jobsList.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 20px;">📭 目前無已生成的舊專案資料。</td></tr>';
+          return;
+        }
+        
+        tbody.innerHTML = '';
+        jobsList.forEach(j => {
+          const tr = document.createElement('tr');
+          tr.style.borderBottom = '1px solid var(--border)';
+          
+          const statusText = j.has_video 
+            ? '<span style="color: var(--green); font-weight: 600;">已生成影片</span>' 
+            : '<span style="color: #f59e0b; font-weight: 600;">無影片 (待合成)</span>';
+            
+          const actionBtn = j.has_video 
+            ? `<div style="display: flex; gap: 8px; justify-content: flex-end;">
+                 <button class="btn btn-secondary" onclick="startRebuild('${j.job_id}')" style="font-size:0.75rem; padding: 6px 12px; height: 30px;">🎬 重新合成</button>
+                 <a href="/api/download/${j.job_id}" class="btn btn-primary" style="font-size:0.75rem; padding: 6px 12px; text-decoration: none; height: 30px; line-height: 16px; display: inline-flex; align-items: center; box-sizing: border-box;">📥 下載影片</a>
+               </div>`
+            : `<div style="display: flex; justify-content: flex-end;">
+                 <button class="btn btn-primary" onclick="startRebuild('${j.job_id}')" style="font-size:0.75rem; padding: 6px 12px; height: 30px;">🎬 立即合成影片</button>
+               </div>`;
+               
+          tr.innerHTML = `
+            <td style="padding: 12px 8px; color: var(--muted);">${j.time}</td>
+            <td style="padding: 12px 8px; font-family: monospace; font-size:0.8rem; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${j.job_id}">${j.job_id}</td>
+            <td style="padding: 12px 8px;">🖼️ ${j.pages} 頁 / 🎵 ${j.audios} 音檔</td>
+            <td style="padding: 12px 8px;">${statusText}</td>
+            <td style="padding: 12px 8px; text-align: right;">${actionBtn}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--red); padding: 20px;">❌ 載入失敗：${err.message}</td></tr>`;
+      }
+    }
+
+    async function startRebuild(jId) {
+      if (!confirm(`確定要重新合成專案 (${jId}) 的現有檔案嗎？`)) {
+        return;
+      }
+      
+      jobId = jId;
+      goStep(4);
+      document.getElementById('progress-section').style.display = 'block';
+      document.getElementById('done-section').style.display = 'none';
+      document.getElementById('error-section').style.display = 'none';
+      document.getElementById('status-title').textContent = '準備中...';
+      
+      try {
+        const res = await fetch(`/api/jobs/rebuild/${jobId}`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '啟動重新合成失敗');
+        
+        // Start polling status
+        pollTimer = setInterval(pollStatus, 1500);
+      } catch (err) {
+        showError(err.message);
+      }
+    }
+
+    // Init
+    updateStepIndicator(1);
+  </script>
+</body>
+</html>
