@@ -1529,6 +1529,8 @@
     if (localStorage.getItem('rescue_gemini_key')) {
       rescueGeminiKey.value = localStorage.getItem('rescue_gemini_key');
     }
+    rescueGeminiKey.addEventListener('input', () => {
+      localStorage.setItem('rescue_gemini_key', rescueGeminiKey.value.trim());
     });
 
     const rescueGeminiModel = document.getElementById('rescue-gemini-model');
