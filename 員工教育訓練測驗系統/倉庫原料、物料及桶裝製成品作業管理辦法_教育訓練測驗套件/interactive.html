@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>倉庫一日職人：合規情境模擬闖關</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #070b13;
+      --surface: #0e1626;
+      --surface-card: rgba(20, 32, 54, 0.6);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.1);
+      --error: #f43f5e;
+      --error-bg: rgba(244, 63, 94, 0.1);
+    }
+    body {
+      background-color: var(--bg);
+      background-image: radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+      color: var(--text);
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+    .game-container {
+      width: 100%;
+      max-width: 750px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      padding: 30px;
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    .screen {
+      display: none;
+      animation: fadeIn 0.4s ease forwards;
+    }
+    .screen.active {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    h1, h2 {
+      font-weight: 700;
+      background: linear-gradient(to right, #fff, #c7d2fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .title-large { font-size: 2rem; text-align: center; margin-bottom: 10px; }
+    .title-mid { font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+    .desc { color: var(--text-muted); line-height: 1.6; font-size: 0.95rem; }
+    .btn-action {
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      border: none;
+      color: #fff;
+      padding: 14px 28px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+      text-align: center;
+    }
+    .btn-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 20px 0;
+    }
+    .form-input {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      color: #fff;
+      font-size: 1.05rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-input:focus { border-color: var(--primary); }
+    
+    .steps-indicator {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .steps-indicator::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: var(--border);
+      z-index: 1;
+    }
+    .step-dot {
+      width: 32px;
+      height: 32px;
+      background: #142036;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      z-index: 2;
+      transition: all 0.3s;
+    }
+    .step-dot.active {
+      border-color: var(--primary);
+      background: var(--primary);
+      box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+    }
+    .step-dot.done {
+      border-color: var(--success);
+      background: var(--success);
+    }
+
+    .scenario-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .option-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .option-btn {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      color: var(--text);
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+    .option-btn:hover:not(.disabled) {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.2);
+    }
+    .option-btn.correct {
+      background: var(--success-bg);
+      border-color: var(--success);
+      color: #a7f3d0;
+    }
+    .option-btn.incorrect {
+      background: var(--error-bg);
+      border-color: var(--error);
+      color: #fecdd3;
+    }
+    .option-btn.disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    .badge-icon {
+      font-size: 1.5rem;
+      min-width: 30px;
+    }
+    .feedback-box {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 8px;
+      display: none;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      animation: fadeIn 0.3s;
+    }
+    .feedback-box.correct { background: rgba(16, 185, 129, 0.15); border-left: 4px solid var(--success); color: #a7f3d0; }
+    .feedback-box.incorrect { background: rgba(244, 63, 94, 0.15); border-left: 4px solid var(--error); color: #fecdd3; }
+    
+    .score-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      align-self: flex-start;
+    }
+    .score-badge.perfect { background: rgba(16,185,129,0.15); color: var(--success); }
+    
+    .result-summary {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+    .score-value {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--success);
+      margin: 10px 0;
+    }
+    .badge-unlocked {
+      font-size: 1.2rem;
+      color: #fbbf24;
+      background: rgba(251,191,36,0.1);
+      border: 1px dashed #fbbf24;
+      padding: 8px 16px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-container">
+    
+    <div class="screen active" id="screen-welcome">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 4rem;">📦</div>
+        <h1 class="title-large">一日倉管職人闖關</h1>
+        <p class="desc">歡迎來到《倉庫原料、物料及桶裝製成品作業管理辦法》合規情境模擬挑戰！您將扮演一日倉庫職人，體驗標準入庫、領料、安全防範等核心現場流程。</p>
+      </div>
+      
+      <div class="input-group">
+        <label style="font-weight: 600; color: var(--text-muted); font-size: 0.9rem;">請輸入您的姓名以開始挑戰：</label>
+        <input type="text" class="form-input" id="user-name" placeholder="例如：陳大明" maxlength="15" oninput="toggleStartBtn()">
+      </div>
+      
+      <button class="btn-action" id="btn-start-game" onclick="startGame()" disabled>🎮 開始模擬挑戰</button>
+    </div>
+
+    <div class="screen" id="screen-game">
+      <div class="steps-indicator">
+        <div class="step-dot active" id="step-0">1</div>
+        <div class="step-dot" id="step-1">2</div>
+        <div class="step-dot" id="step-2">3</div>
+        <div class="step-dot" id="step-3">4</div>
+      </div>
+
+      <div class="scenario-card">
+        <h2 class="title-mid" id="sc-title">關卡載入中...</h2>
+        <p class="desc" id="sc-desc">SOP 規範學習內容...</p>
+        
+        <div style="border-top: 1px solid var(--border); margin: 10px 0;"></div>
+        
+        <p style="font-weight: 700; font-size: 0.95rem; color: #fff;" id="sc-challenge">情境挑戰題...</p>
+        
+        <div class="option-group" id="sc-options">
+        </div>
+        
+        <div class="feedback-box" id="sc-feedback">
+        </div>
+      </div>
+
+      <button class="btn-action" id="btn-next" onclick="nextLevel()" style="display: none; align-self: flex-end;">進入下一關 ➔</button>
+    </div>
+
+    <div class="screen" id="screen-result">
+      <div class="result-summary">
+        <div style="font-size: 4rem;">🏆</div>
+        <h2>一日挑戰完成！</h2>
+        <p class="desc" id="res-name-label">恭喜陳大明完成闖關</p>
+        <div class="score-value" id="res-score">100 分</div>
+        <div class="badge-unlocked" id="res-badge">🎖️ 倉庫SOP守護者</div>
+        <p class="desc" id="res-desc">合規挑戰結束，系統正在自動保存並同步您的作答結果...</p>
+      </div>
+
+      <div id="submit-status-box" style="text-align: center; margin: 20px 0; padding: 14px; border-radius: 8px; font-weight: 600; color: #fbbf24; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); animation: fadeIn 0.4s;">
+        📤 正在寫入成績至本機 results.csv，請勿關閉網頁...
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let userName = "";
+    let curLevel = 0;
+    let score = 0;
+    let answersRecord = [];
+    let speechSynth = window.speechSynthesis;
+    let currentUtterance = null;
+
+    const LEVELS = [
+      {
+        title: "第一關：原料檢驗與入庫標示",
+        desc: "【SOP 規範】原物料或桶裝成品入庫前，品管必須檢驗合格。合格與不合格品分開標示，不合格品放置於格外品區。上架時，料品標示一律【朝外】以利判讀。",
+        challenge: "【情境】廠商送來兩箱原料，其中 A 箱貼有綠色品管合格證，B 箱沒有任何標籤且包裝微損。你該如何處理？",
+        options: [
+          {
+            text: "A. 反正都要用，直接將兩箱都上架歸位，標籤朝內擺放整齊即可。",
+            correct: false,
+            feedback: "答錯囉！包裝破損且無合格證的 B 箱不能隨便上架。且上架時，標籤必須「朝外」才方便同仁辨識與管理喔！"
+          },
+          {
+            text: "B. 將合格的 A 箱上架，且標籤朝外放置；無標籤的 B 箱先移至格外品放置區，並通知品管進行格外品處理程序。",
+            correct: true,
+            feedback: "答對了！非常優秀！嚴格執行合格標示朝外，且將可疑或不合格品隔離置於格外品區，是保障原料品質的第一步！"
+          }
+        ]
+      },
+      {
+        title: "第二關：巡檢環境溫濕度管控",
+        desc: "【SOP 規範】倉庫適宜溫度為 5℃ 至 45℃ 之間，相對濕度 80% 以下。每日下午兩點，倉管人員必須量測數值，並填寫『溫度、濕度記錄表』。",
+        challenge: "【情境】下午巡檢時，你發現溫濕度計顯示「溫度 48℃，相對濕度 85%」。這時你應該？",
+        options: [
+          {
+            text: "A. 視為異常狀況，將數值照實填寫在記錄表上，通知主管，並立即開啟抽風或冷氣設備以通風降溫降濕。",
+            correct: true,
+            feedback: "答對了！標準程序！數值超標時不能隱瞞，應即時記錄異常、採取調控措施（如啟動空調），並向上呈報主管！"
+          },
+          {
+            text: "B. 反正只差一點點，為了表單好看，先偷偷填寫正常範圍內的值（例如 38℃、75%），避免寫異常單很麻煩。",
+            correct: false,
+            feedback: "答錯囉！虛報溫濕度可能導致化學原料或成品變質，造成嚴重公安意外，巡檢記錄務必真實呈現！"
+          }
+        ]
+      },
+      {
+        title: "第三關：先進先出與領料發放",
+        desc: "【SOP 規範】原物料發料時，必須由倉管發料或陪同，憑『一階段調撥單』等憑證核對，且必須遵循【先進先出】原則，數量低於安全庫存應辦理請購。",
+        challenge: "【情境】生產線同仁阿明跑來說緊急需要領料，想自己直接衝進倉庫搬走，且拿了架子最前排（剛到貨、效期最新）的原料。你該怎麼做？",
+        options: [
+          {
+            text: "A. 因為阿明說很急，先讓他自己進去搬，只要事後口頭通知你補單就好。",
+            correct: false,
+            feedback: "答錯囉！非倉管人員禁止私自進入倉庫搬運。如果讓他拿走最新的原料，會破壞先進先出原則，導致舊原料過期！"
+          },
+          {
+            text: "B. 阻止阿明，請他提供調撥單，並由你親自發料，核對料號數量後，找出存放時間最久的批次（先進先出）發給他。",
+            correct: true,
+            feedback: "答對了！非常合規！堅守「倉管陪同」、「核對憑證」與「先進先出」原則，是維持庫存帳物一致的核心防線！"
+          }
+        ]
+      },
+      {
+        title: "第四關：重型料架安全維護",
+        desc: "【SOP 規範】倉庫貨物架必須標示最大載重，架上物品需捆綁固定。重型料架應【每半年】依表執行一次安全檢查，若有異常應即時通知主管開立請修單。",
+        challenge: "【情境】巡查貨架時，你發現最內側的重型料架支柱有一處被堆高機稍微撞凹變形，你該怎麼做？",
+        options: [
+          {
+            text: "A. 稍微撞到應該沒事，先不用處理，等每半年定期料架檢查時再寫在表單上就好。",
+            correct: false,
+            feedback: "答錯囉！重型料架承重極大，有些微變形就可能在載重時倒塌。發現異常必須「即時」呈報主管並開立請修單！"
+          },
+          {
+            text: "B. 判定為料架安全異常，立即在此變形儲位掛上「禁止使用」標示，通報單位主管，並開立工程請修單處理。",
+            correct: true,
+            feedback: "答對了！安全觀念滿分！料架變形有倒塌危險，應立即掛牌禁用、回報主管並請修，確防倒塌事故！"
+          }
+        ]
+      }
+    ];
+    ];
+
+    function toggleStartBtn() {
+      const nameVal = document.getElementById("user-name").value.trim();
+      document.getElementById("btn-start-game").disabled = nameVal.length < 1;
+    }
+
+    function playSuccessSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      } catch (e) {}
+    }
+
+    function playFailSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.3);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.35);
+      } catch (e) {}
+    }
+
+    function speakText(text) {
+      if (speechSynth) {
+        speechSynth.cancel();
+        currentUtterance = new SpeechSynthesisUtterance(text);
+        const voices = speechSynth.getVoices();
+        const zhVoice = voices.find(v => v.lang.includes("zh-TW") || v.lang.includes("zh-CN") || v.lang.includes("zh"));
+        if (zhVoice) currentUtterance.voice = zhVoice;
+        speechSynth.speak(currentUtterance);
+      }
+    }
+
+    function startGame() {
+      userName = document.getElementById("user-name").value.trim();
+      document.getElementById("screen-welcome").classList.remove("active");
+      document.getElementById("screen-game").classList.add("active");
+      loadLevel();
+    }
+
+    function loadLevel() {
+      const lv = LEVELS[curLevel];
+      
+      for(let i=0; i<LEVELS.length; i++) {
+        const dot = document.getElementById("step-" + i);
+        if(i < curLevel) {
+          dot.className = "step-dot done";
+        } else if (i === curLevel) {
+          dot.className = "step-dot active";
+        } else {
+          dot.className = "step-dot";
+        }
+      }
+
+      document.getElementById("sc-title").textContent = lv.title;
+      document.getElementById("sc-desc").textContent = lv.desc;
+      document.getElementById("sc-challenge").textContent = lv.challenge;
+      
+      const optContainer = document.getElementById("sc-options");
+      optContainer.innerHTML = "";
+      
+      lv.options.forEach((opt, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.innerHTML = `<span class="badge-icon">${idx === 0 ? 'A' : 'B'}</span> <span>${opt.text}</span>`;
+        btn.onclick = () => selectOption(idx, btn);
+        optContainer.appendChild(btn);
+      });
+
+      document.getElementById("sc-feedback").style.display = "none";
+      document.getElementById("btn-next").style.display = "none";
+      
+      speakText(lv.title + "。" + lv.desc + lv.challenge);
+    }
+
+    function selectOption(idx, btn) {
+      const lv = LEVELS[curLevel];
+      const opt = lv.options[idx];
+      
+      const allBtns = document.querySelectorAll(".option-btn");
+      allBtns.forEach(b => b.classList.add("disabled"));
+
+      const feedbackBox = document.getElementById("sc-feedback");
+      
+      const optLabel = idx === 0 ? "A" : "B";
+      answersRecord.push({
+        num: curLevel + 1,
+        question: lv.title + " - " + lv.challenge,
+        selected: optLabel,
+        isCorrect: opt.correct
+      });
+
+      if (opt.correct) {
+        btn.classList.add("correct");
+        feedbackBox.className = "feedback-box correct";
+        feedbackBox.innerHTML = "<strong>🎉 回答正確！</strong> " + opt.feedback;
+        score += 25;
+        playSuccessSound();
+      } else {
+        btn.classList.add("incorrect");
+        feedbackBox.className = "feedback-box incorrect";
+        feedbackBox.innerHTML = "<strong>❌ 選擇方案不合規！</strong> " + opt.feedback;
+        playFailSound();
+      }
+      
+      feedbackBox.style.display = "block";
+      document.getElementById("btn-next").style.display = "block";
+      
+      speakText(opt.feedback);
+    }
+
+    function nextLevel() {
+      if (speechSynth) speechSynth.cancel();
+      curLevel++;
+      if (curLevel < LEVELS.length) {
+        loadLevel();
+      } else {
+        showResults();
+      }
+    }
+
+    function showResults() {
+      document.getElementById("screen-game").classList.remove("active");
+      document.getElementById("screen-result").classList.add("active");
+      
+      document.getElementById("res-name-label").textContent = "🏆 恭喜同仁 " + userName + " 順利完成闖關！";
+      document.getElementById("res-score").textContent = score + " 分";
+      
+      const badge = document.getElementById("res-badge");
+      if (score === 100) {
+        badge.textContent = "🎖️ 倉庫完美守護專家 (100分)";
+        badge.style.borderColor = "#fbbf24";
+        badge.style.color = "#fbbf24";
+      } else if (score >= 75) {
+        badge.textContent = "🏅 資深倉庫守護者";
+        badge.style.borderColor = "#6366f1";
+        badge.style.color = "#818cf8";
+      } else {
+        badge.textContent = "🥈 倉庫初學者 (需再加強)";
+        badge.style.borderColor = "#9ca3af";
+        badge.style.color = "#9ca3af";
+      }
+      
+      speakText("恭喜完成一日倉管員闖關挑戰！您的得分是，" + score + "分！");
+    }
+
+    function submitGameScore() {
+      const payload = {
+        name: userName,
+        timestamp: new Date().toLocaleString("zh-TW", { timeZone: "Asia/Taipei" }),
+        score: score,
+        correctCount: score / 25,
+        total: 4
+      };
+
+      answersRecord.forEach((rec, idx) => {
+        payload[`q${idx + 1}_question`] = rec.question;
+        payload[`q${idx + 1}_answer`] = `答: ${rec.selected} (${rec.isCorrect ? "對" : "錯"})`;
+        payload[`q${idx + 1}`] = `答: ${rec.selected} (${rec.isCorrect ? "對" : "錯"})`;
+      });
+
+      const btn = document.getElementById("btn-submit-score");
+      btn.disabled = true;
+      btn.textContent = "正在提交成績...";
+
+      fetch("/api/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("本機伺服器儲存成功:", data);
+        alert("🎉 成績已成功寫入本機 results.csv！");
+        btn.textContent = "✅ 成績已寫入!";
+      })
+      .catch(err => {
+        console.warn("未連接本機伺服器或傳送失敗 (單機版模式):", err);
+        const cloudUrl = localStorage.getItem("training_cloud_url") || "";
+        if (cloudUrl) {
+          fetch(cloudUrl, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          })
+          .then(() => {
+            alert("🎉 成績已送出備份至雲端試算表！");
+            btn.textContent = "✅ 成績已上傳!";
+          })
+          .catch(e => {
+            alert("提交失敗，請確認是否已點兩下啟動本機的 bat 伺服器程式！");
+            btn.disabled = false;
+            btn.textContent = "📤 重新提交成績";
+          });
+        } else {
+          alert("本機伺服器未開啟，且未設定雲端同步，成績已保存在本機快取中。");
+          btn.disabled = false;
+          btn.textContent = "📤 重新提交成績";
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -241,7 +241,7 @@ async def preview_voice(
                 python_exe, clone_script,
                 text,
                 "--voice", voice,
-                "--output", str(out_path)
+                "--output", str(out_path.resolve())
             ]
             
             logger.info(f"Running cloning preview subprocess: {cmd}")
@@ -700,7 +700,7 @@ async def _run_generation(
                     python_exe, clone_script,
                     tts_text,
                     "--voice", voice,
-                    "--output", audio_path
+                    "--output", str(Path(audio_path).resolve())
                 ]
                 
                 logger.info("Page %d - Running voice cloning: %s", i + 1, cmd)

@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Video Generator Project"
+  short_description: "Scaffold a reusable OpenAI-to-video pipeline project."
+  default_prompt: "Use this skill to scaffold or adapt a Python project that accepts a topic, scene, and character; generates images with OpenAI; composes them into a subtitled FFmpeg video; uploads the MP4 to Google Drive; and returns a shareable link."

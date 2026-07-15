@@ -95,7 +95,7 @@ function loadConfigFromSheet() {
   
   var config = {
     threshold: 28.0,
-    startHour: 8,
+    startHour: 0,
     endHour: 24,
     frequency: 60,
     password: "admin888",

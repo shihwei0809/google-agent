@@ -963,7 +963,7 @@ def main():
     state = load_state()
     
     # 預設監控時段與設定
-    start_hour = config.get("start_hour", 7)
+    start_hour = config.get("start_hour", 0)
     end_hour = config.get("end_hour", 24)
     frequency = config.get("frequency", 60)
     threshold = config.get("temperature_threshold", 28.0)

@@ -1,0 +1,1337 @@
+{
+  "orders": [
+    {
+      "id": "SNXM101-20260630117",
+      "batch": null,
+      "client": "默克先進",
+      "destination": "默克二廠",
+      "product": "PMA(A+)",
+      "expected_date": "2026-07-06",
+      "arrival_time": "07:30",
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "HAA-816",
+      "driver": "陳義興",
+      "phone": "0931-960-540",
+      "departure_date": "2026-07-06",
+      "departure_time": "02:30",
+      "driver_code": "78"
+    },
+    {
+      "id": "SNXM101-20260630074",
+      "batch": "62801G05/S145",
+      "client": "默克先進",
+      "destination": "台灣美光記憶體股份有限公司F16A2",
+      "product": "PMAUPS",
+      "expected_date": "2026-07-06",
+      "arrival_time": "14:00",
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "786-5A",
+      "driver": "林介文",
+      "phone": "0935-454-865",
+      "departure_date": "2026-07-06",
+      "departure_time": "12:30",
+      "driver_code": "61"
+    },
+    {
+      "id": "SNXM101-20260630044",
+      "batch": "62802G05/S146",
+      "client": "默克先進",
+      "destination": "台灣美光記憶體股份有限公司F16A3-M2",
+      "product": "PMAUPS",
+      "expected_date": "2026-07-06",
+      "arrival_time": "16:30",
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "KNC-5600",
+      "driver": "李冠霆",
+      "phone": "0983-792-990",
+      "departure_date": "2026-07-06",
+      "departure_time": "10:00",
+      "driver_code": "58"
+    },
+    {
+      "id": "SNXM101-20260630014",
+      "batch": "62803G05/S144",
+      "client": "默克先進",
+      "destination": "台灣美光記憶體股份有限公司F16A3-M1..",
+      "product": "PMAUPS",
+      "expected_date": "2026-07-06",
+      "arrival_time": "20:00",
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "063-KP",
+      "driver": "蔡侑廷",
+      "phone": "0912-119-124",
+      "departure_date": "2026-07-06",
+      "departure_time": "16:00",
+      "driver_code": "86"
+    },
+    {
+      "id": "SNXM101-20260626004",
+      "batch": null,
+      "client": "台塑生醫",
+      "destination": "南亞科技股份有限公司",
+      "product": "PMAHQ",
+      "expected_date": "2026-07-06",
+      "arrival_time": "10:00",
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "KNA-8088",
+      "driver": "盧福斌",
+      "phone": "0937-343-601",
+      "departure_date": "2026-07-06",
+      "departure_time": "05:00",
+      "driver_code": "107"
+    },
+    {
+      "id": "SNXM101-20260702004",
+      "batch": "S-71",
+      "client": "台灣東洋",
+      "destination": null,
+      "product": "EEP",
+      "expected_date": "2026-07-06",
+      "arrival_time": "09:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "陳志聰\r\n0900-618-690",
+      "plate": "KNA-7009",
+      "driver": "黃啟源",
+      "phone": "0915-330-169",
+      "departure_date": "2026-07-06",
+      "departure_time": "07:00",
+      "driver_code": "81"
+    },
+    {
+      "id": "SNXM101-20260701297",
+      "batch": "S-28",
+      "client": "台灣東洋",
+      "destination": null,
+      "product": "PMAUPS",
+      "expected_date": "2026-07-06",
+      "arrival_time": "13:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "陳志聰\r\n0900-618-690",
+      "plate": "KNB-3531",
+      "driver": "鄭羽翔",
+      "phone": "0981-314-315",
+      "departure_date": "2026-07-06",
+      "departure_time": "11:00",
+      "driver_code": "103"
+    },
+    {
+      "id": "SNXM101-20260629144",
+      "batch": "26704S185T1",
+      "client": "台積電",
+      "destination": "龍潭廠   FB30",
+      "product": "CPNE4R",
+      "expected_date": "2026-07-06",
+      "arrival_time": "10:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "楊立凱\r\n0972-982-077",
+      "plate": "079-KP",
+      "driver": "王東富",
+      "phone": "0911-735-595",
+      "departure_date": "2026-07-06",
+      "departure_time": "05:00",
+      "driver_code": "40"
+    },
+    {
+      "id": "SNXM101-20260701066",
+      "batch": "26704S125T1",
+      "client": "台積電",
+      "destination": "台積12廠P7",
+      "product": "PMAHQ",
+      "expected_date": "2026-07-06",
+      "arrival_time": "10:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "葉仁豪\r\n0921-015-892",
+      "plate": "KNB-8313",
+      "driver": "謝明輝",
+      "phone": "0903-671-388",
+      "departure_date": "2026-07-06",
+      "departure_time": "05:00",
+      "driver_code": "54"
+    },
+    {
+      "id": "SNXM101-20260602174",
+      "batch": "26704S121T1",
+      "client": "台積電",
+      "destination": "台積12廠P8",
+      "product": "PMAHQ",
+      "expected_date": "2026-07-06",
+      "arrival_time": "07:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "林聖龍\r\n0910-630-239",
+      "plate": "KNC-8667",
+      "driver": "薛智平",
+      "phone": "0903-725-955",
+      "departure_date": "2026-07-06",
+      "departure_time": "02:00",
+      "driver_code": "106"
+    },
+    {
+      "id": "SNXM101-20260622223",
+      "batch": "26703S382T1",
+      "client": "台積電",
+      "destination": "台積寶山廠F20P1",
+      "product": "PMAHQ",
+      "expected_date": "2026-07-06",
+      "arrival_time": "23:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "林聖龍\r\n0910-630-239",
+      "plate": "KNB-3577",
+      "driver": "鐘佑仁",
+      "phone": "0937-560-932",
+      "departure_date": "2026-07-06",
+      "departure_time": "18:00",
+      "driver_code": "91"
+    },
+    {
+      "id": "SNXM101-20260520073",
+      "batch": "26703S82T1",
+      "client": "台積電",
+      "destination": "台積8廠",
+      "product": "SEP73E4",
+      "expected_date": "2026-07-06",
+      "arrival_time": "17:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "楊立凱\r\n0972-982-077",
+      "plate": "KNB-3277",
+      "driver": "方立人",
+      "phone": "0903-011-314",
+      "departure_date": "2026-07-06",
+      "departure_time": "12:00",
+      "driver_code": "39"
+    },
+    {
+      "id": "SNXM101-20260610034",
+      "batch": "26703S192T1",
+      "client": "台積電",
+      "destination": "台積15廠P3",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "17:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "江韋徵\r\n0910-588-931",
+      "plate": "KNB-3532",
+      "driver": "余智緯",
+      "phone": "0983-001-400",
+      "departure_date": "2026-07-06",
+      "departure_time": "13:00",
+      "driver_code": "42"
+    },
+    {
+      "id": "SNXM101-20260602069",
+      "batch": "26703S405T1",
+      "client": "台積電",
+      "destination": "台積15廠P4",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "00:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "陳志彥\r\n0911-552-738",
+      "plate": "KNB-3531",
+      "driver": "鄭羽翔",
+      "phone": "0981-314-315",
+      "departure_date": "2026-07-05",
+      "departure_time": "20:00",
+      "driver_code": "103"
+    },
+    {
+      "id": "SNXM101-20260622097",
+      "batch": "26703S166T1",
+      "client": "台積電",
+      "destination": "台積F15B P5A",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "05:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "王善禾\r\n0910-588-956",
+      "plate": "KNA-3686",
+      "driver": "劉嘉慶",
+      "phone": "0933-685-930",
+      "departure_date": "2026-07-06",
+      "departure_time": "01:00",
+      "driver_code": "72"
+    },
+    {
+      "id": "SNXM101-20260622098",
+      "batch": "26704S194T1",
+      "client": "台積電",
+      "destination": "台積F15B P5A",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "23:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "廖家民\r\n0933-355-697",
+      "plate": "KNB-3120",
+      "driver": "黃冠毓",
+      "phone": "0981-733-022",
+      "departure_date": "2026-07-06",
+      "departure_time": "19:00",
+      "driver_code": "71"
+    },
+    {
+      "id": "SNXM101-20260618039",
+      "batch": "26703S165T1",
+      "client": "台積電",
+      "destination": "台積中科15廠P6",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "07:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "陳志彥\r\n0911-552-738",
+      "plate": "063-KP",
+      "driver": "蔡侑廷",
+      "phone": "0912-119-124",
+      "departure_date": "2026-07-06",
+      "departure_time": "03:00",
+      "driver_code": "86"
+    },
+    {
+      "id": "SNXM101-20260602118",
+      "batch": "26703S176T1",
+      "client": "台積電",
+      "destination": "台積15廠P7",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "00:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "江韋徵\r\n0910-588-931",
+      "plate": "KNB-9526",
+      "driver": "蕭家瑧",
+      "phone": "0927-077-808",
+      "departure_date": "2026-07-05",
+      "departure_time": "20:00",
+      "driver_code": "88"
+    },
+    {
+      "id": "SNXM101-20260602119",
+      "batch": "26703S198T1",
+      "client": "台積電",
+      "destination": "台積15廠P7",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "18:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "蘇昭溢\r\n0975-296-211",
+      "plate": "KNB-6789",
+      "driver": "吳思慶",
+      "phone": "0981-125-099",
+      "departure_date": "2026-07-06",
+      "departure_time": "14:00",
+      "driver_code": "55"
+    },
+    {
+      "id": "SNXM101-20260526116",
+      "batch": "26701S186T1",
+      "client": "台積電",
+      "destination": "台積AP7P1",
+      "product": "CPNE4R",
+      "expected_date": "2026-07-06",
+      "arrival_time": "21:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "黃宗勝\r\n0905-887-991",
+      "plate": "082-KP",
+      "driver": "蘇睿雄",
+      "phone": "0936-759-933",
+      "departure_date": "2026-07-06",
+      "departure_time": "18:00",
+      "driver_code": "90"
+    },
+    {
+      "id": "SNXM101-20260618085",
+      "batch": "26705S91T1",
+      "client": "台積電",
+      "destination": "台積電14廠-P2",
+      "product": "SEP73E4",
+      "expected_date": "2026-07-06",
+      "arrival_time": "14:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "黃子峻\r\n0900-618-096",
+      "plate": "788-5A",
+      "driver": "高宥棋",
+      "phone": "0929-007-134",
+      "departure_date": "2026-07-06",
+      "departure_time": "12:00",
+      "driver_code": "69"
+    },
+    {
+      "id": "SNXM101-20260618108",
+      "batch": "26703S85T1",
+      "client": "台積電",
+      "destination": "台積電14廠-P3",
+      "product": "SEP73E4",
+      "expected_date": "2026-07-06",
+      "arrival_time": "06:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "楊家勝\r\n0910-630-238",
+      "plate": "756-5A",
+      "driver": "陳明男",
+      "phone": "0939-648-289",
+      "departure_date": "2026-07-06",
+      "departure_time": "04:00",
+      "driver_code": "73"
+    },
+    {
+      "id": "SNXM101-20260622185",
+      "batch": "26705S86T1",
+      "client": "台積電",
+      "destination": "台積電14廠-P4",
+      "product": "SEP73E4",
+      "expected_date": "2026-07-06",
+      "arrival_time": "23:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "楊家勝\r\n0910-630-238",
+      "plate": "079-KP",
+      "driver": "王東富",
+      "phone": "0911-735-595",
+      "departure_date": "2026-07-06",
+      "departure_time": "21:00",
+      "driver_code": "40"
+    },
+    {
+      "id": "SNXM101-20260618075",
+      "batch": "26703S172T1",
+      "client": "台積電",
+      "destination": "台積電14廠-P5",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "13:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "黃國欽\r\n0905-969-850",
+      "plate": "KNA-7229",
+      "driver": "趙偉正",
+      "phone": "0928-357-173",
+      "departure_date": "2026-07-06",
+      "departure_time": "11:00",
+      "driver_code": "102"
+    },
+    {
+      "id": "SNXM101-20260616052",
+      "batch": "26703S408T1",
+      "client": "台積電",
+      "destination": "台積14廠P6",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "06:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "王品揚\r\n0910-630-265",
+      "plate": "786-5A",
+      "driver": "林介文",
+      "phone": "0935-454-865",
+      "departure_date": "2026-07-06",
+      "departure_time": "05:00",
+      "driver_code": "61"
+    },
+    {
+      "id": "SNXM101-20260629050",
+      "batch": "26704S87T1",
+      "client": "台積電",
+      "destination": "台積14廠P6",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "19:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "郭泰緒\r\n0910-588-937",
+      "plate": "KNC-8667",
+      "driver": "薛智平",
+      "phone": "0903-725-955",
+      "departure_date": "2026-07-06",
+      "departure_time": "17:00",
+      "driver_code": "106"
+    },
+    {
+      "id": "SNXM101-20260602181",
+      "batch": "26701S154T1",
+      "client": "台積電",
+      "destination": "台積18廠P7",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-06",
+      "arrival_time": "17:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "蘇哲儀\r\n0910-630-252",
+      "plate": "KNA-3686",
+      "driver": "劉嘉慶",
+      "phone": "0933-685-930",
+      "departure_date": "2026-07-06",
+      "departure_time": "15:00",
+      "driver_code": "72"
+    },
+    {
+      "id": "SNXM101-20260618121",
+      "batch": "26704S136T1",
+      "client": "台積電",
+      "destination": "台積18廠P3",
+      "product": "PMAHQ",
+      "expected_date": "2026-07-06",
+      "arrival_time": "23:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "蘇哲儀\r\n0910-630-252",
+      "plate": "KNB-8313",
+      "driver": "謝明輝",
+      "phone": "0903-671-388",
+      "departure_date": "2026-07-06",
+      "departure_time": "21:00",
+      "driver_code": "54"
+    },
+    {
+      "id": "SNXM101-20260618100",
+      "batch": "26704S135T1",
+      "client": "台積電",
+      "destination": "台積18廠P5",
+      "product": "PMAHQ",
+      "expected_date": "2026-07-06",
+      "arrival_time": "13:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "郭泰緒\r\n0910-588-937",
+      "plate": "KNB-9526",
+      "driver": "蕭家瑧",
+      "phone": "0927-077-808",
+      "departure_date": "2026-07-06",
+      "departure_time": "11:00",
+      "driver_code": "88"
+    },
+    {
+      "id": "SNXM101-20260525032",
+      "batch": "26706S90T1",
+      "client": "台積電",
+      "destination": "台積台南6廠",
+      "product": "SEP73E4",
+      "expected_date": "2026-07-06",
+      "arrival_time": "23:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "王品揚\r\n0910-630-265",
+      "plate": "KNC-5600",
+      "driver": "李冠霆",
+      "phone": "0983-792-990",
+      "departure_date": "2026-07-06",
+      "departure_time": "21:00",
+      "driver_code": "58"
+    },
+    {
+      "id": "SNXM101-20260525178",
+      "batch": "26702S385T1",
+      "client": "台積電",
+      "destination": "高雄廠F22P1",
+      "product": "PMAHQ",
+      "expected_date": "2026-07-06",
+      "arrival_time": "13:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": "吳柏昇\r\n0975-605-293",
+      "plate": "753-5A",
+      "driver": "呂育庭",
+      "phone": "0929-762-117",
+      "departure_date": "2026-07-06",
+      "departure_time": "11:00",
+      "driver_code": "56"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "勝一 > 鴻勝 > 勝一",
+      "product": "CPN",
+      "expected_date": "2026-07-06",
+      "arrival_time": "09:00",
+      "transport_type": "S-225",
+      "fill_hand": null,
+      "plate": "KNB-3120",
+      "driver": "黃冠毓",
+      "phone": "0981-733-022",
+      "departure_date": "2026-07-06",
+      "departure_time": "06:00",
+      "driver_code": "71"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "勝一 > 鴻勝 > 勝一",
+      "product": "CPN",
+      "expected_date": "2026-07-06",
+      "arrival_time": "13:00",
+      "transport_type": "S-224",
+      "fill_hand": null,
+      "plate": "080-KP",
+      "driver": "林宗信",
+      "phone": "0929-097-972",
+      "departure_date": "2026-07-06",
+      "departure_time": "10:00",
+      "driver_code": "64"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "路竹>東聯>路竹",
+      "product": "MEA",
+      "expected_date": "2026-07-06",
+      "arrival_time": "13:00",
+      "transport_type": "E-46",
+      "fill_hand": null,
+      "plate": "KNA-3552",
+      "driver": "楊達文",
+      "phone": "0908-520-916",
+      "departure_date": "2026-07-06",
+      "departure_time": "10:00",
+      "driver_code": "96"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "駐廠-研製",
+      "product": null,
+      "expected_date": "12:00-20:00",
+      "arrival_time": null,
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "",
+      "driver": "",
+      "phone": "",
+      "departure_date": null,
+      "departure_time": null,
+      "driver_code": null
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "駐廠-(一)",
+      "product": null,
+      "expected_date": "07:00-16:00",
+      "arrival_time": null,
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "KNA-3537",
+      "driver": "余俊雄",
+      "phone": "0915-797-299",
+      "departure_date": "2026-07-06",
+      "departure_time": null,
+      "driver_code": "79"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "駐廠-(二)",
+      "product": null,
+      "expected_date": "07:00-16:00",
+      "arrival_time": null,
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "KNA-3017",
+      "driver": "翁仁貴",
+      "phone": "0937-646-148",
+      "departure_date": "2026-07-06",
+      "departure_time": null,
+      "driver_code": "105"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "駐廠-(一)",
+      "product": null,
+      "expected_date": "16:00-00:00",
+      "arrival_time": null,
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "376-KP",
+      "driver": "蔡文安",
+      "phone": "0932-998-138",
+      "departure_date": "2026-07-06",
+      "departure_time": null,
+      "driver_code": "95"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "駐廠-(二)",
+      "product": null,
+      "expected_date": "16:00-00:00",
+      "arrival_time": null,
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "853-W7",
+      "driver": "黃辰泰",
+      "phone": "0938-844-338",
+      "departure_date": "2026-07-06",
+      "departure_time": null,
+      "driver_code": "104"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "駐廠-大夜",
+      "product": null,
+      "expected_date": "00:00-08:00",
+      "arrival_time": null,
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "080-KP",
+      "driver": "林宗信",
+      "phone": "0929-097-972",
+      "departure_date": "2026-07-06",
+      "departure_time": null,
+      "driver_code": "64"
+    },
+    {
+      "id": null,
+      "batch": null,
+      "client": null,
+      "destination": "駐廠-資材",
+      "product": null,
+      "expected_date": "08:00-17:00",
+      "arrival_time": null,
+      "transport_type": null,
+      "fill_hand": null,
+      "plate": "082-KP",
+      "driver": "蘇睿雄",
+      "phone": "0936-759-933",
+      "departure_date": "2026-07-06",
+      "departure_time": null,
+      "driver_code": "90"
+    },
+    {
+      "id": "出貨通知單單別號",
+      "batch": "批號",
+      "client": "對象簡稱",
+      "destination": "指送地",
+      "product": "品名",
+      "expected_date": "預計到貨日期",
+      "arrival_time": "到貨時間",
+      "transport_type": "運輸方式",
+      "fill_hand": "趟次",
+      "plate": "車牌",
+      "driver": "司機",
+      "phone": "電話",
+      "departure_date": "出車日期",
+      "departure_time": "出車時間",
+      "driver_code": "景山司機代碼"
+    },
+    {
+      "id": "SNXM101-20260618040",
+      "batch": "26704S164T1",
+      "client": "台積電",
+      "destination": "台積中科15廠P6",
+      "product": "SEP73E5",
+      "expected_date": "2026-07-07",
+      "arrival_time": "07:00",
+      "transport_type": "【勝一派技服】",
+      "fill_hand": null,
+      "plate": "",
+      "driver": "",
+      "phone": "",
+      "departure_date": null,
+      "departure_time": null,
+      "driver_code": null
+    }
+  ],
+  "drivers": [
+    {
+      "code": "39",
+      "plate": "KNB-3277",
+      "name": "方立人",
+      "phone": "0903-011-314",
+      "id_card": "E-0847450"
+    },
+    {
+      "code": "40",
+      "plate": "079-KP",
+      "name": "王東富",
+      "phone": "0911-735-595",
+      "id_card": "S-5329540"
+    },
+    {
+      "code": "41",
+      "plate": "787-5A",
+      "name": "王振勛",
+      "phone": "0976-394-788",
+      "id_card": "E-7516900"
+    },
+    {
+      "code": "42",
+      "plate": "KNB-3532",
+      "name": "余智緯",
+      "phone": "0983-001-400",
+      "id_card": "S-6157380"
+    },
+    {
+      "code": "54",
+      "plate": "KNB-8313",
+      "name": "謝明輝",
+      "phone": "0903-671-388",
+      "id_card": ""
+    },
+    {
+      "code": "55",
+      "plate": "KNB-6789",
+      "name": "吳思慶",
+      "phone": "0981-125-099",
+      "id_card": "S-3725320"
+    },
+    {
+      "code": "56",
+      "plate": "753-5A",
+      "name": "呂育庭",
+      "phone": "0929-762-117",
+      "id_card": "S-5078440"
+    },
+    {
+      "code": "57",
+      "plate": "KNA-7237",
+      "name": "宋志祥",
+      "phone": "0931-068-752",
+      "id_card": "S-8837560"
+    },
+    {
+      "code": "58",
+      "plate": "KNC-5600",
+      "name": "李冠霆",
+      "phone": "0983-792-990",
+      "id_card": "S9267120"
+    },
+    {
+      "code": "59",
+      "plate": "KNB-8855",
+      "name": "李奕德",
+      "phone": "0956-002-021",
+      "id_card": "S-4526150"
+    },
+    {
+      "code": "60",
+      "plate": "KNA-7023",
+      "name": "陳炯嘉",
+      "phone": "0988-772-856",
+      "id_card": ""
+    },
+    {
+      "code": "61",
+      "plate": "786-5A",
+      "name": "林介文",
+      "phone": "0935-454-865",
+      "id_card": "R-5875250"
+    },
+    {
+      "code": "62",
+      "plate": "HAA-875",
+      "name": "林宏奕",
+      "phone": "0960-090-122",
+      "id_card": "E-8446560"
+    },
+    {
+      "code": "63",
+      "plate": "HAB-898",
+      "name": "林沛鋒",
+      "phone": "0982-536-929",
+      "id_card": "D-3050350"
+    },
+    {
+      "code": "64",
+      "plate": "080-KP",
+      "name": "林宗信",
+      "phone": "0929-097-972",
+      "id_card": "Q-7497880"
+    },
+    {
+      "code": "65",
+      "plate": "757-5A",
+      "name": "林俊銘",
+      "phone": "0927-977-812",
+      "id_card": "R-0677400"
+    },
+    {
+      "code": "66",
+      "plate": "KNB-3176",
+      "name": "邱信華",
+      "phone": "0930-591-160",
+      "id_card": "T-2047090"
+    },
+    {
+      "code": "67",
+      "plate": "785-5A",
+      "name": "胡碩寬",
+      "phone": "0927-572-879",
+      "id_card": "R-9234720"
+    },
+    {
+      "code": "68",
+      "plate": "KNB-9529",
+      "name": "高志強",
+      "phone": "0978-215-787",
+      "id_card": "T7340750"
+    },
+    {
+      "code": "69",
+      "plate": "788-5A",
+      "name": "高宥棋",
+      "phone": "0929-007-134",
+      "id_card": "D-9956510"
+    },
+    {
+      "code": "70",
+      "plate": "758-5A",
+      "name": "張國發",
+      "phone": "0955-604-174",
+      "id_card": "Q-2950250"
+    },
+    {
+      "code": "71",
+      "plate": "KNB-3120",
+      "name": "黃冠毓",
+      "phone": "0981-733-022",
+      "id_card": ""
+    },
+    {
+      "code": "72",
+      "plate": "KNA-3686",
+      "name": "劉嘉慶",
+      "phone": "0933-685-930",
+      "id_card": ""
+    },
+    {
+      "code": "73",
+      "plate": "756-5A",
+      "name": "陳明男",
+      "phone": "0939-648-289",
+      "id_card": "Q-4139630"
+    },
+    {
+      "code": "74",
+      "plate": "KNA-3551",
+      "name": "陳彥吉",
+      "phone": "0915-264-905",
+      "id_card": "R-7240880"
+    },
+    {
+      "code": "75",
+      "plate": "062-KP",
+      "name": "陳皇賓",
+      "phone": "0916-870-575",
+      "id_card": "E9018320"
+    },
+    {
+      "code": "76",
+      "plate": "KNB-9591",
+      "name": "陳高煒",
+      "phone": "0981-056-333",
+      "id_card": "T2175280"
+    },
+    {
+      "code": "77",
+      "plate": "KLK-9122",
+      "name": "陳乾笙",
+      "phone": "0979-126-736",
+      "id_card": "D-1334860"
+    },
+    {
+      "code": "78",
+      "plate": "HAA-816",
+      "name": "陳義興",
+      "phone": "0931-960-540",
+      "id_card": ""
+    },
+    {
+      "code": "79",
+      "plate": "KNA-3537",
+      "name": "余俊雄",
+      "phone": "0915-797-299",
+      "id_card": ""
+    },
+    {
+      "code": "80",
+      "plate": "KNB-3175",
+      "name": "黃偉亮",
+      "phone": "0909-796-597",
+      "id_card": "S-7106030"
+    },
+    {
+      "code": "81",
+      "plate": "KNA-7009",
+      "name": "黃啟源",
+      "phone": "0915-330-169",
+      "id_card": "S-8458980"
+    },
+    {
+      "code": "82",
+      "plate": "KNB-3067",
+      "name": "黃進武",
+      "phone": "0925-162-221",
+      "id_card": "T6115800"
+    },
+    {
+      "code": "83",
+      "plate": "KLN-5081",
+      "name": "黃誌誠",
+      "phone": "0933-376-055",
+      "id_card": "S-7258750"
+    },
+    {
+      "code": "84",
+      "plate": "KLN-8263",
+      "name": "楊裕賢",
+      "phone": "0976-268-708",
+      "id_card": "S-0687590"
+    },
+    {
+      "code": "85",
+      "plate": "783-5A",
+      "name": "詹添福",
+      "phone": "0970-668-709",
+      "id_card": "S-1404780"
+    },
+    {
+      "code": "86",
+      "plate": "063-KP",
+      "name": "蔡侑廷",
+      "phone": "0912-119-124",
+      "id_card": "S-3762050"
+    },
+    {
+      "code": "87",
+      "plate": "KNA-7238",
+      "name": "鄧鈞天",
+      "phone": "0989-219-271",
+      "id_card": "S-2993340"
+    },
+    {
+      "code": "88",
+      "plate": "KNB-9526",
+      "name": "蕭家瑧",
+      "phone": "0927-077-808",
+      "id_card": "E1362840"
+    },
+    {
+      "code": "89",
+      "plate": "628-ZB",
+      "name": "蘇政誌",
+      "phone": "0982-644-543",
+      "id_card": "R8594480"
+    },
+    {
+      "code": "90",
+      "plate": "082-KP",
+      "name": "蘇睿雄",
+      "phone": "0936-759-933",
+      "id_card": "R-4580980"
+    },
+    {
+      "code": "91",
+      "plate": "KNB-3577",
+      "name": "鐘佑仁",
+      "phone": "0937-560-932",
+      "id_card": "S-1058170"
+    },
+    {
+      "code": "92",
+      "plate": "083-KP",
+      "name": "嚴進吉",
+      "phone": "0936-114-978",
+      "id_card": "E-7869400"
+    },
+    {
+      "code": "93",
+      "plate": "KNA-3530",
+      "name": "陳建國",
+      "phone": "0978-273-506",
+      "id_card": "S1934280"
+    },
+    {
+      "code": "94",
+      "plate": "KNA-3539",
+      "name": "趙偉正",
+      "phone": "0928-357-173",
+      "id_card": "E-2851600"
+    },
+    {
+      "code": "95",
+      "plate": "376-KP",
+      "name": "蔡文安",
+      "phone": "0932-998-138",
+      "id_card": ""
+    },
+    {
+      "code": "96",
+      "plate": "KNA-3552",
+      "name": "楊達文",
+      "phone": "0908-520-916",
+      "id_card": "R-1597870"
+    },
+    {
+      "code": "97",
+      "plate": "757-5A",
+      "name": "趙志偉",
+      "phone": "0989-557-566",
+      "id_card": "T4574860"
+    },
+    {
+      "code": "98",
+      "plate": "KNA-3538",
+      "name": "顏禎慶",
+      "phone": "0976-923-831",
+      "id_card": "E9339780"
+    },
+    {
+      "code": "99",
+      "plate": "755-5A",
+      "name": "洪嘉華",
+      "phone": "0970-561-273",
+      "id_card": "T1568880"
+    },
+    {
+      "code": "100",
+      "plate": "KNB-3528",
+      "name": "柳宇鴻",
+      "phone": "0988-638-617",
+      "id_card": "E6592640"
+    },
+    {
+      "code": "101",
+      "plate": "",
+      "name": "莊瑨暄",
+      "phone": "0973-889-730",
+      "id_card": "S1934280"
+    },
+    {
+      "code": "102",
+      "plate": "KNA-7229",
+      "name": "趙偉正",
+      "phone": "0928-357-173",
+      "id_card": "R-6454130"
+    },
+    {
+      "code": "103",
+      "plate": "KNB-3531",
+      "name": "鄭羽翔",
+      "phone": "0981-314-315",
+      "id_card": "S-2613700"
+    },
+    {
+      "code": "104",
+      "plate": "853-W7",
+      "name": "黃辰泰",
+      "phone": "0938-844-338",
+      "id_card": ""
+    },
+    {
+      "code": "105",
+      "plate": "KNA-3017",
+      "name": "翁仁貴",
+      "phone": "0937-646-148",
+      "id_card": ""
+    },
+    {
+      "code": "106",
+      "plate": "KNC-8667",
+      "name": "薛智平",
+      "phone": "0903-725-955",
+      "id_card": ""
+    },
+    {
+      "code": "107",
+      "plate": "KNA-8088",
+      "name": "盧福斌",
+      "phone": "0937-343-601",
+      "id_card": ""
+    }
+  ],
+  "users": [
+    {
+      "username": "sales",
+      "password": "123",
+      "role": "sales",
+      "displayName": "業務人員"
+    },
+    {
+      "username": "tech_mgr",
+      "password": "123",
+      "role": "tech_manager",
+      "displayName": "技服主管"
+    },
+    {
+      "username": "transporter",
+      "password": "123",
+      "role": "transporter",
+      "displayName": "運輸公司"
+    },
+    {
+      "username": "林聖龍",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "林聖龍"
+    },
+    {
+      "username": "楊立凱",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "楊立凱"
+    },
+    {
+      "username": "胡富閔",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "胡富閔"
+    },
+    {
+      "username": "陳國安",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "陳國安"
+    },
+    {
+      "username": "陳俊佑",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "陳俊佑"
+    },
+    {
+      "username": "陳志彥",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "陳志彥"
+    },
+    {
+      "username": "陳志源",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "陳志源"
+    },
+    {
+      "username": "廖家民",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "廖家民"
+    },
+    {
+      "username": "蘇昭溢",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "蘇昭溢"
+    },
+    {
+      "username": "王善禾",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "王善禾"
+    }
+  ],
+  "logs": [
+    {
+      "operator": "tech_mgr",
+      "role": "tech_manager",
+      "action": "重置資料庫",
+      "details": "清空所有出貨訂單與作業日誌",
+      "timestamp": "2026/7/6 下午12:55:36"
+    },
+    {
+      "operator": "tech_mgr",
+      "role": "tech_manager",
+      "action": "上傳基準 Excel",
+      "details": "成功匯入 43 筆訂單，58 筆司機清單資料",
+      "timestamp": "2026/7/6 下午12:56:02"
+    },
+    {
+      "operator": "tech_mgr",
+      "role": "tech_manager",
+      "action": "匯入技服充填手",
+      "details": "成功比對更新了 43 筆充填手資料",
+      "timestamp": "2026/7/6 下午12:56:39"
+    },
+    {
+      "operator": "tech_mgr",
+      "role": "tech_manager",
+      "action": "確認匯入運輸派車車輛",
+      "details": "成功比對更新了 42 筆車輛司機資料",
+      "timestamp": "2026/7/6 下午12:57:00"
+    },
+    {
+      "operator": "tech_mgr",
+      "role": "tech_manager",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/7/6 下午1:02:16"
+    },
+    {
+      "operator": "胡富閔",
+      "role": "tech_staff",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/7/6 下午1:09:58"
+    },
+    {
+      "operator": "胡富閔",
+      "role": "tech_staff",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/7/6 下午1:10:27"
+    },
+    {
+      "operator": "楊立凱",
+      "role": "tech_staff",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/7/6 下午1:10:38"
+    },
+    {
+      "operator": "tech_mgr",
+      "role": "tech_manager",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/7/6 下午2:28:30"
+    },
+    {
+      "operator": "sales",
+      "role": "sales",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/7/7 下午1:21:55"
+    },
+    {
+      "operator": "123",
+      "role": "unknown",
+      "action": "使用者登入",
+      "details": "登入失敗 (密碼錯誤或帳號不存在)",
+      "timestamp": "2026/7/7 下午1:22:18"
+    },
+    {
+      "operator": "sales",
+      "role": "sales",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/7/7 下午1:22:36"
+    },
+    {
+      "operator": "sales",
+      "role": "sales",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/7/8 下午2:11:41"
+    },
+    {
+      "operator": "sales",
+      "role": "sales",
+      "action": "上傳基準 Excel",
+      "details": "成功匯入 43 筆訂單，58 筆司機清單資料",
+      "timestamp": "2026/7/8 下午2:12:10"
+    },
+    {
+      "operator": "sales",
+      "role": "sales",
+      "action": "匯入技服充填手",
+      "details": "成功比對更新了 43 筆充填手資料",
+      "timestamp": "2026/7/8 下午2:12:56"
+    },
+    {
+      "operator": "sales",
+      "role": "sales",
+      "action": "確認匯入運輸派車車輛",
+      "details": "成功比對更新了 42 筆車輛司機資料",
+      "timestamp": "2026/7/8 下午2:13:13"
+    }
+  ]
+}

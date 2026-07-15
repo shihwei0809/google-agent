@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > *   **原始本機路徑**: [MainActivity.kt](file:///D:/GOOGLE%20ANGET/n系列GAS-轉-APK-離線核對上傳/BARCODEout-20260601/app/src/main/java/com/example/barcode_out/MainActivity.kt)
-> *   **自動備份時間**: `2026-07-08 16:28:50`
+> *   **自動備份時間**: `2026-07-15 08:50:21`
 > *   **語言類型**: `kotlin`
 
 ``` kotlin
@@ -87,6 +87,46 @@ class MainActivity : AppCompatActivity() {
 
             val btnClear = findViewById<Button>(resources.getIdentifier("btnClear_f$i", "id", packageName))
             btnClear?.setOnClickListener { fields[i]?.setText("") }
+
+            // 1. 監聽虛擬/實體鍵盤 Enter 鍵
+            fields[i]?.setOnEditorActionListener { _, actionId, event ->
+                val isEnter = (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_NEXT ||
+                               actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE ||
+                               (event != null && event.keyCode == android.view.KeyEvent.KEYCODE_ENTER && event.action == android.view.KeyEvent.ACTION_DOWN))
+                if (isEnter) {
+                    autoFocusNextField(i)
+                    true
+                } else {
+                    false
+                }
+            }
+
+            // 2. 監聽硬體實體 Enter 按鍵事件
+            fields[i]?.setOnKeyListener { _, keyCode, event ->
+                if (keyCode == android.view.KeyEvent.KEYCODE_ENTER && event.action == android.view.KeyEvent.ACTION_DOWN) {
+                    autoFocusNextField(i)
+                    true
+                } else {
+                    false
+                }
+            }
+
+            // 3. 監聽輸入文字尾端是否包含 newline (某些條碼槍會直接在字串結尾輸入 \n 或 \r 且不發送 KeyEvent)
+            fields[i]?.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    val original = s?.toString() ?: ""
+                    if (original.endsWith("\n") || original.endsWith("\r")) {
+                        val clean = original.replace("\n", "").replace("\r", "")
+                        fields[i]?.removeTextChangedListener(this)
+                        fields[i]?.setText(clean)
+                        fields[i]?.setSelection(clean.length)
+                        fields[i]?.addTextChangedListener(this)
+                        autoFocusNextField(i)
+                    }
+                }
+            })
         }
 
         // 強制黑色粗體的場所下拉選單
@@ -99,6 +139,20 @@ class MainActivity : AppCompatActivity() {
         spQty.setSelection(3)
 
         setupModeSwitching()
+
+        // 繳庫 批號3 展開/收合開關
+        val btnToggleWhBatch3: Button = findViewById(R.id.btnToggleWhBatch3)
+        val rowWhBatch3: LinearLayout = findViewById(R.id.rowWhBatch3)
+        btnToggleWhBatch3.setOnClickListener {
+            if (rowWhBatch3.visibility == View.GONE) {
+                rowWhBatch3.visibility = View.VISIBLE
+                btnToggleWhBatch3.text = "− 批號3"
+            } else {
+                rowWhBatch3.visibility = View.GONE
+                btnToggleWhBatch3.text = "+ 批號3"
+                fields[16]?.setText("")   // 收合時自動清空
+            }
+        }
 
         spQty.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p0: AdapterView<*>?, p1: View?, position: Int, p3: Long) {
@@ -117,7 +171,7 @@ class MainActivity : AppCompatActivity() {
                 // 彈出錯誤對話框提示人員，且不予存檔
                 showValidationErrorsDialog(validationError)
                 // 同步將核對異常訊息發送到 Teams
-                NetworkHelper.sendTeamsAlert("巡檢核對失敗 (場所: ${spLocation.selectedItem}, 模式: $currentMode)\n$validationError")
+                NetworkHelper.sendTeamsAlert("巡檢核對失敗 (場所: ${spLocation.selectedItem}, 模式: ${getModeChineseName(currentMode)})\n$validationError")
                 return@setOnClickListener
             }
 
@@ -442,17 +496,33 @@ class MainActivity : AppCompatActivity() {
         return "OK"
     }
 
+    private fun getModeChineseName(mode: String): String {
+        return when (mode) {
+            "ship_full" -> "整板出貨"
+            "ship_mixed" -> "混板出貨"
+            "ship_loose" -> "散桶出貨"
+            "ship_az" -> "AZ檢查"
+            else -> mode
+        }
+    }
+
     private fun validate17Series(valStr: String?, label: String, errors: MutableList<String>) {
         if (valStr.isNullOrBlank()) return
-        val c1 = check1SeriesFormat(valStr)
+        val s = valStr.trim()
+        // 攔截網址型條碼 (如 HTTP://WWW.BIOFCS.COM/)
+        if (s.uppercase().startsWith("HTTP") || s.contains("://")) {
+            errors.add("❌ [$label] 格式錯誤！\n👉 掃到網址條碼，請改掃正確批號/料號")
+            return
+        }
+        val c1 = check1SeriesFormat(s)
         if (c1 != "OK") errors.add("❌ [$label] $c1")
-        val c7 = check7SeriesFormat(valStr)
+        val c7 = check7SeriesFormat(s)
         if (c7 != "OK") errors.add("❌ [$label] $c7")
     }
 
     data class VerifyResult(val pass: Boolean, val msg: String)
 
-    private fun verifyPairStrict(scanVal: String, masterVal: String): VerifyResult {
+    private fun verifyPairStrict(scanVal: String, masterVal: String, localLabel: String, masterLabel: String): VerifyResult {
         val scan = scanVal.trim()
         val master = masterVal.trim()
         if (scan.isEmpty() || master.isEmpty()) return VerifyResult(false, "資料空白")
@@ -460,7 +530,7 @@ class MainActivity : AppCompatActivity() {
         if (scan.startsWith("1") && scan.length == 20 && scan.endsWith("TS")) {
             if (scan == master) return VerifyResult(true, "OK")
             if (scan.contains(master) && master.length > 5) return VerifyResult(true, "OK")
-            return VerifyResult(false, "1字頭比對失敗\n現場: $scan\n單據: $master")
+            return VerifyResult(false, "1字頭比對失敗\n👉 $localLabel: $scan\n👉 $masterLabel: $master")
         }
 
         val isQr = scan.contains("@")
@@ -477,13 +547,13 @@ class MainActivity : AppCompatActivity() {
             return if (processedScan == processedMaster) {
                 VerifyResult(true, "OK")
             } else {
-                VerifyResult(false, "QR比對失敗\n現場(去+): $processedScan\n單據(去首碼): $processedMaster")
+                VerifyResult(false, "QR比對失敗\n👉 $localLabel(去+): $processedScan\n👉 $masterLabel(去首碼): $processedMaster")
             }
         }
 
         if (scan == master) return VerifyResult(true, "OK")
         if (scan.replace(Regex("\\s+"), "") == master.replace(Regex("\\s+"), "")) return VerifyResult(true, "OK")
-        return VerifyResult(false, "數值不一致\n現場: $scan\n單據: $master")
+        return VerifyResult(false, "數值不一致\n👉 $localLabel: $scan\n👉 $masterLabel: $master")
     }
 
     private fun performLocalCheck(f: Array<String>, mode: String): String? {
@@ -511,9 +581,9 @@ class MainActivity : AppCompatActivity() {
                     activeTankCount++
                     rawBatches.add(rawBatch)
 
-                    validate17Series(rawBatch, "${item.third} 批號", allErrors)
+                    validate17Series(rawBatch, "桶${i + 1} 批號", allErrors)
                     // 【未來擴充區：AZ模式桶槽料號 檢查】
-                    // validate17Series(rawMat, "${item.third} 料號", allErrors)
+                    // validate17Series(rawMat, "桶${i + 1} 料號", allErrors)
 
                     val norm = normalizeBatch(rawBatch)
                     if (norm.isNotEmpty()) {
@@ -558,9 +628,9 @@ class MainActivity : AppCompatActivity() {
         } else {
             val rawMasterMat = f[8]
             val masterMaterial = cleanMatMaster(rawMasterMat)
-            if (masterMaterial.isEmpty()) return "❌ [四合一料號] 為必填項目！"
+            if (masterMaterial.isEmpty()) return "❌ [四合一 料號] 為必填項目！"
 
-            validate17Series(rawMasterMat, "四合一料號", allErrors)
+            validate17Series(rawMasterMat, "四合一 料號", allErrors)
 
             var activeTankCount = 0
             val activeBatchesShort = mutableListOf<String>()
@@ -573,14 +643,19 @@ class MainActivity : AppCompatActivity() {
                 val tankInputMat = f[item.second]
                 val masterBatchVal = f[masterBatchIndices[i]]
 
+                val numStr = (i + 1).toString()
+                val localBatchLabel = "桶$numStr 批號"
+                val localMatLabel = "桶$numStr 料號"
+                val masterBatchLabel = "4in1 批號$numStr"
+
                 if (tankRawBatch.isNotEmpty() || tankInputMat.isNotEmpty()) {
                     activeTankCount++
 
-                    validate17Series(tankRawBatch, "${item.third} 批號", allErrors)
+                    validate17Series(tankRawBatch, localBatchLabel, allErrors)
                     // 【未來擴充區：現場桶槽料號 檢查】
-                    // validate17Series(tankInputMat, "${item.third} 料號", allErrors)
+                    // validate17Series(tankInputMat, localMatLabel, allErrors)
                     // 【未來擴充區：四合一對應批號 檢查】
-                    // validate17Series(masterBatchVal, "四合一單據 (對應${item.third})", allErrors)
+                    // validate17Series(masterBatchVal, masterBatchLabel, allErrors)
 
                     val normBatch = normalizeBatch(tankRawBatch)
                     if (normBatch.isNotEmpty()) {
@@ -591,24 +666,31 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
 
-                    val tankCleanMat = cleanMatMaster(tankInputMat)
-                    if (tankCleanMat != masterMaterial) {
-                        allErrors.add("❌ [${item.third}] 料號異常！\n👉 現場: $tankCleanMat\n👉 單據: $masterMaterial")
+                    // 攔截網址型條碼掃進料號欄
+                    val tankCleanMat: String
+                    if (tankInputMat.uppercase().startsWith("HTTP") || tankInputMat.contains("://")) {
+                        allErrors.add("❌ [${item.third}] $localMatLabel 格式錯誤！\n👉 掃到網址條碼，請改掃正確料號")
+                        tankCleanMat = ""
+                    } else {
+                        tankCleanMat = cleanMatMaster(tankInputMat)
+                        if (tankCleanMat != masterMaterial) {
+                            allErrors.add("❌ [${item.third}] 料號異常！\n👉 $localMatLabel: $tankCleanMat\n👉 四合一 料號: $masterMaterial")
+                        }
                     }
 
                     if (tankRawBatch.contains("@")) {
                         val qrMat = extractRealMat(tankRawBatch)
-                        if (qrMat.isNotEmpty() && qrMat != tankCleanMat) {
+                        if (qrMat.isNotEmpty() && tankCleanMat.isNotEmpty() && qrMat != tankCleanMat) {
                             allErrors.add("❌ [${item.third}] 貼紙錯誤！\nQR內碼: $qrMat\n與掃描不符。")
                         }
                     }
 
                     if (masterBatchVal.isEmpty()) {
-                        allErrors.add("❌ [${item.third}] 對應的「四合一單據批號」未輸入！")
+                        allErrors.add("❌ [${item.third}] 對應的「$masterBatchLabel」未輸入！")
                     } else {
-                        val verifyResult = verifyPairStrict(tankRawBatch, masterBatchVal)
+                        val verifyResult = verifyPairStrict(tankRawBatch, masterBatchVal, localBatchLabel, masterBatchLabel)
                         if (!verifyResult.pass) {
-                            allErrors.add("❌ [${item.third}] 與四合一單據不符！\n👉 現場: $tankRawBatch\n👉 單據: $masterBatchVal")
+                            allErrors.add("❌ [${item.third}] 與四合一單據不符！\n${verifyResult.msg}")
                         }
                     }
                     collectedBatchBases.add(Triple(item.third, getBatchBase(tankRawBatch), tankRawBatch))
@@ -638,19 +720,19 @@ class MainActivity : AppCompatActivity() {
             val rawWhMat = f[13]
             val cleanWhMat = cleanMatMaster(rawWhMat)
             // 【未來擴充區：繳庫單料號 檢查】
-            // validate17Series(rawWhMat, "繳庫單料號", allErrors)
+            // validate17Series(rawWhMat, "繳庫 料號", allErrors)
             
             if (cleanWhMat != masterMaterial) {
-                allErrors.add("❌ [繳庫單] 料號異常！")
+                allErrors.add("❌ [繳庫單] 料號異常！\n👉 繳庫 料號: $cleanWhMat\n👉 四合一 料號: $masterMaterial")
             }
 
             val whBatch1 = f[14]
             val whBatch2 = f[15]
             val whBatch3 = f[16]
             // 【未來擴充區：繳庫單批號 檢查】
-            // validate17Series(whBatch1, "繳庫批號1", allErrors)
-            // validate17Series(whBatch2, "繳庫批號2", allErrors)
-            // validate17Series(whBatch3, "繳庫批號3", allErrors)
+            // validate17Series(whBatch1, "繳庫 批號1", allErrors)
+            // validate17Series(whBatch2, "繳庫 批號2", allErrors)
+            // validate17Series(whBatch3, "繳庫 批號3", allErrors)
 
             if (whBatch1.isEmpty() && whBatch2.isEmpty() && whBatch3.isEmpty()) {
                 allErrors.add("❌ [繳庫單] 未掃描任何批號！")
@@ -673,9 +755,9 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
 
-                if (!checkAndRemove(whBatch1)) allErrors.add("❌ [繳庫單批號1] 異常！現場沒掃到。")
-                if (!checkAndRemove(whBatch2)) allErrors.add("❌ [繳庫單批號2] 異常！現場沒掃到。")
-                if (!checkAndRemove(whBatch3)) allErrors.add("❌ [繳庫單批號3] 異常！現場沒掃到。")
+                if (!checkAndRemove(whBatch1)) allErrors.add("❌ [繳庫 批號1] 異常！現場沒掃到。")
+                if (!checkAndRemove(whBatch2)) allErrors.add("❌ [繳庫 批號2] 異常！現場沒掃到。")
+                if (!checkAndRemove(whBatch3)) allErrors.add("❌ [繳庫 批號3] 異常！現場沒掃到。")
 
                 val whInputs = mutableListOf<String>()
                 if (whBatch1.isNotEmpty()) whInputs.add(normalizeBatch(extractBatchForWarehouse(whBatch1)))
@@ -699,7 +781,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }
                     if (!foundInWh) {
-                        allErrors.add("❌ 繳庫單漏打！現場有但繳庫單沒填。")
+                        allErrors.add("❌ [繳庫單] 漏打！現場有但繳庫單沒填。")
                     }
                 }
             }

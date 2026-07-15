@@ -1,0 +1,17 @@
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_001.png'
+duration 3.0
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_002.png'
+duration 3.0
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_003.png'
+duration 3.0
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_004.png'
+duration 3.0
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_005.png'
+duration 3.0
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_006.png'
+duration 3.0
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_007.png'
+duration 3.0
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_008.png'
+duration 3.0
+file 'G:/我的雲端硬碟/自動生成影片/output/generated-video-app/output/20260508_100821_66a21410/images/frame_008.png'

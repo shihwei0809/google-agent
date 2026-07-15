@@ -1,0 +1,772 @@
+INFO:     Started server process [15068]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+2026-05-08 11:05:22,667 | INFO | app.services.pipeline_service | Starting job 20260508_110522_7a64549e
+2026-05-08 11:05:22,667 | INFO | app.services.openai_service | Generating image 1/8 with gemini-2.5-flash-image
+2026-05-08 11:05:22,667 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-05-08 11:05:29,926 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent "HTTP/1.1 200 OK"
+2026-05-08 11:05:30,108 | INFO | google_genai.models | AFC remote call 1 is done.
+2026-05-08 11:05:30,123 | INFO | app.services.openai_service | Generating image 2/8 with gemini-2.5-flash-image
+2026-05-08 11:05:30,123 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-05-08 11:05:40,012 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent "HTTP/1.1 200 OK"
+2026-05-08 11:05:40,340 | INFO | google_genai.models | AFC remote call 1 is done.
+2026-05-08 11:05:40,350 | INFO | app.services.openai_service | Generating image 3/8 with gemini-2.5-flash-image
+2026-05-08 11:05:40,350 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-05-08 11:05:48,523 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent "HTTP/1.1 200 OK"
+2026-05-08 11:05:48,761 | INFO | google_genai.models | AFC remote call 1 is done.
+2026-05-08 11:05:48,771 | INFO | app.services.openai_service | Generating image 4/8 with gemini-2.5-flash-image
+2026-05-08 11:05:48,771 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-05-08 11:05:56,351 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent "HTTP/1.1 200 OK"
+2026-05-08 11:05:56,505 | INFO | google_genai.models | AFC remote call 1 is done.
+2026-05-08 11:05:56,515 | INFO | app.services.openai_service | Generating image 5/8 with gemini-2.5-flash-image
+2026-05-08 11:05:56,515 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-05-08 11:06:05,319 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent "HTTP/1.1 200 OK"
+2026-05-08 11:06:05,493 | INFO | google_genai.models | AFC remote call 1 is done.
+2026-05-08 11:06:05,507 | INFO | app.services.openai_service | Generating image 6/8 with gemini-2.5-flash-image
+2026-05-08 11:06:05,508 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-05-08 11:06:14,172 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent "HTTP/1.1 200 OK"
+2026-05-08 11:06:14,342 | INFO | google_genai.models | AFC remote call 1 is done.
+2026-05-08 11:06:14,357 | INFO | app.services.openai_service | Generating image 7/8 with gemini-2.5-flash-image
+2026-05-08 11:06:14,357 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-05-08 11:06:21,208 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent "HTTP/1.1 200 OK"
+2026-05-08 11:06:21,428 | INFO | google_genai.models | AFC remote call 1 is done.
+2026-05-08 11:06:21,444 | INFO | app.services.openai_service | Generating image 8/8 with gemini-2.5-flash-image
+2026-05-08 11:06:21,444 | INFO | google_genai.models | AFC is enabled with max remote calls: 10.
+2026-05-08 11:06:28,927 | INFO | httpx | HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent "HTTP/1.1 200 OK"
+2026-05-08 11:06:29,080 | INFO | google_genai.models | AFC remote call 1 is done.
+2026-05-08 11:06:29,104 | INFO | app.services.pipeline_service | Background music not found at assets\background_music.mp3. Generating silent fallback audio.
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'anullsrc=r=44100:cl=stereo':
+  Duration: N/A, start: 0.000000, bitrate: 705 kb/s
+  Stream #0:0: Audio: pcm_u8, 44100 Hz, stereo, u8, 705 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_u8 (native) -> mp3 (libmp3lame))
+Press [q] to stop, [?] for help
+Output #0, mp3, to 'output\20260508_110522_7a64549e\generated_silence.mp3':
+  Metadata:
+    TSSE            : Lavf62.12.100
+  Stream #0:0: Audio: mp3, 44100 Hz, stereo, s16p
+    Metadata:
+      encoder         : Lavc62.28.100 libmp3lame
+size=     512KiB time=00:02:37.96 bitrate=  26.6kbits/s speed= 313x elapsed=0:00:00.50    size=    1024KiB time=00:05:29.01 bitrate=  25.5kbits/s speed= 319x elapsed=0:00:01.03    size=    1792KiB time=00:08:07.49 bitrate=  30.1kbits/s speed= 316x elapsed=0:00:01.54    [out#0/mp3 @ 000001a65641f640] video:0KiB audio:2333KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.010591%
+size=    2333KiB time=00:10:00.00 bitrate=  31.9kbits/s speed= 315x elapsed=0:00:01.90    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, png_pipe, from 'output\20260508_110522_7a64549e\images\frame_001.png':
+  Duration: N/A, bitrate: N/A
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown), 1024x1024, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (png (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 000002d31f002000] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 000002d31f002000] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 000002d31f002000] 264 - core 165 r3223 0480cb0 - H.264/MPEG-4 AVC codec - Copyleft 2003-2025 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'output\20260508_110522_7a64549e\clip_001.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 1920x1080, q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc62.28.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    1 fps=0.0 q=29.0 size=       0KiB time=-00:00:00.03 bitrate=N/A speed=N/A elapsed=0:00:00.51    frame=   41 fps= 39 q=29.0 size=     256KiB time=00:00:01.30 bitrate=1613.5kbits/s speed=1.23x elapsed=0:00:01.05    [out#0/mp4 @ 000002d31effd480] video:533KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.355343%
+frame=   90 fps= 60 q=-1.0 Lsize=     535KiB time=00:00:02.93 bitrate=1495.0kbits/s speed=1.95x elapsed=0:00:01.50    
+[libx264 @ 000002d31f002000] frame I:1     Avg QP:20.50  size:130975
+[libx264 @ 000002d31f002000] frame P:23    Avg QP:20.89  size: 11876
+[libx264 @ 000002d31f002000] frame B:66    Avg QP:25.23  size:  2143
+[libx264 @ 000002d31f002000] consecutive B-frames:  2.2%  0.0%  0.0% 97.8%
+[libx264 @ 000002d31f002000] mb I  I16..4:  2.0% 87.2% 10.8%
+[libx264 @ 000002d31f002000] mb P  I16..4:  0.0%  0.1%  0.0%  P16..4: 38.3%  6.9%  4.0%  0.0%  0.0%    skip:50.7%
+[libx264 @ 000002d31f002000] mb B  I16..4:  0.0%  0.0%  0.0%  B16..8: 31.0%  0.4%  0.0%  direct: 0.0%  skip:68.6%  L0:47.8% L1:52.1% BI: 0.1%
+[libx264 @ 000002d31f002000] 8x8 transform intra:87.2% inter:93.8%
+[libx264 @ 000002d31f002000] coded y,uvDC,uvAC intra: 92.6% 78.0% 48.2% inter: 3.0% 6.6% 0.2%
+[libx264 @ 000002d31f002000] i16 v,h,dc,p: 18% 39%  0% 43%
+[libx264 @ 000002d31f002000] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 22% 17% 17%  5%  7%  7%  8%  8%  9%
+[libx264 @ 000002d31f002000] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 23% 20% 10%  7%  9%  9%  8%  7%  6%
+[libx264 @ 000002d31f002000] i8c dc,h,v,p: 41% 24% 26%  9%
+[libx264 @ 000002d31f002000] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 000002d31f002000] ref P L0: 67.3% 11.2%  9.7% 11.8%
+[libx264 @ 000002d31f002000] ref B L0: 91.9%  5.9%  2.2%
+[libx264 @ 000002d31f002000] ref B L1: 91.0%  9.0%
+[libx264 @ 000002d31f002000] kb/s:1454.78
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, png_pipe, from 'output\20260508_110522_7a64549e\images\frame_002.png':
+  Duration: N/A, bitrate: N/A
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown), 1024x1024, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (png (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 0000018ef7472000] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 0000018ef7472000] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 0000018ef7472000] 264 - core 165 r3223 0480cb0 - H.264/MPEG-4 AVC codec - Copyleft 2003-2025 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'output\20260508_110522_7a64549e\clip_002.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 1920x1080, q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc62.28.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    5 fps=0.0 q=29.0 size=       0KiB time=00:00:00.10 bitrate=   3.8kbits/s speed=0.196x elapsed=0:00:00.50    frame=   45 fps= 43 q=29.0 size=     256KiB time=00:00:01.43 bitrate=1463.4kbits/s speed=1.38x elapsed=0:00:01.03    [out#0/mp4 @ 0000018ef746d480] video:576KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.328996%
+frame=   90 fps= 60 q=-1.0 Lsize=     578KiB time=00:00:02.93 bitrate=1614.3kbits/s speed=1.96x elapsed=0:00:01.49    
+[libx264 @ 0000018ef7472000] frame I:1     Avg QP:20.59  size:140620
+[libx264 @ 0000018ef7472000] frame P:23    Avg QP:21.01  size: 12718
+[libx264 @ 0000018ef7472000] frame B:66    Avg QP:24.76  size:  2366
+[libx264 @ 0000018ef7472000] consecutive B-frames:  2.2%  0.0%  0.0% 97.8%
+[libx264 @ 0000018ef7472000] mb I  I16..4:  6.4% 81.9% 11.7%
+[libx264 @ 0000018ef7472000] mb P  I16..4:  0.0%  0.1%  0.0%  P16..4: 38.7%  6.6%  5.0%  0.0%  0.0%    skip:49.6%
+[libx264 @ 0000018ef7472000] mb B  I16..4:  0.0%  0.0%  0.0%  B16..8: 34.5%  0.2%  0.0%  direct: 0.0%  skip:65.3%  L0:46.5% L1:53.3% BI: 0.1%
+[libx264 @ 0000018ef7472000] 8x8 transform intra:81.6% inter:92.4%
+[libx264 @ 0000018ef7472000] coded y,uvDC,uvAC intra: 85.1% 84.2% 58.2% inter: 2.9% 7.6% 0.5%
+[libx264 @ 0000018ef7472000] i16 v,h,dc,p: 52% 20%  3% 25%
+[libx264 @ 0000018ef7472000] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 32% 15% 12%  5%  6%  8%  7%  7%  8%
+[libx264 @ 0000018ef7472000] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 33% 17%  7%  6%  8% 10%  7%  7%  5%
+[libx264 @ 0000018ef7472000] i8c dc,h,v,p: 36% 20% 35% 10%
+[libx264 @ 0000018ef7472000] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 0000018ef7472000] ref P L0: 65.2%  9.4% 11.1% 14.3%
+[libx264 @ 0000018ef7472000] ref B L0: 89.5%  7.5%  3.0%
+[libx264 @ 0000018ef7472000] ref B L1: 90.1%  9.9%
+[libx264 @ 0000018ef7472000] kb/s:1571.43
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, png_pipe, from 'output\20260508_110522_7a64549e\images\frame_003.png':
+  Duration: N/A, bitrate: N/A
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown), 1024x1024, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (png (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 000001eef52e3a40] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 000001eef52e3a40] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 000001eef52e3a40] 264 - core 165 r3223 0480cb0 - H.264/MPEG-4 AVC codec - Copyleft 2003-2025 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'output\20260508_110522_7a64549e\clip_003.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 1920x1080, q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc62.28.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    5 fps=0.0 q=29.0 size=       0KiB time=00:00:00.10 bitrate=   3.8kbits/s speed=0.19x elapsed=0:00:00.52    frame=   45 fps= 43 q=29.0 size=     256KiB time=00:00:01.43 bitrate=1463.4kbits/s speed=1.36x elapsed=0:00:01.05    [out#0/mp4 @ 000001eef52deec0] video:498KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.380850%
+frame=   90 fps= 61 q=-1.0 Lsize=     500KiB time=00:00:02.93 bitrate=1395.2kbits/s speed=   2x elapsed=0:00:01.46    
+[libx264 @ 000001eef52e3a40] frame I:1     Avg QP:20.25  size: 94941
+[libx264 @ 000001eef52e3a40] frame P:23    Avg QP:20.58  size: 10712
+[libx264 @ 000001eef52e3a40] frame B:66    Avg QP:23.63  size:  2540
+[libx264 @ 000001eef52e3a40] consecutive B-frames:  2.2%  0.0%  0.0% 97.8%
+[libx264 @ 000001eef52e3a40] mb I  I16..4: 22.0% 68.1%  9.8%
+[libx264 @ 000001eef52e3a40] mb P  I16..4:  0.1%  0.1%  0.0%  P16..4: 34.9%  4.5%  4.8%  0.0%  0.0%    skip:55.6%
+[libx264 @ 000001eef52e3a40] mb B  I16..4:  0.0%  0.0%  0.0%  B16..8: 36.7%  0.1%  0.0%  direct: 0.0%  skip:63.1%  L0:46.2% L1:53.7% BI: 0.1%
+[libx264 @ 000001eef52e3a40] 8x8 transform intra:67.9% inter:95.0%
+[libx264 @ 000001eef52e3a40] coded y,uvDC,uvAC intra: 65.0% 70.8% 29.4% inter: 2.3% 6.6% 0.7%
+[libx264 @ 000001eef52e3a40] i16 v,h,dc,p: 12% 13%  2% 73%
+[libx264 @ 000001eef52e3a40] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 31% 14% 17%  6%  6%  7%  4%  7%  8%
+[libx264 @ 000001eef52e3a40] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 40% 14% 11%  7%  7%  7%  4%  6%  4%
+[libx264 @ 000001eef52e3a40] i8c dc,h,v,p: 39% 22% 26% 13%
+[libx264 @ 000001eef52e3a40] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 000001eef52e3a40] ref P L0: 65.0%  5.3% 12.9% 16.8%
+[libx264 @ 000001eef52e3a40] ref B L0: 86.6% 10.1%  3.3%
+[libx264 @ 000001eef52e3a40] ref B L1: 89.1% 10.9%
+[libx264 @ 000001eef52e3a40] kb/s:1357.22
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, png_pipe, from 'output\20260508_110522_7a64549e\images\frame_004.png':
+  Duration: N/A, bitrate: N/A
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown), 1024x1024, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (png (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 0000015c3b5c2000] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 0000015c3b5c2000] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 0000015c3b5c2000] 264 - core 165 r3223 0480cb0 - H.264/MPEG-4 AVC codec - Copyleft 2003-2025 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'output\20260508_110522_7a64549e\clip_004.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 1920x1080, q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc62.28.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    5 fps=0.0 q=29.0 size=       0KiB time=00:00:00.10 bitrate=   3.8kbits/s speed=0.191x elapsed=0:00:00.52    frame=   45 fps= 40 q=29.0 size=     256KiB time=00:00:01.43 bitrate=1463.4kbits/s speed=1.29x elapsed=0:00:01.11    [out#0/mp4 @ 0000015c3b5bd480] video:543KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.349091%
+frame=   90 fps= 59 q=-1.0 Lsize=     545KiB time=00:00:02.93 bitrate=1521.7kbits/s speed=1.93x elapsed=0:00:01.51    
+[libx264 @ 0000015c3b5c2000] frame I:1     Avg QP:20.14  size:121917
+[libx264 @ 0000015c3b5c2000] frame P:23    Avg QP:20.48  size: 11622
+[libx264 @ 0000015c3b5c2000] frame B:66    Avg QP:24.12  size:  2517
+[libx264 @ 0000015c3b5c2000] consecutive B-frames:  2.2%  0.0%  0.0% 97.8%
+[libx264 @ 0000015c3b5c2000] mb I  I16..4:  8.7% 81.4%  9.8%
+[libx264 @ 0000015c3b5c2000] mb P  I16..4:  0.0%  0.1%  0.0%  P16..4: 36.8%  6.1%  5.1%  0.0%  0.0%    skip:51.8%
+[libx264 @ 0000015c3b5c2000] mb B  I16..4:  0.0%  0.0%  0.0%  B16..8: 36.4%  0.2%  0.0%  direct: 0.0%  skip:63.3%  L0:47.2% L1:52.7% BI: 0.1%
+[libx264 @ 0000015c3b5c2000] 8x8 transform intra:80.8% inter:92.2%
+[libx264 @ 0000015c3b5c2000] coded y,uvDC,uvAC intra: 78.7% 76.7% 40.7% inter: 2.7% 6.5% 0.5%
+[libx264 @ 0000015c3b5c2000] i16 v,h,dc,p: 29% 20%  4% 47%
+[libx264 @ 0000015c3b5c2000] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 27% 16% 14%  6%  6%  7%  6%  9%  9%
+[libx264 @ 0000015c3b5c2000] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 29% 18% 10%  8%  9%  8%  6%  7%  5%
+[libx264 @ 0000015c3b5c2000] i8c dc,h,v,p: 42% 19% 28% 10%
+[libx264 @ 0000015c3b5c2000] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 0000015c3b5c2000] ref P L0: 64.9%  7.7% 13.4% 13.9%
+[libx264 @ 0000015c3b5c2000] ref B L0: 89.7%  7.1%  3.2%
+[libx264 @ 0000015c3b5c2000] ref B L1: 90.5%  9.5%
+[libx264 @ 0000015c3b5c2000] kb/s:1480.87
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, png_pipe, from 'output\20260508_110522_7a64549e\images\frame_005.png':
+  Duration: N/A, bitrate: N/A
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown), 1024x1024, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (png (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 000001d7f9d92000] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 000001d7f9d92000] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 000001d7f9d92000] 264 - core 165 r3223 0480cb0 - H.264/MPEG-4 AVC codec - Copyleft 2003-2025 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'output\20260508_110522_7a64549e\clip_005.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 1920x1080, q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc62.28.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    5 fps=0.0 q=29.0 size=       0KiB time=00:00:00.10 bitrate=   3.8kbits/s speed=0.195x elapsed=0:00:00.51    frame=   45 fps= 43 q=29.0 size=     256KiB time=00:00:01.43 bitrate=1463.4kbits/s speed=1.36x elapsed=0:00:01.05    [out#0/mp4 @ 000001d7f9d8d480] video:616KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.307809%
+frame=   90 fps= 60 q=-1.0 Lsize=     618KiB time=00:00:02.93 bitrate=1725.1kbits/s speed=1.96x elapsed=0:00:01.49    
+[libx264 @ 000001d7f9d92000] frame I:1     Avg QP:21.02  size:151688
+[libx264 @ 000001d7f9d92000] frame P:23    Avg QP:21.66  size: 13865
+[libx264 @ 000001d7f9d92000] frame B:66    Avg QP:25.71  size:  2414
+[libx264 @ 000001d7f9d92000] consecutive B-frames:  2.2%  0.0%  0.0% 97.8%
+[libx264 @ 000001d7f9d92000] mb I  I16..4:  9.6% 79.7% 10.7%
+[libx264 @ 000001d7f9d92000] mb P  I16..4:  0.1%  0.1%  0.0%  P16..4: 40.7%  7.0%  5.0%  0.0%  0.0%    skip:47.2%
+[libx264 @ 000001d7f9d92000] mb B  I16..4:  0.0%  0.0%  0.0%  B16..8: 31.1%  0.6%  0.0%  direct: 0.1%  skip:68.2%  L0:49.6% L1:50.0% BI: 0.4%
+[libx264 @ 000001d7f9d92000] 8x8 transform intra:78.3% inter:89.6%
+[libx264 @ 000001d7f9d92000] coded y,uvDC,uvAC intra: 80.2% 83.6% 49.9% inter: 2.8% 7.0% 0.6%
+[libx264 @ 000001d7f9d92000] i16 v,h,dc,p:  7% 30%  3% 59%
+[libx264 @ 000001d7f9d92000] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 16% 24% 10%  7%  8%  9%  9%  8% 10%
+[libx264 @ 000001d7f9d92000] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 20% 21% 10%  8% 10%  9%  8%  7%  6%
+[libx264 @ 000001d7f9d92000] i8c dc,h,v,p: 36% 26% 19% 18%
+[libx264 @ 000001d7f9d92000] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 000001d7f9d92000] ref P L0: 59.3% 10.3% 13.5% 16.9%
+[libx264 @ 000001d7f9d92000] ref B L0: 88.5%  8.3%  3.3%
+[libx264 @ 000001d7f9d92000] ref B L1: 89.7% 10.3%
+[libx264 @ 000001d7f9d92000] kb/s:1679.72
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, png_pipe, from 'output\20260508_110522_7a64549e\images\frame_006.png':
+  Duration: N/A, bitrate: N/A
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown), 1024x1024, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (png (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 000001ec3b802000] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 000001ec3b802000] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 000001ec3b802000] 264 - core 165 r3223 0480cb0 - H.264/MPEG-4 AVC codec - Copyleft 2003-2025 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'output\20260508_110522_7a64549e\clip_006.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 1920x1080, q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc62.28.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    5 fps=0.0 q=29.0 size=       0KiB time=00:00:00.10 bitrate=   3.8kbits/s speed=0.192x elapsed=0:00:00.51    frame=   45 fps= 43 q=29.0 size=     256KiB time=00:00:01.43 bitrate=1463.4kbits/s speed=1.36x elapsed=0:00:01.05    [out#0/mp4 @ 000001ec3b7fd480] video:572KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.331488%
+frame=   90 fps= 60 q=-1.0 Lsize=     574KiB time=00:00:02.93 bitrate=1602.2kbits/s speed=1.95x elapsed=0:00:01.50    
+[libx264 @ 000001ec3b802000] frame I:1     Avg QP:21.02  size:124280
+[libx264 @ 000001ec3b802000] frame P:23    Avg QP:21.89  size: 13268
+[libx264 @ 000001ec3b802000] frame B:66    Avg QP:26.77  size:  2355
+[libx264 @ 000001ec3b802000] consecutive B-frames:  2.2%  0.0%  0.0% 97.8%
+[libx264 @ 000001ec3b802000] mb I  I16..4:  9.9% 77.0% 13.1%
+[libx264 @ 000001ec3b802000] mb P  I16..4:  0.1%  0.1%  0.0%  P16..4: 44.0%  6.0%  3.9%  0.0%  0.0%    skip:45.9%
+[libx264 @ 000001ec3b802000] mb B  I16..4:  0.0%  0.0%  0.0%  B16..8: 31.2%  0.2%  0.0%  direct: 0.1%  skip:68.5%  L0:48.5% L1:51.2% BI: 0.3%
+[libx264 @ 000001ec3b802000] 8x8 transform intra:76.1% inter:94.3%
+[libx264 @ 000001ec3b802000] coded y,uvDC,uvAC intra: 76.9% 81.3% 51.1% inter: 2.6% 7.7% 1.0%
+[libx264 @ 000001ec3b802000] i16 v,h,dc,p: 20% 37%  1% 42%
+[libx264 @ 000001ec3b802000] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 25% 25%  7%  5%  6%  8%  9%  7%  8%
+[libx264 @ 000001ec3b802000] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 26% 24%  6%  5%  9%  9% 11%  6%  4%
+[libx264 @ 000001ec3b802000] i8c dc,h,v,p: 37% 26% 26% 12%
+[libx264 @ 000001ec3b802000] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 000001ec3b802000] ref P L0: 55.8%  8.5% 14.5% 21.1%
+[libx264 @ 000001ec3b802000] ref B L0: 88.0%  9.4%  2.6%
+[libx264 @ 000001ec3b802000] ref B L1: 89.4% 10.6%
+[libx264 @ 000001ec3b802000] kb/s:1559.60
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, png_pipe, from 'output\20260508_110522_7a64549e\images\frame_007.png':
+  Duration: N/A, bitrate: N/A
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown), 1024x1024, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (png (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 000002e44f710f40] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 000002e44f710f40] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 000002e44f710f40] 264 - core 165 r3223 0480cb0 - H.264/MPEG-4 AVC codec - Copyleft 2003-2025 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'output\20260508_110522_7a64549e\clip_007.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 1920x1080, q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc62.28.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=    5 fps=0.0 q=29.0 size=       0KiB time=00:00:00.10 bitrate=   3.8kbits/s speed=0.192x elapsed=0:00:00.52    frame=   45 fps= 42 q=29.0 size=     256KiB time=00:00:01.43 bitrate=1463.4kbits/s speed=1.33x elapsed=0:00:01.07    [out#0/mp4 @ 000002e44f70c380] video:524KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.361647%
+frame=   90 fps= 60 q=-1.0 Lsize=     526KiB time=00:00:02.93 bitrate=1469.1kbits/s speed=1.95x elapsed=0:00:01.50    
+[libx264 @ 000002e44f710f40] frame I:1     Avg QP:20.10  size:108698
+[libx264 @ 000002e44f710f40] frame P:23    Avg QP:20.60  size: 11423
+[libx264 @ 000002e44f710f40] frame B:66    Avg QP:24.33  size:  2494
+[libx264 @ 000002e44f710f40] consecutive B-frames:  2.2%  0.0%  0.0% 97.8%
+[libx264 @ 000002e44f710f40] mb I  I16..4: 11.5% 77.9% 10.6%
+[libx264 @ 000002e44f710f40] mb P  I16..4:  0.1%  0.1%  0.0%  P16..4: 38.6%  5.6%  4.1%  0.0%  0.0%    skip:51.5%
+[libx264 @ 000002e44f710f40] mb B  I16..4:  0.0%  0.0%  0.0%  B16..8: 33.4%  0.2%  0.0%  direct: 0.0%  skip:66.4%  L0:47.7% L1:52.0% BI: 0.2%
+[libx264 @ 000002e44f710f40] 8x8 transform intra:77.3% inter:94.9%
+[libx264 @ 000002e44f710f40] coded y,uvDC,uvAC intra: 73.9% 75.3% 47.0% inter: 2.4% 6.7% 0.6%
+[libx264 @ 000002e44f710f40] i16 v,h,dc,p: 26% 29%  5% 40%
+[libx264 @ 000002e44f710f40] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 25% 21% 11%  7%  6%  6%  7%  6% 12%
+[libx264 @ 000002e44f710f40] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 29% 25%  7%  5%  9%  7%  7%  6%  4%
+[libx264 @ 000002e44f710f40] i8c dc,h,v,p: 44% 23% 22% 11%
+[libx264 @ 000002e44f710f40] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 000002e44f710f40] ref P L0: 60.7%  6.5% 16.7% 16.1%
+[libx264 @ 000002e44f710f40] ref B L0: 85.3% 10.9%  3.9%
+[libx264 @ 000002e44f710f40] ref B L1: 90.3%  9.7%
+[libx264 @ 000002e44f710f40] kb/s:1429.39
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, png_pipe, from 'output\20260508_110522_7a64549e\images\frame_008.png':
+  Duration: N/A, bitrate: N/A
+  Stream #0:0: Video: png, rgb24(pc, gbr/unknown/unknown), 1024x1024, 25 fps, 25 tbr, 25 tbn
+Stream mapping:
+  Stream #0:0 -> #0:0 (png (native) -> h264 (libx264))
+Press [q] to stop, [?] for help
+[libx264 @ 0000018865b40900] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+[libx264 @ 0000018865b40900] profile High, level 4.0, 4:2:0, 8-bit
+[libx264 @ 0000018865b40900] 264 - core 165 r3223 0480cb0 - H.264/MPEG-4 AVC codec - Copyleft 2003-2025 - http://www.videolan.org/x264.html - options: cabac=1 ref=3 deblock=1:0:0 analyse=0x3:0x113 me=hex subme=7 psy=1 psy_rd=1.00:0.00 mixed_ref=1 me_range=16 chroma_me=1 trellis=1 8x8dct=1 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=-2 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=3 b_pyramid=2 b_adapt=1 b_bias=0 direct=1 weightb=1 open_gop=0 weightp=2 keyint=250 keyint_min=25 scenecut=40 intra_refresh=0 rc_lookahead=40 rc=crf mbtree=1 crf=23.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=1:1.00
+Output #0, mp4, to 'output\20260508_110522_7a64549e\clip_008.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0: Video: h264 (avc1 / 0x31637661), yuv420p(tv, progressive), 1920x1080, q=2-31, 30 fps, 15360 tbn
+    Metadata:
+      encoder         : Lavc62.28.100 libx264
+    Side data:
+      CPB properties: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: N/A
+frame=   12 fps=0.0 q=29.0 size=       0KiB time=00:00:00.33 bitrate=   1.2kbits/s speed=0.642x elapsed=0:00:00.51    frame=   70 fps= 67 q=29.0 size=       0KiB time=00:00:02.26 bitrate=   0.2kbits/s speed=2.17x elapsed=0:00:01.04    [out#0/mp4 @ 0000018865a50140] video:276KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.685691%
+frame=   90 fps= 75 q=-1.0 Lsize=     278KiB time=00:00:02.93 bitrate= 777.3kbits/s speed=2.46x elapsed=0:00:01.19    
+[libx264 @ 0000018865b40900] frame I:1     Avg QP:17.87  size: 27862
+[libx264 @ 0000018865b40900] frame P:23    Avg QP:19.24  size:  5489
+[libx264 @ 0000018865b40900] frame B:66    Avg QP:23.41  size:  1944
+[libx264 @ 0000018865b40900] consecutive B-frames:  2.2%  0.0%  0.0% 97.8%
+[libx264 @ 0000018865b40900] mb I  I16..4: 43.6% 47.5%  8.9%
+[libx264 @ 0000018865b40900] mb P  I16..4:  1.1%  0.3%  0.0%  P16..4: 17.1%  1.9%  2.4%  0.0%  0.0%    skip:77.2%
+[libx264 @ 0000018865b40900] mb B  I16..4:  0.1%  0.0%  0.0%  B16..8: 21.4%  0.1%  0.0%  direct: 0.0%  skip:78.3%  L0:48.0% L1:51.3% BI: 0.6%
+[libx264 @ 0000018865b40900] 8x8 transform intra:38.7% inter:95.0%
+[libx264 @ 0000018865b40900] coded y,uvDC,uvAC intra: 10.7% 7.1% 5.0% inter: 1.3% 1.6% 0.6%
+[libx264 @ 0000018865b40900] i16 v,h,dc,p: 63% 35%  2%  1%
+[libx264 @ 0000018865b40900] i8 v,h,dc,ddl,ddr,vr,hd,vl,hu: 33% 18% 42%  1%  1%  1%  1%  1%  1%
+[libx264 @ 0000018865b40900] i4 v,h,dc,ddl,ddr,vr,hd,vl,hu: 39% 24% 17%  4%  5%  3%  3%  3%  2%
+[libx264 @ 0000018865b40900] i8c dc,h,v,p: 92%  4%  3%  1%
+[libx264 @ 0000018865b40900] Weighted P-Frames: Y:0.0% UV:0.0%
+[libx264 @ 0000018865b40900] ref P L0: 60.2%  2.3% 17.3% 20.3%
+[libx264 @ 0000018865b40900] ref B L0: 76.8% 17.5%  5.7%
+[libx264 @ 0000018865b40900] ref B L1: 87.5% 12.5%
+[libx264 @ 0000018865b40900] kb/s:753.02
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002ae47c07480] Auto-inserting h264_mp4toannexb bitstream filter
+Input #0, concat, from 'output\20260508_110522_7a64549e\video_clips.txt':
+  Duration: N/A, start: 0.000000, bitrate: 1456 kb/s
+  Stream #0:0(und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, 1456 kb/s, 30 fps, 30 tbr, 15360 tbn
+    Metadata:
+      handler_name    : VideoHandler
+      encoder         : Lavc62.28.100 libx264
+Stream mapping:
+  Stream #0:0 -> #0:0 (copy)
+Output #0, mp4, to 'output\20260508_110522_7a64549e\video_no_audio.mp4':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Stream #0:0(und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, q=2-31, 1456 kb/s, 30 fps, 30 tbr, 15360 tbn
+    Metadata:
+      handler_name    : VideoHandler
+      encoder         : Lavc62.28.100 libx264
+Press [q] to stop, [?] for help
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002ae486f1580] Auto-inserting h264_mp4toannexb bitstream filter
+    Last message repeated 1 times
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002ae4818c480] Auto-inserting h264_mp4toannexb bitstream filter
+    Last message repeated 3 times
+[mov,mp4,m4a,3gp,3g2,mj2 @ 000002ae486f1580] Auto-inserting h264_mp4toannexb bitstream filter
+[out#0/mp4 @ 000002ae4818cb00] video:4139KiB audio:0KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.225195%
+frame=  720 fps=0.0 q=-1.0 Lsize=    4148KiB time=00:00:23.93 bitrate=1419.8kbits/s speed= 162x elapsed=0:00:00.14    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'sine=frequency=120:sample_rate=44100,volume=0.05':
+  Duration: N/A, start: 0.000000, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_f32le, 44100 Hz, mono, flt, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\audio_001.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 0000024fb4d88940] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.029478%
+size=     258KiB time=00:00:03.00 bitrate= 705.8kbits/s speed= 235x elapsed=0:00:00.01    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'sine=frequency=120:sample_rate=44100,volume=0.05':
+  Duration: N/A, start: 0.000000, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_f32le, 44100 Hz, mono, flt, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\audio_002.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 000001f49ecf8040] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.029478%
+size=     258KiB time=00:00:03.00 bitrate= 705.8kbits/s speed= 213x elapsed=0:00:00.01    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'sine=frequency=120:sample_rate=44100,volume=0.05':
+  Duration: N/A, start: 0.000000, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_f32le, 44100 Hz, mono, flt, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\audio_003.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 000001bbebc78480] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.029478%
+size=     258KiB time=00:00:03.00 bitrate= 705.8kbits/s speed= 255x elapsed=0:00:00.01    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'sine=frequency=120:sample_rate=44100,volume=0.05':
+  Duration: N/A, start: 0.000000, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_f32le, 44100 Hz, mono, flt, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\audio_004.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 00000270d18e7e00] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.029478%
+size=     258KiB time=00:00:03.00 bitrate= 705.8kbits/s speed= 252x elapsed=0:00:00.01    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'sine=frequency=120:sample_rate=44100,volume=0.05':
+  Duration: N/A, start: 0.000000, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_f32le, 44100 Hz, mono, flt, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\audio_005.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 00000164d0c68240] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.029478%
+size=     258KiB time=00:00:03.00 bitrate= 705.8kbits/s speed= 215x elapsed=0:00:00.01    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'sine=frequency=120:sample_rate=44100,volume=0.05':
+  Duration: N/A, start: 0.000000, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_f32le, 44100 Hz, mono, flt, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\audio_006.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 000002a77ec57d80] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.029478%
+size=     258KiB time=00:00:03.00 bitrate= 705.8kbits/s speed= 226x elapsed=0:00:00.01    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'sine=frequency=120:sample_rate=44100,volume=0.05':
+  Duration: N/A, start: 0.000000, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_f32le, 44100 Hz, mono, flt, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\audio_007.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 0000017fdfbabd40] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.029478%
+size=     258KiB time=00:00:03.00 bitrate= 705.8kbits/s speed= 236x elapsed=0:00:00.01    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, lavfi, from 'sine=frequency=120:sample_rate=44100,volume=0.05':
+  Duration: N/A, start: 0.000000, bitrate: 1411 kb/s
+  Stream #0:0: Audio: pcm_f32le, 44100 Hz, mono, flt, 1411 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (pcm_f32le (native) -> pcm_s16le (native))
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\audio_008.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 000002452d078400] video:0KiB audio:258KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.029478%
+size=     258KiB time=00:00:03.00 bitrate= 705.8kbits/s speed= 249x elapsed=0:00:00.01    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+[aist#0:0/pcm_s16le @ 0000022fcb8b6c80] Guessed Channel Layout: mono
+Input #0, concat, from 'output\20260508_110522_7a64549e\audio_segments.txt':
+  Duration: N/A, start: 0.000000, bitrate: 705 kb/s
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (copy)
+Output #0, wav, to 'output\20260508_110522_7a64549e\generated_soundtrack.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+Press [q] to stop, [?] for help
+[out#0/wav @ 0000022fcb839600] video:0KiB audio:2067KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.003685%
+size=    2067KiB time=00:00:24.00 bitrate= 705.6kbits/s speed= 234x elapsed=0:00:00.10    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+[aist#0:0/pcm_s16le @ 000002c3aec4edc0] Guessed Channel Layout: mono
+Input #0, wav, from 'output\20260508_110522_7a64549e\generated_soundtrack.wav':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Duration: 00:00:24.00, bitrate: 705 kb/s
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+Input #1, mp3, from 'output\20260508_110522_7a64549e\generated_silence.mp3':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Duration: 00:10:00.00, start: 0.025057, bitrate: 31 kb/s
+  Stream #1:0: Audio: mp3 (mp3float), 44100 Hz, stereo, fltp, 32 kb/s, start 0.025057
+    Metadata:
+      encoder         : Lavc62.28
+Stream mapping:
+  Stream #0:0 (pcm_s16le) -> volume:default
+  Stream #1:0 (mp3float) -> volume:default
+  amix:default -> Stream #0:0 (pcm_s16le)
+Press [q] to stop, [?] for help
+Output #0, wav, to 'output\20260508_110522_7a64549e\mixed_soundtrack.wav':
+  Metadata:
+    ISFT            : Lavf62.12.100
+  Stream #0:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 pcm_s16le
+[out#0/wav @ 000002c3aebdec40] video:0KiB audio:2067KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.003685%
+size=    2067KiB time=00:00:24.00 bitrate= 705.6kbits/s speed=1.17e+03x elapsed=0:00:00.02    
+ffmpeg version 8.1-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers
+  built with gcc 15.2.0 (Rev11, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-cairo --enable-fontconfig --enable-iconv --enable-gnutls --enable-lcms2 --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-libsnappy --enable-zlib --enable-librist --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-sdl2 --enable-libaribb24 --enable-libaribcaption --enable-libdav1d --enable-libdavs2 --enable-libopenjpeg --enable-libquirc --enable-libuavs3d --enable-libxevd --enable-libzvbi --enable-liboapv --enable-libqrencode --enable-librav1e --enable-libsvtav1 --enable-libvvenc --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxavs2 --enable-libxeve --enable-libxvid --enable-libaom --enable-libjxl --enable-libsvtjpegxs --enable-libvpx --enable-mediafoundation --enable-libass --enable-frei0r --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-liblensfun --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-libshaderc --enable-vulkan --enable-libplacebo --enable-opencl --enable-libcdio --enable-openal --enable-libgme --enable-libmodplug --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libshine --enable-libtheora --enable-libtwolame --enable-libvo-amrwbenc --enable-libcodec2 --enable-libilbc --enable-libgsm --enable-liblc3 --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-ladspa --enable-libbs2b --enable-libflite --enable-libmysofa --enable-librubberband --enable-libsoxr --enable-chromaprint --enable-whisper
+  libavutil      60. 26.100 / 60. 26.100
+  libavcodec     62. 28.100 / 62. 28.100
+  libavformat    62. 12.100 / 62. 12.100
+  libavdevice    62.  3.100 / 62.  3.100
+  libavfilter    11. 14.100 / 11. 14.100
+  libswscale      9.  5.100 /  9.  5.100
+  libswresample   6.  3.100 /  6.  3.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'output\20260508_110522_7a64549e\video_no_audio.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf62.12.100
+  Duration: 00:00:24.00, start: 0.000000, bitrate: 1415 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, 1412 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      encoder         : Lavc62.28.100 libx264
+[aist#1:0/pcm_s16le @ 00000217d9eed900] Guessed Channel Layout: mono
+Input #1, wav, from 'output\20260508_110522_7a64549e\mixed_soundtrack.wav':
+  Metadata:
+    encoder         : Lavf62.12.100
+  Duration: 00:00:24.00, bitrate: 705 kb/s
+  Stream #1:0: Audio: pcm_s16le ([1][0][0][0] / 0x0001), 44100 Hz, mono, s16, 705 kb/s
+Stream mapping:
+  Stream #0:0 -> #0:0 (copy)
+  Stream #1:0 -> #0:1 (pcm_s16le (native) -> aac (native))
+Press [q] to stop, [?] for help
+Output #0, mp4, to 'output\20260508_110522_7a64549e\final_video.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 512
+    compatible_brands: isomiso2avc1mp41
+    encoder         : Lavf62.12.100
+  Stream #0:0(und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 1920x1080, q=2-31, 1412 kb/s, 30 fps, 30 tbr, 15360 tbn (default)
+    Metadata:
+      handler_name    : VideoHandler
+      encoder         : Lavc62.28.100 libx264
+  Stream #0:1: Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, mono, fltp, 192 kb/s
+    Metadata:
+      encoder         : Lavc62.28.100 aac
+frame=  241 fps=0.0 q=-1.0 size=    1536KiB time=00:00:08.12 bitrate=1548.3kbits/s speed=15.6x elapsed=0:00:00.52    frame=  483 fps=469 q=-1.0 size=    3328KiB time=00:00:16.16 bitrate=1687.0kbits/s speed=15.7x elapsed=0:00:01.03    [out#0/mp4 @ 00000217d992e640] video:4139KiB audio:423KiB subtitle:0KiB other streams:0KiB global headers:0KiB muxing overhead: 0.587670%
+frame=  720 fps=471 q=-1.0 Lsize=    4588KiB time=00:00:23.93 bitrate=1570.5kbits/s speed=15.6x elapsed=0:00:01.52    
+[aac @ 00000217d992b300] Qavg: 65166.703
+2026-05-08 11:07:09,792 | INFO | app.services.pipeline_service | Google Drive upload skipped because credentials or folder ID are not configured.
+2026-05-08 11:07:09,792 | INFO | app.services.pipeline_service | Completed job 20260508_110522_7a64549e

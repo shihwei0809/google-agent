@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消防演習影音分鏡腳本與提示詞產生器</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1f2937;
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-primary: #3b82f6;
+            --accent-primary-hover: #2563eb;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --glass-bg: rgba(17, 24, 39, 0.7);
+            --glass-blur: blur(12px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Background glow effects */
+        .glow-orb {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(0,0,0,0) 70%);
+            z-index: -1;
+            pointer-events: none;
+        }
+        .orb-1 { top: -100px; left: -100px; }
+        .orb-2 { bottom: -100px; right: -100px; }
+
+        header {
+            background-color: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--card-border);
+            padding: 1.5rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 0.5rem;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(to right, #ffffff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .config-bar {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .config-input {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            outline: none;
+            width: 260px;
+            transition: all 0.3s ease;
+        }
+
+        .config-input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        }
+
+        .config-select {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        /* Progress Steps */
+        .steps-container {
+            display: flex;
+            justify-content: center;
+            margin: 2rem auto 1rem;
+            width: 90%;
+            max-width: 900px;
+            background-color: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-radius: 16px;
+            border: 1px solid var(--card-border);
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            position: relative;
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .step.active {
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
+
+        .step.completed {
+            color: var(--accent-success);
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background-color: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            border: 1px solid var(--card-border);
+        }
+
+        .step.active .step-number {
+            background-color: var(--accent-primary);
+            color: white;
+            border-color: var(--accent-primary);
+        }
+
+        .step.completed .step-number {
+            background-color: var(--accent-success);
+            color: white;
+            border-color: var(--accent-success);
+        }
+
+        .step-divider {
+            flex-grow: 1;
+            height: 1px;
+            background-color: var(--card-border);
+            margin: 0 1.5rem;
+            max-width: 120px;
+            align-self: center;
+        }
+
+        main {
+            flex-grow: 1;
+            width: 90%;
+            max-width: 1200px;
+            margin: 0 auto 3rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Page panels */
+        .panel {
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .panel.active {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Step 1: Input Panel */
+        .input-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 1rem;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .preset-btn {
+            background-color: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: var(--accent-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .preset-btn:hover {
+            background-color: rgba(59, 130, 246, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .textarea-container {
+            position: relative;
+        }
+
+        .drill-textarea {
+            width: 100%;
+            height: 380px;
+            background-color: rgba(17, 24, 39, 0.8);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 1.25rem;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .drill-textarea:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent-primary) 0%, #1d4ed8 100%);
+            color: white;
+            border: none;
+            padding: 0.85rem 1.75rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+            align-self: flex-end;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, var(--accent-success) 0%, #047857 100%);
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+        }
+        .btn-success:hover {
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            box-shadow: none;
+        }
+        .btn-outline:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--text-secondary);
+        }
+
+        /* Step 2: Storyboard Cards Grid */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+            margin-bottom: 1rem;
+        }
+
+        .toolbar-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .storyboard-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .scene-card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+        }
+
+        .scene-card-header {
+            background-color: rgba(31, 41, 55, 0.5);
+            border-bottom: 1px solid var(--card-border);
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .scene-badge {
+            background-color: var(--bg-tertiary);
+            color: var(--accent-primary);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .scene-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 0.4rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .control-btn:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        .control-btn.btn-delete:hover {
+            color: var(--accent-danger);
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        .scene-card-body {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 868px) {
+            .scene-card-body {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .form-field label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .form-field input, .form-field textarea {
+            background-color: rgba(17, 24, 39, 0.6);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            border-radius: 8px;
+            padding: 0.6rem 0.75rem;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .form-field input:focus, .form-field textarea:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .form-field textarea {
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        /* Specific textareas */
+        .script-textarea { height: 110px; }
+        .concept-textarea { height: 80px; }
+
+        /* Step 3: Prompt Results */
+        .prompt-card {
+            background-color: rgba(17, 24, 39, 0.5);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .prompt-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .prompt-type-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .type-image {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: var(--accent-success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .type-video {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: var(--accent-warning);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .copy-btn {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background-color: var(--accent-primary);
+            border-color: var(--accent-primary);
+            transform: translateY(-1px);
+        }
+
+        .prompt-content {
+            background-color: rgba(10, 10, 15, 0.8);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.1);
+            padding: 0.85rem;
+            border-radius: 8px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        /* Loading Spinner */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--bg-tertiary);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        /* Bottom navigation panel */
+        .navigation-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 2rem;
+            border-top: 1px solid var(--card-border);
+            padding-top: 1.5rem;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--accent-success);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            font-weight: 500;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .tips-banner {
+            background-color: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            gap: 0.75rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .tips-banner i {
+            color: var(--accent-primary);
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="glow-orb orb-1"></div>
+    <div class="glow-orb orb-2"></div>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">
+                <i data-lucide="shield-alert"></i>
+            </div>
+            <div>
+                <h1>消防演習影音分鏡腳本與提示詞產生器</h1>
+                <p>將繁複演習計畫一鍵轉為 AI 視覺影片提示詞（Runway / Luma / Midjourney）</p>
+            </div>
+        </div>
+
+        <div class="config-bar">
+            <div class="input-group">
+                <input type="password" id="apiKey" class="config-input" placeholder="請填寫 Gemini 或 Grok API Key (保存於瀏覽器)...">
+            </div>
+            <select id="modelChoice" class="config-select">
+                <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash (預設新版・極速推薦)</option>
+                <option value="gemini-3.5-pro">Gemini 3.5 Pro (最新旗艦款・付費金鑰首選)</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash (快速反應)</option>
+                <option value="gemini-2.5-pro">Gemini 2.5 Pro (進階版)</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (經典款)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (邏輯深度佳)</option>
+                <option value="grok-2-1212">xAI Grok 2 (快速・免費選項)</option>
+                <option value="grok-beta">xAI Grok Beta (測試款)</option>
+            </select>
+        </div>
+    </header>
+
+    <!-- Progress steps -->
+    <div class="steps-container">
+        <div class="step active" id="step1-indicator">
+            <div class="step-number">1</div>
+            <span>輸入演習內容</span>
+        </div>
+        <div class="step-divider"></div>
+        <div class="step" id="step2-indicator">
+            <div class="step-number">2</div>
+            <span>校正分鏡腳本</span>
+        </div>
+        <div class="step-divider"></div>
+        <div class="step" id="step3-indicator">
+            <div class="step-number">3</div>
+            <span>取得 AI 提示詞</span>
+        </div>
+    </div>
+
+    <main>
+        <!-- Step 1: Input Plan Panel -->
+        <div class="panel active" id="panel1">
+            <div class="tips-banner">
+                <i data-lucide="info"></i>
+                <div>
+                    <strong>系統提示：</strong>本系統能自動讀取您的消防演練程序書、防災步驟等內容，分析其時序並重新包裝為極具動態視覺感的分鏡腳本。您可以在下一頁（步驟二）中逐字修改每頁的廣播配音詞、畫作細節等，最後由 AI 自動產出 Midjourney 圖片與 Luma 影片提示詞。
+                </div>
+            </div>
+
+            <div class="input-card">
+                <div class="card-header">
+                    <span class="card-title">
+                        <i data-lucide="file-text"></i> 消防演習文本輸入
+                    </span>
+                    <div style="display: flex; gap: 0.75rem; align-items: center;">
+                        <button class="preset-btn" id="importFileBtn" title="選擇並讀取 PDF, Word 或 TXT 計畫書">
+                            <i data-lucide="file-up"></i> 匯入 PDF / Word / TXT 計畫書
+                        </button>
+                        <button class="preset-btn" id="loadPresetBtn">
+                            <i data-lucide="sparkles"></i> 載入115年彰濱廠TK-658演習範例
+                        </button>
+                        <input type="file" id="drillFileInput" accept=".txt,.pdf,.docx" style="display: none;">
+                    </div>
+                </div>
+                <div class="textarea-container">
+                    <textarea id="drillText" class="drill-textarea" placeholder="請在此貼上您的演習步驟、劇本、任務表或通報程序..."></textarea>
+                </div>
+                <button class="btn" id="generateStoryboardBtn">
+                    生成分鏡腳本 <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 2: Storyboard Card Editor -->
+        <div class="panel" id="panel2">
+            <div class="toolbar">
+                <span class="toolbar-title">
+                    <i data-lucide="film"></i> 分鏡腳本設計面板 (請人員在此核對修改)
+                </span>
+                <div class="toolbar-actions">
+                    <button class="btn btn-outline" id="importJsonBtn" title="載入先前儲存的 JSON 備份草稿">
+                        <i data-lucide="upload"></i> 匯入分鏡草稿 (.json)
+                    </button>
+                    <button class="btn btn-outline" id="exportJsonBtn" title="將目前的分鏡內容儲存為 JSON 檔">
+                        <i data-lucide="download"></i> 下載分鏡草稿 (.json)
+                    </button>
+                    <button class="btn btn-outline" id="exportMdStep2Btn" title="匯出當前分鏡為 Markdown 計畫書">
+                        <i data-lucide="file-text"></i> 匯出分鏡 (.md)
+                    </button>
+                    <button class="btn btn-outline" id="exportDocxStep2Btn" title="匯出當前分鏡為 Word 文件">
+                        <i data-lucide="file-word"></i> 匯出 Word (.docx)
+                    </button>
+                    <button class="btn btn-outline" id="addSceneBtn">
+                        <i data-lucide="plus"></i> 新增分鏡
+                    </button>
+                    <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
+                </div>
+            </div>
+
+            <div class="storyboard-container" id="storyboardContainer">
+                <!-- Dynamic storyboard cards will be rendered here -->
+            </div>
+
+            <div class="navigation-row">
+                <button class="btn btn-outline" id="backToStep1Btn">
+                    <i data-lucide="arrow-left"></i> 回上一步
+                </button>
+                <button class="btn btn-success" id="generatePromptsBtn">
+                    <i data-lucide="zap"></i> 生成 AI 圖片與影片提示詞 <i data-lucide="arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Prompt Results Panel -->
+        <div class="panel" id="panel3">
+            <div class="toolbar">
+                <span class="toolbar-title">
+                    <i data-lucide="sparkles"></i> 成功生成 AI 影片與圖片提示詞！
+                </span>
+                <div class="toolbar-actions">
+                    <button class="btn btn-outline" id="exportMarkdownBtn">
+                        <i data-lucide="download"></i> 匯出 Markdown 文件 (.md)
+                    </button>
+                    <button class="btn btn-outline" id="exportDocxBtn">
+                        <i data-lucide="file-word"></i> 匯出 Word 文件 (.docx)
+                    </button>
+                </div>
+            </div>
+
+            <div class="storyboard-container" id="promptsContainer">
+                <!-- Final results cards showing edit options + Midjourney & Runway prompt outputs -->
+            </div>
+
+            <div class="navigation-row">
+                <button class="btn btn-outline" id="backToStep2Btn">
+                    <i data-lucide="arrow-left"></i> 返回腳本編輯
+                </button>
+                <button class="btn" onclick="location.reload();">
+                    <i data-lucide="refresh-cw"></i> 重新開始新任務
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loadingText">AI 正在努力解析中，請稍候...</div>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast">
+        <i data-lucide="check-circle"></i>
+        <span id="toastMsg">複製成功！</span>
+    </div>
+
+    <script>
+        // Init Lucide
+        lucide.createIcons();
+
+        // Local Storage API Key Management
+        const apiKeyInput = document.getElementById('apiKey');
+        const savedKey = localStorage.getItem('gemini_api_key');
+        if (savedKey) {
+            apiKeyInput.value = savedKey;
+        }
+        apiKeyInput.addEventListener('change', () => {
+            localStorage.setItem('gemini_api_key', apiKeyInput.value);
+        });
+
+        // Global State
+        let activePanelIndex = 1;
+        let storyboardScenes = [];
+
+        // TK-658 Preset Text
+        const PRESET_TEXT = `【鴻勝化學科技股份有限公司彰濱一廠 - 115年度空氣污染突發事故緊急應變措施計畫】
+演習時間：115年05月19日 13:00~17:00
+演習地點：B、C區儲槽區
+氣象條件：東北風，氣溫32度
+
+災害起因與背景：
+下午 13:30 分，於 B 區儲槽區進行 NBAC-P1 槽車入料作業，將溶劑打入 TK-658 儲槽。因人員未注意，TK-658 儲槽桶底閥開關發生洩漏，導致大量化學溶劑流入防溢堤與雨水溝，現場溶劑瀰漫。
+資材人員林東和發現後，立即關閉馬達與進料閥，通報單位主管陳世偉。陳世偉指示關閉防溢堤閘門與雨水閘門，通知一課協助將流入集液井的溶劑抽至 TK-642 廢水槽。
+此時，現場防溢堤殘留溶劑因不明原因（地震火花）引發火災。
+火勢擴大蔓延至 TK-658 儲槽。同時，EBR-P1R 槽車正在進行 TK-C05 入料作業，人員因忙於滅火，導致 TK-C05 儲槽發生滿槽洩漏噴濺，火勢蔓延至 C 區儲槽。
+
+應變行動：
+1. 初期滅火：資材丁（邱建霖）使用現場 150型乾粉滅火器進行初期滅火，並開啟 B 區水霧系統降溫。資材己（陳志修）開啟 900加侖泡沫儲槽，啟動消防泵。
+2. 成立應變指揮所：主管陳世偉趕往控制室，啟動緊急應變小組，成立指揮所，並連絡警衛黃富元進行全廠廣播召集應變人員，並管制大門車輛。
+3. 人員清點：緊急應變人員（共24員）在辦公大樓前集合。滅火班（10人）、安全防護班（4人）、通報班（4人）、避難引導班（4人）、救護班（2人）全員到齊。
+4. 滅火班行動：
+   - 滅火一班（班長許原暢）：率員前往 B 區，使用水瞄子連接 B-06 消防栓，防護滅火班人員並開啟水霧，架設移動式消防砲塔 C01，噴灑泡沫撲滅 B 區與 TK-658 儲槽火災。
+   - 滅火二班（班長梁聖國）：開啟 D 區水霧系統隔離降溫，於 B、D 區走道連接 B-08 消防栓，架設移動式消防砲塔 C02 實施泡沫滅火。
+   - 滅火三班（班長涂敬宗）：使用 B-05 泡沫瞄子連接 B-05 消防栓，進行 TK-658 滅火。因火勢蔓延至 TK-C05，依指揮官指示，轉往防護 TK-C05 並進行泡沫撲滅。
+5. 安全防護班行動：班長李睿洋指派葉豪恩至 MCC 房關閉廠區電力，陳又詳開啟泡沫儲槽，許嘉泰至消防泵房監控運作。
+6. 通報班行動：班長沈洵立指派楊文鳳及謝佩穎，立即以電話向線西消防隊、彰濱工業區服務中心、環保局、中區職安中心進行廠外通報求援。
+7. 避難引導班行動：班長林旺慶指派班員引導非應變人員往安全地點（如地上停車場）撤離，並實施交通管制。
+8. 救護班行動：班長黃聖堯帶領王律祐，準備醫療器材與長背板，駕駛救護車輛在現場待命，隨時準備救護受傷患。
+9. 控制與善後：經過滅火班全力泡沫灌救，火勢被控制並完全撲滅。
+10. 環境偵測與善後：指派江承河著防護衣、手持氣體偵測器進入災區偵測。氣體濃度已降至安全正常值。全體人員於廠前集合，清點人數與裝備，設備歸位，狀況解除，警衛廣播演習結束。`;
+
+        // Event Listeners
+        document.getElementById('loadPresetBtn').addEventListener('click', () => {
+            document.getElementById('drillText').value = PRESET_TEXT;
+            showToast('已載入彰濱廠消防演習劇本內容！');
+        });
+
+        // Step 1: File import
+        document.getElementById('importFileBtn').addEventListener('click', () => {
+            document.getElementById('drillFileInput').click();
+        });
+        document.getElementById('drillFileInput').addEventListener('change', importDrillFile);
+
+        document.getElementById('generateStoryboardBtn').addEventListener('click', generateStoryboard);
+        document.getElementById('generatePromptsBtn').addEventListener('click', generatePrompts);
+        document.getElementById('addSceneBtn').addEventListener('click', addNewScene);
+        document.getElementById('backToStep1Btn').addEventListener('click', () => switchPanel(1));
+        document.getElementById('backToStep2Btn').addEventListener('click', () => switchPanel(2));
+        document.getElementById('exportMarkdownBtn').addEventListener('click', exportMarkdown);
+        document.getElementById('exportDocxBtn').addEventListener('click', exportDocx);
+
+        // Step 2 toolbar actions
+        document.getElementById('exportJsonBtn').addEventListener('click', exportJson);
+        document.getElementById('importJsonBtn').addEventListener('click', () => {
+            document.getElementById('jsonFileInput').click();
+        });
+        document.getElementById('jsonFileInput').addEventListener('change', importJson);
+        document.getElementById('exportMdStep2Btn').addEventListener('click', exportMarkdown);
+        document.getElementById('exportDocxStep2Btn').addEventListener('click', exportDocx);
+
+        // Core Functions
+        function switchPanel(panelIndex) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.getElementById(`panel${panelIndex}`).classList.add('active');
+
+            // Update Steps Indicators
+            document.querySelectorAll('.step').forEach((s, idx) => {
+                s.classList.remove('active', 'completed');
+                if (idx + 1 < panelIndex) {
+                    s.classList.add('completed');
+                } else if (idx + 1 === panelIndex) {
+                    s.classList.add('active');
+                }
+            });
+
+            activePanelIndex = panelIndex;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function showLoading(show, text = "") {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) {
+                document.getElementById('loadingText').innerText = text;
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+            toastMsg.innerText = message;
+            if (isError) {
+                toast.style.backgroundColor = 'var(--accent-danger)';
+            } else {
+                toast.style.backgroundColor = 'var(--accent-success)';
+            }
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        async function generateStoryboard() {
+            const drillText = document.getElementById('drillText').value.trim();
+            const apiKey = apiKeyInput.value.trim();
+            const model = document.getElementById('modelChoice').value;
+
+            if (!drillText) {
+                showToast('請先貼入或載入演習內容', true);
+                return;
+            }
+            if (!apiKey) {
+                showToast('請填寫 Gemini API Key (上方配置列)', true);
+                return;
+            }
+
+            showLoading(true, "AI 正在將演習規劃書分析並轉換為分鏡腳本結構（預估 20-30 秒）...");
+
+            try {
+                const response = await fetch('/api/generate-storyboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ drill_text: drillText, api_key: apiKey, model: model })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || '解析失敗');
+                }
+
+                const data = await response.json();
+                storyboardScenes = data.scenes;
+                renderStoryboardEditor();
+                switchPanel(2);
+                showToast('分鏡腳本建立成功，請您與同仁進行校閱修改！');
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderStoryboardEditor() {
+            const container = document.getElementById('storyboardContainer');
+            container.innerHTML = '';
+
+            storyboardScenes.forEach((scene, index) => {
+                const card = document.createElement('div');
+                card.className = 'scene-card';
+                card.dataset.index = index;
+                card.innerHTML = `
+                    <div class="scene-card-header">
+                        <span class="scene-badge">分鏡 ${index + 1}</span>
+                        <div class="scene-controls">
+                            <button class="control-btn" onclick="moveScene(${index}, -1)" title="向上移動" ${index === 0 ? 'disabled' : ''}>
+                                <i data-lucide="chevron-up"></i>
+                            </button>
+                            <button class="control-btn" onclick="moveScene(${index}, 1)" title="向下移動" ${index === storyboardScenes.length - 1 ? 'disabled' : ''}>
+                                <i data-lucide="chevron-down"></i>
+                            </button>
+                            <button class="control-btn btn-delete" onclick="deleteScene(${index})" title="刪除分鏡">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="scene-card-body">
+                        <div class="form-row">
+                            <div class="form-field">
+                                <label><i data-lucide="tag"></i> 應變階段標題</label>
+                                <input type="text" class="phase-input" value="${escapeHtml(scene.phase)}" onchange="updateSceneData(${index}, 'phase', this.value)">
+                            </div>
+                            <div class="form-field">
+                                <label><i data-lucide="activity"></i> 現場人員實體動作</label>
+                                <textarea class="action-input" onchange="updateSceneData(${index}, 'action_description', this.value)">${escapeHtml(scene.action_description)}</textarea>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-field">
+                                <label><i data-lucide="mic"></i> 廣播廣播與配音旁白詞</label>
+                                <textarea class="script-textarea script-input" onchange="updateSceneData(${index}, 'narrator_script', this.value)">${escapeHtml(scene.narrator_script)}</textarea>
+                            </div>
+                            <div class="form-field">
+                                <label><i data-lucide="eye"></i> 畫面視覺構想</label>
+                                <textarea class="concept-textarea visual-input" onchange="updateSceneData(${index}, 'visual_concept', this.value)">${escapeHtml(scene.visual_concept)}</textarea>
+                            </div>
+                            <div class="form-field">
+                                <label><i data-lucide="video"></i> 鏡頭與動態構想</label>
+                                <textarea class="concept-textarea motion-input" onchange="updateSceneData(${index}, 'motion_concept', this.value)">${escapeHtml(scene.motion_concept)}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function updateSceneData(index, field, value) {
+            storyboardScenes[index][field] = value;
+        }
+
+        function moveScene(index, direction) {
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= storyboardScenes.length) return;
+            
+            // Swap
+            const temp = storyboardScenes[index];
+            storyboardScenes[index] = storyboardScenes[targetIndex];
+            storyboardScenes[targetIndex] = temp;
+            
+            // Re-order scene_no
+            storyboardScenes.forEach((s, idx) => s.scene_no = idx + 1);
+            
+            renderStoryboardEditor();
+        }
+
+        function deleteScene(index) {
+            if (storyboardScenes.length <= 1) {
+                showToast('必須保留至少一個分鏡卡片', true);
+                return;
+            }
+            if (confirm(`確定要刪除第 ${index + 1} 個分鏡卡片嗎？`)) {
+                storyboardScenes.splice(index, 1);
+                storyboardScenes.forEach((s, idx) => s.scene_no = idx + 1);
+                renderStoryboardEditor();
+                showToast('已刪除該分鏡！');
+            }
+        }
+
+        function addNewScene() {
+            const newIndex = storyboardScenes.length;
+            storyboardScenes.push({
+                scene_no: newIndex + 1,
+                phase: '新應變階段',
+                action_description: '描述本階段人員的具體救援或疏散動作。',
+                narrator_script: '輸入此分鏡的旁白或廣播宣導詞...',
+                visual_concept: '輸入此場景在 Midjourney 畫面裡應出現的環境與配備細節...',
+                motion_concept: '輸入影片在 Runway/Luma 的動態跟運鏡模式，例如 camera pans left...'
+            });
+            renderStoryboardEditor();
+            showToast('已在末尾新增一個分鏡卡片！');
+            
+            // Scroll to bottom
+            setTimeout(() => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }, 100);
+        }
+
+        async function generatePrompts() {
+            const apiKey = apiKeyInput.value.trim();
+            const model = document.getElementById('modelChoice').value;
+
+            if (!apiKey) {
+                showToast('請填寫 Gemini API Key', true);
+                return;
+            }
+
+            showLoading(true, "AI 正在將您校正後的腳本轉譯並優化為專業的英文圖像與動態影片提示詞...");
+
+            try {
+                const response = await fetch('/api/generate-prompts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scenes: storyboardScenes, api_key: apiKey, model: model })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || '提示詞生成失敗');
+                }
+
+                const data = await response.json();
+                storyboardScenes = data.scenes;
+                renderPromptsPanel();
+                switchPanel(3);
+                showToast('提示詞生成完畢！');
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function renderPromptsPanel() {
+            const container = document.getElementById('promptsContainer');
+            container.innerHTML = '';
+
+            storyboardScenes.forEach((scene, index) => {
+                const card = document.createElement('div');
+                card.className = 'scene-card';
+                card.innerHTML = `
+                    <div class="scene-card-header">
+                        <span class="scene-badge">分鏡 ${scene.scene_no}：${escapeHtml(scene.phase)}</span>
+                    </div>
+                    <div class="scene-card-body" style="grid-template-columns: 1fr; gap: 1rem;">
+                        <div>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.25rem;">
+                                <strong>廣播配音旁白：</strong> ${escapeHtml(scene.narrator_script)}
+                            </p>
+                            <p style="font-size: 0.9rem; color: var(--text-secondary);">
+                                <strong>實體操作動作：</strong> ${escapeHtml(scene.action_description)}
+                            </p>
+                        </div>
+                        
+                        <div class="prompt-card">
+                            <div class="prompt-title-row">
+                                <span class="prompt-type-badge type-image">🖼️ Midjourney 圖片提示詞 (Stable Diffusion 通用)</span>
+                                <button class="copy-btn" onclick="copyText(this, ${index}, 'image_prompt')">
+                                    <i data-lucide="copy"></i> 複製提示詞
+                                </button>
+                            </div>
+                            <div class="prompt-content" id="img-prompt-${index}">${escapeHtml(scene.image_prompt || '尚未生成')}</div>
+                        </div>
+
+                        <div class="prompt-card">
+                            <div class="prompt-title-row">
+                                <span class="prompt-type-badge type-video">🎥 Runway Gen-3 / Luma 影片動態提示詞</span>
+                                <button class="copy-btn" onclick="copyText(this, ${index}, 'video_prompt')">
+                                    <i data-lucide="copy"></i> 複製提示詞
+                                </button>
+                            </div>
+                            <div class="prompt-content" id="vid-prompt-${index}">${escapeHtml(scene.video_prompt || '尚未生成')}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        function copyText(btn, index, field) {
+            const text = storyboardScenes[index][field];
+            navigator.clipboard.writeText(text).then(() => {
+                const oldHTML = btn.innerHTML;
+                btn.innerHTML = `<i data-lucide="check"></i> 已複製`;
+                btn.style.backgroundColor = 'var(--accent-success)';
+                btn.style.borderColor = 'var(--accent-success)';
+                lucide.createIcons();
+                
+                showToast('提示詞複製成功！');
+
+                setTimeout(() => {
+                    btn.innerHTML = oldHTML;
+                    btn.style.backgroundColor = '';
+                    btn.style.borderColor = '';
+                    lucide.createIcons();
+                }, 2000);
+            }).catch(err => {
+                showToast('無法複製：' + err, true);
+            });
+        }
+
+        function exportJson() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(storyboardScenes, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", "fire_drill_storyboard_draft.json");
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('分鏡 JSON 草稿匯出成功！');
+        }
+
+        function importJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported) && imported.length > 0 && imported[0].hasOwnProperty('scene_no')) {
+                        storyboardScenes = imported;
+                        renderStoryboardEditor();
+                        showToast('草稿匯入成功！已還原分鏡狀態。');
+                    } else {
+                        showToast('無效的 JSON 草稿格式！', true);
+                    }
+                } catch (err) {
+                    showToast('讀取 JSON 失敗：' + err.message, true);
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        async function importDrillFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append("file", file);
+            
+            showLoading(true, "正在讀取並解析您的計畫書內容，請稍候...");
+            
+            try {
+                const response = await fetch('/api/import-file', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || '檔案解析失敗');
+                }
+                
+                const data = await response.json();
+                document.getElementById('drillText').value = data.text;
+                showToast(`成功匯入檔案：${file.name}，已解析文字內容！`);
+            } catch (err) {
+                showToast(err.message, true);
+            } finally {
+                showLoading(false);
+                event.target.value = '';
+            }
+        }
+
+        async function exportDocx() {
+            try {
+                const response = await fetch('/api/export-docx', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(storyboardScenes)
+                });
+
+                if (!response.ok) throw new Error('匯出 Word 失敗');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'fire_drill_storyboard_prompts.docx';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                showToast('計畫書 Word 匯出成功！');
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        async function exportMarkdown() {
+            try {
+                const response = await fetch('/api/export-markdown', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(storyboardScenes)
+                });
+
+                if (!response.ok) throw new Error('匯出失敗');
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'fire_drill_storyboard_prompts.md';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                showToast('計畫書 Markdown 匯出成功！');
+            } catch (err) {
+                showToast(err.message, true);
+            }
+        }
+
+        // Helper: Escape HTML strings to prevent breaking card markup
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>

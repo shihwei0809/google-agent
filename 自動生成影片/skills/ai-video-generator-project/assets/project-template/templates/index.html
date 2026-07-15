@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 自動影片生成系統</title>
+    <style>
+        :root {
+            --bg-1: #07111f;
+            --bg-2: #102844;
+            --panel: rgba(255, 255, 255, 0.1);
+            --line: rgba(255, 255, 255, 0.18);
+            --text: #f6f8fb;
+            --muted: #c7d2df;
+            --accent: #ffb000;
+            --accent-2: #ff7b54;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(255, 176, 0, 0.22), transparent 30%),
+                radial-gradient(circle at bottom right, rgba(255, 123, 84, 0.18), transparent 28%),
+                linear-gradient(135deg, var(--bg-1), var(--bg-2));
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
+
+        .card {
+            width: min(920px, 100%);
+            padding: 32px;
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            backdrop-filter: blur(18px);
+            background: var(--panel);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 5vw, 3.2rem);
+        }
+
+        p {
+            margin: 0 0 28px;
+            color: var(--muted);
+            line-height: 1.7;
+        }
+
+        form {
+            display: grid;
+            gap: 18px;
+        }
+
+        label {
+            display: grid;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        textarea {
+            min-height: 260px;
+            resize: vertical;
+            font-family: "Cascadia Code", "Consolas", monospace;
+            line-height: 1.6;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        button {
+            margin-top: 8px;
+            padding: 16px 18px;
+            border: 0;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            color: #111827;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .hint {
+            margin-top: 18px;
+            font-size: 0.95rem;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+    <section class="card">
+        <h1>AI 自動影片生成系統</h1>
+        <p>輸入主題、場景與角色後，系統可自動生成影片；如果你已經有廣告分鏡表，也可以直接貼上 Markdown 表格，系統會依照每一鏡的提示詞與秒數生成指定版本。</p>
+        <form action="/generate-video" method="post">
+            <label>
+                主題
+                <input type="text" name="topic" placeholder="例如：ROBERT 提神汽水巷弄廣告" required>
+            </label>
+            <label>
+                場景
+                <input type="text" name="scene" placeholder="例如：台北老舊巷弄與夕陽街口" required>
+            </label>
+            <label>
+                角色
+                <input type="text" name="character" placeholder="例如：10 歲亞洲女生，街頭感穿搭" required>
+            </label>
+            <label>
+                分鏡 Markdown 表格
+                <textarea
+                    name="storyboard_markdown"
+                    placeholder="可直接貼上含有「場次 / 時間秒數 / AI 生圖提示詞」欄位的 Markdown 分鏡表；若留空，系統將自動生成 50 鏡預設分鏡。"
+                ></textarea>
+            </label>
+            <button type="submit">開始生成影片</button>
+        </form>
+        <div class="hint">提示：有自訂分鏡時，請至少提供 `場次`、`時間秒數`、`AI 生圖提示詞` 欄位。若尚未完成 `.env`、Google Drive 憑證或 `assets/background_music.mp3`，系統會先擋下並回報原因。</div>
+    </section>
+</body>
+</html>

@@ -1,4 +1,4 @@
-$port = 8000
+﻿$port = 8000
 
 # 使用 UDP 連線獲取本機對外的內網 IP (最穩定且不影響網路)
 $socket = New-Object System.Net.Sockets.UdpClient

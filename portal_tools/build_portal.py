@@ -9,11 +9,12 @@ try:
 except AttributeError:
     pass
 
-base_dir = Path(r"C:\GOOGLE ANGET")
+# 1. Dynamically locate the base directory of the project (parent of portal_tools)
+base_dir = Path(__file__).parent.parent.resolve()
 manuals_dir = base_dir / "說明書"
 projects_target_dir = manuals_dir / "projects"
 
-# 1. Ensure target directory exists and clean it up
+# Ensure target directory exists and clean it up
 if projects_target_dir.exists():
     print("Cleaning up old projects copy directory...")
     shutil.rmtree(projects_target_dir)
@@ -36,11 +37,9 @@ web_projects = [
 def ignore_patterns(path, names):
     ignored = []
     for name in names:
-        # Ignore env, git, node, venv, and large media files to prevent security/space issues
         if name in ['.git', 'node_modules', 'venv', '.env', '.firebase', '.netlify', '__pycache__']:
             ignored.append(name)
         elif name.endswith(('.zip', '.mp4', '.pptx', '.pdf', '.doc', '.pyc')):
-            # We skip heavy binaries unless they are small SVG or mp3 audios
             ignored.append(name)
     return ignored
 
@@ -59,7 +58,6 @@ for proj in web_projects:
 print("✅ All static web projects successfully copied to manuals/projects/")
 
 # 3. Update return badges inside manuals/projects/<name>/index.html
-# Since they are now in manuals/projects/<name>/index.html, they need to go up 2 levels (../../index.html) to go back to lobby
 for proj in web_projects:
     dest_index = projects_target_dir / proj["name"] / "index.html"
     if not dest_index.exists():
@@ -67,7 +65,6 @@ for proj in web_projects:
     
     content = dest_index.read_text(encoding="utf-8")
     
-    # Replace relative path back to lobby from ../說明書/index.html to ../../index.html
     if "../說明書/index.html" in content:
         content = content.replace("../說明書/index.html", "../../index.html")
         dest_index.write_text(content, encoding="utf-8")
@@ -78,7 +75,6 @@ portal_html_path = manuals_dir / "index.html"
 if portal_html_path.exists():
     content = portal_html_path.read_text(encoding="utf-8")
     
-    # We replace the launchUrls in projectsData
     replacements = {
         'launchUrl: "../flowchart-web/index.html"': 'launchUrl: "./projects/flowchart-web/index.html"',
         'launchUrl: "../hongsheng-web/index.html"': 'launchUrl: "./projects/hongsheng-web/index.html"',

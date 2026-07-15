@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > *   **原始本機路徑**: [NetworkHelper.kt](file:///D:/GOOGLE%20ANGET/n系列GAS-轉-APK-離線核對上傳/BARCODEout-20260601/app/src/main/java/com/example/barcode_out/NetworkHelper.kt)
-> *   **自動備份時間**: `2026-07-08 16:28:50`
+> *   **自動備份時間**: `2026-07-15 08:50:21`
 > *   **語言類型**: `kotlin`
 
 ``` kotlin
@@ -59,8 +59,14 @@ object NetworkHelper {
             val id = record["id"]!!
             val barcode = record["barcode"]!!
 
-            val json = JSONObject().apply { put("barcode", barcode) }.toString()
-            val requestBody = json.toRequestBody("application/json; charset=utf-8".toMediaType())
+            val innerJson = record["barcode"]!!   // 實際存的是完整 JSON: {"fields":...}
+            
+            // 包裝成 GAS 預期的外層結構 {"barcode": "內部JSON字串"}
+            val outerJson = JSONObject().apply {
+                put("barcode", innerJson)
+            }.toString()
+
+            val requestBody = outerJson.toRequestBody("application/json; charset=utf-8".toMediaType())
 
             val request = Request.Builder()
                 .url(GAS_URL)
