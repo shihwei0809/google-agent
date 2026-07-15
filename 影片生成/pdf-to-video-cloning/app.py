@@ -13,6 +13,18 @@ import wave
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+# 載入 .env 設定檔（若存在）——換台電腦只需修改 .env，不需動程式碼
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=Path(__file__).parent / ".env", override=False)
+except ImportError:
+    pass  # python-dotenv 未安裝時，以系統環境變數為準
+
+# ─── 克隆聲音路徑（從 .env 或系統環境變數讀取）────────────────────────────────
+_CLONING_DIR = Path(
+    os.environ.get("CLONING_DIR", str(Path(__file__).parent.parent.parent / "AI 克隆聲音"))
+)
+
 import edge_tts
 import fitz  # PyMuPDF
 import numpy as np
@@ -24,7 +36,7 @@ from PIL import Image
 # ─── Config ───────────────────────────────────────────────────────────────────
 FFMPEG_PATH = os.environ.get(
     "FFMPEG_PATH",
-    r"C:\Users\C606-PC\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1-full_build\bin\ffmpeg.exe",
+    "",  # 未設定時留空，依賴系統 PATH 中的 ffmpeg
 )
 if Path(FFMPEG_PATH).exists():
     os.environ["IMAGEIO_FFMPEG_EXE"] = FFMPEG_PATH
@@ -182,7 +194,7 @@ async def get_gemini_tts_voices():
 @app.get("/api/cloned-voices")
 async def get_cloned_voices():
     """List all available cloned voices in the AI voice cloning project."""
-    voices_dir = Path(r"d:\GOOGLE ANGET\AI 克隆聲音\voices")
+    voices_dir = _CLONING_DIR / "voices"
     if not voices_dir.exists():
         return {"voices": []}
     voices = []
@@ -233,8 +245,8 @@ async def preview_voice(
                 raise last_err if last_err else ValueError("所有試聽 API 金鑰皆無效或已達限制。")
         elif engine == "cloning":
             import subprocess
-            python_exe = r"d:\GOOGLE ANGET\AI 克隆聲音\.venv\Scripts\python.exe"
-            clone_script = r"d:\GOOGLE ANGET\AI 克隆聲音\clone.py"
+            python_exe = str(_CLONING_DIR / ".venv" / "Scripts" / "python.exe")
+            clone_script = str(_CLONING_DIR / "clone.py")
             text = "這是一段本機克隆聲音的試聽片段。"
             
             cmd = [
@@ -248,7 +260,7 @@ async def preview_voice(
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 executor,
-                lambda: subprocess.run(cmd, check=True, cwd=r"d:\GOOGLE ANGET\AI 克隆聲音")
+                lambda: subprocess.run(cmd, check=True, cwd=str(_CLONING_DIR))
             )
         else:
             text = "這是一段 Edge 語音的試聽片段。"
@@ -574,7 +586,7 @@ async def generate_video(
         if not gemini_api_key:
             raise HTTPException(status_code=400, detail="使用 Gemini TTS 需要提供 API 金鑰。")
     elif tts_engine == "cloning":
-        voices_dir = Path(r"d:\GOOGLE ANGET\AI 克隆聲音\voices")
+        voices_dir = _CLONING_DIR / "voices"
         cloned_voice_dir = voices_dir / voice
         if not voice or not cloned_voice_dir.exists() or not cloned_voice_dir.is_dir():
             raise HTTPException(status_code=400, detail=f"找不到指定的克隆聲音：{voice}")
@@ -693,8 +705,8 @@ async def _run_generation(
                     raise ValueError("所有提供的 Gemini API 金鑰皆已達到使用上限！無法繼續生成語音。")
             elif tts_engine == "cloning":
                 import subprocess
-                python_exe = r"d:\GOOGLE ANGET\AI 克隆聲音\.venv\Scripts\python.exe"
-                clone_script = r"d:\GOOGLE ANGET\AI 克隆聲音\clone.py"
+                python_exe = str(_CLONING_DIR / ".venv" / "Scripts" / "python.exe")
+                clone_script = str(_CLONING_DIR / "clone.py")
                 
                 cmd = [
                     python_exe, clone_script,
@@ -707,7 +719,7 @@ async def _run_generation(
                 loop = asyncio.get_event_loop()
                 await loop.run_in_executor(
                     executor,
-                    lambda: subprocess.run(cmd, check=True, cwd=r"d:\GOOGLE ANGET\AI 克隆聲音")
+                    lambda: subprocess.run(cmd, check=True, cwd=str(_CLONING_DIR))
                 )
             else:
                 communicate = edge_tts.Communicate(tts_text, voice, rate=rate)
