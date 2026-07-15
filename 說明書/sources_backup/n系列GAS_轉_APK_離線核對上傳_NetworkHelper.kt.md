@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > *   **原始本機路徑**: [NetworkHelper.kt](file:///D:/GOOGLE%20ANGET/n系列GAS-轉-APK-離線核對上傳/BARCODEout-20260601/app/src/main/java/com/example/barcode_out/NetworkHelper.kt)
-> *   **自動備份時間**: `2026-07-15 08:50:21`
+> *   **自動備份時間**: `2026-07-15 13:39:13`
 > *   **語言類型**: `kotlin`
 
 ``` kotlin
