@@ -15,11 +15,17 @@ import csv
 import sys
 
 # ── 設定區 ─────────────────────────────────────────────────
+ENGINE = "microsoft"              # 配音引擎："microsoft" (使用 edge-tts) 或 "google" (使用 Gemini TTS)
+
+# 微軟設定 (ENGINE = "microsoft")
 VOICE = "zh-TW-HsiaoChenNeural"   # 女聲（自然）
 # VOICE = "zh-TW-YunJheNeural"    # 男聲
-# VOICE = "zh-TW-HsiaoYuNeural"   # 女聲（另一款）
-
 RATE  = "+0%"    # 語速 例如 +10% 加快 / -10% 放慢
+
+# Google 設定 (ENGINE = "google")
+# 可選聲音如："Kore" (女聲), "Zephyr" (男聲), "Aoede", "Puck", "Fenrir" 等
+GEMINI_VOICE = "Kore"
+
 OUTPUT_DIR = "slides"             # 輸出資料夾（與 index_with_mp3.html 同目錄）
 
 # ── 朗讀文字 ─────────────────────────────────────────────────
@@ -49,17 +55,54 @@ def load_from_csv(csv_path):
     return items
 
 async def generate_one(name, text, idx, total):
-    output_path = os.path.join(OUTPUT_DIR, f"{name}.mp3")
-    print(f"[{idx}/{total}] 生成 {name}.mp3 ...", end=" ", flush=True)
+    ext = "wav" if ENGINE == "google" else "mp3"
+    output_path = os.path.join(OUTPUT_DIR, f"{name}.{ext}")
+    print(f"[{idx}/{total}] 生成 {name}.{ext} ...", end=" ", flush=True)
     
     if not text.strip():
         print("⚠ 文字為空，跳過")
         return
-    
-    communicate = edge_tts.Communicate(text, VOICE, rate=RATE)
-    await communicate.save(output_path)
-    size = os.path.getsize(output_path)
-    print(f"✓ ({size/1024:.0f} KB)")
+        
+    if ENGINE == "google":
+        try:
+            from google import genai
+        except ImportError:
+            print("\n❌ 未偵測到 google-genai 套件。請在本機安裝：pip install google-genai")
+            sys.exit(1)
+            
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            print("\n❌ 未偵測到 GEMINI_API_KEY 環境變數。請在終端機設定它（例如 $env:GEMINI_API_KEY='你的金鑰'）")
+            sys.exit(1)
+            
+        try:
+            client = genai.Client(api_key=api_key)
+            interaction = client.interactions.create(
+                model="gemini-3.1-flash-tts-preview",
+                input=text,
+                response_format={"type": "audio"},
+                generation_config={"speech_config": [{"voice": GEMINI_VOICE}]}
+            )
+            
+            import base64
+            import wave
+            
+            pcm_data = base64.b64decode(interaction.output_audio.data)
+            with wave.open(output_path, "wb") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(24000)
+                wf.writeframes(pcm_data)
+                
+            size = os.path.getsize(output_path)
+            print(f"✓ ({size/1024:.0f} KB)")
+        except Exception as e:
+            print(f"❌ 失敗: {e}")
+    else:
+        communicate = edge_tts.Communicate(text, VOICE, rate=RATE)
+        await communicate.save(output_path)
+        size = os.path.getsize(output_path)
+        print(f"✓ ({size/1024:.0f} KB)")
 
 async def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -76,7 +119,10 @@ async def main():
         print("❌ 沒有任何旁白文字，請先填寫 NARRATIONS 或提供 narrations.csv")
         sys.exit(1)
     
-    print(f"🎙  聲音：{VOICE}  語速：{RATE}")
+    if ENGINE == "google":
+        print(f"🎙  引擎：Google Gemini TTS  聲音：{GEMINI_VOICE}")
+    else:
+        print(f"🎙  引擎：Microsoft edge-tts  聲音：{VOICE}  語速：{RATE}")
     print(f"📁 輸出目錄：{os.path.abspath(OUTPUT_DIR)}")
     print("-" * 50)
     
@@ -84,7 +130,8 @@ async def main():
         await generate_one(name, text, i, len(items))
     
     print("-" * 50)
-    print(f"✅ 完成！共生成 {len(items)} 個 MP3 檔案")
+    ext = "wav" if ENGINE == "google" else "mp3"
+    print(f"✅ 完成！共生成 {len(items)} 個 {ext.upper()} 檔案")
     print(f"   請將 slides/ 資料夾與 index_with_mp3.html 放在同一目錄後開啟")
 
 if __name__ == "__main__":

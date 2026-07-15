@@ -226,13 +226,16 @@
 
     /* 底部導覽與控制列 */
     .control-bar {
-      height: 70px;
+      height: auto;
+      min-height: 60px;
       background-color: var(--surface);
       border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 30px;
+      flex-wrap: wrap;
+      padding: 8px 20px;
+      gap: 8px;
       z-index: 100;
     }
 
@@ -291,7 +294,8 @@
     .audio-controls {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .voice-btn {
@@ -341,6 +345,12 @@
     .speed-select option {
       background-color: var(--surface-card);
       color: var(--text);
+    }
+
+    #voice-select {
+      max-width: 110px;
+      text-overflow: ellipsis;
+      overflow: hidden;
     }
 
     .progress-info {
@@ -568,6 +578,9 @@
   <div class="control-bar">
     <div class="audio-controls">
       <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="語音朗讀">🔊</button>
+      <select class="speed-select" id="voice-select" onchange="changeVoice()" title="語音選擇">
+        <option value="">正在載入語音...</option>
+      </select>
       <select class="speed-select" id="speed-select" onchange="changeSpeed()" title="語音速度">
         <option value="0.7">0.7x 慢速</option>
         <option value="0.9" selected>0.9x 正常</option>
@@ -803,9 +816,16 @@
       utterance.lang = 'zh-TW';
       utterance.rate = rate;
       
-      // 搜尋台灣中文語音
+      // 搜尋所選語音
+      const voiceSelect = document.getElementById("voice-select");
       const voices = synth.getVoices();
-      const voice = voices.find(v => v.lang === 'zh-TW') || voices.find(v => v.lang.startsWith('zh')) || null;
+      let voice = null;
+      if (voiceSelect && voiceSelect.value) {
+        voice = voices.find(v => v.name === voiceSelect.value);
+      }
+      if (!voice) {
+        voice = voices.find(v => v.lang === 'zh-TW') || voices.find(v => v.lang.startsWith('zh')) || null;
+      }
       if (voice) utterance.voice = voice;
 
       utterance.onstart = () => {
@@ -844,6 +864,12 @@
     }
 
     function changeSpeed() {
+      if (isSpeaking) {
+        playVoice();
+      }
+    }
+
+    function changeVoice() {
       if (isSpeaking) {
         playVoice();
       }
@@ -1065,12 +1091,66 @@
     window.addEventListener('DOMContentLoaded', () => {
       init();
       if (synth) {
-        synth.getVoices();
+        populateVoiceList();
         if (synth.onvoiceschanged !== undefined) {
-          synth.onvoiceschanged = () => { synth.getVoices(); };
+          synth.onvoiceschanged = () => {
+            synth.getVoices();
+            populateVoiceList();
+          };
         }
       }
     });
+
+    // 動態載入語音清單
+    function populateVoiceList() {
+      if (!synth) return;
+      const voiceSelect = document.getElementById("voice-select");
+      if (!voiceSelect) return;
+      
+      const voices = synth.getVoices();
+      voiceSelect.innerHTML = "";
+      
+      const zhVoices = voices.filter(v => v.lang.includes("zh-TW") || v.lang.includes("zh-CN") || v.lang.includes("zh"));
+      if (zhVoices.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "系統預設語音";
+        voiceSelect.appendChild(opt);
+        return;
+      }
+      
+      zhVoices.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.name;
+        
+        let displayName = v.name
+          .replace(/Microsoft/g, "微軟")
+          .replace(/Google/g, "谷歌")
+          .replace(/\s*-\s*(Chinese|Mandarin|zh)[^)]*(\([^)]*\))?/gi, "")
+          .replace(/\s*(Chinese|Mandarin)\s*(\([^)]*\))?/gi, "")
+          .replace(/\s*(Desktop|Online)\s*/gi, "")
+          .replace(/\s*\(Natural\)/gi, "")
+          .replace(/\s*-?\s*zh[-_](TW|CN|HK|SG)\b/gi, "")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+          
+        opt.textContent = displayName;
+        voiceSelect.appendChild(opt);
+      });
+      
+      let defaultVoiceName = "";
+      const preferred = ["HsiaoChen", "Yunxi", "Microsoft", "Google"];
+      for (const pref of preferred) {
+        const found = zhVoices.find(v => v.name.includes(pref));
+        if (found) {
+          defaultVoiceName = found.name;
+          break;
+        }
+      }
+      if (defaultVoiceName) {
+        voiceSelect.value = defaultVoiceName;
+      }
+    }
   </script>
 </body>
 </html>

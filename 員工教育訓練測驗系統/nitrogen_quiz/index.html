@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8"/>
@@ -244,6 +244,9 @@ main{max-width:920px;margin:28px auto;padding:0 24px 60px}
         <button class="pb" id="pbnext" onclick="pNext()">▶</button>
         <span id="pct">1 / 6</span>
         <span id="plb">從業人員工作規則</span>
+        <select class="spd-sel" id="voice-sel" title="語音選擇">
+          <option value="">正在載入語音...</option>
+        </select>
         <select class="spd-sel" id="spd-sel" title="語音速度">
           <option value="0.7">0.7x 慢速</option>
           <option value="0.9" selected>0.9x 正常</option>
@@ -454,7 +457,14 @@ function speakSentence(){
   utt.volume = 1;
   
   const vs = speechSynthesis.getVoices();
-  const v = vs.find(x => x.lang === 'zh-TW') || vs.find(x => x.lang.startsWith('zh')) || null;
+  const voiceSelect = document.getElementById("voice-sel");
+  let v = null;
+  if (voiceSelect && voiceSelect.value) {
+    v = vs.find(x => x.name === voiceSelect.value);
+  }
+  if (!v) {
+    v = vs.find(x => x.lang === 'zh-TW') || vs.find(x => x.lang.startsWith('zh')) || null;
+  }
   if(v) utt.voice = v;
   
   utt.onstart = () => {
@@ -534,9 +544,11 @@ function pActivate(){
   if(speechSynthesis.getVoices().length===0){ 
     speechSynthesis.onvoiceschanged = () => {
       speechSynthesis.onvoiceschanged = null;
+      populateVoiceList();
       speak();
     }; 
   } else { 
+    populateVoiceList();
     speak(); 
   }
 }
@@ -605,10 +617,74 @@ window.addEventListener('message', (event) => {
 // 在網頁載入時啟動偵測
 window.addEventListener('DOMContentLoaded', () => {
   checkInteractiveSlides();
+  populateVoiceList();
+  if (window.speechSynthesis && speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = populateVoiceList;
+  }
 });
+
+// 動態載入語音清單
+function populateVoiceList() {
+  if (!window.speechSynthesis) return;
+  const voiceSelect = document.getElementById("voice-sel");
+  if (!voiceSelect) return;
+  
+  const voices = speechSynthesis.getVoices();
+  voiceSelect.innerHTML = "";
+  
+  const zhVoices = voices.filter(v => v.lang.includes("zh-TW") || v.lang.includes("zh-CN") || v.lang.includes("zh"));
+  if (zhVoices.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "系統預設語音";
+    voiceSelect.appendChild(opt);
+    return;
+  }
+  
+  zhVoices.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v.name;
+    let displayName = v.name;
+    if (v.name.includes("Microsoft")) {
+      displayName = "微軟 " + v.name.replace("Microsoft", "").replace("Online", "").replace("(Natural)", "").trim();
+    } else if (v.name.includes("Google")) {
+      displayName = "谷歌 " + v.name.replace("Google", "").trim();
+    }
+    opt.textContent = displayName;
+    voiceSelect.appendChild(opt);
+  });
+  
+  let defaultVoiceName = "";
+  const preferred = ["HsiaoChen", "Yunxi", "Microsoft", "Google"];
+  for (const pref of preferred) {
+    const found = zhVoices.find(v => v.name.includes(pref));
+    if (found) {
+      defaultVoiceName = found.name;
+      break;
+    }
+  }
+  if (defaultVoiceName) {
+    voiceSelect.value = defaultVoiceName;
+  }
+}
 
 // 監聽速度選擇器變更，如果在播放中則立即以新語速重新播放當前句子；如果在暫停中，則僅更新語速（等點擊播放時套用）
 document.getElementById('spd-sel').addEventListener('change', ()=>{
+  if(spk){ 
+    if(utt){
+      utt.onstart = null;
+      utt.onend = null;
+      utt.onerror = null;
+    }
+    safeCancel();
+    setTimeout(() => {
+      speakSentence();
+    }, 100);
+  }
+});
+
+// 監聽語音選擇器變更
+document.getElementById('voice-sel').addEventListener('change', ()=>{
   if(spk){ 
     if(utt){
       utt.onstart = null;

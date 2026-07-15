@@ -1,4 +1,4 @@
-const PLAYER_TEMPLATE = `<!DOCTYPE html>
+﻿const PLAYER_TEMPLATE = `<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
@@ -458,7 +458,7 @@ const PLAYER_TEMPLATE = `<!DOCTYPE html>
       text-overflow: ellipsis;
     }
 
-    .speed-select {
+    .speed-select, .voice-select {
       background: rgba(255,255,255,0.05);
       border: 1px solid var(--border);
       color: var(--text-muted);
@@ -469,7 +469,7 @@ const PLAYER_TEMPLATE = `<!DOCTYPE html>
       cursor: pointer;
     }
 
-    .speed-select option {
+    .speed-select option, .voice-select option {
       background: #0f172a;
       color: var(--text);
     }
@@ -1065,6 +1065,10 @@ const PLAYER_TEMPLATE = `<!DOCTYPE html>
             <span class="slide-indicator" id="slide-indicator">1 / 1</span>
             <span class="slide-label-text" id="slide-label">載入中...</span>
 
+            <select class="voice-select" id="voice-select" onchange="changeVoice()" title="語音選擇">
+              <option value="">正在載入語音...</option>
+            </select>
+
             <select class="speed-select" id="speed-select" onchange="changeSpeed()" title="語速設定">
               <option value="0.7">0.7x 慢速</option>
               <option value="0.9">0.9x 偏慢</option>
@@ -1204,7 +1208,65 @@ const PLAYER_TEMPLATE = `<!DOCTYPE html>
       initQuizSection();
       loadSavedConfig();
       updateProgressUI();
+      
+      if (speechSynth) {
+        populateVoiceList();
+        if (speechSynth.onvoiceschanged !== undefined) {
+          speechSynth.onvoiceschanged = populateVoiceList;
+        }
+      }
     });
+
+    // 動態載入語音清單
+    function populateVoiceList() {
+      if (!speechSynth) return;
+      const voiceSelect = document.getElementById("voice-select");
+      if (!voiceSelect) return;
+      
+      const voices = speechSynth.getVoices();
+      voiceSelect.innerHTML = "";
+      
+      const zhVoices = voices.filter(v => v.lang.includes("zh-TW") || v.lang.includes("zh-CN") || v.lang.includes("zh"));
+      
+      if (zhVoices.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "系統預設語音";
+        voiceSelect.appendChild(opt);
+        return;
+      }
+      
+      zhVoices.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.name;
+        let displayName = v.name
+          .replace(/Microsoft/g, "微軟")
+          .replace(/Google/g, "谷歌")
+          .replace(/\s*-\s*(Chinese|Mandarin|zh)[^)]*(\([^)]*\))?/gi, "")
+          .replace(/\s*(Chinese|Mandarin)\s*(\([^)]*\))?/gi, "")
+          .replace(/\s*(Desktop|Online)\s*/gi, "")
+          .replace(/\s*\(Natural\)/gi, "")
+          .replace(/\s*-?\s*zh[-_](TW|CN|HK|SG)\b/gi, "")
+          .replace(/\s{2,}/g, " ")
+          .trim();
+        opt.textContent = displayName;
+        voiceSelect.appendChild(opt);
+      });
+      
+      // 嘗試選取最合適的語音 (微軟 HsiaoChen 優先，再來是微軟，再來是谷歌)
+      let defaultVoiceName = "";
+      const preferred = ["HsiaoChen", "Yunxi", "Microsoft", "Google"];
+      for (const pref of preferred) {
+        const found = zhVoices.find(v => v.name.includes(pref));
+        if (found) {
+          defaultVoiceName = found.name;
+          break;
+        }
+      }
+      if (defaultVoiceName) {
+        voiceSelect.value = defaultVoiceName;
+      }
+    }
 
     // 1. 初始化投影片畫面
     function initSlideStage() {
@@ -1267,10 +1329,19 @@ const PLAYER_TEMPLATE = `<!DOCTYPE html>
       const speed = parseFloat(document.getElementById("speed-select").value) || 1.0;
       currentUtterance.rate = speed;
       
-      // 嘗試獲取中文語音
-      const voices = speechSynth.getVoices();
-      const zhVoice = voices.find(v => v.lang.includes("zh-TW") || v.lang.includes("zh-CN") || v.lang.includes("zh"));
-      if (zhVoice) currentUtterance.voice = zhVoice;
+      // 嘗試獲取選擇的語音
+      const voiceSelect = document.getElementById("voice-select");
+      if (voiceSelect && voiceSelect.value) {
+        const voices = speechSynth.getVoices();
+        const selectedVoice = voices.find(v => v.name === voiceSelect.value);
+        if (selectedVoice) {
+          currentUtterance.voice = selectedVoice;
+        }
+      } else {
+        const voices = speechSynth.getVoices();
+        const zhVoice = voices.find(v => v.lang.includes("zh-TW") || v.lang.includes("zh-CN") || v.lang.includes("zh"));
+        if (zhVoice) currentUtterance.voice = zhVoice;
+      }
       
       currentUtterance.onend = () => {
         handleVoiceEnded();
@@ -1396,6 +1467,13 @@ const PLAYER_TEMPLATE = `<!DOCTYPE html>
     function changeSpeed() {
       if (isVoicePlaying) {
         speakCurrentSlide(); // 重新播放以套用語速
+      }
+    }
+
+    // 切換語音
+    function changeVoice() {
+      if (isVoicePlaying) {
+        speakCurrentSlide(); // 重新播放以套用語音
       }
     }
 
