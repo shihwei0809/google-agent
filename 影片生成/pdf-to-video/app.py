@@ -676,7 +676,7 @@ async def rescue_video_to_script(
         # 遍歷候選模型，直到成功為止
         for model_name in candidate_models:
             logger.info("Trying voice transcription with Gemini model: %s", model_name)
-            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_keys[0]}"
+            gemini_url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={api_keys[0]}"
             try:
                 response = requests.post(gemini_url, json=payload, headers={"Content-Type": "application/json"}, timeout=120)
                 if response.status_code != 200:
