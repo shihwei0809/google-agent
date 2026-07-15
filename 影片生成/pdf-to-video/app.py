@@ -790,6 +790,54 @@ async def list_jobs():
     return {"jobs": result}
 
 
+@app.get("/api/jobs/load/{job_id}")
+async def load_job_data(job_id: str):
+    """讀取歷史專案的投影片與腳本資料，供編輯器直接載入。"""
+    job_dir = JOBS_DIR / job_id
+    if not job_dir.exists():
+        raise HTTPException(status_code=404, detail="該專案目錄不存在。")
+
+    # 1. 取得圖片頁數 (page_*.png 數量，排除 _framed.png)
+    img_files = sorted(list(job_dir.glob("page_*.png")))
+    orig_imgs = [f for f in img_files if not f.name.endswith("_framed.png")]
+    total_pages = len(orig_imgs)
+
+    if total_pages == 0:
+        raise HTTPException(status_code=400, detail="此專案內無投影片圖片，無法載入。")
+
+    # 2. 嘗試讀取備份的腳本資料
+    backup_path = job_dir / "script_backup.json"
+    backup_pages = []
+    if backup_path.exists():
+        try:
+            with open(backup_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                backup_pages = data.get("pages", [])
+        except Exception as e:
+            logger.warning("Failed to load script backup for job %s: %s", job_id, e)
+
+    # 3. 建立網頁所需的 pages_data
+    pages_data = []
+    for i in range(total_pages):
+        # 讀取備份的文字，沒有的話就給空白
+        text = ""
+        if i < len(backup_pages):
+            text = backup_pages[i]
+        
+        # 確保 thumbnail 存在，若沒有 thumb_xxx.png 就用 page_xxx.png 替代
+        thumb_name = f"thumb_{i:03d}.png"
+        if not (job_dir / thumb_name).exists():
+            thumb_name = f"page_{i:03d}.png"
+
+        pages_data.append({
+            "page_num": i + 1,
+            "text": text,
+            "thumbnail": f"/jobs/{job_id}/{thumb_name}",
+        })
+
+    return {"job_id": job_id, "pages": pages_data}
+
+
 @app.post("/api/jobs/rebuild/{job_id}")
 async def rebuild_video(job_id: str, background_tasks: BackgroundTasks):
     job_dir = JOBS_DIR / job_id
