@@ -630,6 +630,7 @@ async def generate_video(
 async def rescue_video_to_script(
     file: UploadFile = File(...),
     gemini_api_key: str = Form(...),
+    gemini_model: str = Form("gemini-1.5-flash"),
 ):
     """上傳已生成的 MP4 影片，提取音軌並呼叫 Gemini API 聽寫還原為腳本文字 (.txt)。"""
     if not file.filename.lower().endswith(".mp4"):
@@ -672,18 +673,7 @@ async def rescue_video_to_script(
         with open(temp_mp3, "rb") as f:
             audio_bytes = f.read()
 
-        # 使用 Gemini API 聽寫還原
-        # 採用標準的 gemini-1.5-flash / gemini-2.5-flash 多模態語音處理
-        url = f"https://generativelink.org/v1/chat/completions" # 採用本專案一貫的 Gemini proxy / 直接 API
-        # 這邊使用現有的 call_gemini_api 邏輯或直接發送多模態 multipart/JSON
-        # 由於 Gemini 官方 REST API 支援上傳檔案，或直接把音檔轉 base64 包在 Request 內
         audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
-        
-        # 選擇金鑰並呼叫
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": api_keys[0]
-        }
         
         prompt = (
             "你是一個專業的語音聽寫助理。這是一個簡報旁白影片的音訊檔案，請仔細聆聽，"
@@ -711,18 +701,39 @@ async def rescue_video_to_script(
             }]
         }
         
-        gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_keys[0]}"
-        response = requests.post(gemini_url, json=payload, headers={"Content-Type": "application/json"}, timeout=120)
-        
-        if response.status_code != 200:
-            logger.error("Gemini StT failed: %s", response.text)
-            raise ValueError(f"Gemini API 回傳錯誤：{response.text}")
-            
-        data = response.json()
-        try:
-            txt_content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except Exception:
-            raise ValueError("Gemini 未能回傳有效辨識文字，請確認 API 金鑰是否正確或音質是否清晰。")
+        # 建立候選模型清單，使用者選取的排第一
+        candidate_models = [gemini_model]
+        all_models = ["gemini-3.5-flash", "gemini-3.5-pro", "gemini-2.5-flash", "gemini-1.5-flash"]
+        for m in all_models:
+            if m not in candidate_models:
+                candidate_models.append(m)
+
+        txt_content = ""
+        last_error = ""
+
+        # 遍歷候選模型，直到成功為止
+        for model_name in candidate_models:
+            logger.info("Trying voice transcription with Gemini model: %s", model_name)
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_keys[0]}"
+            try:
+                response = requests.post(gemini_url, json=payload, headers={"Content-Type": "application/json"}, timeout=120)
+                if response.status_code != 200:
+                    last_error = f"{model_name} failed (HTTP {response.status_code}): {response.text}"
+                    logger.warning(last_error)
+                    continue
+                
+                data = response.json()
+                txt_content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                if txt_content:
+                    logger.info("Successfully transcribed with model: %s", model_name)
+                    break
+            except Exception as e:
+                last_error = f"{model_name} failed: {e}"
+                logger.warning(last_error)
+                continue
+
+        if not txt_content:
+            raise ValueError(f"所有嘗試的模型皆辨識失敗。最後的錯誤訊息：{last_error}")
 
         # 4. 回傳 TXT 下載
         from fastapi.responses import Response

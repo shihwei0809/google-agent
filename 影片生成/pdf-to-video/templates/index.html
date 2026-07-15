@@ -612,7 +612,7 @@
               <div style="font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; line-height: 1.4;">
                 💡 說明：如果您以前合成過影片，但原始腳本遺失了，您可以直接將 <b>.mp4 影片</b> 上傳至此。系統會自動提取音訊並呼叫 Gemini API 聽寫還原，將旁白字串格式化為標準的「頁面腳本文字檔 (.txt)」供您下載使用。
               </div>
-              <div style="display: grid; grid-template-columns: 1fr 1.2fr auto; gap: 12px; align-items: end;">
+              <div style="display: grid; grid-template-columns: 1fr 1.2fr 1fr auto; gap: 12px; align-items: end;">
                 <div>
                   <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">選擇舊影片 (.mp4)</label>
                   <input type="file" id="rescue-video-input" accept=".mp4" style="font-size: 0.8rem; color: var(--muted); background: var(--surface); border: 1px solid var(--border); padding: 6px; border-radius: 6px; width: 100%; box-sizing: border-box;">
@@ -620,6 +620,15 @@
                 <div>
                   <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">Gemini API 金鑰 (用於聽寫還原)</label>
                   <input type="password" id="rescue-gemini-key" placeholder="AIza..." style="font-size: 0.85rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; width: 100%; box-sizing: border-box; height: 35px;">
+                </div>
+                <div>
+                  <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">分析模型 (優先使用)</label>
+                  <select id="rescue-gemini-model" style="font-size: 0.82rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; width: 100%; box-sizing: border-box; height: 35px; outline: none;">
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (最新推薦)</option>
+                    <option value="gemini-3.5-pro">Gemini 3.5 Pro</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                    <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                  </select>
                 </div>
                 <div>
                   <button class="btn btn-secondary" id="btn-rescue-video" style="height: 35px; font-size: 0.82rem; padding: 0 16px; font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -1520,9 +1529,12 @@
     if (localStorage.getItem('rescue_gemini_key')) {
       rescueGeminiKey.value = localStorage.getItem('rescue_gemini_key');
     }
-    rescueGeminiKey.addEventListener('input', () => {
-      localStorage.setItem('rescue_gemini_key', rescueGeminiKey.value.trim());
     });
+
+    const rescueGeminiModel = document.getElementById('rescue-gemini-model');
+    if (localStorage.getItem('rescue_gemini_model')) {
+      rescueGeminiModel.value = localStorage.getItem('rescue_gemini_model');
+    }
 
     btnRescueVideo.addEventListener('click', async () => {
       const file = rescueVideoInput.files[0];
@@ -1543,9 +1555,13 @@
       rescueStatus.textContent = '⏳ 正在提取音訊並上傳至 Gemini 聽寫還原中，此過程約需 1~2 分鐘，請勿關閉視窗...';
       rescueStatus.style.color = 'var(--accent)';
 
+      const model = rescueGeminiModel.value;
+      localStorage.setItem('rescue_gemini_model', model);
+
       const formData = new FormData();
       formData.append('file', file);
       formData.append('gemini_api_key', apiKey);
+      formData.append('gemini_model', model);
 
       try {
         const res = await fetch('/api/rescue/video-to-script', {
