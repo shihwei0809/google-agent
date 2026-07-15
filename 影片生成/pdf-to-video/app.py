@@ -665,7 +665,14 @@ async def rescue_video_to_script(
         
         # 建立候選模型清單，使用者選取的排第一
         candidate_models = [gemini_model]
-        all_models = ["gemini-3.5-flash", "gemini-3.5-pro", "gemini-2.5-flash", "gemini-1.5-flash"]
+        all_models = [
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash",
+            "gemini-3.5-flash",
+            "gemini-3.5-pro",
+            "gemini-2.5-flash",
+            "gemini-1.5-pro-latest"
+        ]
         for m in all_models:
             if m not in candidate_models:
                 candidate_models.append(m)
@@ -676,7 +683,7 @@ async def rescue_video_to_script(
         # 遍歷候選模型，直到成功為止
         for model_name in candidate_models:
             logger.info("Trying voice transcription with Gemini model: %s", model_name)
-            gemini_url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={api_keys[0]}"
+            gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_keys[0]}"
             try:
                 headers = {"Content-Type": "application/json; charset=utf-8"}
                 response = requests.post(
