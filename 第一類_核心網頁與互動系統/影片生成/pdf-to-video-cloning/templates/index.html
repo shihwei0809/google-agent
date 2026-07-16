@@ -1399,6 +1399,13 @@
     }
 
     async function playPagePreview(index, btn) {
+      // 1. 如果正在播放，點擊則停止
+      if (currentAudio && currentPlayBtn === btn) {
+        currentAudio.pause();
+        resetPlayBtn();
+        return;
+      }
+
       const isGemini = currentTtsEngine === 'gemini';
       const isCloning = currentTtsEngine === 'cloning';
 
@@ -1412,6 +1419,12 @@
         if (!selectedVoice) { alert('請先在第二步選擇 Edge TTS 語音。'); return; }
       }
 
+      // Stop any playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        resetPlayBtn();
+      }
+
       const textVal = document.getElementById(`script-${index}`).value;
       const rateVal = parseFloat(document.getElementById('rate-slider').value);
       const ratePct = Math.round((rateVal - 1.0) * 100);
@@ -1419,7 +1432,7 @@
       const autoPause = document.getElementById('auto-pause').checked;
 
       btn.disabled = true;
-      const originalText = btn.textContent;
+      const originalText = '🔊 試聽與生成此頁語音';
       btn.textContent = '⏳ 生成中...';
 
       const formData = new FormData();
@@ -1445,34 +1458,26 @@
         formData.append('gemini_api_key', '');
       }
 
-      // Stop any playing audio
-      if (currentAudio) {
-        currentAudio.pause();
-        resetPlayBtn();
-      }
-
       try {
         const res = await fetch('/api/generate-page-audio', { method: 'POST', body: formData });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || '單頁語音生成失敗');
 
         currentAudio = new Audio(data.url);
-        btn.textContent = '🔊 播放中';
+        btn.textContent = '⏹ 停止播放';
         btn.classList.add('playing');
+        btn.disabled = false; // 啟用按鈕供用戶點擊停止！
         currentPlayBtn = btn;
         
         currentAudio.play();
         currentAudio.onended = () => {
-          btn.textContent = originalText;
-          btn.classList.remove('playing');
-          btn.disabled = false;
-          currentPlayBtn = null;
-          currentAudio = null;
+          resetPlayBtn();
         };
       } catch (err) {
         alert('單頁試聽生成失敗：' + err.message);
         btn.textContent = originalText;
         btn.disabled = false;
+        btn.classList.remove('playing');
       }
     }
 
