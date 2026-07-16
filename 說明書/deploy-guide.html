@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 專案無限免費部署教學 | Cloudflare & GitHub Pages</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.5);
+            --cf-color: #f6821f;
+            --cf-glow: rgba(246, 130, 31, 0.5);
+            --gh-color: #2ea44f;
+            --gh-glow: rgba(46, 164, 79, 0.5);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --error-color: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            line-height: 1.6;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.15), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(246, 130, 31, 0.1), transparent 25%);
+            background-attachment: fixed;
+        }
+
+        /* 導覽列 */
+        header {
+            text-align: center;
+            padding: 4rem 1rem 2rem;
+            animation: fadeInDown 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* 內容區塊 */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* 卡片共用樣式 (Glassmorphism) */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2.5rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transform: translateY(30px);
+            opacity: 0;
+            animation: fadeInUp 0.8s forwards;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card:nth-child(1) { animation-delay: 0.2s; }
+        .card:nth-child(2) { animation-delay: 0.4s; }
+        .card:nth-child(3) { animation-delay: 0.6s; }
+
+        .section-title {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .section-title.gh { color: var(--gh-color); text-shadow: 0 0 15px var(--gh-glow); }
+        .section-title.cf { color: var(--cf-color); text-shadow: 0 0 15px var(--cf-glow); }
+        .section-title.err { color: var(--error-color); }
+
+        /* 步驟清單 */
+        .step-list {
+            list-style: none;
+            margin-top: 1.5rem;
+        }
+
+        .step-item {
+            display: flex;
+            margin-bottom: 1.5rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .step-item:hover {
+            background: rgba(255,255,255,0.05);
+            transform: translateX(10px);
+        }
+
+        .gh .step-item { border-left-color: var(--gh-color); }
+        .cf .step-item { border-left-color: var(--cf-color); }
+
+        .step-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-right: 1.5rem;
+            color: rgba(255,255,255,0.8);
+            min-width: 30px;
+        }
+
+        .step-content h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        .step-content p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        /* 圖文標籤 (偽 UI 示意) */
+        .mock-ui {
+            display: inline-block;
+            background: #334155;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+            margin: 5px 0;
+            border: 1px solid #475569;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* 常見錯誤區塊 */
+        .error-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .error-card {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s;
+        }
+
+        .error-card:hover {
+            background: rgba(239, 68, 68, 0.1);
+            transform: scale(1.02);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+        }
+
+        .error-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .error-title {
+            color: #fca5a5;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .solution {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px dashed rgba(255,255,255,0.1);
+            color: #86efac;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        /* 按鈕特效 */
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 2rem;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px var(--primary-glow);
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+        }
+
+        /* 動畫定義 */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 飄浮裝飾背景 */
+        .shape {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            animation: float 20s infinite ease-in-out alternate;
+        }
+        .shape-1 { top: 10%; left: 10%; width: 300px; height: 300px; background: rgba(59, 130, 246, 0.1); }
+        .shape-2 { bottom: 10%; right: 10%; width: 400px; height: 400px; background: rgba(246, 130, 31, 0.08); animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 50px) scale(1.1); }
+        }
+
+        /* RWD */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .card { padding: 1.5rem; }
+            .step-item { flex-direction: column; }
+            .step-number { margin-bottom: 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="shape shape-1"></div>
+    <div class="shape shape-2"></div>
+
+    <header>
+        <h1>🚀 無限免費部署教學指南</h1>
+        <p class="subtitle">全面掌握 GitHub Pages 與 Cloudflare Pages 的更新與部署流程，告別 Netlify 流量與部署次數限制！</p>
+        <a href="index.html" class="btn">🏠 返回專案總大廳</a>
+    </header>
+
+    <div class="container">
+        
+        <!-- Cloudflare Pages 教學 -->
+        <section class="card cf">
+            <h2 class="section-title cf">☁️ Cloudflare Pages (主力推薦)</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">優勢：全球最快 CDN 節點、無流量限制、每月高達 500 次免費部署額度。</p>
+            
+            <ul class="step-list">
+                <li class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>綁定 GitHub 來源</h3>
+                        <p>登入 Cloudflare 後，左側點選 <span class="mock-ui">Workers 和 Pages</span> ➔ <span class="mock-ui">建立應用程式</span> ➔ 切換到 <span class="mock-ui">Pages</span> 頁籤 ➔ 點擊 <span class="mock-ui">連線到 Git</span>，並授權您的 GitHub 帳號。</p>
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>選擇專案與設定組建</h3>
+                        <p>選取對應的 `google-agent` 或專案名稱。關鍵設定來了：<br>
+                        框架預設請選 <span class="mock-ui">無 (None)</span>。<br>
+                        如果在根目錄，請保持預設；如果網頁放在特定資料夾（例如：<code>說明書</code>），請注意中文字元問題（詳見下方避坑指南）。</p>
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>儲存並部署</h3>
+                        <p>點擊 <span class="mock-ui">儲存並部署</span>。只要 GitHub 上的代碼有更新，Cloudflare 就會自動觸發重新部署，完全不需手動操作！</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <!-- GitHub Pages 教學 -->
+        <section class="card gh">
+            <h2 class="section-title gh">🐙 GitHub Pages (完美備份)</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">優勢：與程式碼儲存庫完美結合，完全免費，部署次數無上限！</p>
+            
+            <ul class="step-list">
+                <li class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>開啟 Settings 設定</h3>
+                        <p>進入您的 GitHub 專案頁面，點擊上方導覽列的 <span class="mock-ui">⚙️ Settings (設定)</span>。</p>
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>設定 Pages 來源</h3>
+                        <p>在左側選單找到 <span class="mock-ui">Pages</span>。<br>
+                        Source 選擇 <span class="mock-ui">Deploy from a branch</span>。<br>
+                        Branch 選擇 <span class="mock-ui">main</span>，資料夾選擇 <span class="mock-ui">/(root)</span> 或 <span class="mock-ui">/docs</span>，然後點擊 <span class="mock-ui">Save</span>。</p>
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>等待 Actions 執行</h3>
+                        <p>GitHub 會自動啟動背景流程。點擊專案上方的 <span class="mock-ui">▶️ Actions</span> 頁籤，看到綠色打勾圖示 ✅ 就代表部署完成！</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <!-- 避坑指南 (常犯錯誤) -->
+        <section class="card">
+            <h2 class="section-title err">⚠️ 人員避坑指南 (常見錯誤總覽)</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">部署失敗？請先檢查是不是踩到了以下常見地雷：</p>
+            
+            <div class="error-grid">
+                <!-- 錯誤 1 -->
+                <div class="error-card">
+                    <div class="error-icon">😵</div>
+                    <div class="error-title">錯誤一：Cloudflare 顯示 404 找不到網頁</div>
+                    <p style="font-size: 0.9rem; color: #cbd5e1;">網頁放在名為「說明書」等中文資料夾中，直接將「組建輸出目錄」設為中文，導致 Cloudflare 系統抓取路徑亂碼，發佈了空網站。</p>
+                    <div class="solution">
+                        <strong>✅ 解法：</strong>使用指令轉換英文。<br>
+                        在 Cloudflare 組建設定中：<br>
+                        組建命令輸入 <code>mv 說明書 public</code><br>
+                        輸出目錄輸入 <code>public</code>
+                    </div>
+                </div>
+
+                <!-- 錯誤 2 -->
+                <div class="error-card">
+                    <div class="error-icon">🤦‍♂️</div>
+                    <div class="error-title">錯誤二：Netlify 突然斷線或被暫停</div>
+                    <p style="font-size: 0.9rem; color: #cbd5e1;">改一個字就推(Push)一次程式碼，或是狂按命令列部署。Netlify 免費版每月只有 300 學分（約可部署 20 次），用完即斷線。</p>
+                    <div class="solution">
+                        <strong>✅ 解法：</strong>請將主要流量切換至 <b>Cloudflare Pages</b> 或 <b>GitHub Pages</b>，它們沒有嚴苛的部署次數扣分機制。
+                    </div>
+                </div>
+
+                <!-- 錯誤 3 -->
+                <div class="error-card">
+                    <div class="error-icon">🐢</div>
+                    <div class="error-title">錯誤三：本地改好代碼，線上卻沒更新</div>
+                    <p style="font-size: 0.9rem; color: #cbd5e1;">在自己電腦上存檔了，就以為網頁會自動變更，卻忘記將修改同步上傳(Push)到遠端伺服器。</p>
+                    <div class="solution">
+                        <strong>✅ 解法：</strong>永遠記得「三部曲」：<br>
+                        <code>git add .</code><br>
+                        <code>git commit -m "更新說明"</code><br>
+                        <code>git push</code> (這一步才會觸發線上更新！)
+                    </div>
+                </div>
+
+                 <!-- 錯誤 4 -->
+                 <div class="error-card">
+                    <div class="error-icon">🔗</div>
+                    <div class="error-title">錯誤四：CSS/圖片/JS 載入失敗 (破圖)</div>
+                    <p style="font-size: 0.9rem; color: #cbd5e1;">在 HTML 裡使用了絕對路徑（例如 <code>/images/pic.png</code>），導致在 GitHub Pages 的子目錄結構下找不到檔案。</p>
+                    <div class="solution">
+                        <strong>✅ 解法：</strong>一律改用<b>相對路徑</b>！<br>
+                        將 <code>/images/pic.png</code> 改為 <code>./images/pic.png</code>。加上小數點 <code>.</code> 是保命關鍵。
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- 簡易互動腳本 -->
+    <script>
+        // 滑動視差小特效
+        document.addEventListener('mousemove', (e) => {
+            const shapes = document.querySelectorAll('.shape');
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            
+            shapes[0].style.transform = `translate(${x * 50}px, ${y * 50}px)`;
+            shapes[1].style.transform = `translate(${x * -40}px, ${y * -40}px)`;
+        });
+    </script>
+</body>
+</html>
