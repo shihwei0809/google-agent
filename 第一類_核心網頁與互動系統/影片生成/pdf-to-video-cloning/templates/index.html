@@ -477,12 +477,12 @@
       <div class="step-connector" id="conn-1"></div>
       <div class="step-block">
         <div class="step-dot" id="dot-2">2</div>
-        <div class="step-label" id="lbl-2">編輯腳本</div>
+        <div class="step-label" id="lbl-2">選擇語音</div>
       </div>
       <div class="step-connector" id="conn-2"></div>
       <div class="step-block">
         <div class="step-dot" id="dot-3">3</div>
-        <div class="step-label" id="lbl-3">選擇語音</div>
+        <div class="step-label" id="lbl-3">編輯腳本</div>
       </div>
       <div class="step-connector" id="conn-3"></div>
       <div class="step-block">
@@ -649,8 +649,8 @@
       </div>
     </div>
 
-    <!-- ── STEP 2: Script Editor ── -->
-    <div class="step-panel" id="panel-2">
+    <!-- ── STEP 3: Script Editor ── -->
+    <div class="step-panel" id="panel-3">
       <div class="card">
         <div class="info-tip" style="margin-bottom: 12px;">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會以「本頁無文字內容」播報。
         <br><span style="color: var(--yellow); font-weight: 600;">💡 建議：确認腳本完成後，先按「📥 匯出腳本文字」存檔備用，日後若需重新合成可直接從「📤 匯入」載入腳本，不需重新讀取 PDF。</span></div>
@@ -669,13 +669,13 @@
         <div class="pages-scroll" id="pages-container"></div>
       </div>
       <div class="nav-bar">
-        <button class="btn btn-secondary" onclick="goStep(1)">← 重新上傳</button>
-        <button class="btn btn-primary" id="btn-to-voice">選擇語音 →</button>
+        <button class="btn btn-secondary" onclick="goStep(2)">← 選擇語音</button>
+        <button class="btn btn-primary btn-green" id="btn-generate">🎬 開始生成影片</button>
       </div>
     </div>
 
-    <!-- ── STEP 3: Voice Picker ── -->
-    <div class="step-panel" id="panel-3">
+    <!-- ── STEP 2: Voice Picker ── -->
+    <div class="step-panel" id="panel-2">
       <div class="card">
         <!-- TTS Engine Tabs -->
         <div class="tts-tabs" role="tablist">
@@ -763,13 +763,13 @@
         <div style="margin-bottom: 24px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 — Edge TTS 專用 (Gemini TTS 自動感知)</label>
-            <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">稍微慢速 (-10% · 推薦)</span>
+            <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">稍微慢速 (0.9x · 最推薦)</span>
           </div>
-          <input type="range" id="rate-slider" min="-30" max="20" step="5" value="-10" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
+          <input type="range" id="rate-slider" min="0.5" max="2.0" step="0.1" value="0.9" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
           <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
-            <span>慢速 (-30%)</span>
-            <span>正常 (0%)</span>
-            <span>快速 (+20%)</span>
+            <span>慢速 (0.5x)</span>
+            <span>正常 (1.0x)</span>
+            <span>快速 (2.0x)</span>
           </div>
         </div>
 
@@ -784,8 +784,8 @@
       </div>
 
       <div class="nav-bar">
-        <button class="btn btn-secondary" onclick="goStep(2)">← 回到腳本</button>
-        <button class="btn btn-primary" id="btn-generate" disabled>🎬 開始生成影片</button>
+        <button class="btn btn-secondary" onclick="goStep(1)">← 重新上傳</button>
+        <button class="btn btn-primary" id="btn-to-script" disabled>編輯腳本 →</button>
       </div>
     </div>
 
@@ -854,6 +854,17 @@
       document.getElementById(`panel-${n}`).classList.add('active');
       currentStep = n;
       updateStepIndicator(n);
+
+      // 若回到第 2 步，根據是否已選擇語音，決定「編輯腳本 →」按鈕是否啟用
+      if (n === 2) {
+        const isGemini = currentTtsEngine === 'gemini';
+        const isCloning = currentTtsEngine === 'cloning';
+        let hasVoice = false;
+        if (isGemini) hasVoice = !!selectedGeminiVoice;
+        else if (isCloning) hasVoice = !!selectedCloningVoice;
+        else hasVoice = !!selectedVoice;
+        document.getElementById('btn-to-script').disabled = !hasVoice;
+      }
     }
 
     function updateStepIndicator(active) {
@@ -1028,7 +1039,7 @@
       }
     });
 
-    // ─── Step 2: Render Pages ─────────────────────────────────
+    // ─── Step 3: Render Pages ─────────────────────────────────
     function renderPages(pages) {
       const container = document.getElementById('pages-container');
       container.innerHTML = '';
@@ -1042,7 +1053,12 @@
             <div class="page-num-badge">第 ${p.page_num} 頁</div>
           </div>
           <div class="page-editor">
-            <label>旁白腳本（可直接編輯）</label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="margin: 0;">旁白腳本（可直接編輯）</label>
+              <button class="btn btn-secondary btn-preview-page" data-index="${i}" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 4px; height: 26px; display: inline-flex; align-items: center; gap: 4px; margin: 0;">
+                🔊 試聽與生成此頁語音
+              </button>
+            </div>
             <textarea id="script-${i}" placeholder="（本頁無文字，可手動輸入旁白腳本）">${escapeHtml(p.text)}</textarea>
             <div class="char-count" id="cc-${i}">${p.text.length} 字</div>
           </div>`;
@@ -1051,6 +1067,9 @@
         const ta = card.querySelector('textarea');
         const cc = card.querySelector('.char-count');
         ta.addEventListener('input', () => { cc.textContent = ta.value.length + ' 字'; });
+
+        const previewBtn = card.querySelector('.btn-preview-page');
+        previewBtn.addEventListener('click', () => playPagePreview(i, previewBtn));
       });
     }
 
@@ -1122,7 +1141,7 @@
       reader.readAsText(file, 'utf-8');
     });
 
-    document.getElementById('btn-to-voice').addEventListener('click', () => goStep(3));
+    document.getElementById('btn-to-script').addEventListener('click', () => goStep(3));
 
     function escapeHtml(str) {
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -1140,11 +1159,11 @@
       
       // Update generate button state
       if (engine === 'edge') {
-        document.getElementById('btn-generate').disabled = !selectedVoice;
+        document.getElementById('btn-to-script').disabled = !selectedVoice;
       } else if (engine === 'gemini') {
-        document.getElementById('btn-generate').disabled = !selectedGeminiVoice;
+        document.getElementById('btn-to-script').disabled = !selectedGeminiVoice;
       } else {
-        document.getElementById('btn-generate').disabled = !selectedCloningVoice;
+        document.getElementById('btn-to-script').disabled = !selectedCloningVoice;
       }
     }
 
@@ -1209,7 +1228,7 @@
       document.getElementById('cloning-voice-preview-text').textContent = `本地克隆聲音  ·  ${id}`;
       preview.classList.add('show');
       if (currentTtsEngine === 'cloning') {
-        document.getElementById('btn-generate').disabled = false;
+        document.getElementById('btn-to-script').disabled = false;
       }
     }
 
@@ -1259,7 +1278,7 @@
       document.getElementById('voice-preview-text').textContent = `${group}  ·  ${label}`;
       preview.classList.add('show');
       if (currentTtsEngine === 'edge') {
-        document.getElementById('btn-generate').disabled = false;
+        document.getElementById('btn-to-script').disabled = false;
       }
     }
 
@@ -1298,7 +1317,7 @@
       document.getElementById('gemini-voice-preview-text').textContent = `${label}  ·  ${style}`;
       preview.classList.add('show');
       if (currentTtsEngine === 'gemini') {
-        document.getElementById('btn-generate').disabled = false;
+        document.getElementById('btn-to-script').disabled = false;
       }
     }
 
@@ -1331,6 +1350,12 @@
       const formData = new FormData();
       formData.append('engine', engine);
       formData.append('voice', voiceId);
+
+      const rateVal = parseFloat(document.getElementById('rate-slider').value);
+      const ratePct = Math.round((rateVal - 1.0) * 100);
+      const rateStr = (ratePct >= 0 ? '+' : '') + ratePct + '%';
+      formData.append('rate', rateStr);
+
       if (engine === 'gemini') {
         const apiKey = document.getElementById('gemini-tts-api-key').value.trim();
         if (!apiKey) {
@@ -1361,11 +1386,94 @@
 
     function resetPlayBtn() {
       if (currentPlayBtn) {
-        currentPlayBtn.textContent = '▶';
+        if (currentPlayBtn.classList.contains('btn-preview-page')) {
+          currentPlayBtn.textContent = '🔊 試聽與生成此頁語音';
+          currentPlayBtn.disabled = false;
+        } else {
+          currentPlayBtn.textContent = '▶';
+        }
         currentPlayBtn.classList.remove('playing');
         currentPlayBtn = null;
       }
       currentAudio = null;
+    }
+
+    async function playPagePreview(index, btn) {
+      const isGemini = currentTtsEngine === 'gemini';
+      const isCloning = currentTtsEngine === 'cloning';
+
+      if (isGemini) {
+        if (!selectedGeminiVoice) { alert('請先在第二步選擇 Gemini TTS 語音。'); return; }
+        const key = document.getElementById('gemini-tts-api-key').value.trim();
+        if (!key) { alert('請先在第二步輸入 Gemini API 金鑰。'); return; }
+      } else if (isCloning) {
+        if (!selectedCloningVoice) { alert('請先在第二步選擇本機克隆配音人。'); return; }
+      } else {
+        if (!selectedVoice) { alert('請先在第二步選擇 Edge TTS 語音。'); return; }
+      }
+
+      const textVal = document.getElementById(`script-${index}`).value;
+      const rateVal = parseFloat(document.getElementById('rate-slider').value);
+      const ratePct = Math.round((rateVal - 1.0) * 100);
+      const rateStr = (ratePct >= 0 ? '+' : '') + ratePct + '%';
+      const autoPause = document.getElementById('auto-pause').checked;
+
+      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.textContent = '⏳ 生成中...';
+
+      const formData = new FormData();
+      formData.append('job_id', jobId);
+      formData.append('page_index', index);
+      formData.append('text', textVal);
+      formData.append('rate', rateStr);
+      formData.append('auto_pause', autoPause ? 'true' : 'false');
+      formData.append('tts_engine', currentTtsEngine);
+
+      if (isGemini) {
+        formData.append('voice', selectedGeminiVoice);
+        formData.append('gemini_tts_voice', selectedGeminiVoice);
+        formData.append('gemini_tts_model', document.getElementById('gemini-tts-model').value);
+        formData.append('gemini_api_key', document.getElementById('gemini-tts-api-key').value.trim());
+      } else if (isCloning) {
+        formData.append('voice', selectedCloningVoice);
+        formData.append('gemini_tts_voice', '');
+        formData.append('gemini_api_key', '');
+      } else {
+        formData.append('voice', selectedVoice);
+        formData.append('gemini_tts_voice', '');
+        formData.append('gemini_api_key', '');
+      }
+
+      // Stop any playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        resetPlayBtn();
+      }
+
+      try {
+        const res = await fetch('/api/generate-page-audio', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '單頁語音生成失敗');
+
+        currentAudio = new Audio(data.url);
+        btn.textContent = '🔊 播放中';
+        btn.classList.add('playing');
+        currentPlayBtn = btn;
+        
+        currentAudio.play();
+        currentAudio.onended = () => {
+          btn.textContent = originalText;
+          btn.classList.remove('playing');
+          btn.disabled = false;
+          currentPlayBtn = null;
+          currentAudio = null;
+        };
+      } catch (err) {
+        alert('單頁試聽生成失敗：' + err.message);
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
     }
 
     // ─── Step 4: Generate ─────────────────────────────────────
@@ -1394,8 +1502,9 @@
       document.getElementById('done-section').style.display = 'none';
       document.getElementById('error-section').style.display = 'none';
 
-      const rateVal = parseInt(document.getElementById('rate-slider').value);
-      const rateStr = (rateVal >= 0 ? '+' : '') + rateVal + '%';
+      const rateVal = parseFloat(document.getElementById('rate-slider').value);
+      const ratePct = Math.round((rateVal - 1.0) * 100);
+      const rateStr = (ratePct >= 0 ? '+' : '') + ratePct + '%';
       const autoPause = document.getElementById('auto-pause').checked;
 
       const formData = new FormData();
@@ -1479,12 +1588,12 @@
     const rateSlider = document.getElementById('rate-slider');
     const rateValue = document.getElementById('rate-value');
     function updateRateLabel() {
-      const val = parseInt(rateSlider.value);
+      const val = parseFloat(rateSlider.value);
       let desc = '';
-      if (val === 0) desc = '正常 (0%)';
-      else if (val === -10) desc = '稍微慢速 (-10% · 最推薦)';
-      else if (val < 0) desc = `慢速 (${val}%)`;
-      else desc = `快速 (+${val}%)`;
+      if (val === 1.0) desc = '正常 (1.0x)';
+      else if (val === 0.9) desc = '稍微慢速 (0.9x · 最推薦)';
+      else if (val < 1.0) desc = `慢速 (${val.toFixed(1)}x)`;
+      else desc = `快速 (${val.toFixed(1)}x)`;
       rateValue.textContent = desc;
     }
     rateSlider.addEventListener('input', updateRateLabel);
@@ -1569,9 +1678,43 @@
 
         renderPages(pagesData);
         await loadVoices();
+
+        // ── 恢復語音設定 ──────────────────────────────────────────
+        if (data.tts_engine) {
+          currentTtsEngine = data.tts_engine;
+          switchTtsTab(currentTtsEngine);
+        }
+        if (data.voice) {
+          if (currentTtsEngine === 'gemini') {
+            selectGeminiVoice(data.voice, data.voice, "");
+          } else if (currentTtsEngine === 'cloning') {
+            selectCloningVoice(data.voice);
+          } else {
+            selectVoice(data.voice, data.voice, "");
+          }
+        }
+        if (data.gemini_tts_voice && currentTtsEngine === 'gemini') {
+          selectGeminiVoice(data.gemini_tts_voice, data.gemini_tts_voice, "");
+        }
+        if (data.gemini_tts_model) {
+          const modelEl = document.getElementById('gemini-tts-model');
+          if (modelEl) modelEl.value = data.gemini_tts_model;
+        }
+        if (data.gemini_api_key) {
+          const keyEl = document.getElementById('gemini-tts-api-key');
+          if (keyEl) keyEl.value = data.gemini_api_key;
+        }
+        if (data.rate) {
+          const val = parseInt(data.rate.replace('%', ''));
+          rateSlider.value = val;
+          updateRateLabel();
+        }
+        if (data.auto_pause) {
+          document.getElementById('auto-pause').checked = (data.auto_pause === 'true');
+        }
         
-        // 直接進入 Step 2 編輯腳本！
-        goStep(2);
+        // 直接進入 Step 3 編輯腳本！
+        goStep(3);
       } catch (err) {
         alert('❌ 載入編輯失敗：' + err.message);
       }
