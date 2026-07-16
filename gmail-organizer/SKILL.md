@@ -26,7 +26,12 @@ description: 使用 Google Gmail API 自動搜尋、讀取、分析及整理電�
   .venv\Scripts\python.exe organizer.py
   ```
   這會開啟瀏覽器視窗要求您登入並同意授權。完成後會於目錄下生成 `token.json`。
-- **整理郵件**：授權完成後，此工具可背景執行：
+- **整理與自動歸檔**：使用 `archive_organizer.py` 進行分類與移出收件匣：
   ```powershell
-  .venv\Scripts\python.exe organizer.py --limit 10
+  .venv\Scripts\python.exe archive_organizer.py --limit 150
   ```
+- **設定兩週自動整理一次**：以系統管理員權限執行排程設定腳本，這將會在 Windows 工作排程器建立每兩週星期日上午 10:00 自動執行的任務：
+  ```powershell
+  PowerShell.exe -ExecutionPolicy Bypass -File .\setup_schedule.ps1
+  ```
+
