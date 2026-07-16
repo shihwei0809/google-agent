@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lv.1 純前端測驗 - 算完就忘版</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(17, 25, 40, 0.75);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-red: #ef4444;
+      --neon-purple: #8b5cf6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 45%);
+      background-attachment: fixed;
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 700px;
+      z-index: 10;
+    }
+
+    .nav-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 2rem;
+    }
+
+    .back-btn {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.3s ease;
+    }
+
+    .back-btn:hover {
+      color: var(--neon-cyan);
+    }
+
+    .level-indicator {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.85rem;
+      border-radius: 50px;
+      background: rgba(6, 182, 212, 0.1);
+      color: var(--neon-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+
+    .quiz-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2.5rem;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slogan {
+      font-size: 0.95rem;
+      color: var(--text-sub);
+      margin-bottom: 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 1.2rem;
+    }
+
+    .question-block {
+      margin-bottom: 2.5rem;
+    }
+
+    .question-text {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      line-height: 1.6;
+    }
+
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .option-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      padding: 1.1rem 1.3rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .option-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateX(6px);
+    }
+
+    .option-radio {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--text-sub);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .option-item.selected {
+      background: rgba(6, 182, 212, 0.08);
+      border-color: var(--neon-cyan);
+    }
+
+    .option-item.selected .option-radio {
+      border-color: var(--neon-cyan);
+      background: var(--neon-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+    }
+
+    /* Grading feedback */
+    .option-item.correct {
+      background: rgba(16, 185, 129, 0.12) !important;
+      border-color: var(--neon-green) !important;
+    }
+
+    .option-item.correct .option-radio {
+      border-color: var(--neon-green) !important;
+      background: var(--neon-green) !important;
+    }
+
+    .option-item.incorrect {
+      background: rgba(239, 68, 68, 0.12) !important;
+      border-color: var(--neon-red) !important;
+    }
+
+    .option-item.incorrect .option-radio {
+      border-color: var(--neon-red) !important;
+      background: var(--neon-red) !important;
+    }
+
+    .explanation {
+      margin-top: 1rem;
+      padding: 1.2rem;
+      background: rgba(255, 255, 255, 0.01);
+      border-left: 4px solid var(--neon-cyan);
+      border-radius: 0 12px 12px 0;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--text-sub);
+      display: none;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 1.1rem;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      color: white;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.2);
+    }
+
+    .action-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4);
+    }
+
+    /* Result Panel */
+    .result-panel {
+      display: none;
+      text-align: center;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .score-circle {
+      width: 130px;
+      height: 130px;
+      border-radius: 50%;
+      border: 4px solid var(--neon-cyan);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      background: rgba(6, 182, 212, 0.04);
+    }
+
+    .score-num {
+      font-size: 2.8rem;
+      font-weight: 900;
+      color: var(--neon-cyan);
+    }
+
+    .score-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .result-text {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-top: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="nav-header">
+      <a class="back-btn" href="index.html">← 返回首頁</a>
+      <span class="level-indicator">LEVEL 1：純前端單機版</span>
+    </div>
+
+    <div class="quiz-card">
+      <h1>Lv.1 純前端測驗（單機版）</h1>
+      <p class="slogan">所有的作答都在瀏覽器記憶體中執行，關閉或重新整理網頁後資料即消失。</p>
+
+      <div id="quiz-form">
+        <!-- Question 1 -->
+        <div class="question-block" data-qindex="0">
+          <p class="question-text">1. 關於 Level 1 「純前端」互動教學網頁的特色，以下何者錯誤？</p>
+          <div class="options-list">
+            <div class="option-item" onclick="selectOption(0, 'A')">
+              <span class="option-radio"></span>
+              <span>A. 開發成本極低，完全不需要付費租用後端伺服器</span>
+            </div>
+            <div class="option-item" onclick="selectOption(0, 'B')">
+              <span class="option-radio"></span>
+              <span>B. 能在大螢幕上即時產出班級學生成績排行榜</span>
+            </div>
+            <div class="option-item" onclick="selectOption(0, 'C')">
+              <span class="option-radio"></span>
+              <span>C. 網頁一旦重新整理或關閉，學生的作答成績即會歸零</span>
+            </div>
+            <div class="option-item" onclick="selectOption(0, 'D')">
+              <span class="option-radio"></span>
+              <span>D. 程式碼完全暴露在瀏覽器端，不適合存放敏感的 AI API 金鑰</span>
+            </div>
+          </div>
+          <div class="explanation" id="exp-0">
+            <strong>解析：</strong>選 B。Level 1 因為沒有任何後端資料庫或即時同步服務，無法收集多個學生的成績並整合輸出排行榜，這是 Level 3 (Firebase) 的核心功能。
+          </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="question-block" data-qindex="1">
+          <p class="question-text">2. 若老師只希望快速產出一個「概念複習」的單機網頁供學員自我評量，最適合使用哪一級？</p>
+          <div class="options-list">
+            <div class="option-item" onclick="selectOption(1, 'A')">
+              <span class="option-radio"></span>
+              <span>A. Level 1 純前端網頁</span>
+            </div>
+            <div class="option-item" onclick="selectOption(1, 'B')">
+              <span class="option-radio"></span>
+              <span>B. Level 2 Google 試算表</span>
+            </div>
+            <div class="option-item" onclick="selectOption(1, 'C')">
+              <span class="option-radio"></span>
+              <span>C. Level 3 Firebase 即時連線</span>
+            </div>
+            <div class="option-item" onclick="selectOption(1, 'D')">
+              <span class="option-radio"></span>
+              <span>D. Level 5 AI 全端整合</span>
+            </div>
+          </div>
+          <div class="explanation" id="exp-1">
+            <strong>解析：</strong>選 A。如果沒有記錄與批改統計需求，使用 Level 1 可以在最短時間內由 AI 輔助生成網頁，且零維護成本。
+          </div>
+        </div>
+
+        <button class="action-btn" onclick="submitQuiz()" id="submit-btn">送出測驗</button>
+      </div>
+
+      <!-- Result Panel -->
+      <div class="result-panel" id="result-panel">
+        <div class="score-circle">
+          <span class="score-num" id="score-display">0</span>
+          <span class="score-label">Score</span>
+        </div>
+        <p class="result-text" id="result-feedback">作答完畢！請查看題目的解析。</p>
+        <button class="action-btn" onclick="resetQuiz()">重新挑戰</button>
+      </div>
+    </div>
+    <p class="footer-note">💡 提示：本機打開此 HTML 即可執行，完全不依賴任何伺服器程式碼。</p>
+  </div>
+
+  <script>
+    const correctAnswers = ['B', 'A'];
+    let userAnswers = [null, null];
+    let isGraded = false;
+
+    function selectOption(qIndex, optionLetter) {
+      if (isGraded) return;
+      
+      const qBlock = document.querySelector(`.question-block[data-qindex="${qIndex}"]`);
+      const options = qBlock.querySelectorAll('.option-item');
+      
+      options.forEach(opt => opt.classList.remove('selected'));
+      
+      const letterIndex = optionLetter.charCodeAt(0) - 65; // A=0, B=1...
+      options[letterIndex].classList.add('selected');
+      
+      userAnswers[qIndex] = optionLetter;
+    }
+
+    function submitQuiz() {
+      if (isGraded) return;
+      
+      if (userAnswers.includes(null)) {
+        alert('請先回答所有題目後再送出！');
+        return;
+      }
+
+      isGraded = true;
+      let score = 0;
+
+      for (let i = 0; i < correctAnswers.length; i++) {
+        const qBlock = document.querySelector(`.question-block[data-qindex="${i}"]`);
+        const options = qBlock.querySelectorAll('.option-item');
+        const correctIndex = correctAnswers[i].charCodeAt(0) - 65;
+        const userIndex = userAnswers[i].charCodeAt(0) - 65;
+
+        document.getElementById(`exp-${i}`).style.display = 'block';
+
+        if (userAnswers[i] === correctAnswers[i]) {
+          score += 50;
+          options[correctIndex].classList.add('correct');
+        } else {
+          options[userIndex].classList.add('incorrect');
+          options[correctIndex].classList.add('correct');
+        }
+      }
+
+      document.getElementById('score-display').textContent = score;
+      const feedback = document.getElementById('result-feedback');
+      if (score === 100) {
+        feedback.innerHTML = '🎉 太優秀了！您完全掌握了純前端的運作原理！';
+      } else {
+        feedback.innerHTML = '👍 表現得不錯！您可以看下方的解析進行訂正。';
+      }
+
+      document.getElementById('submit-btn').style.display = 'none';
+      document.getElementById('result-panel').style.display = 'block';
+    }
+
+    function resetQuiz() {
+      isGraded = false;
+      userAnswers = [null, null];
+      
+      const options = document.querySelectorAll('.option-item');
+      options.forEach(opt => opt.className = 'option-item');
+
+      const explanations = document.querySelectorAll('.explanation');
+      explanations.forEach(exp => exp.style.display = 'none');
+
+      document.getElementById('submit-btn').style.display = 'block';
+      document.getElementById('result-panel').style.display = 'none';
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>

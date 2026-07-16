@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lv.4/5 Serverless + AI 批改與長期儲存</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(17, 25, 40, 0.75);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-purple: #8b5cf6;
+      --neon-pink: #ec4899;
+      --neon-orange: #f97316;
+      --neon-red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 45%);
+      background-attachment: fixed;
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 750px;
+      z-index: 10;
+    }
+
+    .nav-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 2rem;
+    }
+
+    .back-btn {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.3s ease;
+    }
+
+    .back-btn:hover {
+      color: var(--neon-purple);
+    }
+
+    .level-indicator {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.85rem;
+      border-radius: 50px;
+      background: rgba(139, 92, 246, 0.1);
+      color: var(--neon-purple);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+    }
+
+    .quiz-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2.5rem;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff, var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slogan {
+      font-size: 0.95rem;
+      color: var(--text-sub);
+      margin-bottom: 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 1.2rem;
+    }
+
+    .question-block {
+      margin-bottom: 2.5rem;
+      background: rgba(255, 255, 255, 0.01);
+      padding: 1.5rem;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .question-text {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      line-height: 1.6;
+    }
+
+    .essay-textarea {
+      background: rgba(9, 13, 22, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 1.1rem;
+      color: white;
+      font-family: inherit;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      transition: all 0.3s ease;
+    }
+
+    .essay-textarea:focus {
+      outline: none;
+      border-color: var(--neon-purple);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.25);
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 1.1rem;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+      color: white;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .action-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Spinner */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* AI Feedback Panel */
+    .ai-result-panel {
+      background: rgba(139, 92, 246, 0.06);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      border-radius: 20px;
+      padding: 2rem;
+      margin-top: 2rem;
+      display: none;
+      animation: fade-in 0.5s ease-out;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .ai-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+      padding-bottom: 1rem;
+    }
+
+    .ai-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--neon-purple);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .ai-score-badge {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: var(--neon-purple);
+      background: rgba(139, 92, 246, 0.12);
+      padding: 0.3rem 1.1rem;
+      border-radius: 10px;
+      border: 1px solid rgba(139, 92, 246, 0.25);
+    }
+
+    .ai-feedback-text {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--text-main);
+    }
+
+    .ai-indicator-tag {
+      font-size: 0.75rem;
+      background: rgba(249, 115, 22, 0.12);
+      color: var(--neon-orange);
+      border: 1px solid rgba(249, 115, 22, 0.25);
+      padding: 0.25rem 0.65rem;
+      border-radius: 6px;
+      font-weight: 700;
+      margin-left: 0.6rem;
+    }
+
+    /* Level 5 Database Mock */
+    .db-logs-panel {
+      background: rgba(9, 13, 22, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 1.8rem;
+      margin-top: 2rem;
+      display: none;
+    }
+
+    .db-header {
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--neon-pink);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.8rem;
+      margin-bottom: 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .log-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 1.2rem;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      margin-bottom: 0.8rem;
+    }
+
+    .log-meta {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text-sub);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="nav-header">
+      <a class="back-btn" href="index.html">← 返回首頁</a>
+      <span class="level-indicator" id="lv-badge">LEVEL 4：AI 批改(用完即丟)</span>
+    </div>
+
+    <div class="quiz-card">
+      <h1 id="main-title">Lv.4 Serverless + AI 即時批改</h1>
+      <p class="slogan" id="main-slogan">透過後端代理呼叫 Gemini / Groq 大模型，即時判定問答題分數，並給予具體改善建議。</p>
+
+      <div id="quiz-container">
+        <!-- Nickname for DB logs (Lv.5) -->
+        <div class="input-group" id="name-group" style="display: none; margin-bottom: 2rem;">
+          <label for="student-nickname">座號 / 姓名 (學習歷程建檔必填)</label>
+          <input type="text" id="student-nickname" class="input-field" placeholder="請輸入學員代碼，例如：李小明">
+        </div>
+
+        <div class="question-block">
+          <p class="question-text">Q: 請簡述 Level 4 (Serverless AI 批改) 與 Level 5 (全端 AI 整合庫) 的核心技術差異。</p>
+          <textarea id="essay-answer" class="essay-textarea" placeholder="在此輸入您的回答... (範例：Level 4 只是算完評分給你看，不儲存。Level 5 則把 AI 算出的成績與評語一併寫入 Firebase 資料庫存檔)"></textarea>
+        </div>
+
+        <button class="action-btn" onclick="submitEssay()" id="submit-btn">
+          <span class="spinner" id="btn-spinner"></span>
+          <span id="btn-text">提交並由 AI 即時批改</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- AI Result Panel -->
+    <div class="ai-result-panel" id="ai-result">
+      <div class="ai-header">
+        <div class="ai-title">🤖 AI 智慧評量回饋 <span id="simulated-badge" class="ai-indicator-tag" style="display: none;">智慧模擬中</span></div>
+        <div class="ai-score-badge"><span id="ai-score">0</span> 分</div>
+      </div>
+      <p class="ai-feedback-text" id="ai-feedback">評語分析載入中...</p>
+    </div>
+
+    <!-- Level 5 Database Simulation Logs -->
+    <div class="db-logs-panel" id="db-logs">
+      <div class="db-header">
+        <span>💾 Firebase Firestore 學習歷程資料庫 (Lv.5 特有長期保存)</span>
+        <span style="font-size: 0.75rem; background: rgba(236, 72, 153, 0.15); color: var(--neon-pink); padding: 0.2rem 0.6rem; border-radius: 4px;">歷史紀錄</span>
+      </div>
+      <div id="logs-container">
+        <!-- Dynamic logs -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Check if we are running in Level 5 mode based on query param
+    const urlParams = new URLSearchParams(window.location.search);
+    const isLevel5 = urlParams.get('level') === '5';
+
+    if (isLevel5) {
+      document.getElementById('lv-badge').textContent = 'LEVEL 5：AI 全端一條龍';
+      document.getElementById('lv-badge').style.color = 'var(--neon-pink)';
+      document.getElementById('lv-badge').style.backgroundColor = 'rgba(236, 72, 153, 0.1)';
+      document.getElementById('lv-badge').style.borderColor = 'rgba(236, 72, 153, 0.25)';
+      
+      document.getElementById('main-title').textContent = 'Lv.5 AI 批改與長期學習歷程';
+      document.getElementById('main-slogan').textContent = '結合 AI 即時分析，將評語與分數寫入 Firestore 資料庫中，累積為學生的長期學習歷程儀表板。';
+      document.getElementById('name-group').style.display = 'block';
+      document.getElementById('db-logs').style.display = 'block';
+      document.getElementById('btn-text').textContent = '提交批改並記錄至資料庫';
+    }
+
+    async function submitEssay() {
+      const essayAnswer = document.getElementById('essay-answer').value.trim();
+      const nickname = document.getElementById('student-nickname').value.trim();
+
+      if (isLevel5 && !nickname) {
+        alert("請先輸入您的座號或姓名以建立歷程紀錄！");
+        document.getElementById('student-nickname').focus();
+        return;
+      }
+
+      if (!essayAnswer) {
+        alert("請輸入問答答案！");
+        document.getElementById('essay-answer').focus();
+        return;
+      }
+
+      const submitBtn = document.getElementById('submit-btn');
+      const spinner = document.getElementById('btn-spinner');
+      submitBtn.disabled = true;
+      spinner.style.display = 'block';
+
+      try {
+        // Call local serverless simulation endpoint or netlify function
+        const response = await fetch('/.netlify/functions/ask-ai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ essayAnswer })
+        });
+
+        let data;
+        if (response.ok) {
+          data = await response.json();
+        } else {
+          throw new Error("Function not online");
+        }
+
+        // Display Result
+        document.getElementById('ai-score').textContent = data.score;
+        document.getElementById('ai-feedback').textContent = data.feedback;
+        document.getElementById('simulated-badge').style.display = data.simulated ? 'inline-block' : 'none';
+        document.getElementById('ai-result').style.display = 'block';
+
+        if (isLevel5) {
+          // Simulate Firebase Firestore write
+          saveToFirebaseMock(nickname, essayAnswer, data.score, data.feedback);
+        }
+
+      } catch (error) {
+        console.warn("後端 API 未上線，啟動前端本機 AI 模擬批改引擎...");
+        
+        // Front-end local fallback grader
+        setTimeout(() => {
+          let score = 75;
+          let feedback = "答覆方向正確。您指出了 Level 4 與 Level 5 在資料持久化儲存上的主要差別。若能更具體提到『Serverless Function 用於防護 API Key』，可獲得滿分。";
+          
+          if (essayAnswer.includes("金鑰") || essayAnswer.includes("Key") || essayAnswer.includes("安全")) {
+            score = 95;
+            feedback = "非常完美！您完全擊中了核心特點：Level 4 使用 Serverless Functions 在後端轉發以安全防護 API Key，並且做完即丟；Level 5 進一步整合 Firebase 資料庫，將 AI 評分與評語長期保存，建構出學習歷程駕駛艙！";
+          } else if (essayAnswer.length < 15) {
+            score = 50;
+            feedback = "答案內容偏短。建議多詳述兩者對於資料庫持久性寫入以及 API 安全性防護上的實踐差異。";
+          }
+
+          document.getElementById('ai-score').textContent = score;
+          document.getElementById('ai-feedback').textContent = feedback;
+          document.getElementById('simulated-badge').style.display = 'inline-block';
+          document.getElementById('ai-result').style.display = 'block';
+
+          if (isLevel5) {
+            saveToFirebaseMock(nickname, essayAnswer, score, feedback);
+          }
+
+          spinner.style.display = 'none';
+          submitBtn.disabled = false;
+        }, 1500);
+        return;
+      }
+
+      spinner.style.display = 'none';
+      submitBtn.disabled = false;
+    }
+
+    function saveToFirebaseMock(name, answer, score, feedback) {
+      const container = document.getElementById('logs-container');
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString();
+
+      const log = document.createElement('div');
+      log.className = 'log-item';
+      log.innerHTML = `
+        <div class="log-meta">
+          <span>👤 學員: ${name}</span>
+          <span style="color: var(--neon-purple);">⏰ 寫入時間: ${timeStr}</span>
+        </div>
+        <div style="margin-bottom: 0.5rem;"><b>問答回答：</b><span style="color: var(--text-sub);">${answer}</span></div>
+        <div style="border-top: 1px dashed rgba(255,255,255,0.05); padding-top: 0.5rem;">
+          <b>AI 批改結果：</b> <span style="color: var(--neon-purple); font-weight:700;">${score} 分</span> - <span style="color: var(--neon-green);">${feedback}</span>
+        </div>
+      `;
+      container.insertBefore(log, container.firstChild);
+    }
+  </script>
+</body>
+</html>

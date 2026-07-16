@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <title>TrainBuddy 開發備份與改動紀錄</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+  <style>
+    body {
+      box-sizing: border-box;
+      min-width: 200px;
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 45px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    @media (max-width: 767px) {
+      body {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body class="markdown-body">
+  <div id="content"></div>
+  <script>
+    const markdown = "# TrainBuddy 多教材支援與在線學員同步/抽籤功能優化\n\n我們已成功實作講師上傳及切換多份教材的功能，並徹底解決學員在線狀態不可知、抽籤無法響應等課堂互動痛點。另外，我們還為講師提供了 **AI 智慧教材轉換助理**，並支援了 **PDF 與 PPTX (PowerPoint) 檔案直接上傳解析**，大幅降低了非技術講師的使用門檻。\n\n---\n\n## 🚀 主要改動說明\n\n### 1. 📂 多份教材動態管理庫\n- **伺服器端存儲 (`decks/`)**：教材改以 JSON 檔案儲存於 [decks/](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/decks/)。預設建立三套化學與廠區安全培訓教材：\n  1. **鴻勝化學 SOP 安全培訓** (`hongsheng_sop_safety.json`)\n  2. **GHS 化學品危害與防護** (`ghs_chemical_hazards.json`)\n  3. **廠區緊急疏散與洩漏應變** (`emergency_evacuation.json`)\n- **講師端「📚 教材庫」Modal**：\n  - 講師可隨時點擊「教材庫」切換當前教材，系統會即時廣播重置指令與新教材結構，令所有已連線學員端無縫同步。\n  - 提供下載 JSON 教材範本與上傳自訂 JSON 教材的功能。\n\n### 2. ⚡ AI 教材智慧轉換助理（支援 PPTX / PDF 檔案直接讀取！）\n- **操作方式**：\n  1. 在教材庫 Modal 中，切換至 **「⚡ AI 智慧轉換」** 標籤頁。\n  2. 點擊 **「📂 選擇簡報/文件檔案 (.pdf, .pptx, .txt, .md)」** 按鈕。\n  3. 選擇任何現有的簡報 `.pptx` 或 `.pdf` 檔案，瀏覽器將利用前端加載的 **JSZip** 和 **PDF.js** 自動於背景解壓並抽取所有文字內容（並自動將檔案名填入教材主題）。\n  4. 抽取完成後點選「⚡ 開始 AI 智慧分析並啟用」，AI 助理會在數秒內將這些簡報大綱轉換成精美的 TrainBuddy 教材與隨堂測驗題！\n\n### 3. 🟢 實時在線學員追蹤系統 (解決「怎知是誰登入」)\n- **學員輪詢心跳**：學員手機端 (`lv3-student.html`) 進行定時同步請求時，會自動在 URL 附帶其輸入的姓名（如 `?nickname=張大同`），由後端伺服器在記憶體中維護最後連線時間（Last Seen）。\n- **講師端即時點名板**：在講師駕駛艙 (`lv3-tutor.html`) 側邊欄底部新增實時在線面板，顯示在線學員總人數及具體名單，學員離線 8 秒後會自動自名單消失。\n\n### 4. 🎯 線上學員一鍵導入與抽籤優化 (解決「學員抽籤不能使用」)\n- **一鍵載入在線學員**：在學員名單管理 Modal (`#roster-modal`) 中，新增「🟢 匯入線上已登入學員」按鈕，講師點擊即可一鍵拉取手機端在線學員名冊，並覆蓋現有名單，便於立即進行抽籤、分組及計分。\n- **直覺式點擊抽籤**：\n  - 除了下方按鈕，直接點擊 **「幸運大轉盤 (Canvas)」**、**「電子拉霸機拉桿 (Lever)」** 或 **「拉霸視窗 (Window)」** 即可觸發抽籤動作。\n  - 調整轉盤尺寸至 380px 並優化排版，防止抽籤按鈕被擠出視窗之外。\n\n### 5. 🎙️ 實時 WebRTC P2P 語音廣播系統\n- **講師端一鍵開播**：講師在教學駕駛艙中點擊「🎙️ 開啟語音廣播」，取得麥克風權限後即可開始對所有連線學員進行超低延遲的語音直播。\n- **學員端點擊收聽**：學員註冊成功後， header 區會出現「🔊 收聽講師語音」按鈕，點擊即可透過 WebRTC 音訊管道即時接通講師聲音。\n- **極簡信令交換**：後端採用內建記憶體儲存 P2P 協商 SDP（Offer / Answer），不需依賴複雜的三方影音服務或外部 WebSocket，以極致高效輕量的方式完成 WebRTC 音訊廣播。\n\n---\n\n## 🛠️ 改動檔案明細\n\n1. **[NEW] [decks/](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/decks/)**：預設教材範本。\n2. **[MODIFY] [server.js](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/server.js)**：新增 `/api/decks` 等教材 API、防止瀏覽器快取的 `Cache-Control` 標頭、以及 WebRTC 信令伺服器端點（`/api/webrtc/offer` 與 `/api/webrtc/answer`）。\n3. **[MODIFY] [lv3-tutor.html](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/lv3-tutor.html)**：修正 `syncStateToBackend` 翻頁函式未定義 bug；在頂部新增語音廣播控制按鈕，並整合 WebRTC 音訊編碼與發送邏輯。\n4. **[MODIFY] [lv3-student.html](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/lv3-student.html)**：更新投影片翻頁渲染，修復舊快取阻礙內容更新問題；新增 WebRTC 音訊接收播放與「收聽講師語音」按鈕。\n5. **[MODIFY] [index.html](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/index.html)**：調整轉盤 Canvas 至 380px，名單管理新增在線導入按鈕。\n6. **[MODIFY] [app.js](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/app.js)**：調整轉盤繪製圓心，綁定轉盤與拉霸機元件點擊事件，實作一鍵導入在線名冊邏輯。\n7. **[MODIFY] [style.css](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/style.css)**：縮減 picker view 佈局最小高度為 380px，修正排版高度溢出問題。\n\n---\n\n## 🧪 驗證方式與演示\n\n1. 開啟首頁 `http://localhost:3000/`，在「上課互動」標籤頁中點選 **「📚 教材庫」**。\n2. 切換到 **「⚡ AI 智慧轉換」** 標籤頁。\n3. 點選 **「選擇簡報/文件檔案 (.pdf, .pptx, .txt, .md)」**，並選取本機中的 `.pptx` 簡報檔或 `.pdf` 文件檔。\n4. 確認系統提示正在解析，數秒後所有投影片內文被自動完整抽取並填入下方的文字框中。\n5. 點選「⚡ 開始 AI 智慧分析並啟用」，等待 AI 分析重組後，確認教材庫列表已多出該套簡報，並且能正常播放作答！\n\n---\n\n## 🐛 Bug 修正記錄 (2026-06-07)\n\n### 1. 講師切換下一頁自動跳回第一頁\n- **問題原因**：`lv3-tutor.html` 在翻頁（上一張/下一張）及側邊欄點擊時調用了 `syncStateToBackend(index)`，但該函數未定義，導致 `ReferenceError` 異常。隨後 500ms 一次的輪詢（`pollClassState`）檢測到本地頁碼與伺服器頁碼（因未成功同步而一直保持在 1）不一致，將講師端頁面強制還原為第一頁。\n- **修復方案**：在 `lv3-tutor.html` 中定義並實作了 `syncStateToBackend` 函數，使用 `fetch` POST 向 `/api/class-state` 同步最新的投影片頁碼。\n\n### 2. 學生連線後看不到老師的畫面 (顯示加載中/投影片講授中等待畫面)\n- **問題原因**：因為上述翻頁未同步至伺服器導致學生端始終處於投影片第一頁；此外，本機瀏覽器常常會快取舊版 `lv3-student.html`。\n- **修復方案**：\n  1. 在 `server.js` 靜態檔案傳輸中新增停用快取標頭（`Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate`, `Pragma: no-cache`, `Expires: 0`），確保網頁載入最新代碼。\n  (2) 翻頁正常同步後，學生端可無縫跟隨講師，若講師處於普通投影片頁面（`type: \"slide\"`），學生端會隱藏等待面板，並正常顯示投影片大標題與內容。\n\n### 3. 學員端導航連結可跳回教師首頁\n- **問題原因**：舊版 `lv3-student.html` 的 header 頂部包含了一個 `← 首頁` 連結（指向 `index.html`），這使得學員在連入手機答題端時，可以直接點擊返回講師首頁，存取講師端的控制台與名單抽籤面板。\n- **修復方案**：將 [lv3-student.html](file:///c:/GOOGLE%20ANGET/Google%20Classroom%20anget/lv3-student.html) 頂部的 `← 首頁` 連結徹底移除，改用靜態、非點擊的精美 `🚀 TrainBuddy 學員端` Logo 標誌，確保學員無法透過導航返回控制端。\n";
+    document.getElementById('content').innerHTML = marked.parse(markdown);
+  </script>
+</body>
+</html>

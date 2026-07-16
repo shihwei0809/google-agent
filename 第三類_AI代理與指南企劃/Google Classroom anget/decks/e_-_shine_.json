@@ -1,0 +1,76 @@
+{
+  "title": "E - Shine 轉圈圈",
+  "slides": [
+    {
+      "index": 1,
+      "title": "公司簡介",
+      "type": "slide",
+      "headline": "公司簡介",
+      "desc": "公司簡介與位置，公司於彰化縣彰濱工業區線西區"
+    },
+    {
+      "index": 2,
+      "title": "公司營運方針",
+      "type": "slide",
+      "headline": "公司營運方針",
+      "desc": "公司營運方針：健康成長、貢獻社會、永續經營"
+    },
+    {
+      "index": 3,
+      "title": "D1 主題選定與團隊形成",
+      "type": "slide",
+      "headline": "D1 主題選定與團隊形成",
+      "desc": "選定主題：VOCs 減量，環境健康永續經營"
+    },
+    {
+      "index": 4,
+      "title": "D2 描述問題及現況掌握",
+      "type": "slide",
+      "headline": "D2 描述問題及現況掌握",
+      "desc": "描述問題及現況掌握，設定明確之目標"
+    },
+    {
+      "index": 5,
+      "title": "D3 執行及驗證暫時防堵措施",
+      "type": "slide",
+      "headline": "D3 執行及驗證暫時防堵措施",
+      "desc": "執行及驗證暫時防堵措施"
+    },
+    {
+      "index": 6,
+      "title": "D4 定義及驗證真因",
+      "type": "slide",
+      "headline": "D4 定義及驗證真因",
+      "desc": "定義及驗證真因"
+    },
+    {
+      "index": 7,
+      "title": "D5 列出選定及驗證永久對策",
+      "type": "slide",
+      "headline": "D5 列出選定及驗證永久對策",
+      "desc": "列出選定及驗證永久對策"
+    },
+    {
+      "index": 8,
+      "title": "D6 執行永久對策及效果確認",
+      "type": "slide",
+      "headline": "D6 執行永久對策及效果確認",
+      "desc": "執行永久對策及效果確認"
+    },
+    {
+      "index": 9,
+      "title": "D7 預防再發及標準化",
+      "type": "slide",
+      "headline": "D7 預防再發及標準化",
+      "desc": "預防再發及標準化"
+    },
+    {
+      "index": 10,
+      "title": "D8 恭賀團隊及展望未來",
+      "type": "slide",
+      "headline": "D8 恭賀團隊及展望未來",
+      "desc": "恭賀團隊及展望未來"
+    }
+  ],
+  "id": "e_-_shine_"
+}
