@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🚀 專案無限免費部署教學 | Cloudflare & GitHub Pages</title>
+    <title>🚀 專案無限免費部署與開發教學指南</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -68,7 +68,7 @@
             padding: 2rem;
         }
 
-        /* 卡片共用樣式 (Glassmorphism) */
+        /* 卡片共用樣式 */
         .card {
             background: var(--card-bg);
             backdrop-filter: blur(12px);
@@ -90,9 +90,11 @@
             border-color: rgba(255, 255, 255, 0.2);
         }
 
-        .card:nth-child(1) { animation-delay: 0.2s; }
-        .card:nth-child(2) { animation-delay: 0.4s; }
-        .card:nth-child(3) { animation-delay: 0.6s; }
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+        .card:nth-child(4) { animation-delay: 0.4s; }
+        .card:nth-child(5) { animation-delay: 0.5s; }
 
         .section-title {
             font-size: 2rem;
@@ -148,6 +150,14 @@
             color: var(--text-muted);
             font-size: 0.95rem;
         }
+        
+        .step-content code {
+            background-color: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #a78bfa;
+            font-family: monospace;
+        }
 
         /* 圖文標籤 (偽 UI 示意) */
         .mock-ui {
@@ -176,6 +186,8 @@
             border-radius: 12px;
             padding: 1.5rem;
             transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
         }
 
         .error-card:hover {
@@ -193,17 +205,29 @@
             color: #fca5a5;
             font-weight: 600;
             margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .error-desc {
+            font-size: 0.9rem; 
+            color: #cbd5e1;
+            flex-grow: 1;
         }
 
         .solution {
-            margin-top: 1rem;
+            margin-top: 1.5rem;
             padding-top: 1rem;
-            border-top: 1px dashed rgba(255,255,255,0.1);
+            border-top: 1px dashed rgba(255,255,255,0.15);
             color: #86efac;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        
+        .solution code {
+            background: rgba(0,0,0,0.3);
+            padding: 2px 5px;
+            border-radius: 4px;
+            color: #34d399;
         }
 
         /* 按鈕特效 */
@@ -267,16 +291,50 @@
     <div class="shape shape-2"></div>
 
     <header>
-        <h1>🚀 無限免費部署教學指南</h1>
-        <p class="subtitle">全面掌握 GitHub Pages 與 Cloudflare Pages 的更新與部署流程，告別 Netlify 流量與部署次數限制！</p>
+        <h1>🚀 無限部署與開發教學指南</h1>
+        <p class="subtitle">全面掌握 VS Code 本機開發、Git 版本控制，以及 Cloudflare/GitHub Pages 的自動化部署流程！</p>
         <a href="index.html" class="btn">🏠 返回專案總大廳</a>
     </header>
 
     <div class="container">
+
+        <!-- 新增: VS Code 開發與 Git 同步教學 -->
+        <section class="card vs">
+            <h2 class="section-title vs" style="color: #38bdf8; text-shadow: 0 0 15px rgba(56, 189, 248, 0.5);">💻 VS Code 本機開發與 Git 同步 (必備基本功)</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">優勢：確保您在電腦上的修改，能順利上傳並觸發 Cloudflare 或 GitHub 的自動更新。</p>
+            
+            <ul class="step-list">
+                <li class="step-item" style="border-left-color: #38bdf8;">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>修改程式碼與存檔</h3>
+                        <p>在 VS Code 中開啟專案，編輯 HTML/CSS/JS 檔案。編輯完成後，請務必按下 <span class="mock-ui">Ctrl + S</span> 進行存檔。檔案名稱旁邊的圓點消失代表存檔成功。</p>
+                    </div>
+                </li>
+                <li class="step-item" style="border-left-color: #38bdf8;">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>開啟終端機 (Terminal)</h3>
+                        <p>在 VS Code 上方選單點擊 <span class="mock-ui">終端機</span> ➔ <span class="mock-ui">新增終端機</span>，或使用快捷鍵 <span class="mock-ui">Ctrl + `</span> 呼叫出下方的命令列視窗。</p>
+                    </div>
+                </li>
+                <li class="step-item" style="border-left-color: #38bdf8;">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>執行 Git 推送三部曲 (關鍵!)</h3>
+                        <p>在終端機中依序輸入以下三個指令並按下 Enter：<br><br>
+                        <code>git add .</code> <span style="color: #94a3b8; font-size: 0.85rem;">(將所有變更加入暫存區)</span><br>
+                        <code>git commit -m "描述您的修改"</code> <span style="color: #94a3b8; font-size: 0.85rem;">(為這次修改寫下紀錄)</span><br>
+                        <code>git push</code> <span style="color: #94a3b8; font-size: 0.85rem;">(將修改推送到 GitHub 伺服器)</span><br><br>
+                        <span style="color: #fca5a5; font-size: 0.85rem;">※ 一定要看到最後的 push 執行成功，自動化部署才會開始運作！</span></p>
+                    </div>
+                </li>
+            </ul>
+        </section>
         
         <!-- Cloudflare Pages 教學 -->
         <section class="card cf">
-            <h2 class="section-title cf">☁️ Cloudflare Pages (主力推薦)</h2>
+            <h2 class="section-title cf">☁️ Cloudflare Pages 自動部署教學 (主力推薦)</h2>
             <p style="color: var(--text-muted); margin-bottom: 1rem;">優勢：全球最快 CDN 節點、無流量限制、每月高達 500 次免費部署額度。</p>
             
             <ul class="step-list">
@@ -291,16 +349,16 @@
                     <div class="step-number">2</div>
                     <div class="step-content">
                         <h3>選擇專案與設定組建</h3>
-                        <p>選取對應的 `google-agent` 或專案名稱。關鍵設定來了：<br>
+                        <p>選取對應的 GitHub 專案。關鍵設定：<br>
                         框架預設請選 <span class="mock-ui">無 (None)</span>。<br>
-                        如果在根目錄，請保持預設；如果網頁放在特定資料夾（例如：<code>說明書</code>），請注意中文字元問題（詳見下方避坑指南）。</p>
+                        如果在根目錄，請保持預設；如果網頁放在特定資料夾（如「說明書」），請注意中文字元問題（詳見下方避坑指南）。</p>
                     </div>
                 </li>
                 <li class="step-item">
                     <div class="step-number">3</div>
                     <div class="step-content">
                         <h3>儲存並部署</h3>
-                        <p>點擊 <span class="mock-ui">儲存並部署</span>。只要 GitHub 上的代碼有更新，Cloudflare 就會自動觸發重新部署，完全不需手動操作！</p>
+                        <p>點擊 <span class="mock-ui">儲存並部署</span>。設定好之後，未來只要 GitHub 上的代碼有更新，Cloudflare 就會**自動觸發**重新部署，完全不需再手動操作！</p>
                     </div>
                 </li>
             </ul>
@@ -308,7 +366,7 @@
 
         <!-- GitHub Pages 教學 -->
         <section class="card gh">
-            <h2 class="section-title gh">🐙 GitHub Pages (完美備份)</h2>
+            <h2 class="section-title gh">🐙 GitHub Pages 自動部署教學 (完美備份)</h2>
             <p style="color: var(--text-muted); margin-bottom: 1rem;">優勢：與程式碼儲存庫完美結合，完全免費，部署次數無上限！</p>
             
             <ul class="step-list">
@@ -338,22 +396,54 @@
             </ul>
         </section>
 
+        <!-- 新增: Netlify CLI 手動緊急部署 -->
+        <section class="card nt">
+            <h2 class="section-title nt" style="color: #2dd4bf; text-shadow: 0 0 15px rgba(45, 212, 191, 0.5);">⚡ Netlify CLI 手動緊急部署 (備用方案)</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">注意：頻繁使用會扣光學分額度，建議僅在緊急測試或未綁定 GitHub 自動部署時使用。</p>
+            
+            <ul class="step-list">
+                <li class="step-item" style="border-left-color: #2dd4bf;">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>開啟終端機</h3>
+                        <p>在 VS Code 終端機中，確認目前路徑是否在您的專案資料夾內（例如：<code>C:\GOOGLE ANGET\說明書</code>）。</p>
+                    </div>
+                </li>
+                <li class="step-item" style="border-left-color: #2dd4bf;">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>執行預覽部署 (免扣分)</h3>
+                        <p>輸入指令：<code>npx netlify deploy</code><br>
+                        系統會上傳檔案並給予一組「Draft URL」草稿網址供您預覽測試。這不會扣除正式環境的學分額度。</p>
+                    </div>
+                </li>
+                <li class="step-item" style="border-left-color: #2dd4bf;">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>發佈至正式環境 (會扣分)</h3>
+                        <p>測試無誤後，輸入指令：<code>npx netlify deploy --prod</code><br>
+                        這會將改動正式發佈到主網址，請注意每一次執行都會消耗 Netlify 免費額度中的部署學分。</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
         <!-- 避坑指南 (常犯錯誤) -->
         <section class="card">
             <h2 class="section-title err">⚠️ 人員避坑指南 (常見錯誤總覽)</h2>
-            <p style="color: var(--text-muted); margin-bottom: 1rem;">部署失敗？請先檢查是不是踩到了以下常見地雷：</p>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">遇到問題？請先檢查是不是踩到了以下常見的地雷：</p>
             
             <div class="error-grid">
                 <!-- 錯誤 1 -->
                 <div class="error-card">
                     <div class="error-icon">😵</div>
                     <div class="error-title">錯誤一：Cloudflare 顯示 404 找不到網頁</div>
-                    <p style="font-size: 0.9rem; color: #cbd5e1;">網頁放在名為「說明書」等中文資料夾中，直接將「組建輸出目錄」設為中文，導致 Cloudflare 系統抓取路徑亂碼，發佈了空網站。</p>
+                    <div class="error-desc">將網頁放在名為「說明書」等中文資料夾中，並直接將「組建輸出目錄」設為中文，導致 Cloudflare 系統路徑亂碼，發佈了空網站。</div>
                     <div class="solution">
-                        <strong>✅ 解法：</strong>使用指令轉換英文。<br>
+                        <strong>✅ 解決方法：使用指令轉換英文</strong><br>
                         在 Cloudflare 組建設定中：<br>
-                        組建命令輸入 <code>mv 說明書 public</code><br>
-                        輸出目錄輸入 <code>public</code>
+                        1. 組建命令輸入：<code>mv 說明書 public</code><br>
+                        2. 輸出目錄輸入：<code>public</code>
                     </div>
                 </div>
 
@@ -361,22 +451,21 @@
                 <div class="error-card">
                     <div class="error-icon">🤦‍♂️</div>
                     <div class="error-title">錯誤二：Netlify 突然斷線或被暫停</div>
-                    <p style="font-size: 0.9rem; color: #cbd5e1;">改一個字就推(Push)一次程式碼，或是狂按命令列部署。Netlify 免費版每月只有 300 學分（約可部署 20 次），用完即斷線。</p>
+                    <div class="error-desc">只要每次 Push 程式碼，或是手動執行 <code>netlify deploy --prod</code>，Netlify 就會判定為一次發佈。免費版每月約只能發佈 20 次，扣光即斷線。</div>
                     <div class="solution">
-                        <strong>✅ 解法：</strong>請將主要流量切換至 <b>Cloudflare Pages</b> 或 <b>GitHub Pages</b>，它們沒有嚴苛的部署次數扣分機制。
+                        <strong>✅ 解決方法：切換免費平台</strong><br>
+                        請將流量主力切換至 <b>Cloudflare Pages</b> 或 <b>GitHub Pages</b>，它們沒有嚴苛的「發佈次數扣分機制」。
                     </div>
                 </div>
 
                 <!-- 錯誤 3 -->
                 <div class="error-card">
                     <div class="error-icon">🐢</div>
-                    <div class="error-title">錯誤三：本地改好代碼，線上卻沒更新</div>
-                    <p style="font-size: 0.9rem; color: #cbd5e1;">在自己電腦上存檔了，就以為網頁會自動變更，卻忘記將修改同步上傳(Push)到遠端伺服器。</p>
+                    <div class="error-title">錯誤三：本地存檔了，線上卻沒更新</div>
+                    <div class="error-desc">在自己電腦的 VS Code 按了存檔，就以為網站會自動變更，卻忘記將修改同步上傳(Push)到 GitHub 伺服器。</div>
                     <div class="solution">
-                        <strong>✅ 解法：</strong>永遠記得「三部曲」：<br>
-                        <code>git add .</code><br>
-                        <code>git commit -m "更新說明"</code><br>
-                        <code>git push</code> (這一步才會觸發線上更新！)
+                        <strong>✅ 解決方法：永遠記得 Git 三部曲</strong><br>
+                        打開終端機，確實執行 <code>git add .</code>、<code>git commit -m "更新"</code> 以及最後的 <code>git push</code>，這才會真正觸發線上更新！
                     </div>
                 </div>
 
@@ -384,10 +473,10 @@
                  <div class="error-card">
                     <div class="error-icon">🔗</div>
                     <div class="error-title">錯誤四：CSS/圖片/JS 載入失敗 (破圖)</div>
-                    <p style="font-size: 0.9rem; color: #cbd5e1;">在 HTML 裡使用了絕對路徑（例如 <code>/images/pic.png</code>），導致在 GitHub Pages 的子目錄結構下找不到檔案。</p>
+                    <div class="error-desc">在 HTML 裡使用了絕對路徑（例如 <code>/images/pic.png</code>），這在 GitHub Pages 的子目錄結構下會找不到檔案。</div>
                     <div class="solution">
-                        <strong>✅ 解法：</strong>一律改用<b>相對路徑</b>！<br>
-                        將 <code>/images/pic.png</code> 改為 <code>./images/pic.png</code>。加上小數點 <code>.</code> 是保命關鍵。
+                        <strong>✅ 解決方法：一律改用「相對路徑」</strong><br>
+                        將路徑最前方的斜線去掉，或是補上小數點，例如改為 <code>./images/pic.png</code>，加上小數點 <code>.</code> 是保命關鍵。
                     </div>
                 </div>
             </div>
