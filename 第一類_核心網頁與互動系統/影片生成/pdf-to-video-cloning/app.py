@@ -212,6 +212,7 @@ async def preview_voice(
     voice: str = Form(...),
     model: str = Form("gemini-2.5-flash-preview-tts"),
     api_key: str = Form(""),
+    rate: str = Form("-10%"),
 ):
     try:
         preview_id = str(uuid.uuid4())
@@ -270,12 +271,163 @@ async def preview_voice(
                 text = "こんにちは、音声プレビューです。"
             elif voice.startswith("ko-"):
                 text = "안녕하세요, 음성 미리보기입니다."
-            communicate = edge_tts.Communicate(text, voice, rate="-10%")
+            communicate = edge_tts.Communicate(text, voice, rate=rate)
             await communicate.save(str(out_path))
             
         return {"url": f"/jobs/preview_{preview_id}.{audio_ext}"}
     except Exception as e:
         logger.exception("Preview failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/generate-page-audio")
+async def generate_page_audio(
+    job_id: str = Form(...),
+    page_index: int = Form(...),
+    text: str = Form(...),
+    tts_engine: str = Form("edge"),
+    voice: str = Form(...),
+    rate: str = Form("-10%"),
+    auto_pause: str = Form("true"),
+    gemini_tts_voice: str = Form(""),
+    gemini_tts_model: str = Form("gemini-2.5-flash-preview-tts"),
+    gemini_api_key: str = Form(""),
+):
+    job_dir = JOBS_DIR / job_id
+    if not job_dir.exists():
+        raise HTTPException(status_code=404, detail="工作不存在，請重新上傳 PDF。")
+
+    is_auto_pause = auto_pause.lower() == "true"
+    audio_ext = "wav" if tts_engine in ("gemini", "cloning") else "mp3"
+    audio_path = job_dir / f"audio_{page_index:03d}.{audio_ext}"
+
+    # TTS – use placeholder if page is blank
+    tts_text = text.strip() if text.strip() else "本頁無文字內容。"
+
+    # Inject natural breaks at line breaks if auto_pause is enabled
+    if is_auto_pause and text.strip():
+        lines = tts_text.splitlines()
+        processed_lines = []
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            if line[-1] not in (
+                "。", "，", "、", "！", "？", "；", "：",
+                ".", ",", "!", "?", ";", ":", '"', "'", "」", "』"
+            ):
+                line += "。"
+            processed_lines.append(line)
+        tts_text = " ".join(processed_lines)
+
+    try:
+        if tts_engine == "gemini":
+            api_keys = parse_api_keys(gemini_api_key)
+            if not api_keys:
+                raise HTTPException(status_code=400, detail="使用 Gemini TTS 需要提供 API 金鑰。")
+            success = False
+            last_err = None
+            key_index = 0
+            while not success and key_index < len(api_keys):
+                current_key = api_keys[key_index]
+                try:
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(
+                        executor,
+                        lambda: call_gemini_tts(current_key, gemini_tts_model, gemini_tts_voice, tts_text, str(audio_path))
+                    )
+                    success = True
+                except Exception as e:
+                    logger.warning(f"Single page TTS: key index {key_index} failed: {e}. Trying next key...")
+                    last_err = e
+                    key_index += 1
+            if not success:
+                raise last_err if last_err else ValueError("所有提供的 Gemini API 金鑰皆已達到使用上限！")
+        elif tts_engine == "cloning":
+            import subprocess
+            python_exe = str(_CLONING_DIR / ".venv" / "Scripts" / "python.exe")
+            clone_script = str(_CLONING_DIR / "clone.py")
+            cmd = [
+                python_exe, clone_script,
+                tts_text,
+                "--voice", voice,
+                "--output", str(Path(audio_path).resolve())
+            ]
+            logger.info("Single page - Running voice cloning: %s", cmd)
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                executor,
+                lambda: subprocess.run(cmd, check=True, cwd=str(_CLONING_DIR))
+            )
+        else:
+            communicate = edge_tts.Communicate(tts_text, voice, rate=rate)
+            await communicate.save(str(audio_path))
+
+        # 防衝突：刪除另一種副檔名的音檔
+        other_ext = "mp3" if audio_ext == "wav" else "wav"
+        other_path = job_dir / f"audio_{page_index:03d}.{other_ext}"
+        if other_path.exists():
+            try:
+                other_path.unlink()
+            except Exception as e:
+                logger.warning(f"Failed to delete conflicting audio file {other_path}: {e}")
+
+        # 更新 script_backup.json 中的文字
+        backup_path = job_dir / "script_backup.json"
+        if backup_path.exists():
+            try:
+                with open(backup_path, "r", encoding="utf-8") as f:
+                    backup_data = json.load(f)
+                
+                pages = backup_data.get("pages", [])
+                while len(pages) <= page_index:
+                    pages.append("")
+                pages[page_index] = text
+                backup_data["pages"] = pages
+                
+                backup_data["voice"] = voice
+                backup_data["tts_engine"] = tts_engine
+                if tts_engine == "gemini":
+                    backup_data["gemini_tts_voice"] = gemini_tts_voice
+                    backup_data["gemini_tts_model"] = gemini_tts_model
+                
+                with open(backup_path, "w", encoding="utf-8") as f:
+                    json.dump(backup_data, f, ensure_ascii=False, indent=2)
+                logger.info(f"Updated script_backup.json for page {page_index}")
+            except Exception as e:
+                logger.warning(f"Failed to update script_backup.json: {e}")
+        else:
+            try:
+                img_files = sorted(list(job_dir.glob("page_*.png")))
+                orig_imgs = [f for f in img_files if not f.name.endswith("_framed.png")]
+                total_pages = len(orig_imgs)
+                
+                pages = [""] * total_pages
+                if page_index < total_pages:
+                    pages[page_index] = text
+                
+                backup_data = {
+                    "voice": voice,
+                    "tts_engine": tts_engine,
+                    "total_pages": total_pages,
+                    "pages": pages
+                }
+                if tts_engine == "gemini":
+                    backup_data["gemini_tts_voice"] = gemini_tts_voice
+                    backup_data["gemini_tts_model"] = gemini_tts_model
+
+                with open(backup_path, "w", encoding="utf-8") as f:
+                    json.dump(backup_data, f, ensure_ascii=False, indent=2)
+                logger.info(f"Created script_backup.json and saved page {page_index}")
+            except Exception as e:
+                logger.warning(f"Failed to initialize script_backup.json: {e}")
+
+        import time
+        audio_url = f"/jobs/{job_id}/audio_{page_index:03d}.{audio_ext}?t={int(time.time() * 1000)}"
+        return {"status": "success", "url": audio_url}
+
+    except Exception as e:
+        logger.exception("Single page generate failed")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -840,20 +992,41 @@ async def _run_generation(
         api_keys = parse_api_keys(gemini_api_key)
         key_index = 0
 
+        # ── 讀取歷史腳本備份以供比對快取 ──────────────────────────────────────────
+        backup_path = job_dir / "script_backup.json"
+        cached_pages = []
+        cached_voice = None
+        cached_engine = None
+        cached_gemini_voice = None
+        cached_gemini_model = None
+        cached_rate = None
+        if backup_path.exists():
+            try:
+                with open(backup_path, "r", encoding="utf-8") as f:
+                    backup_data = json.load(f)
+                cached_pages = backup_data.get("pages", [])
+                cached_voice = backup_data.get("voice")
+                cached_engine = backup_data.get("tts_engine")
+                cached_gemini_voice = backup_data.get("gemini_tts_voice", "")
+                cached_gemini_model = backup_data.get("gemini_tts_model", "")
+                cached_rate = backup_data.get("rate", rate) 
+            except Exception as e:
+                logger.warning(f"Failed to read backup script for cache comparison: {e}")
+
         for i, text in enumerate(scripts):
             jobs[job_id]["step"] = f"第 {i + 1}/{total} 頁：生成語音旁白…"
             img_path = str(job_dir / f"page_{i:03d}.png")
             audio_ext = "wav" if tts_engine in ("gemini", "cloning") else "mp3"
             audio_path = str(job_dir / f"audio_{i:03d}.{audio_ext}")
- 
+
             # Ensure image exists (fallback to blank)
             if not Path(img_path).exists():
                 logger.warning("Image not found for page %d, skipping", i)
                 continue
- 
+
             # TTS – use placeholder if page is blank
             tts_text = text.strip() if text.strip() else "本頁無文字內容。"
- 
+
             # Inject natural breaks at line breaks if auto_pause is enabled
             if auto_pause and text.strip():
                 lines = tts_text.splitlines()
@@ -870,50 +1043,75 @@ async def _run_generation(
                         line += "。"
                     processed_lines.append(line)
                 tts_text = " ".join(processed_lines)
- 
-            if tts_engine == "gemini":
-                success = False
-                while not success and key_index < len(api_keys):
-                    current_key = api_keys[key_index]
-                    try:
-                        loop = asyncio.get_event_loop()
-                        await loop.run_in_executor(
-                            executor,
-                            lambda t=tts_text, p=audio_path, k=current_key: call_gemini_tts(
-                                k, gemini_tts_model, gemini_tts_voice, t, p
+
+            # 比對文字與語音設定是否完全相同且音訊檔案存在
+            can_reuse = False
+            if (
+                cached_pages and
+                i < len(cached_pages) and
+                cached_pages[i] == text and
+                cached_voice == voice and
+                cached_engine == tts_engine and
+                cached_rate == rate and
+                (tts_engine != "gemini" or (cached_gemini_voice == gemini_tts_voice and cached_gemini_model == gemini_tts_model)) and
+                Path(audio_path).exists()
+            ):
+                logger.info(f"Page {i + 1} script and voice settings unchanged. Reusing existing audio: {audio_path}")
+                can_reuse = True
+
+            if not can_reuse:
+                if tts_engine == "gemini":
+                    success = False
+                    while not success and key_index < len(api_keys):
+                        current_key = api_keys[key_index]
+                        try:
+                            loop = asyncio.get_event_loop()
+                            await loop.run_in_executor(
+                                executor,
+                                lambda t=tts_text, p=audio_path, k=current_key: call_gemini_tts(
+                                    k, gemini_tts_model, gemini_tts_voice, t, p
+                                )
                             )
-                        )
-                        success = True
+                            success = True
+                        except Exception as e:
+                            if "429" in str(e) or "limit" in str(e).lower() or "quota" in str(e).lower():
+                                logger.warning("Gemini TTS: Key index %d rate limited. Switching to next key...", key_index)
+                                key_index += 1
+                            else:
+                                logger.warning("Gemini TTS: Key index %d failed: %s. Trying next key...", key_index, e)
+                                key_index += 1
+                    if not success:
+                        raise ValueError("所有提供的 Gemini API 金鑰皆已達到使用上限！無法繼續生成語音。")
+                elif tts_engine == "cloning":
+                    import subprocess
+                    python_exe = str(_CLONING_DIR / ".venv" / "Scripts" / "python.exe")
+                    clone_script = str(_CLONING_DIR / "clone.py")
+                    
+                    cmd = [
+                        python_exe, clone_script,
+                        tts_text,
+                        "--voice", voice,
+                        "--output", str(Path(audio_path).resolve())
+                    ]
+                    
+                    logger.info("Page %d - Running voice cloning: %s", i + 1, cmd)
+                    loop = asyncio.get_event_loop()
+                    await loop.run_in_executor(
+                        executor,
+                        lambda: subprocess.run(cmd, check=True, cwd=str(_CLONING_DIR))
+                    )
+                else:
+                    communicate = edge_tts.Communicate(tts_text, voice, rate=rate)
+                    await communicate.save(audio_path)
+
+                # 防衝突：如果產生了此格式，則把另一種副檔名的音檔移除
+                other_ext = "mp3" if audio_ext == "wav" else "wav"
+                other_path = job_dir / f"audio_{i:03d}.{other_ext}"
+                if other_path.exists():
+                    try:
+                        other_path.unlink()
                     except Exception as e:
-                        if "429" in str(e) or "limit" in str(e).lower() or "quota" in str(e).lower():
-                            logger.warning("Gemini TTS: Key index %d rate limited. Switching to next key...", key_index)
-                            key_index += 1
-                        else:
-                            logger.warning("Gemini TTS: Key index %d failed: %s. Trying next key...", key_index, e)
-                            key_index += 1
-                if not success:
-                    raise ValueError("所有提供的 Gemini API 金鑰皆已達到使用上限！無法繼續生成語音。")
-            elif tts_engine == "cloning":
-                import subprocess
-                python_exe = str(_CLONING_DIR / ".venv" / "Scripts" / "python.exe")
-                clone_script = str(_CLONING_DIR / "clone.py")
-                
-                cmd = [
-                    python_exe, clone_script,
-                    tts_text,
-                    "--voice", voice,
-                    "--output", str(Path(audio_path).resolve())
-                ]
-                
-                logger.info("Page %d - Running voice cloning: %s", i + 1, cmd)
-                loop = asyncio.get_event_loop()
-                await loop.run_in_executor(
-                    executor,
-                    lambda: subprocess.run(cmd, check=True, cwd=str(_CLONING_DIR))
-                )
-            else:
-                communicate = edge_tts.Communicate(tts_text, voice, rate=rate)
-                await communicate.save(audio_path)
+                        logger.warning(f"Failed to delete conflicting audio file {other_path}: {e}")
 
             # Make 1920×1080 framed image
             framed_path = make_frame_1920x1080(img_path)
@@ -1018,11 +1216,24 @@ async def load_job_data(job_id: str):
     # 2. 嘗試讀取備份的腳本資料
     backup_path = job_dir / "script_backup.json"
     backup_pages = []
+    voice = ""
+    tts_engine = "edge"
+    gemini_tts_voice = ""
+    gemini_tts_model = "gemini-2.5-flash-preview-tts"
+    rate = "-10%"
+    auto_pause = "true"
+
     if backup_path.exists():
         try:
             with open(backup_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 backup_pages = data.get("pages", [])
+                voice = data.get("voice", "")
+                tts_engine = data.get("tts_engine", "edge")
+                gemini_tts_voice = data.get("gemini_tts_voice", "")
+                gemini_tts_model = data.get("gemini_tts_model", "gemini-2.5-flash-preview-tts")
+                rate = data.get("rate", "-10%")
+                auto_pause = "true" if data.get("auto_pause", True) else "false"
         except Exception as e:
             logger.warning("Failed to load script backup for job %s: %s", job_id, e)
 
@@ -1045,7 +1256,16 @@ async def load_job_data(job_id: str):
             "thumbnail": f"/jobs/{job_id}/{thumb_name}",
         })
 
-    return {"job_id": job_id, "pages": pages_data}
+    return {
+        "job_id": job_id,
+        "pages": pages_data,
+        "voice": voice,
+        "tts_engine": tts_engine,
+        "gemini_tts_voice": gemini_tts_voice,
+        "gemini_tts_model": gemini_tts_model,
+        "rate": rate,
+        "auto_pause": auto_pause,
+    }
 
 
 @app.post("/api/jobs/rebuild/{job_id}")
