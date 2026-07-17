@@ -227,19 +227,26 @@ async def preview_voice(
             success = False
             last_err = None
             key_index = 0
+            candidate_models = [model]
+            for fallback in ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts", "gemini-3.1-flash-tts-preview"]:
+                if fallback not in candidate_models:
+                    candidate_models.append(fallback)
             while not success and key_index < len(api_keys):
                 current_key = api_keys[key_index]
-                try:
-                    text = f"Hello! This is a preview of the Gemini voice {voice}."
-                    loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(
-                        executor,
-                        lambda: call_gemini_tts(current_key, model, voice, text, str(out_path))
-                    )
-                    success = True
-                except Exception as e:
-                    logger.warning(f"Preview: key index {key_index} failed: {e}. Trying next key...")
-                    last_err = e
+                for model_to_try in candidate_models:
+                    try:
+                        text = f"Hello! This is a preview of the Gemini voice {voice}."
+                        loop = asyncio.get_event_loop()
+                        await loop.run_in_executor(
+                            executor,
+                            lambda: call_gemini_tts(current_key, model_to_try, voice, text, str(out_path))
+                        )
+                        success = True
+                        break
+                    except Exception as e:
+                        logger.warning(f"Preview: key index {key_index} with model {model_to_try} failed: {e}.")
+                        last_err = e
+                if not success:
                     key_index += 1
                     
             if not success:
@@ -301,6 +308,8 @@ async def generate_page_audio(
     audio_ext = "wav" if tts_engine in ("gemini", "cloning") else "mp3"
     audio_path = job_dir / f"audio_{page_index:03d}.{audio_ext}"
 
+    
+
     # TTS – use placeholder if page is blank
     tts_text = text.strip() if text.strip() else "本頁無文字內容。"
 
@@ -328,18 +337,25 @@ async def generate_page_audio(
             success = False
             last_err = None
             key_index = 0
+            candidate_models = [gemini_tts_model]
+            for fallback in ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts", "gemini-3.1-flash-tts-preview"]:
+                if fallback not in candidate_models:
+                    candidate_models.append(fallback)
             while not success and key_index < len(api_keys):
                 current_key = api_keys[key_index]
-                try:
-                    loop = asyncio.get_event_loop()
-                    await loop.run_in_executor(
-                        executor,
-                        lambda: call_gemini_tts(current_key, gemini_tts_model, gemini_tts_voice, tts_text, str(audio_path))
-                    )
-                    success = True
-                except Exception as e:
-                    logger.warning(f"Single page TTS: key index {key_index} failed: {e}. Trying next key...")
-                    last_err = e
+                for model_to_try in candidate_models:
+                    try:
+                        loop = asyncio.get_event_loop()
+                        await loop.run_in_executor(
+                            executor,
+                            lambda: call_gemini_tts(current_key, model_to_try, gemini_tts_voice, tts_text, str(audio_path))
+                        )
+                        success = True
+                        break
+                    except Exception as e:
+                        logger.warning(f"Single page TTS: key index {key_index} with model {model_to_try} failed: {e}.")
+                        last_err = e
+                if not success:
                     key_index += 1
             if not success:
                 raise last_err if last_err else ValueError("所有提供的 Gemini API 金鑰皆已達到使用上限！")
@@ -710,6 +726,29 @@ def extract_pdf(
 
 
 
+@app.get("/api/get-page-audio")
+async def get_page_audio(job_id: str, page_index: int, tts_engine: str = "edge"):
+    job_dir = JOBS_DIR / job_id
+    if not job_dir.exists():
+        raise HTTPException(status_code=404, detail="工作不存在。")
+    
+    audio_ext = "wav" if tts_engine in ("gemini", "cloning") else "mp3"
+    audio_path = job_dir / f"audio_{page_index:03d}.{audio_ext}"
+    if not audio_path.exists():
+        # check alternative extension
+        alt_ext = "mp3" if audio_ext == "wav" else "wav"
+        alt_path = job_dir / f"audio_{page_index:03d}.{alt_ext}"
+        if alt_path.exists():
+            audio_path = alt_path
+            audio_ext = alt_ext
+            
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail="語音尚未生成，請先點擊「生成此頁語音」。")
+        
+    import time
+    audio_url = f"/jobs/{job_id}/audio_{page_index:03d}.{audio_ext}?t={int(time.time() * 1000)}"
+    return {"status": "success", "url": audio_url}
+
 @app.post("/api/generate")
 async def generate_video(
     background_tasks: BackgroundTasks,
@@ -1062,24 +1101,27 @@ async def _run_generation(
             if not can_reuse:
                 if tts_engine == "gemini":
                     success = False
+                    candidate_models = [gemini_tts_model]
+                    for fallback in ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts", "gemini-3.1-flash-tts-preview"]:
+                        if fallback not in candidate_models:
+                            candidate_models.append(fallback)
                     while not success and key_index < len(api_keys):
                         current_key = api_keys[key_index]
-                        try:
-                            loop = asyncio.get_event_loop()
-                            await loop.run_in_executor(
-                                executor,
-                                lambda t=tts_text, p=audio_path, k=current_key: call_gemini_tts(
-                                    k, gemini_tts_model, gemini_tts_voice, t, p
+                        for model_to_try in candidate_models:
+                            try:
+                                loop = asyncio.get_event_loop()
+                                await loop.run_in_executor(
+                                    executor,
+                                    lambda t=tts_text, p=audio_path, k=current_key, m=model_to_try: call_gemini_tts(
+                                        k, m, gemini_tts_voice, t, p
+                                    )
                                 )
-                            )
-                            success = True
-                        except Exception as e:
-                            if "429" in str(e) or "limit" in str(e).lower() or "quota" in str(e).lower():
-                                logger.warning("Gemini TTS: Key index %d rate limited. Switching to next key...", key_index)
-                                key_index += 1
-                            else:
-                                logger.warning("Gemini TTS: Key index %d failed: %s. Trying next key...", key_index, e)
-                                key_index += 1
+                                success = True
+                                break
+                            except Exception as e:
+                                logger.warning("Gemini TTS: Key index %d with model %s failed: %s", key_index, model_to_try, e)
+                        if not success:
+                            key_index += 1
                     if not success:
                         raise ValueError("所有提供的 Gemini API 金鑰皆已達到使用上限！無法繼續生成語音。")
                 elif tts_engine == "cloning":

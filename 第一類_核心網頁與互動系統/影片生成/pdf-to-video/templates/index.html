@@ -1030,9 +1030,14 @@
           <div class="page-editor">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label style="margin: 0;">旁白腳本（可直接編輯）</label>
-              <button class="btn btn-secondary btn-preview-page" data-index="${i}" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 4px; height: 26px; display: inline-flex; align-items: center; gap: 4px; margin: 0;">
-                🔊 試聽與生成此頁語音
-              </button>
+              <div style="display: flex; gap: 8px; align-items: center; margin: 0;">
+                <button class="btn btn-secondary btn-generate-page" data-index="${i}" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 4px; height: 26px; display: inline-flex; align-items: center; gap: 4px; margin: 0; background: rgba(79,142,247,0.15); color: var(--accent); border: 1px solid var(--accent);">
+                  🛠️ 生成此頁語音
+                </button>
+                <button class="btn btn-secondary btn-play-page" data-index="${i}" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 4px; height: 26px; display: inline-flex; align-items: center; gap: 4px; margin: 0;">
+                  🔊 播放/試聽
+                </button>
+              </div>
             </div>
             <textarea id="script-${i}" placeholder="（本頁無文字，可手動輸入旁白腳本）">${escapeHtml(p.text)}</textarea>
             <div class="char-count" id="cc-${i}">${p.text.length} 字</div>
@@ -1043,8 +1048,10 @@
         const cc = card.querySelector('.char-count');
         ta.addEventListener('input', () => { cc.textContent = ta.value.length + ' 字'; });
 
-        const previewBtn = card.querySelector('.btn-preview-page');
-        previewBtn.addEventListener('click', () => playPagePreview(i, previewBtn));
+        const genBtn = card.querySelector('.btn-generate-page');
+        const playBtn = card.querySelector('.btn-play-page');
+        genBtn.addEventListener('click', () => generatePageAudio(i, genBtn));
+        playBtn.addEventListener('click', () => playPageAudio(i, playBtn));
       });
     }
 
@@ -1307,8 +1314,8 @@
 
     function resetPlayBtn() {
       if (currentPlayBtn) {
-        if (currentPlayBtn.classList.contains('btn-preview-page')) {
-          currentPlayBtn.textContent = '🔊 試聽與生成此頁語音';
+        if (currentPlayBtn.classList.contains('btn-play-page')) {
+          currentPlayBtn.textContent = '🔊 播放/試聽';
           currentPlayBtn.disabled = false;
         } else {
           currentPlayBtn.textContent = '▶';
@@ -1319,25 +1326,20 @@
       currentAudio = null;
     }
 
-    async function playPagePreview(index, btn) {
-      // 1. 如果正在播放，點擊則停止
-      if (currentAudio && currentPlayBtn === btn) {
-        currentAudio.pause();
-        resetPlayBtn();
-        return;
-      }
-
+    async function generatePageAudio(index, btn) {
       const isGemini = currentTtsEngine === 'gemini';
+      const isCloning = typeof currentTtsEngine !== 'undefined' && currentTtsEngine === 'cloning';
 
       if (isGemini) {
         if (!selectedGeminiVoice) { alert('請先在第二步選擇 Gemini TTS 語音。'); return; }
         const key = document.getElementById('gemini-tts-api-key').value.trim();
         if (!key) { alert('請先在第二步輸入 Gemini API 金鑰。'); return; }
+      } else if (isCloning) {
+        if (!selectedCloningVoice) { alert('請先在第二步選擇本機克隆配音人。'); return; }
       } else {
         if (!selectedVoice) { alert('請先在第二步選擇 Edge TTS 語音。'); return; }
       }
 
-      // Stop any playing audio
       if (currentAudio) {
         currentAudio.pause();
         resetPlayBtn();
@@ -1350,7 +1352,7 @@
       const autoPause = document.getElementById('auto-pause').checked;
 
       btn.disabled = true;
-      const originalText = '🔊 試聽與生成此頁語音';
+      const originalText = '🛠️ 生成此頁語音';
       btn.textContent = '⏳ 生成中...';
 
       const formData = new FormData();
@@ -1366,6 +1368,10 @@
         formData.append('gemini_tts_voice', selectedGeminiVoice);
         formData.append('gemini_tts_model', document.getElementById('gemini-tts-model').value);
         formData.append('gemini_api_key', document.getElementById('gemini-tts-api-key').value.trim());
+      } else if (isCloning) {
+        formData.append('voice', selectedCloningVoice);
+        formData.append('gemini_tts_voice', '');
+        formData.append('gemini_api_key', '');
       } else {
         formData.append('voice', selectedVoice);
         formData.append('gemini_tts_voice', '');
@@ -1377,18 +1383,51 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || '單頁語音生成失敗');
 
+        btn.textContent = '✅ 生成成功';
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 1500);
+      } catch (err) {
+        alert('單頁語音生成失敗：' + err.message);
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    async function playPageAudio(index, btn) {
+      if (currentAudio && currentPlayBtn === btn) {
+        currentAudio.pause();
+        resetPlayBtn();
+        return;
+      }
+
+      if (currentAudio) {
+        currentAudio.pause();
+        resetPlayBtn();
+      }
+
+      btn.disabled = true;
+      const originalText = '🔊 播放/試聽';
+      btn.textContent = '⏳ 讀取中...';
+
+      try {
+        const res = await fetch(`/api/get-page-audio?job_id=${jobId}&page_index=${index}&tts_engine=${currentTtsEngine}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '讀取語音失敗');
+
         currentAudio = new Audio(data.url);
         btn.textContent = '⏹ 停止播放';
         btn.classList.add('playing');
-        btn.disabled = false; // 啟用按鈕供用戶點擊停止！
+        btn.disabled = false;
         currentPlayBtn = btn;
-        
+
         currentAudio.play();
         currentAudio.onended = () => {
           resetPlayBtn();
         };
       } catch (err) {
-        alert('單頁試聽生成失敗：' + err.message);
+        alert(err.message);
         btn.textContent = originalText;
         btn.disabled = false;
         btn.classList.remove('playing');
