@@ -6,6 +6,10 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
+    option {
+      color: #000;
+      background: #fff;
+    }
     :root {
       --bg-main: #0B1120;
       --card-bg: #151E32;
@@ -326,11 +330,11 @@
     </div>
     <div class="step" id="step2-indicator">
       <div class="step-circle">2</div>
-      <div class="step-label">AI 分析</div>
+      <div class="step-label">編輯腳本與語音</div>
     </div>
     <div class="step" id="step3-indicator">
       <div class="step-circle">3</div>
-      <div class="step-label">編輯 · 語音 · 考題</div>
+      <div class="step-label">編輯測驗考題</div>
     </div>
     <div class="step" id="step4-indicator">
       <div class="step-circle">4</div>
@@ -354,6 +358,12 @@
         <input type="file" id="fileInput" accept=".pdf,.docx">
       </label>
       
+      <div class="mt-4 text-center" id="startAnalysisContainer" style="display:none; margin-bottom: 20px;">
+        <button id="startAnalysisBtn" class="btn btn-custom px-5 py-2 fs-5" style="border-radius: 8px; box-shadow: 0 4px 15px rgba(99,102,241,0.3);" onclick="startAnalysis()">
+          <i class="fa-solid fa-play"></i> 開始分析
+        </button>
+      </div>
+      
       <!-- 解析模式設定 -->
       <div class="p-4" style="background: rgba(255,255,255,0.02); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
         <h6 class="mb-3 text-white"><i class="fa-solid fa-robot"></i> 簡報腳本解析設定</h6>
@@ -376,6 +386,26 @@
                 <div style="color: #8899b4; font-size: 0.8rem;">智慧抓取重點配音稿，並自動出測驗題。需 Gemini 金鑰。</div>
               </label>
             </div>
+          </div>
+        </div>
+
+        <!-- 目標頁數設定 -->
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed rgba(255,255,255,0.15);">
+          <label style="font-size: 0.8rem; font-weight: 600; color: #e8edf5; display: block; margin-bottom: 8px;">
+            <i class="fa-solid fa-layer-group" style="color:#38bdf8;"></i> 目標頁數（AI 會盡量控制在此範圍）
+          </label>
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <select id="targetSlidesCount" style="font-size: 0.82rem; color: #e8edf5; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.2); padding: 7px 12px; border-radius: 6px; cursor: pointer;">
+              <option value="0">自動（由 AI 決定）</option>
+              <option value="5">約 5 頁</option>
+              <option value="8">約 8 頁</option>
+              <option value="10">約 10 頁</option>
+              <option value="12">約 12 頁</option>
+              <option value="15">約 15 頁</option>
+              <option value="20">約 20 頁</option>
+              <option value="25">約 25 頁</option>
+            </select>
+            <span style="font-size: 0.78rem; color: #64748b;">若選自動，AI 會根據文件長度自行決定</span>
           </div>
         </div>
         
@@ -445,29 +475,67 @@
           </div>
         </div>
         
-        <!-- Tab Navigation for Slide/Quiz -->
-        <ul class="nav nav-tabs mb-3 border-secondary" id="editorTabs">
-          <li class="nav-item">
-            <a class="nav-link active bg-transparent text-white border-secondary border-bottom-0" id="tab-slides" style="cursor:pointer;" onclick="switchTab('slides')"><i class="fa-solid fa-images"></i> 投影片腳本</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link bg-transparent text-muted border-0" id="tab-quiz" style="cursor:pointer;" onclick="switchTab('quiz')"><i class="fa-solid fa-list-check"></i> 隨堂測驗</a>
-          </li>
-        </ul>
-        
         <!-- Slide Editor -->
         <div id="slideEditorArea">
           <div class="slide-navigator">
-            <button class="btn btn-sm bt        <!-- Quiz Editor -->
-        <div id="quizEditorArea" class="hidden">
+            <button class="btn btn-sm btn-outline-secondary" onclick="prevSlide()"><i class="fa-solid fa-chevron-left"></i> 上一頁</button>
+            <span class="text-info fw-bold" id="slideCounter">第 1 頁</span>
+            <button class="btn btn-sm btn-outline-secondary" onclick="nextSlide()">下一頁 <i class="fa-solid fa-chevron-right"></i></button>
+            <div style="width:1px; background:rgba(255,255,255,0.15); height:24px; margin: 0 4px;"></div>
+            <button class="btn btn-sm btn-outline-success" onclick="addSlideAfter()" title="在目前頁後方插入新頁"><i class="fa-solid fa-plus"></i> 新增頁</button>
+            <button class="btn btn-sm btn-outline-warning" onclick="mergeWithPrevSlide()" title="將本頁內容合併至上一頁"><i class="fa-solid fa-compress-alt"></i> 合併↑</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="deleteCurrentSlide()" title="刪除目前這一頁"><i class="fa-solid fa-trash"></i> 刪除</button>
+          </div>
+          
+          <div class="mb-3">
+            <label class="text-muted small mb-1">投影片標題</label>
+            <input type="text" class="form-control" id="slideTitle">
+          </div>
+          <div class="mb-3">
+            <label class="text-muted small mb-1">重點內容 (顯示於畫面)</label>
+            <textarea class="form-control" id="slideContent" rows="3"></textarea>
+          </div>
+          <div class="mb-3 p-3 rounded" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.05);">
+            <label class="text-warning small mb-1"><i class="fa-solid fa-microphone"></i> 語音朗讀旁白腳本</label>
+            <textarea class="form-control mb-3" id="slideNarration" rows="3"></textarea>
+            
+            <div class="d-flex align-items-center gap-3">
+              <button class="btn btn-sm btn-outline-warning text-nowrap" id="genAudioBtn" onclick="generateAudio()">
+                <i class="fa-solid fa-play"></i> 產生語音
+              </button>
+              <audio id="previewAudio" controls class="hidden w-100" style="height:35px;"></audio>
+            </div>
+            <div id="audioStatus" class="mt-1 small text-end"></div>
+          </div>
+        </div>
+        
+        <div class="d-flex justify-content-between border-top border-secondary pt-4 mt-4">
+          <button class="btn btn-outline-secondary px-4" onclick="goBackToUpload()">返回上傳</button>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-info" onclick="generateQuizByAIFromStep2()"><i class="fa-solid fa-wand-magic-sparkles"></i> AI 預生成考題</button>
+            <button class="btn btn-custom" onclick="goToStep3()">下一步：測驗考題 <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3: QUIZ EDITOR -->
+    <div id="step3-content" class="hidden">
+      <div class="hint-box">
+        <i class="fa-solid fa-list-check"></i> 編輯隨堂測驗考題
+      </div>
+      <div class="editor-section">
+        <!-- Quiz Editor -->
+        <div id="quizEditorArea">
 
           <!-- AI 生成考題工具列 -->
           <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:12px 16px; margin-bottom:16px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
             <div style="color:#a5b4fc; font-size:0.85rem;">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
-              <b>AI 自動出題</b>：依據所有投影片方的腳本自動生成测驗題目
+              <b>AI 自動出題</b>：依據所有投影片的腳本自動生成測驗題目
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
+              <input type="password" id="quizApiKey" placeholder="Gemini 金鑰 (若Step 1已填可留空)" style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); color:#e8edf5; border-radius:6px; padding:4px 8px; font-size:0.82rem; width:220px;" autocomplete="new-password">
               <label style="color:#8899b4; font-size:0.8rem; white-space:nowrap;">題數</label>
               <select id="quizGenCount" style="background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.2); color:#e8edf5; border-radius:6px; padding:4px 8px; font-size:0.82rem;">
                 <option value="3">3 題</option>
@@ -490,28 +558,6 @@
           </div>
           
           <div class="mb-3">
-            <label class="text-muted small mb-1">題目敍述</label>
-            <textarea class="form-control" id="quizQuestion" rows="2"></textarea>
-          </div>
-          <div class="row g-2 mb-3">
-            <div class="col-md-6"><div class="input-group input-group-sm"><span class="input-group-text bg-secondary text-white border-0">A</span><input type="text" class="form-control" id="quizOpt0"></div></div>
-            <div class="col-md-6"><div class="input-group input-group-sm"><span class="input-group-text bg-secondary text-white border-0">B</span><input type="text" class="form-control" id="quizOpt1"></div></div>
-            <div class="col-md-6"><div class="input-group input-group-sm"><span class="input-group-text bg-secondary text-white border-0">C</span><input type="text" class="form-control" id="quizOpt2"></div></div>
-            <div class="col-md-6"><div class="input-group input-group-sm"><span class="input-group-text bg-secondary text-white border-0">D</span><input type="text" class="form-control" id="quizOpt3"></div></div>
-          </div>
-          <div class="mb-4">
-            <label class="text-muted small mb-1">正確答案</label>
-            <select class="form-select form-select-sm" id="quizAnswer">
-              <option value="0">選項 A</option>
-              <option value="1">選項 B</option>
-              <option value="2">選項 C</option>
-              <option value="3">選項 D</option>
-            </select>
-          </div>
-        </div>k="nextQuiz()">下一題 <i class="fa-solid fa-chevron-right"></i></button>
-          </div>
-          
-          <div class="mb-3">
             <label class="text-muted small mb-1">題目敘述</label>
             <textarea class="form-control" id="quizQuestion" rows="2"></textarea>
           </div>
@@ -531,9 +577,10 @@
             </select>
           </div>
         </div>
+        </div>
         
         <div class="d-flex justify-content-between border-top border-secondary pt-4 mt-2">
-          <button class="btn btn-outline-secondary px-4" onclick="goBackToUpload()">返回</button>
+          <button class="btn btn-outline-secondary px-4" onclick="goToStep2()">上一步</button>
           <div class="d-flex gap-2">
             <span id="saveStatus" class="align-self-center text-success small me-2"></span>
             <button class="btn btn-custom" onclick="goToExport()">確認無誤，進入匯出 <i class="fa-solid fa-arrow-right"></i></button>
@@ -560,8 +607,9 @@
             <span>產出互動網頁<br><small class="text-white-50">含測驗與解鎖機制</small></span>
           </button>
         </div>
-        <div class="mt-5 text-muted">
-          <button class="btn btn-sm btn-link text-muted" onclick="backToEdit()"><i class="fa-solid fa-arrow-left"></i> 回到編輯畫面</button>
+        <div class="mt-5 d-flex justify-content-center gap-3">
+          <button class="btn btn-outline-secondary px-4" onclick="goToStep3()"><i class="fa-solid fa-arrow-left"></i> 返回編輯考題</button>
+          <button class="btn btn-outline-secondary px-4" onclick="goBackToUpload()"><i class="fa-solid fa-house"></i> 回到首頁</button>
         </div>
       </div>
     </div>
@@ -649,7 +697,7 @@
   dropZone.addEventListener('click', (e) => {
     if (lastFile && dropZone.dataset.errorState === '1') {
       e.preventDefault();
-      handleFile(lastFile);
+      startAnalysis();
     }
   });
 
@@ -657,9 +705,19 @@
     if (e.target.files.length > 0) handleFile(e.target.files[0]);
   });
 
-  async function handleFile(file) {
+  function handleFile(file) {
       lastFile = file;
       dropZone.dataset.errorState = '0';
+      dropTitle.innerHTML = `<i class="fa-solid fa-file-check" style="color:#6c8ebf;"></i> 已選擇：${file.name}`;
+      document.getElementById('startAnalysisContainer').style.display = 'block';
+  }
+
+  async function startAnalysis() {
+      if(!lastFile) return;
+      const file = lastFile;
+      const btn = document.getElementById('startAnalysisBtn');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 分析中...`;
       dropTitle.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color:#6c8ebf;"></i> 正在分析 ${file.name}...`;
       
       const formData = new FormData();
@@ -667,6 +725,7 @@
       formData.append("api_keys", document.getElementById('apiKeyInput').value);
       formData.append("extract_mode", document.querySelector('input[name="extractMode"]:checked').value);
       formData.append("model", document.getElementById('geminiModelSelect')?.value || 'gemini-3.5-flash');
+      formData.append("target_slides", document.getElementById('targetSlidesCount')?.value || '0');
       
       try {
         const res = await fetch('/api/extract', { method: 'POST', body: formData });
@@ -687,6 +746,8 @@
         dropZone.dataset.errorState = '1';
         dropTitle.innerHTML = `<span style="color:#ef4444;"><i class="fa-solid fa-xmark"></i> 分析失敗</span><br><small style="color:#8899b4;">${err.message.slice(0,120)}</small><br><small style="color:#6c8ebf; text-decoration:underline; cursor:pointer;">點擊以相同檔案重試</small>`;
       }
+      btn.disabled = false;
+      btn.innerHTML = `<i class="fa-solid fa-play"></i> 開始分析`;
   }
 
   async function loadJob() {
@@ -723,6 +784,7 @@
     
     document.getElementById('step1-content').classList.add('hidden');
     document.getElementById('step2-content').classList.add('hidden');
+    document.getElementById('step3-content').classList.add('hidden');
     document.getElementById('step4-content').classList.add('hidden');
   }
 
@@ -734,37 +796,34 @@
   }
 
   function openEditor() {
-    setStepper(3);
+    goToStep2();
+  }
+
+  function goToStep2() {
+    // If coming from step 3, sync step 3 data first
+    if (!document.getElementById('step3-content').classList.contains('hidden')) {
+      syncQuizDataFromUI();
+    }
+    setStepper(2);
     document.getElementById('step2-content').classList.remove('hidden');
     document.getElementById('currentJobIdDisplay').innerText = `編輯專案：${currentJobId}`;
     loadSlideUI();
+  }
 
+  function goToStep3() {
+    // If coming from step 2, sync step 2 data first
+    if (!document.getElementById('step2-content').classList.contains('hidden')) {
+      syncSlideDataFromUI();
+    }
+    setStepper(3);
+    document.getElementById('step3-content').classList.remove('hidden');
+    
     // 確保考題 tab 永遠顯示；若沒有考題則給一筆空白預設題
     if (!jobData.quiz || jobData.quiz.length === 0) {
       jobData.quiz = [{ question: "", options: ["", "", "", ""], answer: 0 }];
     }
     currentQuizIndex = 0;
     loadQuizUI();
-    document.getElementById('tab-quiz').parentElement.classList.remove('hidden');
-    switchTab('slides');
-  }
-
-  function switchTab(tab) {
-    if(tab === 'slides') {
-      document.getElementById('tab-slides').classList.add('active', 'text-white', 'border-bottom-0');
-      document.getElementById('tab-slides').classList.remove('text-muted', 'border-0');
-      document.getElementById('tab-quiz').classList.add('text-muted', 'border-0');
-      document.getElementById('tab-quiz').classList.remove('active', 'text-white', 'border-bottom-0');
-      document.getElementById('slideEditorArea').classList.remove('hidden');
-      document.getElementById('quizEditorArea').classList.add('hidden');
-    } else {
-      document.getElementById('tab-quiz').classList.add('active', 'text-white', 'border-bottom-0');
-      document.getElementById('tab-quiz').classList.remove('text-muted', 'border-0');
-      document.getElementById('tab-slides').classList.add('text-muted', 'border-0');
-      document.getElementById('tab-slides').classList.remove('active', 'text-white', 'border-bottom-0');
-      document.getElementById('slideEditorArea').classList.add('hidden');
-      document.getElementById('quizEditorArea').classList.remove('hidden');
-    }
   }
 
   // -- Slide UI Logic --
@@ -784,17 +843,53 @@
   
   function prevSlide() {
     if (currentSlideIndex > 0) {
-      syncDataFromUI();
+      syncSlideDataFromUI();
       currentSlideIndex--;
       loadSlideUI();
     }
   }
   function nextSlide() {
     if (currentSlideIndex < jobData.slides.length - 1) {
-      syncDataFromUI();
+      syncSlideDataFromUI();
       currentSlideIndex++;
       loadSlideUI();
     }
+  }
+
+  function addSlideAfter() {
+    syncSlideDataFromUI();
+    const newSlide = { title: '新投影片', content: '', narration: '' };
+    jobData.slides.splice(currentSlideIndex + 1, 0, newSlide);
+    currentSlideIndex++;
+    loadSlideUI();
+  }
+
+  function deleteCurrentSlide() {
+    if (jobData.slides.length <= 1) {
+      alert('至少需要保留一頁，無法刪除！');
+      return;
+    }
+    if (!confirm(`確定要刪除第 ${currentSlideIndex + 1} 頁「${jobData.slides[currentSlideIndex].title}」？`)) return;
+    syncSlideDataFromUI();
+    jobData.slides.splice(currentSlideIndex, 1);
+    if (currentSlideIndex >= jobData.slides.length) currentSlideIndex = jobData.slides.length - 1;
+    loadSlideUI();
+  }
+
+  function mergeWithPrevSlide() {
+    if (currentSlideIndex === 0) {
+      alert('已是第一頁，無法合併到上一頁！');
+      return;
+    }
+    if (!confirm(`確定要將第 ${currentSlideIndex + 1} 頁合併到第 ${currentSlideIndex} 頁？\n（本頁內容會追加到上一頁，本頁會被刪除）`)) return;
+    syncSlideDataFromUI();
+    const cur  = jobData.slides[currentSlideIndex];
+    const prev = jobData.slides[currentSlideIndex - 1];
+    prev.content   += (prev.content   ? '\n' : '') + cur.content;
+    prev.narration += (prev.narration ? '\n' : '') + cur.narration;
+    jobData.slides.splice(currentSlideIndex, 1);
+    currentSlideIndex--;
+    loadSlideUI();
   }
 
   // -- Quiz UI Logic --
@@ -812,39 +907,63 @@
 
   function prevQuiz() {
     if (currentQuizIndex > 0) {
-      syncDataFromUI();
+      syncQuizDataFromUI();
       currentQuizIndex--;
       loadQuizUI();
     }
   }
   function nextQuiz() {
     if (currentQuizIndex < jobData.quiz.length - 1) {
-      syncDataFromUI();
+      syncQuizDataFromUI();
       currentQuizIndex++;
       loadQuizUI();
     }
   }
 
-  function syncDataFromUI() {
-    // Only sync what's currently visible or we can sync both if we track changes
-    if(!document.getElementById('slideEditorArea').classList.contains('hidden')) {
+  function syncSlideDataFromUI() {
+    if(jobData && jobData.slides && jobData.slides[currentSlideIndex]) {
       jobData.slides[currentSlideIndex].title = document.getElementById('slideTitle').value;
       jobData.slides[currentSlideIndex].content = document.getElementById('slideContent').value;
       jobData.slides[currentSlideIndex].narration = document.getElementById('slideNarration').value;
       jobData.tts_engine = document.getElementById('ttsEngine').value;
       jobData.voice = document.getElementById('voiceSelect').value;
-    } else {
-      if (jobData.quiz && jobData.quiz.length > 0) {
-        jobData.quiz[currentQuizIndex].question = document.getElementById('quizQuestion').value;
-        jobData.quiz[currentQuizIndex].options = [
-          document.getElementById('quizOpt0').value,
-          document.getElementById('quizOpt1').value,
-          document.getElementById('quizOpt2').value,
-          document.getElementById('quizOpt3').value
-        ];
-        jobData.quiz[currentQuizIndex].answer = parseInt(document.getElementById('quizAnswer').value, 10);
-      }
     }
+  }
+  
+  function syncQuizDataFromUI() {
+    if (jobData && jobData.quiz && jobData.quiz.length > 0) {
+      jobData.quiz[currentQuizIndex].question = document.getElementById('quizQuestion').value;
+      jobData.quiz[currentQuizIndex].options = [
+        document.getElementById('quizOpt0').value,
+        document.getElementById('quizOpt1').value,
+        document.getElementById('quizOpt2').value,
+        document.getElementById('quizOpt3').value
+      ];
+      jobData.quiz[currentQuizIndex].answer = parseInt(document.getElementById('quizAnswer').value, 10);
+    }
+  }
+
+  function syncDataFromUI() {
+    if (!document.getElementById('step2-content').classList.contains('hidden')) {
+      syncSlideDataFromUI();
+    }
+    if (!document.getElementById('step3-content').classList.contains('hidden')) {
+      syncQuizDataFromUI();
+    }
+  }
+
+  async function generateQuizByAIFromStep2() {
+    const btn = document.querySelector('button[onclick="generateQuizByAIFromStep2()"]');
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
+    btn.disabled = true;
+    
+    // Simulate generation to jump step
+    await generateQuizByAI();
+    
+    btn.innerHTML = oldHtml;
+    btn.disabled = false;
+    goToStep3();
   }
 
   async function saveAllChanges() {
@@ -898,7 +1017,9 @@
   }
 
   async function generateQuizByAI() {
-    const apiKey = document.getElementById('apiKeyInput').value;
+    const quizKey = document.getElementById('quizApiKey').value;
+    const globalKey = document.getElementById('apiKeyInput').value;
+    const apiKey = quizKey || globalKey;
     const model  = document.getElementById('geminiModelSelect')?.value || 'gemini-3.5-flash';
     const count  = document.getElementById('quizGenCount').value;
     const btn    = document.getElementById('genQuizBtn');
@@ -911,11 +1032,8 @@
     // 把所有投影片的腳本就地對掃後作為內容
     syncDataFromUI();
     const allText = (jobData.slides || []).map((s, i) =>
-      `[第${i+1}頁]標題：${s.title}
-腳本：${s.narration || s.content}`
-    ).join('
-
-');
+      `[第${i+1}頁]標題：${s.title}\n腳本：${s.narration || s.content}`
+    ).join('\n\n');
 
     const fd = new FormData();
     fd.append('api_keys', apiKey);
@@ -949,19 +1067,91 @@
     openEditor();
   }
 
+  // 用 <a download> 觸發下載，不受瀏覽器彈窗封鎖器影響
+  function triggerDownload(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    if (filename) a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 200);
+  }
+
   async function exportPPTX() {
-    const fd = new FormData(); fd.append("job_id", currentJobId);
-    const res = await fetch('/api/export-pptx', { method: 'POST', body: fd });
-    const data = await res.json();
-    window.open(data.url, '_blank');
+    const btn = document.querySelector('button[onclick="exportPPTX()"]');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...'; }
+    try {
+      const fd = new FormData();
+      fd.append('job_id', currentJobId);
+      const res = await fetch('/api/export-pptx', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      triggerDownload(data.url, data.url.split('/').pop().split('?')[0]);
+    } catch(e) {
+      alert('PPTX 匯出失敗：' + e.message);
+    }
+    if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
   }
 
   async function exportWeb() {
-    const fd = new FormData(); fd.append("job_id", currentJobId);
-    const res = await fetch('/api/export-web', { method: 'POST', body: fd });
-    const data = await res.json();
-    window.open(data.url, '_blank');
+    const btn = document.querySelector('button[onclick="exportWeb()"]');
+    const oldHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 準備中...'; }
+
+    // ── 1. 先同步最新資料並儲存 ──
+    syncDataFromUI();
+    await saveAllChanges();
+
+    const slides     = jobData.slides || [];
+    const ttsEngine  = document.getElementById('ttsEngine').value;
+    const voice      = document.getElementById('voiceSelect').value;
+    const apiKeys    = document.getElementById('apiKeyInput').value;
+
+    // ── 2. 批次生成所有頁語音 ──
+    for (let i = 0; i < slides.length; i++) {
+      if (btn) btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> 合成語音 ${i+1}/${slides.length}...`;
+      const narration = slides[i].narration || slides[i].content || '';
+      if (!narration.trim()) continue;   // 空白頁跳過
+
+      const fd = new FormData();
+      fd.append('job_id',      currentJobId);
+      fd.append('page_index',  i);
+      fd.append('text',        narration);
+      fd.append('tts_engine',  ttsEngine);
+      fd.append('voice',       voice);
+      fd.append('api_keys',    apiKeys);
+
+      try {
+        const res = await fetch('/api/generate-audio', { method: 'POST', body: fd });
+        if (!res.ok) {
+          const err = await res.text();
+          console.warn(`第 ${i+1} 頁語音生成失敗：${err}`);
+        }
+      } catch(e) {
+        console.warn(`第 ${i+1} 頁語音網路錯誤：`, e);
+      }
+    }
+
+    // ── 3. 打包匯出 ──
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 打包中...';
+    try {
+      const fd = new FormData();
+      fd.append('job_id', currentJobId);
+      const res = await fetch('/api/export-web', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      triggerDownload(data.url, data.url.split('/').pop().split('?')[0]);
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-check"></i> 下載完成！';
+    } catch(e) {
+      alert('匯出失敗：' + e.message);
+    }
+
+    setTimeout(() => {
+      if (btn) { btn.disabled = false; btn.innerHTML = oldHtml; }
+    }, 2000);
   }
+
 
   window.onload = () => {
     fetchVoices();
