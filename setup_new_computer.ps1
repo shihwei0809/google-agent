@@ -160,6 +160,44 @@ foreach ($fileName in $configFiles) {
     }
 }
 
+# 5.1 自動連動與掛載 🧠 中央大腦 (my-ai-brain)
+Write-Host "`n🧠 正在檢查並同步中央大腦 (my-ai-brain)..." -ForegroundColor Yellow
+$brainRepo = "https://github.com/shihwei0809/my-ai-brain.git"
+$brainTargetDir = "D:\GOOGLE ANGET\my-ai-brain"
+if (-not (Test-Path "D:\GOOGLE ANGET")) { $brainTargetDir = "C:\GOOGLE ANGET\my-ai-brain" }
+
+if (-not (Test-Path $brainTargetDir)) {
+    Write-Host "📥 正在複製中央大腦至 $brainTargetDir..." -ForegroundColor Yellow
+    git clone $brainRepo $brainTargetDir
+} else {
+    Write-Host "🔄 正在更新中央大腦最新記憶與規範 (git pull)..." -ForegroundColor Yellow
+    git -C $brainTargetDir pull
+}
+
+# 自動將中央大腦的 AGENTS.md 注入至本機全域 AI 規範
+$globalConfigDir = Join-Path $userProfile ".gemini\config"
+if (-not (Test-Path $globalConfigDir)) { New-Item -ItemType Directory -Path $globalConfigDir -Force | Out-Null }
+$brainAgentsMd = Join-Path $brainTargetDir "AGENTS.md"
+$targetGlobalAgentsMd = Join-Path $globalConfigDir "AGENTS.md"
+if (Test-Path $brainAgentsMd) {
+    Copy-Item -Path $brainAgentsMd -Destination $targetGlobalAgentsMd -Force
+    Write-Host "🎉 成功將中央大腦全域規範 (AGENTS.md) 注入本機 AI 引擎！" -ForegroundColor Green
+}
+
+# 5.2 自動連動與掛載 🛠️ 跨電腦技能庫 (cross-device-agent-skills)
+Write-Host "`n🛠️ 正在檢查並同步跨電腦技能庫 (cross-device-agent-skills)..." -ForegroundColor Yellow
+$skillsRepo = "https://github.com/mathruffian-dot/cross-device-agent-skills.git"
+$skillsTargetDir = "D:\GOOGLE ANGET\cross-device-agent-skills"
+if (-not (Test-Path "D:\GOOGLE ANGET")) { $skillsTargetDir = "C:\GOOGLE ANGET\cross-device-agent-skills" }
+
+if (-not (Test-Path $skillsTargetDir)) {
+    Write-Host "📥 正在複製跨電腦技能庫至 $skillsTargetDir..." -ForegroundColor Yellow
+    git clone $skillsRepo $skillsTargetDir
+} else {
+    Write-Host "🔄 正在更新跨電腦技能庫 (git pull)..." -ForegroundColor Yellow
+    git -C $skillsTargetDir pull
+}
+
 # 5.5 從 Google Drive 備份中還原自訂技能與設定 (一鍵還原/轉移)
 Write-Host "`n🔄 正在檢查是否有 Google Drive 技能備份以進行自動還原..." -ForegroundColor Yellow
 $gdriveName = [string][char]0x6211 + [char]0x7684 + [char]0x96f2 + [char]0x7aef + [char]0x786c + [char]0x789f

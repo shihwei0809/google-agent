@@ -1094,13 +1094,13 @@
                     <button class="term-copy-btn" onclick="navigator.clipboard.writeText('C:\\GOOGLE ANGET\\一鍵備份技能.bat')">複製路徑</button>
                 </div>
                 <div class="modal-instructions">
-                    <h4 style="color: var(--primary); margin-top: 16px; margin-bottom: 8px;">C. 跨電腦一鍵還原轉移</h4>
-                    <p>當您需要在新電腦上使用這些技能時，只要兩步驟：</p>
+                    <h4 style="color: var(--primary); margin-top: 16px; margin-bottom: 8px;">C. 雙庫連動與跨電腦一鍵還原轉移</h4>
+                    <p>本系統採用「雙庫獨立 + 一鍵自動連動」架構（🧠 <strong>中央大腦 my-ai-brain</strong> 負責記憶與規範，🛠️ <strong>跨電腦技能庫 cross-device-agent-skills</strong> 負責工具與腳本）：</p>
                     <ol style="margin-left: 20px; margin-top: 6px;">
-                        <li>在新電腦下載或將 Google Drive 的 <code>GOOGLE ANGET</code> 同步至新電腦的 <code>C:\GOOGLE ANGET</code>。</li>
-                        <li>於 <code>C:\GOOGLE ANGET</code> 資料夾中以「系統管理員身分執行」<code>setup_new_computer.ps1</code>（或雙擊還原腳本）。</li>
+                        <li>在新電腦同步或下載根目錄至 <code>C:\GOOGLE ANGET</code> (或 <code>D:\GOOGLE ANGET</code>)。</li>
+                        <li>於資料夾中執行 <code>setup_new_computer.ps1</code> 初始化腳本。</li>
                     </ol>
-                    <p style="margin-top: 8px;">腳本將會自動安裝 Git、Node、Python 等軟體，並自動還原所有的 AI 技能、設定檔與授權！</p>
+                    <p style="margin-top: 8px;">腳本將會自動安裝開發環境、自動連動 <strong>my-ai-brain</strong> 與 <strong>cross-device-agent-skills</strong> 兩大獨立倉庫，並自動將全域 AI 規範 (<code>AGENTS.md</code>) 與 MCP 工具鏈注入本機 AI 引擎！</p>
                 </div>
             </div>
             <div class="modal-footer">

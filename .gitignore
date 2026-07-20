@@ -32,6 +32,7 @@ yarn-error.log*
 ~$*.xlsx
 
 # Local nested git folders (ignored to prevent broken git submodules)
+第一類_核心網頁與互動系統/員工教育訓練測驗系統/nitrogen_quiz/
 第三類_AI代理與指南企劃/clasp-netlify-mcp-guide/
 第三類_AI代理與指南企劃/claude-html-slide-builder/
 第三類_AI代理與指南企劃/claude-video-specs/

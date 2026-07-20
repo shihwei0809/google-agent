@@ -143,6 +143,7 @@
 | ├─ `hongsheng-web` | [google-agent/hongsheng-web](https://github.com/shihwei0809/google-agent/tree/main/hongsheng-web) |
 | ├─ `isotank-training` | [google-agent/isotank-training](https://github.com/shihwei0809/google-agent/tree/main/isotank-training) |
 | ├─ `isotank-hf-demo` | [google-agent/isotank-hf-demo](https://github.com/shihwei0809/google-agent/tree/main/isotank-hf-demo) |
+| ├─ `nitrogen-valve-quiz` | [shihwei0809/nitrogen-valve-quiz](https://github.com/shihwei0809/nitrogen-valve-quiz) |
 | ├─ `test` (大阪冒險電子書) | [google-agent/test](https://github.com/shihwei0809/google-agent/tree/main/test) |
 | ├─ `聲音轉文字` (NoType) | [google-agent/聲音轉文字](https://github.com/shihwei0809/google-agent/tree/main/聲音轉文字) |
 | ├─ `互動式網站` | [google-agent/互動式網站](https://github.com/shihwei0809/google-agent/tree/main/互動式網站) |
@@ -165,6 +166,8 @@
 | **`C:\GOOGLE ANGET\clasp-netlify-mcp-guide`** | [mathruffian-dot/clasp-netlify-mcp-guide](https://github.com/mathruffian-dot/clasp-netlify-mcp-guide) |
 | **`C:\GOOGLE ANGET\claude-html-slide-builder`** | [mathruffian-dot/claude-html-slide-builder](https://github.com/mathruffian-dot/claude-html-slide-builder) |
 | **`C:\GOOGLE ANGET\claude-video-specs`** | [mathruffian-dot/claude-video-specs](https://github.com/mathruffian-dot/claude-video-specs) |
+| **`D:\GOOGLE ANGET\my-ai-brain` (中央大腦與記憶庫)** | [shihwei0809/my-ai-brain](https://github.com/shihwei0809/my-ai-brain) |
+| **`D:\GOOGLE ANGET\cross-device-agent-skills` (跨電腦技能庫)** | [mathruffian-dot/cross-device-agent-skills](https://github.com/mathruffian-dot/cross-device-agent-skills) |
 
 ---
 
@@ -176,6 +179,6 @@
 4. **雲端同步發佈**：完成上述文件修改後，執行 `netlify deploy --dir=說明書 --prod` 將說明書同步至線上託管空間 (https://cerulean-praline-6b314d.netlify.app/)。
 
 ---
-*最後更新時間：2026年07月10日*
+*最後更新時間：2026年07月20日*
 
 

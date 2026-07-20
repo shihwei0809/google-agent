@@ -10,7 +10,7 @@ git pull
 echo.
 
 echo [2/2] 正在檢查並下載所有獨立的子專案...
-set REPOS=ipa-production-scheduler ipahq-tanker-confirm ipahq-tanker-scan-app n-series-barcode-verify n-series-php-barcode-api n-series-gas-apk-offline n-series-shipping-php qc-factory-digitize triple-form-php-migration temperature-alert hose-keycode-manager ai-agent-guide ai-voice-cloner-guide aigc-music-video-hub clasp-netlify-mcp-guide claude-html-slide-builder claude-video-specs google-classroom-agent grad-trip padlet-board skincare-product-guide
+set REPOS=ipa-production-scheduler ipahq-tanker-confirm ipahq-tanker-scan-app n-series-barcode-verify n-series-php-barcode-api n-series-gas-apk-offline n-series-shipping-php qc-factory-digitize triple-form-php-migration temperature-alert hose-keycode-manager ai-agent-guide ai-voice-cloner-guide aigc-music-video-hub clasp-netlify-mcp-guide claude-html-slide-builder claude-video-specs google-classroom-agent grad-trip padlet-board skincare-product-guide nitrogen-valve-quiz
 
 for %%R in (%REPOS%) do (
     if not exist "%%R\" (

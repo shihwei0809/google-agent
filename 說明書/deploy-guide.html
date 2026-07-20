@@ -332,6 +332,39 @@
             </ul>
         </section>
         
+        <!-- 新增: 雙庫獨立 + 一鍵連動自動化說明 -->
+        <section class="card brain" style="border: 1px solid rgba(168, 85, 247, 0.4);">
+            <h2 class="section-title brain" style="color: #c084fc; text-shadow: 0 0 15px rgba(192, 132, 252, 0.5);">🧠 雙庫獨立 + 一鍵連動自動化 (中央大腦與技能庫)</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">優勢：達成記憶/規範（my-ai-brain）與工具/腳本（cross-device-agent-skills）的權責分離，跨電腦一鍵全自動連動備份！</p>
+            
+            <ul class="step-list">
+                <li class="step-item" style="border-left-color: #c084fc;">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>🧠 中央大腦 (my-ai-brain)</h3>
+                        <p>專屬 GitHub 倉庫：<code>https://github.com/shihwei0809/my-ai-brain.git</code><br>
+                        負責儲存 AI 全域行為規範 <code>AGENTS.md</code>、專案總履歷 <code>PROJECT_RECORDS.md</code> 與 Obsidian 第二大腦思考脈絡。</p>
+                    </div>
+                </li>
+                <li class="step-item" style="border-left-color: #c084fc;">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>🛠️ 跨電腦技能庫 (cross-device-agent-skills)</h3>
+                        <p>專屬 GitHub 倉庫：<code>https://github.com/mathruffian-dot/cross-device-agent-skills.git</code><br>
+                        負責儲存 <code>setup_new_computer.ps1</code> 一鍵初始化腳本、<code>backup_skills.ps1</code> 一鍵備份腳本與全域 Prompt Skills 工具包。</p>
+                    </div>
+                </li>
+                <li class="step-item" style="border-left-color: #c084fc;">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>⚡ 一鍵還原與備份運作</h3>
+                        <p>在新電腦執行 <code>setup_new_computer.ps1</code>，腳本將自動 Clone / Pull 雙倉庫，並將全域 AI 規範 (<code>AGENTS.md</code>) 與 MCP 工具全自動注入本機 AI 引擎！<br>
+                        執行 <code>backup_skills.ps1</code> 備份時，系統亦會自動檢測雙庫變更並自動完成 <code>git push</code> 上傳。</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
+        
         <!-- Cloudflare Pages 教學 -->
         <section class="card cf">
             <h2 class="section-title cf">☁️ Cloudflare Pages 自動部署教學 (主力推薦)</h2>

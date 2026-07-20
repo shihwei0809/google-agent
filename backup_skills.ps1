@@ -64,6 +64,33 @@ if (Test-Path $workspaceSkillsDir) {
     Write-Host "✅ Local workspace skills backed up successfully!" -ForegroundColor Green
 }
 
+# 4.5 自動檢查與推送中央大腦與技能庫的 Git 變更
+function Auto-GitPushRepo {
+    param ([string]$RepoPath, [string]$RepoName)
+    if (Test-Path $RepoPath) {
+        $status = git -C $RepoPath status --porcelain 2>&1
+        if ($status) {
+            Write-Host "📡 偵測到 $RepoName 有未提交變更，正在自動 Git Push..." -ForegroundColor Yellow
+            $timeStr = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+            git -C $RepoPath add .
+            git -C $RepoPath commit -m "auto-backup: sync memory & skills ($timeStr)"
+            git -C $RepoPath push
+            Write-Host "✅ $RepoName 已成功推送到 GitHub！" -ForegroundColor Green
+        } else {
+            Write-Host "ℹ️ $RepoName 已是最新狀態，無須推送。" -ForegroundColor Gray
+        }
+    }
+}
+
+$brainDir = "D:\GOOGLE ANGET\my-ai-brain"
+if (-not (Test-Path $brainDir)) { $brainDir = "C:\GOOGLE ANGET\my-ai-brain" }
+Auto-GitPushRepo -RepoPath $brainDir -RepoName "🧠 中央大腦 (my-ai-brain)"
+
+$skillsDir = "D:\GOOGLE ANGET\cross-device-agent-skills"
+if (-not (Test-Path $skillsDir)) { $skillsDir = "C:\GOOGLE ANGET\cross-device-agent-skills" }
+Auto-GitPushRepo -RepoPath $skillsDir -RepoName "🛠️ 跨電腦技能庫 (cross-device-agent-skills)"
+
+
 # 5. Write README.md in backup folder
 Write-Host "Updating backup README.md..." -ForegroundColor Yellow
 $timeStr = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
