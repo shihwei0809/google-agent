@@ -31,20 +31,32 @@
 「*早安！偵測到新任務，需要我先幫您執行『開工』檢查（例如 git pull 取回雲端最新進度）嗎？*」
 使用者同意後，再執行 git pull。
 
-## 6. 本機 Server 啟動批次檔 (.bat) 顯示 IP 規範
-凡是在本機執行的 Web / API 伺服器專案，其一鍵啟動批次檔 (`.bat`) 中除了顯示 `localhost` 與 Port 號之外，**必須自動抓取並顯示本機實體 IP 位址**（方便使用者將網址提供給同區域網路/同網域旁人使用，無需手動查詢 IP）。
+## 6. 本機 Server 啟動與 Port 佔用自動處理規範
+凡是在本機執行的 Web / API 伺服器專案，其啟動腳本或主程式必須遵循以下規範：
+1. **顯示本機 IP 與網址**：啟動時除了顯示 `http://localhost:[PORT]` 外，**必須自動抓取並顯示本機實體 IP 位址**（例如 `http://192.168.x.x:[PORT]`），方便提供給區域網路同伴使用。
+2. **Port 佔用自動切換 (Port Fallback)**：當預設 Port（如 8002）已被其他程式佔用時，系統**不得崩潰中斷**，必須自動搜尋並切換至下一個可用的 Port（如 8003, 8004...），並在主控台上明確提示「*預設 Port [原Port] 已被佔用，已自動切換至可用 Port: [新Port]*」。
 
-**標準 BAT 提示範例與指令**：
-```bat
-for /f "tokens=*" %%a in ('powershell -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object IPAddress -notlike '127.*' | Where-Object IPAddress -notlike '169.254.*' | Select-Object -ExpandProperty IPAddress)[0]"') do set LOCAL_IP=%%a
+**Python 標準動態 Port 與 IP 綁定寫法範例**：
+```python
+import socket
 
-echo ===================================================
-echo    [專案名稱] (Port [PORT])
-echo.
-echo    本機開啟網址:
-echo    http://localhost:[PORT]
-echo.
-echo    同網域 / 旁人使用網址:
-echo    http://%LOCAL_IP%:[PORT]
-echo ===================================================
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+def find_available_port(start_port: int, max_attempts: int = 50) -> int:
+    for port in range(start_port, start_port + max_attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    return start_port
 ```

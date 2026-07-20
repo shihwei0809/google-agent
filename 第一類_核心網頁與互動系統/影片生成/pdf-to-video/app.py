@@ -1331,6 +1331,45 @@ async def _run_rebuild(job_id: str):
         jobs[job_id] = {"status": "error", "error": str(exc), "step": "合成失敗"}
 
 
+import socket
+
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+def find_available_port(start_port: int, max_attempts: int = 50) -> int:
+    for port in range(start_port, start_port + max_attempts):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("0.0.0.0", port))
+                return port
+            except OSError:
+                continue
+    return start_port
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8002, reload=False)
+    DEFAULT_PORT = 8002
+    port = find_available_port(DEFAULT_PORT)
+    local_ip = get_local_ip()
+
+    banner_title = f"PDF Video Generator (Port {port})" if port == DEFAULT_PORT else f"[!] 預設 Port {DEFAULT_PORT} 已被佔用，已自動切換至可用 Port {port}"
+    print()
+    print("=" * 55)
+    print(f"    {banner_title}")
+    print()
+    print("    本機開啟網址:")
+    print(f"    http://localhost:{port}")
+    print()
+    print("    同網域 / 旁人使用網址:")
+    print(f"    http://{local_ip}:{port}")
+    print("=" * 55)
+    print()
+
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
