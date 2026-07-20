@@ -182,6 +182,13 @@ $targetGlobalAgentsMd = Join-Path $globalConfigDir "AGENTS.md"
 if (Test-Path $brainAgentsMd) {
     Copy-Item -Path $brainAgentsMd -Destination $targetGlobalAgentsMd -Force
     Write-Host "🎉 成功將中央大腦全域規範 (AGENTS.md) 注入本機 AI 引擎！" -ForegroundColor Green
+    
+    # [相容性支援] 自動為筆電的其他 AI (Claude/ChatGPT/Cursor) 注入跨平台中央大腦
+    $universalAiDir = Join-Path $userProfile ".ai"
+    if (-not (Test-Path $universalAiDir)) { New-Item -ItemType Directory -Path $universalAiDir -Force | Out-Null }
+    $targetUniversalInstructions = Join-Path $universalAiDir "INSTRUCTIONS.md"
+    Copy-Item -Path $brainAgentsMd -Destination $targetUniversalInstructions -Force
+    Write-Host "🎉 成功將中央大腦同步至跨平台辦公室 (.ai/INSTRUCTIONS.md)！" -ForegroundColor Green
 }
 
 # 5.2 自動連動與掛載 🛠️ 跨電腦技能庫 (cross-device-agent-skills)
