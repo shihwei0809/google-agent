@@ -30,3 +30,21 @@
 當 AI 接收到使用者的第一句話，且判定為全新的對話或一天的開始，AI 必須主動在回覆的第一段詢問：
 「*早安！偵測到新任務，需要我先幫您執行『開工』檢查（例如 git pull 取回雲端最新進度）嗎？*」
 使用者同意後，再執行 git pull。
+
+## 6. 本機 Server 啟動批次檔 (.bat) 顯示 IP 規範
+凡是在本機執行的 Web / API 伺服器專案，其一鍵啟動批次檔 (`.bat`) 中除了顯示 `localhost` 與 Port 號之外，**必須自動抓取並顯示本機實體 IP 位址**（方便使用者將網址提供給同區域網路/同網域旁人使用，無需手動查詢 IP）。
+
+**標準 BAT 提示範例與指令**：
+```bat
+for /f "tokens=*" %%a in ('powershell -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object IPAddress -notlike '127.*' | Where-Object IPAddress -notlike '169.254.*' | Select-Object -ExpandProperty IPAddress)[0]"') do set LOCAL_IP=%%a
+
+echo ===================================================
+echo    [專案名稱] (Port [PORT])
+echo.
+echo    本機開啟網址:
+echo    http://localhost:[PORT]
+echo.
+echo    同網域 / 旁人使用網址:
+echo    http://%LOCAL_IP%:[PORT]
+echo ===================================================
+```
