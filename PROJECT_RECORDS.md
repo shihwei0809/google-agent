@@ -2,6 +2,13 @@
 
 此文件記錄了 `G:\我的雲端硬碟\GOOGLE ANGET` 目錄下所有主要專案的內容與用途，方便後續人員接手、更新與維護。
 
+## 🚀 專案大廳與常用連結快捷導航
+- ☁️ **Cloudflare Pages 線上正版大廳**：[https://google-agent.pages.dev](https://google-agent.pages.dev)
+- ☁️ **Cloudflare Pages 備用大廳**：[https://agent-portal.pages.dev](https://agent-portal.pages.dev)
+- 🧠 **中央大腦 (my-ai-brain)**：[shihwei0809/my-ai-brain](https://github.com/shihwei0809/my-ai-brain)
+- 🛠️ **跨電腦技能庫 (cross-device-agent-skills)**：[mathruffian-dot/cross-device-agent-skills](https://github.com/mathruffian-dot/cross-device-agent-skills)
+- ⚡ **本機一鍵開啟快捷檔**：雙擊 `D:\GOOGLE ANGET\點我開啟Cloudflare線上大廳.bat`
+
 ## 核心專案清單
 
 ### 1. 軟管對刷稽核系統 (hongsheng-web)
