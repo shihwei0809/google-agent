@@ -1,28 +1,31 @@
-﻿# 自動開工 Git 同步與進度提醒腳本 (方案一增強版)
+﻿# 自動開工 Git 同步與多電腦備份自動合併腳本 (多電腦完全整合版)
 Set-Location -Path "C:\GOOGLE ANGET"
 
 Write-Host "[Auto-StartWork] 正在拉取主分支最新狀態..." -ForegroundColor Yellow
 git pull origin main
 
-# 檢查遠端是否有 auto-backup 分支
-$hasBackup = git ls-remote --heads origin auto-backup
+# 抓取所有電腦的 remote auto-backup/* 分支
+git fetch origin "+refs/heads/auto-backup/*:refs/remotes/origin/auto-backup/*"
 
-if ($hasBackup) {
-    Write-Host "[Auto-StartWork] 偵測到上次收工備份，分析前次修改進度..." -ForegroundColor Cyan
-    git fetch origin auto-backup
+$backupBranches = git branch -r --list "origin/auto-backup/*"
+
+if ($backupBranches) {
+    Write-Host "[Auto-StartWork] 偵測到收工備份分支，正在自動合併所有電腦的進度..." -ForegroundColor Cyan
     
-    # 取得前次修改檔案與 Commit 訊息
-    $lastCommitMsg = git log -1 --format="%s (%cd)" --date=format:"%Y-%m-%d %H:%M" origin/auto-backup
-    $changedFiles = git diff --name-only main...origin/auto-backup
+    $mergedInfo = @()
+    foreach ($b in $backupBranches) {
+        $cleanBranch = $b.Trim()
+        $branchComputer = $cleanBranch -replace "origin/auto-backup/", ""
+        git merge $cleanBranch --no-edit -m "開工自動合併 [$branchComputer] 收工備份"
+        $mergedInfo += $branchComputer
+    }
     
-    # 合併收工備份
-    git merge origin/auto-backup --no-edit -m "開工自動合併收工備份"
+    $compList = $mergedInfo -join ", "
+    $lastCommitMsg = git log -1 --format="%s (%cd)" --date=format:"%Y-%m-%d %H:%M"
     
-    $fileListStr = if ($changedFiles) { ($changedFiles -join "`n") } else { "（無檔案異動列表）" }
-    $detailMsg = "【開工進度提醒】`n`n🕒 上次收工紀錄：$lastCommitMsg`n`n📁 上次修改的檔案：`n$fileListStr`n`n程式碼已自動合併，可以繼續開發囉！"
-    
+    $detailMsg = "【開工同步完成】`n`n已成功整合以下電腦的收工進度：`n[$compList]`n`n最新進度：$lastCommitMsg`n`n可以繼續開發囉！"
     Add-Type -AssemblyName PresentationFramework
-    [System.Windows.MessageBox]::Show($detailMsg, "開工進度提醒", "OK", "Information")
+    [System.Windows.MessageBox]::Show($detailMsg, "開工同步成功", "OK", "Information")
 } else {
-    Write-Host "[Auto-StartWork] 遠端無 auto-backup 備份分支，已維持最新 main 分支狀態。" -ForegroundColor Green
+    Write-Host "[Auto-StartWork] 遠端無備份分支，已維持最新 main 分支狀態。" -ForegroundColor Green
 }
