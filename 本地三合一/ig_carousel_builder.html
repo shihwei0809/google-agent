@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IG 無縫連圖排版產生器 | IG Seamless Carousel Builder</title>
+  <!-- Google Fonts & JSZip -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Outfit:wght@400;600;800&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <style>
+    :root {
+      --bg-dark: #09090b;
+      --panel-bg: rgba(24, 24, 27, 0.75);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --accent-gradient: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+      --accent-purple: #a855f7;
+      --text-main: #f4f4f5;
+      --text-muted: #a1a1aa;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Noto Sans TC', 'Outfit', sans-serif; }
+    
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header Navigation */
+    header {
+      height: 64px;
+      border-bottom: 1px solid var(--panel-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(9, 9, 11, 0.8);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-actions { display: flex; gap: 12px; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--panel-border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-primary {
+      background: var(--accent-gradient);
+      border: none;
+      color: white;
+      font-weight: 600;
+      box-shadow: 0 4px 20px rgba(253, 29, 29, 0.3);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    /* App Layout */
+    .app-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 64px);
+    }
+
+    /* Sidebar Controls */
+    .sidebar {
+      width: 360px;
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      border-right: 1px solid var(--panel-border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      overflow-y: auto;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .template-card {
+      border: 1px solid var(--panel-border);
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .template-card:hover, .template-card.active {
+      border-color: var(--accent-purple);
+      background: rgba(168, 85, 247, 0.15);
+    }
+
+    .template-card i { font-size: 20px; margin-bottom: 6px; display: block; color: var(--accent-purple); }
+    .template-card span { font-size: 12px; font-weight: 500; }
+
+    .file-upload-box {
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border 0.2s;
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .file-upload-box:hover {
+      border-color: var(--accent-purple);
+    }
+
+    /* Main Workspace */
+    .workspace {
+      flex: 1;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-scroll-wrapper {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .canvas-viewport {
+      position: relative;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(168, 85, 247, 0.1);
+      border-radius: 4px;
+    }
+
+    canvas {
+      display: block;
+      background: #111;
+    }
+
+    /* Page Slice Markers overlay */
+    .slice-lines-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+    }
+
+    .slice-page-marker {
+      flex: 1;
+      border-right: 2px dashed rgba(255, 255, 255, 0.4);
+      position: relative;
+    }
+
+    .slice-page-marker:last-child { border-right: none; }
+
+    .slice-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* Form Inputs */
+    input[type="text"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--panel-border);
+      color: #fff;
+      font-size: 13px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-purple);
+    }
+
+    /* Modal for Export Preview */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: #18181b;
+      border: 1px solid var(--panel-border);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 900px;
+      max-height: 85vh;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .export-grid {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding: 12px 0;
+    }
+
+    .export-card {
+      flex: 0 0 200px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--panel-border);
+      background: #000;
+      position: relative;
+    }
+
+    .export-card img {
+      width: 100%;
+      height: 250px;
+      object-fit: cover;
+    }
+
+    .export-card-footer {
+      padding: 8px 12px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #121215;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <i data-lucide="layers"></i>
+      <span>IG Seamless Builder</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn" onclick="exportProjectFile()"><i data-lucide="save"></i> 儲存專案檔</button>
+      <button class="btn" onclick="document.getElementById('projectFileInput').click()"><i data-lucide="folder-open"></i> 讀取專案檔</button>
+      <input type="file" id="projectFileInput" accept=".json" style="display: none;" onchange="importProjectFile(event)">
+      <button class="btn" onclick="randomizeLayout()"><i data-lucide="shuffle"></i> 隨機排版</button>
+      <button class="btn" onclick="exportReelsVideo()" style="background: rgba(168, 85, 247, 0.2); border-color: var(--accent-purple);"><i data-lucide="video"></i> 匯出 IG Reels/Reel影片 (MP4/WebM)</button>
+      <button class="btn btn-primary" onclick="openExportModal()"><i data-lucide="download"></i> 切割並匯出 IG 照片</button>
+    </div>
+  </header>
+
+  <!-- Main App Body -->
+  <div class="app-container">
+    
+    <!-- Sidebar Controls -->
+    <aside class="sidebar">
+      
+      <!-- 1. Canvas Setup -->
+      <div class="control-group">
+        <div class="section-title"><i data-lucide="layout"></i> 畫布頁數與比例</div>
+        <div style="display: flex; gap: 10px;">
+          <select id="pageCountSelect" onchange="updateCanvasPages(this.value)">
+            <option value="auto" selected>✨ 自動判讀 (根據照片數量自動計算)</option>
+            <option value="2">2 頁連圖 (2160 x 1350)</option>
+            <option value="3">3 頁連圖 (3240 x 1350)</option>
+            <option value="4">4 頁連圖 (4320 x 1350)</option>
+            <option value="5">5 頁連圖 (5400 x 1350)</option>
+            <option value="6">6 頁連圖 (6480 x 1350)</option>
+            <option value="7">7 頁連圖 (7560 x 1350)</option>
+            <option value="8">8 頁連圖 (8640 x 1350)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 2. Photo Upload -->
+      <div class="control-group">
+        <div class="section-title"><i data-lucide="image"></i> 上傳與管理相片</div>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <button class="btn" style="flex: 1; justify-content: center;" onclick="document.getElementById('imageInputAppend').click()"><i data-lucide="plus"></i> ➕ 追加上傳圖片</button>
+          <input type="file" id="imageInputAppend" multiple accept="image/*" style="display: none;" onchange="handleImageAppend(event)">
+        </div>
+        
+        <div class="file-upload-box" onclick="document.getElementById('imageInput').click()" style="padding: 16px;">
+          <i data-lucide="refresh-cw" style="width: 24px; height: 24px; margin-bottom: 4px; color: var(--text-muted);"></i>
+          <p style="font-size: 12px; font-weight: 500;">重新選擇所有圖片 (覆蓋)</p>
+          <input type="file" id="imageInput" multiple accept="image/*" style="display: none;" onchange="handleImageUpload(event)">
+        </div>
+      </div>
+
+      <!-- 3. Templates selection -->
+      <div class="control-group">
+        <div class="section-title"><i data-lucide="grid"></i> 排版風格模板 (網紅熱門趨勢)</div>
+        <div class="template-grid">
+          <div class="template-card active" onclick="applyTemplate('influencer', this)">
+            <i data-lucide="sparkles"></i>
+            <span>1. 網紅爆款 (主次分明/動態無縫)</span>
+          </div>
+          <div class="template-card" onclick="applyTemplate('seamless_fit', this)">
+            <i data-lucide="maximize-2"></i>
+            <span>2. 滿版無縫 (全幅長圖)</span>
+          </div>
+          <div class="template-card" onclick="applyTemplate('polaroid', this)">
+            <i data-lucide="copy"></i>
+            <span>3. 拍立得膠片 (質感邊框)</span>
+          </div>
+          <div class="template-card" onclick="applyTemplate('magazine', this)">
+            <i data-lucide="layout"></i>
+            <span>4. 雜誌美學 (封面風格)</span>
+          </div>
+          <div class="template-card" onclick="applyTemplate('scrapbook', this)">
+            <i data-lucide="scissors"></i>
+            <span>5. 手帳拼貼 (Scrapbook)</span>
+          </div>
+          <div class="template-card" onclick="applyTemplate('minimal', this)">
+            <i data-lucide="columns"></i>
+            <span>6. 極簡藝畫廊 (完整相框)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Text Controls -->
+      <div class="control-group">
+        <div class="section-title"><i data-lucide="type"></i> 跨頁文字疊加</div>
+        <input type="text" id="mainTitleInput" value="旅行後必做：所有照片合成一篇" placeholder="請輸入主要標題..." oninput="render()">
+        <input type="text" id="subTitleInput" value="SWIPE LEFT FOR MORE ➔" placeholder="請輸入副標題/提示..." oninput="render()">
+      </div>
+
+      <!-- 6. Background Audio -->
+      <div class="control-group">
+        <div class="section-title"><i data-lucide="music"></i> 背景音樂 (Suno MP3 音效)</div>
+        <p style="font-size: 11px; color: var(--text-muted);">上傳 Suno 產出的 MP3 音樂，導出的 MP4 影片將自動帶有音軌！</p>
+        
+        <div style="display: flex; gap: 8px;">
+          <button class="btn" style="flex: 1; justify-content: center;" onclick="document.getElementById('audioFileInput').click()"><i data-lucide="music-4"></i> 選擇 MP3 音樂檔</button>
+          <input type="file" id="audioFileInput" accept="audio/*" style="display: none;" onchange="handleAudioUpload(event)">
+        </div>
+
+        <div id="audioStatusBox" style="font-size: 11px; color: var(--accent-purple); display: none; margin-top: 4px;">
+          <i data-lucide="disc"></i> <span id="audioFileName">已載入音樂.mp3</span>
+          <audio id="audioPreview" controls style="width: 100%; margin-top: 6px; height: 30px;"></audio>
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="section-title"><i data-lucide="sliders"></i> 圖片調整與擺設</div>
+        <p style="font-size: 11px; color: var(--accent-purple); margin-bottom: 8px;">💡 提示：可以在右側畫布上【直接用滑鼠拖曳】任何一張照片移動位置！</p>
+        
+        <div id="selectedPhotoInfo" style="padding: 10px; background: rgba(168, 85, 247, 0.1); border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; margin-bottom: 8px; font-size: 12px; display: none;">
+          <div style="font-weight: bold; margin-bottom: 6px;" id="selectedPhotoTitle">已選取照片 #1</div>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="btn" style="padding: 4px 8px; font-size: 11px;" onclick="bringSelectedToFront()"><i data-lucide="arrow-up"></i> 最上層</button>
+            <button class="btn" style="padding: 4px 8px; font-size: 11px;" onclick="sendSelectedToBack()"><i data-lucide="arrow-down"></i> 最下層</button>
+            <button class="btn" style="padding: 4px 8px; font-size: 11px; background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.5); color: #f87171;" onclick="deleteSelectedPhoto()"><i data-lucide="trash-2"></i> 刪除照片</button>
+          </div>
+        </div>
+
+        <label style="font-size: 12px;">整體縮放 (Scale): <span id="scaleVal">100%</span></label>
+        <input type="range" id="scaleRange" min="40" max="160" value="100" oninput="document.getElementById('scaleVal').innerText=this.value+'%'; render()">
+
+        <label style="font-size: 12px; margin-top: 6px;">圖片旋轉角度 (Rotation): <span id="rotVal">0°</span></label>
+        <input type="range" id="rotationRange" min="-25" max="25" value="0" oninput="document.getElementById('rotVal').innerText=this.value+'°'; render()">
+        
+        <label style="font-size: 12px; margin-top: 6px;">圖片間距 (Gap): <span id="gapVal">30px</span></label>
+        <input type="range" id="gapRange" min="0" max="100" value="30" oninput="document.getElementById('gapVal').innerText=this.value+'px'; render()">
+
+        <label style="font-size: 12px; margin-top: 6px;">上下垂直位移 (Y-Offset): <span id="yVal">0px</span></label>
+        <input type="range" id="yOffsetRange" min="-200" max="200" value="0" oninput="document.getElementById('yVal').innerText=this.value+'px'; render()">
+      </div>
+
+    </aside>
+
+    <!-- Workspace Canvas -->
+    <main class="workspace">
+      <div class="canvas-scroll-wrapper">
+        <div class="canvas-viewport" id="canvasViewport">
+          <!-- Main Drawing Canvas -->
+          <canvas id="mainCanvas"></canvas>
+          
+          <!-- Page Cut Line Badges Overlay -->
+          <div class="slice-lines-overlay" id="sliceOverlay"></div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h3>切圖完成！可直接發佈至 IG</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">每張照片解析度皆精確為 1080 x 1350px (IG 4:5 比例)</p>
+        </div>
+        <button class="btn" onclick="closeExportModal()"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="export-grid" id="exportGrid"></div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+        <button class="btn" onclick="closeExportModal()">關閉</button>
+        <button class="btn btn-primary" onclick="downloadAllAsZip()"><i data-lucide="archive"></i> 打包下載 ZIP (全部照片)</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    const PAGE_WIDTH = 1080;
+    const PAGE_HEIGHT = 1350;
+    
+    let pagesCount = 3;
+    let images = [];
+    let photoObjects = []; // 儲存動態照片物件數據 (x, y, w, h, rotation, zIndex, img)
+    let selectedPhotoIndex = -1;
+    let isDragging = false;
+    let dragStartX = 0, dragStartY = 0;
+    let dragPhotoInitX = 0, dragPhotoInitY = 0;
+    let currentTemplate = 'influencer';
+    
+    const canvas = document.getElementById('mainCanvas');
+    const ctx = canvas.getContext('2d');
+    const sliceOverlay = document.getElementById('sliceOverlay');
+
+    // Initialize Default Demo Images
+    function initDemoImages() {
+      const demoColors = ['#ff7675', '#74b9ff', '#55efc4', '#a29bfe', '#ffeaa7', '#fd79a8'];
+      const demoTitles = ['Shibuya Street', 'Kyoto Express', 'Mount Fuji', 'Osaka Night', 'Tokyo Tower', 'Hokkaido Snow'];
+      
+      const loaded = [];
+      demoColors.forEach((color, idx) => {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 800;
+        tempCanvas.height = 1000;
+        const tCtx = tempCanvas.getContext('2d');
+        
+        tCtx.fillStyle = color;
+        tCtx.fillRect(0, 0, 800, 1000);
+        tCtx.fillStyle = 'rgba(0,0,0,0.15)';
+        tCtx.fillRect(30, 30, 740, 940);
+        
+        tCtx.fillStyle = '#ffffff';
+        tCtx.font = 'bold 50px Outfit';
+        tCtx.textAlign = 'center';
+        tCtx.fillText(`PHOTO ${idx + 1}`, 400, 480);
+        tCtx.font = '30px Noto Sans TC';
+        tCtx.fillText(demoTitles[idx], 400, 550);
+
+        const img = new Image();
+        img.onload = () => {
+          loaded.push(img);
+          if (loaded.length === demoColors.length) {
+            images = loaded;
+            updateCanvasPages('auto');
+          }
+        };
+        img.src = tempCanvas.toDataURL();
+      });
+    }
+
+    // 重構所有照片為 Canvas 互動物件，保證全模板皆正常展示
+    function rebuildPhotoObjects() {
+      if(!images.length) return;
+      photoObjects = [];
+
+      const userScale = parseFloat(document.getElementById('scaleRange').value) / 100;
+      const userRot = parseFloat(document.getElementById('rotationRange').value) * Math.PI / 180;
+      const gap = parseInt(document.getElementById('gapRange').value);
+
+      if (currentTemplate === 'influencer') {
+        images.forEach((img, i) => {
+          if (i === 0) {
+            const w = 780 * userScale;
+            const h = 980 * userScale;
+            photoObjects.push({
+              id: i, img: img,
+              x: (PAGE_WIDTH - w) / 2 + w/2,
+              y: PAGE_HEIGHT / 2,
+              w: w, h: h, rot: 0, zIndex: 100
+            });
+          } else {
+            const pageIndex = Math.min(pagesCount - 1, Math.floor((i - 1) / 1.5) + 1);
+            const itemsInPage = (i % 2 === 1) ? 0.3 : 0.7;
+            const cx = PAGE_WIDTH * pageIndex + PAGE_WIDTH * itemsInPage;
+            const cy = PAGE_HEIGHT / 2 + (i % 2 === 0 ? -40 : 40);
+            const w = 540 * userScale;
+            const h = 680 * userScale;
+
+            photoObjects.push({
+              id: i, img: img,
+              x: cx, y: cy, w: w, h: h,
+              rot: (i % 2 === 0 ? 0.04 : -0.04) + userRot,
+              zIndex: i
+            });
+          }
+        });
+      } else if (currentTemplate === 'seamless_fit') {
+        const count = images.length;
+        const totalW = canvas.width;
+        const itemW = (totalW - (count + 1) * gap) / count;
+
+        images.forEach((img, i) => {
+          const w = itemW * userScale;
+          const h = 1150 * userScale;
+          const x = gap + i * (itemW + gap) + w / 2;
+          const y = PAGE_HEIGHT / 2;
+          photoObjects.push({ id: i, img: img, x: x, y: y, w: w, h: h, rot: 0, zIndex: i });
+        });
+
+      } else if (currentTemplate === 'polaroid') {
+        const stepX = canvas.width / (images.length + 1);
+        images.forEach((img, i) => {
+          const w = 540 * userScale;
+          const h = 680 * userScale;
+          const cx = stepX * (i + 1);
+          const cy = PAGE_HEIGHT / 2 + (i % 2 === 0 ? -30 : 30);
+          photoObjects.push({ id: i, img: img, x: cx, y: cy, w: w, h: h, rot: (i % 2 === 0 ? 0.04 : -0.04) + userRot, zIndex: i });
+        });
+
+      } else if (currentTemplate === 'magazine') {
+        const itemW = canvas.width / images.length;
+        images.forEach((img, i) => {
+          const isLarge = i % 2 === 0;
+          const w = (isLarge ? itemW * 1.2 : itemW * 0.8) * userScale;
+          const h = (isLarge ? 950 : 700) * userScale;
+          const x = i * itemW + itemW / 2;
+          const y = PAGE_HEIGHT / 2 + (isLarge ? -40 : 40);
+          photoObjects.push({ id: i, img: img, x: x, y: y, w: w, h: h, rot: userRot, zIndex: i });
+        });
+
+      } else if (currentTemplate === 'scrapbook') {
+        const stepX = canvas.width / (images.length + 1);
+        images.forEach((img, i) => {
+          const w = 500 * userScale;
+          const h = 650 * userScale;
+          const cx = stepX * (i + 1);
+          const cy = PAGE_HEIGHT / 2 + (Math.sin(i * 1.5) * 80);
+          photoObjects.push({ id: i, img: img, x: cx, y: cy, w: w, h: h, rot: ((i % 3 - 1) * 0.08) + userRot, zIndex: i });
+        });
+
+      } else {
+        const itemW = canvas.width / images.length;
+        images.forEach((img, i) => {
+          const margin = 80;
+          const w = (itemW - margin * 2) * userScale;
+          const h = (PAGE_HEIGHT - margin * 4) * userScale;
+          const x = i * itemW + itemW / 2;
+          const y = PAGE_HEIGHT / 2;
+          photoObjects.push({ id: i, img: img, x: x, y: y, w: w, h: h, rot: userRot, zIndex: i });
+        });
+      }
+
+      render();
+    }
+
+    // 💡 專案檔匯出與讀取功能
+    function exportProjectFile() {
+      if(!images.length) {
+        alert('請先上傳照片再儲存專案！');
+        return;
+      }
+      const projectData = {
+        pagesCount,
+        currentTemplate,
+        mainTitle: document.getElementById('mainTitleInput').value,
+        subTitle: document.getElementById('subTitleInput').value,
+        scale: document.getElementById('scaleRange').value,
+        rotation: document.getElementById('rotationRange').value,
+        gap: document.getElementById('gapRange').value,
+        yOffset: document.getElementById('yOffsetRange').value,
+        photoObjects: photoObjects.map(o => ({
+          id: o.id, x: o.x, y: o.y, w: o.w, h: o.h, rot: o.rot, zIndex: o.zIndex, src: o.img.src
+        }))
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "ig_carousel_project.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importProjectFile(e) {
+      const file = e.target.files[0];
+      if(!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const state = JSON.parse(event.target.result);
+          pagesCount = state.pagesCount || 3;
+          currentTemplate = state.currentTemplate || 'influencer';
+
+          document.getElementById('pageCountSelect').value = pagesCount;
+          document.getElementById('mainTitleInput').value = state.mainTitle || '';
+          document.getElementById('subTitleInput').value = state.subTitle || '';
+          document.getElementById('scaleRange').value = state.scale || 100;
+          document.getElementById('rotationRange').value = state.rotation || 0;
+          document.getElementById('gapRange').value = state.gap || 30;
+          document.getElementById('yOffsetRange').value = state.yOffset || 0;
+
+          const loadedImgs = [];
+          const loadedObjs = [];
+          let count = 0;
+
+          state.photoObjects.forEach((obj, idx) => {
+            const img = new Image();
+            img.onload = () => {
+              loadedImgs[idx] = img;
+              loadedObjs[idx] = {
+                id: obj.id, img: img, x: obj.x, y: obj.y, w: obj.w, h: obj.h, rot: obj.rot, zIndex: obj.zIndex
+              };
+              count++;
+              if(count === state.photoObjects.length) {
+                images = loadedImgs;
+                photoObjects = loadedObjs;
+                updateCanvasPages(pagesCount);
+                alert('📂 專案檔讀取成功！');
+              }
+            };
+            img.src = obj.src;
+          });
+        } catch(err) {
+          alert('專案檔格式損壞或無效！');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Set Canvas Dimensions and Page Badges
+    function updateCanvasPages(val) {
+      if(val === 'auto') {
+        autoCalculatePages();
+        return;
+      }
+
+      pagesCount = parseInt(val);
+      canvas.width = PAGE_WIDTH * pagesCount;
+      canvas.height = PAGE_HEIGHT;
+      
+      const scale = Math.min(0.45, (window.innerWidth - 450) / canvas.width);
+      canvas.style.width = `${canvas.width * scale}px`;
+      canvas.style.height = `${canvas.height * scale}px`;
+
+      sliceOverlay.innerHTML = '';
+      for(let i = 0; i < pagesCount; i++) {
+        const marker = document.createElement('div');
+        marker.className = 'slice-page-marker';
+        marker.innerHTML = `<span class="slice-badge">第 ${i+1} 頁 / IG 貼文</span>`;
+        sliceOverlay.appendChild(marker);
+      }
+
+      rebuildPhotoObjects();
+    }
+
+    // 自動判讀演算邏輯
+    function autoCalculatePages() {
+      if(!images.length) {
+        pagesCount = 3;
+      } else {
+        const count = images.length;
+        if (currentTemplate === 'influencer') {
+          pagesCount = Math.max(2, Math.min(10, Math.ceil((count - 1) / 1.5) + 1));
+        } else {
+          pagesCount = Math.max(2, Math.min(10, Math.ceil(count * 0.85)));
+        }
+      }
+
+      canvas.width = PAGE_WIDTH * pagesCount;
+      canvas.height = PAGE_HEIGHT;
+      
+      const scale = Math.min(0.45, (window.innerWidth - 450) / canvas.width);
+      canvas.style.width = `${canvas.width * scale}px`;
+      canvas.style.height = `${canvas.height * scale}px`;
+
+      sliceOverlay.innerHTML = '';
+      for(let i = 0; i < pagesCount; i++) {
+        const marker = document.createElement('div');
+        marker.className = 'slice-page-marker';
+        marker.innerHTML = `<span class="slice-badge">第 ${i+1} 頁 / IG 貼文</span>`;
+        sliceOverlay.appendChild(marker);
+      }
+
+      rebuildPhotoObjects();
+    }
+
+    // 覆蓋上傳所有圖片
+    function handleImageUpload(e) {
+      const files = Array.from(e.target.files);
+      if(!files.length) return;
+
+      images = [];
+      let loadedCount = 0;
+
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            images.push(img);
+            loadedCount++;
+            if(loadedCount === files.length) {
+              const selectVal = document.getElementById('pageCountSelect').value;
+              if(selectVal === 'auto') {
+                autoCalculatePages();
+              } else {
+                rebuildPhotoObjects();
+              }
+            }
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // 追加上傳圖片
+    function handleImageAppend(e) {
+      const files = Array.from(e.target.files);
+      if(!files.length) return;
+
+      let loadedCount = 0;
+      files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            images.push(img);
+            loadedCount++;
+            if(loadedCount === files.length) {
+              const selectVal = document.getElementById('pageCountSelect').value;
+              if(selectVal === 'auto') {
+                autoCalculatePages();
+              } else {
+                rebuildPhotoObjects();
+              }
+            }
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // 刪除選取照片
+    function deleteSelectedPhoto() {
+      if (selectedPhotoIndex >= 0 && photoObjects[selectedPhotoIndex]) {
+        const targetId = photoObjects[selectedPhotoIndex].id;
+        photoObjects.splice(selectedPhotoIndex, 1);
+        images.splice(targetId, 1);
+        selectedPhotoIndex = -1;
+        document.getElementById('selectedPhotoInfo').style.display = 'none';
+
+        const selectVal = document.getElementById('pageCountSelect').value;
+        if(selectVal === 'auto') {
+          autoCalculatePages();
+        } else {
+          render();
+        }
+      }
+    }
+
+    // Template Selector
+    function applyTemplate(type, cardEl) {
+      currentTemplate = type;
+      document.querySelectorAll('.template-card').forEach(el => el.classList.remove('active'));
+      if(cardEl) cardEl.classList.add('active');
+
+      const selectVal = document.getElementById('pageCountSelect').value;
+      if(selectVal === 'auto') {
+        autoCalculatePages();
+      } else {
+        rebuildPhotoObjects();
+      }
+    }
+
+    function randomizeLayout() {
+      images.sort(() => Math.random() - 0.5);
+      rebuildPhotoObjects();
+    }
+
+    // 層級控制
+    function bringSelectedToFront() {
+      if (selectedPhotoIndex >= 0 && photoObjects[selectedPhotoIndex]) {
+        const maxZ = Math.max(...photoObjects.map(o => o.zIndex));
+        photoObjects[selectedPhotoIndex].zIndex = maxZ + 1;
+        render();
+      }
+    }
+
+    function sendSelectedToBack() {
+      if (selectedPhotoIndex >= 0 && photoObjects[selectedPhotoIndex]) {
+        const minZ = Math.min(...photoObjects.map(o => o.zIndex));
+        photoObjects[selectedPhotoIndex].zIndex = Math.max(0, minZ - 1);
+        render();
+      }
+    }
+
+    // CANVAS DRAG & DROP EVENTS
+    function getCanvasCoordinates(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    canvas.addEventListener('mousedown', onPointerDown);
+    canvas.addEventListener('touchstart', onPointerDown);
+    window.addEventListener('mousemove', onPointerMove);
+    window.addEventListener('touchmove', onPointerMove);
+    window.addEventListener('mouseup', onPointerUp);
+    window.addEventListener('touchend', onPointerUp);
+
+    function onPointerDown(e) {
+      const coords = getCanvasCoordinates(e);
+      const sorted = [...photoObjects].sort((a, b) => b.zIndex - a.zIndex);
+
+      let foundIndex = -1;
+      for(let obj of sorted) {
+        const halfW = obj.w / 2;
+        const halfH = obj.h / 2;
+        if(coords.x >= obj.x - halfW && coords.x <= obj.x + halfW &&
+           coords.y >= obj.y - halfH && coords.y <= obj.y + halfH) {
+          foundIndex = photoObjects.findIndex(p => p.id === obj.id);
+          break;
+        }
+      }
+
+      if(foundIndex >= 0) {
+        selectedPhotoIndex = foundIndex;
+        isDragging = true;
+        dragStartX = coords.x;
+        dragStartY = coords.y;
+        dragPhotoInitX = photoObjects[foundIndex].x;
+        dragPhotoInitY = photoObjects[foundIndex].y;
+
+        document.getElementById('selectedPhotoInfo').style.display = 'block';
+        document.getElementById('selectedPhotoTitle').innerText = `已選取照片 #${photoObjects[foundIndex].id + 1}`;
+        render();
+      } else {
+        selectedPhotoIndex = -1;
+        document.getElementById('selectedPhotoInfo').style.display = 'none';
+        render();
+      }
+    }
+
+    function onPointerMove(e) {
+      if(!isDragging || selectedPhotoIndex < 0) return;
+      const coords = getCanvasCoordinates(e);
+      const dx = coords.x - dragStartX;
+      const dy = coords.y - dragStartY;
+
+      photoObjects[selectedPhotoIndex].x = dragPhotoInitX + dx;
+      photoObjects[selectedPhotoIndex].y = dragPhotoInitY + dy;
+
+      render();
+    }
+
+    function onPointerUp() {
+      isDragging = false;
+    }
+
+    function drawFitImage(ctx, img, x, y, w, h, borderRadius = 0, scaleFactor = 1) {
+      ctx.save();
+      if(borderRadius > 0) {
+        ctx.beginPath();
+        ctx.roundRect(x - w/2, y - h/2, w, h, borderRadius);
+        ctx.clip();
+      }
+
+      const imgRatio = img.width / img.height;
+      const boxRatio = w / h;
+      let nw, nh;
+
+      if(imgRatio > boxRatio) {
+        nw = w * scaleFactor;
+        nh = (w / imgRatio) * scaleFactor;
+      } else {
+        nh = h * scaleFactor;
+        nw = (h * imgRatio) * scaleFactor;
+      }
+
+      const nx = x - nw / 2;
+      const ny = y - nh / 2;
+
+      ctx.drawImage(img, nx, ny, nw, nh);
+      ctx.restore();
+    }
+
+    // Main Canvas Render Engine
+    function render() {
+      if(!canvas.width) return;
+
+      ctx.fillStyle = '#0f0f12';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if(!photoObjects.length) return;
+
+      const userScale = parseFloat(document.getElementById('scaleRange').value) / 100;
+      const userRot = parseFloat(document.getElementById('rotationRange').value) * Math.PI / 180;
+      const yOffset = parseInt(document.getElementById('yOffsetRange').value);
+
+      const renderQueue = [...photoObjects].sort((a, b) => a.zIndex - b.zIndex);
+
+      renderQueue.forEach(obj => {
+        ctx.save();
+        ctx.translate(obj.x, obj.y + yOffset);
+        ctx.rotate(obj.rot + userRot);
+
+        const w = obj.w * userScale;
+        const h = obj.h * userScale;
+
+        const isSelected = photoObjects[selectedPhotoIndex] && photoObjects[selectedPhotoIndex].id === obj.id;
+
+        if (isSelected) {
+          ctx.strokeStyle = '#a855f7';
+          ctx.lineWidth = 6;
+          ctx.shadowColor = 'rgba(168,85,247,0.8)';
+          ctx.shadowBlur = 25;
+          ctx.strokeRect(-w/2 - 12, -h/2 - 12, w + 24, h + 24);
+        }
+
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetY = 10;
+        ctx.fillRect(-w/2 - 10, -h/2 - 10, w + 20, h + 20);
+
+        drawFitImage(ctx, obj.img, 0, 0, w, h, 0, 1);
+
+        ctx.restore();
+      });
+
+      // --- TEXT OVERLAY ---
+      const mainTitle = document.getElementById('mainTitleInput').value;
+      const subTitle = document.getElementById('subTitleInput').value;
+
+      if (mainTitle) {
+        ctx.save();
+        ctx.font = '800 58px Noto Sans TC, Outfit';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 20;
+
+        const textMetrics = ctx.measureText(mainTitle);
+        const bgW = textMetrics.width + 60;
+        const bgX = (PAGE_WIDTH - bgW / 2) + 180;
+        const bgY = 160;
+
+        const grad = ctx.createLinearGradient(bgX - 30, 0, bgX + bgW, 0);
+        grad.addColorStop(0, 'rgba(131, 58, 180, 0.9)');
+        grad.addColorStop(1, 'rgba(253, 29, 29, 0.9)');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect(bgX - 30, bgY - 55, bgW, 80, 16);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(mainTitle, bgX, bgY);
+        ctx.restore();
+      }
+
+      if (subTitle) {
+        ctx.save();
+        ctx.font = '600 22px Outfit';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = 10;
+
+        const pillX = PAGE_WIDTH - 220;
+        const pillY = PAGE_HEIGHT - 90;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+        ctx.beginPath();
+        ctx.roundRect(pillX - 20, pillY - 30, 260, 44, 22);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(subTitle, pillX, pillY);
+        ctx.restore();
+      }
+    }
+
+    // Modal & Slicing Export Logic
+    let slicedImages = [];
+
+    function openExportModal() {
+      const modal = document.getElementById('exportModal');
+      const grid = document.getElementById('exportGrid');
+      grid.innerHTML = '';
+      slicedImages = [];
+
+      for (let i = 0; i < pagesCount; i++) {
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = PAGE_WIDTH;
+        sliceCanvas.height = PAGE_HEIGHT;
+        const sliceCtx = sliceCanvas.getContext('2d');
+
+        sliceCtx.drawImage(
+          canvas,
+          i * PAGE_WIDTH, 0, PAGE_WIDTH, PAGE_HEIGHT,
+          0, 0, PAGE_WIDTH, PAGE_HEIGHT
+        );
+
+        const dataUrl = sliceCanvas.toDataURL('image/jpeg', 0.95);
+        slicedImages.push(dataUrl);
+
+        const card = document.createElement('div');
+        card.className = 'export-card';
+        card.innerHTML = `
+          <img src="${dataUrl}" alt="IG Page ${i+1}">
+          <div class="export-card-footer">
+            <span>第 ${i+1} 頁 (1080x1350)</span>
+            <a href="${dataUrl}" download="ig_carousel_p${i+1}.jpg" style="color: var(--accent-purple); text-decoration: none; font-weight: bold;">下載</a>
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+
+      modal.classList.add('active');
+    }
+
+    function closeExportModal() {
+      document.getElementById('exportModal').classList.remove('active');
+    }
+
+    function downloadAllAsZip() {
+      if(!slicedImages.length) return;
+
+      const zip = new JSZip();
+      const imgFolder = zip.folder("ig_seamless_carousel");
+
+      slicedImages.forEach((dataUrl, idx) => {
+        const base64Data = dataUrl.replace(/^data:image\/jpeg;base64,/, "");
+        imgFolder.file(`slide_${idx + 1}.jpg`, base64Data, { base64: true });
+      });
+
+      zip.generateAsync({ type: "blob" }).then(function(content) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(content);
+        a.download = "ig_seamless_carousel.zip";
+        a.click();
+      });
+    }
+
+    // Initialize application
+    window.addEventListener('load', () => {
+      lucide.createIcons();
+      localStorage.clear();
+      initDemoImages();
+    });
+
+    window.addEventListener('resize', () => {
+      updateCanvasPages(pagesCount);
+    });
+
+    // --- BACKGROUND AUDIO INTEGRATION ---
+    let userAudioBuffer = null;
+    let userAudioElement = null;
+
+    function handleAudioUpload(e) {
+      const file = e.target.files[0];
+      if(!file) return;
+
+      const url = URL.createObjectURL(file);
+      userAudioElement = document.getElementById('audioPreview');
+      userAudioElement.src = url;
+
+      document.getElementById('audioStatusBox').style.display = 'block';
+      document.getElementById('audioFileName').innerText = `已載入: ${file.name}`;
+    }
+
+    // VIDEO RECORDING (WITH AUDIO MIXING FOR IG REELS)
+    function exportReelsVideo() {
+      if(!canvas.width) return;
+
+      const videoWidth = 1080;
+      const videoHeight = 1350;
+
+      const vCanvas = document.createElement('canvas');
+      vCanvas.width = videoWidth;
+      vCanvas.height = videoHeight;
+      const vCtx = vCanvas.getContext('2d');
+
+      // 取得 Canvas 影像軌
+      const canvasStream = vCanvas.captureStream(60);
+      let combinedTracks = [...canvasStream.getVideoTracks()];
+
+      // 🎯 音訊混合：如果使用者有上傳 MP3 音樂，將音訊軌合併進錄影 Stream
+      let audioCtx = null;
+      let audioSourceNode = null;
+      let audioDestinationNode = null;
+
+      if(userAudioElement && userAudioElement.src) {
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          audioSourceNode = audioCtx.createMediaElementSource(userAudioElement);
+          audioDestinationNode = audioCtx.createMediaStreamDestination();
+          
+          audioSourceNode.connect(audioDestinationNode);
+          audioSourceNode.connect(audioCtx.destination); // 同時發聲預覽
+
+          const audioTrack = audioDestinationNode.stream.getAudioTracks()[0];
+          if(audioTrack) {
+            combinedTracks.push(audioTrack);
+          }
+
+          // 播放音樂
+          userAudioElement.currentTime = 0;
+          userAudioElement.play();
+        } catch(err) {
+          console.warn('Audio Context Mixing Warning:', err);
+        }
+      }
+
+      const mixedStream = new MediaStream(combinedTracks);
+      let recorder;
+      let chunks = [];
+
+      const types = [
+        'video/mp4;codecs=h264',
+        'video/mp4;codecs=avc1',
+        'video/mp4',
+        'video/webm;codecs=h264',
+        'video/webm'
+      ];
+
+      let selectedType = types.find(t => MediaRecorder.isTypeSupported(t)) || '';
+
+      try {
+        if(selectedType) {
+          recorder = new MediaRecorder(mixedStream, { mimeType: selectedType });
+        } else {
+          recorder = new MediaRecorder(mixedStream);
+        }
+      } catch(e) {
+        alert('您的瀏覽器不支援影片錄製功能');
+        return;
+      }
+
+      recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        if(userAudioElement) {
+          userAudioElement.pause();
+        }
+        const blob = new Blob(chunks, { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ig_reels_carousel_video.mp4`;
+        a.click();
+        alert('🎬 帶有 Suno 背景音樂的 MP4 影片導出成功！可直接上傳至 IG！');
+      };
+
+      recorder.start();
+
+      const maxScrollX = canvas.width - videoWidth;
+      const durationMs = Math.max(6000, pagesCount * 2500);
+      const startTime = performance.now();
+
+      function animateVideo(now) {
+        const elapsed = now - startTime;
+        let progress = Math.min(1, elapsed / durationMs);
+
+        let moveProgress = Math.min(1, progress / 0.85);
+
+        const easeProgress = moveProgress < 0.5 
+          ? 2 * moveProgress * moveProgress 
+          : 1 - Math.pow(-2 * moveProgress + 2, 2) / 2;
+
+        const currentX = easeProgress * maxScrollX;
+
+        vCtx.drawImage(
+          canvas,
+          currentX, 0, videoWidth, videoHeight,
+          0, 0, videoWidth, videoHeight
+        );
+
+        if(progress < 1) {
+          requestAnimationFrame(animateVideo);
+        } else {
+          // 🎯 精確時間抵達：立即將音樂暫停與切斷，防止 MP3 長度拖延影片長度！
+          if(userAudioElement) {
+            userAudioElement.pause();
+          }
+          vCtx.drawImage(
+            canvas,
+            maxScrollX, 0, videoWidth, videoHeight,
+            0, 0, videoWidth, videoHeight
+          );
+          setTimeout(() => {
+            if(recorder && recorder.state !== 'inactive') {
+              recorder.stop();
+            }
+          }, 200);
+        }
+      }
+
+      requestAnimationFrame(animateVideo);
+    }
+  </script>
+</body>
+</html>

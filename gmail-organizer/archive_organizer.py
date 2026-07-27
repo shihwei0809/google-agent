@@ -47,11 +47,9 @@ RULES = [
     {"keywords": ["台哥大", "台灣大哥大", "無框行動"], "add_label_id": "Label_7258076503041965341", "label_name": "台哥大/無框行動"},
     {"keywords": ["中國人壽", "富邦人壽"], "add_label_id": "Label_1893357093102357983", "label_name": "中國人壽/富邦"},
     {"keywords": ["電子發票", "ezPay電子發票", "全聯電子發票服務"], "add_label_id": "Label_22", "label_name": "發票/收據"},
-    {"keywords": ["KKday"], "add_label_id": "Label_1072682387686610732", "label_name": "旅遊"},
-    {"keywords": ["Netlify"], "add_label_id": "Label_32", "label_name": "系統監控"},
-
-
-
+    {"keywords": ["KKday", "DJB", "DJB CARD"], "add_label_id": "Label_1072682387686610732", "label_name": "旅遊"},
+    {"keywords": ["Netlify", "OpenAI", "Supabase", "Groq", "ngrok", "Cloudflare", "Google AI Studio", "Google Cloud Shell"], "add_label_id": "Label_32", "label_name": "系統監控"},
+    {"keywords": ["104人力銀行", "104"], "add_label_id": "Label_1198421407660185230", "label_name": "其他"},
 ]
 
 def get_gmail_service():

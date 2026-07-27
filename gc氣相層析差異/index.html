@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>面積百分比差異比較 | 氣相層析 Area% 差異比較工具</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- App Container -->
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <i class="fa-solid fa-chart-line"></i>
+                    </div>
+                </div>
+                <div class="header-title-group">
+                    <div class="badge-group">
+                        <span class="badge badge-brand">SHINY CHEMICAL</span>
+                        <span class="badge badge-secondary">半導體規格分析</span>
+                    </div>
+                    <h1>氣相層析 Area% 差異比較工具</h1>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-secondary" id="btn-open-category-mgr" style="margin-right: 8px;" title="編輯或刪除自定義樣品類別與品質規格標準">
+                    <i class="fa-solid fa-sliders"></i> 管理類別規格
+                </button>
+                <button class="btn btn-danger" id="btn-clear-db" style="margin-right: 8px;" title="清空當前所有樣品資料，開始上傳您自己的真實報表">
+                    <i class="fa-solid fa-trash-can"></i> 清空資料
+                </button>
+                <button class="btn btn-primary" id="btn-upload">
+                    <i class="fa-solid fa-plus"></i> 上傳新報表
+                </button>
+                <button class="btn btn-secondary" id="btn-export">
+                    <i class="fa-solid fa-download"></i> 導出 CSV
+                </button>
+                <button class="btn btn-icon" id="btn-print" title="列印報表">
+                    <i class="fa-solid fa-print"></i>
+                </button>
+                <button class="btn btn-icon" id="btn-reset" title="重設數據">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Layout -->
+        <div class="main-layout">
+            
+            <!-- Left Sidebar: Batch Repository -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <div class="sidebar-title">
+                        <i class="fa-solid fa-layer-group"></i> 樣品類別與批號庫
+                    </div>
+                </div>
+
+                <!-- Search and Filters -->
+                <div class="search-filter-section">
+                    <div class="search-container">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="search-input" placeholder="搜尋批號或關鍵字...">
+                    </div>
+                    <div class="filter-tabs" id="dynamic-filter-tabs">
+                        <!-- Dynamic category tabs will render here -->
+                    </div>
+                    <div class="compact-hint" id="mode-notice-hint">
+                        <i class="fa-solid fa-circle-info"></i> 點擊「加入比較」即可納入右側趨勢分析
+                    </div>
+                    <div class="bulk-action-row">
+                        <button type="button" class="btn-link" id="btn-select-all-filtered">全選篩選結果</button>
+                        <span class="divider">|</span>
+                        <button type="button" class="btn-link" id="btn-deselect-all-filtered">取消全選結果</button>
+                    </div>
+                </div>
+
+                <!-- Batch Card Container -->
+                <div class="batch-cards-container" id="batch-cards-list">
+                    <!-- Batch cards will be dynamically rendered here -->
+                </div>
+                <!-- Sidebar Pagination controls -->
+                <div class="sidebar-pagination" id="sidebar-pagination-controls">
+                    <!-- Page controls render here -->
+                </div>
+            </aside>
+
+            <!-- Right Workspace: Comparison Dashboard -->
+            <main class="workspace">
+                
+                <!-- Navigation Tabs -->
+                <nav class="workspace-tabs">
+                    <button class="tab-btn" id="tab-dual" data-tab="dual">
+                        <i class="fa-solid fa-wave-square"></i> 雙批號精細比對
+                    </button>
+                    <button class="tab-btn active" id="tab-multi" data-tab="multi">
+                        <i class="fa-solid fa-chart-area"></i> 多批號趨勢比較 (<span id="selected-count">0</span> 批)
+                    </button>
+                    <button class="tab-btn" id="tab-multi-chrom" data-tab="multi-chrom">
+                        <i class="fa-solid fa-chart-line"></i> 多批號譜圖疊合
+                    </button>
+                    <button class="tab-btn" id="tab-matrix" data-tab="matrix">
+                        <i class="fa-solid fa-table"></i> 數據對照矩陣
+                    </button>
+                </nav>
+
+                <!-- Workspace Panels -->
+                <div class="workspace-panels">
+                    
+                    <!-- Panel 1: Dual Batch Fine Comparison -->
+                    <section class="panel-content hidden" id="panel-dual">
+                        <div class="dual-selector-row">
+                            <div class="selector-box">
+                                <label for="select-batch-a">基準批號 (A)</label>
+                                <select id="select-batch-a" class="form-select">
+                                    <!-- Option elements populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="compare-vs">VS</div>
+                            <div class="selector-box">
+                                <label for="select-batch-b">比對批號 (B)</label>
+                                <select id="select-batch-b" class="form-select">
+                                    <!-- Option elements populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Side-by-side KPI Summary -->
+                        <div class="dual-summary-cards">
+                            <div class="kpi-card">
+                                <div class="kpi-header">純度 Purity (Area%)</div>
+                                <div class="kpi-values-row">
+                                    <div class="val-a"><span class="label">A:</span> <span id="dual-purity-a">-</span>%</div>
+                                    <div class="val-b"><span class="label">B:</span> <span id="dual-purity-b">-</span>%</div>
+                                </div>
+                                <div class="kpi-diff" id="dual-purity-diff">-</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header">水分 Moisture (%)</div>
+                                <div class="kpi-values-row">
+                                    <div class="val-a"><span class="label">A:</span> <span id="dual-moisture-a">-</span>%</div>
+                                    <div class="val-b"><span class="label">B:</span> <span id="dual-moisture-b">-</span>%</div>
+                                </div>
+                                <div class="kpi-diff" id="dual-moisture-diff">-</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header">酸度 Acidity (%)</div>
+                                <div class="kpi-values-row">
+                                    <div class="val-a"><span class="label">A:</span> <span id="dual-acidity-a">-</span>%</div>
+                                    <div class="val-b"><span class="label">B:</span> <span id="dual-acidity-b">-</span>%</div>
+                                </div>
+                                <div class="kpi-diff" id="dual-acidity-diff">-</div>
+                            </div>
+                            <div class="kpi-card">
+                                <div class="kpi-header">色度 Color (APHA)</div>
+                                <div class="kpi-values-row">
+                                    <div class="val-a"><span class="label">A:</span> <span id="dual-color-a">-</span></div>
+                                    <div class="val-b"><span class="label">B:</span> <span id="dual-color-b">-</span></div>
+                                </div>
+                                <div class="kpi-diff" id="dual-color-diff">-</div>
+                            </div>
+                        </div>
+
+                        <!-- Chart Overlay: Simulated Chromatogram overlay -->
+                        <div class="workspace-section card-box">
+                            <div class="section-header">
+                                <h3><i class="fa-solid fa-chart-line"></i> 氣相層析譜圖疊合對比 (模擬)</h3>
+                                <div class="legend-indicator">
+                                    <span class="dot dot-a"></span> 基準批號 A
+                                    <span class="dot dot-b"></span> 比對批號 B
+                                </div>
+                            </div>
+                            <div class="chart-container-large">
+                                <canvas id="chromatogram-chart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Peak Detail Comparison Table -->
+                        <div class="workspace-section card-box">
+                            <div class="section-header">
+                                <h3><i class="fa-solid fa-table-list"></i> 詳細 Peak Area% 差異表</h3>
+                                <span class="spec-label">半導體級規範: Purity ≥ 99.85% | Moisture ≤ 0.0150% | Acidity ≤ 0.0200% | Color ≤ 10</span>
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="compare-table" id="peak-compare-table">
+                                    <thead>
+                                        <tr>
+                                            <th>峰號 (No.)</th>
+                                            <th>保留時間 (RT, min)</th>
+                                            <th>成分名稱 (Component)</th>
+                                            <th>基準 A Area%</th>
+                                            <th>比對 B Area%</th>
+                                            <th>絕對差異 (Abs Diff)</th>
+                                            <th>相對變化 (Rel Change)</th>
+                                            <th>指標評估</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Table content generated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Panel 2: Multi-Batch Trend Comparison -->
+                    <section class="panel-content" id="panel-multi">
+                        <!-- Trend Control bar -->
+                        <div class="trend-control-bar card-box" style="display:flex; justify-content:space-between; align-items:center; padding: 12px 20px;">
+                            <div style="font-size:14px; font-weight:600; color:var(--text-main);">
+                                <i class="fa-solid fa-chart-line"></i> 大數據品質趨勢圖表
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <label for="select-trend-density" style="font-size:12px; font-weight:600; color:var(--text-muted); white-space:nowrap;">資料顯示點上限:</label>
+                                <select id="select-trend-density" class="form-select" style="width:140px; padding:4px 8px; font-size:12px; height:28px; cursor:pointer;">
+                                    <option value="10">最近 10 筆</option>
+                                    <option value="30" selected>最近 30 筆</option>
+                                    <option value="50">最近 50 筆</option>
+                                    <option value="all">顯示全部</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Dashboard Widgets for Trends -->
+                        <div class="trends-dashboard-grid">
+                            <!-- Trend Chart 1 -->
+                            <div class="trend-card card-box">
+                                <div class="trend-header">
+                                    <h4><i class="fa-solid fa-vial"></i> 純度趨勢分析 (Purity %)</h4>
+                                    <span class="spec-text">規格值: ≥ 99.85%</span>
+                                </div>
+                                <div class="chart-container-small">
+                                    <canvas id="chart-trend-purity"></canvas>
+                                </div>
+                            </div>
+                            <!-- Trend Chart 2 -->
+                            <div class="trend-card card-box">
+                                <div class="trend-header">
+                                    <h4><i class="fa-solid fa-droplet"></i> 水分趨勢分析 (Moisture %)</h4>
+                                    <span class="spec-text">規格值: ≤ 0.0150% (150 ppm)</span>
+                                </div>
+                                <div class="chart-container-small">
+                                    <canvas id="chart-trend-moisture"></canvas>
+                                </div>
+                            </div>
+                            <!-- Trend Chart 3 -->
+                            <div class="trend-card card-box">
+                                <div class="trend-header">
+                                    <h4><i class="fa-solid fa-circle-exclamation"></i> 酸度趨勢分析 (Acidity %)</h4>
+                                    <span class="spec-text">規格值: ≤ 0.0200% (200 ppm)</span>
+                                </div>
+                                <div class="chart-container-small">
+                                    <canvas id="chart-trend-acidity"></canvas>
+                                </div>
+                            </div>
+                            <!-- Trend Chart 4 -->
+                            <div class="trend-card card-box">
+                                <div class="trend-header">
+                                    <h4><i class="fa-solid fa-palette"></i> 色度趨勢分析 (Color APHA)</h4>
+                                    <span class="spec-text">規格值: ≤ 10</span>
+                                </div>
+                                <div class="chart-container-small">
+                                    <canvas id="chart-trend-color"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Panel 3: Multi-Batch Chromatogram Overlay -->
+                    <section class="panel-content hidden" id="panel-multi-chrom">
+                        <div class="card-box">
+                            <div class="section-header" style="display:flex; justify-content:space-between; align-items:center;">
+                                <h3><i class="fa-solid fa-chart-line"></i> 多批號氣相層析譜圖疊合 (模擬)</h3>
+                                <span class="matrix-hint" style="color:var(--text-muted); font-size:11px;">僅顯示已勾選且同類別之批號譜圖 (可點選下方列表核取方塊切換線條)</span>
+                            </div>
+                            <div class="chart-container-large" style="position: relative; height: 420px; margin-top: 15px;">
+                                <canvas id="chart-multi-chromatogram"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Legend & Peak Info Table -->
+                        <div class="workspace-section card-box">
+                            <div class="section-header">
+                                <h3><i class="fa-solid fa-list-check"></i> 疊合批號對照與顯示切換</h3>
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="compare-table" id="multi-chrom-legend-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 60px; text-align:center;">顯示</th>
+                                            <th style="width: 80px; text-align:center;">顏色</th>
+                                            <th>批號名稱</th>
+                                            <th>樣品類別</th>
+                                            <th>純度 (%)</th>
+                                            <th>水份 (%)</th>
+                                            <th>酸度 (%)</th>
+                                            <th>色度 (APHA)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dynamic legend rows -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Panel 4: Multi-Batch Data Matrix -->
+                    <section class="panel-content hidden" id="panel-matrix">
+                        <div class="workspace-section card-box" style="padding: 24px;">
+                            <div class="section-header" style="margin-bottom: 20px;">
+                                <h3><i class="fa-solid fa-table"></i> 多批號數據對照矩陣</h3>
+                                <span class="matrix-hint" style="color:var(--text-muted); font-size:11px;">表格已篩選僅顯示已勾選且同類別之批號數據</span>
+                            </div>
+                            <div class="table-wrapper">
+                                <table class="compare-table" id="matrix-tab-table">
+                                    <!-- Populated dynamically: Batches as columns, metrics as rows -->
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+            </main>
+
+        </div>
+    </div>
+
+    <!-- Category Spec Manager Modal -->
+    <div class="modal" id="category-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-sliders"></i> 樣品類別與品質規格管理</h3>
+                <button class="modal-close" id="btn-category-modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 16px; font-size:12px; color:var(--text-muted);">
+                    您可以編輯各類別的品質規格，或新增/刪除自定義樣品類別。（預設類別 PMA、PMAC、Other 不可刪除）
+                </div>
+                
+                <div class="table-wrapper" style="margin-bottom: 20px; max-height:220px; overflow-y:auto;">
+                    <table class="compare-table" id="table-category-specs">
+                        <thead>
+                            <tr>
+                                <th>類別名稱</th>
+                                <th style="text-align:right;">純度規格 (≥)</th>
+                                <th style="text-align:right;">水分規格 (≤)</th>
+                                <th style="text-align:right;">酸度規格 (≤)</th>
+                                <th style="text-align:right;">色度規格 (≤)</th>
+                                <th style="text-align:center; width: 100px;">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rendered dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card-box" style="background-color: #f8fafc; border-style: dashed; padding: 15px;">
+                    <h4 id="mgr-form-title" style="margin-top:0; margin-bottom:10px; font-size:13px; color:var(--text-main);"><i class="fa-solid fa-plus"></i> 新增 / 編輯類別規格</h4>
+                    <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px;">
+                        <div class="form-group">
+                            <label for="mgr-cat-name" style="font-size:11px; font-weight:600; margin-bottom:4px; display:block;">類別名稱 (如: PMA, EEP)</label>
+                            <input type="text" id="mgr-cat-name" class="form-input" style="height:32px; font-size:12px; padding: 4px 8px;" placeholder="類別縮寫">
+                        </div>
+                        <div class="form-group">
+                            <label for="mgr-cat-purity" style="font-size:11px; font-weight:600; margin-bottom:4px; display:block;">純度規格 Purity (≥ %)</label>
+                            <input type="number" id="mgr-cat-purity" class="form-input" style="height:32px; font-size:12px; padding: 4px 8px;" step="0.01" placeholder="例如: 99.85">
+                        </div>
+                        <div class="form-group">
+                            <label for="mgr-cat-moisture" style="font-size:11px; font-weight:600; margin-bottom:4px; display:block;">水分規格 Moisture (≤ %)</label>
+                            <input type="number" id="mgr-cat-moisture" class="form-input" style="height:32px; font-size:12px; padding: 4px 8px;" step="0.0001" placeholder="例如: 0.0150">
+                        </div>
+                        <div class="form-group">
+                            <label for="mgr-cat-acidity" style="font-size:11px; font-weight:600; margin-bottom:4px; display:block;">酸度規格 Acidity (≤ %)</label>
+                            <input type="number" id="mgr-cat-acidity" class="form-input" style="height:32px; font-size:12px; padding: 4px 8px;" step="0.0001" placeholder="例如: 0.0200">
+                        </div>
+                        <div class="form-group">
+                            <label for="mgr-cat-color" style="font-size:11px; font-weight:600; margin-bottom:4px; display:block;">色度規格 Color (≤ APHA)</label>
+                            <input type="number" id="mgr-cat-color" class="form-input" style="height:32px; font-size:12px; padding: 4px 8px;" step="1" placeholder="例如: 10">
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; gap:8px;">
+                        <button type="button" class="btn btn-secondary" id="btn-mgr-clear" style="font-size:11px; padding:4px 10px; height:28px;">清空輸入</button>
+                        <button type="button" class="btn btn-primary" id="btn-mgr-save" style="font-size:11px; padding:4px 10px; height:28px;">儲存規格</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Report Modal -->
+    <div class="modal" id="upload-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-arrow-up"></i> 上傳氣相層析 (GC) 報表</h3>
+                <button class="modal-close" id="btn-modal-close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <form id="upload-form">
+                    <!-- Dropzone -->
+                    <div class="upload-dropzone" id="dropzone">
+                        <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                        <p class="drop-text">拖曳 GC 報表檔案 (CSV / TXT) 至此處，或 <span class="browse-link">瀏覽檔案</span></p>
+                        <input type="file" id="file-input" accept=".csv,.txt" style="display: none;">
+                        <span class="file-info" id="file-info-text"></span>
+                    </div>
+
+                    <!-- Paste Text Area -->
+                    <div class="form-group">
+                        <label for="paste-text"><i class="fa-solid fa-paste"></i> 或直接貼上 GC Area% 報表文字：</label>
+                        <textarea id="paste-text" placeholder="例如：
+Peak#   RT      Area    Area%   Name
+1       4.82    1250    0.05    PM
+2       6.15    750     0.03    Beta-PGMEA
+3       7.52    2497000 99.88   Alpha-PGMEA
+4       9.80    1000    0.04    DPMA
+..."></textarea>
+                    </div>
+
+                    <!-- Manual specs setup -->
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label for="input-batch-name">批號名稱 *</label>
+                            <input type="text" id="input-batch-name" placeholder="例如: PMA 6-1-0703-2" required>
+                        </div>
+                        <div class="form-group">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <label for="input-batch-type">樣品類別</label>
+                                <button type="button" id="btn-add-category" style="font-size:11px; background:none; border:none; color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline;">+ 新增類別</button>
+                            </div>
+                            <select id="input-batch-type" class="form-select">
+                                <option value="PMA">PMA</option>
+                                <option value="PMAC">PMAC</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="input-purity">主峰純度 (%) *</label>
+                            <input type="number" id="input-purity" step="0.01" min="0" max="100" placeholder="例如: 99.88">
+                        </div>
+                    </div>
+
+                    <div class="form-row-3">
+                        <div class="form-group">
+                            <label for="input-moisture">水份 (%)</label>
+                            <input type="number" id="input-moisture" step="0.0001" min="0" placeholder="例如: 0.0066">
+                        </div>
+                        <div class="form-group">
+                            <label for="input-acidity">酸度 (%)</label>
+                            <input type="number" id="input-acidity" step="0.0001" min="0" placeholder="例如: 0.0120">
+                        </div>
+                        <div class="form-group">
+                            <label for="input-color">色度 (APHA)</label>
+                            <input type="number" id="input-color" step="1" min="0" placeholder="例如: 5">
+                        </div>
+                    </div>
+
+                    <!-- Inline Category Form -->
+                    <div id="inline-category-box" style="margin-top: 15px; border: 1px dashed #fbbf24; border-radius: var(--radius-md); background-color: #fffbeb; padding: 12px; display: none; flex-direction: column; gap: 10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:12px; font-weight:600; color:#b45309;"><i class="fa-solid fa-square-plus"></i> 新增自定義樣品規格</span>
+                            <button type="button" id="btn-cancel-new-category" style="background:none; border:none; font-size:14px; color:#b45309; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="form-row-3">
+                            <div class="form-group">
+                                <label for="new-category-name" style="font-size:11px; color:#b45309;">類別名稱/代碼 *</label>
+                                <input type="text" id="new-category-name" placeholder="例如: PGME" style="padding:6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label for="new-category-purity" style="font-size:11px; color:#b45309;">純度規格 (≥ %)</label>
+                                <input type="number" id="new-category-purity" step="0.01" placeholder="例如: 99.80" style="padding:6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label for="new-category-moisture" style="font-size:11px; color:#b45309;">水分規格 (≤ %)</label>
+                                <input type="number" id="new-category-moisture" step="0.0001" placeholder="例如: 0.0200" style="padding:6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
+                            </div>
+                        </div>
+                        <div class="form-row-3">
+                            <div class="form-group">
+                                <label for="new-category-acidity" style="font-size:11px; color:#b45309;">酸度規格 (≤ %)</label>
+                                <input type="number" id="new-category-acidity" step="0.0001" placeholder="例如: 0.0250" style="padding:6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
+                            </div>
+                            <div class="form-group">
+                                <label for="new-category-color" style="font-size:11px; color:#b45309;">色度規格 (≤ APHA)</label>
+                                <input type="number" id="new-category-color" step="1" placeholder="例如: 10" style="padding:6px; font-size:12px; border:1px solid #cbd5e1; border-radius:4px;">
+                            </div>
+                            <div class="form-group" style="justify-content: flex-end;">
+                                <button type="button" class="btn btn-primary" id="btn-save-category" style="font-size:11px; padding:6px 12px; height:32px; align-self:flex-end;">儲存類別</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-upload-cancel">取消</button>
+                <button class="btn btn-primary" id="btn-upload-submit">解析並匯入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

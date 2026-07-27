@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎓 員工教育訓練測驗產生系統 — SOP 操作說明書</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --text: #1e293b;
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --surface: #ffffff;
+      --border: #e2e8f0;
+      --text-muted: #64748b;
+      --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 40px 20px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--border);
+      padding: 40px;
+    }
+
+    header {
+      text-align: center;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 30px;
+      margin-bottom: 35px;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 900;
+      color: var(--primary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      color: var(--primary);
+      margin: 30px 0 15px 0;
+      border-left: 4px solid var(--primary);
+      padding-left: 12px;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      margin: 15px 0 8px 0;
+      color: #334155;
+    }
+
+    p { margin-bottom: 16px; }
+
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 20px;
+    }
+
+    li { margin-bottom: 8px; }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #e0e7ff;
+      color: var(--primary);
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .tip-box {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+
+    .tip-box h3 { color: #b45309; }
+
+    .file-tree {
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: monospace;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+
+    code {
+      font-family: monospace;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #0f172a;
+      font-size: 0.95rem;
+    }
+
+    .file-tree code {
+      background: transparent;
+      color: inherit;
+      padding: 0;
+    }
+
+    .method {
+      border: 1px solid var(--border);
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      background: white;
+    }
+
+    .method-title {
+      font-weight: 700;
+      color: #334155;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎓 教育訓練測驗系統 — 操作說明書</h1>
+      <div class="subtitle">智慧 SOP 自動化分析與封裝受訓網頁工具</div>
+    </header>
+
+    <section>
+      <p>本系統是一款<strong>免伺服器、點擊即用</strong>的教育訓練輔助軟體。管理同仁只要提供 SOP 文字或投影片、Word 檔案，AI 就能在幾秒鐘內自動生成具備「有聲朗讀投影片」與「防刷測驗題庫」的網頁包，並支援內網收集同仁分數。</p>
+    </section>
+
+    <h2>📁 產生的套件檔案說明</h2>
+    <p>當您點選匯出後，會下載一個 ZIP 壓縮檔，解壓縮後會包含以下檔案：</p>
+    <div class="file-tree">
+📂 儲槽進出貨作業培訓_教育訓練測驗套件/<br>
+├── 📄 index.html                           &lt;-- 受訓網頁（同仁用瀏覽器打開此檔上課與考試）<br>
+├── 📄 serve_intranet.txt                   &lt;-- 本機伺服器程式碼（安全文字檔）<br>
+├── ⚙️ 點我啟動內網伺服器(Windows免安裝).bat   &lt;-- 滑鼠連點兩下即可一鍵啟動內網伺服器<br>
+├── 📄 apps_script_code.gs                  &lt;-- Google Sheets 雲端同步程式碼（選用）<br>
+└── 📄 README.md                            &lt;-- 基礎說明檔
+    </div>
+
+    <h2>🚀 步驟一：教材匯入與 AI 參數設定</h2>
+    <div class="card">
+      <ol>
+        <li><strong>開啟產生器</strong>：雙擊開啟 <code>sop_generator/index.html</code>。</li>
+        <li><strong>設定金鑰與模型</strong>：
+          <ul>
+            <li><strong>AI 提供商</strong> 選擇 <code>Google Gemini (AI Studio)</code> 或 <code>Groq</code>。</li>
+            <li><strong>API 金鑰</strong> 貼上您的金鑰（Groq 模式下已內建預設免費金鑰）。</li>
+            <li><strong>選擇模型</strong> 建議使用預設推薦的 <code>Gemini 3.5 Flash</code>，分析速度極快。</li>
+          </ul>
+        </li>
+        <li><strong>調整參數</strong>：設定想要的簡報頁數、題目數量、及格分數。
+          <ul>
+            <li><strong>防刷限制</strong>：勾選後，同仁必須聽完每頁的語音播放，才被允許切換下一頁或開始測驗。</li>
+          </ul>
+        </li>
+        <li><strong>匯入教材檔案</strong>：可以直接將手冊文字複製貼上，或直接把 <code>.txt</code>, <code>.md</code>, <code>.pdf</code>, <code>.docx (Word)</code>, <code>.pptx (簡報)</code> 拖放到拖曳區，系統會自動在瀏覽器中讀取文字。</li>
+        <li><strong>開始分析</strong>：點擊「✨ 開始自動分析與產生」，等待約 10 秒鐘即可完成。</li>
+      </ol>
+    </div>
+
+    <h2>✍️ 步驟二：線上內容審查與微調</h2>
+    <div class="card">
+      <p>AI 產生完成後，您可以對內容進行最終微調：</p>
+      <ul>
+        <li><strong>投影片編輯</strong>：可修改每頁的標題、列點說明，以及調整語音配音文字（可點「🔊 試聽配音」預覽）。</li>
+        <li><strong>代表圖示與插圖關鍵字</strong>：可以更換 Emoji 圖示，並輸入插圖的英文關鍵字。</li>
+      </ul>
+
+      <div class="tip-box">
+        <h3>💡 後續人員如何自訂自己部門的現場照片（非程式碼修改）？</h3>
+        <p>預設情況下，只要在「插圖搜尋關鍵字」中輸入英文（如 <code>factory</code>），受訓網頁會自動載入網路上的精美情境圖片。</p>
+        <p>若同仁想放現場真實照片：</p>
+        <ol>
+          <li>將照片檔案（如 <code>step1.jpg</code> 或 <code>warning.png</code>）<strong>複製放到與受訓網頁 <code>index.html</code> 相同的資料夾中</strong>。</li>
+          <li>在編輯器的「插圖搜尋關鍵字」輸入框中，<strong>直接改寫成該圖片的檔名</strong>（如 <code>step1.jpg</code>）。</li>
+          <li>重新匯出後，受訓網頁便會自動改為載入該張本機照片！</li>
+        </ol>
+      </div>
+
+      <ul>
+        <li><strong>測驗題目編輯</strong>：可切換至測驗分頁，任意修改題目、選項、正確答案與解析。</li>
+      </ul>
+    </div>
+
+    <h2>📦 步驟三：打包匯出與成績回收部署</h2>
+    <p>完成編輯後，點擊右下角「💾 產生並匯出教育訓練套件」，系統會自動下載 ZIP 檔。解壓後，您有三種部署方式：</p>
+
+    <div class="method">
+      <div class="method-title">🟢 方式一：單機受訓（同仁自用）</div>
+      <p>將檔案解壓縮後，同仁直接在電腦點開 <code>index.html</code> 即可開始受訓與測驗。</p>
+    </div>
+
+    <div class="method">
+      <div class="method-title">🔵 方式二：內網連線模式（最推薦，全自動回收成績）</div>
+      <p>如果您希望在您的電腦上收集全體受訓同仁的分數與紀錄：</p>
+      <ol>
+        <li>將 ZIP 檔案解壓縮至您的電腦。</li>
+        <li>雙擊執行 <strong><code>點我啟動內網伺服器(Windows免安裝).bat</code></strong>。</li>
+        <li>畫面會跳出一個黑色命令視窗，並印出綠色網址（例如：<code>http://192.168.1.100:8000/index.html</code>）。<strong>請保持此視窗開啟不要關閉</strong>。</li>
+        <li>將此網址發送給受訓同仁（手機或電腦皆可，須連線至相同辦公室 Wi-Fi 或內網）。</li>
+        <li>同仁考完試並點擊送出成績後，您的資料夾下會<strong>自動建立 <code>results.csv</code> 成績單</strong>，點開即可用 Excel 查看所有同仁的姓名、工號、成績、考試時間與答題細節！</li>
+      </ol>
+    </div>
+
+    <div class="method">
+      <div class="method-title">🟣 方式三：雲端 Google Sheets 模式</div>
+      <p>若要即時將成績匯入雲端表格，可前往 Google Sheets 建立新試算表，進入「擴充功能」-&gt;「Apps Script」並將套件中的 <code>apps_script_code.gs</code> 貼上部署為網頁應用程式，再將網址填入播放器右上角的「⚙️ 系統設定」中存檔即可。</p>
+    </div>
+  </div>
+</body>
+</html>

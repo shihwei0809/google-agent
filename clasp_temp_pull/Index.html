@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI個人保養網站 V7｜智慧試算整合版</title>
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-color: #0b0f19;
+  --panel-bg: rgba(17, 24, 39, 0.7);
+  --panel-border: rgba(51, 65, 85, 0.5);
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --accent: #8b5cf6;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+  background-color: var(--bg-color);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+header {
+  padding: 40px 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--panel-border);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(10px);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #60a5fa, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
+}
+
+header p {
+  margin: 10px 0 0 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* 導覽 Tab 樣式 */
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(11, 15, 25, 0.8);
+  backdrop-filter: blur(12px);
+  padding: 15px 0;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none; /* Firefox */
+}
+
+.tabs::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+.tab-btn {
+  white-space: nowrap;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid var(--panel-border);
+  color: var(--text-muted);
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tab-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--text-main);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+/* 載入與重整按鈕 */
+.sync-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.btn-sync {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid var(--panel-border);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s;
+}
+
+.btn-sync:hover {
+  background: var(--panel-border);
+}
+
+/* 卡片與內容佈局 */
+.tab-page {
+  display: none;
+  animation: fadeIn 0.4s ease;
+}
+
+.tab-page.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 26px;
+  margin-bottom: 24px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.5rem;
+  color: #60a5fa;
+  border-left: 4px solid var(--primary);
+  padding-left: 12px;
+}
+
+/* 表格樣式 */
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+th, td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+th {
+  background-color: rgba(30, 41, 59, 0.8);
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+/* 狀態標籤 */
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.badge-good { background: rgba(52, 211, 153, 0.15); color: var(--success); }
+.badge-wait { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+.badge-stop { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
+
+/* 警示與提醒區塊 */
+.alert {
+  padding: 15px 20px;
+  border-radius: 12px;
+  margin: 15px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.alert-danger {
+  background: rgba(248, 113, 113, 0.1);
+  border-left: 4px solid var(--danger);
+  color: #fca5a5;
+}
+
+.alert-info {
+  background: rgba(52, 211, 153, 0.1);
+  border-left: 4px solid var(--success);
+  color: #a7f3d0;
+}
+
+/* 勾選清單樣式 */
+.checklist-item {
+  display: flex;
+  align-items: center;
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid var(--panel-border);
+  padding: 12px 18px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.checklist-item:hover {
+  background: rgba(30, 41, 59, 0.7);
+}
+
+.checklist-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-right: 14px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.checklist-item.checked {
+  opacity: 0.6;
+  text-decoration: line-through;
+  border-color: transparent;
+}
+
+.btn-clear {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: opacity 0.2s;
+}
+
+.btn-clear:hover {
+  opacity: 0.9;
+}
+
+/* Gemini 對話介面 */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 480px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.chat-bubble {
+  max-width: 80%;
+  padding: 12px 18px;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.chat-bubble.user {
+  background: linear-gradient(135deg, var(--primary), #1d4ed8);
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble.ai {
+  background: rgba(30, 41, 59, 0.8);
+  color: var(--text-main);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+  border: 1px solid var(--panel-border);
+}
+
+.chat-bubble.system {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  align-self: center;
+  font-size: 0.85rem;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.chat-input-area {
+  display: flex;
+  padding: 15px;
+  background: rgba(15, 23, 42, 0.8);
+  border-top: 1px solid var(--panel-border);
+  gap: 10px;
+}
+
+.chat-input {
+  flex: 1;
+  background: #0f172a;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: white;
+  padding: 12px;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.chat-input:focus {
+  border-color: var(--primary);
+}
+
+.btn-send {
+  background: var(--primary);
+  border: none;
+  color: white;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-send:hover {
+  background: var(--primary-hover);
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
+  margin-right: 5px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(30,41,59,0.5) 25%, rgba(51,65,85,0.5) 50%, rgba(30,41,59,0.5) 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  height: 20px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.footer {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 40px 20px;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+<body>
+<div id="raw-skincare-data" style="display:none;"><?!= JSON.stringify(skincareData) ?></div>
+
+<header>
+  <h1>AI個人保養網站 V7</h1>
+  <p>串接 Google Sheets 資料庫與 Gemini 智慧問答的整合系統</p>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('summary', this)">總覽</button>
+    <button class="tab-btn" onclick="showTab('products', this)">所有產品</button>
+    <button class="tab-btn" onclick="showTab('howto', this)">使用方法</button>
+    <button class="tab-btn" onclick="showTab('routine', this)">早晚流程</button>
+    <button class="tab-btn" onclick="showTab('sunscreen', this)">防曬比較</button>
+    <button class="tab-btn" onclick="showTab('avoid', this)">避雷與平替</button>
+    <button class="tab-btn" onclick="showTab('check', this)">每日勾選</button>
+    <button class="tab-btn" onclick="showTab('ai-advisor', this)">💬 AI 諮詢</button>
+  </div>
+
+  <div class="sync-bar">
+    <button class="btn-sync" onclick="reloadData()">
+      <span id="sync-icon">🔄</span> 重整資料
+    </button>
+  </div>
+
+  <!-- 總覽 -->
+  <section id="summary" class="tab-page active">
+    <div class="card">
+      <h2>皮膚狀態指標</h2>
+      <div id="summary-states">
+        <div class="skeleton"></div>
+        <div class="skeleton"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>主力保養順序</h2>
+      <div id="summary-main">
+        <div class="skeleton"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 所有產品 -->
+  <section id="products" class="tab-page">
+    <div class="card">
+      <h2>保養品資料庫與適合度</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>產品名稱</th>
+              <th>評估</th>
+              <th>用途說明</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <tr><td colspan="3"><div class="skeleton"></div><div class="skeleton"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 使用方法 -->
+  <section id="howto" class="tab-page">
+    <div class="card">
+      <h2>個別產品使用指南</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>產品</th>
+              <th>建議用量</th>
+              <th>使用方法</th>
+              <th>間隔時間</th>
+              <th>注意事項</th>
+            </tr>
+          </thead>
+          <tbody id="howto-tbody">
+            <tr><td colspan="5"><div class="skeleton"></div><div class="skeleton"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 早晚流程 -->
+  <section id="routine" class="tab-page">
+    <div class="card">
+      <h2>系統推薦保養程序</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 120px;">時段</th>
+              <th>保養步驟流程</th>
+            </tr>
+          </thead>
+          <tbody id="routine-tbody">
+            <tr><td colspan="2"><div class="skeleton"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 防曬比較 -->
+  <section id="sunscreen" class="tab-page">
+    <div class="card">
+      <h2>主力臉部防曬評分排行</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>排行</th>
+              <th>產品名稱</th>
+              <th>適合度</th>
+              <th>主要定位</th>
+              <th>AI 特色解析</th>
+            </tr>
+          </thead>
+          <tbody id="sunscreen-tbody">
+            <tr><td colspan="5"><div class="skeleton"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 避雷與平替 -->
+  <section id="avoid" class="tab-page">
+    <div class="card">
+      <h2>避雷警示事項</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>不要這樣做</th>
+              <th>潛在原因</th>
+              <th>正確的保養做法</th>
+            </tr>
+          </thead>
+          <tbody id="avoid-tbody">
+            <tr><td colspan="3"><div class="skeleton"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>高CP值平替清單</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>原創主力產品</th>
+              <th>平替推薦名單</th>
+              <th>類別</th>
+            </tr>
+          </thead>
+          <tbody id="dupes-tbody">
+            <tr><td colspan="3"><div class="skeleton"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 每日勾選 -->
+  <section id="check" class="tab-page">
+    <div class="card">
+      <h2>我的每日保養清單紀錄</h2>
+      <div id="checklist-area">
+        <h3>🌅 早上保養步驟</h3>
+        <div id="check-morning"></div>
+        
+        <h3>🌙 晚上保養步驟</h3>
+        <div id="check-night"></div>
+        
+        <h3>⚠️ 乾燥刺痛警戒日 (如勾選，提醒將暫停刺激產品)</h3>
+        <div id="check-warning-days"></div>
+        
+        <button class="btn-clear" onclick="clearChecklist()">清除今日所有紀錄</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- AI 諮詢 -->
+  <section id="ai-advisor" class="tab-page">
+    <div class="card">
+      <h2>💬 Gemini 智慧保養助理</h2>
+      <p style="margin-top:0;color:var(--text-muted);">AI 讀取了你目前的保養品資料庫與避雷規則，隨時為你提供專屬的膚況診斷與流程搭配建議。</p>
+      
+      <div class="chat-container">
+        <div class="chat-messages" id="chat-box">
+          <div class="chat-bubble ai">您好！我是您的智慧保養助理。我已讀取您 Google Sheets 的保養品與皮膚狀態設定，請問今天皮膚有什麼狀況、或者對保養流程有什麼疑問嗎？</div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" class="chat-input" id="chat-input" placeholder="例如：我的臉現在發紅微刺，該擦什麼？..." onkeypress="handleKeyPress(event)">
+          <button class="btn-send" id="btn-send" onclick="sendChatMessage()">送出</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="footer">
+  AI個人保養網站 V7｜Google Apps Script & Gemini 整合版
+</div>
+
+<script>
+// 全域錯誤監聽器，將 JS 錯誤直接渲染在網頁頂部
+window.onerror = function(message, source, lineno, colno, error) {
+  const errDiv = document.createElement("div");
+  errDiv.style.position = "fixed";
+  errDiv.style.top = "0";
+  errDiv.style.left = "0";
+  errDiv.style.right = "0";
+  errDiv.style.background = "rgba(239, 68, 68, 0.95)";
+  errDiv.style.color = "white";
+  errDiv.style.padding = "15px";
+  errDiv.style.zIndex = "99999";
+  errDiv.style.fontSize = "14px";
+  errDiv.style.textAlign = "center";
+  errDiv.innerHTML = `<strong>⚠️ 網頁 JavaScript 錯誤：</strong> ${message} (行號: ${lineno}, 欄位: ${colno})`;
+  document.body.appendChild(errDiv);
+  return false;
+};
+
+// 全域快取資料
+let cachedData = null;
+
+// 初始化載入
+document.addEventListener("DOMContentLoaded", () => {
+  const dataEl = document.getElementById("raw-skincare-data");
+  if (dataEl && dataEl.textContent && !dataEl.textContent.trim().startsWith("<?")) {
+    try {
+      const parsed = JSON.parse(dataEl.textContent);
+      if (parsed && !parsed.error) {
+        cachedData = parsed;
+        renderUI(parsed);
+        initChecklist();
+        return; // 成功讀取注入資料，跳過 API 調用
+      }
+    } catch(e) {
+      console.error("Failed to parse injected server data:", e);
+    }
+  }
+  
+  // 離線預覽或注入失敗時的後備方案
+  reloadData();
+  initChecklist();
+});
+
+// 分頁切換
+function showTab(tabId, btnElement) {
+  document.querySelectorAll('.tab-page').forEach(page => page.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  
+  document.getElementById(tabId).classList.add('active');
+  btnElement.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// 重新載入試算表資料
+function reloadData() {
+  const syncIcon = document.getElementById("sync-icon");
+  syncIcon.classList.add("loading-spinner");
+  
+  // 調用後端 Google Apps Script API
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(data => {
+        syncIcon.classList.remove("loading-spinner");
+        cachedData = data;
+        renderUI(data);
+      })
+      .withFailureHandler(err => {
+        syncIcon.classList.remove("loading-spinner");
+        alert("資料載入失敗: " + err);
+      })
+      .getSkincareData();
+  } else {
+    // 離線模擬資料（以便在本地直接預覽）
+    setTimeout(() => {
+      syncIcon.classList.remove("loading-spinner");
+      const mockData = getMockData();
+      cachedData = mockData;
+      renderUI(mockData);
+    }, 800);
+  }
+}
+
+// 渲染畫面數據
+function renderUI(data) {
+  if (!data) return;
+
+  // 1. 渲染總覽
+  let summaryStatesHtml = "";
+  let summaryMainHtml = "";
+  
+  if (data.summary && Array.isArray(data.summary)) {
+    data.summary.forEach(row => {
+      let category = row.Category || "";
+      let content = row.Content || "";
+      if (category.includes("狀態") || category.includes("警告")) {
+        const isWarn = category.includes("警告");
+        summaryStatesHtml += `<div class="alert ${isWarn ? 'alert-danger' : 'alert-info'}">
+          <strong>${category}：</strong>
+          <span>${content}</span>
+        </div>`;
+      } else {
+        summaryMainHtml += `<p><strong>${category}：</strong>${content}</p>`;
+      }
+    });
+  }
+  document.getElementById("summary-states").innerHTML = summaryStatesHtml || "<p>暫無設定</p>";
+  document.getElementById("summary-main").innerHTML = summaryMainHtml || "<p>暫無設定</p>";
+  
+  // 2. 渲染所有產品
+  let productsHtml = "";
+  if (data.products && Array.isArray(data.products)) {
+    data.products.forEach(row => {
+      let badgeClass = "badge-good";
+      let status = row.Status || "";
+      let product = row.Product || "";
+      let desc = row.Description || "";
+      if (status.includes("穩定") || status.includes("少用") || status.includes("優先")) badgeClass = "badge-wait";
+      if (status.includes("停用") || status.includes("不建議") || status.includes("最後")) badgeClass = "badge-stop";
+      
+      productsHtml += `<tr>
+        <td><strong>${product}</strong></td>
+        <td><span class="badge ${badgeClass}">${status}</span></td>
+        <td>${desc}</td>
+      </tr>`;
+    });
+  }
+  document.getElementById("products-tbody").innerHTML = productsHtml || "<tr><td colspan='3'>無產品資料</td></tr>";
+  
+  // 3. 渲染使用方法
+  let howtoHtml = "";
+  if (data.instructions && Array.isArray(data.instructions)) {
+    data.instructions.forEach(row => {
+      let product = row.Product || "";
+      let dosage = row.Dosage || "";
+      let method = row.UsageMethod || "";
+      let interval = row.Interval || "";
+      let attention = row.Attention || "";
+      howtoHtml += `<tr>
+        <td><strong>${product}</strong></td>
+        <td>${dosage}</td>
+        <td>${method}</td>
+        <td>${interval}</td>
+        <td style="color:#fdba74;">${attention}</td>
+      </tr>`;
+    });
+  }
+  document.getElementById("howto-tbody").innerHTML = howtoHtml || "<tr><td colspan='5'>無使用方法資料</td></tr>";
+  
+  // 4. 渲染早晚流程
+  let routineHtml = "";
+  if (data.routines && Array.isArray(data.routines)) {
+    data.routines.forEach(row => {
+      let timeOfDay = row.TimeOfDay || "";
+      let flow = row.Flow || "";
+      routineHtml += `<tr>
+        <td><strong>${timeOfDay}</strong></td>
+        <td>${flow}</td>
+      </tr>`;
+    });
+  }
+  document.getElementById("routine-tbody").innerHTML = routineHtml || "<tr><td colspan='2'>無流程資料</td></tr>";
+  
+  // 5. 渲染防曬排行
+  let sunscreenHtml = "";
+  if (data.sunscreens && Array.isArray(data.sunscreens)) {
+    data.sunscreens.forEach(row => {
+      let rank = row.Rank || "";
+      let product = row.Product || "";
+      let score = row.Score || "";
+      let pos = row.Position || "";
+      let rec = row.Recommendation || "";
+      sunscreenHtml += `<tr>
+        <td><strong>${rank}</strong></td>
+        <td><strong>${product}</strong></td>
+        <td><span class="badge badge-good">${score}</span></td>
+        <td>${pos}</td>
+        <td>${rec}</td>
+      </tr>`;
+    });
+  }
+  document.getElementById("sunscreen-tbody").innerHTML = sunscreenHtml || "<tr><td colspan='5'>無防曬資料</td></tr>";
+  
+  // 6. 避雷與平替
+  let avoidHtml = "";
+  if (data.avoidRules && Array.isArray(data.avoidRules)) {
+    data.avoidRules.forEach(row => {
+      let doNot = row.DoNot || "";
+      let reason = row.Reason || "";
+      let correctWay = row.CorrectWay || "";
+      avoidHtml += `<tr>
+        <td style="color:#f87171;">❌ ${doNot}</td>
+        <td>${reason}</td>
+        <td style="color:#34d399;">✔️ ${correctWay}</td>
+      </tr>`;
+    });
+  }
+  document.getElementById("avoid-tbody").innerHTML = avoidHtml || "<tr><td colspan='3'>無避雷規則</td></tr>";
+  
+  let dupesHtml = "";
+  if (data.dupes && Array.isArray(data.dupes)) {
+    data.dupes.forEach(row => {
+      let orig = row.OriginalProduct || "";
+      let dupe = row.DupeProduct || "";
+      let cat = row.Category || "";
+      dupesHtml += `<tr>
+        <td><strong>${orig}</strong></td>
+        <td>${dupe}</td>
+        <td><span class="badge badge-good">${cat}</span></td>
+      </tr>`;
+    });
+  }
+  document.getElementById("dupes-tbody").innerHTML = dupesHtml || "<tr><td colspan='3'>無平替資料</td></tr>";
+  
+  // 7. 更新勾選單選項
+  setupChecklistUI();
+}
+
+// 每日勾選單系統 (使用 LocalStorage 來保存)
+const morningSteps = [
+  "清水或溫和洗臉",
+  "雅漾活泉水 或 SD噴霧",
+  "神經醯胺精華",
+  "1%玻尿酸原液",
+  "SD能量霜薄擦",
+  "主力臉部防曬（理膚寶水/雅漾/DR.WU 擇一）"
+];
+
+const nightSteps = [
+  "溫和洗面乳清潔",
+  "雅漾活泉水 或 SD噴霧",
+  "SD舒緩精華 或 神經醯胺",
+  "1%玻尿酸原液",
+  "SD能量霜"
+];
+
+const warnSteps = [
+  "停用白/橘/黃瓶 (穀胱甘肽、維C、亮白產品)",
+  "停用A醛/A醇等視黃醇",
+  "停用酸類/水楊酸洗面膜",
+  "停用泥膜"
+];
+
+function initChecklist() {
+  const savedState = localStorage.getItem("skincare_checklist");
+  if (!savedState) {
+    localStorage.setItem("skincare_checklist", JSON.stringify({}));
+  }
+}
+
+function setupChecklistUI() {
+  const morningContainer = document.getElementById("check-morning");
+  const nightContainer = document.getElementById("check-night");
+  const warnContainer = document.getElementById("check-warning-days");
+  
+  const savedState = JSON.parse(localStorage.getItem("skincare_checklist") || "{}");
+  
+  morningContainer.innerHTML = morningSteps.map((step, idx) => 
+    createCheckItemHtml('morning', idx, step, savedState[`morning_${idx}`])
+  ).join('');
+  
+  nightContainer.innerHTML = nightSteps.map((step, idx) => 
+    createCheckItemHtml('night', idx, step, savedState[`night_${idx}`])
+  ).join('');
+  
+  warnContainer.innerHTML = warnSteps.map((step, idx) => 
+    createCheckItemHtml('warn', idx, step, savedState[`warn_${idx}`])
+  ).join('');
+}
+
+function createCheckItemHtml(type, idx, text, isChecked) {
+  const key = `${type}_${idx}`;
+  return `
+    <div class="checklist-item ${isChecked ? 'checked' : ''}" onclick="toggleCheck('${key}', this)">
+      <input type="checkbox" id="${key}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleCheck('${key}', this.parentNode)">
+      <span>${text}</span>
+    </div>
+  `;
+}
+
+function toggleCheck(key, element) {
+  const checkbox = element.querySelector('input[type="checkbox"]');
+  const checked = !checkbox.checked;
+  
+  checkbox.checked = checked;
+  if (checked) {
+    element.classList.add('checked');
+  } else {
+    element.classList.remove('checked');
+  }
+  
+  const savedState = JSON.parse(localStorage.getItem("skincare_checklist") || "{}");
+  savedState[key] = checked;
+  localStorage.setItem("skincare_checklist", JSON.stringify(savedState));
+}
+
+function clearChecklist() {
+  localStorage.setItem("skincare_checklist", JSON.stringify({}));
+  setupChecklistUI();
+}
+
+// Gemini 聊天對話系統
+function handleKeyPress(event) {
+  if (event.key === "Enter") {
+    sendChatMessage();
+  }
+}
+
+function sendChatMessage() {
+  const input = document.getElementById("chat-input");
+  const message = input.value.trim();
+  if (!message) return;
+  
+  // 渲染使用者氣泡
+  appendChatBubble(message, "user");
+  input.value = "";
+  
+  // 顯示 AI 正在思考
+  const aiBubbleId = appendChatBubble(`<div class="loading-spinner"></div> AI 正在讀取資料庫並思考中...`, "ai");
+  const aiBubbleElement = document.getElementById(aiBubbleId);
+  
+  // 調用 GAS 後端 API 呼叫 Gemini
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(response => {
+        // 使用 Markdown 做簡單的段落換行轉義
+        aiBubbleElement.innerHTML = formatMarkdown(response);
+        scrollToBottom();
+      })
+      .withFailureHandler(err => {
+        aiBubbleElement.innerHTML = `❌ 連線失敗: ${err.toString()}`;
+        aiBubbleElement.className = "chat-bubble system";
+        scrollToBottom();
+      })
+      .askGemini(message);
+  } else {
+    // 離線模擬對答
+    setTimeout(() => {
+      aiBubbleElement.innerHTML = `（離線模擬）您問了：「${message}」<br>目前沒有部署在 Google Web App 中，無法實時呼叫 Gemini。部署後，Gemini 將會根據您試算表中的 ${cachedData ? cachedData.products.length : 15} 個保養品以及皮膚狀態「${cachedData ? cachedData.summary[0].Content : ''}」給予精準的答覆。`;
+      scrollToBottom();
+    }, 1500);
+  }
+}
+
+function appendChatBubble(text, sender) {
+  const chatBox = document.getElementById("chat-box");
+  const id = "bubble_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+  const bubble = document.createElement("div");
+  bubble.id = id;
+  bubble.className = `chat-bubble ${sender}`;
+  bubble.innerHTML = text;
+  chatBox.appendChild(bubble);
+  scrollToBottom();
+  return id;
+}
+
+function scrollToBottom() {
+  const chatBox = document.getElementById("chat-box");
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// 簡易 Markdown 解析
+function formatMarkdown(text) {
+  return text
+    .replace(/\n/g, "<br>")
+    .replace(/\*\*(.*?)\*\"/g, "<strong>$1</strong>") // Fix unmatched quotes/asterisks if any
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/`(.*?)`/g, "<code>$1</code>");
+}
+
+// 離線模擬資料集
+function getMockData() {
+  return {
+    summary: [
+      { Category: "目前皮膚狀態", Content: "[離線模式] 外油內乾、皮秒術後需修護。" },
+      { Category: "緊急警告", Content: "乾刺時暫停白黃橘瓶、A醛、酸類產品。" },
+      { Category: "主力步驟", Content: "噴霧 → 神經醯胺 → 玻尿酸 → SD能量霜薄擦。" }
+    ],
+    products: [
+      { Product: "雅漾活泉水", Status: "非常適合", Description: "舒緩降溫，可取代SD噴霧。" },
+      { Product: "SD舒緩精華", Status: "適合", Description: "主力修護精華。" },
+      { Product: "SPF50+防曬", Status: "每天必用", Description: "皮秒防黑必備。" }
+    ],
+    instructions: [
+      { Product: "雅漾/SD噴霧", Dosage: "2～4下", UsageMethod: "距離20公分噴，10～20秒後輕壓。", Interval: "半乾接精華", Attention: "不要自然乾到完全乾。" }
+    ],
+    routines: [
+      { TimeOfDay: "早上", Flow: "清水洗臉 → 噴霧 → 神經醯胺 → 玻尿酸 → SD能量霜薄擦 → 防曬" }
+    ],
+    sunscreens: [
+      { Rank: "🥇 No.1", Product: "理膚寶水 UVMune 400", Score: "9.5/10", Position: "主力防曬", Recommendation: "皮秒後高UVA防護佳。" }
+    ],
+    avoidRules: [
+      { DoNot: "噴霧後完全自然乾", Reason: "蒸發時帶走肌膚表層水分，可能更緊繃。", CorrectWay: "噴後10～20秒用掌心輕壓吸收。" }
+    ],
+    dupes: [
+      { OriginalProduct: "SD噴霧", DupeProduct: "雅漾活泉水、Curel噴霧", Category: "噴霧" }
+    ]
+  };
+}
+</script>
+</body>
+</html>

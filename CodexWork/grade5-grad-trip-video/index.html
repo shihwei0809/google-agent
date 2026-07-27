@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>小五二天一夜畢旅精華影片</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #101820;
+      color: #fff;
+      font-family: "Microsoft JhengHei", "Noto Sans TC", system-ui, sans-serif;
+    }
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background: #101820;
+    }
+    .scene {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transition: opacity 720ms ease;
+      overflow: hidden;
+    }
+    .scene.active { opacity: 1; }
+    .photo {
+      position: absolute;
+      inset: -5%;
+      background-image: linear-gradient(90deg, rgba(8,12,18,.82), rgba(8,12,18,.28), rgba(8,12,18,.58)), url("assets/images/grad-trip-collage.png");
+      background-size: 300% 200%;
+      transform: scale(1.04);
+      animation: drift 14s ease-in-out infinite alternate;
+    }
+    .p1 { background-position: 0% 0%; }
+    .p2 { background-position: 50% 0%; }
+    .p3 { background-position: 100% 0%; }
+    .p4 { background-position: 0% 100%; }
+    .p5 { background-position: 50% 100%; }
+    .p6 { background-position: 100% 100%; }
+    @keyframes drift {
+      from { transform: scale(1.04) translate3d(-8px, 0, 0); }
+      to { transform: scale(1.14) translate3d(18px, -8px, 0); }
+    }
+    .content {
+      position: absolute;
+      left: 86px;
+      right: 86px;
+      bottom: 132px;
+      display: grid;
+      gap: 18px;
+      align-content: end;
+      min-height: 330px;
+    }
+    .tag {
+      width: max-content;
+      max-width: 100%;
+      padding: 10px 18px;
+      border-radius: 8px;
+      background: rgba(255, 184, 77, .92);
+      color: #18202a;
+      font-size: 30px;
+      font-weight: 800;
+    }
+    h1 {
+      margin: 0;
+      max-width: 1100px;
+      font-size: clamp(68px, 5.5vw, 98px);
+      line-height: 1.08;
+      font-weight: 900;
+      text-shadow: 0 4px 24px rgba(0,0,0,.48);
+      letter-spacing: 0;
+    }
+    .caption {
+      position: absolute;
+      left: 120px;
+      right: 120px;
+      bottom: 54px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-size: 38px;
+      line-height: 1.32;
+      text-shadow: 0 3px 16px rgba(0,0,0,.65);
+    }
+    .date {
+      position: absolute;
+      right: 72px;
+      top: 60px;
+      padding: 12px 18px;
+      border-radius: 8px;
+      background: rgba(16, 24, 32, .62);
+      border: 1px solid rgba(255,255,255,.22);
+      font-size: 26px;
+      color: rgba(255,255,255,.86);
+    }
+    .progress {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 9px;
+      width: 0;
+      background: linear-gradient(90deg, #57b8ff, #7ee081, #ffcf70);
+      transition: width 180ms linear;
+    }
+    .controls {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      display: flex;
+      gap: 10px;
+      z-index: 10;
+    }
+    body.render .controls { display: none; }
+    button {
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,.24);
+      background: rgba(16,24,32,.84);
+      color: white;
+      border-radius: 8px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <main class="stage">
+    <section class="scene active" data-start="0" data-end="10">
+      <div class="photo p1"></div><div class="date">Day 1 Morning</div>
+      <div class="content"><div class="tag">出發</div><h1>兩天一夜，<br>把回憶裝滿</h1></div>
+      <div class="caption">小五的畢旅，從一早的出發開始。</div>
+    </section>
+    <section class="scene" data-start="10" data-end="22">
+      <div class="photo p2"></div><div class="date">On the Road</div>
+      <div class="content"><div class="tag">期待</div><h1>車窗外，<br>是期待的方向</h1></div>
+      <div class="caption">一路上的聊天和笑聲，已經是旅程的一部分。</div>
+    </section>
+    <section class="scene" data-start="22" data-end="34">
+      <div class="photo p3"></div><div class="date">Explore</div>
+      <div class="content"><div class="tag">探索</div><h1>每一站，<br>都有新的發現</h1></div>
+      <div class="caption">展覽、解說、觀察，讓課本外的世界變得很近。</div>
+    </section>
+    <section class="scene" data-start="34" data-end="48">
+      <div class="photo p4"></div><div class="date">Teamwork</div>
+      <div class="content"><div class="tag">合作</div><h1>一起完成，<br>才最好玩</h1></div>
+      <div class="caption">闖關、合作、加油聲，讓同學變成真正的隊友。</div>
+    </section>
+    <section class="scene" data-start="48" data-end="62">
+      <div class="photo p5"></div><div class="date">Night</div>
+      <div class="content"><div class="tag">夜晚</div><h1>把今天，<br>慢慢收藏</h1></div>
+      <div class="caption">晚上的分享時間，讓白天的笑聲變成珍貴回憶。</div>
+    </section>
+    <section class="scene" data-start="62" data-end="75">
+      <div class="photo p6"></div><div class="date">Way Home</div>
+      <div class="content"><div class="tag">回程</div><h1>不是結束，<br>是長大的開始</h1></div>
+      <div class="caption">帶著照片、紀念品，還有一段會一直記得的旅程。</div>
+    </section>
+    <div class="progress" id="progress"></div>
+  </main>
+  <div class="controls"><button id="play">播放</button><button id="restart">重播</button></div>
+  <script>
+    const duration = 75;
+    const scenes = Array.from(document.querySelectorAll(".scene"));
+    const progress = document.getElementById("progress");
+    const render = new URLSearchParams(location.search).get("render") === "true";
+    if (render) document.body.classList.add("render");
+    let startTime = null;
+    let running = false;
+    function setTime(t) {
+      for (const scene of scenes) {
+        const start = Number(scene.dataset.start);
+        const end = Number(scene.dataset.end);
+        scene.classList.toggle("active", t >= start && t < end);
+      }
+      progress.style.width = `${Math.min(100, t / duration * 100)}%`;
+      window.__VIDEO_TIME__ = t;
+      window.__VIDEO_DONE__ = t >= duration;
+    }
+    function tick(now) {
+      if (!running) return;
+      if (startTime === null) startTime = now;
+      const t = (now - startTime) / 1000;
+      setTime(t);
+      if (t < duration) requestAnimationFrame(tick);
+      else running = false;
+    }
+    function restart() {
+      startTime = performance.now();
+      running = true;
+      setTime(0);
+      requestAnimationFrame(tick);
+    }
+    document.getElementById("play").addEventListener("click", () => {
+      running = true;
+      startTime = performance.now() - (window.__VIDEO_TIME__ || 0) * 1000;
+      requestAnimationFrame(tick);
+    });
+    document.getElementById("restart").addEventListener("click", restart);
+    setTime(0);
+    if (render) restart();
+  </script>
+</body>
+</html>
