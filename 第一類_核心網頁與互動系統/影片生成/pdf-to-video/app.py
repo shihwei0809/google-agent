@@ -449,6 +449,7 @@ def call_gemini_api(api_key: str, model: str, image_path: Path) -> str:
 def pcm_to_wav(pcm_data: bytes, sample_rate: int = 24000, channels: int = 1, sample_width: int = 2) -> bytes:
     """Wrap raw PCM bytes into a proper WAV container."""
     import io
+    import wave
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wf:
         wf.setnchannels(channels)
@@ -459,61 +460,50 @@ def pcm_to_wav(pcm_data: bytes, sample_rate: int = 24000, channels: int = 1, sam
 
 
 def call_gemini_tts(api_key: str, model: str, voice: str, text: str, output_path: str) -> None:
-    """Call Gemini TTS Interactions API, save audio as WAV file."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/interactions"
+    """Call Gemini TTS API, save audio as WAV file."""
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     headers = {
-        "Content-Type": "application/json",
-        "x-goog-api-key": api_key,
-        "Api-Revision": "2026-05-20",
+        "Content-Type": "application/json"
     }
     payload = {
-        "model": model,
-        "input": text,
-        "response_format": {"type": "audio"},
-        "generation_config": {
-            "speech_config": [{"voice": voice}]
-        },
+        "contents": [{"parts": [{"text": text}]}],
+        "generationConfig": {
+            "responseModalities": ["AUDIO"],
+            "speechConfig": {
+                "voiceConfig": {
+                    "prebuiltVoiceConfig": {
+                        "voiceName": voice
+                    }
+                }
+            }
+        }
     }
     response = requests.post(url, json=payload, headers=headers, timeout=120)
     response.raise_for_status()
     data = response.json()
 
-    # Extract base64 audio from response
     audio_b64 = None
-    for step in data.get("steps", []):
-        content = step.get("content")
-        if isinstance(content, list):
-            for part in content:
-                if part.get("mime_type", "").startswith("audio/"):
-                    audio_b64 = part.get("data")
-                    break
-        elif isinstance(content, dict): # fallback for other versions
-            for part in content.get("parts", []):
-                if part.get("inlineData", {}).get("mimeType", "").startswith("audio/"):
-                    audio_b64 = part["inlineData"]["data"]
-                    break
+    mime_type = ""
+    for cand in data.get("candidates", []):
+        content = cand.get("content", {})
+        for part in content.get("parts", []):
+            inline_data = part.get("inlineData", {})
+            if inline_data.get("mimeType", "").startswith("audio/"):
+                audio_b64 = inline_data.get("data")
+                mime_type = inline_data.get("mimeType")
+                break
         if audio_b64:
             break
 
-    # Fallback: check candidates structure
     if not audio_b64:
-        for cand in data.get("candidates", []):
-            content = cand.get("content", {})
-            if isinstance(content, dict):
-                for part in content.get("parts", []):
-                    if part.get("inlineData", {}).get("mimeType", "").startswith("audio/"):
-                        audio_b64 = part["inlineData"]["data"]
-                        break
-            if audio_b64:
-                break
+        raise ValueError(f"Gemini TTS failed, no audio returned. Response keys: {list(data.keys())}")
 
-    if not audio_b64:
-        raise ValueError(f"Gemini TTS: no audio data in response. Keys: {list(data.keys())}")
+    audio_bytes = base64.b64decode(audio_b64)
+    if mime_type == "audio/L16" or (not audio_bytes.startswith(b"RIFF") and output_path.endswith(".wav")):
+        audio_bytes = pcm_to_wav(audio_bytes, sample_rate=24000)
 
-    pcm_bytes = base64.b64decode(audio_b64)
-    wav_bytes = pcm_to_wav(pcm_bytes)
     with open(output_path, "wb") as f:
-        f.write(wav_bytes)
+        f.write(audio_bytes)
 
 
 def call_grok_api(api_key: str, model: str, image_path: Path) -> str:
@@ -1035,8 +1025,20 @@ async def _run_generation(
                 (tts_engine != "gemini" or (cached_gemini_voice == gemini_tts_voice and cached_gemini_model == gemini_tts_model)) and
                 Path(audio_path).exists()
             ):
-                logger.info(f"Page {i + 1} script and voice settings unchanged. Reusing existing audio: {audio_path}")
-                can_reuse = True
+                try:
+                    import wave
+                    if audio_path.endswith('.wav'):
+                        with wave.open(audio_path, 'rb') as _:
+                            pass
+                    else:
+                        import os
+                        if os.path.getsize(audio_path) < 1000:
+                            raise ValueError("MP3 file too small")
+                    logger.info(f"Page {i + 1} script and voice settings unchanged. Reusing existing audio: {audio_path}")
+                    can_reuse = True
+                except Exception as e:
+                    logger.warning(f"Audio cache invalid for page {i+1}, will regenerate: {e}")
+                    can_reuse = False
 
             if not can_reuse:
                 if tts_engine == "gemini":
@@ -1096,7 +1098,7 @@ async def _run_generation(
         loop = asyncio.get_event_loop()
 
         def write_video():
-            final = concatenate_videoclips(clips, method="compose")
+            final = concatenate_videoclips(clips, method="chain")
             final.write_videofile(
                 output_path, 
                 fps=5, 
@@ -1144,7 +1146,12 @@ async def list_jobs():
             has_video = (d / "output.mp4").exists()
             
             try:
-                mtime = os.path.getmtime(str(d))
+                # 尋找目錄下所有檔案的最晚修改時間，以反映專案的真實異動時間
+                files = list(d.glob("*"))
+                if files:
+                    mtime = max(os.path.getmtime(str(f)) for f in files)
+                else:
+                    mtime = os.path.getmtime(str(d))
                 time_str = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
             except Exception:
                 time_str = "未知時間"
@@ -1302,7 +1309,7 @@ async def _run_rebuild(job_id: str):
         
         loop = asyncio.get_event_loop()
         def write_video():
-            final = concatenate_videoclips(clips, method="compose")
+            final = concatenate_videoclips(clips, method="chain")
             final.write_videofile(
                 output_path, 
                 fps=5, 

@@ -1,0 +1,15 @@
+505: Logger.log("站點 " + stationId + " 觀測環境溫度異常（-99），停止執行。");
+642: Logger.log("Teams Webhook 發送異常: " + e.message);
+946: SpreadsheetApp.getUi().alert("【錯誤】站點 " + stationId + " 觀測資料異常（-99），無法進行測試。");
+948: throw new Error("站點氣溫觀測值異常");
+1110: * 接收 LINE Webhook 事件與本機心跳同步信號
+1116: // 1. 本機心跳與資料同步點
+1136: senderType += " (心跳)";
+1138: // 10 分鐘心跳紀錄分流至「24小時記錄」分頁
+1145: // 其它狀態（如未發送、重複等例行心跳）寫入「通報紀錄」分頁
+1167: Logger.log("本機心跳寫入試算表失敗: " + logErr.message);
+1171: // 同步心跳與溫度資料至 Firebase
+1204: Logger.log("同步心跳至 Firebase 失敗: " + firebaseErr.message);
+1393: Logger.log("同步至 Firebase 發生異常: " + e.message);
+1430: Logger.log("新增 Firebase 歷史紀錄發生異常: " + e.message);
+1631: Logger.log("自動同步至 Firebase 發生異常: " + err.message);

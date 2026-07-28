@@ -670,7 +670,10 @@
       </div>
       <div class="nav-bar">
         <button class="btn btn-secondary" onclick="goStep(2)">← 選擇語音</button>
-        <button class="btn btn-primary btn-green" id="btn-generate">🎬 開始生成影片</button>
+        <div style="display:flex;gap:12px;">
+          <button class="btn btn-secondary" id="btn-rebuild-only" style="border-color:var(--accent);color:var(--accent);" title="只儲存腳本並直接合成影片，不再消耗 API 重新產生語音">⚡ 僅重新合成影片</button>
+          <button class="btn btn-primary btn-green" id="btn-generate">🎬 開始生成影片</button>
+        </div>
       </div>
     </div>
 
@@ -811,6 +814,9 @@
             <a id="download-script-link" class="btn btn-secondary" href="#" download style="display:flex;align-items:center;gap:6px;">
               📄 下載腳本備份 (.txt)
             </a>
+            <button class="btn btn-secondary" onclick="location.reload()" style="display:flex;align-items:center;gap:6px;background:rgba(79,142,247,0.15);border-color:rgba(79,142,247,0.3);color:var(--accent);">
+              🏠 回首頁 (重新上傳)
+            </button>
           </div>
           <div style="background:rgba(79,142,247,.08); border:1px solid rgba(79,142,247,.2); border-radius:12px; padding:16px; text-align:left; max-width:480px; margin:0 auto;">
             <div style="font-weight:600; margin-bottom:8px; color:var(--accent); font-size:.9rem;">💡 下次如何用舊腳本重新合成</div>
@@ -1514,6 +1520,45 @@
     }
 
     // ─── Step 4: Generate ─────────────────────────────────────
+    document.getElementById('btn-rebuild-only').addEventListener('click', async () => {
+      const scripts = pagesData.map((_, i) => {
+        const ta = document.getElementById(`script-${i}`);
+        return ta ? ta.value : '';
+      });
+      
+      goStep(4);
+      document.getElementById('progress-section').style.display = 'block';
+      document.getElementById('done-section').style.display = 'none';
+      document.getElementById('error-section').style.display = 'none';
+      document.getElementById('btn-clear-file').disabled = true;
+      document.getElementById('status-title').textContent = '準備重新合成…';
+      
+      const formData = new FormData();
+      formData.append('job_id', jobId);
+      formData.append('scripts', JSON.stringify(scripts));
+      
+      try {
+        // 嘗試儲存腳本，若後端未重啟導致 404 則自動容錯跳過並直接合成
+        try {
+          const resSave = await fetch('/api/save_script', { method: 'POST', body: formData });
+          if (!resSave.ok && resSave.status !== 404) {
+            const errData = await resSave.json().catch(() => ({}));
+            console.warn('Save script warning:', errData.detail);
+          }
+        } catch (e) {
+          console.warn('Save script optional endpoint warning:', e);
+        }
+        
+        const resRebuild = await fetch(`/api/jobs/rebuild/${jobId}`, { method: 'POST' });
+        const dataRebuild = await resRebuild.json();
+        if (!resRebuild.ok) throw new Error(dataRebuild.detail || '啟動合成失敗');
+        
+        pollTimer = setInterval(pollStatus, 1500);
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+
     document.getElementById('btn-generate').addEventListener('click', async () => {
       const isGemini = currentTtsEngine === 'gemini';
       const isCloning = currentTtsEngine === 'cloning';
@@ -1572,6 +1617,7 @@
         if (!res.ok) throw new Error(data.detail || '啟動失敗');
 
         // Start polling
+        document.getElementById('btn-clear-file').disabled = true;
         pollTimer = setInterval(pollStatus, 1500);
       } catch (err) {
         showError(err.message);
@@ -1605,6 +1651,7 @@
     }
 
     function showDone() {
+      document.getElementById('btn-clear-file').disabled = false;
       document.getElementById('progress-section').style.display = 'none';
       document.getElementById('done-section').style.display = 'block';
       document.getElementById('download-link').href = `/api/download/${jobId}`;
@@ -1616,6 +1663,7 @@
     }
 
     function showError(msg) {
+      document.getElementById('btn-clear-file').disabled = false;
       document.getElementById('progress-section').style.display = 'none';
       document.getElementById('error-section').style.display = 'block';
       document.getElementById('error-msg').textContent = msg;

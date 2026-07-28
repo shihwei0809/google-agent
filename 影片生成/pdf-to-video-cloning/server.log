@@ -1,0 +1,155 @@
+2026-07-15 08:42:59,904 [INFO] Extracted 9 pages, method=digital, job=LINE_Diet_Bot_Tutorial_20260715_084259
+2026-07-15 08:43:15,319 [INFO] Running cloning preview subprocess: ['d:\\GOOGLE ANGET\\AI 克隆聲音\\.venv\\Scripts\\python.exe', 'd:\\GOOGLE ANGET\\AI 克隆聲音\\clone.py', '這是一段本機克隆聲音的試聽片段。', '--voice', '小偉', '--output', 'jobs\\preview_218fc1f5-63a4-4ca4-b1dc-f67534b34674.wav']
+2026-07-15 08:44:23,965 [INFO] Running cloning preview subprocess: ['d:\\GOOGLE ANGET\\AI 克隆聲音\\.venv\\Scripts\\python.exe', 'd:\\GOOGLE ANGET\\AI 克隆聲音\\clone.py', '這是一段本機克隆聲音的試聽片段。', '--voice', '小偉', '--output', 'jobs\\preview_fb41f182-203a-4a8a-ad05-a21750ba6134.wav']
+2026-07-15 08:44:36,478 [ERROR] Preview failed
+Traceback (most recent call last):
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 249, in preview_voice
+    await loop.run_in_executor(
+    ...<2 lines>...
+    )
+  File "C:\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 251, in <lambda>
+    lambda: subprocess.run(cmd, check=True, cwd=r"d:\GOOGLE ANGET\AI 克隆聲音")
+            ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['d:\\GOOGLE ANGET\\AI 克隆聲音\\.venv\\Scripts\\python.exe', 'd:\\GOOGLE ANGET\\AI 克隆聲音\\clone.py', '這是一段本機克隆聲音的試聽片段。', '--voice', '小偉', '--output', 'jobs\\preview_218fc1f5-63a4-4ca4-b1dc-f67534b34674.wav']' returned non-zero exit status 1.
+2026-07-15 08:44:44,934 [INFO] Running cloning preview subprocess: ['d:\\GOOGLE ANGET\\AI 克隆聲音\\.venv\\Scripts\\python.exe', 'd:\\GOOGLE ANGET\\AI 克隆聲音\\clone.py', '這是一段本機克隆聲音的試聽片段。', '--voice', '小偉', '--output', 'jobs\\preview_5a2c2adf-85c1-4fed-af19-d806b9518486.wav']
+2026-07-15 08:45:17,257 [ERROR] Preview failed
+Traceback (most recent call last):
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 249, in preview_voice
+    await loop.run_in_executor(
+    ...<2 lines>...
+    )
+  File "C:\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 251, in <lambda>
+    lambda: subprocess.run(cmd, check=True, cwd=r"d:\GOOGLE ANGET\AI 克隆聲音")
+            ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['d:\\GOOGLE ANGET\\AI 克隆聲音\\.venv\\Scripts\\python.exe', 'd:\\GOOGLE ANGET\\AI 克隆聲音\\clone.py', '這是一段本機克隆聲音的試聽片段。', '--voice', '小偉', '--output', 'jobs\\preview_5a2c2adf-85c1-4fed-af19-d806b9518486.wav']' returned non-zero exit status 3221225477.
+2026-07-15 08:45:17,283 [ERROR] Preview failed
+Traceback (most recent call last):
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 249, in preview_voice
+    await loop.run_in_executor(
+    ...<2 lines>...
+    )
+  File "C:\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 251, in <lambda>
+    lambda: subprocess.run(cmd, check=True, cwd=r"d:\GOOGLE ANGET\AI 克隆聲音")
+            ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['d:\\GOOGLE ANGET\\AI 克隆聲音\\.venv\\Scripts\\python.exe', 'd:\\GOOGLE ANGET\\AI 克隆聲音\\clone.py', '這是一段本機克隆聲音的試聽片段。', '--voice', '小偉', '--output', 'jobs\\preview_fb41f182-203a-4a8a-ad05-a21750ba6134.wav']' returned non-zero exit status 3221225477.
+2026-07-15 12:27:50,559 [INFO] Running cloning preview subprocess: ['d:\\GOOGLE ANGET\\AI 克隆聲音\\.venv\\Scripts\\python.exe', 'd:\\GOOGLE ANGET\\AI 克隆聲音\\clone.py', '這是一段本機克隆聲音的試聽片段。', '--voice', '小偉', '--output', 'D:\\GOOGLE ANGET\\影片生成\\pdf-to-video-cloning\\jobs\\preview_d1ae9aab-a807-479a-ad0d-f3981806f357.wav']
+2026-07-15 13:20:01,201 [INFO] Extracting audio from uploaded video: output.mp4
+2026-07-15 13:20:16,846 [INFO] Uploading audio to Gemini for speech-to-text transcription...
+2026-07-15 13:20:16,927 [INFO] Trying voice transcription with Gemini model: gemini-3.5-flash
+2026-07-15 13:22:21,441 [WARNING] gemini-3.5-flash failed: HTTPSConnectionPool(host='generativelanguage.googleapis.com', port=443): Read timed out. (read timeout=120)
+2026-07-15 13:22:21,441 [INFO] Trying voice transcription with Gemini model: gemini-3.5-pro
+2026-07-15 13:22:24,236 [WARNING] gemini-3.5-pro failed (HTTP 404): {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-3.5-pro is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-07-15 13:22:24,236 [INFO] Trying voice transcription with Gemini model: gemini-2.5-flash
+2026-07-15 13:22:27,683 [WARNING] gemini-2.5-flash failed (HTTP 404): {
+  "error": {
+    "code": 404,
+    "message": "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use a newer model for the latest features and improvements.",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-07-15 13:22:27,683 [INFO] Trying voice transcription with Gemini model: gemini-1.5-flash
+2026-07-15 13:22:30,464 [WARNING] gemini-1.5-flash failed (HTTP 404): {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-07-15 13:22:30,464 [ERROR] Error extracting script from video
+Traceback (most recent call last):
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 736, in rescue_video_to_script
+    raise ValueError(f"所有嘗試的模型皆辨識失敗。最後的錯誤訊息：{last_error}")
+ValueError: 所有嘗試的模型皆辨識失敗。最後的錯誤訊息：gemini-1.5-flash failed (HTTP 404): {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-07-15 13:24:39,950 [INFO] Extracting audio from uploaded video: output.mp4
+2026-07-15 13:24:55,958 [INFO] Uploading audio to Gemini for speech-to-text transcription...
+2026-07-15 13:24:56,034 [INFO] Trying voice transcription with Gemini model: gemini-3.5-flash
+2026-07-15 13:26:22,051 [INFO] Successfully transcribed with model: gemini-3.5-flash
+2026-07-15 13:26:22,051 [ERROR] Error extracting script from video
+Traceback (most recent call last):
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 741, in rescue_video_to_script
+    return Response(
+        content=txt_content.encode("utf-8"),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{output_filename}"'},
+    )
+  File "C:\Python313\Lib\site-packages\starlette\responses.py", line 46, in __init__
+    self.init_headers(headers)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\starlette\responses.py", line 61, in init_headers
+    raw_headers = [(k.lower().encode("latin-1"), v.encode("latin-1")) for k, v in headers.items()]
+                                                 ~~~~~~~~^^^^^^^^^^^
+UnicodeEncodeError: 'latin-1' codec can't encode characters in position 29-32: ordinal not in range(256)
+2026-07-15 13:29:01,274 [INFO] Extracting audio from uploaded video: output.mp4
+2026-07-15 13:29:16,913 [INFO] Uploading audio to Gemini for speech-to-text transcription...
+2026-07-15 13:29:16,978 [INFO] Trying voice transcription with Gemini model: gemini-3.5-flash
+2026-07-15 13:31:19,794 [WARNING] gemini-3.5-flash failed: HTTPSConnectionPool(host='generativelanguage.googleapis.com', port=443): Read timed out. (read timeout=120)
+2026-07-15 13:31:19,794 [INFO] Trying voice transcription with Gemini model: gemini-3.5-pro
+2026-07-15 13:31:22,499 [WARNING] gemini-3.5-pro failed (HTTP 404): {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-3.5-pro is not found for API version v1, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-07-15 13:31:22,499 [INFO] Trying voice transcription with Gemini model: gemini-2.5-flash
+2026-07-15 13:31:26,397 [WARNING] gemini-2.5-flash failed (HTTP 404): {
+  "error": {
+    "code": 404,
+    "message": "This model models/gemini-2.5-flash is no longer available to new users. Please update your code to use a newer model for the latest features and improvements.",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-07-15 13:31:26,397 [INFO] Trying voice transcription with Gemini model: gemini-1.5-flash
+2026-07-15 13:31:29,186 [WARNING] gemini-1.5-flash failed (HTTP 404): {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+2026-07-15 13:31:29,186 [ERROR] Error extracting script from video
+Traceback (most recent call last):
+  File "D:\GOOGLE ANGET\影片生成\pdf-to-video-cloning\app.py", line 742, in rescue_video_to_script
+    raise ValueError(f"所有嘗試的模型皆辨識失敗。最後的錯誤訊息：{last_error}")
+ValueError: 所有嘗試的模型皆辨識失敗。最後的錯誤訊息：gemini-1.5-flash failed (HTTP 404): {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+

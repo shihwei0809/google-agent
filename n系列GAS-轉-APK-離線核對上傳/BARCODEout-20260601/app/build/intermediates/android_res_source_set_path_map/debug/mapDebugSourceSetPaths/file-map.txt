@@ -1,0 +1,7 @@
+com.example.barcode_out.app-pngs-0 D:\GOOGLE ANGET\n系列GAS-轉-APK-離線核對上傳\BARCODEout-20260601\app\build\generated\res\pngs\debug
+com.example.barcode_out.app-updated_navigation_xml-1 D:\GOOGLE ANGET\n系列GAS-轉-APK-離線核對上傳\BARCODEout-20260601\app\build\generated\updated_navigation_xml\debug
+com.example.barcode_out.app-packageDebugResources-2 D:\GOOGLE ANGET\n系列GAS-轉-APK-離線核對上傳\BARCODEout-20260601\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.example.barcode_out.app-packageDebugResources-3 D:\GOOGLE ANGET\n系列GAS-轉-APK-離線核對上傳\BARCODEout-20260601\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.example.barcode_out.app-debug-4 D:\GOOGLE ANGET\n系列GAS-轉-APK-離線核對上傳\BARCODEout-20260601\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.example.barcode_out.app-debug-5 D:\GOOGLE ANGET\n系列GAS-轉-APK-離線核對上傳\BARCODEout-20260601\app\src\debug\res
+com.example.barcode_out.app-main-6 D:\GOOGLE ANGET\n系列GAS-轉-APK-離線核對上傳\BARCODEout-20260601\app\src\main\res

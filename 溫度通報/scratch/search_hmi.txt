@@ -1,0 +1,43 @@
+189: /* Status Indicator Badge */
+190: .system-status-indicator {
+202: .status-dot {
+210: .status-dot.online {
+216: .status-dot.offline {
+672: /* Status Badges */
+990: .system-status-indicator {
+1217: <div class="system-status-indicator">
+1218: <span class="status-dot offline" id="system-status-dot"></span>
+1219: <span id="system-status-text">連線中...</span>
+1280: <!-- System Status & Details Card -->
+1303: <span class="info-label"><i class="fa-solid fa-heartbeat"></i> 本機監控最後心跳</span>
+1304: <span class="info-value" id="dash-last-heartbeat">讀取中...</span>
+1308: <span class="info-value alert-success" id="dash-backup-status">運作中</span>
+1660: setTimeout(() => {
+1822: setTimeout(() => {
+1824: setTimeout(() => toast.remove(), 300);
+1914: document.getElementById('system-status-dot').className = 'status-dot online';
+1915: document.getElementById('system-status-text').innerText = '與雲端資料庫同步中...';
+1920: document.getElementById('system-status-dot').className = 'status-dot online';
+1921: document.getElementById('system-status-text').innerText = '雲端連接正常';
+1927: document.getElementById('system-status-dot').className = 'status-dot offline';
+1928: document.getElementById('system-status-text').innerText = '雲端通訊失敗';
+1934: document.getElementById('system-status-dot').className = 'status-dot offline';
+1935: document.getElementById('system-status-text').innerText = '雲端通訊失敗';
+1966: const hbValSpan = document.getElementById('dash-last-heartbeat');
+1967: if (data.lastLocalHeartbeat) {
+1968: const formattedDiff = formatTimeDiff(data.lastLocalHeartbeat, data.nowTime);
+1969: const timeDate = new Date(parseInt(data.lastLocalHeartbeat));
+1972: const diffMinutes = (parseInt(data.nowTime) - parseInt(data.lastLocalHeartbeat)) / (1000 * 60);
+2028: if (res.status === 'success') {
+2109: if (res.status === 'success') {
+2123: if (res.status === 'success') {
+2164: if (res.status === 'success') {
+2224: let statusBadgeHtml = '';
+2225: if (log.statusText.includes('已發送')) {
+2226: statusBadgeHtml = `<span class="badge badge-info"><i class="fa-solid fa-paper-plane"></i> ${log.statusText}</span>`;
+2227: } else if (log.statusText.includes('未發送')) {
+2228: statusBadgeHtml = `<span class="badge badge-secondary"><i class="fa-solid fa-ban"></i> ${log.statusText}</span>`;
+2230: statusBadgeHtml = `<span class="badge badge-secondary">${log.statusText}</span>`;
+2239: <td>${statusBadgeHtml}</td>
+2280: log.statusText.toLowerCase().includes(query) ||
+2305: `"${log.statusText}"`

@@ -1,0 +1,14 @@
+221: var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
+486: var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
+581: var response = UrlFetchApp.fetch(multicastUrl, options);
+599: var response = UrlFetchApp.fetch(pushUrl, options);
+634: var response = UrlFetchApp.fetch(teamsWebhookUrl, options);
+918: var apiResponse = UrlFetchApp.fetch(apiUrl, {"muteHttpExceptions": true});
+989: var response = UrlFetchApp.fetch(multicastUrl, options);
+1007: var response = UrlFetchApp.fetch(pushUrl, options);
+1385: var response = UrlFetchApp.fetch(url, options);
+1422: var response = UrlFetchApp.fetch(url, options);
+1518: UrlFetchApp.fetch(url, options);
+1569: UrlFetchApp.fetch(url, options);
+1579: var response = UrlFetchApp.fetch(listUrl, listOptions);
+1595: UrlFetchApp.fetch(deleteUrl, deleteOptions);

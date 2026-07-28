@@ -1,0 +1,15 @@
+838: def send_teams_notifications(teams_config, subject, message):
+839: """發送 Microsoft Teams Webhook 通知"""
+840: webhook_url = teams_config.get("webhook_url")
+841: if not webhook_url or "YOUR_TEAMS" in webhook_url:
+842: print("【警告】未設定有效的 Teams Webhook URL，跳過 Teams 發送。")
+866: print("Teams 訊息推播成功！")
+869: print(f"【Teams API 錯誤】狀態碼 {status_code}", file=sys.stderr)
+873: print(f"【Teams API 錯誤】狀態碼 {e.code}: {err_body}", file=sys.stderr)
+876: print(f"【錯誤】發送 Teams 時發生異常: {e}", file=sys.stderr)
+1124: teams_sent = False
+1134: # 發送 Teams
+1135: if config.get("teams", {}).get("enabled", True) and config.get("teams", {}).get("webhook_url"):
+1136: teams_sent = send_teams_notifications(config["teams"], notify_subject, notify_body)
+1139: if line_sent or email_sent or teams_sent:
+1146: if teams_sent: status_text_list.append("Teams")

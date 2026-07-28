@@ -1,0 +1,124 @@
+7: .addItem('🧪 測試即時通報 (強制發送)', 'testNotifyForce')
+49: ["Teams Webhook URL", "", "傳送高溫警報與溫度回落通知的 MS Teams Webhook 連結 (選填)"]
+131: } else if (key_lower.includes("teams") || key.includes("webhook")) {
+132: config.teamsWebhookUrl = val;
+172: if (triggers[i].getHandlerFunction() === 'checkWeatherAndNotify') {
+179: ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(10).create();
+181: ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(15).create();
+183: ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyMinutes(30).create();
+185: ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(1).create();
+187: ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(2).create();
+190: ScriptApp.newTrigger('checkWeatherAndNotify').timeBased().everyHours(1).create();
+212: var lastLocalHeartbeat = props.getProperty("LAST_LOCAL_HEARTBEAT") || "";
+242: lastLocalHeartbeat: lastLocalHeartbeat,
+289: var lineId = String(values[i][2]).trim();
+301: if (name === "" && email === "" && lineId === "") continue;
+306: lineId: lineId,
+347: c.lineId || "",
+402: * CWA 環境溫度監控與 LINE/Email 自動通報系統 (Google Apps Script 雲端 CWA Open Data API 版)
+404: function checkWeatherAndNotify() {
+411: var heartbeatTimeoutMinutes = Math.max(15, frequency * 1.1);
+413: var lastLocalHeartbeat = properties.getProperty("LAST_LOCAL_HEARTBEAT");
+414: if (lastLocalHeartbeat) {
+415: var lastTime = parseInt(lastLocalHeartbeat);
+418: if (diffMinutes < heartbeatTimeoutMinutes) {
+428: var lineIds = [];
+434: var lineId = String(data[i][2]).trim();
+450: if (lineId) {
+451: var prefix = lineId.charAt(0).toUpperCase();
+453: lineIds.push(lineId);
+475: Logger.log("LINE 推播名單: " + lineIds);
+477: if (emails.length === 0 && lineIds.length === 0) {
+512: var shouldNotify = false;
+515: var notifySubject = "";
+516: var notifyBody = "";
+521: shouldNotify = true;
+523: notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定閾值！";
+525: notifyBody = "【環境高溫警報】\n";
+526: notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定閾值 " + threshold + "°C)\n";
+527: notifyBody += "氣象觀測時間：" + displayTime + "\n";
+528: notifyBody += "通報時間：" + formattedTime + "\n\n";
+529: notifyBody += "※ 請相關人員開啟灑水設備降溫循環過濾器。\n";
+530: notifyBody += "※ 請相關人員注意防暑、多補充水分，並採取防範措施。";
+537: shouldNotify = true;
+539: notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定閾值。";
+541: notifyBody = "【環境溫度回落通知】\n";
+542: notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定閾值 " + threshold + "°C 以下)\n";
+543: notifyBody += "氣象觀測時間：" + displayTime + "\n";
+544: notifyBody += "通報時間：" + formattedTime + "\n\n";
+545: notifyBody += "※ 目前高溫警報已解除，氣溫已回落至安全範圍。";
+552: if (shouldNotify) {
+553: Logger.log("觸發通知：「" + notifySubject + "」");
+554: var lineSent = false;
+556: var teamsSent = false;
+558: var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
+561: for (var m = 0; m < lineIds.length; m++) {
+562: var prefix = lineIds[m].charAt(0).toUpperCase();
+563: if (prefix === "U") userIds.push(lineIds[m]);
+564: else if (prefix === "C" || prefix === "R") groupIds.push(lineIds[m]);
+568: var multicastUrl = "https://api.line.me/v2/bot/message/multicast";
+573: "Authorization": "Bearer " + lineToken
+577: "messages": [{"type": "text", "text": notifyBody}]
+582: if (response.getResponseCode() === 200) lineSent = true;
+586: var pushUrl = "https://api.line.me/v2/bot/message/push";
+591: "Authorization": "Bearer " + lineToken
+595: "messages": [{"type": "text", "text": notifyBody}]
+600: if (response.getResponseCode() === 200) lineSent = true;
+607: subject: notifySubject,
+608: body: notifyBody
+616: // 發送 Teams Webhook
+617: var teamsWebhookUrl = config.teamsWebhookUrl;
+618: if (teamsWebhookUrl && teamsWebhookUrl.indexOf("http") === 0) {
+624: "summary": notifySubject,
+625: "title": notifySubject,
+626: "text": notifyBody.replace(/\n/g, "\n\n")
+634: var response = UrlFetchApp.fetch(teamsWebhookUrl, options);
+636: teamsSent = true;
+637: Logger.log("Teams Webhook 發送成功！");
+639: Logger.log("Teams Webhook 發送失敗，狀態碼: " + response.getResponseCode() + ", 回傳: " + response.getContentText());
+642: Logger.log("Teams Webhook 發送異常: " + e.message);
+646: if (lineSent || emailSent || teamsSent) {
+652: if (shouldNotify) {
+654: if (lineSent) statusArr.push("LINE");
+656: if (teamsSent) statusArr.push("Teams");
+863: function testNotifyForce(password) {
+883: var lineIds = [];
+889: var lineId = String(data[i][2]).trim();
+905: if (lineId) {
+906: var prefix = lineId.charAt(0).toUpperCase();
+908: lineIds.push(lineId);
+956: var notifySubject = "【測試通報】發送測試：環境溫度為 " + currentTemp + "°C";
+957: var notifyBody = "【測試通報】\n";
+958: notifyBody += "當前環境溫度：" + currentTemp + "°C (設定閾值 " + threshold + "°C)\n";
+959: notifyBody += "氣象觀測時間：" + displayTime + "\n";
+960: notifyBody += "測試觸發時間：" + formattedTime + "\n\n";
+961: notifyBody += "※ 此為手動測試通報，目的為驗證 LINE 與 Email 通報通道是否暢通。";
+963: var lineSent = false;
+966: var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
+969: for (var m = 0; m < lineIds.length; m++) {
+970: var prefix = lineIds[m].charAt(0).toUpperCase();
+971: if (prefix === "U") userIds.push(lineIds[m]);
+972: else if (prefix === "C" || prefix === "R") groupIds.push(lineIds[m]);
+976: var multicastUrl = "https://api.line.me/v2/bot/message/multicast";
+981: "Authorization": "Bearer " + lineToken
+985: "messages": [{"type": "text", "text": notifyBody}]
+990: if (response.getResponseCode() === 200) lineSent = true;
+994: var pushUrl = "https://api.line.me/v2/bot/message/push";
+999: "Authorization": "Bearer " + lineToken
+1003: "messages": [{"type": "text", "text": notifyBody}]
+1008: if (response.getResponseCode() === 200) lineSent = true;
+1015: subject: notifySubject,
+1016: body: notifyBody
+1025: if (lineSent) statusArr.push("LINE");
+1030: SpreadsheetApp.getUi().alert("【測試通報發送完成】\n目前觀測環境溫度：" + currentTemp + "°C\n發送通道：" + statusText + "\n\n請確認您的 LINE 或是信箱是否收到測試訊息。");
+1110: * 接收 LINE Webhook 事件與本機心跳同步信號
+1117: if (postData.action === "heartbeat") {
+1119: props.setProperty("LAST_LOCAL_HEARTBEAT", new Date().getTime().toString());
+1121: var syncType = postData.type || "heartbeat";
+1135: if (syncType === "heartbeat") {
+1177: "last_heartbeat": new Date().getTime(),
+1253: if (postData.action === "testNotifyForce") {
+1254: var result = testNotifyForce(postData.password);
+1292: // 6. LINE Webhook 事件處理
+1465: "last_heartbeat": dbData.lastLocalHeartbeat ? parseInt(dbData.lastLocalHeartbeat) : 0,
+1503: "lineId": { "stringValue": c.lineId || "" },

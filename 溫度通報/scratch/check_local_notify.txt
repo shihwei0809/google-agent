@@ -1,0 +1,4 @@
+718: def send_line_notifications(line_config, message, recipients):
+838: def send_teams_notifications(teams_config, subject, message):
+1128: line_sent = send_line_notifications(config["line"], notify_body, final_line_ids)
+1136: teams_sent = send_teams_notifications(config["teams"], notify_subject, notify_body)
