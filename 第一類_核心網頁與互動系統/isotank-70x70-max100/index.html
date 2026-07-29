@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO Tank 70m x 70m (4,900 m²) 極致蜂巢高密度 100 格車位系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #070a12;
+            --panel-bg: rgba(15, 23, 42, 0.92);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.4);
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-blue: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(139, 92, 246, 0.06) 0%, transparent 40%);
+        }
+
+        header {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-area { display: flex; align-items: center; gap: 14px; }
+        .brand-logo {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, #0284c7, #38bdf8);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 0 20px var(--primary-glow);
+        }
+        .brand-title h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px; font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 30%, #38bdf8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .brand-title p { font-size: 11px; color: var(--text-muted); }
+
+        .kpi-bar { display: flex; gap: 12px; }
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px; border-radius: 8px; text-align: center;
+        }
+        .kpi-val { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--primary); }
+        .kpi-lbl { font-size: 10px; color: var(--text-muted); }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1400px) { .main-container { grid-template-columns: 1fr; } }
+
+        .map-section {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            background: #090d18;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+        }
+
+        #siteCanvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+
+        .side-panel { display: flex; flex-direction: column; gap: 16px; }
+        .panel-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+        }
+        .panel-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--primary); }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px; color: #fff; font-size: 13px; outline: none;
+        }
+
+        .detail-row {
+            display: flex; justify-content: space-between; font-size: 12px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.08); padding-bottom: 5px; margin-bottom: 5px;
+        }
+
+        .btn-status-change {
+            width: 100%; padding: 8px; border-radius: 6px; border: none; font-weight: 700; font-size: 12px; cursor: pointer; margin-top: 6px;
+        }
+        .btn-green { background: #10b981; color: #000; }
+        .btn-blue { background: #38bdf8; color: #000; }
+        .btn-amber { background: #f59e0b; color: #000; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand-area">
+            <div class="brand-logo">🔥</div>
+            <div class="brand-title">
+                <h1>ISO Tank 70m x 70m (4,900 m²) 極致蜂巢 100 格車位系統</h1>
+                <p>完全對應現場實景停法 (四面靠牆 + 中央多排蜂巢式連停 + 右下角藍框出入口)</p>
+            </div>
+        </div>
+
+        <div class="kpi-bar">
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-total">100 格</div>
+                <div class="kpi-lbl">極限容量</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-occupied" style="color:#38bdf8;">82 格</div>
+                <div class="kpi-lbl">已停放 ISO Tank</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-empty" style="color:#10b981;">18 格</div>
+                <div class="kpi-lbl">空閒車位</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-rate" style="color:#f59e0b;">82.0%</div>
+                <div class="kpi-lbl">利用率</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="map-section">
+            <div class="map-header">
+                <div>
+                    <h3 style="font-size:15px; font-weight:700; color:var(--primary);">🗺️ 70m × 70m 正方形廠區 (100 個帶號碼車位點擊即時面板)</h3>
+                    <div style="font-size:11px; color:var(--text-muted);">現場實景擬真：純放櫃拔車頭，極大化空間容納 100 台 ISO Tank</div>
+                </div>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="siteCanvas" width="1100" height="850"></canvas>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-card">
+                <h3>🔍 號碼車位快速搜尋</h3>
+                <div class="search-box">
+                    <input type="text" id="slot-search" placeholder="輸入號碼 (例如: A-05, C-12, W-08)..." oninput="searchSlot()">
+                </div>
+            </div>
+
+            <div class="panel-card">
+                <h3>📌 車格詳細資訊面板</h3>
+                <div id="slot-detail">
+                    <div style="text-align:center; padding: 20px; color: var(--text-muted); font-size:12px;">
+                        請點擊地圖上的 100 個號碼車格任意查看
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-card" style="font-size:12px; line-height:1.6;">
+                <h3 style="color:#f59e0b;">💡 現場實景 100 格極致佈局說明</h3>
+                <div style="background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); padding:10px; border-radius:8px; margin-bottom:8px;">
+                    <b>極致空間利用率：>80%</b><br>
+                    此佈局為暫存/放櫃模式。四面靠牆停滿，中央規劃 A、B、C 三大高密度蜂巢縱向連停區塊。
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>外圍靠牆車位 (W-01~W-34)：</span><b>34 格</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>中央 A 區蜂巢連停：</span><b>22 格</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>中央 B 區蜂巢連停：</span><b>22 格</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>中央 C 區蜂巢連停：</span><b>22 格</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; color:#38bdf8; font-weight:700; margin-top:4px; border-top:1px dashed rgba(255,255,255,0.2); padding-top:4px;">
+                    <span>總規劃車位數：</span><b>100 格 (100% 帶獨立編號)</b>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('siteCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let slotsData = {};
+        let slotRects = [];
+        let selectedSlotId = 'W-01';
+
+        // 初始化 100 個車位資料 (W區 34格, A區 22格, B區 22格, C區 22格)
+        function initData() {
+            slotsData = {};
+            const zones = [
+                { prefix: 'W', count: 34 },
+                { prefix: 'A', count: 22 },
+                { prefix: 'B', count: 22 },
+                { prefix: 'C', count: 22 }
+            ];
+
+            zones.forEach(z => {
+                for (let i = 1; i <= z.count; i++) {
+                    const numStr = i < 10 ? '0' + i : '' + i;
+                    const id = `${z.prefix}-${numStr}`;
+                    const rand = Math.random();
+                    let status = 'occupied';
+                    let tankNo = `TK-${z.prefix}${Math.floor(1000 + Math.random() * 9000)}`;
+                    let chemical = 'IPA 異丙醇';
+
+                    if (rand > 0.82) {
+                        status = 'empty';
+                        tankNo = '無';
+                        chemical = '無';
+                    } else if (rand > 0.77) {
+                        status = 'maintenance';
+                        tankNo = '無';
+                        chemical = '保養管制';
+                    }
+                    slotsData[id] = { id, zone: z.prefix, number: i, status, tankNo, chemical };
+                }
+            });
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            slotRects = [];
+
+            // 正方形 70m x 70m 畫布點位 (750px x 750px)
+            const bx = 175, by = 60, bw = 750, bh = 750;
+
+            ctx.fillStyle = '#060a14';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 正方形白牆邊界
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(bx, by, bw, bh);
+
+            // 70.00 公尺標記
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px Inter';
+            ctx.fillText('70.00 公尺 (寬)', bx + bw / 2 - 45, by - 14);
+
+            ctx.save();
+            ctx.translate(bx - 16, by + bh / 2 + 45);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('70.00 公尺 (長)', 0, 0);
+            ctx.restore();
+
+            // 右下角藍框出入口 (按照片位置)
+            const gateX = bx + bw - 190;
+            const gateY = by + bh - 10;
+            const gateW = 140;
+            const gateH = 22;
+
+            ctx.fillStyle = '#2563eb';
+            ctx.fillRect(gateX, gateY, gateW, gateH);
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(gateX, gateY, gateW, gateH);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText('🟦 出入口 (藍框)', gateX + 16, gateY + 16);
+
+            // 1. 繪製四面靠牆車位 (W-01 ~ W-34)
+            // 頂邊靠牆 (W-01 ~ W-12) 橫排
+            for (let i = 1; i <= 12; i++) {
+                const id = `W-${i < 10 ? '0' + i : i}`;
+                const x = bx + 25 + (i - 1) * 58;
+                const y = by + 12;
+                drawSingleSlot(id, x, y, 54, 28, false);
+            }
+
+            // 左邊靠牆 (W-13 ~ W-23) 直排
+            for (let i = 13; i <= 23; i++) {
+                const id = `W-${i}`;
+                const x = bx + 12;
+                const y = by + 50 + (i - 13) * 58;
+                drawSingleSlot(id, x, y, 28, 54, true);
+            }
+
+            // 底邊靠牆 (W-24 ~ W-34) 橫排 (右下角避開出入口)
+            for (let i = 24; i <= 34; i++) {
+                const id = `W-${i}`;
+                const x = bx + 25 + (i - 24) * 52;
+                const y = by + bh - 40;
+                drawSingleSlot(id, x, y, 48, 28, false);
+            }
+
+            // 2. 繪製中央高密度蜂巢縱向連停區塊 (A區 22格, B區 22格, C區 22格)
+            // A 區
+            drawBlockGrid('A', bx + 90, by + 110, 11, 2);
+
+            // B 區
+            drawBlockGrid('B', bx + 300, by + 110, 11, 2);
+
+            // C 區
+            drawBlockGrid('C', bx + 510, by + 110, 11, 2);
+
+            // 標示中央調度幹道
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 11px Inter';
+            ctx.fillText('← 中央調度/吊車車道 →', bx + 280, by + 685);
+
+            updateKPI();
+        }
+
+        function drawBlockGrid(zonePrefix, startX, startY, rows, cols) {
+            const slotW = 85;
+            const slotH = 46;
+            const gapX = 3;
+            const gapY = 3;
+
+            let count = 1;
+            for (let c = 0; c < cols; c++) {
+                for (let r = 0; r < rows; r++) {
+                    if (count > 22) break;
+                    const id = `${zonePrefix}-${count < 10 ? '0' + count : count}`;
+                    const x = startX + c * (slotW + gapX);
+                    const y = startY + r * (slotH + gapY);
+
+                    drawSingleSlot(id, x, y, slotW, slotH, false);
+                    count++;
+                }
+            }
+        }
+
+        function drawSingleSlot(id, x, y, w, h, isVertical) {
+            const item = slotsData[id];
+            if (!item) return;
+
+            slotRects.push({ id, x, y, w, h });
+
+            if (item.status === 'occupied') {
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.75)';
+                ctx.strokeStyle = '#38bdf8';
+            } else if (item.status === 'empty') {
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                ctx.strokeStyle = '#10b981';
+            } else {
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.65)';
+                ctx.strokeStyle = '#f59e0b';
+            }
+
+            if (id === selectedSlotId) {
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#ffffff';
+            }
+
+            ctx.fillRect(x, y, w, h);
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, w, h);
+
+            // 印上號碼文字
+            ctx.fillStyle = (id === selectedSlotId) ? '#000000' : '#ffffff';
+            ctx.font = 'bold 10px Inter';
+            if (isVertical) {
+                ctx.fillText(id, x + 2, y + h / 2 + 3);
+            } else {
+                ctx.fillText(id, x + w / 2 - 14, y + h / 2 + 3);
+            }
+
+            // ISO Tank 槽車紋路
+            if (item.status === 'occupied' && id !== selectedSlotId) {
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(x + 2, y + 2, 4, h - 4);
+                ctx.fillRect(x + w - 6, y + 2, 4, h - 4);
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const clickX = (e.clientX - rect.left) * scaleX;
+            const clickY = (e.clientY - rect.top) * scaleY;
+
+            const found = slotRects.find(r => 
+                clickX >= r.x && clickX <= r.x + r.w &&
+                clickY >= r.y && clickY <= r.y + r.h
+            );
+
+            if (found) {
+                selectedSlotId = found.id;
+                drawCanvas();
+                selectSlot(found.id);
+            }
+        });
+
+        function selectSlot(id) {
+            selectedSlotId = id;
+            const item = slotsData[id];
+            if (!item) return;
+
+            const detailContainer = document.getElementById('slot-detail');
+            let statusBadge = '';
+            if (item.status === 'empty') statusBadge = '<span style="color:#10b981; font-weight:700;">🟢 空車格</span>';
+            if (item.status === 'occupied') statusBadge = '<span style="color:#38bdf8; font-weight:700;">🚛 已停放 ISO Tank</span>';
+            if (item.status === 'maintenance') statusBadge = '<span style="color:#f59e0b; font-weight:700;">🟡 保養管制中</span>';
+
+            detailContainer.innerHTML = `
+                <div class="detail-row"><span class="lbl">車格號碼</span><span class="val" style="font-size:16px; color:var(--primary); font-weight:800;">${item.id}</span></div>
+                <div class="detail-row"><span class="lbl">車位狀態</span><span class="val">${statusBadge}</span></div>
+                <div class="detail-row"><span class="lbl">Tank 號碼</span><span class="val">${item.tankNo}</span></div>
+                <div class="detail-row"><span class="lbl">裝載化學品</span><span class="val">${item.chemical}</span></div>
+
+                <div style="margin-top:10px;">
+                    <button class="btn-status-change btn-green" onclick="changeStatus('${id}', 'empty')">標示為空位</button>
+                    <button class="btn-status-change btn-blue" onclick="changeStatus('${id}', 'occupied')">標示為已停放</button>
+                    <button class="btn-status-change btn-amber" onclick="changeStatus('${id}', 'maintenance')">標示為保養中</button>
+                </div>
+            `;
+        }
+
+        function changeStatus(id, newStatus) {
+            slotsData[id].status = newStatus;
+            if (newStatus === 'empty') {
+                slotsData[id].tankNo = '無';
+                slotsData[id].chemical = '無';
+            } else if (newStatus === 'occupied') {
+                slotsData[id].tankNo = `TK-${id.replace('-','')}`;
+                slotsData[id].chemical = 'IPA 異丙醇';
+            }
+            drawCanvas();
+            selectSlot(id);
+        }
+
+        function updateKPI() {
+            let occupied = 0, empty = 0;
+            const total = Object.keys(slotsData).length;
+            Object.values(slotsData).forEach(item => {
+                if (item.status === 'occupied') occupied++;
+                if (item.status === 'empty') empty++;
+            });
+            document.getElementById('kpi-total').innerText = `${total} 格`;
+            document.getElementById('kpi-occupied').innerText = `${occupied} 格`;
+            document.getElementById('kpi-empty').innerText = `${empty} 格`;
+            document.getElementById('kpi-rate').innerText = `${((occupied / total) * 100).toFixed(1)}%`;
+        }
+
+        function searchSlot() {
+            const query = document.getElementById('slot-search').value.trim().toUpperCase();
+            if (slotsData[query]) {
+                selectedSlotId = query;
+                drawCanvas();
+                selectSlot(query);
+            }
+        }
+
+        window.onload = () => {
+            initData();
+            drawCanvas();
+            selectSlot('W-01');
+        };
+    </script>
+</body>
+</html>

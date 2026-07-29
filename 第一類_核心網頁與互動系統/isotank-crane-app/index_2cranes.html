@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO Tank 45,633 m² 方案一：2 臺天車單向進出系統 (傳統型)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #070a12;
+            --panel-bg: rgba(15, 23, 42, 0.92);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.4);
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        header {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-title h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px; font-weight: 800;
+            color: #f59e0b;
+        }
+
+        .kpi-bar { display: flex; gap: 12px; }
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px; border-radius: 8px; text-align: center;
+        }
+        .kpi-val { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: #f59e0b; }
+        .kpi-lbl { font-size: 10px; color: var(--text-muted); }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        .map-section {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 20px;
+        }
+
+        .canvas-wrapper {
+            position: relative; width: 100%; background: #080c16;
+            border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        #siteCanvas { display: block; width: 100%; height: auto; }
+
+        .side-panel { display: flex; flex-direction: column; gap: 16px; }
+        .panel-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px; padding: 16px;
+        }
+        .panel-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #f59e0b; }
+
+        .nav-link-btn {
+            display: block; width: 100%; padding: 10px; border-radius: 8px;
+            background: linear-gradient(135deg, #059669, #10b981); color: #000;
+            font-weight: 800; text-align: center; text-decoration: none; margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1 style="font-size:19px; font-weight:800; color:#f59e0b;">ISO Tank 45,633 m² 方案一：2 臺天車單向進出系統</h1>
+            <p style="font-size:11px; color:#94a3b8;">獨立網頁 (index_2cranes.html) - 傳統單向天車，提櫃需翻櫃與排隊等待</p>
+        </div>
+
+        <div class="kpi-bar">
+            <div class="kpi-card">
+                <div class="kpi-val">2 臺</div>
+                <div class="kpi-lbl">配置天車數量</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" style="color:#ef4444;">8 ~ 15 分鐘 / 櫃</div>
+                <div class="kpi-lbl">提櫃耗時</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" style="color:#ef4444;">15 ~ 25 分鐘</div>
+                <div class="kpi-lbl">尖峰排隊等待</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="map-section">
+            <h3 style="font-size:15px; font-weight:700; color:#f59e0b; margin-bottom:12px;">🗺️ 方案一圖面：2 臺天車 ＋ 傳統車道</h3>
+            <div class="canvas-wrapper">
+                <canvas id="siteCanvas" width="1400" height="780"></canvas>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-card" style="border: 2px solid #f59e0b;">
+                <h3>⚠️ 方案一 (2臺天車) 瓶頸分析</h3>
+                <div style="font-size:12px; line-height:1.6; color:#94a3b8;">
+                    <b>1. 翻櫃耗時長：</b>提下層櫃需先移上層櫃，每櫃需 8~15 分鐘。<br>
+                    <b>2. 卡車排隊：</b>多車同時進廠時，天車無法分流消化。<br><br>
+                    <a href="index_4cranes.html" class="nav-link-btn">👉 切換至【方案二: 4臺天車 (index_4cranes.html)】</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('siteCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function drawCanvas() {
+            ctx.fillStyle = '#080c16';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 外框
+            const redPolygon = [
+                {x: 80, y: 50}, {x: 1350, y: 50}, {x: 1350, y: 670},
+                {x: 1320, y: 710}, {x: 70, y: 710}, {x: 40, y: 150}
+            ];
+            ctx.beginPath();
+            ctx.moveTo(redPolygon[0].x, redPolygon[0].y);
+            for(let p=1; p<redPolygon.length; p++) ctx.lineTo(redPolygon[p].x, redPolygon[p].y);
+            ctx.closePath();
+            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3.5; ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+            ctx.fill(); ctx.stroke();
+
+            ctx.fillStyle = '#ef4444'; ctx.fillRect(80, 50, 320, 22);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Inter';
+            ctx.fillText('45,633 m² 基地 - [方案一: 2臺天車 (傳統門)]', 86, 65);
+
+            // 藍框建築區
+            ctx.fillStyle = 'rgba(37, 99, 235, 0.4)'; ctx.strokeStyle = '#2563eb'; ctx.lineWidth = 2.5;
+            ctx.fillRect(100, 78, 950, 75); ctx.strokeRect(100, 78, 950, 75);
+            ctx.fillRect(1070, 78, 260, 400); ctx.strokeRect(1070, 78, 260, 400);
+            ctx.fillStyle = '#93c5fd'; ctx.font = 'bold 13px Inter';
+            ctx.fillText('建築物區 30%', 300, 120);
+
+            // 70% 天車專區
+            const areaX = 90, areaY = 175, areaW = 960, areaH = 450;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.95)'; ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 2;
+            ctx.fillRect(areaX, areaY, areaW, areaH); ctx.strokeRect(areaX, areaY, areaW, areaH);
+
+            drawSingleCraneBay('BayA', '🏗️ 天車 A 區 (配置 1 臺天車 - 單向進出，翻櫃時間長)', areaX + 20, areaY + 40, areaW - 40, 175);
+            drawSingleCraneBay('BayB', '🏗️ 天車 B 區 (配置 1 臺天車 - 單向進出，翻櫃時間長)', areaX + 20, areaY + 240, areaW - 40, 175);
+
+            // 門衛
+            const gateY = 640;
+            ctx.fillStyle = '#ef4444'; ctx.fillRect(200, gateY, 70, 30);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Inter'; ctx.fillText('⬆️ 入口', 208, gateY + 20);
+            ctx.fillStyle = '#f59e0b'; ctx.fillRect(320, gateY, 180, 30);
+            ctx.fillStyle = '#000'; ctx.font = 'bold 12px Inter'; ctx.fillText('⚖️ 門衛 / 地磅站', 350, gateY + 20);
+            ctx.fillStyle = '#3b82f6'; ctx.fillRect(750, gateY, 70, 30);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Inter'; ctx.fillText('⬇️ 出口', 758, gateY + 20);
+        }
+
+        function drawSingleCraneBay(key, title, x, y, w, h) {
+            ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3; ctx.strokeRect(x, y, w, h);
+            ctx.fillStyle = '#fbbf24'; ctx.font = 'bold 12px Inter'; ctx.fillText(title, x + 10, y + 18);
+
+            const craneX = x + 400;
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.35)'; ctx.fillRect(craneX, y, 40, h);
+            ctx.strokeStyle = '#f59e0b'; ctx.strokeRect(craneX, y, 40, h);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Inter'; ctx.fillText('天車', craneX + 8, y + h / 2);
+
+            const laneY = y + 25;
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.15)'; ctx.fillRect(x + 10, laneY, w - 20, 30);
+            ctx.fillStyle = '#38bdf8'; ctx.font = 'bold 11px Inter'; ctx.fillText('🚚 卡車車道 (單向終點停靠)', x + 20, laneY + 20);
+
+            const stackY = laneY + 38, slotW = 18, slotH = 95, gapX = 2.5;
+            for (let i = 1; i <= 45; i++) {
+                const sx = x + 15 + (i - 1) * (slotW + gapX);
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.85)'; ctx.strokeStyle = '#38bdf8';
+                ctx.fillRect(sx, stackY, slotW, slotH); ctx.strokeRect(sx, stackY, slotW, slotH);
+            }
+        }
+
+        window.onload = drawCanvas;
+    </script>
+</body>
+</html>

@@ -80,12 +80,22 @@ class MainActivity : AppCompatActivity() {
             val btnClear = findViewById<Button>(resources.getIdentifier("btnClear_f$i", "id", packageName))
             btnClear?.setOnClickListener { fields[i]?.setText("") }
 
-            // 1. 監聽虛擬/實體鍵盤 Enter 鍵
+            // 0. 強制設定為單行輸入與 IME NEXT 動作，防止預設多行導致無法跳欄
+            fields[i]?.apply {
+                maxLines = 1
+                inputType = android.text.InputType.TYPE_CLASS_TEXT
+                imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_NEXT
+            }
+
+            // 1. 監聽虛擬/實體鍵盤 Enter/Tab 鍵與 IME 動作
             fields[i]?.setOnEditorActionListener { _, actionId, event ->
-                val isEnter = (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_NEXT ||
+                val isAction = actionId == android.view.inputmethod.EditorInfo.IME_ACTION_NEXT ||
                                actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE ||
-                               (event != null && event.keyCode == android.view.KeyEvent.KEYCODE_ENTER && event.action == android.view.KeyEvent.ACTION_DOWN))
-                if (isEnter) {
+                               actionId == android.view.inputmethod.EditorInfo.IME_ACTION_UNSPECIFIED
+                val isKeyEvent = event != null &&
+                                 (event.keyCode == android.view.KeyEvent.KEYCODE_ENTER || event.keyCode == android.view.KeyEvent.KEYCODE_TAB) &&
+                                 event.action == android.view.KeyEvent.ACTION_DOWN
+                if (isAction || isKeyEvent) {
                     autoFocusNextField(i)
                     true
                 } else {
@@ -93,9 +103,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // 2. 監聽硬體實體 Enter 按鍵事件
+            // 2. 監聽硬體實體 Enter / Tab 按鍵事件
             fields[i]?.setOnKeyListener { _, keyCode, event ->
-                if (keyCode == android.view.KeyEvent.KEYCODE_ENTER && event.action == android.view.KeyEvent.ACTION_DOWN) {
+                val isKey = (keyCode == android.view.KeyEvent.KEYCODE_ENTER || keyCode == android.view.KeyEvent.KEYCODE_TAB) &&
+                            event.action == android.view.KeyEvent.ACTION_DOWN
+                if (isKey) {
                     autoFocusNextField(i)
                     true
                 } else {
@@ -103,18 +115,27 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
-            // 3. 監聽輸入文字尾端是否包含 newline (某些條碼槍會直接在字串結尾輸入 \n 或 \r 且不發送 KeyEvent)
+            // 3. 監聽輸入文字：支援後綴換行/Tab，以及合法條碼長度即時判斷 (最為防呆，無後綴亦可跳欄)
             fields[i]?.addTextChangedListener(object : android.text.TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: android.text.Editable?) {
                     val original = s?.toString() ?: ""
-                    if (original.endsWith("\n") || original.endsWith("\r")) {
-                        val clean = original.replace("\n", "").replace("\r", "")
+
+                    // 偵測並移除結尾的 newline 或 tab (條碼槍常見後綴)
+                    if (original.endsWith("\n") || original.endsWith("\r") || original.endsWith("\t")) {
+                        val clean = original.trimEnd('\n', '\r', '\t')
                         fields[i]?.removeTextChangedListener(this)
                         fields[i]?.setText(clean)
                         fields[i]?.setSelection(clean.length)
                         fields[i]?.addTextChangedListener(this)
+                        autoFocusNextField(i)
+                        return
+                    }
+
+                    // 即時比對格式防呆：若符合條碼完整長度且合法，直接自動聚焦下一欄 (解決條碼槍無後綴問題)
+                    val cleanText = original.trim()
+                    if (validateBarcodeFormat(cleanText) == "OK") {
                         autoFocusNextField(i)
                     }
                 }
