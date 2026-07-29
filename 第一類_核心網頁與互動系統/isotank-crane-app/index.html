@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO Tank 45,633 m² 天車(龍門吊)系統：2臺 vs 4臺貫穿門效率比較簡報系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #070a12;
+            --panel-bg: rgba(15, 23, 42, 0.92);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.4);
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #a855f7;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(139, 92, 246, 0.06) 0%, transparent 40%);
+        }
+
+        header {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-area { display: flex; align-items: center; gap: 14px; }
+        .brand-logo {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, #0284c7, #38bdf8);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 0 20px var(--primary-glow);
+        }
+        .brand-title h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px; font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 30%, #38bdf8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .brand-title p { font-size: 11px; color: var(--text-muted); }
+
+        .kpi-bar { display: flex; gap: 12px; }
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px; border-radius: 8px; text-align: center;
+        }
+        .kpi-val { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--primary); }
+        .kpi-lbl { font-size: 10px; color: var(--text-muted); }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1400px) { .main-container { grid-template-columns: 1fr; } }
+
+        .map-section {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .mode-toggle-group {
+            display: flex;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            gap: 4px;
+        }
+
+        .btn-mode {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-mode.active-2 {
+            background: linear-gradient(135deg, #d97706, #f59e0b);
+            color: #000;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+
+        .btn-mode.active-4 {
+            background: linear-gradient(135deg, #059669, #10b981);
+            color: #000;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            background: #080c16;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+        }
+
+        #siteCanvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+
+        .side-panel { display: flex; flex-direction: column; gap: 16px; }
+        .panel-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+        }
+        .panel-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--primary); }
+
+        .detail-row {
+            display: flex; justify-content: space-between; font-size: 12px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.08); padding-bottom: 6px; margin-bottom: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand-area">
+            <div class="brand-logo">📊</div>
+            <div class="brand-title">
+                <h1>ISO Tank 45,633 m² 天車系統：2 臺 vs 4 臺貫穿門 提櫃時間與效益比較系統</h1>
+                <p>專為長官簡報設計：一鍵切換「2臺天車單向門 (塞車分析)」與「4臺天車左右雙貫穿門 (極速分析)」</p>
+            </div>
+        </div>
+
+        <div class="kpi-bar">
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-cranes" style="color:#f59e0b;">4 臺</div>
+                <div class="kpi-lbl">配置天車數量</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-gates" style="color:#10b981;">左右 4 門貫穿</div>
+                <div class="kpi-lbl">進出口通道模式</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-time" style="color:#10b981;">2.5 分鐘 / 櫃</div>
+                <div class="kpi-lbl">平均提櫃作業時間</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-wait" style="color:#10b981;">隨到隨吊 (0排隊)</div>
+                <div class="kpi-lbl">尖峰卡車等待時間</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="map-section">
+            <div class="map-header">
+                <div>
+                    <h3 style="font-size:15px; font-weight:700; color:var(--primary);" id="map-title-display">🗺️ 方案二：4 臺天車 ＋ 左右 4 個藍框貫穿通道 (極速簡報視覺)</h3>
+                    <div style="font-size:11px; color:var(--text-muted);">請點擊右側按鈕切換不同天車方案向長官說明時間與瓶頸差異</div>
+                </div>
+
+                <!-- 簡報切換開關 -->
+                <div class="mode-toggle-group">
+                    <button class="btn-mode" id="btn-mode-2" onclick="switchCraneConfig(2)">⚠️ 方案一：2 臺天車 (傳統型)</button>
+                    <button class="btn-mode active-4" id="btn-mode-4" onclick="switchCraneConfig(4)">🚀 方案二：4 臺天車 + 左右貫穿門 (極速型)</button>
+                </div>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="siteCanvas" width="1400" height="780"></canvas>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <!-- 長官簡報核心時間比較卡 -->
+            <div class="panel-card" style="font-size:12px; line-height:1.6; border: 2px solid var(--primary);">
+                <h3 style="color:#38bdf8; font-size:15px;">📊 給長官的決策時間差異比較</h3>
+                <div style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); padding:10px; border-radius:8px; margin-bottom:10px;">
+                    <b>核心結論：4 臺天車可節省 85% 以上的提櫃與卡車排隊時間！</b>
+                </div>
+
+                <div class="detail-row"><span class="lbl">項目</span><span class="val" style="font-weight:700;">方案一 (2臺天車) vs 方案二 (4臺貫穿門)</span></div>
+                <div class="detail-row"><span class="lbl">提單櫃時間 (含翻櫃)</span><span class="val" id="cmp-time">8 ~ 15 分鐘  ➔  <b>2.5 分鐘</b></span></div>
+                <div class="detail-row"><span class="lbl">尖峰拖車塞車排隊</span><span class="val" id="cmp-queue" style="color:#ef4444;">15 ~ 25 分鐘  ➔  <b style="color:#10b981;">0 分鐘 (隨到隨吊)</b></span></div>
+                <div class="detail-row"><span class="lbl">每日吞吐處理能力</span><span class="val" id="cmp-throughput">約 120 櫃/日  ➔  <b>> 400 櫃/日</b></span></div>
+                <div class="detail-row"><span class="lbl">卡車動線瓶頸</span><span class="val" id="cmp-bottleneck">需倒車/端點迴轉 ➔ <b>貫穿直通 (Drive-Through)</b></span></div>
+            </div>
+
+            <!-- 動態方案說明 -->
+            <div class="panel-card">
+                <h3 id="info-card-title">🚀 當前方案優劣點分析</h3>
+                <div id="info-card-content" style="font-size:12px; color:var(--text-muted); line-height:1.6;"></div>
+            </div>
+
+            <div class="panel-card">
+                <h3>📌 櫃位點擊細節</h3>
+                <div id="slot-detail">
+                    <div style="text-align:center; padding: 15px; color: var(--text-muted); font-size:12px;">
+                        點擊圖上天車區域可查看
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('siteCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let craneConfig = 4; // 2 or 4
+        let slotsData = {};
+        let slotRects = [];
+        let selectedSlotId = 'BayA-01';
+
+        function initData() {
+            slotsData = {};
+            const keys = craneConfig === 2 ? ['BayA', 'BayB'] : ['BayA1', 'BayA2', 'BayB1', 'BayB2'];
+            const count = craneConfig === 2 ? 85 : 42;
+
+            keys.forEach(k => {
+                for (let i = 1; i <= count; i++) {
+                    const id = `${k}-${i < 10 ? '0' + i : i}`;
+                    const rand = Math.random();
+                    let status = 'occupied';
+                    let tankNo = `TK-${k}${Math.floor(1000 + Math.random() * 9000)}`;
+                    let chemical = 'IPA 異丙醇';
+                    if (rand > 0.72) { status = 'empty'; tankNo = '無'; chemical = '無'; }
+                    slotsData[id] = { id, status, tankNo, chemical };
+                }
+            });
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            slotRects = [];
+
+            // 外框
+            ctx.fillStyle = '#080c16';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const redPolygon = [
+                {x: 80, y: 50}, {x: 1350, y: 50}, {x: 1350, y: 670},
+                {x: 1320, y: 710}, {x: 70, y: 710}, {x: 40, y: 150}
+            ];
+
+            ctx.beginPath();
+            ctx.moveTo(redPolygon[0].x, redPolygon[0].y);
+            for(let p=1; p<redPolygon.length; p++) ctx.lineTo(redPolygon[p].x, redPolygon[p].y);
+            ctx.closePath();
+            ctx.strokeStyle = '#ef4444';
+            ctx.lineWidth = 3.5;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+            ctx.fill();
+            ctx.stroke();
+
+            // 紅框標籤
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(80, 50, 360, 22);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 11px Inter';
+            ctx.fillText(`45,633 m² 基地 - [方案 ${craneConfig === 2 ? '一: 2臺天車 (傳統門)' : '二: 4臺天車 (左右貫穿門)'}]`, 86, 65);
+
+            // 藍框建築區 30%
+            ctx.fillStyle = 'rgba(37, 99, 235, 0.4)';
+            ctx.strokeStyle = '#2563eb';
+            ctx.lineWidth = 2.5;
+            ctx.fillRect(100, 78, 950, 75);
+            ctx.strokeRect(100, 78, 950, 75);
+            ctx.fillRect(1070, 78, 260, 400);
+            ctx.strokeRect(1070, 78, 260, 400);
+
+            ctx.fillStyle = '#93c5fd';
+            ctx.font = 'bold 13px Inter';
+            ctx.fillText('建築物區 30% (辦公/中控/維修廠/洗槽站)', 300, 120);
+
+            // ISO Tank 70% 專區
+            const areaX = 90, areaY = 175, areaW = 960, areaH = 450;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
+            ctx.strokeStyle = '#38bdf8';
+            ctx.lineWidth = 2;
+            ctx.fillRect(areaX, areaY, areaW, areaH);
+            ctx.strokeRect(areaX, areaY, areaW, areaH);
+
+            if (craneConfig === 2) {
+                // 方案一：2 臺天車（原本格式，無左右藍門）
+                drawTwoCraneMode(areaX, areaY, areaW, areaH);
+            } else {
+                // 方案二：4 臺天車（左右開闢 4 個藍框貫穿門）
+                drawFourCraneMode(areaX, areaY, areaW, areaH);
+            }
+
+            // 前後主門衛
+            const gateY = 640;
+            ctx.fillStyle = '#ef4444';
+            ctx.fillRect(200, gateY, 70, 30);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText('⬆️ 主入口', 208, gateY + 20);
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.fillRect(320, gateY, 180, 30);
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText('⚖️ 門衛 / 地磅站', 350, gateY + 20);
+
+            ctx.fillStyle = '#3b82f6';
+            ctx.fillRect(750, gateY, 70, 30);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText('⬇️ 主出口', 758, gateY + 20);
+
+            updateKPIHeader();
+        }
+
+        // 方案一：2 臺天車繪製
+        function drawTwoCraneMode(areaX, areaY, areaW, areaH) {
+            drawSingleCraneBay('BayA', '🏗️ 天車 A 區 (配置 1 臺天車 - 單向進入，翻櫃及等待時間較長)', areaX + 20, areaY + 40, areaW - 40, 175);
+            drawSingleCraneBay('BayB', '🏗️ 天車 B 區 (配置 1 臺天車 - 單向進入，翻櫃及等待時間較長)', areaX + 20, areaY + 240, areaW - 40, 175);
+        }
+
+        function drawSingleCraneBay(key, title, x, y, w, h) {
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, y, w, h);
+
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText(title, x + 10, y + 18);
+
+            // 1 臺天車
+            const craneX = x + 400;
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.35)';
+            ctx.fillRect(craneX, y, 40, h);
+            ctx.strokeStyle = '#f59e0b';
+            ctx.strokeRect(craneX, y, 40, h);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 10px Inter';
+            ctx.fillText('天車', craneX + 8, y + h / 2);
+
+            // 車道
+            const laneY = y + 25;
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+            ctx.fillRect(x + 10, laneY, w - 20, 30);
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 11px Inter';
+            ctx.fillText('🚚 卡車車道 (單向終點停靠，卡車多時天車需排隊服務)', x + 20, laneY + 20);
+
+            // 車位
+            const stackY = laneY + 38;
+            const slotW = 18, slotH = 95, gapX = 2.5;
+
+            for (let i = 1; i <= 45; i++) {
+                const id = `${key}-${i < 10 ? '0' + i : i}`;
+                const item = slotsData[id];
+                if (!item) continue;
+                const sx = x + 15 + (i - 1) * (slotW + gapX);
+                slotRects.push({ id, x: sx, y: stackY, w: slotW, h: slotH });
+
+                ctx.fillStyle = item.status === 'occupied' ? 'rgba(56, 189, 248, 0.85)' : 'rgba(16, 185, 129, 0.5)';
+                ctx.strokeStyle = item.status === 'occupied' ? '#38bdf8' : '#10b981';
+                if (id === selectedSlotId) { ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff'; }
+                ctx.fillRect(sx, stackY, slotW, slotH);
+                ctx.strokeRect(sx, stackY, slotW, slotH);
+            }
+        }
+
+        // 方案二：4 臺天車 ＋ 左右 4 個藍框貫穿門
+        function drawFourCraneMode(areaX, areaY, areaW, areaH) {
+            // 畫 4 個藍門
+            drawBlueGate(areaX - 12, areaY + 60, 20, 45);
+            drawBlueGate(areaX + areaW - 8, areaY + 60, 20, 45);
+            drawBlueGate(areaX - 12, areaY + 260, 20, 45);
+            drawBlueGate(areaX + areaW - 8, areaY + 260, 20, 45);
+
+            drawFourCraneBay('BayA1', 'BayA2', '🚀 天車 A 區 (配置 2 臺天車 A1 & A2 - 左右雙貫穿門免倒車)', areaX + 15, areaY + 40, areaW - 30, 175);
+            drawFourCraneBay('BayB1', 'BayB2', '🚀 天車 B 區 (配置 2 臺天車 B1 & B2 - 左右雙貫穿門免倒車)', areaX + 15, areaY + 240, areaW - 30, 175);
+        }
+
+        function drawBlueGate(x, y, w, h) {
+            ctx.fillStyle = '#2563eb';
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(x, y, w, h);
+        }
+
+        function drawFourCraneBay(subKey1, subKey2, title, x, y, w, h) {
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2.5;
+            ctx.strokeRect(x, y, w, h);
+
+            ctx.fillStyle = '#6ee7b7';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText(title, x + 10, y + 18);
+
+            const laneY = y + 25;
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
+            ctx.fillRect(x + 10, laneY, w - 20, 30);
+            ctx.strokeStyle = '#10b981';
+            ctx.strokeRect(x + 10, laneY, w - 20, 30);
+
+            ctx.fillStyle = '#6ee7b7';
+            ctx.font = 'bold 11px Inter';
+            ctx.fillText('➔ ➔ 雙向直通貫穿卡車專用道 (卡車由左藍門進、右藍門出，2臺天車同時抓吊，2.5分鐘快離場) ➔ ➔', x + 35, laneY + 20);
+
+            // 2 臺天車
+            const c1X = x + 200, c2X = x + 650;
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.4)';
+            ctx.fillRect(c1X, y, 35, h); ctx.strokeRect(c1X, y, 35, h);
+            ctx.fillRect(c2X, y, 35, h); ctx.strokeRect(c2X, y, 35, h);
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Inter';
+            ctx.fillText('天車1', c1X + 4, y + h / 2);
+            ctx.fillText('天車2', c2X + 4, y + h / 2);
+
+            const stackY = laneY + 38, slotW = 18, slotH = 95, gapX = 2.5;
+
+            for (let i = 1; i <= 42; i++) {
+                const id = `${subKey1}-${i < 10 ? '0' + i : i}`;
+                const item = slotsData[id];
+                if (!item) continue;
+
+                const sx = x + 15 + (i - 1) * (slotW + gapX);
+                slotRects.push({ id, x: sx, y: stackY, w: slotW, h: slotH });
+
+                ctx.fillStyle = item.status === 'occupied' ? 'rgba(56, 189, 248, 0.85)' : 'rgba(16, 185, 129, 0.5)';
+                ctx.strokeStyle = item.status === 'occupied' ? '#38bdf8' : '#10b981';
+                if (id === selectedSlotId) { ctx.fillStyle = '#fff'; ctx.strokeStyle = '#fff'; }
+                ctx.fillRect(sx, stackY, slotW, slotH);
+                ctx.strokeRect(sx, stackY, slotW, slotH);
+            }
+        }
+
+        // 切換天車方案
+        function switchCraneConfig(num) {
+            craneConfig = num;
+            document.getElementById('btn-mode-2').className = num === 2 ? 'btn-mode active-2' : 'btn-mode';
+            document.getElementById('btn-mode-4').className = num === 4 ? 'btn-mode active-4' : 'btn-mode';
+
+            document.getElementById('map-title-display').innerText = num === 2 ? 
+                '🗺️ 方案一：2 臺天車 ＋ 單向門 (塞車風險與翻櫃耗時分析)' : 
+                '🗺️ 方案二：4 臺天車 ＋ 左右 4 個藍框貫穿通道 (極速簡報視覺)';
+
+            initData();
+            drawCanvas();
+            updateComparisonPanel();
+        }
+
+        function updateComparisonPanel() {
+            const is2 = craneConfig === 2;
+            document.getElementById('info-card-title').innerText = is2 ? '⚠️ 方案一 (2臺天車) 缺點分析' : '🚀 方案二 (4臺天車+貫穿門) 優勢分析';
+
+            document.getElementById('info-card-content').innerHTML = is2 ? `
+                <div style="color:#ef4444; font-weight:700; margin-bottom:4px;">瓶頸 1：翻櫃耗時長</div>
+                若要提底層櫃，天車需移走上層櫃，提一櫃需 8~15 分鐘。<br><br>
+                <div style="color:#ef4444; font-weight:700; margin-bottom:4px;">瓶頸 2：尖峰拖車塞車</div>
+                同時進廠多輛拖車時，2 臺天車無法消化，拖車需排隊等待 15~25 分鐘。
+            ` : `
+                <div style="color:#10b981; font-weight:700; margin-bottom:4px;">優勢 1：隨到隨吊 (2.5分鐘離場)</div>
+                左右 4 個藍框門開闢直通車道，卡車不需倒車，4 臺天車多車平行抓吊。<br><br>
+                <div style="color:#10b981; font-weight:700; margin-bottom:4px;">優勢 2：預翻櫃能力</div>
+                天車可利用離峰時段自動預先將即將出貨的櫃子移至最上層。
+            `;
+        }
+
+        function updateKPIHeader() {
+            const is2 = craneConfig === 2;
+            document.getElementById('kpi-cranes').innerText = is2 ? '2 臺' : '4 臺';
+            document.getElementById('kpi-cranes').style.color = is2 ? '#f59e0b' : '#10b981';
+
+            document.getElementById('kpi-gates').innerText = is2 ? '單向單門' : '左右 4 門貫穿';
+            document.getElementById('kpi-gates').style.color = is2 ? '#f59e0b' : '#10b981';
+
+            document.getElementById('kpi-time').innerText = is2 ? '8 ~ 15 分鐘 / 櫃' : '2.5 分鐘 / 櫃';
+            document.getElementById('kpi-time').style.color = is2 ? '#ef4444' : '#10b981';
+
+            document.getElementById('kpi-wait').innerText = is2 ? '15 ~ 25 分鐘 (塞車)' : '0 分鐘 (隨到隨吊)';
+            document.getElementById('kpi-wait').style.color = is2 ? '#ef4444' : '#10b981';
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const clickX = (e.clientX - rect.left) * scaleX;
+            const clickY = (e.clientY - rect.top) * scaleY;
+
+            const found = slotRects.find(r => 
+                clickX >= r.x && clickX <= r.x + r.w &&
+                clickY >= r.y && clickY <= r.y + r.h
+            );
+
+            if (found) {
+                selectedSlotId = found.id;
+                drawCanvas();
+                selectSlot(found.id);
+            }
+        });
+
+        function selectSlot(id) {
+            selectedSlotId = id;
+            const item = slotsData[id];
+            if (!item) return;
+
+            const detailContainer = document.getElementById('slot-detail');
+            detailContainer.innerHTML = `
+                <div class="detail-row"><span class="lbl">櫃位</span><span class="val" style="font-size:15px; color:var(--primary); font-weight:800;">${item.id}</span></div>
+                <div class="detail-row"><span class="lbl">方案模式</span><span class="val">${craneConfig === 2 ? '方案一 (2臺天車)' : '方案二 (4臺天車+貫穿門)'}</span></div>
+                <div class="detail-row"><span class="lbl">預估作業時間</span><span class="val" style="color:${craneConfig === 2 ? '#ef4444' : '#10b981'}; font-weight:800;">${craneConfig === 2 ? '8 ~ 15 分鐘 (需排隊翻櫃)' : '2.5 分鐘 (隨到隨吊)'}</span></div>
+            `;
+        }
+
+        window.onload = () => {
+            initData();
+            drawCanvas();
+            updateComparisonPanel();
+            selectSlot(Object.keys(slotsData)[0]);
+        };
+    </script>
+</body>
+</html>

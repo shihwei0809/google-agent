@@ -66,3 +66,5 @@ token.json
 
 # Manual portal local copied projects
 說明書/projects/
+
+test/kokoro-multi-lang-v1_1/

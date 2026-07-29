@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISO Tank 100m x 200m (20,000 m²) 專用廠區高密度平面配置圖與車位管理系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #070a12;
+            --panel-bg: rgba(15, 23, 42, 0.92);
+            --border-color: rgba(255, 255, 255, 0.15);
+            --primary: #38bdf8;
+            --primary-glow: rgba(56, 189, 248, 0.4);
+            --accent-green: #10b981;
+            --accent-yellow: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-blue: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(139, 92, 246, 0.06) 0%, transparent 40%);
+        }
+
+        header {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .brand-area { display: flex; align-items: center; gap: 14px; }
+        .brand-logo {
+            width: 44px; height: 44px;
+            background: linear-gradient(135deg, #0284c7, #38bdf8);
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; box-shadow: 0 0 20px var(--primary-glow);
+        }
+        .brand-title h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 19px; font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 30%, #38bdf8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .brand-title p { font-size: 11px; color: var(--text-muted); }
+
+        .kpi-bar { display: flex; gap: 12px; }
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            padding: 6px 12px; border-radius: 8px; text-align: center;
+        }
+        .kpi-val { font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 700; color: var(--primary); }
+        .kpi-lbl { font-size: 10px; color: var(--text-muted); }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 1400px) { .main-container { grid-template-columns: 1fr; } }
+
+        .map-section {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .mode-toggle-group {
+            display: flex;
+            background: rgba(15, 23, 42, 0.8);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-mode {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-mode.active {
+            background: linear-gradient(135deg, #0284c7, #38bdf8);
+            color: #000;
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            background: #0b0f19;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0,0,0,0.8);
+        }
+
+        #siteCanvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            cursor: crosshair;
+        }
+
+        .side-panel { display: flex; flex-direction: column; gap: 16px; }
+        .panel-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+        }
+        .panel-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--primary); }
+
+        .search-box input {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px; color: #fff; font-size: 13px; outline: none;
+        }
+
+        .detail-row {
+            display: flex; justify-content: space-between; font-size: 12px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.08); padding-bottom: 5px; margin-bottom: 5px;
+        }
+
+        .btn-status-change {
+            width: 100%; padding: 8px; border-radius: 6px; border: none; font-weight: 700; font-size: 12px; cursor: pointer; margin-top: 6px;
+        }
+        .btn-green { background: #10b981; color: #000; }
+        .btn-blue { background: #38bdf8; color: #000; }
+        .btn-amber { background: #f59e0b; color: #000; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand-area">
+            <div class="brand-logo">📐</div>
+            <div class="brand-title">
+                <h1>ISO Tank 100m x 200m (20,000 m²) 專用廠區平面配置圖</h1>
+                <p>正長方形基地 (寬 100m × 長 200m)，右下角藍框出入口，高密度前後對停 150+ 格號碼車位</p>
+            </div>
+        </div>
+
+        <div class="kpi-bar">
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-total">152 格</div>
+                <div class="kpi-lbl">建議總容量</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-occupied" style="color:#38bdf8;">98 格</div>
+                <div class="kpi-lbl">已停放槽車</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-empty" style="color:#10b981;">54 格</div>
+                <div class="kpi-lbl">空閒車位</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val" id="kpi-rate" style="color:#f59e0b;">64.5%</div>
+                <div class="kpi-lbl">利用率</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <div class="map-section">
+            <div class="map-header">
+                <div>
+                    <h3 style="font-size:15px; font-weight:700; color:var(--primary);">🗺️ 100m × 200m 向量平面圖 (右下角藍框為主要出入口)</h3>
+                    <div style="font-size:11px; color:var(--text-muted);">點擊地圖上的號碼車位可檢視/變更動態狀態</div>
+                </div>
+
+                <div class="mode-toggle-group">
+                    <button class="btn-mode active" id="btn-mode-double" onclick="switchLayoutMode('double')">🔥 前後對停雙深位 (152格)</button>
+                    <button class="btn-mode" id="btn-mode-standard" onclick="switchLayoutMode('standard')">標準單排 (118格)</button>
+                </div>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="siteCanvas" width="1300" height="720"></canvas>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="panel-card">
+                <h3>🔍 車格號碼搜尋</h3>
+                <div class="search-box">
+                    <input type="text" id="slot-search" placeholder="例如: A-12, C-05..." oninput="searchSlot()">
+                </div>
+            </div>
+
+            <div class="panel-card">
+                <h3>📌 車格詳細資訊</h3>
+                <div id="slot-detail">
+                    <div style="text-align:center; padding: 20px; color: var(--text-muted); font-size:12px;">
+                        請點擊地圖上的車格查看
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-card" style="font-size:12px; line-height:1.6;">
+                <h3>🏷️ 100m × 200m 規劃亮點</h3>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <div style="width:14px; height:14px; background:#2563eb; border-radius:3px;"></div>
+                    <span>右下角藍框：主要車輛進出口與秤重門衛</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <div style="width:14px; height:14px; background:#38bdf8; border-radius:3px;"></div>
+                    <span>中央雙深位：前後連停，共用 8m 主動線車道</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                    <div style="width:14px; height:14px; background:#f59e0b; border-radius:3px;"></div>
+                    <span>外圍：全場 8m 單向環場消防車道</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('siteCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let currentLayoutMode = 'double'; // 'double' (152格) or 'standard' (118格)
+        let slotsData = {};
+        let slotRects = [];
+        let selectedSlotId = 'A-01';
+
+        function initData() {
+            slotsData = {};
+            const zones = currentLayoutMode === 'double' ? ['A', 'B', 'C', 'D', 'E'] : ['A', 'B', 'C', 'D'];
+            
+            zones.forEach(zone => {
+                const count = (zone === 'E' || zone === 'D') ? 26 : 32;
+                for (let i = 1; i <= count; i++) {
+                    const numStr = i < 10 ? '0' + i : '' + i;
+                    const id = `${zone}-${numStr}`;
+                    const rand = Math.random();
+                    let status = 'occupied';
+                    let tankNo = `TK-${zone}${Math.floor(1000 + Math.random() * 9000)}`;
+                    let chemical = 'IPA 異丙醇';
+                    
+                    if (rand > 0.60) {
+                        status = 'empty';
+                        tankNo = '無';
+                        chemical = '無';
+                    } else if (rand > 0.55) {
+                        status = 'maintenance';
+                        tankNo = '無';
+                        chemical = '保養管制中';
+                    }
+                    slotsData[id] = { id, zone, number: i, status, tankNo, chemical };
+                }
+            });
+        }
+
+        function drawCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            slotRects = [];
+
+            // 1. 基地外牆 100m x 200m
+            const bx = 60, by = 50, bw = 1180, bh = 590;
+
+            ctx.fillStyle = '#0a0f1d';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 白色邊界外框
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(bx, by, bw, bh);
+
+            // 基地尺寸文字
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 13px Inter';
+            ctx.fillText('100.00 公尺 (寬度)', bx + bw / 2 - 50, by - 12);
+            
+            ctx.save();
+            ctx.translate(bx - 15, by + bh / 2 + 40);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('200.00 公尺 (長度)', 0, 0);
+            ctx.restore();
+
+            // 2. 右下角藍框出入口 (按照片位置 100%)
+            const gateX = bx + bw - 220;
+            const gateY = by + bh - 8;
+            const gateW = 160;
+            const gateH = 20;
+
+            ctx.fillStyle = '#2563eb';
+            ctx.fillRect(gateX, gateY, gateW, gateH);
+            ctx.strokeStyle = '#60a5fa';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(gateX, gateY, gateW, gateH);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText('🟦 出入口 (藍框區域)', gateX + 18, gateY + 14);
+
+            // 秤重門衛管制站
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.2)';
+            ctx.strokeStyle = '#f59e0b';
+            ctx.fillRect(gateX - 170, by + bh - 40, 150, 32);
+            ctx.strokeRect(gateX - 170, by + bh - 40, 150, 32);
+            ctx.fillStyle = '#fbbf24';
+            ctx.font = 'bold 11px Inter';
+            ctx.fillText('⚖️ 門衛 / 地磅站', gateX - 150, by + bh - 20);
+
+            // 3. 8m 環場消防通道 (單向箭頭)
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+            ctx.setLineDash([6, 6]);
+            ctx.strokeRect(bx + 30, by + 30, bw - 60, bh - 60);
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px Inter';
+            ctx.fillText('8m 環場單向消防車道路線 ➔', bx + 60, by + 45);
+
+            // 4. 車位繪製
+            if (currentLayoutMode === 'double') {
+                drawDoubleDeep100x200(bx, by, bw, bh);
+            } else {
+                drawStandard100x200(bx, by, bw, bh);
+            }
+
+            updateKPI();
+        }
+
+        // 100x200 高密度前後對停雙深位繪製
+        function drawDoubleDeep100x200(bx, by, bw, bh) {
+            // 左側排 A (縱向直立 32格)
+            drawVerticalLane('A', bx + 60, by + 65, 32);
+
+            // 中央雙深位條 1: B & C 背靠背 (橫向連停 32格)
+            drawHorizontalPair('B', 'C', bx + 220, by + 120, 32);
+
+            // 中央雙深位條 2: D & E 背靠背 (橫向連停 26格)
+            drawHorizontalPair('D', 'E', bx + 220, by + 320, 26);
+
+            // 右側排 (離出入口留緩衝動線)
+            ctx.fillStyle = '#38bdf8';
+            ctx.font = 'bold 12px Inter';
+            ctx.fillText('← 8m 中央動線與車道 →', bx + 450, by + 275);
+        }
+
+        // 標準單排
+        function drawStandard100x200(bx, by, bw, bh) {
+            drawVerticalLane('A', bx + 60, by + 65, 32);
+            drawVerticalLane('B', bx + 280, by + 65, 32);
+            drawVerticalLane('C', bx + 550, by + 65, 28);
+            drawVerticalLane('D', bx + 820, by + 65, 26);
+        }
+
+        function drawVerticalLane(zone, startX, startY, count) {
+            const slotW = 50;
+            const slotH = 14;
+            const gapY = 1.6;
+
+            for (let i = 1; i <= count; i++) {
+                const numStr = i < 10 ? '0' + i : '' + i;
+                const id = `${zone}-${numStr}`;
+                const item = slotsData[id];
+                if (!item) continue;
+
+                const y = startY + (i - 1) * (slotH + gapY);
+                slotRects.push({ id, x: startX, y, w: slotW, h: slotH });
+                renderSlotRect(startX, y, slotW, slotH, item);
+            }
+        }
+
+        function drawHorizontalPair(zone1, zone2, startX, startY, count) {
+            const slotW = 15;
+            const slotH = 46;
+            const gapX = 2;
+
+            // 背靠背縫線
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(startX, startY + slotH);
+            ctx.lineTo(startX + count * (slotW + gapX), startY + slotH);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            for (let i = 1; i <= count; i++) {
+                const numStr = i < 10 ? '0' + i : '' + i;
+                const x = startX + (i - 1) * (slotW + gapX);
+
+                // 上排
+                const id1 = `${zone1}-${numStr}`;
+                if (slotsData[id1]) {
+                    slotRects.push({ id: id1, x, y: startY, w: slotW, h: slotH });
+                    renderSlotRect(x, startY, slotW, slotH, slotsData[id1]);
+                }
+
+                // 下排 (前後連停)
+                const id2 = `${zone2}-${numStr}`;
+                if (slotsData[id2]) {
+                    slotRects.push({ id: id2, x, y: startY + slotH, w: slotW, h: slotH });
+                    renderSlotRect(x, startY + slotH, slotW, slotH, slotsData[id2]);
+                }
+            }
+        }
+
+        function renderSlotRect(x, y, w, h, item) {
+            if (item.status === 'occupied') {
+                ctx.fillStyle = 'rgba(56, 189, 248, 0.75)';
+                ctx.strokeStyle = '#38bdf8';
+            } else if (item.status === 'empty') {
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                ctx.strokeStyle = '#10b981';
+            } else {
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.65)';
+                ctx.strokeStyle = '#f59e0b';
+            }
+
+            if (item.id === selectedSlotId) {
+                ctx.fillStyle = '#ffffff';
+                ctx.strokeStyle = '#ffffff';
+            }
+
+            ctx.fillRect(x, y, w, h);
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, w, h);
+
+            if (item.status === 'occupied') {
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(x + 2, y + 2, w - 4, h - 4);
+            }
+        }
+
+        function switchLayoutMode(mode) {
+            currentLayoutMode = mode;
+            document.getElementById('btn-mode-standard').className = mode === 'standard' ? 'btn-mode active' : 'btn-mode';
+            document.getElementById('btn-mode-double').className = mode === 'double' ? 'btn-mode active' : 'btn-mode';
+            
+            initData();
+            drawCanvas();
+            selectSlot(Object.keys(slotsData)[0]);
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            const clickX = (e.clientX - rect.left) * scaleX;
+            const clickY = (e.clientY - rect.top) * scaleY;
+
+            const found = slotRects.find(r => 
+                clickX >= r.x && clickX <= r.x + r.w &&
+                clickY >= r.y && clickY <= r.y + r.h
+            );
+
+            if (found) {
+                selectedSlotId = found.id;
+                drawCanvas();
+                selectSlot(found.id);
+            }
+        });
+
+        function selectSlot(id) {
+            selectedSlotId = id;
+            const item = slotsData[id];
+            if (!item) return;
+
+            const detailContainer = document.getElementById('slot-detail');
+            let statusBadge = '';
+            if (item.status === 'empty') statusBadge = '<span style="color:#10b981; font-weight:700;">🟢 空車格</span>';
+            if (item.status === 'occupied') statusBadge = '<span style="color:#38bdf8; font-weight:700;">🚛 已停放 ISO Tank</span>';
+            if (item.status === 'maintenance') statusBadge = '<span style="color:#f59e0b; font-weight:700;">🟡 保養管制中</span>';
+
+            detailContainer.innerHTML = `
+                <div class="detail-row"><span class="lbl">車格號碼</span><span class="val" style="font-size:16px; color:var(--primary); font-weight:800;">${item.id}</span></div>
+                <div class="detail-row"><span class="lbl">車位狀態</span><span class="val">${statusBadge}</span></div>
+                <div class="detail-row"><span class="lbl">Tank 號碼</span><span class="val">${item.tankNo}</span></div>
+                <div class="detail-row"><span class="lbl">裝載化學品</span><span class="val">${item.chemical}</span></div>
+
+                <div style="margin-top:10px;">
+                    <button class="btn-status-change btn-green" onclick="changeStatus('${id}', 'empty')">標示為空位</button>
+                    <button class="btn-status-change btn-blue" onclick="changeStatus('${id}', 'occupied')">標示為已停放</button>
+                    <button class="btn-status-change btn-amber" onclick="changeStatus('${id}', 'maintenance')">標示為保養中</button>
+                </div>
+            `;
+        }
+
+        function changeStatus(id, newStatus) {
+            slotsData[id].status = newStatus;
+            if (newStatus === 'empty') {
+                slotsData[id].tankNo = '無';
+                slotsData[id].chemical = '無';
+            } else if (newStatus === 'occupied') {
+                slotsData[id].tankNo = `TK-${id.replace('-','')}`;
+                slotsData[id].chemical = 'IPA 異丙醇';
+            }
+            drawCanvas();
+            selectSlot(id);
+        }
+
+        function updateKPI() {
+            let occupied = 0, empty = 0;
+            const total = Object.keys(slotsData).length;
+            Object.values(slotsData).forEach(item => {
+                if (item.status === 'occupied') occupied++;
+                if (item.status === 'empty') empty++;
+            });
+            document.getElementById('kpi-total').innerText = `${total} 格`;
+            document.getElementById('kpi-occupied').innerText = `${occupied} 格`;
+            document.getElementById('kpi-empty').innerText = `${empty} 格`;
+            document.getElementById('kpi-rate').innerText = `${((occupied / total) * 100).toFixed(1)}%`;
+        }
+
+        function searchSlot() {
+            const query = document.getElementById('slot-search').value.trim().toUpperCase();
+            if (slotsData[query]) {
+                selectedSlotId = query;
+                drawCanvas();
+                selectSlot(query);
+            }
+        }
+
+        window.onload = () => {
+            initData();
+            drawCanvas();
+            selectSlot('A-01');
+        };
+    </script>
+</body>
+</html>
