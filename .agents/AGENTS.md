@@ -1,15 +1,20 @@
 # 🤖 專案開發規範：AI 引導與一鍵安裝標準 (AI-Guided & One-Click Setup)
 
-為了使本專案內的所有工具與網頁系統具備極高的可移植性與 AI 自動維護性，往後所有專案的建立與修改皆須遵循「AI 引導與一鍵安裝」的標準設計：
+為了使本專案內的所有工具與網頁系統具備極高的可移植性與 AI 自動維護性，往後所有專案（包含主系統目錄與所有子專案資料夾）的建立與修改皆須嚴格遵循以下「標準三件套」設計：
 
-## 1. 專案必要檔案結構
-每個獨立專案（或子資料夾）必須包含以下兩個核心檔案：
-1. **`SKILL.md`**：給 AI 助理（如 Antigravity / Claude Code）閱讀的說明書。定義該專案的名稱、依賴環境、執行指令，以及如何引導使用者進行環境設定與安裝。
-2. **`setup_env.ps1`**：給真人或 AI 助理執行的一鍵安裝/環境設定 PowerShell 腳本。必須自動偵測系統環境、安裝必要的套件（如 pip 套件、npm 套件、Netlify CLI 等）。
+## 1. 專案必要檔案結構 (主系統與所有子專案皆須具備)
+每個獨立專案或子資料夾必須包含以下三個核心檔案：
+1. **`README.md`**：【給人類閱讀】高質感 Markdown 說明書，使 GitHub 自動渲染。必須包含：
+   - 專案名稱與簡介
+   - 核心功能亮點 (Bullet points)
+   - 完整檔案結構說明 (File Tree)
+   - 跨電腦一鍵啟動與執行步驟
+2. **`SKILL.md`**：【給 AI 助理閱讀】說明書。定義該專案的名稱、依賴環境、執行指令，以及如何引導使用者進行環境設定與安裝。
+3. **`setup_env.ps1`**：【給真人或 AI 助理執行】的一鍵安裝/環境設定 PowerShell 腳本。必須自動偵測系統環境、安裝必要的套件（如 pip 套件、npm 套件、Netlify CLI 等）。
 
 ## 2. AI 助理行為規範
 * **引導優先**：當 AI 助理開啟新專案或被調用至特定子專案時，必須優先檢查該目錄下的 `SKILL.md`。若環境尚未初始化，應主動詢問使用者是否要執行 `setup_env.ps1`。
-* **自動維護**：在新增任何外部套件或改變執行方式時，必須同步更新 `SKILL.md` 與 `setup_env.ps1`，確保安裝指令永久可用。
+* **說明書同步更新**：在新增任何功能、外部套件或改變執行方式時，必須同步更新 `README.md`、`SKILL.md` 與 `setup_env.ps1`，確保說明書與安裝指令永久可用。
 
 ## 3. 專案大廳與雙庫線上入口記憶 (全域速查)
 - ☁️ **Cloudflare Pages 線上正版大廳**：https://google-agent.pages.dev
@@ -35,28 +40,3 @@
 凡是在本機執行的 Web / API 伺服器專案，其啟動腳本或主程式必須遵循以下規範：
 1. **顯示本機 IP 與網址**：啟動時除了顯示 `http://localhost:[PORT]` 外，**必須自動抓取並顯示本機實體 IP 位址**（例如 `http://192.168.x.x:[PORT]`），方便提供給區域網路同伴使用。
 2. **Port 佔用自動切換 (Port Fallback)**：當預設 Port（如 8002）已被其他程式佔用時，系統**不得崩潰中斷**，必須自動搜尋並切換至下一個可用的 Port（如 8003, 8004...），並在主控台上明確提示「*預設 Port [原Port] 已被佔用，已自動切換至可用 Port: [新Port]*」。
-
-**Python 標準動態 Port 與 IP 綁定寫法範例**：
-```python
-import socket
-
-def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
-
-def find_available_port(start_port: int, max_attempts: int = 50) -> int:
-    for port in range(start_port, start_port + max_attempts):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("0.0.0.0", port))
-                return port
-            except OSError:
-                continue
-    return start_port
-```
