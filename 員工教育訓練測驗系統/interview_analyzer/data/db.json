@@ -1,0 +1,113 @@
+[
+  {
+    "id": "0348ca43-26fc-40b9-b3c0-927f33ef95f4",
+    "audio_url": "/audios/0348ca43-26fc-40b9-b3c0-927f33ef95f4.webm",
+    "audio_path": "data\\audios\\0348ca43-26fc-40b9-b3c0-927f33ef95f4.webm",
+    "created_at": "2026-07-29 20:58:46",
+    "transcript": "你好，我是今天來面試的人員。我是主要今天來面試是要來測試AI的語音分析個人特質，來以利於後續來分析人員是否適合這份工作，以及他適合於怎样的工作性質。",
+    "chunks_count": 1,
+    "status": "analyzed",
+    "used_model": "gemini-3.6-flash",
+    "report": {
+      "transcript": "你好，我是今天來面試的人員。我是主要今天來面試是要來測試AI的語音分析個人特質，來以利於後續來分析人員是否適合這份工作，以及他適合於怎樣的工作性質。",
+      "candidate_summary": "應徵者表明本次面試主要目的為測試 AI 語音個人特質分析系統，展現對評測流程與工具應用的關註，整體態度端正、任務導向明確。",
+      "communication_style": "溝通風格平鋪直敘、條理清晰，語速偏慢且謹慎，表達方式偏向理性客觀，缺乏強烈的情緒色彩或感染力。",
+      "acoustic_observation": "語音節奏平穩，字句間有適當停頓，音調起伏較小且平緩，展現高度的情緒控制力與沉穩度，未受背景雜音影響。",
+      "disc_type": "C (謹慎型 / Conscientiousness)",
+      "big_five": {
+        "openness": 65,
+        "conscientiousness": 78,
+        "extraversion": 35,
+        "agreeableness": 70,
+        "emotional_stability": 75
+      },
+      "recommended_jobs": [
+        {
+          "title": "AI 系統測試與數據標註專員",
+          "score": 88,
+          "reason": "做事謹慎細致、沉穩專註，適合執行注重流程、細節與邏輯測試的工作。"
+        },
+        {
+          "title": "人力資源系統/數據分析師",
+          "score": 85,
+          "reason": "對 HR 測評工具與特質分析有基本概念，具備邏輯思考與結構化評估能力。"
+        },
+        {
+          "title": "行政後勤與資料管理專員",
+          "score": 82,
+          "reason": "情緒穩定性高，能按部就班執行標準化作業流程。"
+        }
+      ],
+      "unsuitable_jobs": [
+        {
+          "title": "第一線業務銷售專員",
+          "score": 30,
+          "reason": "外向性較低，語調較平淡，缺乏快速建立人際連結與強烈說服的激情。"
+        },
+        {
+          "title": "公關發言人 / 活動主持人",
+          "score": 25,
+          "reason": "語速偏慢且聲調變化少，較缺乏舞台感染力與帶動氣氛的情緒能量。"
+        }
+      ],
+      "management_advice": "管理時建議提供清晰的目標與 SOP 標準作業流程，並給予充分時間處理細節。溝通應以邏輯與事實為核心，避免過度情緒化的催促。",
+      "followup_questions": [
+        "在測試這套 AI 語音分析系統時，您認為最具參考價值的指標有哪些？",
+        "當面對重複性較高的測試或分析任務時，您平時如何維持專注與資料準確度？",
+        "若系統產出的分析結果與人工評估出現偏差時，您會如何處理與回報？"
+      ]
+    }
+  },
+  {
+    "id": "bda741d9-0075-4aec-81df-7d6ec8d86743",
+    "audio_url": "/audios/bda741d9-0075-4aec-81df-7d6ec8d86743.webm",
+    "audio_path": "data\\audios\\bda741d9-0075-4aec-81df-7d6ec8d86743.webm",
+    "created_at": "2026-07-29 20:49:20",
+    "transcript": "我這個系統主要是在面試人員，來了解人員對話的內容以及分析他是哪一種特質，以及他適合哪一個工作項目，以及未來他對於這個工作是否勝任以及態度。",
+    "used_model": "gemini-3.6-flash",
+    "status": "analyzed",
+    "report": {
+      "transcript": "我這個系統主要是在面試人員，來了解人員對話的內容以及分析他是哪一種特質，以及他適合哪一個工作項目，以及未來他對於這個工作是否勝任以及態度。",
+      "candidate_summary": "受訪者簡要說明其開發或使用的系統功能，主軸在於透過面試對話分析求職者的個人特質、職務契合度、未來工作勝任度及工作態度。",
+      "communication_style": "陳述簡潔扼要、條理分明，說話結構具邏輯性與目標導向。",
+      "acoustic_observation": "語速適中偏慢，音調低沉平穩，展現出沉著冷靜的氣質；背景帶有些許生活雜音，但說話者節奏不受影響，停頓自然。",
+      "disc_type": "C型（分析/謹慎型）",
+      "big_five": {
+        "openness": 70,
+        "conscientiousness": 80,
+        "extraversion": 45,
+        "agreeableness": 65,
+        "emotional_stability": 85
+      },
+      "recommended_jobs": [
+        {
+          "title": "人力資源系統分析師",
+          "score": 90,
+          "reason": "對人才測評與面試結構化分析有明確邏輯，適合結合 HR 與科技分析工具。"
+        },
+        {
+          "title": "專案經理 (PM)",
+          "score": 82,
+          "reason": "具備流程導向思維與系統化評估能力，能穩健推進專案執行。"
+        },
+        {
+          "title": "數據與組織分析專員",
+          "score": 85,
+          "reason": "偏好結構化與客觀指標評估，能理性進行人才數據歸納。"
+        }
+      ],
+      "unsuitable_jobs": [
+        {
+          "title": "高壓第一線門市銷售",
+          "score": 38,
+          "reason": "語調與性格較為沉穩內斂，缺乏高張力的外向感染力與即興銷售熱情。"
+        }
+      ],
+      "management_advice": "建議給予明確的專案目標與結構化授權，鼓勵其發揮邏輯分析與系統建構長才；溝通時提供客觀數據與事實依據更能取得共識。",
+      "followup_questions": [
+        "該系統目前在分析求職者特質時，主要採用哪些指標或模型？",
+        "您預計如何將此系統的評估結果應用於實際的組織調度或管理決策中？"
+      ]
+    }
+  }
+]
