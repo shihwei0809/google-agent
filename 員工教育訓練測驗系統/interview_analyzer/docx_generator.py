@@ -270,3 +270,150 @@ def generate_interview_report_docx(record: dict, output_path: str):
 
     doc.save(output_path)
     return output_path
+
+def generate_pre_interview_report_docx(record: dict, output_path: str):
+    doc = Document()
+
+    for section in doc.sections:
+        section.top_margin = Inches(0.8)
+        section.bottom_margin = Inches(0.8)
+        section.left_margin = Inches(0.8)
+        section.right_margin = Inches(0.8)
+
+    pre_report = record.get("pre_report") or {}
+    target_dept = record.get("target_dept", "N/A")
+
+    # 主標題
+    title_p = doc.add_paragraph()
+    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_title = title_p.add_run("AI 事前履歷分析與面試提問準備報告")
+    run_title.font.name = 'Microsoft JhengHei'
+    run_title.font.size = Pt(22)
+    run_title.font.bold = True
+    run_title.font.color.rgb = RGBColor(30, 41, 59)
+
+    sub_p = doc.add_paragraph()
+    sub_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run_sub = sub_p.add_run(f"應徵目標職務：{target_dept}  |  分析時間：{record.get('created_at', 'N/A')}")
+    run_sub.font.name = 'Microsoft JhengHei'
+    run_sub.font.size = Pt(10)
+    run_sub.font.bold = True
+    run_sub.font.color.rgb = RGBColor(79, 70, 229)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
+
+    # 1. 應徵者基本概況與匹配總評
+    h1 = doc.add_heading("一、 應徵者基本概況與整體匹配評分", level=2)
+    h1.runs[0].font.name = 'Microsoft JhengHei'
+    h1.runs[0].font.color.rgb = RGBColor(79, 70, 229)
+
+    table = doc.add_table(rows=5, cols=2)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    info_rows = [
+        ("應徵者姓名 / 年齡", f"{pre_report.get('candidate_name', '未提供')} ({pre_report.get('candidate_age', 'N/A')})"),
+        ("最高學歷", pre_report.get('education', 'N/A')),
+        ("總工作年資 / 最近經歷", f"{pre_report.get('total_experience', 'N/A')} | {pre_report.get('recent_job', 'N/A')}"),
+        ("整體履歷契合度評分", f"{pre_report.get('overall_match_score', 0)} / 100 分"),
+        ("履歷綜合評語摘要", pre_report.get('match_summary', 'N/A'))
+    ]
+
+    for idx, (label, val) in enumerate(info_rows):
+        c0 = table.cell(idx, 0)
+        c1 = table.cell(idx, 1)
+        c0.text = label
+        c1.text = str(val)
+        set_cell_background(c0, "F1F5F9")
+        if label == "整體履歷契合度評分":
+            set_cell_background(c1, "EEF2FF")
+        for c in (c0, c1):
+            set_cell_margins(c, top=100, bottom=100, left=150, right=150)
+            for p in c.paragraphs:
+                for run in p.runs:
+                    run.font.name = 'Microsoft JhengHei'
+                    run.font.size = Pt(10)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
+    # 2. 履歷優劣勢與技能對照
+    h2 = doc.add_heading("二、 履歷優勢、符合技能與落差分析", level=2)
+    h2.runs[0].font.name = 'Microsoft JhengHei'
+    h2.runs[0].font.color.rgb = RGBColor(79, 70, 229)
+
+    doc.add_paragraph("【核心優勢與亮點】").runs[0].bold = True
+    for s in pre_report.get("strengths") or []:
+        doc.add_paragraph(f"✓ {s}")
+
+    doc.add_paragraph("【符合職務需求技能】").runs[0].bold = True
+    for m in pre_report.get("matching_skills") or []:
+        doc.add_paragraph(f"✓ {m}")
+
+    doc.add_paragraph("【待釐清或技能落差項目】").runs[0].bold = True
+    for g in pre_report.get("missing_or_gap_skills") or []:
+        doc.add_paragraph(f"✕ {g}")
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
+    # 3. 歷練轉折與關鍵疑點分析
+    h3 = doc.add_heading("三、 歷練轉折與面試前關鍵疑點", level=2)
+    h3.runs[0].font.name = 'Microsoft JhengHei'
+    h3.runs[0].font.color.rgb = RGBColor(79, 70, 229)
+
+    p_trans = doc.add_paragraph()
+    p_trans.add_run("【職涯轉折與歷練分析】\n").bold = True
+    p_trans.add_run(pre_report.get("career_transition_analysis", "N/A"))
+
+    p_risk = doc.add_paragraph()
+    p_risk.add_run("【面試前關鍵疑點與潛在風險】").bold = True
+    for r_item in pre_report.get("key_risks_and_concerns") or []:
+        doc.add_paragraph(f"⚠️ {r_item}")
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+
+    # 4. 面試官建議提問題目與評分卡
+    h4 = doc.add_heading("四、 面試官提問與觀察重點指南", level=2)
+    h4.runs[0].font.name = 'Microsoft JhengHei'
+    h4.runs[0].font.color.rgb = RGBColor(79, 70, 229)
+
+    q_list = pre_report.get("suggested_questions") or []
+    q_table = doc.add_table(rows=len(q_list) + 1, cols=4)
+    q_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+
+    headers_q = ["項次/類別", "建議提問題目", "提問目的與評判重點", "面試官評分與筆記"]
+    for col_i, h_text in enumerate(headers_q):
+        c = q_table.cell(0, col_i)
+        c.text = h_text
+        set_cell_background(c, "4F46E5")
+        p = c.paragraphs[0]
+        p.runs[0].font.name = 'Microsoft JhengHei'
+        p.runs[0].font.color.rgb = RGBColor(255, 255, 255)
+        p.runs[0].font.bold = True
+
+    for idx, q_item in enumerate(q_list, start=1):
+        c0 = q_table.cell(idx, 0)
+        c1 = q_table.cell(idx, 1)
+        c2 = q_table.cell(idx, 2)
+        c3 = q_table.cell(idx, 3)
+
+        cat = q_item.get("category", "提問")
+        c0.text = f"Q{idx}\n[{cat}]"
+        c1.text = q_item.get("question", "")
+        c2.text = f"【目的】: {q_item.get('purpose', '')}\n【觀察重點】: {q_item.get('evaluation_focus', '')}"
+        c3.text = "[  ] 通過\n[  ] 需再確認\n\n筆記:"
+
+        if idx % 2 == 1:
+            set_cell_background(c0, "F8FAFC")
+            set_cell_background(c1, "F8FAFC")
+            set_cell_background(c2, "F8FAFC")
+            set_cell_background(c3, "F8FAFC")
+
+        for c in (c0, c1, c2, c3):
+            set_cell_margins(c, top=100, bottom=100, left=100, right=100)
+            for p in c.paragraphs:
+                for run in p.runs:
+                    run.font.name = 'Microsoft JhengHei'
+                    run.font.size = Pt(9.5)
+
+    doc.save(output_path)
+    return output_path
+
