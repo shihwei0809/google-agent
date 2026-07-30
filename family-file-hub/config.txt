@@ -1,0 +1,2 @@
+# 在此貼上您的自訂固定外網網址 (例如 https://myhouse.ddns.net:8080 或 Tailscale IP)
+# CUSTOM_WAN_URL=https://your-custom-domain.com

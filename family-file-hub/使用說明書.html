@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家庭手機檔案傳輸中心 | 完整使用說明書與設定手冊</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            --card-bg: rgba(30, 41, 59, 0.75);
+            --card-border: rgba(255, 255, 255, 0.12);
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --accent: #ec4899;
+            --accent-green: #10b981;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --radius-lg: 20px;
+            --radius-md: 12px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            padding-bottom: 60px;
+            line-height: 1.6;
+        }
+
+        header {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--card-border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 16px 24px;
+        }
+
+        .header-container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            color: white;
+        }
+
+        .brand-title h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #ffffff, #cbd5e1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--card-border);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 32px auto 0;
+            padding: 0 20px;
+        }
+
+        .hero-banner {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(236, 72, 153, 0.2));
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            margin-bottom: 32px;
+            text-align: center;
+            backdrop-filter: blur(12px);
+        }
+
+        .hero-banner h2 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .hero-banner p {
+            color: var(--text-muted);
+            font-size: 0.98rem;
+        }
+
+        .section-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            margin-bottom: 24px;
+            backdrop-filter: blur(12px);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 12px;
+        }
+
+        .section-number {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .step-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 16px;
+            background: rgba(15, 23, 42, 0.5);
+            padding: 16px;
+            border-radius: var(--radius-md);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .step-badge {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--accent-green);
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            height: fit-content;
+            white-space: nowrap;
+        }
+
+        .step-content h4 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .step-content p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        code {
+            background: rgba(0, 0, 0, 0.4);
+            color: #a5b4fc;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+
+        pre {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid var(--card-border);
+            color: #a5b4fc;
+            font-family: monospace;
+            font-size: 0.88rem;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .method-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .method-card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .method-card h5 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #a5b4fc;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .method-card p {
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 640px) {
+            .method-grid {
+                grid-template-columns: 1fr;
+            }
+            .step-item {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-container">
+            <div class="brand">
+                <div class="brand-icon">
+                    <i class="fa-solid fa-book-open"></i>
+                </div>
+                <div class="brand-title">
+                    <h1>Family File Hub 說明書</h1>
+                </div>
+            </div>
+            <a href="/" class="btn">
+                <i class="fa-solid fa-arrow-left"></i> 返回傳輸中心
+            </a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="hero-banner">
+            <h2>📖 家庭手機跨裝置檔案傳輸中心 · 設定手冊</h2>
+            <p>免安裝 App · 掃碼即用 · 原圖無損直傳 · 區網/外網雙連線與自訂設定教學</p>
+        </div>
+
+        <!-- 第一章 -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-number">1</div>
+                <div class="section-title">快速上手 (3 秒連線指南)</div>
+            </div>
+            <div class="step-list">
+                <div class="step-item">
+                    <div class="step-badge">電腦端</div>
+                    <div class="step-content">
+                        <h4>雙擊執行「一鍵啟動.bat」</h4>
+                        <p>進入 <code>family-file-hub</code> 資料夾，雙擊執行 <code>一鍵啟動.bat</code>（或 <code>start_server.bat</code>）。黑底控制台視窗開啟後，系統會自動顯示區域網路與外網的連線網址與 QR Code。</p>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-badge">手機端</div>
+                    <div class="step-content">
+                        <h4>開啟相機直接掃碼連線</h4>
+                        <p><b>在家用 Wi-Fi：</b>掃描螢幕上的「🏠 區網 QR Code」。<br>
+                        <b>在外用 4G/5G：</b>掃描螢幕上的「🌐 外網 QR Code」。<br>
+                        開啟網頁即可開始傳檔！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二章 -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-number">2</div>
+                <div class="section-title">線上自訂與建立資料夾</div>
+            </div>
+            <div class="step-list">
+                <div class="step-item">
+                    <div class="step-badge">建立資料夾</div>
+                    <div class="step-content">
+                        <h4>點擊「+ 建立新資料夾」按鈕</h4>
+                        <p>在手機網頁上方，點擊綠色的 <code>+ 建立新資料夾</code> 晶片，輸入欲建立的名稱（例如：<code>2026旅遊照片</code>、<code>媽媽工作檔</code>），按下「確認建立」，系統即刻在電腦上建立實體資料夾並自動選定！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三章 -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-number">3</div>
+                <div class="section-title">100% 原圖無損直傳說明</div>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 16px;">
+                本系統提供最高規格的二進位無損傳輸保證：
+            </p>
+            <ul style="padding-left: 20px; color: var(--text-muted); font-size: 0.9rem; display: flex; flex-direction: column; gap: 8px;">
+                <li><b>無 Canvas 轉碼：</b>直接傳送手機原始檔案串流，不進行任何降解析度或圖檔壓縮。</li>
+                <li><b>EXIF 完全保留：</b>照片包含之相機型號、ISO、快門、GPS 地理位置等參數完整保留。</li>
+                <li><b>原檔下載：</b>電腦端下載時可點選「原檔下載」取得 100% 一致之檔案。</li>
+            </ul>
+        </div>
+
+        <!-- 第四章 -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-number">4</div>
+                <div class="section-title">進階自訂固定外網設定 (4 種方法)</div>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">
+                若您後續希望網址固定不變（免每次重新掃碼），可採用以下 4 種方式設定：
+            </p>
+
+            <div class="method-grid">
+                <div class="method-card">
+                    <h5><i class="fa-solid fa-gear"></i> 方法 1：設定 config.txt (最簡單)</h5>
+                    <p>開啟專案資料夾內的 <code>config.txt</code>，填入您的固定網址：</p>
+                    <pre>CUSTOM_WAN_URL=https://your-domain.com:8080</pre>
+                    <p>儲存後重啟 <code>一鍵啟動.bat</code> 即可！</p>
+                </div>
+
+                <div class="method-card">
+                    <h5><i class="fa-solid fa-key"></i> 方法 2：綁定 Ngrok 個人 AuthToken</h5>
+                    <p>若您有申請 Ngrok 帳號，在 CMD 執行：</p>
+                    <pre>.\ngrok.exe config add-authtoken <您的金鑰></pre>
+                    <p>綁定後即可解除時間限制並支援自訂網域。</p>
+                </div>
+
+                <div class="method-card">
+                    <h5><i class="fa-solid fa-network-wired"></i> 方法 3：Tailscale 虛擬私有網</h5>
+                    <p>電腦與手機安裝免費 Tailscale，取得電腦固定 IP 後，在 <code>config.txt</code> 填入：</p>
+                    <pre>CUSTOM_WAN_URL=http://100.x.y.z:8080</pre>
+                </div>
+
+                <div class="method-card">
+                    <h5><i class="fa-solid fa-wifi"></i> 方法 4：路由器 Port Forwarding</h5>
+                    <p>在 Wi-Fi 路由器設定埠號轉發 8080，並在 <code>config.txt</code> 填入對外 IP 或 DDNS 網址。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第五章 -->
+        <div class="section-card">
+            <div class="section-header">
+                <div class="section-number">5</div>
+                <div class="section-title">電腦實體檔案儲存位置與自訂硬碟路徑</div>
+            </div>
+            
+            <div class="step-list">
+                <div class="step-item">
+                    <div class="step-badge">預設便攜模式</div>
+                    <div class="step-content">
+                        <h4>依據專案資料夾執行位置自動決定</h4>
+                        <p>預設儲存位置完全跟著 <code>family-file-hub</code> 資料夾走：<br>
+                        • 若專案在 <code>D:\family-file-hub</code>，檔案存於：<code>D:\family-file-hub\uploads\</code><br>
+                        • 將整包移至 <code>E:\family-file-hub</code>，檔案自動存於：<code>E:\family-file-hub\uploads\</code><br>
+                        💡 雙擊 <code>一鍵開啟電腦儲存資料夾.bat</code> 可隨時開啟當前位置！</p>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-badge">自訂外接硬碟</div>
+                    <div class="step-content">
+                        <h4>在 config.txt 中指定其它磁碟區路徑</h4>
+                        <p>如果您希望指定存到其它大容量外接硬碟（例如 <code>E:\PhotoBackup\</code>）：<br>
+                        1. 開啟專案資料夾內的 <code>config.txt</code>。<br>
+                        2. 填入自訂儲存路徑：</p>
+                        <pre>UPLOAD_FOLDER=E:\PhotoBackup</pre>
+                        <p>3. 儲存後重啟，後續所有上傳的檔案將會自動存入 <code>E:\PhotoBackup</code> 中！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
