@@ -1236,19 +1236,20 @@ async def _run_generation(
                         # 背景音樂套用淡出
                         bg_music = bg_music.with_effects([AudioFadeOut(duration=2.0)])
                         
+                        # 統一套用音量（無論有無語音都要套）
+                        effective_vol = bgm_volume if bgm_volume > 0 else 0.1
+                        bg_music = bg_music.with_volume_scaled(effective_vol)
+                        logger.info(f"BGM volume applied (generation): {effective_vol}")
+
                         if tts_engine == "none" or final.audio is None:
-                            # 無語音模式： BGM 為主音軌，但仍需套用音量設定
-                            vol = bgm_volume if bgm_volume > 0 else 1.0
-                            if vol != 1.0:
-                                bg_music = bg_music.with_volume_scaled(vol)
-                            final.audio = bg_music
+                            # 無語音模式：BGM 為唯一音軌
+                            final = final.with_audio(bg_music)
                         else:
-                            # 有語音模式：調降背景音樂音量後與人聲語音音軌重疊混音
+                            # 有語音模式：BGM 與人聲混音
                             voice_audio = final.audio
                             if voice_audio is not None:
-                                bg_music = bg_music.with_volume_scaled(bgm_volume if bgm_volume > 0 else 0.1)
                                 mixed_audio = CompositeAudioClip([voice_audio, bg_music])
-                                final.audio = mixed_audio
+                                final = final.with_audio(mixed_audio)
                     except Exception as e:
                         logger.warning(f"Failed to mix background music: {e}. Video will be exported without BGM.")
                 else:
@@ -1628,19 +1629,25 @@ async def _run_rebuild(
 
             if bgm_path and bgm_path.exists():
                 try:
-                    logger.info(f"Rebuild mixing BGM: {bgm_path}")
+                    logger.info(f"Rebuild mixing BGM: {bgm_path}, volume={bgm_volume}")
                     bg_music = AudioFileClip(str(bgm_path))
                     if bg_music.duration < final.duration:
                         bg_music = bg_music.with_effects([AudioLoop(duration=final.duration)])
                     else:
                         bg_music = bg_music.subclipped(0, final.duration)
                     bg_music = bg_music.with_effects([AudioFadeOut(duration=2.0)])
-                    
+
+                    # 統一套用音量（無論有無語音都要套）
+                    effective_vol = bgm_volume if bgm_volume > 0 else 0.1
+                    bg_music = bg_music.with_volume_scaled(effective_vol)
+                    logger.info(f"BGM volume applied (rebuild): {effective_vol}")
+
                     if tts_engine == "none" or final.audio is None:
+                        # 無語音模式：BGM 為唯一音軌
                         final = final.with_audio(bg_music)
                     else:
+                        # 有語音模式：BGM 與人聲混音
                         voice_audio = final.audio
-                        bg_music = bg_music.with_volume_scaled(bgm_volume if bgm_volume > 0 else 0.15)
                         final = final.with_audio(CompositeAudioClip([voice_audio, bg_music]))
                 except Exception as e:
                     logger.warning(f"Rebuild BGM mixing failed: {e}")
