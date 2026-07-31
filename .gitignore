@@ -41,13 +41,21 @@ yarn-error.log*
 # Firebase
 .firebase/
 
-# Documents (PDF & PowerPoint)
+# Documents (PDF, Word & PowerPoint)
 *.pdf
 *.ppt
 *.pptx
+*.doc
+*.docx
 
 # Media
 *.mp4
+*.webm
+*.mp3
+*.wav
+
+# Jobs & Media Working Dirs
+jobs/
 
 # Archives & Executables
 *.zip

@@ -49,6 +49,33 @@ logger.addHandler(file_handler)
 
 executor = ThreadPoolExecutor(max_workers=2)
 
+# ─── GPU 硬體加速編碼偵測 ──────────────────────────────────────────────────────
+import subprocess as _sp
+
+def _detect_video_codec() -> str:
+    """偵測系統可用的最快 H.264 編碼器：NVENC → AMF → QSV → libx264"""
+    for codec in ("h264_nvenc", "h264_amf", "h264_qsv"):
+        try:
+            result = _sp.run(
+                ["ffmpeg", "-f", "lavfi", "-i", "color=black:size=64x64:duration=0.1",
+                 "-c:v", codec, "-f", "null", "-"],
+                capture_output=True, timeout=8
+            )
+            # QSV 成功時 returncode=0；NVENC/AMF 無驅動時有特定錯誤字串
+            stderr = result.stderr.decode(errors="ignore")
+            if result.returncode == 0 or (
+                codec == "h264_qsv" and "Error" not in stderr and "failed" not in stderr.lower()
+            ):
+                logger.info("GPU encoder detected: %s", codec)
+                return codec
+        except Exception:
+            pass
+    logger.info("No GPU encoder available, using libx264")
+    return "libx264"
+
+VIDEO_CODEC = _detect_video_codec()
+
+
 # ─── Voice Groups ─────────────────────────────────────────────────────────────
 VOICE_GROUPS = {
     "🇹🇼 繁體中文（台灣）": [
@@ -173,7 +200,11 @@ jobs: dict[str, dict] = {}
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse(request=request, name="index.html")
+    response = templates.TemplateResponse(request=request, name="index.html")
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 @app.get("/api/voices")
@@ -272,27 +303,6 @@ async def generate_page_audio(
     
 
     # TTS – use placeholder if page is blank
-    is_silent = not text.strip()
-    if is_silent:
-        # Generate a 1.5s silent WAV directly
-        audio_ext = "wav"
-        audio_path = job_dir / f"audio_{page_index:03d}.wav"
-        import wave, struct
-        os.makedirs(os.path.dirname(audio_path), exist_ok=True)
-        with wave.open(str(audio_path), "wb") as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(24000)
-            data = struct.pack('<' + 'h' * 36000, *([0] * 36000))
-            wf.writeframes(data)
-        
-        # Delete alternative extension if exists
-        alt_path = job_dir / f"audio_{page_index:03d}.mp3"
-        if alt_path.exists():
-            try: alt_path.unlink()
-            except: pass
-        return {"status": "success", "url": f"/jobs/{job_id}/audio_{page_index:03d}.wav"}
-
     tts_text = text.strip() if text.strip() else "本頁無文字內容。"
 
     # Inject natural breaks at line breaks if auto_pause is enabled
@@ -527,6 +537,43 @@ def call_gemini_tts(api_key: str, model: str, voice: str, text: str, output_path
         f.write(audio_bytes)
 
 
+def generate_lyria_bgm(api_key: str, prompt: str, output_path: str) -> None:
+    """Call Gemini Lyria API to generate background music clip, save as MP3."""
+    # 強制純器樂：不要人聲、不要演唱
+    instrumental_suffix = ", instrumental only, no vocals, no singing, no lyrics, pure background music"
+    if "instrumental" not in prompt.lower():
+        prompt = prompt.rstrip(", ") + instrumental_suffix
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key={api_key}"
+    headers = {
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+    logger.info("Calling Gemini Lyria API with prompt: %s", prompt)
+    response = requests.post(url, json=payload, headers=headers, timeout=120)
+    response.raise_for_status()
+    data = response.json()
+
+    audio_b64 = None
+    for cand in data.get("candidates", []):
+        content = cand.get("content", {})
+        for part in content.get("parts", []):
+            inline_data = part.get("inlineData", {})
+            if inline_data.get("mimeType", "").startswith("audio/"):
+                audio_b64 = inline_data.get("data")
+                break
+        if audio_b64:
+            break
+
+    if not audio_b64:
+        raise ValueError(f"Gemini Lyria failed, no audio returned. Response keys: {list(data.keys())}")
+
+    audio_bytes = base64.b64decode(audio_b64)
+    with open(output_path, "wb") as f:
+        f.write(audio_bytes)
+
+
 def call_grok_api(api_key: str, model: str, image_path: Path) -> str:
     """Call xAI Grok API with a local image to generate presentation narration."""
     try:
@@ -709,17 +756,19 @@ async def generate_video(
     background_tasks: BackgroundTasks,
     job_id: str = Form(...),
     scripts: str = Form(...),
-    voice: str = Form(""),
+    voice: str = Form(...),
     rate: str = Form("-10%"),
     auto_pause: str = Form("true"),
     tts_engine: str = Form("edge"),
     gemini_tts_voice: str = Form(""),
     gemini_tts_model: str = Form("gemini-2.5-flash-preview-tts"),
     gemini_api_key: str = Form(""),
-    silent_duration: float = Form(5.0),
-    use_bgm: str = Form("false"),
+    none_duration: float = Form(3.0),
+    enable_bgm: str = Form("false"),
+    bgm_type: str = Form("local"),
+    ai_bgm_prompt: str = Form(""),
     bgm_volume: float = Form(0.1),
-    bgm_file: UploadFile = File(None),
+    watermark_text: str = Form(""),
 ):
     job_dir = JOBS_DIR / job_id
     if not job_dir.exists():
@@ -736,12 +785,14 @@ async def generate_video(
         if not gemini_api_key:
             raise HTTPException(status_code=400, detail="使用 Gemini TTS 需要提供 API 金鑰。")
     elif tts_engine == "none":
+        # 無語音模式，略過語音驗證
         pass
     else:
         if voice not in ALL_VOICE_IDS:
             raise HTTPException(status_code=400, detail=f"不支援的聲音：{voice}")
 
     is_auto_pause = auto_pause.lower() == "true"
+    is_enable_bgm = enable_bgm.lower() == "true"
 
     # ── 自動備份腳本 ──────────────────────────────────────────────────────────
     # 合成前將腳本存到 job 資料夾，讓使用者日後可下載並重新合成，不需重新讀取 PDF
@@ -755,7 +806,12 @@ async def generate_video(
                 "tts_engine": tts_engine,
                 "total_pages": len(scripts_list),
                 "pages": scripts_list,
+                "none_duration": none_duration,
+                "enable_bgm": is_enable_bgm,
+                "bgm_type": bgm_type,
+                "ai_bgm_prompt": ai_bgm_prompt,
                 "bgm_volume": bgm_volume,
+                "watermark_text": watermark_text,
             }, f, ensure_ascii=False, indent=2)
         logger.info("Script backup saved to %s", backup_path)
     except Exception as e:
@@ -767,37 +823,29 @@ async def generate_video(
         "total": len(scripts_list),
         "step": "準備中…",
     }
-    # BGM file save/delete logic
-    if use_bgm.lower() == "false":
-        for old_bgm in job_dir.glob("bgm.*"):
-            try: old_bgm.unlink()
-            except: pass
-    else:
-        if bgm_file and bgm_file.filename:
-            ext = os.path.splitext(bgm_file.filename)[1].lower()
-            if not ext:
-                ext = ".mp3"
-            bgm_path = job_dir / f"bgm{ext}"
-            for old_bgm in job_dir.glob("bgm.*"):
-                try: old_bgm.unlink()
-                except: pass
-            with open(bgm_path, "wb") as f:
-                f.write(await bgm_file.read())
-            logger.info("Saved uploaded background music to %s", bgm_path)
-
     background_tasks.add_task(
         _run_generation, job_id, scripts_list, voice, rate, is_auto_pause, job_dir,
-        tts_engine, gemini_tts_voice, gemini_tts_model, gemini_api_key, silent_duration,
-        bgm_volume
+        tts_engine, gemini_tts_voice, gemini_tts_model, gemini_api_key, none_duration, is_enable_bgm,
+        bgm_type, ai_bgm_prompt, bgm_volume, watermark_text
     )
     return {"job_id": job_id, "status": "processing"}
 
 
 @app.get("/api/status/{job_id}")
 async def get_status(job_id: str):
-    if job_id not in jobs:
-        raise HTTPException(status_code=404, detail="工作不存在。")
-    return jobs[job_id]
+    if job_id in jobs:
+        return jobs[job_id]
+    # 如果 server 重啟導致 in-memory jobs 清空，從磁碟判斷狀態
+    job_dir = JOBS_DIR / job_id
+    if job_dir.exists():
+        if (job_dir / "output.mp4").exists():
+            return {"status": "done", "progress": 0, "total": 0, "step": "已完成"}
+        error_file = job_dir / "error.txt"
+        if error_file.exists():
+            return {"status": "error", "error": error_file.read_text(encoding="utf-8")}
+        # job 目錄存在但尚未完成（可能正在生成中）
+        return {"status": "processing", "progress": 0, "total": 0, "step": "正在導入影片..."}
+    raise HTTPException(status_code=404, detail="工作不存在，請重新上傳 PDF。")
 
 
 @app.post("/api/rescue/video-to-script")
@@ -964,12 +1012,10 @@ async def download_script(job_id: str):
             lines.append("")
         txt_content = "\n".join(lines)
         from fastapi.responses import Response
-        from urllib.parse import quote
-        safe_filename = quote(f"script_{job_id}.txt")
         return Response(
             content=txt_content.encode("utf-8"),
             media_type="text/plain; charset=utf-8",
-            headers={"Content-Disposition": f"attachment; filename*=utf-8''{safe_filename}"},
+            headers={"Content-Disposition": f'attachment; filename="script_{job_id[:8]}.txt"'},
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"讀取備份失敗：{e}")
@@ -999,12 +1045,16 @@ async def _run_generation(
     gemini_tts_voice: str = "",
     gemini_tts_model: str = "gemini-2.5-flash-preview-tts",
     gemini_api_key: str = "",
-    silent_duration: float = 3.0,
+    none_duration: float = 3.0,
+    enable_bgm: bool = False,
+    bgm_type: str = "local",
+    ai_bgm_prompt: str = "",
     bgm_volume: float = 0.1,
+    watermark_text: str = "",
 ):
     """Background task: TTS synthesis + video assembly."""
     try:
-        from moviepy import AudioFileClip, ImageClip, concatenate_videoclips, CompositeAudioClip, CompositeAudioClip
+        from moviepy import AudioFileClip, ImageClip, concatenate_videoclips
 
         total = len(scripts)
         clips = []
@@ -1028,135 +1078,124 @@ async def _run_generation(
                 cached_engine = backup_data.get("tts_engine")
                 cached_gemini_voice = backup_data.get("gemini_tts_voice", "")
                 cached_gemini_model = backup_data.get("gemini_tts_model", "")
-                # rate is currently not stored in backup_backup, but we can check if it exists
                 cached_rate = backup_data.get("rate", rate) 
             except Exception as e:
                 logger.warning(f"Failed to read backup script for cache comparison: {e}")
 
         for i, text in enumerate(scripts):
-            jobs[job_id]["step"] = f"第 {i + 1}/{total} 頁：生成語音旁白…"
+            jobs[job_id]["step"] = f"第 {i + 1}/{total} 頁：製作簡報畫面中…" if tts_engine == "none" else f"第 {i + 1}/{total} 頁：生成語音旁白…"
             img_path = str(job_dir / f"page_{i:03d}.png")
-            audio_ext = "wav" if tts_engine == "gemini" else "mp3"
-            audio_path = str(job_dir / f"audio_{i:03d}.{audio_ext}")
-
+            
             # Ensure image exists (fallback to blank)
             if not Path(img_path).exists():
                 logger.warning("Image not found for page %d, skipping", i)
                 continue
 
-            # TTS – use placeholder if page is blank
-            is_silent = not text.strip()
-            audio_ext = "wav" if (tts_engine == "gemini" or is_silent) else "mp3"
-            audio_path = str(job_dir / f"audio_{i:03d}.{audio_ext}")
-
-            tts_text = text.strip() if text.strip() else "本頁無文字內容。"
-
-            # Inject natural breaks at line breaks if auto_pause is enabled
-            if auto_pause and text.strip():
-                lines = tts_text.splitlines()
-                processed_lines = []
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    # Append period if line doesn't end with sentence-ending punctuation
-                    if line[-1] not in (
-                        "。", "，", "、", "！", "？", "；", "：",
-                        ".", ",", "!", "?", ";", ":", '"', "'", "」", "』"
-                    ):
-                        line += "。"
-                    processed_lines.append(line)
-                tts_text = " ".join(processed_lines)
-
-            # 比對文字與語音設定是否完全相同且音訊檔案存在
-            can_reuse = False
-            if (
-                cached_pages and
-                i < len(cached_pages) and
-                cached_pages[i] == text and
-                cached_voice == voice and
-                cached_engine == tts_engine and
-                cached_rate == rate and
-                (tts_engine != "gemini" or (cached_gemini_voice == gemini_tts_voice and cached_gemini_model == gemini_tts_model)) and
-                Path(audio_path).exists()
-            ):
-                try:
-                    import wave
-                    if audio_path.endswith('.wav'):
-                        with wave.open(audio_path, 'rb') as _:
-                            pass
-                    else:
-                        import os
-                        if os.path.getsize(audio_path) < 1000:
-                            raise ValueError("MP3 file too small")
-                    logger.info(f"Page {i + 1} script and voice settings unchanged. Reusing existing audio: {audio_path}")
-                    can_reuse = True
-                except Exception as e:
-                    logger.warning(f"Audio cache invalid for page {i+1}, will regenerate: {e}")
-                    can_reuse = False
-
-            if not can_reuse:
-                if is_silent:
-                    import wave, struct
-                    os.makedirs(os.path.dirname(audio_path), exist_ok=True)
-                    with wave.open(audio_path, "wb") as wf:
-                        wf.setnchannels(1)
-                        wf.setsampwidth(2)
-                        wf.setframerate(24000)
-                        data = struct.pack('<' + 'h' * 36000, *([0] * 36000))
-                        wf.writeframes(data)
-                elif tts_engine == "gemini":
-                    success = False
-                    candidate_models = [gemini_tts_model]
-                    for fallback in ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts", "gemini-3.1-flash-tts-preview"]:
-                        if fallback not in candidate_models:
-                            candidate_models.append(fallback)
-                    while not success and key_index < len(api_keys):
-                        current_key = api_keys[key_index]
-                        for model_to_try in candidate_models:
-                            try:
-                                loop = asyncio.get_event_loop()
-                                await loop.run_in_executor(
-                                    executor,
-                                    lambda t=tts_text, p=audio_path, k=current_key, m=model_to_try: call_gemini_tts(
-                                        k, m, gemini_tts_voice, t, p
-                                    )
-                                )
-                                success = True
-                                break
-                            except Exception as e:
-                                logger.warning("Gemini TTS: Key index %d with model %s failed: %s", key_index, model_to_try, e)
-                        if not success:
-                            key_index += 1
-                    if not success:
-                        raise ValueError("所有提供的 Gemini API 金鑰皆已達到使用上限！無法繼續生成語音。")
-                else:
-                    communicate = edge_tts.Communicate(tts_text, voice, rate=rate)
-                    await communicate.save(audio_path)
-
-                # 防衝突：如果產生了此格式，則把另一種副檔名的音檔移除
-                other_ext = "mp3" if audio_ext == "wav" else "wav"
-                other_path = job_dir / f"audio_{i:03d}.{other_ext}"
-                if other_path.exists():
-                    try:
-                        other_path.unlink()
-                    except Exception as e:
-                        logger.warning(f"Failed to delete conflicting audio file {other_path}: {e}")
-
             # Make 1920×1080 framed image
             framed_path = make_frame_1920x1080(img_path)
 
-            # Build clip
-            audio = AudioFileClip(audio_path)
-            duration = max(audio.duration, 1.5)
-            clip = ImageClip(framed_path, duration=duration).with_audio(audio)
-            clips.append(clip)
-            jobs[job_id]["progress"] = i + 1
+            if tts_engine == "none":
+                # 無語音模式：每頁顯示時間直接設定為 none_duration
+                clip = ImageClip(framed_path, duration=none_duration)
+                clips.append(clip)
+                jobs[job_id]["progress"] = i + 1
+            else:
+                # 有語音模式
+                audio_ext = "wav" if tts_engine == "gemini" else "mp3"
+                audio_path = str(job_dir / f"audio_{i:03d}.{audio_ext}")
+                tts_text = text.strip() if text.strip() else "本頁無文字內容。"
+
+                if auto_pause and text.strip():
+                    lines = tts_text.splitlines()
+                    processed_lines = []
+                    for line in lines:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        if line[-1] not in (
+                            "。", "，", "、", "！", "？", "；", "：",
+                            ".", ",", "!", "?", ";", ":", '"', "'", "」", "』"
+                        ):
+                            line += "。"
+                        processed_lines.append(line)
+                    tts_text = " ".join(processed_lines)
+
+                # 比對文字與語音設定是否完全相同且音訊檔案存在
+                can_reuse = False
+                if (
+                    cached_pages and
+                    i < len(cached_pages) and
+                    cached_pages[i] == text and
+                    cached_voice == voice and
+                    cached_engine == tts_engine and
+                    cached_rate == rate and
+                    (tts_engine != "gemini" or (cached_gemini_voice == gemini_tts_voice and cached_gemini_model == gemini_tts_model)) and
+                    Path(audio_path).exists()
+                ):
+                    try:
+                        import wave
+                        if audio_path.endswith('.wav'):
+                            with wave.open(audio_path, 'rb') as _:
+                                pass
+                        else:
+                            import os
+                            if os.path.getsize(audio_path) < 1000:
+                                raise ValueError("MP3 file too small")
+                        logger.info(f"Page {i + 1} script and voice settings unchanged. Reusing existing audio: {audio_path}")
+                        can_reuse = True
+                    except Exception as e:
+                        logger.warning(f"Audio cache invalid for page {i+1}, will regenerate: {e}")
+                        can_reuse = False
+
+                if not can_reuse:
+                    if tts_engine == "gemini":
+                        success = False
+                        candidate_models = [gemini_tts_model]
+                        for fallback in ["gemini-2.5-flash-preview-tts", "gemini-3.1-flash-tts", "gemini-3.1-flash-tts-preview"]:
+                            if fallback not in candidate_models:
+                                candidate_models.append(fallback)
+                        while not success and key_index < len(api_keys):
+                            current_key = api_keys[key_index]
+                            for model_to_try in candidate_models:
+                                try:
+                                    loop = asyncio.get_event_loop()
+                                    await loop.run_in_executor(
+                                        executor,
+                                        lambda t=tts_text, p=audio_path, k=current_key, m=model_to_try: call_gemini_tts(
+                                            k, m, gemini_tts_voice, t, p
+                                        )
+                                    )
+                                    success = True
+                                    break
+                                except Exception as e:
+                                    logger.warning("Gemini TTS: Key index %d with model %s failed: %s", key_index, model_to_try, e)
+                            if not success:
+                                key_index += 1
+                        if not success:
+                            raise ValueError("所有提供的 Gemini API 金鑰皆已達到使用上限！無法繼續生成語音。")
+                    else:
+                        communicate = edge_tts.Communicate(tts_text, voice, rate=rate)
+                        await communicate.save(audio_path)
+
+                    other_ext = "mp3" if audio_ext == "wav" else "wav"
+                    other_path = job_dir / f"audio_{i:03d}.{other_ext}"
+                    if other_path.exists():
+                        try:
+                            other_path.unlink()
+                        except Exception as e:
+                            logger.warning(f"Failed to delete conflicting audio file {other_path}: {e}")
+
+                # Build clip with voice audio
+                audio = AudioFileClip(audio_path)
+                duration = max(audio.duration, 1.5)
+                clip = ImageClip(framed_path, duration=duration).with_audio(audio)
+                clips.append(clip)
+                jobs[job_id]["progress"] = i + 1
 
         if not clips:
             raise ValueError("沒有任何可處理的頁面。")
 
-        jobs[job_id]["step"] = "正在合成影片（可能需要數分鐘）…"
+        jobs[job_id]["step"] = "正在合成影片與載入音樂（可能需要數分鐘）…"
 
         output_path = str(job_dir / "output.mp4")
         loop = asyncio.get_event_loop()
@@ -1164,47 +1203,72 @@ async def _run_generation(
         def write_video():
             final = concatenate_videoclips(clips, method="chain")
             
-            # Mix BGM if it exists in job_dir
-            bgm_files = list(job_dir.glob("bgm.*"))
-            if bgm_files:
-                bgm_file_path = bgm_files[0]
-                try:
-                    logger.info(f"Loading background music: {bgm_file_path} with volume {bgm_volume}")
-                    bgm_clip = AudioFileClip(str(bgm_file_path))
-                    
-                    # Adjust volume
-                    if hasattr(bgm_clip, "multiply_volume"):
-                        bgm_clip = bgm_clip.multiply_volume(bgm_volume)
-                    elif hasattr(bgm_clip, "volumex"):
-                        bgm_clip = bgm_clip.volumex(bgm_volume)
-                    
-                    # Make sure it loops or crops to total_duration
-                    total_duration = final.duration
-                    if bgm_clip.duration < total_duration:
-                        from moviepy.audio.fx.all import audio_loop
-                        bgm_clip = audio_loop(bgm_clip, duration=total_duration)
-                    else:
-                        bgm_clip = bgm_clip.subclip(0, total_duration)
-                    
-                    # Mix with existing video audio
-                    if tts_engine == "none" or not final.audio:
-                        final = final.with_audio(bgm_clip)
-                    else:
-                        mixed_audio = CompositeAudioClip([final.audio, bgm_clip])
-                        final = final.with_audio(mixed_audio)
-                    logger.info("BGM successfully mixed into video track")
-                except Exception as bgm_err:
-                    logger.error(f"Failed to mix BGM: {bgm_err}")
+            # ── 混入背景音樂 (BGM) ──────────────────────────────────────────────────
+            # 只有在純圖片 (tts_engine == "none")，或者有語音且選取 enable_bgm 為 True 時才載入
+            if tts_engine == "none" or enable_bgm:
+                bgm_path = None
+                if bgm_type == "ai" and api_keys:
+                    temp_ai_bgm = job_dir / "ai_bgm.mp3"
+                    try:
+                        generate_lyria_bgm(api_keys[0], ai_bgm_prompt, str(temp_ai_bgm))
+                        if temp_ai_bgm.exists():
+                            bgm_path = temp_ai_bgm
+                    except Exception as e:
+                        logger.warning(f"Failed to generate AI BGM via Lyria: {e}. Falling back to default BGM.")
+                
+                if not bgm_path:
+                    bgm_dir = Path(__file__).parent / "assets"
+                    bgm_dir.mkdir(exist_ok=True)
+                    bgm_path = bgm_dir / "background_music.mp3"
 
-            final.write_videofile(
-                output_path, 
-                fps=5, 
-                codec="libx264",
-                audio_codec="aac", 
-                preset="ultrafast",
-                threads=4,
-                logger=None
-            )
+                if bgm_path.exists():
+                    try:
+                        from moviepy import CompositeAudioClip
+                        from moviepy.audio.fx import AudioLoop, AudioFadeOut
+                        
+                        bg_music = AudioFileClip(str(bgm_path))
+                        # 循環播放或裁切音樂對齊影片總長度
+                        if bg_music.duration < final.duration:
+                            bg_music = bg_music.with_effects([AudioLoop(duration=final.duration)])
+                        else:
+                            bg_music = bg_music.subclipped(0, final.duration)
+                        
+                        # 背景音樂套用淡出
+                        bg_music = bg_music.with_effects([AudioFadeOut(duration=2.0)])
+                        
+                        if tts_engine == "none" or final.audio is None:
+                            # 無語音模式： BGM 為主音軌，但仍需套用音量設定
+                            vol = bgm_volume if bgm_volume > 0 else 1.0
+                            if vol != 1.0:
+                                bg_music = bg_music.with_volume_scaled(vol)
+                            final.audio = bg_music
+                        else:
+                            # 有語音模式：調降背景音樂音量後與人聲語音音軌重疊混音
+                            voice_audio = final.audio
+                            if voice_audio is not None:
+                                bg_music = bg_music.with_volume_scaled(bgm_volume if bgm_volume > 0 else 0.1)
+                                mixed_audio = CompositeAudioClip([voice_audio, bg_music])
+                                final.audio = mixed_audio
+                    except Exception as e:
+                        logger.warning(f"Failed to mix background music: {e}. Video will be exported without BGM.")
+                else:
+                    logger.warning(f"Background music file not found at {bgm_path}. Skipping BGM mix.")
+                    
+                # ── BGM 出處浮水印 ──
+                if enable_bgm and bgm_path and bgm_path.exists():
+                    watermark_path = str(job_dir / "watermark.png")
+                    bgm_label = watermark_text.strip()
+                    if not bgm_label:
+                        bgm_label = "🎵 BGM: " + ("AI Generated Music" if bgm_type == "ai" else "Background Music")
+                    if create_bgm_watermark_png(watermark_path, bgm_label):
+                        from moviepy import CompositeVideoClip
+                        w_clip = ImageClip(watermark_path, duration=final.duration)
+                        final = CompositeVideoClip([final, w_clip])
+
+            _vf_kw = dict(fps=5, codec=VIDEO_CODEC, audio_codec="aac", threads=4, logger=None)
+            if VIDEO_CODEC == "libx264":
+                _vf_kw["preset"] = "ultrafast"
+            final.write_videofile(output_path, **_vf_kw)
             final.close()
             for c in clips:
                 c.close()
@@ -1324,18 +1388,6 @@ async def load_job_data(job_id: str):
             "thumbnail": f"/jobs/{job_id}/{thumb_name}",
         })
 
-    bgm_files = list(job_dir.glob("bgm.*"))
-    has_bgm = len(bgm_files) > 0
-    bgm_name = bgm_files[0].name if has_bgm else ""
-    bgm_volume = 0.1
-    if backup_path.exists():
-        try:
-            with open(backup_path, "r", encoding="utf-8") as f:
-                backup_data = json.load(f)
-                bgm_volume = backup_data.get("bgm_volume", 0.1)
-        except:
-            pass
-
     return {
         "job_id": job_id,
         "pages": pages_data,
@@ -1345,37 +1397,175 @@ async def load_job_data(job_id: str):
         "gemini_tts_model": gemini_tts_model,
         "rate": rate,
         "auto_pause": auto_pause,
-        "has_bgm": has_bgm,
-        "bgm_name": bgm_name,
-        "bgm_volume": bgm_volume,
     }
 
 
+def create_bgm_watermark_png(output_png_path: str, text: str = "🎵 BGM: Background Music"):
+    """Draw a translucent copyright / source watermark PNG using Pillow."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        img = Image.new("RGBA", (1920, 1080), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        
+        # Windows CJK 字型候選清單（支援繁體中文）
+        font_candidates = [
+            "C:/Windows/Fonts/msjh.ttc",       # Microsoft JhengHei (微軟正黑體)
+            "C:/Windows/Fonts/msjhbd.ttc",
+            "C:/Windows/Fonts/mingliu.ttc",    # MingLiU
+            "C:/Windows/Fonts/kaiu.ttf",       # KaiU
+            "C:/Windows/Fonts/msyh.ttc",       # Microsoft YaHei (Simplified)
+            "C:/Windows/Fonts/arial.ttf",       # 英文 fallback
+        ]
+        font = None
+        for fp in font_candidates:
+            try:
+                font = ImageFont.truetype(fp, 22)
+                break
+            except Exception:
+                continue
+        if font is None:
+            font = ImageFont.load_default()
+        
+        bbox = draw.textbbox((0, 0), text, font=font)
+        tw = bbox[2] - bbox[0]
+        th = bbox[3] - bbox[1]
+        x = 1920 - tw - 40
+        y = 1080 - th - 30
+        
+        pad = 8
+        draw.rounded_rectangle([x - pad, y - pad, x + tw + pad, y + th + pad], radius=6, fill=(0, 0, 0, 140))
+        draw.text((x, y), text, font=font, fill=(255, 255, 255, 220))
+        img.save(output_png_path, "PNG")
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to create BGM watermark PNG: {e}")
+        return False
+
+
 @app.post("/api/jobs/rebuild/{job_id}")
-async def rebuild_video(job_id: str, background_tasks: BackgroundTasks):
+async def rebuild_video(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    scripts: str = Form("[]"),
+    tts_engine: str = Form("edge"),
+    none_duration: float = Form(3.0),
+    silent_duration: float = Form(3.0),
+    enable_bgm: str = Form("false"),
+    use_bgm: str = Form("false"),
+    bgm_type: str = Form("local"),
+    ai_bgm_prompt: str = Form(""),
+    bgm_volume: float = Form(0.1),
+    bgm_file: UploadFile = File(None),
+    watermark_text: str = Form(""),
+):
     job_dir = JOBS_DIR / job_id
     if not job_dir.exists():
         raise HTTPException(status_code=404, detail="該專案目錄不存在。")
         
+    final_none_duration = silent_duration if silent_duration != 3.0 else none_duration
+    is_enable_bgm = enable_bgm.lower() == "true" or use_bgm.lower() == "true"
+
+    # Save uploaded BGM if provided
+    if bgm_file and bgm_file.filename:
+        ext = os.path.splitext(bgm_file.filename)[1].lower() or ".mp3"
+        bgm_path = job_dir / f"bgm{ext}"
+        for old_bgm in job_dir.glob("bgm.*"):
+            try: old_bgm.unlink()
+            except: pass
+        with open(bgm_path, "wb") as f:
+            f.write(await bgm_file.read())
+        logger.info("Saved uploaded background music to %s", bgm_path)
+
+    # Save / update script backup with rebuild parameters
+    backup_path = job_dir / "script_backup.json"
+    existing_data = {}
+    if backup_path.exists():
+        try:
+            with open(backup_path, "r", encoding="utf-8") as f:
+                existing_data = json.load(f)
+        except Exception:
+            pass
+            
+    try:
+        scripts_list = json.loads(scripts) if scripts and scripts != "[]" else existing_data.get("pages", [])
+    except Exception:
+        scripts_list = existing_data.get("pages", [])
+
+    existing_data.update({
+        "tts_engine": tts_engine,
+        "none_duration": final_none_duration,
+        "enable_bgm": is_enable_bgm,
+        "bgm_type": bgm_type,
+        "ai_bgm_prompt": ai_bgm_prompt,
+        "bgm_volume": bgm_volume,
+        "watermark_text": watermark_text,
+    })
+    if scripts_list:
+        existing_data["pages"] = scripts_list
+        existing_data["total_pages"] = len(scripts_list)
+        
+    try:
+        with open(backup_path, "w", encoding="utf-8") as f:
+            json.dump(existing_data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning(f"Failed to update script_backup.json on rebuild: {e}")
+
     jobs[job_id] = {
         "status": "processing",
         "progress": 0,
         "total": 0,
         "step": "排隊準備重新合成...",
     }
-    background_tasks.add_task(_run_rebuild, job_id)
+    background_tasks.add_task(
+        _run_rebuild,
+        job_id,
+        tts_engine,
+        final_none_duration,
+        is_enable_bgm,
+        bgm_type,
+        ai_bgm_prompt,
+        bgm_volume,
+        watermark_text,
+    )
     return {"job_id": job_id, "status": "processing"}
 
 
-async def _run_rebuild(job_id: str):
-    """Background task: rebuild video using existing images and audio files."""
+async def _run_rebuild(
+    job_id: str,
+    tts_engine: str = "edge",
+    none_duration: float = 3.0,
+    enable_bgm: bool = False,
+    bgm_type: str = "local",
+    ai_bgm_prompt: str = "",
+    bgm_volume: float = 0.1,
+    watermark_text: str = "",
+):
+    """Background task: rebuild video using existing images, audio files or silent duration."""
     try:
-        from moviepy import AudioFileClip, ImageClip, concatenate_videoclips, CompositeAudioClip, CompositeAudioClip
+        from moviepy import AudioFileClip, ImageClip, concatenate_videoclips, CompositeVideoClip, CompositeAudioClip
+        from moviepy.audio.fx import AudioLoop, AudioFadeOut
+        
         job_dir = JOBS_DIR / job_id
         
-        # Determine number of pages by looking at page_xxx.png files
+        # Read backup script to recover missing defaults if necessary
+        backup_path = job_dir / "script_backup.json"
+        if backup_path.exists():
+            try:
+                with open(backup_path, "r", encoding="utf-8") as f:
+                    backup_data = json.load(f)
+                if tts_engine == "edge" and "tts_engine" in backup_data:
+                    tts_engine = backup_data.get("tts_engine", tts_engine)
+                if none_duration == 3.0 and "none_duration" in backup_data:
+                    none_duration = backup_data.get("none_duration", none_duration)
+                if not enable_bgm and "enable_bgm" in backup_data:
+                    enable_bgm = backup_data.get("enable_bgm", enable_bgm)
+                if bgm_type == "local" and "bgm_type" in backup_data:
+                    bgm_type = backup_data.get("bgm_type", bgm_type)
+            except Exception as e:
+                logger.warning(f"Rebuild: failed to read backup data: {e}")
+
+        # Determine number of pages
         img_files = sorted(list(job_dir.glob("page_*.png")))
-        # Filter out _framed files to get original count
         orig_imgs = [f for f in img_files if not f.name.endswith("_framed.png")]
         total = len(orig_imgs)
         
@@ -1384,7 +1574,7 @@ async def _run_rebuild(job_id: str):
         
         clips = []
         for i in range(total):
-            jobs[job_id]["step"] = f"第 {i + 1}/{total} 頁：讀取現有影音檔案..."
+            jobs[job_id]["step"] = f"第 {i + 1}/{total} 頁：製作影音畫面中…"
             img_path = job_dir / f"page_{i:03d}_framed.png"
             if not img_path.exists():
                 img_path = job_dir / f"page_{i:03d}.png"
@@ -1393,28 +1583,33 @@ async def _run_rebuild(job_id: str):
                 logger.warning(f"Rebuild: page_{i:03d} image not found.")
                 continue
                 
-            # Ensure it is letterboxed to 1920x1080
             framed_path = img_path
             if not img_path.name.endswith("_framed.png"):
                 framed_path = Path(make_frame_1920x1080(str(img_path)))
+
+            if tts_engine == "none":
+                # 無語音 (靜音模式): 直接依據 none_duration 切換圖片
+                clip = ImageClip(str(framed_path), duration=none_duration)
+                clips.append(clip)
+            else:
+                # 語音模式: 嘗試載入對應配音檔 (.mp3 或 .wav)
+                audio_path = job_dir / f"audio_{i:03d}.mp3"
+                if not audio_path.exists():
+                    audio_path = job_dir / f"audio_{i:03d}.wav"
+                    
+                if audio_path.exists():
+                    audio = AudioFileClip(str(audio_path))
+                    duration = max(audio.duration, 1.5)
+                    clip = ImageClip(str(framed_path), duration=duration).with_audio(audio)
+                else:
+                    # 找不到音檔時回退為單頁秒數
+                    clip = ImageClip(str(framed_path), duration=none_duration)
+                clips.append(clip)
                 
-            # Find audio (.mp3 or .wav)
-            audio_path = job_dir / f"audio_{i:03d}.mp3"
-            if not audio_path.exists():
-                audio_path = job_dir / f"audio_{i:03d}.wav"
-                
-            if not audio_path.exists():
-                logger.warning(f"Rebuild: audio_{i:03d} not found.")
-                continue
-                
-            audio = AudioFileClip(str(audio_path))
-            duration = max(audio.duration, 1.5)
-            clip = ImageClip(str(framed_path), duration=duration).with_audio(audio)
-            clips.append(clip)
             jobs[job_id]["progress"] = i + 1
             
         if not clips:
-            raise ValueError("找不到任何可配對的投影片與配音檔組合。")
+            raise ValueError("找不到任何可配對的投影片圖片。")
             
         jobs[job_id]["step"] = "正在重新合成影片（可能需要數分鐘）..."
         output_path = str(job_dir / "output.mp4")
@@ -1423,47 +1618,47 @@ async def _run_rebuild(job_id: str):
         def write_video():
             final = concatenate_videoclips(clips, method="chain")
             
-            # Mix BGM if it exists in job_dir
+            # ── BGM 背景音樂處理 ──
             bgm_files = list(job_dir.glob("bgm.*"))
-            if bgm_files:
-                bgm_file_path = bgm_files[0]
-                try:
-                    logger.info(f"Loading background music: {bgm_file_path} with volume {bgm_volume}")
-                    bgm_clip = AudioFileClip(str(bgm_file_path))
-                    
-                    # Adjust volume
-                    if hasattr(bgm_clip, "multiply_volume"):
-                        bgm_clip = bgm_clip.multiply_volume(bgm_volume)
-                    elif hasattr(bgm_clip, "volumex"):
-                        bgm_clip = bgm_clip.volumex(bgm_volume)
-                    
-                    # Make sure it loops or crops to total_duration
-                    total_duration = final.duration
-                    if bgm_clip.duration < total_duration:
-                        from moviepy.audio.fx.all import audio_loop
-                        bgm_clip = audio_loop(bgm_clip, duration=total_duration)
-                    else:
-                        bgm_clip = bgm_clip.subclip(0, total_duration)
-                    
-                    # Mix with existing video audio
-                    if tts_engine == "none" or not final.audio:
-                        final = final.with_audio(bgm_clip)
-                    else:
-                        mixed_audio = CompositeAudioClip([final.audio, bgm_clip])
-                        final = final.with_audio(mixed_audio)
-                    logger.info("BGM successfully mixed into video track")
-                except Exception as bgm_err:
-                    logger.error(f"Failed to mix BGM: {bgm_err}")
+            bgm_path = bgm_files[0] if bgm_files else None
+            if not bgm_path and enable_bgm:
+                bgm_dir = Path(__file__).parent / "assets"
+                if (bgm_dir / "background_music.mp3").exists():
+                    bgm_path = bgm_dir / "background_music.mp3"
 
-            final.write_videofile(
-                output_path, 
-                fps=5, 
-                codec="libx264",
-                audio_codec="aac", 
-                preset="ultrafast",
-                threads=4,
-                logger=None
-            )
+            if bgm_path and bgm_path.exists():
+                try:
+                    logger.info(f"Rebuild mixing BGM: {bgm_path}")
+                    bg_music = AudioFileClip(str(bgm_path))
+                    if bg_music.duration < final.duration:
+                        bg_music = bg_music.with_effects([AudioLoop(duration=final.duration)])
+                    else:
+                        bg_music = bg_music.subclipped(0, final.duration)
+                    bg_music = bg_music.with_effects([AudioFadeOut(duration=2.0)])
+                    
+                    if tts_engine == "none" or final.audio is None:
+                        final = final.with_audio(bg_music)
+                    else:
+                        voice_audio = final.audio
+                        bg_music = bg_music.with_volume_scaled(bgm_volume if bgm_volume > 0 else 0.15)
+                        final = final.with_audio(CompositeAudioClip([voice_audio, bg_music]))
+                except Exception as e:
+                    logger.warning(f"Rebuild BGM mixing failed: {e}")
+
+            # ── BGM 出處浮水印 ──
+            if enable_bgm and bgm_path and bgm_path.exists():
+                watermark_path = str(job_dir / "watermark.png")
+                bgm_label = watermark_text.strip()
+                if not bgm_label:
+                    bgm_label = "🎵 BGM: " + ("AI Generated Music" if bgm_type == "ai" else "Background Music")
+                if create_bgm_watermark_png(watermark_path, bgm_label):
+                    w_clip = ImageClip(watermark_path, duration=final.duration)
+                    final = CompositeVideoClip([final, w_clip])
+
+            _vf_kw = dict(fps=5, codec=VIDEO_CODEC, audio_codec="aac", threads=4, logger=None)
+            if VIDEO_CODEC == "libx264":
+                _vf_kw["preset"] = "ultrafast"
+            final.write_videofile(output_path, **_vf_kw)
             final.close()
             for c in clips:
                 c.close()

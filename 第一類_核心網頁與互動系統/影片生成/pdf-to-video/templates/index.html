@@ -457,12 +457,6 @@
       .steps { gap: 0; }
       .step-label { display: none; }
     }
-      body.tts-mode-none .btn-generate-page,
-    body.tts-mode-none .btn-play-page,
-    body.tts-mode-none .selected-voice-preview,
-    body.tts-mode-none .selected-voice-preview-cloning {
-      display: none !important;
-    }
   </style>
 </head>
 <body>
@@ -658,7 +652,7 @@
     <!-- ── STEP 3: Script Editor ── -->
     <div class="step-panel" id="panel-3">
       <div class="card">
-        <div class="info-tip" style="margin-bottom: 12px;">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會產生 1.5 秒無聲靜音，不會播報。
+        <div class="info-tip" style="margin-bottom: 12px;">✏️ 請逐頁檢視 AI 讀取的腳本文字。您可以直接在文字框中修改內容，空白頁會以「本頁無文字內容」播報。
         <br><span style="color: var(--yellow); font-weight: 600;">💡 建議：确認腳本完成後，先按「📥 匯出腳本文字」存檔備用，日後若需重新合成可直接從「📤 匯入」載入腳本，不需重新讀取 PDF。</span></div>
         
         <!-- Import/Export Action Bar -->
@@ -688,9 +682,9 @@
       <div class="card">
         <!-- TTS Engine Tabs -->
         <div class="tts-tabs" role="tablist">
-          <button class="tts-tab active" id="tab-edge" onclick="switchTtsTab('edge')">🎙️ Edge TTS（免費・無需 Key）</button>
-          <button class="tts-tab" id="tab-gemini" onclick="switchTtsTab('gemini')">✨ Gemini TTS（AI 自然情緒）</button>
-          <button class="tts-tab" id="tab-none" onclick="switchTtsTab('none')">🤫 靜音純圖影片（不配音）</button>
+          <button class="tts-tab active" id="tab-edge" onclick="switchTtsTab('edge')">🎙️ Edge TTS（免費）</button>
+          <button class="tts-tab" id="tab-gemini" onclick="switchTtsTab('gemini')">✨ Gemini TTS（AI 情緒）</button>
+          <button class="tts-tab" id="tab-none" onclick="switchTtsTab('none')">🎵 無語音（僅背景音樂）</button>
         </div>
 
         <!-- Edge TTS Panel -->
@@ -703,15 +697,6 @@
               <div style="font-weight:700">已選擇語音</div>
               <div style="color:var(--muted);font-size:.85rem" id="voice-preview-text"></div>
             </div>
-          </div>
-        </div>
-
-        <!-- Silent Panel -->
-        <div class="tts-tab-panel" id="tts-panel-none">
-          <div class="info-tip" style="margin-bottom:16px; border-left-color: var(--success); background: rgba(16,185,129,.08);">🤫 靜音模式：不產生任何配音語音，直接將簡報投影片與設定的停留時間合成為影片。</div>
-          <div style="margin-bottom: 20px;">
-            <label style="font-size: 0.9rem; font-weight: 600; color: var(--text); display: block; margin-bottom: 8px;">每頁投影片停留時間（秒）</label>
-            <input type="number" id="silent-duration-input" min="1" max="60" value="3" style="width: 120px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; color: var(--text); font-size: 0.9rem; outline: none; box-sizing: border-box;">
           </div>
         </div>
 
@@ -750,16 +735,42 @@
             </div>
           </div>
         </div>
+
+        <!-- None TTS (BGM Only) Panel -->
+        <div class="tts-tab-panel" id="tts-panel-none">
+          <div class="info-tip" style="margin-bottom:16px; border-left-color: var(--accent2); background: rgba(168,85,247,.08);">
+            🎵 <strong>無語音模式（僅背景音樂）</strong>：系統不會生成任何機器語音旁白。影片總長度將由【投影片張數 × 自訂播放秒數】決定。
+          </div>
+          
+          <div class="gemini-tts-settings" style="margin-bottom: 24px;">
+            <div style="font-weight:700; margin-bottom:14px; font-size:.95rem; display:flex; align-items:center; gap:6px;">⏱️ 投影片播放設定</div>
+            <div style="display:grid; grid-template-columns:1fr; gap:14px;">
+              <div>
+                <label style="font-size:.82rem; font-weight:600; color:var(--muted); display:block; margin-bottom:8px;">單張投影片播放時間（秒）</label>
+                <input type="number" id="none-duration-input" value="3.0" step="0.5" min="0.5" placeholder="例如：3.0" style="width:120px; background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:8px 12px; color:var(--text); font-size:.9rem; box-sizing:border-box; outline:none; text-align:center;">
+                <span style="font-size:0.8rem; color:var(--muted); margin-left:10px;">請輸入數字，預設為 3 秒。</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="selected-voice-preview" style="background:rgba(79,142,247,.08); border-color:rgba(79,142,247,.25);">
+            <span style="font-size:1.8rem">🎵</span>
+            <div>
+              <div style="font-weight:700">已啟用：純圖片相簿 + 背景音樂模式</div>
+              <div style="color:var(--muted);font-size:.85rem">系統將為您的影片自動套用背景音樂 (BGM)。</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Speech Settings Card -->
-      <div class="card" style="margin-top: 20px; padding: 24px;">
+      <div class="card" id="speech-settings-card" style="margin-top: 20px; padding: 24px;">
         <div style="font-weight: 700; margin-bottom: 20px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
           <span>⚙️</span> 語音節奏與語速設定
         </div>
         
         <!-- Speech Rate (Edge only note) -->
-        <div style="margin-bottom: 24px;">
+        <div id="speech-rate-container" style="margin-bottom: 24px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 — Edge TTS 專用 (Gemini TTS 自動感知)</label>
             <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">稍微慢速 (0.9x · 最推薦)</span>
@@ -773,50 +784,67 @@
         </div>
 
         <!-- Auto Pause -->
-        <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text); user-select: none;">
-          <input type="checkbox" id="auto-pause" checked style="width: 16px; height: 16px; accent-color: var(--accent); margin-top: 3px;">
-          <div>
-            <div style="font-weight: 600;">自動在簡報換行處加上停頓（強烈推薦）</div>
-            <div style="font-size: 0.78rem; color: var(--muted); margin-top: 4px; line-height: 1.4;">簡報內容通常為條列式且缺乏標點符號。開啟此功能後，系統會自動在換行處加入句號產生自然停頓，避免各點內容黏在一起唸。</div>
-          </div>
-        </label>
-      </div>
-
-      <!-- BGM Settings Card -->
-      <div class="card" style="margin-top: 20px; padding: 24px;">
-        <div style="font-weight: 700; margin-bottom: 20px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px;">
-          <span>🎵</span> 背景音樂 (BGM) 設定
+        <div id="auto-pause-container" style="margin-bottom: 24px;">
+          <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text); user-select: none;">
+            <input type="checkbox" id="auto-pause" checked style="width: 16px; height: 16px; accent-color: var(--accent); margin-top: 3px;">
+            <div>
+              <div style="font-weight: 600;">自動在簡報換行處加上停頓（強烈推薦）</div>
+              <div style="font-size: 0.78rem; color: var(--muted); margin-top: 4px; line-height: 1.4;">簡報內容通常為條列式且缺乏標點符號。開啟此功能後，系統會自動在換行處加入句號產生自然停頓，避免各點內容黏在一起唸。</div>
+            </div>
+          </label>
         </div>
-        
-        <!-- Enable BGM Checkbox -->
-        <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 0.95rem; color: var(--text); user-select: none; margin-bottom: 20px;">
-          <input type="checkbox" id="enable-bgm" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent);">
-          <span style="font-weight: 600;">啟用背景音樂</span>
-        </label>
-        
-        <!-- BGM Controls -->
-        <div id="bgm-controls-section" style="display: none; border-top: 1px solid var(--border); padding-top: 20px;">
-          <!-- BGM File Upload -->
-          <div style="margin-bottom: 20px;">
-            <label style="font-size: 0.85rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">上傳背景音樂檔案（支援 MP3 / WAV 等）</label>
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <input type="file" id="bgm-file-input" accept="audio/*" style="display: none;">
-              <button type="button" class="btn btn-secondary" onclick="document.getElementById('bgm-file-input').click()" style="padding: 8px 16px; font-size: 0.85rem;">📁 選擇音樂檔案</button>
-              <span id="bgm-file-status" style="font-size: 0.85rem; color: var(--muted);">尚未選擇檔案</span>
-            </div>
-          </div>
-          
-          <!-- BGM Volume -->
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <label style="font-size: 0.85rem; font-weight: 600; color: var(--text);">背景音樂音量比例（配音時建議設定為 10% ~ 20% 避免蓋過人聲）</label>
-              <span id="bgm-volume-txt" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">10%</span>
-            </div>
-            <input type="range" id="bgm-volume-slider" min="1" max="100" value="10" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
-              <span>微弱 (1%)</span>
-              <span>適中 (20%)</span>
-              <span>大聲 (100%)</span>
+
+        <!-- Background Music Options -->
+        <div id="bgm-option-container" style="border-top: 1px dashed var(--border); padding-top: 20px;">
+          <div style="display: flex; align-items: flex-start; gap: 12px; font-size: 0.9rem; color: var(--text);">
+            <input type="checkbox" id="enable-bgm" style="width: 16px; height: 16px; accent-color: var(--accent); margin-top: 3px;">
+            <div style="flex: 1;">
+              <label for="enable-bgm" style="font-weight: 600; cursor: pointer; user-select: none; display: block;">啟用背景音樂 (BGM)</label>
+              <div style="font-size: 0.78rem; color: var(--muted); margin-top: 4px; line-height: 1.4; margin-bottom: 12px;">
+                啟用背景音樂。若是無語音模式，此為主要音軌；若為語音旁白模式，則會以降噪混音背景播放。
+              </div>
+              
+              <!-- BGM Settings Form -->
+              <div id="bgm-details-container" style="margin-top: 10px; display: none; background: var(--surface); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
+                <div style="margin-bottom: 10px;">
+                  <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">音樂來源</label>
+                  <select id="bgm-source-select" style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text); font-size: 0.82rem; height: 32px; outline: none; box-sizing: border-box;">
+                    <option value="local">本機預設背景音樂 (background_music.mp3)</option>
+                    <option value="upload">📁 自訂上傳背景音樂 (.mp3 / .wav)</option>
+                    <option value="ai">Gemini AI 現場生成音樂 (Lyria 3)</option>
+                  </select>
+                </div>
+                
+                <div id="upload-bgm-settings" style="display: none; margin-bottom: 10px;">
+                  <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">選擇自訂背景音樂檔案 (.mp3, .wav)</label>
+                  <input type="file" id="bgm-file-input" accept=".mp3,.wav" style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text); font-size: 0.82rem; height: 36px; outline: none; box-sizing: border-box;">
+                </div>
+                
+                <div id="ai-bgm-settings" style="display: none;">
+                  <div style="margin-bottom: 10px;">
+                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">AI 音樂生成描述 (Prompt)</label>
+                    <input type="text" id="ai-bgm-prompt" value="輕快商務風格純器樂背景音，鋼琴加輕鼓點節奏，無人聲無歌詞" placeholder="描述想要生成的音樂風格（純器樂）" style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text); font-size: 0.82rem; height: 32px; outline: none; box-sizing: border-box;">
+                  </div>
+                  
+                  <div id="ai-bgm-key-container" style="display: none; margin-bottom: 6px;">
+                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">Gemini API 金鑰 (用於生成音樂)</label>
+                    <input type="password" id="ai-bgm-api-key" placeholder="AIza... (留空將嘗試使用語音設定中的 Gemini 金鑰)" style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text); font-size: 0.82rem; height: 32px; outline: none; box-sizing: border-box; font-family: monospace;">
+                  </div>
+                </div>
+
+                <div id="bgm-volume-settings" style="margin-bottom: 10px; margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+                  <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">背景音樂音量</label>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="bgm-volume-slider" min="0.05" max="1.0" step="0.05" value="0.1" style="flex: 1; accent-color: var(--accent);">
+                    <span id="bgm-volume-label" style="font-size: 0.82rem; color: var(--text); min-width: 32px;">10%</span>
+                  </div>
+                </div>
+                
+                <div id="bgm-watermark-settings" style="margin-bottom: 5px;">
+                  <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">背景音樂出處浮水印文字 (留空則使用預設)</label>
+                  <input type="text" id="bgm-watermark-input" placeholder="例如：🎵 BGM: 自訂音樂" style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 10px; color: var(--text); font-size: 0.82rem; height: 32px; outline: none; box-sizing: border-box;">
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1063,16 +1091,6 @@
         pagesData = data.pages;
         renderPages(pagesData);
         await loadVoices();
-
-        // Reset BGM settings for a new PDF
-        document.getElementById('enable-bgm').checked = false;
-        document.getElementById('bgm-controls-section').style.display = 'none';
-        document.getElementById('bgm-file-input').value = '';
-        document.getElementById('bgm-file-status').textContent = '尚未選擇檔案';
-        document.getElementById('bgm-file-status').style.color = 'var(--muted)';
-        document.getElementById('bgm-volume-slider').value = 10;
-        document.getElementById('bgm-volume-txt').textContent = '10%';
-
         goStep(2);
       } catch (err) {
         console.error(err);
@@ -1203,7 +1221,6 @@
 
     // ─── Step 3: TTS Engine Tab Switch ───────────────────────────
     function switchTtsTab(engine) {
-      document.body.classList.toggle('tts-mode-none', engine === 'none');
       currentTtsEngine = engine;
       document.getElementById('tab-edge').classList.toggle('active', engine === 'edge');
       document.getElementById('tab-gemini').classList.toggle('active', engine === 'gemini');
@@ -1211,13 +1228,44 @@
       document.getElementById('tts-panel-edge').classList.toggle('active', engine === 'edge');
       document.getElementById('tts-panel-gemini').classList.toggle('active', engine === 'gemini');
       document.getElementById('tts-panel-none').classList.toggle('active', engine === 'none');
-      // Update generate button state
-      if (engine === 'edge') {
-        document.getElementById('btn-to-script').disabled = !selectedVoice;
-      } else if (engine === 'gemini') {
-        document.getElementById('btn-to-script').disabled = !selectedGeminiVoice;
-      } else if (engine === 'none') {
+
+      // 控制語音設定 Card 與子容器的顯示
+      const settingsCard = document.getElementById('speech-settings-card');
+      const rateContainer = document.getElementById('speech-rate-container');
+      const pauseContainer = document.getElementById('auto-pause-container');
+      const bgmContainer = document.getElementById('bgm-option-container');
+
+      if (engine === 'none') {
+        // 無語音模式：顯示 BGM 設定，但隱藏語速與自動停頓
+        if (settingsCard) settingsCard.style.display = 'block';
+        if (rateContainer) rateContainer.style.display = 'none';
+        if (pauseContainer) pauseContainer.style.display = 'none';
+        if (bgmContainer) bgmContainer.style.display = 'block';
+        
+        // 預設將 BGM 勾選（無語音預設有背景音樂）
+        const enableBgmCheckbox = document.getElementById('enable-bgm');
+        if (enableBgmCheckbox && !enableBgmCheckbox.dataset.userInteracted) {
+          enableBgmCheckbox.checked = true;
+        }
+        
         document.getElementById('btn-to-script').disabled = false;
+      } else {
+        // 有語音模式：顯示所有語音與 BGM 設定
+        if (settingsCard) settingsCard.style.display = 'block';
+        if (rateContainer) rateContainer.style.display = 'block';
+        if (pauseContainer) pauseContainer.style.display = 'block';
+        if (bgmContainer) bgmContainer.style.display = 'block';
+        
+        if (engine === 'edge') {
+          document.getElementById('btn-to-script').disabled = !selectedVoice;
+        } else {
+          document.getElementById('btn-to-script').disabled = !selectedGeminiVoice;
+        }
+      }
+      
+      // 更新 BGM UI 連動狀態
+      if (typeof updateBgmUI === 'function') {
+        updateBgmUI();
       }
     }
 
@@ -1518,6 +1566,20 @@
         return ta ? ta.value : '';
       });
       
+      const noneDurationInput = document.getElementById('none-duration-input');
+      const noneDuration = noneDurationInput ? parseFloat(noneDurationInput.value) || 3.0 : 3.0;
+      const enableBgmCheckbox = document.getElementById('enable-bgm');
+      const enableBgm = enableBgmCheckbox ? enableBgmCheckbox.checked : false;
+      const bgmSourceSelect = document.getElementById('bgm-source-select');
+      const bgmType = bgmSourceSelect ? bgmSourceSelect.value : 'local';
+      const aiBgmPromptInput = document.getElementById('ai-bgm-prompt');
+      const aiBgmPrompt = aiBgmPromptInput ? aiBgmPromptInput.value.trim() : '';
+
+      // ── 前端 Debug 彈窗 ──
+      const engineLabel = currentTtsEngine === 'none' ? '靜音模式 (無語音)' : currentTtsEngine.toUpperCase();
+      const debugMsg = `🎬 【僅重新合成影片】參數確認：\n• 語音引擎：${engineLabel}\n• 圖片切換秒數：${noneDuration} 秒\n• 背景音樂：${enableBgm ? '已開啟 (' + bgmType + ')' : '關閉'}`;
+      alert(debugMsg);
+
       goStep(4);
       document.getElementById('progress-section').style.display = 'block';
       document.getElementById('done-section').style.display = 'none';
@@ -1528,9 +1590,30 @@
       const formData = new FormData();
       formData.append('job_id', jobId);
       formData.append('scripts', JSON.stringify(scripts));
+      formData.append('tts_engine', currentTtsEngine);
+      formData.append('none_duration', noneDuration);
+      formData.append('silent_duration', noneDuration);
+      formData.append('enable_bgm', enableBgm ? 'true' : 'false');
+      formData.append('use_bgm', enableBgm ? 'true' : 'false');
+      formData.append('bgm_type', bgmType);
+      formData.append('ai_bgm_prompt', aiBgmPrompt);
+      const bgmVolumeSlider = document.getElementById('bgm-volume-slider');
+      if (bgmVolumeSlider) {
+        formData.append('bgm_volume', bgmVolumeSlider.value);
+      }
+      const bgmWatermarkInput = document.getElementById('bgm-watermark-input');
+      if (bgmWatermarkInput) {
+        formData.append('watermark_text', bgmWatermarkInput.value.trim());
+      }
+
+      if (enableBgm && bgmType === 'upload') {
+        const bgmFileInput = document.getElementById('bgm-file-input');
+        if (bgmFileInput && bgmFileInput.files.length > 0) {
+          formData.append('bgm_file', bgmFileInput.files[0]);
+        }
+      }
       
       try {
-        // 嘗試儲存腳本，若後端未重啟導致 404 則自動容錯跳過並直接合成
         try {
           const resSave = await fetch('/api/save_script', { method: 'POST', body: formData });
           if (!resSave.ok && resSave.status !== 404) {
@@ -1541,7 +1624,7 @@
           console.warn('Save script optional endpoint warning:', e);
         }
         
-        const resRebuild = await fetch(`/api/jobs/rebuild/${jobId}`, { method: 'POST' });
+        const resRebuild = await fetch(`/api/jobs/rebuild/${jobId}`, { method: 'POST', body: formData });
         const dataRebuild = await resRebuild.json();
         if (!resRebuild.ok) throw new Error(dataRebuild.detail || '啟動合成失敗');
         
@@ -1553,8 +1636,11 @@
 
     document.getElementById('btn-generate').addEventListener('click', async () => {
       const isGemini = currentTtsEngine === 'gemini';
+      const isNone = currentTtsEngine === 'none';
 
-      if (isGemini) {
+      if (isNone) {
+        // 無語音模式：不需驗證語音角色與 Key
+      } else if (isGemini) {
         if (!selectedGeminiVoice) { alert('請先選擇 Gemini TTS 語音。'); return; }
         const key = document.getElementById('gemini-tts-api-key').value.trim();
         if (!key) { alert('請輸入 Gemini API 金鑰。'); return; }
@@ -1585,30 +1671,64 @@
       formData.append('auto_pause', autoPause ? 'true' : 'false');
       formData.append('tts_engine', currentTtsEngine);
 
-      const useBgm = document.getElementById('enable-bgm').checked;
-      const bgmVolume = parseFloat(document.getElementById('bgm-volume-slider').value) / 100.0;
-      const bgmFileInput = document.getElementById('bgm-file-input');
+      const enableBgmCheckbox = document.getElementById('enable-bgm');
+      const enableBgm = enableBgmCheckbox ? enableBgmCheckbox.checked : false;
+      formData.append('enable_bgm', enableBgm ? 'true' : 'false');
 
-      formData.append('use_bgm', useBgm ? 'true' : 'false');
-      formData.append('bgm_volume', bgmVolume.toString());
-      if (useBgm && bgmFileInput.files.length > 0) {
-        formData.append('bgm_file', bgmFileInput.files[0]);
+      const bgmSourceSelect = document.getElementById('bgm-source-select');
+      const bgmType = bgmSourceSelect ? bgmSourceSelect.value : 'local';
+      formData.append('bgm_type', bgmType);
+
+      const aiBgmPromptInput = document.getElementById('ai-bgm-prompt');
+      const aiBgmPrompt = aiBgmPromptInput ? aiBgmPromptInput.value.trim() : '';
+      formData.append('ai_bgm_prompt', aiBgmPrompt);
+
+      const bgmVolumeSlider = document.getElementById('bgm-volume-slider');
+      if (bgmVolumeSlider) {
+        formData.append('bgm_volume', bgmVolumeSlider.value);
+      }
+      const bgmWatermarkInput = document.getElementById('bgm-watermark-input');
+      if (bgmWatermarkInput) {
+        formData.append('watermark_text', bgmWatermarkInput.value.trim());
       }
 
-      if (currentTtsEngine === 'gemini') {
-        formData.append('voice', selectedGeminiVoice);
-        formData.append('gemini_tts_voice', selectedGeminiVoice);
-        formData.append('gemini_tts_model', document.getElementById('gemini-tts-model').value);
-        formData.append('gemini_api_key', document.getElementById('gemini-tts-api-key').value.trim());
-      } else if (currentTtsEngine === 'none') {
-        formData.append('voice', '');
+      if (enableBgm && bgmType === 'upload') {
+        const bgmFileInput = document.getElementById('bgm-file-input');
+        if (bgmFileInput && bgmFileInput.files.length > 0) {
+          formData.append('bgm_file', bgmFileInput.files[0]);
+        }
+      }
+
+      let finalApiKey = '';
+
+      if (isNone) {
+        formData.append('voice', 'none');
         formData.append('gemini_tts_voice', '');
-        formData.append('gemini_api_key', '');
-        formData.append('silent_duration', document.getElementById('silent-duration-input').value);
+        const noneDurationInput = document.getElementById('none-duration-input');
+        const noneDuration = noneDurationInput ? parseFloat(noneDurationInput.value) || 3.0 : 3.0;
+        formData.append('none_duration', noneDuration);
+        
+        if (enableBgm && bgmType === 'ai') {
+          finalApiKey = document.getElementById('ai-bgm-api-key').value.trim();
+        }
+        formData.append('gemini_api_key', finalApiKey);
       } else {
-        formData.append('voice', selectedVoice);
-        formData.append('gemini_tts_voice', '');
-        formData.append('gemini_api_key', '');
+        formData.append('none_duration', '3.0');
+
+        if (isGemini) {
+          formData.append('voice', selectedGeminiVoice);
+          formData.append('gemini_tts_voice', selectedGeminiVoice);
+          formData.append('gemini_tts_model', document.getElementById('gemini-tts-model').value);
+          finalApiKey = document.getElementById('gemini-tts-api-key').value.trim();
+          formData.append('gemini_api_key', finalApiKey);
+        } else {
+          formData.append('voice', selectedVoice);
+          formData.append('gemini_tts_voice', '');
+          if (enableBgm && bgmType === 'ai') {
+            finalApiKey = document.getElementById('ai-bgm-api-key').value.trim();
+          }
+          formData.append('gemini_api_key', finalApiKey);
+        }
       }
 
       try {
@@ -1795,24 +1915,6 @@
         if (data.auto_pause) {
           document.getElementById('auto-pause').checked = (data.auto_pause === 'true');
         }
-
-        // ── 恢復背景音樂設定 ──────────────────────────────────────────
-        if (data.has_bgm) {
-          document.getElementById('enable-bgm').checked = true;
-          document.getElementById('bgm-controls-section').style.display = 'block';
-          document.getElementById('bgm-file-status').textContent = `🎵 已有背景音樂：${data.bgm_name}`;
-          document.getElementById('bgm-file-status').style.color = 'var(--text)';
-        } else {
-          document.getElementById('enable-bgm').checked = false;
-          document.getElementById('bgm-controls-section').style.display = 'none';
-          document.getElementById('bgm-file-status').textContent = '尚未選擇檔案';
-          document.getElementById('bgm-file-status').style.color = 'var(--muted)';
-        }
-        if (data.bgm_volume !== undefined) {
-          const volPct = Math.round(data.bgm_volume * 100);
-          document.getElementById('bgm-volume-slider').value = volPct;
-          document.getElementById('bgm-volume-txt').textContent = `${volPct}%`;
-        }
         
         // 直接進入 Step 3 編輯腳本！
         goStep(3);
@@ -1926,30 +2028,53 @@
       }
     });
 
+    // ─── 背景音樂 UI 連動邏輯 ──────────────────────────────────────────
+    const enableBgmCheckbox = document.getElementById('enable-bgm');
+    const bgmDetailsContainer = document.getElementById('bgm-details-container');
+    const bgmSourceSelect = document.getElementById('bgm-source-select');
+    const uploadBgmSettings = document.getElementById('upload-bgm-settings');
+    const aiBgmSettings = document.getElementById('ai-bgm-settings');
+    const aiBgmKeyContainer = document.getElementById('ai-bgm-key-container');
+
+    function updateBgmUI() {
+      const bgmEnabled = enableBgmCheckbox ? enableBgmCheckbox.checked : false;
+      if (bgmDetailsContainer) {
+        bgmDetailsContainer.style.display = bgmEnabled ? 'block' : 'none';
+      }
+      
+      if (bgmEnabled && bgmSourceSelect) {
+        const bgmSource = bgmSourceSelect.value;
+        if (uploadBgmSettings) {
+          uploadBgmSettings.style.display = bgmSource === 'upload' ? 'block' : 'none';
+        }
+        if (aiBgmSettings) {
+          aiBgmSettings.style.display = bgmSource === 'ai' ? 'block' : 'none';
+        }
+        if (aiBgmKeyContainer) {
+          aiBgmKeyContainer.style.display = (bgmSource === 'ai' && currentTtsEngine !== 'gemini') ? 'block' : 'none';
+        }
+      }
+    }
+
+    if (enableBgmCheckbox) {
+      enableBgmCheckbox.addEventListener('change', () => {
+        enableBgmCheckbox.dataset.userInteracted = "true";
+        updateBgmUI();
+      });
+    }
+    if (bgmSourceSelect) bgmSourceSelect.addEventListener('change', updateBgmUI);
+    
+    const bgmVolumeSlider = document.getElementById('bgm-volume-slider');
+    const bgmVolumeLabel = document.getElementById('bgm-volume-label');
+    if (bgmVolumeSlider && bgmVolumeLabel) {
+      bgmVolumeSlider.addEventListener('input', (e) => {
+        bgmVolumeLabel.textContent = Math.round(e.target.value * 100) + '%';
+      });
+    }
+
     // Init
     updateStepIndicator(1);
-  
-      // ─── Background Music (BGM) Settings Wire-up ──────────────────
-      document.getElementById('enable-bgm').addEventListener('change', (e) => {
-        document.getElementById('bgm-controls-section').style.display = e.target.checked ? 'block' : 'none';
-      });
-
-      document.getElementById('bgm-file-input').addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        const status = document.getElementById('bgm-file-status');
-        if (file) {
-          status.textContent = `🎵 已選擇：${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
-          status.style.color = 'var(--text)';
-        } else {
-          status.textContent = '尚未選擇檔案';
-          status.style.color = 'var(--muted)';
-        }
-      });
-
-      document.getElementById('bgm-volume-slider').addEventListener('input', (e) => {
-        document.getElementById('bgm-volume-txt').textContent = `${e.target.value}%`;
-      });
-
-</script>
+    updateBgmUI();
+  </script>
 </body>
 </html>
