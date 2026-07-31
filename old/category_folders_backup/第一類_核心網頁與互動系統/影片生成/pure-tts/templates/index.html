@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>純語音合成調試工具 | Pure TTS Debugger</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: rgba(17, 24, 39, 0.7);
+      --card-bg: rgba(30, 41, 59, 0.45);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(79, 142, 247, 0.4);
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+      --accent: #4f8ef7;
+      --accent-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+      --accent-hover: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+      --success: #10b981;
+      --error: #ef4444;
+      --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(79, 142, 247, 0.1) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1100px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      background: linear-gradient(to right, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1.9fr;
+      gap: 25px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--surface);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transition: border-color 0.3s;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      margin-bottom: 5px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+
+    .engine-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 5px;
+    }
+
+    .engine-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .engine-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+    }
+
+    .engine-btn.active {
+      background: rgba(79, 142, 247, 0.15);
+      border-color: var(--accent);
+      color: #60a5fa;
+      box-shadow: 0 0 12px rgba(79, 142, 247, 0.2);
+    }
+
+    select, textarea, input[type="text"] {
+      width: 100%;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+
+    select:focus, textarea:focus, input[type="text"]:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 8px rgba(79, 142, 247, 0.15);
+      background: rgba(30, 41, 59, 0.6);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 180px;
+      line-height: 1.5;
+    }
+
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .slider-value {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(79, 142, 247, 0.12);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      background: var(--border);
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .gemini-settings {
+      display: none;
+      flex-direction: column;
+      gap: 15px;
+      background: rgba(139, 92, 246, 0.05);
+      border: 1px solid rgba(139, 92, 246, 0.15);
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 5px;
+    }
+
+    .gemini-settings.active {
+      display: flex;
+    }
+
+    .char-counter {
+      display: flex;
+      justify-content: flex-end;
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: -12px;
+      padding-right: 5px;
+    }
+
+    .btn-submit {
+      background: var(--accent-gradient);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 20px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.3s;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-submit:hover {
+      background: var(--accent-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+
+    .btn-submit:disabled {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .result-section {
+      display: none;
+      background: rgba(16, 185, 129, 0.05);
+      border: 1px solid rgba(16, 185, 129, 0.15);
+      border-radius: 12px;
+      padding: 16px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 10px;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .success-badge {
+      background: var(--success);
+      color: #fff;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+    }
+
+    .audio-player-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex-grow: 1;
+      justify-content: flex-end;
+    }
+
+    audio {
+      height: 36px;
+      outline: none;
+    }
+
+    .btn-download {
+      background: var(--success);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+
+    .btn-download:hover {
+      background: #059669;
+    }
+
+    .history-card {
+      margin-top: 10px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 5px;
+    }
+
+    .history-list::-webkit-scrollbar {
+      width: 6px;
+    }
+    .history-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .history-list::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+    .history-list::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .history-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      transition: all 0.2s;
+    }
+
+    .history-item:hover {
+      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(30, 41, 59, 0.6);
+    }
+
+    .history-details {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 60%;
+    }
+
+    .history-text {
+      font-size: 0.9rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-meta {
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+    }
+
+    .badge-gemini {
+      background: rgba(139, 92, 246, 0.15);
+      color: #a78bfa;
+    }
+
+    .badge-edge {
+      background: rgba(59, 130, 246, 0.15);
+      color: #93c5fd;
+    }
+
+    .history-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-action {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-action-play:hover {
+      color: var(--accent);
+      background: rgba(79, 142, 247, 0.15);
+    }
+
+    .btn-action-delete:hover {
+      color: var(--error);
+      background: rgba(239, 68, 68, 0.15);
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+      padding: 40px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>純語音合成調試工具</h1>
+      <p>輸入任意文字快速生成 Edge TTS / Gemini TTS 音訊，產出後下載直接替換簡報影片生成器之受損音檔</p>
+    </header>
+
+    <div class="grid">
+      <!-- Left Config Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>⚙️</span> 語音參數設定
+        </div>
+
+        <!-- Engine Select -->
+        <div class="form-group">
+          <label>合成引擎 (TTS Engine)</label>
+          <div class="engine-selector">
+            <button type="button" class="engine-btn active" id="engine-edge" onclick="selectEngine('edge')">
+              🌐 Edge TTS
+            </button>
+            <button type="button" class="engine-btn" id="engine-gemini" onclick="selectEngine('gemini')">
+              🧠 Gemini TTS
+            </button>
+          </div>
+        </div>
+
+        <!-- Voice Select -->
+        <div class="form-group">
+          <label>發音人 (Voice Character)</label>
+          <select id="voice-select">
+            <option value="">載入發音人清單中...</option>
+          </select>
+        </div>
+
+        <!-- Speed Rate Slider -->
+        <div class="slider-container">
+          <div class="slider-header">
+            <label>語速倍率 (Speech Rate)</label>
+            <span class="slider-value" id="rate-display">1.0x</span>
+          </div>
+          <input type="range" id="rate-slider" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateRateDisplay()">
+        </div>
+
+        <!-- Gemini Specific Settings -->
+        <div class="gemini-settings" id="gemini-settings-panel">
+          <div class="form-group">
+            <label>Gemini 模型 (TTS Model)</label>
+            <select id="gemini-model-select">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Gemini API Key (支援多行備援)</label>
+            <textarea id="gemini-key-input" placeholder="請貼上您的 Gemini API Key&#10;（支援多組，每行一組。達流量限制時將自動輪替後備金鑰與模型）" style="height: 100px; font-family: monospace; font-size: 0.8rem;"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Input & Actions Card -->
+      <div class="card">
+        <div class="card-title">
+          <span>✍️</span> 文字內容與合成
+        </div>
+
+        <div class="form-group">
+          <label>合成文字內容 (TTS Script)</label>
+          <textarea id="tts-text" placeholder="請在此輸入要唸出來的文字..." oninput="updateCharCount()"></textarea>
+          <div class="char-counter" id="char-counter">0 字</div>
+        </div>
+
+        <button class="btn-submit" id="btn-submit" onclick="startSynthesis()">
+          🛠️ 立即合成語音
+        </button>
+
+        <!-- Result Box -->
+        <div class="result-section" id="result-box">
+          <div class="result-info">
+            <div class="success-badge">✓</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.9rem;">語音合成成功</div>
+              <div style="font-size: 0.75rem; color: var(--muted);" id="result-filename">audio_file.mp3</div>
+            </div>
+          </div>
+          <div class="audio-player-wrapper">
+            <audio id="audio-player" controls></audio>
+            <a href="#" class="btn-download" id="download-link" download>📥 下載檔案</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Panel Card -->
+    <div class="card history-card">
+      <div class="card-title">
+        <span>📜</span> 歷史合成記錄
+      </div>
+      <div class="history-list" id="history-list">
+        <div class="empty-state">目前暫無合成記錄...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentEngine = 'edge';
+    let voicesData = { edge: {}, gemini: [] }; // Note: edge is now an object representing groups
+    let currentPlayingAudio = null;
+    let currentPlayingBtn = null;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const savedKey = localStorage.getItem('pure_tts_gemini_key');
+      if (savedKey) {
+        document.getElementById('gemini-key-input').value = savedKey;
+      }
+
+      await loadVoicesAndModels();
+      await loadHistory();
+    });
+
+    async function loadVoicesAndModels() {
+      try {
+        const res = await fetch('/api/voices');
+        const data = await res.json();
+        voicesData.edge = data.edge;
+        voicesData.gemini = data.gemini;
+
+        const modelSelect = document.getElementById('gemini-model-select');
+        modelSelect.innerHTML = '';
+        data.models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.id;
+          opt.textContent = m.name;
+          modelSelect.appendChild(opt);
+        });
+
+        populateVoicesDropdown();
+      } catch (err) {
+        console.error("Error loading voices:", err);
+      }
+    }
+
+    function selectEngine(engine) {
+      currentEngine = engine;
+      document.getElementById('engine-edge').classList.toggle('active', engine === 'edge');
+      document.getElementById('engine-gemini').classList.toggle('active', engine === 'gemini');
+      
+      const geminiPanel = document.getElementById('gemini-settings-panel');
+      geminiPanel.classList.toggle('active', engine === 'gemini');
+
+      populateVoicesDropdown();
+    }
+
+    function populateVoicesDropdown() {
+      const voiceSelect = document.getElementById('voice-select');
+      voiceSelect.innerHTML = '';
+
+      if (currentEngine === 'edge') {
+        const groups = voicesData.edge; // Object grouped by Locale string
+        if (!groups || Object.keys(groups).length === 0) {
+          voiceSelect.innerHTML = '<option value="">(無可用發音人)</option>';
+          return;
+        }
+
+        // Sort locales to place Taiwan first
+        const sortedLocales = Object.keys(groups).sort((a, b) => {
+          const aIsTw = a.includes('台灣');
+          const bIsTw = b.includes('台灣');
+          if (aIsTw && !bIsTw) return -1;
+          if (!aIsTw && bIsTw) return 1;
+          return a.localeCompare(b);
+        });
+
+        sortedLocales.forEach(loc => {
+          const optGroup = document.createElement('optgroup');
+          optGroup.label = loc;
+          groups[loc].forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = v.label;
+            if (v.id === 'zh-TW-HsiaoChenNeural') opt.selected = true;
+            optGroup.appendChild(opt);
+          });
+          voiceSelect.appendChild(optGroup);
+        });
+      } else {
+        const list = voicesData.gemini; // List of Gemini voices
+        if (!list || list.length === 0) {
+          voiceSelect.innerHTML = '<option value="">(無可用發音人)</option>';
+          return;
+        }
+
+        list.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v.id;
+          opt.textContent = `${v.label} (${v.style})`;
+          if (v.id === 'Kore') opt.selected = true;
+          voiceSelect.appendChild(opt);
+        });
+      }
+    }
+
+    function updateRateDisplay() {
+      const val = parseFloat(document.getElementById('rate-slider').value);
+      document.getElementById('rate-display').textContent = val.toFixed(1) + 'x';
+    }
+
+    function updateCharCount() {
+      const text = document.getElementById('tts-text').value;
+      document.getElementById('char-counter').textContent = text.length + ' 字';
+    }
+
+    async function startSynthesis() {
+      const text = document.getElementById('tts-text').value.trim();
+      if (!text) {
+        alert("請輸入要合成的文字");
+        return;
+      }
+
+      const voice = document.getElementById('voice-select').value;
+      const rate = document.getElementById('rate-slider').value;
+      const submitBtn = document.getElementById('btn-submit');
+      const resultBox = document.getElementById('result-box');
+
+      const geminiKey = document.getElementById('gemini-key-input').value.trim();
+      if (currentEngine === 'gemini') {
+        if (!geminiKey) {
+          alert("請貼上 Gemini API 金鑰");
+          return;
+        }
+        localStorage.setItem('pure_tts_gemini_key', geminiKey);
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ 語音合成中...';
+      resultBox.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('text', text);
+      formData.append('rate', rate);
+      formData.append('tts_engine', currentEngine);
+      
+      if (currentEngine === 'gemini') {
+        formData.append('gemini_tts_voice', voice);
+        formData.append('gemini_tts_model', document.getElementById('gemini-model-select').value);
+        formData.append('gemini_api_key', geminiKey);
+      } else {
+        formData.append('voice', voice);
+      }
+
+      try {
+        const res = await fetch('/api/synthesize', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '語音合成失敗');
+
+        document.getElementById('result-filename').textContent = data.metadata.filename;
+        const player = document.getElementById('audio-player');
+        player.src = data.url;
+        
+        const dlLink = document.getElementById('download-link');
+        dlLink.href = data.url;
+        dlLink.download = data.metadata.filename;
+
+        resultBox.style.display = 'flex';
+        player.play();
+
+        await loadHistory();
+      } catch (err) {
+        alert("合成失敗：" + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '🛠️ 立即合成語音';
+      }
+    }
+
+    async function loadHistory() {
+      const historyList = document.getElementById('history-list');
+      try {
+        const res = await fetch('/api/history');
+        const list = await res.json();
+
+        if (list.length === 0) {
+          historyList.innerHTML = '<div class="empty-state">目前暫無合成記錄...</div>';
+          return;
+        }
+
+        historyList.innerHTML = '';
+        list.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'history-item';
+          
+          const engineBadgeClass = item.engine === 'gemini' ? 'badge badge-gemini' : 'badge badge-edge';
+          const engineLabel = item.engine === 'gemini' ? 'Gemini' : 'Edge';
+
+          div.innerHTML = `
+            <div class="history-details">
+              <div class="history-text" title="${escapeHtml(item.text)}">${escapeHtml(item.text)}</div>
+              <div class="history-meta">
+                <span class="${engineBadgeClass}">${engineLabel}</span>
+                <span>${item.voice}</span>
+                <span>${item.rate}x</span>
+                <span>${item.timestamp}</span>
+              </div>
+            </div>
+            <div class="history-actions">
+              <button class="btn-action btn-action-play" onclick="playHistoryItem('${item.filename}', this)" title="播放">▶</button>
+              <a href="/api/download/${item.filename}" class="btn-action" style="text-decoration: none;" title="下載" download>📥</a>
+              <button class="btn-action btn-action-delete" onclick="deleteHistoryItem('${item.id}')" title="刪除">🗑️</button>
+            </div>
+          `;
+          historyList.appendChild(div);
+        });
+      } catch (err) {
+        console.error("Error loading history:", err);
+      }
+    }
+
+    function playHistoryItem(filename, btn) {
+      const url = `/api/download/${filename}`;
+
+      if (currentPlayingAudio && currentPlayingBtn === btn) {
+        if (currentPlayingAudio.paused) {
+          currentPlayingAudio.play();
+          btn.textContent = '⏸';
+        } else {
+          currentPlayingAudio.pause();
+          btn.textContent = '▶';
+        }
+        return;
+      }
+
+      if (currentPlayingAudio) {
+        currentPlayingAudio.pause();
+        if (currentPlayingBtn) currentPlayingBtn.textContent = '▶';
+      }
+
+      currentPlayingAudio = new Audio(url);
+      currentPlayingBtn = btn;
+      btn.textContent = '⏸';
+      currentPlayingAudio.play();
+
+      currentPlayingAudio.onended = () => {
+        btn.textContent = '▶';
+        currentPlayingAudio = null;
+        currentPlayingBtn = null;
+      };
+    }
+
+    async function deleteHistoryItem(id) {
+      if (!confirm("確定要刪除這筆語音紀錄嗎？檔案也將從硬碟刪除。")) return;
+      try {
+        const res = await fetch(`/api/history/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || '刪除失敗');
+        await loadHistory();
+      } catch (err) {
+        alert("刪除失敗：" + err.message);
+      }
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+jobs/
+*.log
+__pycache__/
+.venv/
+venv/
+*.mp4
+*.mp3
+*.wav
+# 本機設定（含路徑等本機資訊），不上傳 GitHub
+.env

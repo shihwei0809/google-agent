@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-multipart
+jinja2
+edge-tts
+python-pptx
+python-docx
+pdfplumber
+PyMuPDF
+Pillow
+python-dotenv
+requests

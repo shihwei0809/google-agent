@@ -32,10 +32,8 @@ yarn-error.log*
 ~$*.xlsx
 
 # Local nested git folders (ignored to prevent broken git submodules)
+# Note: old/ subprojects are tracked as plain files (no nested .git)
 第一類_核心網頁與互動系統/員工教育訓練測驗系統/nitrogen_quiz/
-第三類_AI代理與指南企劃/clasp-netlify-mcp-guide/
-第三類_AI代理與指南企劃/claude-html-slide-builder/
-第三類_AI代理與指南企劃/claude-video-specs/
 
 # Netlify
 .netlify/
@@ -58,6 +56,9 @@ yarn-error.log*
 *.exe
 *.dll
 
+# Android APK files (large binaries - skip from git)
+*.apk
+
 # Secrets
 firebase_key.json
 config.json.bak
@@ -68,3 +69,10 @@ token.json
 說明書/projects/
 
 test/kokoro-multi-lang-v1_1/
+
+# AI Models
+*.onnx
+*.bin
+*.pt
+*.pth
+*.safetensors

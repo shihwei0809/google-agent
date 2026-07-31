@@ -22,14 +22,14 @@ projects_target_dir.mkdir(parents=True, exist_ok=True)
 
 # Define static web projects to copy
 web_projects = [
-    {"name": "flowchart-web", "src": base_dir / "flowchart-web"},
-    {"name": "hongsheng-web", "src": base_dir / "hongsheng-web"},
-    {"name": "isotank-training", "src": base_dir / "isotank-training"},
-    {"name": "isotank-hf-demo", "src": base_dir / "isotank-hf-demo"},
-    {"name": "test", "src": base_dir / "osaka-adventure-book"},
-    {"name": "互動式網站", "src": base_dir / "interactive-web-training"},
-    {"name": "padlet-board", "src": base_dir / "第三類_AI代理與指南企劃" / "padlet-board"},
-    {"name": "hr_quiz_v2", "src": base_dir / "hr-work-rules-quiz"}
+    {"name": "flowchart-web", "src": base_dir / "old" / "flowchart-web"},
+    {"name": "hongsheng-web", "src": base_dir / "old" / "hongsheng-web"},
+    {"name": "isotank-training", "src": base_dir / "old" / "isotank-training"},
+    {"name": "isotank-hf-demo", "src": base_dir / "old" / "isotank-hf-demo"},
+    {"name": "test", "src": base_dir / "old" / "osaka-adventure-book"},
+    {"name": "互動式網站", "src": base_dir / "old" / "interactive-web-training"},
+    {"name": "padlet-board", "src": base_dir / "old" / "padlet-board"},
+    {"name": "hr_quiz_v2", "src": base_dir / "old" / "hr-work-rules-quiz"}
 ]
 
 # Copy ignore patterns

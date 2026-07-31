@@ -23,19 +23,19 @@ files_to_export = [
     {
         "project": "N系列BARCODE出貨核對",
         "filename": "Code.gs",
-        "src": base_dir / "N系列BARCODE出貨核對" / "Code.gs",
+        "src": base_dir / "old" / "n-series-barcode-verify" / "Code.gs",
         "lang": "javascript"
     },
     {
         "project": "N系列BARCODE出貨核對",
         "filename": "Index.html",
-        "src": base_dir / "N系列BARCODE出貨核對" / "Index.html",
+        "src": base_dir / "old" / "n-series-barcode-verify" / "Index.html",
         "lang": "html"
     },
     {
         "project": "N系列BARCODE出貨核對",
         "filename": "Query.html",
-        "src": base_dir / "N系列BARCODE出貨核對" / "Query.html",
+        "src": base_dir / "old" / "n-series-barcode-verify" / "Query.html",
         "lang": "html"
     },
     
@@ -43,13 +43,13 @@ files_to_export = [
     {
         "project": "n系列GAS-轉-APK-離線核對上傳",
         "filename": "MainActivity.kt",
-        "src": base_dir / "n系列GAS-轉-APK-離線核對上傳" / "BARCODEout-20260601" / "app" / "src" / "main" / "java" / "com" / "example" / "barcode_out" / "MainActivity.kt",
+        "src": base_dir / "old" / "n系列GAS-轉-APK-離線核對上傳" / "BARCODEout-20260601" / "app" / "src" / "main" / "java" / "com" / "example" / "barcode_out" / "MainActivity.kt",
         "lang": "kotlin"
     },
     {
         "project": "n系列GAS-轉-APK-離線核對上傳",
         "filename": "NetworkHelper.kt",
-        "src": base_dir / "n系列GAS-轉-APK-離線核對上傳" / "BARCODEout-20260601" / "app" / "src" / "main" / "java" / "com" / "example" / "barcode_out" / "NetworkHelper.kt",
+        "src": base_dir / "old" / "n系列GAS-轉-APK-離線核對上傳" / "BARCODEout-20260601" / "app" / "src" / "main" / "java" / "com" / "example" / "barcode_out" / "NetworkHelper.kt",
         "lang": "kotlin"
     },
     
@@ -57,19 +57,19 @@ files_to_export = [
     {
         "project": "溫度通報",
         "filename": "weather_monitor.py",
-        "src": base_dir / "溫度通報" / "weather_monitor.py",
+        "src": base_dir / "old" / "溫度通報" / "weather_monitor.py",
         "lang": "python"
     },
     {
         "project": "溫度通報",
         "filename": "config.json",
-        "src": base_dir / "溫度通報" / "config.json",
+        "src": base_dir / "old" / "溫度通報" / "config.json",
         "lang": "json"
     },
     {
         "project": "溫度通報",
         "filename": "Code.gs",
-        "src": base_dir / "溫度通報" / "Code.gs",
+        "src": base_dir / "old" / "溫度通報" / "Code.gs",
         "lang": "javascript"
     }
 ]

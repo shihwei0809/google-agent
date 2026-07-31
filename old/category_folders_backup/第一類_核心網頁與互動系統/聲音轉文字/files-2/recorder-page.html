@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>NoType Recorder</title></head>
+<body>
+<script>
+  let audioContext = null;
+  let mediaStream = null;
+  let scriptProcessor = null;
+  let pcmChunks = [];
+  let isRecording = false;
+
+  async function initMicrophone() {
+    if (mediaStream) return;
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        channelCount: 1,
+        sampleRate: 16000,
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
+    });
+  }
+
+  // 將 Float32Array PCM 轉成 16-bit PCM WAV Buffer
+  function encodeWAV(samples, sampleRate) {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+
+    function writeString(offset, str) {
+      for (let i = 0; i < str.length; i++) {
+        view.setUint8(offset + i, str.charCodeAt(i));
+      }
+    }
+
+    const numChannels = 1;
+    const bitsPerSample = 16;
+    const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+    const blockAlign = numChannels * bitsPerSample / 8;
+
+    writeString(0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeString(8, 'WAVE');
+    writeString(12, 'fmt ');
+    view.setUint32(16, 16, true);           // chunk size
+    view.setUint16(20, 1, true);            // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    writeString(36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+
+    // Float32 → Int16
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      offset += 2;
+    }
+
+    return new Uint8Array(buffer);
+  }
+
+  // 開始錄音
+  window.recorderBridge.onStartRecording(async () => {
+    try {
+      await initMicrophone();
+      pcmChunks = [];
+      isRecording = true;
+
+      audioContext = new AudioContext({ sampleRate: 16000 });
+      const source = audioContext.createMediaStreamSource(mediaStream);
+
+      // ScriptProcessor 擷取 PCM 原始資料
+      scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+      scriptProcessor.onaudioprocess = (e) => {
+        if (!isRecording) return;
+        const data = e.inputBuffer.getChannelData(0);
+        pcmChunks.push(new Float32Array(data));
+      };
+
+      source.connect(scriptProcessor);
+      scriptProcessor.connect(audioContext.destination);
+
+      console.log('[recorder] 開始 PCM 錄音，sampleRate:', audioContext.sampleRate);
+    } catch (err) {
+      console.error('錄音啟動失敗:', err);
+    }
+  });
+
+  // 停止錄音，轉成 WAV 後送出
+  window.recorderBridge.onStopRecording(() => {
+    if (!isRecording) return;
+    isRecording = false;
+
+    // 合併所有 PCM chunks
+    const totalLength = pcmChunks.reduce((sum, c) => sum + c.length, 0);
+    const combined = new Float32Array(totalLength);
+    let offset = 0;
+    for (const chunk of pcmChunks) {
+      combined.set(chunk, offset);
+      offset += chunk.length;
+    }
+
+    // 轉成 WAV
+    const wavBuffer = encodeWAV(combined, audioContext.sampleRate);
+    console.log('[recorder] WAV 大小:', wavBuffer.length, 'bytes');
+
+    // 清理
+    if (scriptProcessor) {
+      scriptProcessor.disconnect();
+      scriptProcessor = null;
+    }
+    audioContext.close();
+    audioContext = null;
+
+    // 送出 WAV（固定格式 audio/wav）
+    window.recorderBridge.sendAudioData(Array.from(wavBuffer), 'audio/wav');
+  });
+</script>
+</body>
+</html>

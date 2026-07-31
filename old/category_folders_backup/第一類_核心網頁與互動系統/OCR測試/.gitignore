@@ -1,0 +1,13 @@
+video_output/
+video_workspace/
+video_web_workspace/
+*.mp4
+*.wav
+*.mp3
+*.pdf
+__pycache__/
+*.spec
+build/
+dist/
+pdf_text_output.txt
+pdf_text_output_utf8.txt

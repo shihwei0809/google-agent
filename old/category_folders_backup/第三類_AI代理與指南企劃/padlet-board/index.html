@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的雲端留言板 | Padlet 創意看板</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- App Wallpaper Background -->
+  <div class="app-background" id="appBackground"></div>
+  <div class="app-background-overlay" id="appBackgroundOverlay"></div>
+
+  <!-- Main Container -->
+  <div class="app-container">
+    
+    <!-- Top Header Navigation -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-area">
+          <i data-lucide="clipboard-list" class="logo-icon"></i>
+          <span class="logo-text">CollabBoard</span>
+          <span id="syncStatus" class="sync-status" style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; color: #a5b4fc; background: rgba(165, 180, 252, 0.12); padding: 3px 8px; border-radius: 12px; font-weight: 600; margin-left: 8px; border: 1px solid rgba(165, 180, 252, 0.2);">
+            <i data-lucide="loader" class="animate-spin" style="width: 12px; height: 12px;"></i> 連線中
+          </span>
+          <span id="adminBadge" class="admin-badge" style="display: none; align-items: center; gap: 4px; font-size: 0.7rem; color: #f87171; background: rgba(248, 113, 113, 0.12); padding: 3px 8px; border-radius: 12px; font-weight: 600; margin-left: 8px; border: 1px solid rgba(248, 113, 113, 0.2);">
+            <i data-lucide="shield-check" style="width: 12px; height: 12px;"></i> 管理員
+          </span>
+          <span id="localTestBadge" class="local-test-badge" style="display: none; align-items: center; gap: 4px; font-size: 0.7rem; color: #fbbf24; background: rgba(251, 191, 36, 0.12); padding: 3px 8px; border-radius: 12px; font-weight: 600; margin-left: 8px; border: 1px solid rgba(251, 191, 36, 0.2);">
+            <i data-lucide="beaker" style="width: 12px; height: 12px;"></i> 本機測試
+          </span>
+        </div>
+        <div class="board-title-container">
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <h1 id="boardTitle" class="board-title" contenteditable="true" spellcheck="false">我的創意留言板</h1>
+            <div class="date-picker-wrapper" id="datePickerWrapper">
+              <i data-lucide="calendar" class="calendar-icon" style="width: 14px; height: 14px; color: rgba(255,255,255,0.6);"></i>
+              <input type="date" id="boardDatePicker" class="board-date-input">
+            </div>
+          </div>
+          <p id="boardDescription" class="board-description" contenteditable="true" spellcheck="false">點擊以編輯標題與描述，雙擊空白處或點擊欄位下方 "+" 開始張貼</p>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <!-- Search bar -->
+        <div class="search-wrapper">
+          <i data-lucide="search" class="search-icon"></i>
+          <input type="text" id="searchBar" placeholder="搜尋卡片、作者..." spellcheck="false">
+          <button id="clearSearch" class="clear-search-btn" style="display: none;">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+          <button id="addColumnBtn" class="btn btn-primary" title="新增欄位">
+            <i data-lucide="plus-circle"></i>
+            <span>新增欄位</span>
+          </button>
+
+          <button id="slideshowBtn" class="btn btn-secondary" title="投影片放映">
+            <i data-lucide="presentation"></i>
+            <span>投影片</span>
+          </button>
+
+          <button id="shareBtn" class="btn btn-secondary" title="分享看板">
+            <i data-lucide="share-2"></i>
+            <span>分享</span>
+          </button>
+          
+          <button id="bgSettingsBtn" class="btn btn-secondary" title="變更背景">
+            <i data-lucide="palette"></i>
+            <span>變更背景</span>
+          </button>
+
+          <button id="guideBtn" class="btn btn-secondary" title="操作說明">
+            <i data-lucide="help-circle"></i>
+            <span>操作說明</span>
+          </button>
+
+
+
+          <div class="dropdown">
+            <button id="dataMenuBtn" class="btn btn-secondary" title="資料管理">
+              <i data-lucide="database"></i>
+              <span>資料管理</span>
+            </button>
+            <div class="dropdown-content" id="dataDropdown">
+              <button id="exportJsonBtn">
+                <i data-lucide="download"></i> 匯出備份 (JSON)
+              </button>
+              <button id="importJsonBtn">
+                <i data-lucide="upload"></i> 匯入還原 (JSON)
+              </button>
+              <input type="file" id="importFileInput" accept=".json" style="display: none;">
+              <a id="viewLogBtn" href="#" target="_blank" style="display: none; align-items: center; gap: 8px;">
+                <i data-lucide="file-spreadsheet" style="width: 14px; height: 14px; color: #34d399;"></i> 查看歷史操作日誌
+              </a>
+              <button id="clearAllBtn" class="btn-danger">
+                <i data-lucide="trash-2"></i> 重設留言板
+              </button>
+              <hr style="border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0;">
+              <button id="adminLoginBtn">
+                <i data-lucide="shield-check"></i> <span>管理員登入</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Kanban Board Area -->
+    <main class="board-canvas" id="boardCanvas">
+      <!-- Columns will be dynamically generated by JS -->
+      <div class="columns-wrapper" id="columnsWrapper">
+        <!-- Dynamic column structure placeholder:
+        <div class="board-column">
+          <div class="column-header">
+            <h2 class="column-title" contenteditable="true">欄位標題</h2>
+            <button class="column-options-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <button class="add-card-inline-btn"><i data-lucide="plus"></i></button>
+          <div class="cards-container">
+             ...cards...
+          </div>
+        </div>
+        -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Add/Edit Card Modal -->
+  <div class="modal-overlay" id="cardModal">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">新增卡片</h3>
+        <button class="close-modal-btn" id="closeCardModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="cardForm">
+          <input type="hidden" id="cardId">
+          <input type="hidden" id="columnId">
+          
+          <div class="form-group">
+            <label for="cardAuthorInput">您的姓名 (或暱稱)</label>
+            <div class="input-with-icon">
+              <i data-lucide="user"></i>
+              <input type="text" id="cardAuthorInput" placeholder="輸入姓名，例如：宋睿偉" required spellcheck="false">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cardTitleInput">卡片標題</label>
+            <input type="text" id="cardTitleInput" placeholder="寫個吸引人的標題吧..." required spellcheck="false">
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 6px;">
+              <label for="cardContentInput" style="margin-bottom: 0;">卡片內容</label>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <button type="button" id="cardMicBtn" class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; height: auto; display: flex; align-items: center; gap: 4px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.3); color: #a7f3d0;">
+                  <i data-lucide="mic" style="width: 12px; height: 12px;"></i> 語音輸入
+                </button>
+                <select id="aiPolishType" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff; font-size: 0.75rem; border-radius: var(--border-radius-sm); padding: 3px 6px; outline: none; cursor: pointer; font-family: var(--font-family); height: 24px;">
+                  <option value="polish" style="background: #1e1b4b; color: white;">✨ AI 潤飾</option>
+                  <option value="bullet" style="background: #1e1b4b; color: white;">📋 條列化</option>
+                  <option value="summarize" style="background: #1e1b4b; color: white;">🔍 總結摘要</option>
+                </select>
+                <button type="button" id="aiPolishBtn" class="btn btn-secondary" style="font-size: 0.75rem; padding: 3px 8px; height: auto; display: flex; align-items: center; gap: 4px; background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); color: #e9d5ff;">
+                  執行
+                </button>
+              </div>
+            </div>
+            <textarea id="cardContentInput" placeholder="在此輸入內容描述..." rows="4" required spellcheck="false"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="cardLinkInput">超連結 (選填)</label>
+            <div class="input-with-icon">
+              <i data-lucide="link-2"></i>
+              <input type="url" id="cardLinkInput" placeholder="貼上網址 (例如 https://github.com/...)" spellcheck="false">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>圖片 (選填)</label>
+            <div class="image-upload-control">
+              <div class="input-with-icon" style="flex-grow: 1;">
+                <i data-lucide="image"></i>
+                <input type="url" id="cardImgInput" placeholder="貼上網址 或 點擊右側上傳" spellcheck="false">
+              </div>
+              <button type="button" class="btn btn-secondary upload-btn" id="triggerUploadBtn">
+                <i data-lucide="upload"></i> 上傳圖片
+              </button>
+              <input type="file" id="cardImgFileInput" accept="image/*" style="display: none;">
+            </div>
+            <div class="upload-progress-container" id="uploadProgressContainer" style="display: none;">
+              <i data-lucide="loader" class="animate-spin" style="width: 14px; height: 14px;"></i>
+              <span>圖片上傳至雲端硬碟中...</span>
+            </div>
+            <div class="img-preview-container" id="imgPreviewContainer" style="display: none;">
+              <img id="formImgPreview" src="" alt="圖片預覽">
+              <button type="button" id="removeImgPreviewBtn" class="remove-preview-btn"><i data-lucide="trash"></i></button>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelCardBtn">取消</button>
+            <button type="submit" class="btn btn-primary" id="saveCardBtn">張貼</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Background Settings Modal -->
+  <div class="modal-overlay" id="bgModal">
+    <div class="modal-content glass-card bg-settings-modal">
+      <div class="modal-header">
+        <h3>變更看板背景</h3>
+        <button class="close-modal-btn" id="closeBgModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <h4>推薦背景圖片</h4>
+        <div class="bg-gallery">
+          <!-- Colosseum Background (similar to user screenshot) -->
+          <div class="bg-option-item" data-bg-type="image" data-bg-value="https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=1200" style="background-image: url('https://images.unsplash.com/photo-1552832230-c0197dd311b5?q=80&w=150&h=100&fit=crop');">
+            <span class="bg-name">古羅馬</span>
+          </div>
+          <!-- Abstract Gradient -->
+          <div class="bg-option-item" data-bg-type="image" data-bg-value="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=1200" style="background-image: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=150&h=100&fit=crop');">
+            <span class="bg-name">極光漸層</span>
+          </div>
+          <!-- Dark Starry Night -->
+          <div class="bg-option-item" data-bg-type="image" data-bg-value="https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?q=80&w=1200" style="background-image: url('https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?q=80&w=150&h=100&fit=crop');">
+            <span class="bg-name">璀璨星空</span>
+          </div>
+          <!-- Cozy Workspace -->
+          <div class="bg-option-item" data-bg-type="image" data-bg-value="https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1200" style="background-image: url('https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=150&h=100&fit=crop');">
+            <span class="bg-name">極簡桌面</span>
+          </div>
+          <!-- Nature forest -->
+          <div class="bg-option-item" data-bg-type="image" data-bg-value="https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=1200" style="background-image: url('https://images.unsplash.com/photo-1448375240586-882707db888b?q=80&w=150&h=100&fit=crop');">
+            <span class="bg-name">迷霧森林</span>
+          </div>
+          <!-- Clean Wall/Texture -->
+          <div class="bg-option-item" data-bg-type="image" data-bg-value="https://images.unsplash.com/photo-1531685250784-7569952593d2?q=80&w=1200" style="background-image: url('https://images.unsplash.com/photo-1531685250784-7569952593d2?q=80&w=150&h=100&fit=crop');">
+            <span class="bg-name">質感微粒</span>
+          </div>
+        </div>
+
+        <h4 style="margin-top: 20px;">純色與漸層</h4>
+        <div class="bg-gallery color-gallery">
+          <div class="bg-option-item color-item" data-bg-type="color" data-bg-value="#121212" style="background-color: #121212;">
+            <span class="bg-name">極客黑</span>
+          </div>
+          <div class="bg-option-item color-item" data-bg-type="color" data-bg-value="linear-gradient(135deg, #667eea 0%, #764ba2 100%)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+            <span class="bg-name">夢幻紫</span>
+          </div>
+          <div class="bg-option-item color-item" data-bg-type="color" data-bg-value="linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%)" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);">
+            <span class="bg-name">蜜桃粉</span>
+          </div>
+          <div class="bg-option-item color-item" data-bg-type="color" data-bg-value="linear-gradient(135deg, #134e5e 0%, #71b280 100%)" style="background: linear-gradient(135deg, #134e5e 0%, #71b280 100%);">
+            <span class="bg-name">初夏綠</span>
+          </div>
+        </div>
+
+        <h4 style="margin-top: 20px;">自訂圖片網址</h4>
+        <div class="form-group custom-bg-group">
+          <div class="input-with-icon">
+            <i data-lucide="image"></i>
+            <input type="url" id="customBgInput" placeholder="輸入圖片 URL (例如 https://example.com/bg.jpg)" spellcheck="false">
+          </div>
+          <button type="button" id="applyCustomBgBtn" class="btn btn-primary">套用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Guide Modal -->
+  <div class="modal-overlay" id="guideModal">
+    <div class="modal-content glass-card user-guide-content" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+          <i data-lucide="book-open" style="color: var(--primary-color);"></i> 資材課留言板使用說明
+        </h3>
+        <button class="close-modal-btn" id="closeGuideModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary); max-height: 65vh; overflow-y: auto; padding-right: 6px;">
+        <div style="background: rgba(99, 102, 241, 0.1); border-left: 4px solid var(--primary-color); padding: 12px; border-radius: 4px; margin-bottom: 20px;">
+          <h4 style="color: var(--text-primary); margin-bottom: 4px; font-size: 0.95rem;">📢 系統簡介</h4>
+          <p style="margin: 0;">本系統是專為<b>資材課</b>同仁開發的雲端協作看板，支援工作交接、異常通報、稽核巡檢、SOP 規範共享及改善追蹤。所有修改皆會即時、異步同步到 Google 雲端資料庫。</p>
+        </div>
+
+        <h4 style="color: var(--text-primary); margin: 15px 0 8px 0; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">🎯 基礎操作教學</h4>
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+          <li><b>新增欄位</b>：點選右上角【新增欄位】或在背景空白處<b>雙擊滑鼠左鍵</b>即可新增一個主題分類。</li>
+          <li><b>修改欄位標題</b>：直接點選欄位標題，編輯完畢後點選空白處或按 <code>Enter</code> 即可儲存。</li>
+          <li><b>張貼新卡片</b>：點選欄位下方的【張貼在此欄位】或 <code>+</code> 按鈕。您可以填寫姓名、標題與內文，並可選填<b>超連結</b>或<b>圖片網址</b>，系統會自動生成卡片預覽。</li>
+          <li><b>編輯與刪除卡片</b>：將滑鼠懸停於卡片上，右上角會顯示編輯 ✏️ 和刪除 🗑️ 按鈕，點選即可操作。</li>
+        </ul>
+
+        <h4 style="color: var(--text-primary); margin: 20px 0 8px 0; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">💬 協作與討論</h4>
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+          <li><b>愛心確認 (點讚)</b>：點選卡片左下角的「愛心」圖示，表示「已閱」或「已核對」。</li>
+          <li><b>留言討論</b>：點選卡片下方的「訊息氣球」圖示展開留言區，輸入您的留言內容並按 <code>Enter</code> 送出。</li>
+        </ul>
+
+        <h4 style="color: var(--text-primary); margin: 20px 0 8px 0; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">📈 簡報、分享與每日看板</h4>
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+          <li><b>每日切換</b>：點擊標題旁日曆可切換日期，若該日期無看板，會自動複製前一次的欄位結構以利快速張貼。</li>
+          <li><b>投影片放映</b>：點擊【投影片】進入全螢幕放映模式，可用鍵盤左右方向鍵切換，按 <code>Space</code> 下一張，按 <code>Esc</code> 退出，支援自動播映。</li>
+          <li><b>分享看板</b>：點擊【分享】獲取網址連結與即時 QR Code 條碼，便於手機快速掃描開啟協作。</li>
+        </ul>
+
+
+        <h4 style="color: var(--text-primary); margin: 20px 0 8px 0; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">🤖 AI 智慧助理「小鴻」</h4>
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+          <li><b>設定 API Key</b>：打開側邊欄點選 <code>⚙️</code> 設定您的 Gemini API 金鑰（儲存在您本機瀏覽器，保護機密不外洩），確認顯示為 <span style="color: #34d399;">🟢 服務就緒</span> 即可。</li>
+          <li><b>🎙️ 語音辨識輸入</b>：在卡片內容編輯區或 AI 側邊欄中，點選麥克風圖案即可口說輸入內容或語音提問。</li>
+          <li><b>✨ AI 文本處理</b>：卡片內容框上方可選擇【AI 潤飾】（標準三段式報告格式）、【條列化】或【總結摘要】並點擊執行，自動改寫排版。</li>
+          <li><b>🧠 一鍵 AI 5-Why 診斷</b>：點選卡片底部的【AI 診斷】按鈕，小鴻會對該卡片事件進行 5-Why 根因分析與預防 CAR 建議，並直接張貼為留言。</li>
+          <li><b>💬 智慧上下文對話</b>：點選「AI 助理」可開啟側邊欄對話，小鴻會自動讀取今日看板卡片資訊，解答同仁的品質通報與 ISO 規範問題。</li>
+        </ul>
+
+
+        <h4 style="color: var(--text-primary); margin: 20px 0 8px 0; font-size: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">📡 狀態指示燈與疑難排解</h4>
+        <ul style="padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
+          <li>☁️ <b>雲端已同步</b>：所有新增、點讚與留言已成功寫入 Google 雲端資料庫。</li>
+          <li>🔄 <b>同步中...</b>：資料正在與雲端通訊上傳，請稍候。</li>
+          <li>🔌 <b>本機模式</b> / ⚠️ <b>同步失敗</b>：代表網路斷線或發生 Google 帳號授權衝突。
+            <br><span style="color: #fcd34d;">💡 <b>解決方案：</b>當您的瀏覽器同時登入多個 Google 帳號時會被 Google 阻擋，<b>請使用瀏覽器的「無痕視窗 (Incognito)」</b>開啟此留言板，即可恢復正常同步！</span>
+          </li>
+        </ul>
+      </div>
+      <div class="modal-footer" style="margin-top: 15px; padding-top: 12px;">
+        <button type="button" class="btn btn-primary" id="closeGuideConfirmBtn">我知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slideshow Mode Overlay -->
+  <div class="slideshow-overlay" id="slideshowOverlay" style="display: none;">
+    <button class="slideshow-close-btn" id="closeSlideshowBtn" title="退出投影片 (Esc)">
+      <i data-lucide="x"></i>
+    </button>
+    
+    <div class="slideshow-container">
+      <div class="slide-card glass-card" id="activeSlideCard">
+        <div class="slide-header">
+          <span class="slide-column-badge" id="slideColBadge">欄位名稱</span>
+          <span class="slide-meta" id="slideMeta">作者 • 時間</span>
+        </div>
+        <div class="slide-body">
+          <h2 class="slide-title" id="slideTitle">卡片標題</h2>
+          <div class="slide-text" id="slideContent">卡片詳細內容...</div>
+          
+          <div class="slide-image-container" id="slideImageContainer" style="display: none;">
+            <img id="slideImage" src="" alt="投影片圖片">
+          </div>
+          
+          <div class="slide-link-container" id="slideLinkContainer" style="display: none;">
+            <a id="slideLink" href="" target="_blank" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 20px; text-decoration: none;">
+              <i data-lucide="external-link"></i> <span id="slideLinkLabel">開啟連結</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="slideshow-controls">
+      <button class="slideshow-nav-btn" id="prevSlideBtn" title="上一張 (左方向鍵)">
+        <i data-lucide="chevron-left"></i>
+      </button>
+      
+      <div class="slideshow-progress-info">
+        <span id="slideCounter">1 / 1</span>
+        <button id="playPauseSlideshowBtn" class="btn-play-pause" title="自動播放" style="background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: white; transition: all 0.2s;">
+          <i data-lucide="play" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      
+      <button class="slideshow-nav-btn" id="nextSlideBtn" title="下一張 (右方向鍵 / 空白鍵)">
+        <i data-lucide="chevron-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Share Modal -->
+  <div class="modal-overlay" id="shareModal">
+    <div class="modal-content glass-card share-modal-content" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3>分享看板與投影片</h3>
+        <button class="close-modal-btn" id="closeShareModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body share-modal-body" style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px;">
+        <p style="color: var(--text-secondary); margin: 0; font-size: 0.9rem;">分享此留言板連結給資材課同仁進行協作：</p>
+        
+        <div class="share-link-box" style="display: flex; width: 100%; gap: 8px;">
+          <input type="text" id="shareLinkInput" readonly value="" style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; border-radius: 6px; color: white; font-size: 0.85rem; outline: none;">
+          <button id="copyShareLinkBtn" class="btn btn-primary" style="padding: 0 16px; border-radius: 6px;">
+            <i data-lucide="copy" style="width: 14px; height: 14px; margin-right: 4px;"></i> 複製
+          </button>
+        </div>
+        
+        <div class="share-qr-container" style="margin-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 8px;">
+          <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600;">QR Code 掃描分享</h4>
+          <div class="qr-code-box" id="shareQrCode" style="background: white; padding: 8px; border-radius: 8px; width: 166px; height: 166px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+            <!-- QR Code image dynamically loaded -->
+          </div>
+          <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">使用手機相機掃描快速開啟本看板</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification system toast -->
+  <div class="toast-notification" id="toastNotification">
+    <i data-lucide="info" class="toast-icon"></i>
+    <span class="toast-message">操作成功</span>
+  </div>
+
+  <!-- Custom Context Menu or Action sheet for Columns (Alternative dropdowns) -->
+  <div class="col-menu-dropdown" id="colMenuDropdown" style="display: none;">
+    <button class="col-menu-item" id="colRenameBtn"><i data-lucide="edit"></i> 重命名欄位</button>
+    <button class="col-menu-item col-menu-danger" id="colDeleteBtn"><i data-lucide="trash-2"></i> 刪除此欄位</button>
+  </div>
+
+  <!-- Floating AI Assistant Button -->
+  <button id="aiSidebarBtn" class="ai-floating-btn" title="打開 AI 助理">
+    <i data-lucide="bot" class="ai-floating-icon"></i>
+    <span>AI 助理</span>
+  </button>
+
+  <!-- AI Assistant Sidebar -->
+  <div class="ai-sidebar" id="aiSidebar">
+    <div class="ai-sidebar-header">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <i data-lucide="sparkles" class="ai-icon-sparkle" style="color: #a78bfa; width: 18px; height: 18px;"></i>
+        <div>
+          <h3 style="margin: 0; font-size: 0.95rem; color: white; font-weight: 700;">小鴻 (AI助理)</h3>
+          <span style="font-size: 0.65rem; color: #a5b4fc; display: flex; align-items: center; gap: 4px; margin-top: 1px;">
+            <span class="ai-status-indicator" id="aiStatusIndicator" style="color: #ef4444; font-size: 0.5rem; vertical-align: middle; line-height: 1;">●</span> <span id="aiStatusText">金鑰未設定</span>
+          </span>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button id="aiConfigBtn" class="ai-header-btn" title="設定 API Key" style="background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 4px; transition: all 0.2s;">
+          <i data-lucide="settings" style="width: 16px; height: 16px;"></i>
+        </button>
+        <button id="closeAiSidebarBtn" class="ai-header-btn" title="關閉側邊欄" style="background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 4px; transition: all 0.2s;">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+    </div>
+    
+    <div class="ai-sidebar-body">
+      <!-- Welcome Message & Prompts -->
+      <div class="ai-welcome-container" id="aiWelcomeContainer">
+        <div class="ai-avatar-glow" style="width: 50px; height: 50px; border-radius: 50%; background: rgba(167, 139, 250, 0.15); border: 1px solid rgba(167, 139, 250, 0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; box-shadow: 0 0 15px rgba(167, 139, 250, 0.3); animation: pulse-glow 2s infinite alternate;">
+          <i data-lucide="bot" style="width: 26px; height: 26px; color: #a78bfa;"></i>
+        </div>
+        <h4 style="margin: 0 0 8px 0; font-size: 1rem; color: white; text-align: center; font-family: 'Outfit', sans-serif;">您好！我是您的 AI 助理小鴻</h4>
+        <p style="margin: 0 0 20px 0; font-size: 0.8rem; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.5; padding: 0 10px;">
+          我可以幫您分析當前的品質異常、提供 5-Why 建議、起草 CAR 改善計畫或解答 ISO 規範疑問。請試試看點擊下方快捷提示：
+        </p>
+        <div class="ai-quick-prompts" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+          <button class="ai-quick-btn" data-prompt="請總結今天看板上的所有品質異常事件。" style="text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 8px; color: rgba(255,255,255,0.85); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif; outline: none;">📋 總結今日異常</button>
+          <button class="ai-quick-btn" data-prompt="對於今日的品質異常，有哪些緊急隔離與圍堵措施建議？" style="text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 8px; color: rgba(255,255,255,0.85); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif; outline: none;">🚨 建議圍堵對策</button>
+          <button class="ai-quick-btn" data-prompt="如何進行標準的 5-Why 分析？請以今日的品質異常為例。" style="text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 8px; color: rgba(255,255,255,0.85); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif; outline: none;">🔍 5-Why 分析教學</button>
+          <button class="ai-quick-btn" data-prompt="請問 ISO 9001 中，針對不合格品管制（Control of nonconforming outputs）的要求是什麼？" style="text-align: left; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 14px; border-radius: 8px; color: rgba(255,255,255,0.85); font-size: 0.8rem; cursor: pointer; transition: all 0.2s; font-family: 'Noto Sans TC', sans-serif; outline: none;">📖 查詢 ISO 9001 規範</button>
+        </div>
+      </div>
+      
+      <!-- Chat Messages List -->
+      <div class="ai-chat-messages" id="aiChatMessages" style="display: none;"></div>
+    </div>
+    
+    <div class="ai-sidebar-footer">
+      <div class="ai-input-wrapper">
+        <textarea id="aiChatInput" placeholder="輸入交接或工作問題..." rows="1" spellcheck="false"></textarea>
+        <button type="button" id="aiMicBtn" title="語音輸入" style="background: none; border: none; color: #a78bfa; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s, color 0.2s; margin-right: 4px;">
+          <i data-lucide="mic" style="width: 16px; height: 16px;"></i>
+        </button>
+        <button id="sendAiMessageBtn" title="發送">
+          <i data-lucide="send"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="ai-sidebar-overlay" id="aiSidebarOverlay"></div>
+
+  <!-- AI API Key Config Modal -->
+  <div class="modal-overlay" id="aiKeyModal">
+    <div class="modal-content glass-card" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3>AI 服務設定</h3>
+        <button class="close-modal-btn" id="closeAiKeyModalBtn">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
+          設定您的 AI 助理服務。您可以選擇使用 <strong>Google Gemini</strong> 或 <strong>Groq Cloud</strong>。若您無自訂金鑰，系統將預設使用內建的 Groq 服務。
+        </p>
+        <div class="form-group">
+          <label for="aiProviderSelect">AI 服務商</label>
+          <select id="aiProviderSelect" style="width: 100%; padding: 8px 12px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: white; font-family: var(--font-family); outline: none; margin-bottom: 15px; cursor: pointer;">
+            <option value="groq" style="background: #1e1b4b; color: white;">Groq Cloud (Llama 3.3)</option>
+            <option value="gemini" style="background: #1e1b4b; color: white;">Google Gemini (2.5 Flash)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="geminiApiKeyInput" id="apiKeyLabel">Gemini API Key</label>
+          <div class="input-with-icon">
+            <i data-lucide="key"></i>
+            <input type="password" id="geminiApiKeyInput" placeholder="請輸入 API Key (留空將使用系統預設 Groq)..." spellcheck="false" style="padding-left: 36px;">
+          </div>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: -8px; margin-bottom: 20px;">
+          沒有金鑰？ <a href="https://aistudio.google.com/app/apikey" id="apiKeyHelpLink" target="_blank" style="color: var(--primary-color); text-decoration: underline;">免費申請一個 Google Gemini 金鑰</a>
+        </div>
+        <div class="modal-footer" style="padding-top: 12px; margin-top: 10px;">
+          <button type="button" class="btn btn-secondary" id="cancelAiKeyBtn">取消</button>
+          <button type="button" class="btn btn-primary" id="saveAiKeyBtn">儲存設定</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom JS Application Logic -->
+  <script src="app.js"></script>
+
+<!-- PORTAL_RETURN_BADGE_V1 -->
+<script>
+(function() {
+    var badge = document.createElement('div');
+    badge.id = 'portal-return-badge';
+    badge.innerHTML = '🔙 返回專案大廳';
+    badge.style.position = 'fixed';
+    badge.style.top = '15px';
+    badge.style.right = '15px';
+    badge.style.zIndex = '99999';
+    badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+    badge.style.border = '1px solid #00f2fe';
+    badge.style.color = '#00f2fe';
+    badge.style.padding = '8px 16px';
+    badge.style.borderRadius = '20px';
+    badge.style.fontFamily = 'sans-serif';
+    badge.style.fontSize = '13px';
+    badge.style.fontWeight = 'bold';
+    badge.style.cursor = 'pointer';
+    badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    badge.style.transition = 'all 0.3s ease';
+    
+    badge.onmouseover = function() {
+        badge.style.transform = 'scale(1.05)';
+        badge.style.backgroundColor = '#00f2fe';
+        badge.style.color = '#000';
+        badge.style.boxShadow = '0 0 20px rgba(0, 242, 254, 0.5)';
+    };
+    badge.onmouseout = function() {
+        badge.style.transform = 'scale(1)';
+        badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+        badge.style.color = '#00f2fe';
+        badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    };
+    
+    badge.onclick = function() {
+        if (window.location.hostname.indexOf('netlify') !== -1) {
+            window.location.href = 'https://cerulean-praline-6b314d.netlify.app';
+        } else {
+            window.location.href = '../說明書/index.html';
+        }
+    };
+    
+    // Ensure body exists before appending
+    if (document.body) {
+        document.body.appendChild(badge);
+    } else {
+        window.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(badge);
+        });
+    }
+})();
+</script>
+<!-- PORTAL_RETURN_BADGE_V1_END -->
+
+</body>
+</html>
