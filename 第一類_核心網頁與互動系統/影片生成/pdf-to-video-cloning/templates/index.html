@@ -763,18 +763,32 @@
         </div>
         
         <!-- Speech Rate (Edge only note) -->
+
         <div id="speech-rate-container" style="margin-bottom: 24px;">
+
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+
             <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 — Edge TTS 專用 (Gemini TTS 自動感知)</label>
-            <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">稍微慢速 (0.9x · 最推薦)</span>
+
+            <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">正常 (1.0x)</span>
+
           </div>
-          <input type="range" id="rate-slider" min="0.5" max="2.0" step="0.1" value="0.9" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
+
+          <input type="range" id="rate-slider" min="1.0" max="2.0" step="0.1" value="1.0" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
+
           <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
-            <span>慢速 (0.5x)</span>
+
             <span>正常 (1.0x)</span>
-            <span>快速 (2.0x)</span>
+
+            <span>快速 (1.5x)</span>
+
+            <span>極快 (2.0x)</span>
+
           </div>
+
         </div>
+
+
 
         <!-- Auto Pause -->
         <div id="auto-pause-container" style="margin-bottom: 24px;">
@@ -1614,10 +1628,6 @@
       const aiBgmPromptInput = document.getElementById('ai-bgm-prompt');
       const aiBgmPrompt = aiBgmPromptInput ? aiBgmPromptInput.value.trim() : '';
 
-      // ── 前端 Debug 彈窗 ──
-      const engineLabel = currentTtsEngine === 'none' ? '靜音模式 (無語音)' : currentTtsEngine.toUpperCase();
-      const debugMsg = `🎬 【僅重新合成影片】參數確認：\n• 語音引擎：${engineLabel}\n• 圖片切換秒數：${noneDuration} 秒\n• 背景音樂：${enableBgm ? '已開啟 (' + bgmType + ')' : '關閉'}`;
-      alert(debugMsg);
 
       goStep(4);
       document.getElementById('progress-section').style.display = 'block';
