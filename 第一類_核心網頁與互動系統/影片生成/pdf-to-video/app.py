@@ -1225,8 +1225,15 @@ async def _run_generation(
                     try:
                         from moviepy import CompositeAudioClip
                         from moviepy.audio.fx import AudioLoop, AudioFadeOut
-                        
-                        bg_music = AudioFileClip(str(bgm_path))
+                        import tempfile, os
+
+                        # 先將 BGM 正規化到 -23 LUFS，確保與 TTS 語音音量基準一致
+                        norm_bgm_path = str(job_dir / "bgm_normalized.mp3")
+                        bgm_source = str(bgm_path)
+                        if normalize_bgm_loudness(bgm_source, norm_bgm_path):
+                            bgm_source = norm_bgm_path
+
+                        bg_music = AudioFileClip(bgm_source)
                         # 循環播放或裁切音樂對齊影片總長度
                         if bg_music.duration < final.duration:
                             bg_music = bg_music.with_effects([AudioLoop(duration=final.duration)])
@@ -1399,6 +1406,35 @@ async def load_job_data(job_id: str):
         "rate": rate,
         "auto_pause": auto_pause,
     }
+
+
+def normalize_bgm_loudness(input_path: str, output_path: str, target_lufs: float = -23.0) -> bool:
+    """使用 ffmpeg loudnorm 濾鏡將 BGM 音量正規化到目標 LUFS。
+    
+    預設 -23 LUFS（EBU R128 廣播標準），確保 BGM 與 TTS 語音音量基準一致，
+    讓用戶的音量滑桿能有效控制 BGM 相對於語音的比例。
+    
+    Returns True on success, False on failure (caller should use original file).
+    """
+    try:
+        import subprocess
+        cmd = [
+            "ffmpeg", "-y", "-i", input_path,
+            "-af", f"loudnorm=I={target_lufs}:LRA=11:TP=-1.5",
+            "-ar", "44100", "-ac", "2",
+            "-c:a", "libmp3lame", "-q:a", "2",
+            output_path
+        ]
+        result = subprocess.run(cmd, capture_output=True, timeout=60)
+        if result.returncode == 0:
+            logger.info(f"BGM normalized to {target_lufs} LUFS: {output_path}")
+            return True
+        else:
+            logger.warning(f"BGM loudnorm failed (rc={result.returncode}): {result.stderr.decode(errors='ignore')[-200:]}")
+            return False
+    except Exception as e:
+        logger.warning(f"normalize_bgm_loudness error: {e}")
+        return False
 
 
 def create_bgm_watermark_png(output_png_path: str, text: str = "🎵 BGM: Background Music"):
@@ -1630,7 +1666,14 @@ async def _run_rebuild(
             if bgm_path and bgm_path.exists():
                 try:
                     logger.info(f"Rebuild mixing BGM: {bgm_path}, volume={bgm_volume}")
-                    bg_music = AudioFileClip(str(bgm_path))
+
+                    # 先將 BGM 正規化到 -23 LUFS，確保與 TTS 語音音量基準一致
+                    norm_bgm_path = str(job_dir / "bgm_normalized.mp3")
+                    bgm_source = str(bgm_path)
+                    if normalize_bgm_loudness(bgm_source, norm_bgm_path):
+                        bgm_source = norm_bgm_path
+
+                    bg_music = AudioFileClip(bgm_source)
                     if bg_music.duration < final.duration:
                         bg_music = bg_music.with_effects([AudioLoop(duration=final.duration)])
                     else:
