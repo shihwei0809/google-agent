@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 面試全流程系統：事前履歷分析、擬定提問與現場語音特質評估</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .tab-active { border-color: #6366f1; color: #818cf8; font-weight: 700; background: rgba(99, 102, 241, 0.1); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 relative">
+
+  <!-- Top Bar -->
+  <div class="max-w-6xl mx-auto flex justify-between items-center mb-6">
+    <div class="flex items-center gap-2">
+      <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
+      <span class="text-xs text-slate-400 font-mono">Status: Ready</span>
+    </div>
+    <button id="keyConfigBtn" onclick="openKeyModal()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all cursor-pointer">
+      <span>🔑 API Key 管理</span>
+      <span id="keyCountBadge" class="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-bold">0 組</span>
+    </button>
+  </div>
+
+  <div class="max-w-6xl mx-auto space-y-8">
+    <!-- Header -->
+    <header class="text-center space-y-3">
+      <div class="inline-block px-3.5 py-1 bg-indigo-500/10 border border-indigo-500/30 rounded-full text-indigo-400 text-xs font-semibold tracking-wide uppercase">
+        HR & Management Intelligence Vault
+      </div>
+      <h1 class="text-3xl md:text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400">
+        AI 面試全流程：事前履歷分析、提問擬定與現場語音特質評估
+      </h1>
+      <p class="text-slate-400 text-xs md:text-sm max-w-3xl mx-auto leading-relaxed">
+        從面試前「履歷解析與針對性提問擬定」，到面試中「長錄音備份與 DISC 語音特質評估」，一站式幫助 HR 與主管精準選才。
+      </p>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="glass rounded-2xl p-2 flex justify-center gap-2 md:gap-4 text-xs md:text-sm shadow-xl">
+      <button id="tabPreBtn" onclick="switchStage('pre')" class="tab-active flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer">
+        <span>📋 階段一：事前履歷預先分析與提問擬定</span>
+      </button>
+      <button id="tabInterviewBtn" onclick="switchStage('interview')" class="flex-1 py-3 px-4 rounded-xl text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2 transition-all cursor-pointer">
+        <span>🎙️ 階段二：現場面試錄音與 DISC 語音分析</span>
+      </button>
+    </div>
+
+    <!-- Global Loading Indicator -->
+    <div id="loading" class="hidden glass rounded-2xl p-8 text-center space-y-4 shadow-2xl border-indigo-500/40 border">
+      <div class="inline-block w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+      <p id="loadingMsg" class="text-indigo-300 font-medium text-sm md:text-base">Gemini AI 正在深度分析中...</p>
+    </div>
+
+    <!-- STAGE 1: PRE-INTERVIEW RESUME ANALYSIS PANEL -->
+    <div id="stagePrePanel" class="space-y-8">
+      <div class="glass rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl">
+        <div class="border-b border-slate-800 pb-4">
+          <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+            <span class="text-indigo-400">📄</span> 上傳履歷與擬定提問
+          </h2>
+          <p class="text-slate-400 text-xs mt-1">支援上傳 PDF、圖片 (104 履歷截圖/掃描檔) 或直接複製貼入履歷文字</p>
+        </div>
+
+        <form id="preAnalyzeForm" onsubmit="handlePreAnalyzeSubmit(event)" class="space-y-6">
+          <!-- Position & Department Selection -->
+          <div class="space-y-3">
+            <div class="flex flex-col md:flex-row justify-between md:items-center gap-2">
+              <label class="block text-xs font-bold text-indigo-300">🎯 應徵目標職務與部門：</label>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="text-slate-400">選單快速帶入：</span>
+                <select id="preTargetPosSelect" onchange="onPrePosSelectChange(this.value)" class="bg-slate-950 border border-indigo-500/40 rounded-lg text-xs px-3 py-1.5 text-indigo-300 focus:outline-none focus:border-indigo-500 font-medium">
+                  <option value="" disabled selected>-- 請選擇應徵職務類別 --</option>
+                  <optgroup label="🏭 勝一化工 & 廠區管理類">
+                    <option value="【彰濱廠區】助理管理師">【彰濱廠區】助理管理師 [推薦]</option>
+                    <option value="【彰濱廠區】品管/檢驗工程師">【彰濱廠區】品管/檢驗工程師</option>
+                    <option value="【彰濱廠區】現場生產/化學工程師">【彰濱廠區】現場生產/化學工程師</option>
+                    <option value="【彰濱廠區】環安衛 (ESH) 管理師">【彰濱廠區】環安衛 (ESH) 管理師</option>
+                    <option value="廠務 / 設備維護運轉工程師">廠務 / 設備維護運轉工程師</option>
+                  </optgroup>
+                  <optgroup label="📦 資材與物料供應鏈類">
+                    <option value="資材部 - 現場助理工程師">資材部 - 現場助理工程師 [推薦]</option>
+                    <option value="資材部 - 資材工程師">資材部 - 資材工程師</option>
+                    <option value="資材部 - 資材行政專員">資材部 - 資材行政專員</option>
+                    <option value="倉管 / 物料管理員">倉管 / 物料管理員</option>
+                    <option value="採購專員 / 物料控制 (MC)">採購專員 / 物料控制 (MC)</option>
+                  </optgroup>
+                  <optgroup label="💼 行政、財務與人資類">
+                    <option value="會計行政人員 / 財務專員">會計行政人員 / 財務專員</option>
+                    <option value="行政管理助理 / 專員">行政管理助理 / 專員</option>
+                    <option value="人資 (HR) 招募/訓練管理師">人資 (HR) 招募/訓練管理師</option>
+                    <option value="高階主管特別助理 (特助)">高階主管特別助理 (特助)</option>
+                  </optgroup>
+                  <optgroup label="🔬 研發品保與技術專案類">
+                    <option value="研發 (RD) 化學工程師">研發 (RD) 化學工程師</option>
+                    <option value="資訊 / 軟體開發工程師">資訊 / 軟體開發工程師</option>
+                    <option value="品保 (QA/QC) 系統工程師">品保 (QA/QC) 系統工程師</option>
+                  </optgroup>
+                  <optgroup label="📢 業務行銷與客服支援類">
+                    <option value="國內 / 國外業務專員">國內 / 國外業務專員</option>
+                    <option value="行銷企劃 / 電商營運專員">行銷企劃 / 電商營運專員</option>
+                    <option value="客戶服務 / 訂單後勤專員">客戶服務 / 訂單後勤專員</option>
+                  </optgroup>
+                  <optgroup label="🌐 通用">
+                    <option value="通用跨部門人才評估">通用跨部門人才評估</option>
+                  </optgroup>
+                </select>
+              </div>
+            </div>
+
+            <!-- Quick Preset Tags -->
+            <div class="flex flex-wrap gap-1.5 pt-1">
+              <button type="button" onclick="setPrePosition('【彰濱廠區】助理管理師')" class="px-2.5 py-1 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 rounded-lg text-xs font-semibold border border-indigo-500/30 cursor-pointer">【彰濱廠區】助理管理師</button>
+              <button type="button" onclick="setPrePosition('資材部 - 現場助理工程師')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">資材部 - 現場助理工程師</button>
+              <button type="button" onclick="setPrePosition('資材部 - 資材工程師')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">資材部 - 資材工程師</button>
+              <button type="button" onclick="setPrePosition('資材部 - 資材行政專員')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">資材部 - 資材行政專員</button>
+              <button type="button" onclick="setPrePosition('會計行政人員')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">會計行政人員</button>
+              <button type="button" onclick="setPrePosition('倉管 / 物料管理員')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">倉管/物料員</button>
+              <button type="button" onclick="setPrePosition('研發 (RD) 化學工程師')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">研發化學工程師</button>
+              <button type="button" onclick="setPrePosition('人資 (HR) 招募/訓練管理師')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">人資HR管理師</button>
+            </div>
+
+            <!-- Input Box -->
+            <input type="text" id="preTargetPos" required value="【彰濱廠區】助理管理師" placeholder="請點選上方標籤、選擇下拉清單或直接在此輸入自訂職務..." class="w-full bg-slate-950 border border-indigo-500/40 rounded-xl p-3 text-sm text-slate-100 focus:outline-none focus:border-indigo-500 font-medium">
+          </div>
+
+          <!-- File Upload & Text Area Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Upload Resume File -->
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-slate-300">📁 上傳人資給的履歷檔案 (PDF / 圖片 / TXT)：</label>
+              <div class="border-2 border-dashed border-slate-700 hover:border-indigo-500/60 rounded-xl p-6 text-center space-y-3 bg-slate-900/50 transition-all relative">
+                <input type="file" id="resumeFileInput" accept=".pdf,image/*,.txt" onchange="handleFileSelect(event)" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                <div class="text-3xl">📎</div>
+                <div class="space-y-1">
+                  <p id="fileStatusText" class="text-xs text-slate-300 font-medium">點擊或拖曳履歷檔案至此處</p>
+                  <p class="text-[11px] text-slate-500">支援 104 履歷 PDF、圖片檔、掃描檔與文字檔</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Paste Resume Text -->
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-slate-300">📝 或直接貼入履歷文字內容：</label>
+              <textarea id="resumeTextArea" rows="5" placeholder="將 104 履歷內文、自傳、工作經歷文字貼於此處..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 leading-relaxed font-mono"></textarea>
+            </div>
+          </div>
+
+          <div class="text-center pt-2">
+            <button type="submit" class="px-8 py-3.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 font-bold rounded-xl text-sm transition-all shadow-xl hover:shadow-indigo-500/25 cursor-pointer flex items-center justify-center gap-2 mx-auto">
+              <span>⚡ 開始事前履歷 AI 分析與擬定提問</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Pre-interview Analysis Result Display -->
+      <div id="preResultSection" class="hidden space-y-8">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4 flex-wrap gap-4">
+          <div>
+            <h2 id="preCandidateHeader" class="text-2xl font-bold text-slate-100">事前履歷分析與面試提問報告</h2>
+            <div class="flex items-center gap-3 text-xs text-slate-400 mt-1">
+              <span id="preTimeBadge"></span>
+              <span id="prePosBadge" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded font-bold"></span>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <button onclick="transferToInterview()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+              <span>🚀 帶入應徵者並開啟現場錄音</span>
+            </button>
+            <a id="downloadPreDocxBtn" href="#" target="_blank" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+              <span>📄 下載 Word 報告 (.docx)</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Overview Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="glass rounded-2xl p-6 space-y-3 col-span-1 md:col-span-2">
+            <h3 class="text-xs uppercase tracking-wider text-indigo-400 font-bold">應徵者背景簡介與匹配總評</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-900/80 p-3 rounded-xl text-xs">
+              <div><span class="text-slate-400 block">姓名/年齡：</span><span id="preNameVal" class="font-bold text-slate-100">---</span></div>
+              <div><span class="text-slate-400 block">最高學歷：</span><span id="preEduVal" class="font-bold text-slate-100">---</span></div>
+              <div><span class="text-slate-400 block">總工作年資：</span><span id="preExpVal" class="font-bold text-slate-100">---</span></div>
+              <div><span class="text-slate-400 block">最近職務：</span><span id="preRecentJobVal" class="font-bold text-slate-100">---</span></div>
+            </div>
+            <p id="preMatchSummary" class="text-slate-200 text-sm leading-relaxed pt-2">---</p>
+          </div>
+
+          <div class="glass rounded-2xl p-6 space-y-2 text-center flex flex-col justify-center items-center border-indigo-500/30 border">
+            <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold">整體履歷契合度</h3>
+            <div id="preMatchScore" class="text-5xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-indigo-400 font-mono">--</div>
+            <span class="text-xs text-slate-400 font-medium">/ 100 分</span>
+          </div>
+        </div>
+
+        <!-- Skill & Risks Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Strengths & Matching Skills -->
+          <div class="glass rounded-2xl p-6 space-y-4 border-l-4 border-emerald-500">
+            <h3 class="text-base font-bold text-emerald-400 flex items-center gap-2">
+              <span>✓</span> 核心優勢與符合職務需求技能
+            </h3>
+            <div class="space-y-2 text-xs">
+              <div>
+                <span class="font-bold text-slate-300 block mb-1">【三大核心亮點】</span>
+                <ul id="preStrengthsList" class="list-disc list-inside space-y-1 text-slate-300"></ul>
+              </div>
+              <div class="pt-2 border-t border-slate-800">
+                <span class="font-bold text-slate-300 block mb-1">【符合項目】</span>
+                <ul id="preMatchSkillsList" class="list-disc list-inside space-y-1 text-slate-300"></ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gap Skills & Risks -->
+          <div class="glass rounded-2xl p-6 space-y-4 border-l-4 border-rose-500">
+            <h3 class="text-base font-bold text-rose-400 flex items-center gap-2">
+              <span>⚠️</span> 面試前關鍵疑點與潛在風險
+            </h3>
+            <div class="space-y-2 text-xs">
+              <div>
+                <span class="font-bold text-slate-300 block mb-1">【技能落差或待釐清】</span>
+                <ul id="preMissingSkillsList" class="list-disc list-inside space-y-1 text-slate-300"></ul>
+              </div>
+              <div class="pt-2 border-t border-slate-800">
+                <span class="font-bold text-slate-300 block mb-1">【歷練轉折與通勤/心態疑點】</span>
+                <p id="preCareerAnalysis" class="text-slate-300 leading-relaxed mb-2"></p>
+                <ul id="preRisksList" class="list-disc list-inside space-y-1 text-rose-300 font-medium"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tailored Interview Questions -->
+        <div class="glass rounded-2xl p-6 md:p-8 space-y-6 border border-indigo-500/30">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <h3 class="text-lg font-bold text-indigo-300 flex items-center gap-2">
+              <span>💡</span> 建議面試提問題目與觀察重點指南
+            </h3>
+            <span class="text-xs text-slate-400">專為本應徵者量身訂製</span>
+          </div>
+
+          <div id="preQuestionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 2: LIVE VOICE INTERVIEW & DISC ANALYSIS PANEL -->
+    <div id="stageInterviewPanel" class="hidden space-y-8">
+      <!-- Recording Control Panel -->
+      <div class="glass rounded-2xl p-8 space-y-6 text-center shadow-2xl">
+        <div class="flex flex-col items-center justify-center space-y-4">
+          <canvas id="visualizer" width="600" height="80" class="w-full max-w-lg h-20 rounded-lg bg-slate-900/60 border border-slate-800"></canvas>
+
+          <!-- Department & Backup Interval Selector -->
+          <div class="flex items-center gap-4 flex-wrap justify-center bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-2 text-xs text-slate-300">
+              <span class="font-bold text-indigo-400">🎯 應徵單位/職缺：</span>
+              <select id="targetDeptSelect" class="bg-slate-950 border border-indigo-500/40 rounded-lg text-xs px-3 py-1.5 text-slate-100 focus:outline-none focus:border-indigo-500 font-medium">
+                <optgroup label="📦 資材與物料供應鏈">
+                  <option value="資材部 (現場助理工程師/工程師/行政)" selected>資材部 (現場助理工程師/工程師/行政) [推薦]</option>
+                  <option value="資材部 - 現場助理工程師">資材部 - 現場助理工程師</option>
+                  <option value="資材部 - 資材工程師">資材部 - 資材工程師</option>
+                  <option value="資材部 - 資材行政專員">資材部 - 資材行政專員</option>
+                  <option value="倉管 / 物料管理員">倉管 / 物料管理員</option>
+                  <option value="採購專員 / 物料控制 (MC)">採購專員 / 物料控制 (MC)</option>
+                </optgroup>
+                <optgroup label="🏭 勝一化工 & 廠區管理">
+                  <option value="【彰濱廠區】助理管理師">【彰濱廠區】助理管理師</option>
+                  <option value="【彰濱廠區】品管/檢驗工程師">【彰濱廠區】品管/檢驗工程師</option>
+                  <option value="【彰濱廠區】現場生產/化學工程師">【彰濱廠區】現場生產/化學工程師</option>
+                  <option value="【彰濱廠區】環安衛 (ESH) 管理師">【彰濱廠區】環安衛 (ESH) 管理師</option>
+                  <option value="廠務 / 設備運轉工程師">廠務 / 設備運轉工程師</option>
+                </optgroup>
+                <optgroup label="💼 行政財務與人資管理">
+                  <option value="會計行政人員 / 財務專員">會計行政人員 / 財務專員</option>
+                  <option value="行政管理助理 / 專員">行政管理助理 / 專員</option>
+                  <option value="人資 (HR) 招募/訓練管理師">人資 (HR) 招募/訓練管理師</option>
+                  <option value="高階主管特別助理 (特助)">高階主管特別助理 (特助)</option>
+                </optgroup>
+                <optgroup label="🔬 研發軟體與品保">
+                  <option value="研發 (RD) 化學工程師">研發 (RD) 化學工程師</option>
+                  <option value="資訊 / 軟體開發工程師">資訊 / 軟體開發工程師</option>
+                  <option value="品保 (QA/QC) 系統工程師">品保 (QA/QC) 系統工程師</option>
+                </optgroup>
+                <optgroup label="📢 業務行銷與客服">
+                  <option value="國內 / 國外業務專員">國內 / 國外業務專員</option>
+                  <option value="行銷企劃 / 電商營運專員">行銷企劃 / 電商營運專員</option>
+                  <option value="客戶服務 / 訂單後勤專員">客戶服務 / 訂單後勤專員</option>
+                </optgroup>
+                <optgroup label="🌐 通用">
+                  <option value="通用跨部門人才評估">通用跨部門人才評估</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="flex items-center gap-2 text-xs text-slate-300">
+              <span class="font-bold text-indigo-400">⏱️ 備份間隔：</span>
+              <select id="chunkIntervalSelect" class="bg-slate-950 border border-slate-700 rounded-lg text-xs px-3 py-1.5 text-slate-200 focus:outline-none focus:border-indigo-500">
+                <option value="300000" selected>每 5 分鐘自動備份 (推薦長面試)</option>
+                <option value="180000">每 3 分鐘自動備份</option>
+                <option value="60000">每 1 分鐘自動備份</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div id="timer" class="text-2xl font-mono font-bold text-slate-300">00:00</div>
+            
+            <span id="chunkBadge" class="hidden px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-mono border border-indigo-500/30 animate-pulse">
+              背景備份中...
+            </span>
+          </div>
+
+          <div class="flex flex-wrap justify-center gap-4">
+            <button id="startBtn" class="px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-semibold rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25 flex items-center gap-2 cursor-pointer">
+              <span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span>
+              開始錄音面試
+            </button>
+            
+            <button id="stopTranscribeBtn" disabled class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed font-semibold rounded-xl transition-all cursor-pointer">
+              結束錄音：先純轉文字歸檔
+            </button>
+
+            <button id="stopAnalyzeBtn" disabled class="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-purple-300 border border-purple-500/30 disabled:opacity-40 disabled:cursor-not-allowed font-semibold rounded-xl transition-all cursor-pointer">
+              結束錄音：直接分析特質
+            </button>
+          </div>
+
+          <!-- Real-time Live Transcript Box during Recording -->
+          <div id="liveStreamBox" class="hidden w-full max-w-2xl bg-slate-900/90 border border-indigo-500/40 rounded-xl p-4 text-left space-y-2">
+            <div class="flex justify-between items-center text-xs text-indigo-300 font-bold border-b border-slate-800 pb-2">
+              <span>⚡ 自動累計逐字稿 (背景自動拼接儲存)</span>
+              <span id="liveChunkInfo" class="font-mono text-slate-400">已備份 0 段</span>
+            </div>
+            <div id="liveStreamText" class="text-xs text-slate-200 font-mono whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
+              錄音進行中...
+            </div>
+          </div>
+
+          <audio id="audioPreview" controls class="hidden w-full max-w-md mt-4"></audio>
+        </div>
+      </div>
+
+      <!-- Active Report Display -->
+      <div id="reportSection" class="hidden space-y-8">
+        <div class="flex justify-between items-center border-b border-slate-800 pb-4 flex-wrap gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-100">面試特質與資材適性報告</h2>
+            <div class="flex items-center gap-3 text-xs text-slate-400 mt-1">
+              <span id="activeRecordTime"></span>
+              <span id="activeTargetDept" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded font-bold"></span>
+            </div>
+          </div>
+          <a id="downloadDocxBtn" href="#" target="_blank" class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+            <span>📄 下載 Word 評估報告 (.docx)</span>
+          </a>
+        </div>
+
+        <div class="glass rounded-2xl p-6 space-y-2 border-indigo-500/30 border">
+          <h3 class="text-xs uppercase tracking-wider text-indigo-400 font-bold">完整錄音逐字稿 (Transcript)</h3>
+          <div id="transcriptText" class="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto pr-2">---</div>
+        </div>
+
+        <div id="reportDetails" class="hidden space-y-8">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="glass rounded-2xl p-6 space-y-3">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold">DISC 本次判定人格</h3>
+              <div id="discTag" class="text-3xl font-black text-indigo-400">---</div>
+            </div>
+            <div class="glass rounded-2xl p-6 space-y-3">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold">語音聲理與表達風格</h3>
+              <p id="commStyle" class="text-slate-200 text-sm leading-relaxed">---</p>
+            </div>
+
+            <!-- Materials Dept DISC Benchmark & HR Guide -->
+            <div class="glass rounded-2xl p-6 space-y-4 col-span-1 md:col-span-2 border-indigo-500/30 border">
+              <div class="flex justify-between items-center cursor-pointer select-none" onclick="document.getElementById('discGuideContent').classList.toggle('hidden')">
+                <h3 class="text-sm font-bold text-indigo-300 flex items-center gap-2">
+                  <span>📘</span> HR 專業對照：資材部黃金 DISC 人格對照指南
+                </h3>
+                <span class="text-xs text-indigo-400 hover:underline">展開 / 收合詳細標準 ▼</span>
+              </div>
+              
+              <div id="discGuideContent" class="space-y-4 text-xs pt-2 border-t border-slate-800">
+                <div class="bg-indigo-950/40 p-4 rounded-xl border border-indigo-500/30 space-y-2">
+                  <span class="font-bold text-indigo-300 block text-sm">📦【資材部門黃金適性對照】</span>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="p-2.5 bg-slate-900/90 rounded-lg">
+                      <span class="font-bold text-emerald-400 block">現場助理工程師</span>
+                      <span class="text-slate-300 font-mono">CS型 (C型60%+S型40%)</span>
+                      <p class="text-slate-400 text-[11px] pt-1">料號細節敏銳、現場備料與盤點SOP落實、高穩定抗壓。</p>
+                    </div>
+                    <div class="p-2.5 bg-slate-900/90 rounded-lg">
+                      <span class="font-bold text-emerald-400 block">資材工程師</span>
+                      <span class="text-slate-300 font-mono">CS型 (C型70%+S型30%)</span>
+                      <p class="text-slate-400 text-[11px] pt-1">BOM表結構化分析、物料供需規劃、嚴謹邏輯管控。</p>
+                    </div>
+                    <div class="p-2.5 bg-slate-900/90 rounded-lg">
+                      <span class="font-bold text-emerald-400 block">資材行政專員</span>
+                      <span class="text-slate-300 font-mono">SC型 (S型60%+C型40%)</span>
+                      <p class="text-slate-400 text-[11px] pt-1">跨部門溝通協調、耐心後勤支援、表單與ERP輸入零失誤。</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                  <div class="p-3 bg-slate-900/80 rounded-xl border border-rose-500/30 space-y-1">
+                    <span class="font-bold text-rose-400 block">D (Dominance) 支配 / 主導型</span>
+                    <p class="text-slate-300">果斷獨立、目標導向、重效率與結果。</p>
+                  </div>
+                  <div class="p-3 bg-slate-900/80 rounded-xl border border-amber-500/30 space-y-1">
+                    <span class="font-bold text-amber-400 block">I (Influence) 影響 / 社交型</span>
+                    <p class="text-slate-300">熱情具感染力、善於溝通、創造力高。</p>
+                  </div>
+                  <div class="p-3 bg-slate-900/80 rounded-xl border border-emerald-500/30 space-y-1">
+                    <span class="font-bold text-emerald-400 block">S (Steadiness) 穩健 / 支援型</span>
+                    <p class="text-slate-300">溫和耐心、重團隊和諧、忠誠度高。</p>
+                  </div>
+                  <div class="p-3 bg-slate-900/80 rounded-xl border border-blue-500/30 space-y-1">
+                    <span class="font-bold text-blue-400 block">C (Conscientiousness) 謹慎 / 分析型</span>
+                    <p class="text-slate-300">嚴謹精確、邏輯導向、注重品質事實。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="glass rounded-2xl p-6 space-y-3">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold">對話核心摘要</h3>
+              <p id="summaryText" class="text-slate-300 text-sm leading-relaxed">---</p>
+            </div>
+            <div class="glass rounded-2xl p-6 space-y-3">
+              <h3 class="text-xs uppercase tracking-wider text-slate-400 font-bold">聲學與語速觀察</h3>
+              <p id="acousticText" class="text-slate-300 text-sm leading-relaxed">---</p>
+            </div>
+          </div>
+
+          <div class="glass rounded-2xl p-8 space-y-6">
+            <h3 class="text-lg font-bold text-slate-100 border-b border-slate-800 pb-4">Big Five 五大人格量化指標</h3>
+            <div class="space-y-4" id="bigFiveBars"></div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="glass rounded-2xl p-6 space-y-4 border-l-4 border-emerald-500">
+              <h3 class="text-lg font-bold text-emerald-400">✓ 推薦契合職務</h3>
+              <div id="recommendedJobs" class="space-y-3"></div>
+            </div>
+            <div class="glass rounded-2xl p-6 space-y-4 border-l-4 border-rose-500">
+              <h3 class="text-lg font-bold text-rose-400">✕ 較不適合職務</h3>
+              <div id="unsuitableJobs" class="space-y-3"></div>
+            </div>
+          </div>
+
+          <div class="glass rounded-2xl p-8 space-y-4">
+            <h3 class="text-lg font-bold text-slate-100 border-b border-slate-800 pb-4">主管帶領建議與二面追問</h3>
+            <div class="space-y-4 text-sm text-slate-300">
+              <div>
+                <span class="font-bold text-indigo-400 block mb-1">【團隊融入建議】</span>
+                <p id="mgmtAdvice" class="leading-relaxed">---</p>
+              </div>
+              <div class="pt-4 border-t border-slate-800">
+                <span class="font-bold text-indigo-400 block mb-2">【建議二面追問】</span>
+                <ul id="followupList" class="list-disc list-inside space-y-1"></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History Vault Section -->
+    <div class="glass rounded-2xl p-6 md:p-8 space-y-6 shadow-2xl">
+      <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+        <span>📁</span> 面試與履歷評估歷史檔案庫
+      </h2>
+      <div id="historyList" class="space-y-4">
+        <p class="text-slate-500 text-sm">載入中...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- User-Friendly Multi-Key Modal -->
+  <div id="keyModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 z-50">
+    <div class="glass rounded-2xl p-8 max-w-xl w-full space-y-6 border border-slate-700 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <h3 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+          <span>🔑</span> API Key 多欄位與自動辨識管理
+        </h3>
+        <button onclick="closeKeyModal()" class="text-slate-400 hover:text-slate-200 text-lg font-bold cursor-pointer">&times;</button>
+      </div>
+
+      <div class="space-y-2 bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+        <label class="text-xs font-bold text-indigo-300 block">⚡ 超人性化快速貼入（自動抓取，免手動加逗號）：</label>
+        <textarea id="smartPasteBox" rows="2" placeholder="在此處隨意貼上文字或多組 Key (換行/空格/複製一整段都可以)..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"></textarea>
+        <div class="flex justify-between items-center pt-1">
+          <span id="detectedCount" class="text-xs text-slate-400 font-medium">偵測到 0 組有效 API Key</span>
+          <button onclick="autoExtractKeys()" class="px-3 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs font-semibold rounded-lg transition-all cursor-pointer">
+            ✨ 自動抽取並填入欄位
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex justify-between items-center">
+          <label class="text-xs font-bold text-slate-300">獨立欄位列表：</label>
+          <button onclick="addKeyField('')" class="text-xs text-emerald-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer">
+            <span>+ 新增一組欄位</span>
+          </button>
+        </div>
+        <div id="keyFieldsContainer" class="space-y-2"></div>
+      </div>
+
+      <div class="flex justify-between items-center pt-4 border-t border-slate-800">
+        <button onclick="clearAllKeys()" class="text-xs text-rose-400 hover:underline cursor-pointer">清空所有 Key</button>
+        <button onclick="saveKeyModal()" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 font-semibold rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/30 cursor-pointer">
+          儲存設定
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let mediaRecorder, audioChunks = [], audioContext, analyser, microphone, timerInterval, secondsElapsed = 0;
+    let selectedMode = 'transcribe';
+    let currentSessionId = null;
+    let isFinishedClick = false;
+    let selectedResumeFile = null;
+    let activeCandidateName = "";
+    window.recordsMap = {};
+
+    const tabPreBtn = document.getElementById('tabPreBtn');
+    const tabInterviewBtn = document.getElementById('tabInterviewBtn');
+    const stagePrePanel = document.getElementById('stagePrePanel');
+    const stageInterviewPanel = document.getElementById('stageInterviewPanel');
+
+    const startBtn = document.getElementById('startBtn');
+    const stopTranscribeBtn = document.getElementById('stopTranscribeBtn');
+    const stopAnalyzeBtn = document.getElementById('stopAnalyzeBtn');
+    const timerDisplay = document.getElementById('timer');
+    const chunkBadge = document.getElementById('chunkBadge');
+    const targetDeptSelect = document.getElementById('targetDeptSelect');
+    const chunkIntervalSelect = document.getElementById('chunkIntervalSelect');
+    const visualizer = document.getElementById('visualizer');
+    const canvasCtx = visualizer.getContext('2d');
+    const loading = document.getElementById('loading');
+    const loadingMsg = document.getElementById('loadingMsg');
+    const reportSection = document.getElementById('reportSection');
+    const downloadDocxBtn = document.getElementById('downloadDocxBtn');
+
+    const liveStreamBox = document.getElementById('liveStreamBox');
+    const liveStreamText = document.getElementById('liveStreamText');
+    const liveChunkInfo = document.getElementById('liveChunkInfo');
+
+    const keyModal = document.getElementById('keyModal');
+    const keyFieldsContainer = document.getElementById('keyFieldsContainer');
+    const smartPasteBox = document.getElementById('smartPasteBox');
+    const detectedCount = document.getElementById('detectedCount');
+    const keyCountBadge = document.getElementById('keyCountBadge');
+
+    function switchStage(stage) {
+      if (stage === 'pre') {
+        tabPreBtn.className = 'tab-active flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer';
+        tabInterviewBtn.className = 'flex-1 py-3 px-4 rounded-xl text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2 transition-all cursor-pointer';
+        stagePrePanel.classList.remove('hidden');
+        stageInterviewPanel.classList.add('hidden');
+      } else {
+        tabInterviewBtn.className = 'tab-active flex-1 py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer';
+        tabPreBtn.className = 'flex-1 py-3 px-4 rounded-xl text-slate-400 hover:text-slate-200 flex items-center justify-center gap-2 transition-all cursor-pointer';
+        stageInterviewPanel.classList.remove('hidden');
+        stagePrePanel.classList.add('hidden');
+      }
+    }
+
+    function onPrePosSelectChange(val) {
+      if (val) {
+        document.getElementById('preTargetPos').value = val;
+      }
+    }
+
+    function setPrePosition(posName) {
+      document.getElementById('preTargetPos').value = posName;
+      const sel = document.getElementById('preTargetPosSelect');
+      if (sel) {
+        let matched = false;
+        for (let opt of sel.options) {
+          if (opt.value === posName) {
+            opt.selected = true;
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) sel.selectedIndex = 0;
+      }
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files[0];
+      if (file) {
+        selectedResumeFile = file;
+        document.getElementById('fileStatusText').innerText = `已選擇檔案：${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        document.getElementById('fileStatusText').className = 'text-xs text-emerald-400 font-bold';
+      }
+    }
+
+    async function handlePreAnalyzeSubmit(event) {
+      event.preventDefault();
+      const pos = document.getElementById('preTargetPos').value.trim();
+      const text = document.getElementById('resumeTextArea').value.trim();
+
+      if (!selectedResumeFile && !text) {
+        alert('請上傳履歷檔案 (PDF / 圖片 / TXT) 或貼入履歷文字內容！');
+        return;
+      }
+
+      loading.classList.remove('hidden');
+      loadingMsg.innerText = `Gemini AI 正在深入解析履歷，並為【${pos}】擬定針對性面試提問...`;
+
+      const formData = new FormData();
+      formData.append('target_position', pos);
+      if (text) formData.append('resume_text', text);
+      if (selectedResumeFile) formData.append('file', selectedResumeFile);
+
+      try {
+        const res = await fetch('/api/pre-analyze', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: formData
+        });
+        const record = await parseApiResponse(res);
+        if (!res.ok) {
+          if (res.status === 401 || (record.detail && record.detail.includes('API Key'))) {
+            openKeyModal();
+          }
+          throw new Error(record.detail || '分析失敗');
+        }
+
+        window.recordsMap[record.id] = record;
+        displayPreResult(record);
+        loadHistory();
+      } catch (err) {
+        alert('錯誤: ' + err.message);
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+
+    function displayPreResult(record) {
+      const section = document.getElementById('preResultSection');
+      const data = record.pre_report || {};
+      section.classList.remove('hidden');
+      section.scrollIntoView({ behavior: 'smooth' });
+
+      activeCandidateName = data.candidate_name || "應徵者";
+      document.getElementById('preTimeBadge').innerText = '分析時間：' + record.created_at + (record.used_model ? ' (' + record.used_model + ')' : '');
+      document.getElementById('prePosBadge').innerText = record.target_dept || '應徵職能';
+
+      document.getElementById('preNameVal').innerText = data.candidate_name || '未標示';
+      document.getElementById('preEduVal').innerText = data.education || 'N/A';
+      document.getElementById('preExpVal').innerText = data.total_experience || 'N/A';
+      document.getElementById('preRecentJobVal').innerText = data.recent_job || 'N/A';
+      document.getElementById('preMatchSummary').innerText = data.match_summary || 'N/A';
+      document.getElementById('preMatchScore').innerText = data.overall_match_score || 0;
+
+      document.getElementById('preStrengthsList').innerHTML = (data.strengths || []).map(s => `<li>${s}</li>`).join('');
+      document.getElementById('preMatchSkillsList').innerHTML = (data.matching_skills || []).map(m => `<li>${m}</li>`).join('');
+      document.getElementById('preMissingSkillsList').innerHTML = (data.missing_or_gap_skills || []).map(g => `<li>${g}</li>`).join('');
+
+      document.getElementById('preCareerAnalysis').innerText = data.career_transition_analysis || '';
+      document.getElementById('preRisksList').innerHTML = (data.key_risks_and_concerns || []).map(r => `<li>${r}</li>`).join('');
+
+      const downloadBtn = document.getElementById('downloadPreDocxBtn');
+      downloadBtn.href = `/api/export-docx/${record.id}`;
+
+      // Render Questions Cards
+      const container = document.getElementById('preQuestionsContainer');
+      container.innerHTML = (data.suggested_questions || []).map((q, idx) => `
+        <div class="p-4 rounded-xl bg-slate-900/90 border border-indigo-500/30 space-y-3 flex flex-col justify-between">
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono">Q${idx+1} [${q.category || '面試關切'}]</span>
+              <button onclick="copyText('${escapeJsString(q.question)}')" class="text-[11px] text-slate-400 hover:text-indigo-300 font-semibold cursor-pointer">📋 複製問題</button>
+            </div>
+            <p class="text-sm font-bold text-slate-100 leading-snug">${q.question}</p>
+          </div>
+          <div class="bg-slate-950/80 p-3 rounded-lg text-xs space-y-1 border border-slate-800">
+            <p class="text-slate-300"><span class="font-bold text-indigo-400">【提問目的】:</span> ${q.purpose}</p>
+            <p class="text-slate-300"><span class="font-bold text-emerald-400">【觀察重點】:</span> ${q.evaluation_focus}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function transferToInterview() {
+      const pos = document.getElementById('prePosBadge').innerText;
+      if (pos) {
+        let matchedOption = false;
+        for (let opt of targetDeptSelect.options) {
+          if (opt.value.includes(pos) || pos.includes(opt.value)) {
+            opt.selected = true;
+            matchedOption = true;
+            break;
+          }
+        }
+        if (!matchedOption) {
+          const newOpt = new Option(pos, pos, true, true);
+          targetDeptSelect.add(newOpt);
+        }
+      }
+      switchStage('interview');
+      stageInterviewPanel.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function escapeJsString(str) {
+      return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
+    }
+
+    function copyText(text) {
+      navigator.clipboard.writeText(text);
+      alert('已成功複製題目內容！');
+    }
+
+    // --- Key Management JS ---
+    function extractValidGeminiKeys(text) {
+      if (!text) return [];
+      // 先嘗試抓取包含 AIzaSy, AQ. 開頭或長度 20 個字元以上的 Key Token
+      const keyRegex = /(?:AIzaSy|AQ\.|[A-Za-z0-9_-]{20,})[A-Za-z0-9._-]{10,70}/g;
+      const matches = text.match(keyRegex);
+      if (matches && matches.length > 0) {
+        return [...new Set(matches.map(k => k.trim()).filter(k => k.length >= 20))];
+      }
+      const items = text.split(/[\n,;\r\t\s]+/)
+        .map(s => s.trim())
+        .filter(s => s.length >= 15 && !s.includes('<') && !s.includes('>'));
+      return [...new Set(items)];
+    }
+
+    smartPasteBox.oninput = () => {
+      const keys = extractValidGeminiKeys(smartPasteBox.value);
+      detectedCount.innerText = `偵測到 ${keys.length} 組有效 API Key`;
+    };
+
+    function autoExtractKeys() {
+      const keys = extractValidGeminiKeys(smartPasteBox.value);
+      if (!keys.length) {
+        alert('未在貼入的文字中找到有效的 API Key');
+        return;
+      }
+      keyFieldsContainer.innerHTML = '';
+      keys.forEach(k => addKeyField(k));
+      smartPasteBox.value = '';
+      detectedCount.innerText = '偵測到 0 組有效 API Key';
+    }
+
+    function addKeyField(val = '') {
+      const div = document.createElement('div');
+      div.className = 'flex items-center gap-2 key-row';
+      div.innerHTML = `
+        <span class="text-xs font-mono text-slate-500 select-none w-4">🔑</span>
+        <input type="text" value="${val}" placeholder="AIzaSyA123..." class="key-input flex-1 bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-100 font-mono focus:outline-none focus:border-indigo-500">
+        <button onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 p-1 text-base cursor-pointer">&times;</button>
+      `;
+      keyFieldsContainer.appendChild(div);
+    }
+
+    function openKeyModal() {
+      const savedRaw = localStorage.getItem('gemini_api_keys') || '';
+      const keys = extractValidGeminiKeys(savedRaw);
+      keyFieldsContainer.innerHTML = '';
+      if (keys.length > 0) keys.forEach(k => addKeyField(k));
+      else addKeyField('');
+      smartPasteBox.value = '';
+      detectedCount.innerText = '偵測到 0 組有效 AIzaSy Key';
+      keyModal.classList.remove('hidden');
+    }
+
+    function closeKeyModal() { keyModal.classList.add('hidden'); }
+
+    function clearAllKeys() {
+      keyFieldsContainer.innerHTML = '';
+      addKeyField('');
+      localStorage.removeItem('gemini_api_keys');
+      checkKeyStatus();
+    }
+
+    function saveKeyModal() {
+      const inputs = document.querySelectorAll('.key-input');
+      const allText = Array.from(inputs).map(i => i.value).join('\n');
+      const validKeys = extractValidGeminiKeys(allText);
+
+      localStorage.setItem('gemini_api_keys', validKeys.join(','));
+      checkKeyStatus();
+      closeKeyModal();
+      alert(`已成功儲存 ${validKeys.length} 組 Gemini API Key！`);
+    }
+
+    function checkKeyStatus() {
+      const savedRaw = localStorage.getItem('gemini_api_keys') || '';
+      const keys = extractValidGeminiKeys(savedRaw);
+      keyCountBadge.innerText = `${keys.length} 組`;
+      if (keys.length > 0) {
+        keyCountBadge.className = 'px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30';
+      } else {
+        keyCountBadge.className = 'px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold border border-rose-500/30';
+      }
+    }
+
+    function getAuthHeaders() {
+      const savedRaw = localStorage.getItem('gemini_api_keys') || '';
+      const keys = extractValidGeminiKeys(savedRaw);
+      return keys.length > 0 ? { 'X-GEMINI-API-KEYS': keys.join(',') } : {};
+    }
+
+    async function parseApiResponse(res) {
+      const text = await res.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch (e) {
+        data = { detail: text || `伺服器回應異常 (Status ${res.status})` };
+      }
+      return data;
+    }
+
+    // --- Recording & Audio Processing JS ---
+    function updateTimer() {
+      secondsElapsed++;
+      const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+      const secs = String(secondsElapsed % 60).padStart(2, '0');
+      timerDisplay.innerText = `${mins}:${secs}`;
+    }
+
+    function setupVisualizer(stream) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioContext.createAnalyser();
+      microphone = audioContext.createMediaStreamSource(stream);
+      microphone.connect(analyser);
+      analyser.fftSize = 256;
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+        canvasCtx.fillStyle = 'rgba(15, 23, 42, 0.6)';
+        canvasCtx.fillRect(0, 0, visualizer.width, visualizer.height);
+        const barWidth = (visualizer.width / bufferLength) * 2.5;
+        let x = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = (dataArray[i] / 255) * visualizer.height;
+          canvasCtx.fillStyle = `rgb(99, 102, 241)`;
+          canvasCtx.fillRect(x, visualizer.height - barHeight, barWidth, barHeight);
+          x += barWidth + 1;
+        }
+      }
+      draw();
+    }
+
+    startBtn.onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        setupVisualizer(stream);
+
+        const targetDept = encodeURIComponent(targetDeptSelect.value);
+        const res = await fetch(`/api/start-session?target_dept=${targetDept}`, { method: 'POST' });
+        const record = await parseApiResponse(res);
+        if (!res.ok) throw new Error(record.detail || '建立 Session 失敗');
+
+        currentSessionId = record.id;
+        audioChunks = [];
+        secondsElapsed = 0;
+        isFinishedClick = false;
+        timerDisplay.innerText = '00:00';
+        liveStreamText.innerText = '錄音進行中，每隔固定時間背景會自動傳送微小音訊段（不卡頓）...';
+        liveChunkInfo.innerText = '已備份 0 段';
+
+        timerInterval = setInterval(updateTimer, 1000);
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        
+        mediaRecorder.ondataavailable = event => {
+          if (event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+
+        const intervalMs = parseInt(chunkIntervalSelect.value, 10) || 300000;
+        mediaRecorder.start(intervalMs);
+
+        startBtn.disabled = true;
+        stopTranscribeBtn.disabled = false;
+        stopAnalyzeBtn.disabled = false;
+
+        chunkBadge.classList.remove('hidden');
+        liveStreamBox.classList.remove('hidden');
+        chunkBadge.innerText = `背景備份防護已開啟 (每 ${(intervalMs/60000).toFixed(0)} 分鐘自動寫入)`;
+
+        mediaRecorder.addEventListener('dataavailable', async (e) => {
+          if (e.data && e.data.size > 0 && currentSessionId) {
+            sendChunkToBackend(e.data);
+          }
+        });
+
+      } catch (err) {
+        alert('無法啟動麥克風錄音: ' + err.message);
+      }
+    };
+
+    async function sendChunkToBackend(blobChunk) {
+      if (!currentSessionId) return;
+      const formData = new FormData();
+      formData.append('session_id', currentSessionId);
+      formData.append('file', blobChunk, 'chunk.webm');
+
+      try {
+        const res = await fetch('/api/append-chunk', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: formData
+        });
+        const rec = await parseApiResponse(res);
+        if (res.ok && rec) {
+          liveChunkInfo.innerText = `已備份 ${rec.chunks_count || 0} 段`;
+          chunkBadge.innerText = `已成功完成 ${rec.chunks_count || 0} 段背景備份`;
+          if (rec.transcript) {
+            liveStreamText.innerText = rec.transcript;
+            liveStreamText.scrollTop = liveStreamText.scrollHeight;
+          }
+        }
+      } catch (err) {
+        console.warn('Chunk upload warning:', err);
+      }
+    }
+
+    stopTranscribeBtn.onclick = () => { selectedMode = 'transcribe'; finishRecording(); };
+    stopAnalyzeBtn.onclick = () => { selectedMode = 'analyze'; finishRecording(); };
+
+    async function finishRecording() {
+      if (isFinishedClick) return;
+      isFinishedClick = true;
+
+      mediaRecorder.stop();
+      clearInterval(timerInterval);
+
+      startBtn.disabled = false;
+      stopTranscribeBtn.disabled = true;
+      stopAnalyzeBtn.disabled = true;
+
+      loading.classList.remove('hidden');
+      loadingMsg.innerText = selectedMode === 'transcribe' 
+        ? '正在進行最終彙整與歸檔...' 
+        : '正在針對選定部門進行 Gemini 全方位特質與適性分析...';
+
+      const fullBlob = new Blob(audioChunks, { type: 'audio/webm' });
+      document.getElementById('audioPreview').src = URL.createObjectURL(fullBlob);
+      document.getElementById('audioPreview').classList.remove('hidden');
+
+      try {
+        const analyzeFlag = selectedMode === 'analyze';
+        const res = await fetch(`/api/finish-session/${currentSessionId}?analyze=${analyzeFlag}`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        
+        const record = await parseApiResponse(res);
+        if (!res.ok) {
+          if (res.status === 401 || (record.detail && record.detail.includes('API Key'))) {
+            openKeyModal();
+          }
+          throw new Error(record.detail || '處理失敗');
+        }
+
+        window.recordsMap[record.id] = record;
+        displayRecord(record);
+        loadHistory();
+      } catch (err) {
+        alert('錯誤: ' + err.message);
+      } finally {
+        loading.classList.add('hidden');
+        liveStreamBox.classList.add('hidden');
+      }
+    }
+
+    function viewRecordDetails(recId) {
+      const record = window.recordsMap[recId];
+      if (!record) {
+        alert('找不到該筆紀錄內容');
+        return;
+      }
+      if (record.type === 'pre_analysis' || record.pre_report) {
+        switchStage('pre');
+        displayPreResult(record);
+      } else {
+        switchStage('interview');
+        displayRecord(record);
+        reportSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+
+    async function deleteRecordItem(recId) {
+      if (!confirm("確定要永久刪除此筆評估紀錄嗎？")) return;
+      try {
+        const res = await fetch(`/api/records/${recId}`, { method: 'DELETE' });
+        const data = await parseApiResponse(res);
+        if (!res.ok) throw new Error(data.detail || '刪除失敗');
+        delete window.recordsMap[recId];
+        if (reportSection.dataset.activeId === recId) {
+          reportSection.classList.add('hidden');
+        }
+        loadHistory();
+        alert('已成功刪除該筆紀錄！');
+      } catch (err) {
+        alert('刪除出錯: ' + err.message);
+      }
+    }
+
+    function displayRecord(record) {
+      reportSection.classList.remove('hidden');
+      reportSection.dataset.activeId = record.id;
+      document.getElementById('activeRecordTime').innerText = '錄音時間：' + record.created_at + (record.used_model ? ' (' + record.used_model + ')' : '');
+      document.getElementById('activeTargetDept').innerText = record.target_dept || '資材部 (現場助理工程師/工程師/行政)';
+      document.getElementById('transcriptText').innerText = record.transcript || '(尚未有逐字稿)';
+
+      if (record.report) {
+        document.getElementById('reportDetails').classList.remove('hidden');
+        downloadDocxBtn.href = `/api/export-docx/${record.id}`;
+        downloadDocxBtn.classList.remove('hidden');
+        renderReport(record.report);
+      } else {
+        document.getElementById('reportDetails').classList.add('hidden');
+        downloadDocxBtn.classList.add('hidden');
+      }
+    }
+
+    function renderReport(data) {
+      document.getElementById('discTag').innerText = data.disc_type || 'N/A';
+      document.getElementById('commStyle').innerText = data.communication_style || 'N/A';
+      document.getElementById('summaryText').innerText = data.candidate_summary || 'N/A';
+      document.getElementById('acousticText').innerText = data.acoustic_observation || 'N/A';
+      document.getElementById('mgmtAdvice').innerText = data.management_advice || 'N/A';
+
+      const bf = data.big_five || {};
+      const traits = [
+        { label: '經驗開放性 (Openness)', score: bf.openness },
+        { label: '盡責度 (Conscientiousness)', score: bf.conscientiousness },
+        { label: '外向性 (Extraversion)', score: bf.extraversion },
+        { label: '宜人性 (Agreeableness)', score: bf.agreeableness },
+        { label: '情緒穩定度 (Emotional Stability)', score: bf.emotional_stability }
+      ];
+      document.getElementById('bigFiveBars').innerHTML = traits.map(t => `
+        <div class="space-y-1">
+          <div class="flex justify-between text-sm">
+            <span class="text-slate-300 font-medium">${t.label}</span>
+            <span class="text-indigo-400 font-bold">${t.score || 0}%</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+            <div class="bg-indigo-500 h-2.5 rounded-full" style="width: ${t.score || 0}%"></div>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('recommendedJobs').innerHTML = (data.recommended_jobs || []).map(j => `
+        <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-bold text-slate-100">${j.title}</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">${j.score}%</span>
+          </div>
+          <p class="text-xs text-slate-400">${j.reason}</p>
+        </div>
+      `).join('');
+
+      document.getElementById('unsuitableJobs').innerHTML = (data.unsuitable_jobs || []).map(j => `
+        <div class="p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-bold text-slate-100">${j.title}</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold">${j.score}%</span>
+          </div>
+          <p class="text-xs text-slate-400">${j.reason}</p>
+        </div>
+      `).join('');
+
+      document.getElementById('followupList').innerHTML = (data.followup_questions || []).map(q => `<li>${q}</li>`).join('');
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/records');
+        const records = await parseApiResponse(res);
+        const container = document.getElementById('historyList');
+
+        if (!Array.isArray(records) || !records.length) {
+          container.innerHTML = '<p class="text-slate-500 text-sm">目前尚無歷史紀錄。</p>';
+          return;
+        }
+
+        window.recordsMap = {};
+        records.forEach(r => { window.recordsMap[r.id] = r; });
+
+        container.innerHTML = records.map(r => {
+          const isPre = r.type === 'pre_analysis' || r.pre_report;
+          const titleText = isPre 
+            ? `📋 [事前分析] ${r.candidate_name || '應徵者'} (${r.pre_report?.overall_match_score || 0}分)`
+            : `🎙️ [現場錄音] ${r.target_dept || '資材部面試'}`;
+
+          return `
+            <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div class="space-y-1 max-w-2xl">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-xs px-2 py-0.5 rounded ${isPre ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : (r.status === 'analyzed' ? 'bg-purple-500/20 text-purple-300' : 'bg-emerald-500/20 text-emerald-300')} font-bold">
+                    ${isPre ? '📋 事前履歷與提問' : (r.status === 'analyzed' ? '🎙️ 語音與DISC分析' : '純語音轉文字')}
+                  </span>
+                  <span class="text-xs text-indigo-300 font-bold bg-indigo-500/10 px-2 py-0.5 rounded">${r.target_dept || '應徵職務'}</span>
+                  <span class="text-xs text-slate-400">${r.created_at}</span>
+                  ${r.used_model ? `<span class="text-xs text-indigo-400 font-mono">(${r.used_model})</span>` : ''}
+                </div>
+                <p class="text-sm font-bold text-slate-200">${titleText}</p>
+                ${!isPre && r.audio_url ? `<audio src="${r.audio_url}" controls class="h-8 mt-2"></audio>` : ''}
+              </div>
+              
+              <div class="flex flex-wrap items-center gap-2">
+                <button onclick="viewRecordDetails('${r.id}')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-200 cursor-pointer">
+                  查看詳情與報告
+                </button>
+                <a href="/api/export-docx/${r.id}" target="_blank" class="px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 text-xs font-semibold rounded-lg cursor-pointer transition-all">
+                  📄 下載 Word
+                </a>
+                <button onclick="deleteRecordItem('${r.id}')" class="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold rounded-lg cursor-pointer transition-all">
+                  🗑️ 刪除
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // 初始化
+    checkKeyStatus();
+    loadHistory();
+  </script>
+</body>
+</html>
