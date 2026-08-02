@@ -59,7 +59,7 @@ try:
     # Try pushing to both shihwei0809 and mathruffian-dot repos
     targets = [
         {"name": "origin-shihwei", "user": "shihwei0809"},
-        {"name": "origin-mathruffian", "user": "mathruffian-dot"}
+        {"name": "origin-agent-portal", "repo": "agent-portal"}
     ]
 
     for target in targets:
