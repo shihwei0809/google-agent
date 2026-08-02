@@ -56,21 +56,21 @@ try:
     subprocess.run(["git", "commit", "-m", commit_msg], check=True)
 
     # 6. Add remotes and push
-    # Try pushing to both shihwei0809 and mathruffian-dot repos
     targets = [
-        {"name": "origin-shihwei", "user": "shihwei0809"},
-        {"name": "origin-agent-portal", "repo": "agent-portal"}
+        {"name": "origin-shihwei", "user": "shihwei0809", "repo": "agent-portal"},
+        {"name": "origin-mathruffian", "user": "mathruffian-dot", "repo": "agent-portal"}
     ]
 
     for target in targets:
         name = target["name"]
         username = target["user"]
+        reponame = target["repo"]
         
         if github_token:
-            url = f"https://x-access-token:{github_token}@github.com/{username}/agent-portal.git"
-            display_url = f"https://github.com/{username}/agent-portal.git"
+            url = f"https://x-access-token:{github_token}@github.com/{username}/{reponame}.git"
+            display_url = f"https://github.com/{username}/{reponame}.git"
         else:
-            url = f"https://github.com/{username}/agent-portal.git"
+            url = f"https://github.com/{username}/{reponame}.git"
             display_url = url
 
         print(f"\n🚀 正在推送至 {name} ({display_url})...")
