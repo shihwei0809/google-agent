@@ -99,7 +99,7 @@
             color: var(--text-main);
             font-size: 14px;
             outline: none;
-            transition: all 0.3s;
+            transition: border-color 0.3s;
         }
         .form-control:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(0, 242, 254, 0.2); }
 
@@ -158,9 +158,10 @@
             position: relative;
         }
 
-        /* SVG Element Styles */
-        .svg-tank { cursor: pointer; transition: transform 0.2s; }
-        .svg-tank:hover { transform: scale(1.02); }
+        /* SVG Element Styles (修復：取消 hover transform 避免點擊飄動) */
+        .svg-tank { cursor: pointer; }
+        .svg-tank:hover rect, .svg-tank:hover circle { filter: brightness(1.2); }
+        
         .flow-line {
             stroke-dasharray: 8;
             animation: dash 1.5s linear infinite;
@@ -265,8 +266,8 @@
                 <label>快速情境切換 (Presets)</label>
                 <div style="display: flex; flex-direction: column; gap: 6px;">
                     <button class="btn-preset" onclick="loadPreset('pass_all')">🟢 情境 1：全數通關 (T100合格 + 綠燈泵浦傳輸)</button>
-                    <button class="btn-preset" onclick="loadPreset('t100_fail')">🔴 情境 2：T100 未合格 (閥門鎖定 + 警告發光)</button>
-                    <button class="btn-preset" onclick="loadPreset('hose_mismatch')">🔴 情境 3：管線誤接 (對刷不匹配 + 閥門鎖定)</button>
+                    <button class="btn-preset" onclick="loadPreset('t100_fail')">🔴 情境 2：T100 未合格 (單據未審核/退貨 阻斷)</button>
+                    <button class="btn-preset" onclick="loadPreset('hose_mismatch')">🔴 情境 3：管線誤接 (對刷不匹配 阻斷)</button>
                 </div>
             </div>
 
@@ -474,9 +475,6 @@
                 box1.className = 'step-box fail';
                 status1.innerHTML = '<span style="color:var(--danger)">🔴 REJECT (未審核/退貨)</span>';
                 desc1.innerText = `[T100 警告] 該批原料尚未通過品管判定，系統強制阻斷！`;
-                setSvgState(false);
-                renderFinal(false, "⛔ T100 檢驗未合格！強制阻斷卸料", "根據安全規範，未經 T100 ERP 判定合格之車次，禁止進行任何對刷與卸料作業。");
-                return;
             }
 
             // 2. Step 2: Barcode Match
@@ -492,16 +490,32 @@
             } else {
                 box2.className = 'step-box fail';
                 status2.innerHTML = '<span style="color:var(--danger)">🔴 錯誤！管線誤接</span>';
-                desc2.innerText = `儲槽 '${tank}' 與 軟管 '${hose}' 不匹配，觸發警報燈與語音音效！`;
-                setSvgState(false);
-                renderFinal(false, "❌ 管線對刷錯誤！強制阻斷提交", "儲槽與軟管編號不符，已鎖定提交按鈕並發送 LINE / Teams 警報。");
-                return;
+                desc2.innerText = `儲槽 '${tank}' 與 軟管 '${hose}' 不匹配，發送警報！`;
             }
 
             // 3. Step 3: QC Sign
             const box3 = document.getElementById('boxStep3');
             const status3 = document.getElementById('statusStep3');
             const desc3 = document.getElementById('descStep3');
+
+            // 判斷最終三重門關卡 (修復：三關各自獨立判定，必須三關皆過才放行，若關卡1不通過，關卡2即使正確也會獨立顯示關卡1的阻斷原因)
+            if (!isT100Pass) {
+                box3.className = 'step-box pending';
+                status3.innerHTML = `<span style="color:var(--text-muted)">⚪ 暫緩授權</span>`;
+                desc3.innerText = `T100 檢驗未放行，QC 暫不提供授權放行。`;
+                setSvgState(false);
+                renderFinal(false, "⛔ T100 檢驗未合格！強制阻斷卸料", "根據安全規範，未經 T100 ERP 判定合格之車次，禁止進行任何對刷與卸料作業。");
+                return;
+            }
+
+            if (!isHoseMatch) {
+                box3.className = 'step-box pending';
+                status3.innerHTML = `<span style="color:var(--text-muted)">⚪ 暫緩授權</span>`;
+                desc3.innerText = `現場對刷不匹配，QC 暫不提供授權放行。`;
+                setSvgState(false);
+                renderFinal(false, "❌ 管線對刷錯誤！強制阻斷提交", "儲槽與軟管編號不符，已鎖定提交按鈕並發送 LINE / Teams 警報。");
+                return;
+            }
 
             box3.className = 'step-box pass';
             status3.innerHTML = `<span style="color:var(--success)">🟢 已授權放行</span>`;
@@ -582,7 +596,7 @@
                 body.innerHTML = `
                     • <b>單據號碼</b>：${document.getElementById('inputContainer').value}<br>
                     • <b>品名規格</b>：TMAH-LT 電子級原料<br>
-                    • <b>T100 ERP 狀態</b>：QC301 品管檢驗完畢放行<br>
+                    • <b>T100 ERP 狀態</b>：${document.getElementById('inputContainer').value.includes('FAIL') ? '未審核/不合格' : 'QC301 品管檢驗完畢放行'}<br>
                     • <b>實體容量</b>：20,000 Liters (淨重 17.5 噸)
                 `;
             } else if (type === 'valve') {
@@ -590,13 +604,13 @@
                 body.innerHTML = `
                     • <b>控制訊號</b>：PLC 與 T100 / 手機對刷連動<br>
                     • <b>閥門狀態</b>：實時開閉氣密保護<br>
-                    • <b>安控規範</b>：一旦對刷出現紅色 Mismatch 警告，氣動閥門將在 0.5 秒內自動氣閉。
+                    • <b>安控規範</b>：一旦對刷或 T100 出現警告，氣動閥門將在 0.5 秒內自動氣閉。
                 `;
             } else if (type === 'pump') {
                 title.innerText = "⚡ 高純化學品傳輸泵浦";
                 body.innerHTML = `
                     • <b>驅動狀態</b>：變頻馬達運作中<br>
-                    • <b>實時流速</b>：250 L/min<br>
+                    • <b>實時流速</b>：${document.getElementById('flowSpeedText').textContent}<br>
                     • <b>壓力監控</b>：2.4 bar (壓力正常)
                 `;
             } else if (type === 'storage') {
