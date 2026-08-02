@@ -20,7 +20,8 @@
 | 🔬 [QC-系統客製化電子化工廠](./QC-系統客製化電子化工廠/) | 電子級高純度化學品 QC 品質分析數據自動登錄與檢驗看板 | PHP, MySQL, Chart.js |
 | 📑 [三合一單-to-PHP-Migration](./三合一單-to-PHP-Migration/) | 廠區「三合一單據」批量 Excel/GAS 數據遷移至本機/雲端 SQL 腳本 | PHP, PDO, Spreadsheet Parser |
 | 🌡️ [溫度通報](./溫度通報/) | 廠區儲槽與反應釜溫度實時監控與 LINE / Email 異常自動警報通報系統 | Python, GAS, Line Notify API |
-| 🔑 [軟管-Key-Code-管理優化方案](./軟管-Key-Code-管理優化方案/) | 廠區製程軟管 Key-Code 防呆識別、防錯接與定期稽核管理系統 | PHP, WebUI, MySQL |
+| 🔑 [軟管對刷](./軟管對刷/) | 鴻勝化學軟管對刷稽核 Android APK (v3.4)，支援一/二/三廠選單、00前綴保護與QC授權放行 | Android SDK, Kotlin, Retrofit, GAS API |
+| 🛡️ [軟管對刷-T100QC串接中間件備案](./軟管對刷-T100QC串接中間件備案/) | 鼎新 T100 ERP 品管單 (QC301/ESQC301) 判定中間件備案（獨立資料夾，高彈性設定） | PHP, Oracle OCI, REST API |
 
 ---
 
