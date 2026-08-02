@@ -65,9 +65,8 @@ def compile_manuals():
     try:
         html_content = index_html_path.read_text(encoding="utf-8")
         
-        # Serialize to JSON with double-quotes, preserving non-ASCII (Chinese) characters
-        # Escape backslashes and script tags to avoid JS syntax errors when embedded
-        json_data = json.dumps(manuals_list, ensure_ascii=False).replace('\\', '\\\\').replace('</script>', '<\\/script>')
+        # Serialize to JSON safely without double-escaping valid JSON backslashes
+        json_data = json.dumps(manuals_list, ensure_ascii=False).replace('</script>', '<\\/script>')
         replacement_line = f"        const manualsData = {json_data};"
         
         # Locate the manualsData array definition in the HTML file
