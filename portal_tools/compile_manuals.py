@@ -61,35 +61,15 @@ def compile_manuals():
                     except Exception as e:
                         print(f"❌ Error parsing {rel_path}: {str(e)}")
                         
-    # 2. Update manuals/index.html
+    # 2. Export to manuals_db.js for local file:// execution without CORS issues
     try:
-        html_content = index_html_path.read_text(encoding="utf-8")
-        
-        # Serialize to JSON safely without double-escaping valid JSON backslashes
-        json_data = json.dumps(manuals_list, ensure_ascii=False).replace('</script>', '<\\/script>')
-        replacement_line = f"        const manualsData = {json_data};"
-        
-        # Locate the manualsData array definition in the HTML file
-        # It's usually a line looking like: const manualsData = [...];
-        pattern = r'^\s*const\s+manualsData\s*=\s*\[.*\]\s*;\s*$'
-        
-        lines = html_content.splitlines()
-        updated = False
-        
-        for i, line in enumerate(lines):
-            if "const manualsData =" in line:
-                lines[i] = replacement_line
-                updated = True
-                break
-                
-        if updated:
-            index_html_path.write_text("\n".join(lines), encoding="utf-8")
-            print(f"\n🎉 Successfully compiled {len(manuals_list)} manuals and updated {index_html_path.name}!")
-        else:
-            print("❌ Error: Could not find the line containing 'const manualsData =' inside index.html.")
-            
+        db_path = manuals_dir / "manuals_db.js"
+        with open(db_path, "w", encoding="utf-8") as f:
+            json_str = json.dumps(manuals_list, ensure_ascii=False, indent=2)
+            f.write(f"window.manualsData = {json_str};\n")
+        print(f"\n🎉 Successfully compiled {len(manuals_list)} manuals and exported to {db_path.name}!")
     except Exception as e:
-        print(f"❌ Error writing to index.html: {str(e)}")
+        print(f"❌ Error writing to manuals_db.js: {str(e)}")
 
 if __name__ == "__main__":
     compile_manuals()
