@@ -276,30 +276,41 @@
             <div class="form-group">
                 <label>1. 廠區選擇</label>
                 <select id="selFactory" onchange="runSimulation()">
-                    <option value="彰濱一廠">彰濱一廠</option>
-                    <option value="彰濱二廠">彰濱二廠</option>
+                    <option value="彰濱一廠">彰濱一廠 (N2 氮氣加壓入料)</option>
+                    <option value="彰濱二廠">彰濱二廠 (共用 Pump 傳輸)</option>
                     <option value="彰濱三廠">彰濱三廠</option>
                 </select>
             </div>
 
-            <div class="form-group">
-                <label>2. 槽車櫃號 (點擊畫面槽車亦可修改)</label>
-                <input type="text" id="inputContainer" class="form-control" value="ESQC301-20260729032" oninput="runSimulation()">
+            <!-- 第一關對應參數 -->
+            <div style="background: rgba(59, 130, 246, 0.08); padding: 10px; border-radius: 8px; border-left: 3px solid var(--blue); margin-bottom: 10px;">
+                <div style="font-size:12px; font-weight:bold; color:var(--blue); margin-bottom:6px;">📍 [第一關：現場對刷] 參數</div>
+                <div class="form-group" style="margin-bottom: 6px;">
+                    <label style="font-size:11px;">現場儲槽編號 (掃描條碼)</label>
+                    <input type="text" id="inputTank" class="form-control" value="00123" oninput="runSimulation()">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size:11px;">現場軟管編號 (掃描條碼)</label>
+                    <input type="text" id="inputHose" class="form-control" value="00123" oninput="runSimulation()">
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>3. 儲槽編號 (掃描結果)</label>
-                <input type="text" id="inputTank" class="form-control" value="00123" oninput="runSimulation()">
+            <!-- 第二關對應參數 -->
+            <div style="background: rgba(245, 158, 11, 0.08); padding: 10px; border-radius: 8px; border-left: 3px solid var(--warning); margin-bottom: 10px;">
+                <div style="font-size:12px; font-weight:bold; color:var(--warning); margin-bottom:6px;">📍 [第二關：T100 ERP 檢驗] 參數</div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size:11px;">槽車櫃號 / T100 QC單號 (打 FAIL 模擬不合格)</label>
+                    <input type="text" id="inputContainer" class="form-control" value="ESQC301-20260729032" oninput="runSimulation()">
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>4. 軟管編號 (掃描結果)</label>
-                <input type="text" id="inputHose" class="form-control" value="00123" oninput="runSimulation()">
-            </div>
-
-            <div class="form-group">
-                <label>5. QC 簽署識別證</label>
-                <input type="text" id="inputQcId" class="form-control" value="QC-OFFICER-88" oninput="runSimulation()">
+            <!-- 第三關對應參數 -->
+            <div style="background: rgba(16, 185, 129, 0.08); padding: 10px; border-radius: 8px; border-left: 3px solid var(--success); margin-bottom: 10px;">
+                <div style="font-size:12px; font-weight:bold; color:var(--success); margin-bottom:6px;">📍 [第三關：QC 刷卡授權] 參數</div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size:11px;">QC 稽核員識別證 (現場刷卡)</label>
+                    <input type="text" id="inputQcId" class="form-control" value="QC-OFFICER-88" oninput="runSimulation()">
+                </div>
             </div>
 
             <button class="action-btn" onclick="runSimulation()">⚡ 執行動態對刷演練</button>
