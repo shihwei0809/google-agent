@@ -382,23 +382,23 @@
                 </div>
             </div>
 
-            <!-- 3 Steps Visualizer -->
+            <!-- 3 Steps Visualizer (對齊現場正確 SOP: 1.現場對刷 -> 2.T100送樣檢驗 -> 3.QC刷卡放行) -->
             <div class="pipeline-wrapper">
                 
-                <!-- Step 1: T100 ERP -->
+                <!-- Step 1: Barcode Match -->
                 <div class="step-box" id="boxStep1">
-                    <span class="step-badge b-1">第一關：T100 ERP</span>
-                    <div class="step-title">鼎新 T100 QC 檢驗</div>
-                    <div class="step-status-text" id="statusStep1">等待檢驗...</div>
-                    <div class="step-desc" id="descStep1">查詢 T100 檢驗單 (如 QC301) 是否已審核放行且判定為 PASS。</div>
+                    <span class="step-badge b-1">第一關：現場對刷</span>
+                    <div class="step-title">現場儲槽 × 軟管比對</div>
+                    <div class="step-status-text" id="statusStep1">等待掃描...</div>
+                    <div class="step-desc" id="descStep1">實施 00 前綴保護，現場人員比對儲槽碼與軟管碼一致性。</div>
                 </div>
 
-                <!-- Step 2: Barcode Match -->
+                <!-- Step 2: T100 ERP -->
                 <div class="step-box" id="boxStep2">
-                    <span class="step-badge b-2">第二關：條碼對刷</span>
-                    <div class="step-title">現場儲槽 × 軟管比對</div>
-                    <div class="step-status-text" id="statusStep2">等待掃描...</div>
-                    <div class="step-desc" id="descStep2">實施 00 前綴保護，比對儲槽碼與軟管碼一致性。</div>
+                    <span class="step-badge b-2">第二關：T100 ERP</span>
+                    <div class="step-title">送樣檢驗與 T100 判定</div>
+                    <div class="step-status-text" id="statusStep2">等待檢驗...</div>
+                    <div class="step-desc" id="descStep2">取樣送 QC 檢驗，查詢 T100 (QC301) 是否合格判定為 PASS。</div>
                 </div>
 
                 <!-- Step 3: QC Sign -->
@@ -406,7 +406,7 @@
                     <span class="step-badge b-3">第三關：QC 授權</span>
                     <div class="step-title">QC 識別證刷卡放行</div>
                     <div class="step-status-text" id="statusStep3">等待簽署...</div>
-                    <div class="step-desc" id="descStep3">QC 稽核員現場審查無誤後，刷卡授權並寫入存證。</div>
+                    <div class="step-desc" id="descStep3">QC 稽核員審查對刷與 T100 合格紀錄後，刷卡授權開閥入料。</div>
                 </div>
 
             </div>
@@ -461,68 +461,68 @@
             // Update SVG Text labels
             document.getElementById('svgTruckLabel').textContent = container;
 
-            // 1. Step 1: T100 ERP
-            const isT100Pass = !(container.includes('FAIL') || container.includes('999'));
+            // 1. Step 1: Barcode Match (現場對刷)
+            const isHoseMatch = (tank.trim() === hose.trim()) && tank !== "";
             const box1 = document.getElementById('boxStep1');
             const status1 = document.getElementById('statusStep1');
             const desc1 = document.getElementById('descStep1');
 
-            if (isT100Pass) {
+            if (isHoseMatch) {
                 box1.className = 'step-box pass';
-                status1.innerHTML = '<span style="color:var(--success)">🟢 PASS (已審核放行)</span>';
-                desc1.innerText = `[T100 單號: QC301-88] 判定為合格放行！允收物料。`;
+                status1.innerHTML = '<span style="color:var(--success)">🟢 匹配正確</span>';
+                desc1.innerText = `現場人員比對儲槽 '${tank}' 與 軟管 '${hose}' 條碼一致。`;
             } else {
                 box1.className = 'step-box fail';
-                status1.innerHTML = '<span style="color:var(--danger)">🔴 REJECT (未審核/退貨)</span>';
-                desc1.innerText = `[T100 警告] 該批原料尚未通過品管判定，系統強制阻斷！`;
+                status1.innerHTML = '<span style="color:var(--danger)">🔴 錯誤！管線誤接</span>';
+                desc1.innerText = `儲槽 '${tank}' 與 軟管 '${hose}' 不匹配，發送警報！`;
             }
 
-            // 2. Step 2: Barcode Match
-            const isHoseMatch = (tank.trim() === hose.trim()) && tank !== "";
+            // 2. Step 2: T100 ERP (送樣檢驗與 T100 判定)
+            const isT100Pass = !(container.includes('FAIL') || container.includes('999'));
             const box2 = document.getElementById('boxStep2');
             const status2 = document.getElementById('statusStep2');
             const desc2 = document.getElementById('descStep2');
 
-            if (isHoseMatch) {
+            if (isT100Pass) {
                 box2.className = 'step-box pass';
-                status2.innerHTML = '<span style="color:var(--success)">🟢 匹配正確</span>';
-                desc2.innerText = `儲槽 '${tank}' 與 軟管 '${hose}' 條碼防呆比對一致。`;
+                status2.innerHTML = '<span style="color:var(--success)">🟢 PASS (已審核放行)</span>';
+                desc2.innerText = `[T100 單號: QC301-88] 取樣檢驗合格放行！`;
             } else {
                 box2.className = 'step-box fail';
-                status2.innerHTML = '<span style="color:var(--danger)">🔴 錯誤！管線誤接</span>';
-                desc2.innerText = `儲槽 '${tank}' 與 軟管 '${hose}' 不匹配，發送警報！`;
+                status2.innerHTML = '<span style="color:var(--danger)">🔴 REJECT (未審核/退貨)</span>';
+                desc2.innerText = `[T100 警告] 該批原料檢驗尚未通過品管判定，強制阻斷！`;
             }
 
-            // 3. Step 3: QC Sign
+            // 3. Step 3: QC Sign (QC 刷卡授權放行)
             const box3 = document.getElementById('boxStep3');
             const status3 = document.getElementById('statusStep3');
             const desc3 = document.getElementById('descStep3');
 
-            // 判斷最終三重門關卡 (修復：三關各自獨立判定，必須三關皆過才放行，若關卡1不通過，關卡2即使正確也會獨立顯示關卡1的阻斷原因)
-            if (!isT100Pass) {
-                box3.className = 'step-box pending';
-                status3.innerHTML = `<span style="color:var(--text-muted)">⚪ 暫緩授權</span>`;
-                desc3.innerText = `T100 檢驗未放行，QC 暫不提供授權放行。`;
-                setSvgState(false);
-                renderFinal(false, "⛔ T100 檢驗未合格！強制阻斷卸料", "根據安全規範，未經 T100 ERP 判定合格之車次，禁止進行任何對刷與卸料作業。");
-                return;
-            }
-
+            // 依據 SOP 順序判定
             if (!isHoseMatch) {
                 box3.className = 'step-box pending';
                 status3.innerHTML = `<span style="color:var(--text-muted)">⚪ 暫緩授權</span>`;
-                desc3.innerText = `現場對刷不匹配，QC 暫不提供授權放行。`;
+                desc3.innerText = `現場管線對刷錯誤，QC 暫不提供授權放行。`;
                 setSvgState(false);
-                renderFinal(false, "❌ 管線對刷錯誤！強制阻斷提交", "儲槽與軟管編號不符，已鎖定提交按鈕並發送 LINE / Teams 警報。");
+                renderFinal(false, "❌ 現場對刷錯誤！強制阻斷提交", "儲槽與軟管編號不符，已鎖定閥門並發送 LINE / Teams 警報。");
+                return;
+            }
+
+            if (!isT100Pass) {
+                box3.className = 'step-box pending';
+                status3.innerHTML = `<span style="color:var(--text-muted)">⚪ 暫緩授權</span>`;
+                desc3.innerText = `T100 檢驗未合格，QC 暫不提供授權放行。`;
+                setSvgState(false);
+                renderFinal(false, "⛔ T100 檢驗未合格！強制阻斷卸料", "根據安全規範，現場對刷雖正確但 T100 判定未合格者，禁止卸料。");
                 return;
             }
 
             box3.className = 'step-box pass';
             status3.innerHTML = `<span style="color:var(--success)">🟢 已授權放行</span>`;
-            desc3.innerText = `QC 簽署人 [${qcId}] 實體掃描完成，寫入加密存證。`;
+            desc3.innerText = `QC 簽署人 [${qcId}] 實體刷卡完畢，系統寫入加密存證。`;
 
             setSvgState(true);
-            renderFinal(true, "✅ 三重防呆全數過關！准予開閥卸料", `[${factory}] 櫃號 ${container} 已經過 T100 QC合格確認 + 現場對刷一致 + QC 刷卡授權。`);
+            renderFinal(true, "✅ 三重防呆全數過關！准予開閥卸料", `[${factory}] 現場對刷一致 + T100 QC檢驗合格 + QC 刷卡授權完成。`);
         }
 
         function setSvgState(isPass) {
