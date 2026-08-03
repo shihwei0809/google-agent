@@ -18,7 +18,7 @@ if (-not (Test-Path $gdrivePath)) {
     exit 1
 }
 
-$backupPath = Join-Path $gdrivePath "backup"
+$backupPath = Join-Path $gdrivePath "skill-backup"
 if (-not (Test-Path $backupPath)) {
     New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
 }

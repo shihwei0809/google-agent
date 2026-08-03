@@ -209,7 +209,7 @@ if (-not (Test-Path $skillsTargetDir)) {
 Write-Host "`n🔄 正在檢查是否有 Google Drive 技能備份以進行自動還原..." -ForegroundColor Yellow
 $gdriveName = [string][char]0x6211 + [char]0x7684 + [char]0x96f2 + [char]0x7aef + [char]0x786c + [char]0x789f
 $gdrivePath = "G:\$gdriveName\GOOGLE ANGET"
-$backupSrc = Join-Path $gdrivePath "backup"
+$backupSrc = Join-Path $gdrivePath "skill-backup"
 
 if (Test-Path $backupSrc) {
     # 還原全域設定 (config)
