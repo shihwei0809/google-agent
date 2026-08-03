@@ -31,19 +31,12 @@ class MainActivity : AppCompatActivity() {
     private val barcodeLauncher = registerForActivityResult(ScanContract()) { result ->
         if (result.contents != null && targetFieldIndex != -1) {
             val scannedCode = result.contents
-            val validationCheck = validateBarcodeFormat(scannedCode)
+            
+            // 直接填入條碼資料，不進行任何前置格式檢查
+            fields[targetFieldIndex]?.setText(scannedCode)
 
-            if (validationCheck != "OK") {
-                fields[targetFieldIndex]?.setText("")
-                NetworkHelper.sendTeamsAlert("掃描錯誤: $scannedCode \n原因: $validationCheck")
-                Toast.makeText(this, "❌ 格式錯誤: $validationCheck", Toast.LENGTH_LONG).show()
-            } else {
-                // 1. 填入條碼資料
-                fields[targetFieldIndex]?.setText(scannedCode)
-
-                // 2. 自動聚焦到下一個有顯示的欄位
-                autoFocusNextField(targetFieldIndex)
-            }
+            // 自動聚焦到下一個有顯示的欄位
+            autoFocusNextField(targetFieldIndex)
         }
         targetFieldIndex = -1
     }
@@ -133,11 +126,6 @@ class MainActivity : AppCompatActivity() {
                         return
                     }
 
-                    // 即時比對格式防呆：若符合條碼完整長度且合法，直接自動聚焦下一欄 (解決條碼槍無後綴問題)
-                    val cleanText = original.trim()
-                    if (validateBarcodeFormat(cleanText) == "OK") {
-                        autoFocusNextField(i)
-                    }
                 }
             })
         }
@@ -384,14 +372,6 @@ class MainActivity : AppCompatActivity() {
         row4in114.visibility = if (barrelCount >= 4) View.VISIBLE else View.GONE
     }
 
-    private fun validateBarcodeFormat(code: String): String {
-        val errors = mutableListOf<String>()
-        validate17Series(code, "掃描條碼", errors)
-        if (errors.isNotEmpty()) {
-            return errors.joinToString("\n\n").replace(Regex("❌ \\[掃描條碼\\] ❌ "), "❌ ")
-        }
-        return "OK"
-    }
 
     @SuppressLint("SetTextI18n")
     private fun updateStatusText() {
@@ -643,7 +623,10 @@ class MainActivity : AppCompatActivity() {
             val masterMaterial = cleanMatMaster(rawMasterMat)
             if (masterMaterial.isEmpty()) return "❌ [四合一 料號] 為必填項目！"
 
-            validate17Series(rawMasterMat, "四合一 料號", allErrors)
+            val sMaster = rawMasterMat.trim()
+            if (sMaster.uppercase().startsWith("HTTP") || sMaster.contains("://")) {
+                allErrors.add("❌ [四合一 料號] 格式錯誤！\n👉 掃到網址條碼，請改掃正確料號")
+            }
 
             var activeTankCount = 0
             val activeBatchesShort = mutableListOf<String>()
