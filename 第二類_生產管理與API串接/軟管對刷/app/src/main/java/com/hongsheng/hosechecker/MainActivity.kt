@@ -283,7 +283,11 @@ class MainActivity : ComponentActivity() {
                 Card(modifier = Modifier.weight(1.5f), colors = CardDefaults.cardColors(containerColor = if(selectedOperator != "請選擇操作人員...") Color(0xFFE8F5E9) else Color(0xFFFCE4EC))) {
                     Box(modifier = Modifier.fillMaxWidth().clickable { isExpended = true }.padding(15.dp)) {
                         Text(selectedOperator, fontWeight = FontWeight.Bold, color = if(selectedOperator != "請選擇操作人員...") Color.Black else Color.Red)
-                        DropdownMenu(expanded = isExpended, onDismissRequest = { isExpended = false }) {
+                        DropdownMenu(
+                            expanded = isExpended, 
+                            onDismissRequest = { isExpended = false },
+                            modifier = Modifier.heightIn(max = 350.dp)
+                        ) {
                             operatorListState.value.forEach { name ->
                                 DropdownMenuItem(text = { Text(name) }, onClick = { selectedOperator = name; isExpended = false })
                             }
