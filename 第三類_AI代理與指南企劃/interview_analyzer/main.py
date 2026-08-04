@@ -666,7 +666,11 @@ async def append_chunk(
 
     def do_transcribe_chunk(client: genai.Client):
         audio_part = types.Part.from_bytes(data=chunk_bytes, mime_type=mime_type)
-        prompt = "請精準轉譯這小段錄音內容為繁體中文逐字稿，不需結尾標點以外的多餘說明。"
+        prompt = """請精準轉譯這段錄音內容為繁體中文逐字稿。
+請自動分析對話中不同人的聲音音色與語調，進行講者分離 (Speaker Diarization)，明確標註講者身分：
+【面試官】: ...
+【求職者】: ...
+格式請一律採用「【面試官】: 內容」與「【求職者】: 內容」交替呈現。"""
         parsed_res, used_model = call_gemini_with_model_cascade(
             client=client,
             contents=[audio_part, prompt],
@@ -842,7 +846,12 @@ async def re_transcribe_record(
     # Step 1: 重新語音轉文字 (Transcript)
     def do_re_transcribe(client: genai.Client):
         audio_part = types.Part.from_bytes(data=full_audio_bytes, mime_type=mime_type)
-        prompt = "請詳細且完整地將這整段錄音內容轉換為繁體中文逐字稿 (Transcript)，包含發言細節。"
+        prompt = """請詳細且完整地將這整段面試錄音內容轉換為繁體中文逐字稿 (Transcript)。
+特別注意事項：
+這是雙人對話錄音，請發揮 AI 的音色與對話脈絡辨識能力，進行「講者分離 (Speaker Diarization)」，將對話明確區分為：
+【面試官】: ...
+【求職者】: ...
+格式請一律採用「【面試官】: 內容」與「【求職者】: 內容」分行呈現，切勿將兩人聲音混在一起。"""
         parsed_res, used_model = call_gemini_with_model_cascade(
             client=client,
             contents=[audio_part, prompt],

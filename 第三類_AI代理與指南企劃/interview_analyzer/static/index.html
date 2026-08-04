@@ -1092,12 +1092,14 @@
       document.getElementById('activeTargetDept').innerText = record.target_dept || '資材部 (現場助理工程師/工程師/行政)';
       document.getElementById('transcriptText').innerText = record.transcript || '(目前無逐字稿，若斷網可點擊歷史紀錄的「🔄 斷網補救重新轉寫」按鈕)';
 
-      downloadPreDocxBtn.href = `/api/export-docx/${data.id}`;
-      downloadPreDocxBtn.classList.remove('hidden');
+      if (downloadPreDocxBtn) {
+        downloadPreDocxBtn.href = `/api/export-docx/${record.id}`;
+        downloadPreDocxBtn.classList.remove('hidden');
+      }
 
       const downloadPreExcelBtn = document.getElementById('downloadPreExcelBtn');
       if (downloadPreExcelBtn) {
-        downloadPreExcelBtn.href = `/api/export-excel/${data.id}`;
+        downloadPreExcelBtn.href = `/api/export-excel/${record.id}`;
         downloadPreExcelBtn.classList.remove('hidden');
       }
       
