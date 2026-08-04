@@ -1,0 +1,2 @@
+# Force Cloudflare Pages and Netlify to serve static files in /projects/ without SPA fallback
+/projects/*  /projects/:splat  200!
