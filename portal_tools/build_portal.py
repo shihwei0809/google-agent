@@ -14,17 +14,16 @@ base_dir = Path(__file__).parent.parent.resolve()
 manuals_dir = base_dir / "說明書"
 projects_target_dir = manuals_dir / "projects"
 
-# Ensure target directory exists and clean it up
-if projects_target_dir.exists():
-    print("Cleaning up old projects copy directory...")
-    shutil.rmtree(projects_target_dir)
-projects_target_dir.mkdir(parents=True, exist_ok=True)
+# Ensure target directory exists
+if not projects_target_dir.exists():
+    projects_target_dir.mkdir(parents=True, exist_ok=True)
 
 # Define static web projects to copy
 web_projects = [
     {"name": "flowchart-web", "src": base_dir / "flowchart-web"},
     {"name": "hongsheng-web", "src": base_dir / "hongsheng-web"},
     {"name": "isotank-training", "src": base_dir / "isotank-training"},
+    {"name": "nitrogen-valve-training", "src": base_dir / "nitrogen-valve-training"},
     {"name": "isotank-hf-demo", "src": base_dir / "isotank-hf-demo"},
     {"name": "test", "src": base_dir / "osaka-adventure-book"},
     {"name": "互動式網站", "src": base_dir / "interactive-web-training"},
@@ -52,7 +51,7 @@ for proj in web_projects:
         continue
     
     print(f"Copying {proj['name']} to manuals/projects/...")
-    shutil.copytree(src_path, dest_path, ignore=ignore_patterns)
+    shutil.copytree(src_path, dest_path, ignore=ignore_patterns, dirs_exist_ok=True)
 
 print("✅ All static web projects successfully copied to manuals/projects/")
 
