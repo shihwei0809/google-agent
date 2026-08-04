@@ -38,7 +38,7 @@ def ignore_patterns(path, names):
     for name in names:
         if name in ['.git', 'node_modules', 'venv', '.env', '.firebase', '.netlify', '__pycache__']:
             ignored.append(name)
-        elif name.endswith(('.zip', '.mp4', '.pptx', '.pdf', '.doc', '.pyc')):
+        elif name.endswith(('.zip', '.mp4', '.pptx', '.pdf', '.doc', '.pyc', '.exe', '.webm', '.xlsm', '.xlsx')):
             ignored.append(name)
     return ignored
 
