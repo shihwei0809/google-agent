@@ -141,6 +141,11 @@
                   <p class="text-[11px] text-slate-500">支援 104 履歷 PDF、圖片檔、掃描檔與文字檔</p>
                 </div>
               </div>
+              <div class="pt-2 flex justify-end">
+                <button type="button" onclick="convertPDFDirectToExcel()" class="w-full md:w-auto px-4 py-2 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg">
+                  <span>📊 獨立工具：將此 PDF / 圖片直接完整轉換為 Excel 試算表 (.xlsx)</span>
+                </button>
+              </div>
             </div>
 
             <!-- Paste Resume Text -->
@@ -174,6 +179,9 @@
             </button>
             <a id="downloadPreDocxBtn" href="#" target="_blank" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer">
               <span>📄 下載 Word 報告 (.docx)</span>
+            </a>
+            <a id="downloadPreExcelBtn" href="#" target="_blank" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+              <span>📊 下載 Excel 總表 (.xlsx)</span>
             </a>
           </div>
         </div>
@@ -257,8 +265,13 @@
         <div class="flex flex-col items-center justify-center space-y-4">
           <canvas id="visualizer" width="600" height="80" class="w-full max-w-lg h-20 rounded-lg bg-slate-900/60 border border-slate-800"></canvas>
 
-          <!-- Department & Backup Interval Selector -->
+          <!-- Candidate Name & Department Selector -->
           <div class="flex items-center gap-4 flex-wrap justify-center bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+            <div class="flex items-center gap-2 text-xs text-slate-300">
+              <span class="font-bold text-indigo-400">👤 應徵者姓名：</span>
+              <input type="text" id="candidateNameInput" placeholder="請輸入姓名 (例如: 張小明)" class="bg-slate-950 border border-indigo-500/40 rounded-lg text-xs px-3 py-1.5 text-slate-100 focus:outline-none focus:border-indigo-500 font-medium w-36">
+            </div>
+
             <div class="flex items-center gap-2 text-xs text-slate-300">
               <span class="font-bold text-indigo-400">🎯 應徵單位/職缺：</span>
               <select id="targetDeptSelect" class="bg-slate-950 border border-indigo-500/40 rounded-lg text-xs px-3 py-1.5 text-slate-100 focus:outline-none focus:border-indigo-500 font-medium">
@@ -357,9 +370,14 @@
               <span id="activeTargetDept" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded font-bold"></span>
             </div>
           </div>
-          <a id="downloadDocxBtn" href="#" target="_blank" class="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer">
-            <span>📄 下載 Word 評估報告 (.docx)</span>
-          </a>
+          <div class="flex items-center gap-3">
+            <a id="downloadDocxBtn" href="#" target="_blank" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+              <span>📄 下載 Word (.docx)</span>
+            </a>
+            <a id="downloadExcelBtn" href="#" target="_blank" class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+              <span>📊 下載 Excel (.xlsx)</span>
+            </a>
+          </div>
         </div>
 
         <div class="glass rounded-2xl p-6 space-y-2 border-indigo-500/30 border">
@@ -600,6 +618,48 @@
       }
     }
 
+    async function convertPDFDirectToExcel() {
+      if (!selectedResumeFile) {
+        alert('請先在下方「📁 上傳人資給的履歷檔案」選擇或拖曳一份 PDF 或圖片檔！');
+        return;
+      }
+      
+      loading.classList.remove('hidden');
+      loadingMsg.innerText = '正在將 PDF 履歷完整文字與表格轉換匯出為 Excel 試算表 (.xlsx)...';
+
+      const formData = new FormData();
+      formData.append('file', selectedResumeFile);
+
+      try {
+        const res = await fetch('/api/convert-pdf-to-excel', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: formData
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || '轉換失敗');
+        }
+
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        const cleanName = selectedResumeFile.name.replace(/\.[^/.]+$/, "");
+        a.download = `${cleanName}_完整內容.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+        alert('✅ 已成功將 PDF 履歷完整內容導出為 Excel (.xlsx)！');
+      } catch (err) {
+        alert('轉換出錯: ' + err.message);
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+
     function handleFileSelect(event) {
       const file = event.target.files[0];
       if (file) {
@@ -699,6 +759,10 @@
 
     function transferToInterview() {
       const pos = document.getElementById('prePosBadge').innerText;
+      const candName = document.getElementById('preNameVal').innerText;
+      if (candName && candName !== '---') {
+        document.getElementById('candidateNameInput').value = candName;
+      }
       if (pos) {
         let matchedOption = false;
         for (let opt of targetDeptSelect.options) {
@@ -867,7 +931,8 @@
         setupVisualizer(stream);
 
         const targetDept = encodeURIComponent(targetDeptSelect.value);
-        const res = await fetch(`/api/start-session?target_dept=${targetDept}`, { method: 'POST' });
+        const candidateName = encodeURIComponent(document.getElementById('candidateNameInput').value.trim() || '未具名');
+        const res = await fetch(`/api/start-session?target_dept=${targetDept}&candidate_name=${candidateName}`, { method: 'POST' });
         const record = await parseApiResponse(res);
         if (!res.ok) throw new Error(record.detail || '建立 Session 失敗');
 
@@ -1022,18 +1087,31 @@
     function displayRecord(record) {
       reportSection.classList.remove('hidden');
       reportSection.dataset.activeId = record.id;
-      document.getElementById('activeRecordTime').innerText = '錄音時間：' + record.created_at + (record.used_model ? ' (' + record.used_model + ')' : '');
+      const candTitle = record.candidate_name ? `【${record.candidate_name}】` : '';
+      document.getElementById('activeRecordTime').innerText = '應徵者：' + (record.candidate_name || '未具名') + ' | 錄音時間：' + record.created_at + (record.used_model ? ' (' + record.used_model + ')' : '');
       document.getElementById('activeTargetDept').innerText = record.target_dept || '資材部 (現場助理工程師/工程師/行政)';
-      document.getElementById('transcriptText').innerText = record.transcript || '(尚未有逐字稿)';
+      document.getElementById('transcriptText').innerText = record.transcript || '(目前無逐字稿，若斷網可點擊歷史紀錄的「🔄 斷網補救重新轉寫」按鈕)';
+
+      downloadPreDocxBtn.href = `/api/export-docx/${data.id}`;
+      downloadPreDocxBtn.classList.remove('hidden');
+
+      const downloadPreExcelBtn = document.getElementById('downloadPreExcelBtn');
+      if (downloadPreExcelBtn) {
+        downloadPreExcelBtn.href = `/api/export-excel/${data.id}`;
+        downloadPreExcelBtn.classList.remove('hidden');
+      }
+      
+      const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+      if (downloadExcelBtn) {
+        downloadExcelBtn.href = `/api/export-excel/${record.id}`;
+        downloadExcelBtn.classList.remove('hidden');
+      }
 
       if (record.report) {
         document.getElementById('reportDetails').classList.remove('hidden');
-        downloadDocxBtn.href = `/api/export-docx/${record.id}`;
-        downloadDocxBtn.classList.remove('hidden');
         renderReport(record.report);
       } else {
         document.getElementById('reportDetails').classList.add('hidden');
-        downloadDocxBtn.classList.add('hidden');
       }
     }
 
@@ -1103,17 +1181,22 @@
 
         container.innerHTML = records.map(r => {
           const isPre = r.type === 'pre_analysis' || r.pre_report;
+          const candName = r.candidate_name || r.pre_report?.candidate_name || '';
+          const nameTag = candName ? `【${candName}】` : '';
           const titleText = isPre 
-            ? `📋 [事前分析] ${r.candidate_name || '應徵者'} (${r.pre_report?.overall_match_score || 0}分)`
-            : `🎙️ [現場錄音] ${r.target_dept || '資材部面試'}`;
+            ? `📋 [事前分析] ${candName || '應徵者'} (${r.pre_report?.overall_match_score || 0}分)`
+            : `🎙️ [現場錄音] ${nameTag} ${r.target_dept || '資材部面試'}`;
+
+          const showReTranscribe = !isPre && (!r.transcript || r.transcript === '無對話' || r.status !== 'analyzed');
 
           return `
             <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div class="space-y-1 max-w-2xl">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <span class="text-xs px-2 py-0.5 rounded ${isPre ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : (r.status === 'analyzed' ? 'bg-purple-500/20 text-purple-300' : 'bg-emerald-500/20 text-emerald-300')} font-bold">
-                    ${isPre ? '📋 事前履歷與提問' : (r.status === 'analyzed' ? '🎙️ 語音與DISC分析' : '純語音轉文字')}
+                  <span class="text-xs px-2 py-0.5 rounded ${isPre ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : (r.status === 'analyzed' ? 'bg-purple-500/20 text-purple-300' : 'bg-amber-500/20 text-amber-300')} font-bold">
+                    ${isPre ? '📋 事前履歷與提問' : (r.status === 'analyzed' ? '🎙️ 語音與DISC分析' : '⚠️ 待轉寫/斷網音檔')}
                   </span>
+                  ${candName ? `<span class="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">👤 ${candName}</span>` : ''}
                   <span class="text-xs text-indigo-300 font-bold bg-indigo-500/10 px-2 py-0.5 rounded">${r.target_dept || '應徵職務'}</span>
                   <span class="text-xs text-slate-400">${r.created_at}</span>
                   ${r.used_model ? `<span class="text-xs text-indigo-400 font-mono">(${r.used_model})</span>` : ''}
@@ -1123,11 +1206,19 @@
               </div>
               
               <div class="flex flex-wrap items-center gap-2">
+                ${showReTranscribe ? `
+                  <button onclick="reTranscribeRecordItem('${r.id}')" class="px-3 py-2 bg-amber-600 hover:bg-amber-500 text-slate-900 font-bold text-xs rounded-lg cursor-pointer transition-all shadow-md">
+                    🔄 斷網補救：重新辨識
+                  </button>
+                ` : ''}
                 <button onclick="viewRecordDetails('${r.id}')" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg text-slate-200 cursor-pointer">
                   查看詳情與報告
                 </button>
                 <a href="/api/export-docx/${r.id}" target="_blank" class="px-3 py-2 bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 text-xs font-semibold rounded-lg cursor-pointer transition-all">
-                  📄 下載 Word
+                  📄 Word
+                </a>
+                <a href="/api/export-excel/${r.id}" target="_blank" class="px-3 py-2 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 text-xs font-semibold rounded-lg cursor-pointer transition-all">
+                  📊 Excel
                 </a>
                 <button onclick="deleteRecordItem('${r.id}')" class="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-semibold rounded-lg cursor-pointer transition-all">
                   🗑️ 刪除
@@ -1138,6 +1229,32 @@
         }).join('');
       } catch (err) {
         console.error(err);
+      }
+    }
+
+    async function reTranscribeRecordItem(recId) {
+      const name = prompt("請確認或輸入這位應徵者姓名（方便歸檔與命名）：", window.recordsMap[recId]?.candidate_name || "");
+      if (name === null) return;
+
+      loading.classList.remove('hidden');
+      loadingMsg.innerText = "正在讀取本機音檔並發送 Gemini AI 進行完整語音辨識與特質分析中...";
+      try {
+        const res = await fetch(`/api/re-transcribe/${recId}?candidate_name=${encodeURIComponent(name)}`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        const data = await parseApiResponse(res);
+        if (!res.ok) throw new Error(data.detail || '補救重新辨識失敗');
+
+        window.recordsMap[recId] = data;
+        displayRecord(data);
+        loadHistory();
+        alert(`✅ 成功完成【${name || '應徵者'}】的語音逐字稿辨識與特質分析！`);
+      } catch (err) {
+        if (err.message.includes('API Key')) openKeyModal();
+        alert('補救失敗: ' + err.message);
+      } finally {
+        loading.classList.add('hidden');
       }
     }
 

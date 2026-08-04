@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from google import genai
 from google.genai import types
 from docx_generator import generate_interview_report_docx, generate_pre_interview_report_docx
+from excel_generator import generate_interview_report_excel, generate_pre_interview_report_excel
 
 if hasattr(sys.stdout, 'reconfigure'):
     try:
@@ -353,6 +354,35 @@ async def export_docx(record_id: str):
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
+# 匯出 Excel 評估總表 (.xlsx)
+@app.get("/api/export-excel/{record_id}")
+async def export_excel(record_id: str):
+    records = load_records()
+    rec = next((r for r in records if r["id"] == record_id), None)
+    if not rec:
+        raise HTTPException(status_code=404, detail="找不到該筆紀錄")
+
+    if rec.get("type") == "pre_analysis" or rec.get("pre_report"):
+        if not rec.get("pre_report"):
+            raise HTTPException(status_code=400, detail="該筆事前分析紀錄未完成，無法導出 Excel 報告")
+        cand = rec.get("candidate_name", "應徵者")
+        filename = f"事前履歷分析報告_{cand}_{rec['created_at'].replace(' ', '_').replace(':', '-')}.xlsx"
+        output_path = os.path.join(DATA_DIR, f"export_pre_{record_id}.xlsx")
+        generate_pre_interview_report_excel(rec, output_path)
+    else:
+        if rec.get("status") != "analyzed" or not rec.get("report"):
+            raise HTTPException(status_code=400, detail="該筆紀錄尚未完成 AI 特質分析，無法匯出 Excel 報告")
+        cand = rec.get("candidate_name", "應徵者")
+        filename = f"面試特質評估報告_{cand}_{rec['created_at'].replace(' ', '_').replace(':', '-')}.xlsx"
+        output_path = os.path.join(DATA_DIR, f"export_{record_id}.xlsx")
+        generate_interview_report_excel(rec, output_path)
+
+    return FileResponse(
+        path=output_path, 
+        filename=filename, 
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 # 事前履歷 AI 分析與面試提問生成 API
 @app.post("/api/pre-analyze")
 async def pre_analyze_resume(
@@ -397,6 +427,119 @@ async def pre_analyze_resume(
 
     if not contents:
         raise HTTPException(status_code=400, detail="請上傳履歷檔案 (PDF / 圖片 / 文字檔) 或輸入履歷文字。")
+
+# 📄 獨立工具：將任意 PDF/圖片/履歷檔案完整的內容直接萃取轉換導出成 Excel 試算表 (.xlsx)
+@app.post("/api/convert-pdf-to-excel")
+async def convert_pdf_to_excel(
+    file: UploadFile = File(...),
+    x_gemini_api_keys: Optional[str] = Header(None)
+):
+    key_pool = APIKeyPool(x_gemini_api_keys)
+    if not file or not file.filename:
+        raise HTTPException(status_code=400, detail="請選擇要轉換的 PDF 履歷或文件檔案。")
+    
+    file_bytes = await file.read()
+    filename_lower = file.filename.lower()
+    mime_type = file.content_type or "application/pdf"
+    
+    if 'pdf' in filename_lower: mime_type = "application/pdf"
+    elif 'png' in filename_lower: mime_type = "image/png"
+    elif any(ext in filename_lower for ext in ['.jpg', '.jpeg']): mime_type = "image/jpeg"
+    
+    file_part = types.Part.from_bytes(data=file_bytes, mime_type=mime_type)
+    
+    prompt = """
+    你是一位資料轉換專家。請完整且精準地閱讀這份 PDF / 圖片文件履歷的【所有原始文字、表格內容與細節】。
+    請不要進行任何裁減、刪減或簡化摘要，將這份文件的全部內容整理轉換為結構化的 JSON 資料，包含：
+    1. candidate_name: 個人姓名/標題
+    2. basic_info: 基本資料 (性別、年齡/出生年、聯絡電話、Email、居住地、通訊地址、希望職缺等)
+    3. education: 學歷紀錄 (學校名稱、科系、學位、起訖年月)
+    4. experience: 完整工作經歷列表 (公司名稱、職稱、任職時間、部門、工作內容詳細條列與成就)
+    5. skills_and_certificates: 專業技能、外語能力、專業證照與軟體系統工具
+    6. autobiography: 完整自傳/自我介紹內容
+    7. raw_full_text: 文件的完整逐字原始文字內容 (確保無遺漏)
+    """
+
+    class PDFExtractedData(BaseModel):
+        candidate_name: str = Field(description="姓名")
+        basic_info: str = Field(description="個人基本資料與聯絡方式")
+        education: str = Field(description="完整學歷紀錄")
+        experience: str = Field(description="完整工作經歷與職責內容")
+        skills_and_certificates: str = Field(description="專業技能、證照與語言")
+        autobiography: str = Field(description="自傳全內文")
+        raw_full_text: str = Field(description="文件完整原始文字紀錄")
+
+    def do_convert(client: genai.Client):
+        parsed_res, used_model = call_gemini_with_model_cascade(
+            client=client,
+            contents=[file_part, prompt],
+            response_schema=PDFExtractedData
+        )
+        return parsed_res.model_dump(), used_model
+
+    extracted, used_model = key_pool.execute_with_retry(do_convert)
+
+    # 建立 Excel 活頁簿
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "PDF完整轉譯內容"
+    ws.views.sheetView[0].showGridLines = True
+
+    cand = extracted.get("candidate_name", "履歷文件")
+    
+    # 標題
+    ws.merge_cells("A1:B1")
+    ws["A1"] = f"📄 PDF 履歷完整轉換 Excel 表單 - {cand}"
+    ws["A1"].font = Font(name="微軟正黑體", size=15, bold=True, color="FFFFFF")
+    ws["A1"].fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 36
+
+    sections = [
+        ("應徵者姓名", extracted.get("candidate_name", "")),
+        ("個人基本資料與聯絡資訊", extracted.get("basic_info", "")),
+        ("完整學歷背景", extracted.get("education", "")),
+        ("工作經歷與職掌條列", extracted.get("experience", "")),
+        ("專業技能與證照", extracted.get("skills_and_certificates", "")),
+        ("完整自傳內容", extracted.get("autobiography", "")),
+        ("PDF 原始全文字內容備份", extracted.get("raw_full_text", ""))
+    ]
+
+    r_idx = 2
+    for title, content in sections:
+        ws.row_dimensions[r_idx].height = 24
+        ws.merge_cells(f"A{r_idx}:B{r_idx}")
+        cell = ws[f"A{r_idx}"]
+        cell.value = f"📌 {title}"
+        cell.font = Font(name="微軟正黑體", size=11, bold=True, color="1F4E78")
+        cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        r_idx += 1
+
+        ws.merge_cells(f"A{r_idx}:B{r_idx+1}")
+        c_cell = ws[f"A{r_idx}"]
+        c_cell.value = content
+        c_cell.font = Font(name="微軟正黑體", size=10)
+        c_cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        ws.row_dimensions[r_idx].height = 40
+        ws.row_dimensions[r_idx+1].height = 40
+        r_idx += 2
+
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 80
+
+    out_file = os.path.join(DATA_DIR, f"pdf_converted_{uuid.uuid4().hex[:8]}.xlsx")
+    wb.save(out_file)
+
+    clean_name = file.filename.replace(".pdf", "").replace(".PDF", "")
+    return FileResponse(
+        path=out_file,
+        filename=f"{clean_name}_完整內容.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
     prompt = f"""
     你是一位專業資深 HR 人資主管與組織面試專家。
@@ -464,11 +607,16 @@ async def delete_record(record_id: str):
 
     return {"message": "紀錄已成功刪除", "remaining_count": len(records)}
 
-# 1. 開始新的面試 Session
+# 1. 開始新的面試 Session (支援應徵者姓名與自訂檔名)
 @app.post("/api/start-session")
-async def start_session(target_dept: str = Query("資材部 (現場助理工程師/工程師/行政)")):
+async def start_session(
+    target_dept: str = Query("資材部 (現場助理工程師/工程師/行政)"),
+    candidate_name: str = Query("未具名")
+):
     rec_id = str(uuid.uuid4())
-    audio_filename = f"{rec_id}.webm"
+    time_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_name = candidate_name.strip().replace(" ", "_") or "應徵者"
+    audio_filename = f"面試錄音_{safe_name}_{time_str}.webm"
     saved_path = os.path.join(AUDIO_DIR, audio_filename)
 
     with open(saved_path, "wb") as f:
@@ -476,6 +624,7 @@ async def start_session(target_dept: str = Query("資材部 (現場助理工程�
 
     new_record = {
         "id": rec_id,
+        "candidate_name": safe_name,
         "target_dept": target_dept,
         "audio_url": f"/audios/{audio_filename}",
         "audio_path": saved_path,
@@ -658,6 +807,80 @@ async def analyze_existing_record(
     rec["report"] = report_data
     save_records(records)
 
+    return rec
+
+# 4. 斷網補救：讀取本機音檔重新呼叫 AI 進行轉寫與特質分析 API
+@app.post("/api/re-transcribe/{record_id}")
+async def re_transcribe_record(
+    record_id: str,
+    candidate_name: Optional[str] = Query(None),
+    x_gemini_api_keys: Optional[str] = Header(None)
+):
+    key_pool = APIKeyPool(x_gemini_api_keys)
+    records = load_records()
+    rec = next((r for r in records if r["id"] == record_id), None)
+    if not rec:
+        raise HTTPException(status_code=404, detail="找不到該筆紀錄")
+
+    if candidate_name and candidate_name.strip():
+        rec["candidate_name"] = candidate_name.strip()
+
+    saved_path = rec.get("audio_path")
+    if not saved_path or not os.path.exists(saved_path):
+        raise HTTPException(status_code=404, detail="本機音訊檔案不存在，無法進行重新辨識")
+
+    with open(saved_path, "rb") as f:
+        full_audio_bytes = f.read()
+
+    if not full_audio_bytes or len(full_audio_bytes) < 100:
+        raise HTTPException(status_code=400, detail="本機音檔為空白檔或容量過小，無有效聲音")
+
+    ext = os.path.splitext(saved_path)[1].lower()
+    mime_type = "audio/webm" if "webm" in ext else ("audio/mp3" if "mp3" in ext else "audio/wav")
+    target_dept = rec.get("target_dept", "資材部 (現場助理工程師/工程師/行政)")
+
+    # Step 1: 重新語音轉文字 (Transcript)
+    def do_re_transcribe(client: genai.Client):
+        audio_part = types.Part.from_bytes(data=full_audio_bytes, mime_type=mime_type)
+        prompt = "請詳細且完整地將這整段錄音內容轉換為繁體中文逐字稿 (Transcript)，包含發言細節。"
+        parsed_res, used_model = call_gemini_with_model_cascade(
+            client=client,
+            contents=[audio_part, prompt],
+            response_schema=PureTranscriptResponse
+        )
+        return parsed_res.transcript, used_model
+
+    transcript_text, used_model = key_pool.execute_with_retry(do_re_transcribe)
+    rec["transcript"] = transcript_text.strip() if transcript_text else "無對話"
+    rec["used_model"] = used_model
+
+    # Step 2: 進行 AI 面試特質評估
+    def do_re_analysis(client: genai.Client):
+        contents = [
+            types.Part.from_bytes(data=full_audio_bytes, mime_type=mime_type),
+            f"""
+            你是一位頂尖組織心理學家與 HR 顧問。
+            應徵目標部門與職務為：【{target_dept}】。
+
+            請結合對話聲音風格與文字內容（逐字稿：{rec['transcript'][:2000]}...），
+            進行全方位特質與【{target_dept}】職務適性評估報告。
+            """
+        ]
+        parsed_res, used_model = call_gemini_with_model_cascade(
+            client=client,
+            contents=contents,
+            response_schema=InterviewReport
+        )
+        return parsed_res.model_dump(), used_model
+
+    report_data, used_model = key_pool.execute_with_retry(do_re_analysis)
+    rec["status"] = "analyzed"
+    rec["used_model"] = used_model
+    if not report_data.get("transcript"):
+        report_data["transcript"] = rec["transcript"]
+    rec["report"] = report_data
+
+    save_records(records)
     return rec
 
 if __name__ == "__main__":

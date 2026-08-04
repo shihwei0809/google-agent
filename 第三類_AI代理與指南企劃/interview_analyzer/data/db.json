@@ -1,5 +1,17 @@
 [
   {
+    "id": "69e250aa-65bc-4423-a228-9363cbe532ca",
+    "target_dept": "【彰濱廠區】助理管理師",
+    "audio_url": "/audios/69e250aa-65bc-4423-a228-9363cbe532ca.webm",
+    "audio_path": "data\\audios\\69e250aa-65bc-4423-a228-9363cbe532ca.webm",
+    "created_at": "2026-08-04 14:23:12",
+    "transcript": "",
+    "chunks_count": 3,
+    "status": "transcribed",
+    "used_model": null,
+    "report": null
+  },
+  {
     "id": "f737b0e5-2cc5-4a5b-9e26-f4499e92ef72",
     "type": "pre_analysis",
     "candidate_name": "曾淑玫",
