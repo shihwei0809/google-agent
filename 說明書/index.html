@@ -948,7 +948,7 @@
         </div>
 
         <div class="nav-actions" style="display: flex; gap: 10px;">
-            <a href="deploy-guide.html" target="_blank" class="btn-backup-guide" style="text-decoration: none; border-color: #f6821f; color: #f6821f; background: rgba(246, 130, 31, 0.1);">
+            <a href="deploy-guide.html" target="_blank" class="btn-backup-guide" style="text-decoration: none; border-color: #f6821f; color: #f6821f; background: rgba(246, 130, 31, 0.1);" onclick="if(window.location.protocol.startsWith('http')) this.href='/deploy-guide.html';">
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 無限部署教學
             </a>
@@ -1624,7 +1624,7 @@
             document.getElementById("readerTitle").innerText = item.title;
             
             const contentArea = document.getElementById("renderedMarkdown");
-            contentArea.innerHTML = parseMarkdown(item.content);
+            contentArea.innerHTML = parseMarkdown(item.content, item.path);
 
             // Dynamically show GitHub link in reader header actions
             const proj = projectsData.find(p => p.title === item.title || p.manualTitle === item.title || item.title.includes(p.title) || p.title.includes(item.title));
@@ -1713,14 +1713,31 @@
             html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
             html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 
-            // Clickable Links with file scheme conversion for windows
-            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, label, href) {
+            // Image parsing (with path resolution for SPA nested URLs)
+            html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, src) {
+                if (src.startsWith('http') || src.startsWith('data:')) {
+                    return `<img src="${src}" alt="${alt}">`;
+                }
+                
+                // If online, force absolute path to avoid SPA relative path nesting bugs
+                if (window.location.protocol.startsWith('http')) {
+                    const cleanSrc = src.replace(/^(\.\/|\.\.\/)+/, '').replace(/^\/+/, '');
+                    const absoluteUrl = folderPath ? `/${folderPath}/${cleanSrc}` : `/${cleanSrc}`;
+                    return `<img src="${absoluteUrl}" alt="${alt}">`;
+                }
+                
+                // Local file:// fallback
+                return `<img src="${src}" alt="${alt}">`;
+            });
+
+            // Clickable Links with file scheme conversion for windows (avoid matching images)
+            html = html.replace(/(^|[^!])\[([^\]]+)\]\(([^)]+)\)/g, function(match, prefix, label, href) {
                 let target = "_blank";
                 // If it's local file or relative path, keep target self
                 if (href.startsWith("file://") || href.startsWith("..") || href.indexOf("://") === -1) {
                     target = "_self";
                 }
-                return `<a href="${href}" target="${target}">${label}</a>`;
+                return `${prefix}<a href="${href}" target="${target}">${label}</a>`;
             });
 
             // Newlines to br (outside tags)
