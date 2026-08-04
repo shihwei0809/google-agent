@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鴻勝化學｜T100 ERP QC 三重對刷與動態管線畫布演練控制台</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=Outfit:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: #111827;
+            --card-bg: rgba(31, 41, 55, 0.6);
+            --border-color: #374151;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #00f2fe;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --blue: #3b82f6;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: radial-gradient(circle at 10% 10%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 90%, rgba(59, 130, 246, 0.05) 0%, transparent 40%);
+        }
+
+        header {
+            height: 70px;
+            background-color: rgba(17, 24, 39, 0.8);
+            backdrop-filter: blur(15px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+        }
+
+        .logo-area { display: flex; align-items: center; gap: 12px; }
+        .logo-badge {
+            background: linear-gradient(135deg, var(--primary), var(--blue));
+            color: #000;
+            font-weight: 900;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        .logo-title { font-size: 20px; font-weight: 700; }
+        .sub-tag { font-size: 12px; color: var(--text-muted); margin-left: 8px; }
+
+        .container {
+            flex: 1;
+            padding: 24px 32px;
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 24px;
+            max-width: 1650px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Left Control Panel */
+        .control-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .card-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-group label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+        .form-control, select {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: var(--text-main);
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .form-control:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 10px rgba(0, 242, 254, 0.2); }
+
+        .btn-preset {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+        .btn-preset:hover { background-color: rgba(0, 242, 254, 0.1); border-color: var(--primary); }
+
+        .action-btn {
+            background: linear-gradient(135deg, var(--primary), var(--blue));
+            color: #000;
+            font-weight: 800;
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+        }
+        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5); }
+
+        /* Right SVG Canvas Area */
+        .display-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .canvas-card {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+        }
+
+        .svg-container {
+            width: 100%;
+            height: 380px;
+            background-color: #080c14;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* SVG Element Styles (修復：取消 hover transform 避免點擊飄動) */
+        .svg-tank { cursor: pointer; }
+        .svg-tank:hover rect, .svg-tank:hover circle { filter: brightness(1.2); }
+        
+        .flow-line {
+            stroke-dasharray: 8;
+            animation: dash 1.5s linear infinite;
+        }
+        @keyframes dash {
+            to { stroke-dashoffset: -16; }
+        }
+
+        /* 3 Steps Pipeline Visualizer */
+        .pipeline-wrapper {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .step-box {
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.3s;
+        }
+        .step-box.pass { border-color: var(--success); box-shadow: 0 0 15px rgba(16, 185, 129, 0.2); }
+        .step-box.fail { border-color: var(--danger); box-shadow: 0 0 15px rgba(239, 68, 68, 0.2); }
+        .step-box.pending { border-color: var(--warning); }
+
+        .step-badge {
+            font-size: 11px;
+            font-weight: 900;
+            padding: 4px 8px;
+            border-radius: 6px;
+            width: fit-content;
+        }
+        .step-badge.b-1 { background-color: rgba(59, 130, 246, 0.2); color: var(--blue); }
+        .step-badge.b-2 { background-color: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .step-badge.b-3 { background-color: rgba(16, 185, 129, 0.2); color: var(--success); }
+
+        .step-title { font-size: 15px; font-weight: 700; }
+        .step-status-text { font-size: 13px; font-weight: 800; }
+        .step-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+        /* Final Result Banner */
+        .result-banner {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+        }
+        .result-banner.allow { border-color: var(--success); background-color: rgba(16, 185, 129, 0.05); }
+        .result-banner.deny { border-color: var(--danger); background-color: rgba(239, 68, 68, 0.05); }
+
+        .result-title { font-size: 20px; font-weight: 900; }
+        .result-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        /* Modal Details */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 450px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-area">
+            <div class="logo-badge">T100 ERP × SVG</div>
+            <div class="logo-title">鴻勝化學｜互動式產品製程與 T100 QC 三重對刷模擬畫布</div>
+            <span class="sub-tag">點擊槽體/槽車可互動操作與檢視</span>
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <!-- Left: Control & Scenario Presets -->
+        <div class="control-card">
+            <div class="card-header">🎮 演練控制與即時操作</div>
+
+            <div class="form-group">
+                <label>快速情境切換 (Presets)</label>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <button class="btn-preset" onclick="loadPreset('pass_all')">🟢 情境 1：全數通關 (T100合格 + 綠燈泵浦傳輸)</button>
+                    <button class="btn-preset" onclick="loadPreset('t100_fail')">🔴 情境 2：T100 未合格 (單據未審核/退貨 阻斷)</button>
+                    <button class="btn-preset" onclick="loadPreset('hose_mismatch')">🔴 情境 3：管線誤接 (對刷不匹配 阻斷)</button>
+                </div>
+            </div>
+
+            <hr style="border-color: var(--border-color);">
+
+            <div class="form-group">
+                <label>1. 廠區選擇</label>
+                <select id="selFactory" onchange="runSimulation()">
+                    <option value="彰濱一廠">彰濱一廠 (N2 氮氣加壓入料)</option>
+                    <option value="彰濱二廠">彰濱二廠 (共用 Pump 傳輸)</option>
+                    <option value="彰濱三廠">彰濱三廠</option>
+                </select>
+            </div>
+
+            <!-- 第一關對應參數 -->
+            <div style="background: rgba(59, 130, 246, 0.08); padding: 10px; border-radius: 8px; border-left: 3px solid var(--blue); margin-bottom: 10px;">
+                <div style="font-size:12px; font-weight:bold; color:var(--blue); margin-bottom:6px;">📍 [第一關：現場對刷] 參數</div>
+                <div class="form-group" style="margin-bottom: 6px;">
+                    <label style="font-size:11px;">現場儲槽編號 (掃描條碼)</label>
+                    <input type="text" id="inputTank" class="form-control" value="00123" oninput="runSimulation()">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size:11px;">現場軟管編號 (掃描條碼)</label>
+                    <input type="text" id="inputHose" class="form-control" value="00123" oninput="runSimulation()">
+                </div>
+            </div>
+
+            <!-- 第二關對應參數 -->
+            <div style="background: rgba(245, 158, 11, 0.08); padding: 10px; border-radius: 8px; border-left: 3px solid var(--warning); margin-bottom: 10px;">
+                <div style="font-size:12px; font-weight:bold; color:var(--warning); margin-bottom:6px;">📍 [第二關：T100 ERP 檢驗] 參數</div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size:11px;">槽車櫃號 / T100 QC單號 (打 FAIL 模擬不合格)</label>
+                    <input type="text" id="inputContainer" class="form-control" value="ESQC301-20260729032" oninput="runSimulation()">
+                </div>
+            </div>
+
+            <!-- 第三關對應參數 -->
+            <div style="background: rgba(16, 185, 129, 0.08); padding: 10px; border-radius: 8px; border-left: 3px solid var(--success); margin-bottom: 10px;">
+                <div style="font-size:12px; font-weight:bold; color:var(--success); margin-bottom:6px;">📍 [第三關：QC 刷卡授權] 參數</div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size:11px;">QC 稽核員識別證 (現場刷卡)</label>
+                    <input type="text" id="inputQcId" class="form-control" value="QC-OFFICER-88" oninput="runSimulation()">
+                </div>
+            </div>
+
+            <button class="action-btn" onclick="runSimulation()">⚡ 執行動態對刷演練</button>
+        </div>
+
+        <!-- Right: Interactive SVG Process Canvas & 3-Step Pipeline -->
+        <div class="display-area">
+
+            <!-- Interactive SVG Visual Canvas -->
+            <div class="canvas-card">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-weight:700; color:var(--primary); font-size:15px;">🏭 現場卸料與氣密管線動態流程圖 (可點擊槽體/閥門操作)</div>
+                    <div style="font-size:12px; color:var(--text-muted);">流速: <span id="flowSpeedText" style="color:var(--success)">正常傳輸中</span></div>
+                </div>
+
+                <div class="svg-container">
+                    <svg width="100%" height="100%" viewBox="0 0 900 360" id="svgCanvas">
+                        <!-- Background Grid -->
+                        <defs>
+                            <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                                <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+                            </pattern>
+                            <!-- Liquid Gradient Normal -->
+                            <linearGradient id="liquidGreen" x1="0" y1="1" x2="0" y2="0">
+                                <stop offset="0%" stop-color="#10b981" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#059669" stop-opacity="0.4"/>
+                            </linearGradient>
+                            <linearGradient id="liquidRed" x1="0" y1="1" x2="0" y2="0">
+                                <stop offset="0%" stop-color="#ef4444" stop-opacity="0.8"/>
+                                <stop offset="100%" stop-color="#dc2626" stop-opacity="0.4"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="100%" height="100%" fill="url(#grid)" />
+
+                        <!-- 1. ISO Tank Truck (槽車) -->
+                        <g class="svg-tank" onclick="openDetailModal('truck')">
+                            <rect x="50" y="160" width="160" height="90" rx="15" fill="#1e293b" stroke="#3b82f6" stroke-width="3"/>
+                            <!-- Wheels -->
+                            <circle cx="80" cy="260" r="14" fill="#0f172a" stroke="#3b82f6" stroke-width="3"/>
+                            <circle cx="180" cy="260" r="14" fill="#0f172a" stroke="#3b82f6" stroke-width="3"/>
+                            <!-- Tank Liquid Level -->
+                            <rect x="55" y="185" width="150" height="60" rx="8" fill="url(#liquidGreen)" id="truckLiquid"/>
+                            <text x="130" y="145" text-anchor="middle" fill="#f3f4f6" font-size="14" font-weight="bold">🚛 ISO Tank 槽車</text>
+                            <text x="130" y="215" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="bold" id="svgTruckLabel">ESQC301-20260729032</text>
+                        </g>
+
+                        <!-- Hose Pipe Connection (軟管對刷區) -->
+                        <path d="M 210 220 L 340 220" stroke="#374151" stroke-width="12" fill="none" id="pipeBg"/>
+                        <path d="M 210 220 L 340 220" stroke="#10b981" stroke-width="6" fill="none" class="flow-line" id="pipeFlow"/>
+
+                        <!-- Smart Valve (防呆控制閥門) -->
+                        <g class="svg-tank" onclick="openDetailModal('valve')" transform="translate(340, 195)">
+                            <polygon points="0,0 50,25 0,50" fill="#3b82f6" id="valveLeft"/>
+                            <polygon points="50,0 0,25 50,50" fill="#3b82f6" id="valveRight"/>
+                            <circle cx="25" cy="25" r="10" fill="#10b981" id="valveStatusDot"/>
+                            <text x="25" y="-10" text-anchor="middle" fill="#9ca3af" font-size="11" font-weight="bold" id="valveText">自動控閥: 開</text>
+                        </g>
+
+                        <path d="M 390 220 L 520 220" stroke="#374151" stroke-width="12" fill="none"/>
+                        <path d="M 390 220 L 520 220" stroke="#10b981" stroke-width="6" fill="none" class="flow-line" id="pipeFlow2"/>
+
+                        <!-- Pump (傳輸泵浦) -->
+                        <g transform="translate(520, 195)" class="svg-tank" onclick="openDetailModal('pump')">
+                            <circle cx="25" cy="25" r="28" fill="#1e293b" stroke="#00f2fe" stroke-width="3" id="pumpCircle"/>
+                            <text x="25" y="30" text-anchor="middle" fill="#00f2fe" font-size="14" font-weight="bold">PUMP</text>
+                        </g>
+
+                        <path d="M 575 220 L 680 220" stroke="#374151" stroke-width="12" fill="none"/>
+                        <path d="M 575 220 L 680 220" stroke="#10b981" stroke-width="6" fill="none" class="flow-line" id="pipeFlow3"/>
+
+                        <!-- Target Chemical Storage Tank (廠區儲槽 00123) -->
+                        <g class="svg-tank" onclick="openDetailModal('storage')" transform="translate(680, 100)">
+                            <rect x="0" y="0" width="140" height="170" rx="20" fill="#1e293b" stroke="#00f2fe" stroke-width="3"/>
+                            <!-- Liquid Wave -->
+                            <rect x="5" y="50" width="130" height="115" rx="12" fill="url(#liquidGreen)" id="storageLiquid"/>
+                            <text x="70" y="-15" text-anchor="middle" fill="#f3f4f6" font-size="14" font-weight="bold">🛢️ 廠區儲槽 (00123)</text>
+                            <text x="70" y="110" text-anchor="middle" fill="#ffffff" font-size="16" font-weight="bold" id="svgStorageStatus">液位: 68% (正常)</text>
+                        </g>
+                    </svg>
+                </div>
+            </div>
+
+            <!-- 3 Steps Visualizer (對齊現場正確 SOP: 1.現場對刷 -> 2.T100送樣檢驗 -> 3.QC刷卡放行) -->
+            <div class="pipeline-wrapper">
+                
+                <!-- Step 1: Barcode Match -->
+                <div class="step-box" id="boxStep1">
+                    <span class="step-badge b-1">第一關：現場對刷</span>
+                    <div class="step-title">現場儲槽 × 軟管比對</div>
+                    <div class="step-status-text" id="statusStep1">等待掃描...</div>
+                    <div class="step-desc" id="descStep1">實施 00 前綴保護，現場人員比對儲槽碼與軟管碼一致性。</div>
+                </div>
+
+                <!-- Step 2: T100 ERP -->
+                <div class="step-box" id="boxStep2">
+                    <span class="step-badge b-2">第二關：T100 ERP</span>
+                    <div class="step-title">送樣檢驗與 T100 判定</div>
+                    <div class="step-status-text" id="statusStep2">等待檢驗...</div>
+                    <div class="step-desc" id="descStep2">取樣送 QC 檢驗，查詢 T100 (QC301) 是否合格判定為 PASS。</div>
+                </div>
+
+                <!-- Step 3: QC Sign -->
+                <div class="step-box" id="boxStep3">
+                    <span class="step-badge b-3">第三關：QC 授權</span>
+                    <div class="step-title">QC 識別證刷卡放行</div>
+                    <div class="step-status-text" id="statusStep3">等待簽署...</div>
+                    <div class="step-desc" id="descStep3">QC 稽核員審查對刷與 T100 合格紀錄後，刷卡授權開閥入料。</div>
+                </div>
+
+            </div>
+
+            <!-- Final Result Banner -->
+            <div class="result-banner" id="bannerResult">
+                <div>
+                    <div class="result-title" id="textResultTitle">請設定參數並執行演練</div>
+                    <div class="result-sub" id="textResultSub">點擊畫面上之槽體或左側選單進行即時模擬。</div>
+                </div>
+                <div id="badgeResultIcon" style="font-size: 36px;">⌛</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Interactive Component Detail Modal -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <h3 id="modalTitle" style="color:var(--primary)">元件詳細規格與數據</h3>
+            <div id="modalBody" style="font-size:14px; color:var(--text-main); line-height:1.6;">內容讀取中...</div>
+            <button class="action-btn" onclick="closeModal()">關閉視窗</button>
+        </div>
+    </div>
+
+    <script>
+        function loadPreset(type) {
+            if (type === 'pass_all') {
+                document.getElementById('inputContainer').value = 'ESQC301-20260729032';
+                document.getElementById('inputTank').value = '00123';
+                document.getElementById('inputHose').value = '00123';
+            } else if (type === 't100_fail') {
+                document.getElementById('inputContainer').value = 'FAIL-999-UNCHECKED';
+                document.getElementById('inputTank').value = '00123';
+                document.getElementById('inputHose').value = '00123';
+            } else if (type === 'hose_mismatch') {
+                document.getElementById('inputContainer').value = 'ESQC301-20260729032';
+                document.getElementById('inputTank').value = '00123';
+                document.getElementById('inputHose').value = '00999';
+            }
+            runSimulation();
+        }
+
+        function runSimulation() {
+            const factory = document.getElementById('selFactory').value;
+            const container = document.getElementById('inputContainer').value;
+            const tank = document.getElementById('inputTank').value;
+            const hose = document.getElementById('inputHose').value;
+            const qcId = document.getElementById('inputQcId').value;
+
+            // Update SVG Text labels
+            document.getElementById('svgTruckLabel').textContent = container;
+
+            // 1. Step 1: Barcode Match (現場對刷)
+            const isHoseMatch = (tank.trim() === hose.trim()) && tank !== "";
+            const box1 = document.getElementById('boxStep1');
+            const status1 = document.getElementById('statusStep1');
+            const desc1 = document.getElementById('descStep1');
+
+            if (isHoseMatch) {
+                box1.className = 'step-box pass';
+                status1.innerHTML = '<span style="color:var(--success)">🟢 匹配正確</span>';
+                desc1.innerText = `現場人員比對儲槽 '${tank}' 與 軟管 '${hose}' 條碼一致。`;
+            } else {
+                box1.className = 'step-box fail';
+                status1.innerHTML = '<span style="color:var(--danger)">🔴 錯誤！管線誤接</span>';
+                desc1.innerText = `儲槽 '${tank}' 與 軟管 '${hose}' 不匹配，發送警報！`;
+            }
+
+            // 2. Step 2: T100 ERP (送樣檢驗與 T100 判定)
+            const isT100Pass = !(container.includes('FAIL') || container.includes('999'));
+            const box2 = document.getElementById('boxStep2');
+            const status2 = document.getElementById('statusStep2');
+            const desc2 = document.getElementById('descStep2');
+
+            if (isT100Pass) {
+                box2.className = 'step-box pass';
+                status2.innerHTML = '<span style="color:var(--success)">🟢 PASS (已審核放行)</span>';
+                desc2.innerText = `[T100 單號: QC301-88] 取樣檢驗合格放行！`;
+            } else {
+                box2.className = 'step-box fail';
+                status2.innerHTML = '<span style="color:var(--danger)">🔴 REJECT (未審核/退貨)</span>';
+                desc2.innerText = `[T100 警告] 該批原料檢驗尚未通過品管判定，強制阻斷！`;
+            }
+
+            // 3. Step 3: QC Sign (QC 刷卡授權放行)
+            const box3 = document.getElementById('boxStep3');
+            const status3 = document.getElementById('statusStep3');
+            const desc3 = document.getElementById('descStep3');
+
+            // 依據 SOP 順序判定
+            if (!isHoseMatch) {
+                box3.className = 'step-box pending';
+                status3.innerHTML = `<span style="color:var(--text-muted)">⚪ 暫緩授權</span>`;
+                desc3.innerText = `現場管線對刷錯誤，QC 暫不提供授權放行。`;
+                setSvgState(false);
+                renderFinal(false, "❌ 現場對刷錯誤！強制阻斷提交", "儲槽與軟管編號不符，已鎖定閥門並發送 LINE / Teams 警報。");
+                return;
+            }
+
+            if (!isT100Pass) {
+                box3.className = 'step-box pending';
+                status3.innerHTML = `<span style="color:var(--text-muted)">⚪ 暫緩授權</span>`;
+                desc3.innerText = `T100 檢驗未合格，QC 暫不提供授權放行。`;
+                setSvgState(false);
+                renderFinal(false, "⛔ T100 檢驗未合格！強制阻斷卸料", "根據安全規範，現場對刷雖正確但 T100 判定未合格者，禁止卸料。");
+                return;
+            }
+
+            box3.className = 'step-box pass';
+            status3.innerHTML = `<span style="color:var(--success)">🟢 已授權放行</span>`;
+            desc3.innerText = `QC 簽署人 [${qcId}] 實體刷卡完畢，系統寫入加密存證。`;
+
+            setSvgState(true);
+            renderFinal(true, "✅ 三重防呆全數過關！准予開閥卸料", `[${factory}] 現場對刷一致 + T100 QC檢驗合格 + QC 刷卡授權完成。`);
+        }
+
+        function setSvgState(isPass) {
+            const flow1 = document.getElementById('pipeFlow');
+            const flow2 = document.getElementById('pipeFlow2');
+            const flow3 = document.getElementById('pipeFlow3');
+            const valveDot = document.getElementById('valveStatusDot');
+            const valveText = document.getElementById('valveText');
+            const pumpCircle = document.getElementById('pumpCircle');
+            const speedText = document.getElementById('flowSpeedText');
+            const truckLiquid = document.getElementById('truckLiquid');
+            const storageLiquid = document.getElementById('storageLiquid');
+
+            if (isPass) {
+                flow1.setAttribute('stroke', '#10b981');
+                flow2.setAttribute('stroke', '#10b981');
+                flow3.setAttribute('stroke', '#10b981');
+                flow1.style.animationPlayState = 'running';
+                flow2.style.animationPlayState = 'running';
+                flow3.style.animationPlayState = 'running';
+                valveDot.setAttribute('fill', '#10b981');
+                valveText.textContent = "自動控閥: 開啟 (允許對刷)";
+                pumpCircle.setAttribute('stroke', '#00f2fe');
+                speedText.textContent = "250 L/min 穩定傳輸中";
+                speedText.style.color = "var(--success)";
+                truckLiquid.setAttribute('fill', 'url(#liquidGreen)');
+                storageLiquid.setAttribute('fill', 'url(#liquidGreen)');
+            } else {
+                flow1.setAttribute('stroke', '#ef4444');
+                flow2.setAttribute('stroke', '#ef4444');
+                flow3.setAttribute('stroke', '#ef4444');
+                flow1.style.animationPlayState = 'paused';
+                flow2.style.animationPlayState = 'paused';
+                flow3.style.animationPlayState = 'paused';
+                valveDot.setAttribute('fill', '#ef4444');
+                valveText.textContent = "自動控閥: 關閉 (安全鎖定)";
+                pumpCircle.setAttribute('stroke', '#ef4444');
+                speedText.textContent = "0 L/min (管道阻斷止漏)";
+                speedText.style.color = "var(--danger)";
+                truckLiquid.setAttribute('fill', 'url(#liquidRed)');
+                storageLiquid.setAttribute('fill', 'url(#liquidRed)');
+            }
+        }
+
+        function renderFinal(isSuccess, title, sub) {
+            const banner = document.getElementById('bannerResult');
+            const t = document.getElementById('textResultTitle');
+            const s = document.getElementById('textResultSub');
+            const icon = document.getElementById('badgeResultIcon');
+
+            if (isSuccess) {
+                banner.className = 'result-banner allow';
+                t.style.color = 'var(--success)';
+                icon.innerText = '🟢';
+            } else {
+                banner.className = 'result-banner deny';
+                t.style.color = 'var(--danger)';
+                icon.innerText = '🚨';
+            }
+            t.innerText = title;
+            s.innerText = sub;
+        }
+
+        function openDetailModal(type) {
+            const modal = document.getElementById('detailModal');
+            const title = document.getElementById('modalTitle');
+            const body = document.getElementById('modalBody');
+
+            if (type === 'truck') {
+                title.innerText = "🚛 ISO Tank 槽車與 T100 單據資訊";
+                body.innerHTML = `
+                    • <b>單據號碼</b>：${document.getElementById('inputContainer').value}<br>
+                    • <b>品名規格</b>：TMAH-LT 電子級原料<br>
+                    • <b>T100 ERP 狀態</b>：${document.getElementById('inputContainer').value.includes('FAIL') ? '未審核/不合格' : 'QC301 品管檢驗完畢放行'}<br>
+                    • <b>實體容量</b>：20,000 Liters (淨重 17.5 噸)
+                `;
+            } else if (type === 'valve') {
+                title.innerText = "🔧 自動防呆安全氣動閥門";
+                body.innerHTML = `
+                    • <b>控制訊號</b>：PLC 與 T100 / 手機對刷連動<br>
+                    • <b>閥門狀態</b>：實時開閉氣密保護<br>
+                    • <b>安控規範</b>：一旦對刷或 T100 出現警告，氣動閥門將在 0.5 秒內自動氣閉。
+                `;
+            } else if (type === 'pump') {
+                title.innerText = "⚡ 高純化學品傳輸泵浦";
+                body.innerHTML = `
+                    • <b>驅動狀態</b>：變頻馬達運作中<br>
+                    • <b>實時流速</b>：${document.getElementById('flowSpeedText').textContent}<br>
+                    • <b>壓力監控</b>：2.4 bar (壓力正常)
+                `;
+            } else if (type === 'storage') {
+                title.innerText = "🛢️ 廠區目標儲槽 (00123)";
+                body.innerHTML = `
+                    • <b>儲槽編號</b>：${document.getElementById('inputTank').value} (帶 00 文字保護)<br>
+                    • <b>當前液位</b>：68% (容量充裕)<br>
+                    • <b>氮氣吹掃 (N2)</b>：微正壓保護中
+                `;
+            }
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').style.display = 'none';
+        }
+
+        runSimulation();
+    </script>
+</body>
+</html>

@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Level 3 教學駕駛艙 - 講者端投影幕</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --sidebar-bg: #111827;
+      --card-bg: rgba(17, 25, 40, 0.75);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-purple: #8b5cf6;
+      --neon-pink: #ec4899;
+      --neon-orange: #f97316;
+      --neon-red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar */
+    .sidebar {
+      width: 320px;
+      background-color: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .sidebar-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .sidebar-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sidebar-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 50px;
+      background: var(--neon-purple);
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .online-counter {
+      font-size: 0.8rem;
+      color: var(--neon-green);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .online-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--neon-green);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    .slides-list {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .slide-item {
+      padding: 1rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .slide-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateX(4px);
+    }
+
+    .slide-item.active {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: var(--neon-purple);
+    }
+
+    .slide-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 0.3rem;
+    }
+
+    .slide-item.active .slide-meta {
+      color: var(--neon-purple);
+    }
+
+    .slide-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tag {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .tag-slide { background: rgba(6, 182, 212, 0.15); color: var(--neon-cyan); }
+    .tag-quiz { background: rgba(249, 115, 22, 0.15); color: var(--neon-orange); }
+
+    /* Right Workspace */
+    .workspace {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: #060911;
+      position: relative;
+    }
+
+    .workspace-header {
+      height: 65px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      background: var(--sidebar-bg);
+    }
+
+    .current-topic-group {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .back-btn {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.3s ease;
+    }
+
+    .back-btn:hover {
+      color: var(--neon-cyan);
+    }
+
+    .current-topic {
+      font-size: 1rem;
+      font-weight: 700;
+      border-left: 1px solid var(--border-color);
+      padding-left: 1rem;
+    }
+
+    .control-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.04);
+      color: white;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+      border: none;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+    }
+
+    /* Content Viewport */
+    .content-viewport {
+      flex-grow: 1;
+      padding: 2.5rem;
+      overflow-y: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .slide-card {
+      width: 100%;
+      max-width: 900px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 3rem;
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .slide-body {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .slide-headline {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #fff, var(--text-sub));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.3;
+    }
+
+    .slide-desc {
+      font-size: 1.1rem;
+      color: var(--text-sub);
+      line-height: 1.7;
+    }
+
+    /* Donut chart for responses */
+    .results-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      gap: 3rem;
+      margin-top: 1rem;
+    }
+
+    .chart-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .chart-donut {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--neon-orange) 0% 0%,
+        var(--neon-cyan) 0% 0%,
+        var(--neon-green) 0% 0%,
+        var(--text-sub) 0% 100%
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      transition: background 0.5s ease;
+    }
+
+    .chart-donut-inner {
+      width: 125px;
+      height: 125px;
+      background: #090d16;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .total-votes {
+      font-size: 2.2rem;
+      font-weight: 850;
+      color: white;
+    }
+
+    .total-votes-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      flex-grow: 1;
+      max-width: 380px;
+    }
+
+    .legend-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .legend-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+    }
+
+    .legend-label-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 600;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .legend-pct-val {
+      font-weight: 800;
+    }
+
+    /* Bottom Controller */
+    .bottom-controller {
+      height: 70px;
+      background: var(--sidebar-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      z-index: 10;
+    }
+
+    .page-indicator {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">教學駕駛艙 <span class="sidebar-badge">Lv.3</span></div>
+      <div class="online-counter"><span class="online-dot"></span> <span id="online-voters-count">0</span> 位學員已提交</div>
+    </div>
+    
+    <div class="slides-list" id="sidebar-list">
+      <!-- Generated dynamically -->
+    </div>
+  </div>
+
+  <!-- Right Main Workspace -->
+  <div class="workspace">
+    <div class="workspace-header">
+      <div class="current-topic-group">
+        <a class="back-btn" href="index.html">← 返回首頁</a>
+        <div class="current-topic" id="header-topic">載入中...</div>
+      </div>
+      <div class="control-actions">
+        <button class="btn" onclick="copyStudentLink()">🔗 複製學生端連結</button>
+        <button class="btn" onclick="resetVoters()"><span style="color:var(--neon-red);">🔄</span> 重置本題答題</button>
+      </div>
+    </div>
+
+    <!-- Viewport -->
+    <div class="content-viewport">
+      <div class="slide-card" id="active-card">
+        <!-- Dynamically rendered content card -->
+      </div>
+    </div>
+
+    <!-- Bottom controller -->
+    <div class="bottom-controller">
+      <button class="btn" onclick="prevSlide()">← 上一張</button>
+      <div class="page-indicator" id="bottom-page-indicator">1 / 6</div>
+      <button class="btn" onclick="nextSlide()">下一張 →</button>
+    </div>
+  </div>
+
+  <script>
+    const slidesData = [
+      {
+        index: 1,
+        title: "1. 英國文化介紹 (Presentation)",
+        type: "slide",
+        headline: "Introduction to British Culture (英國文化介紹)",
+        desc: "英國是位於西歐的島國，首都為倫敦。英國有著豐富的歷史和文化，包括著名的石亨奇（巨石陣）、巴斯古城等。英國人喜愛足球、板球等運動，同時也擁有許多著名的大學，如牛津、劍橋等。"
+      },
+      {
+        index: 2,
+        title: "2. 測驗 Q1: 英國的首都",
+        type: "interactive",
+        headline: "Q1: 英國的首都是什麼？ (What is the capital of the UK?)",
+        options: { "A": "倫敦 (London)", "B": "巴黎 (Paris)", "C": "柏林 (Berlin)" },
+        correctAnswer: "A"
+      },
+      {
+        index: 3,
+        title: "3. 測驗 Q2: 喜愛的運動",
+        type: "interactive",
+        headline: "Q2: 英國人最喜愛的運動是什麼？ (What is the favorite sport?)",
+        options: { "A": "籃球 (Basketball)", "B": "足球 (Football)", "C": "網球 (Tennis)" },
+        correctAnswer: "B"
+      },
+      {
+        index: 4,
+        title: "4. 測驗 Q3: 著名大學",
+        type: "interactive",
+        headline: "Q3: 英國有哪些著名的大學？ (Which are famous UK universities?)",
+        options: { "A": "牛津、劍橋 (Oxford, Cambridge)", "B": "哈佛、斯坦福 (Harvard, Stanford)", "C": "劍橋、牛津、哈佛" },
+        correctAnswer: "A"
+      },
+      {
+        index: 5,
+        title: "5. 測驗 Q4: 著名歷史文化古蹟",
+        type: "interactive",
+        headline: "Q4: 下列何者是簡報中提到英國著名的歷史古蹟？",
+        options: { "A": "石亨奇與巴斯古城", "B": "羅馬競技場與萬神殿", "C": "埃及金字塔與獅身像" },
+        correctAnswer: "A"
+      },
+      {
+        index: 6,
+        title: "6. 測驗 Q5: 英國的地理位置",
+        type: "interactive",
+        headline: "Q5: 根據簡報，英國是位於哪裡的島國？",
+        options: { "A": "東歐 (Eastern Europe)", "B": "西歐 (Western Europe)", "C": "北美洲 (North America)" },
+        correctAnswer: "B"
+      }
+    ];
+
+    let currentActiveIndex = 0;
+    const colors = ["var(--neon-green)", "var(--neon-orange)", "var(--neon-cyan)", "var(--neon-purple)"];
+
+    window.addEventListener('load', () => {
+      renderSidebar();
+      loadSlide(0);
+      
+      // Start real-time polling state loop (every 500ms)
+      setInterval(pollClassState, 500);
+    });
+
+    function renderSidebar() {
+      const container = document.getElementById('sidebar-list');
+      container.innerHTML = '';
+      
+      slidesData.forEach((s, idx) => {
+        const item = document.createElement('div');
+        item.className = `slide-item ${idx === currentActiveIndex ? 'active' : ''}`;
+        item.onclick = () => {
+          loadSlide(idx);
+          syncStateToBackend(idx + 1);
+        };
+        
+        const typeLabel = s.type === 'slide' ? '投影片' : '互動室';
+        const typeClass = s.type === 'slide' ? 'tag-slide' : 'tag-quiz';
+        
+        item.innerHTML = `
+          <div class="slide-meta">
+            <span>頁數 ${s.index}</span>
+            <span class="tag ${typeClass}">${typeLabel}</span>
+          </div>
+          <div class="slide-title">${s.title.substring(3)}</div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    async function loadSlide(index) {
+      currentActiveIndex = index;
+      
+      // Update sidebar active class
+      const items = document.querySelectorAll('.slide-item');
+      items.forEach((item, idx) => {
+        if (idx === index) item.classList.add('active');
+        else item.classList.remove('active');
+      });
+
+      const slide = slidesData[index];
+      
+      document.getElementById('header-topic').textContent = slide.title;
+      document.getElementById('bottom-page-indicator').textContent = `${slide.index} / ${slidesData.length}`;
+
+      const card = document.getElementById('active-card');
+      card.innerHTML = '';
+
+      if (slide.type === 'slide') {
+        card.innerHTML = `
+          <div class="slide-body">
+            <h2 class="slide-headline">${slide.headline}</h2>
+            <p class="slide-desc">${slide.desc}</p>
+          </div>
+        `;
+      } else {
+        // Quiz View displaying Realtime Donut Chart
+        card.innerHTML = `
+          <div class="slide-body">
+            <h2 class="slide-headline" style="font-size:1.6rem; margin-bottom:1.2rem;">${slide.headline}</h2>
+            <div class="results-display">
+              <div class="chart-container">
+                <div class="chart-donut" id="donut-chart">
+                  <div class="chart-donut-inner">
+                    <span class="total-votes" id="vote-count-label">0</span>
+                    <span class="total-votes-label">總票數</span>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-legend" id="chart-legend">
+                <div class="legend-title">學員答題即時統計</div>
+                <!-- Legend items rendered dynamically -->
+              </div>
+            </div>
+          </div>
+        `;
+        // Immediate render
+        updateChartUI({ A: 0, B: 0, C: 0, D: 0 });
+      }
+    }
+
+    // Push state to Node server backend
+    async function syncStateToBackend(slideNum) {
+      try {
+        await fetch('/api/class-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentSlide: slideNum })
+        });
+      } catch (e) {
+        console.error("狀態同步後端失敗:", e);
+      }
+    }
+
+    // Poll current class state
+    async function pollClassState() {
+      try {
+        const response = await fetch('/api/class-state');
+        if (!response.ok) return;
+        const data = await response.json();
+
+        // 1. Sync Slide Page (if changed by another screen, though tutor controls it)
+        if (data.currentSlide !== (currentActiveIndex + 1)) {
+          loadSlide(data.currentSlide - 1);
+        }
+
+        // 2. Update Quiz statistics in UI if we are on a quiz slide
+        const slide = slidesData[currentActiveIndex];
+        if (slide.type === 'interactive') {
+          updateChartUI(data.answers, data.voters.length);
+        }
+      } catch (e) {
+        // Server offline
+      }
+    }
+
+    function updateChartUI(answers, totalVoters = 0) {
+      const slide = slidesData[currentActiveIndex];
+      if (!slide || !slide.options) return;
+
+      document.getElementById('vote-count-label').textContent = totalVoters;
+      document.getElementById('online-voters-count').textContent = totalVoters;
+
+      // Render legend & calculate slices
+      const legendContainer = document.getElementById('chart-legend');
+      if (!legendContainer) return;
+      
+      legendContainer.innerHTML = '<div class="legend-title">學員答題即時統計</div>';
+
+      let total = 0;
+      Object.entries(slide.options).forEach(([letter, text]) => {
+        total += answers[letter] || 0;
+      });
+
+      let accumulatedPct = 0;
+      const conicSlices = [];
+      const optionKeys = Object.keys(slide.options);
+
+      optionKeys.forEach((letter, idx) => {
+        const text = slide.options[letter];
+        const count = answers[letter] || 0;
+        const pct = total === 0 ? 0 : Math.round((count / total) * 100);
+        const color = colors[idx % colors.length];
+
+        // Legend Item
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        // Add checkmark to the correct answer
+        const isCorrectText = letter === slide.correctAnswer ? ' <span style="color:var(--neon-green); font-size:0.75rem;">(正確答案)</span>' : '';
+        item.innerHTML = `
+          <div class="legend-label-group">
+            <span class="legend-color" style="background: ${color};"></span>
+            <span>${letter}. ${text}${isCorrectText}</span>
+          </div>
+          <div>
+            <span class="legend-pct-val" style="color: ${color};">${pct}%</span>
+            <span style="color:var(--text-sub); font-size:0.8rem; margin-left:0.4rem;">(${count} 人)</span>
+          </div>
+        `;
+        legendContainer.appendChild(item);
+
+        // Chart gradient slices
+        if (pct > 0) {
+          const start = accumulatedPct;
+          accumulatedPct += pct;
+          conicSlices.push(`${color} ${start}% ${accumulatedPct}%`);
+        }
+      });
+
+      // Update conic-gradient
+      const donut = document.getElementById('donut-chart');
+      if (donut) {
+        if (conicSlices.length > 0) {
+          donut.style.background = `conic-gradient(${conicSlices.join(', ')}, var(--text-sub) ${accumulatedPct}% 100%)`;
+        } else {
+          donut.style.background = `conic-gradient(var(--text-sub) 0% 100%)`;
+        }
+      }
+    }
+
+    async function resetVoters() {
+      if (confirm('確定要清除當前測驗題目的學員答案並重新作答嗎？')) {
+        try {
+          await fetch('/api/reset-class', { method: 'POST' });
+          pollClassState();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    function copyStudentLink() {
+      const link = `${window.location.origin}/lv3-student.html`;
+      navigator.clipboard.writeText(link).then(() => {
+        alert(`已複製學生端連結：\n${link}\n\n請在無痕視窗或另一個瀏覽器分頁開啟，即可扮演學員作答！`);
+      }).catch(err => {
+        alert(`複製失敗，請手動複製網址：${link}`);
+      });
+    }
+
+    function prevSlide() {
+      if (currentActiveIndex > 0) {
+        const nextIdx = currentActiveIndex - 1;
+        loadSlide(nextIdx);
+        syncStateToBackend(nextIdx + 1);
+      }
+    }
+
+    function nextSlide() {
+      if (currentActiveIndex < slidesData.length - 1) {
+        const nextIdx = currentActiveIndex + 1;
+        loadSlide(nextIdx);
+        syncStateToBackend(nextIdx + 1);
+      }
+    }
+  </script>
+</body>
+</html>

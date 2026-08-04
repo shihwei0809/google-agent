@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>倉儲液位與重量全智慧互換工具 (25℃基準)</title>
+    <style>
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #d35400;
+            --success-color: #28a745;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 650px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-top: 0;
+            font-size: 22px;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            background: var(--primary-color);
+            padding: 10px 12px;
+            border-radius: 6px;
+            margin-top: 5px;
+            margin-bottom: 12px;
+        }
+        .section-title.weight-sec {
+            background: var(--secondary-color);
+        }
+        .section-title.result-sec {
+            background: #2c3e50;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+            font-size: 15px;
+        }
+        select, input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+        select:focus, input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .info-box {
+            background-color: #e9ecef;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        .calc-box {
+            background-color: #f8f9fa;
+            border: 2px dashed #2c3e50;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .result-item {
+            text-align: center;
+            padding: 10px;
+            background: #fff;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        .result-title {
+            font-size: 14px;
+            color: #555;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .result-value {
+            font-size: 26px;
+            font-weight: bold;
+        }
+        .footer-note {
+            text-align: center;
+            font-size: 12px;
+            color: #888;
+            margin-top: 20px;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        .clear-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .clear-btn:hover {
+            background-color: #c0392b;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>倉儲液位 ⇄ 重量 全方位智慧互換工具</h2>
+    
+    <div class="grid-2">
+        <div class="form-group">
+            <label for="tankSelect">1. 選擇目標槽體</label>
+            <select id="tankSelect" onchange="globalRecalculate('tank')">
+                <option value="0" data-factor="4.6" data-base="1566">675-678</option>
+                <option value="1" data-factor="18.322" data-base="87">681-689,691</option>
+                <option value="2" data-factor="11.702" data-base="87">680,690</option>
+                <option value="3" data-factor="35.891" data-base="87">692-695</option>
+                <option value="4" data-factor="47.051" data-base="87">696-699</option>
+                <option value="5" data-factor="51.53" data-base="87">500KL</option>
+                <option value="6" data-factor="33.183" data-base="87">250KL</option>
+                <option value="7" data-factor="20.428" data-base="87">125KL</option>
+                <option value="8" data-factor="9.0746" data-base="87">70KL</option>
+                <option value="9" data-factor="9.0746" data-base="87">50KL</option>
+                <option value="11" data-factor="7.0686" data-base="87">C01~C09</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="productSelect">2. 選擇內裝產品 (25℃)</label>
+            <select id="productSelect" onchange="globalRecalculate('product')">
+                <option value="0.7796">IPA (0.7796)</option>
+                <option value="1.1089">EG (1.1089)</option>
+                <option value="1.0267">NMP (1.0267)</option>
+                <option value="0.7833">Acetone (0.7833)</option>
+                <option value="0.9281">SEP05 (0.9281)</option>
+                <option value="0.9602">PMA (0.9602)</option>
+                <option value="0.9147">PM (0.9147)</option>
+                <option value="1.0423">GAA (1.0423)</option>
+                <option value="0.9764">BDG+MEA 澄清液 (0.9764)</option>
+                <option value="0.9405">ANONE (0.9405)</option>
+                <option value="0.9370">EBR (0.9370)</option>
+                <option value="0.8749">NBAC (0.8749)</option>
+                <option value="0.9320">EBRUPS (0.9320)</option>
+                <option value="0.9260">2SEP73(EBR) (0.9260)</option>
+                <option value="0.9308">SEP11 (0.9308)</option>
+                <option value="0.9467">CPN環戊酮 (0.9467)</option>
+                <option value="0.7991">ETOH (0.7991)</option>
+                <option value="1.0327">PG2 (1.0327)</option>
+                <option value="0.9433">EEP (0.9433)</option>
+                <option value="1.0250">HEA DPM (1.0250)</option>
+                <option value="0.9608">DPM (0.9608)</option>
+                <option value="0.9621">TPM (0.9621)</option>
+                <option value="0.8049">MIBC (0.8049)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="info-box">
+        <strong>目前槽體參數：</strong> 1mm = <span id="lblFactor">4.6</span> L | 桶底殘留 = <span id="lblBase">1566</span> L <br>
+        <strong>目前產品比重：</strong> <span id="lblDensity">0.7796</span>
+    </div>
+
+    <button class="clear-btn" onclick="resetAllInputs()">🔄 清空所有數值、重新輸入</button>
+
+    <div class="section-title">✍️ 請在下方選擇「任一欄位」輸入，其餘欄位會自動算出：</div>
+    
+    <div class="form-group">
+        <label for="mainMM" style="color:var(--primary-color);">【方法 A】輸入現場量測：液位 (mm)</label>
+        <input type="number" id="mainMM" placeholder="填入毫米(mm)，幫您算公升與公斤..." oninput="calculateEverything('mm')">
+    </div>
+
+    <div class="form-group">
+        <label for="mainKG" style="color:var(--secondary-color);">【方法 B】輸入進出貨：重量 (公斤 kg)</label>
+        <input type="number" id="mainKG" placeholder="填入公斤(kg)，幫您逆推算回公升與毫米液位..." oninput="calculateEverything('kg')">
+    </div>
+
+    <div class="form-group">
+        <label for="mainL" style="color:#555;">【方法 C】單獨輸入：容量 (公升 L)</label>
+        <input type="number" id="mainL" placeholder="填入公升(L)，幫您同步推算液位與重量..." oninput="calculateEverything('l')">
+    </div>
+
+    <div class="section-title result-sec">📊 系統全聯動即時換算面板</div>
+    <div class="calc-box">
+        <div class="grid-2" style="margin-bottom: 12px;">
+            <div class="result-item" style="border-top: 4px solid var(--primary-color);">
+                <div class="result-title">📏 計算/逆推液位</div>
+                <div class="result-value" id="viewMM" style="color:var(--primary-color);">--- <span style="font-size:14px; color:#333;">mm</span></div>
+            </div>
+            <div class="result-item" style="border-top: 4px solid var(--secondary-color);">
+                <div class="result-title">⚖️ 計算/逆推總重量</div>
+                <div class="result-value" id="viewKG" style="color:var(--secondary-color);">--- <span style="font-size:14px; color:#333;">kg</span></div>
+            </div>
+        </div>
+        <div class="result-item" style="border-top: 4px solid var(--success-color);">
+            <div class="result-title">🧪 換算總容量</div>
+            <div class="result-value" id="viewL" style="color:var(--success-color);">--- <span style="font-size:16px; color:#333;">L</span></div>
+        </div>
+    </div>
+
+    <div class="footer-note">
+        ◎ 免連網單機版．現場輸入任一欄，全面自動雙向連動推算 ◎<br>
+        鴻勝 / 盛一資材課 專用防呆優化版本
+    </div>
+</div>
+
+<script>
+// 追蹤最後一次是由哪種類型觸發輸入的，方便切換槽體或產品時維持計算
+let lastInputType = ''; 
+
+function updateLabels() {
+    const tankSelect = document.getElementById('tankSelect');
+    const tankOption = tankSelect.options[tankSelect.selectedIndex];
+    document.getElementById('lblFactor').innerText = tankOption.getAttribute('data-factor');
+    document.getElementById('lblBase').innerText = tankOption.getAttribute('data-base');
+    
+    const prodSelect = document.getElementById('productSelect');
+    document.getElementById('lblDensity').innerText = prodSelect.value;
+}
+
+function calculateEverything(source) {
+    updateLabels();
+    
+    // 獲取當前最新的基礎因子
+    const tankSelect = document.getElementById('tankSelect');
+    const tankOption = tankSelect.options[tankSelect.selectedIndex];
+    const factor = parseFloat(tankOption.getAttribute('data-factor'));
+    const base = parseFloat(tankOption.getAttribute('data-base'));
+    const density = parseFloat(document.getElementById('productSelect').value);
+
+    let mm = NaN, l = NaN, kg = NaN;
+
+    if (source === 'mm') {
+        lastInputType = 'mm';
+        const mmInput = document.getElementById('mainMM').value;
+        if(mmInput !== '' && !isNaN(mmInput)) {
+            mm = parseFloat(mmInput);
+            // 1. mm 算 L -> (mm * factor) + base
+            l = (mm * factor) + base;
+            // 2. L 算 kg -> L * density
+            kg = l * density;
+        }
+        // 清空其他輸入框，避免操作混淆
+        document.getElementById('mainKG').value = '';
+        document.getElementById('mainL').value = '';
+    } 
+    else if (source === 'kg') {
+        lastInputType = 'kg';
+        const kgInput = document.getElementById('mainKG').value;
+        if(kgInput !== '' && !isNaN(kgInput)) {
+            kg = parseFloat(kgInput);
+            // 1. kg 算 L -> kg / density
+            l = kg / density;
+            // 2. L 逆推 mm -> (L - base) / factor
+            if (l >= base) {
+                mm = (l - base) / factor;
+            } else {
+                mm = -1; // 代表低於桶底
+            }
+        }
+        document.getElementById('mainMM').value = '';
+        document.getElementById('mainL').value = '';
+    } 
+    else if (source === 'l') {
+        lastInputType = 'l';
+        const lInput = document.getElementById('mainL').value;
+        if(lInput !== '' && !isNaN(lInput)) {
+            l = parseFloat(lInput);
+            kg = l * density;
+            if (l >= base) {
+                mm = (l - base) / factor;
+            } else {
+                mm = -1;
+            }
+        }
+        document.getElementById('mainMM').value = '';
+        document.getElementById('mainKG').value = '';
+    }
+
+    // 渲染看版結果
+    renderDashboard(mm, l, kg);
+}
+
+function renderDashboard(mm, l, kg) {
+    const viewMM = document.getElementById('viewMM');
+    const viewL = document.getElementById('viewL');
+    const viewKG = document.getElementById('viewKG');
+
+    if (isNaN(l)) {
+        viewMM.innerHTML = '--- <span style="font-size:14px; color:#333;">mm</span>';
+        viewL.innerHTML = '--- <span style="font-size:16px; color:#333;">L</span>';
+        viewKG.innerHTML = '--- <span style="font-size:14px; color:#333;">kg</span>';
+        return;
+    }
+
+    // 顯示容量
+    viewL.innerHTML = l.toFixed(2) + ' <span style="font-size:16px; color:#333;">L</span>';
+    
+    // 顯示重量
+    viewKG.innerHTML = kg.toFixed(2) + ' <span style="font-size:14px; color:#333;">kg</span>';
+
+    // 顯示毫米液位
+    if (mm === -1) {
+        viewMM.innerHTML = '<span style="color:red; font-size:16px;">低於桶底殘留</span>';
+    } else {
+        viewMM.innerHTML = mm.toFixed(1) + ' <span style="font-size:14px; color:#333;">mm</span>';
+    }
+}
+
+// 當人員切換槽體或切換產品時，以最後輸入的格子自動重新活化換算
+function globalRecalculate(trigger) {
+    updateLabels();
+    if (lastInputType === 'mm') {
+        calculateEverything('mm');
+    } else if (lastInputType === 'kg') {
+        calculateEverything('kg');
+    } else if (lastInputType === 'l') {
+        calculateEverything('l');
+    }
+}
+
+// 重設功能
+function resetAllInputs() {
+    document.getElementById('mainMM').value = '';
+    document.getElementById('mainKG').value = '';
+    document.getElementById('mainL').value = '';
+    lastInputType = '';
+    renderDashboard(NaN, NaN, NaN);
+}
+
+// 頁面加載自動初始化
+window.onload = function() {
+    updateLabels();
+};
+</script>
+
+</body>
+</html>

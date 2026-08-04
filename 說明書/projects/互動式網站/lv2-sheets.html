@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lv.2 Google Sheets 試算表後端 - 課後回收版</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(17, 25, 40, 0.75);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-orange: #f97316;
+      --neon-red: #ef4444;
+      --neon-purple: #8b5cf6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 10% 20%, rgba(249, 115, 22, 0.08) 0%, transparent 45%);
+      background-attachment: fixed;
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      z-index: 10;
+    }
+
+    .nav-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 2rem;
+    }
+
+    .back-btn {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.3s ease;
+    }
+
+    .back-btn:hover {
+      color: var(--neon-orange);
+    }
+
+    .level-indicator {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.85rem;
+      border-radius: 50px;
+      background: rgba(249, 115, 22, 0.1);
+      color: var(--neon-orange);
+      border: 1px solid rgba(249, 115, 22, 0.25);
+    }
+
+    .quiz-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2.5rem;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff, var(--neon-orange));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slogan {
+      font-size: 0.95rem;
+      color: var(--text-sub);
+      margin-bottom: 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 1.2rem;
+    }
+
+    .config-panel {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .config-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--neon-orange);
+      margin-bottom: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .config-desc {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 1.2rem;
+      line-height: 1.5;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .input-group label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .input-field {
+      background: rgba(9, 13, 22, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 0.85rem 1.1rem;
+      color: white;
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--neon-orange);
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.2);
+    }
+
+    .question-block {
+      margin-bottom: 2.5rem;
+    }
+
+    .question-text {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      line-height: 1.6;
+    }
+
+    .options-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .option-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      padding: 1.1rem 1.3rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .option-item:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateX(6px);
+    }
+
+    .option-radio {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--text-sub);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .option-item.selected {
+      background: rgba(249, 115, 22, 0.08);
+      border-color: var(--neon-orange);
+    }
+
+    .option-item.selected .option-radio {
+      border-color: var(--neon-orange);
+      background: var(--neon-orange);
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.6);
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 1.1rem;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, var(--neon-orange), var(--neon-green));
+      color: white;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(249, 115, 22, 0.2);
+    }
+
+    .action-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(249, 115, 22, 0.4);
+    }
+
+    /* Simulation Sheet View */
+    .sheet-simulation {
+      background: rgba(9, 13, 22, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 1.8rem;
+      margin-top: 2rem;
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.8rem;
+    }
+
+    .sheet-title {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--neon-green);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sheet-table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .sheet-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+
+    .sheet-table th, .sheet-table td {
+      padding: 0.75rem 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .sheet-table th {
+      background: rgba(255, 255, 255, 0.03);
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .sheet-table td {
+      color: var(--text-sub);
+    }
+
+    .sheet-table tr.new-row {
+      animation: highlight-row 2s ease-out;
+    }
+
+    @keyframes highlight-row {
+      0% { background-color: rgba(16, 185, 129, 0.25); }
+      100% { background-color: transparent; }
+    }
+
+    .explanation {
+      margin-top: 1rem;
+      padding: 1.2rem;
+      background: rgba(255, 255, 255, 0.01);
+      border-left: 4px solid var(--neon-orange);
+      border-radius: 0 12px 12px 0;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      color: var(--text-sub);
+      display: none;
+    }
+
+    .status-msg {
+      margin-top: 1.2rem;
+      padding: 1.1rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      text-align: center;
+      display: none;
+    }
+
+    .status-msg.success {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid var(--neon-green);
+      color: var(--neon-green);
+    }
+
+    .status-msg.error {
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid var(--neon-red);
+      color: var(--neon-red);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="nav-header">
+      <a class="back-btn" href="index.html">← 返回首頁</a>
+      <span class="level-indicator">LEVEL 2：試算表後端</span>
+    </div>
+
+    <div class="quiz-card">
+      <h1>Lv.2 試算表後端測驗（課後回收版）</h1>
+      <p class="slogan">利用 Google Apps Script (GAS) 將學生的姓名、分數與作答選項直接寫入雲端 Google 試算表。</p>
+
+      <!-- GAS Configuration -->
+      <div class="config-panel">
+        <div class="config-title">⚙️ Google Apps Script (GAS) 部署狀態</div>
+        <p class="config-desc">
+          若您已經部署了本機的 <code>gas-code.js</code>，請在下方填入產生的 Web App 網址以執行真實連線寫入。
+          若欄位留空，系統將自動啟動<b>模擬模式</b>，直接將提交結果新增在下方的「虛擬試算表檢視器」中！
+        </p>
+        <div class="input-group">
+          <label for="gas-url">GAS 部署網頁應用程式 URL (選填)</label>
+          <input type="text" id="gas-url" class="input-field" placeholder="https://script.google.com/macros/s/.../exec">
+        </div>
+      </div>
+
+      <!-- Quiz Form -->
+      <div id="quiz-container">
+        <div class="input-group" style="margin-bottom: 2rem;">
+          <label for="student-nickname">座號 / 姓名 (必填)</label>
+          <input type="text" id="student-nickname" class="input-field" placeholder="請輸入學員代碼，例如：王小明">
+        </div>
+
+        <!-- Question 1 -->
+        <div class="question-block" data-qindex="0">
+          <p class="question-text">1. 關於 Level 2 使用 Google Sheets 作為後端資料庫的限制，以下何者正確？</p>
+          <div class="options-list">
+            <div class="option-item" onclick="selectOption(0, 'A')">
+              <span class="option-radio"></span>
+              <span>A. 寫入反應時間約需 1~2 秒，且大班級多人同時寫入時試算表可能發生衝突鎖死</span>
+            </div>
+            <div class="option-item" onclick="selectOption(0, 'B')">
+              <span class="option-radio"></span>
+              <span>B. 寫入速度極快，能輕鬆處理數千人每秒數十次的即時排行榜連線</span>
+            </div>
+            <div class="option-item" onclick="selectOption(0, 'C')">
+              <span class="option-radio"></span>
+              <span>C. Google Sheets 無法透過任何外部 API 讀取，只能手動在瀏覽器開啟</span>
+            </div>
+            <div class="option-item" onclick="selectOption(0, 'D')">
+              <span class="option-radio"></span>
+              <span>D. 試算表寫入完全不需要任何後端代理服務程式</span>
+            </div>
+          </div>
+          <div class="explanation" id="exp-0">
+            <strong>解析：</strong>選 A。Google Sheets 的 API 回應較慢（透過 GAS 做轉發代理通常要 1 秒以上），不適合即時同步要求極高的多人遊戲。當多人同時寫入時，必須使用鎖（LockService）限制，這會造成排隊等待，甚至可能超時卡死。
+          </div>
+        </div>
+
+        <button class="action-btn" onclick="submitQuiz()" id="submit-btn">送出測驗並存檔</button>
+        <div class="status-msg" id="status-display"></div>
+      </div>
+    </div>
+
+    <!-- Sheet Simulator -->
+    <div class="sheet-simulation">
+      <div class="sheet-header">
+        <div class="sheet-title" id="sheet-title">📊 Google Sheets 試算表即時檢視器 (模擬中)</div>
+        <span id="connection-badge" style="font-size: 0.75rem; font-weight: 700; color: #cbd5e1; background: rgba(255,255,255,0.08); padding: 0.25rem 0.75rem; border-radius: 50px;">模擬模式</span>
+      </div>
+      <div class="sheet-table-wrapper">
+        <table class="sheet-table">
+          <thead>
+            <tr>
+              <th>時間戳記</th>
+              <th>姓名</th>
+              <th>分數</th>
+              <th>Q1 回答</th>
+            </tr>
+          </thead>
+          <tbody id="sheet-body">
+            <tr>
+              <td>2026/06/06 10:15:30</td>
+              <td>張小強</td>
+              <td>100</td>
+              <td>A</td>
+            </tr>
+            <tr>
+              <td>2026/06/06 10:45:12</td>
+              <td>李小芳</td>
+              <td>0</td>
+              <td>B</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const correctAnswers = ['A'];
+    let userAnswers = [null];
+    let isGraded = false;
+
+    // Detect Connection Mode
+    const gasUrlInput = document.getElementById('gas-url');
+    const badge = document.getElementById('connection-badge');
+    const sheetTitle = document.getElementById('sheet-title');
+
+    function checkConnectionMode() {
+      const url = gasUrlInput.value.trim();
+      if (url.startsWith('http')) {
+        badge.textContent = '連線模式 (GAS)';
+        badge.style.color = '#10b981';
+        badge.style.backgroundColor = 'rgba(16, 185, 129, 0.15)';
+        sheetTitle.innerHTML = '📊 Google Sheets 試算表即時寫入連線中';
+      } else {
+        badge.textContent = '模擬模式';
+        badge.style.color = '#cbd5e1';
+        badge.style.backgroundColor = 'rgba(255,255,255,0.08)';
+        sheetTitle.innerHTML = '📊 Google Sheets 試算表即時檢視器 (模擬中)';
+      }
+    }
+
+    gasUrlInput.addEventListener('input', checkConnectionMode);
+
+    function selectOption(qIndex, optionLetter) {
+      if (isGraded) return;
+      
+      const qBlock = document.querySelector(`.question-block[data-qindex="${qIndex}"]`);
+      const options = qBlock.querySelectorAll('.option-item');
+      
+      options.forEach(opt => opt.classList.remove('selected'));
+      
+      const letterIndex = optionLetter.charCodeAt(0) - 65;
+      options[letterIndex].classList.add('selected');
+      
+      userAnswers[qIndex] = optionLetter;
+    }
+
+    async function submitQuiz() {
+      if (isGraded) return;
+
+      const nickname = document.getElementById('student-nickname').value.trim();
+      if (!nickname) {
+        alert('請先輸入座號或姓名！');
+        document.getElementById('student-nickname').focus();
+        return;
+      }
+      
+      if (userAnswers.includes(null)) {
+        alert('請回答完所有題目後再送出！');
+        return;
+      }
+
+      isGraded = true;
+      let score = 0;
+
+      // Grade
+      const qBlock = document.querySelector(`.question-block[data-qindex="0"]`);
+      const options = qBlock.querySelectorAll('.option-item');
+      const correctIndex = correctAnswers[0].charCodeAt(0) - 65;
+      const userIndex = userAnswers[0].charCodeAt(0) - 65;
+
+      document.getElementById(`exp-0`).style.display = 'block';
+
+      if (userAnswers[0] === correctAnswers[0]) {
+        score = 100;
+        options[correctIndex].classList.add('correct');
+      } else {
+        options[userIndex].classList.add('incorrect');
+        options[correctIndex].classList.add('correct');
+      }
+
+      const payload = {
+        nickname: nickname,
+        score: score,
+        answers: userAnswers
+      };
+
+      const gasUrl = gasUrlInput.value.trim();
+      const statusDisplay = document.getElementById('status-display');
+      
+      if (gasUrl.startsWith('http')) {
+        statusDisplay.className = 'status-msg';
+        statusDisplay.style.display = 'block';
+        statusDisplay.textContent = '正在將資料傳送至 Google 試算表...';
+        
+        try {
+          // POST to GAS Web App (CORS uses no-cors usually)
+          await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+          
+          statusDisplay.className = 'status-msg success';
+          statusDisplay.textContent = '🎉 傳送完畢！請打開您的 Google 試算表，新的一列已順利追加寫入！';
+          addToSimulationTable(nickname, score, userAnswers);
+
+        } catch (error) {
+          statusDisplay.className = 'status-msg error';
+          statusDisplay.textContent = '❌ 連線寫入失敗: ' + error.message;
+          console.error(error);
+          isGraded = false; 
+        }
+      } else {
+        statusDisplay.className = 'status-msg success';
+        statusDisplay.style.display = 'block';
+        statusDisplay.innerHTML = '🎉 <b>模擬模式寫入成功！</b> 資料已即時新增至下方虛擬試算表中。您可以將 <code>gas-code.js</code> 部署至實際 GAS 完成串接！';
+        
+        addToSimulationTable(nickname, score, userAnswers);
+      }
+
+      document.getElementById('submit-btn').style.disabled = true;
+      document.getElementById('submit-btn').style.opacity = '0.5';
+      document.getElementById('submit-btn').style.cursor = 'not-allowed';
+    }
+
+    function addToSimulationTable(nickname, score, answers) {
+      const tbody = document.getElementById('sheet-body');
+      const now = new Date();
+      const timeStr = now.getFullYear() + '/' + 
+                      String(now.getMonth() + 1).padStart(2, '0') + '/' + 
+                      String(now.getDate()).padStart(2, '0') + ' ' + 
+                      String(now.getHours()).padStart(2, '0') + ':' + 
+                      String(now.getMinutes()).padStart(2, '0') + ':' + 
+                      String(now.getSeconds()).padStart(2, '0');
+
+      const tr = document.createElement('tr');
+      tr.className = 'new-row';
+      tr.innerHTML = `
+        <td>${timeStr}</td>
+        <td>${nickname}</td>
+        <td>${score}</td>
+        <td>${answers[0]}</td>
+      `;
+      tbody.insertBefore(tr, tbody.firstChild);
+    }
+  </script>
+</body>
+</html>

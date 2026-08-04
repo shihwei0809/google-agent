@@ -1,0 +1,1249 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<title>ISOTANK 化學品進貨安全與卸料訓練</title>
+<style>
+  /* 載入源石黑體 — 視覺一致性 */
+  @font-face {
+    font-family: 'GenSeki TW';
+    src: url('../claude-video-specs/assets/fonts/GenSekiGothic2TW-M.otf') format('opentype');
+    font-weight: 500;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'GenSeki TW';
+    src: url('../claude-video-specs/assets/fonts/GenSekiGothic2TW-B.otf') format('opentype');
+    font-weight: 700;
+    font-display: block;
+  }
+  @font-face {
+    font-family: 'GenSeki TW';
+    src: url('../claude-video-specs/assets/fonts/GenSekiGothic2TW-H.otf') format('opentype');
+    font-weight: 900;
+    font-display: block;
+  }
+
+  :root {
+    --paper: #FAF7EE;
+    --paper-2: #F1ECE0;
+    --ink: #1F2326;
+    --ink-soft: #636D75;
+    --teal: #0E7C7B;
+    --teal-light: #E6F3F3;
+    --coral: #D35400;
+    --coral-light: #FDF2E9;
+    --gold: #C8941F;
+    --line: #DFD9CB;
+    
+    /* 5層字級階梯 */
+    --fs-hero: 168px;
+    --fs-title: 120px;
+    --fs-sub: 80px;
+    --fs-body: 52px;
+    --fs-note: 28px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; background: #15181C; overflow: hidden;
+    font-family: 'GenSeki TW', sans-serif; color: var(--ink);
+    font-weight: 500;
+  }
+
+  .stage {
+    position: fixed; inset: 0; background: #15181C;
+    overflow: hidden;
+  }
+
+  .stage-scale-wrapper {
+    position: absolute;
+    width: 1920px;
+    height: 1080px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    transform-origin: center center;
+    background: var(--paper);
+    overflow: hidden;
+    box-shadow: 0 20px 80px rgba(0,0,0,0.5);
+  }
+
+  .slide {
+    position: absolute; inset: 0; padding: 56px 80px 120px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease;
+    display: flex; flex-direction: column;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+
+  /* 章節指示器 */
+  .chapter {
+    position: absolute; top: 28px; left: 48px;
+    font-family: 'GenSeki TW', sans-serif; font-weight: 700;
+    font-size: 22px; letter-spacing: 0.15em; color: var(--ink-soft);
+    display: flex; align-items: center;
+  }
+  .chapter .num {
+    color: #fff; background: var(--teal);
+    padding: 2px 10px; border-radius: 4px; font-weight: 900;
+    margin-right: 8px; font-size: 18px;
+  }
+
+  h2.sub {
+    font-family: 'GenSeki TW', sans-serif; font-weight: 900;
+    font-size: var(--fs-sub); color: var(--teal); letter-spacing: 0.04em;
+    line-height: 1.15; margin-bottom: 24px;
+  }
+
+  /* 旁白字幕條 */
+  .subtitle {
+    position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%);
+    max-width: 88%; width: 1400px; padding: 10px 20px;
+    background: transparent; color: #fff;
+    font-family: 'GenSeki TW', sans-serif; font-weight: 700;
+    font-size: 32px; line-height: 1.4; text-align: center;
+    opacity: 0; transition: opacity 0.4s ease;
+    z-index: 100;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.95), -2px -2px 4px rgba(0, 0, 0, 0.95), 2px -2px 4px rgba(0, 0, 0, 0.95), -2px 2px 4px rgba(0, 0, 0, 0.95);
+  }
+  .subtitle.show { opacity: 1; }
+
+  /* 開場點擊遮罩 */
+  .start-screen {
+    position: fixed; inset: 0; background: #15181C; color: #FAF7EE;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 999; cursor: pointer; gap: 40px;
+  }
+  .start-screen .t {
+    font-family: 'GenSeki TW', sans-serif; font-weight: 900;
+    font-size: 100px; letter-spacing: 0.1em; line-height: 1.2; text-align: center;
+  }
+  .start-screen .s { font-size: 24px; color: rgba(250,247,238,0.7); font-weight: 500; letter-spacing: 0.2em; }
+  .start-screen .play {
+    width: 96px; height: 96px; border: 3px solid var(--gold);
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    color: var(--gold); transition: all 0.3s;
+  }
+  .start-screen:hover .play { background: var(--gold); color: #15181C; }
+  .start-screen.hidden { display: none; }
+
+  /* 進度條 */
+  .progress {
+    position: absolute; left: 0; bottom: 0; height: 6px; background: var(--teal);
+    width: 0%; transition: width 0.2s linear;
+    z-index: 101;
+  }
+
+  /* 字幕開關按鈕 */
+  .cc-toggle-btn {
+    position: fixed; top: 30px; right: 30px; z-index: 1002;
+    background: rgba(21, 24, 28, 0.7); backdrop-filter: blur(10px);
+    border: 2px solid var(--line); color: #fff; border-radius: 50%;
+    width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-family: 'GenSeki TW', sans-serif; font-weight: 700;
+    font-size: 20px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  .cc-toggle-btn:hover {
+    background: var(--teal); border-color: var(--teal); transform: scale(1.05);
+  }
+  .cc-toggle-btn.off {
+    color: rgba(255,255,255,0.4); background: rgba(21, 24, 28, 0.4);
+    border-color: rgba(255,255,255,0.2);
+  }
+  .cc-toggle-btn.off::after {
+    content: ''; position: absolute; width: 40px; height: 2px;
+    background: #E74C3C; transform: rotate(-45deg);
+  }
+  body.subtitles-disabled .subtitle {
+    display: none !important;
+  }
+  body.rendering .cc-toggle-btn,
+  body.rendering .speed-toggle-btn {
+    display: none !important;
+  }
+
+  /* 播放速度按鈕 */
+  .speed-toggle-btn {
+    position: fixed; top: 30px; right: 105px; z-index: 1002;
+    background: rgba(21, 24, 28, 0.7); backdrop-filter: blur(10px);
+    border: 2px solid var(--line); color: #fff; border-radius: 50%;
+    width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-family: 'GenSeki TW', sans-serif; font-weight: 700;
+    font-size: 16px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  .speed-toggle-btn:hover {
+    background: var(--teal); border-color: var(--teal); transform: scale(1.05);
+  }
+
+  /* ============ Slide 1 — 封面 ============ */
+  .slide-1 {
+    background: #15181C; color: #FAF7EE;
+    align-items: center; justify-content: center; text-align: center;
+  }
+  .slide-1 h1 {
+    color: #FAF7EE; font-size: 110px; font-weight: 900;
+    letter-spacing: 0.08em; line-height: 1.2;
+  }
+  .slide-1 .hook {
+    font-size: 42px; color: var(--gold); margin-top: 24px;
+    letter-spacing: 0.2em; font-weight: 900;
+  }
+  .slide-1 .tag {
+    margin-top: 60px; font-size: 26px; letter-spacing: 0.4em;
+    color: rgba(250,247,238,0.5); font-weight: 700;
+  }
+
+  /* 漂浮化學品分子粒子背景 */
+  .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .particles span {
+    position: absolute; font-family: 'GenSeki TW', sans-serif;
+    color: rgba(200,148,31,0.12); font-size: 48px; font-weight: 900;
+    animation: floatNum 10s linear infinite;
+  }
+  @keyframes floatNum {
+    0% { transform: translateY(110vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+  }
+
+  /* ============ Slide 2 — 隱形危機 ============ */
+  .slide-2 { background: #601A18; color: #FAF7EE; justify-content: center; align-items: center; }
+  .slide-2 h2 { color: #FC7F7C; text-align: center; font-size: 88px; }
+  .crisis-grid {
+    display: flex; gap: 60px; margin-top: 40px; max-width: 1400px;
+  }
+  .crisis-card {
+    flex: 1; background: rgba(255,255,255,0.08); border: 3px solid rgba(255,255,255,0.15);
+    border-radius: 20px; padding: 40px; display: flex; flex-direction: column; gap: 20px;
+    opacity: 0; transform: translateY(30px); transition: all 0.8s ease;
+  }
+  .slide-2.active .crisis-card { opacity: 1; transform: translateY(0); }
+  .slide-2.active .crisis-card:nth-child(1) { transition-delay: 1.5s; }
+  .slide-2.active .crisis-card:nth-child(2) { transition-delay: 3.5s; }
+  
+  .crisis-card .icon { font-size: 80px; text-shadow: 0 0 20px rgba(0,0,0,0.2); }
+  .crisis-card h3 { font-size: 48px; font-weight: 900; color: #FC7F7C; }
+  .crisis-card p { font-size: 32px; line-height: 1.5; color: rgba(250,247,238,0.85); font-weight: 700; }
+
+  /* ============ Slide 3 — 進場核對 ============ */
+  .slide-3 { justify-content: flex-start; }
+  .split-layout { display: flex; gap: 80px; flex: 1; margin-top: 20px; }
+  .split-left, .split-right { flex: 1; display: flex; flex-direction: column; gap: 30px; }
+  
+  .chk-list { display: flex; flex-direction: column; gap: 24px; }
+  .chk-item {
+    background: var(--paper-2); border-left: 10px solid var(--line);
+    padding: 24px 36px; border-radius: 0 16px 16px 0;
+    display: flex; align-items: center; gap: 24px;
+    font-size: 36px; font-weight: 900; color: var(--ink);
+    opacity: 0; transform: translateX(-30px); transition: all 0.6s ease;
+  }
+  .chk-item.checked { border-left-color: var(--teal); }
+  .chk-item .box {
+    width: 48px; height: 48px; border: 4px solid var(--line); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.3s;
+  }
+  .chk-item.checked .box { border-color: var(--teal); background: var(--teal); color: #fff; }
+  .chk-item.checked .box::after { content: '✓'; font-size: 32px; font-weight: 900; }
+
+  .slide-3.active .chk-item:nth-child(1) { opacity: 1; transform: translateX(0); transition-delay: 1.0s; }
+  .slide-3.active .chk-item:nth-child(1).checked { transition-delay: 2.5s; }
+  .slide-3.active .chk-item:nth-child(2) { opacity: 1; transform: translateX(0); transition-delay: 3.5s; }
+  .slide-3.active .chk-item:nth-child(2).checked { transition-delay: 4.8s; }
+  .slide-3.active .chk-item:nth-child(3) { opacity: 1; transform: translateX(0); transition-delay: 5.8s; }
+  .slide-3.active .chk-item:nth-child(3).checked { transition-delay: 7.0s; }
+
+  .ppe-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .ppe-card {
+    background: var(--paper-2); border: 4px solid var(--line); border-radius: 20px;
+    padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 16px;
+    opacity: 0; transform: translateY(20px); transition: all 0.6s ease;
+  }
+  .ppe-card.highlight { border-color: var(--coral); background: var(--coral-light); }
+  .ppe-card .emoji { font-size: 72px; }
+  .ppe-card h4 { font-size: 34px; font-weight: 900; color: var(--ink); }
+  
+  .slide-3.active .ppe-card:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 8.0s; }
+  .slide-3.active .ppe-card:nth-child(1).highlight { transition-delay: 8.8s; }
+  .slide-3.active .ppe-card:nth-child(2) { opacity: 1; transform: translateY(0); transition-delay: 9.3s; }
+  .slide-3.active .ppe-card:nth-child(2).highlight { transition-delay: 9.9s; }
+  .slide-3.active .ppe-card:nth-child(3) { opacity: 1; transform: translateY(0); transition-delay: 10.4s; }
+  .slide-3.active .ppe-card:nth-child(3).highlight { transition-delay: 11.0s; }
+
+  /* ============ Slide 4 — 安全準備（雙防禦） ============ */
+  .slide-4 { justify-content: flex-start; }
+  .prep-container { display: flex; gap: 40px; flex: 1; margin-top: 10px; }
+  .prep-left { flex: 4; position: relative; background: var(--paper-2); border-radius: 24px; border: 4px solid var(--line); overflow: hidden; }
+  .prep-right { flex: 3; display: flex; flex-direction: column; gap: 20px; }
+
+  .step-card {
+    background: var(--paper-2); border: 4px solid var(--line); border-radius: 16px;
+    padding: 24px 30px; display: flex; align-items: center; gap: 20px;
+    opacity: 0; transform: translateX(30px); transition: all 0.6s ease;
+  }
+  .step-card.active { border-color: var(--teal); background: var(--teal-light); }
+  .step-card .num-badge {
+    width: 54px; height: 54px; border-radius: 50%; background: var(--ink-soft); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900;
+  }
+  .step-card.active .num-badge { background: var(--teal); }
+  .step-card h5 { font-size: 34px; font-weight: 900; }
+
+  .slide-4.active .step-card:nth-child(1) { opacity: 1; transform: translateX(0); transition-delay: 1.0s; }
+  .slide-4.active .step-card:nth-child(1).active { transition-delay: 1.8s; }
+  .slide-4.active .step-card:nth-child(2) { opacity: 1; transform: translateX(0); transition-delay: 4.5s; }
+  .slide-4.active .step-card:nth-child(2).active { transition-delay: 5.2s; }
+  .slide-4.active .step-card:nth-child(3) { opacity: 1; transform: translateX(0); transition-delay: 8.5s; }
+  .slide-4.active .step-card:nth-child(3).active { transition-delay: 9.2s; }
+
+  /* ============ Slide 5 — 接管氣密 ============ */
+  .slide-5 { justify-content: flex-start; }
+  .pipe-container { display: flex; gap: 40px; flex: 1; margin-top: 10px; }
+  .pipe-left { flex: 4; background: var(--paper-2); border-radius: 24px; border: 4px solid var(--line); overflow: hidden; position: relative; }
+  .pipe-right { flex: 3; display: flex; flex-direction: column; gap: 20px; }
+
+  .pipe-step {
+    background: var(--paper-2); border: 4px solid var(--line); border-radius: 16px;
+    padding: 24px 30px; display: flex; align-items: center; gap: 20px;
+    opacity: 0; transform: translateX(30px); transition: all 0.6s ease;
+  }
+  .pipe-step.active { border-color: var(--teal); background: var(--teal-light); }
+  .pipe-step.active-coral { border-color: var(--coral); background: var(--coral-light); }
+  .pipe-step .num-badge {
+    width: 54px; height: 54px; border-radius: 50%; background: var(--ink-soft); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900;
+  }
+  .pipe-step.active .num-badge { background: var(--teal); }
+  .pipe-step.active-coral .num-badge { background: var(--coral); }
+  .pipe-step h5 { font-size: 34px; font-weight: 900; }
+
+  .slide-5.active .pipe-step:nth-child(1) { opacity: 1; transform: translateX(0); transition-delay: 1.0s; }
+  .slide-5.active .pipe-step:nth-child(1).active { transition-delay: 2.0s; }
+  .slide-5.active .pipe-step:nth-child(2) { opacity: 1; transform: translateX(0); transition-delay: 5.5s; }
+  .slide-5.active .pipe-step:nth-child(2).active { transition-delay: 6.2s; }
+  .slide-5.active .pipe-step:nth-child(3) { opacity: 1; transform: translateX(0); transition-delay: 9.5s; }
+  .slide-5.active .pipe-step:nth-child(3).active-coral { transition-delay: 10.5s; }
+
+  /* ============ Slide 6 — 卸料監控 ============ */
+  .slide-6 { justify-content: flex-start; }
+  .monitor-container { display: flex; gap: 40px; flex: 1; margin-top: 10px; }
+  .monitor-left { flex: 5; background: var(--paper-2); border-radius: 24px; border: 4px solid var(--line); padding: 40px; display: flex; flex-direction: column; gap: 24px; }
+  .monitor-right { flex: 4; display: flex; flex-direction: column; gap: 24px; }
+
+  .dashboard-gauges { display: flex; gap: 30px; justify-content: center; }
+  .gauge-box {
+    background: var(--paper); border: 4px solid var(--line); border-radius: 20px;
+    padding: 30px; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 16px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
+  }
+  .gauge-box .label { font-size: 30px; font-weight: 900; color: var(--ink-soft); }
+  .gauge-svg { width: 220px; height: 140px; }
+  .gauge-box .value { font-size: 52px; font-weight: 900; color: var(--teal); }
+
+  .chart-box {
+    background: var(--paper); border: 4px solid var(--line); border-radius: 20px;
+    padding: 24px; flex: 1; display: flex; flex-direction: column; gap: 12px;
+  }
+  .chart-box .title-bar { display: flex; justify-content: space-between; font-size: 26px; font-weight: 900; }
+  .chart-canvas { width: 100%; height: 200px; background: #fff; border-radius: 12px; border: 2px solid var(--line); }
+
+  .alarm-card {
+    background: var(--paper-2); border: 4px solid var(--line); border-radius: 20px;
+    padding: 30px; display: flex; align-items: center; gap: 28px;
+    opacity: 0; transform: translateY(20px); transition: all 0.6s ease;
+  }
+  .alarm-card.green { border-color: var(--teal); background: var(--teal-light); }
+  .alarm-card .circle {
+    width: 60px; height: 60px; border-radius: 50%; background: var(--teal);
+    display: flex; align-items: center; justify-content: center; font-size: 32px; color: #fff;
+    animation: pulseGlowGreen 2s infinite;
+  }
+  @keyframes pulseGlowGreen {
+    0%, 100% { box-shadow: 0 0 0 0px rgba(14,124,123,0.4); }
+    50% { box-shadow: 0 0 0 16px rgba(14,124,123,0); }
+  }
+  .alarm-card h6 { font-size: 38px; font-weight: 900; color: var(--ink); }
+  .alarm-card p { font-size: 26px; color: var(--ink-soft); font-weight: 700; margin-top: 6px; }
+
+  .slide-6.active .alarm-card { opacity: 1; transform: translateY(0); transition-delay: 2.0s; }
+
+  /* ============ Slide 7 — 拆管三部曲 ============ */
+  .slide-7 { justify-content: flex-start; }
+  .road-container {
+    display: flex; gap: 40px; justify-content: center; align-items: center; flex: 1; margin-top: 40px;
+  }
+  .road-node {
+    background: var(--paper-2); border: 6px solid var(--line); border-radius: 24px;
+    padding: 48px; width: 440px; height: 480px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+    position: relative; transition: all 0.6s ease;
+    opacity: 0; transform: translateY(40px);
+  }
+  .road-node.active { border-color: var(--teal); background: var(--teal-light); transform: scale(1.05) translateY(0); box-shadow: 0 20px 40px rgba(14,124,123,0.1); }
+  .road-node.active-coral { border-color: var(--coral); background: var(--coral-light); transform: scale(1.05) translateY(0); box-shadow: 0 20px 40px rgba(211,84,0,0.1); }
+  
+  .road-node .badge {
+    position: absolute; top: -36px; width: 72px; height: 72px; border-radius: 50%;
+    background: var(--line); color: var(--ink-soft); font-size: 32px; font-weight: 900;
+    display: flex; align-items: center; justify-content: center; border: 4px solid var(--paper);
+  }
+  .road-node.active .badge { background: var(--teal); color: #fff; }
+  .road-node.active-coral .badge { background: var(--coral); color: #fff; }
+
+  .road-node .emoji { font-size: 100px; }
+  .road-node h4 { font-size: 42px; font-weight: 900; color: var(--ink); }
+  .road-node p { font-size: 26px; color: var(--ink-soft); text-align: center; font-weight: 700; line-height: 1.4; }
+
+  .road-arrow { font-size: 64px; color: var(--line); opacity: 0; transition: opacity 0.5s ease; }
+  .slide-7.active .road-arrow { opacity: 1; }
+  .slide-7.active .road-arrow:nth-of-type(1) { transition-delay: 4.0s; }
+  .slide-7.active .road-arrow:nth-of-type(2) { transition-delay: 8.5s; }
+
+  .slide-7.active .road-node:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 1.0s; }
+  .slide-7.active .road-node:nth-child(1).active { transition-delay: 1.8s; }
+  .slide-7.active .road-node:nth-child(3) { opacity: 1; transform: translateY(0); transition-delay: 5.0s; }
+  .slide-7.active .road-node:nth-child(3).active { transition-delay: 5.8s; }
+  .slide-7.active .road-node:nth-child(5) { opacity: 1; transform: translateY(0); transition-delay: 9.5s; }
+  .slide-7.active .road-node:nth-child(5).active-coral { transition-delay: 10.5s; }
+
+  /* ============ Slide 8 — 安全金句 ============ */
+  .slide-8 {
+    background: #1B2124; color: #FAF7EE;
+    justify-content: center; align-items: center; text-align: center;
+  }
+  .slide-8 .quote-box {
+    display: flex; flex-direction: column; gap: 40px; margin-bottom: 60px;
+  }
+  .slide-8 .quote-line {
+    font-size: 96px; font-weight: 900; letter-spacing: 0.1em;
+    opacity: 0; transform: translateY(30px); transition: all 1.2s ease;
+  }
+  .slide-8 .quote-line span { color: var(--gold); }
+  .slide-8.active .quote-line:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 1.5s; }
+  .slide-8.active .quote-line:nth-child(2) { opacity: 1; transform: translateY(0); transition-delay: 6.0s; }
+
+  .emergency-tips {
+    display: flex; gap: 80px; margin-top: 40px;
+    opacity: 0; transform: scale(0.9); transition: all 0.8s ease 10.0s;
+  }
+  .slide-8.active .emergency-tips { opacity: 1; transform: scale(1); }
+  .tip-item { display: flex; align-items: center; gap: 20px; font-size: 34px; font-weight: 700; color: rgba(250,247,238,0.85); }
+  .tip-item .ico { font-size: 60px; }
+
+  /* ============ Slide 9 — 封底 ============ */
+  .slide-9 {
+    background: #15181C; color: #FAF7EE;
+    justify-content: center; align-items: center; text-align: center;
+  }
+  .slide-9 .end-t {
+    font-size: 90px; font-weight: 900; letter-spacing: 0.15em; line-height: 1.4;
+    opacity: 0; transform: scale(0.95); transition: all 1.5s ease 1.0s;
+  }
+  .slide-9.active .end-t { opacity: 1; transform: scale(1); }
+  .slide-9 .end-sig {
+    margin-top: 60px; font-size: 26px; letter-spacing: 0.5em;
+    color: rgba(250,247,238,0.45); font-weight: 700;
+  }
+</style>
+</head>
+<body>
+
+<!-- 控制按鈕 -->
+<button class="speed-toggle-btn" id="speedToggle" title="切換播放速度">1.0x</button>
+<button class="cc-toggle-btn" id="ccToggle" title="切換字幕顯示">CC</button>
+
+<!-- 點擊開始畫面 (錄製時會帶上 ?render=true 參數，藉由 CSS 隱藏並自動播放) -->
+<div class="start-screen" id="startScreen">
+  <div class="t">ISOTANK 化學品卸料<br>安全與進貨訓練</div>
+  <div class="play"><svg width="24" height="28" viewBox="0 0 24 28"><path d="M2 2 L22 14 L2 26 Z" fill="currentColor"/></svg></div>
+  <div class="s">點擊開始影片 · 約 2 分鐘</div>
+</div>
+
+<div class="stage" id="stage">
+  <div class="stage-scale-wrapper" id="stageScaleWrapper">
+
+  <!-- ====== Slide 1 — 封面 ====== -->
+  <div class="slide slide-1">
+    <div class="particles" id="particles"></div>
+    <div style="position:relative;z-index:1;">
+      <h1>ISOTANK 化學品卸料<br>安全與進貨訓練</h1>
+      <div class="hook">CHEMICAL UNLOADING SAFETY TRAINING</div>
+      <div class="tag">安全守則 · 專業防護 · 零災害</div>
+    </div>
+  </div>
+
+  <!-- ====== Slide 2 — 隱形危機 ====== -->
+  <div class="slide slide-2">
+    <div class="chapter"><span class="num">01</span> / 08 — 危機意識</div>
+    <h2>化學品卸料的隱形危機</h2>
+    <div class="crisis-grid">
+      <div class="crisis-card">
+        <div class="icon">⚡</div>
+        <h3>靜電火花</h3>
+        <p>液體在管道高速流動會累積巨大靜電。如果接地失效，瞬間的放電火花能引燃易燃化學蒸氣，引發大爆炸。</p>
+      </div>
+      <div class="crisis-card">
+        <div class="icon">💧</div>
+        <h3>接頭外洩</h3>
+        <p>接頭未完全鎖緊、墊圈老化、或卸料管道殘餘壓差，在拆解瞬間化學液體噴濺，造成人員嚴重化學灼傷與環境污染。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Slide 3 — 進場核對 ====== -->
+  <div class="slide slide-3">
+    <div class="chapter"><span class="num">02</span> / 08 — 防呆防護</div>
+    <h2 class="sub">第一關：進場核對與防護著裝</h2>
+    <div class="split-layout">
+      <div class="split-left">
+        <div class="chk-list">
+          <div class="chk-item" id="chk1"><div class="box"></div> 核對單據與出貨標籤</div>
+          <div class="chk-item" id="chk2"><div class="box"></div> 確認灌口編號（防呆確認）</div>
+          <div class="chk-item" id="chk3"><div class="box"></div> 閱讀安全資料表 (SDS)</div>
+        </div>
+      </div>
+      <div class="split-right">
+        <div style="font-size:30px; font-weight:900; color:var(--ink-soft); margin-bottom:10px;">★ 個人防護裝備 (PPE) 著裝要求：</div>
+        <div class="ppe-grid">
+          <div class="ppe-card" id="ppe1"><div class="emoji">🛡️</div><h4>重型防化服</h4></div>
+          <div class="ppe-card" id="ppe2">
+            <div class="emoji" style="display: flex; align-items: center; justify-content: center; height: 72px;">
+              <svg width="72" height="72" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Head harnesses -->
+                <path d="M15 45 C 5 45, 5 35, 15 35 M85 45 C 95 45, 95 35, 85 35" stroke="#2C3E50" stroke-width="4" stroke-linecap="round"/>
+                <path d="M30 25 C 30 15, 70 15, 70 25" stroke="#2C3E50" stroke-width="3" fill="none" stroke-linecap="round"/>
+                
+                <!-- Mask body -->
+                <path d="M25 45 C25 25, 75 25, 75 45 C75 60, 68 80, 50 85 C32 80, 25 60, 25 45 Z" fill="#2F3542" stroke="#1E2229" stroke-width="4" stroke-linejoin="round"/>
+                
+                <!-- Goggles visor -->
+                <path d="M30 40 C30 32, 70 32, 70 40 C70 47, 65 52, 50 52 C35 52, 30 47, 30 40 Z" fill="#70A1FF" stroke="#1E2229" stroke-width="3" stroke-linejoin="round" opacity="0.9"/>
+                <path d="M38 36 L48 36 C43 36, 40 45, 35 45 Z" fill="#FFFFFF" opacity="0.4"/>
+                <path d="M58 36 L68 36 C63 36, 60 45, 55 45 Z" fill="#FFFFFF" opacity="0.4"/>
+                
+                <!-- Breathing valve -->
+                <circle cx="50" cy="60" r="10" fill="#747D8C" stroke="#1E2229" stroke-width="3"/>
+                <circle cx="50" cy="60" r="6" fill="#2F3542"/>
+                
+                <!-- Left filter canister -->
+                <rect x="12" y="52" width="16" height="24" rx="4" transform="rotate(15 20 64)" fill="#57606F" stroke="#1E2229" stroke-width="3"/>
+                <path d="M14 56 L26 59" stroke="#2F3542" stroke-width="2"/>
+                <path d="M16 64 L28 67" stroke="#2F3542" stroke-width="2"/>
+                
+                <!-- Right filter canister -->
+                <rect x="72" y="52" width="16" height="24" rx="4" transform="rotate(-15 80 64)" fill="#57606F" stroke="#1E2229" stroke-width="3"/>
+                <path d="M86 56 L74 59" stroke="#2F3542" stroke-width="2"/>
+                <path d="M84 64 L72 67" stroke="#2F3542" stroke-width="2"/>
+              </svg>
+            </div>
+            <h4>防毒面具與眼罩</h4>
+          </div>
+          <div class="ppe-card" id="ppe3"><div class="emoji">🧤</div><h4>耐酸鹼長手套</h4></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Slide 4 — 安全準備（雙防禦） ====== -->
+  <div class="slide slide-4">
+    <div class="chapter"><span class="num">03</span> / 08 — 雙重防線</div>
+    <h2 class="sub">第二關：架設車體安全雙防線</h2>
+    <div class="prep-container">
+      <div class="prep-left">
+        <!-- SVG 動態演示：接地銅排與防溢堤架設 -->
+        <svg width="100%" height="100%" viewBox="0 0 800 500" style="background:#EBE6D8;" id="prepSvg">
+          <!-- 背景車體簡化線條 -->
+          <g transform="translate(100, 150)">
+            <rect x="50" y="50" width="400" height="150" rx="30" fill="#7F8C8D" />
+            <circle cx="120" cy="220" r="40" fill="#2C3E50" />
+            <circle cx="380" cy="220" r="40" fill="#2C3E50" />
+            <text x="250" y="140" font-size="28" font-weight="900" fill="#FAF7EE" text-anchor="middle" font-family="GenSeki TW">ISOTANK</text>
+            <!-- 輪檔 -->
+            <polygon points="60,260 80,220 120,260" fill="#D35400" stroke="#FAF7EE" stroke-width="4" id="chockL" opacity="0"/>
+            <polygon points="320,260 340,220 380,260" fill="#D35400" stroke="#FAF7EE" stroke-width="4" id="chockR" opacity="0"/>
+          </g>
+          <!-- 接地銅排 -->
+          <rect x="620" y="320" width="120" height="30" rx="6" fill="#D35400" />
+          <line x1="680" y1="350" x2="680" y2="430" stroke="#7F8C8D" stroke-width="8" stroke-dasharray="10 10"/>
+          <text x="680" y="300" font-size="22" font-weight="900" fill="#D35400" text-anchor="middle" font-family="GenSeki TW">接地銅排</text>
+          
+          <!-- 接地線（動態繪製） -->
+          <path d="M 280 280 L 350 380 L 620 335" fill="none" stroke="#27AE60" stroke-width="8" stroke-dasharray="600" stroke-dashoffset="600" id="groundWire"/>
+          
+          <!-- 接地電阻顯示 -->
+          <g id="resistanceMeter" opacity="0" transform="translate(560, 200)">
+            <rect x="0" y="0" width="180" height="70" rx="10" fill="#27AE60" stroke="#FAF7EE" stroke-width="4"/>
+            <text x="90" y="45" font-size="28" font-weight="900" fill="#FAF7EE" text-anchor="middle" font-family="GenSeki TW">&lt; 10 Ω OK</text>
+          </g>
+
+          <!-- 防溢流堤 (Spill Bund) -->
+          <path d="M 60 410 L 600 410" stroke="#C0392B" stroke-width="12" stroke-linecap="round" fill="none" id="bundBorder" opacity="0"/>
+          <rect x="80" y="416" width="500" height="20" fill="rgba(192,57,43,0.2)" id="bundFill" opacity="0"/>
+          <text x="340" y="460" font-size="22" font-weight="900" fill="#C0392B" text-anchor="middle" font-family="GenSeki TW" id="bundText" opacity="0">防溢流圍堤已部署</text>
+        </svg>
+      </div>
+      <div class="prep-right">
+        <div class="step-card" id="cardWheel"><div class="num-badge">1</div><h5>輪胎鎖定輪檔</h5></div>
+        <div class="step-card" id="cardContain"><div class="num-badge">2</div><h5>鋪設防溢流堤</h5></div>
+        <div class="step-card" id="cardGround"><div class="num-badge">3</div><h5>靜電接地電阻檢測</h5></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Slide 5 — 接管氣密 ====== -->
+  <div class="slide slide-5">
+    <div class="chapter"><span class="num">04</span> / 08 — 密閉連接</div>
+    <h2 class="sub">第三關：氣液相雙管連接與氣密測試</h2>
+    <div class="pipe-container">
+      <div class="pipe-left">
+        <!-- SVG 動態演示：氣相先接、液相後接、肥皂水起泡測試 -->
+        <svg width="100%" height="100%" viewBox="0 0 800 500" style="background:#EBE6D8;">
+          <!-- 槽車罐口 -->
+          <rect x="80" y="100" width="160" height="300" rx="20" fill="#7F8C8D" stroke="#95A5A6" stroke-width="6"/>
+          <text x="160" y="80" font-size="24" font-weight="900" fill="#7F8C8D" text-anchor="middle" font-family="GenSeki TW">ISOTANK 端</text>
+          
+          <!-- 氣相接口 -->
+          <circle cx="240" cy="180" r="24" fill="#1A1A1A"/>
+          <text x="160" y="190" font-size="24" font-weight="900" fill="#1A1A1A" text-anchor="end" font-family="GenSeki TW">氣相平衡口</text>
+          
+          <!-- 液相接口 -->
+          <circle cx="240" cy="320" r="30" fill="#0E7C7B"/>
+          <text x="160" y="330" font-size="24" font-weight="900" fill="#0E7C7B" text-anchor="end" font-family="GenSeki TW">液相進料口</text>
+
+          <!-- 廠區接收端 -->
+          <rect x="560" y="100" width="160" height="300" rx="20" fill="#BDC3C7" stroke="#95A5A6" stroke-width="6"/>
+          <text x="640" y="80" font-size="24" font-weight="900" fill="#95A5A6" text-anchor="middle" font-family="GenSeki TW">廠區接收端</text>
+
+          <!-- 氣相管線（綠色/灰色 - 壓差平衡） -->
+          <path d="M 560 180 Q 400 130 240 180" fill="none" stroke="#7F8C8D" stroke-width="10" stroke-dasharray="400" stroke-dashoffset="400" id="gasPipe"/>
+          <text x="400" y="120" font-size="22" font-weight="900" fill="#7F8C8D" text-anchor="middle" font-family="GenSeki TW" id="gasText" opacity="0">① 氣相管已對接</text>
+
+          <!-- 液相管線（藍色 - 輸送液體） -->
+          <path d="M 560 320 Q 400 400 240 320" fill="none" stroke="#0E7C7B" stroke-width="16" stroke-dasharray="400" stroke-dashoffset="400" id="liquidPipe"/>
+          <text x="400" y="440" font-size="22" font-weight="900" fill="#0E7C7B" text-anchor="middle" font-family="GenSeki TW" id="liqText" opacity="0">② 液相管已對接</text>
+
+          <!-- 氣密測試泡泡特效 -->
+          <g id="leakBubble" opacity="0">
+            <circle cx="240" cy="320" r="45" fill="none" stroke="#D35400" stroke-width="4" stroke-dasharray="8 8"/>
+            <circle cx="230" cy="290" r="12" fill="rgba(255,255,255,0.7)" stroke="#3498DB" stroke-width="2"/>
+            <circle cx="210" cy="310" r="16" fill="rgba(255,255,255,0.7)" stroke="#3498DB" stroke-width="2"/>
+            <circle cx="225" cy="340" r="10" fill="rgba(255,255,255,0.7)" stroke="#3498DB" stroke-width="2"/>
+            <rect x="290" y="270" width="160" height="50" rx="8" fill="#D35400"/>
+            <text x="370" y="302" font-size="20" font-weight="900" fill="#FAF7EE" text-anchor="middle" font-family="GenSeki TW">氣密泡泡測試</text>
+          </g>
+
+          <g id="leakBubbleOk" opacity="0">
+            <rect x="290" y="270" width="160" height="50" rx="8" fill="#27AE60"/>
+            <text x="370" y="302" font-size="22" font-weight="900" fill="#FAF7EE" text-anchor="middle" font-family="GenSeki TW">無泡泡 OK</text>
+          </g>
+        </svg>
+      </div>
+      <div class="pipe-right">
+        <div class="pipe-step" id="stepGas"><div class="num-badge">1</div><h5>氣相平衡管先接</h5></div>
+        <div class="pipe-step" id="stepLiq"><div class="num-badge">2</div><h5>液相輸送管後接</h5></div>
+        <div class="pipe-step" id="stepLeak"><div class="num-badge">3</div><h5>引入低壓氮氣防漏氣密測試</h5></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Slide 6 — 卸料監控 ====== -->
+  <div class="slide slide-6">
+    <div class="chapter"><span class="num">05</span> / 08 — 監控要點</div>
+    <h2 class="sub">第四關：開啟卸料與多重參數監控</h2>
+    <div class="monitor-container">
+      <div class="monitor-left">
+        <!-- 模擬儀表板 -->
+        <div class="dashboard-gauges">
+          <div class="gauge-box">
+            <span class="label">氣相壓力</span>
+            <svg class="gauge-svg" viewBox="0 0 200 120">
+              <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#DFD9CB" stroke-width="16" stroke-linecap="round"/>
+              <path d="M 20 110 A 80 80 0 0 1 120 40" fill="none" stroke="#0E7C7B" stroke-width="16" stroke-linecap="round"/>
+              <line x1="100" y1="110" x2="110" y2="40" stroke="#1F2326" stroke-width="6" stroke-linecap="round" id="gaugeHandP"/>
+              <circle cx="100" cy="110" r="12" fill="#1F2326"/>
+            </svg>
+            <span class="value" id="valP">2.1 Bar</span>
+          </div>
+          <div class="gauge-box">
+            <span class="label">卸料流量</span>
+            <svg class="gauge-svg" viewBox="0 0 200 120">
+              <path d="M 20 110 A 80 80 0 0 1 180 110" fill="none" stroke="#DFD9CB" stroke-width="16" stroke-linecap="round"/>
+              <path d="M 20 110 A 80 80 0 0 1 150 60" fill="none" stroke="#D35400" stroke-width="16" stroke-linecap="round"/>
+              <line x1="100" y1="110" x2="140" y2="65" stroke="#1F2326" stroke-width="6" stroke-linecap="round" id="gaugeHandF"/>
+              <circle cx="100" cy="110" r="12" fill="#1F2326"/>
+            </svg>
+            <span class="value" id="valF">14.5 m³/h</span>
+          </div>
+        </div>
+        <!-- 動態畫布折線圖 -->
+        <div class="chart-box">
+          <div class="title-bar">
+            <span>卸料監控趨勢圖</span>
+            <span style="color:var(--teal);" id="timeLabel">00:00:00</span>
+          </div>
+          <canvas class="chart-canvas" id="monitorChart"></canvas>
+        </div>
+      </div>
+      <div class="monitor-right">
+        <div class="alarm-card green">
+          <div class="circle">✓</div>
+          <div>
+            <h6>監控人員維持警戒</h6>
+            <p>操作過程中，監控人員必須全程守候在緊急閥旁，絕不可擅離職守。</p>
+          </div>
+        </div>
+        <div style="background:var(--paper-2); border:4px solid var(--line); border-radius:20px; padding:30px; display:flex; flex-direction:column; gap:16px; flex:1; justify-content:center;">
+          <div style="font-size:32px; font-weight:900; color:var(--ink);"><span style="color:var(--coral);margin-right:12px;">🚨</span>異常應變要點：</div>
+          <p style="font-size:28px; line-height:1.4; color:var(--ink-soft); font-weight:700;">一旦偵測到異味、管線劇烈抖動、或壓力驟升，應立即按下黃色緊急遮斷閥 (ESD)，暫停一切作業並回報。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Slide 7 — 拆管三部曲 ====== -->
+  <div class="slide slide-7">
+    <div class="chapter"><span class="num">06</span> / 08 — 卸料完成</div>
+    <h2 class="sub" style="text-align:center;">第五關：安全拆管三部曲</h2>
+    <div class="road-container">
+      <div class="road-node" id="road1">
+        <div class="badge">1</div>
+        <div class="emoji">🔒</div>
+        <h4>閥門關閉</h4>
+        <p>關閉ISOTANK出口閥與廠區接收閥，切斷物料輸送路徑。</p>
+      </div>
+      <div class="road-arrow">➔</div>
+      <div class="road-node" id="road2">
+        <div class="badge">2</div>
+        <div class="emoji">💨</div>
+        <h4>氣體吹掃</h4>
+        <p>引入高壓氮氣，將輸送管內的殘留液體徹底吹掃進儲槽中。</p>
+      </div>
+      <div class="road-arrow">➔</div>
+      <div class="road-node" id="road3">
+        <div class="badge">3</div>
+        <div class="emoji">🔌</div>
+        <h4>緩慢拆卸</h4>
+        <p>確認管內無壓、無液體殘留後，戴妥PPE，緩慢拆卸接頭。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Slide 8 — 安全金句 ====== -->
+  <div class="slide slide-8">
+    <div class="quote-box">
+      <div class="quote-line">接地<span>防靜電</span>，密閉<span>防外洩</span>。</div>
+      <div class="quote-line">拆管<span>先排空</span>，安全<span>不妥協</span>。</div>
+    </div>
+    <div class="emergency-tips">
+      <div class="tip-item"><span class="ico">🚿</span> 緊急淋浴間</div>
+      <div class="tip-item"><span class="ico">👀</span> 洗眼器位置</div>
+      <div class="tip-item"><span class="ico">🚨</span> 洩漏應變櫃</div>
+    </div>
+  </div>
+
+  <!-- ====== Slide 9 — 封底 ====== -->
+  <div class="slide slide-9">
+    <div class="end-t">
+      安全，是回家唯一的路。<br>
+      <span style="color:var(--gold);">零外洩 · 零災害 · 安全至上</span>
+    </div>
+    <div class="end-sig">ISOTANK CHEMICAL UNLOADING · 完</div>
+  </div>
+
+  <!-- 共用字幕條 -->
+  <div class="subtitle" id="subtitle"></div>
+  </div> <!-- stage-scale-wrapper -->
+</div>
+
+<div class="progress" id="progress"></div>
+<audio id="audio" preload="auto"></audio>
+
+<script>
+// ===== 旁白文字 + 時長控制 =====
+const PAGES = [
+  { i:1, dur:12.9, sub:"歡迎收看 ISOTANK 化學品卸料安全訓練課程。今天我們用三分鐘，徹底掌握進貨安全的每一個關鍵步驟。" },
+  { i:2, dur:14.3, sub:"高危險化學品卸料，是一場與隱形危機的博弈。微小的靜電火花，或細微的接頭洩漏，都可能釀成不可挽回的災害。" },
+  { i:3, dur:13.8, sub:"卸料前，必須核對單據、標籤與安全資料表。同時，必須著裝完整的防化服、防毒面具與眼罩、以及耐酸鹼手套。" },
+  { i:4, dur:15.6, sub:"接著是雙重防護。將車輪鎖定，並在車體下方架設防溢流圍堤。隨後夾緊靜電接地夾，確認接地電阻小於十歐姆。" },
+  { i:5, dur:14.7, sub:"連接管路時，氣相平衡管必須先接，液相輸送管後接。接好後，引入低壓氮氣，在接頭塗抹肥皂水進行氣密測試。" },
+  { i:6, dur:14.0, sub:"緩慢開啟卸料閥，卸料期間，操作人員不得離開現場。必須嚴格監控管路壓力、儲槽液位與是否有異常氣味。" },
+  { i:7, dur:14.2, sub:"卸料結束後，關閉閥門，引入氮氣將管路殘液完全吹掃進儲槽。確認管路無壓、無殘液後，才可緩慢拆卸。" },
+  { i:8, dur:12.6, sub:"牢記緊急洗眼器與淋浴間的位置。接地防靜電，密閉防外洩，拆管先排空，安全不妥協。" },
+  { i:9, dur:6.7,  sub:"感謝您的參與，祝您工作平安。" },
+];
+
+const TOTAL_DUR = PAGES.reduce((s,p)=>s+p.dur, 0);
+
+const slides = document.querySelectorAll('.slide');
+const audio = document.getElementById('audio');
+const sub = document.getElementById('subtitle');
+const startScreen = document.getElementById('startScreen');
+const progress = document.getElementById('progress');
+const ccToggle = document.getElementById('ccToggle');
+const speedToggle = document.getElementById('speedToggle');
+const scaleWrapper = document.getElementById('stageScaleWrapper');
+
+// ===== 視窗自適應縮放 (Auto-Scale to fit screen) =====
+function resizeStage() {
+  const baseWidth = 1920;
+  const baseHeight = 1080;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const scale = Math.min(w / baseWidth, h / baseHeight);
+  scaleWrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+window.addEventListener('resize', resizeStage);
+resizeStage();
+
+// ===== 播放速度控制與變速安全定時器 =====
+let playbackRate = 1.0;
+try {
+  const savedRate = localStorage.getItem('playback-rate');
+  if (savedRate) {
+    playbackRate = parseFloat(savedRate);
+  }
+} catch (e) {}
+speedToggle.textContent = `${playbackRate.toFixed(2).replace(/\.00$/, '')}x`;
+
+let activeTimeouts = [];
+function safeTimeout(fn, delay) {
+  const t = setTimeout(fn, delay / playbackRate);
+  activeTimeouts.push(t);
+  return t;
+}
+function clearAllTimeouts() {
+  activeTimeouts.forEach(clearTimeout);
+  activeTimeouts = [];
+}
+
+speedToggle.addEventListener('click', () => {
+  const oldRate = playbackRate;
+  if (playbackRate === 1.0) playbackRate = 1.25;
+  else if (playbackRate === 1.25) playbackRate = 1.5;
+  else if (playbackRate === 1.5) playbackRate = 2.0;
+  else if (playbackRate === 2.0) playbackRate = 0.75;
+  else playbackRate = 1.0;
+
+  speedToggle.textContent = `${playbackRate}x`;
+  audio.playbackRate = playbackRate;
+
+  try {
+    localStorage.setItem('playback-rate', playbackRate);
+  } catch (e) {}
+
+  // 變速時重新計算當前投影片定時器，確保動畫與口白對齊
+  if (startScreen.classList.contains('hidden') && currentSlide < PAGES.length) {
+    const elapsedInSlide = (Date.now() - slideStartTime) / 1000;
+    slideStartTime = Date.now() - (elapsedInSlide * (oldRate / playbackRate)) * 1000;
+    
+    clearAllTimeouts();
+    const p = PAGES[currentSlide];
+    if (p.i === 3) playSlide3();
+    if (p.i === 4) playSlide4();
+    if (p.i === 5) playSlide5();
+    if (p.i === 6) playSlide6();
+    if (p.i === 7) playSlide7();
+  }
+});
+
+// Enforce audio playbackRate on play
+audio.addEventListener('play', () => {
+  audio.playbackRate = playbackRate;
+});
+
+// ===== 字幕開關設定與儲存 =====
+let subsDisabled = false;
+try {
+  subsDisabled = localStorage.getItem('subtitles-disabled') === 'true';
+} catch (e) {}
+
+if (subsDisabled) {
+  document.body.classList.add('subtitles-disabled');
+  ccToggle.classList.add('off');
+}
+
+ccToggle.addEventListener('click', () => {
+  subsDisabled = !subsDisabled;
+  document.body.classList.toggle('subtitles-disabled', subsDisabled);
+  ccToggle.classList.toggle('off', subsDisabled);
+  try {
+    localStorage.setItem('subtitles-disabled', subsDisabled);
+  } catch (e) {}
+});
+
+// ===== Slide 1: 飄浮粒子 =====
+const particles = document.getElementById('particles');
+const NUMS = ['H₂SO₄','HCl','NaOH','⚡','☣️','⚠','<10Ω','ISO','ESD','N₂','2.5Bar'];
+for (let i=0; i<20; i++) {
+  const s = document.createElement('span');
+  s.textContent = NUMS[Math.floor(Math.random()*NUMS.length)];
+  s.style.left = Math.random()*100 + '%';
+  s.style.fontSize = (24 + Math.random()*36) + 'px';
+  s.style.animationDuration = (6 + Math.random()*8) + 's';
+  s.style.animationDelay = (Math.random()*6) + 's';
+  particles.appendChild(s);
+}
+
+// ===== Slide 3: Checklist & PPE Highlight =====
+function playSlide3() {
+  const c1 = document.getElementById('chk1');
+  const c2 = document.getElementById('chk2');
+  const c3 = document.getElementById('chk3');
+  const p1 = document.getElementById('ppe1');
+  const p2 = document.getElementById('ppe2');
+  const p3 = document.getElementById('ppe3');
+
+  // Reset
+  [c1, c2, c3].forEach(el => el.classList.remove('checked'));
+  [p1, p2, p3].forEach(el => el.classList.remove('highlight'));
+
+  // Checklist checks
+  safeTimeout(() => c1.classList.add('checked'), 2200);
+  safeTimeout(() => c2.classList.add('checked'), 4500);
+  safeTimeout(() => c3.classList.add('checked'), 6800);
+
+  // PPE highlights
+  safeTimeout(() => p1.classList.add('highlight'), 8500);
+  safeTimeout(() => p2.classList.add('highlight'), 9600);
+  safeTimeout(() => p3.classList.add('highlight'), 10800);
+}
+
+// ===== Slide 4: Safe Prep Animation =====
+function playSlide4() {
+  const wL = document.getElementById('chockL');
+  const wR = document.getElementById('chockR');
+  const bundBorder = document.getElementById('bundBorder');
+  const bundFill = document.getElementById('bundFill');
+  const bundText = document.getElementById('bundText');
+  const groundWire = document.getElementById('groundWire');
+  const resMeter = document.getElementById('resistanceMeter');
+
+  const cWheel = document.getElementById('cardWheel');
+  const cContain = document.getElementById('cardContain');
+  const cGround = document.getElementById('cardGround');
+
+  // Reset
+  [wL, wR, bundBorder, bundFill, bundText, resMeter].forEach(el => el.style.opacity = '0');
+  [cWheel, cContain, cGround].forEach(el => el.classList.remove('active'));
+  groundWire.style.strokeDashoffset = '600';
+
+  // Step 1: Chock wheels
+  safeTimeout(() => {
+    cWheel.classList.add('active');
+    wL.style.opacity = '1';
+    wR.style.opacity = '1';
+  }, 1500);
+
+  // Step 2: Deploy Spill Bund
+  safeTimeout(() => {
+    cContain.classList.add('active');
+    bundBorder.style.transition = 'opacity 0.6s ease';
+    bundBorder.style.opacity = '1';
+    safeTimeout(() => {
+      bundFill.style.transition = 'opacity 1s ease';
+      bundFill.style.opacity = '1';
+      bundText.style.transition = 'opacity 0.6s ease';
+      bundText.style.opacity = '1';
+    }, 400);
+  }, 4800);
+
+  // Step 3: Connect Grounding Wire
+  safeTimeout(() => {
+    cGround.classList.add('active');
+    groundWire.style.transition = 'stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1)';
+    groundWire.style.strokeDashoffset = '0';
+    safeTimeout(() => {
+      resMeter.style.transition = 'opacity 0.5s ease';
+      resMeter.style.opacity = '1';
+    }, 1800);
+  }, 8800);
+}
+
+// ===== Slide 5: Hose Connection & Leak Test =====
+function playSlide5() {
+  const gasPipe = document.getElementById('groundWire'); // reuse logic variable
+  const gasPipeReal = document.getElementById('gasPipe');
+  const liquidPipe = document.getElementById('liquidPipe');
+  const gasText = document.getElementById('gasText');
+  const liqText = document.getElementById('liqText');
+  const bubbles = document.getElementById('leakBubble');
+  const bubbleOk = document.getElementById('leakBubbleOk');
+
+  const sGas = document.getElementById('stepGas');
+  const sLiq = document.getElementById('stepLiq');
+  const sLeak = document.getElementById('stepLeak');
+
+  // Reset
+  [gasPipeReal, liquidPipe].forEach(el => el.style.strokeDashoffset = '400');
+  [gasText, liqText, bubbles, bubbleOk].forEach(el => el.style.opacity = '0');
+  [sGas, sLiq, sLeak].forEach(el => el.className = 'pipe-step');
+
+  // Step 1: Connect Gas Pipe
+  safeTimeout(() => {
+    sGas.classList.add('active');
+    gasPipeReal.style.transition = 'stroke-dashoffset 1.5s linear';
+    gasPipeReal.style.strokeDashoffset = '0';
+    safeTimeout(() => {
+      gasText.style.transition = 'opacity 0.5s';
+      gasText.style.opacity = '1';
+    }, 1200);
+  }, 1800);
+
+  // Step 2: Connect Liquid Pipe
+  safeTimeout(() => {
+    sLiq.classList.add('active');
+    liquidPipe.style.transition = 'stroke-dashoffset 1.5s linear';
+    liquidPipe.style.strokeDashoffset = '0';
+    safeTimeout(() => {
+      liqText.style.transition = 'opacity 0.5s';
+      liqText.style.opacity = '1';
+    }, 1200);
+  }, 5800);
+
+  // Step 3: Leak Test
+  safeTimeout(() => {
+    sLeak.classList.add('active-coral');
+    bubbles.style.transition = 'opacity 0.5s';
+    bubbles.style.opacity = '1';
+    safeTimeout(() => {
+      // Transition leak bubbles test from searching to OK
+      bubbles.style.opacity = '0';
+      bubbleOk.style.transition = 'opacity 0.5s';
+      bubbleOk.style.opacity = '1';
+    }, 2800);
+  }, 10000);
+}
+
+// ===== Slide 6: Gauges & Dynamic Chart =====
+let monitorTimer = null;
+function playSlide6() {
+  const gHandP = document.getElementById('gaugeHandP');
+  const gHandF = document.getElementById('gaugeHandF');
+  const valP = document.getElementById('valP');
+  const valF = document.getElementById('valF');
+  const tLabel = document.getElementById('timeLabel');
+  
+  const canvas = document.getElementById('monitorChart');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+
+  let startT = Date.now();
+  let dataPoints = [];
+  if (monitorTimer) clearInterval(monitorTimer);
+
+  monitorTimer = setInterval(() => {
+    let elapsed = ((Date.now() - startT) / 1000) * playbackRate;
+    if (elapsed > 14.0) elapsed = 14.0;
+    
+    // Format timestamp
+    let m = Math.floor(elapsed / 60);
+    let s = Math.floor(elapsed % 60);
+    let ms = Math.floor((elapsed % 1) * 100);
+    tLabel.textContent = `00:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+
+    // Simulate parameters fluctuation
+    let pressure = 1.8 + Math.sin(elapsed * 2) * 0.15 + Math.random() * 0.05;
+    let flow = 14.2 + Math.cos(elapsed * 1.5) * 0.4 + Math.random() * 0.1;
+    if (elapsed > 11.0) { // simulate shut down stabilization at end of slide
+      pressure = 2.0;
+      flow = 14.5;
+    }
+
+    valP.textContent = `${pressure.toFixed(2)} Bar`;
+    valF.textContent = `${flow.toFixed(1)} m³/h`;
+
+    // Rotate gauge hands
+    let angleP = -45 + (pressure / 4.0) * 180;
+    let angleF = -45 + (flow / 30.0) * 180;
+    gHandP.style.transform = `rotate(${angleP}deg)`;
+    gHandP.style.transformOrigin = '100px 110px';
+    gHandF.style.transform = `rotate(${angleF}deg)`;
+    gHandF.style.transformOrigin = '100px 110px';
+
+    // Store plot point
+    dataPoints.push({ x: elapsed, p: pressure, f: flow });
+
+    // Draw plot
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    
+    // Draw Grid Lines
+    ctx.strokeStyle = '#F1ECE0';
+    ctx.lineWidth = 1.5;
+    for (let gy = 40; gy < canvas.height; gy += 40) {
+      ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(canvas.width, gy); ctx.stroke();
+    }
+    
+    // Plot Pressure (Teal Line)
+    ctx.strokeStyle = '#0E7C7B';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    dataPoints.forEach((pt, idx) => {
+      let cx = (pt.x / 14.0) * canvas.width;
+      let cy = canvas.height - ((pt.p / 4.0) * canvas.height * 0.8) - 20;
+      if (idx === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+    });
+    ctx.stroke();
+
+    // Plot Flow (Orange Line)
+    ctx.strokeStyle = '#D35400';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    dataPoints.forEach((pt, idx) => {
+      let cx = (pt.x / 14.0) * canvas.width;
+      let cy = canvas.height - ((pt.f / 30.0) * canvas.height * 0.8) - 10;
+      if (idx === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+    });
+    ctx.stroke();
+
+  }, 100);
+}
+
+// ===== Slide 7: Unloading Completed Road Step =====
+function playSlide7() {
+  const r1 = document.getElementById('road1');
+  const r2 = document.getElementById('road2');
+  const r3 = document.getElementById('road3');
+
+  [r1, r2, r3].forEach(el => el.className = 'road-node');
+
+  safeTimeout(() => r1.classList.add('active'), 1500);
+  safeTimeout(() => r2.classList.add('active'), 5500);
+  safeTimeout(() => r3.classList.add('active-coral'), 10000);
+}
+
+// ===== Playback Sync Controller =====
+let currentSlide = 0;
+let totalElapsed = 0;
+let slideStartTime = 0;
+let rafId = null;
+
+function showSlide(i) {
+  clearAllTimeouts(); // 清除本頁的所有定時器
+  slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+  const p = PAGES[i];
+  sub.textContent = p.sub;
+  sub.classList.add('show');
+
+  // Load and play corresponding page TTS narration audio
+  audio.src = `assets/narration/page-${String(p.i).padStart(2,'0')}.mp3`;
+  audio.defaultPlaybackRate = playbackRate;
+  audio.playbackRate = playbackRate;
+  audio.play().catch(()=>{});
+
+  // Reset animations and run page-specific actions
+  if (monitorTimer) { clearInterval(monitorTimer); monitorTimer = null; }
+  
+  if (p.i === 3) playSlide3();
+  if (p.i === 4) playSlide4();
+  if (p.i === 5) playSlide5();
+  if (p.i === 6) playSlide6();
+  if (p.i === 7) playSlide7();
+}
+
+// Global Animation Loop
+function animateTimeline() {
+  // 使用 playbackRate 計算時間軸進度
+  const elapsed = ((Date.now() - slideStartTime) / 1000) * playbackRate;
+  const p = PAGES[currentSlide];
+
+  // Update progress bar
+  const totalPercent = ((totalElapsed + elapsed) / TOTAL_DUR) * 100;
+  progress.style.width = Math.min(totalPercent, 100) + '%';
+
+  // Check if slide finished its duration
+  if (elapsed >= p.dur) {
+    totalElapsed += p.dur;
+    currentSlide++;
+    if (currentSlide < PAGES.length) {
+      slideStartTime = Date.now();
+      showSlide(currentSlide);
+    } else {
+      cancelAnimationFrame(rafId);
+      progress.style.width = '100%';
+      return;
+    }
+  }
+  rafId = requestAnimationFrame(animateTimeline);
+}
+
+// Handle Auto-Play query parameters for Playwright recording (avoids click screen)
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('nosub') === 'true') {
+  document.body.classList.add('subtitles-disabled');
+}
+if (urlParams.get('render') === 'true') {
+  document.body.classList.add('rendering');
+  startScreen.classList.add('hidden');
+  slideStartTime = Date.now();
+  showSlide(0);
+  animateTimeline();
+} else {
+  // Manual click trigger
+  startScreen.addEventListener('click', () => {
+    startScreen.classList.add('hidden');
+    slideStartTime = Date.now();
+    showSlide(0);
+    animateTimeline();
+  });
+}
+</script>
+
+<!-- PORTAL_RETURN_BADGE_V1 -->
+<script>
+(function() {
+    var badge = document.createElement('div');
+    badge.id = 'portal-return-badge';
+    badge.innerHTML = '🔙 返回專案大廳';
+    badge.style.position = 'fixed';
+    badge.style.top = '15px';
+    badge.style.right = '15px';
+    badge.style.zIndex = '99999';
+    badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+    badge.style.border = '1px solid #00f2fe';
+    badge.style.color = '#00f2fe';
+    badge.style.padding = '8px 16px';
+    badge.style.borderRadius = '20px';
+    badge.style.fontFamily = 'sans-serif';
+    badge.style.fontSize = '13px';
+    badge.style.fontWeight = 'bold';
+    badge.style.cursor = 'pointer';
+    badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    badge.style.transition = 'all 0.3s ease';
+    
+    badge.onmouseover = function() {
+        badge.style.transform = 'scale(1.05)';
+        badge.style.backgroundColor = '#00f2fe';
+        badge.style.color = '#000';
+        badge.style.boxShadow = '0 0 20px rgba(0, 242, 254, 0.5)';
+    };
+    badge.onmouseout = function() {
+        badge.style.transform = 'scale(1)';
+        badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+        badge.style.color = '#00f2fe';
+        badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    };
+    
+    badge.onclick = function() {
+        if (window.location.hostname.indexOf('netlify') !== -1) {
+            window.location.href = 'https://cerulean-praline-6b314d.netlify.app';
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+    
+    // Ensure body exists before appending
+    if (document.body) {
+        document.body.appendChild(badge);
+    } else {
+        window.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(badge);
+        });
+    }
+})();
+</script>
+<!-- PORTAL_RETURN_BADGE_V1_END -->
+
+</body>
+</html>

@@ -32,7 +32,6 @@ yarn-error.log*
 ~$*.xlsx
 
 # Local nested git folders (ignored to prevent broken git submodules)
-# Note: old/ subprojects are tracked as plain files (no nested .git)
 
 # Netlify
 .netlify/
@@ -72,8 +71,6 @@ config.json.bak
 credentials.json
 token.json
 
-# Manual portal local copied projects
-說明書/projects/
 
 test/kokoro-multi-lang-v1_1/
 

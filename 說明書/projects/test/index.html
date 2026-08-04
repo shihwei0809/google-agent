@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小妤的大阪冒險之旅 | 日本四格漫畫電子書</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+    <div class="glow-bg"></div>
+    
+    <header class="app-header">
+        <div class="logo">
+            <i class="fa-solid fa-book-open-reader"></i>
+            <span>OSAKA TRIP</span>
+        </div>
+        <div class="header-title">小妤的大阪冒險之旅</div>
+        <div class="header-controls">
+            <button id="settings-btn" class="icon-btn" title="語音設定">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
+            <button id="theme-toggle" class="icon-btn" title="切換主題">
+                <i class="fa-solid fa-moon"></i>
+            </button>
+            <button id="help-btn" class="icon-btn" title="使用說明">
+                <i class="fa-solid fa-question"></i>
+            </button>
+        </div>
+    </header>
+ 
+    <main class="ebook-container">
+        <!-- PAGE 0: Cover & Characters -->
+        <section class="book-page active" id="page-0" data-page="0">
+            <div class="cover-layout">
+                <div class="cover-main">
+                    <div class="manga-badge">日本漫畫風格</div>
+                    <h1 class="book-title">小妤的大阪冒險之旅</h1>
+                    <p class="book-subtitle">一家四口的五天四夜大阪行 • 四格漫畫電子書</p>
+                    <div class="cover-illustration">
+                        <img src="assets/characters/sakura.png" alt="小妤" class="cover-hero-img">
+                        <div class="hero-label">主角：小妤 (Xiaoyu)</div>
+                    </div>
+                    <button class="start-btn" id="start-reading">
+                        開始閱讀 <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="character-intro-panel">
+                    <h2 class="section-title"><i class="fa-solid fa-users"></i> 登場角色介紹</h2>
+                    <div class="characters-grid">
+                        <div class="char-card" data-char="sakura">
+                            <div class="char-img-wrapper">
+                                <img src="assets/characters/sakura.png" alt="小妤">
+                            </div>
+                            <div class="char-info">
+                                <div class="char-name">小妤 <span class="char-tag">主角</span></div>
+                                <div class="char-role">11歲 / 國小五年級</div>
+                                <p class="char-desc">11歲，活潑可愛的國小五年級女生。愛拍照、愛分享生活，是這次旅行的記錄者。綁著長馬尾，戴著粉紅色髮夾。</p>
+                            </div>
+                        </div>
+                        <div class="char-card" data-char="taiga">
+                            <div class="char-img-wrapper">
+                                <img src="assets/characters/taiga.png" alt="小融">
+                            </div>
+                            <div class="char-info">
+                                <div class="char-name">小融</div>
+                                <div class="char-role">10歲 / 國小四年級</div>
+                                <p class="char-desc">10歲，精力過剩的國小四年級男孩。超級吃貨，對美食毫無抵抗力，特別喜歡章魚燒。戴著黃色鴨舌帽。</p>
+                            </div>
+                        </div>
+                        <div class="char-card" data-char="papa">
+                            <div class="char-img-wrapper">
+                                <img src="assets/characters/papa.png" alt="爸爸">
+                            </div>
+                            <div class="char-info">
+                                <div class="char-name">宏志 (爸爸)</div>
+                                <div class="char-role">40歲 / 呆萌爸爸</div>
+                                <p class="char-desc">溫和呆萌的爸爸。方向感極差，總是拿著地圖看反。戴著圓形眼鏡，背著大背包。</p>
+                            </div>
+                        </div>
+                        <div class="char-card" data-char="mama">
+                            <div class="char-img-wrapper">
+                                <img src="assets/characters/mama.png" alt="媽媽">
+                            </div>
+                            <div class="char-info">
+                                <div class="char-name">美綠 (媽媽)</div>
+                                <div class="char-role">38歲 / 精明決策者</div>
+                                <p class="char-desc">理性且有條理的媽媽。擅長規劃行程與預算，是家裡的決策核心。留著波浪短髮，常戴太陽眼鏡。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dynamic Manga Pages (Rendered by JS) -->
+        <div id="manga-pages-container"></div>
+    </main>
+
+    <!-- Navigation Controls -->
+    <nav class="navigation-bar">
+        <button id="prev-page" class="nav-btn" disabled>
+            <i class="fa-solid fa-chevron-left"></i> 上一頁
+        </button>
+        
+        <div class="page-indicator">
+            <span class="dot active" data-page="0"></span>
+            <span class="dot" data-page="1"></span>
+            <span class="dot" data-page="2"></span>
+            <span class="dot" data-page="3"></span>
+            <span id="page-text">人物介紹</span>
+        </div>
+        
+        <button id="next-page" class="nav-btn">
+            下一頁 <i class="fa-solid fa-chevron-right"></i>
+        </button>
+    </nav>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2><i class="fa-solid fa-circle-info"></i> 使用說明</h2>
+            <ul>
+                <li><i class="fa-solid fa-arrows-left-right"></i> 點選底部的 <strong>上一頁 / 下一頁</strong> 按鈕，或者使用鍵盤 <strong>← / → 鍵</strong> 進行翻頁。</li>
+                <li><i class="fa-solid fa-volume-high"></i> 每一個畫格旁皆有 <strong>播放按鈕</strong>，點選可播放該格所有繁體中文語音對白。</li>
+                <li><i class="fa-solid fa-circle-play"></i> 點選 <strong>「播放整頁對白」</strong> 會依序撥放該頁所有的角色對話，並有畫面高亮跟隨。</li>
+                <li><i class="fa-solid fa-circle-half-stroke"></i> 右上角可切換 <strong>深色/淺色主題</strong>，提供最舒適的閱讀環境。</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Character Zoom Modal -->
+    <div id="char-modal" class="modal">
+        <div class="modal-content char-modal-content">
+            <span class="close-char-modal">&times;</span>
+            <div class="char-modal-body">
+                <div class="char-modal-img-wrapper">
+                    <img id="char-modal-img" src="" alt="Character Image">
+                </div>
+                <h2 id="char-modal-name"></h2>
+                <div id="char-modal-role"></div>
+                <p id="char-modal-desc"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content settings-modal-content">
+            <span class="close-settings-modal">&times;</span>
+            <h2><i class="fa-solid fa-sliders"></i> 語音播放設定</h2>
+            
+            <div class="settings-group">
+                <label for="audio-mode-select"><strong>語音來源模式：</strong></label>
+                <select id="audio-mode-select" class="form-select">
+                    <option value="ms_neural">微軟原生 台灣國語 AI 語音 (免費、發音自然無口音)</option>
+                    <option value="el_neural">ElevenLabs 電影級 AI 語音 (自訂台灣腔或英文口音)</option>
+                    <option value="system">自訂本機語音 (調用您瀏覽器內建發音人)</option>
+                </select>
+                <p class="settings-hint">「微軟原生 台灣國語」已優化各角色原生台灣腔聲線；「ElevenLabs」在付費帳號下支援極度自然的台灣腔（如 Stacy, Kevin Tu），免費帳號將自動降級使用預設英文口音聲線。</p>
+            </div>
+            
+            <div class="settings-group">
+                <div class="voice-picker-row slider-row">
+                    <label for="voice-speed-slider" style="font-weight: 800;">播放語速：</label>
+                    <input type="range" id="voice-speed-slider" min="0.5" max="2.0" step="0.05" value="1.0">
+                    <span id="speed-value-display">1.00x</span>
+                </div>
+            </div>
+            
+            <div id="system-voice-settings" class="settings-subgroup" style="display:none;">
+                <h3 class="subgroup-title">配置角色本機語音：</h3>
+                
+                <div class="voice-picker-row">
+                    <label for="voice-sakura">小妤 (11歲女)：</label>
+                    <select id="voice-sakura" class="form-select voice-select-node"></select>
+                </div>
+                <div class="voice-picker-row">
+                    <label for="voice-taiga">小融 (10歲男)：</label>
+                    <select id="voice-taiga" class="form-select voice-select-node"></select>
+                </div>
+                <div class="voice-picker-row">
+                    <label for="voice-papa">爸爸 (宏志)：</label>
+                    <select id="voice-papa" class="form-select voice-select-node"></select>
+                </div>
+                <div class="voice-picker-row">
+                    <label for="voice-mama">媽媽 (美綠)：</label>
+                    <select id="voice-mama" class="form-select voice-select-node"></select>
+                </div>
+                
+                <div class="voice-picker-row slider-row">
+                    <label for="voice-pitch-slider" style="color: var(--secondary-color);">語調音高：</label>
+                    <input type="range" id="voice-pitch-slider" min="0.5" max="1.5" step="0.05" value="1.0">
+                    <span id="pitch-value-display" style="color: var(--secondary-color);">1.00x</span>
+                </div>
+            </div>
+            
+            <div class="settings-group" style="margin-top: 1.5rem;">
+                <h3 class="subgroup-title" style="color: var(--primary-color); border-bottom: 1px solid var(--card-border); padding-bottom: 0.4rem; margin-bottom: 0.5rem;"><i class="fa-solid fa-circle-play"></i> 角色語音試聽 (按目前模式)</h3>
+                <div class="voice-preview-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                    <button class="preview-voice-btn" data-speaker="sakura"><i class="fa-solid fa-play"></i> 試聽 小妤</button>
+                    <button class="preview-voice-btn" data-speaker="taiga"><i class="fa-solid fa-play"></i> 試聽 小融</button>
+                    <button class="preview-voice-btn" data-speaker="papa"><i class="fa-solid fa-play"></i> 試聽 爸爸</button>
+                    <button class="preview-voice-btn" data-speaker="mama"><i class="fa-solid fa-play"></i> 試聽 媽媽</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Player (Hidden) -->
+    <audio id="global-audio-player" style="display:none;"></audio>
+
+    <script src="app.js"></script>
+
+<!-- PORTAL_RETURN_BADGE_V1 -->
+<script>
+(function() {
+    var badge = document.createElement('div');
+    badge.id = 'portal-return-badge';
+    badge.innerHTML = '🔙 返回專案大廳';
+    badge.style.position = 'fixed';
+    badge.style.top = '15px';
+    badge.style.right = '15px';
+    badge.style.zIndex = '99999';
+    badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+    badge.style.border = '1px solid #00f2fe';
+    badge.style.color = '#00f2fe';
+    badge.style.padding = '8px 16px';
+    badge.style.borderRadius = '20px';
+    badge.style.fontFamily = 'sans-serif';
+    badge.style.fontSize = '13px';
+    badge.style.fontWeight = 'bold';
+    badge.style.cursor = 'pointer';
+    badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    badge.style.transition = 'all 0.3s ease';
+    
+    badge.onmouseover = function() {
+        badge.style.transform = 'scale(1.05)';
+        badge.style.backgroundColor = '#00f2fe';
+        badge.style.color = '#000';
+        badge.style.boxShadow = '0 0 20px rgba(0, 242, 254, 0.5)';
+    };
+    badge.onmouseout = function() {
+        badge.style.transform = 'scale(1)';
+        badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+        badge.style.color = '#00f2fe';
+        badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    };
+    
+    badge.onclick = function() {
+        if (window.location.hostname.indexOf('netlify') !== -1) {
+            window.location.href = 'https://cerulean-praline-6b314d.netlify.app';
+        } else {
+            window.location.href = '../../index.html';
+        }
+    };
+    
+    // Ensure body exists before appending
+    if (document.body) {
+        document.body.appendChild(badge);
+    } else {
+        window.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(badge);
+        });
+    }
+})();
+</script>
+<!-- PORTAL_RETURN_BADGE_V1_END -->
+
+</body>
+</html>

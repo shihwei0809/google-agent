@@ -1,0 +1,1220 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>員工教育訓練測驗系統 — 工作規則</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1f2937;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.15);
+  --text:rgba(255,255,255,.9);--muted:rgba(255,255,255,.45);
+  --primary:#6366f1;--primary2:#4f46e5;
+  --success:#10b981;--glow:0 0 40px rgba(99,102,241,.12);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh}
+
+/* HEADER */
+.hdr{background:rgba(17,24,39,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:14px 0;position:sticky;top:0;z-index:100}
+.hdr .inn{max-width:920px;margin:auto;padding:0 24px;display:flex;align-items:center;gap:14px}
+.hdr-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--primary2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.hdr-t{font-size:1.05rem;font-weight:700}.hdr-s{font-size:.75rem;color:var(--muted)}
+
+/* STEPS */
+.sw{background:rgba(17,24,39,.6);border-bottom:1px solid var(--border);padding:12px 24px}
+.sp{max-width:920px;margin:auto;display:flex;align-items:center}
+.st{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted)}
+.st.active{color:var(--text)}.st.done{color:#6ee7b7}
+.sn{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0}
+.st.active .sn{background:var(--primary);border-color:var(--primary);color:#fff}
+.st.done .sn{background:var(--success);border-color:var(--success);color:#fff}
+.sl{flex:1;height:1px;background:rgba(255,255,255,.1);margin:0 12px;min-width:24px}
+
+/* MAIN */
+main{max-width:920px;margin:28px auto;padding:0 24px 60px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;margin-bottom:20px;box-shadow:var(--glow)}
+.badge{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.22);color:#a5b4fc;border-radius:100px;padding:3px 12px;font-size:.72rem;font-weight:600;margin-bottom:12px}
+.card h2{font-size:1.3rem;font-weight:700;margin-bottom:6px}
+.sub{font-size:.85rem;color:var(--muted);margin-bottom:18px}
+
+/* ═══ PRESENTATION PLAYER ═══ */
+#pbox{position:relative;border-radius:14px 14px 0 0;overflow:hidden;border:1px solid var(--border2);border-bottom:none;box-shadow:var(--glow);margin-bottom:0;background:#000;aspect-ratio:16/9;max-height:540px}
+
+/* Slide images */
+.pimg{position:absolute;inset:0;opacity:0;transition:opacity .45s ease;pointer-events:none}
+.pimg.active{opacity:1;pointer-events:auto}
+.pimg img{width:100%;height:100%;object-fit:contain}
+
+/* Activation overlay */
+#pstart{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:20;cursor:pointer;border-radius:14px 14px 0 0}
+#pstart.gone{display:none}
+.ps-box{background:rgba(10,18,32,.97);border:1px solid rgba(99,102,241,.3);border-radius:16px;padding:28px 34px;text-align:center;max-width:320px}
+.ps-icon{font-size:46px;margin-bottom:12px}.ps-title{font-size:1.1rem;font-weight:700;margin-bottom:8px}
+.ps-sub{font-size:.8rem;color:rgba(255,255,255,.5);line-height:1.65;margin-bottom:18px}
+.ps-btn{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:50px;padding:11px 26px;font-size:.92rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 18px rgba(99,102,241,.4)}
+
+/* Controls bar */
+#pctrl{background:rgba(8,12,22,.97);border:1px solid var(--border2);border-top:1px solid rgba(255,255,255,.07);border-radius:0 0 14px 14px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:18px}
+#pprog{height:3px;background:rgba(255,255,255,.06);border-radius:2px;margin-bottom:0;position:absolute;top:0;left:0;right:0}
+#ppfill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px;width:0%;transition:width .35s}
+.pb{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.72);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:15px;flex-shrink:0}
+.pb:hover{background:rgba(255,255,255,.16);color:#fff}
+.pb:disabled{opacity:.28;cursor:not-allowed;pointer-events:none}
+#pvb{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.16);font-size:19px}
+#pvb.on{border-color:#6366f1;background:rgba(99,102,241,.18);color:#a5b4fc;animation:vp .9s ease-in-out infinite}
+@keyframes vp{0%{box-shadow:0 0 0 0 rgba(99,102,241,.5)}70%{box-shadow:0 0 0 10px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
+#pct{font-size:.75rem;color:rgba(255,255,255,.36);min-width:48px;text-align:center}
+#plb{flex:1;font-size:.74rem;color:rgba(255,255,255,.46);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center}
+.ptg{font-size:.68rem;padding:4px 10px;border-radius:100px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:rgba(255,255,255,.38);cursor:pointer;transition:all .2s;white-space:nowrap}
+.ptg.on{background:rgba(99,102,241,.18);border-color:#6366f1;color:#a5b4fc}
+
+/* Speed selector */
+.spd-sel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:rgba(255,255,255,.5);border-radius:6px;padding:3px 6px;font-size:.68rem;cursor:pointer;font-family:inherit}
+.spd-sel option{background:#1f2937;color:#e2e8f0}
+
+/* Notice */
+.notice{display:flex;align-items:flex-start;gap:10px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.18);border-radius:11px;padding:11px 15px;font-size:.8rem;color:rgba(255,255,255,.58);line-height:1.6;margin-bottom:16px}
+.notice strong{color:rgba(255,255,255,.82)}
+
+/* Unlock button */
+.btn-unlock{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;padding:13px 38px;border-radius:50px;font-size:.98rem;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .2s,box-shadow .2s,opacity .2s;box-shadow:0 4px 20px rgba(99,102,241,.35)}
+.btn-unlock:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(99,102,241,.45)}
+.btn-unlock:disabled{opacity:.38;cursor:not-allowed;transform:none}
+.uhint{font-size:.74rem;color:var(--muted);margin-top:8px}
+
+/* ═══ QUIZ ═══ */
+#qsec{opacity:.35;pointer-events:none;transition:opacity .5s,filter .5s;filter:blur(2px)}
+#qsec.on{opacity:1;pointer-events:auto;filter:none}
+.ncard{background:linear-gradient(135deg,rgba(59,130,246,.07),rgba(99,102,241,.07));border:1px solid rgba(99,130,246,.18);border-radius:14px;padding:22px;margin-bottom:18px}
+.ncard h3{font-size:.98rem;font-weight:600;margin-bottom:4px}
+.ncard p{color:var(--muted);font-size:.8rem;margin-bottom:12px}
+.iw{position:relative}
+.ii{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
+#ename{width:100%;background:var(--surface2);border:1.5px solid var(--border2);border-radius:10px;padding:11px 13px 11px 40px;font-size:.92rem;color:var(--text);font-family:inherit;transition:border-color .2s,box-shadow .2s;outline:none}
+#ename:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.qh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.qh h2{font-size:1.15rem;font-weight:700}
+.qbadge{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.22);color:#a5b4fc;border-radius:100px;padding:3px 13px;font-size:.73rem;font-weight:600}
+.qc{background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:18px;margin-bottom:12px;transition:border-color .3s}
+.qc.done{border-color:rgba(16,185,129,.3)}
+.qn{font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px}
+.qt{font-size:.9rem;font-weight:500;margin-bottom:12px;line-height:1.6}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:9px;border:1.5px solid var(--border);background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .2s,background .2s;font-size:.86rem;line-height:1.5}
+.opt:hover{border-color:rgba(99,102,241,.35);background:rgba(99,102,241,.06)}
+.opt input{display:none}
+.od{width:17px;height:17px;border-radius:50%;border:2px solid rgba(255,255,255,.22);flex-shrink:0;position:relative;transition:all .2s}
+.opt input:checked~.od{border-color:var(--primary);background:var(--primary)}
+.opt input:checked~.od::after{content:'';position:absolute;inset:3px;border-radius:50%;background:#fff}
+.sub-area{text-align:center;margin-top:24px}
+.btn-sub{display:inline-flex;align-items:center;gap:9px;background:linear-gradient(135deg,var(--success),#059669);color:#fff;border:none;padding:13px 42px;border-radius:50px;font-size:.98rem;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .2s,box-shadow .2s,opacity .2s;box-shadow:0 4px 20px rgba(16,185,129,.35)}
+.btn-sub:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(16,185,129,.45)}
+.btn-sub:disabled{opacity:.38;cursor:not-allowed}
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+#res{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);z-index:999;align-items:center;justify-content:center}
+#res.show{display:flex}
+.rb{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:42px 34px;max-width:400px;width:90%;text-align:center;animation:pi .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pi{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+.ri{font-size:52px;margin-bottom:12px}.rt{font-size:1.35rem;font-weight:700;margin-bottom:8px}
+.rs{color:var(--muted);font-size:.86rem;line-height:1.6}
+.res-btn{margin-top:24px;background:var(--primary);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;width:100%}
+.res-btn:hover{background:var(--primary2)}
+@media(max-width:600px){main{padding:0 14px 48px}.card{padding:18px}#pbox{max-height:240px}}
+
+/* ═══ SETTINGS MODAL ═══ */
+.btn-cfg{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.72);border-radius:8px;padding:6px 14px;font-size:.8rem;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn-cfg:hover{background:rgba(255,255,255,.16);color:#fff}
+.cfg-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(5px);z-index:1000;align-items:center;justify-content:center}
+.cfg-mask.show{display:flex}
+.cfg-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:90%;max-width:500px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:cfgPlayIn .3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cfgPlayIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.cfg-hdr{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+.cfg-hdr h3{font-size:1.05rem;font-weight:700}
+.cfg-close{background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1}
+.cfg-close:hover{color:var(--text)}
+.cfg-body{padding:20px}
+.cfg-label{display:block;font-size:.85rem;color:var(--text);margin-bottom:8px;font-weight:500}
+#cfg-api-url{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.88rem;outline:none;margin-bottom:12px}
+#cfg-api-url:focus{border-color:var(--primary)}
+.cfg-tip{font-size:.76rem;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.cfg-actions{display:flex;gap:10px;justify-content:flex-end}
+.cfg-btn{border:none;border-radius:8px;padding:10px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.cfg-btn.primary{background:var(--primary);color:#fff}
+.cfg-btn.primary:hover{background:var(--primary2)}
+.cfg-btn.secondary{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:var(--text)}
+.cfg-btn.secondary:hover{background:rgba(255,255,255,.16)}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="inn">
+    <div class="hdr-icon">📋</div>
+    <div style="flex:1"><div class="hdr-t" id="main-title">員工教育訓練測驗系統</div><div class="hdr-s" id="main-subtitle">請完整觀看簡報後，再進行測驗</div></div>
+    <button class="btn-cfg" onclick="toggleCfgModal()">⚙️ 系統設定</button>
+  </div>
+</header>
+
+<!-- 設定彈窗 -->
+<div id="cfg-modal" class="cfg-mask" onclick="closeCfgModal(event)">
+  <div class="cfg-box" style="max-width:560px">
+    <div class="cfg-hdr">
+      <h3>⚙️ 系統設定</h3>
+      <button class="cfg-close" onclick="toggleCfgModal()">&times;</button>
+    </div>
+    <div class="cfg-body">
+
+      <!-- 資料來源說明 -->
+      <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:12px 14px;font-size:.8rem;color:rgba(255,255,255,.6);line-height:1.7;margin-bottom:16px">
+        📋 <strong style="color:rgba(255,255,255,.85)">考題讀取順序：</strong>本機 quiz_data.json → 雲端 Google Sheets → 內建預設<br>
+        💾 <strong style="color:rgba(255,255,255,.85)">作答結果：</strong>自動存入本機瀏覽器 + 同步至雲端（若有設定）
+      </div>
+
+      <label class="cfg-label">☁️ 雲端備份（選填）— Google Apps Script 網址：</label>
+      <input type="text" id="cfg-api-url" placeholder="https://script.google.com/macros/s/.../exec（留空則純本機模式）" />
+      <p class="cfg-tip" style="margin-bottom:16px">留空代表純本機模式，考題從 quiz_data.json 讀取，作答結果只存在此裝置。</p>
+
+      <div class="cfg-actions" style="margin-bottom:16px">
+        <button class="cfg-btn secondary" onclick="downloadConfiguredHTML()">📥 下載設定好的 HTML 檔</button>
+        <button class="cfg-btn primary" onclick="saveCfg()">💾 儲存並套用</button>
+      </div>
+
+      <!-- 作答紀錄管理 -->
+      <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:14px">
+        <label class="cfg-label">📊 本機作答紀錄（管理員專用）</label>
+        <div id="cfg-record-info" style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:10px">載入中…</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="cfg-btn primary" onclick="exportResultsCSV()" style="font-size:.8rem;padding:8px 14px">📥 匯出 CSV</button>
+          <button class="cfg-btn secondary" onclick="viewResultsInline()" style="font-size:.8rem;padding:8px 14px">👁 預覽紀錄</button>
+          <button class="cfg-btn" onclick="clearResultsConfirm()" style="font-size:.8rem;padding:8px 14px;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)">🗑 清除紀錄</button>
+        </div>
+        <div id="cfg-records-preview" style="display:none;margin-top:12px;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.3);border-radius:8px;padding:10px;font-size:.75rem;font-family:monospace;color:rgba(255,255,255,.6);white-space:pre-wrap"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="sw">
+  <div class="sp">
+    <div class="st active" id="s1"><div class="sn">1</div><span>觀看簡報</span></div>
+    <div class="sl"></div>
+    <div class="st" id="s2"><div class="sn">2</div><span>填寫資料</span></div>
+    <div class="sl"></div>
+    <div class="st" id="s3"><div class="sn">3</div><span>完成測驗</span></div>
+  </div>
+</div>
+
+<main>
+  <section>
+    <div class="card">
+      <div class="badge">📽️ 步驟一</div>
+      <h2>觀看教育訓練簡報</h2>
+      <p class="sub">簡報內容直接來自「工作規則管理簡報.pptx」，點擊「▶ 開始播放」啟用語音朗讀，自動換頁播完後進行測驗。</p>
+
+      <div id="pbox" style="position:relative; width:100%; height:500px; max-height:80vh; overflow:hidden; background:#0b0f19;">
+        <!-- 跨網頁互動式簡報 iframe -->
+        <iframe id="p-iframe" src="" allow="autoplay" style="display:none; width:100%; height:100%; border:none; background:#0b0f19;"></iframe>
+
+        <!-- Progress bar -->
+        <div id="pprog" style="position:absolute; top:0; left:0; width:100%; z-index:10;"><div id="ppfill"></div></div>
+
+        <!-- Activation overlay -->
+        <div id="pstart" onclick="pActivate()">
+          <div class="ps-box">
+            <div class="ps-icon">🔊</div>
+            <div class="ps-title">點擊開始教育訓練</div>
+            <div class="ps-sub">簡報共 <strong>20頁</strong>，包含語音朗讀<br>開啟後自動播放，無需手動操作</div>
+            <button class="ps-btn">▶ 開始播放（含語音）</button>
+          </div>
+        </div>
+
+        <!-- Slide images -->
+        <div id="pstage" style="width:100%; height:100%;"></div>
+      </div>
+
+      <!-- Controls -->
+      <div id="pctrl" style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:16px;">
+        <button class="pb" id="pbprev" onclick="pPrev()">◀</button>
+        <button class="pb" id="pvb" onclick="pToggleVoice()" style="width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.16)">🔊</button>
+        <button class="pb" id="pbnext" onclick="pNext()">▶</button>
+        <span id="pct">1 / 20</span>
+        <span id="plb">從業人員工作規則</span>
+        <select class="spd-sel" id="voice-sel" title="語音選擇">
+          <option value="">正在載入語音...</option>
+        </select>
+        <select class="spd-sel" id="spd-sel" title="語音速度">
+          <option value="0.7">0.7x 慢速</option>
+          <option value="0.9" selected>0.9x 正常</option>
+          <option value="1.0">1.0x 標準</option>
+          <option value="1.2">1.2x 快速</option>
+          <option value="1.5">1.5x 很快</option>
+          <option value="1.8">1.8x 飛快</option>
+          <option value="2.0">2.0x 極速</option>
+        </select>
+        <button class="ptg on" id="pauto" onclick="pToggleAuto()">自動換頁 ON</button>
+      </div>
+
+      <div class="notice">
+        <span>💡</span>
+        <span>簡報畫面直接來自原始 PPTX，<strong>內容完全一致</strong>。語音速度可自行調整。按鍵盤 <strong>← →</strong> 可手動翻頁，<strong>V</strong> 暫停/繼續語音。</span>
+      </div>
+
+      <div style="text-align:center">
+        <button class="btn-unlock" id="btn-unlock" onclick="unlockQuiz()" disabled>✅ 我已看完簡報，進入測驗</button>
+        <div class="uhint" id="uhint">請先點擊並觀看完整簡報</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="qsec">
+    <div class="ncard">
+      <h3>👤 填寫您的姓名</h3>
+      <p>請輸入真實姓名，將與測驗結果一同記錄至系統。</p>
+      <div class="iw"><span class="ii">✍️</span><input type="text" id="ename" placeholder="請輸入姓名（例：王小明）" maxlength="20" oninput="chkSub()"/></div>
+    </div>
+
+    <div class="card">
+      <div class="badge">📝 步驟二</div>
+      <div class="qh"><h2>測驗題目</h2><div class="qbadge" id="qbadge">已作答 0 / 10 題</div></div>
+      <p class="sub" style="margin-bottom:20px">每題皆為單選題，請根據簡報內容選擇最正確的答案。</p>
+      <div id="qbox"></div>
+      <div class="sub-area">
+        <button class="btn-sub" id="btn-sub" disabled onclick="doSubmit()">📤 送出測驗結果</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="res" onclick="closeResModal(event)">
+  <div class="rb">
+    <div class="ri" id="ri">✅</div>
+    <div class="rt" id="rt">提交成功！</div>
+    <div class="rs" id="rs">您的測驗結果已記錄，感謝完成本次教育訓練！</div>
+    <button class="res-btn" onclick="hideRes()">確定</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  SLIDE DATA  — 朗讀文字直接來自 PPTX 原文
+// ════════════════════════════════════════
+let SLIDES = [
+  {img:'slides/slide_01.png', label:'從業人員工作規則（封面）',
+   say:'歡迎各位同仁。本次教育訓練簡報為「從業人員工作規則」，文件編號 SCI-PEL-01，版別二點零版。本規則依據勞動基準法及有關法令訂定，目的是建立完善勞資關係，保障全員工作福祉與營運安全。'},
+  {img:'slides/slide_02.png', label:'第一部分：總則與基本守則',
+   say:'第一部分：總則與基本守則。本部分說明工作規則的目的、適用範疇、相關參考文件、安全守則與保密限制。'},
+  {img:'slides/slide_03.png', label:'1.0 目的、範圍與修訂歷程',
+   say:'1.1 目的：為使本公司從業人員之管理有所遵循，特依據勞動基準法及有關法令規定訂定本規則，以促進勞雇和諧，並確保從業人員合法權益。2.0 適用範圍：適用於本公司全體同仁。本規則已完成文件修訂，並獲彰化縣政府核備。'},
+  {img:'slides/slide_04.png', label:'2.0 相關參考文件體系',
+   say:'2.0 相關參考文件體系。薪酬與福利制度方面，包括 C10-PEL-01 薪資給付辦法、C10-PEL-02 年終獎金發放辦法，以及 C10-PEL-11 婚喪喜慶賀奠儀辦法。考勤與異動程序方面，包括 C10-PEL-03 考勤管理辦法、C10-PEL-05 增補異動管理辦法，以及 C10-PEL-06 晉升及調任管理辦法。權益保障與規範方面，包括 C10-PEL-13 人事評議委員會辦法、C10-PEL-16 性騷擾防治申訴辦法，以及 C10-PEL-21 勞資會議實施辦法。'},
+  {img:'slides/slide_05.png', label:'3.0 員工基本守則與安全保密義務',
+   say:'3.0 員工基本守則與安全保密義務。職場安全與防護義務：廠區一律嚴禁吸菸；未經許可不得起動備用及停用機器。上班時應穿著公司制服，在廠區工作時必須配戴安全帽並嚴格遵守安全衛生工作守則。業務與職務秘密保守義務：員工應保守業務上或職務上知悉之所有秘密，此義務縱使於離職後仍應保密。職務報告應循序而上，不得越級。指派活動強制參與：無正當理由不得拒絕參加公司辦理之在職訓練、健康檢查、防災演練、緊急應變召喚或會議慶典等假日值勤任務。毀損公物、財務應負雙方協商賠償之責。'},
+  {img:'slides/slide_06.png', label:'第二部分：受僱、調動與解僱程序',
+   say:'第二部分：受僱、調動與解僱程序。本部分說明新進招募流程、考核期規定、免預告解僱條款與資遣機制。'},
+  {img:'slides/slide_07.png', label:'4.0 員工招募與試用期考核機制',
+   say:'4.0 員工招募與試用期考核機制。嚴謹甄選，雙向評估。法定限制：本公司禁止聘僱法定傳染病者，或經指定體檢醫院體檢不合格，無法擔任工作者。考核期程：新進同仁到職 40天 及見習期滿 3個月 各實施一次考核評估。未達標處理：若考核成績未滿 60分，將終止僱用，薪資結算至停止試用當日，並依勞基法與勞工退休金條例規定辦理。'},
+  {img:'slides/slide_08.png', label:'5.0 不經預告終止契約條款（免職）',
+   say:'5.0 不經預告終止契約條款，即免職條款。違背誠信與法令之情事包括：第一，吸食、施打毒品或使用違禁麻醉藥品。第二，攜帶槍砲、彈藥、刀械等違禁品進入工作場所，危害財產或生命安全。第三，訂立契約時為虛偽意思表示，使公司誤信有受損害之虞。第四，連續曠工3日，或一個月內曠工達6日者。第五，職場霸凌致使受害者身心異常者。損害公司利益或暴力行為包括：第六，對雇主、家屬、代理人或同仁實施暴行或重大侮辱。第七，營私舞弊、挪用公款、收受賄賂或佣金。第八，故意損耗器具、料品，或故意洩漏公司技術、營業秘密者。第九，一年內受處分累計達3大過者。以上各款免職處分，員工不得請求加發預告工資及資遣費。'},
+  {img:'slides/slide_09.png', label:'第 9 頁',
+   say:'請同仁注意本頁相關規定。'},
+  {img:'slides/slide_10.png', label:'7.0 離職移交程序與異常處理',
+   say:'7.0 離職移交程序與異常處理。職務移交對象與清冊列管：員工離職須於10日前辦妥移交，項目涵蓋主管之員工清冊、現款、帳表、設備器具、技術及經營資料、電腦系統檔案與未結待辦事項。移交清冊須由移交、接交及監交三方簽章。異常、亡故與失蹤代理期限：員工因傷病亡故、失蹤或逃匿時，其直接主管應於10日內指定人員代辦移交，接任人查有遺漏應於核決後3日內補辦清楚。逾期不移交與不實遺漏懲處：逾期不移交者簽報懲處，情節重大者移送司法偵辦。接交後若有虛捏遺漏，前任嚴懲追償，直屬主管連帶議處，自行揭報者免罰。'},
+  {img:'slides/slide_11.png', label:'第三部分：工作時間、休息與請假規定',
+   say:'第三部分：工作時間、休息與請假規定。本部分說明工作班次、出差規定、請假辦法與特別休假基準。'},
+  {img:'slides/slide_12.png', label:'8.0 工作時間與輪班作息規定',
+   say:'8.0 工作時間與輪班作息規定。規範化工時，落實輪班休息。正常工時：每日不得超過8小時，每週不得超過40小時。實施三班制或輪班時，班次每週更換一次，更換時應給予至少11小時連續休息。三班起訖時間，連續工作4小時休息30分鐘：日班08:00至16:00，中班16:00至24:00，晚班00:00至08:00。出差補休：出差國外逾一週者，返家次日准予休假1日。天災事變緊急工作後，補休工資照給。'},
+  {img:'slides/slide_13.png', label:'9.0 特別休假給假標準（曆年制）',
+   say:'9.0 特別休假給假標準，曆年制。本公司採曆年制特別休假，由員工自行排定之，最小動用單位為2小時。留職停薪期間，概不給予特休。年資對照表：新進報到日當天給予3天，服務滿1年以上未滿2年給予7天，服務滿2年以上未滿3年給予10天，服務滿3年以上未滿5年給予14天，服務滿5年以上未滿10年給予15天，服務滿10年以上者每滿1年加給1天，上限30天。特別休假因年度終結或契約終止而未休畢之日數，雇主應發給工資。'},
+  {img:'slides/slide_14.png', label:'10.0 請假規範：事假、普通傷病假與公傷假',
+   say:'10.0 請假規範：事假、普通傷病假與公傷假。事假與普通傷病假之計薪：第一，事假：全年累計限14日。課長級（含）以上主管薪資照給，其他員工不給薪。第二，病假：未住院限30日，住院者二年內累計不得超逾一年，連續2日以上病假須出具醫院證明。30日以內病假，課長級以上主管薪資照給，其他員工折半發給；超過30日病假，課長級以上折半發給，其他員工僅請領勞保傷病補助，不另發薪。留職停薪與公傷病假：第三，普通傷病留職停薪：傷病假超額抵充特休後仍未痊癒，可辦理留停，以一年為限，屆滿仍未痊癒可預告終止契約發給資遣費，符合退休者准其退休。第四，公傷假：職業災害失能、傷害之醫療、休養期間，給予公傷假，最長2年，公傷假期間依勞基法規定予以工資補償。'},
+  {img:'slides/slide_15.png', label:'11.0 請假規範：婚假、喪假、產假與陪產假',
+   say:'11.0 請假規範：婚假、喪假、產假與陪產假。婚假與喪假規範：婚假給予8日，薪資照給。喪假分次申請，百日內請完，父母或配偶喪亡8日，祖父母、子女或配偶父母6日，兄弟姊妹3日，伯叔舅姑姨喪亡1日。產假、流產假與產檢假：產假受僱6個月以上全薪，分娩給予8星期，妊娠3個月以上流產給予4星期。流產假減半薪病假計算，2個月以上未滿3個月流產1星期，未滿2個月流產5日。產檢假給予7日，全薪。陪產檢與家庭照顧假：配偶產檢或分娩，給予7日陪產檢及陪產假，於分娩當日及其前後15日內請完，全薪。其餘生理假、家庭照顧假、育嬰留職停薪等，皆依性別工作平等法辦理。'},
+  {img:'slides/slide_16.png', label:'第四部分：考勤、考績與薪資獎懲',
+   say:'第四部分：考勤、考績與薪資獎懲。本部分說明刷卡考核、遲到扣罰、加班費計算、獎懲辦法與人事評議委員會相關規定。'},
+  {img:'slides/slide_17.png', label:'12.0 考勤刷卡管理與忘打卡處理程序',
+   say:'12.0 考勤刷卡管理與忘打卡處理程序。刷卡考勤、遲到與早退：第一，出勤紀律，上班應親自刷卡，託人代刷卡或代人刷卡者，雙方皆記大過乙次，未到工期間以曠職論。第二，遲到早退定義，上班開始3至15分鐘內到工者為遲到，下班前15分鐘內離開為早退，超過15分鐘以請假論。第三，遲到累計扣罰，每月第一次不計，第二次起列入，年度累計達3次扣1天年終，達6次扣2天年終，以此類推。忘打卡申請與未請假銷假：第四，忘打卡申請，當天上下班確有到工但忘刷卡，最遲於再上班之日電子登錄忘打卡單送主管簽核銷案，未辦理者以曠職論，不實登錄者記大過乙次並連帶處分主管。第五，曠職認定，未依規定請假，或請假屆滿未續假、未銷假上班者以曠職論，曠職不發薪資。'},
+  {img:'slides/slide_18.png', label:'13.0 加班工資發給與補休標準',
+   say:'13.0 加班工資發給與補休標準。本頁說明各類加班工資計算方式與補休規定，請同仁仔細閱讀頁面中的加班費計算表格，了解平日、休息日及例假日加班的工資計算標準。'},
+  {img:'slides/slide_19.png', label:'14.0 員工獎懲、功過相抵與申訴程序',
+   say:'14.0 員工獎懲、功過相抵與申訴程序。獎懲種類與申報：獎勵包括嘉獎、小功、大功、發獎金，用於重大改善、特殊專案、防患未然或特殊發明。懲處包括警告、小過、大過、免職，適用怠惰延宕、曠工、公器私用、託代刷卡、洩密等。功過抵銷換算標準：換算倍率為3嘉獎等於1小功，3小功等於1大功，3警告等於1小過，3小過等於1大過。同年度大功與大過、小功與小過、嘉獎與警告可相抵，留廠查看期間功過不可相抵。人評會議與申訴渠道：記大過以上處分必須送人評會審議核定，並聽取當事人說明。循序申訴，書面須署名，爭議性事項1週內確認真相，視情況提人評會裁議，並對申訴者予以保密。'},
+  {img:'slides/slide_20.png', label:'15.0 職災補償、退休金與福利保障',
+   say:'15.0 職災補償、退休金與福利保障。職業災害補償：因職災致失能、傷害或疾病者，公傷假限2年，醫療費用及工資均予補償。撫卹金：在職期間死亡，因公死亡給予喪葬費5個月平均工資及死亡補償40個月平均工資，順位為配偶、子女優先，次為父母、祖父母。退休標準：自請退休為年資滿10年且年滿57歲，或年資滿15年年滿55歲，或年資滿25年；強制退休為年滿65歲或身心障礙。退休金基數前15年每滿1年給2基數，超過15年給1基數，上限45基數，新制按月提撥6%。公司福利包括免費午餐、一級主管專用車、公務手機、端午及中秋禮金、健康檢查。福委會提供旅遊補助、勞動節及春節禮金、生日補助、子女教育獎學金及急難救助。以上是全部教育訓練內容，感謝各位同仁耐心完成，請進行下方測驗。'}
+];
+
+// ════════════════════════════════════════
+//  PLAYER STATE
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+//  PLAYER STATE
+// ════════════════════════════════════════
+let cur=0, spk=false, auto=true, ready=false, utt=null, paused=false;
+let sentences=[];
+let sentenceIdx=0;
+let audioObj=null; // HTML5 Audio 物件
+const AUTO_DETECT_MP3 = true; // 是否自動偵測並播放與投影片圖片同名的 MP3 配音音檔
+let playedSlides = new Set(); // 記錄已經聽完的投影片頁數
+let isInteractiveMode = false; // 是否正在使用互動式簡報
+
+function initSlides(){
+  const st=document.getElementById('pstage');
+  st.innerHTML = ''; // 清除舊投影片
+  SLIDES.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.className='pimg'+(i===0?' active':'');
+    d.id='pi'+i;
+    d.innerHTML=`<img src="${s.img}" alt="第${i+1}頁" loading="lazy" draggable="false"/>`;
+    st.appendChild(d);
+  });
+  refresh();
+}
+
+function go(n){
+  if(n<0||n>=SLIDES.length) return;
+  // 手動往後翻頁防刷：如果想往後翻，且當前頁 cur 還沒聽完，則予以攔截
+  if (n > cur && !playedSlides.has(cur)) {
+    alert("請先完整聽完當前頁面的語音配音喔！");
+    return;
+  }
+  stopSpeak();
+  document.getElementById('pi'+cur).classList.remove('active');
+  cur=n;
+  document.getElementById('pi'+cur).classList.add('active');
+  refresh();
+  if(ready) setTimeout(speak,200);
+}
+function pNext(){go(cur+1);}
+function pPrev(){go(cur-1);}
+
+function refresh(){
+  if (isInteractiveMode) return; // 互動模式下由 iframe 自行控制
+  document.getElementById('ppfill').style.width=((cur+1)/SLIDES.length*100)+'%';
+  document.getElementById('pct').textContent=(cur+1)+' / '+SLIDES.length;
+  document.getElementById('plb').textContent=SLIDES[cur].label;
+  document.getElementById('pbprev').disabled=(cur===0);
+  
+  // 當前頁尚未聽完時，禁止按「下一頁」
+  document.getElementById('pbnext').disabled=(cur===SLIDES.length-1 || !playedSlides.has(cur));
+  
+  // 只有當全部頁數皆聽完，才解鎖「開始測驗」按鈕
+  if (ready) {
+    if(playedSlides.size === SLIDES.length){
+      document.getElementById('btn-unlock').disabled=false;
+      document.getElementById('uhint').textContent='✅ 已看畢所有簡報，點擊開始測驗';
+    } else {
+      document.getElementById('btn-unlock').disabled=true;
+      document.getElementById('uhint').textContent=`請觀看並聽完所有簡報 (目前已聽完 ${playedSlides.size} / ${SLIDES.length} 頁)`;
+    }
+  } else {
+    document.getElementById('btn-unlock').disabled=true;
+    document.getElementById('uhint').textContent='請先點擊開始播放教育訓練';
+  }
+}
+
+// ════════════════════════════════════════
+//  SPEECH & AUDIO
+// ════════════════════════════════════════
+function safeCancel(){
+  if(!window.speechSynthesis) return;
+  if(speechSynthesis.paused){
+    speechSynthesis.resume();
+  }
+  speechSynthesis.cancel();
+}
+
+function cleanupAudio() {
+  if (audioObj) {
+    audioObj.pause();
+    audioObj.onplay = null;
+    audioObj.onended = null;
+    audioObj.onerror = null;
+    audioObj = null;
+  }
+}
+
+function speak(){
+  cleanupAudio();
+  safeCancel();
+  paused = false;
+  spk = true;
+  updVoiceBtn();
+  
+  // 1. 取得音檔路徑
+  let audioUrl = SLIDES[cur].audio || "";
+  if (!audioUrl && AUTO_DETECT_MP3) {
+    // 自動將圖片的副檔名 (.png/.jpg/.jpeg) 取代為 .mp3 作為音檔路徑
+    audioUrl = SLIDES[cur].img.replace(/\.[^/.]+$/, "") + ".mp3";
+  }
+  
+  if (audioUrl) {
+    audioObj = new Audio();
+    audioObj.src = audioUrl;
+    
+    // 套用目前的朗讀速度設定
+    const rate = parseFloat(document.getElementById('spd-sel').value) || 0.9;
+    audioObj.playbackRate = rate;
+    
+    let fellBack = false;
+    
+    audioObj.onplay = () => {
+      spk = true;
+      paused = false;
+      updVoiceBtn();
+    };
+    
+    audioObj.onended = () => {
+      if(paused) return;
+      playedSlides.add(cur);
+      refresh();
+      spk = false;
+      updVoiceBtn();
+      if(auto && cur < SLIDES.length - 1){
+        setTimeout(()=>go(cur+1), 700);
+      }
+    };
+    
+    let attemptedWav = false;
+    
+    audioObj.onerror = () => {
+      if (audioUrl.endsWith('.mp3') && !attemptedWav) {
+        attemptedWav = true;
+        console.log("未偵測到 MP3 音檔，嘗試載入 WAV 音檔：" + audioUrl.replace('.mp3', '.wav'));
+        audioUrl = audioUrl.replace('.mp3', '.wav');
+        audioObj.src = audioUrl;
+        audioObj.play().catch(err => {
+          if (!fellBack) {
+            fellBack = true;
+            console.log("WAV 音檔也播放失敗，啟用內建文字朗讀 (TTS) 備援");
+            cleanupAudio();
+            speakTTS();
+          }
+        });
+      } else {
+        if (!fellBack) {
+          fellBack = true;
+          console.log("音檔播放失敗，自動啟用內建文字朗讀 (TTS) 備援：" + audioUrl);
+          cleanupAudio();
+          speakTTS();
+        }
+      }
+    };
+    
+    audioObj.play().catch(err => {
+      if (audioUrl.endsWith('.mp3') && !attemptedWav) {
+        attemptedWav = true;
+        console.log("MP3 音檔播放失敗，嘗試載入 WAV 音檔：" + audioUrl.replace('.mp3', '.wav'));
+        audioUrl = audioUrl.replace('.mp3', '.wav');
+        audioObj.src = audioUrl;
+        audioObj.play().catch(err2 => {
+          if (!fellBack) {
+            fellBack = true;
+            console.log("WAV 音檔播放被拒絕或發生錯誤，啟用文字朗讀 (TTS) 備援：", err2);
+            cleanupAudio();
+            speakTTS();
+          }
+        });
+      } else {
+        if (!fellBack) {
+          fellBack = true;
+          console.warn("音檔播放被拒絕或發生錯誤，啟用文字朗讀 (TTS) 備援：", err);
+          cleanupAudio();
+          speakTTS();
+        }
+      }
+    });
+  } else {
+    speakTTS();
+  }
+}
+
+function speakTTS(){
+  if(!window.speechSynthesis) return;
+  
+  // 依標點符號將朗讀文字切割為句子
+  sentences = SLIDES[cur].say.match(/[^。！？；\n]+[。！？；\n]*/g) || [SLIDES[cur].say];
+  sentenceIdx = 0;
+  
+  speakSentence();
+}
+
+function speakSentence(){
+  if(!window.speechSynthesis) return;
+  if(sentenceIdx >= sentences.length){
+    // 整頁朗讀完畢
+    playedSlides.add(cur);
+    refresh();
+    spk = false;
+    updVoiceBtn();
+    if(auto && cur < SLIDES.length - 1){
+      setTimeout(()=>go(cur+1), 700);
+    }
+    return;
+  }
+  
+  const text = sentences[sentenceIdx].trim();
+  if(!text){
+    sentenceIdx++;
+    speakSentence();
+    return;
+  }
+  
+  const rate = parseFloat(document.getElementById('spd-sel').value) || 0.9;
+  utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'zh-TW'; 
+  utt.rate = rate; 
+  utt.pitch = 1; 
+  utt.volume = 1;
+  
+  const vs = speechSynthesis.getVoices();
+  const voiceSelect = document.getElementById("voice-sel");
+  let v = null;
+  if (voiceSelect && voiceSelect.value) {
+    v = vs.find(x => x.name === voiceSelect.value);
+  }
+  if (!v) {
+    v = vs.find(x => x.lang === 'zh-TW') || vs.find(x => x.lang.startsWith('zh')) || null;
+  }
+  if(v) utt.voice = v;
+  
+  utt.onstart = () => {
+    spk = true;
+    paused = false;
+    updVoiceBtn();
+  };
+  
+  utt.onend = () => {
+    if(paused) return; // 暫停中，不自動播放下一句
+    sentenceIdx++;
+    speakSentence();
+  };
+  
+  utt.onerror = (e) => {
+    console.error('Speech error:', e);
+    if(paused) return;
+    sentenceIdx++;
+    speakSentence();
+  };
+  
+  speechSynthesis.speak(utt);
+}
+
+function stopSpeak(){ 
+  if(utt){
+    utt.onstart = null;
+    utt.onend = null;
+    utt.onerror = null;
+  }
+  safeCancel(); 
+  cleanupAudio();
+  spk = false; 
+  paused = false; 
+  updVoiceBtn(); 
+}
+
+function pToggleVoice(){ 
+  if(spk){ 
+    paused = true;
+    if (audioObj) {
+      audioObj.pause();
+    } else {
+      if(utt){
+        utt.onstart = null;
+        utt.onend = null;
+        utt.onerror = null;
+      }
+      safeCancel(); 
+    }
+    spk = false; 
+    updVoiceBtn(); 
+  } else { 
+    if(paused){
+      paused = false;
+      spk = true;
+      updVoiceBtn();
+      if (audioObj) {
+        audioObj.play().catch(e => console.error("音檔播放失敗：", e));
+      } else {
+        speakSentence();
+      }
+    } else {
+      speak();
+    }
+  } 
+}
+
+function updVoiceBtn(){
+  const b = document.getElementById('pvb'); if(!b) return;
+  b.textContent = spk ? '⏸' : (paused ? '▶' : '🔊');
+  (spk||paused) ? b.classList.add('on') : b.classList.remove('on');
+}
+
+function pToggleAuto(){
+  auto=!auto;
+  const b=document.getElementById('pauto');
+  b.textContent=auto?'自動換頁 ON':'自動換頁 OFF';
+  b.className=auto?'ptg on':'ptg';
+}
+
+function pActivate(){
+  ready=true;
+  document.getElementById('pstart').classList.add('gone');
+  refresh();
+  if(speechSynthesis.getVoices().length===0){ 
+    speechSynthesis.onvoiceschanged = () => {
+      speechSynthesis.onvoiceschanged = null;
+      populateVoiceList();
+      speak();
+    }; 
+  } else { 
+    populateVoiceList();
+    speak(); 
+  }
+}
+
+// 輔助函式：偵測檔案是否存在（相容 file:// 與 http:// 協定）
+function checkFileExists(url) {
+  if (window.location.protocol === 'file:') {
+    return new Promise((resolve) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = url + '?t=' + Date.now();
+      link.onload = () => {
+        resolve(true);
+        link.remove();
+      };
+      link.onerror = () => {
+        resolve(false);
+        link.remove();
+      };
+      document.head.appendChild(link);
+    });
+  } else {
+    return fetch(url, { method: 'HEAD' })
+      .then(res => res.ok)
+      .catch(() => false);
+  }
+}
+
+// 偵測是否含有互動式簡報 (Reveal.js/GSAP) 網頁
+async function checkInteractiveSlides() {
+  const hasInteractive = await checkFileExists('slides/index.html');
+  if (hasInteractive) {
+    isInteractiveMode = true;
+    // 隱藏靜態簡報的所有控制與顯示，改為顯示 iframe
+    document.getElementById('pstage').style.display = 'none';
+    document.getElementById('pprog').style.display = 'none';
+    document.getElementById('pstart').style.display = 'none';
+    document.getElementById('pctrl').style.display = 'none';
+    
+    // 動態拉高外層容器，確保互動簡報內容與播放器完整展現
+    document.getElementById('pbox').style.maxHeight = 'none';
+    document.getElementById('pbox').style.height = '720px';
+    
+    const iframe = document.getElementById('p-iframe');
+    iframe.src = 'slides/index.html';
+    iframe.style.display = 'block';
+    
+    // 鎖定開始測驗，顯示觀看警告
+    document.getElementById('btn-unlock').disabled = true;
+    document.getElementById('uhint').textContent = '⚠️ 請觀看完影片簡報後即可進行測驗';
+  } else {
+    console.log("偵測不到互動式簡報，已自動降級至靜態圖片播放器模式。");
+  }
+}
+
+// 監聽來自 iframe 的簡報結束訊號
+window.addEventListener('message', (event) => {
+  if (event.data && (event.data.type === 'slide-completed' || event.data.type === 'video-completed')) {
+    document.getElementById('btn-unlock').disabled = false;
+    document.getElementById('uhint').textContent = '✅ 已看畢影片/簡報，點擊開始測驗';
+    // 標記為全部看完
+    ready = true; 
+  }
+});
+
+// 在網頁載入時啟動偵測
+window.addEventListener('DOMContentLoaded', () => {
+  checkInteractiveSlides();
+  populateVoiceList();
+  if (window.speechSynthesis && speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = populateVoiceList;
+  }
+});
+
+// 動態載入語音清單
+function populateVoiceList() {
+  if (!window.speechSynthesis) return;
+  const voiceSelect = document.getElementById("voice-sel");
+  if (!voiceSelect) return;
+  
+  const voices = speechSynthesis.getVoices();
+  voiceSelect.innerHTML = "";
+  
+  const zhVoices = voices.filter(v => v.lang.includes("zh-TW") || v.lang.includes("zh-CN") || v.lang.includes("zh"));
+  if (zhVoices.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "系統預設語音";
+    voiceSelect.appendChild(opt);
+    return;
+  }
+  
+  zhVoices.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v.name;
+    let displayName = v.name;
+    if (v.name.includes("Microsoft")) {
+      displayName = "微軟 " + v.name.replace("Microsoft", "").replace("Online", "").replace("(Natural)", "").trim();
+    } else if (v.name.includes("Google")) {
+      displayName = "谷歌 " + v.name.replace("Google", "").trim();
+    }
+    opt.textContent = displayName;
+    voiceSelect.appendChild(opt);
+  });
+  
+  let defaultVoiceName = "";
+  const preferred = ["HsiaoChen", "Yunxi", "Microsoft", "Google"];
+  for (const pref of preferred) {
+    const found = zhVoices.find(v => v.name.includes(pref));
+    if (found) {
+      defaultVoiceName = found.name;
+      break;
+    }
+  }
+  if (defaultVoiceName) {
+    voiceSelect.value = defaultVoiceName;
+  }
+}
+
+// 監聽速度選擇器變更
+document.getElementById('spd-sel').addEventListener('change', ()=>{
+  const rate = parseFloat(document.getElementById('spd-sel').value) || 0.9;
+  if (audioObj) {
+    audioObj.playbackRate = rate;
+  } else if(spk){ 
+    if(utt){
+      utt.onstart = null;
+      utt.onend = null;
+      utt.onerror = null;
+    }
+    safeCancel();
+    setTimeout(() => {
+      speakSentence();
+    }, 100);
+  }
+});
+
+// 監聽語音選擇器變更
+document.getElementById('voice-sel').addEventListener('change', ()=>{
+  if(spk && !audioObj){ 
+    if(utt){
+      utt.onstart = null;
+      utt.onend = null;
+      utt.onerror = null;
+    }
+    safeCancel();
+    setTimeout(() => {
+      speakSentence();
+    }, 100);
+  }
+});
+
+// ════════════════════════════════════════
+//  QUIZ DATA
+// ════════════════════════════════════════
+let QS=[
+  {q:'新進同仁到職幾天後，實施第一次考核評估？',opts:['A. 30天','B. 40天','C. 60天','D. 90天'],a:'B'},
+  {q:'依本工作規則，考核成績未滿幾分將終止僱用？',opts:['A. 50分','B. 55分','C. 60分','D. 70分'],a:'C'},
+  {q:'正常工時規定，每週不得超過幾小時？',opts:['A. 44小時','B. 48小時','C. 36小時','D. 40小時'],a:'D'},
+  {q:'連續曠工幾日，公司可不經預告終止契約（免職）？',opts:['A. 2日','B. 3日','C. 5日','D. 7日'],a:'B'},
+  {q:'事假全年累計最多幾日？',opts:['A. 7日','B. 10日','C. 14日','D. 21日'],a:'C'},
+  {q:'婚假給予幾日且薪資照給？',opts:['A. 3日','B. 5日','C. 6日','D. 8日'],a:'D'},
+  {q:'特別休假最小動用單位為何？',opts:['A. 1小時','B. 2小時','C. 半天','D. 1天'],a:'B'},
+  {q:'託人代刷卡或代人刷卡者，雙方將受何種懲處？',opts:['A. 警告乙次','B. 小過乙次','C. 大過乙次','D. 直接免職'],a:'C'},
+  {q:'員工離職時，須於離職幾日前辦妥職務移交？',opts:['A. 3日','B. 5日','C. 7日','D. 10日'],a:'D'},
+  {q:'父母喪亡時，員工可請幾日喪假？',opts:['A. 3日','B. 6日','C. 8日','D. 10日'],a:'C'}
+];
+
+let ansd={};
+function buildQ(){
+  document.getElementById('qbox').innerHTML=QS.map((q,i)=>`
+    <div class="qc" id="qc${i}">
+      <div class="qn">第 ${i+1} 題</div>
+      <div class="qt">${q.q}</div>
+      <div class="opts">${q.opts.map((o,j)=>{
+        const v=['A','B','C','D'][j];
+        return `<label class="opt"><input type="radio" name="q${i}" value="${v}" onchange="onAns(${i})"/><div class="od"></div><span>${o}</span></label>`;
+      }).join('')}</div>
+    </div>`).join('');
+}
+
+function onAns(i){
+  ansd[i]=true;
+  document.getElementById('qc'+i).classList.add('done');
+  const n=Object.keys(ansd).length;
+  document.getElementById('qbadge').textContent='已作答 '+n+' / '+QS.length+' 題';
+  chkSub();
+}
+function chkSub(){
+  const name=document.getElementById('ename').value.trim();
+  const done=Object.keys(ansd).length===QS.length;
+  document.getElementById('btn-sub').disabled=!(name&&done);
+}
+
+function unlockQuiz(){
+  document.getElementById('qsec').classList.add('on');
+  document.getElementById('s1').classList.remove('active');
+  document.getElementById('s1').classList.add('done');
+  document.getElementById('s1').querySelector('.sn').textContent='✓';
+  document.getElementById('s2').classList.add('active');
+  document.getElementById('qsec').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ════════════════════════════════════════
+//  SUBMIT
+// ════════════════════════════════════════
+let APPS_SCRIPT_URL='YOUR_APPS_SCRIPT_URL_HERE'; // ← 填入 Apps Script 部署網址
+
+// 從瀏覽器快取讀取已設定的 API 網址以支援動態套用
+const cachedApiUrl = localStorage.getItem('apps_script_url');
+if(cachedApiUrl) {
+  APPS_SCRIPT_URL = cachedApiUrl;
+}
+
+async function doSubmit(){
+  const name=document.getElementById('ename').value.trim();
+  const ts=new Date().toLocaleString('zh-TW');
+  const btn=document.getElementById('btn-sub');
+  btn.disabled=true; btn.innerHTML='<div class="spin"></div> 提交中…';
+
+  // ── 1. 前端計算得分（不依賴網路）────────────────────────────
+  const payload={timestamp:ts, name};
+  let correctCount=0;
+  QS.forEach((q,i)=>{
+    const sel=document.querySelector(`input[name="q${i}"]:checked`);
+    const ans=sel?sel.value:'';
+    payload['q'+(i+1)]=ans;
+    if(ans && ans.toUpperCase()===(q.a||'').toUpperCase()) correctCount++;
+  });
+  const total=QS.length;
+  const score=total>0?Math.round(correctCount/total*100):0;
+  payload.score=score;
+  payload.correctCount=correctCount;
+  payload.total=total;
+
+  // ── 2. 存入本機 localStorage（靜默，所有裝置都支援）──────────
+  saveResultLocal(payload);
+
+  // ── 3. 更新畫面（立即完成，不等網路）────────────────────────
+  function setSubmitSuccess(){
+    btn.innerHTML='✅ 已成功送出'; btn.disabled=true;
+    document.querySelectorAll('input[type="radio"]').forEach(el=>el.disabled=true);
+    document.getElementById('ename').disabled=true;
+    ['s2'].forEach(id=>{
+      document.getElementById(id).classList.remove('active');
+      document.getElementById(id).classList.add('done');
+      document.getElementById(id).querySelector('.sn').textContent='✓';
+    });
+    document.getElementById('s3').classList.add('done');
+    document.getElementById('s3').querySelector('.sn').textContent='✓';
+  }
+
+  const scoreText=`您的得分為：<strong style="font-size:1.15rem;color:#10b981">${score} 分</strong>（答對 ${correctCount} / ${total} 題）<br><br>您的測驗結果已儲存於本裝置，感謝完成本次教育訓練！`;
+  showRes(true, scoreText);
+  setSubmitSuccess();
+
+  // ── 4. 非同步備份至雲端（失敗不影響員工看到結果）────────────
+  if(APPS_SCRIPT_URL && APPS_SCRIPT_URL!=='YOUR_APPS_SCRIPT_URL_HERE'){
+    fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify(payload)})
+      .then(r=>r.json())
+      .then(d=>console.log('雲端備份成功',d))
+      .catch(e=>console.warn('雲端備份失敗（本機已儲存）：',e));
+  }
+
+  // ── 5. 同步至本機伺服器結果檔案（CORS 相容）──────────────────
+  fetch('./api/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r=>r.json())
+  .then(d=>console.log('本機伺服器儲存成功',d))
+  .catch(e=>console.warn('本機伺服器未開啟或儲存失敗（不影響作答）：',e));
+}
+
+// ════════════════════════════════════════
+//  LOCAL STORAGE 作答紀錄管理
+// ════════════════════════════════════════
+const RESULT_KEY='quiz_results_v2';
+
+function saveResultLocal(record){
+  try{
+    const arr=JSON.parse(localStorage.getItem(RESULT_KEY)||'[]');
+    arr.push(record);
+    localStorage.setItem(RESULT_KEY,JSON.stringify(arr));
+  }catch(e){ console.warn('本機儲存失敗：',e); }
+}
+
+function getResultCount(){
+  try{ return JSON.parse(localStorage.getItem(RESULT_KEY)||'[]').length; }catch(e){ return 0; }
+}
+
+function exportResultsCSV(){
+  const arr=JSON.parse(localStorage.getItem(RESULT_KEY)||'[]');
+  if(!arr.length){ alert('目前沒有任何作答紀錄'); return; }
+  const keys=Object.keys(arr[0]);
+  const csvRows=[keys.join(',')];
+  arr.forEach(r=>{
+    csvRows.push(keys.map(k=>{
+      const v=String(r[k]||'').replace(/"/g,'""');
+      return `"${v}"`;
+    }).join(','));
+  });
+  const blob=new Blob(['\uFEFF'+csvRows.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='作答紀錄_'+new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')+'.csv';
+  a.click();
+}
+
+function viewResultsInline(){
+  const arr=JSON.parse(localStorage.getItem(RESULT_KEY)||'[]');
+  const preview=document.getElementById('cfg-records-preview');
+  if(!arr.length){ preview.style.display='none'; alert('目前沒有任何作答紀錄'); return; }
+  preview.style.display='block';
+  preview.textContent=arr.map((r,i)=>
+    `[${i+1}] ${r.timestamp} ${r.name} 得分:${r.score}分 (${r.correctCount}/${r.total}題)`
+  ).join('\n');
+}
+
+function clearResultsConfirm(){
+  const n=getResultCount();
+  if(!n){ alert('目前沒有任何紀錄'); return; }
+  if(confirm(`確定要清除所有 ${n} 筆作答紀錄？此操作不可復原！`)){
+    localStorage.removeItem(RESULT_KEY);
+    document.getElementById('cfg-record-info').textContent='紀錄已清除';
+    document.getElementById('cfg-records-preview').style.display='none';
+    alert('已清除全部作答紀錄');
+  }
+}
+
+function showRes(ok, msg){
+  document.getElementById('ri').textContent=ok?'🎉':'❌';
+  document.getElementById('rt').textContent=ok?'提交成功！':'提交失敗';
+  
+  if(ok) {
+    document.getElementById('rs').innerHTML = msg || '您的測驗結果已記錄至系統，感謝完成本次教育訓練！';
+  } else {
+    document.getElementById('rs').innerHTML = msg || '請確認網路連線後重試。';
+  }
+  document.getElementById('res').classList.add('show');
+}
+function hideRes(){
+  document.getElementById('res').classList.remove('show');
+}
+function closeResModal(e){
+  if(e.target.id==='res'){
+    hideRes();
+  }
+}
+
+// ════════════════════════════════════════
+//  KEYBOARD
+// ════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();pNext();}
+  if(e.key==='ArrowLeft'){e.preventDefault();pPrev();}
+  if(e.key==='v'||e.key==='V') pToggleVoice();
+});
+
+// 格式化選項前置字元 (防止重複出現 A. A. 情況)
+function formatOption(prefix, text) {
+  if (!text) return '';
+  const trimmed = text.trim();
+  const regex = new RegExp('^' + prefix + '[.、\\s]', 'i');
+  if (regex.test(trimmed)) {
+    return trimmed;
+  }
+  return prefix + '. ' + trimmed;
+}
+
+// ════════════════════════════════════════
+//  資料載入：本機 quiz_data.json → 雲端 → 內建預設
+// ════════════════════════════════════════
+async function loadData(){
+  let loaded = false;
+
+  // ── 1. 嘗試本機 quiz_data.json（最優先）────────────────────
+  try{
+    const res = await fetch('./quiz_data.json?_t='+Date.now(), {cache:'no-store'});
+    if(res.ok){
+      const data = await res.json();
+      if(data && data.status==='ok'){
+        applyData(data);
+        DATA_SOURCE='本機 quiz_data.json';
+        loaded=true;
+        console.log('✅ 已從本機 quiz_data.json 載入');
+      }
+    }
+  }catch(e){ console.log('本機 JSON 不可讀（正常，若無此檔）：',e.message); }
+
+  // ── 2. 嘗試雲端 Google Sheets（若本機未讀到）──────────────
+  if(!loaded && APPS_SCRIPT_URL && APPS_SCRIPT_URL!=='YOUR_APPS_SCRIPT_URL_HERE'){
+    try{
+      const url=APPS_SCRIPT_URL+(APPS_SCRIPT_URL.indexOf('?')>=0?'&':'?')+'_t='+Date.now();
+      const res=await fetch(url);
+      const data=await res.json();
+      if(data && data.status==='ok'){
+        applyData(data);
+        DATA_SOURCE='雲端 Google Sheets';
+        loaded=true;
+        console.log('✅ 已從雲端 Google Sheets 載入');
+      }
+    }catch(e){ console.warn('雲端載入失敗，將使用內建預設：',e); }
+  }
+
+  // ── 3. 使用內建預設（fallback）──────────────────────────
+  if(!loaded) DATA_SOURCE='內建預設題目';
+  console.log('資料來源：'+DATA_SOURCE);
+
+  initSlides();
+  buildQ();
+}
+
+function applyData(data){
+  if(data.title) {
+    document.title = data.title;
+    const titleEl = document.getElementById('main-title');
+    if(titleEl) titleEl.textContent = data.title;
+  }
+  if(data.subtitle) {
+    const subEl = document.getElementById('main-subtitle');
+    if(subEl) subEl.textContent = data.subtitle;
+  }
+  if(data.apps_script_url && !localStorage.getItem('apps_script_url')){
+    APPS_SCRIPT_URL = data.apps_script_url;
+  }
+  if(data.slides && data.slides.length>0){
+    SLIDES=data.slides.map(s=>({img:s.img, label:s.label, say:s.say, audio:s.audio || ""}));
+  }
+  if(data.questions && data.questions.length>0){
+    QS=data.questions.map(q=>({
+      q: q.question,
+      opts:[
+        formatOption('A',q.a),
+        formatOption('B',q.b),
+        formatOption('C',q.c),
+        formatOption('D',q.d)
+      ].filter(o=>o!==''),
+      a: String(q.answer||q.a_key||'').trim().toUpperCase() // 正確答案欄位
+    }));
+  }
+}
+
+// 控制設定視窗顯示/隱藏
+function toggleCfgModal(){
+  const m=document.getElementById('cfg-modal');
+  if(!m.classList.contains('show')){
+    const pwd=prompt('請輸入管理員密碼以進入系統設定：');
+    if(pwd===null) return;
+    if(pwd!=='admin888'){
+      alert('密碼錯誤，拒絕存取！');
+      return;
+    }
+  }
+  m.classList.toggle('show');
+  if(m.classList.contains('show')){
+    document.getElementById('cfg-api-url').value=APPS_SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE'?'':APPS_SCRIPT_URL;
+    // 更新本機紀錄統計
+    const n=getResultCount();
+    document.getElementById('cfg-record-info').textContent=
+      n>0?`共 ${n} 筆作答紀錄（資料來源：${DATA_SOURCE}）`:`目前無作答紀錄（資料來源：${DATA_SOURCE}）`;
+    document.getElementById('cfg-records-preview').style.display='none';
+  }
+}
+
+// 點擊遮罩關閉設定視窗
+function closeCfgModal(e) {
+  if (e.target.id === 'cfg-modal') {
+    toggleCfgModal();
+  }
+}
+
+// 儲存設定至 localStorage
+async function saveCfg() {
+  const url = document.getElementById('cfg-api-url').value.trim();
+  if (url) {
+    if (!url.startsWith('https://script.google.com/')) {
+      alert('請輸入正確的 Google Apps Script 部署網址！');
+      return;
+    }
+    localStorage.setItem('apps_script_url', url);
+    APPS_SCRIPT_URL = url;
+    alert('設定已成功儲存並套用！系統即將重新載入雲端設定。');
+    toggleCfgModal();
+    await loadData();
+  } else {
+    localStorage.removeItem('apps_script_url');
+    APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+    alert('已清除設定！系統將恢復使用內建的預設資料。');
+    toggleCfgModal();
+    location.reload();
+  }
+}
+
+// 下載帶有設定網址的 HTML 網頁原始檔（免開發者手動編輯）
+async function downloadConfiguredHTML(){
+  const url = document.getElementById('cfg-api-url').value.trim();
+  if(!url){
+    alert('請先輸入有效的 Apps Script 網址！');
+    return;
+  }
+  if (!url.startsWith('https://script.google.com/')) {
+    alert('請輸入正確的 Google Apps Script 部署網址！');
+    return;
+  }
+  
+  let htmlContent = '';
+  try {
+    const response = await fetch(window.location.href);
+    htmlContent = await response.text();
+  } catch(e) {
+    // 降級方案：若 fetch 失敗，使用 outerHTML 還原原始碼結構
+    htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  }
+  
+  // 替換代碼中的 APPS_SCRIPT_URL 常量/變量定義
+  const regex = /let APPS_SCRIPT_URL\s*=\s*['"`](.*?)['"`]\s*;/;
+  if(regex.test(htmlContent)){
+    htmlContent = htmlContent.replace(regex, `let APPS_SCRIPT_URL='${url}';`);
+  } else {
+    const constRegex = /const APPS_SCRIPT_URL\s*=\s*['"`](.*?)['"`]\s*;/;
+    if(constRegex.test(htmlContent)){
+      htmlContent = htmlContent.replace(constRegex, `let APPS_SCRIPT_URL='${url}';`);
+    }
+  }
+  
+  const blob = new Blob([htmlContent], {type: 'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'index.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  alert('已成功產生設定好的 index.html 檔案！請將此下載的檔案放回資料夾覆蓋舊檔案，即可直接散佈使用！');
+}
+
+window.addEventListener('DOMContentLoaded', async ()=>{ 
+  await loadData(); 
+});
+</script>
+
+
+
+</body>
+</html>
