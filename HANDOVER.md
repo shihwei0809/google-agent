@@ -4,7 +4,61 @@
 
 ---
 
+## 📅 最新交接紀錄 (2026-08-07) ⭐ 最新
+
+### ✅ 今日完成：大廳連結 URL 疊加問題 — 根本修復
+
+**問題根本原因**：
+- 大廳 `說明書/index.html` 中所有子專案連結都使用 `./projects/xxx` 相對路徑
+- Cloudflare Pages 的 SPA fallback 把所有找不到的路徑都回傳大廳的 `index.html`，但 URL 不更正
+- 造成每次點擊後 URL 不斷疊加（如 `/projects/flowchart-web/projects/hr_quiz_v2/...`）
+
+**解決方式：每個子專案各自部署為獨立的 Cloudflare Pages 專案**
+
+### 🌐 子專案獨立 Cloudflare Pages 部署清單（2026-08-07 建立）
+
+| 子專案 | 永久網址 | Wrangler 專案名稱 |
+|-------|---------|-----------------|
+| 儲槽氮氣閥教育訓練 | https://nitrogen-valve-training.pages.dev | `nitrogen-valve-training` |
+| 員工教育訓練測驗 | https://hr-quiz-v2.pages.dev/index_with_mp3.html | `hr-quiz-v2` |
+| 軟管對刷稽核 | https://hongsheng-web-portal.pages.dev | `hongsheng-web-portal` |
+| isotank-training | https://isotank-training.pages.dev | `isotank-training` |
+| isotank-hf-demo | https://isotank-hf-demo.pages.dev | `isotank-hf-demo` |
+| 大阪冒險電子書 | https://osaka-book.pages.dev | `osaka-book` |
+| 互動式網站 Lv1-5 | https://interactive-site.pages.dev | `interactive-site` |
+| Padlet 留言板 | https://padlet-board-app.pages.dev | `padlet-board-app` |
+
+### ⚠️ 已知待處理問題（低優先度）
+- **子專案內的「返回大廳」按鈕沒有反應**：各子專案（如 hr-quiz-v2、nitrogen-valve-training 等）頁面內部有返回大廳按鈕，但連結未設定或設錯。待日後逐一修改各子專案的 `index.html`，將返回按鈕改為連結到 `https://google-agent.pages.dev`，並重新用 `wrangler pages deploy` 部署。
+
+### 🔧 重新部署任何子專案的標準指令
+```powershell
+# 排除大檔案後部署
+$src = "說明書\projects\<資料夾名稱>"
+$tmp = "$env:TEMP\<資料夾名稱>_deploy"
+Copy-Item $src $tmp -Recurse
+Get-ChildItem $tmp -Recurse | Where-Object { $_.Length -gt 25MB } | Remove-Item -Force
+wrangler pages deploy $tmp --project-name "<cloudflare-project-name>" --commit-dirty=true
+```
+
+### 🔧 重新部署主大廳的標準指令（排除大檔案）
+```powershell
+$tmp = "$env:TEMP\portal_deploy_clean"
+if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+Copy-Item "說明書" $tmp -Recurse
+Get-ChildItem $tmp -Recurse | Where-Object { $_.Length -gt 25MB } | Remove-Item -Force
+wrangler pages deploy $tmp --project-name "google-agent" --commit-dirty=true
+```
+
+### ⚠️ 重要：大廳更新後必須用 Wrangler 直接部署
+- `git push` **不會自動觸發** Cloudflare Pages 更新（GitHub 與 Cloudflare 連結可能斷開）
+- 每次修改 `說明書/index.html` 後，必須執行上面的「重新部署主大廳」指令
+- `說明書/projects/hr_quiz_v2/MP3生成工具.exe` 是 35.2MB 的大檔案，**每次部署都必須排除**（已寫入腳本中）
+
+---
+
 ## 📅 最新交接紀錄 (2026-08-03)
+
 
 ### 🚨 發生錯誤：雙庫架構混淆導致原始碼遺失
 * **狀況描述**：在公司操作時，不小心將只包含說明書的網頁版專案大廳 (`agent-portal` 的結構) 推送並覆蓋到了存放完整程式碼的 `google-agent` 總庫。導致三大類別底下的子資料夾 (程式碼、指令碼等) 全部消失，只剩下 `.md` 說明檔。
