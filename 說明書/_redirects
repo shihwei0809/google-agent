@@ -1,0 +1,10 @@
+# Cloudflare Pages Redirects
+# Allow static files to be served normally.
+# Only fall back to index.html for routes without file extensions (SPA routing).
+# This prevents the recursive URL bug when navigating between the portal and sub-projects.
+
+# Sub-project static assets (pass through as-is)
+/projects/*  /projects/:splat  200
+
+# SPA fallback: only for paths without a dot (no file extension)
+/*  /index.html  200
