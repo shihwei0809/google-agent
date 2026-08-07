@@ -71,57 +71,23 @@
           <div class="space-y-3">
             <div class="flex flex-col md:flex-row justify-between md:items-center gap-2">
               <label class="block text-xs font-bold text-indigo-300">🎯 應徵目標職務與部門：</label>
-              <div class="flex items-center gap-2 text-xs">
+              <div class="flex items-center gap-2 text-xs flex-wrap">
+                <button type="button" onclick="trigger104Crawler()" class="px-2.5 py-1 bg-amber-600/20 hover:bg-amber-600/40 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer">
+                  <span>🌐 點我連線 104 自動爬取/更新職缺需求至 Excel</span>
+                </button>
+                <a href="/api/download-job-specs-excel" target="_blank" class="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer">
+                  <span>📥 下載/開啟職缺清單 Excel</span>
+                </a>
                 <span class="text-slate-400">選單快速帶入：</span>
                 <select id="preTargetPosSelect" onchange="onPrePosSelectChange(this.value)" class="bg-slate-950 border border-indigo-500/40 rounded-lg text-xs px-3 py-1.5 text-indigo-300 focus:outline-none focus:border-indigo-500 font-medium">
-                  <option value="" disabled selected>-- 請選擇應徵職務類別 --</option>
-                  <optgroup label="🏭 勝一化工 & 廠區管理類">
-                    <option value="【彰濱廠區】助理管理師">【彰濱廠區】助理管理師 [推薦]</option>
-                    <option value="【彰濱廠區】品管/檢驗工程師">【彰濱廠區】品管/檢驗工程師</option>
-                    <option value="【彰濱廠區】現場生產/化學工程師">【彰濱廠區】現場生產/化學工程師</option>
-                    <option value="【彰濱廠區】環安衛 (ESH) 管理師">【彰濱廠區】環安衛 (ESH) 管理師</option>
-                    <option value="廠務 / 設備維護運轉工程師">廠務 / 設備維護運轉工程師</option>
-                  </optgroup>
-                  <optgroup label="📦 資材與物料供應鏈類">
-                    <option value="資材部 - 現場助理工程師">資材部 - 現場助理工程師 [推薦]</option>
-                    <option value="資材部 - 資材工程師">資材部 - 資材工程師</option>
-                    <option value="資材部 - 資材行政專員">資材部 - 資材行政專員</option>
-                    <option value="倉管 / 物料管理員">倉管 / 物料管理員</option>
-                    <option value="採購專員 / 物料控制 (MC)">採購專員 / 物料控制 (MC)</option>
-                  </optgroup>
-                  <optgroup label="💼 行政、財務與人資類">
-                    <option value="會計行政人員 / 財務專員">會計行政人員 / 財務專員</option>
-                    <option value="行政管理助理 / 專員">行政管理助理 / 專員</option>
-                    <option value="人資 (HR) 招募/訓練管理師">人資 (HR) 招募/訓練管理師</option>
-                    <option value="高階主管特別助理 (特助)">高階主管特別助理 (特助)</option>
-                  </optgroup>
-                  <optgroup label="🔬 研發品保與技術專案類">
-                    <option value="研發 (RD) 化學工程師">研發 (RD) 化學工程師</option>
-                    <option value="資訊 / 軟體開發工程師">資訊 / 軟體開發工程師</option>
-                    <option value="品保 (QA/QC) 系統工程師">品保 (QA/QC) 系統工程師</option>
-                  </optgroup>
-                  <optgroup label="📢 業務行銷與客服支援類">
-                    <option value="國內 / 國外業務專員">國內 / 國外業務專員</option>
-                    <option value="行銷企劃 / 電商營運專員">行銷企劃 / 電商營運專員</option>
-                    <option value="客戶服務 / 訂單後勤專員">客戶服務 / 訂單後勤專員</option>
-                  </optgroup>
-                  <optgroup label="🌐 通用">
-                    <option value="通用跨部門人才評估">通用跨部門人才評估</option>
-                  </optgroup>
+                  <option value="" disabled selected>-- 讀取職缺清單中... --</option>
                 </select>
               </div>
             </div>
 
-            <!-- Quick Preset Tags -->
-            <div class="flex flex-wrap gap-1.5 pt-1">
-              <button type="button" onclick="setPrePosition('【彰濱廠區】助理管理師')" class="px-2.5 py-1 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 rounded-lg text-xs font-semibold border border-indigo-500/30 cursor-pointer">【彰濱廠區】助理管理師</button>
-              <button type="button" onclick="setPrePosition('資材部 - 現場助理工程師')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">資材部 - 現場助理工程師</button>
-              <button type="button" onclick="setPrePosition('資材部 - 資材工程師')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">資材部 - 資材工程師</button>
-              <button type="button" onclick="setPrePosition('資材部 - 資材行政專員')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">資材部 - 資材行政專員</button>
-              <button type="button" onclick="setPrePosition('會計行政人員')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">會計行政人員</button>
-              <button type="button" onclick="setPrePosition('倉管 / 物料管理員')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">倉管/物料員</button>
-              <button type="button" onclick="setPrePosition('研發 (RD) 化學工程師')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">研發化學工程師</button>
-              <button type="button" onclick="setPrePosition('人資 (HR) 招募/訓練管理師')" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold border border-slate-700 cursor-pointer">人資HR管理師</button>
+            <!-- Quick Preset Tags (Dynamic from Excel) -->
+            <div id="quickPresetTagsContainer" class="flex flex-wrap gap-1.5 pt-1">
+              <!-- Dynamic JS buttons -->
             </div>
 
             <!-- Input Box -->
@@ -1260,8 +1226,53 @@
       }
     }
 
+    async function loadJobPositions() {
+      try {
+        const res = await fetch('/api/job-positions');
+        const data = await res.json();
+        const positions = data.positions || [];
+        const tags = data.tags || [];
+
+        const selectEl = document.getElementById('preTargetPosSelect');
+        if (selectEl && positions.length > 0) {
+          const groups = {};
+          positions.forEach(p => {
+            const cat = p.category || '通用職缺類';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push(p);
+          });
+
+          let html = '<option value="" disabled selected>-- 請選擇應徵職務類別 (讀取自 Excel) --</option>';
+          for (const cat in groups) {
+            html += `<optgroup label="${cat}">`;
+            groups[cat].forEach(p => {
+              html += `<option value="${p.title}">${p.title}</option>`;
+            });
+            html += `</optgroup>`;
+          }
+          selectEl.innerHTML = html;
+        }
+
+        const tagsContainer = document.getElementById('quickPresetTagsContainer');
+        if (tagsContainer) {
+          if (tags.length > 0) {
+            tagsContainer.innerHTML = tags.map((t, idx) => `
+              <button type="button" onclick="setPrePosition('${t}')" class="px-2.5 py-1 ${idx===0 ? 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border-indigo-500/30' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'} rounded-lg text-xs font-semibold border cursor-pointer">${t}</button>
+            `).join('');
+          } else if (positions.length > 0) {
+            tagsContainer.innerHTML = positions.slice(0, 8).map((p, idx) => `
+              <button type="button" onclick="setPrePosition('${p.title}')" class="px-2.5 py-1 ${idx===0 ? 'bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border-indigo-500/30' : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'} rounded-lg text-xs font-semibold border cursor-pointer">${p.title}</button>
+            `).join('');
+          }
+        }
+      } catch (err) {
+        console.warn('載入動態職缺清單失敗:', err);
+      }
+    }
+
     // 初始化
     checkKeyStatus();
+    loadJobPositions();
     loadHistory();
   </script>
 </body>
