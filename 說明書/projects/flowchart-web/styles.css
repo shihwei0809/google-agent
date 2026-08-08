@@ -243,18 +243,11 @@ body {
   padding: 32px;
   position: relative;
   overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  /* Use block layout instead of flex centering to prevent left-side cutoff on small screens */
+  display: block;
 }
 
-.flowchart-svg {
-  width: 100%;
-  height: 100%;
-  max-width: 1200px;
-  max-height: 600px;
-  filter: drop-shadow(var(--shadow-lg));
-}
+
 
 /* Interactive SVG components styling */
 .svg-tank-card {
@@ -642,6 +635,23 @@ body {
   border-radius: 8px;
   background-image: radial-gradient(var(--border-subtle) 1.5px, transparent 0);
   background-size: 24px 24px;
+}
+
+/* When edit panel is open, add padding to ensure scrollability doesn't hide elements under the panel */
+.canvas-container.edit-panel-open {
+  padding-right: 340px;
+  transition: padding-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.flowchart-svg {
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+  height: auto;
+  max-width: 1200px;
+  min-width: 850px;
+  max-height: 700px;
+  filter: drop-shadow(var(--shadow-lg));
 }
 
 /* ==================== AI CHAT WIDGET STYLING ==================== */

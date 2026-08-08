@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>互動式教學駕駛艙 - 演示面板</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --sidebar-bg: #1e293b;
+      --card-bg: rgba(30, 41, 59, 0.4);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-purple: #8b5cf6;
+      --neon-pink: #ec4899;
+      --neon-orange: #f97316;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Course Index */
+    .sidebar {
+      width: 320px;
+      background-color: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .sidebar-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sidebar-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sidebar-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      background: var(--neon-orange);
+      color: white;
+    }
+
+    .slides-list {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .slide-item {
+      padding: 1rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .slide-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateX(4px);
+    }
+
+    .slide-item.active {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: var(--neon-purple);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.1);
+    }
+
+    .slide-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+
+    .slide-item.active .slide-meta {
+      color: var(--neon-purple);
+    }
+
+    .slide-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .slide-type-tag {
+      font-size: 0.7rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .type-slide { background: rgba(6, 182, 212, 0.15); color: var(--neon-cyan); }
+    .type-interactive { background: rgba(249, 115, 22, 0.15); color: var(--neon-orange); }
+
+    /* Right Main Workspace */
+    .workspace {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: #0b0f19;
+      position: relative;
+    }
+
+    .workspace-header {
+      height: 60px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      background: var(--sidebar-bg);
+    }
+
+    .current-topic {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .control-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+      border: none;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+    }
+
+    /* Content Area */
+    .content-viewport {
+      flex-grow: 1;
+      padding: 3rem;
+      overflow-y: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .slide-card {
+      width: 100%;
+      max-width: 900px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 3rem;
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      animation: fade-in 0.4s ease-out;
+    }
+
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide-body {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .slide-headline {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #fff, var(--text-sub));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.3;
+    }
+
+    .slide-desc {
+      font-size: 1.1rem;
+      color: var(--text-sub);
+      line-height: 1.7;
+    }
+
+    /* Interactive Quiz Page Styling */
+    .quiz-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+      margin-top: 1.5rem;
+    }
+
+    .quiz-option-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 1.2rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .quiz-option-card:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .quiz-option-letter {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      color: var(--neon-cyan);
+    }
+
+    /* Chart Result Styling (Matching the circular/pie chart screenshot) */
+    .results-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      gap: 2rem;
+      margin-top: 1.5rem;
+    }
+
+    .chart-donut {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--neon-orange) 0% 36%, 
+        var(--neon-cyan) 36% 48%, 
+        var(--neon-green) 48% 81%, 
+        var(--neon-red) 81% 90%, 
+        var(--neon-purple) 90% 96%, 
+        var(--neon-pink) 96% 100%
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .chart-donut-inner {
+      width: 120px;
+      height: 120px;
+      background: #111827;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .total-votes {
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+
+    .total-votes-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      text-transform: uppercase;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      flex-grow: 1;
+      max-width: 350px;
+    }
+
+    .legend-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+    }
+
+    .legend-label-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .legend-pct-val {
+      font-weight: 700;
+    }
+
+    /* Bottom Controller bar */
+    .bottom-controller {
+      height: 70px;
+      background: var(--sidebar-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      z-index: 10;
+    }
+
+    .page-indicator {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar: Course Events Outline -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">教學駕駛艙 <span class="sidebar-badge">演示</span></div>
+      <span style="font-size: 0.75rem; color: var(--text-sub);">38 位學生在線</span>
+    </div>
+    
+    <div class="slides-list" id="sidebar-list">
+      <!-- Generated dynamically -->
+    </div>
+  </div>
+
+  <!-- Right Main Workspace -->
+  <div class="workspace">
+    <div class="workspace-header">
+      <div class="current-topic" id="header-topic">載入中...</div>
+      <div class="control-actions">
+        <button class="btn" onclick="resetAnswers()"><span style="color:var(--neon-red);">🔄</span> 重置學員答題</button>
+        <button class="btn btn-primary" onclick="alert('已同步推送此測驗給所有學員！')">📢 推送互動測驗</button>
+      </div>
+    </div>
+
+    <!-- Main Viewport displaying active slide card -->
+    <div class="content-viewport">
+      <div class="slide-card" id="active-card">
+        <!-- Dynmically loaded slide card -->
+      </div>
+    </div>
+
+    <!-- Bottom controller bar -->
+    <div class="bottom-controller">
+      <button class="btn" onclick="prevSlide()">← 上一張</button>
+      <div class="page-indicator" id="bottom-page-indicator">1 / 6</div>
+      <button class="btn" onclick="nextSlide()">下一張 →</button>
+    </div>
+  </div>
+
+  <script>
+    // Slide database (mixture of content slides and interactive poll/quiz slides)
+    const slidesData = [
+      {
+        index: 1,
+        title: "1. 英國文化介紹 (Presentation)",
+        type: "slide",
+        headline: "Introduction to British Culture (英國文化介紹)",
+        desc: "英國是位於西歐的島國，首都為倫敦。英國有著豐富的歷史和文化，包括著名的石亨奇（巨石陣）、巴斯古城等。英國人喜愛足球、板球等運動，同時也擁有許多著名的大學，如牛津、劍橋等。"
+      },
+      {
+        index: 2,
+        title: "2. 測驗 Q1: 英國的首都",
+        type: "interactive",
+        headline: "Q1: 英國的首都是什麼？ (What is the capital of the UK?)",
+        isQuiz: true,
+        options: [
+          { letter: "A", text: "倫敦 (London)" },
+          { letter: "B", text: "巴黎 (Paris)" },
+          { letter: "C", text: "柏林 (Berlin)" }
+        ],
+        correctAnswer: "A",
+        explanation: "正確答案是 A) 倫敦。倫敦是英國的首都，也是其最大城市與經濟、文化中心。"
+      },
+      {
+        index: 3,
+        title: "3. 測驗 Q2: 喜愛的運動",
+        type: "interactive",
+        headline: "Q2: 英國人最喜愛的運動是什麼？ (What is the favorite sport of British people?)",
+        isQuiz: true,
+        options: [
+          { letter: "A", text: "籃球 (Basketball)" },
+          { letter: "B", text: "足球 (Football)" },
+          { letter: "C", text: "網球 (Tennis)" }
+        ],
+        correctAnswer: "B",
+        explanation: "正確答案是 B) 足球。英國人非常喜愛足球（以及板球），英格蘭足球超級聯賽 (PL) 更是全球最受歡迎的聯賽之一。"
+      },
+      {
+        index: 4,
+        title: "4. 測驗 Q3: 著名大學",
+        type: "interactive",
+        headline: "Q3: 英國有哪些著名的大學？ (Which are famous UK universities?)",
+        isQuiz: true,
+        options: [
+          { letter: "A", text: "牛津、劍橋 (Oxford, Cambridge)" },
+          { letter: "B", text: "哈佛、斯坦福 (Harvard, Stanford)" },
+          { letter: "C", text: "劍橋、牛津、哈佛 (Cambridge, Oxford, Harvard)" }
+        ],
+        correctAnswer: "A",
+        explanation: "正確答案是 A) 牛津與劍橋。這兩所大學是英國歷史最悠久、最著名的高等學府，合稱「牛劍 (Oxbridge)」。"
+      },
+      {
+        index: 5,
+        title: "5. 測驗 Q4: 著名歷史文化古蹟",
+        type: "interactive",
+        headline: "Q4: 下列何者是簡報中提到英國著名的歷史文化古蹟？",
+        isQuiz: true,
+        options: [
+          { letter: "A", text: "石亨奇與巴斯古城 (Stonehenge & Bath)" },
+          { letter: "B", text: "羅馬競技場與萬神殿 (Colosseum & Pantheon)" },
+          { letter: "C", text: "金字塔與人面獅身像 (Pyramids & Sphinx)" }
+        ],
+        correctAnswer: "A",
+        explanation: "正確答案是 A) 石亨奇（巨石陣）與巴斯古城。這兩者均為英國極具代表性的世界文化遺產。"
+      },
+      {
+        index: 6,
+        title: "6. 測驗 Q5: 英國的地理位置",
+        type: "interactive",
+        headline: "Q5: 根據簡報，英國是位於哪裡的島國？",
+        isQuiz: true,
+        options: [
+          { letter: "A", text: "東歐 (Eastern Europe)" },
+          { letter: "B", text: "西歐 (Western Europe)" },
+          { letter: "C", text: "北美洲 (North America)" }
+        ],
+        correctAnswer: "B",
+        explanation: "正確答案是 B) 西歐。英國是位於西歐大西洋上的島嶼國家。"
+      }
+    ];
+
+    let currentActiveIndex = 0;
+
+    // Build left sidebar list on load
+    window.addEventListener('load', () => {
+      renderSidebar();
+      loadSlide(0);
+    });
+
+    function renderSidebar() {
+      const container = document.getElementById('sidebar-list');
+      container.innerHTML = '';
+      
+      slidesData.forEach((s, idx) => {
+        const item = document.createElement('div');
+        item.className = `slide-item ${idx === currentActiveIndex ? 'active' : ''}`;
+        item.onclick = () => loadSlide(idx);
+        
+        const typeLabel = s.type === 'slide' ? '投影片' : '互動室';
+        const typeClass = s.type === 'slide' ? 'type-slide' : 'type-interactive';
+        
+        item.innerHTML = `
+          <div class="slide-meta">
+            <span>頁數 ${s.index}</span>
+            <span class="slide-type-tag ${typeClass}">${typeLabel}</span>
+          </div>
+          <div class="slide-title">${s.title.substring(3)}</div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function loadSlide(index) {
+      currentActiveIndex = index;
+      
+      // Update sidebar active state
+      const items = document.querySelectorAll('.slide-item');
+      items.forEach((item, idx) => {
+        if (idx === index) item.classList.add('active');
+        else item.classList.remove('active');
+      });
+
+      const slide = slidesData[index];
+      
+      // Update header & page numbers
+      document.getElementById('header-topic').textContent = slide.title;
+      document.getElementById('bottom-page-indicator').textContent = `${slide.index} / ${slidesData.length}`;
+
+      // Update card content area
+      const card = document.getElementById('active-card');
+      card.innerHTML = '';
+
+      if (slide.type === 'slide') {
+        // Render content slide
+        card.innerHTML = `
+          <div class="slide-body">
+            <h2 class="slide-headline">${slide.headline}</h2>
+            <p class="slide-desc">${slide.desc}</p>
+          </div>
+        `;
+      } else if (slide.isPoll) {
+        // Render Poll Results (Donut/Pie chart matching the screenshot)
+        let legendHTML = '';
+        let totalVotes = 0;
+        
+        Object.entries(slide.votes).forEach(([label, info]) => {
+          totalVotes += info.count;
+          legendHTML += `
+            <div class="legend-item">
+              <div class="legend-label-group">
+                <span class="legend-color" style="background: ${info.color};"></span>
+                <span>${label}</span>
+              </div>
+              <div>
+                <span class="legend-pct-val">${info.pct}%</span>
+                <span style="color:var(--text-sub); font-size:0.8rem; margin-left:0.4rem;">(${info.count})</span>
+              </div>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="slide-body">
+            <h2 class="slide-headline" style="font-size:1.8rem; margin-bottom:1rem;">${slide.headline}</h2>
+            <div class="results-display">
+              <div class="chart-donut">
+                <div class="chart-donut-inner">
+                  <span class="total-votes">${totalVotes}</span>
+                  <span class="total-votes-label">總票數</span>
+                </div>
+              </div>
+              <div class="chart-legend">
+                <div style="font-size: 0.85rem; font-weight: 700; color: var(--neon-cyan); margin-bottom: 0.5rem; text-transform: uppercase;">圓形圖即時結果</div>
+                ${legendHTML}
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (slide.isQuiz) {
+        // Render Interactive Quiz with options
+        let optionsHTML = '';
+        slide.options.forEach(opt => {
+          optionsHTML += `
+            <div class="quiz-option-card" onclick="selectQuizOption('${opt.letter}')" id="opt-${opt.letter}">
+              <span class="quiz-option-letter" id="letter-${opt.letter}">${opt.letter}</span>
+              <span style="font-size:0.95rem; font-weight:600;">${opt.text}</span>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <div class="slide-body">
+            <h2 class="slide-headline" style="font-size:1.6rem; margin-bottom:1rem;">${slide.headline}</h2>
+            <p class="slide-desc" style="font-size:0.95rem; margin-bottom:1.5rem;">請點擊選項進行作答，系統將即時分析結果：</p>
+            <div class="quiz-options">
+              ${optionsHTML}
+            </div>
+            <div id="quiz-feedback" style="margin-top:1.5rem; font-size:0.95rem; font-weight:700; display:none; padding:1rem; border-radius:12px;"></div>
+          </div>
+        `;
+      }
+    }
+
+    function selectQuizOption(letter) {
+      const slide = slidesData[currentActiveIndex];
+      if (!slide.isQuiz) return;
+
+      const cards = document.querySelectorAll('.quiz-option-card');
+      cards.forEach(c => {
+        c.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+        c.style.background = 'rgba(255, 255, 255, 0.02)';
+      });
+
+      const selectedCard = document.getElementById(`opt-${letter}`);
+      const feedback = document.getElementById('quiz-feedback');
+      feedback.style.display = 'block';
+
+      if (letter === slide.correctAnswer) {
+        selectedCard.style.borderColor = 'var(--neon-green)';
+        selectedCard.style.background = 'rgba(16, 185, 129, 0.08)';
+        feedback.style.background = 'rgba(16, 185, 129, 0.12)';
+        feedback.style.color = 'var(--neon-green)';
+        feedback.innerHTML = `🎉 答對了！${slide.explanation || ''}`;
+      } else {
+        selectedCard.style.borderColor = 'var(--neon-red)';
+        selectedCard.style.background = 'rgba(239, 68, 68, 0.08)';
+        feedback.style.background = 'rgba(239, 68, 68, 0.12)';
+        feedback.style.color = 'var(--neon-red)';
+        feedback.innerHTML = `❌ 答錯囉！正確答案是 ${slide.correctAnswer}。${slide.explanation || ''}`;
+      }
+    }
+
+    function resetAnswers() {
+      alert('已成功清除所有學員在當前頁面的提交紀錄，請全班重新作答！');
+      if (slidesData[currentActiveIndex].isQuiz) {
+        loadSlide(currentActiveIndex); // Reload slide to reset UI state
+      }
+    }
+
+    function prevSlide() {
+      if (currentActiveIndex > 0) {
+        loadSlide(currentActiveIndex - 1);
+      }
+    }
+
+    function nextSlide() {
+      if (currentActiveIndex < slidesData.length - 1) {
+        loadSlide(currentActiveIndex + 1);
+      }
+    }
+  </script>
+</body>
+</html>

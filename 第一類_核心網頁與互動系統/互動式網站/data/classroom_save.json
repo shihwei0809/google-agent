@@ -1,0 +1,85 @@
+{
+  "currentSlide": 6,
+  "answers": {
+    "A": 0,
+    "B": 0,
+    "C": 0,
+    "D": 0
+  },
+  "voters": [],
+  "voteRecords": [],
+  "slidesData": [
+    {
+      "index": 1,
+      "title": "1. 英國文化介紹 (Presentation)",
+      "type": "slide",
+      "headline": "Introduction to British Culture (英國文化介紹)",
+      "desc": "英國是位於西歐的島國，首都為倫敦。英國有著豐富的歷史和文化，包括著名的石亨奇（巨石陣）、巴斯古城等。英國人喜愛足球、板球等運動，同時也擁有許多著名的大學，如牛津、劍橋等。"
+    },
+    {
+      "index": 2,
+      "title": "2. 測驗 Q1: 英國的首都",
+      "type": "interactive",
+      "headline": "Q1: 英國的首都是什麼？ (What is the capital of the UK?)",
+      "options": {
+        "A": "倫敦 (London)",
+        "B": "巴黎 (Paris)",
+        "C": "柏林 (Berlin)",
+        "D": "羅馬 (Rome)"
+      },
+      "correctAnswer": "A"
+    },
+    {
+      "index": 3,
+      "title": "3. 測驗 Q2: 喜愛的運動",
+      "type": "interactive",
+      "headline": "Q2: 英國人最喜愛的運動是什麼？ (What is the favorite sport?)",
+      "options": {
+        "A": "籃球 (Basketball)",
+        "B": "足球 (Football)",
+        "C": "網球 (Tennis)",
+        "D": "棒球 (Baseball)"
+      },
+      "correctAnswer": "B"
+    },
+    {
+      "index": 4,
+      "title": "4. 測驗 Q3: 著名大學",
+      "type": "interactive",
+      "headline": "Q3: 英國有哪些著名的大學？ (Which are famous UK universities?)",
+      "options": {
+        "A": "牛津、劍橋 (Oxford, Cambridge)",
+        "B": "哈佛、斯坦福 (Harvard, Stanford)",
+        "C": "劍橋、牛津、哈佛",
+        "D": "東京大學、京都大學"
+      },
+      "correctAnswer": "A"
+    },
+    {
+      "index": 5,
+      "title": "5. 測驗 Q4: 著名歷史文化古蹟",
+      "type": "interactive",
+      "headline": "Q4: 下列何者是簡報中提到英國著名的歷史古蹟？",
+      "options": {
+        "A": "石亨奇與巴斯古城",
+        "B": "羅馬競技場與萬神殿",
+        "C": "埃及金字塔與獅身像",
+        "D": "萬里長城與故宮"
+      },
+      "correctAnswer": "A"
+    },
+    {
+      "index": 6,
+      "title": "6. 測驗 Q5: 英國的地理位置",
+      "type": "interactive",
+      "headline": "Q5: 根據簡報，英國是位於哪裡的島國？",
+      "options": {
+        "A": "東歐 (Eastern Europe)",
+        "B": "西歐 (Western Europe)",
+        "C": "北美洲 (North America)",
+        "D": "東南亞 (Southeast Asia)"
+      },
+      "correctAnswer": "B"
+    }
+  ]
+}

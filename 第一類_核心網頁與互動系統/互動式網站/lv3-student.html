@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Level 3 課堂即時同步測驗 - 學員端</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --card-bg: rgba(17, 25, 40, 0.75);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-purple: #8b5cf6;
+      --neon-pink: #ec4899;
+      --neon-orange: #f97316;
+      --neon-red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.06) 0%, transparent 60%);
+      background-attachment: fixed;
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      z-index: 10;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .home-btn {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .home-btn:hover {
+      color: var(--neon-cyan);
+    }
+
+    .status-badge {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 50px;
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--neon-green);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--neon-green);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff, var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slogan {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 1rem;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .input-group label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .input-field {
+      background: rgba(9, 13, 22, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 0.8rem 1rem;
+      color: white;
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+
+    .input-field:focus {
+      outline: none;
+      border-color: var(--neon-purple);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.2);
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 1rem;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+      color: white;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .action-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-2px);
+    }
+
+    /* Option item */
+    .option-item {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-bottom: 0.8rem;
+      transition: all 0.3s ease;
+    }
+
+    .option-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.12);
+      transform: translateX(4px);
+    }
+
+    .option-item.selected {
+      background: rgba(139, 92, 246, 0.08);
+      border-color: var(--neon-purple);
+    }
+
+    .option-radio {
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--text-sub);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .option-item.selected .option-radio {
+      border-color: var(--neon-purple);
+      background: var(--neon-purple);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+    }
+
+    /* Feedback message */
+    .feedback-box {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      display: none;
+    }
+
+    .feedback-box.correct {
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--neon-green);
+    }
+
+    .feedback-box.incorrect {
+      background: rgba(239, 68, 68, 0.12);
+      color: var(--neon-red);
+    }
+
+    /* Sync mode panels */
+    #register-panel {
+      display: block;
+    }
+
+    #classroom-panel {
+      display: none;
+    }
+
+    #sync-wait-panel {
+      display: none;
+      text-align: center;
+      padding: 2.5rem 1rem;
+    }
+
+    /* Waiting animation */
+    .loader {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--neon-purple);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <a class="home-btn" href="index.html">← 首頁</a>
+      <span class="status-badge" id="status-tag"><span class="status-dot"></span> 連線中</span>
+    </div>
+
+    <!-- PANEL 1: Register nickname -->
+    <div class="card" id="register-panel">
+      <h1>加入課堂即時同步測驗</h1>
+      <p class="slogan">請輸入您的姓名或學號，以進行即時答題同步</p>
+      
+      <div class="input-group">
+        <label for="nickname-input">學員姓名 / 暱稱</label>
+        <input type="text" id="nickname-input" class="input-field" placeholder="例如：李小明 或 70102">
+      </div>
+      <button class="action-btn" onclick="registerName()">進入互動室</button>
+    </div>
+
+    <!-- PANEL 2: Classroom Active Quiz -->
+    <div class="card" id="classroom-panel">
+      <h1 id="quiz-question-title">載入問題中...</h1>
+      <p class="slogan" id="quiz-slogan-page">請選擇您的答案：</p>
+      
+      <div id="quiz-options-container">
+        <!-- Rendered dynamically -->
+      </div>
+      
+      <button class="action-btn" id="submit-btn" onclick="submitAnswer()">送出答案</button>
+      
+      <div class="feedback-box" id="quiz-feedback"></div>
+    </div>
+
+    <!-- PANEL 3: Waiting for tutor slide state -->
+    <div class="card" id="sync-wait-panel">
+      <div class="loader"></div>
+      <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">講師正在講授投影片...</h2>
+      <p style="color: var(--text-sub); font-size: 0.9rem;">請看大螢幕，當講師翻到下一題測驗時，本畫面會自動更新！</p>
+    </div>
+  </div>
+
+  <script>
+    // Quiz configuration matching Tutor View
+    const slidesData = [
+      {
+        index: 1,
+        title: "1. 英國文化介紹 (Presentation)",
+        type: "slide"
+      },
+      {
+        index: 2,
+        title: "2. 測驗 Q1: 英國的首都",
+        type: "interactive",
+        headline: "Q1: 英國的首都是什麼？",
+        options: { "A": "倫敦 (London)", "B": "巴黎 (Paris)", "C": "柏林 (Berlin)" },
+        correctAnswer: "A",
+        explanation: "正確答案是 A) 倫敦。倫敦是英國的首都。"
+      },
+      {
+        index: 3,
+        title: "3. 測驗 Q2: 喜愛的運動",
+        type: "interactive",
+        headline: "Q2: 英國人最喜愛的運動是什麼？",
+        options: { "A": "籃球 (Basketball)", "B": "足球 (Football)", "C": "網球 (Tennis)" },
+        correctAnswer: "B",
+        explanation: "正確答案是 B) 足球。英國人非常喜愛足球（以及板球）。"
+      },
+      {
+        index: 4,
+        title: "4. 測驗 Q3: 著名大學",
+        type: "interactive",
+        headline: "Q3: 英國有哪些著名的大學？",
+        options: { "A": "牛津、劍橋 (Oxford, Cambridge)", "B": "哈佛、斯坦福 (Harvard, Stanford)", "C": "劍橋、牛津、哈佛" },
+        correctAnswer: "A",
+        explanation: "正確答案是 A) 牛津與劍橋。"
+      },
+      {
+        index: 5,
+        title: "5. 測驗 Q4: 著名歷史文化古蹟",
+        type: "interactive",
+        headline: "Q4: 下列何者是簡報中提到英國著名的歷史古蹟？",
+        options: { "A": "石亨奇與巴斯古城", "B": "羅馬競技場與萬神殿", "C": "埃及金字塔與獅身像" },
+        correctAnswer: "A",
+        explanation: "正確答案是 A) 石亨奇與巴斯古城。"
+      },
+      {
+        index: 6,
+        title: "6. 測驗 Q5: 英國的地理位置",
+        type: "interactive",
+        headline: "Q5: 根據簡報，英國是位於哪裡的島國？",
+        options: { "A": "東歐 (Eastern Europe)", "B": "西歐 (Western Europe)", "C": "北美洲 (North America)" },
+        correctAnswer: "B",
+        explanation: "正確答案是 B) 西歐。英國是位於西歐大西洋上的島國。"
+      }
+    ];
+
+    let nickname = '';
+    let currentSlideIndex = 1;
+    let selectedAnswer = null;
+    let submittedSlideIndex = null; // Prevent resubmission on the same slide page
+
+    window.addEventListener('load', () => {
+      // Load saved nickname if exists
+      const savedName = localStorage.getItem('class_nickname');
+      if (savedName) {
+        document.getElementById('nickname-input').value = savedName;
+      }
+      
+      // Keep syncing classroom state in background (every 500ms)
+      setInterval(syncClassroom, 500);
+    });
+
+    function registerName() {
+      const input = document.getElementById('nickname-input').value.trim();
+      if (!input) {
+        alert("請輸入姓名！");
+        return;
+      }
+      nickname = input;
+      localStorage.setItem('class_nickname', nickname);
+      
+      document.getElementById('register-panel').style.display = 'none';
+      syncClassroom();
+    }
+
+    async function syncClassroom() {
+      if (!nickname) return; // Wait for registration
+
+      try {
+        const response = await fetch('/api/class-state');
+        if (!response.ok) return;
+        const data = await response.json();
+
+        // Check if tutor reset the quiz or switched slides
+        if (data.currentSlide !== currentSlideIndex) {
+          currentSlideIndex = data.currentSlide;
+          selectedAnswer = null;
+          document.getElementById('quiz-feedback').style.display = 'none';
+          document.getElementById('submit-btn').disabled = false;
+          document.getElementById('submit-btn').style.opacity = '1';
+        }
+
+        // Check if tutor cleared answers for this slide
+        if (data.voters.length === 0) {
+          submittedSlideIndex = null;
+          selectedAnswer = null;
+          document.getElementById('quiz-feedback').style.display = 'none';
+          document.getElementById('submit-btn').disabled = false;
+          document.getElementById('submit-btn').style.opacity = '1';
+        }
+
+        const currentSlide = slidesData[currentSlideIndex - 1];
+
+        if (currentSlide.type === 'slide') {
+          // Tutor is displaying presentation: Show sync wait screen
+          document.getElementById('classroom-panel').style.display = 'none';
+          document.getElementById('sync-wait-panel').style.display = 'block';
+        } else {
+          // Tutor triggered quiz: Display active options
+          document.getElementById('sync-wait-panel').style.display = 'none';
+          document.getElementById('classroom-panel').style.display = 'block';
+
+          renderQuizUI(currentSlide);
+        }
+
+        document.getElementById('status-tag').innerHTML = '<span class="status-dot"></span> 同步中';
+      } catch (e) {
+        document.getElementById('status-tag').innerHTML = '<span class="status-dot" style="background:var(--neon-red);"></span> 伺服器離線';
+      }
+    }
+
+    function renderQuizUI(slide) {
+      document.getElementById('quiz-question-title').textContent = slide.headline;
+      document.getElementById('quiz-slogan-page').textContent = `第 ${slide.index} 頁 隨堂測驗：`;
+
+      // Only build options if user hasn't selected yet to prevent redrawing while clicking
+      const optionsContainer = document.getElementById('quiz-options-container');
+      
+      // If student already submitted this page, disable changing options
+      const alreadySubmitted = submittedSlideIndex === currentSlideIndex;
+
+      if (optionsContainer.children.length === 0 || optionsContainer.dataset.index !== String(currentSlideIndex)) {
+        optionsContainer.innerHTML = '';
+        optionsContainer.dataset.index = currentSlideIndex;
+
+        Object.entries(slide.options).forEach(([letter, text]) => {
+          const opt = document.createElement('div');
+          opt.className = 'option-item';
+          opt.id = `item-${letter}`;
+          opt.onclick = () => selectOption(letter);
+
+          opt.innerHTML = `
+            <span class="option-radio"></span>
+            <span>${letter}. ${text}</span>
+          `;
+          optionsContainer.appendChild(opt);
+        });
+      }
+    }
+
+    function selectOption(letter) {
+      if (submittedSlideIndex === currentSlideIndex) return; // Cannot change answer after submission
+
+      selectedAnswer = letter;
+      const items = document.querySelectorAll('.option-item');
+      items.forEach(item => item.classList.remove('selected'));
+
+      document.getElementById(`item-${letter}`).classList.add('selected');
+    }
+
+    async function submitAnswer() {
+      if (!selectedAnswer) {
+        alert("請選擇一個選項！");
+        return;
+      }
+      if (submittedSlideIndex === currentSlideIndex) return;
+
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.disabled = true;
+      submitBtn.style.opacity = '0.5';
+
+      try {
+        const response = await fetch('/api/submit-answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nickname: nickname,
+            answer: selectedAnswer
+          })
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          alert(data.error || '提交答案失敗');
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          return;
+        }
+
+        // Lock submission state for this page
+        submittedSlideIndex = currentSlideIndex;
+
+        // Show feedback immediately
+        const currentSlide = slidesData[currentSlideIndex - 1];
+        const feedback = document.getElementById('quiz-feedback');
+        feedback.style.display = 'block';
+
+        if (selectedAnswer === currentSlide.correctAnswer) {
+          feedback.className = 'feedback-box correct';
+          feedback.innerHTML = `🎉 答對了！${currentSlide.explanation}`;
+        } else {
+          feedback.className = 'feedback-box incorrect';
+          feedback.innerHTML = `❌ 答錯了！正確答案是 ${currentSlide.correctAnswer}。${currentSlide.explanation}`;
+        }
+
+      } catch (e) {
+        alert('無法連線到伺服器');
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+      }
+    }
+  </script>
+</body>
+</html>
