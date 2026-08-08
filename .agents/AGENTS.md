@@ -46,3 +46,50 @@
 為避免在公司與家中多台電腦切換時發生覆蓋錯誤，AI 必須維護根目錄的 **`HANDOVER.md`**：
 1. **強制記錄**：在本機有任何結構改變、發生嚴重錯誤（例如推錯專案、無限迴圈）時，必須記錄其「發生原因」與「正確處理步驟」。
 2. **跨機防呆**：當在另一台電腦讀取到此日誌時，AI 應嚴格遵循其上的「避坑指南」，確保不會用錯誤的方式上傳或執行指令。
+
+## 8. 專案啟動 BAT 自動產生規範 (Auto-Generated Launcher)
+
+**每當 AI 建立或修改任何具有 Python 後端的專案時，必須自動產生或更新該專案的 `.bat` 啟動檔。**
+
+### AI 必須自動執行的動作：
+1. **掃描專案的 `requirements.txt` 或 `main.py` 的 import 清單**，自動偵測所有需要的 pip 套件
+2. **依據掃描結果，自動填入套件清單**，套用位於 `C:\GOOGLE ANGET\bat_launcher_template.bat` 的通用模板
+3. **自動產生完整的 `.bat` 啟動檔**，不需使用者手動修改任何內容
+
+### 產生的 BAT 必須包含以下功能（缺一不可）：
+- ✅ 偵測 Python 是否安裝 → 未安裝則顯示提示並自動開啟下載頁
+- ✅ 確認 pip 可用 → 損壞則自動修復
+- ✅ 逐一 `import` 測試每個套件 → 缺少則自動 `pip install`（只裝缺少的，不重裝已有的）
+- ✅ 建立專案必要資料夾（如 `data/`, `data/audios/`, `static/`）
+- ✅ 自動偵測可用 Port（預設 Port 被佔用則自動切換）
+- ✅ 顯示本機 IP 供同事區網連線使用
+- ✅ 延遲 2 秒後自動開啟瀏覽器
+
+### 套件掃描對照表（AI 必須知道的 import 名稱對照）：
+| pip 安裝名稱 | Python import 名稱 |
+|---|---|
+| fastapi | fastapi |
+| uvicorn | uvicorn |
+| google-genai | google.genai |
+| pydantic | pydantic |
+| python-multipart | multipart |
+| openpyxl | openpyxl |
+| python-docx | docx |
+| requests | requests |
+| beautifulsoup4 | bs4 |
+| flask | flask |
+| numpy | numpy |
+| pandas | pandas |
+| pillow | PIL |
+| python-dotenv | dotenv |
+| aiofiles | aiofiles |
+
+### 範例：AI 看到 requirements.txt 包含 fastapi, openpyxl, google-genai 時，必須自動產生：
+```bat
+set PKG[0]=fastapi|fastapi>=0.100.0
+set PKG[1]=uvicorn|uvicorn>=0.22.0
+set PKG[2]=google.genai|google-genai
+set PKG[3]=openpyxl|openpyxl
+set PKG_COUNT=4
+```
+**不得要求使用者自行修改 bat 檔內容。**
