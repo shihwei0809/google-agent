@@ -58,4 +58,64 @@
 **正確處理步驟（已於 2026-08-04 修復）**：
 1. **修正 Markdown 解析器**：加入圖片專用正則表示式，並將 SPA 圖片強制補上絕對路徑 (結合 mdPath 找出父資料夾)。
 2. **修正連結解析**：將一般超連結的解析改為 /(^|[^!])\[([^\]]+)\]\(([^)]+)\)/g，避免抓取到圖片。
-3. **防護手動按鈕**：所有手寫的相對路徑 <a> 標籤，都加入 onclick 以絕對路徑取代。
+3. **防護手動按鈕**：所有手寫的相對路徑 `<a>` 標籤，都加入 onclick 以絕對路徑取代。
+
+---
+
+### 🐛 嚴重錯誤防呆日誌：Cloudflare SPA 啟動連結相對路徑巢狀死迴圈（第二波，2026-08-07）
+
+**發生時間**：2026-08-07 上午  
+**影響範圍**：說明書大廳（https://google-agent.pages.dev）所有的「立即啟動」按鈕
+
+#### 🔍 根本原因（必讀！往後絕不能再犯）
+
+```
+錯誤根源：在 Cloudflare Pages 上部署 SPA（單頁應用）時，
+使用「相對路徑」作為跳轉連結，會與 Cloudflare 的 SPA fallback
+機制產生致命衝突。
+```
+
+**完整連鎖反應流程：**
+
+1. 大廳的每個系統卡片有「🚀 立即啟動」按鈕，原本 `launchUrl` 寫的是相對路徑，例如：  
+   `"launchUrl": "projects/interview_analyzer/index.html"`
+
+2. 使用者在大廳（`https://google-agent.pages.dev/`）點擊後，瀏覽器導向：  
+   `https://google-agent.pages.dev/projects/interview_analyzer/index.html`
+
+3. Cloudflare Pages 找不到這個實體檔案 → 自動觸發 SPA fallback → **回傳 index.html（大廳本身）**
+
+4. 大廳載入後，偵測到目前網址是 `/projects/interview_analyzer/index.html`，**誤判自己被從子路徑載入**
+
+5. 接著大廳的 JS 用 `window.location.href` 嘗試跳轉，**但因為已在子路徑，相對路徑又往深層疊加一層**
+
+6. 變成：`https://google-agent.pages.dev/projects/interview_analyzer/projects/interview_analyzer/index.html`
+
+7. **無窮巢狀迴圈**，URL 越來越長，最終頁面崩潰空白
+
+#### ✅ 三層修復方案（已於 2026-08-07 全部實施）
+
+| 層級 | 修改內容 | 位置 |
+|---|---|---|
+| **第 1 層** | 新增 `_redirects` 規則：`/* /index.html 200`，確保 Cloudflare 正確處理所有路由 | `說明書/_redirects` |
+| **第 2 層** | 加入 SPA 啟動防護 Guard：偵測到 URL 包含非根路徑時，立即 `window.history.replaceState` 回根目錄再渲染 | `說明書/index.html` JS 頂部 |
+| **第 3 層** | **最根本修復**：將所有系統卡片的 `launchUrl` 從相對路徑改為絕對 Cloudflare Pages URL，例如：`"launchUrl": "https://google-agent.pages.dev/projects/interview_analyzer/"` | `說明書/index.html` JSON 資料區 |
+
+#### 🚨 往後 AI 開發大廳或 SPA 的鐵律（違反即導致死迴圈）
+
+> **在 Cloudflare Pages 上的 SPA 大廳，所有跳轉連結（launchUrl、href、window.location）一律使用「絕對路徑」，禁止使用相對路徑。**
+
+```javascript
+// ❌ 錯誤寫法（會觸發巢狀死迴圈）
+launchUrl: "projects/interview_analyzer/index.html"
+window.location.href = "projects/..."
+
+// ✅ 正確寫法（使用完整絕對 URL）
+launchUrl: "https://google-agent.pages.dev/projects/interview_analyzer/"
+window.location.href = "https://google-agent.pages.dev/projects/..."
+```
+
+#### 📌 新增連結時的 Checklist
+- [ ] `launchUrl` 是否為完整 https:// 開頭的絕對路徑？
+- [ ] `_redirects` 檔案是否存在且包含 `/* /index.html 200`？
+- [ ] SPA Guard（防止子路徑誤載）是否在 index.html 頂部 JS 中？
