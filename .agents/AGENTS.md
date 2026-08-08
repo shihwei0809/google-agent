@@ -16,13 +16,32 @@
 * **引導優先**：當 AI 助理開啟新專案或被調用至特定子專案時，必須優先檢查該目錄下的 `SKILL.md`。若環境尚未初始化，應主動詢問使用者是否要執行 `setup_env.ps1`。
 * **說明書同步更新**：在新增任何功能、外部套件或改變執行方式時，必須同步更新 `README.md`、`SKILL.md` 與 `setup_env.ps1`，確保說明書與安裝指令永久可用。
 
-## 3. 專案大廳與雙庫線上入口記憶 (全域速查)
-- ☁️ **Cloudflare Pages 線上正版大廳**：https://google-agent.pages.dev
-- ☁️ **Cloudflare Pages 備用大廳**：https://agent-portal.pages.dev
+## 3. 專案大廳、雙庫與部署平台全域速查
+
+### GitHub 雙庫（絕不可互相覆蓋）
+| 庫 | 帳號 | 用途 |
+|---|---|---|
+| `google-agent` | `shihwei0809` | **主庫**，所有程式碼、子專案原始碼唯一存放處 |
+| `agent-portal` | `mathruffian-dot` | **展示庫**，只放大廳靜態 HTML，由 Cloudflare Pages 自動部署 |
+
+### 四大部署平台
+| 平台 | 網址 | 用於哪些專案 |
+|---|---|---|
+| ☁️ **Cloudflare Pages**（主要大廳） | https://google-agent.pages.dev | 說明書大廳（正式版） |
+| 🟠 **Netlify**（備用/草稿） | https://cerulean-praline-6b314d.netlify.app | 說明書大廳（Draft 預覽） |
+| 🔴 **Firebase Hosting** | 各子專案獨立站 | `aigc-music-video-hub`、`flowchart-web`、互動投票、簡報系統等 |
+| ⚫ **GitHub Pages** | `mathruffian-dot.github.io/...` | 靜態工具、簡報類 |
+
+### 其他連結
 - 🧠 **中央大腦 (my-ai-brain)**：https://github.com/shihwei0809/my-ai-brain.git
 - 🛠️ **跨電腦技能庫 (cross-device-agent-skills)**：https://github.com/mathruffian-dot/cross-device-agent-skills.git
-- 💻 **本機大廳實體路徑**：`D:\GOOGLE ANGET\說明書\index.html`
-- ⚡ **本機一鍵開啟**：雙擊 `D:\GOOGLE ANGET\點我開啟Cloudflare線上大廳.bat`
+- 💻 **本機大廳實體路徑**：`C:\\GOOGLE ANGET\\說明書\\index.html`
+- ⚡ **本機一鍵開啟**：雙擊 `C:\\GOOGLE ANGET\\點我開啟Cloudflare線上大廳.bat`
+
+### ⚠️ 雙庫防呆鐵律
+- **程式碼修改** → 只 push 到 `shihwei0809/google-agent`（用 `origin`）
+- **大廳更新** → 只能用 `一鍵更新大廳.bat`，絕不手動 push 到 `agent-portal`
+- **Firebase 子專案** → 各自在子資料夾內用 `firebase deploy`，不影響主庫
 
 ## 4. 收工規則與雙重備份 (使用者說「收工」時必須執行)
 每次使用者說「收工」，必須按以下順序完成：
