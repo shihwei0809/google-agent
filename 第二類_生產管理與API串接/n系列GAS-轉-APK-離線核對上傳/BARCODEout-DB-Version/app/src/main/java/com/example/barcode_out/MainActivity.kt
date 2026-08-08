@@ -109,23 +109,46 @@ class MainActivity : AppCompatActivity() {
             }
 
             // 3. 監聽輸入文字：支援後綴換行/Tab，以及合法條碼長度即時判斷 (最為防呆，無後綴亦可跳欄)
+            val handler = android.os.Handler(android.os.Looper.getMainLooper())
+            var jumpRunnable: Runnable? = null
+
             fields[i]?.addTextChangedListener(object : android.text.TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: android.text.Editable?) {
                     val original = s?.toString() ?: ""
 
-                    // 偵測並移除結尾的 newline 或 tab (條碼槍常見後綴)
+                    // 1. 偵測並移除結尾的 newline 或 tab (條碼槍常見後綴)
                     if (original.endsWith("\n") || original.endsWith("\r") || original.endsWith("\t")) {
                         val clean = original.trimEnd('\n', '\r', '\t')
                         fields[i]?.removeTextChangedListener(this)
                         fields[i]?.setText(clean)
                         fields[i]?.setSelection(clean.length)
                         fields[i]?.addTextChangedListener(this)
+                        
+                        jumpRunnable?.let { handler.removeCallbacks(it) }
                         autoFocusNextField(i)
                         return
                     }
 
+                    val cleanText = original.trim()
+                    if (cleanText.isEmpty()) return
+
+                    // 2. 即時比對特徵：符合標準長度時立刻跳欄 (0ms 延遲)
+                    if (isCompleteBarcode(cleanText, i)) {
+                        jumpRunnable?.let { handler.removeCallbacks(it) }
+                        autoFocusNextField(i)
+                        return
+                    }
+
+                    // 3. 延遲防呆：文字停止變更 150ms 後，若長度大於 5，自動判定輸入完畢並跳欄 (解決無後綴/未知長度條碼)
+                    jumpRunnable?.let { handler.removeCallbacks(it) }
+                    if (cleanText.length >= 5) {
+                        jumpRunnable = Runnable {
+                            autoFocusNextField(i)
+                        }
+                        handler.postDelayed(jumpRunnable!!, 150)
+                    }
                 }
             })
         }
@@ -784,5 +807,28 @@ class MainActivity : AppCompatActivity() {
         }
 
         return if (allErrors.isNotEmpty()) allErrors.joinToString("\n\n") else null
+    }
+
+    private fun isCompleteBarcode(code: String, index: Int): Boolean {
+        val s = code.trim()
+        if (s.isEmpty()) return false
+        
+        val isMat = (index == 1 || index == 3 || index == 5 || index == 7 || index == 8 || index == 13)
+        
+        return if (isMat) {
+            if (index == 8) {
+                // 四合一料號 (20 碼或 30 碼)
+                (s.startsWith("1") && s.length == 20) || (s.startsWith("7") && s.length == 30)
+            } else {
+                // 一般桶料號/繳庫料號 (L開頭7~8碼，1開頭8~9碼，7開頭13碼)
+                (s.startsWith("1") && (s.length == 8 || s.length == 9)) ||
+                (s.startsWith("7") && s.length == 13) ||
+                (s.uppercase().startsWith("L") && (s.length == 7 || s.length == 8))
+            }
+        } else {
+            // 批號欄位 (55開頭39碼，2開頭20碼，2開頭10碼)
+            (s.startsWith("55") && s.length == 39) ||
+            (s.startsWith("2") && (s.length == 20 || s.length == 10))
+        }
     }
 }
