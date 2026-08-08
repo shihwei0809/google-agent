@@ -15,6 +15,10 @@
             --cf-glow: rgba(246, 130, 31, 0.5);
             --gh-color: #2ea44f;
             --gh-glow: rgba(46, 164, 79, 0.5);
+            --nt-color: #2dd4bf;
+            --nt-glow: rgba(45, 212, 191, 0.5);
+            --fb-color: #f59e0b;
+            --fb-glow: rgba(245, 158, 11, 0.5);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --error-color: #ef4444;
@@ -106,6 +110,8 @@
 
         .section-title.gh { color: var(--gh-color); text-shadow: 0 0 15px var(--gh-glow); }
         .section-title.cf { color: var(--cf-color); text-shadow: 0 0 15px var(--cf-glow); }
+        .section-title.nt { color: var(--nt-color); text-shadow: 0 0 15px var(--nt-glow); }
+        .section-title.fb { color: var(--fb-color); text-shadow: 0 0 15px var(--fb-glow); }
         .section-title.err { color: var(--error-color); }
 
         /* 步驟清單 */
@@ -131,6 +137,8 @@
 
         .gh .step-item { border-left-color: var(--gh-color); }
         .cf .step-item { border-left-color: var(--cf-color); }
+        .nt .step-item { border-left-color: var(--nt-color); }
+        .fb .step-item { border-left-color: var(--fb-color); }
 
         .step-number {
             font-size: 1.5rem;
@@ -365,6 +373,46 @@
             </ul>
         </section>
         
+        <!-- 新增: 四大部署平台總覽 -->
+        <section class="card">
+            <h2 class="section-title">🌍 四大部署平台全域速查</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">在建立新系統前，請依據系統需求選擇正確的平台，避免資料功能失效或扣費問題。</p>
+            
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; margin-top: 1rem; color: #cbd5e1; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.2);">
+                            <th style="padding: 12px; color: #fff;">平台</th>
+                            <th style="padding: 12px; color: #fff;">系統類型與用途</th>
+                            <th style="padding: 12px; color: #fff;">專案範例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                            <td style="padding: 12px;"><strong style="color: var(--cf-color);">☁️ Cloudflare Pages</strong></td>
+                            <td style="padding: 12px;">純靜態網頁（主力推薦）。無流量限制，速度最快。</td>
+                            <td style="padding: 12px;">說明書大廳 (正式版)、多數前端工具</td>
+                        </tr>
+                        <tr style="border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                            <td style="padding: 12px;"><strong style="color: var(--nt-color);">🟠 Netlify</strong></td>
+                            <td style="padding: 12px;">純靜態網頁（備用/草稿）。注意發佈次數扣分機制。</td>
+                            <td style="padding: 12px;">說明書大廳 (Draft 預覽)</td>
+                        </tr>
+                        <tr style="border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                            <td style="padding: 12px;"><strong style="color: var(--fb-color);">🔴 Firebase Hosting</strong></td>
+                            <td style="padding: 12px;">需要<strong>線上編輯、多人同步、即時資料 (Firestore)</strong> 的系統。</td>
+                            <td style="padding: 12px;">製程流程圖、互動投票、溫度通報</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px;"><strong style="color: var(--gh-color);">⚫ GitHub Pages</strong></td>
+                            <td style="padding: 12px;">純靜態網頁（完美備份）。免費次數無上限。</td>
+                            <td style="padding: 12px;">簡易 HTML 簡報、靜態小工具</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <!-- Cloudflare Pages 教學 -->
         <section class="card cf">
             <h2 class="section-title cf">☁️ Cloudflare Pages 自動部署教學 (主力推薦)</h2>
@@ -456,6 +504,40 @@
                         <h3>發佈至正式環境 (會扣分)</h3>
                         <p>測試無誤後，輸入指令：<code>npx netlify deploy --prod</code><br>
                         這會將改動正式發佈到主網址，請注意每一次執行都會消耗 Netlify 免費額度中的部署學分。</p>
+                    </div>
+                </li>
+            </ul>
+        </section>
+
+        <!-- 新增: Firebase Hosting 教學 -->
+        <section class="card fb">
+            <h2 class="section-title fb">🔥 Firebase Hosting (動態資料庫必備)</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">優勢：整合 Firestore 即時資料庫，完美支援多人同步與雲端資料存取。</p>
+            
+            <ul class="step-list">
+                <li class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>安裝 CLI 與登入</h3>
+                        <p>首先確保已安裝 Node.js。開啟終端機執行：<br>
+                        <code>npm install -g firebase-tools</code><br>
+                        安裝後執行 <code>firebase login</code>，透過瀏覽器登入 Google 帳號授權。</p>
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>初始化專案</h3>
+                        <p>在專案目錄下執行 <code>firebase init hosting</code>。<br>
+                        選擇對應的 Firebase 專案，設定發佈目錄（通常為 <code>public</code> 或當前目錄），並選擇是否配置為 SPA (單頁應用程式)。</p>
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>編譯與發佈</h3>
+                        <p>完成網頁修改後，執行 <code>firebase deploy</code>。<br>
+                        這會將最新的代碼推送至 Firebase Hosting，並保持與 Firestore 資料庫的連線無縫接軌。</p>
                     </div>
                 </li>
             </ul>
