@@ -4,6 +4,24 @@
 
 ---
 
+## 📅 最新交接紀錄 (2026-08-08)
+
+### 📌 專案路徑歸位與整合
+* **狀況描述**：先前開發時將「互動式網站」程式碼存放在 `C:\GOOGLE ANGET\interactive-web-training`，但這不符合本機的專案管理與雙庫防呆大廳規則。
+* **解決方式**：已將所有 Level 1 到 Level 5、Netlify Functions 及 server.js 等程式碼檔案，完整遷移回主 Repo 的官方子目錄：`C:\GOOGLE ANGET\第一類_核心網頁與互動系統\互動式網站`，並已刪除原本獨立的 `interactive-web-training` 目錄，確保 git 狀態由總庫唯一管理。
+
+### 📌 Level 5 雙端即時互動簡報系統 (新增功能)
+* **最新模組自動回退 (Gemini Fallback Chain)**：在後端 `server.js` 中實作了智能回退機制，當最新發布的 `gemini-3.6-flash` 出現 503 服務未就緒時，系統會自動無縫向下次級模組（`gemini-3.5-flash`、`gemini-2.5-flash` 等）嘗試，直至成功。
+* **網頁端自訂 Gemini Key 與頁數**：在 `lv5-tutor.html` 右上角新增了金鑰與生成頁數選單，支援講師在 UI 介面上手動指定 4-15 頁的精準生成規格。
+* **簡報/測驗線上即時修改**：在講師端卡片上新增了「📝 編輯此頁」與「📝 編輯此題」按鈕，允許講師在生成後於網頁上即時修改 Typos、測驗選項、正確答案與解析，並在儲存時透過 `/api/update-slides` 秒級同步到所有學員端。
+* **自動存檔與 CSV 匯出**：
+  - 實作了本機實體檔案 `data/classroom_save.json` 存檔，任何作答與教材修改都會自動持久化，重啟伺服器可完美還原。
+  - 新增「📥 匯出答題紀錄」與「🧹 清除歷史」按鈕，可一鍵匯出含 UTF-8 BOM（防亂碼）的 Excel CSV 作答成績單。
+
+### 📌 給另一台電腦的接手指示：
+1. 本地開發伺服器啟動方式：進入 `C:\GOOGLE ANGET\第一類_核心網頁與互動系統\互動式網站\` 執行 `node server.js`（埠號 8888）。
+2. 可直接修改或使用 UI 金鑰與選單，體驗全新的一鍵 AI 生成簡報、多人同步作答及即時成績匯出。
+
 ## 📅 最新交接紀錄 (2026-08-07) ⭐ 最新
 
 ### ✅ 今日完成：大廳連結 URL 疊加問題 — 根本修復
@@ -112,4 +130,64 @@ wrangler pages deploy $tmp --project-name "google-agent" --commit-dirty=true
 **正確處理步驟（已於 2026-08-04 修復）**：
 1. **修正 Markdown 解析器**：加入圖片專用正則表示式，並將 SPA 圖片強制補上絕對路徑 (結合 mdPath 找出父資料夾)。
 2. **修正連結解析**：將一般超連結的解析改為 /(^|[^!])\[([^\]]+)\]\(([^)]+)\)/g，避免抓取到圖片。
-3. **防護手動按鈕**：所有手寫的相對路徑 <a> 標籤，都加入 onclick 以絕對路徑取代。
+3. **防護手動按鈕**：所有手寫的相對路徑 `<a>` 標籤，都加入 onclick 以絕對路徑取代。
+
+---
+
+### 🐛 嚴重錯誤防呆日誌：Cloudflare SPA 啟動連結相對路徑巢狀死迴圈（第二波，2026-08-07）
+
+**發生時間**：2026-08-07 上午  
+**影響範圍**：說明書大廳（https://google-agent.pages.dev）所有的「立即啟動」按鈕
+
+#### 🔍 根本原因（必讀！往後絕不能再犯）
+
+```
+錯誤根源：在 Cloudflare Pages 上部署 SPA（單頁應用）時，
+使用「相對路徑」作為跳轉連結，會與 Cloudflare 的 SPA fallback
+機制產生致命衝突。
+```
+
+**完整連鎖反應流程：**
+
+1. 大廳的每個系統卡片有「🚀 立即啟動」按鈕，原本 `launchUrl` 寫的是相對路徑，例如：  
+   `"launchUrl": "projects/interview_analyzer/index.html"`
+
+2. 使用者在大廳（`https://google-agent.pages.dev/`）點擊後，瀏覽器導向：  
+   `https://google-agent.pages.dev/projects/interview_analyzer/index.html`
+
+3. Cloudflare Pages 找不到這個實體檔案 → 自動觸發 SPA fallback → **回傳 index.html（大廳本身）**
+
+4. 大廳載入後，偵測到目前網址是 `/projects/interview_analyzer/index.html`，**誤判自己被從子路徑載入**
+
+5. 接著大廳的 JS 用 `window.location.href` 嘗試跳轉，**但因為已在子路徑，相對路徑又往深層疊加一層**
+
+6. 變成：`https://google-agent.pages.dev/projects/interview_analyzer/projects/interview_analyzer/index.html`
+
+7. **無窮巢狀迴圈**，URL 越來越長，最終頁面崩潰空白
+
+#### ✅ 三層修復方案（已於 2026-08-07 全部實施）
+
+| 層級 | 修改內容 | 位置 |
+|---|---|---|
+| **第 1 層** | 新增 `_redirects` 規則：`/* /index.html 200`，確保 Cloudflare 正確處理所有路由 | `說明書/_redirects` |
+| **第 2 層** | 加入 SPA 啟動防護 Guard：偵測到 URL 包含非根路徑時，立即 `window.history.replaceState` 回根目錄再渲染 | `說明書/index.html` JS 頂部 |
+| **第 3 層** | **最根本修復**：將所有系統卡片的 `launchUrl` 從相對路徑改為絕對 Cloudflare Pages URL，例如：`"launchUrl": "https://google-agent.pages.dev/projects/interview_analyzer/"` | `說明書/index.html` JSON 資料區 |
+
+#### 🚨 往後 AI 開發大廳或 SPA 的鐵律（違反即導致死迴圈）
+
+> **在 Cloudflare Pages 上的 SPA 大廳，所有跳轉連結（launchUrl、href、window.location）一律使用「絕對路徑」，禁止使用相對路徑。**
+
+```javascript
+// ❌ 錯誤寫法（會觸發巢狀死迴圈）
+launchUrl: "projects/interview_analyzer/index.html"
+window.location.href = "projects/..."
+
+// ✅ 正確寫法（使用完整絕對 URL）
+launchUrl: "https://google-agent.pages.dev/projects/interview_analyzer/"
+window.location.href = "https://google-agent.pages.dev/projects/..."
+```
+
+#### 📌 新增連結時的 Checklist
+- [ ] `launchUrl` 是否為完整 https:// 開頭的絕對路徑？
+- [ ] `_redirects` 檔案是否存在且包含 `/* /index.html 200`？
+- [ ] SPA Guard（防止子路徑誤載）是否在 index.html 頂部 JS 中？

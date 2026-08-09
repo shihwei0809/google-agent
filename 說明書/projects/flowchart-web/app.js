@@ -215,7 +215,11 @@ const flowchartData = {
       { from: "raw-group", to: "p1-group", label: "前處理" },
       { from: "p1-group", to: "p2-group", label: "製程" },
       { from: "p2-group", to: "check-group", label: "製程" },
-      { from: "check-group", to: "finish-group", label: "製程" }
+      { from: "check-group", to: "finish-group", label: "製程" },
+      { from: "raw-group", to: "IBC桶", label: "格外品" },
+      { from: "p1-group", to: "TK-660", label: "格外品" },
+      { from: "p2-group", to: "TK-655", label: "格外品" },
+      { from: "check-group", to: "TK-655_2", label: "格外品" }
     ]
   },
   "act": {
@@ -452,11 +456,22 @@ function getElementCoordinates(id) {
   return null;
 }
 
-function calculatePath(fromId, toId, points) {
+function calculatePath(gc) {
+  const fromId = gc.from;
+  const toId = gc.to;
+  const points = gc.points;
+  const offsetY = gc.offsetY || 0;
+  const offsetX = gc.offsetX || 0;
+  
   // If points are provided and not empty, use them to draw a custom route (loop, curve, etc.)
   if (points && points.length > 0) {
-    const fromBox = getElementCoordinates(fromId);
-    const toBox = getElementCoordinates(toId);
+    let fromBox = getElementCoordinates(fromId);
+    let toBox = getElementCoordinates(toId);
+    if (!fromBox || !toBox) return null;
+    
+    // Apply offset for visual connection shift
+    fromBox = { ...fromBox, x: fromBox.x + offsetX, y: fromBox.y + offsetY };
+    toBox = { ...toBox, x: toBox.x + offsetX, y: toBox.y + offsetY };
     if (!fromBox || !toBox) return null;
     
     let startX = fromBox.x + fromBox.w / 2;
@@ -502,8 +517,11 @@ function calculatePath(fromId, toId, points) {
   }
 
   // Check if there is a group-to-group connection with custom hardcoded overrides
-  const fromG = flowchartData[currentTab].groups.find(g => g.id === fromId);
-  const toG = flowchartData[currentTab].groups.find(g => g.id === toId);
+  let fromG = flowchartData[currentTab].groups.find(g => g.id === fromId);
+  let toG = flowchartData[currentTab].groups.find(g => g.id === toId);
+  
+  if (fromG) fromG = { ...fromG, x: fromG.x + offsetX, y: fromG.y + offsetY };
+  if (toG) toG = { ...toG, x: toG.x + offsetX, y: toG.y + offsetY };
   
   if (fromG && toG) {
     let startX = fromG.x + fromG.w;
@@ -578,20 +596,25 @@ function calculatePath(fromId, toId, points) {
       endY = toG.y + toG.h / 2;
     }
     
+    // Apply anchor offsets if dragged
+    if (gc && gc.anchorFromOffset) { startX += gc.anchorFromOffset[0]; startY += gc.anchorFromOffset[1]; }
+    if (gc && gc.anchorToOffset) { endX += gc.anchorToOffset[0]; endY += gc.anchorToOffset[1]; }
+    
     let pathStr = `M ${startX} ${startY} L ${endX} ${endY}`;
     
+    // Dynamic hardcoded paths based on startX/startY to allow dragging
     if (fromG.id === "process-block-s1" && toG.id === "waste-group-ipahw") {
-      pathStr = `M ${fromG.x} ${fromG.y + fromG.h/2} L ${fromG.x - 25} ${fromG.y + fromG.h/2} L ${fromG.x - 25} ${toG.y + 40} L ${toG.x} ${toG.y + 40}`;
+      pathStr = `M ${startX} ${startY} L ${fromG.x - 25} ${startY} L ${fromG.x - 25} ${toG.y + 40} L ${endX} ${endY}`;
     } else if (fromG.id === "process-block-s4" && toG.id === "waste-group") {
-      pathStr = `M ${fromG.x} ${fromG.y + fromG.h/2} L ${fromG.x - 25} ${fromG.y + fromG.h/2} L ${fromG.x - 25} ${toG.y + 40} L ${toG.x} ${toG.y + 40}`;
+      pathStr = `M ${startX} ${startY} L ${fromG.x - 25} ${startY} L ${fromG.x - 25} ${toG.y + 40} L ${endX} ${endY}`;
     } else if (fromG.id === "process-block-s3" && toG.id === "waste-group-ipa") {
-      pathStr = `M ${fromG.x} ${fromG.y + fromG.h/2} L ${fromG.x - 35} ${fromG.y + fromG.h/2} L ${fromG.x - 35} ${toG.y + 40} L ${toG.x} ${toG.y + 40}`;
+      pathStr = `M ${startX} ${startY} L ${fromG.x - 35} ${startY} L ${fromG.x - 35} ${toG.y + 40} L ${endX} ${endY}`;
     } else if (fromG.id === "process-block-s5" && toG.id === "waste-group") {
-      pathStr = `M ${fromG.x} ${fromG.y + fromG.h/2} L ${fromG.x - 35} ${fromG.y + fromG.h/2} L ${fromG.x - 35} ${toG.y + 110} L ${toG.x} ${toG.y + 110}`;
+      pathStr = `M ${startX} ${startY} L ${fromG.x - 35} ${startY} L ${fromG.x - 35} ${toG.y + 110} L ${endX} ${endY}`;
     } else if ((fromG.id === "process-block-s1" && toG.id === "check-group-ipa") || (fromG.id === "process-block-s4" && toG.id === "check-group-s4")) {
-      pathStr = `M ${fromG.x + fromG.w} ${fromG.y + fromG.h/2} L ${fromG.x + fromG.w + 40} ${fromG.y + fromG.h/2} L ${fromG.x + fromG.w + 40} ${toG.y + 110} L ${toG.x} ${toG.y + 110}`;
+      pathStr = `M ${startX} ${startY} L ${fromG.x + fromG.w + 40} ${startY} L ${fromG.x + fromG.w + 40} ${toG.y + 110} L ${endX} ${endY}`;
     } else if ((fromG.id === "process-block-s3" && toG.id === "check-group-ipahq") || (fromG.id === "process-block-s5" && toG.id === "check-group-s5")) {
-      pathStr = `M ${fromG.x + fromG.w} ${fromG.y + fromG.h/2} L ${fromG.x + fromG.w + 40} ${fromG.y + fromG.h/2} L ${fromG.x + fromG.w + 40} ${toG.y + 120} L ${toG.x} ${toG.y + 120}`;
+      pathStr = `M ${startX} ${startY} L ${fromG.x + fromG.w + 40} ${startY} L ${fromG.x + fromG.w + 40} ${toG.y + 120} L ${endX} ${endY}`;
     } else if ((fromId === "raw-group" || fromId.startsWith("raw-") || fromG.type === "raw") && (toId === "process-block-s3" || toId === "process-block-s5") && startY === endY) {
       const s1s4G = flowchartData[currentTab].groups.find(g => g.id === (toId === "process-block-s3" ? "process-block-s1" : "process-block-s4"));
       const s1s4X = s1s4G ? s1s4G.x : 360;
@@ -602,8 +625,11 @@ function calculatePath(fromId, toId, points) {
   }
   
   // Dynamic connection between nodes or node & group
-  const fromBox = getElementCoordinates(fromId);
-  const toBox = getElementCoordinates(toId);
+  let fromBox = getElementCoordinates(fromId);
+  let toBox = getElementCoordinates(toId);
+  if (!fromBox || !toBox) return null;
+  fromBox = { ...fromBox, x: fromBox.x + offsetX, y: fromBox.y + offsetY };
+  toBox = { ...toBox, x: toBox.x + offsetX, y: toBox.y + offsetY };
   if (!fromBox || !toBox) return null;
   
   let startX, startY, endX, endY;
@@ -612,28 +638,36 @@ function calculatePath(fromId, toId, points) {
     startY = fromBox.y + fromBox.h / 2;
     endX = toBox.x;
     endY = toBox.y + toBox.h / 2;
-    const midX = startX + (endX - startX) / 2;
-    return { path: `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`, startX, startY, endX, endY };
   } else if (fromBox.y + fromBox.h <= toBox.y) {
     startX = fromBox.x + fromBox.w / 2;
     startY = fromBox.y + fromBox.h;
     endX = toBox.x + toBox.w / 2;
     endY = toBox.y;
-    const midY = startY + (endY - startY) / 2;
-    return { path: `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`, startX, startY, endX, endY };
   } else if (fromBox.y >= toBox.y + toBox.h) {
     startX = fromBox.x + fromBox.w / 2;
     startY = fromBox.y;
     endX = toBox.x + toBox.w / 2;
     endY = toBox.y + toBox.h;
-    const midY = startY + (endY - startY) / 2;
-    return { path: `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`, startX, startY, endX, endY };
   } else {
     startX = fromBox.x + fromBox.w / 2;
     startY = fromBox.y + fromBox.h / 2;
     endX = toBox.x + toBox.w / 2;
     endY = toBox.y + toBox.h / 2;
-    return { path: `M ${startX} ${startY} L ${endX} ${endY}`, startX, startY, endX, endY };
+  }
+  
+  // Apply anchor offsets if set (drag the pipe's start/end attachment point)
+  if (gc.anchorFromOffset) { startX += gc.anchorFromOffset[0]; startY += gc.anchorFromOffset[1]; }
+  if (gc.anchorToOffset) { endX += gc.anchorToOffset[0]; endY += gc.anchorToOffset[1]; }
+  
+  const midX2 = startX + (endX - startX) / 2;
+  const midY2 = startY + (endY - startY) / 2;
+  
+  if (Math.abs(endX - startX) >= Math.abs(endY - startY)) {
+    // Horizontal dominant: elbow via midX
+    return { path: `M ${startX} ${startY} L ${midX2} ${startY} L ${midX2} ${endY} L ${endX} ${endY}`, startX, startY, endX, endY };
+  } else {
+    // Vertical dominant: elbow via midY
+    return { path: `M ${startX} ${startY} L ${startX} ${midY2} L ${endX} ${midY2} L ${endX} ${endY}`, startX, startY, endX, endY };
   }
 }
 
@@ -781,7 +815,7 @@ function renderFlowchart() {
 
   // 2. Render High-level flow pipeline connectors
   data.groupConnections.forEach((gc, index) => {
-    const route = calculatePath(gc.from, gc.to, gc.points);
+    const route = calculatePath(gc);
     if (route) {
       const { path: pathStr, startX, startY, endX, endY } = route;
       const fromBox = getElementCoordinates(gc.from);
@@ -824,6 +858,7 @@ function renderFlowchart() {
           `;
         });
       }
+      
       
       // Label for flow connection
       if (gc.label) {
@@ -901,27 +936,7 @@ function renderFlowchart() {
     }
   });
   
-  // 2.5 Draw vertical offgrade branch pipelines for CPNE3 flowchart
-  if (currentTab === "cpne3") {
-    const offgradeConns = [
-      { startX: 270, startY: 220, endX: 270, endY: 360, label: "格外品" },
-      { startX: 490, startY: 220, endX: 490, endY: 360, label: "格外品" },
-      { startX: 710, startY: 220, endX: 710, endY: 360, label: "格外品" },
-      { startX: 930, startY: 220, endX: 930, endY: 360, label: "格外品" }
-    ];
-    
-    offgradeConns.forEach(oc => {
-      const pathStr = `M ${oc.startX} ${oc.startY} L ${oc.endX} ${oc.endY}`;
-      svgContent += `
-        <path d="${pathStr}" stroke="var(--border-subtle)" stroke-width="8" stroke-linecap="round" fill="none" />
-        <path d="${pathStr}" stroke="var(--color-offgrade)" stroke-dasharray="10,8" stroke-width="6" stroke-linecap="round" fill="none" class="pipeline-active" style="animation-duration: 2s; marker-end: url(#arrow-thick);" />
-      `;
-      
-      let labelX = oc.startX + 12;
-      let labelY = oc.startY + (oc.endY - oc.startY)/2 + 25;
-      svgContent += `<text x="${labelX}" y="${labelY}" fill="var(--text-secondary)" font-size="11.5" font-weight="700" text-anchor="start">${oc.label}</text>`;
-    });
-  }
+  // 2.5 Draw vertical offgrade branch pipelines for CPNE3 flowchart - now managed via groupConnections
   
   // 3. Render Tank Cards inside Groups
   data.nodes.forEach(node => {
@@ -931,10 +946,12 @@ function renderFlowchart() {
     const strokeWidth = isSelected ? '3.5' : '2';
     const strokeDash = isSelected ? 'stroke-dasharray="4,3"' : '';
     
+    const nw = node.w || 140;
+    const nh = node.h || 70;
     svgContent += `
       <g class="svg-tank-card" data-id="${node.id}" data-type="node" onclick="if(!isEditingMode) openTankModal('${node.id}')" transform="translate(${node.x}, ${node.y})">
         <!-- Main Card Border & Glass Background -->
-        <rect x="0" y="0" width="${nodeW}" height="${nodeH}" rx="8" fill="var(--bg-card)" stroke="${strokeColor}" stroke-width="${strokeWidth}" ${strokeDash} />
+        <rect x="0" y="0" width="${nw}" height="${nh}" rx="8" fill="var(--bg-card)" stroke="${strokeColor}" stroke-width="${strokeWidth}" ${strokeDash} />
         
         <!-- Tank ID -->
         <text x="12" y="24" fill="var(--text-primary)" font-size="12.5" font-weight="700">${node.id}</text>
@@ -943,12 +960,12 @@ function renderFlowchart() {
         <text x="12" y="42" fill="${color}" font-size="10.5" font-weight="800">${node.capacity}</text>
         
         <!-- Capacity Bar base -->
-        <rect x="12" y="52" width="${nodeW - 24}" height="6" rx="3" fill="var(--border-subtle)" />
+        <rect x="12" y="52" width="${nw - 24}" height="6" rx="3" fill="var(--border-subtle)" />
         <!-- Capacity Bar filled level -->
-        <rect x="12" y="52" width="${(nodeW - 24) * (node.fill / 100)}" height="6" rx="3" fill="${color}" />
+        <rect x="12" y="52" width="${(nw - 24) * (node.fill / 100)}" height="6" rx="3" fill="${color}" />
         
         <!-- Name or Tag -->
-        <text x="${nodeW - 12}" y="22" fill="var(--text-secondary)" font-size="8.5" font-weight="500" text-anchor="end">${node.name}</text>
+        <text x="${nw - 12}" y="22" fill="var(--text-secondary)" font-size="8.5" font-weight="500" text-anchor="end">${node.name}</text>
       </g>
     `;
   });
@@ -962,8 +979,65 @@ function renderFlowchart() {
     });
   }
   
+  // 5. Render Group Resize Handles ON TOP of everything (after nodes)
+  //    so they are clickable and not hidden behind tank cards.
+  if (isEditingMode) {
+    // 5. Render ALL Group Resize Handles ON TOP (works for every group type including process-block)
+    data.groups.forEach(g => {
+      const isSelected = typeof selectedItem !== 'undefined' && selectedItem && selectedItem.type === 'group' && selectedItem.id === g.id;
+      if (!isSelected) return;
+      const handleColor = g.id.startsWith('process-block') ? 'var(--color-process)' : 'var(--color-accent)';
+      svgContent += `
+        <rect class="svg-resize-handle" data-id="${g.id}" data-type="group-resize"
+          x="${g.x + g.w - 16}" y="${g.y + g.h - 16}" width="20" height="20" rx="4"
+          fill="${handleColor}" opacity="0.95" style="cursor:se-resize;" />
+        <path d="M${g.x+g.w-12} ${g.y+g.h-3} L${g.x+g.w-3} ${g.y+g.h-3} L${g.x+g.w-3} ${g.y+g.h-12}"
+          stroke="white" stroke-width="2.5" fill="none" pointer-events="none" />
+        <rect x="${g.x}" y="${g.y}" width="${g.w}" height="${g.h}" rx="10"
+          fill="none" stroke="${handleColor}" stroke-width="2" stroke-dasharray="5,4" pointer-events="none" />
+      `;
+    });
+    
+    // 6. Render Node Resize Handles ON TOP
+    data.nodes.forEach(node => {
+      const isSelected = typeof selectedItem !== 'undefined' && selectedItem && selectedItem.type === 'node' && selectedItem.id === node.id;
+      if (!isSelected) return;
+      const nw = node.w || 140;
+      const nh = node.h || 70;
+      svgContent += `
+        <rect class="svg-resize-handle" data-id="${node.id}" data-type="node-resize"
+          x="${node.x + nw - 16}" y="${node.y + nh - 16}" width="18" height="18" rx="4"
+          fill="var(--color-accent)" opacity="0.9" style="cursor:se-resize;" />
+        <path d="M${node.x+nw-12} ${node.y+nh-3} L${node.x+nw-3} ${node.y+nh-3} L${node.x+nw-3} ${node.y+nh-12}"
+          stroke="white" stroke-width="2" fill="none" pointer-events="none" />
+      `;
+    });
+    
+    // 7. Connection Anchor handles (start/end dots) LAST so they are always on top
+    const selectedConnIndex = (selectedItem && selectedItem.type === 'connection') ? selectedItem.index : -1;
+    if (selectedConnIndex >= 0) {
+      const gc = data.groupConnections[selectedConnIndex];
+      if (gc) {
+        const anchorRoute = calculatePath(gc);
+        if (anchorRoute) {
+          const { startX: ax0, startY: ay0, endX: ax1, endY: ay1 } = anchorRoute;
+          svgContent += `
+            <g class="svg-conn-anchor" data-conn-index="${selectedConnIndex}" data-anchor="start" style="cursor:crosshair; pointer-events:all;">
+              <circle cx="${ax0}" cy="${ay0}" r="11" fill="var(--color-process)" stroke="white" stroke-width="2.5" style="pointer-events:all;"/>
+              <text x="${ax0}" y="${ay0 - 15}" fill="var(--color-process)" font-size="10" font-weight="800" text-anchor="middle" style="pointer-events:none;">起點</text>
+            </g>
+            <g class="svg-conn-anchor" data-conn-index="${selectedConnIndex}" data-anchor="end" style="cursor:crosshair; pointer-events:all;">
+              <circle cx="${ax1}" cy="${ay1}" r="11" fill="var(--color-raw)" stroke="white" stroke-width="2.5" style="pointer-events:all;"/>
+              <text x="${ax1}" y="${ay1 - 15}" fill="var(--color-raw)" font-size="10" font-weight="800" text-anchor="middle" style="pointer-events:none;">終點</text>
+            </g>
+          `;
+        }
+      }
+    }
+  }
   svgContent += `</svg>`;
   canvasContainer.innerHTML = svgContent;
+
 }
 
 // Map tank type to design colors
@@ -1104,6 +1178,10 @@ let dragStartItemX = 0;
 let dragStartItemY = 0;
 let dragStartItemW = 0;
 let dragStartItemH = 0;
+let dragPendingConnIdx = -1;
+let dragPendingClickX = 0;
+let dragPendingClickY = 0;
+let dragPendingInsertedPt = null; // Reference to inserted waypoint
 
 // Deep copy of original flowchart data for layout resetting
 const originalFlowchartData = JSON.parse(JSON.stringify(flowchartData));
@@ -1403,6 +1481,24 @@ function applyLayoutAndReload() {
     console.error("Failed to parse local dataset overrides", e);
   }
   
+  // 4. Run data migrations to ensure new features/connections are present
+  // Migration 1: CPNE3 offgrade connections
+  if (flowchartData["cpne3"] && flowchartData["cpne3"].groupConnections) {
+    const cpne3Conns = flowchartData["cpne3"].groupConnections;
+    const requiredConns = [
+      { from: "raw-group", to: "IBC桶", label: "格外品" },
+      { from: "p1-group", to: "TK-660", label: "格外品" },
+      { from: "p2-group", to: "TK-655", label: "格外品" },
+      { from: "check-group", to: "TK-655_2", label: "格外品" }
+    ];
+    requiredConns.forEach(req => {
+      const exists = cpne3Conns.find(c => c.from === req.from && c.to === req.to);
+      if (!exists) {
+        cpne3Conns.push(req);
+      }
+    });
+  }
+  
   // Update currently active tab selection in case the current tab got deleted
   if (!flowchartData[currentTab]) {
     currentTab = Object.keys(flowchartData)[0] || "ipa";
@@ -1467,12 +1563,14 @@ if (editModeBtn) {
       canvasContainer.classList.add("editing-layout");
       document.body.classList.add("edit-mode-active");
       if (editPanel) editPanel.classList.add("active");
+      canvasContainer.classList.add("edit-panel-open");
     } else {
       editModeBtn.innerHTML = "<span>🔧 編輯模式：關閉</span>";
       editModeBtn.classList.remove("active");
       canvasContainer.classList.remove("editing-layout");
       document.body.classList.remove("edit-mode-active");
       if (editPanel) editPanel.classList.remove("active");
+      canvasContainer.classList.remove("edit-panel-open");
       selectedItem = null;
       isAddingConnPoint = false;
       updateSelectedNodeUI();
@@ -1930,8 +2028,16 @@ if (addNodeGroupBtn) {
       return;
     }
     
+    let finalId = id;
+    if (type === 'group') {
+      const groupChemicalType = document.getElementById("groupTypeSelect").value;
+      if (groupChemicalType === "process-block" && !finalId.startsWith("process-block")) {
+        finalId = `process-block-${finalId}`;
+      }
+    }
+    
     const data = flowchartData[currentTab];
-    const idCollision = data.nodes.some(n => n.id === id) || data.groups.some(g => g.id === id);
+    const idCollision = data.nodes.some(n => n.id === finalId) || data.groups.some(g => g.id === finalId);
     if (idCollision) {
       alert("❌ 此 ID 已存在於目前流程圖中，請使用其他唯一 ID！");
       return;
@@ -1940,7 +2046,7 @@ if (addNodeGroupBtn) {
     if (type === 'node') {
       const chemicalType = document.getElementById("nodeTypeSelect").value;
       const newNode = {
-        id: id,
+        id: finalId,
         name: name || "新儲槽",
         capacity: capacity || "100 KL",
         type: chemicalType,
@@ -1955,24 +2061,29 @@ if (addNodeGroupBtn) {
         }
       };
       data.nodes.push(newNode);
-      alert(`🎉 儲槽 ${id} 新增成功！請在畫布上拖曳至正確位置。`);
+      alert(`🎉 儲槽 ${finalId} 新增成功！請在畫布上拖曳至正確位置。`);
     } else {
       const w = parseInt(document.getElementById("addGroupWidth").value) || 180;
-      const h = parseInt(document.getElementById("addGroupHeight").value) || 240;
+      let h = parseInt(document.getElementById("addGroupHeight").value) || 240;
       const groupChemicalType = document.getElementById("groupTypeSelect").value;
       
+      // Default process-block height is usually smaller
+      if (groupChemicalType === "process-block" && h === 240) {
+        h = 80;
+      }
+      
       const newGroup = {
-        id: id,
+        id: finalId,
         name: name || "新群組",
         capacity: capacity || "",
         x: 100,
         y: 100,
         w: w,
         h: h,
-        type: groupChemicalType
+        type: groupChemicalType === "process-block" ? "process" : groupChemicalType
       };
       data.groups.push(newGroup);
-      alert(`🎉 群組 ${id} 新增成功！請在畫布上拖曳至正確位置。`);
+      alert(`🎉 群組 ${finalId} 新增成功！請在畫布上拖曳至正確位置。`);
     }
     
     // Clear inputs
@@ -2000,6 +2111,7 @@ canvasContainer.addEventListener('mousedown', (e) => {
   const groupEl = e.target.closest('.svg-group-card');
   const pipeEl = e.target.closest('.svg-pipeline-clickable');
   const handleEl = e.target.closest('.svg-conn-handle');
+  const anchorEl = e.target.closest('.svg-conn-anchor');
   const labelEl = e.target.closest('.svg-conn-label') || e.target.closest('.svg-conn-label-bg');
   const resizeEl = e.target.closest('.svg-resize-handle');
   
@@ -2033,6 +2145,27 @@ canvasContainer.addEventListener('mousedown', (e) => {
     }
   }
   
+  // Anchor handle (start/end of a connection pipe)
+  if (anchorEl) {
+    e.preventDefault();
+    const connIndex = parseInt(anchorEl.getAttribute('data-conn-index'));
+    const which = anchorEl.getAttribute('data-anchor'); // 'start' or 'end'
+    selectedItem = { type: 'connection', index: connIndex };
+    dragItem = data.groupConnections[connIndex];
+    dragType = which === 'start' ? 'conn-anchor-start' : 'conn-anchor-end';
+    dragStartMouseX = e.clientX;
+    dragStartMouseY = e.clientY;
+    dragStartItemX = dragItem.anchorFromOffset ? dragItem.anchorFromOffset[0] : 0;
+    dragStartItemY = dragItem.anchorFromOffset ? dragItem.anchorFromOffset[1] : 0;
+    if (which === 'end') {
+      dragStartItemX = dragItem.anchorToOffset ? dragItem.anchorToOffset[0] : 0;
+      dragStartItemY = dragItem.anchorToOffset ? dragItem.anchorToOffset[1] : 0;
+    }
+    updateSelectedNodeUI();
+    renderFlowchart();
+    return;
+  }
+  
   if (labelEl) {
     e.preventDefault();
     const connIndex = parseInt(labelEl.getAttribute('data-conn-index'));
@@ -2042,7 +2175,7 @@ canvasContainer.addEventListener('mousedown', (e) => {
     // We need coordinates for the label
     if (!dragItem.labelPos) {
       const gc = dragItem;
-      const route = calculatePath(gc.from, gc.to, gc.points);
+      const route = calculatePath(gc);
       let defaultX = 0, defaultY = 0;
       if (route) {
         const { startX, startY, endX, endY } = route;
@@ -2112,23 +2245,45 @@ canvasContainer.addEventListener('mousedown', (e) => {
     const connIndex = parseInt(pipeEl.getAttribute('data-index'));
     selectedItem = { type: 'connection', index: connIndex };
     isAddingConnPoint = false; // reset point adding mode
+    
+    // Set up dragging for the entire pipe offset
+    dragType = 'conn-pipe-offset';
+    dragItem = data.groupConnections[connIndex];
+    dragStartMouseX = e.clientX;
+    dragStartMouseY = e.clientY;
+    dragStartItemY = dragItem.offsetY || 0;
+    dragStartItemX = dragItem.offsetX || 0;
+    
     updateSelectedNodeUI();
     renderFlowchart();
     return;
   }
   
-  // Check resize handle first (before group drag)
   if (resizeEl) {
     e.preventDefault();
     const id = resizeEl.getAttribute('data-id');
-    dragItem = data.groups.find(g => g.id === id);
-    dragType = 'group-resize';
-    selectedItem = { type: 'group', id: id };
-    if (dragItem) {
-      dragStartMouseX = e.clientX;
-      dragStartMouseY = e.clientY;
-      dragStartItemW = dragItem.w;
-      dragStartItemH = dragItem.h;
+    const type = resizeEl.getAttribute('data-type');
+    
+    if (type === 'node-resize') {
+      dragItem = data.nodes.find(n => n.id === id);
+      dragType = 'node-resize';
+      selectedItem = { type: 'node', id: id };
+      if (dragItem) {
+        dragStartMouseX = e.clientX;
+        dragStartMouseY = e.clientY;
+        dragStartItemW = dragItem.w || 140;
+        dragStartItemH = dragItem.h || 70;
+      }
+    } else {
+      dragItem = data.groups.find(g => g.id === id);
+      dragType = 'group-resize';
+      selectedItem = { type: 'group', id: id };
+      if (dragItem) {
+        dragStartMouseX = e.clientX;
+        dragStartMouseY = e.clientY;
+        dragStartItemW = dragItem.w;
+        dragStartItemH = dragItem.h;
+      }
     }
     updateSelectedNodeUI();
     renderFlowchart();
@@ -2192,8 +2347,9 @@ window.addEventListener('mousemove', (e) => {
       dragItem.y = newY;
       renderFlowchart();
     }
-  } else if (dragType === 'group-resize') {
-    const minW = 60, minH = 40;
+  } else if (dragType === 'group-resize' || dragType === 'node-resize') {
+    const minW = dragType === 'node-resize' ? 80 : 40;
+    const minH = dragType === 'node-resize' ? 40 : 30;
     const newW = Math.max(minW, Math.round((dragStartItemW + dx) / 5) * 5);
     const newH = Math.max(minH, Math.round((dragStartItemH + dy) / 5) * 5);
     if (dragItem.w !== newW || dragItem.h !== newH) {
@@ -2217,6 +2373,30 @@ window.addEventListener('mousemove', (e) => {
       dragItem[1] = newY;
       renderFlowchart();
     }
+  } else if (dragType === 'conn-anchor-start' || dragType === 'conn-anchor-end') {
+    const svgEl3 = canvasContainer.querySelector('svg');
+    const rect3 = svgEl3 ? svgEl3.getBoundingClientRect() : canvasContainer.getBoundingClientRect();
+    const scaleX3 = 1180 / rect3.width;
+    const scaleY3 = 650 / rect3.height;
+    const svgDx = Math.round(((e.clientX - dragStartMouseX) * scaleX3) / 5) * 5;
+    const svgDy = Math.round(((e.clientY - dragStartMouseY) * scaleY3) / 5) * 5;
+    const newOx = Math.max(-200, Math.min(200, dragStartItemX + svgDx));
+    const newOy = Math.max(-200, Math.min(200, dragStartItemY + svgDy));
+    if (dragType === 'conn-anchor-start') {
+      dragItem.anchorFromOffset = [newOx, newOy];
+    } else {
+      dragItem.anchorToOffset = [newOx, newOy];
+    }
+    renderFlowchart();
+  } else if (dragType === 'conn-pipe-offset') {
+    const newOffsetY = Math.round((dragStartItemY + dy) / 5) * 5;
+    const newOffsetX = Math.round((dragStartItemX + dx) / 5) * 5;
+    
+    // clamp offset so it doesn't run totally off screen
+    dragItem.offsetY = Math.max(-400, Math.min(400, newOffsetY));
+    dragItem.offsetX = Math.max(-200, Math.min(200, newOffsetX));
+    
+    renderFlowchart();
   } else if (dragType === 'conn-label') {
     newX = Math.max(0, Math.min(1180, newX));
     newY = Math.max(0, Math.min(650, newY));

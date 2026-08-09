@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lv.3 Firebase 即時競賽 - 排行榜同步版</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(17, 25, 40, 0.75);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-purple: #8b5cf6;
+      --neon-pink: #ec4899;
+      --neon-red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 45%);
+      background-attachment: fixed;
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1.5rem;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      z-index: 10;
+    }
+
+    .nav-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 2rem;
+    }
+
+    .back-btn {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.3s ease;
+    }
+
+    .back-btn:hover {
+      color: var(--neon-cyan);
+    }
+
+    .level-indicator {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.3rem 0.85rem;
+      border-radius: 50px;
+      background: rgba(6, 182, 212, 0.1);
+      color: var(--neon-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+
+    .quiz-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2.5rem;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35);
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #fff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slogan {
+      font-size: 0.95rem;
+      color: var(--text-sub);
+      margin-bottom: 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 1.2rem;
+    }
+
+    /* Explanation of Firestore realtime */
+    .tech-box {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .tech-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      margin-bottom: 0.8rem;
+    }
+
+    .tech-code {
+      background: #000;
+      color: #7dd3fc;
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      margin-top: 0.5rem;
+      line-height: 1.4;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .input-group label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .input-field {
+      background: rgba(9, 13, 22, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 0.85rem 1.1rem;
+      color: white;
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+
+    /* Leaderboard panel simulator */
+    .leaderboard-panel {
+      background: rgba(9, 13, 22, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 2rem;
+      margin-top: 2rem;
+    }
+
+    .leaderboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 0.8rem;
+    }
+
+    .leaderboard-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+    }
+
+    .leaderboard-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .leaderboard-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 1rem 1.3rem;
+      border-radius: 12px;
+      transition: all 0.4s ease;
+    }
+
+    .leaderboard-item.top3 {
+      border-color: rgba(6, 182, 212, 0.25);
+      background: linear-gradient(90deg, rgba(6, 182, 212, 0.05), transparent);
+    }
+
+    .rank-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .rank-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 0.85rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .top3 .rank-num {
+      background: var(--neon-cyan);
+      color: var(--bg-dark);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+    }
+
+    .student-name {
+      font-weight: 700;
+    }
+
+    .student-score {
+      font-weight: 800;
+      color: var(--neon-cyan);
+      font-size: 1.1rem;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 1.1rem;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      color: white;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.2);
+    }
+
+    .action-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(6, 182, 212, 0.4);
+    }
+
+    /* Simulation inputs */
+    .simulator-inputs {
+      margin-top: 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 1.5rem;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="nav-header">
+      <a class="back-btn" href="index.html">← 返回首頁</a>
+      <span class="level-indicator">LEVEL 3：Firebase 即時連線</span>
+    </div>
+
+    <div class="quiz-card">
+      <h1>Lv.3 Firebase 即時競賽架構</h1>
+      <p class="slogan">利用 NoSQL 即時資料庫（Firebase Firestore）進行秒級同步，投射大螢幕讓全班競賽互動。</p>
+
+      <!-- Technical Code Block -->
+      <div class="tech-box">
+        <div class="tech-title">⚡ Firebase Firestore 即時監聽與寫入核心程式碼</div>
+        <p style="font-size: 0.85rem; color: var(--text-sub); line-height: 1.5;">
+          Firebase 提供 <code>onSnapshot()</code> 監聽器，只要資料庫發生變動，前端網頁會「秒級」自動重新渲染。
+        </p>
+        <div class="tech-code">
+// 寫入成績到 Firebase Firestore
+await db.collection("quiz_results").add({
+  nickname: studentName,
+  score: finalScore,
+  timestamp: firebase.firestore.FieldValue.serverTimestamp()
+});
+
+// 排行榜即時監聽與自動重新渲染
+db.collection("quiz_results")
+  .orderBy("score", "desc")
+  .limit(10)
+  .onSnapshot((snapshot) => {
+    // 當有新數據寫入時，此 callback 會立刻觸發，更新 UI 排行榜
+    updateLeaderboardUI(snapshot.docs);
+  });
+        </div>
+      </div>
+
+      <!-- Simulator Controls -->
+      <div class="simulator-inputs">
+        <div class="tech-title" style="color: var(--neon-pink);">🎯 排行榜模擬測試器</div>
+        <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 1.2rem;">
+          在下方輸入您的暱稱與設定分數，送出後會<b>立刻模擬 Firebase 的寫入與即時重新整理機制</b>，將您排入排行榜！
+        </p>
+        <div class="grid-2">
+          <div class="input-group">
+            <label for="sim-name">學員姓名/座號</label>
+            <input type="text" id="sim-name" class="input-field" placeholder="例如：70201王小強">
+          </div>
+          <div class="input-group">
+            <label for="sim-score">模擬得分 (0 - 100)</label>
+            <input type="number" id="sim-score" class="input-field" min="0" max="100" value="80">
+          </div>
+        </div>
+        <button class="action-btn" style="background: linear-gradient(135deg, var(--neon-pink), var(--neon-purple)); box-shadow: 0 4px 15px rgba(236, 72, 153, 0.2);" onclick="simSubmit()">
+          模擬學生提交並更新排行榜
+        </button>
+      </div>
+    </div>
+
+    <!-- Leaderboard simulator -->
+    <div class="leaderboard-panel">
+      <div class="leaderboard-header">
+        <div class="leaderboard-title">🏆 課堂即時挑戰排行榜 (大螢幕投影視角)</div>
+        <span style="font-size: 0.75rem; font-weight: 700; color: var(--neon-green); background: rgba(16, 185, 129, 0.1); padding: 0.25rem 0.75rem; border-radius: 50px; display: flex; align-items: center; gap: 0.3rem;">
+          <span style="width: 8px; height: 8px; background: var(--neon-green); border-radius: 50%; display: inline-block; animation: pulse 1s infinite;"></span> 即時連線中
+        </span>
+      </div>
+      <div class="leaderboard-list" id="leader-list">
+        <!-- Rank 1 -->
+        <div class="leaderboard-item top3" data-score="100" data-name="70112 李小華">
+          <div class="rank-info">
+            <span class="rank-num">1</span>
+            <span class="student-name">70112 李小華</span>
+          </div>
+          <span class="student-score">100 分</span>
+        </div>
+        <!-- Rank 2 -->
+        <div class="leaderboard-item top3" data-score="90" data-name="70105 熊大">
+          <div class="rank-info">
+            <span class="rank-num">2</span>
+            <span class="student-name">70105 熊大</span>
+          </div>
+          <span class="student-score">90 分</span>
+        </div>
+        <!-- Rank 3 -->
+        <div class="leaderboard-item top3" data-score="75" data-name="70124 兔兔">
+          <div class="rank-info">
+            <span class="rank-num">3</span>
+            <span class="student-name">70124 兔兔</span>
+          </div>
+          <span class="student-score">75 分</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Local memory list representing our virtual Firestore collection
+    let students = [
+      { name: "70112 李小華", score: 100 },
+      { name: "70105 熊大", score: 90 },
+      { name: "70124 兔兔", score: 75 }
+    ];
+
+    function simSubmit() {
+      const name = document.getElementById('sim-name').value.trim();
+      const score = parseInt(document.getElementById('sim-score').value.trim());
+
+      if (!name) {
+        alert("請輸入學員姓名！");
+        document.getElementById('sim-name').focus();
+        return;
+      }
+      if (isNaN(score) || score < 0 || score > 100) {
+        alert("分數必須在 0 到 100 之間！");
+        document.getElementById('sim-score').focus();
+        return;
+      }
+
+      // Add to list (Firestore mock write)
+      students.push({ name, score });
+
+      // Mock Firestore callback trigger
+      renderLeaderboard();
+
+      // Reset input
+      document.getElementById('sim-name').value = '';
+    }
+
+    function renderLeaderboard() {
+      // Sort desc
+      students.sort((a, b) => b.score - a.score);
+
+      const listContainer = document.getElementById('leader-list');
+      listContainer.innerHTML = '';
+
+      students.forEach((s, idx) => {
+        const isTop3 = idx < 3;
+        const div = document.createElement('div');
+        div.className = `leaderboard-item ${isTop3 ? 'top3' : ''}`;
+        
+        div.innerHTML = `
+          <div class="rank-info">
+            <span class="rank-num">${idx + 1}</span>
+            <span class="student-name">${s.name}</span>
+          </div>
+          <span class="student-score">${s.score} 分</span>
+        `;
+        listContainer.appendChild(div);
+      });
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.3; }
+      50% { opacity: 1; }
+      100% { opacity: 0.3; }
+    }
+  </script>
+</body>
+</html>

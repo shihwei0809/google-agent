@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>教學駕駛艙 Lv.5 - AI 智慧課程控制台</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #0f172a;
+      --sidebar-bg: #1e293b;
+      --card-bg: rgba(30, 41, 59, 0.4);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-purple: #8b5cf6;
+      --neon-pink: #ec4899;
+      --neon-orange: #f97316;
+      --neon-red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: Course Index */
+    .sidebar {
+      width: 320px;
+      background-color: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .sidebar-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sidebar-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+      color: white;
+    }
+
+    .online-counter {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      margin-top: 0.6rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .online-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--neon-green);
+      box-shadow: 0 0 8px var(--neon-green);
+      display: inline-block;
+      animation: pulse 2s infinite;
+    }
+
+    .slides-list {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .slide-item {
+      padding: 1rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .slide-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateX(2px);
+    }
+
+    .slide-item.active {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.4);
+      box-shadow: 0 4px 20px rgba(139, 92, 246, 0.15);
+    }
+
+    .slide-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.75rem;
+      color: var(--text-sub);
+    }
+
+    .tag {
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .tag-slide {
+      background-color: rgba(6, 182, 212, 0.15);
+      color: var(--neon-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+    }
+
+    .tag-quiz {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: var(--neon-green);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .slide-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Right Main Workspace */
+    .workspace {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .workspace-header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: rgba(15, 23, 42, 0.2);
+      backdrop-filter: blur(10px);
+    }
+
+    .current-topic-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .back-btn {
+      font-size: 0.8rem;
+      color: var(--text-sub);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .back-btn:hover {
+      color: var(--neon-cyan);
+    }
+
+    .current-topic {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .control-actions {
+      display: flex;
+      gap: 0.8rem;
+    }
+
+    /* Buttons */
+    .btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-purple) 0%, var(--neon-pink) 100%);
+      border: none;
+      box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--neon-cyan) 0%, var(--neon-green) 100%);
+      border: none;
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+    }
+
+    .btn-success:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.4);
+    }
+
+    /* Main Viewport displaying active slide */
+    .content-viewport {
+      flex-grow: 1;
+      padding: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow-y: auto;
+    }
+
+    .slide-card {
+      width: 100%;
+      max-width: 860px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 3rem;
+      min-height: 400px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .slide-body {
+      width: 100%;
+    }
+
+    .slide-headline {
+      font-size: 2.2rem;
+      font-weight: 900;
+      line-height: 1.3;
+      margin-bottom: 2rem;
+      background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .slide-desc {
+      font-size: 1.25rem;
+      line-height: 1.8;
+      color: var(--text-sub);
+      text-align: justify;
+    }
+
+    /* Interactive Realtime Donut Chart Layout */
+    .results-display {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 3rem;
+      align-items: center;
+      margin-top: 1rem;
+    }
+
+    .chart-container {
+      display: flex;
+      justify-content: center;
+    }
+
+    .chart-donut {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: conic-gradient(var(--text-sub) 0% 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transition: background 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .chart-donut-inner {
+      width: 135px;
+      height: 135px;
+      background-color: #151d30;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .total-votes {
+      font-size: 2.5rem;
+      font-weight: 800;
+      font-family: 'Outfit', sans-serif;
+      color: var(--text-main);
+    }
+
+    .total-votes-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      letter-spacing: 0.1em;
+      margin-top: -0.2rem;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .legend-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 0.4rem;
+      letter-spacing: 0.05em;
+    }
+
+    .legend-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+
+    .legend-label-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 500;
+    }
+
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .legend-pct-val {
+      font-weight: 700;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    /* Bottom Controller Panel */
+    .bottom-controller {
+      height: 70px;
+      background-color: var(--sidebar-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      z-index: 10;
+    }
+
+    .page-indicator {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    /* Glassmorphic AI Loading Modal Overlay */
+    .ai-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    .ai-modal-content {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 3rem 2rem;
+      width: 90%;
+      max-width: 500px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalSlideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    /* Outer glowing circles */
+    .ai-spinner {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 2rem auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .spinner-ring {
+      position: absolute;
+      border: 2px solid transparent;
+      border-radius: 50%;
+    }
+
+    .ring-1 {
+      width: 100px;
+      height: 100px;
+      border-top-color: var(--neon-cyan);
+      border-bottom-color: var(--neon-cyan);
+      animation: spin 2s linear infinite;
+    }
+
+    .ring-2 {
+      width: 80px;
+      height: 80px;
+      border-left-color: var(--neon-purple);
+      border-right-color: var(--neon-purple);
+      animation: spinReverse 1.5s linear infinite;
+    }
+
+    .ring-3 {
+      width: 60px;
+      height: 60px;
+      border-top-color: var(--neon-pink);
+      border-bottom-color: var(--neon-pink);
+      animation: spin 1s linear infinite;
+    }
+
+    .spinner-core {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 0.9rem;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes spinReverse {
+      to { transform: rotate(-360deg); }
+    }
+
+    .ai-modal-title {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 0.8rem;
+      letter-spacing: 0.05em;
+    }
+
+    .ai-modal-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-sub);
+      line-height: 1.6;
+      margin-bottom: 2rem;
+    }
+
+    .ai-progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .ai-progress-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink));
+      background-size: 200% auto;
+      border-radius: 3px;
+      animation: progressMove 2.5s infinite linear;
+    }
+
+    @keyframes progressMove {
+      0% { left: -40%; }
+      100% { left: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">教學駕駛艙 <span class="sidebar-badge">Lv.5</span></div>
+      <div class="online-counter"><span class="online-dot"></span> <span id="online-voters-count">0</span> 位學員已提交</div>
+    </div>
+    
+    <div class="slides-list" id="sidebar-list">
+      <div style="color:var(--text-sub); font-size:0.85rem; text-align:center; margin-top:2rem;">正在同步課堂資料...</div>
+    </div>
+  </div>
+
+  <!-- Right Main Workspace -->
+  <div class="workspace">
+    <div class="workspace-header">
+      <div class="current-topic-group">
+        <a class="back-btn" href="index.html">← 返回首頁</a>
+        <div class="current-topic" id="header-topic">載入中...</div>
+      </div>
+      <div class="control-actions">
+        <!-- API Key Input -->
+        <div style="display:flex; align-items:center; gap:0.5rem; background:rgba(255,255,255,0.03); padding:0.4rem 0.8rem; border-radius:8px; border:1px solid var(--border-color);">
+          <span style="font-size:0.75rem; color:var(--text-sub);">Gemini Key:</span>
+          <input type="password" id="client-gemini-key" style="width:130px; padding:0.3rem 0.5rem; font-size:0.75rem; border-radius:6px; border:1px solid var(--border-color); background:rgba(0,0,0,0.3); color:#fff; outline:none;" placeholder="留空使用本機 .env" onchange="saveClientKey(this.value)">
+        </div>
+        <!-- Page Count Selection -->
+        <div style="display:flex; align-items:center; gap:0.5rem; background:rgba(255,255,255,0.03); padding:0.4rem 0.8rem; border-radius:8px; border:1px solid var(--border-color);">
+          <span style="font-size:0.75rem; color:var(--text-sub);">生成頁數:</span>
+          <select id="generate-pages-count" style="background:#1e293b; border:1px solid var(--border-color); color:#fff; border-radius:6px; padding:0.3rem; font-size:0.75rem; outline:none; cursor:pointer;">
+            <option value="4">4 頁</option>
+            <option value="5">5 頁</option>
+            <option value="6">6 頁</option>
+            <option value="7">7 頁</option>
+            <option value="8" selected>8 頁 (推薦)</option>
+            <option value="9">9 頁</option>
+            <option value="10">10 頁</option>
+            <option value="12">12 頁</option>
+            <option value="15">15 頁</option>
+          </select>
+        </div>
+        <button class="btn" onclick="exportGradesCsv()" style="background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.3); color:#60a5fa;">📥 匯出答題紀錄</button>
+        <button class="btn" onclick="clearClassHistory()" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#f87171;">🧹 清除歷史</button>
+        <button class="btn btn-success" onclick="triggerFileUpload()">📂 上傳教材生成教學</button>
+        <button class="btn" onclick="copyStudentLink()">🔗 複製學生端連結</button>
+        <button class="btn" onclick="resetVoters()"><span style="color:var(--neon-red);">🔄</span> 重置本題答題</button>
+      </div>
+    </div>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="file-uploader" style="display:none;" accept=".pdf,.txt" onchange="handleFileSelected(event)">
+
+    <!-- Viewport -->
+    <div class="content-viewport">
+      <div class="slide-card" id="active-card">
+        <!-- Dynamically rendered content card -->
+      </div>
+    </div>
+
+    <!-- Bottom controller -->
+    <div class="bottom-controller">
+      <button class="btn" onclick="prevSlide()">← 上一張</button>
+      <div class="page-indicator" id="bottom-page-indicator">1 / 1</div>
+      <button class="btn" onclick="nextSlide()">下一張 →</button>
+    </div>
+  </div>
+
+  <!-- Glassmorphic Loading Modal -->
+  <div class="ai-modal-overlay" id="ai-loader-modal">
+    <div class="ai-modal-content">
+      <div class="ai-spinner">
+        <div class="spinner-ring ring-1"></div>
+        <div class="spinner-ring ring-2"></div>
+        <div class="spinner-ring ring-3"></div>
+        <div class="spinner-core">Gemini</div>
+      </div>
+      <div class="ai-modal-title">AI 正在深度解析您的教材</div>
+      <div class="ai-modal-subtitle">正在自動研讀檔案內容、分析關鍵知識點，並設計交錯穿插的簡報投影與互動測驗題目...</div>
+      <div class="ai-progress-bar">
+        <div class="ai-progress-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let slidesData = [];
+    let currentActiveIndex = 0;
+    let lastSlidesJSON = '';
+    const colors = ["var(--neon-green)", "var(--neon-orange)", "var(--neon-cyan)", "var(--neon-purple)"];
+
+    window.addEventListener('load', async () => {
+      // 1. Initial State Fetch
+      await fetchClassState(true);
+      
+      // Load saved key if exists
+      const savedKey = localStorage.getItem('client_gemini_key') || '';
+      if (savedKey) {
+        document.getElementById('client-gemini-key').value = savedKey;
+      }
+      
+      // 2. Start state polling loop (every 500ms)
+      setInterval(pollClassState, 500);
+    });
+
+    function saveClientKey(val) {
+      localStorage.setItem('client_gemini_key', val.trim());
+    }
+
+    function renderSidebar() {
+      const container = document.getElementById('sidebar-list');
+      container.innerHTML = '';
+      
+      if (slidesData.length === 0) {
+        container.innerHTML = `<div style="color:var(--text-sub); font-size:0.85rem; text-align:center; margin-top:2rem;">暫無投影片資料</div>`;
+        return;
+      }
+
+      slidesData.forEach((s, idx) => {
+        const item = document.createElement('div');
+        item.className = `slide-item ${idx === currentActiveIndex ? 'active' : ''}`;
+        item.onclick = () => {
+          loadSlide(idx);
+          syncStateToBackend(idx + 1);
+        };
+        
+        const typeLabel = s.type === 'slide' ? '投影片' : '互動室';
+        const typeClass = s.type === 'slide' ? 'tag-slide' : 'tag-quiz';
+        
+        item.innerHTML = `
+          <div class="slide-meta">
+            <span>頁數 ${s.index}</span>
+            <span class="tag ${typeClass}">${typeLabel}</span>
+          </div>
+          <div class="slide-title">${s.title || '無標題'}</div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    let isEditing = false;
+
+    function loadSlide(index) {
+      if (slidesData.length === 0) return;
+      currentActiveIndex = index;
+      
+      // Update sidebar active class
+      const items = document.querySelectorAll('.slide-item');
+      items.forEach((item, idx) => {
+        if (idx === index) item.classList.add('active');
+        else item.classList.remove('active');
+      });
+
+      const slide = slidesData[index];
+      if (!slide) return;
+      
+      document.getElementById('header-topic').textContent = slide.title || slide.headline || `第 ${slide.index} 頁`;
+      document.getElementById('bottom-page-indicator').textContent = `${slide.index} / ${slidesData.length}`;
+
+      const card = document.getElementById('active-card');
+      card.innerHTML = '';
+
+      if (slide.type === 'slide') {
+        card.innerHTML = `
+          <div class="slide-body">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.5rem;">
+              <span style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.05em;">簡報投影片</span>
+              <button class="btn" onclick="enterEditMode()" style="padding:0.3rem 0.8rem; font-size:0.75rem; border-radius:6px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2); color:var(--neon-purple);">📝 編輯此頁</button>
+            </div>
+            <h2 class="slide-headline">${slide.headline}</h2>
+            <p class="slide-desc">${slide.desc}</p>
+          </div>
+        `;
+      } else {
+        // Quiz View displaying Realtime Donut Chart
+        card.innerHTML = `
+          <div class="slide-body">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:0.5rem;">
+              <span style="font-size:0.75rem; color:var(--text-sub); text-transform:uppercase; letter-spacing:0.05em;">隨堂互動測驗</span>
+              <button class="btn" onclick="enterEditMode()" style="padding:0.3rem 0.8rem; font-size:0.75rem; border-radius:6px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.2); color:var(--neon-green);">📝 編輯此題</button>
+            </div>
+            <h2 class="slide-headline" style="font-size:1.6rem; margin-bottom:1.2rem;">${slide.headline}</h2>
+            <div class="results-display">
+              <div class="chart-container">
+                <div class="chart-donut" id="donut-chart">
+                  <div class="chart-donut-inner">
+                    <span class="total-votes" id="vote-count-label">0</span>
+                    <span class="total-votes-label">總票數</span>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-legend" id="chart-legend">
+                <div class="legend-title">學員答題即時統計</div>
+              </div>
+            </div>
+          </div>
+        `;
+        // Immediate render
+        updateChartUI({ A: 0, B: 0, C: 0, D: 0 });
+      }
+    }
+
+    // Push active slide page to local database
+    async function syncStateToBackend(slideNum) {
+      try {
+        await fetch('/api/class-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentSlide: slideNum })
+        });
+      } catch (e) {
+        console.error("狀態同步後端失敗:", e);
+      }
+    }
+
+    // Load full class state from backend
+    async function fetchClassState(isInitial = false) {
+      try {
+        const response = await fetch('/api/class-state');
+        if (!response.ok) return;
+        const data = await response.json();
+        
+        slidesData = data.slidesData || [];
+        lastSlidesJSON = JSON.stringify(slidesData);
+        
+        renderSidebar();
+        
+        if (isInitial) {
+          currentActiveIndex = data.currentSlide - 1;
+          if (currentActiveIndex < 0 || currentActiveIndex >= slidesData.length) {
+            currentActiveIndex = 0;
+          }
+          loadSlide(currentActiveIndex);
+        }
+      } catch (e) {
+        console.error("無法載入課程狀態:", e);
+      }
+    }
+
+    // Polling class state loop
+    async function pollClassState() {
+      if (isEditing) return; // 編輯中暫停 Polling，防止講師打字被覆蓋
+      try {
+        const response = await fetch('/api/class-state');
+        if (!response.ok) return;
+        const data = await response.json();
+
+        // 1. Sync Slides configuration if changed (e.g. uploaded new material)
+        const slidesJSON = JSON.stringify(data.slidesData || []);
+        if (slidesJSON !== lastSlidesJSON) {
+          lastSlidesJSON = slidesJSON;
+          slidesData = data.slidesData || [];
+          renderSidebar();
+          if (currentActiveIndex >= slidesData.length) {
+            currentActiveIndex = 0;
+          }
+          loadSlide(currentActiveIndex);
+        }
+
+        // 2. Sync Slide Page (if changed on server)
+        if (data.currentSlide !== (currentActiveIndex + 1)) {
+          currentActiveIndex = data.currentSlide - 1;
+          if (currentActiveIndex < 0) currentActiveIndex = 0;
+          loadSlide(currentActiveIndex);
+        }
+
+        // 3. Update Quiz statistics in UI if we are on a quiz slide
+        const slide = slidesData[currentActiveIndex];
+        if (slide && slide.type === 'interactive') {
+          updateChartUI(data.answers, data.voters.length);
+        }
+      } catch (e) {
+        // Server offline
+      }
+    }
+
+    /* 進入編輯模式 */
+    function enterEditMode() {
+      const slide = slidesData[currentActiveIndex];
+      if (!slide) return;
+      isEditing = true;
+
+      const card = document.getElementById('active-card');
+      card.innerHTML = '';
+
+      if (slide.type === 'slide') {
+        card.innerHTML = `
+          <div class="slide-body">
+            <h3 style="margin-bottom:1.5rem; color:var(--neon-purple); font-weight:800; display:flex; align-items:center; gap:0.5rem;">📝 編輯簡報內容</h3>
+            <div style="display:flex; flex-direction:column; gap:1.2rem;">
+              <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                <label style="font-size:0.85rem; font-weight:700; color:var(--text-main);">簡報標題</label>
+                <input type="text" id="edit-headline" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:#fff; border-radius:8px; padding:0.8rem; font-size:1rem; outline:none; font-family:inherit;" value="${escapeHTML(slide.headline || '')}">
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                <label style="font-size:0.85rem; font-weight:700; color:var(--text-main);">內容描述</label>
+                <textarea id="edit-desc" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:#fff; border-radius:8px; padding:0.8rem; height:180px; resize:vertical; font-family:inherit; font-size:0.95rem; line-height:1.6; outline:none;">${escapeHTML(slide.desc || '')}</textarea>
+              </div>
+              <div style="display:flex; gap:1rem; margin-top:0.5rem;">
+                <button class="btn btn-primary" onclick="saveSlideChanges()">💾 儲存修改</button>
+                <button class="btn" onclick="cancelEditMode()">❌ 取消</button>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Edit Quiz
+        const optA = slide.options ? (slide.options.A || '') : '';
+        const optB = slide.options ? (slide.options.B || '') : '';
+        const optC = slide.options ? (slide.options.C || '') : '';
+        const optD = slide.options ? (slide.options.D || '') : '';
+
+        card.innerHTML = `
+          <div class="slide-body">
+            <h3 style="margin-bottom:1.5rem; color:var(--neon-green); font-weight:800; display:flex; align-items:center; gap:0.5rem;">📝 編輯測驗問題</h3>
+            <div style="display:flex; flex-direction:column; gap:1rem; max-height: 480px; overflow-y: auto; padding-right: 0.5rem;">
+              <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                <label style="font-size:0.85rem; font-weight:700; color:var(--text-main);">測驗題目</label>
+                <input type="text" id="edit-headline" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:#fff; border-radius:8px; padding:0.8rem; font-size:1rem; outline:none; font-family:inherit;" value="${escapeHTML(slide.headline || '')}">
+              </div>
+              
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                  <label style="font-size:0.8rem; color:var(--text-sub);">選項 A</label>
+                  <input type="text" id="edit-opt-A" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:#fff; border-radius:6px; padding:0.6rem; font-size:0.9rem; outline:none;" value="${escapeHTML(optA)}">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                  <label style="font-size:0.8rem; color:var(--text-sub);">選項 B</label>
+                  <input type="text" id="edit-opt-B" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:#fff; border-radius:6px; padding:0.6rem; font-size:0.9rem; outline:none;" value="${escapeHTML(optB)}">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                  <label style="font-size:0.8rem; color:var(--text-sub);">選項 C</label>
+                  <input type="text" id="edit-opt-C" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:#fff; border-radius:6px; padding:0.6rem; font-size:0.9rem; outline:none;" value="${escapeHTML(optC)}">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                  <label style="font-size:0.8rem; color:var(--text-sub);">選項 D</label>
+                  <input type="text" id="edit-opt-D" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:#fff; border-radius:6px; padding:0.6rem; font-size:0.9rem; outline:none;" value="${escapeHTML(optD)}">
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns: 120px 1fr; gap: 1rem; align-items: center;">
+                <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                  <label style="font-size:0.85rem; font-weight:700; color:var(--text-main);">正確答案</label>
+                  <select id="edit-correct" style="background:#1e293b; border:1px solid var(--border-color); color:#fff; border-radius:6px; padding:0.5rem; font-size:0.9rem; outline:none;">
+                    <option value="A" ${slide.correctAnswer === 'A' ? 'selected' : ''}>A</option>
+                    <option value="B" ${slide.correctAnswer === 'B' ? 'selected' : ''}>B</option>
+                    <option value="C" ${slide.correctAnswer === 'C' ? 'selected' : ''}>C</option>
+                    <option value="D" ${slide.correctAnswer === 'D' ? 'selected' : ''}>D</option>
+                  </select>
+                </div>
+                <div style="display:flex; flex-direction:column; gap:0.4rem;">
+                  <label style="font-size:0.85rem; font-weight:700; color:var(--text-main);">回答解析</label>
+                  <input type="text" id="edit-explanation" style="background:rgba(0,0,0,0.3); border:1px solid var(--border-color); color:#fff; border-radius:6px; padding:0.6rem; font-size:0.9rem; outline:none;" value="${escapeHTML(slide.explanation || '')}">
+                </div>
+              </div>
+
+              <div style="display:flex; gap:1rem; margin-top:1rem;">
+                <button class="btn btn-primary" onclick="saveSlideChanges()">💾 儲存修改</button>
+                <button class="btn" onclick="cancelEditMode()">❌ 取消</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    /* 取消編輯 */
+    function cancelEditMode() {
+      isEditing = false;
+      loadSlide(currentActiveIndex);
+    }
+
+    /* 儲存編輯 */
+    async function saveSlideChanges() {
+      const slide = slidesData[currentActiveIndex];
+      if (!slide) return;
+
+      const newHeadline = document.getElementById('edit-headline').value.trim();
+      if (!newHeadline) {
+        alert('標題或題目不可為空！');
+        return;
+      }
+
+      slide.headline = newHeadline;
+
+      if (slide.type === 'slide') {
+        slide.desc = document.getElementById('edit-desc').value.trim();
+      } else {
+        slide.options = {
+          A: document.getElementById('edit-opt-A').value.trim(),
+          B: document.getElementById('edit-opt-B').value.trim(),
+          C: document.getElementById('edit-opt-C').value.trim(),
+          D: document.getElementById('edit-opt-D').value.trim()
+        };
+        slide.correctAnswer = document.getElementById('edit-correct').value;
+        slide.explanation = document.getElementById('edit-explanation').value.trim();
+      }
+
+      try {
+        const response = await fetch('/api/update-slides', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slidesData: slidesData })
+        });
+        
+        if (response.ok) {
+          isEditing = false;
+          lastSlidesJSON = JSON.stringify(slidesData);
+          renderSidebar();
+          loadSlide(currentActiveIndex);
+          alert('💾 修改已成功儲存，並即時同步推送給所有學員！');
+        } else {
+          alert('儲存修改失敗');
+        }
+      } catch (e) {
+        alert('連線伺服器失敗');
+      }
+    }
+
+    /* HTML 逸出防注入 */
+    function escapeHTML(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function updateChartUI(answers, totalVoters = 0) {
+      const slide = slidesData[currentActiveIndex];
+      if (!slide || !slide.options) return;
+
+      const voteLabel = document.getElementById('vote-count-label');
+      if (voteLabel) voteLabel.textContent = totalVoters;
+      
+      const headerVoters = document.getElementById('online-voters-count');
+      if (headerVoters) headerVoters.textContent = totalVoters;
+
+      const legendContainer = document.getElementById('chart-legend');
+      if (!legendContainer) return;
+      
+      legendContainer.innerHTML = '<div class="legend-title">學員答題即時統計</div>';
+
+      let total = 0;
+      Object.entries(slide.options).forEach(([letter, text]) => {
+        total += answers[letter] || 0;
+      });
+
+      let accumulatedPct = 0;
+      const conicSlices = [];
+      const optionKeys = Object.keys(slide.options);
+
+      optionKeys.forEach((letter, idx) => {
+        const text = slide.options[letter];
+        const count = answers[letter] || 0;
+        const pct = total === 0 ? 0 : Math.round((count / total) * 100);
+        const color = colors[idx % colors.length];
+
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        const isCorrectText = letter === slide.correctAnswer ? ' <span style="color:var(--neon-green); font-size:0.75rem;">(正確答案)</span>' : '';
+        item.innerHTML = `
+          <div class="legend-label-group">
+            <span class="legend-color" style="background: ${color};"></span>
+            <span>${letter}. ${text}${isCorrectText}</span>
+          </div>
+          <div>
+            <span class="legend-pct-val" style="color: ${color};">${pct}%</span>
+            <span style="color:var(--text-sub); font-size:0.8rem; margin-left:0.4rem;">(${count} 人)</span>
+          </div>
+        `;
+        legendContainer.appendChild(item);
+
+        if (pct > 0) {
+          const start = accumulatedPct;
+          accumulatedPct += pct;
+          conicSlices.push(`${color} ${start}% ${accumulatedPct}%`);
+        }
+      });
+
+      const donut = document.getElementById('donut-chart');
+      if (donut) {
+        if (conicSlices.length > 0) {
+          donut.style.background = `conic-gradient(${conicSlices.join(', ')}, var(--text-sub) ${accumulatedPct}% 100%)`;
+        } else {
+          donut.style.background = `conic-gradient(var(--text-sub) 0% 100%)`;
+        }
+      }
+    }
+
+    async function resetVoters() {
+      if (confirm('確定要清除當前測驗題目的學員答案並重新作答嗎？')) {
+        try {
+          await fetch('/api/reset-class', { method: 'POST' });
+          pollClassState();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    function copyStudentLink() {
+      const link = `${window.location.origin}/lv5-student.html`;
+      navigator.clipboard.writeText(link).then(() => {
+        alert(`已複製學生端連結：\n${link}\n\n請在無痕視窗或另一個瀏覽器分頁開啟，即可扮演學員作答！`);
+      }).catch(err => {
+        alert(`複製失敗，請手動複製網址：${link}`);
+      });
+    }
+
+    function prevSlide() {
+      if (currentActiveIndex > 0) {
+        const nextIdx = currentActiveIndex - 1;
+        loadSlide(nextIdx);
+        syncStateToBackend(nextIdx + 1);
+      }
+    }
+
+    function nextSlide() {
+      if (currentActiveIndex < slidesData.length - 1) {
+        const nextIdx = currentActiveIndex + 1;
+        loadSlide(nextIdx);
+        syncStateToBackend(nextIdx + 1);
+      }
+    }
+
+    /* Uploader Utilities */
+    function triggerFileUpload() {
+      document.getElementById('file-uploader').click();
+    }
+
+    function handleFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      
+      // Show loading overlay
+      const loaderModal = document.getElementById('ai-loader-modal');
+      loaderModal.style.display = 'flex';
+
+      reader.onload = async function(e) {
+        const base64Data = e.target.result;
+        
+        try {
+          const clientKey = localStorage.getItem('client_gemini_key') || '';
+          const pagesCount = document.getElementById('generate-pages-count').value;
+          const res = await fetch('/api/generate-lesson', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileName: file.name,
+              mimeType: file.type || 'application/pdf',
+              base64Data: base64Data,
+              clientApiKey: clientKey,
+              pagesCount: pagesCount
+            })
+          });
+
+          const data = await res.json();
+          if (res.ok && data.status === 'success') {
+            alert(`🎉 課程生成成功！AI 已自動解析教材並生成了 ${data.slidesCount} 頁教學簡報與測驗。`);
+            // Refresh
+            await fetchClassState(true);
+          } else {
+            alert(`❌ 課程生成失敗：${data.error || '未知錯誤'}`);
+          }
+        } catch (err) {
+          alert(`❌ 連線伺服器失敗：${err.message}`);
+        } finally {
+          // Hide loading overlay
+          loaderModal.style.display = 'none';
+          // Reset file input
+          event.target.value = '';
+        }
+      };
+
+      reader.onerror = function() {
+        alert('讀取檔案失敗！');
+        loaderModal.style.display = 'none';
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    function exportGradesCsv() {
+      window.open('/api/export-csv', '_blank');
+    }
+
+    async function clearClassHistory() {
+      if (!confirm('⚠️ 確定要清除所有學員答題歷史紀錄嗎？此動作無法復原。')) return;
+      try {
+        const response = await fetch('/api/clear-history', { method: 'POST' });
+        if (response.ok) {
+          alert('🧹 歷史答題明細已成功清除！');
+        } else {
+          alert('清除失敗');
+        }
+      } catch (e) {
+        alert('連線伺服器失敗');
+      }
+    }
+  </script>
+</body>
+</html>
