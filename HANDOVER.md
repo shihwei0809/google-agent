@@ -46,8 +46,8 @@
 | 互動式網站 Lv1-5 | https://interactive-site.pages.dev | `interactive-site` |
 | Padlet 留言板 | https://padlet-board-app.pages.dev | `padlet-board-app` |
 
-### ⚠️ 已知待處理問題（低優先度）
-- **子專案內的「返回大廳」按鈕沒有反應**：各子專案（如 hr-quiz-v2、nitrogen-valve-training 等）頁面內部有返回大廳按鈕，但連結未設定或設錯。待日後逐一修改各子專案的 `index.html`，將返回按鈕改為連結到 `https://google-agent.pages.dev`，並重新用 `wrangler pages deploy` 部署。
+### 💡 專案導覽策略更新 (2026-08-10)
+- **子專案「返回大廳」按鈕處理決策**：經討論後決定**不再逐一修改**各子專案內部的「返回大廳」按鈕。因為大廳的「進入系統」已預設使用新分頁 (`target="_blank"`) 開啟，使用者只需關閉子專案分頁即可回到原先保留的大廳畫面，這在 UX 上是更好且維護成本更低的設計。
 
 ### 🔧 重新部署任何子專案的標準指令
 ```powershell
