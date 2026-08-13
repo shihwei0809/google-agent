@@ -4,6 +4,19 @@
 
 ---
 
+## 📅 最新交接紀錄 (2026-08-13) ⭐ 最新
+
+### 📌 AI 面試語音分析系統 (`interview_analyzer`) 跨電腦啟動與編碼防呆重構
+* **PowerShell UTF-8 BOM 編碼修復**：`setup_env.ps1` 原先無 BOM 格式導致 Windows PowerShell 5.1 繁體中文環境下將中文字元誤判為雙引號終結符 (`TerminatorExpectedAtEndOfString`)，已改寫為標準 UTF-8 with BOM (`utf-8-sig`) 編碼，確保 100% 成功執行。
+* **跨電腦 .venv 硬編碼路徑自動清理**：修改 `雙擊點我啟動面試語音AI分析系統.bat`，啟動時自動檢測 `.venv` 是否能在本機正常運行。若為從其他電腦複製過來的無效環境，自動刪除舊 `.venv` 並調用 `setup_env.ps1` 重新建置。
+* **未安裝 Python 時背景自動靜默安裝**：`setup_env.ps1` 新增 `winget` 與 Python 官方 64 位元靜默安裝器 (`/quiet PrependPath=1`) 雙重自動背景安裝邏輯，若同仁電腦未安裝 Python 可一鍵背景安裝並自動設定 PATH。
+* **.gitignore 隔離**：新增 `.gitignore` 避免 `.venv` 誤推上雲端干擾其他電腦。
+
+### 📌 給另一台電腦的接手指示：
+1. 進入 `第三類_AI代理與指南企劃/interview_analyzer` 雙擊 `雙擊點我啟動面試語音AI分析系統.bat` 即可一鍵傻瓜式自動完成環境設定與開啟系統。
+
+---
+
 ## 📅 最新交接紀錄 (2026-08-08)
 
 ### 📌 專案路徑歸位與整合
