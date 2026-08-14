@@ -4,7 +4,21 @@
 
 ---
 
-## 📅 最新交接紀錄 (2026-08-13) ⭐ 最新
+## 📅 最新交接紀錄 (2026-08-14) ⭐ 最新
+
+### 📌 ISOTANK 條碼產生器與 Excel 自動化升級 (`isotank bacode.xlsx`)
+* **3cm 條碼自動置中 (OpenXML EMU Anchor)**：計算 24 欄寬與 115 pt 列高的邊距偏移量 (`colOff=36px`, `rowOff=20px`)，將所有 3.0 cm (114px) QR Code 條碼實現水平與垂直雙向完美置中。
+* **分類歸位校正**：將原本誤歸入 `E33X` 的 `E329` 槽號正確歸位至 `E32X (10個)` 分頁。
+* **資料去重與全分頁重新生成**：依據去重後的 156 個真實槽號，自動分類並重新生成全檔 16 個標籤分頁 (全檔共 17 個分頁)，剔除非槽號數字雜訊與測試碼 `E400~E402`。
+* **批次一鍵/拖曳匯入工具 (`add_isotank_code.py` / `雙擊點我快速新增槽車條碼.bat`)**：
+  - 升級為「按下 Enter 即時秒級執行」，免按 Ctrl+Z。
+  - 支援拖曳 `.xlsx` / `.txt` / `.csv` 檔案或整欄貼上槽號，全格自動掃描比對槽號特徵。
+  - **雙向同步寫入**：新增槽號時自動同步寫入第 1 分頁 (`oracle_sync_data`) 的槽號/罐號/容量及對應分類標籤分頁。
+  - **控制台 CP950 防呆**：移除 `print()` 內的 emoji 符號，解決 Windows CP950 cmd.exe 終端拋出 `UnicodeEncodeError` 錯誤。
+
+---
+
+## 📅 最新交接紀錄 (2026-08-13)
 
 ### 📌 AI 面試語音分析系統 (`interview_analyzer`) 跨電腦啟動與編碼防呆重構
 * **PowerShell UTF-8 BOM 編碼修復**：`setup_env.ps1` 原先無 BOM 格式導致 Windows PowerShell 5.1 繁體中文環境下將中文字元誤判為雙引號終結符 (`TerminatorExpectedAtEndOfString`)，已改寫為標準 UTF-8 with BOM (`utf-8-sig`) 編碼，確保 100% 成功執行。
