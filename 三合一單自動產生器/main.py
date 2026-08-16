@@ -78,8 +78,11 @@ class App(tk.Tk):
         m_text = f"✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "❌ 未找到 (請將檔案放入資料夾)"
         tk.Label(status_frame, text=f"對照表檔案 (地點代號對照表.xlsx): {m_text}", fg=m_color).pack(anchor="w")
 
-        # 提示區
-        tk.Label(self, text="可以直接在「批號」欄位按下 Ctrl+V，貼上從 Excel 複製的多筆資料", fg="#555").pack(anchor="w", pady=(0, 5))
+        # 提示區與匯入按鈕
+        top_ctrl_frame = tk.Frame(self)
+        top_ctrl_frame.pack(fill="x", pady=(0, 5))
+        tk.Label(top_ctrl_frame, text="可以直接在「批號」欄位按下 Ctrl+V，貼上從 Excel 複製的多筆資料\n或點擊右方按鈕直接匯入 Excel 檔案：", fg="#555", justify="left").pack(side="left")
+        tk.Button(top_ctrl_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right")
 
         # 標題列
         header_frame = tk.Frame(self)
@@ -219,6 +222,79 @@ class App(tk.Tk):
             messagebox.showerror("貼上失敗", f"解析貼上內容時發生錯誤:\n{e}")
             return "break"
 
+    def import_from_excel(self):
+        from tkinter import filedialog
+        filepath = filedialog.askopenfilename(
+            title="選擇要匯入的 Excel 檔案",
+            filetypes=[("Excel files", "*.xlsx *.xls")]
+        )
+        if not filepath:
+            return
+            
+        try:
+            wb = openpyxl.load_workbook(filepath, data_only=True)
+            ws = wb.active
+            
+            # 尋找批號與地點所在的欄位 (假設在第一列到第十列之間)
+            batch_col = -1
+            loc_col = -1
+            start_row = -1
+            
+            for r in range(1, 11):
+                row_vals = [ws.cell(row=r, column=c).value for c in range(1, 15)]
+                for c_idx, val in enumerate(row_vals):
+                    if not val or not isinstance(val, str): continue
+                    if "批號" in val:
+                        batch_col = c_idx + 1
+                    if "地點" in val or "送達地點" in val:
+                        loc_col = c_idx + 1
+                if batch_col != -1 and loc_col != -1:
+                    start_row = r + 1
+                    break
+                    
+            if batch_col == -1 or loc_col == -1:
+                # 找不到明確標題，退而求其次預設抓 C 跟 D (對應項次,槽號,批號,地點)
+                batch_col = 3
+                loc_col = 4
+                start_row = 2 # 假設第一列是隱式標題
+            
+            # 讀取資料
+            records = []
+            for r in range(start_row, ws.max_row + 1):
+                b_val = ws.cell(row=r, column=batch_col).value
+                l_val = ws.cell(row=r, column=loc_col).value
+                if b_val: # 有批號才算有效資料
+                    records.append((str(b_val).strip(), str(l_val).strip() if l_val else ""))
+                    
+            if not records:
+                messagebox.showinfo("提示", "在檔案中找不到任何有效資料！")
+                wb.close()
+                return
+                
+            # 尋找第一個空行以接續填入
+            start_idx = 0
+            for idx, entry in enumerate(self.entries):
+                if not entry["batch_var"].get().strip():
+                    start_idx = idx
+                    break
+            else:
+                start_idx = len(self.entries)
+                
+            needed_rows = start_idx + len(records)
+            if needed_rows > len(self.entries):
+                self.add_input_rows(needed_rows - len(self.entries))
+                
+            # 將資料填入介面
+            for i, (b, l) in enumerate(records):
+                self.entries[start_idx + i]["batch_var"].set(b)
+                self.entries[start_idx + i]["loc_var"].set(l)
+                
+            wb.close()
+            messagebox.showinfo("匯入成功", f"成功匯入 {len(records)} 筆資料！")
+            
+        except Exception as e:
+            messagebox.showerror("匯入失敗", f"讀取 Excel 失敗:\n{e}")
+
     def generate_files(self):
         if not os.path.exists(self.template_path):
             messagebox.showerror("錯誤", f"找不到範本檔案:\n{self.template_path}")
@@ -274,7 +350,7 @@ class App(tk.Tk):
             
             try:
                 wb = openpyxl.load_workbook(self.template_path)
-                ws = wb.active
+                ws = wb.worksheets[0] # 強制使用第一個分頁，避免使用者存檔時停留在其他分頁
                 
                 # 動態尋找欄位列數
                 tank_row = find_row_by_label(ws, ['槽號']) or 5
@@ -283,9 +359,13 @@ class App(tk.Tk):
                 mat_row = find_row_by_label(ws, ['料號']) or 3
                 sup_row = find_row_by_label(ws, ['供應商']) or 9
                 
+                # 自動補上前綴 (依據廠商規定)
+                final_tank_no = "5" + tank_no
+                final_batch_no = "6" + batch_no
+                
                 # 寫入欄位
-                ws.cell(row=tank_row, column=3).value = tank_no
-                ws.cell(row=batch_row, column=3).value = batch_no
+                ws.cell(row=tank_row, column=3).value = final_tank_no
+                ws.cell(row=batch_row, column=3).value = final_batch_no
                 ws.cell(row=loc_row, column=3).value = loc_code
                 
                 # 清除舊的 QR Code
@@ -301,12 +381,21 @@ class App(tk.Tk):
                 # 產生新 QR Code
                 c3_val = ws.cell(row=mat_row, column=3).value or ""
                 c6_val = ws.cell(row=sup_row, column=3).value or ""
-                qr_str = f"||{c3_val}||{tank_no}||{batch_no}||{c6_val}||{loc_code}"
+                qr_str = f"||{c3_val}||{final_tank_no}||{final_batch_no}||{c6_val}||{loc_code}"
                 
                 qr = qrcode.QRCode(box_size=4, border=2)
                 qr.add_data(qr_str)
                 qr.make(fit=True)
-                img_qr = qr.make_image(fill_color="black", back_color="white")
+                raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+                
+                # 為了將 QR Code 往右下微調，我們在圖片的左方與上方加上白邊
+                from PIL import Image
+                offset_x = 35 # 往右移 35 像素
+                offset_y = 25 # 往下移 25 像素
+                new_width = raw_img.width + offset_x
+                new_height = raw_img.height + offset_y
+                img_qr = Image.new('RGB', (new_width, new_height), 'white')
+                img_qr.paste(raw_img, (offset_x, offset_y))
                 
                 img_byte_arr = BytesIO()
                 img_qr.save(img_byte_arr, format='PNG')
