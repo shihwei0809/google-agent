@@ -156,3 +156,12 @@ window.location.href = "https://google-agent.pages.dev/projects/..."
 - [ ] SPA Guard（防止子路徑誤載）是否在 index.html 頂部 JS 中？
  
  
+### 📅 2026-08-16 交接紀錄 (台積三合一單與COA 雙重核對系統)
+**今日完成進度：**
+1. **設定與程式碼分離 (Configuration Decoupling)**：將原本寫死在 程式碼.gs 的金鑰與設定，全面移至 Google 試算表 設定 分頁，支援多組 Google Vision 與 Gemini 金鑰動態輪替。
+2. **多模型+多金鑰瀑布流降級機制**：實作雙迴圈架構，當 Vision 失敗時自動接手 Gemini，從 3.6-flash 到 3.1-flash-lite，針對每個模型輪替所有可用金鑰，極大化白嫖免費額度。
+3. **系統 API 日誌紀錄 (API_Log)**：實作自動化日誌紀錄，紀錄每次 API 呼叫的狀態、使用的模型與遮蔽後的金鑰。
+
+**避坑指南 / 注意事項：**
+* USAGE_LIMIT (預設 900) 必須填寫在試算表的 B 欄 (設定值)。
+* 程式碼裡有保留了安全底線，如果試算表設定意外被刪除，不會當機。
