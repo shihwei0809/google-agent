@@ -1270,6 +1270,35 @@
       }
     }
 
+    async function trigger104Crawler() {
+      const keyword = prompt("請輸入要連線 104 搜尋爬取的公司或關鍵字名稱：", "勝一化工");
+      if (!keyword || !keyword.trim()) return;
+
+      loading.classList.remove('hidden');
+      loadingMsg.innerText = `正在連線 104 搜尋並自動爬取【${keyword.trim()}】之最新刊登職缺需求資料中...`;
+      try {
+        const res = await fetch(`/api/crawl-104-jobs?company_keyword=${encodeURIComponent(keyword.trim())}`, {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        const data = await parseApiResponse(res);
+        if (!res.ok) throw new Error(data.detail || '連線 104 爬取失敗');
+
+        await loadJobPositions();
+        if (data.added_count > 0) {
+          const addedStr = (data.added_jobs || []).join('\n• ');
+          alert(`✅ 成功連線 104 爬取完畢！\n共新增 ${data.added_count} 個【彰濱廠區】新職缺寫入 Excel：\n• ${addedStr}`);
+        } else {
+          alert(`ℹ️ 104 爬取完成！目前所有【彰濱廠區】最新刊登職缺（包含業務助理管理師、儀電工程師、製程工程師等）皆已在 Excel 中，無重複下載寫入。`);
+        }
+      } catch (err) {
+        if (err.message.includes('API Key')) openKeyModal();
+        alert('爬取失敗: ' + err.message);
+      } finally {
+        loading.classList.add('hidden');
+      }
+    }
+
     // 初始化
     checkKeyStatus();
     loadJobPositions();

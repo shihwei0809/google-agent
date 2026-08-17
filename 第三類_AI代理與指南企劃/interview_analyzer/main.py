@@ -53,18 +53,20 @@ def ensure_job_specs_excel():
         return
 
     wb = Workbook()
-    
-    # ── 分頁 1：職缺需求與規格清單 ──────────────────────────────
-    ws1 = wb.active
-    ws1.title = "職缺需求與規格清單"
-    ws1.views.sheetView[0].showGridLines = True
-
-    # 標題欄位
+    thin_border = Border(
+        left=Side(style='thin', color='D9D9D9'), right=Side(style='thin', color='D9D9D9'),
+        top=Side(style='thin', color='D9D9D9'), bottom=Side(style='thin', color='D9D9D9')
+    )
     headers = [
         "部門類別", "職缺名稱", "104工作內容 (Job Description)", 
         "條件要求 (Requirements)", "推薦黃金 DISC 型態", "快捷標籤"
     ]
-    
+
+    # ── 分頁 1：彰濱廠區職缺清單 ──────────────────────────────
+    ws1 = wb.active
+    ws1.title = "彰濱廠區職缺清單"
+    ws1.views.sheetView[0].showGridLines = True
+
     ws1.row_dimensions[1].height = 28
     for col_idx, h in enumerate(headers, 1):
         cell = ws1.cell(row=1, column=col_idx, value=h)
@@ -72,79 +74,82 @@ def ensure_job_specs_excel():
         cell.fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    default_jobs = [
+    default_changbin_jobs = [
         [
-            "🏭 勝一化工 & 廠區管理類",
-            "【彰濱廠區】助理管理師",
-            "1. 槽車灌裝進出貨作業與過磅\n2. 包材灌裝作業與庫存管理\n3. 產品調和與投料作業\n4. 堆高機操作與倉庫堆疊\n5. 設備保養檢查與6S環境維護\n6. 其它上級主管交辦事項",
-            "工作經歷：不拘 (1年以上經驗佳)\n學歷要求：專科、大學\n科系要求：化學工程、材料工程、自然科學類相關\n具備證照：堆高機操作技術士 (單一級)",
-            "CS型 (C型60%+S型40%)",
+            "🛡️ 廠務與安衛類",
+            "警衛人員",
+            "1. 出入廠區登記、管控\n2. 來賓身分確認\n3. 承攬商身分確認\n4. 緊急狀況聯繫通知回報\n5. 主管交辦事項",
+            "工作經歷：經歷不拘\n學歷要求：高中\n待遇：月薪 34,000 元",
+            "S型 (S型80%+C型20%)",
             "是"
         ],
         [
-            "📦 資材與物料供應鏈類",
-            "資材部 - 現場助理工程師",
-            "1. 現場原料驗收、發料與盤點作業\n2. T100/ERP系統進出貨數據登打與過磅\n3. 包材批號維護與現場庫位管理\n4. 堆高機進出貨過磅與備料作業\n5. 異常庫存回報與料號核對",
-            "工作經歷：1年以上\n學歷要求：專科、大學\n具備證照：堆高機操作證照佳\n擅長工具：Excel、ERP系統操作",
-            "CS型 (C型60%+S型40%)",
-            "是"
-        ],
-        [
-            "📦 資材與物料供應鏈類",
-            "資材部 - 資材工程師",
-            "1. BOM表結構化分析與物料主檔維護\n2. 物料供需平衡規劃與安全庫存監控\n3. 採購交期追蹤與生產排程溝通\n4. 滯銷與呆滯料號分析改善",
-            "工作經歷：2年以上資材/物控經驗\n學歷要求：大學以上\n科系要求：工業工程、資訊管理、企管相關\n擅長工具：Excel進階函數、ERP/T100系統",
-            "CS型 (C型70%+S型30%)",
-            "是"
-        ],
-        [
-            "📦 資材與物料供應鏈類",
-            "資材部 - 資材行政專員",
-            "1. 資材部門行政單據審核與歸檔\n2. 跨部門溝通協調與進貨驗收單連動\n3. ERP系統數據核對與報表產出\n4. 部門會議紀錄與資材後勤支援",
-            "工作經歷：1年以上行政或資材經驗\n學歷要求：專科、大學\n擅長工具：MS Office (Word, Excel), ERP",
+            "🏭 化工生產類",
+            "化工助理工程師",
+            "1. 生產製程操作\n2. 所屬設備之操作保養與維護\n3. 責任區域負責、回報\n4. 其它主管交辦事項\n5. 需輪班 (刊登薪資已含輪班津貼及夜點費)",
+            "工作經歷：經歷不拘\n學歷要求：大學\n待遇：月薪 45,000~50,000 元",
             "SC型 (S型60%+C型40%)",
             "是"
         ],
         [
-            "💼 行政、財務與人資類",
-            "會計行政人員 / 財務專員",
-            "1. 應收/應付款項帳務處理與傳票開立\n2. 零用金管理與費用報銷審核\n3. 月結報表編製與營業稅申報協助\n4. 銀行往來與資金調度作業",
-            "工作經歷：1~2年以上會計經驗\n學歷要求：專科、大學\n科系要求：會計、財稅、財務金融相關\n具備證照：丙級會計事務技術士佳",
+            "🔬 技術與建廠工程類",
+            "技術工程師",
+            "1. 協助建廠專案管理\n2. 生產管理\n3. 製程改善與最佳化\n4. 品質提升\n5. 異常分析、排除、預防\n6. SOP制定",
+            "工作經歷：1年以上\n學歷要求：碩士\n待遇：待遇面議",
+            "CD型 (C型70%+D型30%)",
+            "是"
+        ],
+        [
+            "🏭 廠區管理與生產類",
+            "助理工程師",
+            "1. 槽車灌裝進出貨作業與過磅\n2. 包材灌裝作業\n3. 產品調和作業\n4. 堆高機操作作業\n5. 設備保養檢查作業\n6. 作業環境6S檢查與維護",
+            "工作經歷：經歷不拘\n學歷要求：專科\n待遇：月薪 41,000~45,000 元",
+            "CS型 (C型60%+S型40%)",
+            "是"
+        ],
+        [
+            "🔬 品管檢驗類",
+            "品管助理工程師",
+            "1. 現場分析工作\n2. 儀器校正\n3. 取樣及送樣作業\n4. 執行主管分配任務 (夜點費另計)",
+            "工作經歷：1年以上\n學歷要求：大學\n待遇：月薪 41,000~45,000 元",
             "C型 (C型80%+S型20%)",
             "是"
         ],
         [
-            "📦 資材與物料供應鏈類",
-            "倉管 / 物料管理員",
-            "1. 倉庫成品/原料進出貨收發與盤點\n2. 庫位整理、標籤貼附與6S環境維護\n3. 堆高機搬運與車輛裝卸作業",
-            "工作經歷：不拘\n學歷要求：高中/職以上\n具備證照：堆高機操作技術士證照",
-            "SC型 (S型60%+C型40%)",
-            "是"
-        ],
-        [
-            "🔬 研發品保與技術專案類",
-            "研發 (RD) 化學工程師",
-            "1. 特用化學品與電子級溶劑配方研發\n2. 實驗室分析儀器操作 (GC, HPLC, ICP-MS)\n3. 研發專利檢索與技術報告撰寫",
-            "工作經歷：1~3年化學研發經驗\n學歷要求：碩士、大學\n科系要求：化學、化學工程、材料相關",
+            "🔬 品質保證類",
+            "品保工程師",
+            "1. 進料、製程、成品品質監控\n2. 品質異常之原因分析及後續處理\n3. 品保改善工程師 / 品質系統稽核 / 客戶服務",
+            "工作經歷：1年以上\n學歷要求：碩士\n待遇：待遇面議",
             "C型 (C型80%+D型20%)",
             "是"
         ],
         [
-            "💼 行政、財務與人資類",
-            "人資 (HR) 招募/訓練管理師",
-            "1. 104職缺維護、履歷篩選與面談邀約\n2. 員工教育訓練課程規劃與執行\n3. 考勤管理、勞健保加退保與薪酬核算",
-            "工作經歷：2年以上 HR 經驗\n學歷要求：大學以上\n科系要求：人力資源、企業管理、心理相關",
-            "IS型 (I型60%+S型40%)",
+            "💼 業務行政類",
+            "業務助理管理師",
+            "1. T100系統進出貨相關作業\n2. 月底結帳、發票作業\n3. 業務及主管交辦事項處理",
+            "工作經歷：經歷不拘\n學歷要求：專科\n待遇：月薪 37,000~40,000 元",
+            "SC型 (S型60%+C型40%)",
+            "是"
+        ],
+        [
+            "⚡ 工程與儀電類",
+            "儀電(儀表)工程師",
+            "1. 廠內設備維護保養\n2. 製程設備突發狀況處理\n3. 建廠及專案工程執行\n4. 主管交辦事項處理",
+            "工作經歷：經歷不拘\n學歷要求：大學\n待遇：待遇面議",
+            "CS型 (C型70%+S型30%)",
+            "是"
+        ],
+        [
+            "🔬 製程工程類",
+            "製程工程師",
+            "1. 建立製程產品系統完整化\n2. 生產品質追蹤與維持\n3. 專案工程執行與追蹤\n4. 異常處理與改善",
+            "工作經歷：3年以上\n學歷要求：碩士\n待遇：待遇面議",
+            "CD型 (C型70%+D型30%)",
             "是"
         ]
     ]
 
-    thin_border = Border(
-        left=Side(style='thin', color='D9D9D9'), right=Side(style='thin', color='D9D9D9'),
-        top=Side(style='thin', color='D9D9D9'), bottom=Side(style='thin', color='D9D9D9')
-    )
-
-    for row_idx, r_data in enumerate(default_jobs, 2):
+    for row_idx, r_data in enumerate(default_changbin_jobs, 2):
         ws1.row_dimensions[row_idx].height = 65
         for col_idx, val in enumerate(r_data, 1):
             cell = ws1.cell(row=row_idx, column=col_idx, value=val)
@@ -160,16 +165,282 @@ def ensure_job_specs_excel():
     ws1.column_dimensions['E'].width = 22
     ws1.column_dimensions['F'].width = 12
 
-    # ── 分頁 2：DISC 人格類型參考說明 ──────────────────────────
-    ws2 = wb.create_sheet(title="DISC 人格類型參考說明")
+    # ── 分頁 2：勝一總公司(高雄)職缺清單 (涵蓋高雄 18 個刊登職缺) ────────
+    ws2 = wb.create_sheet(title="勝一總公司(高雄)職缺清單")
     ws2.views.sheetView[0].showGridLines = True
-
-    headers2 = ["DISC 類型代號", "人格特徵名稱", "核心特質與行為風格", "建議適合之職務類型"]
     ws2.row_dimensions[1].height = 28
-    for col_idx, h in enumerate(headers2, 1):
+    for col_idx, h in enumerate(headers, 1):
         cell = ws2.cell(row=1, column=col_idx, value=h)
         cell.font = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
         cell.fill = PatternFill(start_color="2F5597", end_color="2F5597", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    default_kaohsiung_jobs = [
+        [
+            "💼 總部行政與財務類",
+            "會計行政人員 / 財務專員",
+            "1. 應收/應付款項帳務處理與傳票開立\n2. 零用金管理與費用報銷審核\n3. 月結報表編製與營業稅申報協助",
+            "工作經歷：1~2年以上會計經驗\n學歷要求：專科、大學",
+            "C型 (C型80%+S型20%)",
+            "否"
+        ],
+        [
+            "💼 總部人資與管理類",
+            "人資 (HR) 招募/訓練管理師",
+            "1. 104職缺維護、履歷篩選與面談邀約\n2. 員工教育訓練課程規劃與執行\n3. 考勤管理與薪酬核算",
+            "工作經歷：2年以上 HR 經驗\n學歷要求：大學以上",
+            "IS型 (I型60%+S型40%)",
+            "否"
+        ],
+        [
+            "🔬 研發品保類",
+            "研發 (RD) 化學工程師",
+            "1. 特用化學品與電子級溶劑配方研發\n2. 實驗室分析儀器操作 (GC, HPLC, ICP-MS)\n3. 研發專利檢索與技術報告撰寫",
+            "工作經歷：1~3年化學研發經驗\n學歷要求：碩士、大學",
+            "C型 (C型80%+D型20%)",
+            "否"
+        ],
+        [
+            "📦 採購資材類",
+            "採購專員",
+            "1. 化工原物料、廠務設備及耗材詢價比價與採購\n2. 供應商評鑑、考核與日常關係維護\n3. 採購合約擬定與交期追蹤管控",
+            "經歷：2年以上製造業採購經驗\n學歷：大學以上 (化學、化工、商管相關)\n待遇：月薪 38,000~50,000 元",
+            "CD型 (C型60%+D型40%)",
+            "否"
+        ],
+        [
+            "🔬 品質保證類",
+            "品保工程師 (高雄)",
+            "1. 進料、半成品及成品之化學分析與質檢監測\n2. 分析儀器 (GC, HPLC, ICP-MS) 操作與校正\n3. ISO 9001/IATF 16949 品質管理系統維護",
+            "經歷：1年以上化學品檢驗分析經驗\n學歷：大學以上\n待遇：月薪 36,000~48,000 元",
+            "C型 (C型90%+S型10%)",
+            "否"
+        ],
+        [
+            "⚡ 廠務設備工程類",
+            "廠務(機械/電機)工程師",
+            "1. 高雄總廠與路竹廠建廠/擴廠工程規劃與監督\n2. 化工管道、槽區與旋轉機械設備定期檢驗保養\n3. PLC 程式邏輯控制與電氣控制迴路維護",
+            "經歷：2年以上廠務工程或化工設備經驗\n學歷：專科、大學 (機械、電機相關)",
+            "CS型 (C型70%+S型30%)",
+            "否"
+        ],
+        [
+            "📦 物料倉儲管理類",
+            "高級倉管員 / 物料控制師",
+            "1. 原料、半成品及危險化學品庫位規劃與盤點\n2. 槽車進出貨過磅及堆高機裝卸作業\n3. ERP 系統物料帳務精準登錄與料號核對",
+            "經歷：1~3年危險物料倉庫管理經驗\n學歷：高中職以上\n證照：堆高機操作合格證照",
+            "SC型 (S型70%+C型30%)",
+            "否"
+        ],
+        [
+            "🛡️ 職業安全衛生類",
+            "環安衛管理師 (高雄)",
+            "1. 全廠 ISO 14001 / ISO 45001 管理體系維護\n2. 化學品危害通識、緊急應變演練與工安稽核\n3. 環保許可證申請、廢水廢氣申報作業",
+            "經歷：2年以上安衛管理經驗\n學歷：專科、大學 (環安衛相關)\n證照：乙級職業安全衛生管理員",
+            "CS型 (C型70%+S型30%)",
+            "否"
+        ],
+        [
+            "💻 資訊與數位轉型類",
+            "資訊系統 (ERP/T100) 工程師",
+            "1. 鼎新 T100 ERP 系統維護、4GL 程式開發與報表產出\n2. 跨部門作業流程優化與資料庫 (Oracle/SQL) 維護\n3. 企業資訊安全管理與伺服器網路設備維護",
+            "經歷：2年以上 ERP 開發或維護經驗\n學歷：大學 (資訊工程、資管相關)",
+            "CD型 (C型80%+D型20%)",
+            "否"
+        ],
+        [
+            "💼 國內外業務類",
+            "國外業務專員 / 經理",
+            "1. 特用化學品與電子級溶劑海外市場開發與客戶維繫\n2. 參加國際展會、商務談判與合約簽訂\n3. 訂單追蹤、出貨報關與應收帳款管理",
+            "經歷：2~5年化學品或半導體材料外銷經驗\n學歷：大學以上 (語言、商管、化工相關)\n語言：英文精通 (TOEIC 800+)",
+            "DI型 (D型50%+I型50%)",
+            "否"
+        ],
+        [
+            "🔬 技術服務與應用類",
+            "技術服務 (TS) 化學工程師",
+            "1. 協助半導體及面板客戶進行產品測試與應用開發\n2. 客訴品質異常原因分析與到廠技術支援\n3. 撰寫產品技術規格書 (TDS) 與安全資料表 (SDS)",
+            "經歷：1~3年半導體或化學品技術服務經驗\n學歷：碩士、大學 (化工、化學相關)",
+            "IC型 (I型50%+C型50%)",
+            "否"
+        ],
+        [
+            "📦 資材物料類",
+            "生管 (生產排程) 專員",
+            "1. 生產計劃 (MPS) 與物料需求計劃 (MRP) 編製\n2. 產能平衡規劃、工單開立與生產進度追蹤\n3. 銷售訂單交期協調與產銷會議主持",
+            "經歷：2年以上製造業生管經驗\n學歷：專科、大學 (工管、資材相關)",
+            "CS型 (C型70%+S型30%)",
+            "否"
+        ],
+        [
+            "🛡️ 綠能與ESG發展類",
+            "永續發展 (ESG) / 碳盤查專員",
+            "1. 溫室氣體盤查 (ISO 14064-1) 與產品碳足跡計算\n2. ESG 永續報告書編撰與第三方查證對接\n3. 減碳專案規劃、節能減碳目標追蹤與評估",
+            "經歷：1年以上 ESG 或環境管理經驗\n學歷：大學以上",
+            "CS型 (C型60%+S型40%)",
+            "否"
+        ],
+        [
+            "🔬 實驗室檢驗類",
+            "分析化學實驗室檢驗員",
+            "1. 原料、半成品及水質化驗與樣品檢測\n2. 檢驗數據紀錄、輸入與異常回報\n3. 實驗室藥品、玻璃儀器與化學試劑管理",
+            "經歷：經歷不拘\n學歷：專科、大學 (化學、化工相關)",
+            "C型 (C型85%+S型15%)",
+            "否"
+        ],
+        [
+            "🏭 生產製造類",
+            "化工製程現場技術員",
+            "1. 化學品反應器與蒸餾塔操作與監控\n2. 現場抄表、投料與取樣作業\n3. 輪班作業 (四二輪班 / 需配合夜班)",
+            "經歷：經歷不拘\n學歷：高中職、專科以上\n待遇：月薪 35,000~45,000 元 (輪班津貼另計)",
+            "SC型 (S型70%+C型30%)",
+            "否"
+        ],
+        [
+            "⚡ 設備保修類",
+            "機械保修員",
+            "1. 幫浦、閥類、管路與轉動設備檢修拆裝\n2. 預防保養計劃執行與故障緊急搶修\n3. 保修零件庫存管理與安全作業維護",
+            "經歷：1年以上機械維修經驗\n學歷：高中職、專科 (機械、機電相關)",
+            "CS型 (C型60%+S型40%)",
+            "否"
+        ],
+        [
+            "💼 總部法務類",
+            "法務專員 / 副理",
+            "1. 中英文商業合約審閱、撰擬與談判\n2. 公司智慧財產權 (專利/商標) 管理與維護\n3. 法律風險評估、法令遵循與訴訟對接",
+            "經歷：3年以上企業法務或律師事務所經驗\n學歷：大學以上 (法律相關科系)",
+            "CD型 (C型70%+D型30%)",
+            "否"
+        ],
+        [
+            "💼 總部稽核類",
+            "內部稽核專員",
+            "1. 依據公開發行公司內部控制制度執行例行性與專案稽核\n2. 撰寫稽核報告與追蹤內控缺失改善進度\n3. 董事會與審計委員會會議資料準備",
+            "經歷：2年以上公開發行公司稽核或事務所經歷\n學歷：大學以上 (會計、財經、商管相關)",
+            "C型 (C型85%+D型15%)",
+            "否"
+        ]
+    ]
+
+    for row_idx, r_data in enumerate(default_kaohsiung_jobs, 2):
+        ws2.row_dimensions[row_idx].height = 65
+        for col_idx, val in enumerate(r_data, 1):
+            cell = ws2.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = Font(name="微軟正黑體", size=10)
+            cell.border = thin_border
+            align_h = "center" if col_idx in [1, 2, 5, 6] else "left"
+            cell.alignment = Alignment(horizontal=align_h, vertical="center", wrap_text=True)
+
+    ws2.column_dimensions['A'].width = 25
+    ws2.column_dimensions['B'].width = 28
+    ws2.column_dimensions['C'].width = 45
+    ws2.column_dimensions['D'].width = 40
+    ws2.column_dimensions['E'].width = 22
+    ws2.column_dimensions['F'].width = 12
+
+    # ── 分頁 3：AI建議參考職缺與規格擬定 (保留 AI 擬定範例參考) ─────
+    ws3 = wb.create_sheet(title="AI建議參考職缺與規格擬定")
+    ws3.views.sheetView[0].showGridLines = True
+    ws3.row_dimensions[1].height = 28
+    for col_idx, h in enumerate(headers, 1):
+        cell = ws3.cell(row=1, column=col_idx, value=h)
+        cell.font = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="70AD47", end_color="70AD47", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    ai_suggested_jobs = [
+        [
+            "🏭 勝一化工 & 廠區管理類",
+            "【彰濱廠區】助理管理師 (AI規劃範本)",
+            "1. 槽車灌裝進出貨作業與過磅\n2. 包材灌裝作業與庫存管理\n3. 產品調和與投料作業\n4. 堆高機操作與倉庫堆疊\n5. 設備保養檢查與6S環境維護\n6. 其它上級主管交辦事項",
+            "工作經歷：不拘 (1年以上經驗佳)\n學歷要求：專科、大學\n科系要求：化學工程、材料工程、自然科學類相關\n具備證照：堆高機操作技術士 (單一級)",
+            "CS型 (C型60%+S型40%)",
+            "是"
+        ],
+        [
+            "📦 資材與物料供應鏈類",
+            "資材部 - 現場助理工程師 (AI規劃範本)",
+            "1. 現場原料驗收、發料與盤點作業\n2. T100/ERP系統進出貨數據登打與過磅\n3. 包材批號維護與現場庫位管理\n4. 堆高機進出貨過磅與備料作業\n5. 異常庫存回報與料號核對",
+            "工作經歷：1年以上\n學歷要求：專科、大學\n具備證照：堆高機操作證照佳\n擅長工具：Excel、ERP系統操作",
+            "CS型 (C型60%+S型40%)",
+            "是"
+        ],
+        [
+            "📦 資材與物料供應鏈類",
+            "資材部 - 資材工程師 (AI規劃範本)",
+            "1. BOM表結構化分析與物料主檔維護\n2. 物料供需平衡規劃與安全庫存監控\n3. 採購交期追蹤與生產排程溝通\n4. 滯銷與呆滯料號分析改善",
+            "工作經歷：2年以上資材/物控經驗\n學歷要求：大學以上\n科系要求：工業工程、資訊管理、企管相關\n擅長工具：Excel進階函數、ERP/T100系統",
+            "CS型 (C型70%+S型30%)",
+            "是"
+        ],
+        [
+            "📦 資材與物料供應鏈類",
+            "資材部 - 資材行政專員 (AI規劃範本)",
+            "1. 資材部門行政單據審核與歸檔\n2. 跨部門溝通協調與進貨驗收單連動\n3. ERP系統數據核對與報表產出\n4. 部門會議紀錄與資材後勤支援",
+            "工作經歷：1年以上行政或資材經驗\n學歷要求：專科、大學\n擅長工具：MS Office (Word, Excel), ERP",
+            "SC型 (S型60%+C型40%)",
+            "是"
+        ],
+        [
+            "💼 行政、財務與人資類",
+            "會計行政人員 / 財務專員 (AI規劃範本)",
+            "1. 應收/應付款項帳務處理與傳票開立\n2. 零用金管理與費用報銷審核\n3. 月結報表編製與營業稅申報協助\n4. 銀行往來與資金調度作業",
+            "工作經歷：1~2年以上會計經驗\n學歷要求：專科、大學\n科系要求：會計、財稅、財務金融相關\n具備證照：丙級會計事務技術士佳",
+            "C型 (C型80%+S型20%)",
+            "否"
+        ],
+        [
+            "📦 資材與物料供應鏈類",
+            "倉管 / 物料管理員 (AI規劃範本)",
+            "1. 倉庫成品/原料進出貨收發與盤點\n2. 庫位整理、標籤貼附與6S環境維護\n3. 堆高機搬運與車輛裝卸作業",
+            "工作經歷：不拘\n學歷要求：高中/職以上\n具備證照：堆高機操作技術士證照",
+            "SC型 (S型60%+C型40%)",
+            "否"
+        ],
+        [
+            "🔬 研發品保與技術專案類",
+            "研發 (RD) 化學工程師 (AI規劃範本)",
+            "1. 特用化學品與電子級溶劑配方研發\n2. 實驗室分析儀器操作 (GC, HPLC, ICP-MS)\n3. 研發專利檢索與技術報告撰寫",
+            "工作經歷：1~3年化學研發經驗\n學歷要求：碩士、大學\n科系要求：化學、化學工程、材料相關",
+            "C型 (C型80%+D型20%)",
+            "否"
+        ],
+        [
+            "💼 行政、財務與人資類",
+            "人資 (HR) 招募/訓練管理師 (AI規劃範本)",
+            "1. 104職缺維護、履歷篩選與面談邀約\n2. 員工教育訓練課程規劃與執行\n3. 考勤管理、勞健保加退保與薪酬核算",
+            "工作經歷：2年以上 HR 經驗\n學歷要求：大學以上\n科系要求：人力資源、企業管理、心理相關",
+            "IS型 (I型60%+S型40%)",
+            "否"
+        ]
+    ]
+
+    for row_idx, r_data in enumerate(ai_suggested_jobs, 2):
+        ws3.row_dimensions[row_idx].height = 65
+        for col_idx, val in enumerate(r_data, 1):
+            cell = ws3.cell(row=row_idx, column=col_idx, value=val)
+            cell.font = Font(name="微軟正黑體", size=10)
+            cell.border = thin_border
+            align_h = "center" if col_idx in [1, 2, 5, 6] else "left"
+            cell.alignment = Alignment(horizontal=align_h, vertical="center", wrap_text=True)
+
+    ws3.column_dimensions['A'].width = 25
+    ws3.column_dimensions['B'].width = 30
+    ws3.column_dimensions['C'].width = 45
+    ws3.column_dimensions['D'].width = 40
+    ws3.column_dimensions['E'].width = 22
+    ws3.column_dimensions['F'].width = 12
+
+    # ── 分頁 4：DISC 人格類型參考說明 ──────────────────────────
+    ws4 = wb.create_sheet(title="DISC 人格類型參考說明")
+    ws4.views.sheetView[0].showGridLines = True
+
+    headers4 = ["DISC 類型代號", "人格特徵名稱", "核心特質與行為風格", "建議適合之職務類型"]
+    ws4.row_dimensions[1].height = 28
+    for col_idx, h in enumerate(headers4, 1):
+        cell = ws4.cell(row=1, column=col_idx, value=h)
+        cell.font = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
+        cell.fill = PatternFill(start_color="333333", end_color="333333", fill_type="solid")
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
     disc_info = [
@@ -180,24 +451,45 @@ def ensure_job_specs_excel():
     ]
 
     for row_idx, r_data in enumerate(disc_info, 2):
-        ws2.row_dimensions[row_idx].height = 40
+        ws4.row_dimensions[row_idx].height = 40
         for col_idx, val in enumerate(r_data, 1):
-            cell = ws2.cell(row=row_idx, column=col_idx, value=val)
+            cell = ws4.cell(row=row_idx, column=col_idx, value=val)
             cell.font = Font(name="微軟正黑體", size=10)
             cell.border = thin_border
             align_h = "center" if col_idx in [1, 2] else "left"
             cell.alignment = Alignment(horizontal=align_h, vertical="center", wrap_text=True)
 
-    ws2.column_dimensions['A'].width = 20
-    ws2.column_dimensions['B'].width = 18
-    ws2.column_dimensions['C'].width = 45
-    ws2.column_dimensions['D'].width = 40
+    ws4.column_dimensions['A'].width = 20
+    ws4.column_dimensions['B'].width = 18
+    ws4.column_dimensions['C'].width = 45
+    ws4.column_dimensions['D'].width = 40
 
     wb.save(JOB_SPECS_FILE)
 
 ensure_job_specs_excel()
 
-# 動態讀取職缺需求與規格清單 API (從 Excel 檔讀取)
+# 📥 下載職缺規格與需求清單 Excel 檔 API
+@app.get("/api/download-job-specs-excel")
+async def download_job_specs_excel():
+    ensure_job_specs_excel()
+    if not os.path.exists(JOB_SPECS_FILE):
+        raise HTTPException(status_code=404, detail="找不到職缺需求與規格 Excel 檔案")
+    return FileResponse(
+        path=JOB_SPECS_FILE,
+        filename="職缺需求與部門清單.xlsx",
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+def clean_job_title(raw_title: str) -> str:
+    """自動清理職缺名稱前綴字樣，如 【彰濱廠區】、【高雄廠】等"""
+    if not raw_title: return ""
+    t = str(raw_title).strip()
+    import re
+    t = re.sub(r"^【[^】]+】\s*", "", t)
+    t = re.sub(r"^\[[^\]]+\]\s*", "", t)
+    return t.strip()
+
+# 動態讀取職缺需求與規格清單 API (從 Excel 檔讀取所有職缺分頁)
 @app.get("/api/job-positions")
 async def get_job_positions():
     ensure_job_specs_excel()
@@ -208,28 +500,31 @@ async def get_job_positions():
     
     try:
         wb = load_workbook(JOB_SPECS_FILE, data_only=True)
-        ws = wb["職缺需求與規格清單"]
+        # 讀取彰濱廠區與高雄總公司分頁
+        sheet_names = [s for s in wb.sheetnames if "DISC" not in s]
         
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if not row or not row[1]:
-                continue
-            cat = str(row[0]).strip() if row[0] else "其它職缺類"
-            title = str(row[1]).strip()
-            jd = str(row[2]).strip() if len(row) > 2 and row[2] else ""
-            req = str(row[3]).strip() if len(row) > 3 and row[3] else ""
-            disc = str(row[4]).strip() if len(row) > 4 and row[4] else ""
-            is_tag = str(row[5]).strip() if len(row) > 5 and row[5] else ""
-            
-            positions.append({
-                "category": cat,
-                "title": title,
-                "job_description": jd,
-                "requirements": req,
-                "disc_benchmark": disc,
-                "is_tag": (is_tag == "是")
-            })
-            if is_tag == "是":
-                tags.append(title)
+        for sheet_name in sheet_names:
+            ws = wb[sheet_name]
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if not row or not row[1]:
+                    continue
+                cat = str(row[0]).strip() if row[0] else "其它職缺類"
+                title = clean_job_title(row[1])
+                jd = str(row[2]).strip() if len(row) > 2 and row[2] else ""
+                req = str(row[3]).strip() if len(row) > 3 and row[3] else ""
+                disc = str(row[4]).strip() if len(row) > 4 and row[4] else ""
+                is_tag = str(row[5]).strip() if len(row) > 5 and row[5] else ""
+                
+                positions.append({
+                    "category": f"[{sheet_name.replace('職缺清單', '')}] {cat}",
+                    "title": title,
+                    "job_description": jd,
+                    "requirements": req,
+                    "disc_benchmark": disc,
+                    "is_tag": (is_tag == "是")
+                })
+                if is_tag == "是" and title not in tags:
+                    tags.append(title)
     except Exception as e:
         print(f"[Excel Read Error] 讀取職缺清單失敗: {e}")
         
@@ -238,30 +533,55 @@ async def get_job_positions():
 # 連線 104 自動爬取職缺並寫入/更新 Excel 清單 API
 @app.post("/api/crawl-104-jobs")
 async def crawl_104_jobs(
-    company_keyword: str = Query("勝一化工"),
+    company_keyword: str = Query("勝一化工 104"),
     x_gemini_api_keys: Optional[str] = Header(None)
 ):
     key_pool = APIKeyPool(x_gemini_api_keys)
     ensure_job_specs_excel()
 
+    # 1. 精準完全比對去重集合
+    from openpyxl import load_workbook
+    wb_existing = load_workbook(JOB_SPECS_FILE, data_only=True)
+    existing_exact_titles = set()
+    for s_name in [s for s in wb_existing.sheetnames if "DISC" not in s]:
+        ws_ex = wb_existing[s_name]
+        for row in ws_ex.iter_rows(min_row=2, values_only=True):
+            if row and row[1]:
+                clean_t = clean_job_title(row[1])
+                existing_exact_titles.add(clean_t)
+
+    existing_titles_list = list(existing_exact_titles)
+
     prompt = f"""
     你是一位專業的 HR 數據爬蟲與資料結構化專家。
-    請連線搜尋並爬取【{company_keyword}】在 104 人力銀行 (104.com.tw) 刊登的真實職缺資料。
-    重點包含但不限於：
-    1. 【彰濱廠區】助理管理師 / 倉管物料員
-    2. 資材助理工程師 / 資材工程師
-    3. 廠區化學工程師 / 環安衛管理師 / 會計行政
+    請即時連線搜尋並爬取【勝一化工 (Shiny Chemical)】在 104 人力銀行 (104.com.tw) 上刊登的所有 27 個真實職缺資料。
 
-    請將爬取到的職缺，整理為以下結構化資料清單：
-    - category: 部門與職務類別
-    - title: 104 刊登之職缺名稱
-    - job_description: 104 上顯示的完整工作內容 (列出 1. 2. 3. 點)
-    - requirements: 104 上要求的經歷、學歷、科系、擅長工具與具備證照
-    - disc_benchmark: 建議之黃金 DISC 型態 (例如 CS型)
-    - is_tag: 是否設為快捷標籤 ("是" 或 "否")
+    【地區與分頁指派】:
+    1. **【彰濱廠區職缺清單】** (位於彰化縣線西鄉)：
+       - 包含 9 個重點職缺：助理工程師、品管助理工程師、品保工程師、業務助理管理師、儀電(儀表)工程師、製程工程師、助理管理師、資材部現場助理工程師、環安衛工程師等。
+       - location 標籤請設為 "彰濱"
+    2. **【勝一總公司(高雄)職缺清單】** (高雄總部/前鎮/路竹廠)：
+       - 包含 18 個重點職缺：會計行政人員、人資(HR)招募管理師、研發(RD)化學工程師、採購專員、品保工程師(高雄)、廠務工程師、高級倉管員、資訊工程師(ERP)、國外業務專員、TS技術服務、生管專員、ESG碳盤查專員等。
+       - location 標籤請設為 "高雄"
+
+    【規範與精準去重】:
+    - **職缺名稱 (title)**：填寫純職缺名稱 (如: 品管助理工程師, 品保工程師, 助理工程師)，**切勿**帶有【彰濱廠區】等前綴。
+    - 目前 Excel 中已有下列完全相同的職缺名稱：
+      {existing_titles_list}
+    - 請只回傳**名稱不完全重複**的全新職缺清單！
+
+    請將全新職缺整理為結構化 JSON 清單：
+    - location: 工作地點標籤 ("彰濱" 或 "高雄")
+    - category: 部門與職務類別 (如: 🏭 廠區管理與生產類, 🔬 品管與品質保證類, 💼 業務與行政類, 📦 資材與供應鏈類)
+    - title: 純真實職務名稱 (例如: 品管助理工程師, 品保工程師, 助理工程師)
+    - job_description: 104 上顯示的完整工作內容 (1. 2. 3. 條列)
+    - requirements: 104 上要求的經歷、學歷、科系、待遇與證照/工具
+    - disc_benchmark: 建議之黃金 DISC 人格型態 (如 CS型, SC型, C型, CD型)
+    - is_tag: 是否設為快捷標籤 ("是" 或 "否"，彰濱廠區請一律設為 "是")
     """
 
     class ScrapedJobItem(BaseModel):
+        location: str
         category: str
         title: str
         job_description: str
@@ -283,40 +603,43 @@ async def crawl_104_jobs(
     scraped_data, used_model = key_pool.execute_with_retry(do_crawl)
     jobs_list = scraped_data.get("jobs", [])
 
+    added_jobs_names = []
     if jobs_list:
-        from openpyxl import load_workbook, Workbook
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
         wb = load_workbook(JOB_SPECS_FILE)
-        ws = wb["職缺需求與規格清單"]
-
-        # 抓取目前現有職缺名稱以避免重複覆蓋
-        existing_titles = set()
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if row and row[1]:
-                existing_titles.add(str(row[1]).strip())
-
         thin_border = Border(
             left=Side(style='thin', color='D9D9D9'), right=Side(style='thin', color='D9D9D9'),
             top=Side(style='thin', color='D9D9D9'), bottom=Side(style='thin', color='D9D9D9')
         )
 
-        r_idx = ws.max_row + 1
-        new_added_count = 0
-
         for job in jobs_list:
-            t = job.get("title", "").strip()
-            if not t or t in existing_titles:
+            t = clean_job_title(job.get("title", ""))
+            if not t:
                 continue
+
+            # 僅進行「完全相等」比對，避免子字串誤擋 (例如 品保工程師 與 品管助理工程師 不會互相阻擋)
+            if t in existing_exact_titles:
+                print(f"[Crawl Skip] 完全相同之職缺已存在，跳過: {t}")
+                continue
+
+            loc = job.get("location", "")
+            target_sheet_name = "勝一總公司(高雄)職缺清單" if ("高雄" in loc or "總公司" in loc) else "彰濱廠區職缺清單"
             
+            if target_sheet_name not in wb.sheetnames:
+                ws = wb.create_sheet(title=target_sheet_name)
+            else:
+                ws = wb[target_sheet_name]
+
+            r_idx = ws.max_row + 1
             ws.row_dimensions[r_idx].height = 65
             r_data = [
-                job.get("category", "104抓取職缺"),
+                job.get("category", "🏭 廠區管理與生產類"),
                 t,
                 job.get("job_description", ""),
                 job.get("requirements", ""),
                 job.get("disc_benchmark", "CS型"),
-                job.get("is_tag", "是")
+                job.get("is_tag", "是" if target_sheet_name == "彰濱廠區職缺清單" else "否")
             ]
 
             for col_idx, val in enumerate(r_data, 1):
@@ -326,12 +649,17 @@ async def crawl_104_jobs(
                 align_h = "center" if col_idx in [1, 2, 5, 6] else "left"
                 cell.alignment = Alignment(horizontal=align_h, vertical="center", wrap_text=True)
 
-            r_idx += 1
-            new_added_count += 1
+            added_jobs_names.append(f"[{target_sheet_name.replace('職缺清單','')}] {t}")
+            existing_exact_titles.add(t)
 
         wb.save(JOB_SPECS_FILE)
 
-    return {"status": "ok", "added_count": len(jobs_list), "used_model": used_model}
+    return {
+        "status": "ok", 
+        "added_count": len(added_jobs_names), 
+        "added_jobs": added_jobs_names,
+        "used_model": used_model
+    }
 
 def get_local_ip():
     try:
