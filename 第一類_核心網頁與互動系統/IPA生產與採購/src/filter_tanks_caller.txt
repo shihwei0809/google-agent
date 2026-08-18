@@ -1,0 +1,43 @@
+.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+      const localISOTimeEnd = new Date(now.getTime() - offset + 8 * 3600000).toISOString().slice(0, 16); 
+      document.getElementById('schedule-start').value = localISOTime;
+      document.getElementById('schedule-end').value = localISOTimeEnd;
+    const contCheckbox = document.getElementById('schedule-continuous');
+    if (contCheckbox) {
+      contCheckbox.checked = false;
+      contCheckbox.dispatchEvent(new Event('change'));
+    }
+      
+      const firstProd = state.products[0].id;
+      document.getElementById('schedule-product').value = firstProd;
+      filterTanksBySelectedProduct(firstProd);
+      
+      calculateVolumeFromTimes();
+      document.getElementById('schedule-yield').value = 100;
+      updateYieldTotalDisplay();
+      openModal('modal-schedule');
+      } catch (err) {
+        alert('發生未預期的錯誤: ' + err.message + '\n請截圖此畫面回報。');
+      }
+    });
+
+    document.getElementById('schedule-product').addEventListener('change', (e) => {
+      filterTanksBySelectedProduct(e.target.value);
+      calculateVolumeFromTimes();
+    });
+    document.getElementById('schedule-line').addEventListener('change', (e) => {
+      const productId = document.getElementById('schedule-product').value;
+      if (productId) {
+        filterTanksBySelectedProduct(productId);
+      }
+    });
+
+
+    document.getElementById('schedule-rate').addEventListener('input', calculateVolumeFromTimes);
+    document.getElementById('schedule-start').addEventListener('change', calculateVolumeFromTimes);
+    document.getElementById('schedule-end').addEventListener('change', calculateVolumeFromTimes);
+    document.getElementById('schedule-total-volume').addEventListener('input', calculateEndTimeFromVolume);
+    document.getElementById('schedule-yield').addEventListener('input', updateYieldTotalDisplay);
+
+    document.getElementById('form-schedule').addEventListener('submit', (e) =

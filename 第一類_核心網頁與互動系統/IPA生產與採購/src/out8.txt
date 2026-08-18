@@ -1,0 +1,66 @@
+function updateAllDropdowns() {
+    
+    const globalSelect = document.getElementById('global-factory-select');
+    const tankFactorySelect = document.getElementById('tank-factory');
+    if (globalSelect && tankFactorySelect) {
+      const currentGlobalVal = globalSelect.value || state.currentFactory;
+      globalSelect.innerHTML = '<option value="all">🏢 總覽 (全部廠區)</option>';
+
+      tankFactorySelect.innerHTML = '';
+      const lineFactorySelect = document.getElementById('line-factory');
+      if (lineFactorySelect) lineFactorySelect.innerHTML = '';
+      
+      state.factories.forEach(f => {
+        const opt1 = document.createElement('option');
+        opt1.value = f.id; opt1.innerText = `🏢 ${f.name}`;
+        globalSelect.appendChild(opt1);
+        
+        const opt2 = document.createElement('option');
+        opt2.value = f.id; opt2.innerText = f.name;
+        tankFactorySelect.appendChild(opt2);
+        
+        if (lineFactorySelect) {
+          const opt3 = document.createElement('option');
+          opt3.value = f.id; opt3.innerText = f.name;
+          lineFactorySelect.appendChild(opt3);
+        }
+      });
+
+      globalSelect.value = state.currentFactory;
+    }
+
+    const prodSelects = [
+      document.getElementById('tank-product'),
+      document.getElementById('schedule-product'),
+      document.getElementById('filter-schedule-product'),
+      document.getElementById('ship-product')
+    ];
+    
+    const tankSelects = [
+      document.getElementById('schedule-tank'),
+      document.getElementById('schedule-source-tank'),
+      document.getElementById('log-tank'),
+      document.getElementById('filter-log-tank'),
+      document.getElementById('forecast-tank-select')
+    ];
+
+    // 1. 填入產品下拉選單
+    prodSelects.forEach(select => {
+      if (!select) return;
+      const isFilter = select.id.startsWith('filter-');
+      select.innerHTML = isFilter ? '<option value="all">全部產品</option>' : '<option value="">-- 未定義產品 / 尚未分配 --</option>';
+      state.products.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.innerText = `${p.name} (${p.code})`;
+        select.appendChild(opt);
+      });
+    });
+
+    // 2. 填入儲槽下拉選單
+    tankSelects.forEach(select => {
+      if (!select) return;
+      const isFilter = select.id.startsWith('filter-') || select.id === 'forecast-tank-select' || select.id === 'schedule-source-tank';
+      
+      let defaultText = '全部儲槽/容器';
+      if (select.id === 'forecast-tank-select') 

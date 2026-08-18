@@ -2,6 +2,7 @@ package com.hongsheng.hosechecker
 
 import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -308,32 +309,13 @@ class MainActivity : ComponentActivity() {
 
             Box(modifier = Modifier.weight(1.5f).fillMaxWidth().padding(horizontal = 10.dp).background(Color.Black)) {
                 if (isScanningTank || isScanningHose) {
-                    AndroidView(factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        ProcessCameraProvider.getInstance(ctx).addListener({
-                            val provider = ProcessCameraProvider.getInstance(ctx).get()
-                            val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
-                            val analysis = ImageAnalysis.Builder().build().also {
-                                it.setAnalyzer(cameraExecutor) { proxy ->
-                                    val mediaImage = proxy.image
-                                    if (mediaImage != null) {
-                                        val image = InputImage.fromMediaImage(mediaImage, proxy.imageInfo.rotationDegrees)
-                                        BarcodeScanning.getClient().process(image).addOnSuccessListener { barcodes ->
-                                            if (barcodes.isNotEmpty()) {
-                                                val raw = barcodes[0].rawValue ?: ""
-                                                if (isScanningTank) { scannedTank = raw; isScanningTank = false }
-                                                else if (isScanningHose) { scannedHose = raw; isScanningHose = false }
-                                            }
-                                        }.addOnCompleteListener { proxy.close() }
-                                    } else proxy.close()
-                                }
-                            }
-                            provider.unbindAll()
-                            provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
-                        }, ContextCompat.getMainExecutor(ctx))
-                        previewView
-                    }, modifier = Modifier.fillMaxSize())
-                    IconButton(onClick = { isScanningTank = false; isScanningHose = false }, modifier = Modifier.align(Alignment.TopEnd).padding(15.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)) { Icon(Icons.Default.Close, null, tint = Color.White) }
+                    BarcodeScannerView(
+                        onBarcodeScanned = { raw ->
+                            if (isScanningTank) { scannedTank = raw; isScanningTank = false }
+                            else if (isScanningHose) { scannedHose = raw; isScanningHose = false }
+                        },
+                        onClose = { isScanningTank = false; isScanningHose = false }
+                    )
                 } else {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) { Text(if(selectedOperator != "請選擇操作人員...") "請點擊按鈕掃描" else "⚠️ 請先選擇人員", color = Color.Gray) }
                 }
@@ -436,6 +418,8 @@ class MainActivity : ComponentActivity() {
                                                 // 🚀 執行最後放行上傳
                                                 val approved = record.copy(qcStatus = "🟢 已放行", qcSigner = scannedQcId)
                                                 qcWaitingQueue.remove(record)
+                                                // 💡 防呆防覆蓋：先清除佇列中相同 UUID 的舊資料
+                                                uploadQueue.removeAll { it.uuid == record.uuid }
                                                 uploadQueue.add(approved)
                                                 saveQueueToDisk(context, qcWaitingQueue, "qc_waiting_list")
                                                 saveQueueToDisk(context, uploadQueue, "upload_pending_list")
@@ -464,37 +448,13 @@ class MainActivity : ComponentActivity() {
                     }
                 } else {
                     Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(10.dp).background(Color.Black)) {
-                        AndroidView(factory = { ctx ->
-                            val previewView = PreviewView(ctx)
-                            ProcessCameraProvider.getInstance(ctx).addListener({
-                                val provider = ProcessCameraProvider.getInstance(ctx).get()
-                                val preview = Preview.Builder().build().also { it.setSurfaceProvider(previewView.surfaceProvider) }
-                                var scanHandled = false
-                                val analysis = ImageAnalysis.Builder().build().also {
-                                    it.setAnalyzer(cameraExecutor) { proxy ->
-                                        if (scanHandled) { proxy.close(); return@setAnalyzer }
-                                        val mediaImage = proxy.image
-                                        if (mediaImage != null) {
-                                            val image = InputImage.fromMediaImage(mediaImage, proxy.imageInfo.rotationDegrees)
-                                            BarcodeScanning.getClient().process(image).addOnSuccessListener { barcodes ->
-                                                if (barcodes.isNotEmpty() && !scanHandled) {
-                                                    val qcId = barcodes[0].rawValue ?: ""
-                                                    if (qcId.isNotEmpty()) {
-                                                        scanHandled = true
-                                                        scannedQcId = qcId // 🚀 掃描成功後只存入變數，不觸發上傳
-                                                        isQcScanning = false
-                                                    }
-                                                }
-                                            }.addOnCompleteListener { proxy.close() }
-                                        } else proxy.close()
-                                    }
-                                }
-                                provider.unbindAll()
-                                provider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis)
-                            }, ContextCompat.getMainExecutor(ctx))
-                            previewView
-                        }, modifier = Modifier.fillMaxSize())
-                        IconButton(onClick = { isQcScanning = false }, modifier = Modifier.align(Alignment.TopEnd).padding(15.dp).background(Color.Black.copy(alpha = 0.5f), CircleShape)) { Icon(Icons.Default.Close, null, tint = Color.White) }
+                        BarcodeScannerView(
+                            onBarcodeScanned = { qcId ->
+                                scannedQcId = qcId
+                                isQcScanning = false
+                            },
+                            onClose = { isQcScanning = false }
+                        )
                     }
                 }
             }
@@ -515,6 +475,132 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             } catch (e: Exception) {}
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
+@Composable
+fun BarcodeScannerView(
+    onBarcodeScanned: (String) -> Unit,
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasCameraPermission = isGranted
+        if (!isGranted) {
+            Toast.makeText(context, "⚠️ 需要相機權限才能進行掃描", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!hasCameraPermission) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        if (hasCameraPermission) {
+            var cameraProvider: ProcessCameraProvider? by remember { mutableStateOf(null) }
+
+            DisposableEffect(lifecycleOwner) {
+                onDispose {
+                    try {
+                        cameraProvider?.unbindAll()
+                    } catch (e: Exception) {}
+                }
+            }
+
+            AndroidView(
+                factory = { ctx ->
+                    val previewView = PreviewView(ctx)
+                    val providerFuture = ProcessCameraProvider.getInstance(ctx)
+                    providerFuture.addListener({
+                        try {
+                            val provider = providerFuture.get()
+                            cameraProvider = provider
+
+                            val preview = Preview.Builder().build().also {
+                                it.setSurfaceProvider(previewView.surfaceProvider)
+                            }
+
+                            var scanHandled = false
+                            val analysis = ImageAnalysis.Builder()
+                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                .build().also {
+                                    it.setAnalyzer(Executors.newSingleThreadExecutor()) { proxy ->
+                                        if (scanHandled) {
+                                            proxy.close()
+                                            return@setAnalyzer
+                                        }
+                                        val mediaImage = proxy.image
+                                        if (mediaImage != null) {
+                                            val image = InputImage.fromMediaImage(mediaImage, proxy.imageInfo.rotationDegrees)
+                                            BarcodeScanning.getClient().process(image)
+                                                .addOnSuccessListener { barcodes ->
+                                                    if (barcodes.isNotEmpty() && !scanHandled) {
+                                                        val raw = barcodes[0].rawValue ?: ""
+                                                        if (raw.isNotBlank()) {
+                                                            scanHandled = true
+                                                            onBarcodeScanned(raw)
+                                                        }
+                                                    }
+                                                }
+                                                .addOnCompleteListener { proxy.close() }
+                                        } else {
+                                            proxy.close()
+                                        }
+                                    }
+                                }
+
+                            provider.unbindAll()
+                            provider.bindToLifecycle(
+                                lifecycleOwner,
+                                CameraSelector.DEFAULT_BACK_CAMERA,
+                                preview,
+                                analysis
+                            )
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }, ContextCompat.getMainExecutor(ctx))
+                    previewView
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text("⚠️ 未取得相機權限", color = Color.White, fontSize = 18.sp)
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
+                    Text("授權並開啟相機")
+                }
+            }
+        }
+
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(15.dp)
+                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "關閉", tint = Color.White)
         }
     }
 }

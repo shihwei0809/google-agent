@@ -1,0 +1,65 @@
+const overlapStart = Math.max(sStart.getTime(), dayStart.getTime());
+            const overlapEnd = Math.min(sEnd.getTime(), dayEnd.getTime());
+            const overlapHours = (overlapEnd - overlapStart) / (1000 * 60 * 60);
+            if (overlapHours > 0) {
+              const yieldFactor = s.yield !== undefined ? (Number(s.yield) / 100) : 1;
+              dailyInflow += overlapHours * Number(s.rate) * yieldFactor;
+            }
+          }
+        });
+        
+        // 檢查交易紀錄中當天的登記
+        const dayLogs = state.transactionLogs.filter(l => {
+          if (l.tankId !== t.id) return false;
+          const logDate = new Date(l.timestamp);
+          return logDate.toDateString() === date.toDateString() && l.type === 'inflow';
+        });
+        dayLogs.forEach(l => { dailyInflow += Number(l.amount); });
+      });
+      inflowRow.push(dailyInflow);
+      
+      // 計算出庫/消耗 
+      let dailyOutflow = 0;
+      targetTanks.forEach(t => {
+        dailyOutflow += (Number(t.outflowRate) || 0) * 24;
+        
+        // 加上當天因為生產排程消耗該儲槽原料的量
+        const sourceSchedules = state.schedules.filter(s => s.sourceTankId === t.id);
+        sourceSchedules.forEach(s => {
+          const sStart = new Date(s.start);
+          const sEnd = new Date(s.end);
+          if (sEnd > dayStart && sStart < dayEnd) {
+            const overlapStart = Math.max(sStart.getTime(), dayStart.getTime());
+            const overlapEnd = Math.min(sEnd.getTime(), dayEnd.getTime());
+            const overlapHours = (overlapEnd - overlapStart) / (1000 * 60 * 60);
+            if (overlapHours > 0) {
+              dailyOutflow += overlapHours * Number(s.rate);
+            }
+          }
+        });
+
+        const dayLogs = state.transactionLogs.filter(l => {
+          if (l.tankId !== t.id) return false;
+          const logDate = new Date(l.timestamp);
+          return logDate.toDateString() === date.toDateString() && l.type === 'outflow';
+        });
+        dayLogs.forEach(l => { dailyOutflow += Number(l.amount); });
+      });
+      outflowRow.push(dailyOutflow);
+      
+      // 計算結算
+      let endingStock = startingStock + dailyInflow - dailyOutflow;
+      if (endingStock < 0) endingStock = 0; // 允許為 0，或根據需求可以為負？通常庫存不為負。
+      endingStockRow.push(endingStock);
+      
+      currentSimLevel = endingStock;
+    });
+    
+    // 渲染資料行
+    let tbodyHTML = '';
+    
+    // 期初
+    tbodyHTML += '<tr><td>期初庫存量</td>';
+    initialStockRow.forEach(val => {
+      tbodyHTML += `<td>${formatNumber(val)}</td>`;
+    });

@@ -1,0 +1,60 @@
+const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      headerHTML += `<th class="${isWeekend ? 'text-danger' : ''}">${mm}/${dd}</th>`;
+    });
+    headerRow.innerHTML = headerHTML;
+    
+    const initialStockRow = [];
+    const inflowRow = [];
+    const outflowRow = [];
+    const endingStockRow = [];
+    
+    // Aggregate initial stock
+    let currentSimLevel = targetTanks.reduce((sum, t) => sum + (Number(t.currentLevel) || 0), 0);
+    
+    dates.forEach((date, dayIdx) => {
+      const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+      const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+      
+      const startingStock = currentSimLevel;
+      initialStockRow.push(startingStock);
+      
+      // 計算當日排程生產進料 (加總所有目標儲槽)
+      let dailyInflow = 0;
+      targetTanks.forEach(t => {
+        const tankSchedules = state.schedules.filter(s => s.tankId === t.id);
+        tankSchedules.forEach(s => {
+          const sStart = new Date(s.start);
+          const sEnd = new Date(s.end);
+          if (sEnd > dayStart && sStart < dayEnd) {
+            const overlapStart = Math.max(sStart.getTime(), dayStart.getTime());
+            const overlapEnd = Math.min(sEnd.getTime(), dayEnd.getTime());
+            const overlapHours = (overlapEnd - overlapStart) / (1000 * 60 * 60);
+            if (overlapHours > 0) {
+              const yieldFactor = s.yield !== undefined ? (Number(s.yield) / 100) : 1;
+              dailyInflow += overlapHours * Number(s.rate) * yieldFactor;
+            }
+          }
+        });
+        
+        // 檢查交易紀錄中當天的登記
+        const dayLogs = state.transactionLogs.filter(l => {
+          if (l.tankId !== t.id) return false;
+          const logDate = new Date(l.timestamp);
+          return logDate.toDateString() === date.toDateString() && l.type === 'inflow';
+        });
+        dayLogs.forEach(l => { dailyInflow += Number(l.amount); });
+      });
+      inflowRow.push(dailyInflow);
+      
+      // 計算出庫/消耗 
+      let dailyOutflow = 0;
+      targetTanks.forEach(t => {
+        dailyOutflow += (Number(t.outflowRate) || 0) * 24;
+        
+        // 加上當天因為生產排程消耗該儲槽原料的量
+        const sourceSchedules = state.schedules.filter(s => s.sourceTankId === t.id);
+        sourceSchedules.forEach(s => {
+          const sStart = new Date(s.start);
+          const sEnd = new Date(s.end);
+          if (sEnd > dayStart && sStart < dayEnd) {
+            const overlapStart = Math.max(sStart.getTime(),

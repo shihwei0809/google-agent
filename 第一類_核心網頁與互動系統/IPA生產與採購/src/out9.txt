@@ -1,0 +1,63 @@
+// 2. 填入儲槽下拉選單
+    tankSelects.forEach(select => {
+      if (!select) return;
+      const isFilter = select.id.startsWith('filter-') || select.id === 'forecast-tank-select' || select.id === 'schedule-source-tank';
+      
+      let defaultText = '全部儲槽/容器';
+      if (select.id === 'forecast-tank-select') defaultText = '-- 選擇監控儲槽 --';
+      if (select.id === 'schedule-source-tank') defaultText = '-- 無 (不消耗原料) --';
+      
+      select.innerHTML = isFilter ? `<option value="">${defaultText}</option>` : '';
+      
+      
+      
+    state.tanks.forEach(t => {
+      if (state.currentFactory !== 'all' && t.factoryId !== state.currentFactory) return;
+
+        if (state.currentFactory !== 'all' && t.factoryId !== state.currentFactory) return; // Factory Filter
+
+        const prod = state.products.find(p => p.id === t.productId);
+        const prodName = prod ? prod.name : '未知產品';
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.innerText = `${t.name} [${t.type === 'tank' ? '儲槽' : 'Isotank'}] (${prodName})`;
+        select.appendChild(opt);
+      });
+    });
+    
+    // 初始化預估開車起始日
+    const startDateInput = document.getElementById('forecast-start-date');
+    if (startDateInput) {
+      if (state.startDateTime) {
+        startDateInput.value = state.startDateTime.slice(0, 10);
+      } else {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        startDateInput.value = `${yyyy}-${mm}-${dd}`;
+        state.startDateTime = startDateInput.value;
+      }
+    }
+
+    // 如果預估表原本有選，維持選取；若沒選，預設選取第一個儲槽
+    const forecastSelect = document.getElementById('forecast-tank-select');
+    if (forecastSelect && !forecastSelect.value && state.tanks.length > 0) {
+      forecastSelect.value = state.tanks[0].id;
+    }
+  }
+
+  // ==================== 儀表板動態分析與水位渲染核心 ====================
+  function calculateAndRenderDashboard() {
+    const container = document.getElementById('tanks-monitor-container');
+    const currentProdContainer = document.getElementById('current-production-container');
+    const alertLogContainer = document.getElementById('alert-log-container');
+    
+    if (!container) return;
+    
+    if (state.tanks.length === 0) {
+      container.innerHTML = `
+        <div class="no-data-placeholder">
+          <i class="fa-solid fa-info-circle"></i>
+          <p>目前無儲槽資料，請至「儲槽與容器」分頁新增儲槽</p>
+ 

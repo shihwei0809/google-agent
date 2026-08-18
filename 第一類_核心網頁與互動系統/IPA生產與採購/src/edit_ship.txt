@@ -1,0 +1,42 @@
+function editShip(id) {
+    const s = state.ships.find(item => item.id === id);
+    if (!s) return;
+    
+    editingShipId = id;
+    document.getElementById('ship-modal-title').innerText = '修改船隻動態';
+    document.getElementById('ship-id-hidden').value = id;
+    document.getElementById('ship-name').value = s.name;
+    document.getElementById('ship-code').value = s.code || '';
+    document.getElementById('ship-location').value = s.location;
+    
+    const d = new Date(s.eta);
+    const offset = d.getTimezoneOffset() * 60000;
+    document.getElementById('ship-eta').value = new Date(d.getTime() - offset).toISOString().slice(0, 16);
+    
+    updateAllDropdowns(); // 確保有產品下拉選單
+    document.getElementById('ship-product').value = s.productId;
+    document.getElementById('ship-amount').value = s.amount;
+    document.getElementById('ship-status').value = s.status;
+    
+    openModal('modal-ship');
+  }
+
+  function deleteShip(id) {
+    if (!confirm('確定要刪除這筆船隻追蹤紀錄嗎？')) return;
+    state.ships = state.ships.filter(s => s.id !== id);
+    saveDataToCloud(() => {
+      renderShips();
+    });
+  }
+
+  
+  // ==================== 廠區設定 ====================
+  
+  // ==================== 產線設定 ====================
+  function renderLines() {
+    const tbody = document.getElementById('line-list-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    state.lines.forEach(l => {
+      const tr = document.createElement('tr');
+      const factoryName = state.factories.find(f => f.id === l.factoryId)?.nam

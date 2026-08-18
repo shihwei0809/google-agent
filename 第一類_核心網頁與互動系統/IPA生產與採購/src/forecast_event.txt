@@ -1,0 +1,21 @@
+lick', () => {
+      exportTableToCSV('log-table', '儲槽進出料與交易明細.csv');
+    });
+
+    // 預估表儲槽切換事件
+    document.getElementById('forecast-tank-select').addEventListener('change', renderForecastTable);
+
+    // 預估表日期切換事件
+    const startDateInput = document.getElementById('forecast-start-date');
+    const chkContinuous = document.getElementById('chk-continuous-start');
+    
+    if (startDateInput) {
+      startDateInput.addEventListener('change', (e) => {
+        state.startDateTime = e.target.value;
+        saveDataToCloud(() => {
+          renderForecastTable();
+        });
+      });
+    }
+    
+   

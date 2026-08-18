@@ -1,0 +1,11 @@
+     <section id="tab-schedules" class="tab-pane">
+          <div class="action-bar">
+            <button id="btn-add-schedule" class="btn btn-primary">
+              <i class="fa-solid fa-plus"></i> 新增生產排程
+            </button>
+            <div class="filter-group">
+              <label for="filter-schedule-product">產品篩選：</label>
+              <select id="filter-schedule-product" class="form-control select-inline">
+                <option value="all">全部</option>
+              </select>
+        

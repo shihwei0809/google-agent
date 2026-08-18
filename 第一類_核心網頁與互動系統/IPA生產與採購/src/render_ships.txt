@@ -1,0 +1,56 @@
+function renderShips() {
+    const tbody = document.getElementById('ship-list-body');
+    if (!tbody) return;
+    
+    if (!state.ships || state.ships.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center text-secondary" style="padding: 30px;">
+            目前無追蹤中的船隻，請點擊上方按鈕新增！
+          </td>
+        </tr>`;
+      return;
+    }
+    
+    tbody.innerHTML = '';
+    // 按 ETA 排序
+    const sorted = [...state.ships].sort((a,b) => new Date(a.eta) - new Date(b.eta));
+    
+    sorted.forEach(s => {
+      const product = state.products.find(p => p.id === s.productId);
+      const prodName = product ? product.name : '未知';
+      const prodColor = product ? product.color : '#fff';
+      
+      let statusTag = '';
+      if (s.status === 'in_transit') statusTag = '<span class="table-status-tag status-tag-pending"><i class="fa-solid fa-water"></i> 航行中</span>';
+      else if (s.status === 'arriving') statusTag = '<span class="table-status-tag status-tag-active"><i class="fa-solid fa-anchor"></i> 即將靠港</span>';
+      else if (s.status === 'docked') statusTag = '<span class="table-status-tag status-tag-gray"><i class="fa-solid fa-check-double"></i> 已靠港卸貨</span>';
+      else if (s.status === 'delayed') statusTag = '<span class="table-status-tag status-tag-danger"><i class="fa-solid fa-clock"></i> 延誤</span>';
+      else statusTag = `<span class="table-status-tag status-tag-gray">${s.status}</span>`;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><b>${s.name}</b> <span class="text-sm text-secondary">(${s.code || '無代碼'})</span></td>
+        <td>${s.location}</td>
+        <td>${formatDateString(s.eta)}</td>
+        <td>
+          <span class="prod-table-badge">
+            <span class="color-dot" style="background-color: ${prodColor}"></span>
+            ${prodName}
+          </span>
+          <br><span class="text-sm text-secondary" style="margin-top: 4px; display:inline-block">${formatNumber(s.amount)} t</span>
+        </td>
+        <td>${statusTag}</td>
+        <td>
+          <button class="btn btn-secondary btn-icon" onclick="editShip('${s.id}')" title="修改"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-danger btn-icon" onclick="deleteShip('${s.id}')" title="刪除"><i class="fa-solid fa-trash"></i></button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function editShip(id) {
+    const s = state.ships.find(item => item.id === id);
+    if (!s) return;
+  

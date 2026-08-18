@@ -1,0 +1,71 @@
+document.getElementById('form-schedule').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('schedule-id-hidden').value || generateUUID();
+      const productId = document.getElementById('schedule-product').value;
+        const lineId = document.getElementById('schedule-line').value;
+      const tankId = document.getElementById('schedule-tank').value;
+      const sourceTankId = document.getElementById('schedule-source-tank').value || '';
+      const rate = Number(document.getElementById('schedule-rate').value);
+      const start = document.getElementById('schedule-start').value;
+      const end = document.getElementById('schedule-end').value;
+      const yieldVal = Number(document.getElementById('schedule-yield').value) || 100;
+
+      
+      const isContinuous = document.getElementById('schedule-continuous').checked;
+      if (isContinuous) {
+        end = '2099-12-31T23:59:00'; // 遠期未來代表連續生產
+      } else if (!end) {
+        alert('非連續生產請填寫結束時間！');
+        return;
+      }
+      if (!tankId) {
+        alert('請選擇目標儲料容器！');
+        return;
+      }
+      
+      if (sourceTankId && sourceTankId === tankId) {
+        alert('錯誤：原料來源儲槽與目標儲槽不能為同一個！');
+        return;
+      }
+
+      if (new Date(end) <= new Date(start)) {
+        alert('結束時間必須晚於開始時間！');
+        return;
+      }
+
+      if (editingScheduleId) {
+        const s = state.schedules.find(item => item.id === editingScheduleId);
+        if (s) {
+          s.productId = productId;
+          s.lineId = lineId;
+          s.tankId = tankId;
+          s.sourceTankId = sourceTankId;
+          s.rate = rate;
+          s.start = start;
+          s.end = end;
+          s.yield = yieldVal; s.isContinuous = isContinuous; }
+      } else {
+        state.schedules.push({ id, productId, lineId, tankId, sourceTankId, rate, start, end, yield: yieldVal, isContinuous });
+      }
+
+      saveDataToCloud(() => {
+        closeAllModals();
+        renderSchedules();
+        renderGanttChart();
+        calculateAndRenderDashboard();
+      });
+    });
+
+    document.getElementById('filter-schedule-product'),
+      document.getElementById('ship-product').addEventListener('change', () => {
+      renderSchedules();
+    });
+
+    // --- 進出料紀錄 Form 提交 ---
+    document.getElementById('btn-add-log').addEventListener('click', () => {
+      if (state.tanks.length === 0) {
+        alert('請先建立儲槽！');
+        return;
+      }
+      editingLogId = null;
+      document.getElementById('log-modal-title'

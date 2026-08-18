@@ -1,0 +1,26 @@
+const start = new Date(s.start);
+      const end = new Date(s.end);
+      return now >= start && now <= end;
+    });
+    document.getElementById('stat-schedules-count').innerText = activeSchedules.length;
+  }
+
+  // 更新所有表單與分頁篩選中的下拉選單
+  function updateAllDropdowns() {
+    
+    const globalSelect = document.getElementById('global-factory-select');
+    const tankFactorySelect = document.getElementById('tank-factory');
+    if (globalSelect && tankFactorySelect) {
+      const currentGlobalVal = globalSelect.value || state.currentFactory;
+      globalSelect.innerHTML = '<option value="all">🏢 總覽 (全部廠區)</option>';
+
+      tankFactorySelect.innerHTML = '';
+      const lineFactorySelect = document.getElementById('line-factory');
+      if (lineFactorySelect) lineFactorySelect.innerHTML = '';
+      
+      state.factories.forEach(f => {
+        const opt1 = document.createElement('option');
+        opt1.value = f.id; opt1.innerText = `🏢 ${f.name}`;
+        globalSelect.appendChild(opt1);
+        
+   

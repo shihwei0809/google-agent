@@ -1,0 +1,32 @@
+isFilter = select.id.startsWith('filter-') || select.id === 'forecast-tank-select' || select.id === 'schedule-source-tank';
+      
+      let defaultText = '全部儲槽/容器';
+      if (select.id === 'forecast-tank-select') defaultText = '-- 選擇監控儲槽 --';
+      if (select.id === 'schedule-source-tank') defaultText = '-- 無 (不消耗原料) --';
+      
+      select.innerHTML = isFilter ? `<option value="">${defaultText}</option>` : '';
+      
+      
+      
+    if (select.id === 'forecast-tank-select') {
+        const optgroupLines = document.createElement('optgroup');
+        optgroupLines.label = "【產線總庫存 (專用+共用)】";
+        
+        state.lines.forEach(l => {
+          if (state.currentFactory !== 'all' && l.factoryId !== state.currentFactory) return;
+          const factoryName = state.factories.find(f => f.id === l.factoryId)?.name || '';
+          const opt = document.createElement('option');
+          opt.value = `group_line_${l.id}`;
+          opt.innerText = `🏭 ${factoryName} - ${l.name}`;
+          optgroupLines.appendChild(opt);
+        });
+        if (optgroupLines.children.length > 0) select.appendChild(optgroupLines);
+
+        const optgroupProducts = document.createElement('optgroup');
+        optgroupProducts.label = "【廠區產品總庫存 (全廠加總)】";
+        
+        state.factories.forEach(f => {
+          if (state.currentFactory !== 'all' && f.id !== state.currentFactory) return;
+          state.products.forEach(p => {
+            // Check if there are tanks for this product in this factory
+     

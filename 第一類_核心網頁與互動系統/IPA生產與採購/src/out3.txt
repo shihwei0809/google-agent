@@ -1,0 +1,25 @@
+s });
+      }
+
+      saveDataToCloud(() => {
+        closeAllModals();
+        renderTanks();
+        updateAllDropdowns();
+      });
+    });
+
+    // --- 生產排程 Form 提交 ---
+    document.getElementById('btn-add-schedule').addEventListener('click', () => {
+      if (state.products.length === 0) {
+        alert('請先設定產品品項！');
+        return;
+      }
+      if (state.tanks.filter(t => t.status === 'normal').length === 0) {
+        alert('請先建立至少一個正常運作的儲槽/容器，才能規劃生產排程！');
+        return;
+      }
+      
+      editingScheduleId = null;
+      document.getElementById('schedule-modal-title').innerText = '新增生產排程';
+      document.getElementById('form-schedule').reset();
+      document.getElementById('schedule

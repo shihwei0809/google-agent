@@ -1,0 +1,48 @@
+older="例如：15000">
+            </div>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group" id="tank-outflow-wrapper">
+              <label for="tank-outflow">預設出料速率 (每小時 t)</label>
+              <input type="number" id="tank-outflow" class="form-control" min="0" step="any" value="0" placeholder="例如：200">
+            </div>
+            <div class="form-group">
+              <label for="tank-safety">安全防呆水位/容量 (t) <span class="required">*</span></label>
+              <input type="number" id="tank-safety" class="form-control" required min="0" step="any" value="0" placeholder="例如：5000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="tank-status">運作狀態</label>
+            <select id="tank-status" class="form-control">
+              <option value="normal">正常 (Active)</option>
+              <option value="maintenance">保養維修 (Maintenance)</option>
+              <option value="inactive">停用 (Inactive)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存容器</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. 新增/修改生產排程 Modal -->
+  <div id="modal-schedule" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="schedule-modal-title">新增生產排程</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-schedule">
+        <input type="hidden" id="schedule-id-hidden">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="schedule-product">生產產品 <span class="required">*</span></label>
+            <select id="schedule-product" class="form-control" required>
+              <!-- 動態載入產品 -->
+            </select>
+          </div>
+          <div class="form-group">
+          

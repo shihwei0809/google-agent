@@ -1,0 +1,75 @@
+">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存產品</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. 新增/修改儲槽與容器 Modal -->
+  <div id="modal-tank" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="tank-modal-title">新增儲槽/容器</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-tank">
+        <input type="hidden" id="tank-id-hidden">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="tank-name">儲槽/容器編號或名稱 <span class="required">*</span></label>
+            <input type="text" id="tank-name" class="form-control" required placeholder="如：T-101 或 ISO-08">
+          </div>
+          <div class="form-group">
+            <label for="tank-factory">所屬廠區 <span class="required">*</span></label>
+            <select id="tank-factory" class="form-control" required>
+              <!-- 動態載入 -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tank-dedicated-line">專屬綁定產線 (選填)</label>
+            <select id="tank-dedicated-line" class="form-control">
+              <option value="">-- 全廠共用 (不綁定) --</option>
+              <!-- 動態載入該廠區的產線 -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tank-type">容器類型 <span class="required">*</span></label>
+            <select id="tank-type" class="form-control" required>
+              <option value="tank">固定式儲槽 (Storage Tank)</option>
+              <option value="isotank">移動式槽車 (Isotank)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tank-product">存放產品</label>
+            <select id="tank-product" class="form-control">
+              <!-- 動態載入產品 -->
+            </select>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="tank-capacity">容量上限 (t) <span class="required">*</span></label>
+              <input type="number" id="tank-capacity" class="form-control" required min="1" step="any" placeholder="例如：50000">
+            </div>
+            <div class="form-group">
+              <label for="tank-current">當前儲量 (t) <span class="required">*</span></label>
+              <input type="number" id="tank-current" class="form-control" required min="0" step="any" placeholder="例如：15000">
+            </div>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group" id="tank-outflow-wrapper">
+              <label for="tank-outflow">預設出料速率 (每小時 t)</label>
+              <input type="number" id="tank-outflow" class="form-control" min="0" step="any" value="0" placeholder="例如：200">
+            </div>
+            <div class="form-group">
+              <label for="tank-safety">安全防呆水位/容量 (t) <span class="required">*</span></label>
+              <input type="number" id="tank-safety" class="form-control" required min="0" step="any" value="0" placeholder="例如：5000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="tank-status">運作狀態</label>
+            <select id="tank-status" class="form-control">
+              <option value="normal">正常 (Active)</option>
+              <option value="maintenance">保養維修 (Maintenance)</option>
+              <option value="inactive">停用 (Inactive)</option>
+    

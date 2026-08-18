@@ -1,0 +1,65 @@
+function editSchedule(id) {
+    const s = state.schedules.find(item => item.id === id);
+    if (!s) return;
+    
+    editingScheduleId = id;
+    document.getElementById('schedule-modal-title').innerText = '修改生產排程';
+    document.getElementById('schedule-id-hidden').value = id;
+    document.getElementById('schedule-product').value = s.productId;
+    document.getElementById('schedule-line').value = s.lineId;
+    
+    filterTanksBySelectedProduct(s.productId);
+    
+    document.getElementById('schedule-tank').value = s.tankId;
+    document.getElementById('schedule-source-tank').value = s.sourceTankId || '';
+    document.getElementById('schedule-rate').value = s.rate;
+    document.getElementById('schedule-start').value = s.start;
+    
+    const contCheckbox = document.getElementById('schedule-continuous');
+    if (contCheckbox) {
+      contCheckbox.checked = !!s.isContinuous;
+      contCheckbox.dispatchEvent(new Event('change'));
+    }
+    if (!s.isContinuous) {
+      document.getElementById('schedule-end').value = s.end;
+    } else {
+      document.getElementById('schedule-end').value = '';
+    }
+
+    
+    const start = new Date(s.start);
+    const end = new Date(s.end);
+    const durationHours = (end - start) / (1000 * 60 * 60);
+    const totalVolume = Number(s.rate) * Math.max(0, durationHours);
+    
+    document.getElementById('schedule-total-volume').value = totalVolume.toFixed(3);
+    document.getElementById('schedule-yield').value = s.yield !== undefined ? s.yield : 100;
+    updateYieldTotalDisplay();
+    
+    openModal('modal-schedule');
+  }
+
+  function deleteSchedule(id) {
+    if (!confirm('您確定要刪除此筆排程嗎？這會讓對應儲槽的動態預測容量更新。')) return;
+    state.schedules = state.schedules.filter(s => s.id !== id);
+    saveDataToCloud(() => {
+      renderSchedules();
+      renderGanttChart();
+      calculateAndRenderDashboard();
+    });
+  }
+
+  function filterTanksBySelectedProduct(productId) {
+    const tankSelect = document.getElementById('schedule-tank');
+    const sourceTankSelect = document.getElementById('schedule-source-tank');
+    const lineSelect = document.getElementById('schedule-line');
+    if (!tankSelect || !lineSelect) return;
+    
+    const selectedLineId = lineSelect.value;
+    const selectedLine = state.lines.find(l => l.id === selectedLineId);
+    const factoryId = selectedLine ? selectedLine.factoryId : null;
+    
+    tankSelect.innerHTML = '';
+    if(sourceTankSelect) sourceTankSelect.innerHTML = '<option value="">-- 無 (不消耗原料) --</option>';
+    
+    if (

@@ -1,0 +1,42 @@
+const prodSelects = [
+      document.getElementById('tank-product'),
+      document.getElementById('schedule-product'),
+      document.getElementById('filter-schedule-product'),
+      document.getElementById('ship-product')
+    ];
+    
+    const tankSelects = [
+      document.getElementById('schedule-tank'),
+      document.getElementById('schedule-source-tank'),
+      document.getElementById('log-tank'),
+      document.getElementById('filter-log-tank'),
+      document.getElementById('forecast-tank-select')
+    ];
+
+    // 1. 填入產品下拉選單
+    prodSelects.forEach(select => {
+      if (!select) return;
+      const isFilter = select.id.startsWith('filter-');
+      select.innerHTML = isFilter ? '<option value="all">全部產品</option>' : '';
+      state.products.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.innerText = `${p.name} (${p.code})`;
+        select.appendChild(opt);
+      });
+    });
+
+    // 2. 填入儲槽下拉選單
+    tankSelects.forEach(select => {
+      if (!select) return;
+      const isFilter = select.id.startsWith('filter-') || select.id === 'forecast-tank-select' || select.id === 'schedule-source-tank';
+      
+      let defaultText = '全部儲槽/容器';
+      if (select.id === 'forecast-tank-select') defaultText = '-- 選擇監控儲槽 --';
+      if (select.id === 'schedule-source-tank') defaultText = '-- 無 (不消耗原料) --';
+      
+      select.innerHTML = isFilter ? `<option value="">${defaultText}</option>` : '';
+      
+      
+      
+    state.tanks

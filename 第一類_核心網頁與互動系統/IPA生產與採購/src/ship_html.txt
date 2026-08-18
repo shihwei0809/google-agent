@@ -1,0 +1,71 @@
+ss="modal-card">
+      <div class="modal-header">
+        <h3 id="ship-modal-title">更新船隻動態</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-ship">
+        <input type="hidden" id="ship-id-hidden">
+        <div class="modal-body">
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="ship-name">船隻名稱 <span class="required">*</span></label>
+              <input type="text" id="ship-name" class="form-control" required placeholder="如：Ever Green">
+            </div>
+            <div class="form-group">
+              <label for="ship-code">船舶代碼 (IMO/MMSI)</label>
+              <input type="text" id="ship-code" class="form-control" placeholder="如：9811000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="ship-location">目前位置 / 航向 <span class="required">*</span></label>
+            <input type="text" id="ship-location" class="form-control" required placeholder="如：南海 (往高雄港方向)">
+          </div>
+          <div class="form-group">
+            <label for="ship-eta">預計抵達時間 (ETA) <span class="required">*</span></label>
+            <input type="datetime-local" id="ship-eta" class="form-control" required>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="ship-product">載運原料 <span class="required">*</span></label>
+              <select id="ship-product" class="form-control" required>
+                <!-- 動態載入產品 -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ship-amount">載運數量 (t) <span class="required">*</span></label>
+              <input type="number" id="ship-amount" class="form-control" required min="0" step="any" placeholder="例如：15000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="ship-status">當前航行狀態</label>
+            <select id="ship-status" class="form-control">
+              <option value="in_transit">航行中 (In Transit)</option>
+              <option value="arriving">即將靠港 (Arriving)</option>
+              <option value="docked">已靠港卸貨 (Docked)</option>
+              <option value="delayed">延誤 (Delayed)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存船隻資訊</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 1. 新增/修改產品 Modal -->
+  <div id="modal-product" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="product-modal-title">新增產品</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-product">
+        <input type="hidden" id="product-id-hidden">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="product-name">產品名稱 <span class="required">*</span></label>
+            <input type="text" id="product-name" class="form-control" required placeholder="如：乙二醇 (EG)">
+          </d

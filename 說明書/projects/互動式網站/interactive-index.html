@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>互動式教學網頁五大階段 - 入口平台</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-card: rgba(17, 25, 40, 0.75);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-purple: #8b5cf6;
+      --neon-pink: #ec4899;
+      --neon-orange: #f97316;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 5% 15%, rgba(139, 92, 246, 0.15) 0%, transparent 45%),
+        radial-gradient(circle at 95% 85%, rgba(6, 182, 212, 0.15) 0%, transparent 45%);
+      background-attachment: fixed;
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 1.5rem;
+      overflow-x: hidden;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 4rem;
+      max-width: 850px;
+      z-index: 10;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.4rem 1.2rem;
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
+    }
+
+    h1 {
+      font-size: 3rem;
+      font-weight: 900;
+      line-height: 1.2;
+      background: linear-gradient(to right, #ffffff, #cbd5e1, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 1.2rem;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      font-size: 1.15rem;
+      color: var(--text-sub);
+      line-height: 1.7;
+    }
+
+    .levels-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 2.2rem;
+      width: 100%;
+      max-width: 1200px;
+      margin-bottom: 5rem;
+      z-index: 10;
+    }
+
+    .level-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 2.5rem;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .level-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: transparent;
+      transition: background 0.4s ease;
+    }
+
+    .level-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 
+        0 30px 60px rgba(0, 0, 0, 0.4),
+        0 0 50px rgba(255, 255, 255, 0.02);
+    }
+
+    .level-card.lv1:hover::before { background: linear-gradient(90deg, #94a3b8, var(--neon-cyan)); }
+    .level-card.lv2:hover::before { background: linear-gradient(90deg, var(--neon-orange), var(--neon-green)); }
+    .level-card.lv3:hover::before { background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); }
+    .level-card.lv4:hover::before { background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink)); }
+    .level-card.lv5:hover::before { background: linear-gradient(90deg, var(--neon-pink), var(--neon-cyan)); }
+
+    .level-number {
+      font-size: 3.5rem;
+      font-weight: 900;
+      line-height: 1;
+      opacity: 0.08;
+      position: absolute;
+      top: 1.5rem;
+      right: 2rem;
+      transition: all 0.5s ease;
+    }
+
+    .level-card:hover .level-number {
+      opacity: 0.25;
+      transform: scale(1.15) rotate(5deg);
+    }
+
+    .lv1 .level-number { color: #cbd5e1; }
+    .lv2 .level-number { color: var(--neon-orange); }
+    .lv3 .level-number { color: var(--neon-cyan); }
+    .lv4 .level-number { color: var(--neon-purple); }
+    .lv5 .level-number { color: var(--neon-pink); }
+
+    .level-badge {
+      font-size: 0.75rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 0.3rem 0.85rem;
+      border-radius: 50px;
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.08em;
+    }
+
+    .lv1 .level-badge { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.25); }
+    .lv2 .level-badge { background: rgba(249, 115, 22, 0.15); color: var(--neon-orange); border: 1px solid rgba(249, 115, 22, 0.25); }
+    .lv3 .level-badge { background: rgba(6, 182, 212, 0.15); color: var(--neon-cyan); border: 1px solid rgba(6, 182, 212, 0.25); }
+    .lv4 .level-badge { background: rgba(139, 92, 246, 0.15); color: var(--neon-purple); border: 1px solid rgba(139, 92, 246, 0.25); }
+    .lv5 .level-badge { background: rgba(236, 72, 153, 0.15); color: var(--neon-pink); border: 1px solid rgba(236, 72, 153, 0.25); }
+
+    .level-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 0.8rem;
+      color: var(--text-main);
+    }
+
+    .level-slogan {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+    }
+    
+    .lv1 .level-slogan { color: #cbd5e1; }
+    .lv2 .level-slogan { color: var(--neon-orange); }
+    .lv3 .level-slogan { color: var(--neon-cyan); }
+    .lv4 .level-slogan { color: var(--neon-purple); }
+    .lv5 .level-slogan { color: var(--neon-pink); }
+
+    .level-desc {
+      font-size: 0.95rem;
+      color: var(--text-sub);
+      line-height: 1.65;
+      margin-bottom: 2rem;
+      flex-grow: 1;
+    }
+
+    .level-details {
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 1.2rem;
+      margin-top: auto;
+      font-size: 0.85rem;
+    }
+
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .detail-label {
+      color: var(--text-sub);
+    }
+
+    .detail-val {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+
+    .card-action {
+      margin-top: 1.5rem;
+      padding: 0.8rem 0;
+      text-align: center;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .level-card:hover .card-action {
+      background: var(--text-main);
+      color: var(--bg-dark);
+      border-color: var(--text-main);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.25);
+    }
+
+    footer {
+      text-align: center;
+      color: var(--text-sub);
+      font-size: 0.9rem;
+      margin-top: auto;
+      padding-top: 2.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    footer code {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      color: var(--neon-cyan);
+    }
+
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 2.3rem;
+      }
+      .levels-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="badge">互動式能力階梯 本機專案</div>
+    <h1>如何實施線上人員互動式教學？</h1>
+    <p>
+      基於三師爸（Sensebar）的「寫教學應用程式的五個等級」架構，我們將教學網頁分為五個演進階段。
+      下方為可在本機點擊執行的對應階段網頁與程式範例，幫助您以實際程式碼與架構理解如何實現與學員的互動。
+    </p>
+  </header>
+
+  <div class="levels-grid">
+
+    <!-- LEVEL 1 -->
+    <a class="level-card lv1" href="lv1-frontend.html">
+      <div class="level-number">01</div>
+      <div>
+        <div class="level-badge">LEVEL 1</div>
+        <h2 class="level-title">純前端網頁測驗</h2>
+        <p class="level-slogan">算完就忘・單機版</p>
+        <p class="level-desc">將題庫寫在前端，用 JavaScript 計算分數。點擊即時對錯反饋。缺點是重新整理或關閉後，作答結果不保存。適合作為快速課堂練習。</p>
+      </div>
+      <div class="level-details">
+        <div class="detail-item">
+          <span class="detail-label">資料儲存：</span>
+          <span class="detail-val">不儲存（瀏覽器記憶體）</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">AI 整合：</span>
+          <span class="detail-val">無</span>
+        </div>
+        <div class="card-action">
+          開啟 Lv.1 範例 <span>→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- LEVEL 2 -->
+    <a class="level-card lv2" href="lv2-sheets.html">
+      <div class="level-number">02</div>
+      <div>
+        <div class="level-badge">LEVEL 2</div>
+        <h2 class="level-title">Google 試算表後端</h2>
+        <p class="level-slogan">課後回收・表單自動化</p>
+        <p class="level-desc">使用 Google Apps Script (GAS) 建立 API，前端將答題資料透過 POST 傳入，自動寫入雲端 Google 試算表。適合教師課後靜態收集成績。</p>
+      </div>
+      <div class="level-details">
+        <div class="detail-item">
+          <span class="detail-label">資料儲存：</span>
+          <span class="detail-val">Google Sheets (經由 GAS)</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">AI 整合：</span>
+          <span class="detail-val">無</span>
+        </div>
+        <div class="card-action">
+          開啟 Lv.2 範例 <span>→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- LEVEL 3 -->
+    <a class="level-card lv3" href="lv3-tutor.html">
+      <div class="level-number">03</div>
+      <div>
+        <div class="level-badge">LEVEL 3</div>
+        <h2 class="level-title">多人即時同步互動 (Lv.3)</h2>
+        <p class="level-slogan">本機記憶體即時資料庫・雙端同步翻頁</p>
+        <p class="level-desc">實現三師爸風格的即時互動課堂！包含「講者投影幕端 (Tutor View)」與「學員作答端 (Student View)」。講師翻頁時學員端會秒級同步翻頁，學員提交答案時講者端 Donut 圖表即時累加更新！</p>
+      </div>
+      <div class="level-details">
+        <div class="detail-item">
+          <span class="detail-label">資料儲存：</span>
+          <span class="detail-val">本機記憶體同步 (0% 依賴無須聯網)</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">雙端角色：</span>
+          <span class="detail-val">Tutor 講者端 ＋ Student 學員端</span>
+        </div>
+        <div class="card-action">
+          開啟 Lv.3 講者端 <span>→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- LEVEL 4 -->
+    <a class="level-card lv4" href="lv4-netlify-ai.html">
+      <div class="level-number">04</div>
+      <div>
+        <div class="level-badge">LEVEL 4</div>
+        <h2 class="level-title">Serverless + AI 批改</h2>
+        <p class="level-slogan">AI 問答批改・用完即走版</p>
+        <p class="level-desc">串接 Gemini API / Groq API，為問答題提供即時回饋。透過 Netlify/Vercel Serverless Function 隱藏 API Key，避免金鑰在前端外洩。</p>
+      </div>
+      <div class="level-details">
+        <div class="detail-item">
+          <span class="detail-label">資料儲存：</span>
+          <span class="detail-val">不儲存（即時評分回饋）</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">AI 整合：</span>
+          <span class="detail-val">Gemini / Groq LLM API</span>
+        </div>
+        <div class="card-action">
+          開啟 Lv.4 範例 <span>→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- LEVEL 5 -->
+    <a class="level-card lv5" href="lv4-netlify-ai.html?level=5">
+      <div class="level-number">05</div>
+      <div>
+        <div class="level-badge">LEVEL 5</div>
+        <h2 class="level-title">AI 全端資料整合</h2>
+        <p class="level-slogan">終極版・個人學習歷程儀表板</p>
+        <p class="level-desc">融合 AI 即時批改與 Firebase 長期紀錄。學員的每次回答、AI 評語與分數皆寫入資料庫，建立學習分析駕駛艙，落實科技為教學減負。</p>
+      </div>
+      <div class="level-details">
+        <div class="detail-item">
+          <span class="detail-label">資料儲存：</span>
+          <span class="detail-val">Firebase Firestore (長期紀錄)</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">AI 整合：</span>
+          <span class="detail-val">AI 即時分析 ＋ 資料庫聯動</span>
+        </div>
+        <div class="card-action">
+          檢視 Lv.5 整合架構 <span>→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- GROQ CHAT TUTOR -->
+    <a class="level-card lv3" href="chat-tutor.html" style="border-color: rgba(139, 92, 246, 0.2); background: linear-gradient(135deg, rgba(17, 25, 40, 0.75), rgba(139, 92, 246, 0.05));">
+      <div class="level-number">AI</div>
+      <div>
+        <div class="level-badge" style="background: rgba(139, 92, 246, 0.15); color: var(--neon-purple); border: 1px solid rgba(139, 92, 246, 0.25);">EXTRA</div>
+        <h2 class="level-title">Groq AI 互動對談</h2>
+        <p class="level-slogan" style="color: var(--neon-purple);">即時對話・對話上下文脈絡</p>
+        <p class="level-desc">使用 Groq API（例如 LLaMA 3.3）實現一個真正的聊天助教。可儲存對話上下文，提供多輪對話教學，帶領學生以對談方式探索程式主題。</p>
+      </div>
+      <div class="level-details">
+        <div class="detail-item">
+          <span class="detail-label">對話機制：</span>
+          <span class="detail-val">多輪對話上下文 (Chat Context)</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">AI 引擎：</span>
+          <span class="detail-val">Groq Cloud API (LLaMA)</span>
+        </div>
+        <div class="card-action" style="background: var(--neon-purple); color: white; border-color: var(--neon-purple);">
+          開啟 Groq 對談助教 <span>→</span>
+        </div>
+      </div>
+    <!-- TEACHING COCKPIT -->
+    <a class="level-card lv2" href="teaching-cockpit.html" style="border-color: rgba(16, 185, 129, 0.2); background: linear-gradient(135deg, rgba(17, 25, 40, 0.75), rgba(16, 185, 129, 0.05));">
+      <div class="level-number">🖥️</div>
+      <div>
+        <div class="level-badge" style="background: rgba(16, 185, 129, 0.15); color: var(--neon-green); border: 1px solid rgba(16, 185, 129, 0.25);">LAYOUT</div>
+        <h2 class="level-title">互動教學駕駛艙</h2>
+        <p class="level-slogan" style="color: var(--neon-green);">投影片翻頁同步・即時圓形圖統計</p>
+        <p class="level-desc">實現「左側課程目錄導航、右側簡報與即時互動」的駕駛艙版面。整合即時投票統計圖表，讓導師能隨時掌控全班作答狀態。</p>
+      </div>
+      <div class="level-details">
+        <div class="detail-item">
+          <span class="detail-label">版面配置：</span>
+          <span class="detail-val">兩欄式 (目錄 + 主視窗)</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">圖表反饋：</span>
+          <span class="detail-val">圓形比例統計圖表</span>
+        </div>
+        <div class="card-action" style="background: var(--neon-green); color: var(--bg-dark); border-color: var(--neon-green);">
+          開啟教學駕駛艙 <span>→</span>
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+  <footer>
+    <p>本機專案已在您的工作區中建立。您可以直接開啟 <code>gas-code.js</code> 與 <code>netlify-function.js</code> 檢視完整後端邏輯。</p>
+  </footer>
+
+</body>
+</html>

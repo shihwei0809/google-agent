@@ -1,0 +1,68 @@
+function filterTanksBySelectedProduct(productId) {
+    const tankSelect = document.getElementById('schedule-tank');
+    if (!tankSelect) return;
+    
+    tankSelect.innerHTML = '';
+    const filteredTanks = state.tanks.filter(t => t.productId === productId && t.status === 'normal');
+    
+    if (filteredTanks.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.innerText = '⚠️ 無適用此產品的正常儲槽，請先新增儲槽';
+      tankSelect.appendChild(opt);
+    } else {
+      filteredTanks.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.innerText = `${t.name} (${t.type === 'tank' ? '固定儲槽' : 'Isotank'}) - 容量剩餘 ${formatNumber(t.capacity - t.currentLevel)} L`;
+        tankSelect.appendChild(opt);
+      });
+    }
+  }
+
+  function calculateVolumeFromTimes() {
+    const rate = Number(document.getElementById('schedule-rate').value) || 0;
+    const startVal = document.getElementById('schedule-start').value;
+    const endVal = document.getElementById('schedule-end').value;
+    const volInput = document.getElementById('schedule-total-volume');
+    
+    if (!startVal || !endVal || rate <= 0) {
+      if (volInput) volInput.value = '';
+      updateYieldTotalDisplay();
+      return;
+    }
+    
+    const start = new Date(startVal);
+    const end = new Date(volInput ? endVal : null); // Fallback safe check
+    const diffHours = (new Date(endVal) - start) / (1000 * 60 * 60);
+    
+    if (diffHours > 0) {
+      const total = rate * diffHours;
+      if (volInput) volInput.value = total.toFixed(3);
+    }
+    updateYieldTotalDisplay();
+  }
+
+  function calculateEndTimeFromVolume() {
+    const rate = Number(document.getElementById('schedule-rate').value) || 0;
+    const startVal = document.getElementById('schedule-start').value;
+    const totalVolume = Number(document.getElementById('schedule-total-volume').value) || 0;
+    const endInput = document.getElementById('schedule-end');
+    
+    if (!startVal || rate <= 0 || totalVolume <= 0) {
+      updateYieldTotalDisplay();
+      return;
+    }
+    
+    const start = new Date(startVal);
+    const durationHours = totalVolume / rate;
+    const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000);
+    
+    const offset = end.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(end.getTime() - offset).toISOString().slice(0, 16);
+    if (endInput) endInput.value = localISOTime;
+    
+    updateYieldTotalDisplay();
+  }
+
+  function updateYie

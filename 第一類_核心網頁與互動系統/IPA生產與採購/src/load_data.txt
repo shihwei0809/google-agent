@@ -1,0 +1,46 @@
+function loadDataFromCloud() {
+    showLoading(true, "正在從雲端載入資料...");
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      showLoading(false);
+      showToast("偵測為本地執行模式 (未使用 GAS)，載入模擬範例資料", "warning");
+      loadMockData();
+      return;
+    }
+    google.script.run
+      .withSuccessHandler(data => {
+        showLoading(false);
+        if (data._error) {
+          showToast("載入資料失敗: " + data._error, "error");
+          return;
+        }
+        
+        state.factories = data.factories || [];
+        state.lines = data.lines || [];
+        state.products = data.products || [];
+        state.tanks = data.tanks || [];
+        state.schedules = data.schedules || [];
+        state.transactionLogs = data.transactionLogs || [];
+        state.ships = data.ships || [];
+        state.startDateTime = data.startDateTime || "";
+        state.continuousStart = data.continuousStart;
+        
+        showToast("雲端資料同步完成！", "success");
+        
+        updateAllDropdowns();
+        calculateAndRenderDashboard();
+        updateStats();
+      })
+      .withFailureHandler(err => {
+        showLoading(false);
+        showToast("載入資料時發生系統錯誤", "error");
+        console.error(err);
+      })
+      .loadCloudData();
+  }
+
+  function saveDataToCloud(callback) {
+    showLoading(true, "正在將資料儲存至雲端...");
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      showLoading(false);
+      showToast("本地模式下無法寫入雲端，資料已儲存！", "success");
+      updateS

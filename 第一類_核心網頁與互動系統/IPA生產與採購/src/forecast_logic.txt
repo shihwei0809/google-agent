@@ -1,0 +1,88 @@
+function renderForecastTable() {
+    const selectTank = document.getElementById('forecast-tank-select');
+    const headerRow = document.getElementById('forecast-header-row');
+    const tbody = document.getElementById('forecast-body');
+    
+    if (!selectTank || !headerRow || !tbody) return;
+    
+    const selectValue = selectTank.value;
+    if (!selectValue) {
+      headerRow.innerHTML = '<th>項目/日期</th>';
+      tbody.innerHTML = '<tr><td class="text-secondary text-center" colspan="31">請選擇監控儲槽</td></tr>';
+      return;
+    }
+    
+    let targetTanks = [];
+    if (selectValue.startsWith('group_line_')) {
+      const lineId = selectValue.replace('group_line_', '');
+      const line = state.lines.find(l => l.id === lineId);
+      if (line) {
+        // Find dedicated tanks + shared tanks for the same products? 
+        // Actually, shared tanks have dedicatedLineId === '' or undefined.
+        // But what product? A line doesn't have a fixed product in state.
+        // Let's assume shared tanks are those with dedicatedLineId === '' in the same factory.
+        targetTanks = state.tanks.filter(t => t.factoryId === line.factoryId && (t.dedicatedLineId === line.id || !t.dedicatedLineId));
+      }
+    } else if (selectValue.startsWith('group_prod_')) {
+      const parts = selectValue.split('_');
+      const fId = parts[2];
+      const pId = parts[3];
+      targetTanks = state.tanks.filter(t => t.factoryId === fId && t.productId === pId);
+    } else {
+      const singleTank = state.tanks.find(t => t.id === selectValue);
+      if (singleTank) targetTanks = [singleTank];
+    }
+    
+    if (targetTanks.length === 0) {
+      headerRow.innerHTML = '<th>項目/日期</th>';
+      tbody.innerHTML = '<tr><td class="text-secondary text-center" colspan="31">群組內無符合條件的儲槽</td></tr>';
+      return;
+    }
+    
+    // 讀取預估開車時間 (起始日)
+    const startDateInput = document.getElementById('forecast-start-date');
+    let baseDate = new Date();
+    if (startDateInput && startDateInput.value) {
+      baseDate = new Date(startDateInput.value);
+    }
+    
+    // 建立 30 天日期陣列
+    const dates = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + i);
+      dates.push(d);
+    }
+    
+    // 渲染表頭日期
+    let headerHTML = '<th>項目 / 日期</th>';
+    dates.forEach(d => {
+      const mm = d.getMonth() + 1;
+      const dd = d.getDate();
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      headerHTML += `<th class="${isWeekend ? 'text-danger' : ''}">${mm}/${dd}</th>`;
+    });
+    headerRow.innerHTML = headerHTML;
+    
+    const initialStockRow = [];
+    const inflowRow = [];
+    const outflowRow = [];
+    const endingStockRow = [];
+    
+    // Aggregate initial stock
+    let currentSimLevel = targetTanks.reduce((sum, t) => sum + (Number(t.currentLevel) || 0), 0);
+    
+    dates.forEach((date, dayIdx) => {
+      const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+      const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+      
+      const startingStock = currentSimLevel;
+      initialStockRow.push(startingStock);
+      
+      // 計算當日排程生產進料 (加總所有目標儲槽)
+      let dailyInflow = 0;
+      targetTanks.forEach(t => {
+        const tankSchedules = state.schedules.filter(s => s.tankId === t.id);
+        tankSchedules.forEach(s => {
+          const sStart = new Date(s.start);
+          const sEnd = new Date(s.end);
+          if (sEnd > daySta

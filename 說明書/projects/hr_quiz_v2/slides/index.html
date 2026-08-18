@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>儲槽氮氣閥與氮封系統作動原理 — 互動教育訓練</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #111827;
+      --surface-card: #1f2937;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(99, 102, 241, 0.4);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Microsoft JhengHei", sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 佈局容器 */
+    .container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 70px); /* 扣除底部控制列 */
+      overflow: hidden;
+    }
+
+    /* 左側說明面板 */
+    .text-panel {
+      width: 45%;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      border-right: 1px solid var(--border);
+      background-color: rgba(17, 24, 39, 0.5);
+      overflow-y: auto;
+    }
+
+    .slide-meta {
+      font-size: 0.8rem;
+      color: var(--primary);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    .slide-title {
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .slide-subtitle {
+      font-size: 1rem;
+      color: var(--primary);
+      margin-bottom: 24px;
+      font-weight: 500;
+    }
+
+    .slide-content {
+      flex: 1;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #cbd5e1;
+    }
+
+    .slide-content p {
+      margin-bottom: 12px;
+    }
+
+    .slide-content ul {
+      margin-top: 10px;
+      padding-left: 20px;
+      margin-bottom: 15px;
+    }
+
+    .slide-content li {
+      margin-bottom: 10px;
+    }
+
+    .slide-content li strong {
+      color: #fff;
+    }
+
+    /* 右側動畫面板 */
+    .animation-panel {
+      width: 55%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #0b0f19;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 頂部狀態標籤 */
+    .panel-header {
+      position: absolute;
+      top: 15px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      background: rgba(31, 41, 55, 0.4);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    /* SVG 繪圖樣式 */
+    svg {
+      width: 100%;
+      height: 70%;
+      max-height: 400px;
+      filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.4));
+    }
+
+    /* 動畫效果的 CSS 類 */
+    .flow-active {
+      stroke-dasharray: 6, 6;
+      animation: flowDash 1.2s linear infinite;
+    }
+
+    @keyframes flowDash {
+      to {
+        stroke-dashoffset: -24;
+      }
+    }
+
+    .flow-reverse {
+      stroke-dasharray: 6, 6;
+      animation: flowDashReverse 1.2s linear infinite;
+    }
+
+    @keyframes flowDashReverse {
+      to {
+        stroke-dashoffset: 24;
+      }
+    }
+
+    .valve-glow-green {
+      filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8));
+    }
+
+    .valve-glow-red {
+      filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
+    }
+
+    .valve-glow-yellow {
+      filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.8));
+    }
+
+    /* 液位過渡 */
+    #liquid-level {
+      transition: y 1.5s ease-in-out, height 1.5s ease-in-out, d 1.5s ease-in-out;
+    }
+
+    /* 指針過渡 */
+    #gauge-pointer {
+      transition: transform 1.5s ease-in-out;
+      transform-origin: 0px 0px; /* 以 translate 後的中心點旋轉 */
+    }
+
+    /* 手動控制面板 */
+    .sim-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 15px;
+      background: rgba(31, 41, 55, 0.5);
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      z-index: 10;
+      justify-content: center;
+      max-width: 90%;
+    }
+
+    .sim-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .sim-btn:hover {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .sim-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+    }
+
+    /* 底部導覽與控制列 */
+    .control-bar {
+      height: 70px;
+      background-color: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 30px;
+      z-index: 100;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 50px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.16);
+      transform: translateY(-1px);
+    }
+
+    .btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      border: none;
+      box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+      background: linear-gradient(135deg, var(--primary-hover), #4338ca);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--success), #059669);
+      border: none;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-success:hover:not(:disabled) {
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+
+    /* 語音與進度控制 */
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .voice-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+
+    .voice-btn:hover {
+      background: rgba(255, 255, 255, 0.16);
+      border-color: var(--primary);
+    }
+
+    .voice-btn.active {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--primary);
+      color: #a5b4fc;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+      70% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    }
+
+    .speed-select {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    .speed-select option {
+      background-color: var(--surface-card);
+      color: var(--text);
+    }
+
+    .progress-info {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    /* 響應式調整 */
+    @media (max-width: 750px) {
+      .container {
+        flex-direction: column;
+        overflow-y: auto;
+        height: calc(100vh - 70px);
+      }
+      .text-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        flex: 0 0 auto;
+        overflow-y: visible;
+        padding: 20px;
+      }
+      .animation-panel {
+        width: 100%;
+        flex: 0 0 auto;
+        padding: 20px 10px;
+        overflow: visible;
+      }
+      svg {
+        height: auto;
+        max-height: 320px;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .control-bar {
+        height: auto;
+        flex-direction: column;
+        padding: 12px 16px;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .audio-controls {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .nav-buttons {
+        width: 100%;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .btn {
+        flex: 1;
+        justify-content: center;
+        padding: 8px 16px;
+        font-size: 0.8rem;
+      }
+      .container {
+        height: calc(100vh - 120px);
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 開始播放遮罩 (符合瀏覽器自動播放政策) -->
+  <div id="start-overlay" style="position:fixed; inset:0; background:rgba(11,15,25,0.95); backdrop-filter:blur(10px); z-index:9999; display:flex; align-items:center; justify-content:center;">
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:35px 30px; text-align:center; max-width:420px; box-shadow:0 15px 40px rgba(0,0,0,0.6);">
+      <div style="font-size:52px; margin-bottom:18px; animation: bounce 2s infinite;">🔊</div>
+      <h3 style="font-size:1.35rem; font-weight:700; margin-bottom:12px; color:#fff; letter-spacing:0.05em;">儲槽氮氣閥作動原理</h3>
+      <p style="font-size:0.88rem; color:var(--text-muted); line-height:1.65; margin-bottom:24px;">歡迎參加本教育訓練！本簡報整合了自力式氮氣閥的<strong>動態模擬動畫</strong>與<strong>語音旁白朗讀</strong>。請點擊下方按鈕開始自動播放。</p>
+      <button onclick="startPresentation()" style="background:linear-gradient(135deg, var(--primary), var(--primary-hover)); color:#fff; border:none; padding:13px 32px; border-radius:50px; font-size:0.98rem; font-weight:700; cursor:pointer; box-shadow:0 6px 20px rgba(99,102,241,0.45); transition:transform 0.2s;">▶ 開始播放 (含語音旁白)</button>
+    </div>
+  </div>
+
+  <!-- 主體容器 -->
+  <div class="container">
+    <!-- 左側說明文字 -->
+    <div class="text-panel">
+      <div>
+        <div class="slide-meta" id="slide-number-label">SLIDE 01 OF 06</div>
+        <h2 class="slide-title" id="slide-title">儲槽氮氣閥與氮封系統作動原理</h2>
+        <div class="slide-subtitle" id="slide-subtitle">確保製程安全與儲槽壓力的核心屏障</div>
+        <div class="slide-content" id="slide-content">
+          <!-- JS 動態寫入內容 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 右側動畫顯示 -->
+    <div class="animation-panel">
+      <div class="panel-header" id="animation-status-label">儲槽氮封系統：初始平衡狀態</div>
+      
+      <!-- P&ID 儲槽互動動畫 SVG -->
+      <svg viewBox="0 0 560 450">
+        <!-- 定義漸層 -->
+        <defs>
+          <linearGradient id="tank-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1e293b" />
+            <stop offset="100%" stop-color="#0f172a" />
+          </linearGradient>
+          <linearGradient id="liquid-color" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#0ea5e9" stop-opacity="0.8"/>
+            <stop offset="100%" stop-color="#0369a1" stop-opacity="0.9"/>
+          </linearGradient>
+          <radialGradient id="n2-glow" cx="50%" cy="40%" r="50%">
+            <stop offset="0%" stop-color="#a7f3d0" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
+          </radialGradient>
+          <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#10b981"/>
+          </marker>
+          <marker id="arrow-red" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#ef4444"/>
+          </marker>
+          <marker id="arrow-yellow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#f59e0b"/>
+          </marker>
+          <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#60a5fa"/>
+          </marker>
+        </defs>
+
+        <!-- 背景網格微弱點綴 -->
+        <g stroke="#334155" stroke-opacity="0.15" stroke-width="1">
+          <line x1="0" y1="50" x2="560" y2="50" />
+          <line x1="0" y1="150" x2="560" y2="150" />
+          <line x1="0" y1="250" x2="560" y2="250" />
+          <line x1="0" y1="350" x2="560" y2="350" />
+          <line x1="100" y1="0" x2="100" y2="450" />
+          <line x1="280" y1="0" x2="280" y2="450" />
+          <line x1="460" y1="0" x2="460" y2="450" />
+        </g>
+
+        <!-- 儲槽氣體 N2 空間微亮背景 -->
+        <path id="n2-space-glow" d="M 152,430 L 152,220 C 152,165 408,165 408,220 L 408,430 Z" fill="url(#n2-glow)" />
+
+        <!-- 儲槽液體 (底層) -->
+        <path id="liquid-level" d="M 152,430 L 152,280 L 408,280 L 408,430 A 12,12 0 0 1 396,442 L 164,442 A 12,12 0 0 1 152,430 Z" fill="url(#liquid-color)" />
+
+        <!-- 儲槽主體外框 -->
+        <path d="M 150,430 L 150,220 C 150,160 410,160 410,220 L 410,430 A 15,15 0 0 1 395,445 L 165,445 A 15,15 0 0 1 150,430 Z" fill="none" stroke="#64748b" stroke-width="5" />
+        
+        <!-- 儲槽內文字標記 -->
+        <text x="280" y="210" fill="#94a3b8" font-size="14" font-weight="700" text-anchor="middle" letter-spacing="1">氣相氮氣層 (N₂)</text>
+        <text id="liquid-label" x="280" y="360" fill="#ffffff" fill-opacity="0.8" font-size="14" font-weight="700" text-anchor="middle">物料液位 (Liquid)</text>
+
+        <!-- 進料/出料箭頭示意 -->
+        <g id="pump-in-flow" display="none" opacity="0.8">
+          <path d="M 90,400 L 150,400" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="5,5" class="flow-active" />
+          <path d="M 144,395 L 154,400 L 144,405 Z" fill="#10b981" />
+          <text x="75" y="385" fill="#10b981" font-size="10" font-weight="600">物料泵入</text>
+        </g>
+        <g id="pump-out-flow" display="none" opacity="0.8">
+          <path d="M 150,400 L 90,400" fill="none" stroke="#ef4444" stroke-width="4" stroke-dasharray="5,5" class="flow-reverse" />
+          <path d="M 96,395 L 86,400 L 96,405 Z" fill="#ef4444" />
+          <text x="75" y="385" fill="#ef4444" font-size="10" font-weight="600">物料泵出</text>
+        </g>
+        <path d="M 120,400 L 150,400" fill="none" stroke="#64748b" stroke-width="4" />
+
+        <!-- 管道 1：左側進氮氣管道 (氮封源) -->
+        <path d="M 40,110 L 90,110 L 90,180 L 175,180 L 175,190" fill="none" stroke="#475569" stroke-width="4" />
+        <path id="n2-in-flow" d="M 40,110 L 90,110 L 90,180 L 175,180 L 175,190" fill="none" stroke="#10b981" stroke-width="4" class="flow-active" display="none" />
+        
+        <!-- 管道 2：右側洩氮氣管道 (排氣管) -->
+        <path d="M 385,185 L 385,130 L 470,130 L 470,80" fill="none" stroke="#475569" stroke-width="4" />
+        <path id="n2-out-flow" d="M 385,185 L 385,130 L 470,130 L 470,80" fill="none" stroke="#ef4444" stroke-width="4" class="flow-active" display="none" />
+
+        <!-- 供氮閥 (左下調節閥) -->
+        <g id="valve-supply" transform="translate(110, 180)">
+          <!-- 閥體 -->
+          <polygon points="0,-10 20,0 0,10" fill="#64748b" stroke="#334155" stroke-width="1" id="v-sup-l"/>
+          <polygon points="40,-10 20,0 40,10" fill="#64748b" stroke="#334155" stroke-width="1" id="v-sup-r"/>
+          <circle cx="20" cy="0" r="5" fill="#334155" />
+          <!-- 自力式膜片執行機構 -->
+          <line x1="20" y1="0" x2="20" y2="-20" stroke="#64748b" stroke-width="2" />
+          <ellipse cx="20" cy="-20" rx="15" ry="4" fill="#475569" stroke="#334155" />
+          <!-- 反饋細管 -->
+          <path d="M 20,-22 L 20,-30 L 90,-30 L 90,0" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="2,2" />
+          <!-- 狀態指示燈 -->
+          <circle id="v-sup-light" cx="20" cy="-32" r="4" fill="#64748b" />
+          <text x="20" y="24" fill="#94a3b8" font-size="10" font-weight="600" text-anchor="middle">供氮閥 PCV</text>
+        </g>
+
+        <!-- 洩氮閥 (右上調節閥) -->
+        <g id="valve-vent" transform="translate(410, 130)">
+          <!-- 閥體 -->
+          <polygon points="-10,0 0,20 10,0" fill="#64748b" stroke="#334155" stroke-width="1" id="v-vent-t"/>
+          <polygon points="-10,40 0,20 10,40" fill="#64748b" stroke="#334155" stroke-width="1" id="v-vent-b"/>
+          <circle cx="0" cy="20" r="5" fill="#334155" />
+          <!-- 自力式膜片執行機構 -->
+          <line x1="0" y1="20" x2="30" y2="20" stroke="#64748b" stroke-width="2" />
+          <ellipse cx="30" cy="20" rx="4" ry="15" fill="#475569" stroke="#334155" />
+          <!-- 反饋細管 -->
+          <path d="M 32,20 L 45,20 L 45,-60 L -115,-60 L -115,50" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="2,2" />
+          <!-- 狀態指示燈 -->
+          <circle id="v-vent-light" cx="45" cy="0" r="4" fill="#64748b" />
+          <text x="-12" y="24" fill="#94a3b8" font-size="10" font-weight="600" text-anchor="end">洩氮閥 PCV</text>
+        </g>
+
+        <!-- 安全呼吸閥 (槽頂中心) -->
+        <g id="valve-breather" transform="translate(280, 160)">
+          <!-- 呼吸閥主體座 -->
+          <path d="M -20,20 L -20,0 L 20,0 L 20,20 Z" fill="#475569" stroke="#334155" stroke-width="1.5" />
+          <path d="M -30,0 L 30,0 L 30,-12 L -30,-12 Z" fill="#334155" />
+          <!-- 吸氣側 / 排氣側帽蓋 -->
+          <circle id="breath-vac-cap" cx="-15" cy="-6" r="4" fill="#64748b" />
+          <circle id="breath-press-cap" cx="15" cy="-6" r="4" fill="#64748b" />
+          <!-- 狀態氣流箭頭 (隱藏，動態開啟) -->
+          <path id="breath-air-in" d="M -15,-20 L -15,-2" fill="none" stroke="#60a5fa" stroke-width="2.5" marker-end="url(#arrow-blue)" display="none" class="flow-active" />
+          <path id="breath-gas-out" d="M 15,-6 L 15,-24" fill="none" stroke="#f59e0b" stroke-width="2.5" marker-end="url(#arrow-yellow)" display="none" class="flow-active" />
+          <text x="0" y="32" fill="#94a3b8" font-size="10" font-weight="600" text-anchor="middle">安全呼吸閥</text>
+        </g>
+
+        <!-- 緊急洩壓人孔 (右側槽頂) -->
+        <g id="valve-emergency" transform="translate(345, 175)">
+          <rect x="-12" y="0" width="24" height="6" fill="#475569" />
+          <path id="emergency-lid" d="M -14,-4 L 14,-4" stroke="#e11d48" stroke-width="3" />
+          <!-- 壓力噴出氣流 -->
+          <path id="emergency-flow" d="M 0,-4 Q -15,-30 -30,-40 M 0,-4 Q 15,-30 30,-40" fill="none" stroke="#ef4444" stroke-width="3" stroke-dasharray="3,3" display="none" class="flow-active" />
+          <text x="0" y="16" fill="#94a3b8" font-size="8" font-weight="600" text-anchor="middle">緊急洩壓孔</text>
+        </g>
+
+        <!-- 壓力錶 (改為相容座標系) -->
+        <g id="gauge" transform="translate(280, 75)">
+          <!-- 外圈 -->
+          <circle cx="0" cy="0" r="28" fill="#1e293b" stroke="#64748b" stroke-width="3" />
+          <!-- 刻度弧 -->
+          <path d="M -20,10 A 22,22 0 1 1 20,10" fill="none" stroke="#475569" stroke-width="2" />
+          <!-- 紅色危險區 -->
+          <path d="M 12,-16 A 22,22 0 0 1 20,10" fill="none" stroke="#ef4444" stroke-width="3" />
+          <!-- 藍色真空區 -->
+          <path d="M -20,10 A 22,22 0 0 1 -15,-16" fill="none" stroke="#3b82f6" stroke-width="3" />
+          <!-- 指針 -->
+          <line id="gauge-pointer" x1="0" y1="0" x2="0" y2="-20" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" />
+          <circle cx="0" cy="0" r="3" fill="#fff" />
+          <text x="0" y="38" fill="#cbd5e1" font-size="10" font-weight="600" text-anchor="middle" id="gauge-val">300 mm H₂O</text>
+        </g>
+      </svg>
+
+      <!-- 模擬手動操作按鈕 -->
+      <div class="sim-controls">
+        <button class="sim-btn active" id="sim-btn-normal" onclick="runSim('normal')">正常微正壓</button>
+        <button class="sim-btn" id="sim-btn-supply" onclick="runSim('supply')">出料/降溫(補氮)</button>
+        <button class="sim-btn" id="sim-btn-vent" onclick="runSim('vent')">進料/升溫(洩氣)</button>
+        <button class="sim-btn" id="sim-btn-vacuum" onclick="runSim('vacuum')">閥門失效(吸氣防癟)</button>
+        <button class="sim-btn" id="sim-btn-overpress" onclick="runSim('overpress')">極端大火(人孔洩壓)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 底部導覽與語音控制列 -->
+  <div class="control-bar">
+    <div class="audio-controls">
+      <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="語音朗讀">🔊</button>
+      <select class="speed-select" id="speed-select" onchange="changeSpeed()" title="語音速度">
+        <option value="0.7">0.7x 慢速</option>
+        <option value="0.9" selected>0.9x 正常</option>
+        <option value="1.0">1.0x 標準</option>
+        <option value="1.2">1.2x 快速</option>
+        <option value="1.5">1.5x 很快</option>
+      </select>
+      <button class="sim-btn" id="btn-auto" onclick="toggleAutoPlay()" style="background: rgba(99, 102, 241, 0.15); border-color: var(--primary); color: #a5b4fc;">自動換頁: ON</button>
+      <div class="progress-info" id="progress-text">已讀 1 / 6 頁</div>
+    </div>
+
+    <div class="nav-buttons">
+      <button class="btn" id="btn-prev" onclick="prevSlide()" disabled>◀ 上一步</button>
+      <button class="btn btn-primary" id="btn-next" onclick="nextSlide()">下一步 ▶</button>
+      <button class="btn btn-success" id="btn-quiz" onclick="finishSOP()" style="display: none;">開始測驗 ✅</button>
+    </div>
+  </div>
+
+  <script>
+    // ════════════════════════════════════════
+    //  簡報資料定義
+    // ════════════════════════════════════════
+    const SLIDES = [
+      {
+        title: "儲槽氮氣閥與氮封系統作動原理",
+        subtitle: "確保製程安全與儲槽壓力的核心屏障",
+        sim: "normal",
+        content: `
+          <p>歡迎參加本次教育訓練。今天我們要學習的是「<strong>儲槽氮氣閥與氮封系統之作動原理</strong>」。</p>
+          <p>氮封系統（Nitrogen Blanketing System）是石化、化學與製程工廠中，保護常壓及低壓儲槽最重要的安全設計之一。</p>
+          <ul>
+            <li><strong>微壓控制</strong>：在槽頂部氣相空間充入極微量正壓之氮氣。</li>
+            <li><strong>自力反饋</strong>：使用不需要外部電/氣源的自力式微壓調節閥。</li>
+            <li><strong>雙重屏障</strong>：結合了調節閥、機械呼吸閥與緊急人孔的防護系統。</li>
+          </ul>
+        `,
+        say: "各位同仁好，歡迎參加本次教育訓練。今天我們要學習的是「儲槽氮氣閥與氮封系統之作動原理」。氮封系統是石化及化學工廠中，保護儲槽安全、防止火災爆炸及防止物料變質的重要安全設施。請大家仔細學習其作動機制。"
+      },
+      {
+        title: "什麼是氮氣覆蓋(氮封)系統？",
+        subtitle: "阻隔氧氣、控制壓力、保護物料",
+        sim: "normal",
+        content: `
+          <p>氮氣覆蓋系統（簡稱氮封）主要有三個核心安全與品質作用：</p>
+          <ul>
+            <li><strong>1. 防止燃燒爆炸（防爆）</strong>：利用惰性氮氣排除儲槽內的空氣（氧氣），將氧氣濃度降低至爆炸極限（LOC）以下，杜絕燃燒火災風險。</li>
+            <li><strong>2. 防止物料氧化變質（防潮防氧化）</strong>：阻絕大氣中的濕氣（水分）與氧氣接觸化學品，防範氧化反應、水解變質或受潮。</li>
+            <li><strong>3. 結構安全保障</strong>：保護儲槽不被壓扁（癟罐）或脹裂。</li>
+          </ul>
+        `,
+        say: "氮封系統的主要目的，是在儲槽頂部的氣相空間充入惰性氮氣，維持微正壓。這樣做有三個核心作用：第一，排除氧氣，避免形成爆炸性混合氣體；第二，防止外部空氣及水氣進入，避免物料氧化、受潮或變質；第三，透過精密閥門控制，避免儲槽因溫度變化或物料進出而發生超壓變形或真空癟罐。"
+      },
+      {
+        title: "供氮閥 (Regulator) 作動原理",
+        subtitle: "儲槽壓力低於設定值時，自動補充氮氣",
+        sim: "supply",
+        content: `
+          <p><strong>作動情境</strong>：當儲槽進行<strong>出料（泵出）</strong>操作，或夜間<strong>氣溫下降</strong>導致氣體收縮時，槽內壓力會開始下降。</p>
+          <ul>
+            <li><strong>壓力降下</strong>：槽內壓力跌破供氮閥設定值（如 40 mm H₂O）。</li>
+            <li><strong>閥門開啟</strong>：控制膜片下方的槽壓低於彈簧張力，膜片向下位移推開閥芯。</li>
+            <li><strong>氣體補充</strong>：高壓氮氣管網的氮氣流入槽內（右側動畫顯示綠色流動線），直至壓力回升至設定值。</li>
+            <li><strong>閥門關閉</strong>：槽壓回升平衡，膜片被推回，閥門關閉停止供氮。</li>
+          </ul>
+        `,
+        say: "供氮閥是一種自力式微壓調節閥。當儲槽進行出料操作，或夜間氣溫下降使槽內氣體收縮時，儲槽內的壓力會開始下降。當槽內壓力低於供氮閥的設定點時，控制膜片受壓減小，彈簧推動閥芯開啟，氮氣隨之流入槽內。當槽內壓力回升到設定值時，膜片克服彈簧力，帶動閥芯關閉，停止供氮。"
+      },
+      {
+        title: "洩氮閥 (Vent Valve) 作動原理",
+        subtitle: "儲槽壓力高於設定值時，自動排出氣體",
+        sim: "vent",
+        content: `
+          <p><strong>作動情境</strong>：當儲槽進行<strong>進料（泵入）</strong>操作，或日間太陽曝曬導致<strong>槽溫升高</strong>氣體壓力變大時，槽內壓力會升高。</p>
+          <ul>
+            <li><strong>壓力上升</strong>：槽內壓力升高，並超過洩氮閥設定值（如 700 mm H₂O）。</li>
+            <li><strong>閥門開啟</strong>：高槽壓經導壓管傳遞至膜片，克服彈簧張力使閥門打開。</li>
+            <li><strong>超壓排放</strong>：槽內多餘的氮氣/油氣經由排氣管安全排出（右側動畫顯示紅色流動線與排氣狀態）。</li>
+            <li><strong>閥門關閉</strong>：當壓力降低回平衡設定點，閥芯回座，重新關閉維持微正壓。</li>
+          </ul>
+        `,
+        say: "與供氮閥相反，洩氮閥負責槽內超壓時的排氣。當儲槽進行進料操作，或日間太陽曝曬使槽內溫度升高時，槽內壓力會上升。當壓力高於洩氮閥的設定點時，槽內壓力推動膜片克服彈簧張力，使閥門開啟，將槽內多餘的氮氣或混合氣體排出。當槽內壓力降回設定值時，閥門自動關閉，維持系統微正壓。"
+      },
+      {
+        title: "雙重安全保障機制",
+        subtitle: "安全呼吸閥與緊急防護",
+        sim: "vacuum",
+        content: `
+          <p>當氮封調節閥（供氮或洩氮閥）因故障失效，或遭遇極端狀況時，機械式的物理防護隨即發揮作用：</p>
+          <ul>
+            <li><strong>1. 呼吸閥 (Breather Valve) 真空防癟</strong>：若嚴重負壓（如大流量抽料且供氮閥故障），真空閥座開啟吸入空氣，保護儲槽免於癟罐（動畫展示）。</li>
+            <li><strong>2. 呼吸閥超壓洩壓</strong>：若輕微超壓且洩氮閥卡死，超壓閥座開啟向外排氣。</li>
+            <li><strong>3. 緊急洩壓人孔 (Emergency Vent)</strong>：若遭遇外部大火導致槽內急劇升壓，呼吸閥來不及排放時，頂部的安全人孔會瞬間彈開，進行大排量洩壓，是儲槽結構的最終安全保障。</li>
+          </ul>
+        `,
+        say: "為了防止供氮閥或洩氮閥故障，儲槽設有雙重防護機制。第一重是安全呼吸閥，在槽內壓力達到極限高壓或真空值時，分別向外排氣或向內吸入空氣，防止儲槽破裂或吸扁。第二重是緊急洩爆人孔，當遭遇外部大火導致槽內急劇升壓時，洩爆人孔會瞬間開啟，進行大排量洩壓，是儲槽的最終安全保障。"
+      },
+      {
+        title: "教育訓練總結與課後測驗",
+        subtitle: "掌握微壓控制，守護製程安全",
+        sim: "normal",
+        content: `
+          <p>恭喜您完成「儲槽氮氣閥作動原理」的全部簡報學習。請記住以下三大核心要點：</p>
+          <ul>
+            <li><strong>微正壓操作</strong>：正常操作在極微小的正壓下（一般維持在 40 至 700 mm H₂O 之間）。</li>
+            <li><strong>出料補充、進料排放</strong>：出料或降溫時「供氮閥開啟」補氮；進料或升溫時「洩氮閥開啟」洩氮。</li>
+            <li><strong>呼吸閥與人孔</strong>：是自力式調節系統失效時，防止儲槽吸癟或脹裂的機械式物理保險。</li>
+          </ul>
+          <p style="margin-top: 15px; font-weight: 600; color: #fff;">請點擊下方「開始測驗」按鈕解鎖，並在主系統填寫姓名進行答題測驗！</p>
+        `,
+        say: "本次課程我們學習了氮封系統「降壓補充、升壓排放」的自力式反饋原理，以及呼吸閥與緊急洩爆孔的雙重安全保護機制。請同仁務必熟記各閥門的作動方向與目的。簡報播放已結束，請點擊下方按鈕，填寫姓名並開始進行課後測驗，祝大家順利通過！"
+      }
+    ];
+
+    let currentSlide = 0;
+    let synth = window.speechSynthesis;
+    let utterance = null;
+    let isSpeaking = false;
+    let autoPlayNext = true;
+    let speakTimer = null;
+
+    // 歷史已讀頁面記錄
+    let visitedSlides = new Set();
+    visitedSlides.add(0);
+
+    // ════════════════════════════════════════
+    //  初始化與導覽控制
+    // ════════════════════════════════════════
+    function init() {
+      renderSlide(0);
+    }
+
+    function renderSlide(idx) {
+      if (speakTimer) clearTimeout(speakTimer);
+      currentSlide = idx;
+      visitedSlides.add(idx);
+      
+      // 更新文字面板
+      document.getElementById('slide-number-label').textContent = `SLIDE ${String(idx + 1).padStart(2, '0')} OF ${String(SLIDES.length).padStart(2, '0')}`;
+      document.getElementById('slide-title').textContent = SLIDES[idx].title;
+      document.getElementById('slide-subtitle').textContent = SLIDES[idx].subtitle;
+      document.getElementById('slide-content').innerHTML = SLIDES[idx].content;
+
+      // 更新進度顯示
+      document.getElementById('progress-text').textContent = `已讀 ${visitedSlides.size} / ${SLIDES.length} 頁`;
+
+      // 按鈕狀態
+      document.getElementById('btn-prev').disabled = (idx === 0);
+      if (idx === SLIDES.length - 1) {
+        document.getElementById('btn-next').style.display = 'none';
+        document.getElementById('btn-quiz').style.display = 'inline-flex';
+      } else {
+        document.getElementById('btn-next').style.display = 'inline-flex';
+        document.getElementById('btn-quiz').style.display = 'none';
+      }
+
+      // 控制右側動畫
+      runSim(SLIDES[idx].sim);
+
+      // 如果當前是播放狀態，則播放語音
+      if (isSpeaking) {
+        stopVoice();
+        setTimeout(playVoice, 300);
+      }
+    }
+
+    function nextSlide() {
+      if (currentSlide < SLIDES.length - 1) {
+        renderSlide(currentSlide + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 0) {
+        renderSlide(currentSlide - 1);
+      }
+    }
+
+    // ════════════════════════════════════════
+    //  語音朗讀邏輯 (SpeechSynthesis)
+    // ════════════════════════════════════════
+    function startPresentation() {
+      document.getElementById('start-overlay').style.display = 'none';
+      const btn = document.getElementById('voice-btn');
+      btn.classList.add('active');
+      btn.textContent = '⏸';
+      isSpeaking = true;
+      playVoice();
+    }
+
+    function toggleVoice() {
+      const btn = document.getElementById('voice-btn');
+      if (isSpeaking) {
+        stopVoice();
+        btn.classList.remove('active');
+        btn.textContent = '🔊';
+        isSpeaking = false;
+        if (speakTimer) clearTimeout(speakTimer);
+      } else {
+        btn.classList.add('active');
+        btn.textContent = '⏸';
+        isSpeaking = true;
+        playVoice();
+      }
+    }
+
+    function toggleAutoPlay() {
+      autoPlayNext = !autoPlayNext;
+      const btn = document.getElementById('btn-auto');
+      if (autoPlayNext) {
+        btn.textContent = '自動換頁: ON';
+        btn.style.background = 'rgba(99, 102, 241, 0.15)';
+        btn.style.color = '#a5b4fc';
+        // 如果目前沒在說話，且沒播完，自動進入下一頁
+        if (!isSpeaking && currentSlide < SLIDES.length - 1) {
+          nextSlide();
+        }
+      } else {
+        btn.textContent = '自動換頁: OFF';
+        btn.style.background = 'rgba(255, 255, 255, 0.05)';
+        btn.style.color = '#fff';
+        if (speakTimer) clearTimeout(speakTimer);
+      }
+    }
+
+    function playVoice() {
+      if (!synth) return;
+      synth.cancel();
+
+      const text = SLIDES[currentSlide].say;
+      const rate = parseFloat(document.getElementById('speed-select').value) || 0.9;
+      
+      utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-TW';
+      utterance.rate = rate;
+      
+      // 搜尋台灣中文語音
+      const voices = synth.getVoices();
+      const voice = voices.find(v => v.lang === 'zh-TW') || voices.find(v => v.lang.startsWith('zh')) || null;
+      if (voice) utterance.voice = voice;
+
+      utterance.onstart = () => {
+        isSpeaking = true;
+        document.getElementById('voice-btn').classList.add('active');
+        document.getElementById('voice-btn').textContent = '⏸';
+      };
+
+      utterance.onend = () => {
+        if (autoPlayNext && currentSlide < SLIDES.length - 1) {
+          // 語音播放完後延遲 1.5 秒自動切換到下一頁
+          speakTimer = setTimeout(() => {
+            nextSlide();
+          }, 1500);
+        } else {
+          isSpeaking = false;
+          document.getElementById('voice-btn').classList.remove('active');
+          document.getElementById('voice-btn').textContent = '🔊';
+        }
+      };
+
+      utterance.onerror = (e) => {
+        console.error('Speech synthesis error:', e);
+        isSpeaking = false;
+        document.getElementById('voice-btn').classList.remove('active');
+        document.getElementById('voice-btn').textContent = '🔊';
+      };
+
+      synth.speak(utterance);
+    }
+
+    function stopVoice() {
+      if (synth) {
+        synth.cancel();
+      }
+    }
+
+    function changeSpeed() {
+      if (isSpeaking) {
+        playVoice();
+      }
+    }
+
+    // ════════════════════════════════════════
+    //  互動式動畫模擬邏輯
+    // ════════════════════════════════════════
+    function runSim(state) {
+      const statusLabel = document.getElementById('animation-status-label');
+      const liquid = document.getElementById('liquid-level');
+      const liquidLabel = document.getElementById('liquid-label');
+      
+      // 管道流量
+      const n2InFlow = document.getElementById('n2-in-flow');
+      const n2OutFlow = document.getElementById('n2-out-flow');
+      const pumpInFlow = document.getElementById('pump-in-flow');
+      const pumpOutFlow = document.getElementById('pump-out-flow');
+
+      // 閥體顏色
+      const vSupL = document.getElementById('v-sup-l');
+      const vSupR = document.getElementById('v-sup-r');
+      const vSupLight = document.getElementById('v-sup-light');
+      
+      const vVentT = document.getElementById('v-vent-t');
+      const vVentB = document.getElementById('v-vent-b');
+      const vVentLight = document.getElementById('v-vent-light');
+
+      // 呼吸閥、緊急洩壓
+      const breathAirIn = document.getElementById('breath-air-in');
+      const breathGasOut = document.getElementById('breath-gas-out');
+      const breathVacCap = document.getElementById('breath-vac-cap');
+      const breathPressCap = document.getElementById('breath-press-cap');
+      
+      const emergencyLid = document.getElementById('emergency-lid');
+      const emergencyFlow = document.getElementById('emergency-flow');
+
+      // 壓力錶與指針
+      const pointer = document.getElementById('gauge-pointer');
+      const valLabel = document.getElementById('gauge-val');
+
+      // 重設所有狀態
+      n2InFlow.style.display = 'none';
+      n2OutFlow.style.display = 'none';
+      pumpInFlow.style.display = 'none';
+      pumpOutFlow.style.display = 'none';
+      
+      vSupL.setAttribute('fill', '#64748b');
+      vSupR.setAttribute('fill', '#64748b');
+      vSupLight.setAttribute('fill', '#64748b');
+      vSupLight.classList.remove('valve-glow-green');
+      
+      vVentT.setAttribute('fill', '#64748b');
+      vVentB.setAttribute('fill', '#64748b');
+      vVentLight.setAttribute('fill', '#64748b');
+      vVentLight.classList.remove('valve-glow-red');
+
+      breathAirIn.style.display = 'none';
+      breathGasOut.style.display = 'none';
+      breathVacCap.setAttribute('fill', '#64748b');
+      breathPressCap.setAttribute('fill', '#64748b');
+      
+      emergencyLid.setAttribute('transform', 'translate(0, 0)');
+      emergencyFlow.style.display = 'none';
+
+      // 移除按鈕 active
+      document.querySelectorAll('.sim-btn').forEach(b => b.classList.remove('active'));
+
+      switch(state) {
+        case 'normal':
+          document.getElementById('sim-btn-normal').classList.add('active');
+          statusLabel.textContent = "儲槽氮封系統：正常微正壓平衡狀態";
+          statusLabel.style.color = "var(--text-muted)";
+          
+          // 液位在中間 (Y = 280)
+          liquid.setAttribute('d', "M 152,430 L 152,280 L 408,280 L 408,430 A 12,12 0 0 1 396,442 L 164,442 A 12,12 0 0 1 152,430 Z");
+          liquidLabel.setAttribute('y', 360);
+          
+          // 正常微壓
+          pointer.setAttribute('transform', 'rotate(15deg)');
+          valLabel.textContent = "300 mm H₂O";
+          valLabel.style.color = "var(--success)";
+          break;
+
+        case 'supply':
+          document.getElementById('sim-btn-supply').classList.add('active');
+          statusLabel.textContent = "槽壓降低：供氮閥開啟補充氮氣中";
+          statusLabel.style.color = "var(--success)";
+          
+          // 液位降低 (Y = 340)
+          liquid.setAttribute('d', "M 152,430 L 152,340 L 408,340 L 408,430 A 12,12 0 0 1 396,442 L 164,442 A 12,12 0 0 1 152,430 Z");
+          liquidLabel.setAttribute('y', 390);
+
+          // 泵出流程顯示
+          pumpOutFlow.style.display = 'block';
+          
+          // 壓力下降，隨後回升至設定值
+          pointer.setAttribute('transform', 'rotate(-30deg)');
+          valLabel.textContent = "30 mm H₂O";
+          valLabel.style.color = "var(--warning)";
+
+          // 供氮閥亮綠色，氮氣流入
+          setTimeout(() => {
+            vSupL.setAttribute('fill', '#10b981');
+            vSupR.setAttribute('fill', '#10b981');
+            vSupLight.setAttribute('fill', '#10b981');
+            vSupLight.classList.add('valve-glow-green');
+            n2InFlow.style.display = 'block';
+            pointer.setAttribute('transform', 'rotate(0deg)');
+            valLabel.textContent = "300 mm H₂O";
+          }, 300);
+          break;
+
+        case 'vent':
+          document.getElementById('sim-btn-vent').classList.add('active');
+          statusLabel.textContent = "超壓：洩氮閥開啟安全排氣中";
+          statusLabel.style.color = "var(--danger)";
+          
+          // 液位上升 (Y = 220)
+          liquid.setAttribute('d', "M 152,430 L 152,220 L 408,220 L 408,430 A 12,12 0 0 1 396,442 L 164,442 A 12,12 0 0 1 152,430 Z");
+          liquidLabel.setAttribute('y', 320);
+
+          // 泵入流程顯示
+          pumpInFlow.style.display = 'block';
+
+          // 壓力上升，閥門打開洩壓
+          pointer.setAttribute('transform', 'rotate(60deg)');
+          valLabel.textContent = "750 mm H₂O";
+          valLabel.style.color = "var(--danger)";
+
+          // 洩氮閥亮紅色，氣體流出
+          setTimeout(() => {
+            vVentT.setAttribute('fill', '#ef4444');
+            vVentB.setAttribute('fill', '#ef4444');
+            vVentLight.setAttribute('fill', '#ef4444');
+            vVentLight.classList.add('valve-glow-red');
+            n2OutFlow.style.display = 'block';
+            pointer.setAttribute('transform', 'rotate(45deg)');
+            valLabel.textContent = "300 mm H₂O";
+          }, 300);
+          break;
+
+        case 'vacuum':
+          document.getElementById('sim-btn-vacuum').classList.add('active');
+          statusLabel.textContent = "異常負壓：呼吸閥吸入空氣防癟罐中";
+          statusLabel.style.color = "var(--warning)";
+          
+          // 液位極低 (Y = 370)
+          liquid.setAttribute('d', "M 152,430 L 152,370 L 408,370 L 408,430 A 12,12 0 0 1 396,442 L 164,442 A 12,12 0 0 1 152,430 Z");
+          liquidLabel.setAttribute('y', 410);
+
+          // 泵出繼續
+          pumpOutFlow.style.display = 'block';
+
+          // 壓力掉入負壓(真空)區
+          pointer.setAttribute('transform', 'rotate(-75deg)');
+          valLabel.textContent = "-100 mm H₂O";
+          valLabel.style.color = "#3b82f6";
+
+          // 供氮閥失效 (沒亮)，安全呼吸閥真空側開啟 (吸入空氣)
+          setTimeout(() => {
+            breathVacCap.setAttribute('fill', '#3b82f6');
+            breathAirIn.style.display = 'block';
+            pointer.setAttribute('transform', 'rotate(-60deg)');
+            valLabel.textContent = "-30 mm H₂O";
+          }, 300);
+          break;
+
+        case 'overpress':
+          document.getElementById('sim-btn-overpress').classList.add('active');
+          statusLabel.textContent = "極端超壓：緊急洩壓人孔彈開中";
+          statusLabel.style.color = "var(--danger)";
+          
+          // 液位正常，但極端大火升壓
+          liquid.setAttribute('d', "M 152,430 L 152,280 L 408,280 L 408,430 A 12,12 0 0 1 396,442 L 164,442 A 12,12 0 0 1 152,430 Z");
+          liquidLabel.setAttribute('y', 360);
+
+          // 壓力指針爆錶 (向右旋轉 90度以上進入極端超壓)
+          pointer.setAttribute('transform', 'rotate(95deg)');
+          valLabel.textContent = "1500 mm H₂O";
+          valLabel.style.color = "var(--danger)";
+
+          // 緊急人孔頂蓋彈起，氣流排放
+          setTimeout(() => {
+            emergencyLid.setAttribute('transform', 'translate(0, -10) rotate(-15)');
+            emergencyFlow.style.display = 'block';
+            pointer.setAttribute('transform', 'rotate(80deg)');
+            valLabel.textContent = "1100 mm H₂O";
+          }, 300);
+          break;
+      }
+    }
+
+    // ════════════════════════════════════════
+    //  與主視窗互動 (postMessage)
+    // ════════════════════════════════════════
+    function finishSOP() {
+      stopVoice();
+      parent.postMessage({ type: 'slide-completed' }, '*');
+      alert("簡報觀看完畢！請在主畫面往下滾動，填寫姓名並開始您的測驗。");
+    }
+
+    // 鍵盤控制支援
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        nextSlide();
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        prevSlide();
+      }
+      if (e.key === 'v' || e.key === 'V') {
+        toggleVoice();
+      }
+    });
+
+    // 初始化
+    window.addEventListener('DOMContentLoaded', () => {
+      init();
+      if (synth) {
+        synth.getVoices();
+        if (synth.onvoiceschanged !== undefined) {
+          synth.onvoiceschanged = () => { synth.getVoices(); };
+        }
+      }
+    });
+  </script>
+</body>
+</html>

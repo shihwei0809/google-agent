@@ -1,0 +1,109 @@
+function calculateAndRenderDashboard() {
+    const container = document.getElementById('tanks-monitor-container');
+    const currentProdContainer = document.getElementById('current-production-container');
+    const alertLogContainer = document.getElementById('alert-log-container');
+    
+    if (!container) return;
+    
+    if (state.tanks.length === 0) {
+      container.innerHTML = `
+        <div class="no-data-placeholder">
+          <i class="fa-solid fa-info-circle"></i>
+          <p>目前無儲槽資料，請至「儲槽與容器」分頁新增儲槽</p>
+        </div>`;
+      if (currentProdContainer) currentProdContainer.innerHTML = '<p class="text-secondary text-sm">無進行中的生產</p>';
+      if (alertLogContainer) alertLogContainer.innerHTML = '<p class="text-secondary text-sm">無警報日誌</p>';
+      return;
+    }
+
+    container.innerHTML = '';
+    if (currentProdContainer) currentProdContainer.innerHTML = '';
+    if (alertLogContainer) alertLogContainer.innerHTML = '';
+
+    const now = new Date();
+    let systemAlertsCount = 0;
+    let alertItemsHTML = '';
+    let activeProductionHTML = '';
+
+    const activeSchedules = state.schedules.filter(s => {
+      const start = new Date(s.start);
+      const end = new Date(s.end);
+      return now >= start && now <= end;
+    });
+
+    
+    
+    state.tanks.forEach(tank => {
+      if (state.currentFactory !== 'all' && tank.factoryId !== state.currentFactory) return;
+
+      if (state.currentFactory !== 'all' && tank.factoryId !== state.currentFactory) return; // Factory filter
+
+      const product = state.products.find(p => p.id === tank.productId);
+      const prodName = product ? product.name : '未定義產品';
+      const prodColor = product ? product.color : '#4facfe';
+      const prodCode = product ? product.code : 'UNKNOWN';
+      const safetyLimit = Number(tank.safetyLevel) || 0;
+
+      // 計算當前進料速率 (目標儲槽，需乘上良率作為良品流入)
+      const targetSchedules = activeSchedules.filter(s => s.tankId === tank.id);
+      let totalInflowRate = 0;
+      
+      targetSchedules.forEach(s => {
+        const yieldFactor = s.yield !== undefined ? (Number(s.yield) / 100) : 1;
+        totalInflowRate += Number(s.rate) * yieldFactor;
+        
+        activeProductionHTML += `
+          <div class="current-prod-item">
+            <div class="current-prod-details">
+              <h5><span class="color-dot" style="background-color: ${prodColor}"></span> ${prodName} 生產中</h5>
+              <p>排程時間：${formatDateString(s.start)} ~ ${formatDateString(s.end)}</p>
+            </div>
+            <div class="current-prod-value">
+              <div class="rate">+${formatNumber(s.rate * yieldFactor)} t/hr <span class="text-xs text-secondary">(良率:${s.yield || 100}%)</span></div>
+              <div class="target">目標：${tank.name}</div>
+            </div>
+          </div>`;
+      });
+
+      // 計算當前原料消耗速率 (來源儲槽，消耗全量粗料，符合物料守恆)
+      const sourceSchedules = activeSchedules.filter(s => s.sourceTankId === tank.id);
+      let totalRawConsumptionRate = 0;
+      sourceSchedules.forEach(s => {
+        totalRawConsumptionRate += Number(s.rate);
+      });
+
+      const baseOutflowRate = Number(tank.outflowRate) || 0;
+      // 淨流速 = 生產流入速率 - 預設出庫速率 - 生產原料消耗速率
+      const netRate = totalInflowRate - baseOutflowRate - totalRawConsumptionRate;
+      
+      const capacity = Number(tank.capacity);
+      const currentLevel = Number(tank.currentLevel);
+      const percent = Math.min(100, Math.max(0, (currentLevel / capacity) * 100));
+
+      // 預測算法與水位警報判定
+      let predictionText = '水位維持穩定';
+      let predictionIcon = '<i class="fa-solid fa-arrows-left-right text-secondary"></i>';
+      let alertClass = '';
+      
+      // 當前庫存是否低於安全設定值 (低水位警報)
+      if (currentLevel < safetyLimit) {
+        alertClass = 'alert-danger';
+        systemAlertsCount++;
+        alertItemsHTML += `
+          <div class="alert-log-item">
+            <div class="alert-log-icon text-danger"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <div class="alert-log-text">
+              <h5>儲槽 ${tank.name} 處於低安全水位之下！</h5>
+              <p>當前儲量：${formatNumber(currentLevel)} L (低於防呆安全限制：${formatNumber(safetyLimit)} L)。請儘速安排生產進料！</p>
+            </div>
+          </div>`;
+      }
+      
+      if (netRate > 0) {
+        const hoursToFull = (capacity - currentLevel) / netRate;
+        if (hoursToFull <= 0.01) {
+          predictionText = '儲槽已達容量上限！';
+          predictionIcon = '<i class="fa-solid fa-circle-exclamation text-danger"></i>';
+          alertClass = 'alert-danger';
+          
+          systemAlertsCount++

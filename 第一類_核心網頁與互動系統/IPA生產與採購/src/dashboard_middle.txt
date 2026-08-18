@@ -1,0 +1,64 @@
+tate.products.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'product-card';
+      card.innerHTML = `
+        <div class="product-card-color-stripe" style="background-color: ${p.color}"></div>
+        <div class="product-card-header">
+          <div class="product-card-title">
+            <h4>${p.name}</h4>
+            <span>代碼：${p.code}</span>
+          </div>
+          <div class="product-color-preview" style="width: 14px; height: 14px; border-radius: 50%; background-color: ${p.color}; box-shadow: 0 0 8px ${p.color}"></div>
+        </div>
+        <p class="product-card-desc">${p.desc || '無備註說明'}</p>
+        <div class="product-card-actions">
+          <button class="btn btn-secondary btn-icon" onclick="editProduct('${p.id}')" title="修改"><i class="fa-solid fa-pen"></i></button>
+          <button class="btn btn-danger btn-icon" onclick="deleteProduct('${p.id}')" title="刪除"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+  }
+
+  function editProduct(id) {
+    const p = state.products.find(item => item.id === id);
+    if (!p) return;
+    
+    editingProductId = id;
+    document.getElementById('product-modal-title').innerText = '修改產品資料';
+    document.getElementById('product-id-hidden').value = id;
+    document.getElementById('product-name').value = p.name;
+    document.getElementById('product-code').value = p.code;
+    document.getElementById('product-color').value = p.color;
+    document.getElementById('product-desc').value = p.desc || '';
+    
+    openModal('modal-product');
+  }
+
+  function deleteProduct(id) {
+    if (!confirm('您確定要刪除此產品嗎？這可能會影響綁定此產品的儲槽與生產排程！')) return;
+    
+    const tankInUse = state.tanks.find(t => t.productId === id);
+    if (tankInUse) {
+      alert(`刪除失敗！儲槽「${tankInUse.name}」目前存放此產品，請先將儲槽移除或變更產品。`);
+      return;
+    }
+
+    state.products = state.products.filter(p => p.id !== id);
+    saveDataToCloud(() => {
+      renderProducts();
+          renderFactories();
+          renderLines();
+          renderLines();
+      updateAllDropdowns();
+    });
+  }
+
+  // ==================== 儲槽與容器分頁管理 ====================
+  
+  // ==================== 快速建置功能 ====================
+  window.quickBuildDefaultTanks = function() {
+    if (!confirm('這將會自動建立一廠與二廠的預設產線以及 TK604A, TK617 等儲槽。確定要執行嗎？')) return;
+    
+    if (!state.factories.find(f => f.id === 'factory-1')) state.factories.push({ id: "factory-1", name: "一廠" });
+    if (!state.factories.find(f => f.i

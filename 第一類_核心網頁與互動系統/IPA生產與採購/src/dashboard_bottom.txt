@@ -1,0 +1,58 @@
+systemAlertsCount++;
+        alertItemsHTML += `
+          <div class="alert-log-item">
+            <div class="alert-log-icon text-danger"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <div class="alert-log-text">
+              <h5>儲槽 ${tank.name} 處於低安全水位之下！</h5>
+              <p>當前儲量：${formatNumber(currentLevel)} L (低於防呆安全限制：${formatNumber(safetyLimit)} L)。請儘速安排生產進料！</p>
+            </div>
+          </div>`;
+      }
+      
+      if (netRate > 0) {
+        const hoursToFull = (capacity - currentLevel) / netRate;
+        if (hoursToFull <= 0.01) {
+          predictionText = '儲槽已達容量上限！';
+          predictionIcon = '<i class="fa-solid fa-circle-exclamation text-danger"></i>';
+          alertClass = 'alert-danger';
+          
+          systemAlertsCount++;
+          alertItemsHTML += `
+            <div class="alert-log-item">
+              <div class="alert-log-icon text-danger"><i class="fa-solid fa-circle-exclamation"></i></div>
+              <div class="alert-log-text">
+                <h5>儲槽 ${tank.name} 已滿溢！</h5>
+                <p>容量已達：${currentLevel.toFixed(1)} / ${capacity.toFixed(0)} L (100%)。請立即停止生產線進料或進行出貨！</p>
+              </div>
+            </div>`;
+        } else {
+          const timeStr = formatHours(hoursToFull);
+          predictionText = `預計 ${timeStr} 後滿槽`;
+          predictionIcon = '<i class="fa-solid fa-angles-up text-danger"></i>';
+          
+          if (hoursToFull <= 8) {
+            alertClass = 'alert-warning';
+            systemAlertsCount++;
+            alertItemsHTML += `
+              <div class="alert-log-item warning">
+                <div class="alert-log-icon text-warning"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="alert-log-text">
+                  <h5>儲槽 ${tank.name} 即將滿槽</h5>
+                  <p>預估將在 ${timeStr} 內填滿。目前淨流入速率：+${netRate.toFixed(1)} t/hr。</p>
+                </div>
+              </div>`;
+          }
+        }
+      } else if (netRate < 0) {
+        const hoursToEmpty = currentLevel / Math.abs(netRate);
+        if (hoursToEmpty <= 0.01) {
+          predictionText = '儲槽已排空！';
+          predictionIcon = '<i class="fa-solid fa-circle-info text-secondary"></i>';
+        } else {
+          const timeStr = formatHours(hoursToEmpty);
+          predictionText = `預計 ${timeStr} 後排空`;
+          predictionIcon = '<i class="fa-solid fa-angles-down text-warning"></i>';
+          
+          if (hoursToEmpty <= 8) {
+            alertClass = 'alert-warning';
+     

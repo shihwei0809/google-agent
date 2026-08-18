@@ -1,0 +1,4717 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IPA專用動態生產排程與進耗存整合系統</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+  /* ==================== 基礎重設與設計變數 ==================== */
+  :root {
+    --bg-primary: #0b0f19;
+    --bg-secondary: rgba(17, 24, 39, 0.75);
+    --bg-tertiary: #1f2937;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    
+    --color-primary: #4facfe;
+    --color-accent: #00f2fe;
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+    --color-info: #3b82f6;
+    
+    --font-main: 'Inter', 'SF Pro Text', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-title: 'Outfit', var(--font-main);
+    
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 8px 16px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 16px 32px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 0 15px rgba(0, 242, 254, 0.25);
+    
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 0.4s ease;
+    
+    --sidebar-width: 280px;
+    --header-height: 80px;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+
+  /* 網頁滾動條 */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  body {
+    font-family: var(--font-main);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    overflow-x: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 載入中遮罩 */
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-primary);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity var(--transition-normal);
+  }
+
+  .spinner-container {
+    text-align: center;
+  }
+
+  .glow-spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(0, 242, 254, 0.1);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 1s infinite linear;
+    margin: 0 auto 20px;
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+  }
+
+  .loading-text {
+    font-family: var(--font-title);
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ==================== 佈局結構 ==================== */
+  .app-container {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* 側邊導覽列 */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: rgba(10, 15, 28, 0.95);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+    flex-shrink: 0;
+  }
+
+  .sidebar-brand {
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .brand-logo {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px rgba(79, 172, 254, 0.4);
+  }
+
+  .brand-logo i {
+    color: #fff;
+    font-size: 1.25rem;
+  }
+
+  .brand-text h1 {
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 0;
+    background: linear-gradient(to right, #ffffff, #00f2fe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .sidebar-nav {
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-grow: 1;
+    overflow-y: auto;
+  }
+
+  .nav-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all var(--transition-fast);
+  }
+
+  .nav-btn i {
+    font-size: 1.1rem;
+    width: 20px;
+    text-align: center;
+  }
+
+  .nav-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+  }
+
+  .nav-btn.active {
+    background: linear-gradient(135deg, rgba(79, 172, 254, 0.15), rgba(0, 242, 254, 0.05));
+    color: var(--color-accent);
+    border-left: 3px solid var(--color-accent);
+    box-shadow: inset 0 0 8px rgba(0, 242, 254, 0.05);
+  }
+
+  .sidebar-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .status-indicator.online {
+    background-color: var(--color-success);
+    box-shadow: 0 0 8px var(--color-success);
+  }
+
+  /* 右側主內容區 */
+  .main-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    background-color: var(--bg-primary);
+    background-image: radial-gradient(at 10% 20%, rgba(79, 172, 254, 0.03) 0px, transparent 50%),
+                      radial-gradient(at 90% 80%, rgba(0, 242, 254, 0.02) 0px, transparent 50%);
+  }
+
+  .main-header {
+    height: var(--header-height);
+    padding: 0 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+
+  .header-title h2 {
+    font-family: var(--font-title);
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .header-title p {
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .datetime-display {
+    font-family: var(--font-title);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.03);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+  }
+
+  .content-body {
+    padding: 32px;
+    flex-grow: 1;
+    overflow-y: auto;
+  }
+
+  /* ==================== 共用面板與組件 ==================== */
+  .tab-pane {
+    display: none;
+    animation: fadeIn var(--transition-normal);
+  }
+
+  .tab-pane.active {
+    display: block;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section-card {
+    background: var(--bg-secondary);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--shadow-md);
+  }
+
+  .section-header {
+    margin-bottom: 20px;
+  }
+
+  .section-header h3 {
+    font-family: var(--font-title);
+    font-size: 1.15rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-header h3 i {
+    font-size: 1.1rem;
+  }
+
+  .section-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  .justify-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .margin-top-md { margin-top: 20px; }
+  .margin-top-lg { margin-top: 32px; }
+  .w-full { width: 100%; }
+
+  .text-primary { color: var(--color-accent); }
+  .text-success { color: var(--color-success); }
+  .text-warning { color: var(--color-warning); }
+  .text-danger { color: var(--color-danger); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-sm { font-size: 0.8rem; }
+
+  /* 按鈕樣式 */
+  .btn {
+    font-family: var(--font-main);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    font-size: 0.9rem;
+    transition: all var(--transition-fast);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    color: #0b0f19;
+    font-weight: 600;
+    box-shadow: var(--shadow-glow);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.1);
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+  }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .btn-success {
+    background: var(--color-success);
+    color: #fff;
+  }
+
+  .btn-success:hover {
+    filter: brightness(1.1);
+  }
+
+  .btn-danger {
+    background: var(--color-danger);
+    color: #fff;
+  }
+
+  .btn-danger:hover {
+    filter: brightness(1.1);
+  }
+
+  .btn-icon {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 操作列 */
+  .action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+  }
+
+  .filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .filter-group label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  /* ==================== 網頁表單元件 ==================== */
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  .required {
+    color: var(--color-danger);
+  }
+
+  .form-control {
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-family: var(--font-main);
+    font-size: 0.95rem;
+    transition: all var(--transition-fast);
+  }
+
+  .form-control:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    background-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 8px rgba(0, 242, 254, 0.15);
+  }
+
+  /* 修正下拉選單選項文字與背景顏色，解決白色背景配白色字體看不清的問題 */
+  .form-control option {
+    background-color: #1f2937;
+    color: #f3f4f6;
+  }
+
+  .select-inline {
+    width: auto;
+    padding: 6px 12px;
+  }
+
+  .color-picker-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .color-picker-input {
+    border: none;
+    background: transparent;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .highlight-info-text {
+    background: rgba(0, 242, 254, 0.05);
+    border: 1px solid rgba(0, 242, 254, 0.15);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--color-accent);
+    font-family: var(--font-title);
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  .checkbox-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .checkbox-group input {
+    margin-top: 4px;
+    cursor: pointer;
+  }
+
+  .checkbox-group label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    cursor: pointer;
+  }
+
+  /* ==================== 儀表板統計卡片 ==================== */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+  }
+
+  .stat-card {
+    background: var(--bg-secondary);
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+  }
+
+  .bg-blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+  .bg-green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+  .bg-purple { background: rgba(139, 92, 246, 0.15); color: #8b5cf6; }
+  .bg-gray { background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); }
+
+  .stat-info h3 {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-value {
+    font-family: var(--font-title);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+
+  .bg-danger-stripe {
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.75), rgba(239, 68, 68, 0.03)) !important;
+  }
+
+  .bg-danger { background: rgba(239, 68, 68, 0.15); color: var(--color-danger); }
+
+  /* ==================== 儲槽即時監控 ==================== */
+  .tanks-monitor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+  }
+
+  .tank-monitor-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition-normal);
+  }
+
+  .tank-monitor-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: var(--shadow-md);
+  }
+
+  .tank-monitor-card.alert-warning {
+    border-color: rgba(245, 158, 11, 0.4) !important;
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+  }
+
+  .tank-monitor-card.alert-danger {
+    border-color: rgba(239, 68, 68, 0.4) !important;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+    animation: pulseGlow 2s infinite ease-in-out;
+  }
+
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.1); }
+    50% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.3); }
+  }
+
+  /* 儲槽卡片頂部 */
+  .tank-monitor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .tank-title h4 {
+    font-family: var(--font-title);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .tank-title .tank-prod-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    display: inline-block;
+    margin-top: 4px;
+  }
+
+  .tank-type-tag {
+    font-size: 0.7rem;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+  }
+
+  /* 儲槽卡片中間：水波儲罐與數值並排 */
+  .tank-monitor-body {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  /* 立體儲罐容器 */
+  .tank-visual-container {
+    width: 70px;
+    height: 120px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px 8px 12px 12px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: inset 0 8px 16px rgba(0,0,0,0.4), 0 4px 10px rgba(0,0,0,0.2);
+    flex-shrink: 0;
+  }
+
+  /* 水波本體 */
+  .tank-water {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%; /* JS動態修改 */
+    transition: height 0.5s ease-out;
+    background: linear-gradient(to top, var(--color-primary), var(--color-accent));
+  }
+
+  /* 水波波動效果 (SVG波浪模擬) */
+  .tank-water::before,
+  .tank-water::after {
+    content: "";
+    position: absolute;
+    width: 200%;
+    height: 20px;
+    top: -15px;
+    left: -50%;
+    border-radius: 40%;
+  }
+
+  .tank-water::before {
+    background: rgba(255, 255, 255, 0.15);
+    animation: wave 4s infinite linear;
+  }
+
+  .tank-water::after {
+    background: rgba(255, 255, 255, 0.05);
+    animation: wave 8s infinite linear;
+  }
+
+  @keyframes wave {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .tank-percent-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8), 0 0 8px rgba(255,255,255,0.2);
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  /* 儲量細節數值 */
+  .tank-data-details {
+    flex-grow: 1;
+  }
+
+  .tank-data-row {
+    margin-bottom: 6px;
+  }
+
+  .tank-data-row:last-child {
+    margin-bottom: 0;
+  }
+
+  .tank-data-row label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: block;
+  }
+
+  .tank-val-big {
+    font-family: var(--font-title);
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .tank-val-unit {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  .trend-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* 預測預估條 */
+  .tank-prediction-box {
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+
+  .pred-title {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .pred-result {
+    font-size: 0.85rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ==================== 網頁表格 (Tables) ==================== */
+  .table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 10px;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+  }
+
+  .data-table th, 
+  .data-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+  }
+
+  .data-table th {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-weight: 600;
+    font-family: var(--font-title);
+  }
+
+  .data-table tbody tr {
+    transition: background var(--transition-fast);
+  }
+
+  .data-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .data-table td .btn {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+  }
+
+  .forecast-table th {
+    font-size: 0.8rem;
+    padding: 8px 10px;
+    text-align: center;
+    min-width: 65px;
+  }
+
+  .forecast-table td {
+    font-size: 0.85rem;
+    padding: 10px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .forecast-table th:first-child,
+  .forecast-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background: #151b26 !important; /* 使用實心深色背景，阻擋滾動過去的文字 */
+    border-right: 1px solid var(--border-color);
+  }
+
+  .forecast-table td:first-child {
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .prod-table-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+
+  .color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .table-status-tag {
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .status-tag-active { background: rgba(16, 185, 129, 0.15); color: var(--color-success); }
+  .status-tag-pending { background: rgba(59, 130, 246, 0.15); color: var(--color-info); }
+  .status-tag-warning { background: rgba(245, 158, 11, 0.15); color: var(--color-warning); }
+  .status-tag-danger { background: rgba(239, 68, 68, 0.15); color: var(--color-danger); }
+  .status-tag-gray { background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); }
+
+  /* ==================== 產品卡片區 ==================== */
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .product-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    transition: all var(--transition-fast);
+  }
+
+  .product-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .product-card-color-stripe {
+    height: 4px;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .product-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .product-card-title h4 {
+    font-family: var(--font-title);
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .product-card-title span {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .product-card-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .product-card-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+  }
+
+  /* ==================== 甘特圖樣式 ==================== */
+  .gantt-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  .legend-color {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  .gantt-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.2);
+    margin-top: 10px;
+  }
+
+  .gantt-chart-container {
+    min-width: 2000px;
+    position: relative;
+    padding: 10px 0;
+  }
+
+  /* 甘特圖時間軸 */
+  .gantt-timeline-header {
+    display: grid;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+  }
+
+  .gantt-timeline-cells {
+    display: flex;
+  }
+
+  .gantt-header-cell {
+    flex-grow: 1;
+    text-align: center;
+    padding: 8px 4px;
+    font-size: 0.75rem;
+    font-family: var(--font-title);
+    color: var(--text-secondary);
+    border-right: 1px solid var(--border-color);
+  }
+
+  .gantt-header-cell:last-child {
+    border-right: none;
+  }
+
+  /* 甘特圖數據列 */
+  .gantt-row {
+    display: flex;
+    align-items: center;
+    height: 56px;
+    border-bottom: 1px solid var(--border-color);
+    position: relative;
+  }
+
+  .gantt-row:last-child {
+    border-bottom: none;
+  }
+
+  .gantt-row-label {
+    width: 120px;
+    padding: 0 12px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    border-right: 1px solid var(--border-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.01);
+    z-index: 5;
+  }
+
+  .gantt-row-bars-container {
+    flex-grow: 1;
+    position: relative;
+    height: 100%;
+  }
+
+  .gantt-bar {
+    position: absolute;
+    top: 12px;
+    height: 32px;
+    border-radius: 6px;
+    padding: 0 10px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    color: #0b0f19;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transition: transform var(--transition-fast), filter var(--transition-fast);
+  }
+
+  .gantt-bar:hover {
+    transform: scaleY(1.05);
+    filter: brightness(1.1);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  }
+
+  .gantt-bar-title {
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* 當前時間紅線 */
+  .gantt-current-time-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--color-danger);
+    z-index: 8;
+    box-shadow: 0 0 8px var(--color-danger);
+    pointer-events: none;
+  }
+
+  .gantt-current-time-line::after {
+    content: "現在";
+    position: absolute;
+    top: -16px;
+    left: -12px;
+    background: var(--color-danger);
+    color: #fff;
+    font-size: 0.6rem;
+    padding: 1px 4px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+
+  /* ==================== 網頁輔助排版與卡片列表 ==================== */
+  .grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .grid-2col-gap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 900px) {
+    .app-container { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border-color); }
+    .grid-2col { grid-template-columns: 1fr; }
+    .main-header { height: auto; padding: 20px 24px; flex-direction: column; gap: 16px; align-items: flex-start; }
+    .content-body { padding: 20px; }
+  }
+
+  .no-data-placeholder {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px dashed var(--border-color);
+    border-radius: 12px;
+    color: var(--text-secondary);
+  }
+
+  .no-data-placeholder i {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    color: rgba(255,255,255,0.15);
+  }
+
+  /* 當前生產動態卡片 */
+  .current-prod-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 10px;
+  }
+
+  .current-prod-details h5 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .current-prod-details p {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .current-prod-value {
+    text-align: right;
+  }
+
+  .current-prod-value .rate {
+    font-family: var(--font-title);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-accent);
+  }
+
+  .current-prod-value .target {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  /* 警報日誌列表 */
+  .alert-log-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.03);
+    margin-bottom: 10px;
+  }
+
+  .alert-log-item.warning {
+    border-color: rgba(245, 158, 11, 0.15);
+    background: rgba(245, 158, 11, 0.03);
+  }
+
+  .alert-log-icon {
+    font-size: 1.1rem;
+    margin-top: 2px;
+  }
+
+  .alert-log-text {
+    flex-grow: 1;
+  }
+
+  .alert-log-text h5 {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .alert-log-text p {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  /* ==================== 備份還原列表 ==================== */
+  .archive-list-wrapper {
+    max-height: 350px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  .archive-list {
+    list-style: none;
+  }
+
+  .archive-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background var(--transition-fast);
+  }
+
+  .archive-item:last-child {
+    border-bottom: none;
+  }
+
+  .archive-item:hover {
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .archive-info h4 {
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .archive-info span {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+
+  .archive-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  /* ==================== 彈出視窗樣式 (Modals) ==================== */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(3, 7, 18, 0.6);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity var(--transition-normal);
+  }
+
+  .modal-overlay.open {
+    display: flex;
+    opacity: 1;
+  }
+
+  .modal-card {
+    width: 100%;
+    max-width: 500px;
+    background: #111827;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    transform: translateY(20px);
+    transition: transform var(--transition-normal);
+  }
+
+  .modal-overlay.open .modal-card {
+    transform: translateY(0);
+  }
+
+  .modal-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header h3 {
+    font-family: var(--font-title);
+    font-size: 1.15rem;
+    font-weight: 700;
+  }
+
+  .modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+  }
+
+  .modal-close:hover {
+    color: var(--text-primary);
+  }
+
+  .modal-body {
+    padding: 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+
+  /* ==================== 通知系統 (Toast Notification) ==================== */
+  .toast-container {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 9999;
+  }
+
+  .toast {
+    background: #1f2937;
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--color-info);
+    border-radius: 8px;
+    padding: 14px 20px;
+    min-width: 280px;
+    max-width: 400px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: slideIn var(--transition-normal);
+    transition: all var(--transition-normal);
+  }
+
+  .toast.success { border-left-color: var(--color-success); }
+  .toast.warning { border-left-color: var(--color-warning); }
+  .toast.error { border-left-color: var(--color-danger); }
+
+  .toast-icon {
+    font-size: 1.1rem;
+  }
+  .toast.success .toast-icon { color: var(--color-success); }
+  .toast.warning .toast-icon { color: var(--color-warning); }
+  .toast.error .toast-icon { color: var(--color-danger); }
+
+  .toast-content {
+    font-size: 0.875rem;
+    font-weight: 500;
+    flex-grow: 1;
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  .toast.fade-out {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  
+    /* 全局日期選擇器優化 */
+    input[type="date"], input[type="datetime-local"] {
+      cursor: pointer !important;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+      cursor: pointer !important;
+      filter: invert(0.85);
+      font-size: 1.15rem;
+      padding: 4px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+      transform: scale(1.25);
+      background: rgba(79, 172, 254, 0.2);
+    }
+</style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+  // ==================== Excel 匯入解析 ====================
+  function handleExcelUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showToast('info', '解析中...', '正在讀取 Excel 檔案。');
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convert to 2D array
+        const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+        
+        // Find all header rows
+        const headerRows = [];
+        for (let i = 0; i < json.length; i++) {
+          const row = json[i];
+          if (!row) continue;
+          for (let j = 0; j < row.length; j++) {
+            if (typeof row[j] === 'string' && row[j].includes('槽別')) {
+              headerRows.push(i);
+              break;
+            }
+          }
+        }
+        
+        if (headerRows.length === 0) {
+          alert('無法在 Excel 中找到包含「槽別」的列，請確認格式。');
+          return;
+        }
+        
+        const updates = [];
+        const updateText = [];
+        
+        // Process each block
+        for (let b = 0; b < headerRows.length; b++) {
+           const startIdx = headerRows[b];
+           const endIdx = (b + 1 < headerRows.length) ? headerRows[b+1] : json.length;
+           
+           const headerRow = json[startIdx];
+           const tankNames = [];
+           const tankColIndices = [];
+           
+           // Find product row (usually right below '槽別' row)
+           const prodRow = startIdx + 1 < json.length ? json[startIdx + 1] : [];
+           const tankProducts = []; // To store product names for each tank
+
+           for (let j = 0; j < headerRow.length; j++) {
+              if (typeof headerRow[j] === 'string' && headerRow[j].includes('槽別')) {
+                 for (let k = j + 1; k < headerRow.length; k++) {
+                    if (headerRow[k]) {
+                       const cleanedName = String(headerRow[k]).toUpperCase().replace(/[- ]/g, '');
+                       tankNames.push(cleanedName);
+                       tankColIndices.push(k);
+                       // Get product name from the row below
+                       const prodName = prodRow[k] ? String(prodRow[k]).toUpperCase().replace(/[- ]/g, '') : '';
+                       tankProducts.push(prodName);
+                    }
+                 }
+                 break;
+              }
+           }
+           
+           // Find amount rows in this block
+           const amountRowIndices = [];
+           for (let i = startIdx + 1; i < endIdx; i++) {
+              const row = json[i];
+              if (!row) continue;
+              const rowStr = row.join('');
+              if (rowStr.includes('數量') || rowStr.includes('重量')) {
+                 amountRowIndices.push(i);
+              }
+           }
+           
+           // Extract latest valid weight for each tank
+           for (let idx = 0; idx < tankColIndices.length; idx++) {
+              const col = tankColIndices[idx];
+              let finalWeight = null;
+              
+              for (let r = amountRowIndices.length - 1; r >= 0; r--) {
+                 const rowIdx = amountRowIndices[r];
+                 const val = json[rowIdx][col];
+                 if (val !== undefined && val !== null && val !== '') {
+                    // Extract number from string, ignore commas
+                    const weightStr = String(val).replace(/,/g, '').trim();
+                    if (weightStr !== '' && !isNaN(Number(weightStr))) {
+                       const weight = Number(weightStr);
+                       if (weight >= 0) {
+                          finalWeight = weight;
+                          break;
+                       }
+                    }
+                 }
+              }
+              
+              if (finalWeight !== null) {
+                 const tankNameCleaned = tankNames[idx];
+                 const prodNameCleaned = tankProducts[idx];
+                 
+                 // Find tank matching BOTH name and (if possible) product
+                 let systemTank = state.tanks.find(t => {
+                     if (t.name.toUpperCase().replace(/[- ]/g, '') !== tankNameCleaned) return false;
+                     // If Excel has a product name, try to match it with the tank's product
+                     if (prodNameCleaned) {
+                         const tProd = state.products.find(p => p.id === t.productId);
+                         if (tProd) {
+                             const sysProdName = tProd.name.toUpperCase().replace(/[- ]/g, '');
+                             // Fuzzy match: if one contains the other
+                             if (sysProdName.includes(prodNameCleaned) || prodNameCleaned.includes(sysProdName)) {
+                                 return true;
+                             }
+                             return false; // Name matches but product completely differs
+                         }
+                     }
+                     return true; // Fallback if no product info available
+                 });
+                 
+                 if (!systemTank) {
+                     // Fallback to just name matching if strict product matching failed
+                     systemTank = state.tanks.find(t => t.name.toUpperCase().replace(/[- ]/g, '') === tankNameCleaned);
+                 }
+                 
+                 if (systemTank) {
+                    updates.push({ tank: systemTank, weight: finalWeight });
+                    updateText.push(`${systemTank.name}: ${finalWeight} kg`);
+                 }
+              }
+           }
+        }
+        
+        if (updates.length === 0) {
+           alert('成功解析檔案，但未找到系統中對應的儲槽或有效的數值。');
+           return;
+        }
+        
+        if (confirm(`✅ 準備更新以下 ${updates.length} 顆儲槽的庫存量 (自動採計最新數值)：\n\n${updateText.slice(0, 15).join('\n')}${updateText.length > 15 ? '\n...等' : ''}\n\n是否確定寫入？`)) {
+           updates.forEach(u => {
+              u.tank.currentLevel = u.weight;
+           });
+           saveDataToCloud(() => {
+              renderTanks();
+              updateAllDropdowns();
+              calculateAndRenderDashboard();
+              alert(`🎉 成功更新 ${updates.length} 筆儲槽庫存！`);
+           });
+        }
+        
+      } catch (err) {
+         console.error(err);
+         alert('檔案解析失敗，請確保上傳的是正確的 Excel 格式。');
+      } finally {
+         event.target.value = ''; // reset input
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+</script>
+</head>
+<body>
+  <!-- 載入中遮罩 -->
+  <div id="loading-screen" class="loading-overlay">
+    <div class="spinner-container">
+      <div class="glow-spinner"></div>
+      <div class="loading-text">系統載入中，請稍候...</div>
+    </div>
+  </div>
+
+  <!-- 通知氣泡 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- 系統主容器 -->
+  <div class="app-container">
+    <!-- 側邊導覽列 -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <i class="fa-solid fa-cubes-stacked neon-icon"></i>
+        </div>
+        <div class="brand-text">
+          <h1 id="sidebar-brand-name">IPA專用動態生產排程與進耗存整合系統</h1>
+        </div>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" data-tab="dashboard">
+          <i class="fa-solid fa-chart-line"></i> 儀表板總覽
+        </button>
+        <button class="nav-btn" data-tab="schedules">
+          <i class="fa-solid fa-calendar-days"></i> 生產排程
+        </button>
+        <button class="nav-btn" data-tab="tanks">
+          <i class="fa-solid fa-database"></i> 儲槽與容器
+        </button>
+        <button class="nav-btn" data-tab="products">
+          <i class="fa-solid fa-flask"></i> 產品與廠區設定
+        </button>
+        <button class="nav-btn" data-tab="logs">
+          <i class="fa-solid fa-list-check"></i> 進出料紀錄
+        </button>
+        <button class="nav-btn" data-tab="ships">
+          <i class="fa-solid fa-ship"></i> 船隻位置追蹤
+        </button>
+        <button class="nav-btn" data-tab="archive">
+          <i class="fa-solid fa-box-archive"></i> 備份與還原
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <span class="status-indicator online"></span>
+        <span class="status-label">雲端資料庫連線中</span>
+      </div>
+    </aside>
+
+    <!-- 右側主內容區 -->
+    <main class="main-content">
+      <!-- 頂部資訊列 -->
+      <header class="main-header">
+        <div class="header-title">
+          <h2 id="page-title">儀表板總覽</h2>
+          <p id="page-subtitle" class="text-secondary">即時儲槽狀態、警報預測與生產進度</p>
+        </div>
+        <div class="header-actions">
+          <div class="global-factory-selector">
+            <span class="text-secondary" style="font-size: 0.85rem;"><i class="fa-solid fa-industry"></i> 當前廠區：</span>
+            <select id="global-factory-select" class="form-control" style="width: auto; display: inline-block; padding: 4px 10px; font-weight: 600; color: var(--color-accent); border-color: var(--color-accent);">
+              <option value="all">🏢 總覽 (全部廠區)</option>
+              <!-- 動態載入廠區 -->
+            </select>
+          </div>
+
+          <span class="datetime-display" id="live-clock"><i class="fa-regular fa-clock"></i> 載入中...</span>
+          <button id="btn-sync" class="btn btn-secondary" title="手動同步雲端資料">
+            <i class="fa-solid fa-arrows-rotate"></i> 同步資料
+          </button>
+        </div>
+      </header>
+
+      <!-- 各分頁內容區 -->
+      <div class="content-body">
+        
+        <!-- 1. 儀表板分頁 -->
+        <section id="tab-dashboard" class="tab-pane active">
+          <!-- 統計卡片 -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon bg-blue"><i class="fa-solid fa-database"></i></div>
+              <div class="stat-info">
+                <h3>儲槽數量</h3>
+                <p class="stat-value" id="stat-tanks-count">0</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon bg-green"><i class="fa-solid fa-calendar-check"></i></div>
+              <div class="stat-info">
+                <h3>進行中排程</h3>
+                <p class="stat-value" id="stat-schedules-count">0</p>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon bg-purple"><i class="fa-solid fa-flask"></i></div>
+              <div class="stat-info">
+                <h3>產品種類</h3>
+                <p class="stat-value" id="stat-products-count">0</p>
+              </div>
+            </div>
+            <div class="stat-card alert-status-card" id="stat-alert-card">
+              <div class="stat-icon bg-gray" id="stat-alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+              <div class="stat-info">
+                <h3>系統警報</h3>
+                <p class="stat-value text-success" id="stat-alert-text">運作正常</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 儲槽即時監控面板 -->
+          <div class="section-card margin-top-lg">
+            <div class="section-header">
+              <h3><i class="fa-solid fa-eye text-primary"></i> 儲槽即時容量監控與預測</h3>
+              <p class="section-desc">系統會自動根據當前生產排程與消耗速率，預估儲槽滿槽/排空時間</p>
+            </div>
+            <div class="tanks-monitor-grid" id="tanks-monitor-container">
+              <!-- 由 JS 動態渲染儲槽狀態 -->
+              <div class="no-data-placeholder">
+                <i class="fa-solid fa-info-circle"></i>
+                <p>目前無儲槽資料，請至「儲槽與容器」分頁新增儲槽</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 未來 30 日動態進耗存預估表 -->
+          <div class="section-card margin-top-lg">
+            <div class="section-header justify-between">
+              <div>
+                <h3><i class="fa-solid fa-table-list text-primary"></i> 未來 30 日動態進耗存預估表</h3>
+                <p class="section-desc">根據目前的排程與出庫速度，自動模擬未來 30 日的水位變化趨勢</p>
+              </div>
+              <div class="filter-group">
+                <label for="forecast-start-date">預估起始日：</label>
+                <label style="display:inline-flex; align-items:center; margin-right: 8px; font-size: 0.9rem; cursor:pointer;" title="連續開車，預估表會自動以當天作為第一天">
+                  <input type="checkbox" id="chk-continuous-start" style="margin-right:4px;"> 自動跟隨今日
+                </label>
+                <input type="date" id="forecast-start-date" class="form-control select-inline" style="width: 140px; padding: 4px 8px; font-size: 0.9rem;">
+                
+                <label for="forecast-tank-select">選擇監控儲槽：</label>
+                <select id="forecast-tank-select" class="form-control select-inline">
+                  <!-- 動態載入儲槽 -->
+                </select>
+                <button id="btn-export-forecast" class="btn btn-secondary">
+                  <i class="fa-solid fa-file-excel"></i> 匯出 Excel
+                </button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table forecast-table" id="forecast-table">
+                <thead>
+                  <tr id="forecast-header-row">
+                    <th>項目/日期</th>
+                  </tr>
+                </thead>
+                <tbody id="forecast-body">
+                  <tr>
+                    <td class="text-secondary text-center" colspan="31">尚未選擇監控儲槽，或無儲槽資料</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 進行中的生產進度與即時排程 -->
+          <div class="grid-2col margin-top-lg">
+            <div class="section-card">
+              <div class="section-header">
+                <h3><i class="fa-solid fa-spinner text-success"></i> 當前生產動態</h3>
+              </div>
+              <div class="current-production-list" id="current-production-container">
+                <!-- 由 JS 渲染當前生產項目 -->
+              </div>
+            </div>
+            <div class="section-card">
+              <div class="section-header">
+                <h3><i class="fa-solid fa-triangle-exclamation text-warning"></i> 儲槽水位警報日誌</h3>
+              </div>
+              <div class="alert-log-list" id="alert-log-container">
+                <!-- 由 JS 渲染警報 -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. 生產排程分頁 -->
+        <section id="tab-schedules" class="tab-pane">
+          <div class="action-bar">
+            <button id="btn-add-schedule" class="btn btn-primary">
+              <i class="fa-solid fa-plus"></i> 新增生產排程
+            </button>
+            <div class="filter-group">
+              <label for="filter-schedule-product">產品篩選：</label>
+              <select id="filter-schedule-product" class="form-control select-inline">
+                <option value="all">全部</option>
+              </select>
+              <button id="btn-export-schedules" class="btn btn-secondary">
+                <i class="fa-solid fa-file-excel"></i> 匯出 Excel
+              </button>
+            </div>
+          </div>
+
+          <!-- 排程甘特圖 -->
+          <div class="section-card margin-top-md">
+            <div class="section-header justify-between">
+              <h3><i class="fa-solid fa-chart-gantt text-primary"></i> 生產排程甘特圖 (Gantt Chart)</h3>
+              <div class="gantt-legend" id="gantt-legend-container"></div>
+            </div>
+            <div class="gantt-wrapper">
+              <div class="gantt-chart-container" id="gantt-chart-container">
+                <!-- JS 動態繪製 -->
+              </div>
+            </div>
+          </div>
+
+          <!-- 排程清單表格 -->
+          <div class="section-card margin-top-md">
+            <div class="section-header">
+              <h3>排程明細表</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="schedule-table">
+                <thead>
+                  <tr>
+                    <th>產品</th>
+                    <th>目標槽/容器</th>
+                    <th>預計生產速率</th>
+                    <th>開始時間</th>
+                    <th>結束時間</th>
+                    <th>總預計產量</th>
+                    <th>狀態</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="schedule-list-body">
+                  <!-- JS 動態渲染 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. 儲槽與容器分頁 -->
+        <section id="tab-tanks" class="tab-pane">
+          <div class="action-bar">
+            <button id="btn-add-tank" class="btn btn-primary">
+              <i class="fa-solid fa-plus"></i> 新增儲槽/容器
+            </button>
+            <button id="btn-export-tanks" class="btn btn-secondary">
+              <i class="fa-solid fa-file-excel"></i> 匯出 Excel
+            </button>
+            <button class="btn btn-warning" onclick="document.getElementById('excel-upload-input').click()" style="margin-left: 8px;">
+              <i class="fa-solid fa-file-import"></i> 匯入日報表
+            </button>
+            <input type="file" id="excel-upload-input" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleExcelUpload(event)">
+          </div>
+
+          <div class="section-card margin-top-md">
+            <div class="section-header">
+              <h3>儲槽與移動式容器 (Isotank) 列表</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="tank-table">
+                <thead>
+                  <tr>
+                    <th>編號/名稱</th>
+                    <th>廠區</th>
+                    <th>類型</th>
+                    <th>存放產品</th>
+                    <th>容量上限</th>
+                    <th>當前儲量</th>
+                    <th>基本出料速率</th>
+                    <th>安全水位限制</th>
+                    <th>當前狀態</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="tank-list-body">
+                  <!-- JS 動態渲染 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. 產品設定分頁 -->
+        <section id="tab-products" class="tab-pane">
+          
+
+          
+          <div class="grid-2col margin-top-md">
+            <div class="section-card">
+              <div class="section-header justify-between">
+                <h3><i class="fa-solid fa-flask text-primary"></i> 產品品項配置表</h3>
+                <button id="btn-add-product" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 0.8rem;">
+                  <i class="fa-solid fa-plus"></i> 新增產品
+                </button>
+              </div>
+              <div class="products-grid" id="product-list-container" style="grid-template-columns: 1fr;">
+                <!-- JS 動態渲染 -->
+              </div>
+            </div>
+            
+            <div class="section-card">
+              <div class="section-header justify-between">
+                <h3><i class="fa-solid fa-industry text-warning"></i> 廠區配置管理</h3>
+                <button id="btn-add-factory" class="btn btn-warning btn-sm" style="padding: 4px 10px; font-size: 0.8rem; background: var(--color-warning); color: #fff; border: none;">
+                  <i class="fa-solid fa-plus"></i> 新增廠區
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table" id="factory-table">
+                  <thead>
+                    <tr>
+                      <th>廠區名稱</th>
+                      <th style="width: 80px; text-align: center;">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="factory-list-body">
+                    <!-- JS 動態渲染 -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 產線配置管理 -->
+          <div class="section-card margin-top-md">
+            <div class="section-header justify-between">
+              <h3><i class="fa-solid fa-conveyor-belt text-primary"></i> 產線配置管理</h3>
+              <button id="btn-add-line" class="btn btn-primary btn-sm" style="padding: 4px 10px; font-size: 0.8rem;">
+                <i class="fa-solid fa-plus"></i> 新增產線
+              </button>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="line-table">
+                <thead>
+                  <tr>
+                    <th>產線名稱</th>
+                    <th>所屬廠區</th>
+                    <th style="width: 80px; text-align: center;">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="line-list-body">
+                  <!-- JS 動態渲染 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- 5. 進出料紀錄分頁 -->
+        <section id="tab-logs" class="tab-pane">
+          <div class="action-bar">
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button id="btn-add-log" class="btn btn-success">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i> 登記進出料
+              </button>
+              <button id="btn-batch-delete-logs" class="btn btn-danger" style="display: none;">
+                <i class="fa-solid fa-trash-can"></i> 批次刪除 (<span id="selected-logs-count">0</span>)
+              </button>
+            </div>
+            <div class="filter-group">
+              <label for="filter-log-tank">儲槽篩選：</label>
+              <select id="filter-log-tank" class="form-control select-inline">
+                <option value="all">全部儲槽</option>
+              </select>
+              <button id="btn-export-logs" class="btn btn-secondary">
+                <i class="fa-solid fa-file-excel"></i> 匯出 Excel
+              </button>
+            </div>
+          </div>
+
+          <!-- 批次快速登打區 -->
+          <div class="section-card margin-top-md">
+            <div class="section-header justify-between">
+              <div>
+                <h3><i class="fa-solid fa-keyboard text-success"></i> 批次快速登打區</h3>
+                <p class="section-desc">直接在下方表格中輸入多筆進出料，最後點選「整批儲存」即可一次寫入，無須重複彈窗</p>
+              </div>
+              <div>
+                <button id="btn-batch-save" class="btn btn-success">
+                  <i class="fa-solid fa-floppy-disk"></i> 整批儲存並寫入雲端
+                </button>
+              </div>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th style="width: 200px;">日期時間</th>
+                    <th style="width: 220px;">選擇儲槽</th>
+                    <th style="width: 140px;">交易類型</th>
+                    <th style="width: 150px;">數量 (t)</th>
+                    <th>經辦人/備註</th>
+                    <th style="width: 60px; text-align: center;">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="batch-entry-body">
+                  <!-- JS 動態生成 -->
+                </tbody>
+              </table>
+            </div>
+            <div class="margin-top-md">
+              <button id="btn-batch-add-row" class="btn btn-secondary">
+                <i class="fa-solid fa-plus"></i> 新增一行
+              </button>
+            </div>
+          </div>
+
+          <div class="section-card margin-top-md">
+            <div class="section-header">
+              <h3>儲槽進料與出庫明細</h3>
+            </div>
+            <div class="table-responsive">
+              <table class="data-table" id="log-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40px; text-align: center;"><input type="checkbox" id="check-all-logs"></th>
+                    <th>時間</th>
+                    <th>儲槽</th>
+                    <th>產品</th>
+                    <th>類型</th>
+                    <th>數量</th>
+                    <th>經辦人/備註</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody id="log-list-body">
+                  <!-- JS 動態渲染 -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. 船隻位置追蹤分頁 -->
+        <section id="tab-ships" class="tab-pane">
+        <div class="card" style="padding: 40px; text-align: center; max-width: 800px; margin: 40px auto; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+          <div style="font-size: 64px; color: var(--primary); margin-bottom: 20px;">
+            <i class="fa-solid fa-ship"></i>
+          </div>
+          <h2 style="margin-bottom: 16px;">全國港灣船隻動態查詢系統</h2>
+          <p class="text-secondary" style="margin-bottom: 30px; font-size: 16px; line-height: 1.6;">
+            為了提供最準確且即時的船隻動態，本系統已整合至<b>臺灣港務公司 (TIPC) 官方查詢入口</b>。<br>
+            您不需再手動維護船隻清單，點擊下方按鈕即可直接開啟官網，輸入船名與日期區間進行快速查詢！
+          </p>
+          
+          <a href="https://tpnet.twport.com.tw/IFAWeb/Function?_RedirUrl=/IFAWeb/Reports/InPortShipList" target="_blank" class="btn btn-primary" style="padding: 16px 32px; font-size: 18px; border-radius: 50px; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; transition: all 0.3s ease;">
+            <i class="fa-solid fa-magnifying-glass"></i> 前往港務局官網查詢
+          </a>
+          
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); text-align: left;">
+            <h4 style="margin-bottom: 12px; color: var(--text-muted);"><i class="fa-solid fa-lightbulb" style="color: #f1c40f;"></i> 查詢小秘訣：</h4>
+            <ul style="color: var(--text-secondary); line-height: 1.8; padding-left: 20px;">
+              <li>在官網的 <b>Vessel English name</b> 欄位輸入船隻英文名稱 (如: TS CHIBA)。</li>
+              <li>在 <b>Estimated entering date</b> 欄位選擇您要查詢的日期區間。</li>
+              <li>點擊右上角的 <b>Search</b> 即可取得該船隻的 ETA、停靠碼頭等即時資訊。</li>
+            </ul>
+          </div>
+        </div>
+</section>
+
+        <!-- 6. 備份與還原分頁 -->
+        <section id="tab-archive" class="tab-pane">
+          <div class="grid-2col">
+            <div class="section-card">
+              <div class="section-header">
+                <h3><i class="fa-solid fa-cloud-arrow-up text-primary"></i> 建立即時備份</h3>
+                <p class="section-desc">將目前的排程、儲槽設定與進出歷史保存到 Google 試算表備份庫</p>
+              </div>
+              <div class="form-group margin-top-md">
+                <label for="archive-name">備份名稱/備註：</label>
+                <input type="text" id="archive-name" class="form-control" placeholder="例如：20260703 班表調整前">
+              </div>
+              <button id="btn-backup" class="btn btn-primary margin-top-md w-full">
+                <i class="fa-solid fa-floppy-disk"></i> 執行雲端備份
+              </button>
+            </div>
+
+            <div class="section-card">
+              <div class="section-header">
+                <h3><i class="fa-solid fa-clock-rotate-left text-warning"></i> 歷史備份還原庫</h3>
+                <p class="section-desc">點擊「還原」可以載入之前的存檔，會覆蓋現有資料（建議先備份目前資料）</p>
+              </div>
+              <div class="archive-list-wrapper margin-top-md">
+                <ul class="archive-list" id="archive-list-container">
+                  <!-- JS 動態渲染 -->
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          <div class="section-card margin-top-lg" style="border-color: rgba(239,68,68,0.2);">
+            <div class="section-header">
+              <h3 class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> 全系統清空重來</h3>
+              <p class="section-desc">此動作將清除所有現有的產品、儲槽、生產排程與進出庫交易紀錄，使資料庫恢復至初始空白狀態。</p>
+            </div>
+            <button id="btn-clear-all" class="btn btn-danger margin-top-md">
+              <i class="fa-solid fa-trash-can"></i> 執行全系統清空 (危險操作)
+            </button>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== 彈出視窗 (Modals) ==================== -->
+  <!-- 0. 新增/修改廠區 Modal -->
+  
+  <!-- 產線配置 Modal -->
+  <div id="modal-line" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="line-modal-title">新增產線</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-line">
+        <input type="hidden" id="line-id-hidden">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="line-name">產線名稱 <span class="required">*</span></label>
+            <input type="text" id="line-name" class="form-control" required placeholder="如：一廠產線A">
+          </div>
+          <div class="form-group">
+            <label for="line-factory">所屬廠區 <span class="required">*</span></label>
+            <select id="line-factory" class="form-control" required>
+              <!-- 動態載入 -->
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存產線</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<div id="modal-factory" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="factory-modal-title">新增廠區</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-factory">
+        <input type="hidden" id="factory-id-hidden">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="factory-name">廠區名稱 <span class="required">*</span></label>
+            <input type="text" id="factory-name" class="form-control" required placeholder="如：三廠">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存廠區</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. 新增/修改船隻 Modal -->
+  <div id="modal-ship" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="ship-modal-title">更新船隻動態</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-ship">
+        <input type="hidden" id="ship-id-hidden">
+        <div class="modal-body">
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="ship-name">船隻名稱 <span class="required">*</span></label>
+              <input type="text" id="ship-name" class="form-control" required placeholder="如：Ever Green">
+            </div>
+            <div class="form-group">
+              <label for="ship-code">船舶代碼 (IMO/MMSI)</label>
+              <input type="text" id="ship-code" class="form-control" placeholder="如：9811000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="ship-location">目前位置 / 航向 <span class="required">*</span></label>
+            <select id="ship-location" class="form-control" required>
+              <option value="臺中港" selected>臺中港</option>
+              <option value="基隆港">基隆港</option>
+              <option value="臺北港">臺北港</option>
+              <option value="蘇澳港">蘇澳港</option>
+              <option value="花蓮港">花蓮港</option>
+              <option value="高雄港">高雄港</option>
+              <option value="安平港">安平港</option>
+              <option value="澎湖港">澎湖港</option>
+              <option value="布袋港">布袋港</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label>預計抵達時間 (起) <span class="required">*</span></label>
+              <input type="datetime-local" id="ship-eta" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>預計抵達時間 (迄) <span class="required">*</span></label>
+              <input type="datetime-local" id="ship-eta-end" class="form-control" required>
+            </div>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="ship-product">載運原料 <span class="required">*</span></label>
+              <select id="ship-product" class="form-control">
+                <!-- 動態載入產品 -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="ship-amount">載運數量 (t) <span class="required">*</span></label>
+              <input type="number" id="ship-amount" class="form-control" min="0" step="any" placeholder="例如：15000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="ship-status">當前航行狀態</label>
+            <select id="ship-status" class="form-control">
+              <option value="in_transit">航行中 (In Transit)</option>
+              <option value="arriving">即將靠港 (Arriving)</option>
+              <option value="docked">已靠港卸貨 (Docked)</option>
+              <option value="delayed">延誤 (Delayed)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存船隻資訊</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 1. 新增/修改產品 Modal -->
+  <div id="modal-product" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="product-modal-title">新增產品</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-product">
+        <input type="hidden" id="product-id-hidden">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="product-name">產品名稱 <span class="required">*</span></label>
+            <input type="text" id="product-name" class="form-control" required placeholder="如：乙二醇 (EG)">
+          </div>
+          <div class="form-group">
+            <label for="product-code">產品代碼 <span class="required">*</span></label>
+            <input type="text" id="product-code" class="form-control" required placeholder="如：EG-99">
+          </div>
+          <div class="form-group">
+            <label for="product-color">產品識別色 <span class="required">*</span></label>
+            <div class="color-picker-wrapper">
+              <input type="color" id="product-color" class="color-picker-input" value="#00F2FE">
+              <span class="text-secondary text-sm">此顏色將用於排程甘特圖及儲槽監控的水波水位。</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="product-desc">說明</label>
+            <textarea id="product-desc" class="form-control" rows="3" placeholder="產品規格或說明..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存產品</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. 新增/修改儲槽與容器 Modal -->
+  <div id="modal-tank" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="tank-modal-title">新增儲槽/容器</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-tank">
+        <input type="hidden" id="tank-id-hidden">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="tank-name">儲槽/容器編號或名稱 <span class="required">*</span></label>
+            <input type="text" id="tank-name" class="form-control" required placeholder="如：T-101 或 ISO-08">
+          </div>
+          <div class="form-group">
+            <label for="tank-factory">所屬廠區 <span class="required">*</span></label>
+            <select id="tank-factory" class="form-control" required>
+              <!-- 動態載入 -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tank-dedicated-line">專屬綁定產線 (選填)</label>
+            <select id="tank-dedicated-line" class="form-control">
+              <option value="">-- 全廠共用 (不綁定) --</option>
+              <!-- 動態載入該廠區的產線 -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tank-type">容器類型 <span class="required">*</span></label>
+            <select id="tank-type" class="form-control" required>
+              <option value="tank">固定式儲槽 (Storage Tank)</option>
+              <option value="isotank">移動式槽車 (Isotank)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tank-usage">儲槽用途 <span class="required">*</span></label>
+            <select id="tank-usage" class="form-control" required>
+              <option value="product">成品槽 (存放生產產出)</option>
+              <option value="raw">原料槽 (供生產消耗進料)</option>
+              <option value="both">原料 / 成品兩者皆可 (通用槽)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="tank-product">存放產品</label>
+            <select id="tank-product" class="form-control">
+              <!-- 動態載入產品 -->
+            </select>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="tank-capacity">容量上限 (t) <span class="required">*</span></label>
+              <input type="number" id="tank-capacity" class="form-control" required min="1" step="any" placeholder="例如：50000">
+            </div>
+            <div class="form-group">
+              <label for="tank-current">當前儲量 (t) <span class="required">*</span></label>
+              <input type="number" id="tank-current" class="form-control" required min="0" step="any" placeholder="例如：15000">
+            </div>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group" id="tank-outflow-wrapper">
+              <label for="tank-outflow">預設出料速率 (每小時 t)</label>
+              <input type="number" id="tank-outflow" class="form-control" min="0" step="any" value="0" placeholder="例如：200">
+            </div>
+            <div class="form-group">
+              <label for="tank-safety">安全防呆水位/容量 (t) <span class="required">*</span></label>
+              <input type="number" id="tank-safety" class="form-control" required min="0" step="any" value="0" placeholder="例如：5000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="tank-status">運作狀態</label>
+            <select id="tank-status" class="form-control">
+              <option value="normal">正常 (Active)</option>
+              <option value="maintenance">保養維修 (Maintenance)</option>
+              <option value="inactive">停用 (Inactive)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存容器</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 3. 新增/修改生產排程 Modal -->
+  <div id="modal-schedule" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="schedule-modal-title">新增生產排程</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-schedule">
+        <input type="hidden" id="schedule-id-hidden">
+        <div class="modal-body">
+          <div class="grid-2col-gap">
+            <div class="form-group">
+            <label for="schedule-product">生產產品 <span class="required">*</span></label>
+            <select id="schedule-product" class="form-control" required>
+              <!-- 動態載入產品 -->
+            </select>
+          </div>
+            <div class="form-group">
+              <label for="schedule-line">生產產線 <span class="required">*</span></label>
+              <select id="schedule-line" class="form-control" required>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="schedule-tank">目標儲料容器 (成品) <span class="required">*</span></label>
+            <select id="schedule-tank" class="form-control" required>
+              <!-- 動態載入符合此產品的儲槽或 Isotank -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="schedule-source-tank">原料消耗來源儲槽 (選填)</label>
+            <select id="schedule-source-tank" class="form-control">
+              <!-- 動態載入所有儲槽，用於扣減原料 -->
+            </select>
+            <span class="text-secondary text-xs" style="display: block; margin-top: 4px;">若此排程會消耗原料，請選擇原料槽（會依生產速率等量扣減該槽）</span>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="schedule-rate">預計生產速率 (每小時產量) <span class="required">*</span></label>
+              <input type="number" id="schedule-rate" class="form-control" required min="0.001" step="any" placeholder="例如：500">
+            </div>
+            <div class="form-group">
+              <label for="schedule-unit">計量單位</label>
+              <input type="text" id="schedule-unit" class="form-control" value="t" readonly>
+            </div>
+          </div>
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <label for="schedule-start" style="margin-bottom: 0;">預計開始時間 <span class="required">*</span></label>
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: var(--color-primary); font-weight: bold; font-size: 14px;">
+                <input type="checkbox" id="schedule-continuous" style="width: 16px; height: 16px; margin: 0;">
+                連續開車 (每天生產)
+              </label>
+            </div>
+            <input type="datetime-local" id="schedule-start" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="schedule-end">預計結束時間 <span class="required">*</span></label>
+            <input type="datetime-local" id="schedule-end" class="form-control" required>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="schedule-total-volume">預計生產總量 (t) <span class="required">*</span></label>
+              <input type="number" id="schedule-total-volume" class="form-control" required min="0.001" step="any" placeholder="例如：13200">
+            </div>
+            <div class="form-group">
+              <label for="schedule-yield">良率 (%) <span class="required">*</span></label>
+              <input type="number" id="schedule-yield" class="form-control" required min="0.1" max="100" step="any" value="100" placeholder="例如：99">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>預估入庫良品產量：</label>
+            <p class="highlight-info-text"><span id="schedule-calc-yield-total">0</span> t (總產量 * 良率)</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary">儲存排程</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. 登記進出料紀錄 Modal -->
+  <div id="modal-log" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="log-modal-title">手動登記儲槽進出料</h3>
+        <button class="modal-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="form-log">
+        <input type="hidden" id="log-id-hidden">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="log-timestamp">交易日期時間 <span class="required">*</span></label>
+            <input type="datetime-local" id="log-timestamp" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="log-tank">選擇目標儲槽 <span class="required">*</span></label>
+            <select id="log-tank" class="form-control" required>
+              <!-- 動態載入儲槽 -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>目前儲量狀態：</label>
+            <p class="highlight-info-text" id="log-tank-status-preview">尚未選擇儲槽</p>
+          </div>
+          <div class="grid-2col-gap">
+            <div class="form-group">
+              <label for="log-type">交易類型 <span class="required">*</span></label>
+              <select id="log-type" class="form-control" required>
+                <option value="outflow">出料 (庫存減少/出貨)</option>
+                <option value="inflow">進料 (庫存增加/入庫)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="log-amount">登記數量 (t) <span class="required">*</span></label>
+              <input type="number" id="log-amount" class="form-control" required min="0.01" step="any" placeholder="例如：2000">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="log-remark">經辦人與備註說明 <span class="required">*</span></label>
+            <input type="text" id="log-remark" class="form-control" required placeholder="如：裝載槽車 ISO-02 / 王小明">
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="log-sync-tank" checked>
+            <label for="log-sync-tank"><b>同步更新儲槽的當前庫存量</b>（建議打勾，否則儲槽剩餘量不會自動加減）</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary modal-cancel">取消</button>
+          <button type="submit" class="btn btn-success">登記並更新庫存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+  // ==================== 全域狀態與初始化 ====================
+  let state = {
+    factories: [],        // 廠區清單
+    lines: [],            // 產線清單
+    currentFactory: 'all', // 當前檢視廠區篩選
+    products: [],         // 產品清單
+    tanks: [],            // 儲槽/容器清單
+    schedules: [],        // 生產排程清單
+    transactionLogs: [],  // 進出庫紀錄明細
+    ships: [],            // 船隻狀態清單
+    startDateTime: ""     // 排程起始日
+  };
+
+  // 用於 Modal 編輯狀態追蹤
+  let editingProductId = null;
+  let editingFactoryId = null;
+  let editingLineId = null;
+  let editingTankId = null;
+  let editingScheduleId = null;
+  let editingShipId = null;
+
+  // 初始化頁面
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
+      setupTabs();
+      setupClock();
+      setupEventListeners();
+      loadDataFromCloud();
+    } catch (err) {
+      console.error("Initialization error:", err);
+      showLoading(false);
+      alert("頁面初始化發生異常: " + err.message);
+    }
+  });
+
+  // ==================== 時鐘與定時器 ====================
+  function setupClock() {
+    const clockEl = document.getElementById('live-clock');
+    const updateClock = () => {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const yyyy = now.getFullYear();
+      const mm = pad(now.getMonth() + 1);
+      const dd = pad(now.getDate());
+      const hh = pad(now.getHours());
+      const min = pad(now.getMinutes());
+      const ss = pad(now.getSeconds());
+      clockEl.innerHTML = `<i class="fa-regular fa-clock"></i> ${yyyy}/${mm}/${dd} ${hh}:${min}:${ss}`;
+    };
+    updateClock();
+    setInterval(updateClock, 1000);
+    
+    // 每分鐘自動重算一次儲槽狀態與水位
+    setInterval(calculateAndRenderDashboard, 60000);
+  }
+
+  // ==================== 頁面分頁切換 ====================
+  function setupTabs() {
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    const pageTitle = document.getElementById('page-title');
+    const pageSubtitle = document.getElementById('page-subtitle');
+    
+    const tabMeta = {
+      dashboard: { title: "儀表板總覽", desc: "即時儲槽狀態、警報預測與生產進度" },
+      schedules: { title: "生產排程管理", desc: "配置生產班表與檢視產能甘特圖" },
+      tanks: { title: "儲槽與容器配置", desc: "設定固定式儲槽、行動式 Isotank 的容量上限與當前儲量" },
+      products: { title: "產品與廠區設定", desc: "管理系統內的產品配方及廠區" },
+      logs: { title: "進出料與交易紀錄", desc: "手動登記儲槽出庫、轉料或進料交易" },
+      ships: { title: "船隻位置追蹤", desc: "掌握原料進港與船隻動態" },
+      archive: { title: "系統資料備份還原", desc: "建立雲端備份存檔，或還原歷史紀錄" }
+    };
+
+    navBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabId = btn.getAttribute('data-tab');
+        
+        // 切換按鈕狀態
+        navBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // 切換視圖狀態
+        tabPanes.forEach(pane => pane.classList.remove('active'));
+        const activePane = document.getElementById(`tab-${tabId}`);
+        if (activePane) activePane.classList.add('active');
+        
+        // 更新標題
+        if (tabMeta[tabId]) {
+          pageTitle.innerText = tabMeta[tabId].title;
+          pageSubtitle.innerText = tabMeta[tabId].desc;
+        }
+        
+        // 切換分頁時重新渲染特定圖表或列表
+        if (tabId === 'dashboard') {
+          calculateAndRenderDashboard();
+        } else if (tabId === 'schedules') {
+          renderSchedules();
+          renderGanttChart();
+        } else if (tabId === 'tanks') {
+          renderTanks();
+        } else if (tabId === 'products') {
+          renderProducts();
+          renderFactories();
+          renderLines();
+          renderLines();
+        } else if (tabId === 'ships') {
+          renderShips();
+        } else if (tabId === 'logs') {
+          renderLogs();
+          initBatchGrid();
+        } else if (tabId === 'archive') {
+          loadArchiveList();
+        }
+      });
+    });
+  }
+
+  // ==================== 雲端資料同步 API ====================
+  function loadDataFromCloud() {
+    showLoading(true, "正在從雲端載入資料...");
+    
+    // 超時安全防呆機制 (6秒未回應自動解鎖並載入預設資料)
+    const safetyTimer = setTimeout(() => {
+      showLoading(false);
+      showToast("雲端連線較慢，已為您載入暫存資料開啟控制台！", "warning");
+      if (!state.tanks || state.tanks.length === 0) {
+        loadMockData();
+      } else {
+        updateAllDropdowns();
+        calculateAndRenderDashboard();
+        updateStats();
+      }
+    }, 6000);
+
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      clearTimeout(safetyTimer);
+      showLoading(false);
+      showToast("偵測為本地執行模式 (未使用 GAS)，載入模擬範例資料", "warning");
+      loadMockData();
+      return;
+    }
+    
+    google.script.run
+      .withSuccessHandler(data => {
+        clearTimeout(safetyTimer);
+        showLoading(false);
+        if (data._error) {
+          showToast("雲端載入失敗，載入範例資料: " + data._error, "warning");
+          loadMockData();
+          return;
+        }
+        
+        state.factories = data.factories || [];
+        state.lines = data.lines || [];
+        state.products = data.products || [];
+        state.tanks = data.tanks || [];
+        state.schedules = data.schedules || [];
+        state.transactionLogs = data.transactionLogs || [];
+        state.ships = data.ships || [];
+        state.startDateTime = data.startDateTime || "";
+        state.continuousStart = data.continuousStart;
+        
+        if (!state.tanks || state.tanks.length === 0) {
+          loadMockData();
+        } else {
+          showToast("雲端資料同步完成！", "success");
+          updateAllDropdowns();
+          calculateAndRenderDashboard();
+          updateStats();
+        }
+      })
+      .withFailureHandler(err => {
+        clearTimeout(safetyTimer);
+        showLoading(false);
+        showToast("雲端連線異常，已為您載入預設視窗", "warning");
+        console.error(err);
+        if (!state.tanks || state.tanks.length === 0) {
+          loadMockData();
+        } else {
+          updateAllDropdowns();
+          calculateAndRenderDashboard();
+          updateStats();
+        }
+      })
+      .loadCloudData();
+  }
+
+  function saveDataToCloud(callback) {
+    showLoading(true, "正在將資料儲存至雲端...");
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      try {
+        localStorage.setItem('IPA_LOCAL_STATE', JSON.stringify(state));
+      } catch (e) { console.error(e); }
+      showLoading(false);
+      showToast("本機測試模式：資料已儲存至瀏覽器快取！", "success");
+      updateStats();
+      if (callback) callback();
+      return;
+    }
+    google.script.run
+      .withSuccessHandler(result => {
+        showLoading(false);
+        if (result === "SUCCESS") {
+          showToast("資料成功儲存至雲端工作表！", "success");
+          updateStats();
+          if (callback) callback();
+        } else {
+          showToast("儲存失敗: " + result, "error");
+        }
+      })
+      .withFailureHandler(err => {
+        showLoading(false);
+        showToast("儲存資料時發生系統錯誤", "error");
+        console.error(err);
+      })
+      .saveCloudData(state);
+  }
+
+  // 本地測試模擬資料載入
+  function loadMockData() {
+    const saved = localStorage.getItem('IPA_LOCAL_STATE');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        state.factories = data.factories || [];
+        state.lines = data.lines || [];
+        state.products = data.products || [];
+        state.tanks = data.tanks || [];
+        state.schedules = data.schedules || [];
+        state.transactionLogs = data.transactionLogs || [];
+        state.ships = data.ships || [];
+        state.startDateTime = data.startDateTime || "";
+        state.continuousStart = data.continuousStart;
+        showToast("已載入本機端最新測試資料！", "success");
+        updateAllDropdowns();
+        calculateAndRenderDashboard();
+        updateStats();
+        return;
+      } catch (e) {
+        console.error("Failed to parse local storage", e);
+      }
+    }
+    state.factories = [
+      { id: "factory-1", name: "一廠" },
+      { id: "factory-2", name: "二廠" }
+    ];
+    state.products = [
+      { id: "p-01", name: "乙二醇 (EG)", code: "EG-10", color: "#00f2fe", desc: "標準工業級乙二醇" },
+      { id: "p-02", name: "丙二醇 (PG)", code: "PG-20", color: "#8b5cf6", desc: "醫療化妝品級丙二醇" }
+    ];
+    state.tanks = [
+      { id: "t-01", factoryId: "factory-1", name: "T-101 儲槽", type: "tank", productId: "p-01", capacity: 50000, currentLevel: 21000, outflowRate: 200, safetyLevel: 5000, status: "normal" },
+      { id: "t-02", factoryId: "factory-2", name: "T-102 儲槽", type: "tank", productId: "p-02", capacity: 40000, currentLevel: 12000, outflowRate: 150, safetyLevel: 4000, status: "normal" },
+      { id: "t-03", factoryId: "factory-1", name: "ISO-08 槽車", type: "isotank", productId: "p-01", capacity: 18000, currentLevel: 15000, outflowRate: 0, safetyLevel: 0, status: "normal" }
+    ];
+    
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const formatTime = (d) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    
+    // 建立排程時間：一個剛開始，一個預計明天
+    const start1 = new Date(now.getTime() - 2 * 3600000);
+    const end1 = new Date(now.getTime() + 10 * 3600000);
+    const start2 = new Date(now.getTime() + 12 * 3600000);
+    const end2 = new Date(now.getTime() + 28 * 3600000);
+    
+    state.schedules = [
+      { id: "s-01", productId: "p-01", tankId: "t-01", rate: 500, start: formatTime(start1), end: formatTime(end1) },
+      { id: "s-02", productId: "p-02", tankId: "t-02", rate: 300, start: formatTime(start2), end: formatTime(end2) }
+    ];
+    state.ships = [
+      { id: "ship-01", name: "Ever Green", code: "9811000", location: "南海 (航向高雄港)", eta: formatTime(new Date(now.getTime() + 48 * 3600000)), productId: "p-01", amount: 15000, status: "in_transit" }
+    ];
+    state.transactionLogs = [
+      { id: "l-01", timestamp: new Date(now.getTime() - 3 * 3600000).toISOString(), tankId: "t-01", productId: "p-01", type: "outflow", amount: 2000, remark: "裝載槽車 ISO-02 / 王小明" }
+    ];
+    
+    updateAllDropdowns();
+    calculateAndRenderDashboard();
+    updateStats();
+  }
+
+  // ==================== 統計數據與分析更新 ====================
+  function updateStats() {
+    document.getElementById('stat-tanks-count').innerText = state.tanks.length;
+    document.getElementById('stat-products-count').innerText = state.products.length;
+    
+    const now = new Date();
+    const activeSchedules = state.schedules.filter(s => {
+      const start = new Date(s.start);
+      const end = new Date(s.end);
+      return now >= start && now <= end;
+    });
+    document.getElementById('stat-schedules-count').innerText = activeSchedules.length;
+  }
+
+  // 更新所有表單與分頁篩選中的下拉選單
+  function updateAllDropdowns() {
+    
+    const globalSelect = document.getElementById('global-factory-select');
+    const tankFactorySelect = document.getElementById('tank-factory');
+    if (globalSelect && tankFactorySelect) {
+      const currentGlobalVal = globalSelect.value || state.currentFactory;
+      globalSelect.innerHTML = '<option value="all">🏢 總覽 (全部廠區)</option>';
+
+      tankFactorySelect.innerHTML = '';
+      const lineFactorySelect = document.getElementById('line-factory');
+      if (lineFactorySelect) lineFactorySelect.innerHTML = '';
+      
+      state.factories.forEach(f => {
+        const opt1 = document.createElement('option');
+        opt1.value = f.id; opt1.innerText = `🏢 ${f.name}`;
+        globalSelect.appendChild(opt1);
+        
+        const opt2 = document.createElement('option');
+        opt2.value = f.id; opt2.innerText = f.name;
+        tankFactorySelect.appendChild(opt2);
+        
+        if (lineFactorySelect) {
+          const opt3 = document.createElement('option');
+          opt3.value = f.id; opt3.innerText = f.name;
+          lineFactorySelect.appendChild(opt3);
+        }
+      });
+
+      globalSelect.value = state.currentFactory;
+    }
+
+    const prodSelects = [
+      document.getElementById('tank-product'),
+      document.getElementById('schedule-product'),
+      document.getElementById('filter-schedule-product'),
+      document.getElementById('ship-product')
+    ];
+    
+    const tankSelects = [
+      document.getElementById('schedule-tank'),
+      
+      document.getElementById('log-tank'),
+      document.getElementById('filter-log-tank'),
+      document.getElementById('forecast-tank-select')
+    ];
+    const scheduleLineSelect = document.getElementById('schedule-line');
+    if (scheduleLineSelect) {
+      scheduleLineSelect.innerHTML = '';
+      if (state.lines.length === 0) {
+        scheduleLineSelect.innerHTML = '<option value="">-- 無產線，請先新增 --</option>';
+      } else {
+        state.lines.forEach(l => {
+          const factory = state.factories.find(f => f.id === l.factoryId);
+          const fName = factory ? factory.name : '未知廠區';
+          const opt = document.createElement('option');
+          opt.value = l.id;
+          opt.innerText = `${l.name} (${fName})`;
+          scheduleLineSelect.appendChild(opt);
+        });
+      }
+    }
+
+
+    // 1. 填入產品下拉選單
+    prodSelects.forEach(select => {
+      if (!select) return;
+      const isFilter = select.id.startsWith('filter-');
+      select.innerHTML = isFilter ? '<option value="all">全部產品</option>' : '<option value="">-- 未定義產品 / 尚未分配 --</option>';
+      state.products.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.innerText = `${p.name} (${p.code})`;
+        select.appendChild(opt);
+      });
+    });
+
+    // 2. 填入儲槽下拉選單
+    tankSelects.forEach(select => {
+      if (!select) return;
+      const isFilter = select.id.startsWith('filter-') || select.id === 'forecast-tank-select' || select.id === 'schedule-source-tank';
+      
+      let defaultText = '全部儲槽/容器';
+      if (select.id === 'forecast-tank-select') defaultText = '-- 選擇監控儲槽 --';
+      if (select.id === 'schedule-source-tank') defaultText = '-- 無 (不消耗原料) --';
+      
+      select.innerHTML = isFilter ? `<option value="">${defaultText}</option>` : '';
+      
+      
+      
+    if (select.id === 'forecast-tank-select') {
+        const optgroupLines = document.createElement('optgroup');
+        optgroupLines.label = "【產線總庫存 (專用+共用)】";
+        
+        state.lines.forEach(l => {
+          if (state.currentFactory !== 'all' && l.factoryId !== state.currentFactory) return;
+          const factoryName = state.factories.find(f => f.id === l.factoryId)?.name || '';
+          const opt = document.createElement('option');
+          opt.value = `group_line_${l.id}`;
+          opt.innerText = `🏭 ${factoryName} - ${l.name}`;
+          optgroupLines.appendChild(opt);
+        });
+        if (optgroupLines.children.length > 0) select.appendChild(optgroupLines);
+
+        const optgroupProducts = document.createElement('optgroup');
+        optgroupProducts.label = "【廠區產品總庫存 (全廠加總)】";
+        
+        state.factories.forEach(f => {
+          if (state.currentFactory !== 'all' && f.id !== state.currentFactory) return;
+          state.products.forEach(p => {
+            // Check if there are tanks for this product in this factory
+            const hasTanks = state.tanks.some(t => t.factoryId === f.id && t.productId === p.id);
+            if (hasTanks) {
+              const opt = document.createElement('option');
+              opt.value = `group_prod_${f.id}_${p.id}`;
+              opt.innerText = `📦 ${f.name} - ${p.name}`;
+              optgroupProducts.appendChild(opt);
+            }
+          });
+        });
+        if (optgroupProducts.children.length > 0) select.appendChild(optgroupProducts);
+        
+        const optgroupTanks = document.createElement('optgroup');
+        optgroupTanks.label = "【單一儲槽/容器】";
+        
+        state.tanks.forEach(t => {
+          if (state.currentFactory !== 'all' && t.factoryId !== state.currentFactory) return;
+          const prod = state.products.find(p => p.id === t.productId);
+          const prodName = prod ? prod.name : '未知產品';
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.innerText = `${t.name} [${t.type === 'tank' ? '儲槽' : 'Isotank'}] (${prodName})`;
+          optgroupTanks.appendChild(opt);
+        });
+        if (optgroupTanks.children.length > 0) select.appendChild(optgroupTanks);
+
+      } else {
+        // Normal tank behavior for other selects
+        state.tanks.forEach(t => {
+          if (state.currentFactory !== 'all' && t.factoryId !== state.currentFactory) return;
+          const prod = state.products.find(p => p.id === t.productId);
+          const prodName = prod ? prod.name : '未知產品';
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.innerText = `${t.name} [${t.type === 'tank' ? '儲槽' : 'Isotank'}] (${prodName})`;
+          select.appendChild(opt);
+        });
+      }
+    });
+    
+    // 初始化預估開車起始日
+    const startDateInput = document.getElementById('forecast-start-date');
+    const chkContinuous = document.getElementById('chk-continuous-start');
+    if (startDateInput && chkContinuous) {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+      // Default to true if not explicitly set to false
+      const isContinuous = state.continuousStart === undefined ? true : state.continuousStart;
+      chkContinuous.checked = isContinuous;
+      startDateInput.disabled = isContinuous;
+      
+      if (isContinuous) {
+        startDateInput.value = todayStr;
+        state.startDateTime = todayStr;
+      } else if (state.startDateTime) {
+        startDateInput.value = state.startDateTime.slice(0, 10);
+      } else {
+        startDateInput.value = todayStr;
+        state.startDateTime = todayStr;
+      }
+    }
+
+    // 如果預估表原本有選，維持選取；若沒選，預設選取第一個儲槽
+    const forecastSelect = document.getElementById('forecast-tank-select');
+    if (forecastSelect && !forecastSelect.value) {
+      const firstGroupProdOpt = Array.from(forecastSelect.options).find(opt => opt.value.startsWith('group_prod_'));
+      const firstGroupLineOpt = Array.from(forecastSelect.options).find(opt => opt.value.startsWith('group_line_'));
+      
+      if (firstGroupProdOpt) {
+        forecastSelect.value = firstGroupProdOpt.value;
+      } else if (firstGroupLineOpt) {
+        forecastSelect.value = firstGroupLineOpt.value;
+      } else if (state.tanks.length > 0) {
+        forecastSelect.value = state.tanks[0].id;
+      }
+    }
+  }
+
+  // ==================== 儀表板動態分析與水位渲染核心 ====================
+  function calculateAndRenderDashboard() {
+    const container = document.getElementById('tanks-monitor-container');
+    const currentProdContainer = document.getElementById('current-production-container');
+    const alertLogContainer = document.getElementById('alert-log-container');
+    
+    if (!container) return;
+    
+    if (state.tanks.length === 0) {
+      container.innerHTML = `
+        <div class="no-data-placeholder">
+          <i class="fa-solid fa-info-circle"></i>
+          <p>目前無儲槽資料，請至「儲槽與容器」分頁新增儲槽</p>
+        </div>`;
+      if (currentProdContainer) currentProdContainer.innerHTML = '<p class="text-secondary text-sm">無進行中的生產</p>';
+      if (alertLogContainer) alertLogContainer.innerHTML = '<p class="text-secondary text-sm">無警報日誌</p>';
+      return;
+    }
+
+    container.innerHTML = '';
+    if (currentProdContainer) currentProdContainer.innerHTML = '';
+    if (alertLogContainer) alertLogContainer.innerHTML = '';
+
+    const now = new Date();
+    let systemAlertsCount = 0;
+    let alertItemsHTML = '';
+    let activeProductionHTML = '';
+
+    const activeSchedules = state.schedules.filter(s => {
+      const start = new Date(s.start);
+      const end = new Date(s.end);
+      return now >= start && now <= end;
+    });
+
+    
+    
+    state.tanks.forEach(tank => {
+      if (state.currentFactory !== 'all' && tank.factoryId !== state.currentFactory) return;
+
+      if (state.currentFactory !== 'all' && tank.factoryId !== state.currentFactory) return; // Factory filter
+
+      const product = state.products.find(p => p.id === tank.productId);
+      const prodName = product ? product.name : '未定義產品';
+      const prodColor = product ? product.color : '#4facfe';
+      const prodCode = product ? product.code : 'UNKNOWN';
+      const safetyLimit = Number(tank.safetyLevel) || 0;
+
+      // 計算當前進料速率 (目標儲槽，需乘上良率作為良品流入)
+      const targetSchedules = activeSchedules.filter(s => s.tankId === tank.id);
+      let totalInflowRate = 0;
+      
+      targetSchedules.forEach(s => {
+        const yieldFactor = s.yield !== undefined ? (Number(s.yield) / 100) : 1;
+        totalInflowRate += Number(s.rate) * yieldFactor;
+        
+        activeProductionHTML += `
+          <div class="current-prod-item">
+            <div class="current-prod-details">
+              <h5><span class="color-dot" style="background-color: ${prodColor}"></span> ${prodName} 生產中</h5>
+              <p>排程時間：${formatDateString(s.start)} ~ ${formatDateString(s.end)}</p>
+            </div>
+            <div class="current-prod-value">
+              <div class="rate">+${formatNumber(s.rate * yieldFactor)} t/hr <span class="text-xs text-secondary">(良率:${s.yield || 100}%)</span></div>
+              <div class="target">目標：${tank.name}</div>
+            </div>
+          </div>`;
+      });
+
+      // 計算當前原料消耗速率 (來源儲槽，消耗全量粗料，符合物料守恆)
+      const sourceSchedules = activeSchedules.filter(s => s.sourceTankId === tank.id);
+      let totalRawConsumptionRate = 0;
+      sourceSchedules.forEach(s => {
+        totalRawConsumptionRate += Number(s.rate);
+      });
+
+      const baseOutflowRate = Number(tank.outflowRate) || 0;
+      // 淨流速 = 生產流入速率 - 預設出庫速率 - 生產原料消耗速率
+      const netRate = totalInflowRate - baseOutflowRate - totalRawConsumptionRate;
+      
+      const capacity = Number(tank.capacity);
+      const currentLevel = Number(tank.currentLevel);
+      const percent = Math.min(100, Math.max(0, (currentLevel / capacity) * 100));
+
+      // 預測算法與水位警報判定
+      let predictionText = '水位維持穩定';
+      let predictionIcon = '<i class="fa-solid fa-arrows-left-right text-secondary"></i>';
+      let alertClass = '';
+      
+      // 當前庫存是否低於安全設定值 (低水位警報)
+      if (currentLevel < safetyLimit) {
+        alertClass = 'alert-danger';
+        systemAlertsCount++;
+        alertItemsHTML += `
+          <div class="alert-log-item">
+            <div class="alert-log-icon text-danger"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <div class="alert-log-text">
+              <h5>儲槽 ${tank.name} 處於低安全水位之下！</h5>
+              <p>當前儲量：${formatNumber(currentLevel)} L (低於防呆安全限制：${formatNumber(safetyLimit)} L)。請儘速安排生產進料！</p>
+            </div>
+          </div>`;
+      }
+      
+      if (netRate > 0) {
+        const hoursToFull = (capacity - currentLevel) / netRate;
+        if (hoursToFull <= 0.01) {
+          predictionText = '儲槽已達容量上限！';
+          predictionIcon = '<i class="fa-solid fa-circle-exclamation text-danger"></i>';
+          alertClass = 'alert-danger';
+          
+          systemAlertsCount++;
+          alertItemsHTML += `
+            <div class="alert-log-item">
+              <div class="alert-log-icon text-danger"><i class="fa-solid fa-circle-exclamation"></i></div>
+              <div class="alert-log-text">
+                <h5>儲槽 ${tank.name} 已滿溢！</h5>
+                <p>容量已達：${currentLevel.toFixed(1)} / ${capacity.toFixed(0)} L (100%)。請立即停止生產線進料或進行出貨！</p>
+              </div>
+            </div>`;
+        } else {
+          const timeStr = formatHours(hoursToFull);
+          predictionText = `預計 ${timeStr} 後滿槽`;
+          predictionIcon = '<i class="fa-solid fa-angles-up text-danger"></i>';
+          
+          if (hoursToFull <= 8) {
+            alertClass = 'alert-warning';
+            systemAlertsCount++;
+            alertItemsHTML += `
+              <div class="alert-log-item warning">
+                <div class="alert-log-icon text-warning"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="alert-log-text">
+                  <h5>儲槽 ${tank.name} 即將滿槽</h5>
+                  <p>預估將在 ${timeStr} 內填滿。目前淨流入速率：+${netRate.toFixed(1)} t/hr。</p>
+                </div>
+              </div>`;
+          }
+        }
+      } else if (netRate < 0) {
+        const hoursToEmpty = currentLevel / Math.abs(netRate);
+        if (hoursToEmpty <= 0.01) {
+          predictionText = '儲槽已排空！';
+          predictionIcon = '<i class="fa-solid fa-circle-info text-secondary"></i>';
+        } else {
+          const timeStr = formatHours(hoursToEmpty);
+          predictionText = `預計 ${timeStr} 後排空`;
+          predictionIcon = '<i class="fa-solid fa-angles-down text-warning"></i>';
+          
+          if (hoursToEmpty <= 8) {
+            alertClass = 'alert-warning';
+            systemAlertsCount++;
+            alertItemsHTML += `
+              <div class="alert-log-item warning">
+                <div class="alert-log-icon text-warning"><i class="fa-solid fa-circle-exclamation"></i></div>
+                <div class="alert-log-text">
+                  <h5>儲槽 ${tank.name} 即將耗盡</h5>
+                  <p>預估將在 ${timeStr} 內排空。目前淨流出速率：${netRate.toFixed(1)} t/hr。</p>
+                </div>
+              </div>`;
+          }
+        }
+      }
+
+      let trendBadgeHTML = '<span class="trend-badge text-secondary"><i class="fa-solid fa-minus"></i> 穩定</span>';
+      if (netRate > 0) {
+        trendBadgeHTML = `<span class="trend-badge text-danger"><i class="fa-solid fa-arrow-trend-up"></i> +${netRate.toFixed(1)} t/h</span>`;
+      } else if (netRate < 0) {
+        trendBadgeHTML = `<span class="trend-badge text-success"><i class="fa-solid fa-arrow-trend-down"></i> ${netRate.toFixed(1)} t/h</span>`;
+      }
+
+      const shadowColor = hexToRgba(prodColor, 0.3);
+
+      const tankCard = document.createElement('div');
+      tankCard.className = `tank-monitor-card ${alertClass}`;
+      tankCard.innerHTML = `
+        <div class="tank-monitor-header">
+          <div class="tank-title">
+            <h4>${tank.name}</h4>
+            <span class="tank-prod-badge" style="background-color: ${hexToRgba(prodColor, 0.15)}; color: ${prodColor}; border: 1px solid ${hexToRgba(prodColor, 0.3)}">
+              ${prodName} (${prodCode})
+            </span>
+          </div>
+          <span class="tank-type-tag">${tank.type === 'tank' ? '儲槽' : 'Isotank'}</span>
+        </div>
+        
+        <div class="tank-monitor-body">
+          <div class="tank-visual-container" style="border-color: ${hexToRgba(prodColor, 0.4)}; box-shadow: 0 4px 15px ${shadowColor}">
+            <div class="tank-water" style="height: ${percent}%; background: linear-gradient(to top, ${prodColor}, ${lightenColor(prodColor, 20)})"></div>
+            <div class="tank-percent-overlay">${percent.toFixed(0)}%</div>
+          </div>
+          
+          <div class="tank-data-details">
+            <div class="tank-data-row">
+              <label>當前儲量 / 上限</label>
+              <div class="tank-val-big">${formatNumber(currentLevel)} <span class="tank-val-unit">t / ${formatNumber(capacity)} t</span></div>
+            </div>
+            <div class="tank-data-row">
+              <label>淨變化率</label>
+              <div>${trendBadgeHTML}</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="tank-prediction-box">
+          <span class="pred-title">容量趨勢預估</span>
+          <div class="pred-result">
+            ${predictionIcon} <span>${predictionText}</span>
+          </div>
+        </div>
+      `;
+      container.appendChild(tankCard);
+    });
+
+    if (currentProdContainer) {
+      if (activeProductionHTML === '') {
+        currentProdContainer.innerHTML = '<p class="text-secondary text-sm" style="padding: 10px;">目前沒有正在運行的生產排程</p>';
+      } else {
+        currentProdContainer.innerHTML = activeProductionHTML;
+      }
+    }
+
+    if (alertLogContainer) {
+      if (alertItemsHTML === '') {
+        alertLogContainer.innerHTML = `
+          <div class="alert-log-item text-success" style="background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.15)">
+            <div class="alert-log-icon"><i class="fa-solid fa-circle-check"></i></div>
+            <div class="alert-log-text">
+              <h5>所有儲槽容量正常</h5>
+              <p>無低水位警報或超限預警。</p>
+            </div>
+          </div>`;
+      } else {
+        alertLogContainer.innerHTML = alertItemsHTML;
+      }
+    }
+
+    const alertCard = document.getElementById('stat-alert-card');
+    const alertIcon = document.getElementById('stat-alert-icon');
+    const alertText = document.getElementById('stat-alert-text');
+    
+    if (alertCard && alertIcon && alertText) {
+      if (systemAlertsCount > 0) {
+        alertCard.classList.add('bg-danger-stripe');
+        alertIcon.className = 'stat-icon bg-danger';
+        alertIcon.innerHTML = '<i class="fa-solid fa-bell-ring fa-bounce"></i>';
+        alertText.innerText = `${systemAlertsCount} 個容量警報`;
+        alertText.className = 'stat-value text-danger';
+      } else {
+        alertCard.classList.remove('bg-danger-stripe');
+        alertIcon.className = 'stat-icon bg-green';
+        alertIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+        alertText.innerText = '運作正常';
+        alertText.className = 'stat-value text-success';
+      }
+    }
+    
+    // 同步渲染 30 日預估表
+    renderForecastTable();
+  }
+
+  // ==================== 未來 30 日進耗存動態預估模擬 ====================
+  function renderForecastTable() {
+  try {
+    const selectTank = document.getElementById('forecast-tank-select');
+    const headerRow = document.getElementById('forecast-header-row');
+    const tbody = document.getElementById('forecast-body');
+    
+    if (!selectTank || !headerRow || !tbody) return;
+    
+    const selectValue = selectTank.value;
+    if (!selectValue) {
+      headerRow.innerHTML = '<th>項目/日期</th>';
+      tbody.innerHTML = '<tr><td class="text-secondary text-center" colspan="31">請選擇監控儲槽</td></tr>';
+      return;
+    }
+    
+    let targetTanks = [];
+    if (selectValue.startsWith('group_line_')) {
+      const lineId = selectValue.replace('group_line_', '');
+      const line = state.lines.find(l => l.id === lineId);
+      if (line) {
+        // Find dedicated tanks + shared tanks for the same products? 
+        // Actually, shared tanks have dedicatedLineId === '' or undefined.
+        // But what product? A line doesn't have a fixed product in state.
+        // Let's assume shared tanks are those with dedicatedLineId === '' in the same factory.
+        targetTanks = state.tanks.filter(t => t.factoryId === line.factoryId && (t.dedicatedLineId === line.id || !t.dedicatedLineId));
+      }
+    } else if (selectValue.startsWith('group_prod_')) {
+      const parts = selectValue.split('_');
+      const fId = parts[2];
+      const pId = parts[3];
+      targetTanks = state.tanks.filter(t => t.factoryId === fId && t.productId === pId);
+    } else {
+      const singleTank = state.tanks.find(t => t.id === selectValue);
+      if (singleTank) targetTanks = [singleTank];
+    }
+    
+    if (targetTanks.length === 0) {
+      headerRow.innerHTML = '<th>項目/日期</th>';
+      tbody.innerHTML = '<tr><td class="text-secondary text-center" colspan="31">群組內無符合條件的儲槽</td></tr>';
+      return;
+    }
+    
+    // 讀取預估開車時間 (起始日)
+    const startDateInput = document.getElementById('forecast-start-date');
+    let baseDate = new Date();
+    if (startDateInput && startDateInput.value) {
+      baseDate = new Date(startDateInput.value);
+    }
+    
+    // 建立 30 天日期陣列
+    const dates = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + i);
+      dates.push(d);
+    }
+    
+    // 判斷當前是否為「產線/原料群組監控模式」
+    const isLineGroupMode = selectValue.startsWith('group_line_') || selectValue.startsWith('group_prod_');
+    
+    // 渲染表頭日期
+    let headerHTML = '<th>項目 / 日期</th>';
+    dates.forEach(d => {
+      const mm = d.getMonth() + 1;
+      const dd = d.getDate();
+      const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+      headerHTML += `<th class="${isWeekend ? 'text-danger' : ''}">${mm}/${dd}</th>`;
+    });
+    headerRow.innerHTML = headerHTML;
+    
+    const initialStockRow = [];
+    const inflowRow = [];
+    const outflowRow = [];
+    const endingStockRow = [];
+    
+    // Aggregate initial stock
+    let currentSimLevel = targetTanks.reduce((sum, t) => sum + (Number(t.currentLevel) || 0), 0);
+    
+    dates.forEach((date, dayIdx) => {
+      const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0);
+      const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59);
+      
+      const startingStock = currentSimLevel;
+      initialStockRow.push(startingStock);
+      
+      let dailyInflow = 0;
+      let dailyOutflow = 0;
+      
+      targetTanks.forEach(t => {
+        // 只有單獨選取「成品槽 (usage === 'product')」時，才會將生產產出 (+) 計入進料
+        if (!isLineGroupMode && t.usage === 'product') {
+          const tankSchedules = state.schedules.filter(s => s.tankId === t.id);
+          tankSchedules.forEach(s => {
+            const sStart = new Date(s.start);
+            const sEnd = new Date(s.end);
+            if (sEnd > dayStart && sStart < dayEnd) {
+              const overlapStart = Math.max(sStart.getTime(), dayStart.getTime());
+              const overlapEnd = Math.min(sEnd.getTime(), dayEnd.getTime());
+              const overlapHours = (overlapEnd - overlapStart) / (1000 * 60 * 60);
+              if (overlapHours > 0) {
+                const yieldFactor = s.yield !== undefined ? (Number(s.yield) / 100) : 1;
+                dailyInflow += overlapHours * Number(s.rate) * yieldFactor;
+              }
+            }
+          });
+        }
+        
+        // 檢查交易紀錄中當天的實際卸船/進貨/車進料登記 (+)
+        const dayLogsIn = state.transactionLogs.filter(l => {
+          if (l.tankId !== t.id) return false;
+          const logDate = new Date(l.timestamp);
+          return logDate.toDateString() === date.toDateString() && l.type === 'inflow';
+        });
+        dayLogsIn.forEach(l => { dailyInflow += Number(l.amount); });
+
+        // 計算基礎出庫速率 (若有)
+        dailyOutflow += (Number(t.outflowRate) || 0) * 24;
+        
+        // 計算生產排程消耗該儲槽原料的量 (-)
+        const sourceSchedules = state.schedules.filter(s => s.sourceTankId === t.id);
+        sourceSchedules.forEach(s => {
+          const sStart = new Date(s.start);
+          const sEnd = new Date(s.end);
+          if (sEnd > dayStart && sStart < dayEnd) {
+            const overlapStart = Math.max(sStart.getTime(), dayStart.getTime());
+            const overlapEnd = Math.min(sEnd.getTime(), dayEnd.getTime());
+            const overlapHours = (overlapEnd - overlapStart) / (1000 * 60 * 60);
+            if (overlapHours > 0) {
+              dailyOutflow += overlapHours * Number(s.rate);
+            }
+          }
+        });
+
+        // 檢查交易紀錄中當天的實際出庫登記 (-)
+        const dayLogsOut = state.transactionLogs.filter(l => {
+          if (l.tankId !== t.id) return false;
+          const logDate = new Date(l.timestamp);
+          return logDate.toDateString() === date.toDateString() && l.type === 'outflow';
+        });
+        dayLogsOut.forEach(l => { dailyOutflow += Number(l.amount); });
+      });
+      
+      inflowRow.push(dailyInflow);
+      outflowRow.push(dailyOutflow);
+      
+      // 計算結算餘額 (期初 + 進料 - 消耗)
+      let endingStock = startingStock + dailyInflow - dailyOutflow;
+      if (endingStock < 0) endingStock = 0;
+      endingStockRow.push(endingStock);
+      
+      currentSimLevel = endingStock;
+    });
+    
+    // 渲染資料行
+    let tbodyHTML = '';
+    
+    // 期初庫存
+    tbodyHTML += '<tr><td>期初庫存量</td>';
+    initialStockRow.forEach(val => {
+      tbodyHTML += `<td>${formatNumber(val)}</td>`;
+    });
+    tbodyHTML += '</tr>';
+    
+    // 進料
+    const inflowLabel = isLineGroupMode ? '海購/進貨量 (+)' : '生產進料 (+)';
+    tbodyHTML += `<tr><td class="text-success">${inflowLabel}</td>`;
+    inflowRow.forEach(val => {
+      tbodyHTML += `<td class="text-success">${val > 0 ? '+' + formatNumber(val) : '0'}</td>`;
+    });
+    tbodyHTML += '</tr>';
+    
+    // 出庫
+    const outflowLabel = isLineGroupMode ? '預估使用 (-)' : '出庫與消耗 (-)';
+    tbodyHTML += `<tr><td class="text-warning">${outflowLabel}</td>`;
+    outflowRow.forEach(val => {
+      tbodyHTML += `<td class="text-warning">${val > 0 ? '-' + formatNumber(val) : '0'}</td>`;
+    });
+    tbodyHTML += '</tr>';
+    
+    // 結算
+    const totalSafetyLimit = targetTanks.reduce((sum, t) => sum + (Number(t.safetyLevel) || 0), 0);
+    const totalCapacity = targetTanks.reduce((sum, t) => sum + (Number(t.capacity) || 0), 0);
+
+    tbodyHTML += '<tr><td><b>結存剩餘 / 預估結算庫存</b></td>';
+    endingStockRow.forEach(val => {
+      let cellStyle = 'font-weight: 700;';
+      let styleClass = '';
+      
+      if (val < totalSafetyLimit) {
+        styleClass = 'status-tag-danger';
+        cellStyle += 'color: #fff; padding: 4px 8px; border-radius: 4px; display: inline-block;';
+      } else if (val > totalCapacity) {
+        styleClass = 'status-tag-warning';
+        cellStyle += 'color: #fff; padding: 4px 8px; border-radius: 4px; display: inline-block;';
+      } else {
+        cellStyle += 'color: var(--color-accent);';
+      }
+      
+      tbodyHTML += `<td><span class="${styleClass}" style="${cellStyle}">${formatNumber(val)}</span></td>`;
+    });
+    tbodyHTML += '</tr>';
+    
+    tbody.innerHTML = tbodyHTML;
+  } catch(err) {
+    console.error("Forecast Error:", err);
+    alert("預估表渲染錯誤: " + err.message);
+  }
+}
+
+function renderLogs() {
+  const tbody = document.getElementById('log-list-body');
+  const filterTankSelect = document.getElementById('filter-log-tank');
+  const filterTank = filterTankSelect ? filterTankSelect.value : '';
+  if (!tbody) return;
+  
+  let filtered = state.transactionLogs || [];
+  if (filterTank && filterTank !== 'all' && filterTank !== '') {
+    filtered = filtered.filter(l => l.tankId === filterTank);
+  }
+  
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" class="text-center text-secondary" style="padding: 30px;">
+          目前無進出料登記紀錄
+        </td>
+      </tr>`;
+    const checkAll = document.getElementById('check-all-logs');
+    if (checkAll) checkAll.checked = false;
+    if (typeof updateBatchDeleteButtonVisibility === 'function') updateBatchDeleteButtonVisibility();
+    return;
+  }
+  
+  tbody.innerHTML = '';
+  filtered.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+  
+  filtered.forEach((l, index) => {
+    const tank = state.tanks.find(t => t.id === l.tankId);
+    if (state.currentFactory !== 'all' && tank && tank.factoryId !== state.currentFactory) return;
+
+    const tankName = tank ? tank.name : '未知儲槽';
+    const product = state.products.find(p => p.id === l.productId);
+    const prodName = product ? product.name : '未分配產品';
+    const prodColor = product ? product.color : '#4facfe';
+    
+    const typeTag = l.type === 'inflow' 
+      ? '<span class="table-status-tag status-tag-active"><i class="fa-solid fa-arrow-down"></i> 進料</span>'
+      : '<span class="table-status-tag status-tag-danger"><i class="fa-solid fa-arrow-up"></i> 出料</span>';
+
+    const tr = document.createElement('tr');
+    const logKey = l.id || String(index);
+    const dedicatedLineName = (tank && tank.dedicatedLineId) 
+      ? (state.lines.find(line => line.id === tank.dedicatedLineId)?.name || '全廠共用') 
+      : '全廠共用';
+
+    tr.innerHTML = `
+      <td style="text-align: center;"><input type="checkbox" class="log-checkbox" value="${logKey}"></td>
+      <td>${formatDateString(l.timestamp)}</td>
+      <td><span class="badge badge-secondary">${dedicatedLineName}</span></td>
+      <td><b>${tankName}</b></td>
+      <td>
+        <span class="prod-table-badge">
+          <span class="color-dot" style="background-color: ${prodColor}"></span>
+          ${prodName}
+        </span>
+      </td>
+      <td>${typeTag}</td>
+      <td><b class="${l.type === 'inflow' ? 'text-success' : 'text-danger'}">${l.type === 'inflow' ? '+' : '-'}${formatNumber(l.amount)} t</b></td>
+      <td>${l.remark || '-'}</td>
+      <td>
+        <button class="btn btn-danger btn-icon" onclick="deleteLog('${logKey}')" title="刪除"><i class="fa-solid fa-trash"></i></button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function deleteLog(idOrIndex) {
+    if (!confirm('您確定要刪除此筆進出料紀錄嗎？（注意：此刪除不會還原儲槽庫存量，若需修正庫存，請至儲槽分頁直接修改當前儲量）')) return;
+    
+    if (typeof idOrIndex === 'string' && idOrIndex.length > 5) {
+      state.transactionLogs = state.transactionLogs.filter(l => l.id !== idOrIndex);
+    } else {
+      state.transactionLogs.splice(Number(idOrIndex), 1);
+    }
+    
+    saveDataToCloud(() => {
+      renderLogs();
+      calculateAndRenderDashboard();
+    });
+  }
+
+  function updateLogFormStatusPreview() {
+    const tankId = document.getElementById('log-tank').value;
+    const previewEl = document.getElementById('log-tank-status-preview');
+    if (!tankId) {
+      previewEl.innerText = '尚未選擇儲槽';
+      return;
+    }
+    const tank = state.tanks.find(t => t.id === tankId);
+    if (!tank) {
+      previewEl.innerText = '未知儲槽';
+      return;
+    }
+    const product = state.products.find(p => p.id === tank.productId);
+    const prodName = product ? product.name : '未知';
+    previewEl.innerHTML = `當前產品：<b>${prodName}</b> | 當前儲量：<b>${formatNumber(tank.currentLevel)} t</b> / 最大容量：${formatNumber(tank.capacity)} L`;
+  }
+
+  // ==================== 備份與還原功能 ====================
+  function loadArchiveList() {
+    const container = document.getElementById('archive-list-container');
+    if (!container) return;
+    
+    container.innerHTML = '<li style="padding: 16px;" class="text-secondary text-sm">正在載入雲端備份庫清單...</li>';
+    
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      container.innerHTML = '<li style="padding: 24px;" class="text-center text-secondary text-sm">本地偵測模式下，無法載入雲端歷史備份</li>';
+      return;
+    }
+    
+    google.script.run
+      .withSuccessHandler(list => {
+        if (list.length === 0) {
+          container.innerHTML = '<li style="padding: 24px;" class="text-center text-secondary text-sm">目前無任何歷史備份存檔</li>';
+          return;
+        }
+        container.innerHTML = '';
+        list.forEach(archive => {
+          const li = document.createElement('li');
+          li.className = 'archive-item';
+          li.innerHTML = `
+            <div class="archive-info">
+              <h4>${archive.id}</h4>
+              <span>備份時間：${archive.time}</span>
+            </div>
+            <div class="archive-actions">
+              <button class="btn btn-secondary" onclick="restoreArchive('${archive.id}', '${encodeURIComponent(archive.dataStr)}')">
+                <i class="fa-solid fa-trash-arrow-up text-warning"></i> 還原此版本
+              </button>
+            </div>
+          `;
+          container.appendChild(li);
+        });
+      })
+      .withFailureHandler(err => {
+        container.innerHTML = '<li style="padding: 16px;" class="text-danger text-sm">載入備份清單失敗</li>';
+      })
+      .getArchiveList();
+  }
+
+  function restoreArchive(name, encodedDataStr) {
+    if (!confirm(`⚠️ 警告：您確定要還原備份「${name}」嗎？這會覆蓋目前的全部資料（包含產品、儲槽與排程）。建議您先為目前資料建立一個新備份以防萬一。`)) return;
+    
+    try {
+      const dataStr = decodeURIComponent(encodedDataStr);
+      const restoredState = JSON.parse(dataStr);
+      
+      state.products = restoredState.products || [];
+      state.tanks = restoredState.tanks || [];
+      state.lines = restoredState.lines || [];
+      state.schedules = restoredState.schedules || [];
+      state.transactionLogs = restoredState.transactionLogs || [];
+      state.startDateTime = restoredState.startDateTime || "";
+      state.ships = restoredState.ships || [];
+      state.factories = restoredState.factories || [];
+      
+      saveDataToCloud(() => {
+        showToast(`已成功還原至備份版本 [${name}]`, "success");
+        calculateAndRenderDashboard();
+        updateStats();
+        updateAllDropdowns();
+        document.querySelector('.nav-btn[data-tab="dashboard"]').click();
+      });
+    } catch (e) {
+      showToast("還原失敗，資料格式損毀：" + e.toString(), "error");
+    }
+  }
+
+  // ==================== 頁面事件監聽設定 ====================
+  function toggleTankOutflowField() {
+    const typeSelect = document.getElementById('tank-type');
+    const outflowInput = document.getElementById('tank-outflow');
+    const outflowGroup = outflowInput ? outflowInput.closest('.form-group') : null;
+    if (typeSelect && outflowGroup) {
+      if (typeSelect.value === 'isotank') {
+        outflowGroup.style.display = 'none';
+      } else {
+        outflowGroup.style.display = 'block';
+      }
+    }
+  }
+
+  function updateTankDedicatedLines() {
+    const tankFactorySelect = document.getElementById('tank-factory');
+    const tankDedicatedLine = document.getElementById('tank-dedicated-line');
+    if (!tankFactorySelect || !tankDedicatedLine) return;
+    
+    const currentVal = tankDedicatedLine.value;
+    const factoryId = tankFactorySelect.value;
+    tankDedicatedLine.innerHTML = '<option value="">-- 全廠共用 (不綁定) --</option>';
+    
+    if (factoryId) {
+      const lines = state.lines.filter(l => l.factoryId === factoryId);
+      lines.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.id;
+        opt.innerText = l.name;
+        tankDedicatedLine.appendChild(opt);
+      });
+    }
+    tankDedicatedLine.value = currentVal;
+    if (tankDedicatedLine.selectedIndex === -1) tankDedicatedLine.value = "";
+  }
+
+  function updateYieldTotalDisplay() {
+    const totalVolEl = document.getElementById('schedule-total-volume');
+    const yieldEl = document.getElementById('schedule-yield');
+    const yieldDisplayEl = document.getElementById('schedule-calc-yield-total');
+    if (!totalVolEl || !yieldEl || !yieldDisplayEl) return;
+    
+    const totalVol = Number(totalVolEl.value) || 0;
+    const yieldPercent = Number(yieldEl.value) || 100;
+    if (totalVol > 0) {
+      const actualProd = totalVol * (yieldPercent / 100);
+      yieldDisplayEl.innerText = `${actualProd.toFixed(3)} t (良率 ${yieldPercent}%)`;
+    } else {
+      yieldDisplayEl.innerText = '-';
+    }
+  }
+
+  function calculateVolumeFromTimes() {
+    const rateEl = document.getElementById('schedule-rate');
+    const startEl = document.getElementById('schedule-start');
+    const endEl = document.getElementById('schedule-end');
+    const totalVolEl = document.getElementById('schedule-total-volume');
+    const contCheckbox = document.getElementById('schedule-continuous');
+    
+    if (!rateEl || !startEl || !endEl || !totalVolEl) return;
+    
+    if (contCheckbox && contCheckbox.checked) {
+      totalVolEl.value = '連續生產中';
+      updateYieldTotalDisplay();
+      return;
+    }
+    
+    const rate = Number(rateEl.value) || 0;
+    const start = new Date(startEl.value);
+    const end = new Date(endEl.value);
+    
+    if (start && end && end > start && rate > 0) {
+      const hours = (end - start) / (1000 * 60 * 60);
+      const totalVolume = rate * hours;
+      totalVolEl.value = totalVolume.toFixed(3);
+    }
+    updateYieldTotalDisplay();
+  }
+
+  function calculateEndTimeFromVolume() {
+    const rateEl = document.getElementById('schedule-rate');
+    const startEl = document.getElementById('schedule-start');
+    const endEl = document.getElementById('schedule-end');
+    const totalVolEl = document.getElementById('schedule-total-volume');
+    const contCheckbox = document.getElementById('schedule-continuous');
+    
+    if (!rateEl || !startEl || !endEl || !totalVolEl) return;
+    if (contCheckbox && contCheckbox.checked) return;
+    
+    const rate = Number(rateEl.value) || 0;
+    const totalVol = Number(totalVolEl.value) || 0;
+    const start = new Date(startEl.value);
+    
+    if (start && rate > 0 && totalVol > 0) {
+      const hours = totalVol / rate;
+      const end = new Date(start.getTime() + hours * 3600000);
+      const offset = end.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(end.getTime() - offset).toISOString().slice(0, 16);
+      endEl.value = localISOTime;
+    }
+    updateYieldTotalDisplay();
+  }
+
+  function setupEventListeners() {
+  const contCheckbox = document.getElementById('schedule-continuous');
+  if (contCheckbox) {
+    contCheckbox.addEventListener('change', function(e) {
+      const isCont = e.target.checked;
+      document.getElementById('schedule-end').disabled = isCont;
+      document.getElementById('schedule-total-volume').disabled = isCont;
+      if (isCont) {
+        document.getElementById('schedule-end').value = '';
+        document.getElementById('schedule-total-volume').value = '';
+        document.getElementById('schedule-calc-yield-total').innerText = '連續生產中';
+      } else {
+        calculateVolumeFromTimes();
+      }
+    });
+  }
+
+    document.getElementById('btn-sync').addEventListener('click', loadDataFromCloud);
+
+    // --- 匯出 Excel 按鈕事件綁定 ---
+    document.getElementById('btn-export-forecast').addEventListener('click', () => {
+      const tankSelect = document.getElementById('forecast-tank-select');
+      const tankId = tankSelect.value;
+      if (!tankId) {
+        alert('請先選擇監控儲槽！');
+        return;
+      }
+      const tank = state.tanks.find(t => t.id === tankId);
+      const name = tank ? tank.name : '儲槽';
+      exportTableToCSV('forecast-table', `${name}_未來30日進耗存預估表.csv`);
+    });
+
+    document.getElementById('btn-export-schedules').addEventListener('click', () => {
+      exportTableToCSV('schedule-table', '生產排程明細表.csv');
+    });
+
+    document.getElementById('btn-export-tanks').addEventListener('click', () => {
+      exportTableToCSV('tank-table', '儲槽與容器列表.csv');
+    });
+
+    document.getElementById('btn-export-logs').addEventListener('click', () => {
+      exportTableToCSV('log-table', '儲槽進出料與交易明細.csv');
+    });
+
+    // 預估表儲槽切換事件
+    document.getElementById('forecast-tank-select').addEventListener('change', renderForecastTable);
+
+    // 預估表日期切換事件
+    const startDateInput = document.getElementById('forecast-start-date');
+    const chkContinuous = document.getElementById('chk-continuous-start');
+    
+    if (startDateInput) {
+      startDateInput.addEventListener('change', (e) => {
+        state.startDateTime = e.target.value;
+        saveDataToCloud(() => {
+          renderForecastTable();
+        });
+      });
+    }
+    
+    if (chkContinuous) {
+      chkContinuous.addEventListener('change', (e) => {
+        state.continuousStart = e.target.checked;
+        startDateInput.disabled = e.target.checked;
+        if (state.continuousStart) {
+          const today = new Date();
+          const yyyy = today.getFullYear();
+          const mm = String(today.getMonth() + 1).padStart(2, '0');
+          const dd = String(today.getDate()).padStart(2, '0');
+          startDateInput.value = `${yyyy}-${mm}-${dd}`;
+          state.startDateTime = startDateInput.value;
+        }
+        saveDataToCloud(() => {
+          renderForecastTable();
+        });
+      });
+    }
+
+    document.querySelectorAll('.modal-close, .modal-cancel').forEach(btn => {
+      btn.addEventListener('click', () => {
+        closeAllModals();
+      });
+    });
+
+    // --- 船隻 Form 提交 ---
+    const btnAddShip = document.getElementById('btn-add-ship');
+    if (btnAddShip) {
+      btnAddShip.addEventListener('click', () => {
+        if (state.products.length === 0) {
+          alert('請先設定產品品項！');
+          return;
+        }
+        editingShipId = null;
+        document.getElementById('ship-modal-title').innerText = '新增船隻動態';
+        document.getElementById('form-ship').reset();
+        document.getElementById('ship-id-hidden').value = '';
+        
+        const now = new Date();
+        const offset = now.getTimezoneOffset() * 60000;
+        document.getElementById('ship-eta').value = new Date(now.getTime() - offset + 72 * 3600000).toISOString().slice(0, 16); 
+        
+        updateAllDropdowns();
+        openModal('modal-ship');
+      });
+    }
+
+    const formShip = document.getElementById('form-ship');
+    if (formShip) {
+      formShip.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = document.getElementById('ship-id-hidden').value || generateUUID();
+        const name = document.getElementById('ship-name').value;
+        const code = document.getElementById('ship-code').value;
+        const location = document.getElementById('ship-location').value;
+        const eta = document.getElementById('ship-eta').value;
+        const productId = document.getElementById('ship-product').value;
+        const amount = Number(document.getElementById('ship-amount').value);
+        const status = document.getElementById('ship-status').value;
+
+        if (!state.ships) state.ships = [];
+
+        if (editingShipId) {
+          const s = state.ships.find(item => item.id === editingShipId);
+          if (s) {
+            s.name = name;
+            s.code = code;
+            s.location = location;
+            s.eta = new Date(eta).toISOString();
+            s.etaEnd = new Date(etaEnd).toISOString();
+            s.productId = productId;
+          s.lineId = lineId;
+            s.amount = amount;
+            s.status = status;
+          }
+        } else {
+          state.ships.push({ id, name, code, location, eta: new Date(eta).toISOString(), etaEnd: new Date(etaEnd).toISOString(), productId, amount, status });
+        }
+
+        saveDataToCloud(() => {
+          closeAllModals();
+          renderShips();
+        });
+      });
+    }
+
+    
+    // --- 廠區 Form 提交 ---
+    const btnAddFactory = document.getElementById('btn-add-factory');
+    if (btnAddFactory) {
+      btnAddFactory.addEventListener('click', () => {
+        editingFactoryId = null;
+        document.getElementById('factory-modal-title').innerText = '新增廠區';
+        document.getElementById('form-factory').reset();
+        document.getElementById('factory-id-hidden').value = '';
+        openModal('modal-factory');
+      });
+    }
+
+    const formFactory = document.getElementById('form-factory');
+    if (formFactory) {
+      formFactory.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = document.getElementById('factory-id-hidden').value || generateUUID();
+        const name = document.getElementById('factory-name').value;
+        if (editingFactoryId) {
+          const f = state.factories.find(item => item.id === editingFactoryId);
+          if (f) f.name = name;
+        } else {
+          state.factories.push({ id, name });
+        }
+        saveDataToCloud(() => {
+          closeAllModals();
+          renderFactories();
+          renderLines();
+          renderLines();
+          updateAllDropdowns();
+        });
+      });
+    }
+    
+    // --- Global Factory Select ---
+    const globalSelectEvt = document.getElementById('global-factory-select');
+    if (globalSelectEvt) {
+      globalSelectEvt.addEventListener('change', (e) => {
+        state.currentFactory = e.target.value;
+        // Re-render everything
+        calculateAndRenderDashboard();
+        renderTanks();
+        renderSchedules();
+        renderGanttChart();
+        renderLogs();
+        updateAllDropdowns();
+      });
+    }
+
+    // --- 產品 Form 提交 ---
+    document.getElementById('btn-add-product').addEventListener('click', () => {
+      editingProductId = null;
+      document.getElementById('product-modal-title').innerText = '新增產品設定';
+      document.getElementById('form-product').reset();
+      document.getElementById('product-id-hidden').value = '';
+      openModal('modal-product');
+    });
+    
+    document.getElementById('form-product').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('product-id-hidden').value || generateUUID();
+      const name = document.getElementById('product-name').value;
+      const code = document.getElementById('product-code').value;
+      const color = document.getElementById('product-color').value;
+      const desc = document.getElementById('product-desc').value;
+      
+      if (editingProductId) {
+        const p = state.products.find(item => item.id === editingProductId);
+        if (p) {
+          p.name = name;
+          p.code = code;
+          p.color = color;
+          p.desc = desc;
+        }
+      } else {
+        state.products.push({ id, name, code, color, desc });
+      }
+      
+      saveDataToCloud(() => {
+        closeAllModals();
+        renderProducts();
+          renderFactories();
+          renderLines();
+          renderLines();
+        updateAllDropdowns();
+      });
+    });
+
+    
+    // --- 產線 Form 提交 ---
+    const btnAddLine = document.getElementById('btn-add-line');
+    if (btnAddLine) {
+      btnAddLine.addEventListener('click', () => {
+        editingLineId = null;
+        document.getElementById('line-modal-title').innerText = '新增產線';
+        document.getElementById('form-line').reset();
+        document.getElementById('line-id-hidden').value = '';
+        document.getElementById('line-factory').value = state.currentFactory !== 'all' ? state.currentFactory : (state.factories[0]?.id || '');
+        openModal('modal-line');
+      });
+    }
+
+    const formLine = document.getElementById('form-line');
+    if (formLine) {
+      formLine.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const id = document.getElementById('line-id-hidden').value || generateUUID();
+        const name = document.getElementById('line-name').value;
+        const factoryId = document.getElementById('line-factory').value;
+        if (editingLineId) {
+          const l = state.lines.find(item => item.id === editingLineId);
+          if (l) {
+            l.name = name;
+            l.factoryId = factoryId;
+          }
+        } else {
+          state.lines.push({ id, name, factoryId });
+        }
+        saveDataToCloud(() => {
+          closeAllModals();
+          renderLines();
+          updateAllDropdowns();
+        });
+      });
+    }
+
+    // --- 儲槽 Form 提交 ---
+    document.getElementById('btn-add-tank').addEventListener('click', () => {
+      if (state.products.length === 0) {
+        alert('請先新增至少一項「產品設定」，才能建立儲槽。');
+        return;
+      }
+      editingTankId = null;
+      document.getElementById('tank-modal-title').innerText = '新增儲槽/容器';
+      document.getElementById('form-tank').reset();
+      document.getElementById('tank-id-hidden').value = '';
+      document.getElementById('tank-factory').value = state.factories[0]?.id || '';
+      updateTankDedicatedLines();
+      updateAllDropdowns();
+      toggleTankOutflowField();
+      openModal('modal-tank');
+    });
+
+    document.getElementById('tank-type').addEventListener('change', toggleTankOutflowField);
+    document.getElementById('tank-factory').addEventListener('change', updateTankDedicatedLines);
+
+    document.getElementById('form-tank').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('tank-id-hidden').value || generateUUID();
+      const name = document.getElementById('tank-name').value;
+      const type = document.getElementById('tank-type').value;
+    const usage = document.getElementById('tank-usage').value;
+      const factoryId = document.getElementById('tank-factory').value;
+      const productId = document.getElementById('tank-product').value;
+        const dedicatedLineId = document.getElementById('tank-dedicated-line').value;
+      const capacity = Number(document.getElementById('tank-capacity').value);
+      const currentLevel = Number(document.getElementById('tank-current').value);
+      const outflowRate = Number(document.getElementById('tank-outflow').value) || 0;
+      const safetyLevel = Number(document.getElementById('tank-safety').value) || 0;
+      const status = document.getElementById('tank-status').value;
+
+      if (currentLevel > capacity) {
+        alert('錯誤：當前儲量不能大於容量上限！');
+        return;
+      }
+
+      if (editingTankId) {
+        const t = state.tanks.find(item => item.id === editingTankId);
+        if (t) {
+          t.name = name;
+          t.type = type;
+          t.usage = usage;
+          t.factoryId = factoryId;
+          t.dedicatedLineId = dedicatedLineId;
+          t.productId = productId;
+          t.capacity = capacity;
+          t.currentLevel = currentLevel;
+          t.outflowRate = outflowRate;
+          t.safetyLevel = safetyLevel;
+          t.status = status;
+        }
+      } else {
+        state.tanks.push({ id, factoryId, dedicatedLineId, name, type, usage, productId, capacity, currentLevel, outflowRate, safetyLevel, status });
+      }
+
+      saveDataToCloud(() => {
+        closeAllModals();
+        renderTanks();
+        updateAllDropdowns();
+      });
+    });
+
+    // --- 生產排程 Form 提交 ---
+    document.getElementById('btn-add-schedule').addEventListener('click', () => {
+      try { 
+      if (state.tanks.length === 0) {
+        alert('請先建立至少一個儲槽/容器，才能規劃生產排程！');
+        return;
+      }
+      
+      editingScheduleId = null;
+      document.getElementById('schedule-modal-title').innerText = '新增生產排程';
+      document.getElementById('form-schedule').reset();
+      document.getElementById('schedule-id-hidden').value = '';
+      const firstLine = document.getElementById('schedule-line').options[0];
+      if(firstLine) document.getElementById('schedule-line').value = firstLine.value;
+      
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+      const localISOTimeEnd = new Date(now.getTime() - offset + 8 * 3600000).toISOString().slice(0, 16); 
+      document.getElementById('schedule-start').value = localISOTime;
+      document.getElementById('schedule-end').value = localISOTimeEnd;
+    const contCheckbox = document.getElementById('schedule-continuous');
+    if (contCheckbox) {
+      contCheckbox.checked = false;
+      contCheckbox.dispatchEvent(new Event('change'));
+    }
+      
+      const firstProd = state.products[0].id;
+      document.getElementById('schedule-product').value = firstProd;
+      filterTanksBySelectedProduct(firstProd);
+      
+      calculateVolumeFromTimes();
+      document.getElementById('schedule-yield').value = 100;
+      updateYieldTotalDisplay();
+      openModal('modal-schedule');
+      } catch (err) {
+        alert('發生未預期的錯誤: ' + err.message + '\n請截圖此畫面回報。');
+      }
+    });
+
+    document.getElementById('schedule-product').addEventListener('change', (e) => {
+      filterTanksBySelectedProduct(e.target.value);
+      calculateVolumeFromTimes();
+    });
+    document.getElementById('schedule-line').addEventListener('change', (e) => {
+      const productId = document.getElementById('schedule-product').value;
+      if (productId) {
+        filterTanksBySelectedProduct(productId);
+      }
+    });
+
+
+    document.getElementById('schedule-rate').addEventListener('input', calculateVolumeFromTimes);
+    document.getElementById('schedule-start').addEventListener('change', calculateVolumeFromTimes);
+    document.getElementById('schedule-end').addEventListener('change', calculateVolumeFromTimes);
+    document.getElementById('schedule-total-volume').addEventListener('input', calculateEndTimeFromVolume);
+    document.getElementById('schedule-yield').addEventListener('input', updateYieldTotalDisplay);
+
+    document.getElementById('form-schedule').addEventListener('submit', (e) => {
+      e.preventDefault();
+      try {
+      const id = document.getElementById('schedule-id-hidden').value || generateUUID();
+      const productId = document.getElementById('schedule-product').value;
+        const lineId = document.getElementById('schedule-line').value;
+      const tankId = document.getElementById('schedule-tank').value;
+      const sourceTankId = document.getElementById('schedule-source-tank').value || '';
+      const rate = Number(document.getElementById('schedule-rate').value);
+      const start = document.getElementById('schedule-start').value;
+      let end = document.getElementById('schedule-end').value;
+      const yieldVal = Number(document.getElementById('schedule-yield').value) || 100;
+
+      
+      const isContinuous = document.getElementById('schedule-continuous').checked;
+      if (isContinuous) {
+        end = '2099-12-31T23:59:00'; // 遠期未來代表連續生產
+      } else if (!end) {
+        alert('非連續生產請填寫結束時間！');
+        return;
+      }
+      if (!tankId) {
+        alert('請選擇目標儲料容器！');
+        return;
+      }
+      
+      if (sourceTankId && sourceTankId === tankId) {
+        alert('錯誤：原料來源儲槽與目標儲槽不能為同一個！');
+        return;
+      }
+
+      if (new Date(end) <= new Date(start)) {
+        alert('結束時間必須晚於開始時間！');
+        return;
+      }
+
+      if (editingScheduleId) {
+        const s = state.schedules.find(item => item.id === editingScheduleId);
+        if (s) {
+          s.productId = productId;
+          s.lineId = lineId;
+          s.tankId = tankId;
+          s.sourceTankId = sourceTankId;
+          s.rate = rate;
+          s.start = start;
+          s.end = end;
+          s.yield = yieldVal; s.isContinuous = isContinuous; }
+      } else {
+        state.schedules.push({ id, productId, lineId, tankId, sourceTankId, rate, start, end, yield: yieldVal, isContinuous });
+      }
+
+      saveDataToCloud(() => {
+        closeAllModals();
+        renderSchedules();
+        renderGanttChart();
+        calculateAndRenderDashboard();
+      });
+      } catch (err) {
+        alert('儲存發生嚴重錯誤: ' + err.message + '\n請截圖告知工程師！');
+      }
+    });
+
+    document.getElementById('filter-schedule-product'),
+      document.getElementById('ship-product').addEventListener('change', () => {
+      renderSchedules();
+    });
+
+    // --- 進出料紀錄 Form 提交 ---
+    document.getElementById('btn-add-log').addEventListener('click', () => {
+      if (state.tanks.length === 0) {
+        alert('請先建立儲槽！');
+        return;
+      }
+      editingLogId = null;
+      document.getElementById('log-modal-title').innerText = '手動登記儲槽進出料';
+      document.getElementById('form-log').reset();
+      document.getElementById('log-id-hidden').value = '';
+      
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+      document.getElementById('log-timestamp').value = localISOTime;
+      
+      document.getElementById('log-sync-tank').checked = true;
+      
+      updateAllDropdowns();
+      updateLogFormStatusPreview();
+      openModal('modal-log');
+    });
+
+    document.getElementById('log-tank').addEventListener('change', updateLogFormStatusPreview);
+    document.getElementById('filter-log-tank').addEventListener('change', renderLogs);
+
+    document.getElementById('form-log').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const id = document.getElementById('log-id-hidden').value;
+      const tankId = document.getElementById('log-tank').value;
+      const type = document.getElementById('log-type').value;
+      const amount = Number(document.getElementById('log-amount').value);
+      const remark = document.getElementById('log-remark').value;
+      const syncTank = document.getElementById('log-sync-tank').checked;
+      const timestampVal = document.getElementById('log-timestamp').value;
+
+      const tank = state.tanks.find(t => t.id === tankId);
+      if (!tank) return;
+
+      // 如果有勾選「同步更新儲槽當前庫存」
+      if (syncTank) {
+        // 如果是修改，先「回退」舊記錄對水位的影響
+        if (id) {
+          let oldLog = null;
+          if (typeof id === 'string' && id.length > 5) {
+            oldLog = state.transactionLogs.find(item => item.id === id);
+          } else {
+            oldLog = state.transactionLogs[Number(id)];
+          }
+          if (oldLog) {
+            const oldTank = state.tanks.find(t => t.id === oldLog.tankId);
+            if (oldTank) {
+              if (oldLog.type === 'inflow') {
+                oldTank.currentLevel = Math.max(0, oldTank.currentLevel - Number(oldLog.amount));
+              } else {
+                oldTank.currentLevel = oldTank.currentLevel + Number(oldLog.amount);
+              }
+            }
+          }
+        }
+        
+        // 再套用新記錄的影響
+        if (type === 'outflow') {
+          if (tank.currentLevel < amount) {
+            if (!confirm(`⚠️ 警告：目前儲槽餘量 (${formatNumber(tank.currentLevel)} t) 小於出庫量 (${formatNumber(amount)} t)，強行出庫將導致庫存變為負數！是否繼續？`)) {
+              return;
+            }
+          }
+          tank.currentLevel = Math.max(0, tank.currentLevel - amount);
+        } else {
+          if (tank.currentLevel + amount > tank.capacity) {
+            if (!confirm(`⚠️ 警告：進料後容量 (${formatNumber(tank.currentLevel + amount)} t) 將超出儲槽上限 (${formatNumber(tank.capacity)} t)！是否繼續？`)) {
+              return;
+            }
+          }
+          tank.currentLevel = tank.currentLevel + amount;
+        }
+      }
+
+      const timestamp = timestampVal ? new Date(timestampVal).toISOString() : new Date().toISOString();
+
+      if (id) {
+        // 修改歷史記錄
+        let l = null;
+        if (typeof id === 'string' && id.length > 5) {
+          l = state.transactionLogs.find(item => item.id === id);
+        } else {
+          l = state.transactionLogs[Number(id)];
+        }
+        if (l) {
+          l.timestamp = timestamp;
+          l.tankId = tankId;
+          l.productId = tank.productId;
+          l.type = type;
+          l.amount = amount;
+          l.remark = remark;
+        }
+      } else {
+        // 新增記錄
+        state.transactionLogs.push({
+          id: generateUUID(),
+          timestamp,
+          tankId,
+          productId: tank.productId,
+          type,
+          amount,
+          remark
+        });
+      }
+
+      saveDataToCloud(() => {
+        closeAllModals();
+        renderLogs();
+        calculateAndRenderDashboard();
+        renderTanks(); 
+      });
+    });
+
+    // --- 進出料多選與批次刪除監聽 ---
+    const logListBody = document.getElementById('log-list-body');
+    if (logListBody) {
+      logListBody.addEventListener('change', (e) => {
+        if (e.target.classList.contains('log-checkbox')) {
+          updateBatchDeleteButtonVisibility();
+        }
+      });
+    }
+
+    const checkAllLogs = document.getElementById('check-all-logs');
+    if (checkAllLogs) {
+      checkAllLogs.addEventListener('change', (e) => {
+        const checked = e.target.checked;
+        document.querySelectorAll('.log-checkbox').forEach(cb => {
+          cb.checked = checked;
+        });
+        updateBatchDeleteButtonVisibility();
+      });
+    }
+
+    document.getElementById('btn-batch-delete-logs').addEventListener('click', () => {
+      const checkedBoxes = document.querySelectorAll('.log-checkbox:checked');
+      if (checkedBoxes.length === 0) return;
+      
+      if (!confirm(`⚠️ 您確定要批次刪除這 ${checkedBoxes.length} 筆進出料紀錄嗎？（注意：此動作不會還原儲槽水位，若需修改水位請至儲槽分頁直接變更）`)) {
+        return;
+      }
+      
+      const idsToDelete = Array.from(checkedBoxes).map(cb => cb.value);
+      
+      state.transactionLogs = state.transactionLogs.filter((l, index) => {
+        const key = l.id || String(index);
+        return !idsToDelete.includes(key);
+      });
+      
+      saveDataToCloud(() => {
+        showToast(`已成功批次刪除 ${idsToDelete.length} 筆紀錄！`, "success");
+        renderLogs();
+        calculateAndRenderDashboard();
+      });
+    });
+
+    // --- 備份按鈕 ---
+    document.getElementById('btn-backup').addEventListener('click', () => {
+      const archiveNameInput = document.getElementById('archive-name');
+      const archiveName = archiveNameInput.value.trim();
+      if (!archiveName) {
+        alert('請輸入備份名稱或備註以作識別！');
+        return;
+      }
+
+      showLoading(true, "正在建立雲端備份存檔...");
+      if (typeof google === 'undefined' || !google.script || !google.script.run) {
+        showLoading(false);
+        showToast("本地模式下無法建立雲端備份！", "error");
+        return;
+      }
+      google.script.run
+        .withSuccessHandler(result => {
+          showLoading(false);
+          if (result === "SUCCESS") {
+            showToast(`已建立備份「${archiveName}」！`, "success");
+            archiveNameInput.value = '';
+            loadArchiveList(); 
+          } else {
+            showToast("備份失敗: " + result, "error");
+          }
+        })
+        .withFailureHandler(err => {
+          showLoading(false);
+          showToast("備份時發生系統錯誤", "error");
+        })
+        .archiveData(state, archiveName);
+    });
+
+    // --- 全清空按鈕 ---
+    document.getElementById('btn-clear-all').addEventListener('click', () => {
+      if (!confirm('⚠️ 警告：您確定要清空整套系統的所有資料嗎？這將刪除所有產品、儲槽、生產排程與交易紀錄！此動作無法復原！')) return;
+      if (!confirm('請再次確認是否真的要清空？所有現存資料將被抹除。')) return;
+      
+      state.factories = [
+      { id: "factory-1", name: "一廠" },
+      { id: "factory-2", name: "二廠" }
+    ];
+    state.products = [];
+      state.tanks = [];
+      state.schedules = [];
+      state.ships = [
+      { id: "ship-01", name: "Ever Green", code: "9811000", location: "南海 (航向高雄港)", eta: formatTime(new Date(now.getTime() + 48 * 3600000)), productId: "p-01", amount: 15000, status: "in_transit" }
+    ];
+    state.transactionLogs = [];
+      state.startDateTime = "";
+      state.ships = [];
+      
+      saveDataToCloud(() => {
+        showToast("系統資料已全部清空！", "success");
+        calculateAndRenderDashboard();
+        updateStats();
+        updateAllDropdowns();
+        document.querySelector('.nav-btn[data-tab="dashboard"]').click();
+      });
+    });
+
+    // --- 批次快速登打按鈕事件 ---
+    const btnBatchAdd = document.getElementById('btn-batch-add-row');
+    if (btnBatchAdd) {
+      btnBatchAdd.addEventListener('click', addBatchRow);
+    }
+    const btnBatchSave = document.getElementById('btn-batch-save');
+    if (btnBatchSave) {
+      btnBatchSave.addEventListener('click', saveBatchEntries);
+    }
+  }
+
+  // ==================== 輔助工具函數 ====================
+  function formatHours(h) {
+    if (h > 48) {
+      const days = Math.floor(h / 24);
+      const remainHours = Math.round(h % 24);
+      return `${days} 天 ${remainHours} 小時`;
+    }
+    return `${h.toFixed(1)} 小時`;
+  }
+
+  function formatDateString(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function formatNumber(num) {
+    if (num === undefined || num === null) return '0';
+    const n = Number(num);
+    // 如果小於 100 且有小數點，保留一位小數；大數則四捨五入為整數，避免顯示過細
+    if (Math.abs(n) < 100 && n % 1 !== 0) {
+      return n.toLocaleString('zh-TW', { maximumFractionDigits: 1 });
+    }
+    return Math.round(n).toLocaleString('zh-TW', { maximumFractionDigits: 0 });
+  }
+
+  function lightenColor(col, amt) {
+    col = col.replace('#', '');
+    var num = parseInt(col, 16);
+    var r = (num >> 16) + amt;
+    var g = ((num >> 8) & 0x00FF) + amt;
+    var b = (col.length === 3 ? (num & 0x000F) : (num & 0x0000FF)) + amt;
+    r = Math.min(255, Math.max(0, r));
+    g = Math.min(255, Math.max(0, g));
+    b = Math.min(255, Math.max(0, b));
+    return '#' + (g | (b << 8) | (r << 16)).toString(16).padStart(6, '0');
+  }
+
+  function hexToRgba(hex, alpha) {
+    hex = hex.replace('#', '');
+    let r = parseInt(hex.substring(0, 2), 16);
+    let g = parseInt(hex.substring(2, 4), 16);
+    let b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  function generateUUID() {
+    return 'uuid-' + Math.random().toString(36).substring(2, 9) + '-' + Date.now().toString(36);
+  }
+
+  // ==================== Modal 與 UI 控制 ====================
+  function openModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.classList.add('open');
+    }
+  }
+
+  function closeAllModals() {
+    document.querySelectorAll('.modal-overlay').forEach(modal => {
+      modal.classList.remove('open');
+    });
+  }
+
+  function showLoading(show, message = "載入中...") {
+    const overlay = document.getElementById('loading-screen');
+    const textEl = overlay.querySelector('.loading-text');
+    if (overlay) {
+      if (show) {
+        textEl.innerText = message;
+        overlay.style.display = 'flex';
+        overlay.style.opacity = '1';
+      } else {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+          overlay.style.display = 'none';
+        }, 250);
+      }
+    }
+  }
+
+  function showToast(message, type = "info") {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    let iconHTML = '<i class="fa-solid fa-circle-info toast-icon"></i>';
+    if (type === 'success') iconHTML = '<i class="fa-solid fa-circle-check toast-icon"></i>';
+    else if (type === 'warning') iconHTML = '<i class="fa-solid fa-triangle-exclamation toast-icon"></i>';
+    else if (type === 'error') iconHTML = '<i class="fa-solid fa-circle-xmark toast-icon"></i>';
+    
+    toast.innerHTML = `
+      ${iconHTML}
+      <div class="toast-content">${message}</div>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.classList.add('fade-out');
+      setTimeout(() => {
+        toast.remove();
+      }, 400);
+    }, 5000);
+  }
+  
+  // ==================== Excel 匯入解析 ====================
+  function handleExcelUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    showToast('info', '解析中...', '正在讀取 Excel 檔案。');
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convert to 2D array
+        const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+        
+        // Find all header rows
+        const headerRows = [];
+        for (let i = 0; i < json.length; i++) {
+          const row = json[i];
+          if (!row) continue;
+          for (let j = 0; j < row.length; j++) {
+            if (typeof row[j] === 'string' && row[j].includes('槽別')) {
+              headerRows.push(i);
+              break;
+            }
+          }
+        }
+        
+        if (headerRows.length === 0) {
+          alert('無法在 Excel 中找到包含「槽別」的列，請確認格式。');
+          return;
+        }
+        
+        const updates = [];
+        const updateText = [];
+        
+        // Process each block
+        for (let b = 0; b < headerRows.length; b++) {
+           const startIdx = headerRows[b];
+           const endIdx = (b + 1 < headerRows.length) ? headerRows[b+1] : json.length;
+           
+           const headerRow = json[startIdx];
+           const tankNames = [];
+           const tankColIndices = [];
+           
+           // Find product row (usually right below '槽別' row)
+           const prodRow = startIdx + 1 < json.length ? json[startIdx + 1] : [];
+           const tankProducts = []; // To store product names for each tank
+
+           for (let j = 0; j < headerRow.length; j++) {
+              if (typeof headerRow[j] === 'string' && headerRow[j].includes('槽別')) {
+                 for (let k = j + 1; k < headerRow.length; k++) {
+                    if (headerRow[k]) {
+                       const cleanedName = String(headerRow[k]).toUpperCase().replace(/[- ]/g, '');
+                       tankNames.push(cleanedName);
+                       tankColIndices.push(k);
+                       // Get product name from the row below
+                       const prodName = prodRow[k] ? String(prodRow[k]).toUpperCase().replace(/[- ]/g, '') : '';
+                       tankProducts.push(prodName);
+                    }
+                 }
+                 break;
+              }
+           }
+           
+           // Find amount rows in this block
+           const amountRowIndices = [];
+           for (let i = startIdx + 1; i < endIdx; i++) {
+              const row = json[i];
+              if (!row) continue;
+              const rowStr = row.join('');
+              if (rowStr.includes('數量') || rowStr.includes('重量')) {
+                 amountRowIndices.push(i);
+              }
+           }
+           
+           // Extract latest valid weight for each tank
+           for (let idx = 0; idx < tankColIndices.length; idx++) {
+              const col = tankColIndices[idx];
+              let finalWeight = null;
+              
+              for (let r = amountRowIndices.length - 1; r >= 0; r--) {
+                 const rowIdx = amountRowIndices[r];
+                 const val = json[rowIdx][col];
+                 if (val !== undefined && val !== null && val !== '') {
+                    // Extract number from string, ignore commas
+                    const weightStr = String(val).replace(/,/g, '').trim();
+                    if (weightStr !== '' && !isNaN(Number(weightStr))) {
+                       const weight = Number(weightStr);
+                       if (weight >= 0) {
+                          finalWeight = weight;
+                          break;
+                       }
+                    }
+                 }
+              }
+              
+              if (finalWeight !== null) {
+                 const tankNameCleaned = tankNames[idx];
+                 const prodNameCleaned = tankProducts[idx];
+                 
+                 // Find tank matching BOTH name and (if possible) product
+                 let systemTank = state.tanks.find(t => {
+                     if (t.name.toUpperCase().replace(/[- ]/g, '') !== tankNameCleaned) return false;
+                     // If Excel has a product name, try to match it with the tank's product
+                     if (prodNameCleaned) {
+                         const tProd = state.products.find(p => p.id === t.productId);
+                         if (tProd) {
+                             const sysProdName = tProd.name.toUpperCase().replace(/[- ]/g, '');
+                             // Fuzzy match: if one contains the other
+                             if (sysProdName.includes(prodNameCleaned) || prodNameCleaned.includes(sysProdName)) {
+                                 return true;
+                             }
+                             return false; // Name matches but product completely differs
+                         }
+                     }
+                     return true; // Fallback if no product info available
+                 });
+                 
+                 if (!systemTank) {
+                     // Fallback to just name matching if strict product matching failed
+                     systemTank = state.tanks.find(t => t.name.toUpperCase().replace(/[- ]/g, '') === tankNameCleaned);
+                 }
+                 
+                 if (systemTank) {
+                    updates.push({ tank: systemTank, weight: finalWeight });
+                    updateText.push(`${systemTank.name}: ${finalWeight} kg`);
+                 }
+              }
+           }
+        }
+        
+        if (updates.length === 0) {
+           alert('成功解析檔案，但未找到系統中對應的儲槽或有效的數值。');
+           return;
+        }
+        
+        if (confirm(`✅ 準備更新以下 ${updates.length} 顆儲槽的庫存量 (自動採計最新數值)：\n\n${updateText.slice(0, 15).join('\n')}${updateText.length > 15 ? '\n...等' : ''}\n\n是否確定寫入？`)) {
+           updates.forEach(u => {
+              u.tank.currentLevel = u.weight;
+           });
+           saveDataToCloud(() => {
+              renderTanks();
+              updateAllDropdowns();
+              calculateAndRenderDashboard();
+              alert(`🎉 成功更新 ${updates.length} 筆儲槽庫存！`);
+           });
+        }
+        
+      } catch (err) {
+         console.error(err);
+         alert('檔案解析失敗，請確保上傳的是正確的 Excel 格式。');
+      } finally {
+         event.target.value = ''; // reset input
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+</script>
+</body>
+</html>

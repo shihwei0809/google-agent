@@ -17,6 +17,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
 
 # AI agents & tools
 .gemini/
@@ -54,6 +55,7 @@ yarn-error.log*
 
 # Jobs & Media Working Dirs
 jobs/
+三合一單輸出_*/
 
 # Archives & Executables
 *.zip
