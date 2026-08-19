@@ -75,6 +75,16 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         run.font.color.rgb = RGBColor(0x1B, 0x5E, 0x20)
         return p
 
+    def add_bullet(text, bold_prefix=""):
+        p = doc.add_paragraph(style='List Bullet')
+        p.paragraph_format.space_after = Pt(4)
+        if bold_prefix:
+            r_b = p.add_run(bold_prefix)
+            r_b.font.bold = True
+            r_b.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+        p.add_run(text)
+        return p
+
     def add_card_box(title, text):
         tbl = doc.add_table(rows=1, cols=1)
         tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -155,7 +165,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
             "領班針對體能較弱或性格溫和的男員工，公開辱罵「娘砲」、「沒卵葩」等貶抑字眼，並刻意分配極度不合理的粗重工作。",
             "聯合其他同事孤立受害者，並濫用職權給予不當勞動條件，屬於排擠與針對性霸凌。",
             "針對性別特徵與氣質進行貶抑，違反《性別平等工作法》，構成「性別氣質騷擾」。",
-            "「做粗活還這麼嬌弱，我是為了鍛鍛他。」"
+            "「做粗活還這麼嬌弱，我是為了鍛鍊他。」"
         ),
         (
             "📌 案例三\n權力展現的「敵意環境」建立",
@@ -266,11 +276,91 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
     add_h1("四、 關鍵法規辨識與企業處置建議")
     add_h2("1. 法規三大判別要項")
     doc.add_paragraph("根據《性別平等工作法》與《職業安全衛生法》：")
-    doc.add_paragraph("• 意願優先原則：性騷擾的成立「不限於異性之間」，且「不以加害者是否有意圖為限」，只要違反當事人主觀意願並感到冒犯，即構成性騷擾。")
-    doc.add_paragraph("• 性別氣質保護：針對「娘砲」、「太斯文」等性別刻板印象羞辱，屬於性別氣質騷擾，企業不得默許。")
-    doc.add_paragraph("• 敵意環境禁止：主管或同儕散布色情梗圖、建立不合群即排擠的「兄弟幫」文化，構成敵意環境。")
+    add_bullet("性騷擾的成立「不限於異性之間」，且「不以加害者是否有意圖為限」，只要違反當事人主觀意願並感到冒犯，即構成性騷擾。", "• 意願優先原則：")
+    add_bullet("針對「娘砲」、「太斯文」等性別刻板印象羞辱，屬於性別氣質騷擾，企業不得默許。", "• 性別氣質保護：")
+    add_bullet("主管或同儕散布色情梗圖、建立不合群即排擠的「兄弟幫」文化，構成敵意環境。", "• 敵意環境禁止：")
 
-    add_h2("2. 企業防治處置四步驟")
+    add_h2("2. 企業防治處置四步驟 ( Statutory 4-Step Standard Standard Protocol )")
+    doc.add_paragraph("當接獲申訴或知悉職場霸凌與性騷擾情事時，企業必須嚴格遵循以下四步驟處理程序：")
+    
+    table_steps = doc.add_table(rows=1, cols=3)
+    table_steps.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table_steps.autofit = False
+    
+    hdr_s = table_steps.rows[0].cells
+    hdr_s_titles = ["處置步驟", "核心作業項目", "具體執行內容與法規要求"]
+    hdr_s_widths = [Inches(1.5), Inches(1.8), Inches(3.6)]
+    
+    for i, title in enumerate(hdr_s_titles):
+        cell = hdr_s[i]
+        cell.width = hdr_s_widths[i]
+        set_cell_background(cell, "002060")
+        set_cell_margins(cell, top=100, bottom=100, left=100, right=100)
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r = p.add_run(title)
+        r.font.bold = True
+        r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+        r.font.size = Pt(9.5)
+
+    steps_data = [
+        (
+            "步驟一\n即時保護與隔離",
+            "立即採取有效之糾正與補救措施",
+            "接獲申訴或知悉情事時，雇主應立即啟動保護機制，調整工作排班、座位或進行適當職務隔離，避免申訴人再次遭受冒犯或二次報復。"
+        ),
+        (
+            "步驟二\n獨立調查與申訴處理",
+            "啟動獨立調查程序與性平委員會",
+            "成立獨立申訴調查小組（外聘專家學者或性平委員比例應符合法定標準），給予雙方充分陳述意見之機會，全程客觀保密處理。"
+        ),
+        (
+            "步驟三\n決議懲處與個案關懷",
+            "作成調查報告、懲處與關懷資源",
+            "依調查結果進行事實認定與權責懲處（申誡、記過、解僱等），並提供申訴人必要之心理諮商、醫療輔導與法律協助資源，依規通報主管機關。"
+        ),
+        (
+            "步驟四\n宣導教育與滾動追蹤",
+            "全員定期宣導與組織文化維護",
+            "針對調查發現之組織漏洞進行宣導，定期實施性騷擾與霸凌防治教育訓練，並持續追蹤當事人工作狀況，杜絕冷落或團體排擠。"
+        )
+    ]
+
+    for r_idx, (s_num, s_title, s_desc) in enumerate(steps_data):
+        row_cells = table_steps.add_row().cells
+        bg_col = "F9F9F9" if r_idx % 2 == 1 else "FFFFFF"
+        
+        # Step Num
+        cell0 = row_cells[0]
+        cell0.width = hdr_s_widths[0]
+        set_cell_background(cell0, bg_col)
+        set_cell_margins(cell0, top=80, bottom=80, left=80, right=80)
+        p0 = cell0.paragraphs[0]
+        p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r0 = p0.add_run(s_num)
+        r0.font.bold = True
+        r0.font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
+        
+        # Step Title
+        cell1 = row_cells[1]
+        cell1.width = hdr_s_widths[1]
+        set_cell_background(cell1, bg_col)
+        set_cell_margins(cell1, top=80, bottom=80, left=80, right=80)
+        p1 = cell1.paragraphs[0]
+        r1 = p1.add_run(s_title)
+        r1.font.bold = True
+        r1.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+        
+        # Step Desc
+        cell2 = row_cells[2]
+        cell2.width = hdr_s_widths[2]
+        set_cell_background(cell2, bg_col)
+        set_cell_margins(cell2, top=80, bottom=80, left=80, right=80)
+        p2 = cell2.paragraphs[0]
+        p2.add_run(s_desc)
+
+    doc.add_paragraph().paragraph_format.space_after = Pt(10)
+
     add_card_box("企業法定義務提醒", "當接獲申訴或知悉性騷擾/霸凌情事時，雇主必須立即採取「有效之糾正及補救措施」（包含保護申訴人、啟動獨立調查程序、隔離加害者、給予心理諮商支援），否則依法最高可處新臺幣 100 萬元罰鍰。")
 
     doc.save(docx_path)
