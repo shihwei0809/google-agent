@@ -24,12 +24,12 @@ def set_cell_background(cell, fill_hex):
     shd = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{fill_hex}"/>')
     tcPr.append(shd)
 
-def set_cell_margins(cell, top=80, bottom=80, left=100, right=100):
+def set_cell_margins(cell, top=100, bottom=100, left=120, right=120):
     tcPr = cell._tc.get_or_add_tcPr()
     tcMar = parse_xml(f'<w:tcMar {nsdecls("w")}><w:top w:w="{top}" w:type="dxa"/><w:bottom w:w="{bottom}" w:type="dxa"/><w:left w:w="{left}" w:type="dxa"/><w:right w:w="{right}" w:type="dxa"/></w:tcMar>')
     tcPr.append(tcMar)
 
-def apply_font(run, size=10, bold=False, color_rgb=(0x33, 0x33, 0x33), italic=False):
+def apply_font(run, size=10.5, bold=False, color_rgb=(0x33, 0x33, 0x33), italic=False):
     run.font.size = Pt(size)
     run.font.bold = bold
     run.font.italic = italic
@@ -39,38 +39,38 @@ def apply_font(run, size=10, bold=False, color_rgb=(0x33, 0x33, 0x33), italic=Fa
     rPr.append(rFonts)
 
 # ==========================================
-# 版本一：橫向簡報風格 (Landscape)
+# 版本一：橫向大字簡報風格 (Landscape Large Font - 10.5pt ~ 11pt)
 # ==========================================
 def build_version_1(docx_path):
     doc = docx.Document()
     section = doc.sections[0]
     section.orientation = WD_ORIENT.LANDSCAPE
-    section.page_width = Inches(11.69) # A4 Landscape
+    section.page_width = Inches(11.69)
     section.page_height = Inches(8.27)
     section.top_margin = Inches(0.5)
     section.bottom_margin = Inches(0.5)
-    section.left_margin = Inches(0.6)
-    section.right_margin = Inches(0.6)
+    section.left_margin = Inches(0.5)
+    section.right_margin = Inches(0.5)
 
-    # 標題
+    # 標題 (放大至 22pt)
     p_t = doc.add_paragraph()
     p_t.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_t = p_t.add_run("【職場霸凌與性騷擾案例分析與法規辨識手冊】")
-    apply_font(r_t, size=18, bold=True, color_rgb=(0x00, 0x20, 0x60))
-    p_t.paragraph_format.space_after = Pt(2)
+    apply_font(r_t, size=22, bold=True, color_rgb=(0x00, 0x20, 0x60))
+    p_t.paragraph_format.space_after = Pt(4)
 
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_s = p_sub.add_run("廠區作業與辦公室情境實務案例彙整評析 (男同儕與職場性別友善專題)")
-    apply_font(r_s, size=10, bold=True, color_rgb=(0xC0, 0x00, 0x00))
-    p_sub.paragraph_format.space_after = Pt(8)
+    r_s = p_sub.add_run("廠區作業與辦公室情境實務案例彙整評析 (大字簡報宣導版)")
+    apply_font(r_s, size=12, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+    p_sub.paragraph_format.space_after = Pt(10)
 
     def add_h1(text):
         p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(8)
+        p.paragraph_format.space_before = Pt(10)
         p.paragraph_format.space_after = Pt(4)
         r = p.add_run(text)
-        apply_font(r, size=13, bold=True, color_rgb=(0x00, 0x20, 0x60))
+        apply_font(r, size=15, bold=True, color_rgb=(0x00, 0x20, 0x60))
         return p
 
     # 一、廠區案例
@@ -78,9 +78,9 @@ def build_version_1(docx_path):
     if os.path.exists(img_factory):
         p_img = doc.add_paragraph()
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_img.paragraph_format.space_after = Pt(6)
+        p_img.paragraph_format.space_after = Pt(8)
         r = p_img.add_run()
-        r.add_picture(img_factory, width=Inches(9.2))
+        r.add_picture(img_factory, width=Inches(9.6))
 
     table1 = doc.add_table(rows=1, cols=6)
     table1.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -88,22 +88,22 @@ def build_version_1(docx_path):
     
     hdr1 = table1.rows[0].cells
     hdr1_titles = ["案例類型", "發生場景", "行為樣態", "霸凌成分", "性騷擾成分", "加害者常見藉口"]
-    hdr1_widths = [Inches(1.5), Inches(1.3), Inches(2.6), Inches(2.0), Inches(2.0), Inches(1.5)]
+    hdr1_widths = [Inches(1.6), Inches(1.4), Inches(2.8), Inches(2.1), Inches(2.1), Inches(1.6)]
     
     for i, title in enumerate(hdr1_titles):
         cell = hdr1[i]
         cell.width = hdr1_widths[i]
         set_cell_background(cell, "002060")
-        set_cell_margins(cell, top=60, bottom=60, left=60, right=60)
+        set_cell_margins(cell, top=80, bottom=80, left=80, right=80)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(title)
-        apply_font(r, size=9.5, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
+        apply_font(r, size=11, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
 
     data1 = [
-        ("【案例一】\n假借「玩笑」的肢體侵犯", "更衣室、狹窄作業區", "資深員工以「迎新、好玩」為由，對新進男員工進行「阿魯巴」、強行拉扯衣物，或碰觸臀部與下體。", "利用資歷與人數優勢（多對一）使新人不敢反抗，形成權力霸凌。", "違反意願的私密部位觸碰，構成「肢體性騷擾」。", "「大家都是男人，摸一下會少一塊肉嗎？」"),
-        ("【案例二】\n針對「性別氣質」的言語羞辱", "交接班會議、搬運現場", "領班針對體能較弱或性格溫和的男員工，公開辱罵「娘砲」、「沒卵葩」等貶抑字眼，並分配極重工作。", "聯合其他同事孤立受害者，並濫用職權給予不當勞動條件。", "針對性別特徵與氣質進行貶抑，構成「性別氣質騷擾」。", "「做粗活還這麼嬌弱，我是為了鍛鍊他。」"),
-        ("【案例三】\n權力展現的「敵意環境」建立", "吸菸區、現場通訊群組", "小主管常在休息時間強迫展示色情影片，當眾詢問性生活細節。反感者會在排班考績上遭到刁難。", "利用排班與考評權力進行威脅與報復，屬於職權霸凌。", "散布色情圖文並製造冒犯恐懼氛圍，構成「敵意環境性騷擾」。", "「開個黃腔而已，也太開不起玩笑了。」")
+        ("【案例一】\n假借「玩笑」肢體侵犯", "更衣室、狹窄作業區", "資深員工以「迎新、好玩」為由，對新進男員工進行「阿魯巴」、強行拉扯衣物，或碰觸臀部與下體。", "利用資歷與人數優勢（多對一）使新人不敢反抗，形成權力霸凌。", "違反意願的私密部位觸碰，構成「肢體性騷擾」。", "「大家都是男人，摸一下會少一塊肉嗎？」"),
+        ("【案例二】\n針對「性別氣質」言語羞辱", "交接班會議、搬運現場", "領班針對體能較弱或性格溫和的男員工，公開辱罵「娘砲」、「沒卵葩」等貶抑字眼，並分配極重工作。", "聯合其他同事孤立受害者，並濫用職權給予不當勞動條件。", "針對性別特徵與氣質進行貶抑，構成「性別氣質騷擾」。", "「做粗活還這麼嬌弱，我是為了鍛鍊他。」"),
+        ("【案例三】\n權力展現「敵意環境」", "吸菸區、現場通訊群組", "小主管常在休息時間強迫展示色情影片，當眾詢問性生活細節。反感者會在排班考績上遭到刁難。", "利用排班與考評權力進行威脅與報復，屬於職權霸凌。", "散布色情圖文並製造冒犯恐懼氛圍，構成「敵意環境性騷擾」。", "「開個黃腔而已，也太開不起玩笑了。」")
     ]
 
     for r_idx, row in enumerate(data1):
@@ -113,17 +113,17 @@ def build_version_1(docx_path):
             cell = row_cells[c_idx]
             cell.width = hdr1_widths[c_idx]
             set_cell_background(cell, bg_col)
-            set_cell_margins(cell, top=60, bottom=60, left=60, right=60)
+            set_cell_margins(cell, top=80, bottom=80, left=80, right=80)
             p = cell.paragraphs[0]
             p.paragraph_format.space_after = Pt(0)
             r = p.add_run(val)
             if c_idx == 0:
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                apply_font(r, size=9, bold=True, color_rgb=(0x00, 0x20, 0x60))
+                apply_font(r, size=10.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
             elif c_idx == 5:
-                apply_font(r, size=8.5, italic=True, color_rgb=(0xC0, 0x00, 0x00))
+                apply_font(r, size=10, italic=True, bold=True, color_rgb=(0xC0, 0x00, 0x00))
             else:
-                apply_font(r, size=8.5, color_rgb=(0x33, 0x33, 0x33))
+                apply_font(r, size=10, color_rgb=(0x33, 0x33, 0x33))
 
     doc.add_page_break()
 
@@ -132,9 +132,9 @@ def build_version_1(docx_path):
     if os.path.exists(img_office):
         p_img = doc.add_paragraph()
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_img.paragraph_format.space_after = Pt(6)
+        p_img.paragraph_format.space_after = Pt(8)
         r = p_img.add_run()
-        r.add_picture(img_office, width=Inches(9.2))
+        r.add_picture(img_office, width=Inches(9.6))
 
     table2 = doc.add_table(rows=1, cols=6)
     table2.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -145,16 +145,16 @@ def build_version_1(docx_path):
         cell = hdr2[i]
         cell.width = hdr1_widths[i]
         set_cell_background(cell, "1B5E20")
-        set_cell_margins(cell, top=60, bottom=60, left=60, right=60)
+        set_cell_margins(cell, top=80, bottom=80, left=80, right=80)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(title)
-        apply_font(r, size=9.5, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
+        apply_font(r, size=11, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
 
     data2 = [
-        ("【案例一】\n通訊軟體與言語的「黃色玩笑」", "茶水間、部門 LINE 群組", "同事常在群組傳送色情梗圖，或在茶水間公開拿男同事性生活或「斯文氣質」開黃腔嘲笑。", "透過公開嘲弄建立社交優勢地位，屬於言語霸凌。", "針對性特徵與性別氣質嘲笑並散布圖文，構成「言語與視覺性騷擾」。", "「這只是男生之間的幹話，幹嘛這麼嚴肅？」"),
+        ("【案例一】\n通訊軟體與言語黃色玩笑", "茶水間、部門 LINE 群組", "同事常在群組傳送色情梗圖，或在茶水間公開拿男同事性生活或「斯文氣質」開黃腔嘲笑。", "透過公開嘲弄建立社交優勢地位，屬於言語霸凌。", "針對性特徵與性別氣質嘲笑並散布圖文，構成「言語與視覺性騷擾」。", "「這只是男生之間的幹話，幹嘛這麼嚴肅？」"),
         ("【案例二】\n假借放鬆的「肢體越界」", "辦公座位區、員工休息區", "以「看你最近壓力很大」為由強行幫男同事「按摩」肩頸，或走道交錯時拍打對方臀部、大腿。", "無視他人身體界線，利用體型強迫接受接觸，屬於行為霸凌。", "違反當事人意願，觸碰具有性意涵部位，構成「肢體性騷擾」。", "「大家都是兄弟，抓一下肩膀又不會懷孕。」"),
-        ("【案例三】\n「兄弟幫」的社交排擠與針對", "跨部門會議、應酬聚會", "辦公室形成特定「兄弟小團體」。不參與粗俗玩笑者，專案被隱瞞資訊或會議上被貶低意見。", "刻意孤立特定對象並阻礙執行工作，屬於關係霸凌與排擠。", "營造「不加入開黃腔就不合群」氛圍，構成「敵意環境性騷擾」。", "「他自己不合群太難相處，我們才不想跟他合作。」")
+        ("【案例三】\n「兄弟幫」社交排擠針對", "跨部門會議、應酬聚會", "辦公室形成特定「兄弟小團體」。不參與粗俗玩笑者，專案被隱瞞資訊或會議上被貶低意見。", "刻意孤立特定對象並阻礙執行工作，屬於關係霸凌與排擠。", "營造「不加入開黃腔就不合群」氛圍，構成「敵意環境性騷擾」。", "「他自己不合群太難相處，我們才不想跟他合作。」")
     ]
 
     for r_idx, row in enumerate(data2):
@@ -164,17 +164,17 @@ def build_version_1(docx_path):
             cell = row_cells[c_idx]
             cell.width = hdr1_widths[c_idx]
             set_cell_background(cell, bg_col)
-            set_cell_margins(cell, top=60, bottom=60, left=60, right=60)
+            set_cell_margins(cell, top=80, bottom=80, left=80, right=80)
             p = cell.paragraphs[0]
             p.paragraph_format.space_after = Pt(0)
             r = p.add_run(val)
             if c_idx == 0:
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                apply_font(r, size=9, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
+                apply_font(r, size=10.5, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
             elif c_idx == 5:
-                apply_font(r, size=8.5, italic=True, color_rgb=(0xC0, 0x00, 0x00))
+                apply_font(r, size=10, italic=True, bold=True, color_rgb=(0xC0, 0x00, 0x00))
             else:
-                apply_font(r, size=8.5, color_rgb=(0x33, 0x33, 0x33))
+                apply_font(r, size=10, color_rgb=(0x33, 0x33, 0x33))
 
     doc.add_page_break()
 
@@ -187,17 +187,17 @@ def build_version_1(docx_path):
     
     hdr_s = table_steps.rows[0].cells
     hdr_s_titles = ["處置步驟", "核心作業項目", "具體執行內容與法規要求"]
-    hdr_s_widths = [Inches(2.0), Inches(2.5), Inches(6.4)]
+    hdr_s_widths = [Inches(2.2), Inches(2.8), Inches(6.6)]
     
     for i, title in enumerate(hdr_s_titles):
         cell = hdr_s[i]
         cell.width = hdr_s_widths[i]
         set_cell_background(cell, "002060")
-        set_cell_margins(cell, top=60, bottom=60, left=60, right=60)
+        set_cell_margins(cell, top=80, bottom=80, left=80, right=80)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(title)
-        apply_font(r, size=9.5, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
+        apply_font(r, size=11, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
 
     for r_idx, (s_num, s_title, s_desc) in enumerate(steps_data):
         row_cells = table_steps.add_row().cells
@@ -206,47 +206,47 @@ def build_version_1(docx_path):
         cell0 = row_cells[0]
         cell0.width = hdr_s_widths[0]
         set_cell_background(cell0, bg_col)
-        set_cell_margins(cell0, top=60, bottom=60, left=60, right=60)
+        set_cell_margins(cell0, top=80, bottom=80, left=80, right=80)
         p0 = cell0.paragraphs[0]
         p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r0 = p0.add_run(s_num)
-        apply_font(r0, size=9, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+        apply_font(r0, size=10.5, bold=True, color_rgb=(0xC0, 0x00, 0x00))
         
         cell1 = row_cells[1]
         cell1.width = hdr_s_widths[1]
         set_cell_background(cell1, bg_col)
-        set_cell_margins(cell1, top=60, bottom=60, left=60, right=60)
+        set_cell_margins(cell1, top=80, bottom=80, left=80, right=80)
         p1 = cell1.paragraphs[0]
         r1 = p1.add_run(s_title)
-        apply_font(r1, size=9, bold=True, color_rgb=(0x00, 0x20, 0x60))
+        apply_font(r1, size=10.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
         
         cell2 = row_cells[2]
         cell2.width = hdr_s_widths[2]
         set_cell_background(cell2, bg_col)
-        set_cell_margins(cell2, top=60, bottom=60, left=60, right=60)
+        set_cell_margins(cell2, top=80, bottom=80, left=80, right=80)
         p2 = cell2.paragraphs[0]
         r2 = p2.add_run(s_desc)
-        apply_font(r2, size=9, color_rgb=(0x33, 0x33, 0x33))
+        apply_font(r2, size=10, color_rgb=(0x33, 0x33, 0x33))
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(6)
+    doc.add_paragraph().paragraph_format.space_after = Pt(8)
 
     # 警示框
     tbl_card = doc.add_table(rows=1, cols=1)
     tbl_card.alignment = WD_TABLE_ALIGNMENT.CENTER
     c_card = tbl_card.cell(0, 0)
     set_cell_background(c_card, "FFF8E7")
-    set_cell_margins(c_card, top=80, bottom=80, left=100, right=100)
+    set_cell_margins(c_card, top=100, bottom=100, left=120, right=120)
     p_c = c_card.paragraphs[0]
     r_ct = p_c.add_run("◆ 企業法定義務提醒：")
-    apply_font(r_ct, size=9.5, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+    apply_font(r_ct, size=11, bold=True, color_rgb=(0xC0, 0x00, 0x00))
     r_cd = p_c.add_run("當接獲申訴或知悉性騷擾/霸凌情事時，雇主必須立即採取「有效之糾正及補救措施」（包含保護申訴人、啟動獨立調查程序、隔離加害者、給予心理諮商支援），否則依法最高可處新臺幣 100 萬元罰鍰。")
-    apply_font(r_cd, size=9, color_rgb=(0x33, 0x33, 0x33))
+    apply_font(r_cd, size=10.5, color_rgb=(0x33, 0x33, 0x33))
 
     doc.save(docx_path)
-    print(f"Version 1 (Landscape) saved to: {docx_path}")
+    print(f"Version 1 (Landscape Large Font) saved to: {docx_path}")
 
 # ==========================================
-# 版本二：緊湊直向 3 頁完結版 (Portrait 3-Page)
+# 版本二：直向大字清晰版 (Portrait Large Font - 10pt~10.5pt)
 # ==========================================
 def build_version_2(docx_path):
     doc = docx.Document()
@@ -258,30 +258,30 @@ def build_version_2(docx_path):
 
     def add_h1(text):
         p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(8)
-        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_before = Pt(10)
+        p.paragraph_format.space_after = Pt(4)
         r = p.add_run(text)
-        apply_font(r, size=12, bold=True, color_rgb=(0x00, 0x20, 0x60))
+        apply_font(r, size=14, bold=True, color_rgb=(0x00, 0x20, 0x60))
         return p
 
     # --- PAGE 1 ---
     p_t = doc.add_paragraph()
     p_t.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_t = p_t.add_run("【職場霸凌與性騷擾案例分析與法規辨識手冊】")
-    apply_font(r_t, size=16, bold=True, color_rgb=(0x00, 0x20, 0x60))
+    apply_font(r_t, size=18, bold=True, color_rgb=(0x00, 0x20, 0x60))
     p_t.paragraph_format.space_after = Pt(2)
 
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_s = p_sub.add_run("廠區作業與辦公室情境實務案例彙整評析 (男同儕與職場性別友善專題)")
-    apply_font(r_s, size=9.5, bold=True, color_rgb=(0xC0, 0x00, 0x00))
-    p_sub.paragraph_format.space_after = Pt(4)
+    r_s = p_sub.add_run("廠區作業與辦公室情境實務案例彙整評析 (直向大字清晰版)")
+    apply_font(r_s, size=10.5, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+    p_sub.paragraph_format.space_after = Pt(6)
 
     add_h1("一、 廠區作業現場情境案例評析")
     if os.path.exists(img_factory):
         p_img = doc.add_paragraph()
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_img.paragraph_format.space_after = Pt(4)
+        p_img.paragraph_format.space_after = Pt(6)
         r = p_img.add_run()
         r.add_picture(img_factory, width=Inches(6.8))
 
@@ -297,11 +297,11 @@ def build_version_2(docx_path):
         cell = hdr1[i]
         cell.width = hdr1_widths[i]
         set_cell_background(cell, "002060")
-        set_cell_margins(cell, top=40, bottom=40, left=40, right=40)
+        set_cell_margins(cell, top=60, bottom=60, left=50, right=50)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(title)
-        apply_font(r, size=9, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
+        apply_font(r, size=10, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
 
     data1 = [
         ("【案例一】\n假借「玩笑」肢體侵犯", "更衣室、狹窄作業區", "資深員工以迎新好玩為由對新進男員工拉扯衣物或碰觸臀部下體。", "利用資歷人數優勢（多對一）使新人不敢反抗，形成權力霸凌。", "違反意願私密部位觸碰，構成肢體性騷擾。", "「大家都是男人，摸一下會少一塊肉嗎？」"),
@@ -316,17 +316,17 @@ def build_version_2(docx_path):
             cell = row_cells[c_idx]
             cell.width = hdr1_widths[c_idx]
             set_cell_background(cell, bg_col)
-            set_cell_margins(cell, top=40, bottom=40, left=40, right=40)
+            set_cell_margins(cell, top=60, bottom=60, left=50, right=50)
             p = cell.paragraphs[0]
             p.paragraph_format.space_after = Pt(0)
             r = p.add_run(val)
             if c_idx == 0:
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                apply_font(r, size=8.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
+                apply_font(r, size=9.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
             elif c_idx == 5:
-                apply_font(r, size=8, italic=True, color_rgb=(0xC0, 0x00, 0x00))
+                apply_font(r, size=9, italic=True, bold=True, color_rgb=(0xC0, 0x00, 0x00))
             else:
-                apply_font(r, size=8, color_rgb=(0x33, 0x33, 0x33))
+                apply_font(r, size=9.5, color_rgb=(0x33, 0x33, 0x33))
 
     doc.add_page_break()
 
@@ -335,7 +335,7 @@ def build_version_2(docx_path):
     if os.path.exists(img_office):
         p_img = doc.add_paragraph()
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_img.paragraph_format.space_after = Pt(4)
+        p_img.paragraph_format.space_after = Pt(6)
         r = p_img.add_run()
         r.add_picture(img_office, width=Inches(6.8))
 
@@ -348,11 +348,11 @@ def build_version_2(docx_path):
         cell = hdr2[i]
         cell.width = hdr1_widths[i]
         set_cell_background(cell, "1B5E20")
-        set_cell_margins(cell, top=40, bottom=40, left=40, right=40)
+        set_cell_margins(cell, top=60, bottom=60, left=50, right=50)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(title)
-        apply_font(r, size=9, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
+        apply_font(r, size=10, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
 
     data2 = [
         ("【案例一】\n通訊軟體與言語黃色玩笑", "茶水間、部門 LINE 群組", "同事常在群組傳色情梗圖，或在茶水間拿男同事性生活與斯文氣質開黃腔。", "透過公開嘲弄建立社交優勢地位，屬於言語霸凌。", "針對性特徵與氣質嘲笑並散布圖文，構成言語與視覺性騷擾。", "「這只是男生之間的幹話，幹嘛這麼嚴肅？」"),
@@ -367,17 +367,17 @@ def build_version_2(docx_path):
             cell = row_cells[c_idx]
             cell.width = hdr1_widths[c_idx]
             set_cell_background(cell, bg_col)
-            set_cell_margins(cell, top=40, bottom=40, left=40, right=40)
+            set_cell_margins(cell, top=60, bottom=60, left=50, right=50)
             p = cell.paragraphs[0]
             p.paragraph_format.space_after = Pt(0)
             r = p.add_run(val)
             if c_idx == 0:
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                apply_font(r, size=8.5, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
+                apply_font(r, size=9.5, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
             elif c_idx == 5:
-                apply_font(r, size=8, italic=True, color_rgb=(0xC0, 0x00, 0x00))
+                apply_font(r, size=9, italic=True, bold=True, color_rgb=(0xC0, 0x00, 0x00))
             else:
-                apply_font(r, size=8, color_rgb=(0x33, 0x33, 0x33))
+                apply_font(r, size=9.5, color_rgb=(0x33, 0x33, 0x33))
 
     doc.add_page_break()
 
@@ -387,16 +387,16 @@ def build_version_2(docx_path):
     p_b1 = doc.add_paragraph(style='List Bullet')
     p_b1.paragraph_format.space_after = Pt(2)
     r = p_b1.add_run("• 意願優先原則：")
-    apply_font(r, size=9, bold=True, color_rgb=(0x00, 0x20, 0x60))
+    apply_font(r, size=10, bold=True, color_rgb=(0x00, 0x20, 0x60))
     r2 = p_b1.add_run("性騷擾成立不限於異性之間，只要違反當事人意願並感到冒犯即成立。")
-    apply_font(r2, size=9)
+    apply_font(r2, size=10)
 
     p_b2 = doc.add_paragraph(style='List Bullet')
-    p_b2.paragraph_format.space_after = Pt(4)
+    p_b2.paragraph_format.space_after = Pt(6)
     r = p_b2.add_run("• 性別氣質保護與敵意環境：")
-    apply_font(r, size=9, bold=True, color_rgb=(0x00, 0x20, 0x60))
+    apply_font(r, size=10, bold=True, color_rgb=(0x00, 0x20, 0x60))
     r2 = p_b2.add_run("針對「娘砲」、「太斯文」羞辱或散布色情梗圖建立排擠文化，皆屬違法敵意環境。")
-    apply_font(r2, size=9)
+    apply_font(r2, size=10)
 
     table_steps = doc.add_table(rows=1, cols=3)
     table_steps.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -410,11 +410,11 @@ def build_version_2(docx_path):
         cell = hdr_s[i]
         cell.width = hdr_s_widths[i]
         set_cell_background(cell, "002060")
-        set_cell_margins(cell, top=40, bottom=40, left=40, right=40)
+        set_cell_margins(cell, top=60, bottom=60, left=60, right=60)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(title)
-        apply_font(r, size=9, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
+        apply_font(r, size=10, bold=True, color_rgb=(0xFF, 0xFF, 0xFF))
 
     for r_idx, (s_num, s_title, s_desc) in enumerate(steps_data):
         row_cells = table_steps.add_row().cells
@@ -423,46 +423,46 @@ def build_version_2(docx_path):
         cell0 = row_cells[0]
         cell0.width = hdr_s_widths[0]
         set_cell_background(cell0, bg_col)
-        set_cell_margins(cell0, top=40, bottom=40, left=40, right=40)
+        set_cell_margins(cell0, top=60, bottom=60, left=60, right=60)
         p0 = cell0.paragraphs[0]
         p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r0 = p0.add_run(s_num)
-        apply_font(r0, size=8.5, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+        apply_font(r0, size=9.5, bold=True, color_rgb=(0xC0, 0x00, 0x00))
         
         cell1 = row_cells[1]
         cell1.width = hdr_s_widths[1]
         set_cell_background(cell1, bg_col)
-        set_cell_margins(cell1, top=40, bottom=40, left=40, right=40)
+        set_cell_margins(cell1, top=60, bottom=60, left=60, right=60)
         p1 = cell1.paragraphs[0]
         r1 = p1.add_run(s_title)
-        apply_font(r1, size=8.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
+        apply_font(r1, size=9.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
         
         cell2 = row_cells[2]
         cell2.width = hdr_s_widths[2]
         set_cell_background(cell2, bg_col)
-        set_cell_margins(cell2, top=40, bottom=40, left=40, right=40)
+        set_cell_margins(cell2, top=60, bottom=60, left=60, right=60)
         p2 = cell2.paragraphs[0]
         r2 = p2.add_run(s_desc)
-        apply_font(r2, size=8.5, color_rgb=(0x33, 0x33, 0x33))
+        apply_font(r2, size=9.5, color_rgb=(0x33, 0x33, 0x33))
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(4)
+    doc.add_paragraph().paragraph_format.space_after = Pt(6)
 
     tbl_card = doc.add_table(rows=1, cols=1)
     tbl_card.alignment = WD_TABLE_ALIGNMENT.CENTER
     c_card = tbl_card.cell(0, 0)
     set_cell_background(c_card, "FFF8E7")
-    set_cell_margins(c_card, top=60, bottom=60, left=80, right=80)
+    set_cell_margins(c_card, top=80, bottom=80, left=100, right=100)
     p_c = c_card.paragraphs[0]
     r_ct = p_c.add_run("◆ 企業法定義務提醒：")
-    apply_font(r_ct, size=9, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+    apply_font(r_ct, size=10, bold=True, color_rgb=(0xC0, 0x00, 0x00))
     r_cd = p_c.add_run("當接獲申訴或知悉性騷擾/霸凌情事時，雇主必須立即採取「有效之糾正及補救措施」（包含保護申訴人、啟動獨立調查程序、隔離加害者、給予心理諮商支援），否則依法最高可處新臺幣 100 萬元罰鍰。")
-    apply_font(r_cd, size=8.5, color_rgb=(0x33, 0x33, 0x33))
+    apply_font(r_cd, size=9.5, color_rgb=(0x33, 0x33, 0x33))
 
     doc.save(docx_path)
-    print(f"Version 2 (Portrait 3-Page) saved to: {docx_path}")
+    print(f"Version 2 (Portrait Large Font) saved to: {docx_path}")
 
 # ==========================================
-# 版本三：圖文卡片風格 (Card Modules)
+# 版本三：大字圖文卡片風格 (Card Modules Large Font - 11pt)
 # ==========================================
 def build_version_3(docx_path):
     doc = docx.Document()
@@ -474,30 +474,30 @@ def build_version_3(docx_path):
 
     def add_h1(text):
         p = doc.add_paragraph()
-        p.paragraph_format.space_before = Pt(12)
-        p.paragraph_format.space_after = Pt(4)
+        p.paragraph_format.space_before = Pt(14)
+        p.paragraph_format.space_after = Pt(6)
         r = p.add_run(text)
-        apply_font(r, size=13, bold=True, color_rgb=(0x00, 0x20, 0x60))
+        apply_font(r, size=15, bold=True, color_rgb=(0x00, 0x20, 0x60))
         return p
 
     p_t = doc.add_paragraph()
     p_t.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_t = p_t.add_run("【職場霸凌與性騷擾案例分析與法規辨識手冊】")
-    apply_font(r_t, size=18, bold=True, color_rgb=(0x00, 0x20, 0x60))
+    apply_font(r_t, size=20, bold=True, color_rgb=(0x00, 0x20, 0x60))
     p_t.paragraph_format.space_after = Pt(2)
 
     p_sub = doc.add_paragraph()
     p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_s = p_sub.add_run("圖文資訊卡片版 (男同儕與職場性別友善專題)")
-    apply_font(r_s, size=10, bold=True, color_rgb=(0xC0, 0x00, 0x00))
-    p_sub.paragraph_format.space_after = Pt(8)
+    r_s = p_sub.add_run("圖文資訊大字卡片版 (男同儕與職場性別友善專題)")
+    apply_font(r_s, size=11, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+    p_sub.paragraph_format.space_after = Pt(10)
 
     # 一、廠區卡片
     add_h1("一、 廠區作業現場情境案例卡片")
     if os.path.exists(img_factory):
         p_img = doc.add_paragraph()
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_img.paragraph_format.space_after = Pt(6)
+        p_img.paragraph_format.space_after = Pt(8)
         r = p_img.add_run()
         r.add_picture(img_factory, width=Inches(6.8))
 
@@ -512,21 +512,21 @@ def build_version_3(docx_path):
         tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
         cell = tbl.cell(0, 0)
         set_cell_background(cell, "F0F4F8")
-        set_cell_margins(cell, top=60, bottom=60, left=100, right=100)
+        set_cell_margins(cell, top=80, bottom=80, left=120, right=120)
         p = cell.paragraphs[0]
-        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_after = Pt(4)
         r_t = p.add_run(f"📌 {title} （發生場景：{loc}）\n")
-        apply_font(r_t, size=10, bold=True, color_rgb=(0x00, 0x20, 0x60))
+        apply_font(r_t, size=11.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
         
         r_a = p.add_run(f"• 行為樣態：{act}\n")
-        apply_font(r_a, size=9, color_rgb=(0x33, 0x33, 0x33))
+        apply_font(r_a, size=10.5, color_rgb=(0x33, 0x33, 0x33))
         
         r_b = p.add_run(f"• 霸凌成分：{b_comp}  |  • 性騷擾成分：{s_comp}\n")
-        apply_font(r_b, size=9, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
+        apply_font(r_b, size=10.5, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
         
         r_e = p.add_run(f"💬 加害常見藉口：{excuse}")
-        apply_font(r_e, size=8.5, italic=True, color_rgb=(0xC0, 0x00, 0x00))
-        doc.add_paragraph().paragraph_format.space_after = Pt(2)
+        apply_font(r_e, size=10, italic=True, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+        doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
     doc.add_page_break()
 
@@ -535,7 +535,7 @@ def build_version_3(docx_path):
     if os.path.exists(img_office):
         p_img = doc.add_paragraph()
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        p_img.paragraph_format.space_after = Pt(6)
+        p_img.paragraph_format.space_after = Pt(8)
         r = p_img.add_run()
         r.add_picture(img_office, width=Inches(6.8))
 
@@ -550,21 +550,21 @@ def build_version_3(docx_path):
         tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
         cell = tbl.cell(0, 0)
         set_cell_background(cell, "F0F8F0")
-        set_cell_margins(cell, top=60, bottom=60, left=100, right=100)
+        set_cell_margins(cell, top=80, bottom=80, left=120, right=120)
         p = cell.paragraphs[0]
-        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_after = Pt(4)
         r_t = p.add_run(f"📌 {title} （發生場景：{loc}）\n")
-        apply_font(r_t, size=10, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
+        apply_font(r_t, size=11.5, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
         
         r_a = p.add_run(f"• 行為樣態：{act}\n")
-        apply_font(r_a, size=9, color_rgb=(0x33, 0x33, 0x33))
+        apply_font(r_a, size=10.5, color_rgb=(0x33, 0x33, 0x33))
         
         r_b = p.add_run(f"• 霸凌成分：{b_comp}  |  • 性騷擾成分：{s_comp}\n")
-        apply_font(r_b, size=9, bold=True, color_rgb=(0x00, 0x20, 0x60))
+        apply_font(r_b, size=10.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
         
         r_e = p.add_run(f"💬 加害常見藉口：{excuse}")
-        apply_font(r_e, size=8.5, italic=True, color_rgb=(0xC0, 0x00, 0x00))
-        doc.add_paragraph().paragraph_format.space_after = Pt(2)
+        apply_font(r_e, size=10, italic=True, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+        doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
     # 三、法規處置四步驟
     add_h1("三、 企業處置四步驟卡片")
@@ -573,17 +573,17 @@ def build_version_3(docx_path):
         tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
         cell = tbl.cell(0, 0)
         set_cell_background(cell, "FFF5F5")
-        set_cell_margins(cell, top=60, bottom=60, left=100, right=100)
+        set_cell_margins(cell, top=80, bottom=80, left=120, right=120)
         p = cell.paragraphs[0]
-        p.paragraph_format.space_after = Pt(2)
+        p.paragraph_format.space_after = Pt(4)
         r_t = p.add_run(f"▶ {s_num} —— {s_title}\n")
-        apply_font(r_t, size=9.5, bold=True, color_rgb=(0xC0, 0x00, 0x00))
+        apply_font(r_t, size=11, bold=True, color_rgb=(0xC0, 0x00, 0x00))
         r_d = p.add_run(f"說明：{s_desc}")
-        apply_font(r_d, size=9, color_rgb=(0x33, 0x33, 0x33))
-        doc.add_paragraph().paragraph_format.space_after = Pt(2)
+        apply_font(r_d, size=10.5, color_rgb=(0x33, 0x33, 0x33))
+        doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
     doc.save(docx_path)
-    print(f"Version 3 (Card Modules) saved to: {docx_path}")
+    print(f"Version 3 (Card Modules Large Font) saved to: {docx_path}")
 
 def convert_to_pdf(docx_path, pdf_path):
     try:
@@ -598,6 +598,10 @@ def convert_to_pdf(docx_path, pdf_path):
         print(f"PDF error: {e}")
 
 if __name__ == "__main__":
+    # 更新預設檔案職場霸凌與性騷擾案例分析與法規辨識手冊.docx 為大字橫向版
+    main_docx = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊.docx")
+    main_pdf = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊.pdf")
+
     v1_docx = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊_橫向簡報版.docx")
     v1_pdf = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊_橫向簡報版.pdf")
     
@@ -606,6 +610,9 @@ if __name__ == "__main__":
 
     v3_docx = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊_圖文模組卡片版.docx")
     v3_pdf = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊_圖文模組卡片版.pdf")
+
+    build_version_1(main_docx)
+    convert_to_pdf(main_docx, main_pdf)
 
     build_version_1(v1_docx)
     convert_to_pdf(v1_docx, v1_pdf)
