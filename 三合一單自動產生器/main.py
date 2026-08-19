@@ -375,8 +375,10 @@ class App(tk.Tk):
         top_ctrl_frame = tk.Frame(self)
         top_ctrl_frame.pack(fill="x", pady=(0, 8))
         
-        tk.Label(top_ctrl_frame, text="提示：可在「批號」貼上多筆資料，或直接點右側匯入 Excel。", fg="#555", justify="left").pack(side="left")
-        tk.Button(top_ctrl_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right")
+        tk.Label(top_ctrl_frame, text="提示：可在「批號」貼上多筆資料，支援自訂欄位順序（如到貨/批號/槽號/地點），或點右側匯入 Excel。", fg="#555", justify="left").pack(side="left")
+        
+        tk.Button(top_ctrl_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right", padx=(5, 0))
+        tk.Button(top_ctrl_frame, text="🗑️ 清除全部資料 (全清)", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Arial", 9, "bold"), padx=8).pack(side="right", padx=5)
 
         # 批次設定預設值列
         batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (日期 / 預計時間 / 修正時間)", font=("Arial", 9, "bold"), padx=8, pady=5)
@@ -445,7 +447,8 @@ class App(tk.Tk):
             (5, "長代號 (自動)"),
             (6, "出貨日期 📅"),
             (7, "預計到廠時間"),
-            (8, "修正到廠時間")
+            (8, "修正到廠時間"),
+            (9, "單列清空")
         ]
         
         for col_idx, title in headers:
@@ -544,14 +547,27 @@ class App(tk.Tk):
             mod_time_entry = tk.Entry(self.scrollable_frame, textvariable=mod_time_var, width=10, font=("Arial", 10), fg="red")
             mod_time_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
+            # Col 9: 單列清空按鈕 (🗑️)
+            btn_clear_row = tk.Button(
+                self.scrollable_frame, 
+                text="🗑️ 清", 
+                command=lambda r=row_idx-1: self.clear_single_row(r), 
+                font=("Arial", 8, "bold"), 
+                bg="#FFEBEE", 
+                fg="#C62828", 
+                cursor="hand2", 
+                width=4
+            )
+            btn_clear_row.grid(row=row_grid_idx, column=9, padx=2, pady=2)
+
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
             
             for widget in (batch_entry, loc_entry, date_entry):
-                widget.bind("<<Paste>>", lambda e, r=row_idx-1: self.on_paste(e, r))
-                widget.bind("<Control-v>", lambda e, r=row_idx-1: self.on_paste(e, r))
-                widget.bind("<Control-V>", lambda e, r=row_idx-1: self.on_paste(e, r))
+                widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
+                widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
+                widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
             
             self.entries.append({
                 "chk_var": chk_var,
@@ -563,6 +579,30 @@ class App(tk.Tk):
                 "time_var": time_var,
                 "mod_time_var": mod_time_var
             })
+
+    def clear_all_rows(self):
+        """一鍵清除全部輸入欄位 (全清)"""
+        if messagebox.askyesno("確認清空", "確定要清空所有已填寫的批號、地點與時間資料嗎？"):
+            for entry in self.entries:
+                entry["batch_var"].set("")
+                entry["loc_var"].set("")
+                entry["long_code_var"].set("")
+                entry["tank_var"].set("")
+                entry["date_var"].set("")
+                entry["time_var"].set("")
+                entry["mod_time_var"].set("")
+
+    def clear_single_row(self, r_idx):
+        """清空單一列的資料 (單個清)"""
+        if 0 <= r_idx < len(self.entries):
+            entry = self.entries[r_idx]
+            entry["batch_var"].set("")
+            entry["loc_var"].set("")
+            entry["long_code_var"].set("")
+            entry["tank_var"].set("")
+            entry["date_var"].set("")
+            entry["time_var"].set("")
+            entry["mod_time_var"].set("")
 
     def on_batch_change(self, batch_var, tank_var):
         batch = batch_var.get().upper().strip()
@@ -580,7 +620,59 @@ class App(tk.Tk):
         else:
             long_code_var.set("❌ 未知代號")
 
-    def on_paste(self, event, start_row_idx):
+    def parse_pasted_row_items(self, parts):
+        """
+        智慧解析貼上行中的元素，自動辨識：出貨日期、批號、槽號、地點、時間。
+        支援 Image 1 範例（到貨 + 批號 + 槽號 + 地點）及各式自訂順序！
+        """
+        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": ""}
+        clean_parts = [p.strip() for p in parts if p.strip()]
+        if not clean_parts:
+            return res
+
+        unassigned = []
+        for p in clean_parts:
+            p_upper = p.upper()
+            
+            # 1. 日期 (包含 /, -, ., 或月/日，長度 <= 12)
+            if not res["date"] and (any(char in p for char in ("/", "-", ".")) or "月" in p or "日" in p):
+                if len(p) <= 12 and not p.isalnum():
+                    res["date"] = p
+                    continue
+
+            # 2. 批號 (8~12 碼英數混合，例如 26817E3051)
+            if not res["batch"] and (8 <= len(p_upper) <= 12 and any(c.isdigit() for c in p_upper) and any(c.isalpha() for c in p_upper)):
+                res["batch"] = p_upper
+                continue
+
+            # 3. 地點 (在 mapping_dict 內或含 18P, 15P, P, 廠等)
+            if not res["loc"] and (p_upper in self.mapping_dict or "18P" in p_upper or "15P" in p_upper or "P" in p_upper or "廠" in p):
+                res["loc"] = p_upper
+                continue
+
+            # 4. 槽號 (3~5 碼以 E/T/P 開頭，例如 E305) -> 可略過，因為寫入批號時微服務會自動算槽號！
+            if len(p_upper) <= 5 and p_upper.startswith(("E", "T", "P")):
+                continue
+
+            # 其它填入未指派
+            unassigned.append(p)
+
+        # 針對缺額自動後補填入
+        for item in unassigned:
+            if not res["batch"] and len(item) >= 6:
+                res["batch"] = item.upper()
+            elif not res["loc"] and len(item) <= 10:
+                res["loc"] = item.upper()
+            elif not res["date"] and ("/" in item or "-" in item or "." in item):
+                res["date"] = item
+            elif not res["time"]:
+                res["time"] = item
+            elif not res["mod_time"]:
+                res["mod_time"] = item
+
+        return res
+
+    def on_paste(self, event, start_row_idx, widget=None):
         try:
             clipboard = self.clipboard_get()
             lines = clipboard.split('\n')
@@ -601,22 +693,34 @@ class App(tk.Tk):
                     parts = line.split()
                     
                 if len(parts) >= 2:
-                    batch = parts[0].strip()
-                    loc = parts[1].strip()
-                    self.entries[curr_row]["batch_var"].set(batch)
-                    self.entries[curr_row]["loc_var"].set(loc)
+                    # 使用智慧元素剖析器！
+                    parsed = self.parse_pasted_row_items(parts)
                     
-                    if len(parts) >= 3 and parts[2].strip():
-                        self.entries[curr_row]["date_var"].set(parts[2].strip())
-                    if len(parts) >= 4 and parts[3].strip():
-                        self.entries[curr_row]["time_var"].set(parts[3].strip())
-                    if len(parts) >= 5 and parts[4].strip():
-                        self.entries[curr_row]["mod_time_var"].set(parts[4].strip())
+                    if parsed["batch"]:
+                        self.entries[curr_row]["batch_var"].set(parsed["batch"])
+                    if parsed["loc"]:
+                        self.entries[curr_row]["loc_var"].set(parsed["loc"])
+                    if parsed["date"]:
+                        self.entries[curr_row]["date_var"].set(parsed["date"])
+                    if parsed["time"]:
+                        self.entries[curr_row]["time_var"].set(parsed["time"])
+                    if parsed["mod_time"]:
+                        self.entries[curr_row]["mod_time_var"].set(parsed["mod_time"])
                     
                     curr_row += 1
                 elif len(parts) == 1:
                     val = parts[0].strip()
-                    self.entries[curr_row]["batch_var"].set(val)
+                    # 單一欄位貼上：依當前焦點與內容自動指派
+                    if val:
+                        parsed = self.parse_pasted_row_items([val])
+                        if parsed["batch"]:
+                            self.entries[curr_row]["batch_var"].set(parsed["batch"])
+                        elif parsed["loc"]:
+                            self.entries[curr_row]["loc_var"].set(parsed["loc"])
+                        elif parsed["date"]:
+                            self.entries[curr_row]["date_var"].set(parsed["date"])
+                        else:
+                            self.entries[curr_row]["batch_var"].set(val)
                     curr_row += 1
                     
             return "break"
