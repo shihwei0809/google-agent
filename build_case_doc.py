@@ -17,6 +17,15 @@ def set_cell_margins(cell, top=120, bottom=120, left=150, right=150):
     tcMar = parse_xml(f'<w:tcMar {nsdecls("w")}><w:top w:w="{top}" w:type="dxa"/><w:bottom w:w="{bottom}" w:type="dxa"/><w:left w:w="{left}" w:type="dxa"/><w:right w:w="{right}" w:type="dxa"/></w:tcMar>')
     tcPr.append(tcMar)
 
+def apply_east_asia_font(run, font_name="Microsoft JhengHei"):
+    """
+    強制作答 Word 將中文字型 (w:eastAsia) 與英文字型 (w:ascii/w:hAnsi) 一律鎖定為微軟正黑體，
+    徹底防止 Word 自動降級為 MS Mincho 或 新細明體！
+    """
+    rPr = run._r.get_or_add_rPr()
+    rFonts = parse_xml(f'<w:rFonts {nsdecls("w")} w:ascii="{font_name}" w:hAnsi="{font_name}" w:eastAsia="{font_name}" w:cs="{font_name}"/>')
+    rPr.append(rFonts)
+
 def generate_harassment_doc(docx_path, img_factory, img_office):
     doc = docx.Document()
     
@@ -27,21 +36,25 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         section.left_margin = Inches(0.8)
         section.right_margin = Inches(0.8)
         
-    # 設定預設字型
+    # 全局設定 Normal 樣式之中英文與東亞字型
     style_normal = doc.styles['Normal']
     font = style_normal.font
     font.name = 'Microsoft JhengHei'
     font.size = Pt(10.5)
     font.color.rgb = RGBColor(0x33, 0x33, 0x33)
+    
+    normal_rPr = style_normal._element.get_or_add_rPr()
+    normal_rFonts = parse_xml(f'<w:rFonts {nsdecls("w")} w:ascii="Microsoft JhengHei" w:hAnsi="Microsoft JhengHei" w:eastAsia="Microsoft JhengHei" w:cs="Microsoft JhengHei"/>')
+    normal_rPr.append(normal_rFonts)
 
     # 主標題
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run_title = p_title.add_run("【職場霸凌與性騷擾案例分析與法規辨識手冊】")
-    run_title.font.name = 'Microsoft JhengHei'
     run_title.font.size = Pt(20)
     run_title.font.bold = True
     run_title.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+    apply_east_asia_font(run_title)
     p_title.paragraph_format.space_after = Pt(6)
 
     # 副標題
@@ -51,6 +64,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
     r_sub.font.size = Pt(11)
     r_sub.font.bold = True
     r_sub.font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
+    apply_east_asia_font(r_sub)
     p_sub.paragraph_format.space_after = Pt(20)
 
     def add_h1(text):
@@ -58,10 +72,10 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         p.paragraph_format.space_before = Pt(16)
         p.paragraph_format.space_after = Pt(6)
         run = p.add_run(text)
-        run.font.name = 'Microsoft JhengHei'
         run.font.size = Pt(14)
         run.font.bold = True
         run.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+        apply_east_asia_font(run)
         return p
 
     def add_h2(text):
@@ -69,10 +83,10 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         p.paragraph_format.space_before = Pt(12)
         p.paragraph_format.space_after = Pt(4)
         run = p.add_run(text)
-        run.font.name = 'Microsoft JhengHei'
         run.font.size = Pt(12)
         run.font.bold = True
         run.font.color.rgb = RGBColor(0x1B, 0x5E, 0x20)
+        apply_east_asia_font(run)
         return p
 
     def add_bullet(text, bold_prefix=""):
@@ -82,7 +96,9 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
             r_b = p.add_run(bold_prefix)
             r_b.font.bold = True
             r_b.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
-        p.add_run(text)
+            apply_east_asia_font(r_b)
+        r_t = p.add_run(text)
+        apply_east_asia_font(r_t)
         return p
 
     def add_card_box(title, text):
@@ -96,7 +112,10 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         r_t = p.add_run("◆ " + title + "\n")
         r_t.font.bold = True
         r_t.font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
-        p.add_run(text)
+        apply_east_asia_font(r_t)
+        
+        r_b = p.add_run(text)
+        apply_east_asia_font(r_b)
         doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
     def add_image_centered(img_path, caption=""):
@@ -116,15 +135,22 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
                 r_cap.font.size = Pt(9.5)
                 r_cap.font.italic = True
                 r_cap.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+                apply_east_asia_font(r_cap)
+
+    def add_p(text):
+        p = doc.add_paragraph()
+        r = p.add_run(text)
+        apply_east_asia_font(r)
+        return p
 
     # 1. 前言與概念介紹
     add_h1("一、 前言與概念簡介")
-    p_intro = doc.add_paragraph("在職場環境中，不當行為往往兼具「職場霸凌」與「性騷擾」的雙重成分。傳統觀念常誤以為性騷擾僅發生於異性之間或女性受害者，然而在實務上，同性同儕之間、假借玩笑名義、或是針對「性別氣質」的貶抑，同樣構成違反《性別平等工作法》與《勞動基準法》的違法行為。本手冊將兩大真實情境（廠區作業現場與辦公室社交）共 6 大案例進行綜合對比分析。")
+    p_intro = add_p("在職場環境中，不當行為往往兼具「職場霸凌」與「性騷擾」的雙重成分。傳統觀念常誤以為性騷擾僅發生於異性之間或女性受害者，然而在實務上，同性同儕之間、假借玩笑名義、或是針對「性別氣質」的貶抑，同樣構成違反《性別平等工作法》與《勞動基準法》的違法行為。本手冊將兩大真實情境（廠區作業現場與辦公室社交）共 6 大案例進行綜合對比分析。")
     p_intro.paragraph_format.space_after = Pt(10)
 
     # 2. 第一部份：廠區作業現場情境案例
     add_h1("二、 第一部分：廠區作業現場情境案例評析")
-    doc.add_paragraph("本部分聚焦於更衣室、作業區、交接班會議、吸菸區等廠區現場常見之肢體與言語侵犯行為。")
+    add_p("本部分聚焦於更衣室、作業區、交接班會議、吸菸區等廠區現場常見之肢體與言語侵犯行為。")
     
     # 插入圖一：廠區作業人員案例示意圖
     add_image_centered(img_factory, "圖 1：男性間現場工作人員：職場霸凌與性騷擾案例示意圖")
@@ -149,6 +175,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         r.font.bold = True
         r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         r.font.size = Pt(9.5)
+        apply_east_asia_font(r)
 
     data1 = [
         (
@@ -189,6 +216,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
             p.paragraph_format.space_after = Pt(2)
             r = p.add_run(val)
             r.font.size = Pt(9)
+            apply_east_asia_font(r)
             if c_idx == 0:
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 r.font.bold = True
@@ -201,7 +229,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
 
     # 3. 第二部份：辦公室與社交情境案例
     add_h1("三、 第二部分：辦公室與社交情境案例評析")
-    doc.add_paragraph("本部分聚焦於辦公室茶水間、通訊軟體群組、休息區及應酬聚會等軟性社交情境中的越界行為。")
+    add_p("本部分聚焦於辦公室茶水間、通訊軟體群組、休息區及應酬聚會等軟性社交情境中的越界行為。")
 
     # 插入圖二：辦公室 Bro Culture 案例示意圖
     add_image_centered(img_office, "圖 2：同事間（男性）職場霸凌與性騷擾案例示範 - 辦公室 Bro Culture 隱蔽騷擾與霸凌")
@@ -222,6 +250,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         r.font.bold = True
         r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         r.font.size = Pt(9.5)
+        apply_east_asia_font(r)
 
     data2 = [
         (
@@ -262,6 +291,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
             p.paragraph_format.space_after = Pt(2)
             r = p.add_run(val)
             r.font.size = Pt(9)
+            apply_east_asia_font(r)
             if c_idx == 0:
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
                 r.font.bold = True
@@ -275,13 +305,13 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
     # 4. 法規剖析與企業預防機制
     add_h1("四、 關鍵法規辨識與企業處置建議")
     add_h2("1. 法規三大判別要項")
-    doc.add_paragraph("根據《性別平等工作法》與《職業安全衛生法》：")
+    add_p("根據《性別平等工作法》與《職業安全衛生法》：")
     add_bullet("性騷擾的成立「不限於異性之間」，且「不以加害者是否有意圖為限」，只要違反當事人主觀意願並感到冒犯，即構成性騷擾。", "• 意願優先原則：")
     add_bullet("針對「娘砲」、「太斯文」等性別刻板印象羞辱，屬於性別氣質騷擾，企業不得默許。", "• 性別氣質保護：")
     add_bullet("主管或同儕散布色情梗圖、建立不合群即排擠的「兄弟幫」文化，構成敵意環境。", "• 敵意環境禁止：")
 
     add_h2("2. 企業防治處置四步驟 ( Statutory 4-Step Standard Protocol )")
-    doc.add_paragraph("當接獲申訴或知悉職場霸凌與性騷擾情事時，企業必須嚴格遵循以下四步驟處理程序：")
+    add_p("當接獲申訴或知悉職場霸凌與性騷擾情事時，企業必須嚴格遵循以下四步驟處理程序：")
     
     table_steps = doc.add_table(rows=1, cols=3)
     table_steps.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -302,6 +332,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         r.font.bold = True
         r.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
         r.font.size = Pt(9.5)
+        apply_east_asia_font(r)
 
     steps_data = [
         (
@@ -340,6 +371,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         r0 = p0.add_run(s_num)
         r0.font.bold = True
         r0.font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
+        apply_east_asia_font(r0)
         
         # Step Title
         cell1 = row_cells[1]
@@ -350,6 +382,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         r1 = p1.add_run(s_title)
         r1.font.bold = True
         r1.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
+        apply_east_asia_font(r1)
         
         # Step Desc
         cell2 = row_cells[2]
@@ -357,7 +390,8 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         set_cell_background(cell2, bg_col)
         set_cell_margins(cell2, top=80, bottom=80, left=80, right=80)
         p2 = cell2.paragraphs[0]
-        p2.add_run(s_desc)
+        r2 = p2.add_run(s_desc)
+        apply_east_asia_font(r2)
 
     doc.add_paragraph().paragraph_format.space_after = Pt(10)
 
