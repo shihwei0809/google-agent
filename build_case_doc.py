@@ -17,7 +17,7 @@ def set_cell_margins(cell, top=120, bottom=120, left=150, right=150):
     tcMar = parse_xml(f'<w:tcMar {nsdecls("w")}><w:top w:w="{top}" w:type="dxa"/><w:bottom w:w="{bottom}" w:type="dxa"/><w:left w:w="{left}" w:type="dxa"/><w:right w:w="{right}" w:type="dxa"/></w:tcMar>')
     tcPr.append(tcMar)
 
-def generate_harassment_doc(docx_path):
+def generate_harassment_doc(docx_path, img_factory, img_office):
     doc = docx.Document()
     
     # 邊界設定
@@ -89,6 +89,24 @@ def generate_harassment_doc(docx_path):
         p.add_run(text)
         doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
+    def add_image_centered(img_path, caption=""):
+        if os.path.exists(img_path):
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p.paragraph_format.space_before = Pt(8)
+            p.paragraph_format.space_after = Pt(4)
+            run = p.add_run()
+            run.add_picture(img_path, width=Inches(6.2))
+            
+            if caption:
+                p_cap = doc.add_paragraph()
+                p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_cap.paragraph_format.space_after = Pt(10)
+                r_cap = p_cap.add_run(caption)
+                r_cap.font.size = Pt(9.5)
+                r_cap.font.italic = True
+                r_cap.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
+
     # 1. 前言與概念介紹
     add_h1("一、 前言與概念簡介")
     p_intro = doc.add_paragraph("在職場環境中，不當行為往往兼具「職場霸凌」與「性騷擾」的雙重成分。傳統觀念常誤以為性騷擾僅發生於異性之間或女性受害者，然而在實務上，同性同儕之間、假借玩笑名義、或是針對「性別氣質」的貶抑，同樣構成違反《性別平等工作法》與《勞動基準法》的違法行為。本手冊將兩大真實情境（廠區作業現場與辦公室社交）共 6 大案例進行綜合對比分析。")
@@ -98,6 +116,9 @@ def generate_harassment_doc(docx_path):
     add_h1("二、 第一部分：廠區作業現場情境案例評析")
     doc.add_paragraph("本部分聚焦於更衣室、作業區、交接班會議、吸菸區等廠區現場常見之肢體與言語侵犯行為。")
     
+    # 插入圖一：廠區作業人員案例示意圖
+    add_image_centered(img_factory, "圖 1：男性間現場工作人員：職場霸凌與性騷擾案例示意圖")
+
     # 廠區表格
     table1 = doc.add_table(rows=1, cols=6)
     table1.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -134,7 +155,7 @@ def generate_harassment_doc(docx_path):
             "領班針對體能較弱或性格溫和的男員工，公開辱罵「娘砲」、「沒卵葩」等貶抑字眼，並刻意分配極度不合理的粗重工作。",
             "聯合其他同事孤立受害者，並濫用職權給予不當勞動條件，屬於排擠與針對性霸凌。",
             "針對性別特徵與氣質進行貶抑，違反《性別平等工作法》，構成「性別氣質騷擾」。",
-            "「做粗活還這麼嬌弱，我是為了鍛鍊他。」"
+            "「做粗活還這麼嬌弱，我是為了鍛鍛他。」"
         ),
         (
             "📌 案例三\n權力展現的「敵意環境」建立",
@@ -171,6 +192,9 @@ def generate_harassment_doc(docx_path):
     # 3. 第二部份：辦公室與社交情境案例
     add_h1("三、 第二部分：辦公室與社交情境案例評析")
     doc.add_paragraph("本部分聚焦於辦公室茶水間、通訊軟體群組、休息區及應酬聚會等軟性社交情境中的越界行為。")
+
+    # 插入圖二：辦公室 Bro Culture 案例示意圖
+    add_image_centered(img_office, "圖 2：同事間（男性）職場霸凌與性騷擾案例示範 - 辦公室 Bro Culture 隱蔽騷擾與霸凌")
 
     table2 = doc.add_table(rows=1, cols=6)
     table2.alignment = WD_TABLE_ALIGNMENT.CENTER
@@ -269,5 +293,8 @@ if __name__ == "__main__":
     docx_file = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊.docx")
     pdf_file = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊.pdf")
     
-    generate_harassment_doc(docx_file)
+    img_factory = r"C:\Users\C606-PC\.gemini\antigravity\brain\44faa0bd-7fa9-4497-a578-37048fb486f2\.user_uploaded\media_1787098103540.jpg"
+    img_office = r"C:\Users\C606-PC\.gemini\antigravity\brain\44faa0bd-7fa9-4497-a578-37048fb486f2\.user_uploaded\media_1787098101697.jpg"
+    
+    generate_harassment_doc(docx_file, img_factory, img_office)
     convert_docx_to_pdf(docx_file, pdf_file)
