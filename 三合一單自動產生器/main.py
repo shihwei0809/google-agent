@@ -129,6 +129,145 @@ class CalendarDialog(tk.Toplevel):
         self.target_var.set(date_str)
         self.destroy()
 
+class ImportRangeDialog(tk.Toplevel):
+    """
+    Excel 匯入筆數與範圍選擇對話框 (預設從最後一筆往上擷取最新資料)
+    """
+    def __init__(self, parent, records, filename=""):
+        super().__init__(parent)
+        self.title("📥 Excel 匯入筆數與範圍選擇 (最後一筆往上抓)")
+        self.geometry("580x520")
+        self.configure(padx=15, pady=15)
+        self.transient(parent)
+        self.grab_set()
+
+        self.records = records
+        self.total_count = len(records)
+        self.selected_records = None
+
+        # 預設擷取筆數：預設取最新的 10 筆（或全部若少於 10 筆）
+        self.count_var = tk.IntVar(value=min(10, self.total_count))
+
+        self.setup_ui(filename)
+        self.update_preview()
+
+    def setup_ui(self, filename):
+        # 頂部提示資訊
+        info_frame = tk.LabelFrame(self, text="檔案偵測結果", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#002060")
+        info_frame.pack(fill="x", pady=(0, 10))
+
+        tk.Label(info_frame, text=f"📄 檔案名稱：{filename}", font=("Arial", 9, "bold")).pack(anchor="w")
+        tk.Label(info_frame, text=f"📊 總計偵測到：{self.total_count} 筆有效出貨資料 (最舊 ➔ 最新)", fg="#2E7D32", font=("Arial", 10, "bold")).pack(anchor="w", pady=(2, 0))
+
+        # 選擇擷取筆數控制區
+        ctrl_frame = tk.LabelFrame(self, text="🎯 擷取筆數設定（從最後一筆往上抓最新資料）", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#C00000")
+        ctrl_frame.pack(fill="x", pady=(0, 10))
+
+        # 快速按鈕列
+        btn_bar = tk.Frame(ctrl_frame)
+        btn_bar.pack(fill="x", pady=(0, 6))
+
+        tk.Label(btn_bar, text="快速選擇倒數筆數：", font=("Arial", 9, "bold")).pack(side="left")
+        
+        quick_opts = [5, 10, 15, 20, self.total_count]
+        seen = set()
+        for num in quick_opts:
+            if num > self.total_count or num in seen:
+                continue
+            seen.add(num)
+            lbl_text = f"最新 {num} 筆" if num < self.total_count else f"全部 ({num} 筆)"
+            tk.Button(
+                btn_bar, 
+                text=lbl_text, 
+                command=lambda n=num: self.set_count(n), 
+                font=("Arial", 8, "bold"), 
+                bg="#E3F2FD", 
+                fg="#0D47A1", 
+                padx=6,
+                cursor="hand2"
+            ).pack(side="left", padx=3)
+
+        # 手動 Spinbox 輸入
+        custom_bar = tk.Frame(ctrl_frame)
+        custom_bar.pack(fill="x")
+
+        tk.Label(custom_bar, text="自訂倒數筆數（從最後一筆往上計數）：", font=("Arial", 9)).pack(side="left")
+        spin = tk.Spinbox(custom_bar, from_=1, to=self.total_count, textvariable=self.count_var, width=8, command=self.update_preview, font=("Arial", 10, "bold"))
+        spin.pack(side="left", padx=5)
+        spin.bind("<KeyRelease>", lambda e: self.update_preview())
+        tk.Label(custom_bar, text="筆資料", font=("Arial", 9)).pack(side="left")
+
+        # 預覽表格區
+        preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽", font=("Arial", 9, "bold"), padx=8, pady=6)
+        preview_frame.pack(fill="both", expand=True, pady=(0, 10))
+
+        self.preview_listbox = tk.Listbox(preview_frame, font=("Courier New", 9), selectmode="none", borderwidth=0)
+        scroll = ttk.Scrollbar(preview_frame, orient="vertical", command=self.preview_listbox.yview)
+        self.preview_listbox.configure(yscrollcommand=scroll.set)
+
+        self.preview_listbox.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+
+        # 底部確定按鈕區
+        action_frame = tk.Frame(self)
+        action_frame.pack(fill="x")
+
+        self.btn_confirm = tk.Button(
+            action_frame, 
+            text="🚀 確認匯入資料", 
+            command=self.confirm_import, 
+            bg="#4CAF50", 
+            fg="white", 
+            font=("Arial", 11, "bold"), 
+            pady=6,
+            cursor="hand2"
+        )
+        self.btn_confirm.pack(side="left", fill="x", expand=True, padx=(0, 5))
+
+        tk.Button(
+            action_frame, 
+            text="❌ 取消", 
+            command=self.destroy, 
+            bg="#9E9E9E", 
+            fg="white", 
+            font=("Arial", 10), 
+            pady=6,
+            width=10,
+            cursor="hand2"
+        ).pack(side="right", padx=5)
+
+    def set_count(self, num):
+        self.count_var.set(num)
+        self.update_preview()
+
+    def update_preview(self):
+        try:
+            cnt = self.count_var.get()
+        except Exception:
+            cnt = 1
+
+        cnt = max(1, min(cnt, self.total_count))
+        self.count_var.set(cnt)
+
+        # 由檔尾往回切片擷取最新 cnt 筆
+        slice_records = self.records[-cnt:]
+        
+        self.preview_listbox.delete(0, tk.END)
+        for idx, rec in enumerate(slice_records):
+            origin_idx = self.total_count - cnt + idx + 1
+            d_str = (rec.get("date") or "無日期").ljust(10)
+            b_str = (rec.get("batch") or "無批號").ljust(12)
+            l_str = (rec.get("loc") or "無地點").ljust(10)
+            self.preview_listbox.insert(tk.END, f"[{idx+1:02d}] 檔中第{origin_idx:02d}筆 | 日期: {d_str} | 批號: {b_str} | 地點: {l_str}")
+
+        self.btn_confirm.config(text=f"🚀 確認由下往上擷取最新的 {cnt} 筆匯入系統")
+
+    def confirm_import(self):
+        cnt = self.count_var.get()
+        cnt = max(1, min(cnt, self.total_count))
+        self.selected_records = self.records[-cnt:]
+        self.destroy()
+
 # ================= 核心邏輯 =================
 
 def get_tank_from_batch(batch):
@@ -794,7 +933,18 @@ class App(tk.Tk):
                 messagebox.showinfo("提示", "在檔案中找不到任何有效資料！")
                 wb.close()
                 return
-                
+
+            wb.close()
+
+            # 彈出範圍選擇對話框（由下往上選擇最新資料筆數）
+            dialog = ImportRangeDialog(self, records, os.path.basename(filepath))
+            self.wait_window(dialog)
+
+            if not dialog.selected_records:
+                return
+
+            target_records = dialog.selected_records
+
             start_idx = 0
             for idx, entry in enumerate(self.entries):
                 if not entry["batch_var"].get().strip():
@@ -803,11 +953,11 @@ class App(tk.Tk):
             else:
                 start_idx = len(self.entries)
                 
-            needed_rows = start_idx + len(records)
+            needed_rows = start_idx + len(target_records)
             if needed_rows > len(self.entries):
                 self.add_input_rows(needed_rows - len(self.entries))
                 
-            for i, rec in enumerate(records):
+            for i, rec in enumerate(target_records):
                 row_e = self.entries[start_idx + i]
                 row_e["batch_var"].set(rec["batch"])
                 row_e["loc_var"].set(rec["loc"])
@@ -815,8 +965,7 @@ class App(tk.Tk):
                 if rec["time"]: row_e["time_var"].set(rec["time"])
                 if rec["mod_time"]: row_e["mod_time_var"].set(rec["mod_time"])
                 
-            wb.close()
-            messagebox.showinfo("匯入成功", f"成功匯入 {len(records)} 筆資料！")
+            messagebox.showinfo("匯入成功", f"成功由檔尾往上擷取最新 {len(target_records)} 筆資料！")
             
         except Exception as e:
             messagebox.showerror("匯入失敗", f"讀取 Excel 失敗:\n{e}")
