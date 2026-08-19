@@ -151,20 +151,24 @@ def find_row_by_label(ws, labels):
     return None
 
 def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "運輸通知表"
-    
-    ws.views.sheetView[0].showGridLines = True
-    
-    # 欄寬設定 (Left Card: A~F, Spacer: G, Right Card: H~M)
-    col_widths = {
-        'A': 8, 'B': 18, 'C': 18, 'D': 16, 'E': 14, 'F': 16,
-        'G': 4,
-        'H': 8, 'I': 18, 'J': 18, 'K': 16, 'L': 14, 'M': 16
-    }
-    for col, width in col_widths.items():
-        ws.column_dimensions[col].width = width
+    is_append = os.path.exists(output_path)
+    if is_append:
+        wb = openpyxl.load_workbook(output_path)
+        ws = wb.active
+    else:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "運輸通知表"
+        ws.views.sheetView[0].showGridLines = True
+        
+        # 欄寬設定 (Left Card: A~F, Spacer: G, Right Card: H~M)
+        col_widths = {
+            'A': 8, 'B': 18, 'C': 18, 'D': 16, 'E': 14, 'F': 16,
+            'G': 4,
+            'H': 8, 'I': 18, 'J': 18, 'K': 16, 'L': 14, 'M': 16
+        }
+        for col, width in col_widths.items():
+            ws.column_dimensions[col].width = width
         
     thin_border = Border(
         left=Side(style='thin', color='000000'),
@@ -307,7 +311,7 @@ def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
         cell_f6 = ws.cell(row=r6, column=c6, value="6 支")
         cell_f6.font = Font(name="Microsoft JhengHei", color="002060", size=11, bold=True)
 
-    curr_row = 1
+    curr_row = ws.max_row + 2 if is_append and ws.max_row > 1 else 1
     for item in items:
         # 左側：原始出貨排程通知卡片 (Columns A~F)
         render_notice_card(curr_row, 1, False, item)
@@ -861,7 +865,7 @@ class App(tk.Tk):
                         dt_file = datetime.now()
                         
                     date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
-                    output_filename = f"{date_prefix}{safe_loc}台積電槽車barcode三合一單.xlsx"
+                    output_filename = f"{date_prefix}{safe_loc}_{batch_no}_台積電槽車barcode三合一單.xlsx"
                     
                     output_path = os.path.join(output_dir, output_filename)
                     wb.save(output_path)
