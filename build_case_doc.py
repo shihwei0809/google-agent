@@ -37,7 +37,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
     # 主標題
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    run_title = p_title.add_run("📌 職場霸凌與性騷擾案例分析與法規辨識手冊")
+    run_title = p_title.add_run("【職場霸凌與性騷擾案例分析與法規辨識手冊】")
     run_title.font.name = 'Microsoft JhengHei'
     run_title.font.size = Pt(20)
     run_title.font.bold = True
@@ -93,7 +93,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
         set_cell_margins(cell, top=100, bottom=100, left=150, right=150)
         p = cell.paragraphs[0]
         p.paragraph_format.space_after = Pt(0)
-        r_t = p.add_run("💬 " + title + "\n")
+        r_t = p.add_run("◆ " + title + "\n")
         r_t.font.bold = True
         r_t.font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
         p.add_run(text)
@@ -152,7 +152,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
 
     data1 = [
         (
-            "📌 案例一\n假借「玩笑」的肢體侵犯",
+            "【案例一】\n假借「玩笑」的肢體侵犯",
             "更衣室、狹窄作業區（如高架或槽體內）",
             "資深員工以「迎新、好玩」為由，對新進男員工進行「阿魯巴」、強行拉扯衣物，或是故意在交錯走動時，蓄意碰觸臀部與下體。",
             "利用資歷與人數優勢（多對一）使新人不敢反抗，形成權力霸凌。",
@@ -160,7 +160,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
             "「大家都是男人，摸一下會少一塊肉嗎？」"
         ),
         (
-            "📌 案例二\n針對「性別氣質」的言語羞辱",
+            "【案例二】\n針對「性別氣質」的言語羞辱",
             "交接班會議、搬運現場",
             "領班針對體能較弱或性格溫和的男員工，公開辱罵「娘砲」、「沒卵葩」等貶抑字眼，並刻意分配極度不合理的粗重工作。",
             "聯合其他同事孤立受害者，並濫用職權給予不當勞動條件，屬於排擠與針對性霸凌。",
@@ -168,7 +168,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
             "「做粗活還這麼嬌弱，我是為了鍛鍊他。」"
         ),
         (
-            "📌 案例三\n權力展現的「敵意環境」建立",
+            "【案例三】\n權力展現的「敵意環境」建立",
             "吸菸區、現場人員通訊群組",
             "小主管常在休息時間強迫展示色情影片，並當眾詢問員工性生活細節。若員工反感，便會被嘲笑，甚至在排班或考績上遭到刁難。",
             "利用排班與考評權力進行威脅與報復，屬於典型的職權霸凌。",
@@ -225,7 +225,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
 
     data2 = [
         (
-            "📌 案例一\n通訊軟體與言語的「黃色玩笑」",
+            "【案例一】\n通訊軟體與言語的「黃色玩笑」",
             "辦公室茶水間、部門 LINE 群組",
             "同事常在群組傳送色情梗圖，或在茶水間公開拿某位男同事的「性生活」、「單身狀態」或「性別氣質（如：太斯文）」開黃腔嘲笑。",
             "透過公開嘲弄來建立自己在辦公室的社交優勢地位，屬於言語霸凌。",
@@ -233,7 +233,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
             "「這只是男生之間的幹話，幹嘛這麼嚴肅？」"
         ),
         (
-            "📌 案例二\n假借放鬆的「肢體越界」",
+            "【案例二】\n假借放鬆的「肢體越界」",
             "辦公座位區、員工休息區",
             "以「看你最近壓力很大」為由，未經同意強行幫男同事「按摩」肩頸，或在走道交錯時故意拍打對方臀部、大腿作為打招呼的方式。",
             "無視他人身體界線，利用體型或性格優勢強迫對方接受肢體接觸，屬於行為霸凌。",
@@ -241,7 +241,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
             "「大家都是兄弟，抓一下肩膀又不會懷孕。」"
         ),
         (
-            "📌 案例三\n「兄弟幫」的社交排擠與針對",
+            "【案例三】\n「兄弟幫」的社交排擠與針對",
             "跨部門會議、下班後的應酬聚會",
             "辦公室內形成特定「兄弟小團體」。若某位男同事不參與他們的粗俗玩笑，就會在專案上被刻意隱瞞資訊，或在會議上被集體貶低專業意見。",
             "刻意孤立特定對象，並阻礙其正常執行工作任務，屬於典型的關係霸凌與職場排擠。",
@@ -280,7 +280,7 @@ def generate_harassment_doc(docx_path, img_factory, img_office):
     add_bullet("針對「娘砲」、「太斯文」等性別刻板印象羞辱，屬於性別氣質騷擾，企業不得默許。", "• 性別氣質保護：")
     add_bullet("主管或同儕散布色情梗圖、建立不合群即排擠的「兄弟幫」文化，構成敵意環境。", "• 敵意環境禁止：")
 
-    add_h2("2. 企業防治處置四步驟 ( Statutory 4-Step Standard Standard Protocol )")
+    add_h2("2. 企業防治處置四步驟 ( Statutory 4-Step Standard Protocol )")
     doc.add_paragraph("當接獲申訴或知悉職場霸凌與性騷擾情事時，企業必須嚴格遵循以下四步驟處理程序：")
     
     table_steps = doc.add_table(rows=1, cols=3)
