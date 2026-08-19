@@ -129,6 +129,186 @@ class CalendarDialog(tk.Toplevel):
         self.target_var.set(date_str)
         self.destroy()
 
+def split_date_and_time(raw_val):
+    """
+    將 Excel / 貼上讀取的 datetime 或日期時間字串拆分為 (純日期, 純時間)
+    例如:
+    - datetime.datetime(2026, 8, 14, 0, 0) -> ("2026-08-14", "")
+    - "2026-08-14 00:00:00" -> ("2026-08-14", "")
+    - "2026-08-14 08:30:00" -> ("2026-08-14", "08:30")
+    """
+    if raw_val is None:
+        return "", ""
+    
+    if isinstance(raw_val, datetime):
+        d_str = f"{raw_val.year:04d}-{raw_val.month:02d}-{raw_val.day:02d}"
+        if raw_val.hour == 0 and raw_val.minute == 0 and raw_val.second == 0:
+            t_str = ""
+        else:
+            t_str = f"{raw_val.hour:02d}:{raw_val.minute:02d}"
+        return d_str, t_str
+
+    val_str = str(raw_val).strip()
+    if not val_str:
+        return "", ""
+
+    parts = val_str.split()
+    if len(parts) >= 2:
+        d_part = parts[0]
+        t_part = parts[1]
+        if t_part in ("00:00:00", "00:00", "0:00", "00:00:00.000"):
+            return d_part, ""
+        else:
+            t_sub = t_part.split(':')
+            if len(t_sub) >= 2:
+                return d_part, f"{t_sub[0]:0>2}:{t_sub[1]:0>2}"
+            return d_part, t_part
+
+    return val_str, ""
+
+class ImportRangeDialog(tk.Toplevel):
+    """
+    Excel 匯入筆數與範圍選擇對話框 (預設從最後一筆往上擷取最新資料)
+    """
+    def __init__(self, parent, records, filename=""):
+        super().__init__(parent)
+        self.title("📥 Excel 匯入筆數與範圍選擇 (最後一筆往上抓)")
+        self.geometry("750x580")
+        self.configure(padx=15, pady=15)
+        self.transient(parent)
+        self.grab_set()
+
+        self.records = records
+        self.total_count = len(records)
+        self.selected_records = None
+
+        # 預設擷取筆數：預設取最新的 10 筆（或全部若少於 10 筆）
+        self.count_var = tk.IntVar(value=min(10, self.total_count))
+
+        self.setup_ui(filename)
+        self.update_preview()
+
+    def setup_ui(self, filename):
+        # 頂部提示資訊
+        info_frame = tk.LabelFrame(self, text="檔案偵測結果", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#002060")
+        info_frame.pack(fill="x", pady=(0, 10))
+
+        tk.Label(info_frame, text=f"📄 檔案名稱：{filename}", font=("Arial", 9, "bold")).pack(anchor="w")
+        tk.Label(info_frame, text=f"📊 總計偵測到：{self.total_count} 筆有效出貨資料 (最舊 ➔ 最新)", fg="#2E7D32", font=("Arial", 10, "bold")).pack(anchor="w", pady=(2, 0))
+
+        # 選擇擷取筆數控制區
+        ctrl_frame = tk.LabelFrame(self, text="🎯 擷取筆數設定（從最後一筆往上抓最新資料）", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#C00000")
+        ctrl_frame.pack(fill="x", pady=(0, 10))
+
+        # 快速按鈕列
+        btn_bar = tk.Frame(ctrl_frame)
+        btn_bar.pack(fill="x", pady=(0, 6))
+
+        tk.Label(btn_bar, text="快速選擇倒數筆數：", font=("Arial", 9, "bold")).pack(side="left")
+        
+        quick_opts = [5, 10, 15, 20, self.total_count]
+        seen = set()
+        for num in quick_opts:
+            if num > self.total_count or num in seen:
+                continue
+            seen.add(num)
+            lbl_text = f"最新 {num} 筆" if num < self.total_count else f"全部 ({num} 筆)"
+            tk.Button(
+                btn_bar, 
+                text=lbl_text, 
+                command=lambda n=num: self.set_count(n), 
+                font=("Arial", 9, "bold"), 
+                bg="#E3F2FD", 
+                fg="#0D47A1", 
+                padx=8,
+                cursor="hand2"
+            ).pack(side="left", padx=4)
+
+        # 手動 Spinbox 輸入
+        custom_bar = tk.Frame(ctrl_frame)
+        custom_bar.pack(fill="x")
+
+        tk.Label(custom_bar, text="自訂倒數筆數（從最後一筆往上計數）：", font=("Arial", 9)).pack(side="left")
+        spin = tk.Spinbox(custom_bar, from_=1, to=self.total_count, textvariable=self.count_var, width=8, command=self.update_preview, font=("Arial", 10, "bold"))
+        spin.pack(side="left", padx=5)
+        spin.bind("<KeyRelease>", lambda e: self.update_preview())
+        tk.Label(custom_bar, text="筆資料", font=("Arial", 9)).pack(side="left")
+
+        # 預覽表格區
+        preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽", font=("Arial", 9, "bold"), padx=8, pady=6)
+        preview_frame.pack(fill="both", expand=True, pady=(0, 10))
+
+        self.preview_listbox = tk.Listbox(preview_frame, font=("Consolas", 10), selectmode="none", borderwidth=0)
+        scroll = ttk.Scrollbar(preview_frame, orient="vertical", command=self.preview_listbox.yview)
+        self.preview_listbox.configure(yscrollcommand=scroll.set)
+
+        self.preview_listbox.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+
+        # 底部確定按鈕區
+        action_frame = tk.Frame(self)
+        action_frame.pack(fill="x")
+
+        self.btn_confirm = tk.Button(
+            action_frame, 
+            text="🚀 確認匯入資料", 
+            command=self.confirm_import, 
+            bg="#4CAF50", 
+            fg="white", 
+            font=("Arial", 11, "bold"), 
+            pady=6,
+            cursor="hand2"
+        )
+        self.btn_confirm.pack(side="left", fill="x", expand=True, padx=(0, 5))
+
+        tk.Button(
+            action_frame, 
+            text="❌ 取消", 
+            command=self.destroy, 
+            bg="#9E9E9E", 
+            fg="white", 
+            font=("Arial", 10), 
+            pady=6,
+            width=10,
+            cursor="hand2"
+        ).pack(side="right", padx=5)
+
+    def set_count(self, num):
+        self.count_var.set(num)
+        self.update_preview()
+
+    def update_preview(self):
+        try:
+            cnt = self.count_var.get()
+        except Exception:
+            cnt = 1
+
+        cnt = max(1, min(cnt, self.total_count))
+        self.count_var.set(cnt)
+
+        # 由檔尾往回切片擷取最新 cnt 筆
+        slice_records = self.records[-cnt:]
+        
+        self.preview_listbox.delete(0, tk.END)
+        for idx, rec in enumerate(slice_records):
+            origin_idx = self.total_count - cnt + idx + 1
+            d_pure, t_pure = split_date_and_time(rec.get("date"))
+            t_val = t_pure or rec.get("time", "")
+            
+            d_str = (d_pure or "無日期").ljust(11)
+            t_str = (t_val or "無時間").ljust(8)
+            b_str = (rec.get("batch") or "無批號").ljust(12)
+            l_str = (rec.get("loc") or "無地點").ljust(10)
+            self.preview_listbox.insert(tk.END, f"[{idx+1:02d}] 檔中第{origin_idx:02d}筆 | 日期: {d_str} | 時間: {t_str} | 批號: {b_str} | 地點: {l_str}")
+
+        self.btn_confirm.config(text=f"🚀 確認由下往上擷取最新的 {cnt} 筆匯入系統")
+
+    def confirm_import(self):
+        cnt = self.count_var.get()
+        cnt = max(1, min(cnt, self.total_count))
+        self.selected_records = self.records[-cnt:]
+        self.destroy()
+
 # ================= 核心邏輯 =================
 
 def get_tank_from_batch(batch):
@@ -346,6 +526,7 @@ class App(tk.Tk):
         self.add_input_rows(20)
 
     def load_mapping(self):
+        self.mapping_dict = {}
         if os.path.exists(self.mapping_path):
             try:
                 map_wb = openpyxl.load_workbook(self.mapping_path, data_only=True)
@@ -354,10 +535,29 @@ class App(tk.Tk):
                     if row and len(row) >= 2 and row[0] and row[1]:
                         loc_key = str(row[0]).strip().upper()
                         loc_val = str(row[1]).strip()
+                        # 過濾標題列 (例如 短地點, 長代號, 地點)
+                        if any(kw in loc_key for kw in ("地點", "代號", "SHORT", "LOCATION", "KEY", "HEADER")):
+                            continue
                         self.mapping_dict[loc_key] = loc_val
                 map_wb.close()
             except Exception as e:
                 pass
+
+        if hasattr(self, "lbl_mapping_status"):
+            m_color = "green" if os.path.exists(self.mapping_path) else "red"
+            m_text = f"對照表檔案 (地點代號對照表.xlsx): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "對照表檔案 (地點代號對照表.xlsx): ❌ 未找到"
+            self.lbl_mapping_status.config(text=m_text, fg=m_color)
+
+        if hasattr(self, "entries"):
+            for entry in self.entries:
+                loc_val = entry["loc_var"].get().strip().upper()
+                if loc_val:
+                    self.on_loc_change(entry["loc_var"], entry["long_code_var"])
+
+    def reload_mapping_with_msg(self):
+        """點擊『🔄 重新載入對照表』時執行"""
+        self.load_mapping()
+        messagebox.showinfo("對照表已更新", f"已重新讀取『地點代號對照表.xlsx』！\n目前共載入 {len(self.mapping_dict)} 筆地點對照碼。\n表格中的地點長代號已同步更新！")
 
     def open_calendar_dialog(self, target_var):
         CalendarDialog(self, target_var)
@@ -371,16 +571,36 @@ class App(tk.Tk):
         t_text = "✅ 已找到" if os.path.exists(self.template_path) else "❌ 未找到 (請將檔案放入資料夾)"
         tk.Label(status_frame, text=f"範本檔案 (台積電槽車barcode三合一單-範本.xlsx): {t_text}", fg=t_color).pack(anchor="w")
         
+        # 對照表狀態列 + 重新載入按鈕
+        map_status_frame = tk.Frame(status_frame)
+        map_status_frame.pack(anchor="w", pady=(2, 0))
+
         m_color = "green" if os.path.exists(self.mapping_path) else "red"
-        m_text = f"✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "❌ 未找到 (請將檔案放入資料夾)"
-        tk.Label(status_frame, text=f"對照表檔案 (地點代號對照表.xlsx): {m_text}", fg=m_color).pack(anchor="w")
+        m_text = f"對照表檔案 (地點代號對照表.xlsx): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "對照表檔案 (地點代號對照表.xlsx): ❌ 未找到"
+        
+        self.lbl_mapping_status = tk.Label(map_status_frame, text=m_text, fg=m_color)
+        self.lbl_mapping_status.pack(side="left")
+
+        tk.Button(
+            map_status_frame, 
+            text="🔄 重新載入對照表", 
+            command=self.reload_mapping_with_msg, 
+            bg="#607D8B", 
+            fg="white", 
+            font=("Arial", 8, "bold"), 
+            padx=6,
+            cursor="hand2"
+        ).pack(side="left", padx=10)
 
         # 頂部快捷批次控制與匯入區
         top_ctrl_frame = tk.Frame(self)
         top_ctrl_frame.pack(fill="x", pady=(0, 8))
         
-        tk.Label(top_ctrl_frame, text="提示：可在「批號」貼上多筆資料，或直接點右側匯入 Excel。", fg="#555", justify="left").pack(side="left")
-        tk.Button(top_ctrl_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right")
+        tk.Label(top_ctrl_frame, text="提示：可在「批號」貼上多筆資料，或使用右側按鈕匯入 Excel / 還原既有通知表修訂。", fg="#555", justify="left").pack(side="left")
+        
+        tk.Button(top_ctrl_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right", padx=(5, 0))
+        tk.Button(top_ctrl_frame, text="📂 載入既有『運輸通知表』修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right", padx=5)
+        tk.Button(top_ctrl_frame, text="🗑️ 清除全部資料 (全清)", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Arial", 9, "bold"), padx=8).pack(side="right", padx=5)
 
         # 批次設定預設值列
         batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (日期 / 預計時間 / 修正時間)", font=("Arial", 9, "bold"), padx=8, pady=5)
@@ -449,7 +669,8 @@ class App(tk.Tk):
             (5, "長代號 (自動)"),
             (6, "出貨日期 📅"),
             (7, "預計到廠時間"),
-            (8, "修正到廠時間")
+            (8, "修正到廠時間"),
+            (9, "單列清空")
         ]
         
         for col_idx, title in headers:
@@ -548,14 +769,28 @@ class App(tk.Tk):
             mod_time_entry = tk.Entry(self.scrollable_frame, textvariable=mod_time_var, width=10, font=("Arial", 10), fg="red")
             mod_time_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
+            # Col 9: 單列清空按鈕
+            btn_clear_row = tk.Button(
+                self.scrollable_frame, 
+                text="清空", 
+                command=lambda r=row_idx-1: self.clear_single_row(r), 
+                font=("Microsoft JhengHei", 9, "bold"), 
+                bg="#FFEBEE", 
+                fg="#C62828", 
+                cursor="hand2", 
+                width=6,
+                pady=1
+            )
+            btn_clear_row.grid(row=row_grid_idx, column=9, padx=4, pady=2)
+
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
             
             for widget in (batch_entry, loc_entry, date_entry):
-                widget.bind("<<Paste>>", lambda e, r=row_idx-1: self.on_paste(e, r))
-                widget.bind("<Control-v>", lambda e, r=row_idx-1: self.on_paste(e, r))
-                widget.bind("<Control-V>", lambda e, r=row_idx-1: self.on_paste(e, r))
+                widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
+                widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
+                widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
             
             self.entries.append({
                 "chk_var": chk_var,
@@ -567,6 +802,30 @@ class App(tk.Tk):
                 "time_var": time_var,
                 "mod_time_var": mod_time_var
             })
+
+    def clear_all_rows(self):
+        """一鍵清除全部輸入欄位 (全清)"""
+        if messagebox.askyesno("確認清空", "確定要清空所有已填寫的批號、地點與時間資料嗎？"):
+            for entry in self.entries:
+                entry["batch_var"].set("")
+                entry["loc_var"].set("")
+                entry["long_code_var"].set("")
+                entry["tank_var"].set("")
+                entry["date_var"].set("")
+                entry["time_var"].set("")
+                entry["mod_time_var"].set("")
+
+    def clear_single_row(self, r_idx):
+        """清空單一列的資料 (單個清)"""
+        if 0 <= r_idx < len(self.entries):
+            entry = self.entries[r_idx]
+            entry["batch_var"].set("")
+            entry["loc_var"].set("")
+            entry["long_code_var"].set("")
+            entry["tank_var"].set("")
+            entry["date_var"].set("")
+            entry["time_var"].set("")
+            entry["mod_time_var"].set("")
 
     def on_batch_change(self, batch_var, tank_var):
         batch = batch_var.get().upper().strip()
@@ -584,7 +843,59 @@ class App(tk.Tk):
         else:
             long_code_var.set("❌ 未知代號")
 
-    def on_paste(self, event, start_row_idx):
+    def parse_pasted_row_items(self, parts):
+        """
+        智慧解析貼上行中的元素，自動辨識：出貨日期、批號、槽號、地點、時間。
+        支援 Image 1 範例（到貨 + 批號 + 槽號 + 地點）及各式自訂順序！
+        """
+        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": ""}
+        clean_parts = [p.strip() for p in parts if p.strip()]
+        if not clean_parts:
+            return res
+
+        unassigned = []
+        for p in clean_parts:
+            p_upper = p.upper()
+            
+            # 1. 日期 (包含 /, -, ., 或月/日，長度 <= 12)
+            if not res["date"] and (any(char in p for char in ("/", "-", ".")) or "月" in p or "日" in p):
+                if len(p) <= 12 and not p.isalnum():
+                    res["date"] = p
+                    continue
+
+            # 2. 批號 (8~12 碼英數混合，例如 26817E3051)
+            if not res["batch"] and (8 <= len(p_upper) <= 12 and any(c.isdigit() for c in p_upper) and any(c.isalpha() for c in p_upper)):
+                res["batch"] = p_upper
+                continue
+
+            # 3. 地點 (在 mapping_dict 內或含 18P, 15P, P, 廠等)
+            if not res["loc"] and (p_upper in self.mapping_dict or "18P" in p_upper or "15P" in p_upper or "P" in p_upper or "廠" in p):
+                res["loc"] = p_upper
+                continue
+
+            # 4. 槽號 (3~5 碼以 E/T/P 開頭，例如 E305) -> 可略過，因為寫入批號時微服務會自動算槽號！
+            if len(p_upper) <= 5 and p_upper.startswith(("E", "T", "P")):
+                continue
+
+            # 其它填入未指派
+            unassigned.append(p)
+
+        # 針對缺額自動後補填入
+        for item in unassigned:
+            if not res["batch"] and len(item) >= 6:
+                res["batch"] = item.upper()
+            elif not res["loc"] and len(item) <= 10:
+                res["loc"] = item.upper()
+            elif not res["date"] and ("/" in item or "-" in item or "." in item):
+                res["date"] = item
+            elif not res["time"]:
+                res["time"] = item
+            elif not res["mod_time"]:
+                res["mod_time"] = item
+
+        return res
+
+    def on_paste(self, event, start_row_idx, widget=None):
         try:
             clipboard = self.clipboard_get()
             lines = clipboard.split('\n')
@@ -605,22 +916,34 @@ class App(tk.Tk):
                     parts = line.split()
                     
                 if len(parts) >= 2:
-                    batch = parts[0].strip()
-                    loc = parts[1].strip()
-                    self.entries[curr_row]["batch_var"].set(batch)
-                    self.entries[curr_row]["loc_var"].set(loc)
+                    # 使用智慧元素剖析器！
+                    parsed = self.parse_pasted_row_items(parts)
                     
-                    if len(parts) >= 3 and parts[2].strip():
-                        self.entries[curr_row]["date_var"].set(parts[2].strip())
-                    if len(parts) >= 4 and parts[3].strip():
-                        self.entries[curr_row]["time_var"].set(parts[3].strip())
-                    if len(parts) >= 5 and parts[4].strip():
-                        self.entries[curr_row]["mod_time_var"].set(parts[4].strip())
+                    if parsed["batch"]:
+                        self.entries[curr_row]["batch_var"].set(parsed["batch"])
+                    if parsed["loc"]:
+                        self.entries[curr_row]["loc_var"].set(parsed["loc"])
+                    if parsed["date"]:
+                        self.entries[curr_row]["date_var"].set(parsed["date"])
+                    if parsed["time"]:
+                        self.entries[curr_row]["time_var"].set(parsed["time"])
+                    if parsed["mod_time"]:
+                        self.entries[curr_row]["mod_time_var"].set(parsed["mod_time"])
                     
                     curr_row += 1
                 elif len(parts) == 1:
                     val = parts[0].strip()
-                    self.entries[curr_row]["batch_var"].set(val)
+                    # 單一欄位貼上：依當前焦點與內容自動指派
+                    if val:
+                        parsed = self.parse_pasted_row_items([val])
+                        if parsed["batch"]:
+                            self.entries[curr_row]["batch_var"].set(parsed["batch"])
+                        elif parsed["loc"]:
+                            self.entries[curr_row]["loc_var"].set(parsed["loc"])
+                        elif parsed["date"]:
+                            self.entries[curr_row]["date_var"].set(parsed["date"])
+                        else:
+                            self.entries[curr_row]["batch_var"].set(val)
                     curr_row += 1
                     
             return "break"
@@ -682,11 +1005,14 @@ class App(tk.Tk):
                 mt_val = ws.cell(row=r, column=mod_time_col).value if mod_time_col != -1 else None
                 
                 if b_val:
+                    d_pure, t_pure = split_date_and_time(d_val)
+                    t_final = str(t_val).strip() if t_val else t_pure
+                    
                     records.append({
                         "batch": str(b_val).strip(),
                         "loc": str(l_val).strip() if l_val else "",
-                        "date": str(d_val).strip() if d_val else "",
-                        "time": str(t_val).strip() if t_val else "",
+                        "date": d_pure,
+                        "time": t_final,
                         "mod_time": str(mt_val).strip() if mt_val else ""
                     })
                     
@@ -694,7 +1020,18 @@ class App(tk.Tk):
                 messagebox.showinfo("提示", "在檔案中找不到任何有效資料！")
                 wb.close()
                 return
-                
+
+            wb.close()
+
+            # 彈出範圍選擇對話框（由下往上選擇最新資料筆數）
+            dialog = ImportRangeDialog(self, records, os.path.basename(filepath))
+            self.wait_window(dialog)
+
+            if not dialog.selected_records:
+                return
+
+            target_records = dialog.selected_records
+
             start_idx = 0
             for idx, entry in enumerate(self.entries):
                 if not entry["batch_var"].get().strip():
@@ -703,11 +1040,11 @@ class App(tk.Tk):
             else:
                 start_idx = len(self.entries)
                 
-            needed_rows = start_idx + len(records)
+            needed_rows = start_idx + len(target_records)
             if needed_rows > len(self.entries):
                 self.add_input_rows(needed_rows - len(self.entries))
                 
-            for i, rec in enumerate(records):
+            for i, rec in enumerate(target_records):
                 row_e = self.entries[start_idx + i]
                 row_e["batch_var"].set(rec["batch"])
                 row_e["loc_var"].set(rec["loc"])
@@ -715,11 +1052,114 @@ class App(tk.Tk):
                 if rec["time"]: row_e["time_var"].set(rec["time"])
                 if rec["mod_time"]: row_e["mod_time_var"].set(rec["mod_time"])
                 
-            wb.close()
-            messagebox.showinfo("匯入成功", f"成功匯入 {len(records)} 筆資料！")
+            messagebox.showinfo("匯入成功", f"成功由檔尾往上擷取最新 {len(target_records)} 筆資料！")
             
         except Exception as e:
             messagebox.showerror("匯入失敗", f"讀取 Excel 失敗:\n{e}")
+
+    def load_existing_transport_notice(self):
+        """
+        讓人員手動選擇要修訂的『運輸通知表.xlsx』或資料夾，預設開啟當天的輸出資料夾。
+        還原原本的所有位置 (第1~N列)，讓人員直接於指定列輸入『修正到廠時間』！
+        """
+        from tkinter import filedialog
+
+        # 預設開啟今天的輸出資料夾
+        today_dir_name = f"三合一單輸出_{datetime.now().strftime('%Y%m%d')}"
+        today_dir = os.path.join(self.base_dir, today_dir_name)
+        initial_dir = today_dir if os.path.exists(today_dir) else self.base_dir
+
+        filepath = filedialog.askopenfilename(
+            initialdir=initial_dir,
+            title="選擇要修訂的運輸通知表 Excel 檔案",
+            filetypes=[("Excel 運輸通知表", "*.xlsx *.xls")]
+        )
+        if not filepath:
+            return
+
+        records = []
+        target_dir = os.path.dirname(filepath)
+        folder_name = os.path.basename(target_dir)
+
+        # 1. 優先嘗試讀取該輸出資料夾中的 session.json 快取（包含完整 10 碼批號）
+        session_file = os.path.join(target_dir, "session.json")
+        if not os.path.exists(session_file):
+            # 備用讀取根目錄 session 快取
+            session_file = os.path.join(self.base_dir, "last_generated_session.json")
+
+        if os.path.exists(session_file):
+            try:
+                import json
+                with open(session_file, "r", encoding="utf-8") as f:
+                    records = json.load(f)
+            except Exception:
+                pass
+
+        # 2. 若快取不存在，則直接分析選取的 Excel 運輸通知表卡片
+        if not records:
+            try:
+                wb = openpyxl.load_workbook(filepath, data_only=True)
+                ws = wb.active
+
+                curr_r = 1
+                while curr_r <= ws.max_row:
+                    d_val = ws.cell(row=curr_r, column=6).value
+                    t_val = ws.cell(row=curr_r+2, column=6).value
+                    mt_val = ws.cell(row=curr_r+3, column=6).value or ws.cell(row=curr_r+3, column=13).value
+                    l_val = ws.cell(row=curr_r+1, column=4).value
+                    tank_val = ws.cell(row=curr_r+1, column=5).value
+
+                    l_str = str(l_val).replace("台積", "").strip() if l_val else ""
+                    d_pure, t_pure = split_date_and_time(d_val)
+                    t_final = str(t_val).strip() if t_val else t_pure
+
+                    if d_pure or l_str or tank_val:
+                        records.append({
+                            "batch": "",
+                            "tank": str(tank_val).strip() if tank_val else "",
+                            "loc": l_str,
+                            "date": d_pure,
+                            "time": t_final,
+                            "mod_time": str(mt_val).strip() if mt_val else ""
+                        })
+                    curr_r += 7
+                wb.close()
+            except Exception as e:
+                messagebox.showerror("載入失敗", f"讀取既有運輸通知表失敗:\n{e}")
+                return
+
+        if not records:
+            messagebox.showwarning("提示", "選取的檔案或資料夾中無任何可還原的排程紀錄！")
+            return
+
+        # 清空目前表格
+        for entry in self.entries:
+            entry["batch_var"].set("")
+            entry["loc_var"].set("")
+            entry["long_code_var"].set("")
+            entry["tank_var"].set("")
+            entry["date_var"].set("")
+            entry["time_var"].set("")
+            entry["mod_time_var"].set("")
+
+        needed_rows = len(records)
+        if needed_rows > len(self.entries):
+            self.add_input_rows(needed_rows - len(self.entries))
+
+        for idx, rec in enumerate(records):
+            row_e = self.entries[idx]
+            if rec.get("batch"): row_e["batch_var"].set(rec["batch"])
+            if rec.get("loc"): row_e["loc_var"].set(rec["loc"])
+            if rec.get("date"): row_e["date_var"].set(rec["date"])
+            if rec.get("time"): row_e["time_var"].set(rec["time"])
+            if rec.get("mod_time"): row_e["mod_time_var"].set(rec["mod_time"])
+
+        messagebox.showinfo(
+            "還原成功", 
+            f"已成功從『{folder_name}』載入 {len(records)} 筆既有排程紀錄！\n\n"
+            f"所有排程已按原始位置 (第 1~{len(records)} 列) 精準對齊。\n"
+            f"請直接在需要修正的排程列填寫【修正到廠時間】即可！"
+        )
 
     def generate_files(self):
         if not os.path.exists(self.template_path):
@@ -882,6 +1322,15 @@ class App(tk.Tk):
                 success_transport = True
             except Exception as e:
                 error_msgs.append(f"產生運輸通知表失敗: {e}")
+
+        # 自動快取當前 Session 資料至輸出資料夾與根目錄，供往後一鍵精準還原修訂
+        try:
+            import json
+            for target_path in (os.path.join(output_dir, "session.json"), os.path.join(self.base_dir, "last_generated_session.json")):
+                with open(target_path, "w", encoding="utf-8") as f:
+                    json.dump(valid_data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
 
         msg_parts = []
         if do_3in1:
