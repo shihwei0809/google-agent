@@ -237,7 +237,7 @@ def build_version_1(docx_path):
     set_cell_background(c_card, "FFF8E7")
     set_cell_margins(c_card, top=100, bottom=100, left=120, right=120)
     p_c = c_card.paragraphs[0]
-    r_ct = p_c.add_run("◆ 企業法定義務提醒：")
+    r_ct = p_c.add_run("【企業法定義務提醒】")
     apply_font(r_ct, size=11, bold=True, color_rgb=(0xC0, 0x00, 0x00))
     r_cd = p_c.add_run("當接獲申訴或知悉性騷擾/霸凌情事時，雇主必須立即採取「有效之糾正及補救措施」（包含保護申訴人、啟動獨立調查程序、隔離加害者、給予心理諮商支援），否則依法最高可處新臺幣 100 萬元罰鍰。")
     apply_font(r_cd, size=10.5, color_rgb=(0x33, 0x33, 0x33))
@@ -453,7 +453,7 @@ def build_version_2(docx_path):
     set_cell_background(c_card, "FFF8E7")
     set_cell_margins(c_card, top=80, bottom=80, left=100, right=100)
     p_c = c_card.paragraphs[0]
-    r_ct = p_c.add_run("◆ 企業法定義務提醒：")
+    r_ct = p_c.add_run("【企業法定義務提醒】")
     apply_font(r_ct, size=10, bold=True, color_rgb=(0xC0, 0x00, 0x00))
     r_cd = p_c.add_run("當接獲申訴或知悉性騷擾/霸凌情事時，雇主必須立即採取「有效之糾正及補救措施」（包含保護申訴人、啟動獨立調查程序、隔離加害者、給予心理諮商支援），否則依法最高可處新臺幣 100 萬元罰鍰。")
     apply_font(r_cd, size=9.5, color_rgb=(0x33, 0x33, 0x33))
@@ -462,7 +462,7 @@ def build_version_2(docx_path):
     print(f"Version 2 (Portrait Large Font) saved to: {docx_path}")
 
 # ==========================================
-# 版本三：大字圖文卡片風格 (Card Modules Large Font - 11pt)
+# 版本三：大字圖文卡片風格 (Card Modules Zero Emoji - 11pt)
 # ==========================================
 def build_version_3(docx_path):
     doc = docx.Document()
@@ -515,7 +515,7 @@ def build_version_3(docx_path):
         set_cell_margins(cell, top=80, bottom=80, left=120, right=120)
         p = cell.paragraphs[0]
         p.paragraph_format.space_after = Pt(4)
-        r_t = p.add_run(f"📌 {title} （發生場景：{loc}）\n")
+        r_t = p.add_run(f"{title} （發生場景：{loc}）\n")
         apply_font(r_t, size=11.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
         
         r_a = p.add_run(f"• 行為樣態：{act}\n")
@@ -524,7 +524,7 @@ def build_version_3(docx_path):
         r_b = p.add_run(f"• 霸凌成分：{b_comp}  |  • 性騷擾成分：{s_comp}\n")
         apply_font(r_b, size=10.5, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
         
-        r_e = p.add_run(f"💬 加害常見藉口：{excuse}")
+        r_e = p.add_run(f"◆ 加害常見藉口：{excuse}")
         apply_font(r_e, size=10, italic=True, bold=True, color_rgb=(0xC0, 0x00, 0x00))
         doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
@@ -553,7 +553,7 @@ def build_version_3(docx_path):
         set_cell_margins(cell, top=80, bottom=80, left=120, right=120)
         p = cell.paragraphs[0]
         p.paragraph_format.space_after = Pt(4)
-        r_t = p.add_run(f"📌 {title} （發生場景：{loc}）\n")
+        r_t = p.add_run(f"{title} （發生場景：{loc}）\n")
         apply_font(r_t, size=11.5, bold=True, color_rgb=(0x1B, 0x5E, 0x20))
         
         r_a = p.add_run(f"• 行為樣態：{act}\n")
@@ -562,7 +562,7 @@ def build_version_3(docx_path):
         r_b = p.add_run(f"• 霸凌成分：{b_comp}  |  • 性騷擾成分：{s_comp}\n")
         apply_font(r_b, size=10.5, bold=True, color_rgb=(0x00, 0x20, 0x60))
         
-        r_e = p.add_run(f"💬 加害常見藉口：{excuse}")
+        r_e = p.add_run(f"◆ 加害常見藉口：{excuse}")
         apply_font(r_e, size=10, italic=True, bold=True, color_rgb=(0xC0, 0x00, 0x00))
         doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
@@ -576,14 +576,14 @@ def build_version_3(docx_path):
         set_cell_margins(cell, top=80, bottom=80, left=120, right=120)
         p = cell.paragraphs[0]
         p.paragraph_format.space_after = Pt(4)
-        r_t = p.add_run(f"▶ {s_num} —— {s_title}\n")
+        r_t = p.add_run(f"【{s_num}】—— {s_title}\n")
         apply_font(r_t, size=11, bold=True, color_rgb=(0xC0, 0x00, 0x00))
         r_d = p.add_run(f"說明：{s_desc}")
         apply_font(r_d, size=10.5, color_rgb=(0x33, 0x33, 0x33))
         doc.add_paragraph().paragraph_format.space_after = Pt(4)
 
     doc.save(docx_path)
-    print(f"Version 3 (Card Modules Large Font) saved to: {docx_path}")
+    print(f"Version 3 (Card Modules Zero Emoji) saved to: {docx_path}")
 
 def convert_to_pdf(docx_path, pdf_path):
     try:
@@ -598,7 +598,6 @@ def convert_to_pdf(docx_path, pdf_path):
         print(f"PDF error: {e}")
 
 if __name__ == "__main__":
-    # 更新預設檔案職場霸凌與性騷擾案例分析與法規辨識手冊.docx 為大字橫向版
     main_docx = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊.docx")
     main_pdf = os.path.join(base_dir, "職場霸凌與性騷擾案例分析與法規辨識手冊.pdf")
 
