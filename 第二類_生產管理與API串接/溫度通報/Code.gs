@@ -1,3 +1,4 @@
+
 /**
  * 當試算表開啟時，自動建立頂端自訂選單，方便人員點選測試與重置
  */
@@ -95,7 +96,7 @@ function loadConfigFromSheet() {
   
   var config = {
     threshold: 28.0,
-    startHour: 0,
+    startHour: 8,
     endHour: 24,
     frequency: 60,
     password: "admin888",
@@ -411,13 +412,34 @@ function checkWeatherAndNotify() {
   var heartbeatTimeoutMinutes = Math.max(15, frequency * 1.1);
   var properties = PropertiesService.getScriptProperties();
   var lastLocalHeartbeat = properties.getProperty("LAST_LOCAL_HEARTBEAT");
+  var isOfflineAlertSent = properties.getProperty("IS_OFFLINE_ALERT_SENT") === "true";
+  
   if (lastLocalHeartbeat) {
     var lastTime = parseInt(lastLocalHeartbeat);
     var nowTime = new Date().getTime();
     var diffMinutes = (nowTime - lastTime) / (1000 * 60);
     if (diffMinutes < heartbeatTimeoutMinutes) {
       Logger.log("偵測到本機近期已執行（約 " + Math.round(diffMinutes) + " 分鐘前），雲端備援跳過本次排程。");
+      if (isOfflineAlertSent) {
+        try {
+          var configObj = loadConfigFromSheet();
+          sendOfflineNoticeToAdmin("【系統通知】環境溫度監控本機端已恢復連線，心跳信號已恢復正常。", configObj);
+        } catch (e) {
+          Logger.log("發送個人恢復通知失敗: " + e.message);
+        }
+        properties.setProperty("IS_OFFLINE_ALERT_SENT", "false");
+      }
       return;
+    } else {
+      if (!isOfflineAlertSent) {
+        try {
+          var configObj = loadConfigFromSheet();
+          sendOfflineNoticeToAdmin("【系統通知】偵測到環境溫度監控本機端已逾時未回報心跳（已斷線 " + Math.round(diffMinutes) + " 分鐘），雲端備援已自動接手運作。", configObj);
+        } catch (e) {
+          Logger.log("發送個人斷線通知失敗: " + e.message);
+        }
+        properties.setProperty("IS_OFFLINE_ALERT_SENT", "true");
+      }
     }
   }
 
@@ -520,10 +542,10 @@ function checkWeatherAndNotify() {
     if (lastState !== "HOT") {
       shouldNotify = true;
       alertStateText = "高溫超標警報";
-      notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定溫度閾值！";
+      notifySubject = "【高溫警報】彰化縣線西鄉目前環境溫度已達 " + currentTemp + "°C，超過設定閾值！";
       
       notifyBody = "【環境高溫警報】\n";
-      notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定溫度閾值 " + threshold + "°C)\n";
+      notifyBody += "當前環境溫度：" + currentTemp + "°C ⚠️ (已超過設定閾值 " + threshold + "°C)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
       notifyBody += "※ 請相關人員開啟灑水設備降溫循環過濾器。\n";
@@ -536,10 +558,10 @@ function checkWeatherAndNotify() {
     if (lastState === "HOT") {
       shouldNotify = true;
       alertStateText = "溫度回落正常";
-      notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定溫度閾值。";
+      notifySubject = "【高溫解除】彰化縣線西鄉目前環境溫度已回落至 " + currentTemp + "°C，低於設定閾值。";
       
       notifyBody = "【環境溫度回落通知】\n";
-      notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定溫度閾值 " + threshold + "°C 以下)\n";
+      notifyBody += "當前環境溫度：" + currentTemp + "°C ✅ (已降至設定閾值 " + threshold + "°C 以下)\n";
       notifyBody += "氣象觀測時間：" + displayTime + "\n";
       notifyBody += "通報時間：" + formattedTime + "\n\n";
       notifyBody += "※ 目前高溫警報已解除，氣溫已回落至安全範圍。";
@@ -685,6 +707,73 @@ function checkWeatherAndNotify() {
     }
   } catch (firebaseErr) {
     Logger.log("雲端備援同步至 Firebase 失敗: " + firebaseErr.message);
+  }
+}
+
+/**
+ * 發送本機斷線/恢復通知給個人，不發送到群組
+ */
+function sendOfflineNoticeToAdmin(message, config) {
+  var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
+  
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheets()[0];
+    var data = sheet.getDataRange().getValues();
+    var personalLineIds = [];
+    
+    for (var i = 1; i < data.length; i++) {
+      var lineId = String(data[i][2]).trim();
+      var enabled = String(data[i][3]).trim().toUpperCase();
+      
+      var name = String(data[i][0]).trim();
+      var name_lower = name.toLowerCase();
+      if (name_lower.includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值") ||
+          name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
+          name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
+          name_lower.includes("frequency") || name.includes("頻率") || name_lower.includes("password") ||
+          name_lower.includes("firebase") || name.includes("專案") || name_lower.includes("project")) {
+        continue;
+      }
+      
+      if (lineId && enabled !== "N" && enabled !== "NO" && enabled !== "FALSE") {
+        if (lineId.charAt(0).toUpperCase() === "U") {
+          personalLineIds.push(lineId);
+        }
+      }
+    }
+    
+    if (personalLineIds.length > 0) {
+      var multicastUrl = "https://api.line.me/v2/bot/message/multicast";
+      var options = {
+        "method": "post",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + lineToken
+        },
+        "payload": JSON.stringify({
+          "to": personalLineIds,
+          "messages": [{"type": "text", "text": message}]
+        }),
+        "muteHttpExceptions": true
+      };
+      var response = UrlFetchApp.fetch(multicastUrl, options);
+      Logger.log("已發送本機狀態通知給個人 LINE (" + personalLineIds.length + " 人): " + response.getContentText());
+    }
+  } catch (err) {
+    Logger.log("發送個人 LINE 斷線/恢復通知失敗: " + err.message);
+  }
+  
+  try {
+    var adminEmail = "shihwei0809@gmail.com";
+    MailApp.sendEmail({
+      to: adminEmail,
+      subject: "【環境溫度監控系統通知】",
+      body: message
+    });
+    Logger.log("已發送本機狀態通知至 Email: " + adminEmail);
+  } catch (err) {
+    Logger.log("發送 Email 斷線/恢復通知失敗: " + err.message);
   }
 }
 
