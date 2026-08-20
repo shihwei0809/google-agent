@@ -711,59 +711,9 @@ function checkWeatherAndNotify() {
 }
 
 /**
- * 發送本機斷線/恢復通知給個人，不發送到群組
+ * 發送本機斷線/恢復通知，只寄 Email 給管理員
  */
 function sendOfflineNoticeToAdmin(message, config) {
-  var lineToken = "5GyVAKorqM7GsTi5+OdJNtEMJZuvGXU4OXEHWeSS+gnhkpkV0ZFCEb7M2KdTopUKPELADU+xIMadPUytJO0g1XDpq2pnYj/70KNDBcL0pBLutivXV9P6Ff76ylrHQ0dbILQsPd7pCGLFXMcCrmgcEQdB04t89/1O/w1cDnyilFU=";
-  
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheets()[0];
-    var data = sheet.getDataRange().getValues();
-    var personalLineIds = [];
-    
-    for (var i = 1; i < data.length; i++) {
-      var lineId = String(data[i][2]).trim();
-      var enabled = String(data[i][3]).trim().toUpperCase();
-      
-      var name = String(data[i][0]).trim();
-      var name_lower = name.toLowerCase();
-      if (name_lower.includes("threshold") || name.includes("溫度") || name.includes("閥值") || name.includes("閾值") ||
-          name_lower.includes("start") || name.includes("開始") || name.includes("啟動") ||
-          name_lower.includes("end") || name.includes("結束") || name.includes("停止") ||
-          name_lower.includes("frequency") || name.includes("頻率") || name_lower.includes("password") ||
-          name_lower.includes("firebase") || name.includes("專案") || name_lower.includes("project")) {
-        continue;
-      }
-      
-      if (lineId && enabled !== "N" && enabled !== "NO" && enabled !== "FALSE") {
-        if (lineId.charAt(0).toUpperCase() === "U") {
-          personalLineIds.push(lineId);
-        }
-      }
-    }
-    
-    if (personalLineIds.length > 0) {
-      var multicastUrl = "https://api.line.me/v2/bot/message/multicast";
-      var options = {
-        "method": "post",
-        "headers": {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + lineToken
-        },
-        "payload": JSON.stringify({
-          "to": personalLineIds,
-          "messages": [{"type": "text", "text": message}]
-        }),
-        "muteHttpExceptions": true
-      };
-      var response = UrlFetchApp.fetch(multicastUrl, options);
-      Logger.log("已發送本機狀態通知給個人 LINE (" + personalLineIds.length + " 人): " + response.getContentText());
-    }
-  } catch (err) {
-    Logger.log("發送個人 LINE 斷線/恢復通知失敗: " + err.message);
-  }
-  
   try {
     var adminEmail = "shihwei0809@gmail.com";
     MailApp.sendEmail({
