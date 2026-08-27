@@ -1,22 +1,48 @@
-import pytesseract
-from pytesseract import Output
-from tkinter import filedialog
+import os
+import sys
+import re
+import json
+import csv
+import webbrowser
+import calendar
+from datetime import datetime, timedelta
 from io import BytesIO
-from openpyxl.drawing.image import Image as OpenpyxlImage
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import openpyxl
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.cell.rich_text import TextBlock, CellRichText
 from openpyxl.cell.text import InlineFont
-import os
-from datetime import datetime, timedelta
-import calendar
+from PIL import Image as PILImage, Image
 import qrcode
-from io import BytesIO
+import pytesseract
+from pytesseract import Output
 
 # ================= 浮動日曆選擇器 =================
+
+
+# ================= 產品品名與固定充填重量對照表 =================
+PRODUCT_WEIGHT_MAP = {
+    "IPA": "4300",
+    "IPA HQ": "4300",
+    "IPAHQ": "4300",
+    "SEP73E5": "4300",
+    "SEP73E4": "4300",
+    "PMAHQ": "4300",
+    "PMA": "4300",
+    "CPNE4R": "4300",
+    "CPNE4": "4300",
+    "EDG": "4300",
+    "BDGE": "4300",
+    "SET100": "4300",
+}
+
+def get_product_weight(product_name):
+    if not product_name:
+        return "4300"
+    p = str(product_name).strip()
+    return PRODUCT_WEIGHT_MAP.get(p, PRODUCT_WEIGHT_MAP.get(p.upper(), "4300"))
 
 class CalendarDialog(tk.Toplevel):
     def __init__(self, parent, target_var):
@@ -173,12 +199,12 @@ def split_date_and_time(raw_val):
 
 class ImportRangeDialog(tk.Toplevel):
     """
-    Excel 匯入筆數與範圍選擇對話框 (預設從最後一筆往上擷取最新資料)
+    Excel 匯入筆數與範圍選擇對話框（預設以「當天日期加二天 (今天~後天)」為優先智慧顯示）
     """
     def __init__(self, parent, records, filename=""):
         super().__init__(parent)
-        self.title("📥 Excel 匯入筆數與範圍選擇 (最後一筆往上抓)")
-        self.geometry("750x580")
+        self.title("📥 勝一訂單匯入選擇 (優先顯示當天至+2天排程)")
+        self.geometry("820x640")
         self.configure(padx=15, pady=15)
         self.transient(parent)
         self.grab_set()
@@ -186,62 +212,148 @@ class ImportRangeDialog(tk.Toplevel):
         self.records = records
         self.total_count = len(records)
         self.selected_records = None
+        self.current_filtered_records = []
 
-        # 預設擷取筆數：預設取最新的 10 筆（或全部若少於 10 筆）
-        self.count_var = tk.IntVar(value=min(10, self.total_count))
+        # 計算當天日期 + 2 天 (今天、明天、後天)
+        now_dt = datetime.now()
+        self.d0_str = now_dt.strftime('%Y-%m-%d')
+        self.d1_str = (now_dt + timedelta(days=1)).strftime('%Y-%m-%d')
+        self.d2_str = (now_dt + timedelta(days=2)).strftime('%Y-%m-%d')
+        self.target_window = [self.d0_str, self.d1_str, self.d2_str]
+
+        # 檢查檔案內是否有符合當天至+2天的記錄
+        matched_window = [r for r in self.records if self.normalize_date_str(r.get('date')) in self.target_window]
+        
+        # 若當前日期完全無匹配（如為歷史範例檔），自動尋找檔案中最大日期為基準的 3 天區間
+        if not matched_window:
+            valid_dates = []
+            for r in self.records:
+                nd = self.normalize_date_str(r.get('date'))
+                if nd:
+                    try:
+                        valid_dates.append(datetime.strptime(nd, '%Y-%m-%d'))
+                    except Exception:
+                        pass
+            if valid_dates:
+                max_d = max(valid_dates)
+                self.d0_str = (max_d - timedelta(days=2)).strftime('%Y-%m-%d')
+                self.d1_str = (max_d - timedelta(days=1)).strftime('%Y-%m-%d')
+                self.d2_str = max_d.strftime('%Y-%m-%d')
+                self.target_window = [self.d0_str, self.d1_str, self.d2_str]
+                matched_window = [r for r in self.records if self.normalize_date_str(r.get('date')) in self.target_window]
+
+        self.matched_window_records = matched_window
+
+        # 預設選取筆數模式
+        self.mode_var = tk.StringVar(value="window" if self.matched_window_records else "count")
+        self.count_var = tk.IntVar(value=min(20, self.total_count))
 
         self.setup_ui(filename)
-        self.update_preview()
+        self.apply_filter()
+
+    def normalize_date_str(self, d_val):
+        if not d_val:
+            return ""
+        s = str(d_val).strip().replace('/', '-').replace('.', '-')
+        parts = s.split(' ')[0].split('-')
+        if len(parts) == 3:
+            try:
+                y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
+                return f"{y:04d}-{m:02d}-{d:02d}"
+            except Exception:
+                pass
+        return s
 
     def setup_ui(self, filename):
         # 頂部提示資訊
-        info_frame = tk.LabelFrame(self, text="檔案偵測結果", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#002060")
-        info_frame.pack(fill="x", pady=(0, 10))
+        info_frame = tk.LabelFrame(self, text="檔案與排程日期偵測", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#002060")
+        info_frame.pack(fill="x", pady=(0, 8))
 
-        tk.Label(info_frame, text=f"📄 檔案名稱：{filename}", font=("Arial", 9, "bold")).pack(anchor="w")
-        tk.Label(info_frame, text=f"📊 總計偵測到：{self.total_count} 筆有效出貨資料 (最舊 ➔ 最新)", fg="#2E7D32", font=("Arial", 10, "bold")).pack(anchor="w", pady=(2, 0))
-
-        # 選擇擷取筆數控制區
-        ctrl_frame = tk.LabelFrame(self, text="🎯 擷取筆數設定（從最後一筆往上抓最新資料）", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#C00000")
-        ctrl_frame.pack(fill="x", pady=(0, 10))
-
-        # 快速按鈕列
-        btn_bar = tk.Frame(ctrl_frame)
-        btn_bar.pack(fill="x", pady=(0, 6))
-
-        tk.Label(btn_bar, text="快速選擇倒數筆數：", font=("Arial", 9, "bold")).pack(side="left")
+        tk.Label(info_frame, text=f"📄 檔案名稱：{filename} | 📊 總計台積電排程：{self.total_count} 筆", font=("Arial", 9, "bold")).pack(anchor="w")
         
-        quick_opts = [5, 10, 15, 20, self.total_count]
-        seen = set()
-        for num in quick_opts:
-            if num > self.total_count or num in seen:
-                continue
-            seen.add(num)
-            lbl_text = f"最新 {num} 筆" if num < self.total_count else f"全部 ({num} 筆)"
+        window_label = f"🎯 優先篩選區間（當天至+2天）：{self.d0_str} 至 {self.d2_str} (共 {len(self.matched_window_records)} 筆排程)"
+        tk.Label(info_frame, text=window_label, fg="#2E7D32", font=("Arial", 10, "bold")).pack(anchor="w", pady=(2, 0))
+
+        # 篩選與快速選擇控制區
+        ctrl_frame = tk.LabelFrame(self, text="⚡ 快速選擇匯入範圍 (預設優先顯示當天至+2天)", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#C00000")
+        ctrl_frame.pack(fill="x", pady=(0, 8))
+
+        # 第一列：依日期快速篩選
+        date_bar = tk.Frame(ctrl_frame)
+        date_bar.pack(fill="x", pady=(0, 6))
+
+        tk.Label(date_bar, text="【日期優先】", font=("Arial", 9, "bold"), fg="#1B5E20").pack(side="left")
+        
+        btn_win = tk.Button(
+            date_bar, 
+            text=f"🌟 當天至+2天 ({len(self.matched_window_records)} 筆)", 
+            command=lambda: self.set_mode("window"), 
+            font=("Arial", 9, "bold"), 
+            bg="#E8F5E9", 
+            fg="#2E7D32", 
+            padx=10,
+            relief="groove",
+            cursor="hand2"
+        )
+        btn_win.pack(side="left", padx=4)
+
+        tk.Button(
+            date_bar, 
+            text=f"今天 ({self.d0_str})", 
+            command=lambda: self.set_mode("d0"), 
+            font=("Arial", 9), 
+            bg="#F1F8E9", 
+            padx=6,
+            cursor="hand2"
+        ).pack(side="left", padx=3)
+
+        tk.Button(
+            date_bar, 
+            text=f"明天 ({self.d1_str})", 
+            command=lambda: self.set_mode("d1"), 
+            font=("Arial", 9), 
+            bg="#F1F8E9", 
+            padx=6,
+            cursor="hand2"
+        ).pack(side="left", padx=3)
+
+        tk.Button(
+            date_bar, 
+            text=f"後天 ({self.d2_str})", 
+            command=lambda: self.set_mode("d2"), 
+            font=("Arial", 9), 
+            bg="#F1F8E9", 
+            padx=6,
+            cursor="hand2"
+        ).pack(side="left", padx=3)
+
+        # 第二列：依倒數筆數選擇
+        count_bar = tk.Frame(ctrl_frame)
+        count_bar.pack(fill="x")
+
+        tk.Label(count_bar, text="【筆數擷取】", font=("Arial", 9, "bold"), fg="#0D47A1").pack(side="left")
+
+        for n in [5, 10, 20, self.total_count]:
+            lbl = f"最新 {n} 筆" if n < self.total_count else f"全部 ({n} 筆)"
             tk.Button(
-                btn_bar, 
-                text=lbl_text, 
-                command=lambda n=num: self.set_count(n), 
-                font=("Arial", 9, "bold"), 
+                count_bar, 
+                text=lbl, 
+                command=lambda num=n: self.set_count_mode(num), 
+                font=("Arial", 9), 
                 bg="#E3F2FD", 
                 fg="#0D47A1", 
-                padx=8,
+                padx=6,
                 cursor="hand2"
-            ).pack(side="left", padx=4)
+            ).pack(side="left", padx=3)
 
-        # 手動 Spinbox 輸入
-        custom_bar = tk.Frame(ctrl_frame)
-        custom_bar.pack(fill="x")
-
-        tk.Label(custom_bar, text="自訂倒數筆數（從最後一筆往上計數）：", font=("Arial", 9)).pack(side="left")
-        spin = tk.Spinbox(custom_bar, from_=1, to=self.total_count, textvariable=self.count_var, width=8, command=self.update_preview, font=("Arial", 10, "bold"))
-        spin.pack(side="left", padx=5)
-        spin.bind("<KeyRelease>", lambda e: self.update_preview())
-        tk.Label(custom_bar, text="筆資料", font=("Arial", 9)).pack(side="left")
+        tk.Label(count_bar, text="自訂倒數筆數：", font=("Arial", 9)).pack(side="left", padx=(10, 2))
+        spin = tk.Spinbox(count_bar, from_=1, to=self.total_count, textvariable=self.count_var, width=6, command=lambda: self.set_count_mode(self.count_var.get()), font=("Arial", 9, "bold"))
+        spin.pack(side="left")
+        spin.bind("<KeyRelease>", lambda e: self.set_count_mode(self.count_var.get()))
 
         # 預覽表格區
-        preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽", font=("Arial", 9, "bold"), padx=8, pady=6)
-        preview_frame.pack(fill="both", expand=True, pady=(0, 10))
+        preview_frame = tk.LabelFrame(self, text="📋 即將匯入台積電排程資料預覽", font=("Arial", 9, "bold"), padx=8, pady=6)
+        preview_frame.pack(fill="both", expand=True, pady=(0, 8))
 
         self.preview_listbox = tk.Listbox(preview_frame, font=("Consolas", 10), selectmode="none", borderwidth=0)
         scroll = ttk.Scrollbar(preview_frame, orient="vertical", command=self.preview_listbox.yview)
@@ -258,7 +370,7 @@ class ImportRangeDialog(tk.Toplevel):
             action_frame, 
             text="🚀 確認匯入資料", 
             command=self.confirm_import, 
-            bg="#4CAF50", 
+            bg="#2E7D32", 
             fg="white", 
             font=("Arial", 11, "bold"), 
             pady=6,
@@ -278,52 +390,98 @@ class ImportRangeDialog(tk.Toplevel):
             cursor="hand2"
         ).pack(side="right", padx=5)
 
-    def set_count(self, num):
-        self.count_var.set(num)
-        self.update_preview()
+    def set_mode(self, mode):
+        self.mode_var.set(mode)
+        self.apply_filter()
 
-    def update_preview(self):
+    def set_count_mode(self, num):
         try:
-            cnt = self.count_var.get()
+            num = int(num)
         except Exception:
-            cnt = 1
+            num = 10
+        num = max(1, min(num, self.total_count))
+        self.count_var.set(num)
+        self.mode_var.set("count")
+        self.apply_filter()
 
-        cnt = max(1, min(cnt, self.total_count))
-        self.count_var.set(cnt)
-
-        # 由檔尾往回切片擷取最新 cnt 筆
-        slice_records = self.records[-cnt:]
+    def apply_filter(self):
+        mode = self.mode_var.get()
         
-        self.preview_listbox.delete(0, tk.END)
-        for idx, rec in enumerate(slice_records):
-            origin_idx = self.total_count - cnt + idx + 1
-            d_pure, t_pure = split_date_and_time(rec.get("date"))
-            t_val = t_pure or rec.get("time", "")
-            
-            d_str = (d_pure or "無日期").ljust(11)
-            t_str = (t_val or "無時間").ljust(8)
-            b_str = (rec.get("batch") or "無批號").ljust(12)
-            l_str = (rec.get("loc") or "無地點").ljust(10)
-            self.preview_listbox.insert(tk.END, f"[{idx+1:02d}] 檔中第{origin_idx:02d}筆 | 日期: {d_str} | 時間: {t_str} | 批號: {b_str} | 地點: {l_str}")
+        if mode == "window":
+            if self.matched_window_records:
+                self.current_filtered_records = list(self.matched_window_records)
+                desc = f"「當天至+2天 ({self.d0_str} ~ {self.d2_str})」"
+            else:
+                self.current_filtered_records = self.records[-10:]
+                desc = "「最新 10 筆」"
+        elif mode == "d0":
+            matched = [r for r in self.records if self.normalize_date_str(r.get('date')) == self.d0_str]
+            self.current_filtered_records = matched if matched else self.records[-5:]
+            desc = f"「今天 ({self.d0_str})」"
+        elif mode == "d1":
+            matched = [r for r in self.records if self.normalize_date_str(r.get('date')) == self.d1_str]
+            self.current_filtered_records = matched if matched else self.records[-5:]
+            desc = f"「明天 ({self.d1_str})」"
+        elif mode == "d2":
+            matched = [r for r in self.records if self.normalize_date_str(r.get('date')) == self.d2_str]
+            self.current_filtered_records = matched if matched else self.records[-5:]
+            desc = f"「後天 ({self.d2_str})」"
+        else:
+            try:
+                cnt = int(self.count_var.get())
+            except Exception:
+                cnt = 10
+            cnt = max(1, min(cnt, self.total_count))
+            self.current_filtered_records = self.records[-cnt:]
+            desc = f"「最新 {cnt} 筆」"
 
-        self.btn_confirm.config(text=f"🚀 確認由下往上擷取最新的 {cnt} 筆匯入系統")
+        # 更新預覽列表
+        self.preview_listbox.delete(0, tk.END)
+        for idx, rec in enumerate(self.current_filtered_records, 1):
+            d_norm = self.normalize_date_str(rec.get("date")) or "無日期"
+            t_val = rec.get("time", "") or "無時間"
+            b_str = (rec.get("batch") or "").ljust(12)
+            l_str = (rec.get("loc") or "").ljust(10)
+            tk_str = (get_tank_from_batch(rec.get("batch") or "")).ljust(6)
+            
+            tag = "★優先" if d_norm in self.target_window else "  "
+            self.preview_listbox.insert(tk.END, f"{tag} [{idx:02d}] 日期: {d_norm.ljust(10)} | 時間: {t_val.ljust(6)} | 批號: {b_str} | 槽號: {tk_str} | 地點: {l_str}")
+
+        cnt_res = len(self.current_filtered_records)
+        self.btn_confirm.config(text=f"🚀 確認匯入 {desc} 共 {cnt_res} 筆排程資料")
 
     def confirm_import(self):
-        cnt = self.count_var.get()
-        cnt = max(1, min(cnt, self.total_count))
-        self.selected_records = self.records[-cnt:]
+        self.selected_records = self.current_filtered_records
         self.destroy()
 
 # ================= 核心邏輯 =================
+
+def normalize_location(loc_raw):
+    if not loc_raw:
+        return ""
+    loc = str(loc_raw).strip()
+    if re.match(r'^[A-Za-z0-9]+$', loc):
+        return loc
+    m_ap = re.search(r'(AP\d+(?:[A-Za-z0-9]+)?)', loc, re.IGNORECASE)
+    if m_ap:
+        return m_ap.group(1).upper()
+    m = re.search(r'(?:[Ff])?(\d+[A-Za-z]?|[A-Za-z]\d+)\s*(?:廠)?\s*[-_]?\s*([A-Za-z0-9]+)', loc)
+    if m:
+        return f"{m.group(1)}{m.group(2)}"
+    cleaned = loc.replace('台積電', '').replace('台積', '').replace('廠', '').replace(' ', '').replace('-', '').replace('_', '')
+    return cleaned if cleaned else loc
 
 def get_tank_from_batch(batch):
     batch = batch.strip()
     if not batch:
         return ""
-    if len(batch) != 10:
+    if len(batch) < 9 or len(batch) > 13:
         return "長度錯誤"
-    if batch.endswith('J1'):
-        return batch[5:8]
+    m = re.search(r'^[0-9]{4,5}([A-Za-z]\d{2,3})', batch)
+    if m:
+        return m.group(1)
+    if batch.endswith('J1') or batch.endswith('T1') or batch.endswith('T2'):
+        return batch[5:-2]
     return batch[5:9]
 
 def find_row_by_label(ws, labels):
@@ -399,10 +557,13 @@ def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
                 cell.alignment = align_center
 
         # --- Title ---
+        prod_name = item.get("product", "").strip() or "IPA"
+        weight_val = item.get("weight", "").strip() or get_product_weight(prod_name)
+        
         ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c3)
         title_suffix = "出貨排程修正通知" if is_modified_card else "出貨排程通知"
         title_rt = CellRichText([
-            TextBlock(InlineFont(color="002060", b=True, sz=12, rFont="Microsoft JhengHei"), "Shiny IPA Lorry\n"),
+            TextBlock(InlineFont(color="002060", b=True, sz=12, rFont="Microsoft JhengHei"), f"Shiny {prod_name} Lorry\n"),
             TextBlock(InlineFont(color="002060", sz=10, rFont="Microsoft JhengHei"), f"(料號：{mat_no}) {title_suffix}")
         ])
         cell_a1 = ws.cell(row=r1, column=c1)
@@ -445,7 +606,7 @@ def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
 
         # --- Body ---
         ws.merge_cells(start_row=r3, start_column=c1, end_row=r6, end_column=c1)
-        cell_a3 = ws.cell(row=r3, column=c1, value="IPA")
+        cell_a3 = ws.cell(row=r3, column=c1, value=prod_name)
         cell_a3.font = openpyxl_font_dark_blue_b14
         
         time_val = item.get("time", "").strip()
@@ -469,7 +630,7 @@ def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
         
         ws.merge_cells(start_row=r5, start_column=c2, end_row=r5, end_column=c3)
         ws.cell(row=r5, column=c2, value="充填數量(KG)")
-        ws.cell(row=r5, column=c6, value="4300")
+        ws.cell(row=r5, column=c6, value=weight_val)
         
         ws.merge_cells(start_row=r2, start_column=c4, end_row=r5, end_column=c4)
         full_loc = item.get("loc", "").strip()
@@ -515,8 +676,8 @@ def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("三合一單自動產生器 & 運輸通知表產生器")
-        self.geometry("1150x750")
+        self.title("勝一三合一單產生系統 & 運輸通知表產生器")
+        self.geometry("1180x750")
         self.configure(padx=15, pady=15)
         
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -670,14 +831,15 @@ class App(tk.Tk):
         headers = [
             (0, "產生"),
             (1, "項次"),
-            (2, "批號 (請輸入10碼)"),
+            (2, "批號 (10~11碼)"),
             (3, "槽號 (自動)"),
-            (4, "地點 (如 15P5)"),
-            (5, "長代號 (自動)"),
-            (6, "出貨日期 📅"),
-            (7, "預計到廠時間"),
-            (8, "修正到廠時間"),
-            (9, "單列清空")
+            (4, "品名 (產品)"),
+            (5, "地點 (如 15P5)"),
+            (6, "長代號 (自動)"),
+            (7, "出貨日期 📅"),
+            (8, "預計到廠時間"),
+            (9, "修正到廠時間"),
+            (10, "單列清空")
         ]
         
         for col_idx, title in headers:
@@ -732,32 +894,37 @@ class App(tk.Tk):
             chk.grid(row=row_grid_idx, column=0, padx=2, pady=2)
 
             # Col 1: 項次
-            lbl_num = tk.Label(self.scrollable_frame, text=str(row_idx), font=("Arial", 10))
+            lbl_num = tk.Label(self.scrollable_frame, text=str(row_idx), font=("Arial", 10), width=3)
             lbl_num.grid(row=row_grid_idx, column=1, padx=2, pady=2)
             
-            # Col 2: 批號
+            # Col 2: 批號 (10~11碼)
             batch_var = tk.StringVar()
-            batch_entry = tk.Entry(self.scrollable_frame, textvariable=batch_var, width=16, font=("Arial", 10))
+            batch_entry = tk.Entry(self.scrollable_frame, textvariable=batch_var, width=15, font=("Arial", 10))
             batch_entry.grid(row=row_grid_idx, column=2, padx=2, pady=2, sticky="ew")
             
-            # Col 3: 槽號
+            # Col 3: 槽號 (自動)
             tank_var = tk.StringVar()
-            tank_entry = tk.Entry(self.scrollable_frame, textvariable=tank_var, state="readonly", width=10, font=("Arial", 10), fg="blue")
+            tank_entry = tk.Entry(self.scrollable_frame, textvariable=tank_var, state="readonly", width=8, font=("Arial", 10), fg="blue")
             tank_entry.grid(row=row_grid_idx, column=3, padx=2, pady=2, sticky="ew")
+
+            # Col 4: 品名 (產品)
+            prod_var = tk.StringVar(value="IPA")
+            prod_entry = tk.Entry(self.scrollable_frame, textvariable=prod_var, width=11, font=("Arial", 10))
+            prod_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
             
-            # Col 4: 地點
+            # Col 5: 地點
             loc_var = tk.StringVar()
-            loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=12, font=("Arial", 10))
-            loc_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
+            loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=11, font=("Arial", 10))
+            loc_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
             
-            # Col 5: 長代號
+            # Col 6: 長代號
             long_code_var = tk.StringVar()
-            long_code_entry = tk.Entry(self.scrollable_frame, textvariable=long_code_var, state="readonly", width=16, font=("Arial", 10), fg="purple")
-            long_code_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
+            long_code_entry = tk.Entry(self.scrollable_frame, textvariable=long_code_var, state="readonly", width=14, font=("Arial", 9), fg="purple")
+            long_code_entry.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
             
-            # Col 6: 出貨日期 (Entry + 📅 日曆按鈕)
+            # Col 7: 出貨日期 (Entry + 📅 日曆按鈕)
             date_frame = tk.Frame(self.scrollable_frame)
-            date_frame.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
+            date_frame.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
             
             date_var = tk.StringVar(value="")
             date_entry = tk.Entry(date_frame, textvariable=date_var, width=11, font=("Arial", 10))
@@ -766,17 +933,17 @@ class App(tk.Tk):
             btn_cal = tk.Button(date_frame, text="📅", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal.pack(side="right", padx=(2, 0))
             
-            # Col 7: 預計到廠時間
+            # Col 8: 預計到廠時間
             time_var = tk.StringVar(value="")
             time_entry = tk.Entry(self.scrollable_frame, textvariable=time_var, width=10, font=("Arial", 10))
-            time_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
+            time_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
-            # Col 8: 修正到廠時間
+            # Col 9: 修正到廠時間
             mod_time_var = tk.StringVar(value="")
             mod_time_entry = tk.Entry(self.scrollable_frame, textvariable=mod_time_var, width=10, font=("Arial", 10), fg="red")
-            mod_time_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+            mod_time_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 9: 單列清空按鈕
+            # Col 10: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
                 text="清空", 
@@ -788,13 +955,13 @@ class App(tk.Tk):
                 width=6,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=9, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=10, padx=4, pady=2)
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
             
-            for widget in (batch_entry, loc_entry, date_entry):
+            for widget in (batch_entry, loc_entry, date_entry, prod_entry):
                 widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
@@ -803,6 +970,7 @@ class App(tk.Tk):
                 "chk_var": chk_var,
                 "batch_var": batch_var,
                 "tank_var": tank_var,
+                "prod_var": prod_var,
                 "loc_var": loc_var,
                 "long_code_var": long_code_var,
                 "date_var": date_var,
@@ -818,6 +986,7 @@ class App(tk.Tk):
                 entry["loc_var"].set("")
                 entry["long_code_var"].set("")
                 entry["tank_var"].set("")
+                entry["prod_var"].set("IPA")
                 entry["date_var"].set("")
                 entry["time_var"].set("")
                 entry["mod_time_var"].set("")
@@ -926,6 +1095,7 @@ class App(tk.Tk):
                     # 使用智慧元素剖析器！
                     parsed = self.parse_pasted_row_items(parts)
                     
+                    self.entries[curr_row]["chk_var"].set(True)
                     if parsed["batch"]:
                         self.entries[curr_row]["batch_var"].set(parsed["batch"])
                     if parsed["loc"]:
@@ -960,10 +1130,7 @@ class App(tk.Tk):
 
 
     def upload_coa(self):
-        import os
         if not os.path.exists(r'C:\Program Files\Tesseract-OCR	esseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR	esseract.exe'):
-            from tkinter import messagebox
-            import webbrowser
             ans = messagebox.askyesno(
                 "缺少 OCR 引擎", 
                 "系統偵測到您尚未安裝『Tesseract OCR 引擎』，無法使用截圖辨識功能！\n\n"
@@ -977,11 +1144,9 @@ class App(tk.Tk):
         filepaths = filedialog.askopenfilenames(title="選擇 COA 截圖", filetypes=[("Image files", "*.jpg *.jpeg *.png")])
         if filepaths:
             self.coa_paths.extend(filepaths)
-            from tkinter import messagebox
             messagebox.showinfo("上傳成功", f"成功上傳 {len(filepaths)} 張截圖！\n目前共 {len(self.coa_paths)} 張待處理。")
 
     def import_from_excel(self):
-        from tkinter import filedialog
         filepaths = filedialog.askopenfilenames(
             title="選擇要匯入的 Excel 或 CSV 檔案 (可多選)",
             filetypes=[("Excel & CSV files", "*.xlsx *.xls *.csv")]
@@ -994,7 +1159,6 @@ class App(tk.Tk):
             try:
                 rows = []
                 if filepath.lower().endswith('.csv'):
-                    import csv
                     try:
                         with open(filepath, 'r', encoding='utf-8-sig') as f:
                             reader = csv.reader(f)
@@ -1005,7 +1169,10 @@ class App(tk.Tk):
                             rows = list(reader)
                 else:
                     wb = openpyxl.load_workbook(filepath, data_only=True)
-                    ws = wb.active
+                    if '空白班表' in wb.sheetnames:
+                        ws = wb['空白班表']
+                    else:
+                        ws = wb.active
                     for r in ws.iter_rows(values_only=True):
                         rows.append(r)
                     wb.close()
@@ -1035,8 +1202,6 @@ class App(tk.Tk):
                             elif key == "DeliverDate":
                                 date_val = val
                                 
-                    import re
-                    import os
                     fname = os.path.basename(filepath)
                     m = re.search(r'\s([A-Za-z0-9]+)_\d+\.csv$', fname, re.IGNORECASE)
                     if m:
@@ -1064,6 +1229,8 @@ class App(tk.Tk):
                     date_col = -1
                     time_col = -1
                     mod_time_col = -1
+                    cust_col = -1
+                    prod_col = -1
                     start_row = -1
                     
                     for r_idx, row_vals in enumerate(rows[:10]):
@@ -1072,13 +1239,17 @@ class App(tk.Tk):
                             v_str = str(val).strip()
                             if "批號" in v_str:
                                 batch_col = c_idx
-                            if "地點" in v_str or "交貨地點" in v_str:
+                            if "對象" in v_str or "客戶" in v_str or "廠商" in v_str:
+                                cust_col = c_idx
+                            if "品名" in v_str or "產品" in v_str:
+                                prod_col = c_idx
+                            if "地點" in v_str or "交貨地點" in v_str or "指送地" in v_str or "指送" in v_str:
                                 loc_col = c_idx
-                            if "日期" in v_str:
+                            if "日期" in v_str or "到貨日期" in v_str or "出車日期" in v_str:
                                 date_col = c_idx
                             if "修正" in v_str and "時間" in v_str:
                                 mod_time_col = c_idx
-                            elif "時間" in v_str and mod_time_col == -1:
+                            elif ("時間" in v_str or "到貨時間" in v_str) and mod_time_col == -1:
                                 time_col = c_idx
                                 
                         if batch_col != -1 and loc_col != -1:
@@ -1086,7 +1257,7 @@ class App(tk.Tk):
                             break
                             
                     if batch_col == -1 or loc_col == -1:
-                        batch_col = 2
+                        batch_col = 1
                         loc_col = 3
                         start_row = 1
                     
@@ -1095,29 +1266,47 @@ class App(tk.Tk):
                         if len(row) <= max(batch_col, loc_col): continue
                         
                         b_val = row[batch_col] if batch_col < len(row) else None
+                        c_val = row[cust_col] if cust_col != -1 and cust_col < len(row) else None
                         l_val = row[loc_col] if loc_col < len(row) else None
                         d_val = row[date_col] if date_col != -1 and date_col < len(row) else None
                         t_val = row[time_col] if time_col != -1 and time_col < len(row) else None
                         mt_val = row[mod_time_col] if mod_time_col != -1 and mod_time_col < len(row) else None
                         
-                        if b_val and str(b_val).strip():
+                        # 嚴格過濾：僅保留台積電 (TSMC) 訂單
+                        is_tsmc = False
+                        if c_val and "台積" in str(c_val):
+                            is_tsmc = True
+                        elif l_val and ("台積" in str(l_val) or re.search(r'^(?:12P|14P|15P|18P|AP|F\d+)', str(l_val).strip())):
+                            is_tsmc = True
+                        elif not c_val and l_val:
+                            norm_l = normalize_location(l_val)
+                            if norm_l in self.mapping_dict or "台積" in str(l_val) or re.search(r'^(?:12P|14P|15P|18P|AP|F\d+)', str(l_val).strip()):
+                                is_tsmc = True
+                                
+                        if not is_tsmc:
+                            continue
+                        
+                        p_val = row[prod_col] if prod_col != -1 and prod_col < len(row) else None
+                        p_str = str(p_val).strip() if p_val else "IPA"
+                        
+                        if b_val and str(b_val).strip() and not str(b_val).startswith('批號'):
                             d_pure, t_pure = split_date_and_time(d_val)
                             t_final = str(t_val).strip() if t_val else t_pure
                             
                             records.append({
                                 "batch": str(b_val).strip(),
-                                "loc": str(l_val).strip() if l_val else "",
+                                "product": p_str,
+                                "weight": "4300",
+                                "loc": normalize_location(l_val) if l_val else "",
                                 "date": d_pure,
                                 "time": t_final,
                                 "mod_time": str(mt_val).strip() if mt_val else ""
                             })
                         
                 if not records:
-                    import os
                     messagebox.showinfo("提示", f"在檔案 {os.path.basename(filepath)} 中找不到有效資料！")
                     continue
 
-                import os
                 dialog = ImportRangeDialog(self, records, os.path.basename(filepath))
                 self.wait_window(dialog)
 
@@ -1140,7 +1329,9 @@ class App(tk.Tk):
                     
                 for i, rec in enumerate(target_records):
                     row_e = self.entries[start_idx + i]
+                    row_e["chk_var"].set(True)
                     row_e["batch_var"].set(rec["batch"])
+                    if rec.get("product"): row_e["prod_var"].set(rec["product"])
                     row_e["loc_var"].set(rec["loc"])
                     if rec["date"]: row_e["date_var"].set(rec["date"])
                     if rec["time"]: row_e["time_var"].set(rec["time"])
@@ -1149,7 +1340,6 @@ class App(tk.Tk):
                 total_imported += len(target_records)
                 
             except Exception as e:
-                import os
                 messagebox.showerror("匯入失敗", f"解析檔案 {os.path.basename(filepath)} 時發生錯誤:\n{e}")
                 
         if total_imported > 0:
@@ -1160,10 +1350,9 @@ class App(tk.Tk):
         讓人員手動選擇要修訂的『運輸通知表.xlsx』或資料夾，預設開啟當天的輸出資料夾。
         還原原本的所有位置 (第1~N列)，讓人員直接於指定列輸入『修正到廠時間』！
         """
-        from tkinter import filedialog
 
         # 預設開啟今天的輸出資料夾
-        today_dir_name = f"三合一單輸出_{datetime.now().strftime('%Y%m%d')}"
+        today_dir_name = f"勝一三合一單輸出_{datetime.now().strftime('%Y%m%d')}"
         today_dir = os.path.join(self.base_dir, today_dir_name)
         initial_dir = today_dir if os.path.exists(today_dir) else self.base_dir
 
@@ -1187,7 +1376,6 @@ class App(tk.Tk):
 
         if os.path.exists(session_file):
             try:
-                import json
                 with open(session_file, "r", encoding="utf-8") as f:
                     records = json.load(f)
             except Exception:
@@ -1276,9 +1464,6 @@ class App(tk.Tk):
 
         valid_data = []
         for idx, row in enumerate(self.entries):
-            if not row["chk_var"].get():
-                continue
-                
             batch = row["batch_var"].get().strip().upper()
             loc = row["loc_var"].get().strip().upper()
             tank = row["tank_var"].get().strip()
@@ -1288,16 +1473,25 @@ class App(tk.Tk):
             
             if not batch and not loc:
                 continue
+                
+            # 自動勾選有輸入資料的列
+            if not row["chk_var"].get():
+                row["chk_var"].set(True)
+                
             if not batch or not loc:
-                messagebox.showerror("錯誤", f"第 {idx+1} 項資料不齊全！")
+                messagebox.showerror("錯誤", f"第 {idx+1} 項資料不齊全！請確認已填寫批號與地點。")
                 return
-            if len(batch) != 10:
-                messagebox.showerror("錯誤", f"第 {idx+1} 項的批號長度錯誤！\n批號必須剛好 10 碼，目前輸入: {batch} (長度 {len(batch)})")
+            if len(batch) < 9 or len(batch) > 13:
+                messagebox.showerror("錯誤", f"第 {idx+1} 項的批號長度錯誤！\n勝一批號通常為 10~11 碼，目前輸入: {batch} (長度 {len(batch)})")
                 return
                 
+            prod_name = row["prod_var"].get().strip() or "IPA"
+            weight_val = get_product_weight(prod_name)
             valid_data.append({
                 "batch": batch,
                 "tank": tank,
+                "product": prod_name,
+                "weight": weight_val,
                 "loc": loc,
                 "date": date_str,
                 "time": time_str,
@@ -1314,7 +1508,7 @@ class App(tk.Tk):
             messagebox.showerror("錯誤", f"地點代號對照表中找不到以下地點：\n{missing_str}\n\n請先更新對照表後再試！")
             return
 
-        output_dir = os.path.join(self.base_dir, f"三合一單輸出_{datetime.now().strftime('%Y%m%d')}")
+        output_dir = os.path.join(self.base_dir, f"勝一三合一單輸出_{datetime.now().strftime('%Y%m%d')}")
         os.makedirs(output_dir, exist_ok=True)
         
         success_3in1 = 0
@@ -1322,15 +1516,12 @@ class App(tk.Tk):
         mat_no = "L12C53161"
 
         if do_3in1:
-
             coa_crops = {}
-            import os
             if os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe'):
                 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
             else:
                 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe' 
             if self.coa_paths:
-                from PIL import Image as PILImage
                 for img_path in self.coa_paths:
                     try:
                         orig_img = PILImage.open(img_path)
@@ -1406,7 +1597,6 @@ class App(tk.Tk):
                     qr.make(fit=True)
                     raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
                     
-                    from PIL import Image
                     offset_x = 35
                     offset_y = 15
                     new_width = raw_img.width + offset_x
@@ -1460,7 +1650,8 @@ class App(tk.Tk):
                         error_msgs.append(f"⚠️ 警告: 批號 {batch_no} 未在截圖找到，已留白處理！")
 
                     date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
-                    base_filename = f"{date_prefix}{safe_loc}_台積電槽車barcode三合一單.xlsx"
+                    tank_suffix = f"_{tank_no}" if tank_no else ""
+                    base_filename = f"{date_prefix}{safe_loc}{tank_suffix}_台積電槽車barcode三合一單.xlsx"
                     output_path = os.path.join(output_dir, base_filename)
                     counter = 1
                     while os.path.exists(output_path):
@@ -1486,7 +1677,6 @@ class App(tk.Tk):
 
         # 自動快取當前 Session 資料至輸出資料夾與根目錄，供往後一鍵精準還原修訂
         try:
-            import json
             for target_path in (os.path.join(output_dir, "session.json"), os.path.join(self.base_dir, "last_generated_session.json")):
                 with open(target_path, "w", encoding="utf-8") as f:
                     json.dump(valid_data, f, ensure_ascii=False, indent=2)
@@ -1513,3 +1703,4 @@ class App(tk.Tk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
+

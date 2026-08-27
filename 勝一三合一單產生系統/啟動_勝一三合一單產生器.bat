@@ -2,20 +2,22 @@
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 
-set PROJECT_NAME=3-in-1-Generator
+set PROJECT_NAME=Shinyi-3in1-Generator
 set START_CMD=python main.py
 
 set "PKG[0]=openpyxl|openpyxl"
 set "PKG[1]=qrcode|qrcode"
 set "PKG[2]=PIL|Pillow"
 set "PKG[3]=pytesseract|pytesseract"
-set PKG_COUNT=4
+set "PKG[4]=docx|python-docx"
+set "PKG[5]=win32com.client|pywin32"
+set PKG_COUNT=6
 
 title %PROJECT_NAME%
 
 echo.
 echo  ======================================================
-echo    %PROJECT_NAME%
+echo    ?????????? (Shinyi TSMC 3-in-1 System)
 echo    Environment Check and Start
 echo  ======================================================
 echo.
@@ -68,7 +70,8 @@ echo.
 
 %PYTHON_CMD% main.py
 
-echo.
-echo  App Closed.
-pause
-
+if %errorlevel% neq 0 (
+    echo.
+    echo  [Error] Application exited unexpectedly.
+    pause
+)
