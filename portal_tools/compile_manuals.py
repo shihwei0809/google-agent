@@ -61,11 +61,12 @@ def compile_manuals():
                     except Exception as e:
                         print(f"❌ Error parsing {rel_path}: {str(e)}")
                         
-    # 2. Export to manuals_db.js for local file:// execution without CORS issues
+    # 2. Export to manuals_db.js for local and online execution
+    json_str = json.dumps(manuals_list, ensure_ascii=False, indent=2)
+
     try:
         db_path = manuals_dir / "manuals_db.js"
         with open(db_path, "w", encoding="utf-8") as f:
-            json_str = json.dumps(manuals_list, ensure_ascii=False, indent=2)
             f.write(f"window.manualsData = {json_str};\n")
         print(f"\n🎉 Successfully compiled {len(manuals_list)} manuals and exported to {db_path.name}!")
     except Exception as e:

@@ -58,9 +58,11 @@ print("✅ All static web projects successfully copied to manuals/projects/")
 # Copy t100_simulator.html standalone file
 t100_matches = list(base_dir.glob("**/t100_simulator.html"))
 if t100_matches:
-    t100_src = t100_matches[0]
-    shutil.copy2(t100_src, projects_target_dir / "t100_simulator.html")
-    print(f"✅ Successfully copied t100_simulator.html from {t100_src} to manuals/projects/")
+    try:
+        shutil.copy2(t100_src, projects_target_dir / "t100_simulator.html")
+        print(f"✅ Successfully copied t100_simulator.html from {t100_src} to manuals/projects/")
+    except Exception as e:
+        print(f"Note on copying t100_simulator.html: {e}")
 else:
     print("Warning: t100_simulator.html source not found!")
 
