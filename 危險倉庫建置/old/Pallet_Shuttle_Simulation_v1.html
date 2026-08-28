@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>防爆棧板穿梭車 (Pallet Shuttle) 動線模擬</title>
+    <style>
+        body { font-family: '微軟正黑體', Arial, sans-serif; background-color: #f4f4f9; color: #333; margin: 0; padding: 20px; }
+        h2 { text-align: center; color: #2c3e50; }
+        .controls { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #3498db; color: white; border: none; border-radius: 5px; }
+        button:hover { background-color: #2980b9; }
+        .canvas-container { display: flex; justify-content: center; }
+        canvas { background-color: #fff; border: 2px solid #bdc3c7; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .legend { display: flex; justify-content: center; gap: 20px; margin-top: 15px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .box { width: 20px; height: 20px; }
+    </style>
+</head>
+<body>
+
+    <h2>1,000 m² 防爆棧板穿梭車 (Pallet Shuttle) 入庫動態模擬 v1</h2>
+    
+    <div class="controls">
+        <button onclick="startSimulation()">開始入庫模擬</button>
+        <button onclick="resetSimulation()" style="background-color: #e74c3c;">重置</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="simCanvas" width="800" height="400"></canvas>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="box" style="background-color: #ecf0f1; border: 1px solid #7f8c8d;"></div> 貨架儲位</div>
+        <div class="legend-item"><div class="box" style="background-color: #e67e22;"></div> 化學品棧板</div>
+        <div class="legend-item"><div class="box" style="background-color: #3498db;"></div> 防爆堆高機</div>
+        <div class="legend-item"><div class="box" style="background-color: #e74c3c;"></div> 防爆穿梭車</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // 參數設定
+        const lanes = 3;
+        const slotsPerLane = 12;
+        const slotWidth = 40;
+        const slotHeight = 40;
+        const laneStartY = 100;
+        const laneStartX = 250;
+        const laneSpacing = 80;
+
+        let animationId;
+        let isSimulating = false;
+
+        // 狀態變數
+        let grid = [];
+        for (let i = 0; i < lanes; i++) {
+            grid.push(new Array(slotsPerLane).fill(false)); // false 表示空儲位
+        }
+
+        // 設備狀態
+        let forklift = { x: 50, y: 50, hasPallet: false, state: 'idle', targetLane: 0 };
+        let shuttles = [
+            { id: 0, x: laneStartX, y: laneStartY, hasPallet: false, state: 'idle', targetSlot: -1 },
+            { id: 1, x: laneStartX, y: laneStartY + laneSpacing, hasPallet: false, state: 'idle', targetSlot: -1 },
+            { id: 2, x: laneStartX, y: laneStartY + laneSpacing * 2, hasPallet: false, state: 'idle', targetSlot: -1 }
+        ];
+
+        function drawWarehouse() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 畫理貨區 (進貨暫存)
+            ctx.fillStyle = '#ecf0f1';
+            ctx.fillRect(20, 20, 100, canvas.height - 40);
+            ctx.fillStyle = '#7f8c8d';
+            ctx.font = '16px Arial';
+            ctx.fillText("理貨區", 45, 45);
+
+            // 畫棧板產生點 (虛擬進貨)
+            ctx.fillStyle = '#e67e22';
+            ctx.fillRect(50, 80, 30, 30);
+            
+            // 畫貨架
+            for (let i = 0; i < lanes; i++) {
+                let y = laneStartY + (i * laneSpacing);
+                ctx.fillStyle = '#7f8c8d';
+                ctx.fillText("巷道 " + (i+1), laneStartX - 60, y + 25);
+
+                for (let j = 0; j < slotsPerLane; j++) {
+                    let x = laneStartX + (j * slotWidth);
+                    ctx.strokeStyle = '#7f8c8d';
+                    ctx.strokeRect(x, y, slotWidth, slotHeight);
+                    
+                    // 如果有貨物
+                    if (grid[i][j]) {
+                        ctx.fillStyle = '#e67e22'; // 橘色棧板
+                        ctx.fillRect(x + 5, y + 5, slotWidth - 10, slotHeight - 10);
+                    }
+                }
+            }
+
+            // 畫堆高機
+            ctx.fillStyle = '#3498db';
+            ctx.fillRect(forklift.x, forklift.y, 40, 30);
+            if (forklift.hasPallet) {
+                ctx.fillStyle = '#e67e22';
+                ctx.fillRect(forklift.x + 5, forklift.y + 5, 20, 20);
+            }
+
+            // 畫穿梭車
+            shuttles.forEach(shuttle => {
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(shuttle.x, shuttle.y + 5, 30, 30);
+                if (shuttle.hasPallet) {
+                    ctx.fillStyle = '#e67e22';
+                    ctx.fillRect(shuttle.x + 5, shuttle.y + 10, 20, 20);
+                }
+            });
+        }
+
+        function getNextEmptySlot(lane) {
+            for (let j = slotsPerLane - 1; j >= 0; j--) {
+                if (!grid[lane][j]) return j;
+            }
+            return -1;
+        }
+
+        function updateSimulation() {
+            if (!isSimulating) return;
+
+            // 堆高機邏輯
+            if (forklift.state === 'idle') {
+                // 尋找有空位的巷道
+                let target = -1;
+                for (let i = 0; i < lanes; i++) {
+                    if (getNextEmptySlot(i) !== -1 && shuttles[i].state === 'idle') {
+                        target = i;
+                        break;
+                    }
+                }
+                if (target !== -1) {
+                    forklift.state = 'fetching';
+                    forklift.targetLane = target;
+                }
+            } else if (forklift.state === 'fetching') {
+                // 移動到理貨區拿棧板
+                if (forklift.y > 80) forklift.y -= 2;
+                else if (forklift.x > 50) forklift.x -= 2;
+                else {
+                    forklift.hasPallet = true;
+                    forklift.state = 'delivering';
+                }
+            } else if (forklift.state === 'delivering') {
+                // 移動到指定巷道口
+                let targetY = laneStartY + (forklift.targetLane * laneSpacing);
+                if (forklift.y < targetY) forklift.y += 2;
+                else if (forklift.y > targetY) forklift.y -= 2;
+                else if (forklift.x < laneStartX - 40) forklift.x += 2;
+                else {
+                    // 交接給穿梭車
+                    let s = shuttles[forklift.targetLane];
+                    if (s.state === 'idle') {
+                        forklift.hasPallet = false;
+                        forklift.state = 'idle';
+                        s.hasPallet = true;
+                        s.state = 'moving_in';
+                        s.targetSlot = getNextEmptySlot(forklift.targetLane);
+                    }
+                }
+            }
+
+            // 穿梭車邏輯
+            shuttles.forEach((s, index) => {
+                if (s.state === 'moving_in') {
+                    let targetX = laneStartX + (s.targetSlot * slotWidth);
+                    if (s.x < targetX) {
+                        s.x += 3; // 穿梭車速度
+                    } else {
+                        // 放下貨物
+                        s.hasPallet = false;
+                        grid[index][s.targetSlot] = true;
+                        s.state = 'moving_out';
+                    }
+                } else if (s.state === 'moving_out') {
+                    if (s.x > laneStartX) {
+                        s.x -= 3;
+                    } else {
+                        s.x = laneStartX;
+                        s.state = 'idle';
+                    }
+                }
+            });
+
+            drawWarehouse();
+            animationId = requestAnimationFrame(updateSimulation);
+        }
+
+        function startSimulation() {
+            if (!isSimulating) {
+                isSimulating = true;
+                updateSimulation();
+            }
+        }
+
+        function resetSimulation() {
+            isSimulating = false;
+            cancelAnimationFrame(animationId);
+            
+            for (let i = 0; i < lanes; i++) {
+                grid[i].fill(false);
+            }
+            
+            forklift = { x: 50, y: 50, hasPallet: false, state: 'idle', targetLane: 0 };
+            shuttles = [
+                { id: 0, x: laneStartX, y: laneStartY, hasPallet: false, state: 'idle', targetSlot: -1 },
+                { id: 1, x: laneStartX, y: laneStartY + laneSpacing, hasPallet: false, state: 'idle', targetSlot: -1 },
+                { id: 2, x: laneStartX, y: laneStartY + laneSpacing * 2, hasPallet: false, state: 'idle', targetSlot: -1 }
+            ];
+            
+            drawWarehouse();
+        }
+
+        // 初始化繪製
+        drawWarehouse();
+    </script>
+</body>
+</html>

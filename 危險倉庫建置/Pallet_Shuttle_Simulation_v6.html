@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>半自動穿梭車與傳統後推式 混和模擬 v6</title>
+    <style>
+        body { font-family: '微軟正黑體', Arial, sans-serif; background-color: #1a252f; color: #ecf0f1; margin: 0; padding: 10px; overflow-x: auto; }
+        h2 { text-align: center; color: #3498db; margin-bottom: 5px; }
+        h4 { text-align: center; color: #bdc3c7; margin-top: 0; }
+        .controls { display: flex; justify-content: center; gap: 15px; margin-bottom: 10px; }
+        button { padding: 8px 20px; font-size: 15px; font-weight: bold; cursor: pointer; background-color: #e67e22; color: white; border: none; border-radius: 4px; transition: 0.2s; }
+        button:hover { background-color: #d35400; transform: translateY(-1px); }
+        .canvas-container { display: flex; justify-content: center; position: relative; }
+        canvas { background-color: #2c3e50; border: 2px solid #7f8c8d; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border-radius: 5px; }
+        .legend { display: flex; justify-content: center; gap: 15px; margin-top: 10px; font-size: 13px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .box { width: 15px; height: 15px; border-radius: 2px; }
+        .dashboard { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 5px; border: 1px solid #7f8c8d; font-size: 14px; }
+        .dash-item { margin: 5px 0; }
+        .highlight { color: #2ecc71; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+
+    <h2>混和式廠房：防爆穿梭車 (12板深) + 傳統後推式貨架 (4板深) 動態模擬 (v6 版)</h2>
+    <h4>新舊結合設計 | 總儲位: 2,160 板 (5 層高) | 單層平面 432 板</h4>
+    
+    <div class="controls">
+        <button onclick="startSimulation()">開始全區自動化入庫</button>
+        <button onclick="resetSimulation()" style="background-color: #7f8c8d;">重置廠房</button>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="simCanvas" width="1000" height="600"></canvas>
+        <div class="dashboard">
+            <div class="dash-item">總儲位: <span class="highlight">2,160</span> 板 (5層)</div>
+            <div class="dash-item">單層總面積: <span class="highlight">432</span> 板</div>
+            <div class="dash-item">目前樓層庫存: <span class="highlight" id="stockCount" style="color:#f1c40f;">0</span> 板</div>
+            <hr style="border-color: #7f8c8d; margin: 10px 0;">
+            <div class="dash-item" style="color:#3498db;">北側 (半自動): 27巷 x 12板深</div>
+            <div class="dash-item" style="color:#e67e22;">南側 (傳統後推): 27巷 x 4板深</div>
+            <div class="dash-item" style="color:#e74c3c; margin-top:10px;">防爆穿梭車: 4 台</div>
+            <div class="dash-item" style="color:#3498db;">防爆堆高機: 3 台</div>
+        </div>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><div class="box" style="background-color: #7f8c8d;"></div> 空儲位</div>
+        <div class="legend-item"><div class="box" style="background-color: #f1c40f;"></div> 化學品棧板</div>
+        <div class="legend-item"><div class="box" style="background-color: #3498db;"></div> 防爆堆高機</div>
+        <div class="legend-item"><div class="box" style="background-color: #e74c3c;"></div> 防爆穿梭車</div>
+        <div class="legend-item"><div class="box" style="background-color: rgba(39, 174, 96, 0.2);"></div> 中央主走道 (4m)</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const slotSize = 16;
+        const lanePitch = 20;
+        const aisleY = 320; 
+        const startX = 200; 
+        
+        const blocks = [
+            { id: '北側(穿梭車)', lanes: 27, depth: 12, dir: -1, x: startX, type: 'shuttle' },
+            { id: '南側(後推式)', lanes: 27, depth: 4, dir: 1, x: startX, type: 'pushback' }
+        ];
+
+        let animationId;
+        let isSimulating = false;
+        let stock = 0;
+
+        let grid = [];
+        blocks.forEach(b => {
+            let blockGrid = [];
+            for (let i = 0; i < b.lanes; i++) blockGrid.push(new Array(b.depth).fill(false));
+            grid.push(blockGrid);
+        });
+
+        let forklifts = [
+            { id: 0, x: 30, y: 300, hasPallet: false, state: 'idle', targetBlock: -1, targetLane: -1, baseY: 300, speed: 6 },
+            { id: 1, x: 30, y: 330, hasPallet: false, state: 'idle', targetBlock: -1, targetLane: -1, baseY: 330, speed: 6 },
+            { id: 2, x: 30, y: 360, hasPallet: false, state: 'idle', targetBlock: -1, targetLane: -1, baseY: 360, speed: 6 }
+        ];
+
+        let shuttles = [];
+        for(let i=0; i<4; i++) {
+            // 穿梭車只在北側 (block 0)
+            shuttles.push({ id: i, block: 0, lane: i*6, x: 0, y: 0, hasPallet: false, state: 'idle', targetSlot: -1, speed: 5 });
+        }
+
+        function getLaneEntrancePos(bIdx, lIdx) {
+            let b = blocks[bIdx];
+            let lx = b.x + (lIdx * lanePitch);
+            let ly = (b.dir === -1) ? aisleY - 15 : aisleY + 45;
+            return {x: lx, y: ly};
+        }
+
+        shuttles.forEach(sh => {
+            let pos = getLaneEntrancePos(sh.block, sh.lane);
+            sh.x = pos.x; sh.y = pos.y;
+        });
+
+        function drawDim(x1, y1, x2, y2, text, offset=0, isVert=false, align='center') {
+            ctx.beginPath();
+            ctx.strokeStyle = '#e67e22';
+            ctx.lineWidth = 1.5;
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#e67e22';
+            ctx.font = '13px Arial';
+            if (!isVert) { 
+                ctx.beginPath(); ctx.moveTo(x1, y1-6); ctx.lineTo(x1, y1+6); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x2, y2-6); ctx.lineTo(x2, y2+6); ctx.stroke();
+                ctx.textAlign = 'center';
+                ctx.fillText(text, (x1+x2)/2, y1 - 8 + offset);
+            } else { 
+                ctx.beginPath(); ctx.moveTo(x1-6, y1); ctx.lineTo(x1+6, y1); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x2-6, y2); ctx.lineTo(x2+6, y2); ctx.stroke();
+                ctx.textAlign = align === 'right' ? 'left' : 'right';
+                ctx.fillText(text, x1 + (align === 'right' ? 8 : -8), (y1+y2)/2 + 4);
+            }
+        }
+
+        function drawWarehouse() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 理貨區
+            ctx.fillStyle = 'rgba(41, 128, 185, 0.2)';
+            ctx.fillRect(10, 50, 120, 500);
+            ctx.fillStyle = '#ecf0f1';
+            ctx.font = '15px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText("進出理貨區", 25, 75);
+            
+            drawDim(10, 45, 130, 45, "寬 5m");
+            drawDim(135, 50, 135, 550, "長 25m", 0, true, 'right');
+
+            ctx.fillStyle = '#f1c40f';
+            ctx.fillRect(50, 240, 20, 20);
+            ctx.fillRect(50, 420, 20, 20);
+            
+            // 中央走道
+            ctx.fillStyle = 'rgba(39, 174, 96, 0.15)';
+            ctx.fillRect(140, aisleY-30, canvas.width-150, 90);
+            ctx.fillStyle = '#2ecc71';
+            ctx.textAlign = 'left';
+            ctx.fillText("中央主走道 (寬度約 4m)", 400, aisleY + 20);
+
+            // 貨架總長
+            let firstX = blocks[0].x;
+            let lastX = blocks[0].x + (blocks[0].lanes * lanePitch);
+            drawDim(firstX, 70, lastX - 4, 70, "貨架總長 35.1m (27 巷道)");
+
+            // 畫貨架區與標示深度
+            blocks.forEach((b, bIdx) => {
+                let pyStart = (b.dir === -1) ? (aisleY - 35) : (aisleY + 65);
+                let pyEnd = (b.dir === -1) ? (aisleY - 35 - (b.depth-1)*slotSize) : (aisleY + 65 + (b.depth-1)*slotSize);
+                
+                if (b.dir === -1) drawDim(firstX - 15, pyEnd, firstX - 15, pyStart + slotSize, "穿梭車:深 14.4m (12板)", 0, true, 'left');
+                if (b.dir === 1) drawDim(firstX - 15, pyStart, firstX - 15, pyEnd + slotSize, "後推式:深 4.8m (4板)", 0, true, 'left');
+
+                for (let i = 0; i < b.lanes; i++) {
+                    for (let j = 0; j < b.depth; j++) {
+                        let px = b.x + i * lanePitch;
+                        let py = (b.dir === -1) ? (aisleY - 35 - j*slotSize) : (aisleY + 65 + j*slotSize);
+                        
+                        ctx.strokeStyle = '#7f8c8d';
+                        ctx.strokeRect(px, py, slotSize, slotSize);
+                        
+                        if (grid[bIdx][i][j]) {
+                            ctx.fillStyle = '#f1c40f'; 
+                            ctx.fillRect(px + 1, py + 1, slotSize - 2, slotSize - 2);
+                        }
+                    }
+                }
+            });
+
+            // 畫堆高機
+            forklifts.forEach(fl => {
+                ctx.fillStyle = '#3498db';
+                ctx.fillRect(fl.x, fl.y, 28, 20);
+                if (fl.hasPallet) {
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.fillRect(fl.x + 8, fl.y + 2, 16, 16);
+                }
+            });
+
+            // 畫穿梭車
+            shuttles.forEach(sh => {
+                ctx.fillStyle = '#e74c3c';
+                ctx.fillRect(sh.x, sh.y, slotSize, slotSize);
+                if (sh.hasPallet) {
+                    ctx.fillStyle = '#f1c40f';
+                    ctx.fillRect(sh.x + 1, sh.y + 1, slotSize-2, slotSize-2);
+                }
+            });
+            
+            document.getElementById('stockCount').innerText = stock;
+        }
+
+        // 檢查後推式是否還有空位 (最前面一個格子如果是空的，代表還能塞，因為會往後推。
+        // 但其實真正滿了是指深度塞滿了。我們記錄從後往前塞。
+        function getNextEmptySlot(bIdx, lIdx) {
+            let depth = blocks[bIdx].depth;
+            let type = blocks[bIdx].type;
+            
+            if (type === 'shuttle') {
+                for (let j = depth - 1; j >= 0; j--) {
+                    if (!grid[bIdx][lIdx][j]) return j;
+                }
+            } else if (type === 'pushback') {
+                // 後推式的檢查：只要第(depth-1)格還沒滿，就代表還能從 0 推進去
+                // 視覺上我們模擬把 0 推入，所以只要 0 空著，或者背後還有空位
+                // 為了方便視覺模擬，我們規定只要最後一格沒滿，就當作可以推。
+                if (!grid[bIdx][lIdx][depth-1]) return 0; 
+            }
+            return -1;
+        }
+
+        function updateSimulation() {
+            if (!isSimulating) return;
+
+            forklifts.forEach(fl => {
+                if (fl.state === 'idle') {
+                    // 決定要去哪一區 (隨機挑選 穿梭車區 或 後推式區)
+                    let targetBIdx = Math.random() < 0.6 ? 0 : 1; 
+                    let foundLane = -1;
+                    
+                    if (targetBIdx === 0) { // 穿梭車區
+                        let targetShuttle = shuttles.find(sh => sh.state === 'idle' && getNextEmptySlot(sh.block, sh.lane) !== -1);
+                        if (targetShuttle && Math.random() < 0.1) { 
+                            targetShuttle.state = 'waiting_for_pallet';
+                            fl.state = 'fetching';
+                            fl.targetBlock = targetShuttle.block;
+                            fl.targetLane = targetShuttle.lane;
+                        }
+                    } else { // 後推式區
+                        // 找一個有空位的巷道
+                        let availableLanes = [];
+                        for(let i=0; i<blocks[1].lanes; i++) {
+                            if(getNextEmptySlot(1, i) !== -1) availableLanes.push(i);
+                        }
+                        if (availableLanes.length > 0 && Math.random() < 0.1) {
+                            fl.state = 'fetching';
+                            fl.targetBlock = 1;
+                            fl.targetLane = availableLanes[Math.floor(Math.random()*availableLanes.length)];
+                        }
+                    }
+
+                } else if (fl.state === 'fetching') {
+                    let fetchX = 60;
+                    if (Math.abs(fl.x - fetchX) <= fl.speed) fl.x = fetchX;
+                    else if (fl.x > fetchX) fl.x -= fl.speed;
+                    else if (fl.x < fetchX) fl.x += fl.speed;
+
+                    let fetchY = fl.baseY;
+                    if (Math.abs(fl.y - fetchY) <= fl.speed) fl.y = fetchY;
+                    else if (fl.y > fetchY) fl.y -= fl.speed;
+                    else if (fl.y < fetchY) fl.y += fl.speed;
+
+                    if (fl.x === fetchX && fl.y === fetchY) {
+                        fl.hasPallet = true;
+                        fl.state = 'delivering';
+                    }
+                } else if (fl.state === 'delivering') {
+                    let targetPos = getLaneEntrancePos(fl.targetBlock, fl.targetLane);
+                    let destX = targetPos.x - 30;
+                    let destY = targetPos.y;
+                    
+                    if (Math.abs(fl.x - destX) <= fl.speed) fl.x = destX;
+                    else if (fl.x < destX) fl.x += fl.speed;
+                    else if (fl.x > destX) fl.x -= fl.speed;
+
+                    if (fl.x === destX) {
+                        if (Math.abs(fl.y - destY) <= fl.speed) fl.y = destY;
+                        else if (fl.y < destY) fl.y += fl.speed;
+                        else if (fl.y > destY) fl.y -= fl.speed;
+                    }
+
+                    if (fl.x === destX && fl.y === destY) {
+                        let type = blocks[fl.targetBlock].type;
+                        if (type === 'shuttle') {
+                            let sh = shuttles.find(s => s.block === fl.targetBlock && s.lane === fl.targetLane);
+                            if (sh && sh.state === 'waiting_for_pallet') {
+                                fl.hasPallet = false;
+                                fl.state = 'returning';
+                                sh.hasPallet = true;
+                                sh.state = 'moving_in';
+                                sh.targetSlot = getNextEmptySlot(sh.block, sh.lane);
+                            }
+                        } else if (type === 'pushback') {
+                            // 後推式：直接推入！
+                            fl.hasPallet = false;
+                            fl.state = 'returning';
+                            
+                            // 視覺模擬：推入時，原本的棧板全部往後退一格
+                            let bIdx = fl.targetBlock;
+                            let lIdx = fl.targetLane;
+                            let depth = blocks[bIdx].depth;
+                            for(let j=depth-1; j>0; j--) {
+                                grid[bIdx][lIdx][j] = grid[bIdx][lIdx][j-1];
+                            }
+                            grid[bIdx][lIdx][0] = true;
+                            stock++;
+                        }
+                    }
+                } else if (fl.state === 'returning') {
+                    let retX = 60;
+                    if (Math.abs(fl.x - retX) <= fl.speed) fl.x = retX;
+                    else if (fl.x > retX) fl.x -= fl.speed;
+                    else if (fl.x < retX) fl.x += fl.speed;
+
+                    if (fl.x === retX) {
+                        let retY = fl.baseY;
+                        if (Math.abs(fl.y - retY) <= fl.speed) fl.y = retY;
+                        else if (fl.y > retY) fl.y -= fl.speed;
+                        else if (fl.y < retY) fl.y += fl.speed;
+                        if (fl.y === retY) fl.state = 'idle';
+                    }
+                }
+            });
+
+            shuttles.forEach(sh => {
+                if (sh.state === 'moving_in') {
+                    let b = blocks[sh.block];
+                    let targetY = (b.dir === -1) ? (aisleY - 35 - sh.targetSlot*slotSize) : (aisleY + 65 + sh.targetSlot*slotSize);
+                    
+                    if (Math.abs(sh.y - targetY) <= sh.speed) {
+                        sh.y = targetY;
+                        sh.hasPallet = false;
+                        grid[sh.block][sh.lane][sh.targetSlot] = true;
+                        stock++;
+                        sh.state = 'moving_out';
+                        
+                        if(getNextEmptySlot(sh.block, sh.lane) === -1) {
+                            let found = false;
+                            // 找下一個空的穿梭車巷道 (只在 block 0)
+                            for(let li=0; li<blocks[0].lanes; li++) {
+                                if(getNextEmptySlot(0, li) !== -1 && !shuttles.find(s => s.block===0 && s.lane===li)) {
+                                    sh.lane = li;
+                                    found = true; break;
+                                }
+                            }
+                        }
+                    } else if (b.dir === -1 && sh.y > targetY) {
+                        sh.y -= sh.speed;
+                    } else if (b.dir === 1 && sh.y < targetY) {
+                        sh.y += sh.speed;
+                    }
+                } else if (sh.state === 'moving_out') {
+                    let pos = getLaneEntrancePos(sh.block, sh.lane);
+                    if (Math.abs(sh.y - pos.y) <= sh.speed) {
+                        sh.y = pos.y;
+                        sh.x = pos.x; 
+                        sh.state = 'idle';
+                    } else if (sh.y > pos.y) {
+                        sh.y -= sh.speed;
+                    } else if (sh.y < pos.y) {
+                        sh.y += sh.speed;
+                    }
+                }
+            });
+
+            drawWarehouse();
+            animationId = requestAnimationFrame(updateSimulation);
+        }
+
+        function startSimulation() {
+            if (!isSimulating) {
+                isSimulating = true;
+                updateSimulation();
+            }
+        }
+
+        function resetSimulation() {
+            isSimulating = false;
+            cancelAnimationFrame(animationId);
+            grid = [];
+            blocks.forEach(b => {
+                let blockGrid = [];
+                for (let i = 0; i < b.lanes; i++) blockGrid.push(new Array(b.depth).fill(false));
+                grid.push(blockGrid);
+            });
+            stock = 0;
+            
+            forklifts = [
+                { id: 0, x: 30, y: 300, hasPallet: false, state: 'idle', targetBlock: -1, targetLane: -1, baseY: 300, speed: 6 },
+                { id: 1, x: 30, y: 330, hasPallet: false, state: 'idle', targetBlock: -1, targetLane: -1, baseY: 330, speed: 6 },
+                { id: 2, x: 30, y: 360, hasPallet: false, state: 'idle', targetBlock: -1, targetLane: -1, baseY: 360, speed: 6 }
+            ];
+
+            shuttles = [];
+            for(let i=0; i<4; i++) shuttles.push({ id: i, block: 0, lane: i*6, x: 0, y: 0, hasPallet: false, state: 'idle', targetSlot: -1, speed: 5 });
+            shuttles.forEach(sh => {
+                let pos = getLaneEntrancePos(sh.block, sh.lane);
+                sh.x = pos.x; sh.y = pos.y;
+            });
+            drawWarehouse();
+        }
+
+        drawWarehouse();
+    </script>
+</body>
+</html>

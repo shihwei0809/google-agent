@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台積電槽車 Barcode 三合一單與運輸通知表 - 架機專用線上產生器</title>
+    <!-- 引入 SheetJS -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: "Microsoft JhengHei", "Segoe UI", Arial, sans-serif; }
+        body { background-color: #F0F2F5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1100px; margin: 0 auto; background: #FFF; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { color: #002060; margin-top: 0; font-size: 24px; border-bottom: 3px solid #002060; padding-bottom: 10px; }
+        .subtitle { color: #555; font-size: 14px; margin-bottom: 20px; }
+        
+        .status-box { background: #E8F5E9; border-left: 5px solid #2E7D32; padding: 12px 15px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #1B5E20; font-weight: bold; }
+        .toolbar { display: flex; justify-content: space-between; align-items: center; background: #F8F9FA; padding: 12px 15px; border-radius: 8px; border: 1px solid #E0E0E0; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
+        .btn-green { background: #2E7D32; color: white; }
+        .btn-green:hover { background: #1B5E20; }
+        .btn-blue { background: #1565C0; color: white; }
+        .btn-blue:hover { background: #0D47A1; }
+        .btn-red { background: #D32F2F; color: white; }
+        .btn-red:hover { background: #B71C1C; }
+        .btn-purple { background: #7B1FA2; color: white; }
+        .btn-purple:hover { background: #4A148C; }
+
+        .table-responsive { overflow-x: auto; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 950px; }
+        th { background: #002060; color: white; padding: 10px; text-align: center; font-weight: bold; }
+        td { padding: 6px; border: 1px solid #DDD; text-align: center; }
+        input[type="text"], input[type="date"] { width: 95%; padding: 5px 6px; border: 1px solid #CCC; border-radius: 4px; font-size: 13px; text-transform: uppercase; }
+        input.batch-input { font-family: Consolas, monospace; font-weight: bold; color: #002060; }
+        input.read-only { background-color: #F5F5F5; color: #1565C0; font-weight: bold; }
+        input.long-code { color: #7B1FA2; font-weight: bold; }
+        
+        .footer-action { text-align: center; margin-top: 25px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+        .btn-large { padding: 12px 30px; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌐 台積電槽車 Barcode 三合一單與運輸通知表 (架機專用伺服器)</h1>
+    <div class="subtitle">同仁免安裝 Python！開啟此網頁即可輸入或匯入資料，由架機主機 Python 一鍵產生完美三合一單與運輸通知表 Excel！</div>
+
+    <div class="status-box" id="statusBox">
+        🔄 正在連線伺服器對照表...
+    </div>
+
+    <div class="toolbar">
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label class="btn btn-purple" style="cursor:pointer;">
+                📥 從 Excel 匯入 (自動擷取檔尾最新資料)
+                <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="importExcelFile(event)">
+            </label>
+            <button class="btn btn-blue" onclick="setTodayAllDates()">📅 帶入今天日期</button>
+        </div>
+        <div>
+            <button class="btn btn-red" onclick="clearAllRows()">🗑️ 清除全部</button>
+            <button class="btn btn-blue" onclick="addMoreRows(10)">➕ 新增 10 列</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px;">項次</th>
+                    <th style="width: 170px;">批號 (請輸入 10 碼)</th>
+                    <th style="width: 90px;">槽號 (自動)</th>
+                    <th style="width: 120px;">地點 (如 18P3B)</th>
+                    <th>長代號 (自動)</th>
+                    <th style="width: 130px;">出貨日期 📅 (運輸通知用)</th>
+                    <th style="width: 100px;">預計到廠時間</th>
+                    <th style="width: 100px;">修正到廠時間</th>
+                    <th style="width: 60px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- 動態生成列 -->
+            </tbody>
+        </table>
+    </div>
+
+    <div class="footer-action">
+        <button class="btn btn-green btn-large" onclick="generateAllZip()">🚀 一鍵產生所有報表 (三合一單 + 運輸通知表 ZIP)</button>
+        <button class="btn btn-blue btn-large" onclick="generate3in1Single()">📄 單獨產生三合一單 Excel</button>
+        <button class="btn btn-blue btn-large" onclick="generateTransportExcel()">📄 單獨產生運輸通知表 Excel</button>
+    </div>
+</div>
+
+<script>
+    let SERVER_MAPPING = {};
+
+    window.onload = function() {
+        fetchMapping();
+        addMoreRows(15);
+    };
+
+    function fetchMapping() {
+        fetch("/api/mapping")
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "success") {
+                    SERVER_MAPPING = res.data;
+                    document.getElementById("statusBox").innerText = `✅ 已成功連線伺服器對照表！共載入 ${res.count} 筆地點對照碼。`;
+                }
+            })
+            .catch(err => {
+                document.getElementById("statusBox").innerText = "⚠️ 無法連線主機對照表，使用本機備用對照碼。";
+            });
+    }
+
+    function addMoreRows(count) {
+        const tbody = document.getElementById("tableBody");
+        const currentCount = tbody.children.length;
+
+        for (let i = 0; i < count; i++) {
+            const rowIdx = currentCount + i + 1;
+            const tr = document.createElement("tr");
+
+            tr.innerHTML = `
+                <td>${rowIdx}</td>
+                <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="10" placeholder="26814E3191" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
+                <td><input type="text" class="read-only" id="tank_${rowIdx}" readonly placeholder="自動槽號"></td>
+                <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
+                <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照"></td>
+                <td><input type="date" id="date_${rowIdx}"></td>
+                <td><input type="text" id="time_${rowIdx}" placeholder="1400"></td>
+                <td><input type="text" id="mod_${rowIdx}" placeholder="1600" style="color:#C00000; font-weight:bold;"></td>
+                <td><button class="btn btn-red" style="padding: 2px 6px; font-size:11px;" onclick="clearRow(${rowIdx})">清空</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+    }
+
+    function setTodayAllDates() {
+        const today = new Date().toISOString().split('T')[0];
+        const total = document.getElementById("tableBody").children.length;
+        for (let i = 1; i <= total; i++) {
+            if (document.getElementById(`batch_${i}`).value || document.getElementById(`loc_${i}`).value) {
+                document.getElementById(`date_${i}`).value = today;
+            }
+        }
+    }
+
+    function getTankFromBatch(batch) {
+        batch = batch.trim().toUpperCase();
+        if (batch.length !== 10) return "";
+        if (batch.endsWith("J1")) {
+            return batch.substring(5, 8);
+        }
+        return batch.substring(5, 9);
+    }
+
+    function onBatchChange(idx) {
+        const batchVal = document.getElementById(`batch_${idx}`).value.trim().toUpperCase();
+        document.getElementById(`batch_${idx}`).value = batchVal;
+        
+        if (batchVal.length === 10) {
+            const tank = getTankFromBatch(batchVal);
+            document.getElementById(`tank_${idx}`).value = tank;
+        } else {
+            document.getElementById(`tank_${idx}`).value = "";
+        }
+    }
+
+    function onLocChange(idx) {
+        const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
+        document.getElementById(`loc_${idx}`).value = locVal;
+
+        if (SERVER_MAPPING[locVal]) {
+            document.getElementById(`long_${idx}`).value = SERVER_MAPPING[locVal];
+        } else if (locVal) {
+            document.getElementById(`long_${idx}`).value = "❌ 未知代號";
+        } else {
+            document.getElementById(`long_${idx}`).value = "";
+        }
+    }
+
+    function onPasteHandler(e, startIdx) {
+        e.preventDefault();
+        const clipboardData = e.clipboardData || window.clipboardData;
+        const pastedData = clipboardData.getData('Text');
+        if (!pastedData) return;
+
+        const lines = pastedData.split(/\r\n|\n|\r/);
+        let currentIdx = startIdx;
+
+        lines.forEach(line => {
+            if (!line.trim()) return;
+            const items = line.split('\t').map(x => x.trim());
+
+            let batchVal = "";
+            let locVal = "";
+
+            items.forEach(item => {
+                const upper = item.toUpperCase();
+                if (upper.length === 10 && !batchVal) {
+                    batchVal = upper;
+                } else if ((SERVER_MAPPING[upper] || upper.length <= 6) && !locVal) {
+                    locVal = upper;
+                }
+            });
+
+            if (batchVal || locVal) {
+                if (currentIdx > document.getElementById("tableBody").children.length) {
+                    addMoreRows(5);
+                }
+                if (batchVal) {
+                    document.getElementById(`batch_${currentIdx}`).value = batchVal;
+                    onBatchChange(currentIdx);
+                }
+                if (locVal) {
+                    document.getElementById(`loc_${currentIdx}`).value = locVal;
+                    onLocChange(currentIdx);
+                }
+                currentIdx++;
+            }
+        });
+    }
+
+    // 📥 從 Excel 檔案匯入 (自動由檔尾倒數擷取最新筆數)
+    function importExcelFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                const records = [];
+                rows.forEach(row => {
+                    if (row && row.length > 0) {
+                        let batch = "";
+                        let loc = "";
+                        row.forEach(cell => {
+                            if (!cell) return;
+                            const str = String(cell).trim().toUpperCase();
+                            if (str.length === 10 && !batch) {
+                                batch = str;
+                            } else if ((SERVER_MAPPING[str] || str.length <= 6) && !loc) {
+                                loc = str;
+                            }
+                        });
+                        if (batch) {
+                            records.push({ batch: batch, loc: loc });
+                        }
+                    }
+                });
+
+                if (records.length === 0) {
+                    alert("⚠️ 檔案中未找到任何有效的 10 碼批號！");
+                    return;
+                }
+
+                // 詢問使用者要從檔尾擷取最新幾筆 (與桌面版預設 10 筆相同)
+                const limitStr = prompt(`在檔案中找到 ${records.length} 筆資料。\n請輸入要由檔尾最新資料往上擷取的筆數 (例如: 5, 10, 15, 20 或 輸入 all 擷取全部)：`, "10");
+                if (limitStr === null) return;
+
+                let targetRecords = records;
+                if (limitStr.toLowerCase() !== 'all') {
+                    const limit = parseInt(limitStr) || 10;
+                    targetRecords = records.slice(-limit); // 擷取最後 N 筆
+                }
+
+                clearAllRows();
+                if (targetRecords.length > document.getElementById("tableBody").children.length) {
+                    addMoreRows(targetRecords.length - document.getElementById("tableBody").children.length);
+                }
+
+                targetRecords.forEach((rec, idx) => {
+                    const rowIdx = idx + 1;
+                    document.getElementById(`batch_${rowIdx}`).value = rec.batch;
+                    onBatchChange(rowIdx);
+                    document.getElementById(`loc_${rowIdx}`).value = rec.loc;
+                    onLocChange(rowIdx);
+                });
+
+                document.getElementById("statusBox").innerText = `✅ 成功由檔尾往上擷取最新 ${targetRecords.length} 筆資料！`;
+                alert(`🎉 匯入成功！已從檔尾由下往上自動擷取最新的 ${targetRecords.length} 筆排程資料。`);
+
+            } catch (err) {
+                alert("❌ 讀取 Excel 失敗：" + err.message);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    function clearRow(idx) {
+        document.getElementById(`batch_${idx}`).value = "";
+        document.getElementById(`tank_${idx}`).value = "";
+        document.getElementById(`loc_${idx}`).value = "";
+        document.getElementById(`long_${idx}`).value = "";
+        document.getElementById(`date_${idx}`).value = "";
+        document.getElementById(`time_${idx}`).value = "";
+        document.getElementById(`mod_${idx}`).value = "";
+    }
+
+    function clearAllRows() {
+        const total = document.getElementById("tableBody").children.length;
+        for (let i = 1; i <= total; i++) {
+            clearRow(i);
+        }
+    }
+
+    // 🚀 一鍵一次全產生打包 ZIP (與 BAT 完全相同體驗)
+    async function generateAllZip() {
+        const total = document.getElementById("tableBody").children.length;
+        const records = [];
+
+        for (let i = 1; i <= total; i++) {
+            const batch = document.getElementById(`batch_${i}`).value.trim();
+            const tank = document.getElementById(`tank_${i}`).value.trim();
+            const loc = document.getElementById(`loc_${i}`).value.trim();
+            const dateVal = document.getElementById(`date_${i}`).value.trim();
+            const timeVal = document.getElementById(`time_${i}`).value.trim();
+            const modVal = document.getElementById(`mod_${i}`).value.trim();
+
+            if (batch || loc) {
+                if (batch.length !== 10) {
+                    alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10 碼。`);
+                    return;
+                }
+                if (!SERVER_MAPPING[loc]) {
+                    alert(`第 ${i} 項的地點「${loc}」不存在於地點對照表中！`);
+                    return;
+                }
+                records.push({
+                    batch: batch,
+                    tank: tank,
+                    loc: loc,
+                    date: dateVal,
+                    time: timeVal,
+                    modTime: modVal
+                });
+            }
+        }
+
+        if (records.length === 0) {
+            alert("請至少輸入一筆有效的排程資料！");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/generate_all_zip", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    records: records,
+                    do3in1: true,
+                    doTransport: true
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                alert(`產生失敗: ${err.detail}`);
+                return;
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            a.download = `三合一單輸出_${todayStr}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            alert("🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！");
+        } catch(e) {
+            alert(`一鍵產生失敗: ${e}`);
+        }
+    }
+
+    async function generate3in1Single() {
+        const total = document.getElementById("tableBody").children.length;
+        const records = [];
+
+        for (let i = 1; i <= total; i++) {
+            const batch = document.getElementById(`batch_${i}`).value.trim();
+            const tank = document.getElementById(`tank_${i}`).value.trim();
+            const loc = document.getElementById(`loc_${i}`).value.trim();
+            const dateVal = document.getElementById(`date_${i}`).value.trim();
+
+            if (batch || loc) {
+                if (batch.length !== 10) {
+                    alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10 碼。`);
+                    return;
+                }
+                if (!SERVER_MAPPING[loc]) {
+                    alert(`第 ${i} 項的地點「${loc}」不存在於地點對照表中！`);
+                    return;
+                }
+                records.push({
+                    batch: batch,
+                    tank: tank,
+                    loc: loc,
+                    date: dateVal
+                });
+            }
+        }
+
+        if (records.length === 0) {
+            alert("請至少輸入一筆有效的排程資料！");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/generate_all_zip", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    records: records,
+                    do3in1: true,
+                    doTransport: false
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                alert(`產生失敗: ${err.detail}`);
+                return;
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            a.download = `三合一單輸出_${todayStr}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            alert("🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！");
+        } catch(e) {
+            alert(`單獨產生三合一單失敗: ${e}`);
+        }
+    }
+
+    async function generateTransportExcel() {
+        const total = document.getElementById("tableBody").children.length;
+        const records = [];
+
+        for (let i = 1; i <= total; i++) {
+            const batch = document.getElementById(`batch_${i}`).value.trim();
+            const tank = document.getElementById(`tank_${i}`).value.trim();
+            const loc = document.getElementById(`loc_${i}`).value.trim();
+            const dateVal = document.getElementById(`date_${i}`).value.trim();
+            const timeVal = document.getElementById(`time_${i}`).value.trim();
+            const modVal = document.getElementById(`mod_${i}`).value.trim();
+
+            if (batch || loc) {
+                records.push({
+                    batch: batch,
+                    tank: tank,
+                    loc: loc,
+                    date: dateVal,
+                    time: timeVal,
+                    modTime: modVal
+                });
+            }
+        }
+
+        if (records.length === 0) {
+            alert("請至少輸入一筆有效的排程資料！");
+            return;
+        }
+
+        try {
+            if (!res.ok) {
+                const err = await res.json();
+                alert(`產生失敗: ${err.detail}`);
+                return;
+            }
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "運輸通知表.xlsx";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+
+            alert("🎉 成功下載運輸通知表.xlsx！");
+        } catch(e) {
+            alert(`請求伺服器失敗: ${e}`);
+        }
+    }
+</script>
+
+</body>
+</html>
