@@ -9,7 +9,7 @@
     <style>
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", "Segoe UI", Arial, sans-serif; }
         body { background-color: #F0F2F5; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1100px; margin: 0 auto; background: #FFF; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .container { max-width: 1150px; margin: 0 auto; background: #FFF; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { color: #002060; margin-top: 0; font-size: 24px; border-bottom: 3px solid #002060; padding-bottom: 10px; }
         .subtitle { color: #555; font-size: 14px; margin-bottom: 20px; }
         
@@ -25,6 +25,8 @@
         .btn-red:hover { background: #B71C1C; }
         .btn-purple { background: #7B1FA2; color: white; }
         .btn-purple:hover { background: #4A148C; }
+        .btn-orange { background: #FF9800; color: white; }
+        .btn-orange:hover { background: #F57C00; }
 
         .table-responsive { overflow-x: auto; margin-bottom: 20px; }
         table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 950px; }
@@ -43,7 +45,7 @@
 
 <div class="container">
     <h1>🌐 台積電槽車 Barcode 三合一單與運輸通知表 (架機專用伺服器)</h1>
-    <div class="subtitle">同仁免安裝 Python！開啟此網頁即可輸入或匯入資料，由架機主機 Python 一鍵產生完美三合一單與運輸通知表 Excel！</div>
+    <div class="subtitle">同仁免安裝 Python！開啟此網頁即可貼上資料或上傳 COA 截圖，由架機主機 Python 一鍵產生完美三合一單與運輸通知表 Excel！</div>
 
     <div class="status-box" id="statusBox">
         🔄 正在連線伺服器對照表...
@@ -51,6 +53,11 @@
 
     <div class="toolbar">
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <!-- 🖼️ 上傳 COA 截圖按鈕 (橘色) -->
+            <label class="btn btn-orange" style="cursor:pointer;">
+                🖼️ 上傳 COA 截圖 (OCR 辨識)
+                <input type="file" id="coaInput" accept="image/*, .png, .jpg, .jpeg" style="display:none;" onchange="uploadCoaScreenshot(event)">
+            </label>
             <label class="btn btn-purple" style="cursor:pointer;">
                 📥 從 Excel 匯入 (自動擷取檔尾最新資料)
                 <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="importExcelFile(event)">
@@ -90,6 +97,50 @@
         <button class="btn btn-blue btn-large" onclick="generateTransportExcel()">📄 單獨產生運輸通知表 Excel</button>
     </div>
 </div>
+
+<!-- ================= EXCEL 匯入預覽 Modal ================= -->
+<style>
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+    .modal-box { background: #FFF; width: 750px; max-width: 95%; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); padding: 20px; display: flex; flex-direction: column; }
+    .modal-header { font-size: 18px; font-weight: bold; color: #002060; border-bottom: 2px solid #EEE; padding-bottom: 10px; margin-bottom: 15px; }
+    .modal-info { font-size: 14px; color: #333; margin-bottom: 10px; }
+    .modal-controls { background: #F9F9F9; padding: 12px; border-radius: 6px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .modal-controls input[type="number"] { width: 80px; padding: 5px; font-size: 14px; border: 1px solid #CCC; border-radius: 4px; }
+    .preview-box { border: 1px solid #CCC; border-radius: 6px; padding: 10px; height: 250px; overflow-y: auto; background: #FAFAFA; font-family: Consolas, monospace; font-size: 13px; line-height: 1.5; }
+    .modal-footer { margin-top: 15px; display: flex; justify-content: space-between; border-top: 1px solid #EEE; padding-top: 15px; }
+</style>
+
+<div class="modal-overlay" id="importModal">
+    <div class="modal-box">
+        <div class="modal-header">📥 Excel 匯入筆數與範圍選擇 (最後一筆往上抓)</div>
+        <div class="modal-info">
+            <span style="color: #2E7D32; font-weight: bold;">📊 總計偵測到：<span id="importModalTotal"></span> 筆有效出貨資料 (最舊 ➔ 最新)</span>
+        </div>
+        
+        <div class="modal-controls">
+            <strong>快速選擇：</strong>
+            <button class="btn btn-orange" onclick="filterTodayPlus2()" style="margin-right: 15px;">📅 優先抓今天~後天</button>
+            <button class="btn btn-blue" onclick="setImportCount(5)">最新 5 筆</button>
+            <button class="btn btn-blue" onclick="setImportCount(10)">最新 10 筆</button>
+            <button class="btn btn-blue" onclick="setImportCount(15)">最新 15 筆</button>
+            <button class="btn btn-blue" onclick="setImportCount('all')">全部</button>
+            
+            <span style="margin-left: 10px;">自訂筆數：</span>
+            <input type="number" id="importModalCount" min="1" oninput="updateImportPreview()">
+        </div>
+        
+        <strong>📋 即將匯入資料即時預覽</strong>
+        <div class="preview-box" id="importPreviewList">
+            <!-- 預覽項目將動態生成 -->
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-green btn-large" style="flex: 1; margin-right: 15px;" onclick="confirmImport()">🚀 確認匯入資料</button>
+            <button class="btn btn-red btn-large" onclick="hideImportModal()">❌ 取消</button>
+        </div>
+    </div>
+</div>
+
 
 <script>
     let SERVER_MAPPING = {};
@@ -195,17 +246,26 @@
 
             let batchVal = "";
             let locVal = "";
+            let dateVal = "";
 
             items.forEach(item => {
-                const upper = item.toUpperCase();
-                if (upper.length === 10 && !batchVal) {
+                const upper = item.toUpperCase().trim();
+                // 如果是槽號 (如 E309, T305) 則略過，因為批號輸入時會自動計算
+                if (upper.length <= 5 && (upper.startsWith('E') || upper.startsWith('T') || upper.startsWith('P')) && /\d/.test(upper)) {
+                    return;
+                }
+                
+                // 檢查是否為日期 (包含 / 或 - 且有數字)
+                if ((upper.includes('/') || upper.includes('-')) && /\d/.test(upper) && !dateVal) {
+                    dateVal = upper;
+                } else if (upper.length === 10 && !batchVal && /[A-Z]/.test(upper) && /\d/.test(upper)) {
                     batchVal = upper;
-                } else if ((SERVER_MAPPING[upper] || upper.length <= 6) && !locVal) {
+                } else if ((SERVER_MAPPING[upper] || upper.includes('18P') || upper.includes('15P') || upper.includes('P3') || upper.length <= 6) && !locVal && upper !== batchVal && !upper.includes('/')) {
                     locVal = upper;
                 }
             });
 
-            if (batchVal || locVal) {
+            if (batchVal || locVal || dateVal) {
                 if (currentIdx > document.getElementById("tableBody").children.length) {
                     addMoreRows(5);
                 }
@@ -217,12 +277,89 @@
                     document.getElementById(`loc_${currentIdx}`).value = locVal;
                     onLocChange(currentIdx);
                 }
+                if (dateVal) {
+                    // 嘗試轉換日期為 YYYY-MM-DD
+                    let dStr = dateVal.trim();
+                    let y = new Date().getFullYear();
+                    let m = "", d = "";
+                    let match4 = dStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+                    let match2 = dStr.match(/^(\d{1,2})[-\/](\d{1,2})$/);
+                    if (match4) {
+                        y = match4[1]; m = match4[2]; d = match4[3];
+                    } else if (match2) {
+                        m = match2[1]; d = match2[2];
+                    }
+                    if (m && d) {
+                        m = String(m).padStart(2, '0');
+                        d = String(d).padStart(2, '0');
+                        document.getElementById(`date_${currentIdx}`).value = `${y}-${m}-${d}`;
+                    }
+                }
                 currentIdx++;
             }
         });
     }
 
-    // 📥 從 Excel 檔案匯入 (自動由檔尾倒數擷取最新筆數)
+    // 🖼️ 上傳 COA 截圖 (圖片自動預處理與前端 AI OCR 辨識)
+    async function uploadCoaScreenshot(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        document.getElementById("statusBox").innerText = "🖼️ 正在透過瀏覽器 AI 分析 COA 圖片文字座標 (免安裝本地 OCR)... 這可能需要幾秒鐘";
+        
+        try {
+            // 載入 Tesseract.js
+            if (typeof Tesseract === 'undefined') {
+                const script = document.createElement('script');
+                script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+                document.head.appendChild(script);
+                await new Promise(resolve => script.onload = resolve);
+            }
+
+            const worker = await Tesseract.createWorker('eng');
+            const ret = await worker.recognize(file);
+            await worker.terminate();
+
+            let boxes = [];
+            let headerBottom = 0;
+
+            ret.data.words.forEach(w => {
+                const text = w.text.replace(/[^A-Za-z0-9]/g, '');
+                if (text.length >= 8) {
+                    boxes.push({text: text.toUpperCase(), top: w.bbox.y0, bottom: w.bbox.y1});
+                }
+                if (w.text.includes('Batch') || w.text.includes('ID') || w.text.includes('No')) {
+                    if (w.bbox.y1 > headerBottom) headerBottom = w.bbox.y1 + 12;
+                }
+            });
+
+            formData.append("ocr_data", JSON.stringify({boxes: boxes, header_bottom: headerBottom}));
+
+            const res = await fetch("/api/upload_coa_image", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!res.ok) {
+                alert("COA 截圖上傳失敗！");
+                return;
+            }
+
+            const data = await res.json();
+            document.getElementById("statusBox").innerText = `✅ 截圖上傳成功！已成功分析出 ${boxes.length} 個批號位置。`;
+            alert(`🎉 COA 截圖上傳與 AI 辨識成功！\n系統已抓到圖片中各個批號的精確位置，產生 Excel 時會自動為每張單子裁切正確的那一行。`);
+        } catch(err) {
+            alert(`COA 截圖處理出錯: ${err}`);
+            document.getElementById("statusBox").innerText = "⚠️ 截圖上傳失敗。";
+        }
+    }
+
+    // ================= EXCEL 匯入與預覽 Modal =================
+    let pendingExcelRecords = [];
+    
     function importExcelFile(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -231,67 +368,184 @@
         reader.onload = function(evt) {
             try {
                 const data = new Uint8Array(evt.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
+                const workbook = XLSX.read(data, { type: 'array', cellDates: true });
                 const records = [];
-                rows.forEach(row => {
-                    if (row && row.length > 0) {
-                        let batch = "";
-                        let loc = "";
-                        row.forEach(cell => {
-                            if (!cell) return;
-                            const str = String(cell).trim().toUpperCase();
-                            if (str.length === 10 && !batch) {
-                                batch = str;
-                            } else if ((SERVER_MAPPING[str] || str.length <= 6) && !loc) {
-                                loc = str;
+
+                // 讀取所有分頁 (不僅僅是第一個)
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, dateNF: "yyyy-mm-dd" });
+
+                    rows.forEach(row => {
+                        if (row && row.length > 0) {
+                            // 出貨日期: B欄 (index 1), 批號: C欄 (index 2), 地點: E欄 (index 4)
+                            let dateVal = row[1] ? String(row[1]).trim() : "";
+                            let batch = row[2] ? String(row[2]).trim().toUpperCase() : "";
+                            let loc = row[4] ? String(row[4]).trim().toUpperCase() : "";
+                            
+                            if (batch.length === 10) {
+                                records.push({ batch: batch, loc: loc, date: dateVal });
                             }
-                        });
-                        if (batch) {
-                            records.push({ batch: batch, loc: loc });
                         }
-                    }
+                    });
                 });
 
                 if (records.length === 0) {
-                    alert("⚠️ 檔案中未找到任何有效的 10 碼批號！");
+                    alert("⚠️ 檔案中未找到任何有效的批號資料 (請確認 C 欄是否為 10 碼批號)！");
                     return;
                 }
-
-                // 詢問使用者要從檔尾擷取最新幾筆 (與桌面版預設 10 筆相同)
-                const limitStr = prompt(`在檔案中找到 ${records.length} 筆資料。\n請輸入要由檔尾最新資料往上擷取的筆數 (例如: 5, 10, 15, 20 或 輸入 all 擷取全部)：`, "10");
-                if (limitStr === null) return;
-
-                let targetRecords = records;
-                if (limitStr.toLowerCase() !== 'all') {
-                    const limit = parseInt(limitStr) || 10;
-                    targetRecords = records.slice(-limit); // 擷取最後 N 筆
-                }
-
-                clearAllRows();
-                if (targetRecords.length > document.getElementById("tableBody").children.length) {
-                    addMoreRows(targetRecords.length - document.getElementById("tableBody").children.length);
-                }
-
-                targetRecords.forEach((rec, idx) => {
-                    const rowIdx = idx + 1;
-                    document.getElementById(`batch_${rowIdx}`).value = rec.batch;
-                    onBatchChange(rowIdx);
-                    document.getElementById(`loc_${rowIdx}`).value = rec.loc;
-                    onLocChange(rowIdx);
-                });
-
-                document.getElementById("statusBox").innerText = `✅ 成功由檔尾往上擷取最新 ${targetRecords.length} 筆資料！`;
-                alert(`🎉 匯入成功！已從檔尾由下往上自動擷取最新的 ${targetRecords.length} 筆排程資料。`);
+                
+                pendingExcelRecords = records;
+                showImportModal(records.length);
 
             } catch (err) {
                 alert("❌ 讀取 Excel 失敗：" + err.message);
             }
+            e.target.value = ""; // 重置 input file
         };
         reader.readAsArrayBuffer(file);
+    }
+
+    function showImportModal(totalCount) {
+        document.getElementById("importModalTotal").innerText = totalCount;
+        document.getElementById("importModalCount").value = Math.min(10, totalCount);
+        updateImportPreview();
+        document.getElementById("importModal").style.display = "flex";
+    }
+
+    function hideImportModal() {
+        document.getElementById("importModal").style.display = "none";
+    }
+
+    function setImportCount(num) {
+        const total = pendingExcelRecords.length;
+        if (num === 'all') num = total;
+        document.getElementById("importModalCount").value = Math.min(num, total);
+        updateImportPreview();
+    }
+
+    function filterTodayPlus2() {
+        const today = new Date();
+        const dates = [];
+        for(let i = 0; i < 3; i++) {
+            let d = new Date(today);
+            d.setDate(today.getDate() + i);
+            let y = d.getFullYear();
+            let m = String(d.getMonth() + 1).padStart(2, '0');
+            let day = String(d.getDate()).padStart(2, '0');
+            dates.push(`${y}-${m}-${day}`);
+        }
+        
+        const filtered = pendingExcelRecords.filter(rec => {
+            if (!rec.date) return false;
+            const dMatch = String(rec.date).match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+            if(dMatch) {
+                const y = dMatch[1];
+                const m = dMatch[2].padStart(2, '0');
+                const d = dMatch[3].padStart(2, '0');
+                const fmt = `${y}-${m}-${d}`;
+                return dates.includes(fmt);
+            }
+            return false;
+        });
+        
+        if(filtered.length === 0) {
+            alert("找不到今天至後天 (3天內) 的排程資料！");
+            return;
+        }
+        
+        pendingExcelRecords = filtered;
+        document.getElementById("importModalTotal").innerText = pendingExcelRecords.length + " (已過濾出今天~後天)";
+        setImportCount('all');
+    }
+
+    function updateImportPreview() {
+        const countVal = document.getElementById("importModalCount").value;
+        let count = parseInt(countVal) || 10;
+        const total = pendingExcelRecords.length;
+        count = Math.max(1, Math.min(count, total));
+        
+        const targetRecords = pendingExcelRecords.slice(-count);
+        const list = document.getElementById("importPreviewList");
+        list.innerHTML = "";
+        
+        targetRecords.forEach((rec, idx) => {
+            const originIdx = total - count + idx + 1;
+            const li = document.createElement("div");
+            li.style.padding = "5px 0";
+            li.style.borderBottom = "1px solid #EEE";
+            li.innerText = `[${(idx+1).toString().padStart(2, '0')}] 檔中第${originIdx.toString().padStart(2, '0')}筆 | 日期: ${rec.date.padEnd(10, ' ')} | 批號: ${rec.batch.padEnd(12, ' ')} | 地點: ${rec.loc}`;
+            list.appendChild(li);
+        });
+    }
+
+    function confirmImport() {
+        let count = parseInt(document.getElementById("importModalCount").value) || 10;
+        count = Math.max(1, Math.min(count, pendingExcelRecords.length));
+        
+        const targetRecords = pendingExcelRecords.slice(-count);
+        
+        clearAllRows();
+        if (targetRecords.length > document.getElementById("tableBody").children.length) {
+            addMoreRows(targetRecords.length - document.getElementById("tableBody").children.length);
+        }
+
+        targetRecords.forEach((rec, idx) => {
+            const rowIdx = idx + 1;
+            document.getElementById(`batch_${rowIdx}`).value = rec.batch;
+            onBatchChange(rowIdx);
+            document.getElementById(`loc_${rowIdx}`).value = rec.loc;
+            onLocChange(rowIdx);
+            
+            // 處理日期格式 (支援 yyyy-mm-dd, mm/dd, 民國年)
+            if (rec.date) {
+                let dStr = String(rec.date).trim();
+                let y = new Date().getFullYear();
+                let m = "";
+                let d = "";
+
+                let match4 = dStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+                let match2 = dStr.match(/^(\d{1,2})[-\/](\d{1,2})$/);
+                let matchTW = dStr.match(/^(\d{3})[-\/](\d{1,2})[-\/](\d{1,2})/);
+
+                if (match4) {
+                    y = match4[1]; m = match4[2]; d = match4[3];
+                } else if (matchTW) {
+                    y = parseInt(matchTW[1]) + 1911;
+                    m = matchTW[2]; d = matchTW[3];
+                } else if (match2) {
+                    m = match2[1]; d = match2[2];
+                }
+                
+                if (m && d) {
+                    m = String(m).padStart(2, '0');
+                    d = String(d).padStart(2, '0');
+                    document.getElementById(`date_${rowIdx}`).value = `${y}-${m}-${d}`;
+                } else {
+                    // 若為 Excel 序列號 (如 45511)
+                    let serial = parseInt(dStr);
+                    if (!isNaN(serial) && serial > 10000) {
+                        let dateObj = new Date(Math.round((serial - 25569) * 86400 * 1000));
+                        y = dateObj.getFullYear();
+                        m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                        d = String(dateObj.getDate()).padStart(2, '0');
+                        document.getElementById(`date_${rowIdx}`).value = `${y}-${m}-${d}`;
+                    } else {
+                        // 嘗試直接透過 JS Date parse 轉換 (例如 Tue Aug 11 2026...)
+                        let jsDate = new Date(dStr);
+                        if (!isNaN(jsDate.getTime())) {
+                            y = jsDate.getFullYear();
+                            m = String(jsDate.getMonth() + 1).padStart(2, '0');
+                            d = String(jsDate.getDate()).padStart(2, '0');
+                            document.getElementById(`date_${rowIdx}`).value = `${y}-${m}-${d}`;
+                        }
+                    }
+                }
+            }
+        });
+
+        document.getElementById("statusBox").innerText = `✅ 成功由檔尾往上擷取最新 ${targetRecords.length} 筆資料！`;
+        hideImportModal();
     }
 
     function clearRow(idx) {
@@ -311,7 +565,7 @@
         }
     }
 
-    // 🚀 一鍵一次全產生打包 ZIP (與 BAT 完全相同體驗)
+    // 🚀 一鍵一次全產生打包 ZIP
     async function generateAllZip() {
         const total = document.getElementById("tableBody").children.length;
         const records = [];
@@ -478,6 +732,16 @@
         }
 
         try {
+            const res = await fetch("/api/generate_all_zip", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    records: records,
+                    do3in1: false,
+                    doTransport: true
+                })
+            });
+
             if (!res.ok) {
                 const err = await res.json();
                 alert(`產生失敗: ${err.detail}`);
@@ -488,14 +752,15 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = "運輸通知表.xlsx";
+            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            a.download = `運輸通知表_${todayStr}.zip`;
             document.body.appendChild(a);
             a.click();
             a.remove();
 
-            alert("🎉 成功下載運輸通知表.xlsx！");
+            alert("🎉 單獨產生運輸通知表成功！已為您下載運輸通知表 Excel！");
         } catch(e) {
-            alert(`請求伺服器失敗: ${e}`);
+            alert(`產生失敗: ${e}`);
         }
     }
 </script>
