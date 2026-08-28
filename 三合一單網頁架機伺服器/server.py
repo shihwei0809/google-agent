@@ -315,54 +315,60 @@ async def generate_all_zip(request: Request):
 
                     # 若使用者有上傳 COA 截圖，自動針對「該筆排程的指定單一批號列」進行標頭+單列精確裁切 (與對照手冊 100% 相同)
                     if "latest_coa" in COA_CACHE and COA_CACHE["latest_coa"]:
-                        coa_raw = Image.open(BytesIO(COA_CACHE["latest_coa"])).convert("RGB")
-                        w, h = coa_raw.size
+                        try:
+                            coa_raw = Image.open(BytesIO(COA_CACHE["latest_coa"])).convert("RGB")
+                            w, h = coa_raw.size
 
-                        # 1. 如果有瀏覽器端傳來的 OCR 座標，就能精準切出單一列！
-                        ocr_data = COA_CACHE.get("ocr_data")
-                        cropped_coa = None
-                        if ocr_data:
-                            header_bottom = ocr_data.get("header_bottom", int(h * 0.40))
-                            img_top = coa_raw.crop((0, 0, w, header_bottom))
-                            
-                            # 尋找與當前 batch_no 匹配的區塊
-                            batch_box = None
-                            for box in ocr_data.get("boxes", []):
-                                # 允許部分匹配或模糊比對，只要數字對得上
-                                box_digits = ''.join(c for c in box["text"] if c.isdigit())
-                                target_digits = ''.join(c for c in batch_no if c.isdigit())
-                                if box_digits and box_digits in target_digits or target_digits in box_digits:
-                                    batch_box = box
-                                    break
+                            # 1. 如果有瀏覽器端傳來的 OCR 座標，就能精準切出單一列！
+                            ocr_data = COA_CACHE.get("ocr_data")
+                            cropped_coa = None
+                            if ocr_data and "boxes" in ocr_data and ocr_data["boxes"]:
+                                header_bottom = ocr_data.get("header_bottom", int(h * 0.35))
+                                header_bottom = max(0, min(h, int(header_bottom)))
+                                img_top = coa_raw.crop((0, 0, w, header_bottom))
                                 
-                            if batch_box:
-                                row_top = max(0, batch_box["top"] - 14)
-                                row_bottom = min(h, batch_box["bottom"] + 16)
-                                img_row = coa_raw.crop((0, row_top, w, row_bottom))
+                                # 尋找與當前 batch 匹配的區塊
+                                target_digits = ''.join(c for c in batch if c.isdigit())
+                                batch_box = None
                                 
-                                cropped_coa = Image.new("RGB", (w, img_top.height + img_row.height), "white")
-                                cropped_coa.paste(img_top, (0, 0))
-                                cropped_coa.paste(img_row, (0, img_top.height))
+                                for box in ocr_data.get("boxes", []):
+                                    box_text = box.get("text", "").upper()
+                                    box_digits = ''.join(c for c in box_text if c.isdigit())
+                                    if box_text == batch or (len(box_digits) >= 6 and (box_digits in target_digits or target_digits in box_digits)):
+                                        batch_box = box
+                                        break
+                                    
+                                if batch_box:
+                                    row_t = int(batch_box.get("row_top", batch_box.get("top", 0) - 8))
+                                    row_b = int(batch_box.get("row_bottom", batch_box.get("bottom", h) + 12))
+                                    row_top = max(0, min(h, row_t))
+                                    row_bottom = max(row_top + 5, min(h, row_b))
+                                    
+                                    img_row = coa_raw.crop((0, row_top, w, row_bottom))
+                                    
+                                    cropped_coa = Image.new("RGB", (w, img_top.height + img_row.height), "white")
+                                    cropped_coa.paste(img_top, (0, 0))
+                                    cropped_coa.paste(img_row, (0, img_top.height))
+                                    print(f"[COA Crop] 成功為批號 {batch} 裁切：表頭高 {img_top.height}px + 數據列高 {img_row.height}px")
 
-                        # 如果 OCR 失敗或沒有，就降級使用原本的全保留方式
-                        if not cropped_coa:
-                            crop_bottom = int(h * 0.95)
-                            cropped_coa = coa_raw.crop((0, 0, w, crop_bottom))
+                            # 如果 OCR 失敗或沒有匹配到該批號，降級使用全保留方式
+                            if not cropped_coa:
+                                crop_bottom = int(h * 0.95)
+                                cropped_coa = coa_raw.crop((0, 0, w, crop_bottom))
 
-                        # 4. 保持原始高解析度畫質，僅在 Excel 中調整「顯示比例」
-                        coa_io = BytesIO()
-                        cropped_coa.save(coa_io, format="PNG")
-                        coa_io.seek(0)
+                            # 4. 保持原始高解析度畫質，在 Excel 中設定精準尺寸：寬 23.7cm (~896px) x 高 11.5cm (~435px)
+                            coa_io = BytesIO()
+                            cropped_coa.save(coa_io, format="PNG")
+                            coa_io.seek(0)
 
-                        coa_img = OpenpyxlImage(coa_io)
-                        # 在 Excel 中將顯示寬度控制在合適大小 (約 650px)，但不破壞原始圖片解析度
-                        disp_w = 650
-                        if w > disp_w:
-                            coa_img.width = disp_w
-                            coa_img.height = int(cropped_coa.height * (disp_w / float(w)))
+                            coa_img = OpenpyxlImage(coa_io)
+                            coa_img.width = int(round(23.7 * 96 / 2.54))   # 23.7 公分 (~896 px)
+                            coa_img.height = int(round(11.5 * 96 / 2.54))  # 11.5 公分 (~435 px)
 
-                        coa_img.anchor = 'F5'  # 100% 精準貼入圖一 barcode 分頁的 F5 儲存格！
-                        ws.add_image(coa_img)
+                            coa_img.anchor = 'F5'  # 100% 精準貼入圖一 barcode 分頁的 F5 儲存格！
+                            ws.add_image(coa_img)
+                        except Exception as coa_e:
+                            print(f"[COA Crop Error] 處理批號 {batch} COA 發生錯誤: {coa_e}")
 
                     excel_io = BytesIO()
                     wb.save(excel_io)
@@ -382,6 +388,22 @@ async def generate_all_zip(request: Request):
                 wb_t.close()
                 t_io.seek(0)
                 zip_file.writestr(f"{folder_name}/運輸通知表.xlsx", t_io.getvalue())
+
+            # 3. 寫入 session.json 至 ZIP 根目錄，供本機 BAT 或網頁版載入時 100% 精準還原原始完整 10 碼批號
+            try:
+                session_payload = []
+                for r in records:
+                    session_payload.append({
+                        "batch": r.get("batch", ""),
+                        "tank": r.get("tank", ""),
+                        "loc": r.get("loc", ""),
+                        "date": r.get("date", ""),
+                        "time": r.get("time", ""),
+                        "mod_time": r.get("modTime", r.get("mod_time", ""))
+                    })
+                zip_file.writestr(f"{folder_name}/session.json", json.dumps(session_payload, ensure_ascii=False, indent=2).encode('utf-8'))
+            except Exception as se:
+                print(f"[Session JSON Error] {se}")
 
         zip_buffer.seek(0)
         zip_filename = f"{folder_name}.zip"

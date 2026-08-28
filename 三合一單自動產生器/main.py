@@ -600,14 +600,22 @@ class App(tk.Tk):
 
         # 頂部快捷批次控制與匯入區
         top_ctrl_frame = tk.Frame(self)
-        top_ctrl_frame.pack(fill="x", pady=(0, 8))
+        top_ctrl_frame.pack(fill="x", pady=(0, 6))
         
-        tk.Label(top_ctrl_frame, text="提示：可在「批號」貼上多筆資料，或使用右側按鈕匯入 Excel / 還原既有通知表修訂。", fg="#555", justify="left").pack(side="left")
+        # 左側表格列控制區 (新增10列、清除全部)
+        left_btn_frame = tk.Frame(top_ctrl_frame)
+        left_btn_frame.pack(side="left")
         
-        tk.Button(top_ctrl_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right", padx=(5, 0))
-        tk.Button(top_ctrl_frame, text="📂 載入既有『運輸通知表』修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right", padx=5)
-        tk.Button(top_ctrl_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Arial", 10, "bold"), padx=10).pack(side="right", padx=5)
-        tk.Button(top_ctrl_frame, text="🗑️ 清除全部資料 (全清)", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Arial", 9, "bold"), padx=8).pack(side="right", padx=5)
+        tk.Button(left_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#009688", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=(0, 5))
+        tk.Button(left_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=5)
+
+        # 右側資料來源按鈕區 (COA截圖、載入通知表、Excel匯入)
+        right_btn_frame = tk.Frame(top_ctrl_frame)
+        right_btn_frame.pack(side="right")
+        
+        tk.Button(right_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(right_btn_frame, text="📂 載入既有通知表修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(right_btn_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=(4, 0))
 
         # 批次設定預設值列
         batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (日期 / 預計時間 / 修正時間)", font=("Arial", 9, "bold"), padx=8, pady=5)
@@ -665,6 +673,9 @@ class App(tk.Tk):
 
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
+
+        # 支援滑鼠滾輪滾動
+        self.bind_all("<MouseWheel>", lambda event: self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units"))
 
         # --- Row 0: 表格標題列 (置於滾動區最上方，共享 100% 同一 Grid 欄位規格) ---
         headers = [
@@ -1181,19 +1192,15 @@ class App(tk.Tk):
 
         # 1. 優先嘗試讀取該輸出資料夾中的 session.json 快取（包含完整 10 碼批號）
         session_file = os.path.join(target_dir, "session.json")
-        if not os.path.exists(session_file):
-            # 備用讀取根目錄 session 快取
-            session_file = os.path.join(self.base_dir, "last_generated_session.json")
-
         if os.path.exists(session_file):
             try:
                 import json
                 with open(session_file, "r", encoding="utf-8") as f:
                     records = json.load(f)
             except Exception:
-                pass
+                records = []
 
-        # 2. 若快取不存在，則直接分析選取的 Excel 運輸通知表卡片
+        # 2. 若該目錄無 session.json 快取，則直接精準解析選取的 Excel 運輸通知表卡片
         if not records:
             try:
                 wb = openpyxl.load_workbook(filepath, data_only=True)
@@ -1207,18 +1214,24 @@ class App(tk.Tk):
                     l_val = ws.cell(row=curr_r+1, column=4).value
                     tank_val = ws.cell(row=curr_r+1, column=5).value
 
-                    l_str = str(l_val).replace("台積", "").strip() if l_val else ""
+                    l_str = str(l_val).replace("台積電", "").replace("台積", "").replace("新竹", "").replace("台中", "").replace("台南", "").replace("廠", "").replace("\n", "").replace("\r", "").strip() if l_val else ""
                     d_pure, t_pure = split_date_and_time(d_val)
                     t_final = str(t_val).strip() if t_val else t_pure
 
-                    if d_pure or l_str or tank_val:
+                    clean_tank = str(tank_val).replace("None", "").strip() if tank_val else ""
+                    if clean_tank in ("槽號", "4300", "6 支"):
+                        clean_tank = ""
+
+                    if d_pure or l_str or clean_tank:
+                        clean_t = t_final if t_final not in ("4300", "6 支", "None") else ""
+                        clean_mt = str(mt_val).strip() if mt_val and str(mt_val).strip() not in ("4300", "6 支", "None") else ""
                         records.append({
                             "batch": "",
-                            "tank": str(tank_val).strip() if tank_val else "",
+                            "tank": clean_tank,
                             "loc": l_str,
                             "date": d_pure,
-                            "time": t_final,
-                            "mod_time": str(mt_val).strip() if mt_val else ""
+                            "time": clean_t,
+                            "mod_time": clean_mt
                         })
                     curr_r += 7
                 wb.close()
@@ -1227,7 +1240,7 @@ class App(tk.Tk):
                 return
 
         if not records:
-            messagebox.showwarning("提示", "選取的檔案或資料夾中無任何可還原的排程紀錄！")
+            messagebox.showwarning("提示", "選取的檔案中無任何可還原的運輸通知表卡片！")
             return
 
         # 清空目前表格
@@ -1248,13 +1261,14 @@ class App(tk.Tk):
             row_e = self.entries[idx]
             if rec.get("batch"): row_e["batch_var"].set(rec["batch"])
             if rec.get("loc"): row_e["loc_var"].set(rec["loc"])
+            if rec.get("tank"): row_e["tank_var"].set(rec["tank"])
             if rec.get("date"): row_e["date_var"].set(rec["date"])
             if rec.get("time"): row_e["time_var"].set(rec["time"])
             if rec.get("mod_time"): row_e["mod_time_var"].set(rec["mod_time"])
 
         messagebox.showinfo(
             "還原成功", 
-            f"已成功從『{folder_name}』載入 {len(records)} 筆既有排程紀錄！\n\n"
+            f"已成功從『{os.path.basename(filepath)}』載入 {len(records)} 筆既有排程紀錄！\n\n"
             f"所有排程已按原始位置 (第 1~{len(records)} 列) 精準對齊。\n"
             f"請直接在需要修正的排程列填寫【修正到廠時間】即可！"
         )
