@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>勝一出貨清單管理系統</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="background-decor">
+    <div class="circle circle-1"></div>
+    <div class="circle circle-2"></div>
+  </div>
+
+  <!-- 登入卡片 -->
+  <div id="login-overlay" class="login-overlay">
+    <div class="login-card card">
+      <div class="login-header">
+        <h2>勝一出貨排程系統登入</h2>
+        <p>請輸入您的帳號密碼進行身分驗證</p>
+      </div>
+      <form id="login-form">
+        <div class="form-group">
+          <label for="login-username">使用者帳號</label>
+          <input type="text" id="login-username" required placeholder="請輸入帳號 (例如: sales, 胡富閔)">
+        </div>
+        <div class="form-group">
+          <label for="login-password">密碼</label>
+          <input type="password" id="login-password" required placeholder="請輸入密碼 (預設: 123)">
+        </div>
+        <div class="form-error hidden" id="login-error-msg">帳號或密碼錯誤</div>
+        <button type="submit" class="btn btn-primary btn-block">登入系統</button>
+      </form>
+      <div class="login-tips">
+        <h4>💡 帳號說明：</h4>
+        <p>1. <b>業務與主管</b>：業務帳號 <code>sales</code>、主管帳號 <code>tech_mgr</code></p>
+        <p>2. <b>運輸公司</b>：帳號 <code>transporter</code></p>
+        <p>3. <b>技服人員</b>：以您的姓名登入 (例如: <code>胡富閔</code>)</p>
+        <p>※ 所有帳號密碼預設皆為 <code>123</code></p>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <div class="header-container">
+      <div class="brand">
+        <h1>勝一出貨排程管理系統</h1>
+        <p class="subtitle">出貨排程中心 (業務・技服・運輸商三方整合平台)</p>
+      </div>
+      <div class="header-right">
+        <div class="role-selector">
+          <button class="nav-tab active" data-tab="tab-dashboard">儀表板總覽</button>
+          <button class="nav-tab" data-tab="tab-sales">業務專區</button>
+          <button class="nav-tab" data-tab="tab-tech">技服課專區</button>
+          <button class="nav-tab" data-tab="tab-transport">運輸商專區</button>
+          <button class="nav-tab" data-tab="tab-query">技服個人查詢</button>
+          <button class="nav-tab hidden" data-tab="tab-logs">作業日誌</button>
+        </div>
+        <div id="user-profile" class="user-profile hidden">
+          <span class="user-avatar">👤</span>
+          <span id="user-display-name" class="user-name">使用者</span>
+          <button id="btn-logout" class="btn-logout">登出</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- 1. 儀表板總覽 -->
+    <section id="tab-dashboard" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon icon-orders">📦</div>
+          <div class="stat-info">
+            <span class="stat-label">總出貨訂單</span>
+            <h3 id="stat-total-orders">0</h3>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-tech">🧑‍🔧</div>
+          <div class="stat-info">
+            <span class="stat-label">技服充填手已填</span>
+            <h3 id="stat-tech-filled">0 <span class="stat-percent" id="stat-tech-pct">(0%)</span></h3>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon icon-transport">🚚</div>
+          <div class="stat-info">
+            <span class="stat-label">運輸商車輛已排</span>
+            <h3 id="stat-transport-filled">0 <span class="stat-percent" id="stat-transport-pct">(0%)</span></h3>
+          </div>
+        </div>
+      </div>
+
+      <div class="card table-card">
+        <div class="table-header">
+          <div class="table-title-section">
+            <h2>出貨班表清單</h2>
+            <p>即時合併業務、技服與運輸商最新填寫資料 <span id="table-filter-info" class="badge badge-info" style="margin-left:0.5rem; font-size:0.75rem;"></span></p>
+          </div>
+          <div class="table-actions">
+            <div class="filter-group">
+              <label for="date-range-select" class="filter-label">顯示方式：</label>
+              <select id="date-range-select" class="select-input-sm">
+                <option value="today_plus_2" selected>當天 + 2天 (預設)</option>
+                <option value="today">今天</option>
+                <option value="all">顯示全部</option>
+                <option value="custom">自訂日期區間</option>
+              </select>
+            </div>
+            <div id="custom-date-inputs" class="custom-date-inputs hidden">
+              <input type="date" id="filter-start-date" class="date-input-sm">
+              <span>至</span>
+              <input type="date" id="filter-end-date" class="date-input-sm">
+            </div>
+            <input type="text" id="dashboard-search" placeholder="搜尋指送地、品名、司機、充填手..." class="search-input">
+            <button id="btn-manage-locations" class="btn btn-secondary" style="margin-right: 10px;">🗺️ 地點代號維護</button>
+            <button id="btn-export" class="btn btn-primary">
+              <span class="btn-icon">📥</span> 匯出完整 Excel
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="schedule-table">
+            <thead>
+              <tr>
+                <th>出貨單號</th>
+                <th>批號</th>
+                <th>對象</th>
+                <th>指送地</th>
+                <th>品名</th>
+                <th>到貨日期</th>
+                <th>時間</th>
+                <th>運輸方式</th>
+                <th>充填手 (技服)</th>
+                <th>車牌 (運輸)</th>
+                <th>司機</th>
+                <th>電話</th>
+                <th>出車日期</th>
+                <th>時間</th>
+                <th>司機代碼</th>
+                <th>三合一單</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="dashboard-table-body">
+              <tr>
+                <td colspan="16" class="text-center">請先至「業務專區」上傳基準出貨清單 Excel</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- 手機版卡片列表 -->
+        <div id="dashboard-cards-list" class="dashboard-cards-list"></div>
+      </div>
+    </section>
+
+    <!-- 2. 業務專區 -->
+    <section id="tab-sales" class="tab-content">
+      <div class="portal-grid">
+        <div class="card intro-card">
+          <h2>業務首發上傳</h2>
+          <p class="description">
+            請上傳業務基準 Excel 檔案以初始化出貨清單。本上傳將會<b>覆寫系統內現有訂單</b>，並建立 A-H 欄位的基準資料，以及匯入隨附的「司機清單」。
+          </p>
+          <div class="requirement-box">
+            <h4>基準 Excel 要求：</h4>
+            <ul>
+              <li>包含「空白班表」或類似出貨班表工作表，首列為標題列。</li>
+              <li>A-H 欄位：單號、批號、對象、指送地、品名、到貨日期、到貨時間、運輸方式。</li>
+              <li>工作表包含「司機清單」，用於代碼車輛的防呆與自動對應。</li>
+            </ul>
+          </div>
+        </div>
+        <div class="card upload-card">
+          <h2>上傳基準 Excel</h2>
+          <div class="upload-zone" id="sales-upload-zone">
+            <div class="upload-icon">📤</div>
+            <p>拖放 Excel 檔案至此處，或 <span class="browse-link">瀏覽檔案</span></p>
+            <span class="file-info" id="sales-file-info">未選擇檔案</span>
+            <input type="file" id="sales-file-input" accept=".xlsx, .xls" class="hidden-input">
+          </div>
+          <button id="btn-sales-upload" class="btn btn-block btn-primary" disabled>解析並匯入基準資料</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 技服課專區 -->
+    <section id="tab-tech" class="tab-content">
+      <div class="portal-grid">
+        <div class="card intro-card">
+          <h2>技服課填寫上傳 (I 欄)</h2>
+          <p class="description">
+            上傳技服填寫完畢的 Excel。系統將會解析 A-H 欄位並<b>精準對齊</b>業務基準資料，自動更新 <b>I 欄（充填手）</b> 資料。
+          </p>
+          <div class="matching-notice">
+            <h4>對齊規則：</h4>
+            <p>1. 優先以「出貨通知單單別號」對齊。</p>
+            <p>2. 無單號時，以<b>「指送地 + 品名 + 預計到貨日期 + 到貨時間」</b>完全一致進行對齊。</p>
+          </div>
+        </div>
+        <div class="card upload-card">
+          <h2>上傳技服 Excel</h2>
+          <div class="upload-zone" id="tech-upload-zone">
+            <div class="upload-icon">🔧</div>
+            <p>拖放 Excel 檔案至此處，或 <span class="browse-link">瀏覽檔案</span></p>
+            <span class="file-info" id="tech-file-info">未選擇檔案</span>
+            <input type="file" id="tech-file-input" accept=".xlsx, .xls" class="hidden-input">
+          </div>
+          <button id="btn-tech-upload" class="btn btn-block btn-accent" disabled>比對上傳資料</button>
+        </div>
+      </div>
+
+      <!-- 比對預覽區 (動態呈現) -->
+      <div id="tech-preview-container" class="card preview-card hidden">
+        <div class="preview-header">
+          <h3>比對預覽報告 (技服更新)</h3>
+          <div class="preview-stats">
+            <span class="badge badge-success">比對成功：<span id="tech-matched-count">0</span> 筆</span>
+            <span class="badge badge-danger">查無基準訂單：<span id="tech-mismatched-count">0</span> 筆</span>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>列號</th>
+                <th>出貨單號</th>
+                <th>指送地</th>
+                <th>品名</th>
+                <th>到貨日期</th>
+                <th>時間</th>
+                <th>異動欄位 (充填手)</th>
+                <th>比對結果</th>
+              </tr>
+            </thead>
+            <tbody id="tech-preview-body"></tbody>
+          </table>
+        </div>
+        <div class="preview-actions">
+          <button id="btn-tech-confirm" class="btn btn-primary">確認匯入並更新</button>
+          <button id="btn-tech-cancel" class="btn btn-secondary">取消</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 運輸商專區 -->
+    <section id="tab-transport" class="tab-content">
+      <div class="portal-grid">
+        <div class="card intro-card">
+          <h2>運輸商填寫上傳 (J-O 欄)</h2>
+          <p class="description">
+            上傳運輸商填寫完畢的 Excel。系統將會解析 A-H 欄位並<b>精準對齊</b>業務基準資料，自動更新 <b>J-O 欄（車牌、司機、電話、出車日期、出車時間、景山司機代碼）</b>。
+          </p>
+          <div class="matching-notice">
+            <h4>💡 防呆與自動對照：</h4>
+            <p>若僅填寫「景山司機代碼」，系統會自動從資料庫裡的「司機清單」查照，自動補齊該司機的<b>車牌、姓名與電話</b>，避免手打輸入錯誤！</p>
+          </div>
+        </div>
+        <div class="card upload-card">
+          <h2>上傳運輸商 Excel</h2>
+          <div class="upload-zone" id="transport-upload-zone">
+            <div class="upload-icon">🚛</div>
+            <p>拖放 Excel 檔案至此處，或 <span class="browse-link">瀏覽檔案</span></p>
+            <span class="file-info" id="transport-file-info">未選擇檔案</span>
+            <input type="file" id="transport-file-input" accept=".xlsx, .xls" class="hidden-input">
+          </div>
+          <button id="btn-transport-upload" class="btn btn-block btn-success" disabled>比對上傳資料</button>
+        </div>
+      </div>
+
+      <!-- 比對預覽區 (動態呈現) -->
+      <div id="transport-preview-container" class="card preview-card hidden">
+        <div class="preview-header">
+          <h3>比對預覽報告 (運輸更新)</h3>
+          <div class="preview-stats">
+            <span class="badge badge-success">比對成功：<span id="transport-matched-count">0</span> 筆</span>
+            <span class="badge badge-danger">查無基準訂單：<span id="transport-mismatched-count">0</span> 筆</span>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>列號</th>
+                <th>出貨單號</th>
+                <th>指送地</th>
+                <th>品名</th>
+                <th>到貨日期</th>
+                <th>時間</th>
+                <th>出車日期/時間</th>
+                <th>司機代碼 (姓名)</th>
+                <th>車牌 / 電話</th>
+                <th>比對結果</th>
+              </tr>
+            </thead>
+            <tbody id="transport-preview-body"></tbody>
+          </table>
+        </div>
+        <div class="preview-actions">
+          <button id="btn-transport-confirm" class="btn btn-primary">確認匯入並更新</button>
+          <button id="btn-transport-cancel" class="btn btn-secondary">取消</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. 技服個人查詢 -->
+    <section id="tab-query" class="tab-content">
+      <div class="card query-box-card">
+        <h2>技服人員專屬日程查詢</h2>
+        <p class="description">請選擇或輸入您的姓名，查詢您負責的出貨行程：</p>
+        <div class="query-form">
+          <div class="form-group">
+            <label for="query-tech-name">技服充填手姓名：</label>
+            <select id="query-tech-name" class="select-input">
+              <option value="">-- 請選擇您的姓名 --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="query-date">出貨到貨日期 (選填)：</label>
+            <input type="date" id="query-date" class="date-input">
+          </div>
+          <button id="btn-query-search" class="btn btn-primary">開始查詢</button>
+        </div>
+      </div>
+
+      <div class="query-results-section">
+        <h3 class="results-title hidden" id="query-results-title">查詢結果</h3>
+        <div class="schedule-cards-grid" id="query-results-grid">
+          <!-- 卡片會動態生成於此 -->
+          <div class="no-results">請選擇技服人員姓名並點選查詢。</div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- 6. 系統作業日誌 -->
+    <section id="tab-logs" class="tab-content">
+      <div class="card table-card">
+        <div class="table-header">
+          <div class="table-title-section">
+            <h2>系統作業日誌</h2>
+            <p>前端與後端操作記錄（最新 200 筆）</p>
+          </div>
+          <div class="table-actions">
+            <button id="btn-refresh-logs" class="btn btn-secondary">
+              🔄 重新整理
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="schedule-table">
+            <thead>
+              <tr>
+                <th style="width: 20%;">時間</th>
+                <th style="width: 15%;">操作帳號</th>
+                <th style="width: 15%;">權限角色</th>
+                <th style="width: 15%;">執行動作</th>
+                <th style="width: 35%;">變更明細</th>
+              </tr>
+            </thead>
+            <tbody id="logs-table-body">
+              <tr>
+                <td colspan="5" class="text-center">請點選重新整理載入作業日誌</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  
+    <!-- 地點代號維護 Modal -->
+    <div class="modal" id="location-mapping-modal">
+      <div class="modal-content card" style="max-width: 700px;">
+        <div class="modal-header">
+          <h3>🗺️ 地點代號對照表維護</h3>
+          <span class="close-modal" id="close-location-modal">&times;</span>
+        </div>
+        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+          <table class="data-table" id="location-mapping-table">
+            <thead>
+              <tr>
+                <th>送達地簡稱</th>
+                <th>送達地全名</th>
+                <th>送達地點代號</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+            </tbody>
+          </table>
+          <button id="btn-add-location" class="btn btn-secondary" style="margin-top: 10px;">+ 新增一筆</button>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="btn-save-location">儲存並反寫回 Excel</button>
+        </div>
+      </div>
+    </div>
+
+
+  <!-- 編輯訂單的 Modal 彈窗 -->
+  <div class="modal" id="edit-modal">
+    <div class="modal-content card">
+      <div class="modal-header">
+        <h3>編輯出貨訂單資料</h3>
+        <span class="close-modal" id="close-edit-modal">&times;</span>
+      </div>
+      <form id="edit-order-form">
+        <div class="form-row">
+          <div class="form-group col">
+            <label>出貨通知單單別號 (不可修改)</label>
+            <input type="text" id="edit-id" readonly class="input-readonly">
+          </div>
+          <div class="form-group col">
+            <label>批號</label>
+            <input type="text" id="edit-batch" readonly class="input-readonly">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label>對象簡稱</label>
+            <input type="text" id="edit-client" readonly class="input-readonly">
+          </div>
+          <div class="form-group col">
+            <label>指送地</label>
+            <input type="text" id="edit-destination" readonly class="input-readonly">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label>品名</label>
+            <input type="text" id="edit-product" readonly class="input-readonly">
+          </div>
+          <div class="form-group col">
+            <label>預計到貨日期/時間</label>
+            <input type="text" id="edit-datetime" readonly class="input-readonly">
+          </div>
+        </div>
+        
+        <hr class="form-divider">
+        
+        <h4>技服與運輸商填寫內容</h4>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="edit-fill-hand">充填手 (技服填寫)</label>
+            <input type="text" id="edit-fill-hand" placeholder="例如: 林聖龍 0910-xxx-xxx">
+          </div>
+          <div class="form-group col">
+            <label for="edit-driver-code">景山司機代碼 (運輸填寫)</label>
+            <input type="text" id="edit-driver-code" placeholder="司機代碼，如: 39">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="edit-plate">車牌</label>
+            <input type="text" id="edit-plate" placeholder="輸入車牌，或透過代碼自動對照">
+          </div>
+          <div class="form-group col">
+            <label for="edit-driver">司機姓名</label>
+            <input type="text" id="edit-driver" placeholder="輸入司機姓名">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="edit-phone">司機電話</label>
+            <input type="text" id="edit-phone" placeholder="輸入電話">
+          </div>
+          <div class="form-group col">
+            <label for="edit-departure-date">出車日期</label>
+            <input type="date" id="edit-departure-date">
+          </div>
+          <div class="form-group col">
+            <label for="edit-departure-time">出車時間</label>
+            <input type="time" id="edit-departure-time">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">儲存異動</button>
+          <button type="button" class="btn btn-secondary" id="btn-edit-cancel">取消</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2026 勝一化工股份有限公司 - 技術服務課與運輸商排程管理系統</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
