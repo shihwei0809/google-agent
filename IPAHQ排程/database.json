@@ -8998,6 +8998,13 @@
       "action": "下載三合一單",
       "details": "訂單 SNXM101-20260817089",
       "timestamp": "2026/8/29 下午5:39:32"
+    },
+    {
+      "operator": "tech_mgr",
+      "role": "tech_manager",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/8/29 下午7:22:04"
     }
   ]
 }
