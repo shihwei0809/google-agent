@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>保稅工廠核心注意事項資訊圖表</title>
+    <style>
+        body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 40px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { text-align: center; color: #1e3a8a; margin-bottom: 40px; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 30px; margin-bottom: 40px; border-left: 6px solid #2563eb; }
+        .card-title { font-size: 20px; font-weight: bold; color: #1e3a8a; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+        
+        /* 圖表 1 樣式 */
+        .logic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .logic-box { padding: 15px; border-radius: 8px; font-size: 14px; }
+        .box-green { background-color: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+        .box-red { background-color: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .warning-banner { background-color: #fffbeb; border-left: 4px solid #d97706; padding: 15px; margin-top: 15px; border-radius: 4px; font-size: 14px; }
+
+        /* 圖表 2 樣式 */
+        .grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-item { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; }
+        .grid-item h4 { margin: 0 0 8px 0; color: #2563eb; }
+
+        /* 圖表 3 樣式 */
+        .timeline-step { display: flex; align-items: center; margin-bottom: 15px; background: #f8fafc; padding: 10px 15px; border-radius: 6px; }
+        .badge { background: #2563eb; color: white; padding: 4px 10px; border-radius: 20px; font-size: 12px; margin-right: 15px; white-space: nowrap; }
+        
+        /* 圖表 4 樣式 */
+        .defense-line { border-left: 4px dashed #cbd5e1; padding-left: 20px; margin-left: 10px; position: relative; }
+        .defense-step { margin-bottom: 25px; position: relative; }
+        .defense-step::before { content: '🛑'; position: absolute; left: -29px; top: 0; background: white; padding: 2px; }
+        .defense-title { font-weight: bold; color: #ef4444; margin-bottom: 5px; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .card { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>保稅工廠導入核心注意事項</h1>
+
+    <!-- 圖表一 -->
+    <div class="card">
+        <div class="card-title">📊 圖表一：保稅基本邏輯查核【政策前提與稅務風險】</div>
+        <p style="font-size: 14px; color: #666;">原料由採購課進口免關稅（記帳），後續去向決定是否需要補稅：</p>
+        <div class="logic-grid">
+            <div class="logic-box box-green">
+                <h3 style="margin-top:0;">🟢 正常外銷（免稅路徑）</h3>
+                <p>經廠內加工生產成品後：</p>
+                <ul>
+                    <li>直接外銷出口至國外（B8/B9報單）</li>
+                    <li>銷售給科學園區、自由港區、其他保稅工廠（視同出口）</li>
+                </ul>
+                <strong>👉 結論：此路徑真正達到節稅目的。</strong>
+            </div>
+            <div class="logic-box box-red">
+                <h3 style="margin-top:0;">🔴 轉為內銷（補稅+利息路徑）</h3>
+                <p>原料或成品最終在台灣國內銷售：</p>
+                <ul>
+                    <li>必須於「次月15日前」主動向海關申報補稅。</li>
+                    <li>需補繳原免除之關稅、營業稅，並加計緩繳期間之滯納利息。</li>
+                </ul>
+                <strong>👉 結論：完全無外銷則無申請保稅之必要。</strong>
+            </div>
+        </div>
+        <div class="warning-banner">
+            <strong>⚠️ 法律風險提示：</strong> 若有內銷事實卻漏報或遲報，將依《海關緝私條例》處以重大罰鍰，最高可達漏稅額之 3 倍。
+        </div>
+    </div>
+
+    <!-- 圖表二 -->
+    <div class="card">
+        <div class="card-title">📊 圖表二：化工廠「不停工盤點」4 大動態應變核心</div>
+        <div class="grid-4">
+            <div class="grid-item">
+                <h4>❶ 數據凍結點 (Snapshot)</h4>
+                <p style="font-size:13px; margin:0; color:#475569;">預先向海關申請特定時段結算。例如選定 7/1 00:00，全廠 ERP 帳務、儲槽液位計、高精度流量計同時凍結數據，以此時間點作為帳面結算基準。</p>
+            </div>
+            <div class="grid-item">
+                <h4>❷ 在製品 (WIP) 自動折算</h4>
+                <p style="font-size:13px; margin:0; color:#475569;">不停工意味反應爐與管線正持續投料。盤點當下需依據技術課之「製程質量平衡表」，將線上化學品精準折算回 IPA 原料量，據實申報在製品。</p>
+            </div>
+            <div class="grid-item">
+                <h4>❸ 靜態與動態庫別劃分</h4>
+                <p style="font-size:13px; margin:0; color:#475569;">盤點當天，部分儲槽採取「鎖定不投入」作為靜態盤點。正在供料給產線的儲槽，則透過高精度流量計進行動態扣除，做到區域輪盤、不停工點交。</p>
+            </div>
+            <div class="grid-item">
+                <h4>❹ 會計師預盤 + 海關重点抽盤</h4>
+                <p style="font-size:13px; margin:0; color:#475569;">盤點前1~2天由配合之會計師先進廠進行「預盤」，理清大宗儲槽帳目。正式盤點當天，海關人員僅針對重點儀表與報告進行抽驗，數小時內即可結束。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 圖表三 -->
+    <div class="card">
+        <div class="card-title">📊 圖表三：保稅專責人員三大週期工作量與核心任務</div>
+        <div class="timeline-step">
+            <span class="badge">每日固定 (20%)</span>
+            <span style="font-size: 14px;">進口原料（D2報單）登打保稅帳冊（法規要求貨物進廠後 2-3 天內必須入帳完成）。簽發「保稅貨物委外加工放行條」（如委外分裝、品檢）。</span>
+        </div>
+        <div class="timeline-step">
+            <span class="badge" style="background:#0284c7;">每月例行 (30%)</span>
+            <span style="font-size: 14px;">進行保稅帳、ERP系統帳、倉庫現貨「三方勾稽核對」。當產線有新產品試製或製程變更時，向海關變更申報「BOM表（用料清冊）」。</span>
+        </div>
+        <div class="timeline-step">
+            <span class="badge" style="background:#b45309;">年度專案 (50%)</span>
+            <span style="font-size: 14px;"><strong>年度保稅大盤點：</strong>全廠大對帳並編製極為複雜的年度結算報告表。<strong>下廢料監毀：</strong>廠內變質、過期化學品或廢料，需申請海關到場「現場監毀」後方可銷帳。</span>
+        </div>
+        <p style="font-size:13px; color:#666; font-style:italic; margin-top:15px;">💡 工作量評估指標：若公司目前進口頻率低，初期建議由資材課現有人員受訓兼任即可。</p>
+    </div>
+
+    <!-- 圖表四 -->
+    <div class="card">
+        <div class="card-title">📊 圖表四：重大帳務異常防呆機制【三道防線架構】</div>
+        <p style="font-size: 14px; color: #666; margin-bottom: 20px;">以 90MT 收率異常事件為鑑，新系統（如 T100）應建置以下實質審查防線，拒絕流於形式之帳面調整：</p>
+        <div class="defense-line">
+            <div class="defense-step">
+                <div class="defense-title">第一道防線：生產現場「每日質量平衡表」勾稽</div>
+                <p style="font-size:13px; margin:0; color:#475569;">現場盤點與操作人員每日比對製程投入與產出，一旦發現收率異常（例如 >100% 或異常偏低），必須在當天查找真因（如漏記、手工帳重疊），嚴禁累積至月底跨月處理。</p>
+            </div>
+            <div class="defense-step">
+                <div class="defense-title">第二道防線：資材/保稅人員「單據實質審查」</div>
+                <p style="font-size:13px; margin:0; color:#475569;">資材過帳人員拒絕「照單全收」。受理大額領退料單時，需核對生產端當日報表。系統端應建置「收率防呆警告」，若過帳將導致收率破百，系統自動鎖定並強制通報主管。</p>
+            </div>
+            <div class="defense-step">
+                <div class="defense-title">第三道防線：財會與協力夥伴「合規實證入帳」</div>
+                <p style="font-size:13px; margin:0; color:#475569;">面對重大跨月庫存落差，不盲目登打虛擬單據蓋帳。應全面啟動跨部門調查，改採「認列盤損（會計準則）」或與協力夥伴（如勝一）達成共識之「技術分攤方案」，取得實證後始得入帳。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

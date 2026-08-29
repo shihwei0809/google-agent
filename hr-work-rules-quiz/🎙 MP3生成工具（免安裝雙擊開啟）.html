@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎙 MP3 旁白生成工具（免安裝版）</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  :root {
+    --bg:#0f1117; --surface:#1a1d27; --surface2:#232635; --border:#2e3247;
+    --accent:#6366f1; --accent2:#818cf8; --green:#22c55e; --red:#ef4444;
+    --yellow:#f59e0b; --text:#e2e8f0; --muted:#64748b; --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:24px}
+
+  .header{display:flex;align-items:center;gap:16px;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border)}
+  .header-icon{width:52px;height:52px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 20px rgba(99,102,241,.4)}
+  h1{font-size:22px;font-weight:700}
+  .subtitle{color:var(--muted);font-size:13px;margin-top:3px}
+
+  .settings-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;margin-bottom:20px}
+  .setting-group{display:flex;flex-direction:column;gap:6px;min-width:180px}
+  .setting-group label{font-size:12px;color:var(--muted);font-weight:500;letter-spacing:.5px;text-transform:uppercase}
+  select,input[type=range]{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-size:14px;outline:none;cursor:pointer;transition:border-color .2s}
+  select:hover,select:focus{border-color:var(--accent)}
+  input[type=range]{padding:0;height:6px;width:160px;accent-color:var(--accent)}
+  .rate-display{font-size:13px;color:var(--accent2);font-weight:600;min-width:36px}
+
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:9px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .18s;white-space:nowrap}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+  .btn-primary{background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;box-shadow:0 4px 15px rgba(99,102,241,.35)}
+  .btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(99,102,241,.5)}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+  .btn-secondary:hover:not(:disabled){border-color:var(--accent);color:var(--accent2)}
+  .btn-sm{padding:6px 12px;font-size:12px;border-radius:7px}
+  .btn-green{background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;box-shadow:0 4px 15px rgba(34,197,94,.3)}
+  .btn-green:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(34,197,94,.4)}
+  .btn-danger{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+
+  /* 資料夾選擇區 */
+  .folder-bar{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+  .folder-path{flex:1;font-size:13px;color:var(--muted);font-family:monospace;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .folder-path.selected{color:var(--green)}
+  .folder-hint{font-size:12px;color:var(--yellow);background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:8px 14px;flex:1}
+
+  /* 進度條 */
+  .progress-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:none}
+  .progress-wrap.show{display:block}
+  .progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .progress-label{font-size:13px;font-weight:500}
+  .progress-pct{font-size:13px;color:var(--accent2);font-weight:700}
+  .progress-bar-bg{background:var(--surface2);border-radius:99px;height:8px;overflow:hidden}
+  .progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#8b5cf6);border-radius:99px;width:0%;transition:width .3s}
+  .progress-status{font-size:12px;color:var(--muted);margin-top:8px}
+
+  /* 表格 */
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  .table-toolbar{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .table-toolbar-left{display:flex;align-items:center;gap:10px}
+  .badge{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:11px;padding:3px 10px;border-radius:99px;font-weight:500}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:var(--surface2);padding:12px 16px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:rgba(255,255,255,.02)}
+  td{padding:10px 16px;vertical-align:middle}
+  .slide-name{font-family:monospace;font-size:13px;color:var(--accent2);white-space:nowrap;font-weight:600}
+  textarea{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:7px;padding:8px 10px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;min-height:60px;outline:none;transition:border-color .2s;line-height:1.5}
+  textarea:focus{border-color:var(--accent)}
+  textarea::placeholder{color:var(--muted)}
+  .status-cell{width:120px;text-align:center}
+  .status-badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600}
+  .s-idle{background:rgba(100,116,139,.15);color:var(--muted)}
+  .s-run{background:rgba(99,102,241,.15);color:var(--accent2)}
+  .s-ok{background:rgba(34,197,94,.15);color:var(--green)}
+  .s-dl{background:rgba(245,158,11,.15);color:var(--yellow)}
+  .s-err{background:rgba(239,68,68,.15);color:var(--red)}
+  .action-cell{width:80px;text-align:center}
+
+  /* Download link */
+  .dl-link{display:inline-flex;align-items:center;gap:4px;color:var(--yellow);font-size:11px;font-weight:600;text-decoration:none;padding:4px 8px;border-radius:6px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);transition:all .15s}
+  .dl-link:hover{background:rgba(245,158,11,.2)}
+
+  /* 瀏覽器提示 */
+  .browser-warn{display:none;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;font-size:13px;color:var(--yellow);line-height:1.6}
+  .browser-warn.show{display:block}
+
+  .footer{margin-top:24px;text-align:center;font-size:12px;color:var(--muted)}
+  #toast{position:fixed;bottom:24px;right:24px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 18px;font-size:13px;box-shadow:0 8px 30px rgba(0,0,0,.5);transform:translateY(80px);opacity:0;transition:all .3s;z-index:999;max-width:320px}
+  #toast.show{transform:translateY(0);opacity:1}
+  #toast.success{border-color:var(--green);color:var(--green)}
+  #toast.error{border-color:var(--red);color:var(--red)}
+  #toast.warn{border-color:var(--yellow);color:var(--yellow)}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">🎙</div>
+  <div>
+    <h1>MP3 旁白批次生成工具</h1>
+    <div class="subtitle">免安裝 · 直接在瀏覽器生成 · 自動儲存至 slides 資料夾</div>
+  </div>
+</div>
+
+<!-- 瀏覽器相容提示 -->
+<div class="browser-warn" id="browser-warn">
+  ⚠️ 您的瀏覽器不支援「直接存入資料夾」功能（請改用 <strong>Chrome</strong> 或 <strong>Edge</strong>）。<br>
+  目前將改為逐一下載，請在下載時選擇儲存到 <strong>slides/</strong> 資料夾。
+</div>
+
+<!-- 設定列 -->
+<div class="settings-bar">
+  <div class="setting-group">
+    <label>🎤 語音</label>
+    <select id="voice-sel">
+      <option value="zh-TW-HsiaoChenNeural">曉臻（女聲・清晰）</option>
+      <option value="zh-TW-HsiaoYuNeural">曉宇（女聲・溫柔）</option>
+      <option value="zh-TW-YunJheNeural">雲哲（男聲）</option>
+    </select>
+  </div>
+  <div class="setting-group">
+    <label>⚡ 語速 <span class="rate-display" id="rate-display">正常</span></label>
+    <input type="range" id="rate-slider" min="-30" max="30" value="0" step="5">
+  </div>
+  <div style="flex:1"></div>
+  <label class="btn btn-secondary" style="cursor:pointer">
+    📂 匯入 CSV
+    <input type="file" accept=".csv" id="csv-input" style="display:none" onchange="importCSV(this)">
+  </label>
+  <button class="btn btn-secondary" onclick="exportCSV()">💾 儲存 CSV</button>
+  <button class="btn btn-primary" id="btn-all" onclick="generateAll()">▶ 全部生成</button>
+</div>
+
+<!-- 輸出資料夾選擇 -->
+<div class="folder-bar">
+  <span style="font-size:13px;font-weight:600;white-space:nowrap">📁 輸出資料夾</span>
+  <span class="folder-path" id="folder-path">尚未選擇資料夾</span>
+  <button class="btn btn-green btn-sm" onclick="pickFolder()" id="btn-pick">選擇 slides 資料夾</button>
+  <span class="folder-hint" id="folder-hint">請先點「選擇 slides 資料夾」，選擇 hr_quiz_v2/slides 資料夾，MP3 將自動存入</span>
+</div>
+
+<!-- 進度條 -->
+<div class="progress-wrap" id="progress-wrap">
+  <div class="progress-header">
+    <span class="progress-label" id="progress-label">生成中...</span>
+    <span class="progress-pct" id="progress-pct">0%</span>
+  </div>
+  <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill"></div></div>
+  <div class="progress-status" id="progress-status">準備中</div>
+</div>
+
+<!-- 投影片表格 -->
+<div class="table-wrap">
+  <div class="table-toolbar">
+    <div class="table-toolbar-left">
+      <span style="font-size:14px;font-weight:600">投影片旁白列表</span>
+      <span class="badge" id="slide-count">共 20 頁</span>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm btn-secondary" onclick="addRow()">＋ 新增一頁</button>
+      <button class="btn btn-sm btn-danger" onclick="clearAll()">🗑 清除文字</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:110px">投影片</th>
+        <th>語音朗讀文字</th>
+        <th class="status-cell">狀態</th>
+        <th class="action-cell">單頁</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="footer">本工具完全在瀏覽器本機執行，不會上傳任何資料至網路 · 使用 Microsoft Edge 公開 TTS 服務</div>
+<div id="toast"></div>
+
+<script>
+// ── Microsoft Edge TTS WebSocket ──────────────────────────
+const TTS_WSS = "wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=6A5AA1D4EAFF4E9FB37E23D68491D6F4&ConnectionId=";
+
+function uuid() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+  ).replace(/-/g,'');
+}
+
+function tts(text, voice, rate) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(TTS_WSS + uuid());
+    ws.binaryType = 'arraybuffer';
+    const chunks = [];
+    let timeout = setTimeout(() => { ws.close(); reject(new Error('連線逾時')); }, 20000);
+
+    ws.onopen = () => {
+      // 1. 送設定
+      ws.send(
+        `X-Timestamp:${new Date().toISOString()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n` +
+        `{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":false,"wordBoundaryEnabled":false},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`
+      );
+      // 2. 送 SSML
+      const ssml = `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-TW'><voice name='${voice}'><prosody rate='${rate}'>${escXml(text)}</prosody></voice></speak>`;
+      ws.send(
+        `X-RequestId:${uuid()}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${new Date().toISOString()}Z\r\nPath:ssml\r\n\r\n${ssml}`
+      );
+    };
+
+    ws.onmessage = (e) => {
+      if (e.data instanceof ArrayBuffer) {
+        // 前2 bytes = header 長度
+        const headerLen = new DataView(e.data).getUint16(0);
+        const header = new TextDecoder().decode(new Uint8Array(e.data, 2, headerLen));
+        if (header.includes('Path:audio')) {
+          const audio = e.data.slice(2 + headerLen);
+          if (audio.byteLength > 0) chunks.push(audio);
+        }
+      } else if (typeof e.data === 'string' && e.data.includes('Path:turn.end')) {
+        clearTimeout(timeout);
+        ws.close();
+        // 合併所有 chunk
+        const total = chunks.reduce((s, c) => s + c.byteLength, 0);
+        const out = new Uint8Array(total);
+        let off = 0;
+        chunks.forEach(c => { out.set(new Uint8Array(c), off); off += c.byteLength; });
+        resolve(out.buffer);
+      }
+    };
+
+    ws.onerror = () => { clearTimeout(timeout); reject(new Error('WebSocket 連線失敗')); };
+    ws.onclose = (e) => { if (!e.wasClean && chunks.length === 0) { clearTimeout(timeout); reject(new Error('連線中斷')); } };
+  });
+}
+
+function escXml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── File System Access API ────────────────────────────────
+let dirHandle = null;
+const hasFSA = ('showDirectoryPicker' in window);
+
+async function pickFolder() {
+  if (!hasFSA) { showToast('瀏覽器不支援此功能，請改用 Chrome 或 Edge', 'error'); return; }
+  try {
+    dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    document.getElementById('folder-path').textContent = dirHandle.name + '/';
+    document.getElementById('folder-path').className = 'folder-path selected';
+    document.getElementById('folder-hint').textContent = '✅ 已選好！生成完成後 MP3 將自動存入此資料夾';
+    document.getElementById('folder-hint').style.color = 'var(--green)';
+    showToast('資料夾已選擇：' + dirHandle.name, 'success');
+  } catch(e) {
+    if (e.name !== 'AbortError') showToast('選擇失敗：' + e, 'error');
+  }
+}
+
+async function saveFile(name, buffer) {
+  const filename = name + '.mp3';
+  if (dirHandle) {
+    // 直接寫入資料夾
+    const fh = await dirHandle.getFileHandle(filename, { create: true });
+    const w  = await fh.createWritable();
+    await w.write(buffer);
+    await w.close();
+    return 'saved';
+  } else {
+    // fallback：下載
+    const blob = new Blob([buffer], { type: 'audio/mpeg' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    return 'downloaded';
+  }
+}
+
+// ── 幻燈片列表 ───────────────────────────────────────────
+let slideNames = [];
+for (let i = 1; i <= 20; i++) slideNames.push(`slide_${String(i).padStart(2,'0')}`);
+
+function buildTable() {
+  const tb = document.getElementById('tbody');
+  tb.innerHTML = '';
+  slideNames.forEach(name => {
+    const tr = document.createElement('tr');
+    tr.id = 'row-' + name;
+    tr.innerHTML = `
+      <td><span class="slide-name">${name}</span></td>
+      <td><textarea id="txt-${name}" placeholder="請輸入此頁的語音朗讀文字..."></textarea></td>
+      <td class="status-cell"><span class="status-badge s-idle" id="st-${name}">—</span></td>
+      <td class="action-cell"><button class="btn btn-sm btn-secondary" onclick="generateOne('${name}')">▶</button></td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById('slide-count').textContent = `共 ${slideNames.length} 頁`;
+}
+
+function addRow() {
+  const num = slideNames.length + 1;
+  const name = `slide_${String(num).padStart(2,'0')}`;
+  slideNames.push(name);
+  const tb = document.getElementById('tbody');
+  const tr = document.createElement('tr');
+  tr.id = 'row-' + name;
+  tr.innerHTML = `
+    <td><span class="slide-name">${name}</span></td>
+    <td><textarea id="txt-${name}" placeholder="請輸入此頁的語音朗讀文字..."></textarea></td>
+    <td class="status-cell"><span class="status-badge s-idle" id="st-${name}">—</span></td>
+    <td class="action-cell"><button class="btn btn-sm btn-secondary" onclick="generateOne('${name}')">▶</button></td>`;
+  tb.appendChild(tr);
+  document.getElementById('slide-count').textContent = `共 ${slideNames.length} 頁`;
+  tr.querySelector('textarea').focus();
+}
+
+// ── 語速 ────────────────────────────────────────────────
+document.getElementById('rate-slider').addEventListener('input', function() {
+  const v = parseInt(this.value);
+  const labels = {'-30':'很慢','-20':'慢','-10':'稍慢','0':'正常','10':'稍快','20':'快','30':'很快'};
+  document.getElementById('rate-display').textContent = labels[v] || (v>0?`+${v}%`:`${v}%`);
+});
+function getRate() { const v=parseInt(document.getElementById('rate-slider').value); return v>=0?`+${v}%`:`${v}%`; }
+function getVoice() { return document.getElementById('voice-sel').value; }
+
+function setStatus(name, cls, txt) {
+  const el = document.getElementById('st-' + name);
+  el.className = 'status-badge ' + cls;
+  el.textContent = txt;
+}
+
+// ── 單頁生成 ────────────────────────────────────────────
+async function generateOne(name) {
+  const text = document.getElementById('txt-' + name).value.trim();
+  if (!text) { showToast('請先填入朗讀文字', 'error'); return; }
+  setStatus(name, 's-run', '⏳ 生成中');
+  try {
+    const buf = await tts(text, getVoice(), getRate());
+    const result = await saveFile(name, buf);
+    const kb = Math.round(buf.byteLength / 1024);
+    setStatus(name, 's-ok', `✓ ${kb} KB`);
+    showToast(`${name}.mp3 完成 (${kb} KB)`, 'success');
+  } catch(e) {
+    setStatus(name, 's-err', '✗ 失敗');
+    showToast(`${name} 失敗：${e.message}`, 'error');
+  }
+}
+
+// ── 全部生成 ────────────────────────────────────────────
+let running = false;
+async function generateAll() {
+  if (running) return;
+  if (!hasFSA && !dirHandle) {
+    if (!confirm('尚未選擇資料夾，將改為逐一下載方式。建議先點「選擇 slides 資料夾」。\n\n確定要繼續嗎？')) return;
+  }
+  const toGen = slideNames.filter(n => document.getElementById('txt-' + n).value.trim());
+  if (!toGen.length) { showToast('請先填入旁白文字', 'error'); return; }
+
+  running = true;
+  document.getElementById('btn-all').disabled = true;
+  document.getElementById('progress-wrap').classList.add('show');
+
+  let done = 0, failed = 0;
+  for (const name of toGen) {
+    const text = document.getElementById('txt-' + name).value.trim();
+    setProgress(done, toGen.length, `正在生成 ${name}.mp3…`);
+    setStatus(name, 's-run', '⏳ 生成中');
+    try {
+      const buf = await tts(text, getVoice(), getRate());
+      await saveFile(name, buf);
+      const kb = Math.round(buf.byteLength / 1024);
+      setStatus(name, 's-ok', `✓ ${kb} KB`);
+    } catch(e) {
+      setStatus(name, 's-err', '✗ 失敗');
+      failed++;
+    }
+    done++;
+  }
+
+  setProgress(done, toGen.length, failed ? `完成，${failed} 頁失敗（請逐頁重試）` : `🎉 全部完成！共 ${done} 個 MP3`);
+  showToast(failed ? `完成，但有 ${failed} 頁失敗` : `✅ 全部生成完成！共 ${done} 個 MP3`, failed ? 'warn' : 'success');
+  running = false;
+  document.getElementById('btn-all').disabled = false;
+}
+
+function setProgress(done, total, msg) {
+  const pct = Math.round(done / total * 100);
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-label').textContent = `進度 ${done} / ${total}`;
+  document.getElementById('progress-status').textContent = msg;
+}
+
+// ── CSV ──────────────────────────────────────────────────
+function importCSV(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.replace(/\r/g,'').split('\n');
+    let count = 0;
+    lines.forEach(line => {
+      if (!line.trim()) return;
+      const idx = line.indexOf(',');
+      if (idx < 0) return;
+      const name = line.slice(0, idx).trim().replace(/^"|"$/g,'');
+      const text = line.slice(idx + 1).trim().replace(/^"|"$/g,'');
+      const ta = document.getElementById('txt-' + name);
+      if (ta && text) { ta.value = text; count++; }
+    });
+    showToast(`已匯入 ${count} 頁文字`, 'success');
+  };
+  reader.readAsText(file, 'utf-8');
+  input.value = '';
+}
+
+function exportCSV() {
+  const rows = slideNames.map(n => {
+    const text = (document.getElementById('txt-' + n).value || '').replace(/"/g,'""');
+    return `${n},"${text}"`;
+  });
+  const blob = new Blob(['\uFEFF' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'narrations.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  showToast('已下載 narrations.csv', 'success');
+}
+
+function clearAll() {
+  if (!confirm('確定要清除所有旁白文字？')) return;
+  slideNames.forEach(n => {
+    const ta = document.getElementById('txt-' + n);
+    if (ta) ta.value = '';
+    setStatus(n, 's-idle', '—');
+  });
+}
+
+// ── Toast ────────────────────────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = '', 3500);
+}
+
+// ── 初始化 ────────────────────────────────────────────────
+if (!hasFSA) document.getElementById('browser-warn').classList.add('show');
+buildTable();
+</script>
+</body>
+</html>

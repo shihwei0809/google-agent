@@ -1,0 +1,25 @@
+# Vercel Ignore File
+# Ignore large directories to fit Vercel deployment size limits (< 300MB)
+
+# Ignore core media folders
+創作庫/
+vids/
+dist/
+Clipping/
+subtitles/
+
+# Ignore development / environment folders
+node_modules/
+venv/
+.git/
+.netlify/
+.gemini/
+__pycache__/
+
+# Ignore specific large files
+*.mp3
+*.mp4
+*.wav
+*.m4a
+*.zip
+*.tar.gz

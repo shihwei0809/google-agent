@@ -1,0 +1,27 @@
+# Netlify Ignore File
+# Ignore development and system folders, and large media files (mp4, mp3) to avoid Netlify's 100MB upload limit.
+
+.git/
+node_modules/
+venv/
+.gemini/
+.vercel/
+.netlify/
+dist/
+Clipping/
+subtitles/
+temp_sub.*
+apply_vids_templates.py
+backup_shiny_project.py
+build_my_vault.py
+download_all_subs.py
+extract_videos.py
+local_generator.py
+local_shiny_bgm.wav
+sync_projects.py
+sync_to_gdrive.py
+
+# Exclude large media assets from Netlify hosting (they are synced to Google Drive)
+**/*.mp4
+**/*.mp3
+flow 影片/

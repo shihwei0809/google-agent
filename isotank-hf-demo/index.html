@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=1920, height=1080"/>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#050810;
+  font-family:'Noto Sans TC','noto sans tc',sans-serif;}
+
+/* ── 背景 ── */
+#bg{position:absolute;inset:0;
+  background:radial-gradient(ellipse 1000px 700px at 15% 50%,#0d2860 0%,transparent 65%),
+             radial-gradient(ellipse 800px 600px at 85% 25%,#0a2040 0%,transparent 65%),#050810;}
+#grid{position:absolute;inset:0;
+  background-image:linear-gradient(rgba(30,100,200,.07) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(30,100,200,.07) 1px,transparent 1px);
+  background-size:80px 80px;}
+#deco1{position:absolute;width:700px;height:700px;border-radius:50%;
+  top:-250px;right:-200px;border:1px solid rgba(30,92,219,.15);}
+#deco2{position:absolute;width:350px;height:350px;border-radius:50%;
+  bottom:-120px;left:80px;border:1px solid rgba(30,92,219,.12);}
+
+/* ── badge / page-num / progress ── */
+.badge{position:absolute;top:52px;left:88px;display:flex;align-items:center;gap:18px;}
+.bi{width:60px;height:60px;border-radius:16px;
+  background:linear-gradient(135deg,#1e5cdb,#0d3fa6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;box-shadow:0 4px 28px rgba(30,92,219,.45);}
+.bt{line-height:1.4;}
+.bt1{font-size:12px;color:#7ec8ff;font-weight:700;letter-spacing:3px;text-transform:uppercase;}
+.bt2{font-size:14px;color:rgba(255,255,255,.45);margin-top:3px;}
+.pn{position:absolute;top:62px;right:88px;font-size:13px;color:rgba(255,255,255,.3);letter-spacing:2px;}
+.prog{position:absolute;bottom:0;left:0;height:4px;
+  background:linear-gradient(90deg,#1e5cdb,#38bdf8);border-radius:2px;}
+
+/* ── LAYOUT HELPERS ── */
+.lw{width:1640px;}
+.row{display:flex;align-items:center;}
+.col{display:flex;flex-direction:column;}
+.center{display:flex;align-items:center;justify-content:center;}
+.abs{position:absolute;inset:0;}
+
+/* ── TYPOGRAPHY ── */
+.chp{font-size:12px;color:#7ec8ff;font-weight:700;letter-spacing:3px;
+  text-transform:uppercase;margin-bottom:16px;}
+.ht{font-size:56px;font-weight:900;line-height:1.2;color:#fff;margin-bottom:20px;}
+.htsm{font-size:44px;font-weight:900;line-height:1.2;color:#fff;margin-bottom:20px;}
+.ln{width:64px;height:4px;background:linear-gradient(90deg,#1e5cdb,#38bdf8);
+  border-radius:2px;margin-bottom:28px;}
+.desc{font-size:16px;color:rgba(255,255,255,.55);line-height:2;}
+
+/* ── CARDS ── */
+.card{padding:28px 32px;border-radius:18px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);}
+.card4{display:grid;grid-template-columns:repeat(4,1fr);gap:24px;}
+.card3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+.card2{display:grid;grid-template-columns:repeat(2,1fr);gap:32px;}
+
+/* step card */
+.sc{padding:36px 30px;border-radius:20px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+  position:relative;overflow:hidden;}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.c1::before{background:linear-gradient(90deg,#f87171,#fb923c);}
+.c2::before{background:linear-gradient(90deg,#fbbf24,#84cc16);}
+.c3::before{background:linear-gradient(90deg,#38bdf8,#818cf8);}
+.c4::before{background:linear-gradient(90deg,#a78bfa,#ec4899);}
+.c5::before{background:linear-gradient(90deg,#34d399,#06b6d4);}
+.c6::before{background:linear-gradient(90deg,#fb923c,#f59e0b);}
+.snum{font-size:11px;letter-spacing:2px;color:rgba(255,255,255,.3);
+  text-transform:uppercase;margin-bottom:20px;}
+.sico{font-size:42px;margin-bottom:16px;}
+.sc h3{font-size:20px;font-weight:700;color:#fff;margin-bottom:12px;}
+.sc p{font-size:13px;color:rgba(255,255,255,.55);line-height:1.85;}
+.warn{margin-top:16px;padding:10px 14px;border-radius:10px;
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);
+  font-size:12px;color:#f87171;}
+.ok{margin-top:16px;padding:10px 14px;border-radius:10px;
+  background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);
+  font-size:12px;color:#6ee7b7;}
+
+/* row card */
+.rcard{display:flex;align-items:center;gap:24px;padding:24px 32px;
+  border-radius:16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);}
+.rico{width:64px;height:64px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;}
+.rcard h3{font-size:18px;font-weight:700;color:#fff;margin-bottom:4px;}
+.rcard p{font-size:13px;color:rgba(255,255,255,.5);}
+.pill{margin-left:auto;padding:6px 16px;border-radius:100px;font-size:12px;font-weight:700;}
+.pr{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);}
+.pa{background:rgba(234,179,8,.12);color:#fbbf24;border:1px solid rgba(234,179,8,.3);}
+.pg{background:rgba(52,211,153,.12);color:#6ee7b7;border:1px solid rgba(52,211,153,.3);}
+.pb{background:rgba(56,189,248,.12);color:#38bdf8;border:1px solid rgba(56,189,248,.3);}
+
+/* info box */
+.ibox{padding:24px 28px;border-radius:16px;
+  background:rgba(30,92,219,.1);border:1px solid rgba(30,92,219,.3);}
+.ibox-label{font-size:11px;letter-spacing:2px;color:#7ec8ff;
+  text-transform:uppercase;margin-bottom:10px;}
+.ibox-val{font-size:36px;font-weight:900;color:#fff;}
+.ibox-unit{font-size:16px;color:rgba(255,255,255,.5);margin-top:4px;}
+
+/* stat badge */
+.stat{display:inline-flex;align-items:center;gap:8px;
+  padding:8px 20px;border-radius:100px;font-size:14px;font-weight:700;}
+.stat-r{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);}
+.stat-g{background:rgba(52,211,153,.12);color:#6ee7b7;border:1px solid rgba(52,211,153,.3);}
+.stat-b{background:rgba(56,189,248,.12);color:#38bdf8;border:1px solid rgba(56,189,248,.3);}
+.stat-y{background:rgba(234,179,8,.12);color:#fbbf24;border:1px solid rgba(234,179,8,.3);}
+
+/* ── SLIDE CONTAINERS ── */
+.slide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+</style>
+</head>
+<body>
+<div id="bg"></div><div id="grid"></div><div id="deco1"></div><div id="deco2"></div>
+
+<div id="root" data-composition-id="main" data-start="0"
+     data-duration="246" data-width="1920" data-height="1080">
+
+<!-- ═══ P1: 封面 (0-10s) ═══ -->
+<div id="p1" class="slide clip" data-start="0" data-duration="19" data-track-index="1">
+  <div class="badge" id="p1b"><div class="bi">🏭</div><div class="bt"><div class="bt1">化工廠安全訓練</div><div class="bt2">ISO Tank Operations · C50110-INV-02-01</div></div></div>
+  <div class="pn">01 / 12</div>
+  <div class="prog" id="p1p" style="width:0"></div>
+  <div id="p1hero" style="text-align:center;">
+    <div id="p1tag" style="display:inline-block;padding:7px 22px;border-radius:100px;background:rgba(30,92,219,.2);border:1px solid rgba(30,92,219,.55);font-size:12px;letter-spacing:3px;color:#7ec8ff;text-transform:uppercase;margin-bottom:36px;">標準作業程序 SOP</div>
+    <div id="p1h" style="font-size:82px;font-weight:900;line-height:1.1;background:linear-gradient(145deg,#fff 30%,#7ec8ff 90%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:28px;">儲槽進出貨<br>作業安全訓練</div>
+    <div id="p1s" style="font-size:22px;color:rgba(255,255,255,.5);max-width:820px;line-height:1.9;margin:0 auto;">本課程依據廠區 C50110-INV-02-01 標準作業程序，涵蓋一般檢查、進出貨卸料、灌裝及安全規範完整說明。</div>
+    <div id="p1d" style="display:flex;gap:12px;justify-content:center;margin-top:52px;">
+      <div style="width:36px;height:10px;border-radius:5px;background:#1e5cdb;"></div>
+      <div style="width:10px;height:10px;border-radius:50%;background:rgba(30,92,219,.35);border:1px solid rgba(30,92,219,.7);"></div>
+      <div style="width:10px;height:10px;border-radius:50%;background:rgba(30,92,219,.35);border:1px solid rgba(30,92,219,.7);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P2: 個人防護具 (10-20s) ═══ -->
+<div id="p2" class="slide clip" data-start="19" data-duration="20" data-track-index="1">
+  <div class="badge" id="p2b"><div class="bi">🦺</div><div class="bt"><div class="bt1">作業前準備</div><div class="bt2">Pre-Operation Checklist</div></div></div>
+  <div class="pn">02 / 12</div>
+  <div class="prog" id="p2p" style="width:0"></div>
+  <div class="lw row" style="gap:88px;">
+    <div id="p2l" style="flex:0 0 400px;">
+      <div class="chp">章節 02</div>
+      <div class="ht">個人<br>防護具<br>著裝規範</div>
+      <div class="ln"></div>
+      <div class="desc">所有人員進入作業區前，<br>必須完整著裝以下防護具，<br>確保人身安全。</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:20px;">
+      <div class="rcard" id="p2c1"><div class="rico" style="background:rgba(239,68,68,.12)">⛑️</div><div><h3>安全帽</h3><p>防止墜落物撞擊，必須正確扣緊帽帶</p></div><div class="pill pr">必要</div></div>
+      <div class="rcard" id="p2c2"><div class="rico" style="background:rgba(234,179,8,.1)">👟</div><div><h3>安全鞋</h3><p>鋼頭安全鞋，防止重物壓傷及化學品飛濺</p></div><div class="pill pr">必要</div></div>
+      <div class="rcard" id="p2c3"><div class="rico" style="background:rgba(56,189,248,.1)">🥽</div><div><h3>護目鏡</h3><p>防護化學品噴濺傷害眼睛，作業全程配戴</p></div><div class="pill pa">關鍵</div></div>
+      <div class="rcard" id="p2c4"><div class="rico" style="background:rgba(167,139,250,.1)">🧤</div><div><h3>防護手套</h3><p>接觸管線時必須配戴耐化學品手套</p></div><div class="pill pr">必要</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P3: 槽車定位 (20-30s) ═══ -->
+<div id="p3" class="slide clip" data-start="39" data-duration="21" data-track-index="1">
+  <div class="badge" id="p3b"><div class="bi">🚛</div><div class="bt"><div class="bt1">ISO 槽車卸料</div><div class="bt2">Tank Truck Positioning</div></div></div>
+  <div class="pn">03 / 12</div>
+  <div class="prog" id="p3p" style="width:0"></div>
+  <div class="lw col">
+    <div id="p3top" style="margin-bottom:48px;"><div class="chp">章節 03</div><div class="ht">槽車定位與安全固定程序</div></div>
+    <div class="card4">
+      <div class="sc c1" id="p3c1"><div class="snum">Step 01</div><div class="sico">🚗</div><h3>引導定位</h3><p>引導槽車至卸料位，熄火、拉緊手煞車、關閉收音機</p><div class="warn">⚠️ 鑰匙交操作員保管</div></div>
+      <div class="sc c2" id="p3c2"><div class="snum">Step 02</div><div class="sico">📦</div><h3>ISO 放櫃</h3><p>ISO 槽車須執行放櫃作業並拔除車頭才可操作</p><div class="warn">⚠️ 車頭駛離前確認接地</div></div>
+      <div class="sc c3" id="p3c3"><div class="snum">Step 03</div><div class="sico">🧱</div><h3>防護設施</h3><p>放置輪檔、三角錐、盛漏盤與滅火器</p><div class="warn">⚠️ 高處作業穿雙勾安全帶</div></div>
+      <div class="sc c4" id="p3c4"><div class="snum">Step 04</div><div class="sico">🔑</div><h3>鑰匙管制</h3><p>鑰匙交現場操作員鎖入箱中，確認車輛固定</p><div class="ok">✅ 完成後方可開始卸料</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P4: 接地防靜電 (30-40s) ═══ -->
+<div id="p4" class="slide clip" data-start="60" data-duration="20" data-track-index="1">
+  <div class="badge" id="p4b"><div class="bi">⚡</div><div class="bt"><div class="bt1">接地防靜電</div><div class="bt2">Static Grounding Verification</div></div></div>
+  <div class="pn">04 / 12</div>
+  <div class="prog" id="p4p" style="width:0"></div>
+  <div class="lw row" style="gap:80px;">
+    <div style="flex:1;display:flex;flex-direction:column;gap:24px;">
+      <div id="p4t"><div class="chp">章節 04</div><div class="ht">靜電接地<br>與高處安全</div><div class="ln"></div></div>
+      <div id="p4box" class="ibox">
+        <div class="ibox-label">接地電阻標準</div>
+        <div class="ibox-val">≤ 10 Ω</div>
+        <div class="ibox-unit">電阻值合格，方可進行作業</div>
+      </div>
+      <div id="p4w" style="padding:20px 24px;border-radius:16px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);">
+        <div style="font-size:14px;color:#f87171;font-weight:700;margin-bottom:8px;">⛔ 不合格絕不能作業</div>
+        <div style="font-size:13px;color:rgba(255,255,255,.5);">電阻超過 10Ω 須重新接地或更換接地線，確認合格後才可繼續</div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:20px;">
+      <div class="sc c3" id="p4c1">
+        <div class="snum">接地作業</div>
+        <div class="sico">🔌</div>
+        <h3>夾緊靜電接地線</h3>
+        <p>將車體靜電接地線確實夾緊至接地點，使用電阻計量測確認</p>
+      </div>
+      <div class="sc c5" id="p4c2">
+        <div class="snum">高處作業</div>
+        <div class="sico">🪢</div>
+        <h3>雙掛勾安全帶</h3>
+        <p>二公尺以上高處接管作業，必須穿戴雙掛勾背負式安全帶，並牢固勾掛防墜桿</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P5: PDA掃描 + Flush (40-50s) ═══ -->
+<div id="p5" class="slide clip" data-start="80" data-duration="20" data-track-index="1">
+  <div class="badge" id="p5b"><div class="bi">📱</div><div class="bt"><div class="bt1">入料確認</div><div class="bt2">PDA Scan & Pipeline Flush</div></div></div>
+  <div class="pn">05 / 12</div>
+  <div class="prog" id="p5p" style="width:0"></div>
+  <div class="lw col">
+    <div id="p5t" style="margin-bottom:44px;"><div class="chp">章節 05</div><div class="ht">PDA 掃描與管路沖洗</div></div>
+    <div class="card3">
+      <div class="sc c1" id="p5c1">
+        <div class="snum">Step 01 · PDA 掃描</div>
+        <div class="sico">📱</div>
+        <h3>設備對刷確認</h3>
+        <p>使用 PDA 掃描設備對刷，核對入料軟管與儲槽資訊，確認品名槽別無誤</p>
+        <div class="ok">✅ 掃描成功方可繼續</div>
+      </div>
+      <div class="sc c2" id="p5c2">
+        <div class="snum">Step 02 · 工業級 Flush</div>
+        <div class="sico">💧</div>
+        <h3>底部沖洗 40L</h3>
+        <p>工業級入料執行底部 Flush 約四十公升，槽車超過三個月未入廠需 Flush 四百公升</p>
+        <div class="warn">⚠️ 防止混料污染</div>
+      </div>
+      <div class="sc c3" id="p5c3">
+        <div class="snum">Step 03 · 電子級 Flush</div>
+        <div class="sico">🧪</div>
+        <h3>電子級沖洗 200L</h3>
+        <p>電子級入料執行 Flush 二百公升至一噸回收桶，超過三個月未入廠則需四百公升</p>
+        <div class="warn">⚠️ 回收桶確認</div>
+      </div>
+    </div>
+    <div id="p5note" style="margin-top:24px;padding:16px 24px;border-radius:12px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);font-size:14px;color:#7ec8ff;">
+      💡 沖洗完成後，再次核對入料管線連接正確，確認無洩漏方可開始卸料
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P6: 取樣化驗 (50-60s) ═══ -->
+<div id="p6" class="slide clip" data-start="100" data-duration="20" data-track-index="1">
+  <div class="badge" id="p6b"><div class="bi">🧫</div><div class="bt"><div class="bt1">品質管制</div><div class="bt2">Quality Sampling & Inspection</div></div></div>
+  <div class="pn">06 / 12</div>
+  <div class="prog" id="p6p" style="width:0"></div>
+  <div class="lw row" style="gap:80px;">
+    <div style="flex:0 0 420px;" id="p6l">
+      <div class="chp">章節 06</div>
+      <div class="ht">取樣化驗<br>作業程序</div>
+      <div class="ln"></div>
+      <div class="desc">取樣化驗合格前，<br>嚴禁開始卸貨作業。<br>任何違反將造成混料事故。</div>
+      <div style="margin-top:28px;"><div class="stat stat-r">⛔ 未合格禁止卸貨</div></div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:20px;">
+      <div class="rcard" id="p6r1">
+        <div class="rico" style="background:rgba(234,179,8,.1)">1️⃣</div>
+        <div><h3>第一、二輪取樣</h3><p>由認證操作員取樣送品管化驗，等待合格報告</p></div>
+        <div class="pill pb">操作員</div>
+      </div>
+      <div class="rcard" id="p6r2">
+        <div class="rico" style="background:rgba(167,139,250,.1)">3️⃣</div>
+        <div><h3>第三輪後取樣</h3><p>由品管人員親自到場取樣，提升品質管控層級</p></div>
+        <div class="pill pa">品管</div>
+      </div>
+      <div class="rcard" id="p6r3">
+        <div class="rico" style="background:rgba(52,211,153,.1)">✅</div>
+        <div><h3>化驗合格後</h3><p>接妥氣相平衡管與液相輸送管，開啟緊急遮斷閥與出料閥</p></div>
+        <div class="pill pg">合格</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P7: 卸料泵浦操作 (60-70s) ═══ -->
+<div id="p7" class="slide clip" data-start="120" data-duration="22" data-track-index="1">
+  <div class="badge" id="p7b"><div class="bi">⚙️</div><div class="bt"><div class="bt1">卸料作業</div><div class="bt2">Unloading Pump Operation</div></div></div>
+  <div class="pn">07 / 12</div>
+  <div class="prog" id="p7p" style="width:0"></div>
+  <div class="lw col">
+    <div id="p7t" style="margin-bottom:44px;"><div class="chp">章節 07</div><div class="ht">卸料泵浦操作程序</div></div>
+    <div class="card4">
+      <div class="sc c1" id="p7c1"><div class="snum">Step 01</div><div class="sico">🔧</div><h3>洩壓排氣</h3><p>開啟洩壓閥 1/3 排空軟管氣體，接妥殘液收集桶</p></div>
+      <div class="sc c2" id="p7c2"><div class="snum">Step 02</div><div class="sico">▶️</div><h3>啟動泵浦</h3><p>啟動卸料泵浦，開出口閥 1/3，壓力正常後再全開</p><div class="ok">✅ 確認壓力穩定</div></div>
+      <div class="sc c3" id="p7c3"><div class="snum">Step 03</div><div class="sico">🌬️</div><h3>開排氣閥</h3><p>開啟槽車排氣閥防止負壓，避免槽體被大氣壓差損壞</p><div class="warn">⚠️ 不開排氣閥禁止卸料</div></div>
+      <div class="sc c4" id="p7c4"><div class="snum">Step 04</div><div class="sico">📊</div><h3>巡查監控</h3><p>沿管線流向巡查至儲槽，隨時留意液位計，防範滿位溢槽</p><div class="warn">⚠️ 嚴防滿位</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P8: 氮氣吹掃 + 過濾袋 (70-80s) ═══ -->
+<div id="p8" class="slide clip" data-start="142" data-duration="19" data-track-index="1">
+  <div class="badge" id="p8b"><div class="bi">💨</div><div class="bt"><div class="bt1">卸料收尾</div><div class="bt2">N₂ Purge & Filter Maintenance</div></div></div>
+  <div class="pn">08 / 12</div>
+  <div class="prog" id="p8p" style="width:0"></div>
+  <div class="lw row" style="gap:80px;align-items:flex-start;">
+    <div style="flex:1;display:flex;flex-direction:column;gap:24px;">
+      <div id="p8t"><div class="chp">章節 08</div><div class="htsm">氮氣吹掃與設備收尾</div><div class="ln"></div></div>
+      <div class="sc c5" id="p8c1">
+        <div class="snum">氮氣吹掃</div><div class="sico">💨</div>
+        <h3>高壓氮氣吹掃殘液</h3>
+        <p>槽車泵空後引入高壓氮氣吹掃管線殘液，確認壓力完全洩放，小心拆卸軟管，化學品不落地</p>
+        <div class="ok">✅ 關閉閥門、收回設備</div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:20px;">
+      <div id="p8f"><div class="chp">過濾袋更換時機</div></div>
+      <div class="rcard" id="p8r1"><div class="rico" style="background:rgba(239,68,68,.12)">📈</div><div><h3>壓力超過 2 kg/cm²</h3><p>過濾袋壓差過高，需立即更換</p></div><div class="pill pr">立即</div></div>
+      <div class="rcard" id="p8r2"><div class="rico" style="background:rgba(234,179,8,.1)">📅</div><div><h3>使用滿 12 個月</h3><p>定期更換，不論使用量</p></div><div class="pill pa">定期</div></div>
+      <div class="rcard" id="p8r3"><div class="rico" style="background:rgba(56,189,248,.1)">🏭</div><div><h3>使用量達 12,000 噸</h3><p>累積通過量達標即需更換</p></div><div class="pill pb">累積量</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P9: 出貨作業準備 (80-90s) ═══ -->
+<div id="p9" class="slide clip" data-start="161" data-duration="19" data-track-index="1">
+  <div class="badge" id="p9b"><div class="bi">🚚</div><div class="bt"><div class="bt1">出貨作業</div><div class="bt2">Outbound Loading Preparation</div></div></div>
+  <div class="pn">09 / 12</div>
+  <div class="prog" id="p9p" style="width:0"></div>
+  <div class="lw col">
+    <div id="p9t" style="margin-bottom:44px;"><div class="chp">章節 09</div><div class="ht">出貨槽車定位與驗收</div></div>
+    <div class="card3">
+      <div class="sc c2" id="p9c1">
+        <div class="snum">定位固定</div><div class="sico">🚚</div>
+        <h3>引導出貨槽車定位</h3>
+        <p>接接地線、輪檔、三角錐與盛漏盤，確認車輛固定安全</p>
+        <div class="ok">✅ 與進貨同等防護</div>
+      </div>
+      <div class="sc c3" id="p9c2">
+        <div class="snum">車體驗收</div><div class="sico">📋</div>
+        <h3>安檢清潔度檢核</h3>
+        <p>操作員進行車體驗收，填寫「運輸油槽車安檢清潔度檢核表」</p>
+        <div class="warn">⚠️ 表單必須完整填寫</div>
+      </div>
+      <div class="sc c4" id="p9c3">
+        <div class="snum">油罐車特殊規定</div><div class="sico">⚖️</div>
+        <h3>放櫃例外申請</h3>
+        <p>油罐車原則上不得放櫃。若有製程或特採需求，必須填寫檢點表經單位主管簽核</p>
+        <div class="warn">⚠️ 未核准不得放櫃</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P10: 灌裝前準備 (90-100s) ═══ -->
+<div id="p10" class="slide clip" data-start="180" data-duration="22" data-track-index="1">
+  <div class="badge" id="p10b"><div class="bi">🔄</div><div class="bt"><div class="bt1">出貨灌裝</div><div class="bt2">Loading Pre-Operation</div></div></div>
+  <div class="pn">10 / 12</div>
+  <div class="prog" id="p10p" style="width:0"></div>
+  <div class="lw row" style="gap:80px;align-items:flex-start;">
+    <div style="flex:0 0 380px;" id="p10l">
+      <div class="chp">章節 10</div>
+      <div class="ht">灌裝前<br>準備作業</div>
+      <div class="ln"></div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="ibox" id="p10b1"><div class="ibox-label">EBR 氮氣攪拌時間</div><div class="ibox-val">10–30 <span style="font-size:22px">分鐘</span></div></div>
+        <div class="ibox" id="p10b2"><div class="ibox-label">ISO 槽車氮氣排吹</div><div class="ibox-val">3–5 <span style="font-size:22px">次</span></div></div>
+        <div class="ibox" id="p10b3"><div class="ibox-label">灌裝管線 Flush</div><div class="ibox-val">100 <span style="font-size:22px">公升</span></div></div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:20px;">
+      <div class="rcard" id="p10r1"><div class="rico" style="background:rgba(234,179,8,.1)">📐</div><div><h3>計算液位下降點</h3><p>依預定量計算儲槽液位預期下降點，設定液位警報</p></div><div class="pill pa">必要</div></div>
+      <div class="rcard" id="p10r2"><div class="rico" style="background:rgba(56,189,248,.1)">🌀</div><div><h3>EBR 氮氣攪拌</h3><p>EBR系列灌裝前需開啟氮氣攪拌 10-30 分鐘，確保混合均勻</p></div><div class="pill pb">EBR</div></div>
+      <div class="rcard" id="p10r3"><div class="rico" style="background:rgba(52,211,153,.1)">🔬</div><div><h3>取樣送驗合格</h3><p>灌裝管線 Flush 100公升後取樣送驗，合格方可開始灌裝</p></div><div class="pill pg">品管</div></div>
+      <div class="rcard" id="p10r4"><div class="rico" style="background:rgba(239,68,68,.12)">👁️</div><div><h3>全程在場監控</h3><p>灌裝期間操作人員不得離開現場，隨時監控排壓狀況</p></div><div class="pill pr">強制</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P11: 灌裝完成 (100-110s) ═══ -->
+<div id="p11" class="slide clip" data-start="202" data-duration="21" data-track-index="1">
+  <div class="badge" id="p11b"><div class="bi">✅</div><div class="bt"><div class="bt1">灌裝完成</div><div class="bt2">Loading Completion & Departure</div></div></div>
+  <div class="pn">11 / 12</div>
+  <div class="prog" id="p11p" style="width:0"></div>
+  <div class="lw col">
+    <div id="p11t" style="margin-bottom:44px;"><div class="chp">章節 11</div><div class="ht">灌裝完成與車輛放行</div></div>
+    <div class="card4">
+      <div class="sc c5" id="p11c1"><div class="snum">Step 01</div><div class="sico">🧪</div><h3>完裝取樣</h3><p>灌裝至預定量後，立即進行成品取樣，送品管化驗確認</p></div>
+      <div class="sc c2" id="p11c2"><div class="snum">Step 02</div><div class="sico">💨</div><h3>氮氣壓空管線</h3><p>關閉馬達，使用氮氣將管線殘液完全壓空，ISO 槽車需保壓 0.5–1 kg 防污染</p></div>
+      <div class="sc c3" id="p11c3"><div class="snum">Step 03</div><div class="sico">🔧</div><h3>拆除管線設備</h3><p>確認無洩漏後拆除管線、接地線、輪檔、三角錐與盛漏盤，各轉接頭收回定位</p></div>
+      <div class="sc c1" id="p11c4"><div class="snum">Step 04</div><div class="sico">⚖️</div><h3>過磅離廠</h3><p>車體驗收合格確認後，引導槽車開往地磅過磅，紀錄重量後正式離廠</p><div class="ok">✅ 完成出貨作業</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ P12: 醋酸保溫 + 安全注意 (110-120s) ═══ -->
+<div id="p12" class="slide clip" data-start="223" data-duration="23" data-track-index="1">
+  <div class="badge" id="p12b"><div class="bi">🌡️</div><div class="bt"><div class="bt1">特殊作業規定</div><div class="bt2">Special Operations & Safety Alerts</div></div></div>
+  <div class="pn">12 / 12</div>
+  <div class="prog" id="p12p" style="width:0"></div>
+  <div class="lw row" style="gap:80px;align-items:flex-start;">
+    <div style="flex:1;display:flex;flex-direction:column;gap:24px;">
+      <div id="p12t"><div class="chp">章節 12</div><div class="htsm">醋酸儲槽溫控保溫</div><div class="ln"></div></div>
+      <div class="sc c6" id="p12c1">
+        <div class="snum">溫控啟動條件</div><div class="sico">🌡️</div>
+        <h3>彰化氣溫 ≤ 16°C</h3>
+        <p>當日彰化氣溫低於攝氏十六度時，抄表員需啟動醋酸儲槽與管路熱水泵進行保溫作業，記錄蒸氣壓力並確認溫度回升</p>
+      </div>
+      <div class="sc c3" id="p12c2">
+        <div class="snum">氮氣軟管檢查</div><div class="sico">🔍</div>
+        <h3>異音、變形或龜裂</h3>
+        <p>若氮氣軟管有異音、變形或龜裂，應立即停止使用並更換，避免漏氣造成危險</p>
+        <div class="warn">⚠️ 立即更換勿繼續使用</div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:20px;">
+      <div id="p12r"><div class="chp">緊急情況處理</div></div>
+      <div class="rcard" id="p12e1"><div class="rico" style="background:rgba(239,68,68,.12)">🔑</div><div><h3>司機拒絕繳鑰匙</h3><p>司機不配合繳交鑰匙，須立即回報主管處理，不得強行作業</p></div><div class="pill pr">回報</div></div>
+      <div class="rcard" id="p12e2"><div class="rico" style="background:rgba(239,68,68,.12)">💧</div><div><h3>洩漏異常狀況</h3><p>發現任何管線、閥門或軟管洩漏，立即停止作業並回報主管</p></div><div class="pill pr">緊急</div></div>
+      <div class="rcard" id="p12e3"><div class="rico" style="background:rgba(52,211,153,.1)">📞</div><div><h3>異常通報流程</h3><p>立即通知現場組長 → 啟動緊急應變程序 → 確認人員安全</p></div><div class="pill pg">SOP</div></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /root -->
+
+<script>
+window.__timelines = window.__timelines || {};
+const tl = gsap.timeline({ paused: true });
+const D = 10; // each slide duration
+
+// helper: page offset
+const O = n => (n-1)*D;
+
+// P1
+tl.from('#p1b',    {opacity:0,y:-20,duration:.6}, 0+.2)
+  .from('#p1tag',  {opacity:0,scale:.8,duration:.6}, 0+.4)
+  .from('#p1h',    {opacity:0,y:40,duration:.8}, 0+.7)
+  .from('#p1s',    {opacity:0,y:30,duration:.7}, 0+1.2)
+  .from('#p1d',    {opacity:0,y:20,duration:.5}, 0+1.8)
+  .to  ('#p1p',    {width:'8.33%',duration:18.5,ease:'none'}, 0+.3)
+
+// P2
+  .from('#p2b',    {opacity:0,y:-20,duration:.5}, 19+.2)
+  .from('#p2l',    {opacity:0,x:-50,duration:.7}, 19+.4)
+  .from('#p2c1',   {opacity:0,x:60,duration:.5},  O(2)+.7)
+  .from('#p2c2',   {opacity:0,x:60,duration:.5},  O(2)+.95)
+  .from('#p2c3',   {opacity:0,x:60,duration:.5},  O(2)+1.2)
+  .from('#p2c4',   {opacity:0,x:60,duration:.5},  O(2)+1.45)
+  .to  ('#p2p',    {width:'16.67%',duration:12.5,ease:'none'}, 19+.3)
+
+// P3
+  .from('#p3b',    {opacity:0,y:-20,duration:.5}, 39+.2)
+  .from('#p3top',  {opacity:0,y:30,duration:.6},  O(3)+.4)
+  .from('#p3c1',   {opacity:0,y:50,duration:.5},  O(3)+.8)
+  .from('#p3c2',   {opacity:0,y:50,duration:.5},  O(3)+1.05)
+  .from('#p3c3',   {opacity:0,y:50,duration:.5},  O(3)+1.3)
+  .from('#p3c4',   {opacity:0,y:50,duration:.5},  O(3)+1.55)
+  .to  ('#p3p',    {width:'25.0%',duration:12.5,ease:'none'}, 39+.3)
+
+// P4
+  .from('#p4b',    {opacity:0,y:-20,duration:.5}, 60+.2)
+  .from('#p4t',    {opacity:0,x:-50,duration:.7}, 60+.4)
+  .from('#p4box',  {opacity:0,scale:.9,duration:.6}, 60+.9)
+  .from('#p4w',    {opacity:0,y:20,duration:.5},  O(4)+1.3)
+  .from('#p4c1',   {opacity:0,x:60,duration:.5},  O(4)+.7)
+  .from('#p4c2',   {opacity:0,x:60,duration:.5},  O(4)+1.0)
+  .to  ('#p4p',    {width:'33.33%',duration:13.5,ease:'none'}, 60+.3)
+
+// P5
+  .from('#p5b',    {opacity:0,y:-20,duration:.5}, 80+.2)
+  .from('#p5t',    {opacity:0,y:30,duration:.6},  O(5)+.4)
+  .from('#p5c1',   {opacity:0,y:50,duration:.5},  O(5)+.8)
+  .from('#p5c2',   {opacity:0,y:50,duration:.5},  O(5)+1.05)
+  .from('#p5c3',   {opacity:0,y:50,duration:.5},  O(5)+1.3)
+  .from('#p5note', {opacity:0,y:20,duration:.5},  O(5)+1.7)
+  .to  ('#p5p',    {width:'41.67%',duration:12.5,ease:'none'}, 80+.3)
+
+// P6
+  .from('#p6b',    {opacity:0,y:-20,duration:.5}, 161+.2)
+  .from('#p6l',    {opacity:0,x:-50,duration:.7}, 161+.4)
+  .from('#p6r1',   {opacity:0,x:60,duration:.5},  O(6)+.7)
+  .from('#p6r2',   {opacity:0,x:60,duration:.5},  O(6)+.95)
+  .from('#p6r3',   {opacity:0,x:60,duration:.5},  O(6)+1.2)
+  .to  ('#p6p',    {width:'50.0%',duration:11.5,ease:'none'}, 161+.3)
+
+// P7
+  .from('#p7b',    {opacity:0,y:-20,duration:.5}, 120+.2)
+  .from('#p7t',    {opacity:0,y:30,duration:.6},  O(7)+.4)
+  .from('#p7c1',   {opacity:0,y:50,duration:.5},  O(7)+.8)
+  .from('#p7c2',   {opacity:0,y:50,duration:.5},  O(7)+1.05)
+  .from('#p7c3',   {opacity:0,y:50,duration:.5},  O(7)+1.3)
+  .from('#p7c4',   {opacity:0,y:50,duration:.5},  O(7)+1.55)
+  .to  ('#p7p',    {width:'58.33%',duration:12.5,ease:'none'}, 120+.3)
+
+// P8
+  .from('#p8b',    {opacity:0,y:-20,duration:.5}, 142+.2)
+  .from('#p8t',    {opacity:0,x:-50,duration:.7}, 142+.4)
+  .from('#p8c1',   {opacity:0,x:-40,duration:.6}, 142+.8)
+  .from('#p8f',    {opacity:0,y:20,duration:.5},  O(8)+.5)
+  .from('#p8r1',   {opacity:0,x:50,duration:.5},  O(8)+.8)
+  .from('#p8r2',   {opacity:0,x:50,duration:.5},  O(8)+1.05)
+  .from('#p8r3',   {opacity:0,x:50,duration:.5},  O(8)+1.3)
+  .to  ('#p8p',    {width:'66.67%',duration:10.5,ease:'none'}, 142+.3)
+
+// P9
+  .from('#p9b',    {opacity:0,y:-20,duration:.5}, 161+.2)
+  .from('#p9t',    {opacity:0,y:30,duration:.6},  O(9)+.4)
+  .from('#p9c1',   {opacity:0,y:50,duration:.5},  O(9)+.8)
+  .from('#p9c2',   {opacity:0,y:50,duration:.5},  O(9)+1.05)
+  .from('#p9c3',   {opacity:0,y:50,duration:.5},  O(9)+1.3)
+  .to  ('#p9p',    {width:'75.0%',duration:21.5,ease:'none'}, 161+.3)
+
+// P10
+  .from('#p10b',   {opacity:0,y:-20,duration:.5}, 180+.2)
+  .from('#p10l',   {opacity:0,x:-50,duration:.7}, 180+.4)
+  .from('#p10b1',  {opacity:0,scale:.9,duration:.5}, 180+.7)
+  .from('#p10b2',  {opacity:0,scale:.9,duration:.5}, 180+.95)
+  .from('#p10b3',  {opacity:0,scale:.9,duration:.5}, 180+1.2)
+  .from('#p10r1',  {opacity:0,x:60,duration:.5},  O(10)+.7)
+  .from('#p10r2',  {opacity:0,x:60,duration:.5},  O(10)+.95)
+  .from('#p10r3',  {opacity:0,x:60,duration:.5},  O(10)+1.2)
+  .from('#p10r4',  {opacity:0,x:60,duration:.5},  O(10)+1.45)
+  .to  ('#p10p',   {width:'83.33%',duration:21.5,ease:'none'}, 180+.3)
+
+// P11
+  .from('#p11b',   {opacity:0,y:-20,duration:.5}, 202+.2)
+  .from('#p11t',   {opacity:0,y:30,duration:.6},  O(11)+.4)
+  .from('#p11c1',  {opacity:0,y:50,duration:.5},  O(11)+.8)
+  .from('#p11c2',  {opacity:0,y:50,duration:.5},  O(11)+1.05)
+  .from('#p11c3',  {opacity:0,y:50,duration:.5},  O(11)+1.3)
+  .from('#p11c4',  {opacity:0,y:50,duration:.5},  O(11)+1.55)
+  .to  ('#p11p',   {width:'91.67%',duration:24.5,ease:'none'}, 202+.3)
+
+// P12
+  .from('#p12b',   {opacity:0,y:-20,duration:.5}, 223+.2)
+  .from('#p12t',   {opacity:0,x:-50,duration:.7}, 223+.4)
+  .from('#p12c1',  {opacity:0,y:40,duration:.6},  O(12)+.7)
+  .from('#p12c2',  {opacity:0,y:40,duration:.6},  O(12)+1.0)
+  .from('#p12r',   {opacity:0,y:20,duration:.5},  O(12)+.5)
+  .from('#p12e1',  {opacity:0,x:60,duration:.5},  O(12)+.8)
+  .from('#p12e2',  {opacity:0,x:60,duration:.5},  O(12)+1.05)
+  .from('#p12e3',  {opacity:0,x:60,duration:.5},  O(12)+1.3)
+  .to  ('#p12p',   {width:'100.0%',duration:20.5,ease:'none'}, 223+.3);
+
+window.__timelines['main'] = tl;
+</script>
+
+<!-- PORTAL_RETURN_BADGE_V1 -->
+<script>
+(function() {
+    var badge = document.createElement('div');
+    badge.id = 'portal-return-badge';
+    badge.innerHTML = '🔙 返回專案大廳';
+    badge.style.position = 'fixed';
+    badge.style.top = '15px';
+    badge.style.right = '15px';
+    badge.style.zIndex = '99999';
+    badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+    badge.style.border = '1px solid #00f2fe';
+    badge.style.color = '#00f2fe';
+    badge.style.padding = '8px 16px';
+    badge.style.borderRadius = '20px';
+    badge.style.fontFamily = 'sans-serif';
+    badge.style.fontSize = '13px';
+    badge.style.fontWeight = 'bold';
+    badge.style.cursor = 'pointer';
+    badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    badge.style.transition = 'all 0.3s ease';
+    
+    badge.onmouseover = function() {
+        badge.style.transform = 'scale(1.05)';
+        badge.style.backgroundColor = '#00f2fe';
+        badge.style.color = '#000';
+        badge.style.boxShadow = '0 0 20px rgba(0, 242, 254, 0.5)';
+    };
+    badge.onmouseout = function() {
+        badge.style.transform = 'scale(1)';
+        badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+        badge.style.color = '#00f2fe';
+        badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    };
+    
+    badge.onclick = function() {
+        if (window.location.hostname.indexOf('netlify') !== -1) {
+            window.location.href = 'https://cerulean-praline-6b314d.netlify.app';
+        } else {
+            window.location.href = '../說明書/index.html';
+        }
+    };
+    
+    // Ensure body exists before appending
+    if (document.body) {
+        document.body.appendChild(badge);
+    } else {
+        window.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(badge);
+        });
+    }
+})();
+</script>
+<!-- PORTAL_RETURN_BADGE_V1_END -->
+
+
+
+
+
+<!-- HF_STATIC_PLAYER_V1 -->
+<style>
+/* 播放器控制條樣式 */
+#hf-player-bar {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 900px;
+    height: 60px;
+    background: rgba(11, 15, 25, 0.9);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(0, 242, 254, 0.4);
+    border-radius: 30px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 25px rgba(0, 242, 254, 0.15);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    z-index: 99998;
+    user-select: none;
+    transition: all 0.3s ease;
+}
+
+#hf-player-bar:hover {
+    border-color: rgba(0, 242, 254, 0.7);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 242, 254, 0.25);
+}
+
+.player-btn {
+    background: none;
+    border: none;
+    color: #00f2fe;
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.player-btn:hover {
+    background-color: rgba(0, 242, 254, 0.2);
+    transform: scale(1.08);
+}
+
+.player-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
+}
+
+.time-display {
+    font-family: monospace;
+    font-size: 13px;
+    color: #9ca3af;
+    min-width: 90px;
+    text-align: center;
+}
+
+/* 進度條 */
+.progress-container {
+    flex: 1;
+    height: 6px;
+    background-color: rgba(255, 255, 255, 0.15);
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+}
+
+.progress-bar-filled {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00f2fe, #3b82f6);
+    border-radius: 3px;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.progress-handle {
+    width: 12px;
+    height: 12px;
+    background-color: #ffffff;
+    border: 2px solid #00f2fe;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.8);
+    opacity: 0;
+    transition: opacity 0.1s ease;
+}
+
+.progress-container:hover .progress-handle {
+    opacity: 1;
+}
+
+/* 音量控制 */
+.volume-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.volume-slider {
+    width: 80px;
+    cursor: pointer;
+    accent-color: #00f2fe;
+}
+
+/* 渲染模式下隱藏播放器 */
+@media print {
+    #hf-player-bar {
+        display: none !important;
+    }
+}
+</style>
+
+<div id="hf-player-bar">
+    <button class="player-btn" id="btn-play-pause" onclick="togglePlay()">
+        <!-- Play Icon -->
+        <svg id="svg-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <!-- Pause Icon -->
+        <svg id="svg-pause" viewBox="0 0 24 24" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+    </button>
+    <button class="player-btn" id="btn-stop" onclick="stopPlay()">
+        <svg viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+    </button>
+    
+    <div class="time-display" id="time-display">00:00 / 00:00</div>
+    
+    <div class="progress-container" id="progress-container" onclick="seekTimeline(event)">
+        <div class="progress-bar-filled" id="progress-bar-filled"></div>
+        <div class="progress-handle" id="progress-handle"></div>
+    </div>
+    
+    <div class="volume-container">
+        <svg width="16" height="16" fill="#00f2fe" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+        <input type="range" class="volume-slider" id="volume-slider" min="0" max="1" step="0.1" value="0.8" oninput="changeVolume(this.value)">
+    </div>
+</div>
+
+<audio id="hf-audio" src="combined_audio.mp3" preload="auto"></audio>
+
+<script>
+(function() {
+    // 檢查是否在 HyperFrames CLI 渲染或 Studio 中
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('render') || urlParams.has('studio') || window.isHyperFramesRender) {
+        document.getElementById('hf-player-bar').style.display = 'none';
+        return;
+    }
+    
+    const audio = document.getElementById('hf-audio');
+    const playSvg = document.getElementById('svg-play');
+    const pauseSvg = document.getElementById('svg-pause');
+    const timeDisp = document.getElementById('time-display');
+    const progFilled = document.getElementById('progress-bar-filled');
+    const progHandle = document.getElementById('progress-handle');
+    const progContainer = document.getElementById('progress-container');
+    
+    let duration = 246; // 總時長(秒)
+    
+    // 初始化 timeline 初始位置，顯示首頁
+    window.addEventListener('load', function() {
+        if (window.gsap && window.__timelines && window.__timelines['main']) {
+            window.__timelines['main'].seek(0);
+        }
+        updateProgress();
+    });
+
+    // 格式化時間
+    function formatTime(secs) {
+        const m = Math.floor(secs / 60).toString().padStart(2, '0');
+        const s = Math.floor(secs % 60).toString().padStart(2, '0');
+        return `${m}:${s}`;
+    }
+
+    // 更新進度條與時間顯示
+    function updateProgress() {
+        const cur = audio.currentTime;
+        const total = audio.duration || duration;
+        
+        timeDisp.innerText = `${formatTime(cur)} / ${formatTime(total)}`;
+        
+        const pct = (cur / total) * 100;
+        progFilled.style.width = `${pct}%`;
+        progHandle.style.left = `${pct}%`;
+        
+        // 1. 物理控制投影片的可見度，防止所有 Slide 頁面重疊
+        const slides = document.querySelectorAll('.slide.clip');
+        let currentSlideFound = false;
+        
+        // 依照時間判斷目前屬於哪一頁，隱藏其他所有頁面
+        slides.forEach(slide => {
+            const start = parseFloat(slide.getAttribute('data-start'));
+            const dur = parseFloat(slide.getAttribute('data-duration'));
+            const end = start + dur;
+            
+            if (cur >= start && cur < end) {
+                slide.style.setProperty('display', 'flex', 'important');
+                currentSlideFound = true;
+            } else {
+                slide.style.setProperty('display', 'none', 'important');
+            }
+        });
+        
+        // 防呆：如果剛好卡在間隙時間，預設顯示第一個
+        if (!currentSlideFound && slides.length > 0) {
+            slides[0].style.setProperty('display', 'flex', 'important');
+        }
+        
+        // 2. 同步驅動 GSAP timeline
+        if (window.__timelines && window.__timelines['main']) {
+            window.__timelines['main'].seek(cur);
+        }
+    }
+
+    // 音訊進度更新監聽
+    audio.addEventListener('timeupdate', updateProgress);
+    audio.addEventListener('ended', function() {
+        stopPlay();
+    });
+
+    // 點擊進度條跳轉
+    window.seekTimeline = function(e) {
+        const rect = progContainer.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        const total = audio.duration || duration;
+        const targetTime = pct * total;
+        
+        audio.currentTime = targetTime;
+        updateProgress();
+    };
+
+    // 播放/暫停
+    window.togglePlay = function() {
+        if (audio.paused) {
+            audio.play().then(() => {
+                playSvg.style.display = 'none';
+                pauseSvg.style.display = 'block';
+            }).catch(err => {
+                console.error("Autoplay restricted or error: ", err);
+                alert("請點擊確定以播放旁白語音與動畫簡報。");
+                audio.play();
+            });
+        } else {
+            audio.pause();
+            playSvg.style.display = 'block';
+            pauseSvg.style.display = 'none';
+        }
+    };
+
+    // 停止
+    window.stopPlay = function() {
+        audio.pause();
+        audio.currentTime = 0;
+        playSvg.style.display = 'block';
+        pauseSvg.style.display = 'none';
+        updateProgress();
+    };
+
+    // 調整音量
+    window.changeVolume = function(val) {
+        audio.volume = val;
+    };
+})();
+</script>
+<!-- HF_STATIC_PLAYER_V1_END -->
+
+</body>
+</html>

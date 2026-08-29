@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# 環境設定（勿上傳 API Key）
+.env
+*.key
+credentials.*
+
+# macOS
+.DS_Store
+
+# Windows
+desktop.ini
+Thumbs.db
+
+# 暫存
+*.tmp
+~$*

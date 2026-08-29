@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Level 3 教學駕駛艙 - 講者端投影幕</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- JSZip & PDF.js for PPTX/PDF parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --sidebar-bg: #111827;
+      --card-bg: rgba(17, 25, 40, 0.75);
+      --border-color: rgba(255, 255, 255, 0.06);
+      --text-main: #f8fafc;
+      --text-sub: #94a3b8;
+      
+      --neon-cyan: #06b6d4;
+      --neon-green: #10b981;
+      --neon-purple: #8b5cf6;
+      --neon-pink: #ec4899;
+      --neon-orange: #f97316;
+      --neon-red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 60%);
+      font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+      color: var(--text-main);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar */
+    .sidebar {
+      width: 320px;
+      background-color: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .sidebar-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .sidebar-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .sidebar-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.65rem;
+      border-radius: 50px;
+      background: var(--neon-purple);
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .online-counter {
+      font-size: 0.8rem;
+      color: var(--neon-green);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .online-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--neon-green);
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+
+    .slides-list {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .slide-item {
+      padding: 1rem;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .slide-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+      transform: translateX(4px);
+    }
+
+    .slide-item.active {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: var(--neon-purple);
+    }
+
+    .slide-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 0.3rem;
+    }
+
+    .slide-item.active .slide-meta {
+      color: var(--neon-purple);
+    }
+
+    .slide-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tag {
+      font-size: 0.65rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .tag-slide { background: rgba(6, 182, 212, 0.15); color: var(--neon-cyan); }
+    .tag-quiz { background: rgba(249, 115, 22, 0.15); color: var(--neon-orange); }
+
+    /* Right Workspace */
+    .workspace {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: #060911;
+      position: relative;
+    }
+
+    .workspace-header {
+      height: 65px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      background: var(--sidebar-bg);
+    }
+
+    .current-topic-group {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .back-btn {
+      color: var(--text-sub);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: color 0.3s ease;
+    }
+
+    .back-btn:hover {
+      color: var(--neon-cyan);
+    }
+
+    .current-topic {
+      font-size: 1rem;
+      font-weight: 700;
+      border-left: 1px solid var(--border-color);
+      padding-left: 1rem;
+    }
+
+    .control-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background: rgba(255, 255, 255, 0.04);
+      color: white;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-purple), var(--neon-pink));
+      border: none;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+    }
+
+    /* Content Viewport */
+    .content-viewport {
+      flex-grow: 1;
+      padding: 2.5rem;
+      overflow-y: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .slide-card {
+      width: 100%;
+      max-width: 900px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 3rem;
+      min-height: 480px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+
+    .slide-body {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .slide-headline {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #fff, var(--text-sub));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      line-height: 1.3;
+    }
+
+    .slide-desc {
+      font-size: 1.1rem;
+      color: var(--text-sub);
+      line-height: 1.7;
+    }
+
+    /* Donut chart for responses */
+    .results-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      gap: 3rem;
+      margin-top: 1rem;
+    }
+
+    .chart-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .chart-donut {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: conic-gradient(
+        var(--neon-orange) 0% 0%,
+        var(--neon-cyan) 0% 0%,
+        var(--neon-green) 0% 0%,
+        var(--text-sub) 0% 100%
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      transition: background 0.5s ease;
+    }
+
+    .chart-donut-inner {
+      width: 125px;
+      height: 125px;
+      background: #090d16;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .total-votes {
+      font-size: 2.2rem;
+      font-weight: 850;
+      color: white;
+    }
+
+    .total-votes-label {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .chart-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      flex-grow: 1;
+      max-width: 380px;
+    }
+
+    .legend-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--neon-cyan);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .legend-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      padding: 0.75rem 1rem;
+      border-radius: 10px;
+    }
+
+    .legend-label-group {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 600;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+    }
+
+    .legend-pct-val {
+      font-weight: 800;
+    }
+
+    /* Bottom Controller */
+    .bottom-controller {
+      height: 70px;
+      background: var(--sidebar-bg);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      z-index: 10;
+    }
+
+    .page-indicator {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+
+    /* Decks Modal Overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .modal-overlay.active {
+      display: flex;
+      opacity: 1;
+    }
+    .modal-card {
+      background: #111827;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      width: 550px;
+      max-width: 90%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      max-height: 85vh;
+      transform: translateY(20px);
+      transition: transform 0.3s ease;
+    }
+    .modal-overlay.active .modal-card {
+      transform: translateY(0);
+    }
+    .modal-header {
+      padding: 1.2rem 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 750;
+      color: white;
+    }
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-sub);
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+    .close-btn:hover {
+      color: white;
+    }
+    .modal-body {
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+    .deck-item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.8rem 1rem;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      transition: all 0.2s;
+    }
+    .deck-item-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+    .deck-item-row.active {
+      border-color: var(--neon-purple);
+      background: rgba(139, 92, 246, 0.05);
+    }
+    .deck-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .deck-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: white;
+    }
+    .deck-meta-info {
+      font-size: 0.75rem;
+      color: var(--text-sub);
+    }
+    /* Drag-drop zone */
+    .upload-zone {
+      border: 2px dashed rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: rgba(255, 255, 255, 0.01);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--neon-purple);
+      background: rgba(139, 92, 246, 0.03);
+    }
+    .upload-icon {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+    .upload-text {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      line-height: 1.5;
+    }
+    .modal-tab-btn:hover {
+      color: white !important;
+      background: rgba(255,255,255,0.03);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title" id="tutor-title">互動教學駕駛艙 <span class="sidebar-badge" style="background:var(--neon-cyan);">SOP</span></div>
+      <div class="online-counter"><span class="online-dot"></span> <span id="online-voters-count">0</span> 位學員已提交</div>
+    </div>
+    
+    <div class="slides-list" id="sidebar-list">
+      <!-- Generated dynamically -->
+    </div>
+
+    <!-- Active online students panel -->
+    <div class="online-students-panel" style="padding: 1.2rem; border-top: 1px solid var(--border-color); background: rgba(0,0,0,0.15); max-height: 180px; display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0;">
+      <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-sub); display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; letter-spacing: 0.05em;">
+        <span>🟢 目前在線學員 (<span id="active-online-count">0</span>)</span>
+      </div>
+      <div id="active-online-list" style="flex-grow: 1; overflow-y: auto; font-size: 0.8rem; color: var(--text-main); display: flex; flex-wrap: wrap; gap: 0.4rem; align-content: flex-start;">
+        <!-- Dynamic online students list -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Main Workspace -->
+  <div class="workspace">
+    <div class="workspace-header">
+      <div class="current-topic-group">
+        <div class="current-topic" id="header-topic" style="border-left: none; padding-left: 0;">載入中...</div>
+      </div>
+      <div class="control-actions">
+        <button id="mic-btn" class="btn" onclick="toggleMicrophone()" style="border-color: rgba(239, 68, 68, 0.3); color: var(--neon-red);"><span id="mic-icon">🎙️</span> <span id="mic-text">開啟語音廣播</span></button>
+        <button class="btn btn-primary" onclick="openDecksModal()">📚 教材庫</button>
+        <button class="btn" onclick="copyStudentLink()">🔗 複製學生端連結</button>
+        <button class="btn" onclick="resetVoters()"><span style="color:var(--neon-red);">🔄</span> 重置本題答題</button>
+      </div>
+    </div>
+
+    <!-- Viewport -->
+    <div class="content-viewport">
+      <div class="slide-card" id="active-card">
+        <!-- Dynamically rendered content card -->
+      </div>
+    </div>
+
+    <!-- Bottom controller -->
+    <div class="bottom-controller">
+      <button class="btn" onclick="prevSlide()">← 上一張</button>
+      <div class="page-indicator" id="bottom-page-indicator">1 / 1</div>
+      <button class="btn" onclick="nextSlide()">下一張 →</button>
+    </div>
+  </div>
+
+  <!-- Decks Manager Modal -->
+  <div id="decks-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">📚 培訓教材管理庫</h3>
+        <button onclick="closeDecksModal()" class="close-btn">&times;</button>
+      </div>
+      
+      <!-- Tab Toggles inside modal -->
+      <div class="modal-tabs" style="display: flex; border-bottom: 1px solid rgba(255,255,255,0.06); padding: 0 1.5rem; background: rgba(0,0,0,0.1);">
+        <button class="modal-tab-btn active" id="btn-tab-list" onclick="switchModalTab('list')" style="background: none; border: none; border-bottom: 2px solid var(--neon-cyan); color: white; font-weight: 700; padding: 0.8rem 1.2rem; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;">📂 教材庫清單</button>
+        <button class="modal-tab-btn" id="btn-tab-ai" onclick="switchModalTab('ai')" style="background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-sub); padding: 0.8rem 1.2rem; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; display: flex; align-items: center; gap: 0.3rem;">⚡ AI 智慧轉換</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- TAB 1: List & Upload -->
+        <div id="modal-tab-list-content" style="display: flex; flex-direction: column; gap: 1.2rem;">
+          <p class="deck-meta-info" style="margin-bottom: 0.5rem;">選擇啟用中的教材，切換教材後將自動同步至所有學員端裝置。</p>
+          
+          <div id="decks-list-container" style="display: flex; flex-direction: column; gap: 0.6rem;">
+            <!-- Dynamically loaded decks list -->
+          </div>
+
+          <div style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1.2rem;">
+            <h4 style="font-size: 0.9rem; font-weight: 700; color: white; margin-bottom: 0.6rem;">📤 上傳自訂教材 JSON</h4>
+            <div class="upload-zone" id="deck-upload-zone">
+              <input type="file" id="deck-file-input" accept=".json" style="display: none;">
+              <div class="upload-icon">📂</div>
+              <div class="upload-text">拖曳教材 JSON 檔案至此，或點擊選取檔案進行上傳</div>
+            </div>
+            <div style="margin-top: 0.8rem; display: flex; justify-content: space-between; align-items: center;">
+              <a href="#" onclick="downloadJsonTemplate(event)" style="font-size: 0.8rem; color: var(--neon-cyan); text-decoration: none; font-weight: 600;">📥 下載教材 JSON 範本</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: AI Importer -->
+        <div id="modal-tab-ai-content" style="display: none; flex-direction: column; gap: 1rem;">
+          <p class="deck-meta-info" style="margin-bottom: 0.2rem; line-height: 1.4;">💡 貼心提醒：直接在你的 PPT 或 PDF 中按下 <b>Ctrl+A</b> 全選複製，並黏貼在下方。AI 助理會自動將混亂的投影片大綱文字結構化，生成精美的簡報與隨堂測驗題！</p>
+          
+          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <label style="font-size: 0.85rem; font-weight: 700; color: white;">教材名稱/簡報主題</label>
+            <input type="text" id="ai-deck-title" placeholder="例如：新進員工防護具使用說明" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.6rem 0.8rem; color: white; font-family: inherit; font-size: 0.9rem;">
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label style="font-size: 0.85rem; font-weight: 700; color: white;">複製自 PPT 或 PDF 的投影片大綱文字</label>
+              <label for="ai-text-file-input" style="font-size: 0.8rem; color: var(--neon-cyan); cursor: pointer; font-weight: 600; text-decoration: underline;">📂 選擇簡報/文件檔案 (.pdf, .pptx, .txt, .md)</label>
+              <input type="file" id="ai-text-file-input" accept=".pdf,.pptx,.txt,.md" style="display: none;" onchange="loadTextFileToTextarea(event)">
+            </div>
+            <textarea id="ai-deck-text" placeholder="第一頁：格外品放置說明...&#10;第二頁：題目：現場格外品放置何者正確？&#10;選項 A: ... 選項 B: ...&#10;正確答案: B...&#10;解析: ..." rows="8" style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.8rem; color: white; font-family: inherit; font-size: 0.85rem; resize: vertical;"></textarea>
+          </div>
+
+          <button class="btn btn-primary" id="ai-convert-btn" onclick="convertDeckViaAI()" style="width: 100%; padding: 0.8rem; font-size: 0.95rem; font-weight: 700; justify-content: center;">⚡ 開始 AI 智慧分析並啟用</button>
+          
+          <div id="ai-convert-loading" style="display: none; text-align: center; padding: 1rem; flex-direction: column; align-items: center; gap: 0.6rem; justify-content: center;">
+            <div style="width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--neon-cyan); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <span style="font-size: 0.85rem; color: var(--neon-cyan); font-weight: 600;" id="ai-loading-text">AI 正在深度分析並轉換您的投影片大綱...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let slidesData = [];
+    let currentActiveIndex = 0;
+    let activeDeckId = '';
+    const colors = ["var(--neon-green)", "var(--neon-orange)", "var(--neon-cyan)", "var(--neon-purple)"];
+
+    window.addEventListener('load', () => {
+      // Check if loaded via file:// protocol and show a friendly warning banner
+      if (window.location.protocol === 'file:') {
+        const warningBanner = document.createElement('div');
+        warningBanner.style.position = 'fixed';
+        warningBanner.style.top = '10px';
+        warningBanner.style.left = '50%';
+        warningBanner.style.transform = 'translateX(-50%)';
+        warningBanner.style.zIndex = '9999';
+        warningBanner.style.background = 'rgba(239, 68, 68, 0.95)';
+        warningBanner.style.backdropFilter = 'blur(10px)';
+        warningBanner.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+        warningBanner.style.padding = '12px 24px';
+        warningBanner.style.borderRadius = '12px';
+        warningBanner.style.color = '#fff';
+        warningBanner.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+        warningBanner.style.fontSize = '14px';
+        warningBanner.style.fontWeight = 'bold';
+        warningBanner.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+        warningBanner.style.textAlign = 'center';
+        warningBanner.style.display = 'flex';
+        warningBanner.style.alignItems = 'center';
+        warningBanner.style.gap = '12px';
+        warningBanner.innerHTML = `
+          <span>⚠️ 偵測到您目前以本地檔案 (file://) 開啟。連線與 AI 智慧轉換功能需要本機伺服器支援。</span>
+          <button onclick="alert('請依照以下步驟啟用完整功能：\\n1. 在本機開啟 CMD / PowerShell 並切換至專案資料夾。\\n2. 執行指令：node server.js\\n3. 在瀏覽器開啟：http://localhost:3000/index.html 以使用完整功能。')" style="background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.5); color: white; padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; transition: background 0.2s;">如何解決？</button>
+        `;
+        document.body.appendChild(warningBanner);
+      }
+
+      // Immediate poll to fetch initial state & slides list
+      pollClassState(true);
+      
+      // Start real-time polling state loop (every 500ms)
+      setInterval(pollClassState, 500);
+
+      // Setup drag-and-drop
+      setupUploadDragAndDrop();
+    });
+
+    function switchModalTab(tab) {
+      const tabListBtn = document.getElementById('btn-tab-list');
+      const tabAIBtn = document.getElementById('btn-tab-ai');
+      const tabListContent = document.getElementById('modal-tab-list-content');
+      const tabAIContent = document.getElementById('modal-tab-ai-content');
+
+      if (tab === 'list') {
+        tabListBtn.classList.add('active');
+        tabListBtn.style.borderBottomColor = 'var(--neon-cyan)';
+        tabListBtn.style.color = 'white';
+        
+        tabAIBtn.classList.remove('active');
+        tabAIBtn.style.borderBottomColor = 'transparent';
+        tabAIBtn.style.color = 'var(--text-sub)';
+
+        tabListContent.style.display = 'flex';
+        tabAIContent.style.display = 'none';
+        loadDecksList();
+      } else {
+        tabAIBtn.classList.add('active');
+        tabAIBtn.style.borderBottomColor = 'var(--neon-cyan)';
+        tabAIBtn.style.color = 'white';
+
+        tabListBtn.classList.remove('active');
+        tabListBtn.style.borderBottomColor = 'transparent';
+        tabListBtn.style.color = 'var(--text-sub)';
+
+        tabListContent.style.display = 'none';
+        tabAIContent.style.display = 'flex';
+      }
+    }
+    // Configure PDF.js worker
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    }
+
+    async function loadTextFileToTextarea(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const textarea = document.getElementById('ai-deck-text');
+      const titleInput = document.getElementById('ai-deck-title');
+      const ext = file.name.split('.').pop().toLowerCase();
+      
+      // Auto-fill deck title
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]+/g, ' ');
+      titleInput.value = nameWithoutExt;
+
+      if (ext === 'pdf') {
+        textarea.value = '[正在讀取與抽取 PDF 文字內容，請稍候...]';
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const arrayBuffer = ev.target.result;
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const textContent = await page.getTextContent();
+              const pageText = textContent.items.map(item => item.str).join(' ');
+              fullText += `--- Page ${i} ---\n${pageText}\n\n`;
+            }
+            textarea.value = fullText.trim();
+          } catch (err) {
+            textarea.value = '讀取 PDF 失敗：' + err.message;
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } 
+      else if (ext === 'pptx') {
+        textarea.value = '[正在解壓與抽取 PPTX 簡報內容，請稍候...]';
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const arrayBuffer = ev.target.result;
+            const zip = await JSZip.loadAsync(arrayBuffer);
+            let fullText = '';
+            
+            const slideFiles = [];
+            zip.forEach((relativePath) => {
+              if (relativePath.match(/^ppt\/slides\/slide\d+\.xml$/)) {
+                slideFiles.push(relativePath);
+              }
+            });
+            
+            slideFiles.sort((a, b) => {
+              const numA = parseInt(a.match(/\d+/)[0]);
+              const numB = parseInt(b.match(/\d+/)[0]);
+              return numA - numB;
+            });
+            
+            for (let i = 0; i < slideFiles.length; i++) {
+              const slideXmlText = await zip.file(slideFiles[i]).async('text');
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(slideXmlText, "text/xml");
+              const textElements = xmlDoc.getElementsByTagName("a:t");
+              let slideText = '';
+              for (let j = 0; j < textElements.length; j++) {
+                slideText += textElements[j].textContent + ' ';
+              }
+              fullText += `--- Slide ${i + 1} ---\n${slideText}\n\n`;
+            }
+            textarea.value = fullText.trim();
+          } catch (err) {
+            textarea.value = '讀取 PPTX 失敗：' + err.message;
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } 
+      else {
+        // .txt or .md
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          textarea.value = ev.target.result;
+        };
+        reader.readAsText(file, 'utf8');
+      }
+      e.target.value = '';
+    }
+
+    async function convertDeckViaAI() {
+      if (window.location.protocol === 'file:') {
+        alert('⚠️ 偵測到您目前使用本地檔案開啟網頁 (file://)。\n\n「AI 智慧轉換」與「連線同步」功能需要啟動本機伺服器才能運作！\n\n【解決方法】：\n1. 在本機專案目錄下啟動伺服器 (執行: node server.js)\n2. 透過瀏覽器存取: http://localhost:3000/index.html');
+        return;
+      }
+
+      const title = document.getElementById('ai-deck-title').value.trim();
+      const rawText = document.getElementById('ai-deck-text').value.trim();
+
+      if (!title) {
+        alert('請輸入教材名稱！');
+        return;
+      }
+      if (!rawText) {
+        alert('請黏貼 PPT 或 PDF 的投影片大綱與測驗內容！');
+        return;
+      }
+
+      const btn = document.getElementById('ai-convert-btn');
+      const loader = document.getElementById('ai-convert-loading');
+
+      btn.style.display = 'none';
+      loader.style.display = 'flex';
+
+      const systemPrompt = `你是一個專業的教材轉換專家。請將使用者輸入的 PPT 或 PDF 投影片大綱/文字內容，轉換成 TrainBuddy 的 JSON 投影片結構。
+必須嚴格遵守以下 JSON 格式回傳，不要包含任何額外的 Markdown 標記、包裹 (如 \`\`\`json ...) 或解釋文字，只回傳純 JSON 字串！
+
+JSON 格式要求：
+{
+  "title": "${title}",
+  "slides": [
+    {
+      "index": 1,
+      "title": "1. 投影片小標題",
+      "type": "slide",
+      "headline": "大標題",
+      "desc": "詳細說明文字..."
+    },
+    {
+      "index": 2,
+      "title": "2. 測驗 Q1: 題目名稱",
+      "type": "interactive",
+      "headline": "這是一題單選題題目？",
+      "options": {
+        "A": "選項 A 內容",
+        "B": "選項 B 內容",
+        "C": "選項 C 內容"
+      },
+      "correctAnswer": "正確選項的英文大寫字元（如 A, B, C）",
+      "explanation": "答題詳解說明"
+    }
+  ]
+}
+
+注意事項：
+1. 分析使用者輸入的文字。若其中包含選擇題/測驗題，請將其轉換成 "type": "interactive" 的測驗頁，並自動推導正確答案與解析。
+2. 若只是簡報說明，轉換成 "type": "slide" 的內容頁。
+3. 自動依序加上 1-indexed index。
+4. 輸出必須是合法、可由 JSON.parse 解析的 JSON 字串，不得有任何語法錯誤。`;
+
+      try {
+        const response = await fetch('/.netlify/functions/groq-chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: rawText }
+            ],
+            model: 'llama-3.3-70b-versatile'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('AI 轉換服務出錯，請確認後端金鑰是否配置。');
+        }
+
+        const data = await response.json();
+        let reply = data.reply || '';
+        
+        // Clean up markdown block if AI returned it
+        reply = reply.replace(/^\s*```json\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+
+        const parsedContent = JSON.parse(reply);
+        
+        // Upload the generated deck to backend
+        const uploadResponse = await fetch('/api/upload-deck', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsedContent)
+        });
+
+        if (uploadResponse.ok) {
+          alert('🎉 AI 智慧分析教材成功，已自動啟用！');
+          // Clear inputs
+          document.getElementById('ai-deck-title').value = '';
+          document.getElementById('ai-deck-text').value = '';
+          closeDecksModal();
+          pollClassState(true);
+        } else {
+          const err = await uploadResponse.json();
+          alert('儲存教材失敗: ' + (err.error || '未知錯誤'));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('AI 轉換失敗，請確認貼入的大綱文字內容是否合適，或重試一次。\n錯誤細節: ' + err.message);
+      } finally {
+        btn.style.display = 'inline-flex';
+        loader.style.display = 'none';
+      }
+    }
+
+    // Setup Drag and Drop
+    function setupUploadDragAndDrop() {
+      const zone = document.getElementById('deck-upload-zone');
+      const input = document.getElementById('deck-file-input');
+
+      if (zone) zone.addEventListener('click', () => input.click());
+      if (zone) zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+      });
+      if (zone) zone.addEventListener('dragleave', () => {
+        zone.classList.remove('drag-over');
+      });
+      if (zone) zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file) handleUploadFile(file);
+      });
+      if (input) input.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) handleUploadFile(file);
+        e.target.value = '';
+      });
+    }
+
+    async function handleUploadFile(file) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const content = JSON.parse(e.target.result);
+          const response = await fetch('/api/upload-deck', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(content)
+          });
+          if (response.ok) {
+            alert('🎉 教材上傳並啟用成功！');
+            closeDecksModal();
+            pollClassState(true);
+          } else {
+            const err = await response.json();
+            alert('上傳失敗: ' + (err.error || '未知錯誤'));
+          }
+        } catch (err) {
+          alert('解析 JSON 失敗，請確認檔案格式是否正確。');
+        }
+      };
+      reader.readAsText(file, 'utf8');
+    }
+
+    // Modal Control
+    function openDecksModal() {
+      document.getElementById('decks-modal').classList.add('active');
+      loadDecksList();
+    }
+
+    function closeDecksModal() {
+      document.getElementById('decks-modal').classList.remove('active');
+    }
+
+    async function loadDecksList() {
+      const container = document.getElementById('decks-list-container');
+      if (!container) return;
+      container.innerHTML = '<div style="font-size:0.85rem; color:var(--text-sub);">載入中...</div>';
+      try {
+        const response = await fetch('/api/decks');
+        if (!response.ok) throw new Error();
+        const list = await response.json();
+
+        container.innerHTML = '';
+        list.forEach(deck => {
+          const isActive = deck.id === activeDeckId;
+          const row = document.createElement('div');
+          row.className = `deck-item-row ${isActive ? 'active' : ''}`;
+          row.innerHTML = `
+            <div class="deck-info">
+              <span class="deck-name">${deck.title}</span>
+              <span class="deck-meta-info">${deck.slideCount} 頁投影片 / 測驗</span>
+            </div>
+            ${isActive 
+              ? '<span class="tag tag-slide" style="background:rgba(6, 182, 212, 0.15); color:var(--neon-cyan); font-weight:700;">啟用中</span>'
+              : `<button class="btn btn-small" onclick="selectDeck('${deck.id}')" style="padding:0.4rem 0.8rem; font-size:0.8rem;">啟用</button>`
+            }
+          `;
+          container.appendChild(row);
+        });
+      } catch (e) {
+        container.innerHTML = '<div style="font-size:0.85rem; color:var(--neon-red);">無法載入教材列表。</div>';
+      }
+    }
+
+    async function selectDeck(deckId) {
+      try {
+        const response = await fetch('/api/select-deck', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deckId })
+        });
+        if (response.ok) {
+          closeDecksModal();
+          pollClassState(true);
+        } else {
+          alert('啟用教材失敗');
+        }
+      } catch (e) {
+        alert('連線失敗');
+      }
+    }
+
+    function downloadJsonTemplate(e) {
+      e.preventDefault();
+      const template = {
+        title: "自訂安全衛生訓練",
+        slides: [
+          {
+            title: "1. 危害預防守則",
+            type: "slide",
+            headline: "廠區一般安全衛生工作守則",
+            desc: "進入廠區工作必須確實遵守以下規則：配戴標準安全帽與防護鞋、非經核准嚴禁動火作業、熟悉最近之安全淋浴器與洗眼器位置。"
+          },
+          {
+            title: "2. 隨堂測驗 Q1",
+            type: "interactive",
+            headline: "Q1: 進入有毒性液體作業區前，必須確認哪種特定防護具配戴完整？",
+            options: {
+              "A": "一般外科口罩與棉手套",
+              "B": "全面防毒面具、防化學衣與防酸鹼橡膠手套",
+              "C": "什麼都不用戴，快速通過即可"
+            },
+            correctAnswer: "B",
+            explanation: "毒性液體有吸入或皮膚接觸中毒危險，必須確實穿戴全面防毒面具、防化衣與防酸鹼手套。"
+          }
+        ]
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(template, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "trainbuddy_slides_template.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function renderSidebar() {
+      const container = document.getElementById('sidebar-list');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      slidesData.forEach((s, idx) => {
+        const item = document.createElement('div');
+        item.className = `slide-item ${idx === currentActiveIndex ? 'active' : ''}`;
+        item.onclick = () => {
+          loadSlide(idx);
+          syncStateToBackend(idx + 1);
+        };
+        
+        const typeLabel = s.type === 'slide' ? '投影片' : '互動室';
+        const typeClass = s.type === 'slide' ? 'tag-slide' : 'tag-quiz';
+        
+        item.innerHTML = `
+          <div class="slide-meta">
+            <span>頁數 ${s.index}</span>
+            <span class="tag ${typeClass}">${typeLabel}</span>
+          </div>
+          <div class="slide-title">${s.title.substring(s.title.indexOf('.') + 1).trim()}</div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    async function loadSlide(index) {
+      if (slidesData.length === 0) return;
+      currentActiveIndex = index;
+      
+      // Update sidebar active class
+      const items = document.querySelectorAll('.slide-item');
+      items.forEach((item, idx) => {
+        if (idx === index) item.classList.add('active');
+        else item.classList.remove('active');
+      });
+
+      const slide = slidesData[index];
+      if (!slide) return;
+      
+      document.getElementById('header-topic').textContent = slide.title;
+      document.getElementById('bottom-page-indicator').textContent = `${slide.index} / ${slidesData.length}`;
+
+      const card = document.getElementById('active-card');
+      if (!card) return;
+      card.innerHTML = '';
+
+      if (slide.type === 'slide') {
+        card.innerHTML = `
+          <div class="slide-body">
+            <h2 class="slide-headline">${slide.headline}</h2>
+            <p class="slide-desc">${slide.desc}</p>
+          </div>
+        `;
+      } else {
+        // Quiz View displaying Realtime Donut Chart
+        card.innerHTML = `
+          <div class="slide-body">
+            <h2 class="slide-headline" style="font-size:1.6rem; margin-bottom:1.2rem;">${slide.headline}</h2>
+            <div class="results-display">
+              <div class="chart-container">
+                <div class="chart-donut" id="donut-chart">
+                  <div class="chart-donut-inner">
+                    <span class="total-votes" id="vote-count-label">0</span>
+                    <span class="total-votes-label">總票數</span>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-legend" id="chart-legend">
+                <div class="legend-title">學員答題即時統計</div>
+                <!-- Legend items rendered dynamically -->
+              </div>
+            </div>
+          </div>
+        `;
+        // Immediate render
+        updateChartUI({ A: 0, B: 0, C: 0, D: 0 });
+      }
+    }
+
+    // Poll current class state
+    async function pollClassState(forceReload = false) {
+      try {
+        const response = await fetch('/api/class-state');
+        if (!response.ok) return;
+        const data = await response.json();
+
+        // 1. Check if active slide deck has changed or if first load
+        if (data.activeDeckId !== activeDeckId || forceReload) {
+          activeDeckId = data.activeDeckId;
+          slidesData = data.slides || [];
+          
+          // Update tutor badge text to active deck title
+          const titleBadge = document.querySelector('.sidebar-badge');
+          if (titleBadge) {
+            titleBadge.textContent = activeDeckId === 'hongsheng_sop_safety' ? 'SOP' : '自訂';
+          }
+
+          renderSidebar();
+          // Reset slide back to server currentSlide
+          currentActiveIndex = Math.min(data.currentSlide - 1, slidesData.length - 1);
+          if (currentActiveIndex < 0) currentActiveIndex = 0;
+          
+          loadSlide(currentActiveIndex);
+        }
+
+        // 2. Sync Slide Page (if changed by another screen, though tutor controls it)
+        if (data.currentSlide !== (currentActiveIndex + 1) && slidesData.length > 0) {
+          loadSlide(data.currentSlide - 1);
+        }
+
+        // 3. Update Quiz statistics in UI if we are on a quiz slide
+        if (slidesData.length > 0) {
+          const slide = slidesData[currentActiveIndex];
+          if (slide && slide.type === 'interactive') {
+            updateChartUI(data.answers, data.voters.length);
+          }
+        }
+
+        // 4. Update Online Active Students list in Sidebar
+        updateOnlineStudentsUI(data.onlineStudents || []);
+      } catch (e) {
+        // Server offline
+      }
+    }
+
+    function updateOnlineStudentsUI(onlineList) {
+      const activeOnlineCount = document.getElementById('active-online-count');
+      if (activeOnlineCount) activeOnlineCount.textContent = onlineList.length;
+      
+      const container = document.getElementById('active-online-list');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      if (onlineList.length === 0) {
+        container.innerHTML = '<div style="color:var(--text-sub); font-style:italic; font-size:0.75rem;">無學員在線</div>';
+        return;
+      }
+
+      onlineList.forEach(name => {
+        const studentSpan = document.createElement('span');
+        studentSpan.style.background = 'rgba(6, 182, 212, 0.1)';
+        studentSpan.style.color = 'var(--neon-cyan)';
+        studentSpan.style.border = '1px solid rgba(6, 182, 212, 0.2)';
+        studentSpan.style.padding = '0.2rem 0.5rem';
+        studentSpan.style.borderRadius = '4px';
+        studentSpan.style.fontSize = '0.75rem';
+        studentSpan.style.fontWeight = '600';
+        studentSpan.textContent = name;
+        container.appendChild(studentSpan);
+      });
+    }
+
+    function updateChartUI(answers, totalVoters = 0) {
+      const slide = slidesData[currentActiveIndex];
+      if (!slide || !slide.options) return;
+
+      const voteCountLabel = document.getElementById('vote-count-label');
+      if (voteCountLabel) voteCountLabel.textContent = totalVoters;
+      
+      const onlineVotersCount = document.getElementById('online-voters-count');
+      if (onlineVotersCount) onlineVotersCount.textContent = totalVoters;
+
+      // Render legend & calculate slices
+      const legendContainer = document.getElementById('chart-legend');
+      if (!legendContainer) return;
+      
+      legendContainer.innerHTML = '<div class="legend-title">學員答題即時統計</div>';
+
+      let total = 0;
+      Object.entries(slide.options).forEach(([letter, text]) => {
+        total += answers[letter] || 0;
+      });
+
+      let accumulatedPct = 0;
+      const conicSlices = [];
+      const optionKeys = Object.keys(slide.options);
+
+      optionKeys.forEach((letter, idx) => {
+        const text = slide.options[letter];
+        const count = answers[letter] || 0;
+        const pct = total === 0 ? 0 : Math.round((count / total) * 100);
+        const color = colors[idx % colors.length];
+
+        // Legend Item
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        // Add checkmark to the correct answer
+        const isCorrectText = letter === slide.correctAnswer ? ' <span style="color:var(--neon-green); font-size:0.75rem;">(正確答案)</span>' : '';
+        item.innerHTML = `
+          <div class="legend-label-group">
+            <span class="legend-color" style="background: ${color};"></span>
+            <span>${letter}. ${text}${isCorrectText}</span>
+          </div>
+          <div>
+            <span class="legend-pct-val" style="color: ${color};">${pct}%</span>
+            <span style="color:var(--text-sub); font-size:0.8rem; margin-left:0.4rem;">(${count} 人)</span>
+          </div>
+        `;
+        legendContainer.appendChild(item);
+
+        // Chart gradient slices
+        if (pct > 0) {
+          const start = accumulatedPct;
+          accumulatedPct += pct;
+          conicSlices.push(`${color} ${start}% ${accumulatedPct}%`);
+        }
+      });
+
+      // Update conic-gradient
+      const donut = document.getElementById('donut-chart');
+      if (donut) {
+        if (conicSlices.length > 0) {
+          donut.style.background = `conic-gradient(${conicSlices.join(', ')}, var(--text-sub) ${accumulatedPct}% 100%)`;
+        } else {
+          donut.style.background = `conic-gradient(var(--text-sub) 0% 100%)`;
+        }
+      }
+    }
+
+    async function resetVoters() {
+      if (confirm('確定要清除當前測驗題目的學員答案並重新作答嗎？')) {
+        try {
+          await fetch('/api/reset-class', { method: 'POST' });
+          pollClassState();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+
+    function copyStudentLink() {
+      const link = `${window.location.origin}/lv3-student.html`;
+      navigator.clipboard.writeText(link).then(() => {
+        alert(`已複製學生端連結：\n${link}\n\n請在無痕視窗或另一個瀏覽器分頁開啟，即可扮演學員作答！`);
+      }).catch(err => {
+        alert(`複製失敗，請手動複製網址：${link}`);
+      });
+    }
+
+    async function syncStateToBackend(currentSlide) {
+      try {
+        await fetch('/api/class-state', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentSlide })
+        });
+      } catch (e) {
+        console.error('Failed to sync state to backend:', e);
+      }
+    }
+
+    function prevSlide() {
+      if (currentActiveIndex > 0) {
+        const nextIdx = currentActiveIndex - 1;
+        loadSlide(nextIdx);
+        syncStateToBackend(nextIdx + 1);
+      }
+    }
+
+    function nextSlide() {
+      if (currentActiveIndex < slidesData.length - 1) {
+        const nextIdx = currentActiveIndex + 1;
+        loadSlide(nextIdx);
+        syncStateToBackend(nextIdx + 1);
+      }
+    }
+
+    let localStream = null;
+    let micBroadcasting = false;
+    let tutorPeerConnections = {};
+    let webrtcPollInterval = null;
+
+    async function toggleMicrophone() {
+      const btn = document.getElementById('mic-btn');
+      const textSpan = document.getElementById('mic-text');
+      const iconSpan = document.getElementById('mic-icon');
+
+      if (!micBroadcasting) {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micBroadcasting = true;
+
+          btn.style.borderColor = 'rgba(16, 185, 129, 0.5)';
+          btn.style.color = 'var(--neon-green)';
+          btn.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.3)';
+          textSpan.textContent = '語音廣播中...';
+          iconSpan.textContent = '🔊';
+
+          await fetch('/api/webrtc/reset', { method: 'POST' });
+          webrtcPollInterval = setInterval(pollStudentOffers, 1000);
+        } catch (err) {
+          alert('取得麥克風權限失敗：' + err.message);
+        }
+      } else {
+        micBroadcasting = false;
+        if (webrtcPollInterval) clearInterval(webrtcPollInterval);
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          localStream = null;
+        }
+        Object.entries(tutorPeerConnections).forEach(([name, pc]) => {
+          pc.close();
+        });
+        tutorPeerConnections = {};
+
+        fetch('/api/webrtc/reset', { method: 'POST' });
+
+        btn.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+        btn.style.color = 'var(--neon-red)';
+        btn.style.boxShadow = 'none';
+        textSpan.textContent = '開啟語音廣播';
+        iconSpan.textContent = '🎙️';
+      }
+    }
+
+    async function pollStudentOffers() {
+      if (!micBroadcasting) return;
+      try {
+        const res = await fetch('/api/webrtc/offers');
+        if (!res.ok) return;
+        const offers = await res.json();
+
+        for (const [nickname, offer] of Object.entries(offers)) {
+          if (tutorPeerConnections[nickname]) {
+            const pc = tutorPeerConnections[nickname];
+            if (pc.connectionState !== 'failed' && pc.connectionState !== 'closed') {
+              continue; 
+            }
+          }
+          handleStudentOffer(nickname, offer);
+        }
+      } catch (e) {
+        console.error('Failed to poll student offers:', e);
+      }
+    }
+
+    async function handleStudentOffer(nickname, offer) {
+      console.log('Received WebRTC offer from student:', nickname);
+      try {
+        if (tutorPeerConnections[nickname]) {
+          tutorPeerConnections[nickname].close();
+        }
+
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        });
+
+        tutorPeerConnections[nickname] = pc;
+
+        if (localStream) {
+          localStream.getTracks().forEach(track => {
+            pc.addTrack(track, localStream);
+          });
+        }
+
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        await new Promise((resolve) => {
+          if (pc.iceGatheringState === 'complete') {
+            resolve();
+          } else {
+            function checkState() {
+              if (pc.iceGatheringState === 'complete') {
+                pc.removeEventListener('icegatheringstatechange', checkState);
+                resolve();
+              }
+            }
+            pc.addEventListener('icegatheringstatechange', checkState);
+          }
+        });
+
+        await fetch('/api/webrtc/answer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nickname,
+            answer: pc.localDescription
+          })
+        });
+
+        console.log('Sent WebRTC answer to student:', nickname);
+      } catch (err) {
+        console.error(`Failed to handle WebRTC offer from ${nickname}:`, err);
+      }
+    }
+  </script>
+</body>
+</html>

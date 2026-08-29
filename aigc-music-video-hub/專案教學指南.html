@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIGC 專案開發與雲端託管教學指南</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 28, 45, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.15);
+            --accent: #06b6d4;
+            --accent-glow: rgba(6, 182, 212, 0.15);
+            --card-hover-border: rgba(6, 182, 212, 0.4);
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar styling */
+        .sidebar {
+            width: 320px;
+            background-color: rgba(17, 24, 39, 0.95);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .sidebar-header p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .search-box {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px;
+            border-radius: 8px;
+            background-color: rgba(31, 41, 55, 0.5);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: var(--accent);
+        }
+
+        .nav-menu {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .nav-item {
+            padding: 14px 18px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(31, 41, 55, 0.4);
+        }
+
+        .nav-item.active {
+            background-color: var(--accent-glow);
+            border-color: var(--accent);
+            color: #fff;
+        }
+
+        .nav-item svg {
+            width: 18px;
+            height: 18px;
+            flex-shrink: 0;
+        }
+
+        .nav-item-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* Content Panel styling */
+        .content-panel {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 40px;
+            background: radial-gradient(circle at 80% 10%, rgba(6, 182, 212, 0.02), transparent 45%);
+        }
+
+        .tab-content {
+            display: none;
+            max-width: 1000px;
+            margin: 0 auto;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section-header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .section-header h2 {
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Cards and interactive layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            backdrop-filter: blur(12px);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Bullet lists */
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        strong {
+            color: var(--text-primary);
+        }
+
+        /* Code blocks */
+        .code-block {
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #34d399;
+            overflow-x: auto;
+            position: relative;
+            margin-top: 10px;
+            margin-bottom: 16px;
+        }
+
+        .btn-copy {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-copy:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        /* Alert styling */
+        .alert {
+            background-color: rgba(245, 158, 11, 0.05);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .alert-icon {
+            color: var(--warning);
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .alert-content h4 {
+            color: var(--warning);
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .alert-content p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        /* Workflow diagram */
+        .diagram-container {
+            background-color: rgba(17, 24, 39, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .diagram-svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Steps progress checklist */
+        .checklist-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .checklist-checkbox {
+            width: 18px;
+            height: 18px;
+            margin-top: 2px;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .checklist-text h5 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .checklist-text p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background-color: var(--primary);
+            color: #0b0f19;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .external-link {
+            color: var(--accent);
+            text-decoration: none;
+            border-bottom: 1px dashed var(--accent);
+        }
+        
+        .external-link:hover {
+            color: #0891b2;
+            border-bottom-style: solid;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Menu -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h1>專案開發與託管指南</h1>
+            <p>勝一與鴻勝化學 AIGC 影片專案</p>
+        </div>
+        <div class="search-box">
+            <input type="text" id="menuSearch" placeholder="搜尋教學單元..." onkeyup="searchNav()">
+        </div>
+        <div class="nav-menu" id="navMenu">
+            <div class="nav-item active" onclick="switchTab(0)">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span class="nav-item-title">1. 專案開發架構與流程</span>
+            </div>
+            <div class="nav-item" onclick="switchTab(1)">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+                <span class="nav-item-title">2. Netlify 雲端託管</span>
+            </div>
+            <div class="nav-item" onclick="switchTab(2)">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                <span class="nav-item-title">3. Firebase 雲端託管</span>
+            </div>
+            <div class="nav-item" onclick="switchTab(3)">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>
+                <span class="nav-item-title">4. MV 影片本機渲染</span>
+            </div>
+            <div class="nav-item" onclick="switchTab(4)">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><layout-grid><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></layout-grid></svg>
+                <span class="nav-item-title">5. 主控台面板維護</span>
+            </div>
+            <div class="nav-item" onclick="switchTab(5)">
+                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>
+                <span class="nav-item-title">6. 雲端硬碟自動同步</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="content-panel">
+
+        <!-- Tab 0: 專案架構概覽 -->
+        <div class="tab-content active">
+            <div class="section-header">
+                <h2>專案架構與工作流程</h2>
+                <p>了解從音樂生成、故事板建立、影片渲染、到發佈至雲端空間的完整運作架構。</p>
+            </div>
+
+            <!-- Workflow Diagram -->
+            <div class="diagram-container">
+                <h4 style="margin-bottom: 20px; color: var(--accent);">🔄 AIGC 影片生成與發佈流程圖</h4>
+                <svg class="diagram-svg" width="800" height="240" viewBox="0 0 800 240">
+                    <!-- Step 1 -->
+                    <rect x="20" y="70" width="130" height="80" rx="10" fill="rgba(6, 182, 212, 0.1)" stroke="var(--accent)" stroke-width="2"/>
+                    <text x="85" y="110" fill="#fff" font-size="14" font-weight="bold" text-anchor="middle">1. 生成音軌與歌詞</text>
+                    <text x="85" y="130" fill="var(--text-secondary)" font-size="11" text-anchor="middle">Suno 音樂合輯</text>
+                    
+                    <!-- Arrow 1 -->
+                    <line x1="150" y1="110" x2="190" y2="110" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrow)"/>
+
+                    <!-- Step 2 -->
+                    <rect x="200" y="70" width="130" height="80" rx="10" fill="rgba(16, 185, 129, 0.1)" stroke="var(--primary)" stroke-width="2"/>
+                    <text x="265" y="105" fill="#fff" font-size="14" font-weight="bold" text-anchor="middle">2. 本機影片渲染</text>
+                    <text x="265" y="125" fill="var(--text-secondary)" font-size="11" text-anchor="middle">FFmpeg 投影片</text>
+                    <text x="265" y="140" fill="var(--text-secondary)" font-size="11" text-anchor="middle">(34張大圖對照)</text>
+
+                    <!-- Arrow 2 -->
+                    <line x1="330" y1="110" x2="370" y2="110" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+
+                    <!-- Step 3 -->
+                    <rect x="380" y="70" width="130" height="80" rx="10" fill="rgba(245, 158, 11, 0.1)" stroke="var(--warning)" stroke-width="2"/>
+                    <text x="445" y="105" fill="#fff" font-size="14" font-weight="bold" text-anchor="middle">3. 主控台更新</text>
+                    <text x="445" y="125" fill="var(--text-secondary)" font-size="11" text-anchor="middle">build_mv_dashboard</text>
+                    <text x="445" y="140" fill="var(--text-secondary)" font-size="11" text-anchor="middle">(生成HTML總覽)</text>
+
+                    <!-- Arrow 3 Split -->
+                    <path d="M 510 110 L 530 110 L 530 50 L 550 50 M 530 110 L 530 170 L 550 170" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+
+                    <!-- Branch 1 (Netlify) -->
+                    <rect x="560" y="15" width="200" height="70" rx="10" fill="rgba(6, 182, 212, 0.15)" stroke="var(--accent)" stroke-width="1.5"/>
+                    <text x="660" y="45" fill="#fff" font-size="13" font-weight="bold" text-anchor="middle">Netlify 託管部署 (Web)</text>
+                    <text x="660" y="65" fill="var(--text-secondary)" font-size="10" text-anchor="middle">頻寬 100 GB/月 (流暢播放MV)</text>
+
+                    <!-- Branch 2 (GDrive) -->
+                    <rect x="560" y="135" width="200" height="70" rx="10" fill="rgba(16, 185, 129, 0.15)" stroke="var(--primary)" stroke-width="1.5"/>
+                    <text x="660" y="165" fill="#fff" font-size="13" font-weight="bold" text-anchor="middle">Google Drive 雲端同步</text>
+                    <text x="660" y="185" fill="var(--text-secondary)" font-size="10" text-anchor="middle">專案完整檔案備份/內網查看</text>
+                    
+                    <!-- SVG Defs for markers -->
+                    <defs>
+                        <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                          <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255,255,255,0.3)" />
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l-7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                        本機工作空間說明
+                    </div>
+                    <ul>
+                        <li><strong>主開發目錄：</strong>位於 <code>c:\GOOGLE ANGET\ai anget</code>。所有程式碼修改、影片渲染和歌詞解析皆在此執行。</li>
+                        <li><strong>發佈快取目錄：</strong>位於 <code>c:\GOOGLE ANGET\aigc-music-video-hub</code>。這是為雲端發佈優化過後的輕量資料夾，排除重複的圖片。</li>
+                        <li><strong>本地共享圖片：</strong>位於 <code>圖片/</code> 根目錄，共 41 張 PNG 檔案（34張廠區圖 + 7張弈融小宇宙圖），供所有 MVs 和網頁面板共用。</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        託管平台分工
+                    </div>
+                    <ul>
+                        <li><strong>Netlify（主要）：</strong>用於架設線上音樂影片播放網站。每月提供 <strong>100 GB</strong> 的流量，非常適合承載 MP4 影片與 MP3 播放。</li>
+                        <li><strong>Firebase Hosting（備用）：</strong>同樣配置於此專案，但其免費版每日限制僅 <strong>360 MB</strong> 流量，不適合用來公開播放影片，僅供備份。</li>
+                        <li><strong>Google Drive：</strong>直接映射同步本機檔案，用於內網備份與資料分享。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 1: Netlify 託管教學 -->
+        <div class="tab-content">
+            <div class="section-header">
+                <h2>Netlify 雲端代管與發佈</h2>
+                <p>了解如何查詢使用額度、連結網站、以及快速將最新的網頁與影片上傳部署到 Netlify。</p>
+            </div>
+
+            <div class="alert">
+                <span class="alert-icon">⚠️</span>
+                <div class="alert-content">
+                    <h4>打包優化：請勿直接上傳整個專案！</h4>
+                    <p>專案包含 39 個子資料夾，每個資料夾若包含 34 張圖片將達 1.3 GB。為避免 Netlify 上傳逾時失敗，我們使用 <code>dist</code> 靜態打包，僅上傳網頁、音樂和 MP4 影片，其餘共用圖片（約 40 MB）放置於根目錄，總打包大小約 670 MB。</p>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">
+                        📊 查詢目前使用空間與流量
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 12px;">
+                        Netlify 的免費帳戶（Starter）採用信用額度制，每個月提供 **100 GB** 的免費頻寬（Bandwidth）。若要查看目前的實際使用額度：
+                    </p>
+                    <ol>
+                        <li>登入您的 Netlify 網頁控制台。</li>
+                        <li>進入您的專案團隊使用頁面：<a href="https://app.netlify.com/teams/syhm10150s-team/usage" class="external-link" target="_blank">Netlify 使用量與帳單頁面</a></li>
+                        <li>在 <strong>Bandwidth</strong> 項目即可看見目前已使用的流量百分比（每月自動歸零）。</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        🚀 CLI 快速部署與更新
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary);">
+                        當您在本機渲染了新影片或更新了面板，您可以使用以下指令，在短短十幾秒內將 <code>dist</code> 目錄發佈到線上：
+                    </p>
+                    <div class="code-block">
+                        <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                        <span># 1. 切換至發佈快取資料夾<br>cd "c:\GOOGLE ANGET\aigc-music-video-hub"<br><br># 2. 執行指令將 dist 打包檔直接發佈至生產網頁<br>netlify deploy --dir=dist --prod</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        🔗 建立、重綁與切換 Netlify 網站
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+                        若您未來想變更部署的網站或綁定新的帳戶：
+                    </p>
+                    <ul>
+                        <li><strong>查看目前連結狀態：</strong> <code>netlify status</code></li>
+                        <li><strong>綁定其他已存在網站：</strong> <code>netlify link</code></li>
+                        <li><strong>手動切換網站 ID：</strong> 編輯資料夾下的 <code>.netlify/state.json</code>，修改裡面的 <code>"siteId": "您的網站ID"</code>。</li>
+                    </ul>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">
+                        ✅ 部署流程檢核清單
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" class="checklist-checkbox">
+                        <div class="checklist-text">
+                            <h5>確認影片與音軌已更新</h5>
+                            <p>本機有新歌渲染時，確認對應的 _MV.mp4 檔案已存在。</p>
+                        </div>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" class="checklist-checkbox">
+                        <div class="checklist-text">
+                            <h5>編譯最新網頁總覽</h5>
+                            <p>執行 <code>python build_mv_dashboard.py</code> 更新本地 HTML。</p>
+                        </div>
+                    </div>
+                    <div class="checklist-item">
+                        <input type="checkbox" class="checklist-checkbox">
+                        <div class="checklist-text">
+                            <h5>執行 build_dist 腳本打包</h5>
+                            <p>執行 <code>python build_dist.py</code> 以自動重新整理 dist 目錄。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: Firebase 託管教學 -->
+        <div class="tab-content">
+            <div class="section-header">
+                <h2>Firebase Hosting 託管與發佈</h2>
+                <p>了解 Firebase Spark 免費版的限額機制、如何查詢用量、以及如何部屬與變更設定。</p>
+            </div>
+
+            <div class="alert" style="background-color: rgba(239, 68, 68, 0.05); border-color: rgba(239, 68, 68, 0.2);">
+                <span class="alert-icon" style="color: #ef4444;">🚨</span>
+                <div class="alert-content">
+                    <h4 style="color: #ef4444;">重大流量警告：免費版每日僅 360 MB 頻寬！</h4>
+                    <p>Firebase Hosting 免費版 (Spark) 的下載頻寬為**每日 360 MB**。每部 MV 影片的大小約為 13 MB，這意味著如果有人完整播放 28 次，您的 Firebase 網站當天就會因為流量超標直接下線（報 509 Bandwidth Exceeded 錯誤），必須等到隔天中午才會自動恢復。因此<strong>強烈建議僅將其作為備份伺服器</strong>。</p>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">
+                        📊 Firebase 控制台用量查詢
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 12px;">
+                        Firebase 不會主動提醒您本日流量狀況，需至控制台手動查看：
+                    </p>
+                    <ol>
+                        <li>登入 <a href="https://console.firebase.google.com/project/aigc-music-video-hub/hosting/main" class="external-link" target="_blank">Firebase Console - aigc-music-video-hub</a></li>
+                        <li>展開左側選單的 <strong>建置 (Build)</strong> ➔ <strong>Hosting</strong></li>
+                        <li>切換至正上方的 **使用量 (Usage)** 分頁。</li>
+                        <li>此處會詳細顯示儲存空間（Storage，免費 10GB）與下載量（Downloads，免費每日 360MB）折線圖。</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        🚀 Firebase 部署指令
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary);">
+                        當需要手動發佈至 Firebase 時，請在工作根目錄 <code>c:\GOOGLE ANGET</code> 執行以下指令：
+                    </p>
+                    <div class="code-block">
+                        <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                        <span># 1. 登入 Google 帳號 (若過期)<br>firebase login<br><br># 2. 僅部署 Hosting 資源<br>firebase deploy --only hosting</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        ⚙️ Firebase 設定與排除規則
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+                        專案的 Firebase 配置存放在根目錄的 <code>firebase.json</code> 檔案中：
+                    </p>
+                    <ul>
+                        <li><strong>"public" :</strong> 指向發佈來源資料夾，目前配置為 <code>"aigc-music-video-hub"</code>。</li>
+                        <li><strong>"ignore" :</strong> 排除名單。為防範不小心將幾 GB 的原始圖片上傳至 Firebase 浪費其 10GB 儲存限額，我們已設定排除規則 <code>"創作庫/**/圖片/**"</code> 等。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: MV 影片本機渲染 -->
+        <div class="tab-content">
+            <div class="section-header">
+                <h2>本機音視頻自動化渲染</h2>
+                <p>了解如何基於故事板 prompts.md、本機圖片和 FFmpeg 音軌，一鍵渲染出對齊長度的投影片 MV。</p>
+            </div>
+
+            <div class="grid-2">
+                <div class="card" style="grid-column: span 2;">
+                    <div class="card-title">
+                        🛠️ 渲染引擎運作原理 (`render_all_custom_mvs.py`)
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 12px;">
+                        客製化投影片影片並不是套用一成不變的模板，而是動態產生的。其生成機制如下：
+                    </p>
+                    <ol>
+                        <li><strong>讀取故事板：</strong> 腳本掃描每個歌曲資料夾，讀取 <code>vids_storyboard_prompts.md</code>。</li>
+                        <li><strong>計算播放時長：</strong> 偵測音訊檔（MP3）的精確秒數，並除以故事板中的場景總數，計算出每張圖片顯示的平均秒數。</li>
+                        <li><strong>匹配本機圖片：</strong> 根據故事板記錄的圖片檔名，優先尋找歌曲資料夾下的 <code>圖片/</code> 目錄，若沒有則 fallback 至根目錄的共用 <code>圖片/</code> 目錄。</li>
+                        <li><strong>FFmpeg 合成：</strong> 自動輸出 <code>slideshow_inputs.txt</code> 描述檔給 FFmpeg，利用 <code>concat</code> 濾鏡合併圖片，並將 AAC 高品質音軌封裝進 MP4 檔案中，在歌曲播完時自動結束。</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        💻 執行本機渲染指令
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary);">
+                        當有新歌加入，或圖片更新後需要重新渲染影片時：
+                    </p>
+                    <div class="code-block">
+                        <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                        <span>python "c:\GOOGLE ANGET\ai anget\render_all_custom_mvs.py"</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        📝 投影片 concat 腳本語法範例
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary);">
+                        在影片合成時，產生的臨時 <code>slideshow_inputs.txt</code> 結構如下：
+                    </p>
+                    <div class="code-block" style="color: #60a5fa;">
+                        <span>file 'c:/GOOGLE ANGET/ai anget/圖片/01_廠區遠景.png'<br>duration 7.9814<br>file 'c:/GOOGLE ANGET/ai anget/圖片/02_反應槽近景.png'<br>duration 7.9814<br># 尾端重寫最後一張圖片，防範 FFmpeg concater 遺失最後一格時長<br>file 'c:/GOOGLE ANGET/ai anget/圖片/02_反應槽近景.png'</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: 主控台面板維護 -->
+        <div class="tab-content">
+            <div class="section-header">
+                <h2>AIGC 網頁主控台面板維護</h2>
+                <p>了解如何重新編譯主控台網頁，以整合新渲染的影片、更新歌詞匹配和修改曲風設定。</p>
+            </div>
+
+            <div class="grid-2">
+                <div class="card" style="grid-column: span 2;">
+                    <div class="card-title">
+                        ⚙️ 主控台編譯腳本 (`build_mv_dashboard.py`)
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 12px;">
+                        <code>音樂影片專案總覽.html</code> 是由 Python 自動編譯產生的。當您執行 <code>build_mv_dashboard.py</code> 時，它會自動完成以下工作：
+                    </p>
+                    <ul>
+                        <li><strong>歌詞解析：</strong> 讀取並解析位於 <code>創作庫/勝一與鴻勝化學_AI主題歌曲合輯.md</code> 的總歌詞庫，依照章節編號（例如 1.1, 2.3.1）自動匹配到 39 個歌曲資料夾中。</li>
+                        <li><strong>影片狀態檢驗：</strong> 掃描各子目錄，若有找到 <code>*_MV.mp4</code> 檔案則會在庫中寫入相對路徑，前台網站即會亮起「🟢 本機已生成」的播放按鈕，否則將隱藏按鈕。</li>
+                        <li><strong>資料庫封裝：</strong> 將所有解析結果轉化為 JSON 資料庫，直接取代注入到 HTML 樣板底部（<code>const songs = __SONGS_DATA_JSON__;</code>），無須架設後端資料庫。</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        💻 重新生成網頁主控台
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary);">
+                        當歌詞庫檔案有異動、或有新渲染的 MV 影片要加入前台顯示時，請執行：
+                    </p>
+                    <div class="code-block">
+                        <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                        <span>python "c:\GOOGLE ANGET\ai anget\build_mv_dashboard.py"</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        📁 共用圖片路徑優化
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+                        主控台的前端渲染目前已被我們優化為<strong>共用根目錄圖片</strong>。
+                    </p>
+                    <ul>
+                        <li>網頁中的故事板影像會直接加載 <code>圖片/${scene.filename}</code> 檔案。</li>
+                        <li>如此一來，在本機直接打開網頁（雙擊 <code>音樂影片專案總覽.html</code>），或是部署上線後，都能完美載入預覽大圖，且無需在每個子資料夾保留數百 MB 的重複圖片。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 5: 雲端硬碟自動同步 -->
+        <div class="tab-content">
+            <div class="section-header">
+                <h2>Google Drive 雲端同步備份</h2>
+                <p>了解本機工作環境與 Google 雲端硬碟同步備份機制，確保資料安全且多端同步。</p>
+            </div>
+
+            <div class="grid-2">
+                <div class="card" style="grid-column: span 2;">
+                    <div class="card-title">
+                        🔄 雲端備份機制工作原理 (`sync_to_gdrive.py`)
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 12px;">
+                        專案配置了 <code>sync_to_gdrive.py</code> 一鍵同步腳本。它能高效地比對本地磁碟與雲端硬碟中的檔案：
+                    </p>
+                    <ul>
+                        <li><strong>智慧比對：</strong> 腳本會讀取檔案的大小與修改時間（mtime），若檔案完全一致則直接跳過，大幅縮短上傳時間。</li>
+                        <li><strong>黑名單排除：</strong> 自動跳過 Python 虛擬環境 <code>venv</code>、Git 紀錄 <code>.git</code> 以及暫存目錄，避免上傳無用檔案。</li>
+                        <li><strong>清理多餘檔案：</strong> 專案內已透過自動清理，將雲端硬碟中舊版的 <code>*_Vids版.mp4</code> 等過期母片和重複圖片子目錄清空，維持雲端儲存空間整潔。</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        💻 執行雲端硬碟同步指令
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary);">
+                        當您在本機完成了大批影片渲染或主控台更新後，可執行以下指令進行同步備份：
+                    </p>
+                    <div class="code-block">
+                        <button class="btn-copy" onclick="copyCode(this)">複製</button>
+                        <span>python "c:\GOOGLE ANGET\aigc-music-video-hub\sync_to_gdrive.py"</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">
+                        🚨 注意事項：請確保掛載 G 槽
+                    </div>
+                    <p style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); margin-bottom: 10px;">
+                        在使用同步腳本前，請確認：
+                    </p>
+                    <ul>
+                        <li>電腦已安裝並啟動了 **Google Drive 電腦版應用程式**。</li>
+                        <li>雲端硬碟已被掛載為本機的 <strong>G 槽</strong> (<code>G:\我的雲端硬碟</code>)。</li>
+                        <li>若掛載代號不同，需修改 <code>sync_to_gdrive.py</code> 中的 <code>dest_dir</code> 路徑。</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast Component -->
+    <div class="toast" id="toast">已複製指令到剪貼簿！</div>
+
+    <script>
+        // Switch between tabs
+        function switchTab(index) {
+            const tabs = document.getElementsByClassName('tab-content');
+            const navItems = document.getElementsByClassName('nav-item');
+            
+            for (let i = 0; i < tabs.length; i++) {
+                tabs[i].classList.remove('active');
+                navItems[i].classList.remove('active');
+            }
+            
+            tabs[index].classList.add('active');
+            navItems[index].classList.add('active');
+        }
+
+        // Copy code to clipboard
+        function copyCode(btn) {
+            const code = btn.nextElementSibling.innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 2000);
+            });
+        }
+
+        // Search navigation menu
+        function searchNav() {
+            const input = document.getElementById('menuSearch').value.toUpperCase();
+            const items = document.getElementsByClassName('nav-item');
+            
+            for (let i = 0; i < items.length; i++) {
+                const text = items[i].getElementsByClassName('nav-item-title')[0].innerText;
+                if (text.toUpperCase().indexOf(input) > -1) {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        }
+    </script>
+</body>
+</html>

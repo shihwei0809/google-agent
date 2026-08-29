@@ -1,3 +1,0 @@
-INFO:     Will watch for changes in these directories: ['C:\\GOOGLE ANGET\\第一類_核心網頁與互動系統\\員工教育訓練測驗系統\\sop_interactive_builder']
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [23056] using StatReload

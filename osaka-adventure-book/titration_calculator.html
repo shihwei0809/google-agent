@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>稀硫酸滴定計算器</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --secondary: #0d9488;
+            --secondary-light: #14b8a6;
+            --background: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --accent: #f59e0b;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius-md: 12px;
+            --radius-lg: 18px;
+            --font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="dark"] {
+            --primary: #3b82f6;
+            --primary-light: #60a5fa;
+            --primary-dark: #1d4ed8;
+            --secondary: #14b8a6;
+            --secondary-light: #2dd4bf;
+            --background: #0f172a;
+            --card-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            transition: var(--transition);
+        }
+
+        /* Header Style */
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 24px 20px 48px 20px;
+            border-bottom-left-radius: 32px;
+            border-bottom-right-radius: 32px;
+            position: relative;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header-content {
+            max-width: 500px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-title h1 {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-title p {
+            font-size: 13px;
+            opacity: 0.8;
+            margin-top: 4px;
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: var(--transition);
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: scale(1.05);
+        }
+
+        /* Container */
+        .container {
+            max-width: 500px;
+            width: 100%;
+            margin: -32px auto 0 auto;
+            padding: 0 16px 40px 16px;
+            flex: 1;
+            z-index: 10;
+        }
+
+        /* Card styles */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 24px 20px;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            transition: var(--transition);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+        }
+
+        /* Form Controls */
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 14px;
+            color: var(--text-muted);
+            font-size: 16px;
+            transition: var(--transition);
+        }
+
+        .input-control {
+            width: 100%;
+            padding: 14px 14px 14px 44px;
+            font-size: 16px;
+            font-family: var(--font-family);
+            background-color: var(--background);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            color: var(--text-main);
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .input-control:focus {
+            border-color: var(--primary);
+            background-color: var(--card-bg);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .input-control:focus + i {
+            color: var(--primary);
+        }
+
+        .input-unit {
+            position: absolute;
+            right: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .input-control {
+            padding-right: 48px;
+        }
+
+        /* Result Display Card */
+        .result-card {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.05) 0%, rgba(13, 148, 136, 0.05) 100%);
+            border: 2px solid var(--primary-light);
+            text-align: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .result-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .result-value {
+            font-size: 42px;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1;
+            margin: 8px 0;
+            display: flex;
+            justify-content: center;
+            align-items: baseline;
+            gap: 4px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .result-value span {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .result-formula {
+            font-size: 11px;
+            color: var(--text-muted);
+            background-color: rgba(0, 0, 0, 0.03);
+            [data-theme="dark"] & {
+                background-color: rgba(255, 255, 255, 0.03);
+            }
+            padding: 8px;
+            border-radius: 6px;
+            margin-top: 14px;
+            display: inline-block;
+            font-family: monospace;
+        }
+
+        /* Buttons */
+        .btn-calc {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            background-color: var(--primary);
+            border: none;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+
+        .btn-calc:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+        }
+
+        .btn-calc:active {
+            transform: translateY(0);
+        }
+
+        /* History list styles */
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .history-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .btn-text:hover {
+            background-color: rgba(37, 99, 235, 0.1);
+        }
+
+        .btn-text.danger {
+            color: var(--danger);
+        }
+
+        .btn-text.danger:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+
+        .history-list {
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .history-item {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-bottom: 8px;
+            font-size: 13px;
+            background-color: var(--background);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            position: relative;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .history-item-body {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .history-item-inputs {
+            color: var(--text-muted);
+        }
+
+        .history-item-result {
+            font-weight: 700;
+            color: var(--secondary);
+            font-size: 15px;
+        }
+
+        .history-empty {
+            text-align: center;
+            padding: 30px 10px;
+            color: var(--text-muted);
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .history-empty i {
+            font-size: 28px;
+            opacity: 0.5;
+        }
+
+        /* Custom Scrollbar for history */
+        .history-list::-webkit-scrollbar {
+            width: 5px;
+        }
+        .history-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .history-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 10px;
+        }
+
+        /* Animation */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .pulse-animation {
+            animation: pulse 0.5s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <div class="header-title">
+                <h1><i class="fa-solid fa-flask-vial"></i> 稀硫酸滴定計算</h1>
+                <p>25% 稀硫酸重量快速計算系統 (手機版)</p>
+            </div>
+            <button class="theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="切換深淺色模式">
+                <i class="fa-solid fa-moon" id="themeIcon"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Input Card -->
+        <div class="card">
+            <div class="card-title">
+                <i class="fa-solid fa-pen-to-square"></i> 輸入檢測數據
+            </div>
+            
+            <div class="input-group">
+                <label for="totalWeight">總重量 (噸)</label>
+                <div class="input-wrapper">
+                    <input type="number" id="totalWeight" class="input-control" placeholder="請輸入總重量" step="any" oninput="calculateRealTime()">
+                    <i class="fa-solid fa-weight-hanging"></i>
+                    <span class="input-unit">噸</span>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="weightBefore">滴定前重量 (g)</label>
+                <div class="input-wrapper">
+                    <input type="number" id="weightBefore" class="input-control" placeholder="請輸入滴定前重量" step="any" oninput="calculateRealTime()">
+                    <i class="fa-solid fa-scale-unbalanced"></i>
+                    <span class="input-unit">g</span>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label for="weightAfter">滴定後重量 (g)</label>
+                <div class="input-wrapper">
+                    <input type="number" id="weightAfter" class="input-control" placeholder="請輸入滴定後重量" step="any" oninput="calculateRealTime()">
+                    <i class="fa-solid fa-scale-balanced"></i>
+                    <span class="input-unit">g</span>
+                </div>
+            </div>
+
+            <button class="btn-calc" onclick="saveCalculationRecord()">
+                <i class="fa-solid fa-calculator"></i> 計算並記錄結果
+            </button>
+        </div>
+
+        <!-- Result Card -->
+        <div class="card result-card" id="resultCard">
+            <div class="result-label">25% 稀硫酸重量</div>
+            <div class="result-value" id="resultValue">0 <span>KG</span></div>
+            
+            <div style="font-size: 12px; color: var(--text-muted);" id="resultDetail">
+                等待輸入完整數據...
+            </div>
+            
+            <div class="result-formula">
+                D2 = (C2 - B2) * (A2 / B2) * 1000
+            </div>
+        </div>
+
+        <!-- History Card -->
+        <div class="card">
+            <div class="history-header">
+                <div class="card-title" style="margin-bottom: 0;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> 計算歷史紀錄
+                </div>
+                <div class="history-actions">
+                    <button class="btn-text" onclick="exportToCSV()" title="匯出 CSV 檔"><i class="fa-solid fa-file-export"></i> 匯出</button>
+                    <button class="btn-text danger" onclick="clearHistory()"><i class="fa-solid fa-trash-can"></i> 清除</button>
+                </div>
+            </div>
+            
+            <div class="history-list" id="historyList">
+                <div class="history-empty">
+                    <i class="fa-regular fa-clipboard"></i>
+                    暫無計算歷史紀錄
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        QC-系統客製化電子化工廠 © 2026
+    </footer>
+
+    <script>
+        // Check local storage for theme
+        if (localStorage.getItem('theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            document.getElementById('themeIcon').className = 'fa-solid fa-sun';
+        }
+
+        // Load History on startup
+        let historyData = JSON.parse(localStorage.getItem('titration_history') || '[]');
+        updateHistoryList();
+
+        function toggleTheme() {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            let newTheme = 'light';
+            const icon = document.getElementById('themeIcon');
+            
+            if (currentTheme !== 'dark') {
+                newTheme = 'dark';
+                icon.className = 'fa-solid fa-sun';
+            } else {
+                icon.className = 'fa-solid fa-moon';
+            }
+            
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        function getInputs() {
+            return {
+                totalWeight: parseFloat(document.getElementById('totalWeight').value),
+                weightBefore: parseFloat(document.getElementById('weightBefore').value),
+                weightAfter: parseFloat(document.getElementById('weightAfter').value)
+            };
+        }
+
+        function calculateFormula(A, B, C) {
+            if (isNaN(A) || isNaN(B) || isNaN(C) || B === 0) return null;
+            // Formula: (C2 - B2) * (A2 / B2) * 1000
+            const result = (C - B) * (A / B) * 1000;
+            return result;
+        }
+
+        function calculateRealTime() {
+            const { totalWeight, weightBefore, weightAfter } = getInputs();
+            const resultEl = document.getElementById('resultValue');
+            const detailEl = document.getElementById('resultDetail');
+            
+            if (isNaN(totalWeight) || isNaN(weightBefore) || isNaN(weightAfter)) {
+                resultEl.innerHTML = '0 <span>KG</span>';
+                detailEl.innerText = '等待輸入完整數據...';
+                return;
+            }
+
+            if (weightBefore <= 0) {
+                resultEl.innerHTML = '<span style="color: var(--danger); font-size:24px;">滴定前重量錯誤</span>';
+                detailEl.innerText = '滴定前重量必須大於 0';
+                return;
+            }
+
+            const result = calculateFormula(totalWeight, weightBefore, weightAfter);
+            
+            if (result !== null) {
+                // Round to whole number like Excel does (626)
+                const roundedResult = Math.round(result);
+                resultEl.innerHTML = `${roundedResult.toLocaleString()} <span>KG</span>`;
+                
+                // Show titration difference detail
+                const diff = (weightAfter - weightBefore).toFixed(3);
+                detailEl.innerText = `滴定增重: ${diff} g | 比例: ${(totalWeight / weightBefore).toFixed(4)} 噸/g`;
+            }
+        }
+
+        function saveCalculationRecord() {
+            const { totalWeight, weightBefore, weightAfter } = getInputs();
+            
+            if (isNaN(totalWeight) || isNaN(weightBefore) || isNaN(weightAfter)) {
+                alert('請先輸入完整的數據！');
+                return;
+            }
+
+            if (weightBefore <= 0) {
+                alert('滴定前重量必須大於 0！');
+                return;
+            }
+
+            const rawResult = calculateFormula(totalWeight, weightBefore, weightAfter);
+            const finalResult = Math.round(rawResult);
+
+            // Add animation to result card
+            const resultCard = document.getElementById('resultCard');
+            resultCard.classList.remove('pulse-animation');
+            void resultCard.offsetWidth; // Trigger reflow
+            resultCard.classList.add('pulse-animation');
+
+            // Save to history
+            const now = new Date();
+            const dateStr = `${now.getMonth()+1}/${now.getDate()} ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            const record = {
+                timestamp: dateStr,
+                totalWeight: totalWeight,
+                weightBefore: weightBefore,
+                weightAfter: weightAfter,
+                result: finalResult
+            };
+
+            historyData.unshift(record); // Add to beginning
+            localStorage.setItem('titration_history', JSON.stringify(historyData));
+            
+            updateHistoryList();
+            
+            // Clean inputs for next one? The user might want to keep it or clear. We keep it but highlight success.
+        }
+
+        function updateHistoryList() {
+            const listEl = document.getElementById('historyList');
+            
+            if (historyData.length === 0) {
+                listEl.innerHTML = `
+                    <div class="history-empty">
+                        <i class="fa-regular fa-clipboard"></i>
+                        暫無計算歷史紀錄
+                    </div>`;
+                return;
+            }
+
+            let html = '';
+            historyData.forEach((item, index) => {
+                const diff = (item.weightAfter - item.weightBefore).toFixed(2);
+                html += `
+                    <div class="history-item">
+                        <div class="history-item-header">
+                            <span><i class="fa-regular fa-clock"></i> ${item.timestamp}</span>
+                            <button class="btn-text danger" style="padding:0; font-size:11px;" onclick="deleteHistoryItem(${index})">刪除</button>
+                        </div>
+                        <div class="history-item-body">
+                            <div class="history-item-inputs">
+                                總重: <strong>${item.totalWeight}</strong> 噸 | 
+                                滴定: <strong>${item.weightBefore}</strong> → <strong>${item.weightAfter}</strong> g (增重: ${diff}g)
+                            </div>
+                            <div class="history-item-result">
+                                ${item.result.toLocaleString()} KG
+                            </div>
+                        </div>
+                    </div>`;
+            });
+            listEl.innerHTML = html;
+        }
+
+        function deleteHistoryItem(index) {
+            historyData.splice(index, 1);
+            localStorage.setItem('titration_history', JSON.stringify(historyData));
+            updateHistoryList();
+        }
+
+        function clearHistory() {
+            if (historyData.length === 0) return;
+            if (confirm('確定要清除所有計算歷史紀錄嗎？')) {
+                historyData = [];
+                localStorage.setItem('titration_history', '[]');
+                updateHistoryList();
+            }
+        }
+
+        function exportToCSV() {
+            if (historyData.length === 0) {
+                alert('沒有紀錄可以匯出！');
+                return;
+            }
+
+            let csvContent = "\uFEFF"; // Add BOM for Excel Chinese character compatibility
+            csvContent += "時間,總重量(噸),滴定前重量(g),滴定後重量(g),25%稀硫酸重量(KG)\n";
+
+            historyData.forEach(item => {
+                csvContent += `${item.timestamp},${item.totalWeight},${item.weightBefore},${item.weightAfter},${item.result}\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            
+            const now = new Date();
+            const filename = `稀硫酸滴定紀錄_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2,'0')}${now.getDate().toString().padStart(2,'0')}.csv`;
+            link.setAttribute("download", filename);
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>

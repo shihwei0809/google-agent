@@ -1,0 +1,15 @@
+# 渲染輸出（檔案太大，不放 GitHub）
+*.mp4
+*.webm
+*.gif
+
+# 截圖快取
+snapshots/
+.thumbnails/
+
+# Node
+node_modules/
+
+# 系統
+.DS_Store
+Thumbs.db

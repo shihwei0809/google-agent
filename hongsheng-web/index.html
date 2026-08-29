@@ -1,0 +1,1836 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鴻勝化學｜軟管對刷稽核系統 — 互動式教育訓練與模擬演練</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Firebase SDK (Compatibility version for easy integration via script tags) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0B0E14;
+            --bg-card: #121722;
+            --bg-input: #182030;
+            --border-color: #222E45;
+            
+            --text-white: #FFFFFF;
+            --text-gray: #A0AEC0;
+            
+            --neon-green: #27AE60;
+            --neon-red: #EB5757;
+            --gold: #D4AF37;
+            --blue: #2F80ED;
+            
+            --neon-green-glow: rgba(39, 174, 96, 0.2);
+            --neon-red-glow: rgba(235, 87, 87, 0.2);
+            --gold-glow: rgba(212, 175, 55, 0.2);
+            
+            --transition-speed: 0.3s;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-white);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Header Navigation */
+        header {
+            background-color: var(--bg-card);
+            border-bottom: 2px solid var(--border-color);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--neon-green), var(--blue));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 18px;
+        }
+
+        .logo-text h1 {
+            font-size: 18px;
+            font-weight: 900;
+            letter-spacing: 0.05em;
+        }
+
+        .logo-text span {
+            font-size: 11px;
+            color: var(--text-gray);
+            font-weight: 700;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .mode-selector {
+            display: flex;
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 30px;
+            padding: 4px;
+        }
+
+        .mode-btn {
+            background: none;
+            border: none;
+            color: var(--text-gray);
+            padding: 8px 24px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all var(--transition-speed);
+        }
+
+        .mode-btn.active {
+            background-color: var(--blue);
+            color: var(--text-white);
+            box-shadow: 0 4px 12px rgba(47, 128, 237, 0.3);
+        }
+
+        /* Firebase Status Indicator */
+        .db-status-bar {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+        }
+
+        .db-status-bar:hover {
+            border-color: var(--blue);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-gray);
+        }
+
+        .status-dot.connected {
+            background-color: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+
+        .status-dot.local {
+            background-color: var(--gold);
+            box-shadow: 0 0 8px var(--gold);
+        }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            display: flex;
+            position: relative;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 40px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Mode Panels */
+        .mode-panel {
+            display: none;
+            flex: 1;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .mode-panel.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ==================== MODE A: SLIDES ==================== */
+        .slide-deck {
+            background-color: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px;
+            min-height: 580px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .slide-content-wrapper {
+            display: flex;
+            gap: 40px;
+            flex: 1;
+            align-items: center;
+        }
+
+        .slide-text-side {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .slide-image-side {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 2px solid var(--border-color);
+            background-color: var(--bg-dark);
+            height: 380px;
+        }
+
+        .slide-image-side img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+
+        .slide-image-side img:hover {
+            transform: scale(1.03);
+        }
+
+        .slide-tag {
+            color: var(--gold);
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+        }
+
+        .slide-title {
+            font-size: 34px;
+            font-weight: 900;
+            line-height: 1.2;
+        }
+
+        .slide-sub {
+            font-size: 18px;
+            color: var(--neon-green);
+            font-weight: 700;
+        }
+
+        .slide-body {
+            font-size: 15px;
+            line-height: 1.6;
+            color: var(--text-gray);
+        }
+
+        /* Customized List / Grid Styles for specific slides */
+        .slide-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .slide-list-item {
+            background-color: var(--bg-input);
+            border-left: 4px solid var(--blue);
+            padding: 12px 18px;
+            border-radius: 0 8px 8px 0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .slide-list-item strong {
+            color: var(--gold);
+            margin-right: 8px;
+        }
+
+        .slide-grid-flow {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .flow-card {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            text-align: center;
+        }
+
+        .flow-card h4 {
+            font-size: 13px;
+            color: var(--neon-green);
+            font-weight: 900;
+        }
+
+        .flow-card p {
+            font-size: 11px;
+            color: var(--text-gray);
+            line-height: 1.3;
+        }
+
+        /* Slide Footer & Navigation */
+        .slide-footer {
+            margin-top: 30px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slide-nav {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
+            color: var(--text-white);
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all var(--transition-speed);
+        }
+
+        .nav-btn:hover {
+            background-color: var(--blue);
+            border-color: var(--blue);
+            box-shadow: 0 4px 12px rgba(47, 128, 237, 0.3);
+        }
+
+        .progress-indicator {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .progress-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .progress-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+            transition: all var(--transition-speed);
+        }
+
+        .progress-dot.active {
+            background-color: var(--blue);
+            transform: scale(1.3);
+        }
+
+        .slide-counter {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-gray);
+        }
+
+        /* ==================== MODE B: SIMULATOR ==================== */
+        .sim-grid {
+            display: grid;
+            grid-template-columns: 1.3fr 1.7fr;
+            gap: 30px;
+            flex: 1;
+        }
+
+        .sim-panel {
+            background-color: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sim-panel-title {
+            font-size: 20px;
+            font-weight: 900;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .sim-step-badge {
+            background-color: var(--gold-glow);
+            color: var(--gold);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+        }
+
+        /* Terminal styling for Field Operator Simulation */
+        .terminal-device {
+            background-color: #0E121A;
+            border: 8px solid #2B3345;
+            border-radius: 20px;
+            height: 520px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8), 0 10px 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .terminal-header {
+            background-color: #1A212E;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11px;
+            color: #5D7290;
+            font-weight: 700;
+            border-bottom: 2px solid #2B3345;
+        }
+
+        .terminal-screen {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: background-color var(--transition-speed);
+        }
+
+        .terminal-screen.success {
+            background-color: rgba(39, 174, 96, 0.05);
+        }
+
+        .terminal-screen.error {
+            background-color: rgba(235, 87, 87, 0.05);
+            animation: pulseRedBg 1s infinite alternate;
+        }
+
+        @keyframes pulseRedBg {
+            from { background-color: rgba(235, 87, 87, 0.03); }
+            to { background-color: rgba(235, 87, 87, 0.1); }
+        }
+
+        .terminal-logo {
+            font-size: 14px;
+            font-weight: 900;
+            text-align: center;
+            color: #A0C0E8;
+            letter-spacing: 0.1em;
+        }
+
+        .terminal-body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            flex: 1;
+            gap: 15px;
+            text-align: center;
+        }
+
+        .terminal-big-icon {
+            font-size: 64px;
+            transition: all var(--transition-speed);
+        }
+
+        .terminal-title {
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        .terminal-text {
+            font-size: 12px;
+            color: #5D7290;
+            max-width: 240px;
+        }
+
+        .terminal-footer-btn {
+            background-color: var(--border-color);
+            border: none;
+            color: var(--text-white);
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+        }
+
+        .terminal-footer-btn.active {
+            background-color: var(--neon-green);
+            box-shadow: 0 4px 12px var(--neon-green-glow);
+        }
+
+        /* Control inputs */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-gray);
+        }
+
+        .form-control {
+            background-color: var(--bg-input);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 12px 16px;
+            color: var(--text-white);
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color var(--transition-speed);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+
+        .action-btn {
+            background-color: var(--blue);
+            border: none;
+            color: var(--text-white);
+            padding: 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .action-btn:hover {
+            box-shadow: 0 6px 16px rgba(47, 128, 237, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .action-btn:disabled {
+            background-color: var(--border-color);
+            color: var(--text-gray);
+            cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
+        }
+
+        /* Interactive Scanning Visuals */
+        .scanner-visualizer {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background-color: var(--bg-input);
+            border: 2px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            align-items: center;
+        }
+
+        .scanner-options {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .scan-opt-card {
+            flex: 1;
+            background-color: var(--bg-card);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            cursor: pointer;
+            text-align: center;
+            transition: all var(--transition-speed);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .scan-opt-card:hover {
+            border-color: var(--blue);
+            transform: scale(1.02);
+        }
+
+        .scan-opt-card.selected {
+            border-color: var(--blue);
+            background-color: rgba(47, 128, 237, 0.05);
+        }
+
+        .scan-opt-card .emoji {
+            font-size: 32px;
+        }
+
+        .scan-opt-card h5 {
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .scan-opt-card p {
+            font-size: 10px;
+            color: var(--text-gray);
+        }
+
+        .scanner-beam-box {
+            position: relative;
+            width: 220px;
+            height: 120px;
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scanner-beam {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background-color: var(--blue);
+            box-shadow: 0 0 10px var(--blue);
+            animation: scanMove 2s infinite alternate ease-in-out;
+        }
+
+        @keyframes scanMove {
+            from { top: 5%; }
+            to { top: 95%; }
+        }
+
+        .scanner-beam-box.red-alert .scanner-beam {
+            background-color: var(--neon-red);
+            box-shadow: 0 0 10px var(--neon-red);
+        }
+
+        .scanner-beam-box.green-success .scanner-beam {
+            background-color: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+
+        /* QC Portal / Table styling */
+        .qc-dashboard {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex: 1;
+        }
+
+        .qc-table-wrapper {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background-color: var(--bg-dark);
+        }
+
+        .qc-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .qc-table th, .qc-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .qc-table th {
+            color: var(--text-gray);
+            font-weight: 700;
+            background-color: var(--bg-card);
+            position: sticky;
+            top: 0;
+        }
+
+        .qc-table tbody tr {
+            cursor: pointer;
+            transition: background-color var(--transition-speed);
+        }
+
+        .qc-table tbody tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .qc-table tbody tr.selected {
+            background-color: rgba(47, 128, 237, 0.1);
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .status-badge.pending {
+            background-color: rgba(212, 175, 55, 0.1);
+            color: var(--gold);
+        }
+
+        .status-badge.pending_qc {
+            background-color: rgba(47, 128, 237, 0.1);
+            color: var(--blue);
+        }
+
+        .status-badge.released {
+            background-color: var(--neon-green-glow);
+            color: var(--neon-green);
+        }
+
+        .qc-stamp {
+            border: 3px dashed var(--gold);
+            color: var(--gold);
+            padding: 10px 20px;
+            font-size: 24px;
+            font-weight: 900;
+            text-align: center;
+            transform: rotate(-10deg);
+            border-radius: 8px;
+            width: 240px;
+            margin: 20px auto 0;
+            opacity: 0;
+            transition: all var(--transition-speed);
+        }
+
+        .qc-stamp.show {
+            opacity: 1;
+            animation: stampDrop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes stampDrop {
+            from { transform: scale(3) rotate(-30deg); opacity: 0; }
+            to { transform: scale(1) rotate(-10deg); opacity: 1; }
+        }
+
+        .test-checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .test-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .test-chk {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 12px;
+            transition: all var(--transition-speed);
+        }
+
+        .test-chk.checked {
+            border-color: var(--neon-green);
+            background-color: var(--neon-green);
+            color: var(--text-white);
+        }
+
+        .test-chk.checked::after {
+            content: '✓';
+        }
+
+        .celebrate-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            text-align: center;
+            flex: 1;
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        /* Firebase config drawer */
+        .db-drawer {
+            position: fixed;
+            top: 0;
+            right: -380px;
+            width: 380px;
+            height: 100vh;
+            background-color: var(--bg-card);
+            border-left: 2px solid var(--border-color);
+            box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            padding: 30px;
+            z-index: 999;
+            transition: right 0.4s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .db-drawer.open {
+            right: 0;
+        }
+
+        .db-drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 15px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-gray);
+            font-size: 24px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-section">
+            <div class="logo-icon">HS</div>
+            <div class="logo-text">
+                <h1>軟管對刷稽核系統</h1>
+                <span>鴻勝化學｜智慧型現場安全控管系統</span>
+            </div>
+        </div>
+        <div class="header-controls">
+            <div class="db-status-bar" onclick="toggleDbDrawer()">
+                <div class="status-dot" id="dbStatusDot"></div>
+                <span id="dbStatusText">加載中...</span>
+            </div>
+            <div class="mode-selector">
+                <button class="mode-btn active" onclick="switchMode('slides')">教學簡報模式</button>
+                <button class="mode-btn" onclick="switchMode('sim')">互動模擬演練</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Firebase Connection Config Drawer -->
+    <div class="db-drawer" id="dbDrawer">
+        <div class="db-drawer-header">
+            <h3>🌐 Firebase 雲端連接設定</h3>
+            <button class="close-btn" onclick="toggleDbDrawer()">×</button>
+        </div>
+        <p style="font-size: 13px; color: var(--text-gray); line-height: 1.4;">
+            貼上您的 Firebase Web SDK 設定 JSON，將演練數據與雲端資料庫（Cloud Firestore）同步！
+        </p>
+        <div class="form-group">
+            <label for="dbConfigInput">JSON 貼上區</label>
+            <textarea id="dbConfigInput" class="form-control" style="height: 240px; font-family: monospace; font-size: 12px;" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "hongsheng-...",
+  "projectId": "hongsheng-...",
+  "storageBucket": "hongsheng-...",
+  "messagingSenderId": "...",
+  "appId": "..."
+}'></textarea>
+        </div>
+        <button class="action-btn" onclick="saveFirebaseConfig()">儲存連線設定</button>
+        <button class="action-btn" style="background-color: var(--neon-red);" onclick="clearFirebaseConfig()">中斷並清除雲端設定</button>
+    </div>
+
+    <main>
+        <div class="container">
+            
+            <!-- ==================== MODE A: SLIDES ==================== -->
+            <div id="slidesPanel" class="mode-panel active">
+                <div class="slide-deck">
+                    <div class="slide-content-wrapper" id="slideContent">
+                        <!-- Loaded dynamically via JS -->
+                    </div>
+                    <div class="slide-footer">
+                        <div class="progress-indicator">
+                            <span class="slide-counter" id="slideCounter">Slide 1 / 10</span>
+                            <div class="progress-dots" id="progressDots">
+                                <!-- Loaded dynamically via JS -->
+                            </div>
+                        </div>
+                        <div class="slide-nav">
+                            <button class="nav-btn" onclick="prevSlide()">◀</button>
+                            <button class="nav-btn" onclick="nextSlide()">▶</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== MODE B: SIMULATOR ==================== -->
+            <div id="simPanel" class="mode-panel">
+                <div class="sim-grid">
+                    
+                    <!-- Left: Industrial Scanner Screen / Terminal -->
+                    <div class="sim-panel">
+                        <div class="sim-panel-title">
+                            現場手持對刷終端機
+                            <span class="sim-step-badge" id="terminalStepBadge">STEP 1: 登入</span>
+                        </div>
+                        <div class="terminal-device">
+                            <div class="terminal-header">
+                                <span>📶 4G LTE</span>
+                                <span>🔋 98%</span>
+                            </div>
+                            <div class="terminal-screen" id="termScreen">
+                                <div class="terminal-logo">HONGSHENG CHEM</div>
+                                <div class="terminal-body" id="termBody">
+                                    <div class="terminal-big-icon">📱</div>
+                                    <div class="terminal-title">請在右側完成人員登錄</div>
+                                    <div class="terminal-text">為落實安全稽核與軌跡存證，必須先在右方選擇操作員並輸入櫃號。</div>
+                                </div>
+                                <button class="terminal-footer-btn" id="termFooterBtn" disabled>等待右側資料設定</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Operation Panel (Changes by step) -->
+                    <div class="sim-panel" id="simOpPanel">
+                        <!-- Step 1: Login Form (Will be rendered dynamically) -->
+                    </div>
+
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // ==================== FIREBASE CONNECTOR ====================
+        let db = null;
+        let isFirebaseConnected = false;
+
+        function initFirebase() {
+            const statusDot = document.getElementById("dbStatusDot");
+            const statusText = document.getElementById("dbStatusText");
+            const configText = localStorage.getItem("firebase_config");
+
+            if (configText) {
+                try {
+                    const firebaseConfig = JSON.parse(configText);
+                    // Check if already initialized to prevent duplicate app errors
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(firebaseConfig);
+                    }
+                    db = firebase.firestore();
+                    isFirebaseConnected = true;
+                    statusDot.className = "status-dot connected";
+                    statusText.textContent = "🟢 雲端模式 (Firebase 連線)";
+                    document.getElementById("dbConfigInput").value = configText;
+                } catch (e) {
+                    console.error("Firebase initialization failed:", e);
+                    useLocalDatabaseFallback();
+                }
+            } else {
+                useLocalDatabaseFallback();
+            }
+        }
+
+        function useLocalDatabaseFallback() {
+            isFirebaseConnected = false;
+            db = null;
+            const statusDot = document.getElementById("dbStatusDot");
+            const statusText = document.getElementById("dbStatusText");
+            statusDot.className = "status-dot local";
+            statusText.textContent = "🟡 本地模式 (LocalStorage)";
+        }
+
+        function toggleDbDrawer() {
+            document.getElementById("dbDrawer").classList.toggle("open");
+        }
+
+        function saveFirebaseConfig() {
+            const configText = document.getElementById("dbConfigInput").value.trim();
+            if (!configText) return alert("請輸入有效的設定 JSON 物件！");
+            
+            try {
+                JSON.parse(configText); // Verify it is valid JSON
+                localStorage.setItem("firebase_config", configText);
+                initFirebase();
+                toggleDbDrawer();
+                alert("Firebase 連線設定成功！");
+                if (simState.step === 3) renderOpPanel(); // Refresh QC board
+            } catch (e) {
+                alert("JSON 語法錯誤，請確認貼上的內容格式是否正確！");
+            }
+        }
+
+        function clearFirebaseConfig() {
+            localStorage.removeItem("firebase_config");
+            useLocalDatabaseFallback();
+            toggleDbDrawer();
+            alert("已中斷 Firebase 連線，切換回本地 LocalStorage 運作！");
+            if (simState.step === 3) renderOpPanel(); // Refresh QC board
+        }
+
+        // ==================== SLIDES DATA & CONTROLLER ====================
+        const SLIDES = [
+            {
+                tag: "企業級教育訓練教材",
+                title: "軟管對刷稽核系統",
+                sub: "鴻勝化學｜現場作業 × QC 授權放行",
+                body: "訓練目標：<br>• 降低管線誤接、排除現場人為疏失風險。<br>• 建立智慧掃碼稽核與系統暫存存證軌跡。<br>• 確保化學卸料前，確實完成現場覆核與 QC 授權放行。",
+                image: "../images/hs_cover.png",
+                extra: ""
+            },
+            {
+                tag: "01 目的",
+                title: "訓練定位與管控原則",
+                sub: "本教材用於新人上線前訓練與現場複訓，聚焦『儲槽』與『軟管』兩組識別碼的一致性稽核。",
+                body: "",
+                image: "../images/hs_roles.png",
+                extra: `
+                    <div style="display:flex; gap:20px; margin-top:10px;">
+                        <div style="flex:1;">
+                            <h4 style="color:var(--neon-green); font-size:14px; font-weight:800; margin-bottom:8px;">★ 核心安控原則</h4>
+                            <ul class="slide-list">
+                                <li class="slide-list-item"><strong>人員防呆</strong> 先選定操作人員才解鎖掃碼</li>
+                                <li class="slide-list-item"><strong>唯讀索引</strong> 櫃車編號作為唯一任務索引</li>
+                                <li class="slide-list-item"><strong>即時對刷</strong> 儲槽碼與軟管對刷，後台即時比對</li>
+                            </ul>
+                        </div>
+                        <div style="flex:1;">
+                            <h4 style="color:var(--neon-green); font-size:14px; font-weight:800; margin-bottom:8px;">★ 紀錄輸出項目</h4>
+                            <ul class="slide-list">
+                                <li class="slide-list-item"><strong>現場暫存</strong> 對刷成功後的加密資料暫存</li>
+                                <li class="slide-list-item"><strong>待審看板</strong> QC 端同步接收通知與參數</li>
+                                <li class="slide-list-item"><strong>稽核軌跡</strong> 保存 QC 刷卡授權時間與ID紀錄</li>
+                            </ul>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                tag: "02 角色",
+                title: "系統角色與責任分工",
+                sub: "落實三道防線以建立滴水不漏的安全機制",
+                body: "",
+                image: "../images/hs_roles.png",
+                extra: `
+                    <ul class="slide-list">
+                        <li class="slide-list-item"><strong>👷 現場作業人員 (Operator)</strong><br>選擇操作人員 ➔ 輸入櫃號 ➔ 掃描儲槽碼與軟管對刷 ➔ 資料確認並提交。</li>
+                        <li class="slide-list-item"><strong>🛡️ 現場 QC 稽核員 (QC Auditor)</strong><br>主控台檢視待稽核看板 ➔ 現場核對管線閥門 ➔ 掃描 QC 識別證進行授權放行。</li>
+                        <li class="slide-list-item"><strong>👑 班組主管 (Supervisor)</strong><br>每日審查系統紀錄 ➔ 紅色異常匹配阻斷分析 ➔ 持續追蹤人員考核成效。</li>
+                    </ul>
+                `
+            },
+            {
+                tag: "03 SOP",
+                title: "標準作業流程總覽",
+                sub: "系統五大核心步驟 — 匹配判定與異常阻斷原則",
+                body: "",
+                image: "",
+                extra: `
+                    <div class="slide-grid-flow">
+                        <div class="flow-card">
+                            <h4>1. 選人員</h4>
+                            <p>未選擇人員前，對刷掃描按鈕呈現停用。</p>
+                        </div>
+                        <div class="flow-card">
+                            <h4>2. 輸入櫃號</h4>
+                            <p>輸入車體櫃號，建立稽核專屬任務。</p>
+                        </div>
+                        <div class="flow-card">
+                            <h4>3. 對刷掃碼</h4>
+                            <p>依序對刷掃描儲槽碼與軟管識別碼。</p>
+                        </div>
+                        <div class="flow-card">
+                            <h4>4. 系統判定</h4>
+                            <p>綠色成功 matching；紅色警告強制阻斷。</p>
+                        </div>
+                        <div class="flow-card">
+                            <h4>5. QC 放行</h4>
+                            <p>QC 覆核無誤後，刷個人識別證授權放行。</p>
+                        </div>
+                    </div>
+                    <div style="background-color:rgba(235, 87, 87, 0.08); border-left:4px solid var(--neon-red); border-radius:4px; padding:15px; margin-top:20px; font-size:13px; line-height:1.4;">
+                        <strong>⚠️ 嚴禁人工口頭替代：</strong> 儲槽識別碼與軟管碼必須系統完全匹配。一旦出現紅色警告，嚴禁現場以對講機口頭通報或私自開閥，必須停止提交並通報現場核對。
+                    </div>
+                `
+            },
+            {
+                tag: "04 現場作業",
+                title: "人員選擇與櫃號任務建立",
+                sub: "第一關：操作防呆與櫃車任務鎖定",
+                body: "• <b>防止無照操作</b>：系統首頁必須由具有受訓資格的人員登錄選取，未選擇時主選單鎖定。<br>• <b>唯一性索引建立</b>：輸入來料櫃車之實體櫃號後建立新任務，將後續對刷、QC 放行軌跡全部鏈接至此櫃號，供追溯安全責任。<br>• <b>資料即時通訊</b>：任務建立後，手持 PDA 終端與工廠控制中心 QC 待審清單進行連線暫存。",
+                image: "../images/hs_scan_green.png",
+                extra: ""
+            },
+            {
+                tag: "05 對刷作業",
+                title: "現場掃描與系統即時判定",
+                sub: "第二關：雙色警示阻斷技術",
+                body: "",
+                image: "../images/hs_scan_green.png",
+                extra: `
+                    <div style="display:flex; gap:20px;">
+                        <div style="flex:1; background-color:rgba(235,87,87,0.05); border:1px solid var(--neon-red); border-radius:8px; padding:15px; font-size:13px;">
+                            <strong style="color:var(--neon-red);">🔴 紅色畫面：管線誤接 (Mismatch)</strong>
+                            <p style="color:var(--text-gray); margin-top:5px; line-height:1.4;">條碼判定不匹配，警報器響起！手持端出現「Mismatch Mismatched」警告圖案，<b>提交按鈕強效停用</b>，無法越權操作。</p>
+                        </div>
+                        <div style="flex:1; background-color:rgba(39,174,96,0.05); border:1px solid var(--neon-green); border-radius:8px; padding:15px; font-size:13px;">
+                            <strong style="color:var(--neon-green);">🟢 綠色畫面：匹配正確 (Match)</strong>
+                            <p style="color:var(--text-gray); margin-top:5px; line-height:1.4;">條碼比對確認一致，綠燈亮起！手持端呈現「Match Successful」狀態，<b>資料提交按鈕解鎖</b>，可以派發至 QC 放行端。</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                tag: "06 異常情境",
+                title: "錯誤情境現場處置規範",
+                sub: "發生 Mismatch 紅色警告時的標準應變三步驟",
+                body: "• <b>第一步：停止並通報</b> 現場人員立刻停止閥門對接，按原狀鎖定。利用對講機通報現場 QC 稽核員與班組主管前來查驗。<br>• <b>第二步：實體比對</b> 共同至現場比對「櫃車櫃號」、「儲槽接口」與「對接軟管」實體條碼是否遭受汙損，或是否拿錯軟管。<br>• <b>第三步：重新掃描存證</b> 主管確認修正後，人員重新掃描完成對刷，系統將自動保留該次紅色異常阻斷軌跡作為分析資料。",
+                image: "../images/hs_scan_red.png",
+                extra: ""
+            },
+            {
+                tag: "07 成功情境",
+                title: "對刷成功與資料加密暫存",
+                sub: "匹配正確狀態下的資料流向",
+                body: "• <b>雙重一致驗證</b>：掃碼儲槽代號與軟管代號符合資料庫允收規章，狀態解鎖。<br>• <b>背景加密暫存</b>：手持 PDA 自動將人員、時間、儲槽/軟管代碼以及車號整合加密，派發至網路暫存區。<br>• <b>看板派發通知</b>：資料成功送出後，系統發送推送通知，即時通知 QC 稽核員有待審核放行任務。",
+                image: "../images/hs_scan_green.png",
+                extra: ""
+            },
+            {
+                tag: "08 QC 放行",
+                title: "QC 授權放行端操作要領",
+                sub: "第三關：雙覆核與電子放行存證",
+                body: "• <b>主控看板接收</b>：QC 登錄網頁，讀取待稽核任務狀態與對刷狀態。<br>• <b>二次覆核</b>：QC 核對進出貨單據，確認是否有此槽號，並確認儲槽與管路實體掃描是否正確。<br>• <b>識別證刷卡放行</b>：覆核無誤後，QC 掃描個人識別證條碼授權放行，系統記錄電子軌跡，啟動卸料。",
+                image: "../images/hs_qc_dashboard.png",
+                extra: ""
+            },
+            {
+                tag: "09 考核測驗",
+                title: "新人上線檢核與持續評核要求",
+                sub: "落實新人培訓合規考核，主管定期抽查重點",
+                body: "• <b>上線檢核五大項目</b>：能口述對刷防誤接目的、精確操作現場 SOP 五大步驟、辨識紅/綠判定結果、知道紅色阻斷時嚴禁强開閥、精確操作 QC 授權步驟。<br>• <b>新人考核標準</b>：學科筆試達 80 分以上，且在主管親自督導下，100% 獨立完成一次完整對刷與放行實務演練。<br>• <b>主管查核重點</b>：定期抽查後台，核對是否有異常阻斷後漏申報、或是跳過對刷私自開閥之嚴重違規事項，並予以追究責任。",
+                image: "",
+                extra: `
+                    <div style="background-color:rgba(212, 175, 55, 0.08); border-left:4px solid var(--gold); border-radius:4px; padding:15px; margin-top:10px; font-size:13px; line-height:1.4;">
+                        <strong>💎 持續合規教育：</strong> 對刷系統不是繁瑣的阻礙，而是保護生命與工廠安全的最後一道智慧防線。必須讓每位員工深植「系統Match，安全放行」的核心觀念。
+                    </div>
+                `
+            }
+        ];
+
+        let currentSlideIndex = 0;
+
+        function renderSlide(index) {
+            const slide = SLIDES[index];
+            const slideContent = document.getElementById("slideContent");
+            
+            // Build dynamically layout
+            let imageLayoutHTML = "";
+            if(slide.image) {
+                imageLayoutHTML = `
+                    <div class="slide-image-side">
+                        <img src="${slide.image}" alt="${slide.title}">
+                    </div>
+                `;
+            }
+
+            slideContent.innerHTML = `
+                <div class="slide-text-side">
+                    <span class="slide-tag">${slide.tag}</span>
+                    <h2 class="slide-title">${slide.title}</h2>
+                    ${slide.sub ? `<p class="slide-sub">${slide.sub}</p>` : ""}
+                    ${slide.body ? `<p class="slide-body">${slide.body}</p>` : ""}
+                    ${slide.extra ? slide.extra : ""}
+                </div>
+                ${imageLayoutHTML}
+            `;
+
+            // Update dots
+            const dots = document.querySelectorAll(".progress-dot");
+            dots.forEach((dot, idx) => {
+                if (idx === index) dot.classList.add("active");
+                else dot.classList.remove("active");
+            });
+
+            // Update counter
+            document.getElementById("slideCounter").textContent = `Slide ${index + 1} / ${SLIDES.length}`;
+        }
+
+        function createSlideDots() {
+            const container = document.getElementById("progressDots");
+            container.innerHTML = "";
+            for (let i = 0; i < SLIDES.length; i++) {
+                const dot = document.createElement("div");
+                dot.className = "progress-dot";
+                if(i === 0) dot.classList.add("active");
+                container.appendChild(dot);
+            }
+        }
+
+        function prevSlide() {
+            if(currentSlideIndex > 0) {
+                currentSlideIndex--;
+                renderSlide(currentSlideIndex);
+            }
+        }
+
+        function nextSlide() {
+            if(currentSlideIndex < SLIDES.length - 1) {
+                currentSlideIndex++;
+                renderSlide(currentSlideIndex);
+            }
+        }
+
+        // ==================== MODE SWITCH CONTROLLER ====================
+        function switchMode(mode) {
+            // Update active buttons
+            const btns = document.querySelectorAll(".mode-btn");
+            btns.forEach(btn => {
+                if(btn.textContent.includes(mode === 'slides' ? '教學簡報' : '互動模擬')) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+
+            // Update panels
+            const slidesPanel = document.getElementById("slidesPanel");
+            const simPanel = document.getElementById("simPanel");
+
+            if(mode === 'slides') {
+                slidesPanel.classList.add("active");
+                simPanel.classList.remove("active");
+            } else {
+                slidesPanel.classList.remove("active");
+                simPanel.classList.add("active");
+                // Reset/Init simulator
+                initSimulator();
+            }
+        }
+
+        // ==================== MODE B: SIMULATOR CONTROLLER ====================
+        
+        // Sim State variables
+        let simState = {
+            step: 1, // 1: Login, 2: SOP/Scan, 3: QC Portal, 4: Complete
+            operator: "",
+            truckNo: "",
+            scanType: "", // "correct" or "incorrect"
+            termState: "welcome", // welcome, scanning, correct_match, incorrect_match, qc_portal, complete
+            currentTaskId: "",
+            activeTasks: [] // Used in local fallback mode
+        };
+
+        function initSimulator() {
+            simState = {
+                step: 1,
+                operator: "",
+                truckNo: "",
+                scanType: "",
+                termState: "welcome",
+                currentTaskId: "",
+                activeTasks: JSON.parse(localStorage.getItem("local_tasks") || "[]")
+            };
+            renderTerminal();
+            renderOpPanel();
+        }
+
+        // Terminal Screen rendering
+        function renderTerminal() {
+            const screen = document.getElementById("termScreen");
+            const body = document.getElementById("termBody");
+            const footerBtn = document.getElementById("termFooterBtn");
+            const stepBadge = document.getElementById("terminalStepBadge");
+
+            // Reset screen classes
+            screen.className = "terminal-screen";
+
+            if (simState.termState === "welcome") {
+                stepBadge.textContent = "STEP 1: 登入任務";
+                body.innerHTML = `
+                    <div class="terminal-big-icon">📱</div>
+                    <div class="terminal-title">請在右側完成人員登錄</div>
+                    <div class="terminal-text">為落實安全稽核與軌跡存證，必須先在右方選擇操作員並輸入櫃號。</div>
+                `;
+                footerBtn.textContent = "等待右側資料輸入設定";
+                footerBtn.disabled = true;
+                footerBtn.className = "terminal-footer-btn";
+            }
+            else if (simState.termState === "scanning") {
+                stepBadge.textContent = "STEP 2: 現場對刷";
+                body.innerHTML = `
+                    <div class="terminal-big-icon">🔍</div>
+                    <div class="terminal-title">條碼對刷掃描中</div>
+                    <p style="font-size:12px;color:var(--text-gray);margin:5px 0;">已登入人員：${simState.operator} | 櫃號：${simState.truckNo}</p>
+                    <div class="scanner-beam-box" id="simBeamBox">
+                        <div class="scanner-beam"></div>
+                        <span style="font-size:24px;">🧬 條碼讀取</span>
+                    </div>
+                    <div class="terminal-text">請在右側點選對接要對刷的條碼，系統將即時分析判定匹配是否一致。</div>
+                `;
+                footerBtn.textContent = "對刷中...請選擇右側條碼";
+                footerBtn.disabled = true;
+                footerBtn.className = "terminal-footer-btn";
+            }
+            else if (simState.termState === "correct_match") {
+                stepBadge.textContent = "STEP 2: 匹配成功";
+                screen.classList.add("success");
+                body.innerHTML = `
+                    <div class="terminal-big-icon" style="color:var(--neon-green);">🟢</div>
+                    <div class="terminal-title" style="color:var(--neon-green);">MATCH OK!</div>
+                    <p style="font-size:12px;color:var(--text-gray);margin:5px 0;">作業人員：${simState.operator} | 櫃號：${simState.truckNo}</p>
+                    <div style="background-color:rgba(39, 174, 96, 0.1); border: 2px solid var(--neon-green); border-radius:10px; padding:15px; font-size:13px; font-weight:700;">
+                        ✓ 儲槽 A 與軟管 A 匹配成功<br>
+                        符合此卸料管線允收標準
+                    </div>
+                `;
+                footerBtn.textContent = "資料無誤！可點擊右側提交備查";
+                footerBtn.disabled = true;
+                footerBtn.className = "terminal-footer-btn";
+            }
+            else if (simState.termState === "incorrect_match") {
+                stepBadge.textContent = "STEP 2: 強制阻斷";
+                screen.classList.add("error");
+                body.innerHTML = `
+                    <div class="terminal-big-icon" style="color:var(--neon-red);">🔴</div>
+                    <div class="terminal-title" style="color:var(--neon-red);">MISMATCH BLOCKED!</div>
+                    <p style="font-size:12px;color:var(--text-gray);margin:5px 0;">作業人員：${simState.operator} | 櫃號：${simState.truckNo}</p>
+                    <div style="background-color:rgba(235, 87, 87, 0.1); border: 2px solid var(--neon-red); border-radius:10px; padding:15px; font-size:13px; font-weight:700; color:var(--neon-red);">
+                        ⚠️ 警告：儲槽 A 與軟管 B 不匹配<br>
+                        管線誤接！已強效阻斷防強接！
+                    </div>
+                `;
+                footerBtn.textContent = "❌ 系統已強制阻斷，無法提交";
+                footerBtn.disabled = true;
+                footerBtn.className = "terminal-footer-btn";
+            }
+            else if (simState.termState === "qc_portal") {
+                stepBadge.textContent = "STEP 3: QC 待稽核";
+                body.innerHTML = `
+                    <div class="terminal-big-icon" style="color:var(--gold);">📋</div>
+                    <div class="terminal-title">資料已暫存送出</div>
+                    <div class="terminal-text">現場對刷匹配正確，加密封包已派發至雲端。<br>請在右側切換為 <b>QC 端儀表板</b> 完成現場核對與刷卡授權。</div>
+                `;
+                footerBtn.textContent = "等待 QC 授權放行";
+                footerBtn.disabled = true;
+                footerBtn.className = "terminal-footer-btn";
+            }
+            else if (simState.termState === "complete") {
+                stepBadge.textContent = "STEP 4: 授權放行";
+                screen.classList.add("success");
+                body.innerHTML = `
+                    <div class="terminal-big-icon">🚀</div>
+                    <div class="terminal-title" style="color:var(--neon-green);">系統安全放行</div>
+                    <div style="background-color:rgba(39, 174, 96, 0.1); border: 2px solid var(--neon-green); border-radius:10px; padding:15px; font-size:13px; text-align:left;">
+                        • 作業櫃號：<b>${simState.truckNo}</b><br>
+                        • 現場人員：<b>${simState.operator}</b><br>
+                        • QC 授權人：<b>QC-09 稽核員</b><br>
+                        • 授權時間：<b>即時安全授權放行完成</b>
+                    </div>
+                    <div class="terminal-text">卸料管路已解鎖，已完全符合教育訓練合規標準！</div>
+                `;
+                footerBtn.textContent = "訓練完成 ➔ 點擊右方重置演練";
+                footerBtn.disabled = false;
+                footerBtn.className = "terminal-footer-btn active";
+                footerBtn.onclick = function() {
+                    initSimulator();
+                };
+            }
+        }
+
+        // Operation panel rendering based on step
+        function renderOpPanel() {
+            const opPanel = document.getElementById("simOpPanel");
+
+            if (simState.step === 1) {
+                opPanel.innerHTML = `
+                    <div class="sim-panel-title">現場作業：登錄人員與櫃號</div>
+                    <div class="form-group">
+                        <label for="opSelector">👷 選擇操作人員</label>
+                        <select id="opSelector" class="form-control" onchange="checkLoginValid()">
+                            <option value="">-- 請選擇受訓人員 --</option>
+                            <option value="張志明 (現場操作員)">張志明 (現場操作員)</option>
+                            <option value="林曉婷 (現場操作員)">林曉婷 (現場操作員)</option>
+                            <option value="王小川 (現場操作員)">王小川 (現場操作員)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="truckInput">🚚 來料櫃車櫃號</label>
+                        <input type="text" id="truckInput" class="form-control" placeholder="請輸入來料櫃號 (如: HS-8899)" onkeyup="checkLoginValid()">
+                    </div>
+                    <button class="action-btn" id="loginSubmitBtn" onclick="submitLoginStep()" disabled>建立櫃車任務，開啟對刷</button>
+                    <div style="font-size:12px; color:var(--text-gray); line-height:1.4;">
+                        <strong>💡 操作防呆規範：</strong> 系統將強制比對目前人員身分，防止未經考核人員進行閥門實體對接與掃碼。
+                    </div>
+                `;
+            }
+            else if (simState.step === 2) {
+                opPanel.innerHTML = `
+                    <div class="sim-panel-title">
+                        現場對刷：選擇掃描情境演練
+                        <span class="sim-step-badge">SOP 對刷</span>
+                    </div>
+                    <p style="font-size:13px;color:var(--text-gray);line-height:1.4;">請分別測試兩種現場情境，以充分理解紅色警告強阻斷與綠色成功放行機制：</p>
+                    <div class="scanner-visualizer">
+                        <div class="scanner-options">
+                            <div class="scan-opt-card" id="scanErrCard" onclick="selectScanOption('incorrect')">
+                                <span class="emoji">🚨</span>
+                                <h5>🔴 異常管線對接</h5>
+                                <p>儲槽A ➔ 軟管B (不匹配)</p>
+                            </div>
+                            <div class="scan-opt-card" id="scanOkCard" onclick="selectScanOption('correct')">
+                                <span class="emoji">🟢</span>
+                                <h5>🟢 正確管線對接</h5>
+                                <p>儲槽A ➔ 軟管A (匹配一致)</p>
+                            </div>
+                        </div>
+                        <button class="action-btn" id="scanTriggerBtn" style="width:100%;" onclick="runBarcodeScan()" disabled>啟動雷射讀取條碼</button>
+                    </div>
+                    <button class="action-btn" id="submitFieldDataBtn" onclick="submitFieldData()" disabled>提交暫存資料，派發 QC 看板</button>
+                `;
+            }
+            else if (simState.step === 3) {
+                // Render QC dashboard (Either real-time Firestore or LocalStorage listener)
+                opPanel.innerHTML = `
+                    <div class="sim-panel-title">
+                        🛡️ QC 授權放行儀表板
+                        <span class="sim-step-badge" style="background-color:var(--neon-green-glow); color:var(--neon-green);">QC 覆核審查</span>
+                    </div>
+                    <div class="qc-dashboard">
+                        <p style="font-size:13px;color:var(--text-gray);">點選列表中剛才提交的任務，現場覆核無誤後刷卡放行：</p>
+                        <div class="qc-table-wrapper">
+                            <table class="qc-table">
+                                <thead>
+                                    <tr>
+                                        <th>櫃號</th>
+                                        <th>現場作業員</th>
+                                        <th>匹配代碼</th>
+                                        <th>對刷狀態</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="qcTaskTableBody">
+                                    <!-- Rendered dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="qcActionArea" style="background-color:var(--bg-input); border:1px dashed var(--border-color); border-radius:12px; padding:20px; text-align:center; display:none; flex-direction:column; gap:15px; margin-top:10px;">
+                            <div style="font-size:14px; font-weight:700;">當前覆核任務：櫃車 <strong id="qcSelectedTruckNo">-</strong></div>
+                            <div style="text-align:left; font-size:12px; color:var(--text-gray); margin:5px 0 10px; display:flex; flex-direction:column; gap:6px; background-color:rgba(0,0,0,0.2); padding:10px; border-radius:8px; border:1px solid var(--border-color);">
+                                <div style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="chkDocCheck" style="accent-color:var(--neon-green);" onchange="checkQcActionValid()"> <label for="chkDocCheck" style="cursor:pointer; line-height: 1.4;"><b>二次覆核</b>：核對進出貨單據，確認是否有此槽號，並確認儲槽與管路實體掃描是否正確</label></div>
+                            </div>
+                            <button class="action-btn" id="qcAuthBtn" onclick="authorizeQCTask()" style="background-color:var(--gold); color:var(--bg-dark); font-weight:900;" disabled>💳 掃描 QC 識別證，授權放行</button>
+                            <div class="qc-stamp" id="qcStampBadge">已安全放行</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Fetch tasks and render
+                loadQCTasks();
+            }
+            else if (simState.step === 4) {
+                // Completed! Show Checklist
+                opPanel.innerHTML = `
+                    <div class="celebrate-screen">
+                        <span style="font-size:64px;">🏆</span>
+                        <h3 style="font-size:24px;font-weight:900;color:var(--neon-green);">新人上線實務考核成功</h3>
+                        <p style="font-size:13px;color:var(--text-gray);max-width:320px;">恭喜您！已完全學會「軟管對刷稽核系統」的操作與防錯判定程序，合規考核通過！</p>
+                        <div class="test-checklist" style="text-align:left; width:100%; max-width:360px; background-color:var(--bg-input); border:1px solid var(--border-color); border-radius:12px; padding:20px; margin:10px 0;">
+                            <div class="test-item"><div class="test-chk checked"></div> <span>能說明儲槽與軟管對刷目的</span></div>
+                            <div class="test-item"><div class="test-chk checked"></div> <span>能完成選人員、輸櫃號、掃描SOP</span></div>
+                            <div class="test-item"><div class="test-chk checked"></div> <span>能分辨綠燈成功與紅燈強阻斷</span></div>
+                            <div class="test-item"><div class="test-chk checked"></div> <span>知道錯誤警告時絕對禁止提交</span></div>
+                            <div class="test-item"><div class="test-chk checked"></div> <span>能完成 QC 現場核對與刷卡放行</span></div>
+                        </div>
+                        <button class="action-btn" style="width:100%; max-width:360px; background-color:var(--blue);" onclick="initSimulator()">重置，重跑演練流程</button>
+                    </div>
+                `;
+            }
+        }
+
+        // Action Handlers
+        function checkLoginValid() {
+            const op = document.getElementById("opSelector").value;
+            const truck = document.getElementById("truckInput").value.trim();
+            const btn = document.getElementById("loginSubmitBtn");
+
+            if (op && truck.length >= 4) {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+            }
+        }
+
+        function submitLoginStep() {
+            simState.operator = document.getElementById("opSelector").value;
+            simState.truckNo = document.getElementById("truckInput").value.trim().toUpperCase();
+            
+            // Create a unique Task ID
+            simState.currentTaskId = "TASK_" + Date.now();
+
+            // Create Task in Database (Firebase or LocalStorage)
+            const newTask = {
+                id: simState.currentTaskId,
+                operator: simState.operator,
+                truckNo: simState.truckNo,
+                manifoldCode: "儲槽A",
+                hoseCode: "",
+                status: "pending", // pending, pending_qc, released
+                scanResult: "",
+                createdTime: new Date().toISOString()
+            };
+
+            if (isFirebaseConnected && db) {
+                db.collection("hose_audit_tasks").doc(simState.currentTaskId).set(newTask)
+                .then(() => console.log("Task saved to Firebase Cloud!"))
+                .catch(e => console.error("Error saving task to Cloud:", e));
+            } else {
+                simState.activeTasks.push(newTask);
+                localStorage.setItem("local_tasks", JSON.stringify(simState.activeTasks));
+            }
+
+            // Real-time listener for this specific task to auto-react!
+            if (isFirebaseConnected && db) {
+                db.collection("hose_audit_tasks").doc(simState.currentTaskId).onSnapshot(doc => {
+                    const data = doc.data();
+                    if (data && data.status === "released" && simState.step === 2) {
+                        simState.step = 4;
+                        simState.termState = "complete";
+                        renderTerminal();
+                        renderOpPanel();
+                    }
+                });
+            }
+
+            // Advance to Step 2
+            simState.step = 2;
+            simState.termState = "scanning";
+            
+            renderTerminal();
+            renderOpPanel();
+        }
+
+        function selectScanOption(type) {
+            simState.scanType = type;
+            
+            // Highlight card
+            const errCard = document.getElementById("scanErrCard");
+            const okCard = document.getElementById("scanOkCard");
+            
+            if (type === 'incorrect') {
+                errCard.classList.add("selected");
+                okCard.classList.remove("selected");
+            } else {
+                okCard.classList.add("selected");
+                errCard.classList.remove("selected");
+            }
+
+            document.getElementById("scanTriggerBtn").disabled = false;
+        }
+
+        function runBarcodeScan() {
+            const beamBox = document.getElementById("simBeamBox");
+            
+            // Start scanning visual effect
+            beamBox.className = "scanner-beam-box";
+            
+            setTimeout(() => {
+                if (simState.scanType === 'incorrect') {
+                    beamBox.classList.add("red-alert");
+                    simState.termState = "incorrect_match";
+                    document.getElementById("submitFieldDataBtn").disabled = true;
+
+                    // Write alert block log to database (optional audit trail)
+                    updateTaskDatabase({
+                        hoseCode: "軟管B",
+                        scanResult: "mismatch_blocked"
+                    });
+                } else {
+                    beamBox.classList.add("green-success");
+                    simState.termState = "correct_match";
+                    document.getElementById("submitFieldDataBtn").disabled = false;
+
+                    // Write match success to database
+                    updateTaskDatabase({
+                        hoseCode: "軟管A",
+                        scanResult: "match"
+                    });
+                }
+                renderTerminal();
+            }, 1000);
+        }
+
+        function updateTaskDatabase(updatedFields) {
+            if (isFirebaseConnected && db) {
+                db.collection("hose_audit_tasks").doc(simState.currentTaskId).update(updatedFields)
+                .catch(e => console.error("Error updating Cloud task:", e));
+            } else {
+                simState.activeTasks = simState.activeTasks.map(t => {
+                    if (t.id === simState.currentTaskId) {
+                        return { ...t, ...updatedFields };
+                    }
+                    return t;
+                });
+                localStorage.setItem("local_tasks", JSON.stringify(simState.activeTasks));
+            }
+        }
+
+        function submitFieldData() {
+            updateTaskDatabase({ status: "pending_qc" });
+            simState.step = 3;
+            simState.termState = "qc_portal";
+            renderTerminal();
+            renderOpPanel();
+        }
+
+        // QC Panel Load & Render
+        let selectedQcTaskId = "";
+
+        function loadQCTasks() {
+            const tbody = document.getElementById("qcTaskTableBody");
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">加載資料中...</td></tr>`;
+
+            if (isFirebaseConnected && db) {
+                // Real-time Firestore Sync!
+                db.collection("hose_audit_tasks").orderBy("createdTime", "desc").limit(10).onSnapshot(snapshot => {
+                    tbody.innerHTML = "";
+                    if (snapshot.empty) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-gray);">目前雲端無任何對刷任務，請先由左側建立。</td></tr>`;
+                        return;
+                    }
+                    snapshot.forEach(doc => {
+                        const task = doc.data();
+                        renderSingleQCTaskRow(tbody, task);
+                    });
+                });
+            } else {
+                // LocalStorage Fallback Load
+                tbody.innerHTML = "";
+                if (simState.activeTasks.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-gray);">目前本地無任何對刷任務，請先建立。</td></tr>`;
+                    return;
+                }
+                // Order descending by createdTime
+                const sorted = [...simState.activeTasks].sort((a,b) => new Date(b.createdTime) - new Date(a.createdTime));
+                sorted.forEach(task => {
+                    renderSingleQCTaskRow(tbody, task);
+                });
+            }
+        }
+
+        function renderSingleQCTaskRow(tbody, task) {
+            const tr = document.createElement("tr");
+            tr.dataset.id = task.id;
+            tr.dataset.truck = task.truckNo;
+            tr.onclick = function() { selectQCTask(this); };
+
+            let statusHTML = "";
+            if (task.status === "pending") {
+                statusHTML = `<span class="status-badge pending">作業中...</span>`;
+            } else if (task.status === "pending_qc") {
+                statusHTML = `<span class="status-badge pending_qc">待覆核</span>`;
+            } else if (task.status === "released") {
+                statusHTML = `<span class="status-badge released">已放行</span>`;
+            }
+
+            tr.innerHTML = `
+                <td><strong>${task.truckNo}</strong></td>
+                <td>${task.operator}</td>
+                <td>${task.manifoldCode || "儲槽A"} / ${task.hoseCode || "未完成對刷"}</td>
+                <td>${statusHTML}</td>
+            `;
+
+            tbody.appendChild(tr);
+        }
+
+        function selectQCTask(row) {
+            // Remove previous selection highlights
+            const rows = document.querySelectorAll("#qcTaskTableBody tr");
+            rows.forEach(r => r.classList.remove("selected"));
+
+            row.classList.add("selected");
+            selectedQcTaskId = row.dataset.id;
+
+            document.getElementById("qcSelectedTruckNo").textContent = row.dataset.truck;
+            document.getElementById("qcActionArea").style.display = "flex";
+            document.getElementById("qcStampBadge").classList.remove("show"); // Reset stamp
+
+            // Reset checkboxes
+            document.getElementById("chkDocCheck").checked = false;
+            document.getElementById("qcAuthBtn").disabled = true;
+        }
+
+        function checkQcActionValid() {
+            const chk = document.getElementById("chkDocCheck").checked;
+            document.getElementById("qcAuthBtn").disabled = !chk;
+        }
+
+        function authorizeQCTask() {
+            if (!selectedQcTaskId) return;
+
+            const stamp = document.getElementById("qcStampBadge");
+            stamp.classList.add("show");
+
+            // Update database status to "released"
+            const updatedFields = {
+                status: "released",
+                qcAuthorizedBy: "QC-09 稽核員",
+                qcAuthorizedTime: new Date().toISOString()
+            };
+
+            if (isFirebaseConnected && db) {
+                db.collection("hose_audit_tasks").doc(selectedQcTaskId).update(updatedFields)
+                .then(() => console.log("Task authorized in Cloud!"))
+                .catch(e => console.error("Error authorizing Cloud task:", e));
+            } else {
+                simState.activeTasks = simState.activeTasks.map(t => {
+                    if (t.id === selectedQcTaskId) {
+                        return { ...t, ...updatedFields };
+                    }
+                    return t;
+                });
+                localStorage.setItem("local_tasks", JSON.stringify(simState.activeTasks));
+                loadQCTasks(); // Refresh table
+            }
+
+            setTimeout(() => {
+                simState.step = 4;
+                simState.termState = "complete";
+                renderTerminal();
+                renderOpPanel();
+            }, 1500);
+        }
+
+        // ==================== APP INITIALIZATION ====================
+        window.onload = function() {
+            // Setup Slides
+            createSlideDots();
+            renderSlide(currentSlideIndex);
+            
+            // Setup Simulator
+            initSimulator();
+
+            // Initialize Cloud DB
+            initFirebase();
+        };
+    </script>
+
+<!-- PORTAL_RETURN_BADGE_V1 -->
+<script>
+(function() {
+    var badge = document.createElement('div');
+    badge.id = 'portal-return-badge';
+    badge.innerHTML = '🔙 返回專案大廳';
+    badge.style.position = 'fixed';
+    badge.style.top = '15px';
+    badge.style.right = '15px';
+    badge.style.zIndex = '99999';
+    badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+    badge.style.border = '1px solid #00f2fe';
+    badge.style.color = '#00f2fe';
+    badge.style.padding = '8px 16px';
+    badge.style.borderRadius = '20px';
+    badge.style.fontFamily = 'sans-serif';
+    badge.style.fontSize = '13px';
+    badge.style.fontWeight = 'bold';
+    badge.style.cursor = 'pointer';
+    badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    badge.style.transition = 'all 0.3s ease';
+    
+    badge.onmouseover = function() {
+        badge.style.transform = 'scale(1.05)';
+        badge.style.backgroundColor = '#00f2fe';
+        badge.style.color = '#000';
+        badge.style.boxShadow = '0 0 20px rgba(0, 242, 254, 0.5)';
+    };
+    badge.onmouseout = function() {
+        badge.style.transform = 'scale(1)';
+        badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+        badge.style.color = '#00f2fe';
+        badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    };
+    
+    badge.onclick = function() {
+        if (window.location.hostname.indexOf('netlify') !== -1) {
+            window.location.href = 'https://cerulean-praline-6b314d.netlify.app';
+        } else {
+            window.location.href = '../說明書/index.html';
+        }
+    };
+    
+    // Ensure body exists before appending
+    if (document.body) {
+        document.body.appendChild(badge);
+    } else {
+        window.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(badge);
+        });
+    }
+})();
+</script>
+<!-- PORTAL_RETURN_BADGE_V1_END -->
+
+</body>
+</html>

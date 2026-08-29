@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>鴻勝化學 | 產品製程流程圖系統</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Modern Typography Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <!-- Firebase Compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <!-- Firebase Auto-Init -->
+  <script src="/__/firebase/init.js"></script>
+</head>
+<body>
+
+  <!-- Sidebar Navigation -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">ES</div>
+      <div class="brand-text">
+        <h1>鴻勝化學</h1>
+        <p>槽體製程管控系統</p>
+      </div>
+    </div>
+    
+    <ul class="nav-list" id="navList">
+      <!-- Generated dynamically in app.js -->
+    </ul>
+    
+    <div id="addTabSidebarContainer" style="padding: 0 16px 16px 16px; display: none;">
+      <button class="control-btn" id="addTabBtn" style="width: 100%; justify-content: center; background: rgba(99, 102, 241, 0.1); border: 1.5px solid var(--color-accent); color: var(--color-accent);">
+        <span>➕ 新增產品流程</span>
+      </button>
+    </div>
+    
+    <div class="sidebar-footer">
+      <div class="legend-panel">
+        <div class="legend-item">
+          <span class="legend-dot" style="background-color: var(--color-raw);"></span>
+          <span>原料</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background-color: var(--color-process);"></span>
+          <span>製程 / 調合</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background-color: var(--color-finish);"></span>
+          <span>成品槽</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot" style="background-color: var(--color-offgrade);"></span>
+          <span>格外品 / 下腳料</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Panel -->
+  <main class="main-content">
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <h2 id="topBarTitle">01. I P A 流程圖</h2>
+        <span class="badge" id="totalCapacityBadge" style="background-color: rgba(251, 191, 36, 0.15); color: var(--color-process); font-weight: 700; font-size: 0.8rem; padding: 4px 8px; border-radius: 6px; white-space: nowrap;">共 2850 KL</span>
+        <button class="control-btn" id="renameTabBtn" style="display: none; padding: 4px 8px; font-size: 0.75rem; margin-left: 8px; border-color: var(--color-process); color: var(--color-process); background: transparent;">
+          <span>📝 改名</span>
+        </button>
+        <button class="control-btn" id="editTotalCapacityBtn" style="display: none; padding: 4px 8px; font-size: 0.75rem; margin-left: 4px; border-color: var(--color-process); color: var(--color-process); background: transparent;">
+          <span>📊 修改產能描述</span>
+        </button>
+        <button class="control-btn" id="deleteTabBtn" style="display: none; padding: 4px 8px; font-size: 0.75rem; margin-left: 4px; border-color: var(--color-offgrade); color: var(--color-offgrade); background: transparent;">
+          <span>❌ 刪除</span>
+        </button>
+      </div>
+      
+      <div class="top-bar-right">
+        <span id="activeTanksCount" style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">17 個在線節點</span>
+        <button class="control-btn" id="exportBtn" style="background: rgba(52, 211, 153, 0.1); border: 1.5px solid var(--color-finish); color: var(--color-finish);">
+          <span>📤 匯出備份</span>
+        </button>
+        <button class="control-btn" id="importBtn" style="background: rgba(99, 102, 241, 0.1); border: 1.5px solid var(--color-accent); color: var(--color-accent);">
+          <span>📥 匯入備份</span>
+        </button>
+        <input type="file" id="importFile" accept=".json" style="display: none;" />
+        
+        <!-- Drag & Drop Layout Controls -->
+        <button class="control-btn" id="editModeBtn" style="background: rgba(251, 191, 36, 0.1); border: 1.5px solid var(--color-process); color: var(--color-process);">
+          <span>🔧 編輯模式：關閉</span>
+        </button>
+        <button class="control-btn" id="resetLayoutBtn" style="background: rgba(244, 63, 94, 0.1); border: 1.5px solid var(--color-offgrade); color: var(--color-offgrade); display: none;">
+          <span>🔄 重置本地版面</span>
+        </button>
+        <button class="control-btn" id="syncCloudBtn" style="background: rgba(56, 189, 248, 0.1); border: 1.5px solid var(--color-raw); color: var(--color-raw);">
+          <span>🔐 管理登入</span>
+        </button>
+        <button class="control-btn" id="logoutManagerBtn" style="background: rgba(244, 63, 94, 0.1); border: 1.5px solid var(--color-offgrade); color: var(--color-offgrade); display: none;">
+          <span>🔓 管理登出</span>
+        </button>
+
+        <button class="control-btn active" id="simBtn">
+          <span>⚡ 模擬運作：運行中</span>
+        </button>
+        <button class="control-btn" id="themeBtn">
+          <span>🌙 暗色模式</span>
+        </button>
+      </div>
+    </header>
+    
+    <!-- Canvas Area for Flowchart SVGs -->
+    <div class="canvas-container" id="canvasContainer">
+      <!-- Rendered dynamically in app.js -->
+    </div>
+    
+    <!-- Connection Editor Panel (Shown in Edit Mode) -->
+    <div class="edit-panel" id="editPanel">
+      <div class="edit-panel-header">
+        <h4>🔗 流向與連線編輯器</h4>
+        <button class="close-edit-panel" id="closeEditPanelBtn">×</button>
+      </div>
+      <div class="edit-panel-body">
+        <!-- Edit selected item form (shown when a node/group is clicked in edit mode) -->
+        <div class="edit-section" id="editItemSection" style="display: none; border-color: var(--color-accent);">
+          <h5 id="editItemTitle" style="color: var(--color-accent);">📝 編輯選定節點</h5>
+          <div class="form-group" id="editIdGroup">
+            <label>代號 (ID)：</label>
+            <input type="text" id="editItemId" />
+          </div>
+          <div class="form-group">
+            <label>名稱 (Name)：</label>
+            <input type="text" id="editItemName" />
+          </div>
+          <div class="form-group">
+            <label>容量/說明 (Capacity)：</label>
+            <input type="text" id="editItemCapacity" />
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="action-btn action-btn-primary" id="saveItemBtn" style="flex: 1;">確認修改</button>
+            <button class="action-btn" id="deselectItemBtn" style="background-color: var(--bg-sidebar); border: 1px solid var(--border-subtle); color: var(--text-secondary);">取消</button>
+          </div>
+          <div style="margin-top: 8px;">
+            <button class="action-btn danger" id="deleteItemBtn" style="width: 100%;">❌ 刪除選定項目</button>
+          </div>
+        </div>
+
+        <!-- Edit selected connection form (shown when a connection line is clicked in edit mode) -->
+        <div class="edit-section" id="editConnectionSection" style="display: none; border-color: var(--color-accent);">
+          <h5 id="editConnTitle" style="color: var(--color-accent);">📝 編輯管道流向</h5>
+          <div class="form-group">
+            <label>起點：</label>
+            <select id="editConnFromSelect"></select>
+          </div>
+          <div class="form-group">
+            <label>終點：</label>
+            <select id="editConnToSelect"></select>
+          </div>
+          <div class="form-group">
+            <label>管道標籤 (名稱)：</label>
+            <input type="text" id="editConnLabel" />
+          </div>
+          <div class="form-group" style="margin-top: 15px;">
+            <label>折點路徑管理：</label>
+            <div class="row" style="margin-top: 5px; gap: 8px; display: flex;">
+              <button class="action-btn" id="addConnPtBtn" style="background-color: var(--color-accent); color: white; flex: 1;">點圖新增折點</button>
+              <button class="action-btn danger" id="removeLastConnPtBtn" style="flex: 1;">移除最後折點</button>
+            </div>
+            <div class="row" style="margin-top: 5px; display: flex;">
+              <button class="action-btn" id="clearConnPtsBtn" style="background-color: var(--bg-sidebar); border: 1px solid var(--border-subtle); color: var(--text-secondary); width: 100%;">清除所有折點 (變直管)</button>
+            </div>
+            <div class="hint" style="margin-top: 8px; color: var(--text-secondary); font-size: 11px; line-height: 1.4;">
+              提示：點擊「點圖新增折點」後，直接點選畫布空白處即可在該位置新增一處管道折點，之後您可以按住折點圓柄拖拽移動。
+            </div>
+          </div>
+          <div style="display: flex; gap: 8px; margin-top: 15px;">
+            <button class="action-btn action-btn-primary" id="saveConnBtn" style="flex: 1;">確認修改</button>
+            <button class="action-btn" id="deselectConnBtn" style="background-color: var(--bg-sidebar); border: 1px solid var(--border-subtle); color: var(--text-secondary);">取消</button>
+          </div>
+          <div style="margin-top: 8px;">
+            <button class="action-btn danger" id="deleteConnBtn" style="width: 100%;">❌ 刪除管道連線</button>
+          </div>
+        </div>
+
+        <!-- Add connection form -->
+        <div class="edit-section">
+          <h5>➕ 新增管道流向</h5>
+          <div class="form-group">
+            <label>起點名稱：</label>
+            <select id="connFromSelect"></select>
+          </div>
+          <div class="form-group">
+            <label>終點名稱：</label>
+            <select id="connToSelect"></select>
+          </div>
+          <div class="form-group">
+            <label>管道標籤：</label>
+            <input type="text" id="connLabelInput" placeholder="例如：格外品排料 / 待檢驗" />
+          </div>
+          <button class="action-btn action-btn-primary" id="addConnBtn" style="width: 100%; margin-top: 8px;">新增流向連結</button>
+        </div>
+
+        <!-- Add node/group form -->
+        <div class="edit-section" id="addNodeGroupSection">
+          <h5>➕ 新增儲槽 / 群組</h5>
+          <div class="form-group">
+            <label>新增類別：</label>
+            <select id="addTypeSelect">
+              <option value="node">儲槽 (Node)</option>
+              <option value="group">製程群組 (Stage Group)</option>
+            </select>
+          </div>
+          
+          <!-- Shared/Node Fields -->
+          <div class="form-group">
+            <label>代號 (ID)：</label>
+            <input type="text" id="addNodeId" placeholder="例如：TK-999 或 my-stage" />
+          </div>
+          <div class="form-group">
+            <label>名稱 (Name)：</label>
+            <input type="text" id="addNodeName" placeholder="例如：成品槽D 或 製程區" />
+          </div>
+          <div class="form-group">
+            <label>容量/說明 (Capacity)：</label>
+            <input type="text" id="addNodeCapacity" placeholder="例如：100 KL" />
+          </div>
+          <div class="form-group" id="nodeTypeGroup">
+            <label>儲槽類別：</label>
+            <select id="nodeTypeSelect">
+              <option value="raw">原料 (Raw)</option>
+              <option value="process">製程 (Process)</option>
+              <option value="finish">成品 (Finish)</option>
+              <option value="offgrade">格外品/下腳料 (Offgrade)</option>
+            </select>
+          </div>
+          
+          <!-- Group Specific Fields -->
+          <div id="groupFields" style="display: none;">
+            <div class="form-group">
+              <label>群組寬度 (Width)：</label>
+              <input type="number" id="addGroupWidth" value="180" />
+            </div>
+            <div class="form-group">
+              <label>群組高度 (Height)：</label>
+              <input type="number" id="addGroupHeight" value="240" />
+            </div>
+            <div class="form-group">
+              <label>群組外框類別：</label>
+              <select id="groupTypeSelect">
+                <option value="raw">原料區 (Raw)</option>
+                <option value="process">製程區 (Process)</option>
+                <option value="process-block">實體製程方塊 (Process Block)</option>
+                <option value="finish">成品區 (Finish)</option>
+                <option value="offgrade">下腳料區 (Offgrade)</option>
+              </select>
+            </div>
+          </div>
+          
+          <button class="action-btn action-btn-primary" id="addNodeGroupBtn" style="width: 100%; margin-top: 8px;">確定新增項目</button>
+        </div>
+        
+        <!-- List of current connections with Delete buttons -->
+        <div class="edit-section" style="margin-top: 10px;">
+          <h5 id="toggleConnectionsListBtn" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none;">📋 現有流向清單 <span id="toggleConnArrow">▼</span></h5>
+          <div class="connections-list" id="connectionsList">
+            <!-- Rendered dynamically in app.js -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Detailed Tank Popup Modal Overlay -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">TK-614 - 待驗槽A</h3>
+        <button class="close-btn" id="modalClose">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- Visual Liquid Level cylinder -->
+        <div class="tank-visual-container">
+          <div class="tank-jar">
+            <div class="fluid-level" id="tankVisualLevel" style="height: 45%;">
+              <div class="fluid-wave"></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Details grid -->
+        <div class="modal-details-grid">
+          <div class="detail-item">
+            <div class="detail-label">目前溫度</div>
+            <div class="detail-value" id="detailTemp">28.0 °C</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">槽體壓力</div>
+            <div class="detail-value" id="detailPress">1.12 atm</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">組成成分</div>
+            <div class="detail-value" id="detailComp">待驗異丙醇</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">目前狀態</div>
+            <div class="detail-value" id="detailStatus" style="color: var(--color-process);">吹掃精製中</div>
+          </div>
+          <div class="detail-item" style="grid-column: span 2;">
+            <div class="detail-label">液位 & 容量</div>
+            <div class="detail-value" id="detailCap">45% / 30 KL</div>
+          </div>
+        </div>
+        
+        <!-- Action buttons -->
+        <div class="action-bar">
+          <button class="action-btn action-btn-primary" id="simPurgeBtn">模擬 N2 吹掃放行</button>
+          <button class="action-btn" style="background-color: var(--bg-card); border: 1px solid var(--border-subtle); color: var(--text-primary);" onclick="document.getElementById('modalOverlay').classList.remove('active')">關閉</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Floating AI Chat Widget -->
+  <button id="aiChatToggle" class="ai-chat-btn" title="AI 助理">
+    <span class="ai-chat-icon">🤖</span>
+    <span class="btn-text">AI 助理</span>
+    <span id="aiChatNotification" class="ai-chat-notification"></span>
+  </button>
+  <button id="openLiquidLevelBtn" class="ai-chat-btn" title="液位記錄">
+    <span class="ai-chat-icon">📊</span>
+    <span class="btn-text">液位記錄</span>
+  </button>
+
+  <div id="aiChatWindow" class="ai-chat-window">
+    <div class="ai-chat-header">
+      <div class="ai-chat-header-title">
+        <h4>🤖 ESHINE-AI 流程圖助理</h4>
+        <span id="aiChatHeaderSubtitle" class="ai-chat-header-subtitle">基於 Groq AI</span>
+      </div>
+      <div class="ai-chat-header-actions">
+        <button id="clearChatHeaderBtn" title="清除對話紀錄">🗑️</button>
+        <button id="aiChatSettingsBtn" title="設定 Groq API 金鑰">⚙️</button>
+        <button id="aiChatCloseBtn" title="關閉">×</button>
+      </div>
+    </div>
+
+    <!-- Collapsible Settings Panel -->
+    <div id="aiSettingsPanel" class="ai-settings-panel">
+      <h5>⚙️ AI 助理設定</h5>
+      
+      <div class="form-group">
+        <label for="aiProviderSelect">AI 服務商：</label>
+        <select id="aiProviderSelect">
+          <option value="groq">Groq (極速推理)</option>
+          <option value="gemini">Google Gemini (超大 context / 高限流)</option>
+        </select>
+      </div>
+
+      <!-- Groq Config Fields -->
+      <div id="groqConfigFields">
+        <div class="form-group">
+          <label for="groqApiKeyInput">Groq API Key (gsk_...)：</label>
+          <input type="password" id="groqApiKeyInput" placeholder="請輸入您的 Groq API 金鑰" />
+        </div>
+        <div class="form-group" style="display: none;">
+          <label for="groqModelSelect">AI 模型：</label>
+          <select id="groqModelSelect">
+            <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (推薦)</option>
+            <option value="llama-3.1-8b-instant">llama-3.1-8b-instant (快速)</option>
+            <option value="mixtral-8x7b-32768">mixtral-8x7b-32768</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Gemini Config Fields -->
+      <div id="geminiConfigFields" style="display: none;">
+        <div class="form-group">
+          <label for="geminiApiKeyInput">Gemini API Key：</label>
+          <input type="password" id="geminiApiKeyInput" placeholder="請輸入您的 Gemini API 金鑰" />
+        </div>
+        <div class="form-group" style="display: none;">
+          <label for="geminiModelSelect">AI 模型：</label>
+          <select id="geminiModelSelect">
+            <option value="gemini-2.5-flash">gemini-2.5-flash (推薦，極速)</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro (推理強大)</option>
+          </select>
+        </div>
+      </div>
+
+      <button id="saveAiSettingsBtn" class="action-btn action-btn-primary" style="width: 100%; height: 32px; padding: 0;">儲存設定</button>
+      <div class="hint" style="margin-top: 8px; font-size: 10px; color: var(--text-secondary); line-height: 1.4;">
+        提示：金鑰將僅儲存於您的瀏覽器本地 (localStorage)，直接對接官方 API。若不提供金鑰，系統將以 Groq Demo 模擬模式運作。
+      </div>
+    </div>
+
+    <!-- Chat Messages list -->
+    <div id="aiMessageList" class="ai-message-list">
+      <div class="ai-message assistant">
+        <div class="ai-bubble">
+          您好！我是您的 <strong>ESHINE-AI 流程圖助理</strong>。您可以：
+          <ul style="margin-left: 16px; margin-top: 4px; line-height: 1.5;">
+            <li>詢問目前的槽體狀態（如：「目前有哪些成品槽？」）</li>
+            <li>叫我操作流程圖（如：「幫我新增一個 150 KL 的成品槽，編號 TK-999，並從 check-group-ipa 連接過去」）</li>
+          </ul>
+          請點擊上方 ⚙️ 圖示設定您的 Groq API 金鑰，或直接輸入文字使用模擬 Demo 模式測試！
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Input Area -->
+    <div class="ai-chat-input-area">
+      <textarea id="aiChatInput" placeholder="輸入訊息... (Enter 傳送，Shift+Enter 換行)" rows="1"></textarea>
+      <button id="sendAiMessageBtn">傳送</button>
+    </div>
+  </div>
+
+  <!-- Liquid Level Recording Modal -->
+  <div id="liquidLevelModal" class="modal-overlay">
+    <div class="modal-box" style="max-width:480px;">
+      <div class="modal-header">
+        <h3>📊 液位記錄</h3>
+        <button id="closeLiquidLevelModal" class="modal-close-btn">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="llTabSelect">分頁（廠區）：</label>
+          <select id="llTabSelect"></select>
+        </div>
+        <div class="form-group">
+          <label for="llTankSelect">槽體：</label>
+          <select id="llTankSelect"><option value="">-- 請先選擇分頁 --</option></select>
+        </div>
+        <div class="form-group">
+          <label for="llDate">記錄日期：</label>
+          <input type="date" id="llDate" />
+        </div>
+        <div class="form-group">
+          <label for="llValue">液位 (%)：</label>
+          <input type="number" id="llValue" min="0" max="100" step="0.1" placeholder="例：75.5" />
+        </div>
+        <div class="form-group">
+          <label for="llVolume">實際容量 (KL)：</label>
+          <input type="number" id="llVolume" min="0" step="0.01" placeholder="選填" />
+        </div>
+        <div class="form-group">
+          <label for="llNote">備註：</label>
+          <input type="text" id="llNote" placeholder="選填" />
+        </div>
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button id="saveLiquidLevelBtn" class="action-btn action-btn-primary" style="flex:1;">💾 儲存記錄</button>
+          <button id="viewLiquidLevelBtn" class="action-btn" style="flex:1;">📋 查看紀錄</button>
+        </div>
+        <div style="margin-top:8px;">
+          <button id="importDailyReportBtn" class="action-btn" style="width:100%; background:rgba(99, 102, 241, 0.15); border:1.5px solid var(--color-accent); color:var(--color-accent); font-weight:700;">📥 匯入 Excel/CSV 日報表</button>
+          <input type="file" id="importDailyReportFile" accept=".xlsx,.xlsm,.csv" style="display: none;" />
+        </div>
+      </div>
+      <!-- Records Table -->
+      <div id="llRecordsArea" style="display:none; margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <strong style="font-size:13px;">📋 歷史紀錄</strong>
+          <button id="exportLiquidLevelBtn" class="action-btn" style="padding:4px 10px; font-size:11px;">匯出 CSV</button>
+        </div>
+        <div id="llRecordsTable" style="max-height:220px; overflow-y:auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+
+<!-- PORTAL_RETURN_BADGE_V1 -->
+<script>
+(function() {
+    var badge = document.createElement('div');
+    badge.id = 'portal-return-badge';
+    badge.innerHTML = '🔙 返回專案大廳';
+    badge.style.position = 'fixed';
+    badge.style.top = '15px';
+    badge.style.right = '15px';
+    badge.style.zIndex = '99999';
+    badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+    badge.style.border = '1px solid #00f2fe';
+    badge.style.color = '#00f2fe';
+    badge.style.padding = '8px 16px';
+    badge.style.borderRadius = '20px';
+    badge.style.fontFamily = 'sans-serif';
+    badge.style.fontSize = '13px';
+    badge.style.fontWeight = 'bold';
+    badge.style.cursor = 'pointer';
+    badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    badge.style.transition = 'all 0.3s ease';
+    
+    badge.onmouseover = function() {
+        badge.style.transform = 'scale(1.05)';
+        badge.style.backgroundColor = '#00f2fe';
+        badge.style.color = '#000';
+        badge.style.boxShadow = '0 0 20px rgba(0, 242, 254, 0.5)';
+    };
+    badge.onmouseout = function() {
+        badge.style.transform = 'scale(1)';
+        badge.style.backgroundColor = 'rgba(11, 15, 25, 0.85)';
+        badge.style.color = '#00f2fe';
+        badge.style.boxShadow = '0 0 15px rgba(0, 242, 254, 0.2)';
+    };
+    
+    badge.onclick = function() {
+        if (window.location.hostname.indexOf('netlify') !== -1) {
+            window.location.href = 'https://cerulean-praline-6b314d.netlify.app';
+        } else {
+            window.location.href = '../說明書/index.html';
+        }
+    };
+    
+    // Ensure body exists before appending
+    if (document.body) {
+        document.body.appendChild(badge);
+    } else {
+        window.addEventListener('DOMContentLoaded', function() {
+            document.body.appendChild(badge);
+        });
+    }
+})();
+</script>
+<!-- PORTAL_RETURN_BADGE_V1_END -->
+
+</body>
+</html>
