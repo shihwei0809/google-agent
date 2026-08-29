@@ -4,12 +4,12 @@ import subprocess
 import time
 from PIL import Image, ImageDraw, ImageFont
 
-img_dir = r"C:\GOOGLE ANGET\三合一單網頁架機伺服器\images"
+img_dir = r"C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單網頁架機伺服器\images"
 os.makedirs(img_dir, exist_ok=True)
 
 # 1. Capture Web UI with demo data loaded
-html_with_demo_path = r"C:\GOOGLE ANGET\三合一單網頁架機伺服器\static\index_demo_capture.html"
-orig_html_path = r"C:\GOOGLE ANGET\三合一單網頁架機伺服器\static\index.html"
+html_with_demo_path = r"C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單網頁架機伺服器\static\index_demo_capture.html"
+orig_html_path = r"C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單網頁架機伺服器\static\index.html"
 
 with open(orig_html_path, "r", encoding="utf-8") as f:
     html_code = f.read()

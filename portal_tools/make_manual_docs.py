@@ -332,7 +332,7 @@ def convert_docx_to_pdf(docx_path, pdf_path):
         pythoncom.CoUninitialize()
 
 if __name__ == "__main__":
-    proj_dir = r"C:\GOOGLE ANGET\三合一單網頁架機伺服器"
+    proj_dir = r"C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單網頁架機伺服器"
     md_file = os.path.join(proj_dir, "操作說明書.md")
     docx_file = os.path.join(proj_dir, "三合一單網頁架機伺服器_操作說明書.docx")
     pdf_file = os.path.join(proj_dir, "三合一單網頁架機伺服器_操作說明書.pdf")
