@@ -4,6 +4,29 @@
 
 ---
 
+## 📅 最新交接紀錄 (2026-08-29)
+
+### 🚀 2026-08-29 跨機交接日誌 (Cloudflare Pages 自動建置修復 & 手冊規範落實)
+**今日完成進度：**
+1. **修復 Cloudflare Pages 長達 22 天的建置失敗 (紅燈 ➔ 綠燈)**：
+   - 根本原因：倉庫歷史版本中存在 46 個未配置 URL 的幽靈 Git Submodules，導致 Cloudflare 在 `clone repo` 階段自動執行 `git submodule update` 崩潰（報錯 `fatal: No url found for submodule path 'ai-agent-guide' in .gitmodules`）。
+   - 修復方案：徹底清除 25 個子專案內部的隱藏 `.git`，重新將全部子專案以正規目錄納入 Git 索引（消除全部 mode 160000 幽靈指標），並將 Cloudflare Build Configuration 的建置命令留空、組建輸出目錄設為 `/說明書`。Commit `6596497` 成功發布並部署為 Production 綠燈！
+2. **三合一單網頁架機伺服器手冊升級 (圖文並茂 + 零 Emoji 方框)**：
+   - 使用無頭瀏覽器與 Pillow 自動生成真實 Web SPA 介面截圖與架構圖（`ui_main_interface.png`, `diagram_architecture.png`, `diagram_coa_crop.png`, `diagram_transport_notice.png`）。
+   - 升級 `make_manual_docs.py`，加入全域正則 Emoji 淨化引擎、圖片嵌入（5.8 吋置中）、表格雙色深藍樣式，成功產出零方框亂碼的高質感 `.docx` 與 `.pdf`。
+3. **專案大廳索引與路徑全面對齊**：
+   - 更新 `說明書/README.md` 補齊第二類第 10 項連結。
+   - 更新 `說明書/index.html` 與 `manuals_db.js`，將「三合一單網頁架機伺服器」實體路徑與指令連結精準對齊至 `第二類_生產管理與API串接/三合一單網頁架機伺服器`。
+
+**避坑指南與交接注意事項：**
+- **🚨 嚴禁在子專案內保留 `.git` 目錄**：所有子專案皆屬 `shihwei0809/google-agent` 單一總庫管理。如果在子專案手動執行 `git init` 或從外部 clone，**必須在加入版本庫前刪除子專案內的 `.git` 資料夾**，否則 Git 會將其視為 Submodule (mode 160000)，導致 Cloudflare Pages 自動部署再次報錯崩潰！
+- **Cloudflare Pages 設定規範**：
+  - 倉庫：`shihwei0809/google-agent`
+  - 組建命令：**留空**
+  - 組建輸出目錄：**`說明書`**
+
+---
+
 ## 📅 最新交接紀錄 (2026-08-28)
 
 ### 🚀 2026-08-28 跨機交接日誌 (網頁版三合一單與運輸通知表升級 & BUG修復)
