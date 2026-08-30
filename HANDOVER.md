@@ -558,3 +558,6 @@ window.location.href = "https://google-agent.pages.dev/projects/..."
 ### 2026-08-29 (Part 2)
 - 產出『勝一化工_AI三合一單核對系統導入提案.docx』，聚焦於警衛哨口核對防呆，以避免隔日 FTP 上傳台積電失敗導致客訴。
 - 已將檔案存於根目錄供業務提案使用。
+
+### 2026-08-30
+- 修正前端 Index.html 第三次連續失敗申請放行時，傳遞給後端的參數遺漏 tankNo 導致參數錯位、無法產生 PIN 碼紅色卡片的問題。

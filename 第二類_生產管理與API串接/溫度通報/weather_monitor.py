@@ -41,15 +41,15 @@ LOCAL_NOTIFY_XLSX = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報.xl
 LOCAL_HEARTBEAT_XLSX = os.path.join(SCRIPT_DIR, "本地歷史紀錄_心跳明細.xlsx")
 
 def get_realtime_backup_paths():
-    """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾，返回月度 CSV 與年度 XLSX 及月份 Sheet 名"""
+    """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾，返回季度 CSV 與 XLSX 及每日 Sheet 名"""
     tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
     now = datetime.datetime.now(tz_taiwan)
     year_str = now.strftime('%Y')
-    month_str = now.strftime('%Y-%m') # 例如 "2026-06"
-    sheet_name = f"{now.month}月" # 例如 "6月"
+    quarter = (now.month - 1) // 3 + 1
+    sheet_name = now.strftime('%m月%d日') # 例如 "06月30日"
     
-    csv_file = f"{month_str}_24小時趨勢備份.csv"
-    xlsx_file = f"{year_str}年_24小時趨勢備份.xlsx"
+    csv_file = f"{year_str}-Q{quarter}_24小時趨勢備份.csv"
+    xlsx_file = f"{year_str}-Q{quarter}_24小時趨勢備份.xlsx"
     
     # 優先嘗試寫入 Google Drive 虛擬硬碟 G:\
     g_drive_dir = r"G:\我的雲端硬碟\GOOGLE ANGET\溫度通報\24 小時趨勢備份"
@@ -135,9 +135,122 @@ def append_to_monthly_xlsx(file_path, sheet_name, headers, row_data):
                         max_len = width
             ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
 
+        # 更新總覽工作表
+        update_quarterly_summary(wb)
+
         wb.save(file_path)
     except Exception as e:
         print(f"【本機備份警告】寫入 {os.path.basename(file_path)} 工作表 {sheet_name} 失敗: {e}", file=sys.stderr)
+
+def update_quarterly_summary(wb):
+    from openpyxl.styles import Font, PatternFill, Alignment
+    summary_title = "季度單一匯總表總覽"
+    if summary_title in wb.sheetnames:
+        ws = wb[summary_title]
+        wb.remove(ws)
+    ws = wb.create_sheet(title=summary_title, index=0)
+    
+    header_font = Font(name="微軟正黑體", size=14, bold=True, color="1F4E79")
+    sub_font = Font(name="微軟正黑體", size=11, bold=True)
+    normal_font = Font(name="微軟正黑體", size=11)
+    fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    fill_font = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
+    align = Alignment(horizontal="center", vertical="center")
+    left_align = Alignment(horizontal="left", vertical="center")
+    
+    ws["A1"] = "24小時趨勢備份 — 季度單一匯總表總覽"
+    ws["A1"].font = header_font
+    ws["A3"] = "【匯總統計與月份標註】"
+    ws["A3"].font = sub_font
+    
+    ws.append(["項目", "內容說明"])
+    
+    total_records = 0
+    earliest_time = None
+    latest_time = None
+    month_stats = {}
+    
+    for sheet_name in wb.sheetnames:
+        if sheet_name == summary_title:
+            continue
+        sheet = wb[sheet_name]
+        month_str = sheet_name[:3] if "月" in sheet_name else sheet_name
+        if month_str not in month_stats:
+            month_stats[month_str] = {"count": 0, "temps": [], "start": None, "end": None}
+            
+        for row in sheet.iter_rows(min_row=2, values_only=True):
+            if not row or not row[0]: continue
+            time_str = str(row[0])
+            try:
+                temp = float(row[1])
+                month_stats[month_str]["temps"].append(temp)
+            except:
+                pass
+                
+            total_records += 1
+            if not earliest_time or time_str < earliest_time:
+                earliest_time = time_str
+            if not latest_time or time_str > latest_time:
+                latest_time = time_str
+                
+            if not month_stats[month_str]["start"] or time_str < month_stats[month_str]["start"]:
+                month_stats[month_str]["start"] = time_str
+            if not month_stats[month_str]["end"] or time_str > month_stats[month_str]["end"]:
+                month_stats[month_str]["end"] = time_str
+                
+    ws.append(["資料類型", "24小時環境溫度趨勢備份紀錄"])
+    months_covered = ", ".join(sorted(month_stats.keys()))
+    ws.append(["目前涵蓋月份範圍", f"包含 {months_covered} (共 {len(month_stats)} 個月份)"])
+    ws.append(["總資料筆數", f"{total_records} 筆"])
+    ws.append(["最早記錄時間", earliest_time or "-"])
+    ws.append(["最新記錄時間", latest_time or "-"])
+    
+    for row_idx in range(4, 10):
+        for col_idx in [1, 2]:
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.font = normal_font
+            cell.alignment = left_align
+            if row_idx == 4:
+                cell.fill = fill
+                cell.font = fill_font
+                cell.alignment = align
+                
+    ws.append([])
+    ws.append(["【各月份明細統計】"])
+    ws.cell(row=11, column=1).font = sub_font
+    
+    headers = ["月份", "記錄筆數", "起始記錄時間", "結束記錄時間", "平均溫度 (°C)", "最高溫度 (°C)", "最低溫度 (°C)"]
+    ws.append(headers)
+    
+    for col_idx, _ in enumerate(headers, 1):
+        cell = ws.cell(row=12, column=col_idx)
+        cell.fill = fill
+        cell.font = fill_font
+        cell.alignment = align
+        
+    for m in sorted(month_stats.keys()):
+        stat = month_stats[m]
+        temps = stat["temps"]
+        if not temps: continue
+        avg_temp = round(sum(temps) / len(temps), 1)
+        max_temp = round(max(temps), 1)
+        min_temp = round(min(temps), 1)
+        row = [m, f"{len(temps)} 筆", stat["start"], stat["end"], avg_temp, max_temp, min_temp]
+        ws.append(row)
+        
+        last_row = ws.max_row
+        for col_idx in range(1, len(row) + 1):
+            cell = ws.cell(row=last_row, column=col_idx)
+            cell.font = normal_font
+            cell.alignment = align
+
+    ws.column_dimensions["A"].width = 25
+    ws.column_dimensions["B"].width = 35
+    ws.column_dimensions["C"].width = 25
+    ws.column_dimensions["D"].width = 25
+    ws.column_dimensions["E"].width = 18
+    ws.column_dimensions["F"].width = 18
+    ws.column_dimensions["G"].width = 18
 
 def append_to_local_csv(file_path, headers, row_data):
     """將資料寫入本機 CSV 檔案，若檔案不存在則自動建立並寫入表頭"""
