@@ -561,3 +561,8 @@ window.location.href = "https://google-agent.pages.dev/projects/..."
 
 ### 2026-08-30
 - 修正前端 Index.html 第三次連續失敗申請放行時，傳遞給後端的參數遺漏 tankNo 導致參數錯位、無法產生 PIN 碼紅色卡片的問題。
+
+### 2026-08-31
+- 出貨核對系統：修復 AZ 出貨掃描 QR Code (29碼) 時的格式錯誤 bug (先解開 QR Code，取出實體批號後再進行長度與 7 開頭 / -T0 特徵驗證)。
+- 製作了出貨核對系統 (GAS純雲端版) 程式碼完整註解說明書。
+
