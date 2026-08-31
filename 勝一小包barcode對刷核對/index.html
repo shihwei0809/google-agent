@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>勝一 QR Code 五掃核對系統</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body { font-family: sans-serif; background: #f4f6f9; padding: 10px; margin: 0; }
+    .container { max-width: 600px; margin: 0 auto; }
+    h2 { text-align: center; color: #333; }
+    .card { background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 5px solid #007bff; }
+    .card-title { font-weight: bold; margin-bottom: 10px; font-size: 16px; }
+    .input-group { margin-bottom: 10px; }
+    .input-group label { display: block; font-size: 14px; margin-bottom: 5px; color: #555; }
+    .input-wrapper { display: flex; align-items: center; gap: 5px; }
+    .input-wrapper input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+    .btn-scan { background: #007bff; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+    .btn-clear { background: #dc3545; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+    .btn-check { width: 100%; padding: 15px; background: #28a745; color: white; font-size: 18px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
+    #reader-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; }
+    #reader { width: 90%; max-width: 500px; background: #000; }
+    #close-reader { margin-top: 20px; padding: 10px 20px; background: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;}
+    #result { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; font-weight: bold; text-align: center; font-size: 18px; }
+    .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  </style>
+</head>
+<body>
+
+<div id="reader-modal">
+  <div id="reader"></div>
+  <button id="close-reader" onclick="stopScanner()">關閉相機</button>
+</div>
+
+<div class="container">
+  <h2>勝一 QR Code 五掃核對</h2>
+  
+  <div class="card">
+    <div class="card-title">📦 1. 外包裝 (Packaging)</div>
+    <div class="input-group">
+      <label>外包裝 QR Code</label>
+      <div class="input-wrapper">
+        <input type="text" id="pkg-qr" placeholder="點擊相機掃描或手動輸入">
+        <button class="btn-scan" onclick="startScanner('pkg-qr')">📷</button>
+        <button class="btn-clear" onclick="clearInput('pkg-qr')">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="border-left-color: #fd7e14;">
+    <div class="card-title">🛢️ 2. 桶面 (Drums)</div>
+    <div class="input-group">
+      <label>桶 1 QR Code</label>
+      <div class="input-wrapper">
+        <input type="text" id="drum1-qr" placeholder="點擊相機掃描或手動輸入">
+        <button class="btn-scan" onclick="startScanner('drum1-qr')">📷</button>
+        <button class="btn-clear" onclick="clearInput('drum1-qr')">✕</button>
+      </div>
+    </div>
+    <div class="input-group">
+      <label>桶 2 QR Code</label>
+      <div class="input-wrapper">
+        <input type="text" id="drum2-qr" placeholder="點擊相機掃描或手動輸入">
+        <button class="btn-scan" onclick="startScanner('drum2-qr')">📷</button>
+        <button class="btn-clear" onclick="clearInput('drum2-qr')">✕</button>
+      </div>
+    </div>
+    <div class="input-group">
+      <label>桶 3 QR Code</label>
+      <div class="input-wrapper">
+        <input type="text" id="drum3-qr" placeholder="點擊相機掃描或手動輸入">
+        <button class="btn-scan" onclick="startScanner('drum3-qr')">📷</button>
+        <button class="btn-clear" onclick="clearInput('drum3-qr')">✕</button>
+      </div>
+    </div>
+    <div class="input-group">
+      <label>桶 4 QR Code</label>
+      <div class="input-wrapper">
+        <input type="text" id="drum4-qr" placeholder="點擊相機掃描或手動輸入">
+        <button class="btn-scan" onclick="startScanner('drum4-qr')">📷</button>
+        <button class="btn-clear" onclick="clearInput('drum4-qr')">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-check" onclick="verify()">🚀 開始核對</button>
+
+  <div id="result"></div>
+</div>
+
+<script>
+  let html5QrCode;
+  let currentTarget = '';
+
+  function startScanner(targetId) {
+    currentTarget = targetId;
+    document.getElementById('reader-modal').style.display = 'flex';
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      (decodedText) => {
+        document.getElementById(currentTarget).value = decodedText;
+        stopScanner();
+        autoJump(currentTarget);
+      },
+      (error) => {}
+    ).catch(err => {
+      alert("相機啟動失敗: " + err);
+      stopScanner();
+    });
+  }
+
+  function stopScanner() {
+    if(html5QrCode) {
+      html5QrCode.stop().then(() => {
+        html5QrCode.clear();
+        document.getElementById('reader-modal').style.display = 'none';
+      });
+    } else {
+      document.getElementById('reader-modal').style.display = 'none';
+    }
+  }
+
+  function clearInput(id) {
+    document.getElementById(id).value = '';
+    document.getElementById(id).focus();
+    document.getElementById('result').style.display = 'none';
+  }
+
+  function autoJump(currentId) {
+    const ids = ['pkg-qr', 'drum1-qr', 'drum2-qr', 'drum3-qr', 'drum4-qr'];
+    const idx = ids.indexOf(currentId);
+    if(idx >= 0 && idx < ids.length - 1) {
+      document.getElementById(ids[idx+1]).focus();
+    }
+  }
+
+  function parseQR(text) {
+    // 預期格式: [Identifier 3碼][Prefix 2碼][DUNS 9碼][PPN]@[Lot]+[Serial]
+    // 範例: 25SUN102184893L1185100@22A26K41D1+00001
+    // 外包裝範例: 25SUN102184893L1185100-002@MIXED+30505101
+    
+    // 使用正規表達式解析
+    const regex = /^(.{3})(.{2})(\d{9})(.*?)@([^+]+)\+(.*)$/;
+    const match = text.match(regex);
+    
+    if (match) {
+      return {
+        identifier: match[1],
+        prefix: match[2],
+        duns: match[3],
+        pn: match[4],
+        lot: match[5],
+        serial: match[6],
+        raw: text,
+        valid: true
+      };
+    } else {
+      return { valid: false, raw: text };
+    }
+  }
+
+  function verify() {
+    const pkgText = document.getElementById('pkg-qr').value.trim();
+    const drumTexts = [
+      document.getElementById('drum1-qr').value.trim(),
+      document.getElementById('drum2-qr').value.trim(),
+      document.getElementById('drum3-qr').value.trim(),
+      document.getElementById('drum4-qr').value.trim()
+    ];
+
+    const resultDiv = document.getElementById('result');
+    resultDiv.style.display = 'block';
+    resultDiv.className = '';
+
+    // 1. 數量與完整性檢查
+    if(!pkgText) return showError("請掃描外包裝 QR Code");
+    for(let i=0; i<4; i++) {
+      if(!drumTexts[i]) return showError(`請掃描桶 ${i+1} QR Code`);
+    }
+
+    const pkg = parseQR(pkgText);
+    const drums = drumTexts.map(t => parseQR(t));
+
+    // 檢查解析結果
+    if (!pkg.valid) {
+      return showError("無法解析外包裝條碼格式，請確認是否掃對條碼或格式是否正確。");
+    }
+    for(let i=0; i<4; i++) {
+      if(!drums[i].valid) {
+        return showError(`無法解析桶 ${i+1} 條碼格式，請確認是否掃對條碼。`);
+      }
+    }
+
+    // 5. 重複掃描防呆 (檢查是否掃到同一個桶子)
+    const raws = new Set();
+    for(let i=0; i<4; i++) {
+      if(raws.has(drums[i].raw)) {
+        return showError(`重複掃描錯誤: 桶 ${i+1} 與前面的桶子條碼完全相同`);
+      }
+      raws.add(drums[i].raw);
+    }
+
+    // 2 & 4. DUNS 與 P/N 比對
+    // 外包裝料號可能會有後綴 (如 -002)，我們以桶子的料號為基準去比對外包裝是否包含該料號
+    // 或是直接比對前面幾碼
+    for(let i=0; i<4; i++) {
+      if(drums[i].duns !== pkg.duns) {
+        return showError(`供應商(DUNS)錯誤: 桶 ${i+1} (${drums[i].duns}) 與外包裝 (${pkg.duns}) 不符`);
+      }
+      // 料號比對：外包裝的 P/N 必須包含桶子的 P/N (因為外包裝可能有 -002 後綴)
+      if(!pkg.pn.startsWith(drums[i].pn)) {
+        return showError(`料號錯誤: 桶 ${i+1} (${drums[i].pn}) 與外包裝 (${pkg.pn}) 不符`);
+      }
+    }
+
+    // 3. 批號(Lot) 比對
+    if(pkg.lot.toUpperCase() !== 'MIXED') {
+      for(let i=0; i<4; i++) {
+        if(drums[i].lot !== pkg.lot) {
+          return showError(`批號錯誤: 桶 ${i+1} (${drums[i].lot}) 與外包裝 (${pkg.lot}) 不符`);
+        }
+      }
+    }
+
+    // 6. 板數與桶數邏輯比對 (YZ vs 桶 Serial)
+    // 外包裝 serial (如 30505101) 的最後兩碼 YZ = 板數
+    // 第 YZ 板，桶子的 serial 必須介於 (YZ-1)*4 + 1 到 YZ*4 之間
+    const pkgSerialStr = pkg.serial;
+    if(pkgSerialStr.length >= 2) {
+      const yzStr = pkgSerialStr.slice(-2);
+      const yz = parseInt(yzStr, 10);
+      if(isNaN(yz) || yz <= 0) {
+        return showError(`外包裝流水號解析異常: 無法取得有效板數 (取得: ${yzStr})`);
+      }
+      
+      const expectedMin = (yz - 1) * 4 + 1;
+      const expectedMax = yz * 4;
+      
+      for(let i=0; i<4; i++) {
+        const drumSerialNum = parseInt(drums[i].serial, 10);
+        if(isNaN(drumSerialNum)) {
+          return showError(`桶 ${i+1} 的流水號解析異常: ${drums[i].serial}`);
+        }
+        if(drumSerialNum < expectedMin || drumSerialNum > expectedMax) {
+          return showError(`流水號(板數)不符: 外裝為第 ${yz} 板 (預期桶序號 ${expectedMin}~${expectedMax})，但桶 ${i+1} 序號為 ${drumSerialNum}`);
+        }
+      }
+    } else {
+       return showError(`外包裝流水號過短: ${pkgSerialStr}`);
+    }
+
+    // 成功
+    resultDiv.className = 'success';
+    resultDiv.innerText = "✅ 核對成功！四桶資料與外包裝完全吻合。";
+  }
+
+  function showError(msg) {
+    const resultDiv = document.getElementById('result');
+    resultDiv.className = 'error';
+    resultDiv.innerText = "❌ " + msg;
+  }
+</script>
+</body>
+</html>
