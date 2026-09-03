@@ -1,23 +1,28 @@
-const SPREADSHEET_ID = '1UdTuMJPW8QJ5XAP_ptWvPooEvnLHLaZcLEgYj8qlSPU';
-const MAIN_SHEET_NAME = 'DataStore';
-const ARCHIVE_SHEET_NAME = 'ArchiveStore'; 
+/**
+ * [IPA 崙尾生產排程與進耗存整合系統] 後端控制器
+ * 支援多月份跨月繼承、動態產線配置與雲端備份歷史快照
+ */
+
+const SPREADSHEET_ID = '1aAkQzTlbtStVP27l_MYQwExkbZCRkk8npInIlhifz88';
+const MAIN_SHEET_NAME = 'IPA_DataStore';
+const ARCHIVE_SHEET_NAME = 'IPA_ArchiveStore'; 
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Index')
     .evaluate()
-    .setTitle('IPA專用動態生產排程與進耗存整合系統')
+    .setTitle('IPA 崙尾生產排程與進耗存整合系統')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// 供 Index.html 載入 CSS/JS 範本使用
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
-}
-
 // 取得或建立工作表
 function getSheet(sheetName) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let ss;
+  try {
+    ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  } catch (e) {
+    ss = SpreadsheetApp.getActiveSpreadsheet();
+  }
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
@@ -30,22 +35,18 @@ function getSheet(sheetName) {
   return sheet;
 }
 
-// --- 載入雲端資料 ---
+// 讀取雲端主資料
 function loadCloudData() {
   try {
     const sheet = getSheet(MAIN_SHEET_NAME);
     const data = sheet.getDataRange().getValues();
     const result = {};
     
-    for (let i = 0; i < data.length; i++) {
+    for (let i = 1; i < data.length; i++) {
       const key = String(data[i][0]).trim();
-      if (!key || key === 'Key') continue; 
+      if (!key) continue;
       
       let val = data[i][1];
-      if (key === 'startDateTime') {
-        result[key] = val;
-        continue;
-      }
       try {
         if (typeof val === 'string' && (val.startsWith('{') || val.startsWith('['))) {
           result[key] = JSON.parse(val);
@@ -56,50 +57,24 @@ function loadCloudData() {
         result[key] = val; 
       }
     }
-    
-    // 如果是空資料庫，回傳預設結構
-    if (!result.factories) result.factories = [
-      { id: "factory-1", name: "一廠" },
-      { id: "factory-2", name: "二廠" }
-    ];
-    if (!result.products) result.products = [];
-    if (!result.tanks) result.tanks = [
-      { id: "tk-101", factoryId: "factory-1", name: "TK604A", type: "tank", productId: "" },
-      { id: "tk-102", factoryId: "factory-1", name: "TK604B", type: "tank", productId: "" },
-      { id: "tk-103", factoryId: "factory-1", name: "TK693", type: "tank", productId: "" },
-      { id: "tk-104", factoryId: "factory-1", name: "TK696", type: "tank", productId: "" },
-      { id: "tk-105", factoryId: "factory-1", name: "TK697", type: "tank", productId: "" },
-      { id: "tk-201", factoryId: "factory-2", name: "TK617", type: "tank", productId: "", dedicatedLineId: "line-2-1" },
-      { id: "tk-202", factoryId: "factory-2", name: "TK618", type: "tank", productId: "", dedicatedLineId: "line-2-2" }
-    ];
-    if (!result.lines) result.lines = [
-      { id: "line-1-1", factoryId: "factory-1", name: "一廠產線A" },
-      { id: "line-2-1", factoryId: "factory-2", name: "二廠產線A" },
-      { id: "line-2-2", factoryId: "factory-2", name: "二廠產線B" }
-    ];
-    if (!result.schedules) result.schedules = [];
-    if (!result.transactionLogs) result.transactionLogs = [];
-    // 新增：船隻資料結構
-    if (!result.ships) result.ships = [];
-    
     return result;
   } catch (err) { 
     return { _error: err.toString() }; 
   }
 }
 
-// --- 儲存雲端資料 ---
+// 保存雲端主資料
 function saveCloudData(payload) {
   try {
     const sheet = getSheet(MAIN_SHEET_NAME);
     const data = sheet.getDataRange().getValues();
+
     Object.keys(payload).forEach(key => {
       let value = payload[key];
       if (value === undefined || value === null) value = '';
       if (typeof value === 'number' && isNaN(value)) value = '';
       if (typeof value === 'object') value = JSON.stringify(value);
-      
-      if (key === 'startDateTime' && value !== '') value = "'" + value; 
+
       let rowIndex = -1;
       for (let i = 0; i < data.length; i++) {
         if (String(data[i][0]).trim() === key) {
@@ -107,15 +82,12 @@ function saveCloudData(payload) {
           break;
         }
       }
-      let targetCell;
+
       if (rowIndex !== -1) {
-        targetCell = sheet.getRange(rowIndex, 2);
+        sheet.getRange(rowIndex, 2).setValue(value);
       } else {
-        sheet.appendRow([key, '']);
-        targetCell = sheet.getRange(sheet.getLastRow(), 2);
+        sheet.appendRow([key, value]);
       }
-      if (key === 'startDateTime') targetCell.setNumberFormat('@');
-      targetCell.setValue(value);
     });
     
     SpreadsheetApp.flush();
@@ -125,8 +97,7 @@ function saveCloudData(payload) {
   }
 }
 
-// --- 歷史紀錄備份與還原功能 ---
-// 1. 備份當下資料
+// 備份快照紀錄
 function archiveData(payload, archiveName) {
   try {
     const sheet = getSheet(ARCHIVE_SHEET_NAME);
@@ -141,7 +112,7 @@ function archiveData(payload, archiveName) {
   }
 }
 
-// 2. 取得歷史紀錄清單
+// 取得備份紀錄清單
 function getArchiveList() {
   try {
     const sheet = getSheet(ARCHIVE_SHEET_NAME);
@@ -151,13 +122,13 @@ function getArchiveList() {
     for (let i = 1; i < data.length; i++) {
       if (data[i][0]) {
         list.push({
-          id: String(data[i][0]),      
-          time: String(data[i][1]),    
+          id: String(data[i][0]),
+          time: String(data[i][1]),
           dataStr: String(data[i][2])  
         });
       }
     }
-    return list.reverse(); // 最新的排在最前面
+    return list.reverse();
   } catch (err) {
     return [];
   }

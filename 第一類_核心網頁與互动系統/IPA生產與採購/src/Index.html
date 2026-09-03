@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>IPA 崙尾生產排程與進耗存整合系統 (產銷當日原料重量起算版)</title>
+  <title>IPA 崙尾生產排程與進耗存整合系統 (白屏修復與首日動態版)</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -12,7 +12,7 @@
   <style>
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
-    .sticky-col { position: sticky; left: 0; z-index: 20; background: #f8fafc; border-right: 2px solid #cbd5e1; min-width: 150px; white-space: nowrap; }
+    .sticky-col { position: sticky; left: 0; z-index: 20; background: #f8fafc; border-right: 2px solid #cbd5e1; min-width: 140px; white-space: nowrap; }
     .table-input { width: 100%; border: 1px solid transparent; background: transparent; text-align: center; font-weight: bold; }
     .table-input:hover, .table-input:focus { border: 1px solid #3b82f6; background: #eff6ff; outline: none; border-radius: 4px; }
   </style>
@@ -435,7 +435,7 @@
       }, [firstSalesDayIndex, activeMonthObj]);
 
       /**
-       * 🟢 雙核心計算引擎 (產銷模式由當日原料重量起算 + 機台日常實體扣扣 + 100% 跨月繼承)
+       * 🟢 雙核心計算引擎
        */
       const calculatedData = useMemo(() => {
         const result = {}; 
@@ -457,20 +457,6 @@
           });
 
           for (let dayIdx = 0; dayIdx < daysCount; dayIdx++) {
-            // 🌟【產銷模式首日原料起算核心】：若該日有輸入「產銷當日原料重量 (T)」，則當日共用池與原料槽直接以此原料重量為基準起算！
-            const p1SalesRawWeight = parseFloat((salesPlanData[mKey] && salesPlanData[mKey]['plant1'] && salesPlanData[mKey]['plant1'][dayIdx])) || 0;
-            const p2SalesRawWeight = parseFloat((salesPlanData[mKey] && salesPlanData[mKey]['plant2'] && salesPlanData[mKey]['plant2'][dayIdx])) || 0;
-
-            if (calcMode === 'SALES' && p1SalesRawWeight > 0) {
-              const sharedTanks = plant1SharedPoolTanks;
-              if (sharedTanks.length > 0) {
-                const perTankWeight = p1SalesRawWeight / sharedTanks.length;
-                sharedTanks.forEach(st => {
-                  currentStock[st.id] = perTankWeight;
-                });
-              }
-            }
-
             let dailyPlant1PoolDemand = 0; 
             let dailyDedicatedDemand = {}; 
             let dailyScrapGen = {};
@@ -478,27 +464,42 @@
             tanksList.filter(t => t.type === 'SUPPLY').forEach(st => dailyDedicatedDemand[st.id] = 0);
             tanksList.filter(t => t.type === 'SCRAP').forEach(st => dailyScrapGen[st.id] = 0);
 
-            // 每天實際機台製程運作耗用的原料量 (Flow * 24 / Yield%)
-            lines.forEach(line => {
-              if (line.enabled) {
-                const flow = parseFloat(line.flow) || 0;
-                const lineYieldPct = (parseFloat(line.yieldRate) || 93.4) / 100;
-                
-                const rawNeed = (flow * 24) / lineYieldPct;
-                const scrapOut = rawNeed - (flow * 24);
+            const p1SalesTarget = parseFloat((salesPlanData[mKey] && salesPlanData[mKey]['plant1'] && salesPlanData[mKey]['plant1'][dayIdx])) || 0;
+            const p2SalesTarget = parseFloat((salesPlanData[mKey] && salesPlanData[mKey]['plant2'] && salesPlanData[mKey]['plant2'][dayIdx])) || 0;
 
-                const src = line.source || 'SHARED_POOL';
-                if (src === 'SHARED_POOL') {
-                  dailyPlant1PoolDemand += rawNeed;
-                } else {
-                  if (!dailyDedicatedDemand[src]) dailyDedicatedDemand[src] = 0;
-                  dailyDedicatedDemand[src] += rawNeed;
-                }
+            if (calcMode === 'SALES') {
+              dailyPlant1PoolDemand = p1SalesTarget;
 
-                const scrapT = line.scrap;
-                if (scrapT && dailyScrapGen[scrapT] !== undefined) dailyScrapGen[scrapT] += scrapOut;
+              const p2Lines = lines.filter(l => l.plantId === 'plant2' && l.enabled);
+              if (p2Lines.length > 0) {
+                const perLineSales = p2SalesTarget / p2Lines.length;
+                p2Lines.forEach(line => {
+                  const src = line.source || 'TK617';
+                  if (dailyDedicatedDemand[src] !== undefined) dailyDedicatedDemand[src] += perLineSales;
+                });
               }
-            });
+            } else {
+              lines.forEach(line => {
+                if (line.enabled) {
+                  const flow = parseFloat(line.flow) || 0;
+                  const lineYieldPct = parseFloat(line.yieldRate) / 100 || 0.934;
+                  
+                  const rawNeed = (flow * 24) / lineYieldPct;
+                  const scrapOut = rawNeed - (flow * 24);
+
+                  const src = line.source || 'SHARED_POOL';
+                  if (src === 'SHARED_POOL') {
+                    dailyPlant1PoolDemand += rawNeed;
+                  } else {
+                    if (!dailyDedicatedDemand[src]) dailyDedicatedDemand[src] = 0;
+                    dailyDedicatedDemand[src] += rawNeed;
+                  }
+
+                  const scrapT = line.scrap;
+                  if (scrapT && dailyScrapGen[scrapT] !== undefined) dailyScrapGen[scrapT] += scrapOut;
+                }
+              });
+            }
 
             // 1. 一廠共用原料池試算與扣減
             let poolStartSum = 0;
@@ -540,8 +541,7 @@
               start: poolStartSum,
               in: poolInSum,
               trans: poolTransSum,
-              use: dailyPlant1PoolDemand, // 每日機台實體耗料 (如 36T/33T)
-              salesRawWeight: p1SalesRawWeight,
+              use: dailyPlant1PoolDemand,
               end: poolEndSum,
               isShortage: poolEndSum < (safetyStock || 50)
             });
@@ -583,7 +583,6 @@
             });
           }
 
-          // 🌟 跨月連續傳承：將月底最後一天的動態結存，精確傳承給下個月第 1 天！
           previousMonthEndingStock = { ...currentStock };
         });
 
@@ -603,11 +602,11 @@
           rows.push([]);
           rows.push(["=== 🔗 彰濱一廠共用原料池 (合計) ==="]);
           const pSum = calculatedData.poolSummary[activeMonthKey];
-          rows.push(["共用池總期初量", ...displayDaysArr.map(i => Math.round(pSum[i].start))]);
-          rows.push(["製程耗用原料總量(-)", ...displayDaysArr.map(i => Math.round(pSum[i].use))]);
+          rows.push(["共用池總期初", ...displayDaysArr.map(i => Math.round(pSum[i].start))]);
           rows.push(["共用池調撥(+)", ...displayDaysArr.map(i => pSum[i].trans)]);
           rows.push(["共用池進貨(+)", ...displayDaysArr.map(i => pSum[i].in)]);
-          rows.push(["共用池當日剩餘結存", ...displayDaysArr.map(i => Math.round(pSum[i].end))]);
+          rows.push(["一廠當日產銷計畫需求(-)", ...displayDaysArr.map(i => Math.round(pSum[i].use))]);
+          rows.push(["共用池結存剩餘", ...displayDaysArr.map(i => Math.round(pSum[i].end))]);
         }
 
         activePlantTanks.forEach(t => {
@@ -642,6 +641,7 @@
         document.body.removeChild(link);
       };
 
+      // 判斷是否資料已載入完成
       if (!isDataLoaded) return (
         <div className="flex flex-col h-screen items-center justify-center font-bold text-slate-500 bg-slate-100">
           <span className="text-4xl mb-4 animate-bounce">🛢️</span>
@@ -681,7 +681,7 @@
               </div>
 
               <div className="flex items-center space-x-3">
-                <button onClick={handleClearAll} className="bg-red-50 hover:bg-red-400 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white" title="重置為預設設定">
+                <button onClick={handleClearAll} className="bg-red-500 hover:bg-red-400 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white" title="重置為預設設定">
                   🗑️ 重置預設設定
                 </button>
                 <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
@@ -993,7 +993,7 @@
                           onClick={() => setSideTab("sales")}
                           className={`flex-1 py-1.5 text-center font-bold text-xs border-b-2 transition-all ${sideTab === "sales" ? "border-purple-600 text-purple-700 bg-purple-50/50" : "border-transparent text-slate-500 hover:text-slate-700"}`}
                         >
-                          📦 產銷當日原料重量 (T)
+                          📦 產銷當日計畫重量 (T)
                         </button>
                       </div>
 
@@ -1027,11 +1027,11 @@
                       ) : (
                         <div className="space-y-3">
                           <div className="p-2 bg-purple-50 border border-purple-200 rounded flex justify-between items-center text-xs">
-                            <span className="font-bold text-purple-900">產銷當日原料重量 (T)：</span>
+                            <span className="font-bold text-purple-900">產銷目標排產重量 (T)：</span>
                             <span className="font-bold text-purple-700">{activeMonthObj.label} - {activePlantObj.name}</span>
                           </div>
 
-                          <p className="text-[11px] text-slate-500">輸入當日產銷提供的實體原料重量（例如在 8 日輸入 500 噸，下方表格會<b>直接以 500 噸作為 8 日起算原料</b>）。</p>
+                          <p className="text-[11px] text-slate-500">輸入當月排產起算日的重量目標（例如在 6 日填寫重量，下方表格會<b>自動從 6 日開始顯示至月底</b>）。</p>
                           
                           <div className="max-h-[160px] overflow-y-auto border rounded bg-slate-50 p-1">
                             <div className="grid grid-cols-5 gap-1 text-center">
@@ -1094,7 +1094,7 @@
                     <div className="flex items-center space-x-2">
                       <span className={`px-2.5 py-1 rounded text-xs font-bold ${calcMode === 'SALES' ? 'bg-purple-100 text-purple-800 border border-purple-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}`}>
                         {calcMode === 'SALES' 
-                          ? `📦 產銷排產模式 (產銷原料重量起算，動態從 ${activeMonthObj.month}/${firstSalesDayIndex + 1} 日起裁切)` 
+                          ? `📦 產銷排產模式 (已動態從 ${activeMonthObj.month}/${firstSalesDayIndex + 1} 日起裁切顯示)` 
                           : '🏭 全月流速滿載模式 (1日~月底)'}
                       </span>
                       <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 shadow transition-colors flex items-center">
@@ -1115,8 +1115,8 @@
                           </span>
                           <span className="text-[11px] font-normal text-indigo-200">
                             {calcMode === 'SALES' 
-                              ? `★ 產銷排產模式：從 ${activeMonthObj.month}/${firstSalesDayIndex + 1} 日產銷原料重量起算，機台每日實體扣耗，連續精確`
-                              : '★ 滿載模式：呈現全月 1 日至月底之機台極限滿載預估'}
+                              ? `★ 已從產銷排產首日 (${activeMonthObj.month}/${firstSalesDayIndex + 1} 日) 動態裁切呈現在此`
+                              : '★ 呈現全月 1 日至月底之產線極限滿載預估'}
                           </span>
                         </div>
 
@@ -1137,38 +1137,18 @@
                               </tr>
                             </thead>
                             <tbody>
-                              {/* 1. 共用池總期初量 (在 9/8 當天為输入的產銷原料 500 噸；9/9 遞延為 464 噸) */}
                               <tr className="bg-white">
                                 <td className="sticky-col p-2 pl-4 text-left font-bold border-b text-indigo-900">共用池總期初量</td>
                                 {displayDaysArr.map((i) => (
                                   <td key={i} className="p-1 border-b font-bold text-indigo-800">{Math.round(calculatedData.poolSummary[activeMonthKey][i].start)}</td>
                                 ))}
                               </tr>
-
-                              {/* 2. ⚙️ 製程耗用原料總量 (-) (機台實體耗用量，例如 36 噸 / 33 噸) */}
-                              <tr className="bg-orange-100/70 font-black">
-                                <td className="sticky-col p-2 pl-4 text-left font-black border-b text-orange-950">
-                                  ⚙️ 製程耗用原料總量 (-)
-                                </td>
-                                {displayDaysArr.map((i) => {
-                                  const rawUse = Math.round(calculatedData.poolSummary[activeMonthKey][i].use || 0);
-                                  return (
-                                    <td key={i} className="p-1 border-b text-sm font-black text-orange-900">
-                                      {rawUse > 0 ? rawUse : 0}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-
-                              {/* 3. 共用池調撥 (+) */}
                               <tr>
                                 <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700">共用池調撥 (+)</td>
                                 {displayDaysArr.map((i) => (
                                   <td key={i} className="p-1 border-b font-bold text-blue-600">{Math.round(calculatedData.poolSummary[activeMonthKey][i].trans)}</td>
                                 ))}
                               </tr>
-
-                              {/* 4. 共用池進貨 (+) */}
                               <tr>
                                 <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700">共用池進貨 (+)</td>
                                 {displayDaysArr.map((i) => (
@@ -1176,9 +1156,17 @@
                                 ))}
                               </tr>
 
-                              {/* 5. 共用池當日剩餘結存 */}
+                              <tr className="bg-orange-100/50">
+                                <td className="sticky-col p-2 pl-4 text-left font-bold text-orange-800 border-b">
+                                  {calcMode === 'SALES' ? '當日產銷計畫需求 (-)' : '一廠總產線耗用 (-)'}
+                                </td>
+                                {displayDaysArr.map((i) => (
+                                  <td key={i} className="p-1 border-b text-orange-700 font-bold">{Math.round(calculatedData.poolSummary[activeMonthKey][i].use)}</td>
+                                ))}
+                              </tr>
+
                               <tr className="bg-indigo-100 font-black">
-                                <td className="sticky-col p-2.5 pl-4 text-left text-indigo-950 border-b">共用池當日剩餘結存</td>
+                                <td className="sticky-col p-2.5 pl-4 text-left text-indigo-950 border-b">共用池總剩餘餘額</td>
                                 {displayDaysArr.map((i) => {
                                   const d = calculatedData.poolSummary[activeMonthKey][i];
                                   return (

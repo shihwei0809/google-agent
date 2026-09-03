@@ -591,3 +591,8 @@ window.location.href = "https://google-agent.pages.dev/projects/..."
 - å‡ºè²¨æ ¸å°ç³»çµ±ï¼šä¿®å¾© AZ å‡ºè²¨æŽƒæ QR Code (29ç¢¼) æ™‚çš„æ ¼å¼éŒ¯èª¤ bug (å…ˆè§£é–‹ QR Codeï¼Œå–å‡ºå¯¦é«”æ‰¹è™Ÿå¾Œå†é€²è¡Œé•·åº¦èˆ‡ 7 é–‹é ­ / -T0 ç‰¹å¾µé©—è­‰)ã€‚
 - è£½ä½œäº†å‡ºè²¨æ ¸å°ç³»çµ± (GASç´”é›²ç«¯ç‰ˆ) ç¨‹å¼ç¢¼å®Œæ•´è¨»è§£èªªæ˜Žæ›¸ã€‚
 
+
+## 2026-09-03 ¥æ±µ¨Æ¶µ
+1. ¸Ñ¨M¤T¦X¤@³æ¥»¦aºÝ¬Û¾÷Åv­­°ÝÃD (¹ê§@ HTTPS ÀG¹D»P Chrome «H¥ô IP ¤è®×)¡C
+2. ­×¥¿ COA ·Ó¤ù¿ëÃÑ¦r¦ê®e¿ù²v¡A¼W¥[ BATCH/RAW µ¥¦h­ÓÃöÁä¦r¥H¦]À³ÃèÀY¼Ò½k±¡ªp¡C
+3. ­×´_ GAS ¸}¥»¯Êº|¤j¬A¸¹¾É­Pªº SyntaxError ¥H¤Î triggerSupervisorOverrideAlert ¯Ê¤Ö true °Ñ¼ÆµLªkµo°e PIN ½Xªº°ÝÃD¡C
