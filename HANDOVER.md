@@ -4,6 +4,21 @@
 
 ---
 
+## 📅 最新交接紀錄 (2026-09-03)
+
+### 🚀 2026-09-03 跨機交接日誌 (三合一單本地端相機權限、COA辨識容錯與GAS警報修復)
+**今日完成進度：**
+1. **解決三合一單本地端相機權限問題**：
+   - 處理 HTTPS 憑證問題與 Chrome 信任本機 IP 設置，確保相機掃描正常啟動。
+2. **COA 圖片文字辨識容錯率優化**：
+   - 增加 BATCH / RAW 多字元容錯與模糊匹配，大幅提升 COA 截圖自動辨識成功率。
+3. **修復 GAS 啟動監聽器與主管放行警報**：
+   - 消除語法錯誤 (SyntaxError)。
+   - 修復 `triggerSupervisorOverrideAlert` 缺少 `true` 參數導致無法發送主管 PIN 碼卡片的問題。
+   - 程式碼已發布上線，並已打標發布版本 `v本地三合一-v1.10.1`。
+
+---
+
 ## 📅 最新交接紀錄 (2026-08-31)
 
 ### 🚀 2026-08-31 跨機交接日誌 (N系列出貨核對代碼重整、小包Barcode系統與三合一單優化)
@@ -591,8 +606,3 @@ window.location.href = "https://google-agent.pages.dev/projects/..."
 - 出貨核對系統：修復 AZ 出貨掃描 QR Code (29碼) 時的格式錯誤 bug (先解開 QR Code，取出實體批號後再進行長度與 7 開頭 / -T0 特徵驗證)。
 - 製作了出貨核對系統 (GAS純雲端版) 程式碼完整註解說明書。
 
-
-## 2026-09-03 �汵�ƶ�
-1. �ѨM�T�X�@�楻�a�ݬ۾��v�����D (��@ HTTPS �G�D�P Chrome �H�� IP ���)�C
-2. �ץ� COA �Ӥ����Ѧr��e���v�A�W�[ BATCH/RAW ���h������r�H�]�����Y�ҽk���p�C
-3. �״_ GAS �}���ʺ|�j�A���ɭP�� SyntaxError �H�� triggerSupervisorOverrideAlert �ʤ� true �ѼƵL�k�o�e PIN �X�����D�C
