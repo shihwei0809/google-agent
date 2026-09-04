@@ -118,9 +118,7 @@
         <button id="btnAll" class="btn btn-green btn-large" onclick="generateAllZip()">🚀 一鍵產生所有報表 (三合一單 + 運輸通知表 ZIP)</button>
         <button id="btnSingle3in1" class="btn btn-blue btn-large" onclick="generate3in1Single()">📄 單獨產生三合一單 Excel</button>
         <button id="btnSingleTransport" class="btn btn-blue btn-large" onclick="generateTransportExcel()">📄 單獨產生運輸通知表 Excel</button>
-        <button class="btn btn-orange" onclick="fillDemoData()" title="快速填入範例批號測試產出">🧪 快速填入測試資料</button>
     </div>
-    <div id="actionMsg" style="text-align: center; margin-top: 15px; font-weight: bold; font-size: 15px;"></div>
 </div>
 
 <!-- ================= EXCEL 匯入預覽 Modal ================= -->
@@ -309,13 +307,13 @@
 
             tr.innerHTML = `
                 <td>${rowIdx}</td>
-                <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="10" placeholder="輸入10碼批號" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
+                <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="10" placeholder="26814E3191" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
                 <td><input type="text" class="read-only" id="tank_${rowIdx}" readonly placeholder="自動槽號"></td>
-                <td><input type="text" id="loc_${rowIdx}" placeholder="如 15P5" oninput="onLocChange(${rowIdx})"></td>
+                <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
                 <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照"></td>
                 <td><input type="date" id="date_${rowIdx}"></td>
-                <td><input type="text" id="time_${rowIdx}" placeholder="如 1400"></td>
-                <td><input type="text" id="mod_${rowIdx}" placeholder="如 1600" style="color:#C00000; font-weight:bold;"></td>
+                <td><input type="text" id="time_${rowIdx}" placeholder="1400"></td>
+                <td><input type="text" id="mod_${rowIdx}" placeholder="1600" style="color:#C00000; font-weight:bold;"></td>
                 <td><button class="btn btn-red" style="padding: 2px 6px; font-size:11px;" onclick="clearRow(${rowIdx})">清空</button></td>
             `;
             tbody.appendChild(tr);
@@ -980,40 +978,8 @@
         }
     }
 
-    function showActionMsg(msg, color) {
-        const el = document.getElementById("actionMsg");
-        if (el) {
-            el.innerHTML = msg;
-            el.style.color = color === "green" ? "#2E7D32" : (color === "red" ? "#C00000" : "#1565C0");
-        }
-    }
-
-    function fillDemoData() {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById("batch_1").value = "26903E3181";
-        onBatchChange(1);
-        document.getElementById("loc_1").value = "15P5";
-        onLocChange(1);
-        document.getElementById("date_1").value = today;
-        document.getElementById("time_1").value = "1400";
-        document.getElementById("mod_1").value = "1600";
-
-        document.getElementById("batch_2").value = "26903E3051";
-        onBatchChange(2);
-        document.getElementById("loc_2").value = "15P6";
-        onLocChange(2);
-        document.getElementById("date_2").value = today;
-        document.getElementById("time_2").value = "1400";
-
-        showActionMsg("✅ 已成功填入第 1 列 (15P5) 與第 2 列 (15P6) 測試資料！現在點擊下方按鈕即可立即產生報表！", "green");
-    }
-
     // 🚀 一鍵一次全產生打包 ZIP
     async function generateAllZip() {
-        const btn = document.getElementById("btnAll");
-        const originalText = btn ? btn.innerHTML : "";
-        showActionMsg("", "blue");
-
         const total = document.getElementById("tableBody").children.length;
         const records = [];
 
@@ -1027,15 +993,11 @@
 
             if (batch || loc) {
                 if (batch.length !== 10) {
-                    const err = `⚠️ 第 ${i} 列的批號「${batch}」長度錯誤！必須剛好為 10 碼（目前 ${batch.length} 碼）。`;
-                    showActionMsg(err, "red");
-                    alert(err);
+                    alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10 碼。`);
                     return;
                 }
                 if (!SERVER_MAPPING[loc]) {
-                    const err = `⚠️ 第 ${i} 列的地點「${loc}」不存在於地點對照表中！`;
-                    showActionMsg(err, "red");
-                    alert(err);
+                    alert(`第 ${i} 項的地點「${loc}」不存在於地點對照表中！`);
                     return;
                 }
                 records.push({
@@ -1050,10 +1012,7 @@
         }
 
         if (records.length === 0) {
-            const err = "⚠️ 表格中尚未輸入任何資料！請在上方欄位輸入 10 碼批號（如 26903E3181）與地點（如 15P5），或點擊「🧪 快速填入測試資料」！";
-            showActionMsg(err, "red");
-            alert(err);
-            document.getElementById("batch_1").focus();
+            alert("請至少輸入一筆有效的排程資料！");
             return;
         }
 
@@ -1091,7 +1050,6 @@
                         msg = `HTTP 錯誤碼: ${res.status}`;
                     }
                 }
-                showActionMsg(msg, "red");
                 alert(msg);
                 return;
             }
@@ -1106,26 +1064,13 @@
             a.click();
             a.remove();
 
-            const succ = "🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！";
-            showActionMsg(succ, "green");
-            alert(succ);
+            alert("🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！");
         } catch(e) {
-            const err = `連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`;
-            showActionMsg(err, "red");
-            alert(err);
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
+            alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
         }
     }
 
     async function generate3in1Single() {
-        const btn = document.getElementById("btnSingle3in1");
-        const originalText = btn ? btn.innerHTML : "";
-        showActionMsg("", "blue");
-
         const total = document.getElementById("tableBody").children.length;
         const records = [];
 
@@ -1137,15 +1082,11 @@
 
             if (batch || loc) {
                 if (batch.length !== 10) {
-                    const err = `⚠️ 第 ${i} 列的批號「${batch}」長度錯誤！必須剛好為 10 碼（目前 ${batch.length} 碼）。`;
-                    showActionMsg(err, "red");
-                    alert(err);
+                    alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10 碼。`);
                     return;
                 }
                 if (!SERVER_MAPPING[loc]) {
-                    const err = `⚠️ 第 ${i} 列的地點「${loc}」不存在於地點對照表中！`;
-                    showActionMsg(err, "red");
-                    alert(err);
+                    alert(`第 ${i} 項的地點「${loc}」不存在於地點對照表中！`);
                     return;
                 }
                 records.push({
@@ -1158,20 +1099,11 @@
         }
 
         if (records.length === 0) {
-            const err = "⚠️ 表格中尚未輸入任何資料！請在上方欄位輸入 10 碼批號（如 26903E3181）與地點（如 15P5），或點擊「🧪 快速填入測試資料」！";
-            showActionMsg(err, "red");
-            alert(err);
-            document.getElementById("batch_1").focus();
+            alert("請至少輸入一筆有效的排程資料！");
             return;
         }
 
         try {
-            if (btn) {
-                btn.disabled = true;
-                btn.innerHTML = "⏳ 正在產生三合一單，請稍候...";
-            }
-            showActionMsg("⏳ 正在與主機通訊並產生三合一單 Excel，請稍候...", "blue");
-
             const res = await fetch("/api/generate_all_zip", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1194,7 +1126,6 @@
                         msg = `HTTP 錯誤碼: ${res.status}`;
                     }
                 }
-                showActionMsg(msg, "red");
                 alert(msg);
                 return;
             }
@@ -1209,18 +1140,9 @@
             a.click();
             a.remove();
 
-            const succ = "🎉 單獨產生三合一單成功！瀏覽器已開始自動下載 ZIP 壓縮檔！";
-            showActionMsg(succ, "green");
-            alert(succ);
+            alert("🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！");
         } catch(e) {
-            const err = `連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`;
-            showActionMsg(err, "red");
-            alert(err);
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
+            alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
         }
     }
 
