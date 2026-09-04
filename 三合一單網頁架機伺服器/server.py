@@ -47,6 +47,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(BASE_DIR, "台積電槽車barcode三合一單-範本.xlsx")
 MAPPING_PATH = os.path.join(BASE_DIR, "地點代號對照表.xlsx")
 
+def get_all_mapping_file_paths():
+    return [
+        os.path.join(BASE_DIR, "地點代號對照表.xlsx"),
+        os.path.abspath(os.path.join(BASE_DIR, "..", "三合一單自動產生器", "地點代號對照表.xlsx")),
+        os.path.abspath(os.path.join(BASE_DIR, "..", "勝一三合一單產生系統", "地點代號對照表.xlsx")),
+    ]
+
 def load_location_mapping():
     mapping = {
         "15P5": "E1550155A",
@@ -62,13 +69,70 @@ def load_location_mapping():
                 if row and len(row) >= 2 and row[0] and row[1]:
                     k = str(row[0]).strip().upper()
                     v = str(row[1]).strip()
-                    if "地點" in k or "代號" in k or "SHORT" in k:
+                    if any(kw in k for kw in ("地點", "代號", "SHORT", "LOCATION", "KEY", "簡稱")):
                         continue
                     mapping[k] = v
             wb.close()
         except Exception as e:
             print(f"警告: 讀取地點對照表失敗: {e}")
     return mapping
+
+def save_location_mapping_to_excel(loc: str, code: str):
+    loc = loc.strip().upper()
+    code = code.strip().upper()
+    paths = get_all_mapping_file_paths()
+    saved_count = 0
+    for file_path in paths:
+        try:
+            if os.path.exists(file_path):
+                wb = openpyxl.load_workbook(file_path)
+                ws = wb.active
+                updated = False
+                for r in range(2, ws.max_row + 1):
+                    val = ws.cell(row=r, column=1).value
+                    if val is not None and str(val).strip().upper() == loc:
+                        ws.cell(row=r, column=2, value=code)
+                        updated = True
+                        break
+                if not updated:
+                    ws.append([loc, code])
+                wb.save(file_path)
+                wb.close()
+                saved_count += 1
+            else:
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                wb = openpyxl.Workbook()
+                ws = wb.active
+                ws.title = "工作表1"
+                ws.append(["短地點", "長代號"])
+                ws.append([loc, code])
+                wb.save(file_path)
+                wb.close()
+                saved_count += 1
+        except Exception as e:
+            print(f"寫入地點對照表至 {file_path} 失敗: {e}")
+    return saved_count
+
+def delete_location_from_excel(loc: str):
+    loc = loc.strip().upper()
+    paths = get_all_mapping_file_paths()
+    for file_path in paths:
+        if os.path.exists(file_path):
+            try:
+                wb = openpyxl.load_workbook(file_path)
+                ws = wb.active
+                target_row = None
+                for r in range(2, ws.max_row + 1):
+                    val = ws.cell(row=r, column=1).value
+                    if val is not None and str(val).strip().upper() == loc:
+                        target_row = r
+                        break
+                if target_row:
+                    ws.delete_rows(target_row, 1)
+                    wb.save(file_path)
+                wb.close()
+            except Exception as e:
+                print(f"自 {file_path} 刪除地點失敗: {e}")
 
 def extract_tank_from_batch(batch_no: str) -> str:
     batch = batch_no.strip().upper()
@@ -77,6 +141,27 @@ def extract_tank_from_batch(batch_no: str) -> str:
     if batch.endswith("J1"):
         return batch[5:8]
     return batch[5:9]
+
+def normalize_time_str(raw):
+    """
+    將時間字串統一為 4 碼純數字 (如 0900, 1400, 1630)，排除日期與星期字串。
+    """
+    if raw is None or raw == "":
+        return ""
+    if hasattr(raw, "hour") and hasattr(raw, "minute"):
+        return f"{raw.hour:02d}{raw.minute:02d}"
+    s = str(raw).strip()
+    if not s:
+        return ""
+    import re
+    m = re.search(r'(\d{1,2}):(\d{2})', s)
+    if m:
+        return f"{int(m.group(1)):02d}{int(m.group(2)):02d}"
+    if len(s) == 4 and s.isdigit():
+        return s
+    if len(s) == 3 and s.isdigit():
+        return "0" + s
+    return s
 
 def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
     new_wb = openpyxl.Workbook()
@@ -154,6 +239,51 @@ app = FastAPI(title="台積電槽車 Barcode 三合一單專用架機伺服器")
 def get_mapping():
     mapping = load_location_mapping()
     return JSONResponse({"status": "success", "count": len(mapping), "data": mapping})
+
+@app.post("/api/save_location")
+async def api_save_location(request: Request):
+    try:
+        data = await request.json()
+        loc = str(data.get("loc", "")).strip().upper()
+        code = str(data.get("code", "")).strip().upper()
+        if not loc or not code:
+            raise HTTPException(status_code=400, detail="地點簡稱與長代號均不得為空！")
+        
+        save_location_mapping_to_excel(loc, code)
+        mapping = load_location_mapping()
+        return JSONResponse({
+            "status": "success",
+            "message": f"地點「{loc}」對應代碼「{code}」已成功回寫儲存至主機端對照表！",
+            "loc": loc,
+            "code": code,
+            "count": len(mapping),
+            "data": mapping
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"回寫地點至電腦端失敗: {e}")
+
+@app.post("/api/delete_location")
+async def api_delete_location(request: Request):
+    try:
+        data = await request.json()
+        loc = str(data.get("loc", "")).strip().upper()
+        if not loc:
+            raise HTTPException(status_code=400, detail="請指定欲刪除的地點簡稱！")
+        
+        delete_location_from_excel(loc)
+        mapping = load_location_mapping()
+        return JSONResponse({
+            "status": "success",
+            "message": f"地點「{loc}」已成功自電腦端對照表移除！",
+            "count": len(mapping),
+            "data": mapping
+        })
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"刪除地點失敗: {e}")
 
 def generate_transport_workbook(items, mat_no="L12C53161"):
     wb = openpyxl.Workbook()
@@ -261,8 +391,8 @@ def generate_transport_workbook(items, mat_no="L12C53161"):
         cell_a3 = ws.cell(row=r3, column=c1, value="IPA")
         cell_a3.font = openpyxl_font_dark_blue_b14
         
-        time_val = item.get("time", "").strip() if item.get("time") else ""
-        mod_time_val = item.get("modTime", "").strip() if item.get("modTime") else ""
+        time_val = normalize_time_str(item.get("time", ""))
+        mod_time_val = normalize_time_str(item.get("modTime", ""))
         
         ws.merge_cells(start_row=r3, start_column=c2, end_row=r3, end_column=c3)
         ws.cell(row=r3, column=c2, value="預計到廠時間")

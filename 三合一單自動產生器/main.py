@@ -179,6 +179,38 @@ def split_date_and_time(raw_val):
 
     return val_str, ""
 
+def normalize_time_str(raw):
+    """
+    將各種時間格式 (如 09:00, 9:00, 09:00:00, Sat Dec 30 1899 09:00:00, 0.375, 900)
+    一律精準轉換為 4 碼時間 (如 '0900', '1400')，絕不夾帶日期或星期文字。
+    """
+    if raw is None or raw == "":
+        return ""
+    if hasattr(raw, "hour") and hasattr(raw, "minute"):
+        return f"{raw.hour:02d}{raw.minute:02d}"
+    s = str(raw).strip()
+    if not s:
+        return ""
+    try:
+        f = float(s)
+        if 0 < f < 1:
+            total_minutes = round(f * 24 * 60)
+            h = (total_minutes // 60) % 24
+            m = total_minutes % 60
+            return f"{h:02d}{m:02d}"
+        if 0 <= f < 2400 and len(s) in (3, 4) and s.isdigit():
+            return s.zfill(4)
+    except ValueError:
+        pass
+    m = re.search(r'(\d{1,2}):(\d{2})', s)
+    if m:
+        return f"{int(m.group(1)):02d}{int(m.group(2)):02d}"
+    if len(s) == 4 and s.isdigit():
+        return s
+    if len(s) == 3 and s.isdigit():
+        return "0" + s
+    return ""
+
 def normalize_date_str(raw):
     if not raw:
         return ""
@@ -1460,8 +1492,8 @@ class App(tk.Tk):
                             l_val = str(get_c(loc_col) or "").strip().upper()
                             d_val = get_c(date_col)
                             t_val = str(get_c(tank_col) or "").strip()
-                            tm_val = str(get_c(time_col) or "").strip()
-                            mt_val = str(get_c(mod_time_col) or "").strip()
+                            tm_val = normalize_time_str(get_c(time_col))
+                            mt_val = normalize_time_str(get_c(mod_time_col))
                             if len(b_val) != 10 or not re.search(r'[0-9]', b_val):
                                 for cell in row:
                                     cs = str(cell or "").strip().upper()
@@ -1552,8 +1584,8 @@ class App(tk.Tk):
                             l_val = str(get_cell_val(loc_col) or "").strip().upper()
                             d_val = get_cell_val(date_col)
                             t_val = str(get_cell_val(tank_col) or "").strip()
-                            time_val = str(get_cell_val(time_col) or "").strip()
-                            mt_val = str(get_cell_val(mod_time_col) or "").strip()
+                            time_val = normalize_time_str(get_cell_val(time_col))
+                            mt_val = normalize_time_str(get_cell_val(mod_time_col))
                             cust_val = str(get_cell_val(cust_col) or "").strip()
 
                             # 若預設欄位非 10 碼批號，全列搜尋 10 碼英數混合批號
@@ -1590,13 +1622,11 @@ class App(tk.Tk):
                             if not is_valid_tank:
                                 t_val = get_tank_from_batch(b_val)
 
-                            # 格式化時間 (如 0830 -> 08:30)
+                            # 格式化時間 (統一為 4 碼如 0900)
                             t_final = time_val
                             if isinstance(d_val, datetime) and not t_final:
-                                hm = d_val.strftime("%H:%M")
-                                if hm != "00:00": t_final = hm
-                            elif t_final and len(t_final) == 4 and t_final.isdigit():
-                                t_final = f"{t_final[:2]}:{t_final[2:]}"
+                                hm = f"{d_val.hour:02d}{d_val.minute:02d}"
+                                if hm != "0000": t_final = hm
 
                             records.append({
                                 "sheet": sheet_name,
@@ -1706,8 +1736,8 @@ class App(tk.Tk):
                         clean_tank = ""
 
                     if d_pure or l_str or clean_tank:
-                        clean_t = t_final if t_final not in ("4300", "6 支", "None") else ""
-                        clean_mt = str(mt_val).strip() if mt_val and str(mt_val).strip() not in ("4300", "6 支", "None") else ""
+                        clean_t = normalize_time_str(t_final) if t_final not in ("4300", "6 支", "None") else ""
+                        clean_mt = normalize_time_str(mt_val) if mt_val and str(mt_val).strip() not in ("4300", "6 支", "None") else ""
                         records.append({
                             "batch": "",
                             "tank": clean_tank,

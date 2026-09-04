@@ -13,7 +13,7 @@
         h1 { color: #002060; margin-top: 0; font-size: 24px; border-bottom: 3px solid #002060; padding-bottom: 10px; }
         .subtitle { color: #555; font-size: 14px; margin-bottom: 20px; }
         
-        .status-box { background: #E8F5E9; border-left: 5px solid #2E7D32; padding: 12px 15px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; color: #1B5E20; font-weight: bold; }
+        .status-box { background: #E8F5E9; border-left: 5px solid #2E7D32; padding: 10px 18px; margin-bottom: 20px; border-radius: 6px; font-size: 14px; color: #1B5E20; font-weight: bold; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
         .toolbar { display: flex; justify-content: space-between; align-items: center; background: #F8F9FA; padding: 12px 15px; border-radius: 8px; border: 1px solid #E0E0E0; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
         
         .btn { padding: 8px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
@@ -170,6 +170,62 @@
     </div>
 </div>
 
+<!-- ================= 地點代號維護 Modal ================= -->
+<div class="modal-overlay" id="locationModal">
+    <div class="modal-box" style="width: 780px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span>📍 地點代號對照表維護 (即時回寫電腦端 Excel)</span>
+            <button onclick="closeLocationModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: #666; font-weight: bold;">✕</button>
+        </div>
+        <div style="font-size: 13px; color: #1B5E20; margin-bottom: 12px; line-height: 1.5; background: #E8F5E9; padding: 10px 14px; border-radius: 6px; border-left: 4px solid #2E7D32;">
+            💡 <strong>線上回寫說明：</strong>在此新增或修改的地點，將會<strong>即時回寫儲存至主機電腦端「地點代號對照表.xlsx」</strong>！電腦端與所有線上使用者皆立即同步生效，無需前往主機手動開 Excel。
+        </div>
+
+        <!-- 輸入區域 -->
+        <div style="background: #F8F9FA; border: 1px solid #DDD; padding: 12px 15px; border-radius: 8px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+            <div style="flex: 1; min-width: 140px;">
+                <label style="font-weight: bold; font-size: 13px; color: #002060; display: block; margin-bottom: 4px;">廠區地點 (短代號)：</label>
+                <input type="text" id="inputLocShort" placeholder="例如: 18P4" style="width: 100%; padding: 7px; font-weight: bold; text-transform: uppercase;">
+            </div>
+            <div style="flex: 1.5; min-width: 180px;">
+                <label style="font-weight: bold; font-size: 13px; color: #002060; display: block; margin-bottom: 4px;">條碼長代號 (Full Code)：</label>
+                <input type="text" id="inputLocCode" placeholder="例如: EF180184A" style="width: 100%; padding: 7px; font-weight: bold; text-transform: uppercase; color: #7B1FA2;">
+            </div>
+            <div>
+                <button class="btn btn-green" style="padding: 7px 18px;" onclick="saveLocationToServer()">💾 立即新增/更新並回寫</button>
+            </div>
+        </div>
+
+        <div id="locationMsgBox" style="display: none; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; font-weight: bold;"></div>
+
+        <!-- 搜尋與清單 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <span style="font-weight: bold; font-size: 14px; color: #002060;">📋 目前主機對照清單 (共 <span id="locCountBadge">0</span> 筆)：</span>
+            <input type="text" id="locSearchInput" placeholder="🔍 快速搜尋地點或代號..." oninput="onLocSearchInput()" style="width: 220px; padding: 5px 8px; font-size: 13px; border: 1px solid #CCC; border-radius: 4px;">
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; max-height: 320px; border: 1px solid #DDD; border-radius: 6px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                <thead style="position: sticky; top: 0; background: #002060; color: white;">
+                    <tr>
+                        <th style="width: 50px; padding: 6px;">項次</th>
+                        <th style="padding: 6px;">廠區地點 (短代號)</th>
+                        <th style="padding: 6px;">條碼長代號 (Full Code)</th>
+                        <th style="width: 140px; padding: 6px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="locationListBody">
+                    <!-- 動態生成地點項目 -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="modal-footer" style="margin-top: 15px; display: flex; justify-content: flex-end; padding-top: 10px; border-top: 1px solid #EEE;">
+            <button class="btn btn-blue" onclick="closeLocationModal()">關閉視窗</button>
+        </div>
+    </div>
+</div>
+
 
 <script>
     const DEFAULT_FALLBACK_MAPPING = {
@@ -288,12 +344,14 @@
             .then(res => {
                 if (res.status === "success" && res.data) {
                     SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, res.data);
-                    document.getElementById("statusBox").innerText = `✅ 已成功連線伺服器對照表！共載入 ${res.count} 筆地點對照碼。`;
+                    document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${res.count} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
+                    renderLocationTable();
                 }
             })
             .catch(err => {
                 SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING);
-                document.getElementById("statusBox").innerText = "ℹ️ 雲端/離線展示模式：已啟用內建常用地點代號對照表。";
+                document.getElementById("statusBox").innerHTML = `<span>ℹ️ 雲端/離線展示模式：已啟用內建常用地點代號對照表。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護</button>`;
+                renderLocationTable();
             });
     }
 
@@ -310,7 +368,7 @@
                 <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="10" placeholder="26814E3191" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
                 <td><input type="text" class="read-only" id="tank_${rowIdx}" readonly placeholder="自動槽號"></td>
                 <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
-                <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照"></td>
+                <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照" onclick="handleLongCodeClick(${rowIdx})"></td>
                 <td><input type="date" id="date_${rowIdx}"></td>
                 <td><input type="text" id="time_${rowIdx}" placeholder="1400"></td>
                 <td><input type="text" id="mod_${rowIdx}" placeholder="1600" style="color:#C00000; font-weight:bold;"></td>
@@ -354,13 +412,217 @@
     function onLocChange(idx) {
         const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
         document.getElementById(`loc_${idx}`).value = locVal;
+        const longEl = document.getElementById(`long_${idx}`);
 
         if (SERVER_MAPPING[locVal]) {
-            document.getElementById(`long_${idx}`).value = SERVER_MAPPING[locVal];
+            longEl.value = SERVER_MAPPING[locVal];
+            longEl.style.color = "#7B1FA2";
+            longEl.style.cursor = "default";
+            longEl.title = "";
         } else if (locVal) {
-            document.getElementById(`long_${idx}`).value = "❌ 未知代號";
+            longEl.value = "❌ 未知代號 (點此回寫新增)";
+            longEl.style.color = "#D32F2F";
+            longEl.style.cursor = "pointer";
+            longEl.title = "點擊開啟新增視窗，並將此地點回寫至電腦端 Excel";
         } else {
-            document.getElementById(`long_${idx}`).value = "";
+            longEl.value = "";
+            longEl.style.color = "#7B1FA2";
+            longEl.style.cursor = "default";
+            longEl.title = "";
+        }
+    }
+
+    function handleLongCodeClick(idx) {
+        const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
+        if (locVal && !SERVER_MAPPING[locVal]) {
+            openLocationModal(locVal);
+        }
+    }
+
+    // ================= 地點代號管理與電腦端回寫 =================
+    function openLocationModal(prefillLoc = "") {
+        const modal = document.getElementById("locationModal");
+        if (!modal) return;
+        modal.style.display = "flex";
+        
+        const shortInput = document.getElementById("inputLocShort");
+        const codeInput = document.getElementById("inputLocCode");
+        const msgBox = document.getElementById("locationMsgBox");
+        msgBox.style.display = "none";
+
+        if (prefillLoc) {
+            shortInput.value = prefillLoc.trim().toUpperCase();
+            codeInput.value = SERVER_MAPPING[shortInput.value] || "";
+            codeInput.focus();
+        } else {
+            shortInput.value = "";
+            codeInput.value = "";
+            shortInput.focus();
+        }
+
+        renderLocationTable();
+    }
+
+    function closeLocationModal() {
+        const modal = document.getElementById("locationModal");
+        if (modal) modal.style.display = "none";
+    }
+
+    function onLocSearchInput() {
+        const q = document.getElementById("locSearchInput").value.trim().toUpperCase();
+        renderLocationTable(q);
+    }
+
+    function renderLocationTable(filter = "") {
+        const tbody = document.getElementById("locationListBody");
+        const badge = document.getElementById("locCountBadge");
+        if (!tbody) return;
+
+        const keys = Object.keys(SERVER_MAPPING).sort();
+        if (badge) badge.innerText = keys.length;
+
+        let filteredKeys = keys;
+        if (filter) {
+            filteredKeys = keys.filter(k => k.includes(filter) || (SERVER_MAPPING[k] && SERVER_MAPPING[k].toUpperCase().includes(filter)));
+        }
+
+        if (filteredKeys.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#999;">查無符合的地點或代號</td></tr>`;
+            return;
+        }
+
+        let html = "";
+        filteredKeys.forEach((k, idx) => {
+            const v = SERVER_MAPPING[k] || "";
+            html += `
+                <tr style="border-bottom: 1px solid #EEE;">
+                    <td style="text-align:center; padding:6px; color:#888;">${idx + 1}</td>
+                    <td style="text-align:center; padding:6px; font-weight:bold; color:#002060;">${k}</td>
+                    <td style="text-align:center; padding:6px; font-family:Consolas, monospace; font-weight:bold; color:#7B1FA2;">${v}</td>
+                    <td style="text-align:center; padding:6px;">
+                        <button class="btn btn-blue" style="padding:2px 8px; font-size:11px; margin-right:4px;" onclick="editLocInModal('${k}', '${v}')">帶入</button>
+                        <button class="btn btn-red" style="padding:2px 8px; font-size:11px;" onclick="deleteLocationFromServer('${k}')">刪除</button>
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = html;
+    }
+
+    function editLocInModal(loc, code) {
+        document.getElementById("inputLocShort").value = loc;
+        document.getElementById("inputLocCode").value = code;
+        document.getElementById("inputLocCode").focus();
+    }
+
+    async function saveLocationToServer() {
+        const loc = document.getElementById("inputLocShort").value.trim().toUpperCase();
+        const code = document.getElementById("inputLocCode").value.trim().toUpperCase();
+        const msgBox = document.getElementById("locationMsgBox");
+
+        if (!loc) {
+            alert("請輸入廠區地點簡稱（例如：18P4）！");
+            document.getElementById("inputLocShort").focus();
+            return;
+        }
+        if (!code) {
+            alert("請輸入條碼長代號（例如：EF180184A）！");
+            document.getElementById("inputLocCode").focus();
+            return;
+        }
+
+        msgBox.style.display = "block";
+        msgBox.style.background = "#E3F2FD";
+        msgBox.style.color = "#0D47A1";
+        msgBox.innerHTML = "⏳ 正在回寫儲存至主機電腦端 Excel...";
+
+        try {
+            const res = await fetch("/api/save_location", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ loc, code })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || `HTTP ${res.status}`);
+            }
+
+            const data = await res.json();
+            SERVER_MAPPING[loc] = code;
+            if (data.data) {
+                SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, data.data);
+            }
+
+            // 即時更新畫面上所有包含此地點的列
+            const total = document.getElementById("tableBody").children.length;
+            for (let i = 1; i <= total; i++) {
+                const locInput = document.getElementById(`loc_${i}`);
+                if (locInput && locInput.value.trim().toUpperCase() === loc) {
+                    onLocChange(i);
+                }
+            }
+
+            msgBox.style.background = "#E8F5E9";
+            msgBox.style.color = "#1B5E20";
+            msgBox.innerHTML = `✅ 成功！地點「${loc}」(${code}) 已成功回寫並永久儲存至電腦端 Excel！`;
+
+            document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${Object.keys(SERVER_MAPPING).length} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
+
+            renderLocationTable();
+        } catch (e) {
+            msgBox.style.background = "#FFEBEE";
+            msgBox.style.color = "#C62828";
+            msgBox.innerHTML = `❌ 回寫電腦端失敗：${e.message}`;
+        }
+    }
+
+    async function deleteLocationFromServer(loc) {
+        if (!confirm(`確定要將地點「${loc}」自電腦端 Excel 永久刪除嗎？`)) return;
+
+        const msgBox = document.getElementById("locationMsgBox");
+        msgBox.style.display = "block";
+        msgBox.style.background = "#E3F2FD";
+        msgBox.style.color = "#0D47A1";
+        msgBox.innerHTML = `⏳ 正在自主機 Excel 刪除地點「${loc}」...`;
+
+        try {
+            const res = await fetch("/api/delete_location", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ loc })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || `HTTP ${res.status}`);
+            }
+
+            const data = await res.json();
+            delete SERVER_MAPPING[loc];
+            if (data.data) {
+                SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, data.data);
+            }
+
+            const total = document.getElementById("tableBody").children.length;
+            for (let i = 1; i <= total; i++) {
+                const locInput = document.getElementById(`loc_${i}`);
+                if (locInput && locInput.value.trim().toUpperCase() === loc) {
+                    onLocChange(i);
+                }
+            }
+
+            msgBox.style.background = "#FFF3E0";
+            msgBox.style.color = "#E65100";
+            msgBox.innerHTML = `🗑️ 已將地點「${loc}」自電腦端 Excel 刪除。`;
+
+            document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${Object.keys(SERVER_MAPPING).length} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
+
+            renderLocationTable();
+        } catch (e) {
+            msgBox.style.background = "#FFEBEE";
+            msgBox.style.color = "#C62828";
+            msgBox.innerHTML = `❌ 刪除失敗：${e.message}`;
         }
     }
 
@@ -380,12 +642,21 @@
             let batchVal = "";
             let locVal = "";
             let dateVal = "";
+            let timeVal = "";
 
             items.forEach(item => {
                 const upper = item.toUpperCase().trim();
                 // 如果是槽號 (如 E309, T305) 則略過，因為批號輸入時會自動計算
                 if (upper.length <= 5 && (upper.startsWith('E') || upper.startsWith('T') || upper.startsWith('P')) && /\d/.test(upper)) {
                     return;
+                }
+
+                // 檢查是否為時間 (如 09:00, 0900, 1400, 16:30)
+                if ((upper.includes(':') || (/^\d{4}$/.test(upper) && (upper.startsWith('0') || upper.startsWith('1') || upper.startsWith('2')))) && !dateVal.includes(upper) && upper !== batchVal && !timeVal) {
+                    let normTime = normalizeTimeStr(item);
+                    if (normTime) {
+                        timeVal = normTime;
+                    }
                 }
                 
                 // 檢查是否為日期 (包含 / 或 - 且有數字)
@@ -398,7 +669,7 @@
                 }
             });
 
-            if (batchVal || locVal || dateVal) {
+            if (batchVal || locVal || dateVal || timeVal) {
                 if (currentIdx > document.getElementById("tableBody").children.length) {
                     addMoreRows(5);
                 }
@@ -409,6 +680,9 @@
                 if (locVal) {
                     document.getElementById(`loc_${currentIdx}`).value = locVal;
                     onLocChange(currentIdx);
+                }
+                if (timeVal) {
+                    document.getElementById(`time_${currentIdx}`).value = timeVal;
                 }
                 if (dateVal) {
                     // 嘗試轉換日期為 YYYY-MM-DD
@@ -670,6 +944,49 @@
         return str;
     }
 
+    function normalizeTimeStr(raw) {
+        if (!raw && raw !== 0) return "";
+
+        // 1. JS Date 物件 (SheetJS cellDates: true 產生的 Date，包含 1899-12-30)
+        if (raw instanceof Date) {
+            let h = raw.getHours();
+            let m = raw.getMinutes();
+            return `${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}`;
+        }
+
+        let str = String(raw).trim();
+        if (!str) return "";
+
+        // 2. Excel 小數時間序列 (如 0.375 -> 0900)
+        let num = Number(str);
+        if (!isNaN(num) && num > 0 && num < 1) {
+            let totalMinutes = Math.round(num * 24 * 60);
+            let h = Math.floor(totalMinutes / 60) % 24;
+            let m = totalMinutes % 60;
+            return `${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}`;
+        }
+
+        // 3. 符合 HH:MM 或 HH:MM:SS (包含 Sat Dec 30 1899 09:00:00)
+        let mTime = str.match(/(\d{1,2}):(\d{2})/);
+        if (mTime) {
+            let h = String(mTime[1]).padStart(2, '0');
+            let m = String(mTime[2]).padStart(2, '0');
+            return `${h}${m}`;
+        }
+
+        // 4. 純 4 碼數字 (如 "0900", "1400")
+        if (/^\d{4}$/.test(str)) {
+            return str;
+        }
+
+        // 5. 3 碼數字 (如 "900" -> "0900")
+        if (/^\d{3}$/.test(str)) {
+            return "0" + str;
+        }
+
+        return "";
+    }
+
     function cleanLocationStr(loc) {
         if (!loc) return "";
         let s = String(loc).trim().toUpperCase();
@@ -752,8 +1069,8 @@
                         let locVal = String(row[locCol] || "").trim().toUpperCase();
                         let dateVal = dateCol !== -1 ? row[dateCol] : "";
                         let tankVal = tankCol !== -1 ? String(row[tankCol] || "").trim() : "";
-                        let timeVal = timeCol !== -1 ? String(row[timeCol] || "").trim() : "";
-                        let modTimeVal = modTimeCol !== -1 ? String(row[modTimeCol] || "").trim() : "";
+                        let timeVal = timeCol !== -1 ? normalizeTimeStr(row[timeCol]) : "";
+                        let modTimeVal = modTimeCol !== -1 ? normalizeTimeStr(row[modTimeCol]) : "";
                         let custVal = custCol !== -1 ? String(row[custCol] || "").trim() : "";
 
                         // 如果指定欄位不是有效 10 碼批號，在整列搜尋符合 10 碼英數混合字串 (如 26817E3051, 26731E44J1)
@@ -924,7 +1241,8 @@
             li.style.borderBottom = "1px solid #EEE";
             const dateStr = rec.date ? `日期: ${rec.date}` : `無日期`;
             const sheetTag = rec.sheet ? `[${rec.sheet}] ` : ``;
-            li.innerText = `[${(idx+1).toString().padStart(2, '0')}] ${sheetTag}${dateStr} | 批號: ${rec.batch.padEnd(11, ' ')} | 槽號: ${(rec.tank || '無').padEnd(5, ' ')} | 地點: ${rec.loc || '無'}`;
+            const timeStr = rec.time ? ` | 時間: ${rec.time}` : ``;
+            li.innerText = `[${(idx+1).toString().padStart(2, '0')}] ${sheetTag}${dateStr}${timeStr} | 批號: ${rec.batch.padEnd(11, ' ')} | 槽號: ${(rec.tank || '無').padEnd(5, ' ')} | 地點: ${rec.loc || '無'}`;
             list.appendChild(li);
         });
     }
@@ -1195,8 +1513,8 @@
                     let cleanLoc = l_raw.replace(/台積電?/g, '').replace(/新竹/g, '').replace(/台中/g, '').replace(/台南/g, '').replace(/廠/g, '').replace(/[-_\s\r\n]/g, '').trim();
                     let normDate = normalizeDateStr(d_raw);
                     let cleanTank = tank_raw.replace(/[-_\s\r\n]/g, '').trim();
-                    let cleanTime = t_raw.replace(/[-_\s\r\n]/g, '').trim();
-                    let cleanModTime = mt_raw.replace(/[-_\s\r\n]/g, '').trim();
+                    let cleanTime = normalizeTimeStr(t_raw);
+                    let cleanModTime = normalizeTimeStr(mt_raw);
 
                     // 防呆過濾：排除固定樣式文字
                     if (cleanTime === "4300" || cleanTime.includes("支")) cleanTime = "";
