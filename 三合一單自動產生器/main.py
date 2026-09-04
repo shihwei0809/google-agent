@@ -1822,11 +1822,12 @@ class App(tk.Tk):
                         error_msgs.append(f"⚠️ 警告: 批號 {batch_no} 未在截圖找到，已留白處理！")
 
                     date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
-                    base_filename = f"{date_prefix}{safe_loc}_台積電槽車barcode三合一單.xlsx"
+                    tank_part = f"{tank_no} " if tank_no else ""
+                    base_filename = f"{date_prefix}{tank_part}{safe_loc}台積電槽車barcode三合一單.xlsx"
                     output_path = os.path.join(output_dir, base_filename)
                     counter = 1
                     while os.path.exists(output_path):
-                        base_filename = f"{date_prefix}{safe_loc}_{counter}_台積電槽車barcode三合一單.xlsx"
+                        base_filename = f"{date_prefix}{tank_part}{safe_loc}_{counter}台積電槽車barcode三合一單.xlsx"
                         output_path = os.path.join(output_dir, base_filename)
                         counter += 1
                         

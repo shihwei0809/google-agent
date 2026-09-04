@@ -277,7 +277,11 @@ async def generate_all_zip(request: Request):
                         continue
 
                     loc_code = mapping[loc]
-                    tank_no = extract_tank_from_batch(batch)
+                    custom_tank = item.get("tank", "").strip()
+                    if custom_tank and custom_tank != "自動槽號":
+                        tank_no = custom_tank
+                    else:
+                        tank_no = extract_tank_from_batch(batch)
                     tank_with_prefix = "5" + tank_no
                     batch_with_prefix = "6" + batch
 
@@ -377,7 +381,7 @@ async def generate_all_zip(request: Request):
                     wb.close()
                     excel_io.seek(0)
 
-                    # 檔名公式：[出貨日期]. [地點]_[槽號]_台積電槽車barcode三合一單.xlsx
+                    # 檔名公式：[出貨日期]. [槽號] [廠別]台積電槽車barcode三合一單.xlsx (例如: 2026.8.18. E44 18P3B台積電槽車barcode三合一單.xlsx)
                     date_raw = str(item.get("date", "")).strip()
                     dt_file = None
                     if date_raw:
@@ -392,11 +396,12 @@ async def generate_all_zip(request: Request):
                         dt_file = datetime.now()
 
                     date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
-                    base_name = f"{date_prefix}{loc}_{tank_no}_台積電槽車barcode三合一單.xlsx"
+                    tank_part = f"{tank_no} " if tank_no else ""
+                    base_name = f"{date_prefix}{tank_part}{loc}台積電槽車barcode三合一單.xlsx"
                     test_name = base_name
                     counter = 1
                     while f"{folder_name}/{test_name}" in used_filenames:
-                        test_name = f"{date_prefix}{loc}_{tank_no}_{counter}_台積電槽車barcode三合一單.xlsx"
+                        test_name = f"{date_prefix}{tank_part}{loc}_{counter}台積電槽車barcode三合一單.xlsx"
                         counter += 1
                     file_name = test_name
                     used_filenames.add(f"{folder_name}/{file_name}")
@@ -472,11 +477,13 @@ async def generate_all_zip(request: Request):
                                         break
                                     except ValueError:
                                         pass
-                            if mmdd == "0000":
-                                now = datetime.now()
-                                mmdd = f"{now.month:02d}{now.day:02d}"
-                                
-                            new_filename = f"{base_name}-{mmdd} {loc}{extra_file['ext']}"
+                            custom_tank = item.get("tank", "").strip()
+                            if custom_tank and custom_tank != "自動槽號":
+                                tank_no = custom_tank
+                            else:
+                                tank_no = extract_tank_from_batch(batch)
+                            tank_part = f"{tank_no} " if tank_no else ""
+                            new_filename = f"{base_name}-{mmdd} {tank_part}{loc}{extra_file['ext']}"
                             
                             # 儲存到 ZIP
                             out_buf = BytesIO()

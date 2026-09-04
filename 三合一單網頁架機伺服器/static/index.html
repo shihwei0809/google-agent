@@ -158,7 +158,20 @@
 
 
 <script>
-    let SERVER_MAPPING = {};
+    const DEFAULT_FALLBACK_MAPPING = {
+        "15P5": "E1550155A",
+        "15P6": "E1550156A",
+        "18P3B": "EF180183B",
+        "12P7": "E00700001",
+        "15P4": "EF150L154",
+        "12P4": "E00400001",
+        "14P": "E01400001",
+        "AP8": "E08800001",
+        "AP7": "E08700001",
+        "AP6": "E08600001",
+        "AP5": "E08500001"
+    };
+    let SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING);
 
     window.onload = function() {
         fetchMapping();
@@ -259,13 +272,14 @@
         fetch("/api/mapping")
             .then(res => res.json())
             .then(res => {
-                if (res.status === "success") {
-                    SERVER_MAPPING = res.data;
+                if (res.status === "success" && res.data) {
+                    SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, res.data);
                     document.getElementById("statusBox").innerText = `✅ 已成功連線伺服器對照表！共載入 ${res.count} 筆地點對照碼。`;
                 }
             })
             .catch(err => {
-                document.getElementById("statusBox").innerText = "⚠️ 無法連線主機對照表，使用本機備用對照碼。";
+                SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING);
+                document.getElementById("statusBox").innerText = "ℹ️ 雲端/離線展示模式：已啟用內建常用地點代號對照表。";
             });
     }
 
@@ -956,9 +970,9 @@
         const records = [];
 
         for (let i = 1; i <= total; i++) {
-            const batch = document.getElementById(`batch_${i}`).value.trim();
+            const batch = document.getElementById(`batch_${i}`).value.trim().toUpperCase();
             const tank = document.getElementById(`tank_${i}`).value.trim();
-            const loc = document.getElementById(`loc_${i}`).value.trim();
+            const loc = document.getElementById(`loc_${i}`).value.trim().toUpperCase();
             const dateVal = document.getElementById(`date_${i}`).value.trim();
             const timeVal = document.getElementById(`time_${i}`).value.trim();
             const modVal = document.getElementById(`mod_${i}`).value.trim();
@@ -1000,8 +1014,18 @@
             });
 
             if (!res.ok) {
-                const err = await res.json();
-                alert(`產生失敗: ${err.detail}`);
+                let msg = "伺服器處理失敗";
+                try {
+                    const err = await res.json();
+                    msg = err.detail || msg;
+                } catch(e) {
+                    if (res.status === 404) {
+                        msg = "⚠️ 偵測到目前網頁位於純靜態雲端環境（Cloudflare Pages）。\n\n因三合一單與 Barcode 生成需調用 Python 核心，請在本地電腦執行「架設伺服器_一鍵啟動.bat」或開啟「三合一單自動產生器」進行完整報表下載！";
+                    } else {
+                        msg = `HTTP 錯誤碼: ${res.status}`;
+                    }
+                }
+                alert(msg);
                 return;
             }
 
@@ -1017,7 +1041,7 @@
 
             alert("🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！");
         } catch(e) {
-            alert(`一鍵產生失敗: ${e}`);
+            alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
         }
     }
 
@@ -1026,9 +1050,9 @@
         const records = [];
 
         for (let i = 1; i <= total; i++) {
-            const batch = document.getElementById(`batch_${i}`).value.trim();
+            const batch = document.getElementById(`batch_${i}`).value.trim().toUpperCase();
             const tank = document.getElementById(`tank_${i}`).value.trim();
-            const loc = document.getElementById(`loc_${i}`).value.trim();
+            const loc = document.getElementById(`loc_${i}`).value.trim().toUpperCase();
             const dateVal = document.getElementById(`date_${i}`).value.trim();
 
             if (batch || loc) {
@@ -1066,8 +1090,18 @@
             });
 
             if (!res.ok) {
-                const err = await res.json();
-                alert(`產生失敗: ${err.detail}`);
+                let msg = "伺服器處理失敗";
+                try {
+                    const err = await res.json();
+                    msg = err.detail || msg;
+                } catch(e) {
+                    if (res.status === 404) {
+                        msg = "⚠️ 偵測到目前網頁位於純靜態雲端環境（Cloudflare Pages）。\n\n因三合一單與 Barcode 生成需調用 Python 核心，請在本地電腦執行「架設伺服器_一鍵啟動.bat」或開啟「三合一單自動產生器」進行完整報表下載！";
+                    } else {
+                        msg = `HTTP 錯誤碼: ${res.status}`;
+                    }
+                }
+                alert(msg);
                 return;
             }
 
@@ -1083,7 +1117,7 @@
 
             alert("🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！");
         } catch(e) {
-            alert(`單獨產生三合一單失敗: ${e}`);
+            alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
         }
     }
 
