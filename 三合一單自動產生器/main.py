@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 import calendar
 import qrcode
 from io import BytesIO
+from copy import copy
 
 # ================= 浮動日曆選擇器 =================
 
@@ -735,6 +736,46 @@ def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
 
     wb.save(output_path)
     wb.close()
+
+def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
+    new_wb = openpyxl.Workbook()
+    new_ws = new_wb.active
+    new_ws.title = src_ws.title
+    
+    # 複製欄寬
+    for col_letter, col_dim in src_ws.column_dimensions.items():
+        if col_dim.width:
+            new_ws.column_dimensions[col_letter].width = col_dim.width
+            
+    def copy_cell(s_cell, d_cell):
+        d_cell.value = s_cell.value
+        if s_cell.has_style:
+            d_cell.font = copy(s_cell.font)
+            d_cell.border = copy(s_cell.border)
+            d_cell.fill = copy(s_cell.fill)
+            d_cell.number_format = copy(s_cell.number_format)
+            d_cell.protection = copy(s_cell.protection)
+            d_cell.alignment = copy(s_cell.alignment)
+
+    # 複製 1~6 列表頭
+    for r in range(1, 7):
+        for c in range(1, max_cols + 1):
+            copy_cell(src_ws.cell(r, c), new_ws.cell(r, c))
+            
+    # 複製目標資料列至第 7 列
+    for c in range(1, max_cols + 1):
+        copy_cell(src_ws.cell(target_row, c), new_ws.cell(7, c))
+        
+    # 設定第 7 列鎖定與視窗置頂聚焦 (人員打開直接停在第 7 列)
+    new_ws.freeze_panes = 'A7'
+    if new_ws.views and new_ws.views.sheetView:
+        sv = new_ws.views.sheetView[0]
+        sv.topLeftCell = 'A7'
+        for sel in sv.selection:
+            sel.activeCell = 'A7'
+            sel.sqref = 'A7'
+            
+    return new_wb
 
 # ================= 介面與操作 =================
 
@@ -1870,8 +1911,14 @@ class App(tk.Tk):
                 base_lorry_name = orig_filename.rsplit('-', 1)[0] if '-' in orig_filename else orig_filename
                 
                 try:
-                    with open(l_path, "rb") as f:
-                        l_bytes = f.read()
+                    src_wb_l = openpyxl.load_workbook(l_path, data_only=False)
+                    src_ws_l = src_wb_l.active
+                    
+                    batch_row_map = {}
+                    for r in range(7, src_ws_l.max_row + 1):
+                        val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
+                        if val and val not in batch_row_map:
+                            batch_row_map[val] = r
                         
                     for item in valid_data:
                         b_no = item["batch"]
@@ -1879,30 +1926,10 @@ class App(tk.Tk):
                         t_no = item["tank"]
                         d_str = item["date"]
                         
-                        wb_l = openpyxl.load_workbook(BytesIO(l_bytes))
-                        ws_l = wb_l.active
-                        
-                        matched_r = None
-                        for r in range(7, ws_l.max_row + 1):
-                            val = str(ws_l.cell(row=r, column=1).value or "").strip().upper()
-                            if val == b_no:
-                                matched_r = r
-                                break
-                                
+                        matched_r = batch_row_map.get(b_no)
                         if matched_r:
-                            if matched_r > 7:
-                                ws_l.delete_rows(7, matched_r - 7)
-                            if ws_l.max_row > 7:
-                                ws_l.delete_rows(8, ws_l.max_row - 7)
-                                
-                            ws_l.freeze_panes = 'A7'
-                            if ws_l.views and ws_l.views.sheetView:
-                                sv_l = ws_l.views.sheetView[0]
-                                sv_l.topLeftCell = 'A7'
-                                for sel_l in sv_l.selection:
-                                    sel_l.activeCell = 'A7'
-                                    sel_l.sqref = 'A7'
-                                    
+                            wb_l = build_single_row_lorry_workbook(src_ws_l, matched_r)
+                            
                             mmdd = "0000"
                             if d_str:
                                 for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
@@ -1922,6 +1949,7 @@ class App(tk.Tk):
                             wb_l.save(out_l_path)
                             wb_l.close()
                             success_lorry += 1
+                    src_wb_l.close()
                 except Exception as le:
                     error_msgs.append(f"產生 Chemical_Lorry 失敗: {le}")
 

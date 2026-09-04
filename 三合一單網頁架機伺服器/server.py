@@ -5,6 +5,7 @@ import json
 import zipfile
 from io import BytesIO
 from datetime import datetime
+from copy import copy
 import openpyxl
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -75,6 +76,46 @@ def extract_tank_from_batch(batch_no: str) -> str:
     if batch.endswith("J1"):
         return batch[5:8]
     return batch[5:9]
+
+def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
+    new_wb = openpyxl.Workbook()
+    new_ws = new_wb.active
+    new_ws.title = src_ws.title
+    
+    # 複製欄寬
+    for col_letter, col_dim in src_ws.column_dimensions.items():
+        if col_dim.width:
+            new_ws.column_dimensions[col_letter].width = col_dim.width
+            
+    def copy_cell(s_cell, d_cell):
+        d_cell.value = s_cell.value
+        if s_cell.has_style:
+            d_cell.font = copy(s_cell.font)
+            d_cell.border = copy(s_cell.border)
+            d_cell.fill = copy(s_cell.fill)
+            d_cell.number_format = copy(s_cell.number_format)
+            d_cell.protection = copy(s_cell.protection)
+            d_cell.alignment = copy(s_cell.alignment)
+
+    # 複製 1~6 列表頭
+    for r in range(1, 7):
+        for c in range(1, max_cols + 1):
+            copy_cell(src_ws.cell(r, c), new_ws.cell(r, c))
+            
+    # 複製目標資料列至第 7 列
+    for c in range(1, max_cols + 1):
+        copy_cell(src_ws.cell(target_row, c), new_ws.cell(7, c))
+        
+    # 設定第 7 列鎖定與視窗置頂聚焦 (人員打開直接停在第 7 列)
+    new_ws.freeze_panes = 'A7'
+    if new_ws.views and new_ws.views.sheetView:
+        sv = new_ws.views.sheetView[0]
+        sv.topLeftCell = 'A7'
+        for sel in sv.selection:
+            sel.activeCell = 'A7'
+            sel.sqref = 'A7'
+            
+    return new_wb
 
 # ================= 3. FastAPI Web 應用程式 =================
 
@@ -431,51 +472,36 @@ async def generate_all_zip(request: Request):
                 zip_file.writestr(f"{folder_name}/session.json", json.dumps(session_payload, ensure_ascii=False, indent=2).encode('utf-8'))
             except Exception as se:
                 print(f"[Session JSON Error] {se}")
-            
-            # 3. 產生額外附加檔案 (若有上傳 Excel，依批號過濾並只保留單列)
+
+            # 4. 產生額外附加檔案 (若有上傳 Excel，依批號過濾並只保留單列)
             extra_file = EXTRA_FILE_CACHE.get("latest_file")
             if extra_file and extra_file["ext"].lower() in [".xlsx", ".xls"]:
-                for item in records:
-                    batch = item.get("batch", "").strip().upper()
-                    loc = item.get("loc", "").strip().upper()
-                    if not batch or not loc or len(batch) != 10 or loc not in mapping:
-                        continue
+                try:
+                    src_wb = openpyxl.load_workbook(BytesIO(extra_file["content"]), data_only=False)
+                    src_ws = src_wb.active
                     
-                    try:
-                        # 每次都從記憶體重新讀取原始檔案
-                        new_wb = openpyxl.load_workbook(BytesIO(extra_file["content"]))
-                        new_ws = new_wb.active
+                    # 建立批號到列號的快速索引字典
+                    batch_row_map = {}
+                    for r in range(7, src_ws.max_row + 1):
+                        val = str(src_ws.cell(row=r, column=1).value or "").strip().upper()
+                        if val and val not in batch_row_map:
+                            batch_row_map[val] = r
+
+                    orig_name = extra_file["filename"]
+                    base_name = orig_name.rsplit('-', 1)[0] if '-' in orig_name else orig_name
+
+                    for item in records:
+                        batch = item.get("batch", "").strip().upper()
+                        loc = item.get("loc", "").strip().upper()
+                        if not batch or not loc or len(batch) != 10 or loc not in mapping:
+                            continue
                         
-                        # 尋找匹配的批號 (從第 7 列開始找，批號通常在 A 欄)
-                        matched_row_idx = None
-                        for r in range(7, new_ws.max_row + 1):
-                            val = str(new_ws.cell(row=r, column=1).value or "").strip().upper()
-                            if val == batch:
-                                matched_row_idx = r
-                                break
-                                
+                        matched_row_idx = batch_row_map.get(batch)
                         if matched_row_idx:
-                            # 巧妙利用刪除列來保留格式：刪除目標列之前的所有資料列 (7 ~ 目標-1)
-                            if matched_row_idx > 7:
-                                new_ws.delete_rows(7, matched_row_idx - 7)
-                                
-                            # 此時目標列已經往上移動變成第 7 列了，接著刪除第 8 列以後的所有資料
-                            if new_ws.max_row > 7:
-                                new_ws.delete_rows(8, new_ws.max_row - 7)
+                            # 建立只包含表頭 1~6 列與目標單列的極速輕量化 Workbook
+                            new_wb = build_single_row_lorry_workbook(src_ws, matched_row_idx)
                             
-                            # 重設凍結窗格與視窗焦點，確保人員開啟新檔時直接位於第 7 列視角
-                            new_ws.freeze_panes = 'A7'
-                            if new_ws.views and new_ws.views.sheetView:
-                                sv = new_ws.views.sheetView[0]
-                                sv.topLeftCell = 'A7'
-                                for sel in sv.selection:
-                                    sel.activeCell = 'A7'
-                                    sel.sqref = 'A7'
-                            
-                            # 組合新檔名：[原檔名前半部]-[MMDD] [Loc].[Ext]
-                            orig_name = extra_file["filename"]
-                            base_name = orig_name.rsplit('-', 1)[0] if '-' in orig_name else orig_name
-                            
+                            # 組合新檔名：[原檔名前半部]-[MMDD] [槽號] [Loc].[Ext]
                             date_raw = item.get("date", "").strip()
                             mmdd = "0000"
                             if date_raw:
@@ -497,9 +523,11 @@ async def generate_all_zip(request: Request):
                             # 儲存到 ZIP
                             out_buf = BytesIO()
                             new_wb.save(out_buf)
+                            new_wb.close()
                             zip_file.writestr(f"{folder_name}/{new_filename}", out_buf.getvalue())
-                    except Exception as ex:
-                        print(f"處理附加檔案 {batch} 時發生錯誤: {ex}")
+                    src_wb.close()
+                except Exception as ex:
+                    print(f"處理附加檔案時發生錯誤: {ex}")
 
         # 生成完成後，清空快取避免影響下一次
         # COA_CACHE.clear() 
