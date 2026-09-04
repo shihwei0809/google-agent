@@ -4,9 +4,10 @@ import socket
 import json
 import zipfile
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime, date
 from copy import copy
 import openpyxl
+from openpyxl.utils import get_column_letter
 from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.cell.rich_text import TextBlock, CellRichText
@@ -112,6 +113,34 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
     for c in range(1, max_cols + 1):
         copy_cell(src_ws.cell(target_row, c), new_ws.cell(7, c))
         
+    # 自動智慧調整欄寬，確保所有欄位表頭與資料完整顯示不被遮擋
+    for col_idx in range(1, max_cols + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = 0
+        for r in range(1, 8):
+            val = new_ws.cell(r, col_idx).value
+            if val is not None:
+                if isinstance(val, (datetime, date)):
+                    s = val.strftime('%Y/%m/%d')
+                else:
+                    s = str(val).strip()
+                lines = s.split('\n')
+                for line in lines:
+                    line_len = sum(2.0 if ord(ch) > 127 else 1.15 for ch in line)
+                    if line_len > max_len:
+                        max_len = line_len
+        if max_len > 0:
+            # 依最長文字加上留白邊界 (+4.0)，至少 13.0
+            adjusted_width = max(max_len + 4.0, 13.0)
+            orig_w = new_ws.column_dimensions[col_letter].width
+            if orig_w and orig_w > adjusted_width:
+                adjusted_width = orig_w
+            new_ws.column_dimensions[col_letter].width = round(adjusted_width, 1)
+
+    # 確保第 6 列表頭高度 (28.0) 與第 7 列資料列高度 (22.0) 呼吸空間
+    new_ws.row_dimensions[6].height = 28.0
+    new_ws.row_dimensions[7].height = 22.0
+
     # 保持正常從第 1 列 (A1) 完整顯示表頭與第 7 列資料 (如圖二)，不捲動遮蔽
     new_ws.freeze_panes = 'A7'
             
