@@ -97,6 +97,12 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
             d_cell.protection = copy(s_cell.protection)
             d_cell.alignment = copy(s_cell.alignment)
 
+    # 複製列高 (保持第 6 列表頭與資料列原始高度)
+    for r in range(1, 8):
+        src_r = r if r <= 6 else target_row
+        if src_ws.row_dimensions[src_r].height:
+            new_ws.row_dimensions[r].height = src_ws.row_dimensions[src_r].height
+
     # 複製 1~6 列表頭
     for r in range(1, 7):
         for c in range(1, max_cols + 1):
@@ -106,14 +112,8 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
     for c in range(1, max_cols + 1):
         copy_cell(src_ws.cell(target_row, c), new_ws.cell(7, c))
         
-    # 設定第 7 列鎖定與視窗置頂聚焦 (人員打開直接停在第 7 列)
+    # 保持正常從第 1 列 (A1) 完整顯示表頭與第 7 列資料 (如圖二)，不捲動遮蔽
     new_ws.freeze_panes = 'A7'
-    if new_ws.views and new_ws.views.sheetView:
-        sv = new_ws.views.sheetView[0]
-        sv.topLeftCell = 'A7'
-        for sel in sv.selection:
-            sel.activeCell = 'A7'
-            sel.sqref = 'A7'
             
     return new_wb
 
