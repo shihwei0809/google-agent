@@ -463,6 +463,15 @@ async def generate_all_zip(request: Request):
                             if new_ws.max_row > 7:
                                 new_ws.delete_rows(8, new_ws.max_row - 7)
                             
+                            # 重設凍結窗格與視窗焦點，確保人員開啟新檔時直接位於第 7 列視角
+                            new_ws.freeze_panes = 'A7'
+                            if new_ws.views and new_ws.views.sheetView:
+                                sv = new_ws.views.sheetView[0]
+                                sv.topLeftCell = 'A7'
+                                for sel in sv.selection:
+                                    sel.activeCell = 'A7'
+                                    sel.sqref = 'A7'
+                            
                             # 組合新檔名：[原檔名前半部]-[MMDD] [Loc].[Ext]
                             orig_name = extra_file["filename"]
                             base_name = orig_name.rsplit('-', 1)[0] if '-' in orig_name else orig_name
