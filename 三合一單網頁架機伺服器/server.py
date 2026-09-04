@@ -297,6 +297,7 @@ async def generate_all_zip(request: Request):
         records = data_json.get("records", [])
         do_3in1 = data_json.get("do3in1", True)
         do_transport = data_json.get("doTransport", True)
+        do_lorry = data_json.get("doLorry", True)
 
         if not records:
             raise HTTPException(status_code=400, detail="請至少提供一筆有效的排程資料。")
@@ -473,9 +474,9 @@ async def generate_all_zip(request: Request):
             except Exception as se:
                 print(f"[Session JSON Error] {se}")
 
-            # 4. 產生額外附加檔案 (若有上傳 Excel，依批號過濾並只保留單列)
+            # 4. 產生額外附加檔案 / 生產履歷 (若有上傳 Excel，依批號過濾並只保留單列)
             extra_file = EXTRA_FILE_CACHE.get("latest_file")
-            if extra_file and extra_file["ext"].lower() in [".xlsx", ".xls"]:
+            if do_lorry and extra_file and extra_file["ext"].lower() in [".xlsx", ".xls"]:
                 try:
                     src_wb = openpyxl.load_workbook(BytesIO(extra_file["content"]), data_only=False)
                     src_ws = src_wb.active

@@ -783,8 +783,8 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("三合一單自動產生器 & 運輸通知表產生器")
-        self.geometry("1200x780")
-        self.minsize(1050, 600)
+        self.geometry("1260x820")
+        self.minsize(1080, 620)
         self.configure(padx=15, pady=15)
         
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -792,6 +792,7 @@ class App(tk.Tk):
         self.mapping_path = os.path.join(self.base_dir, "地點代號對照表.xlsx")
         
         self.mapping_dict = {}
+        self.imported_lorry_files = []
         self.load_mapping()
         
         self.setup_ui()
@@ -828,6 +829,46 @@ class App(tk.Tk):
                 if loc_val:
                     self.on_loc_change(entry["loc_var"], entry["long_code_var"])
 
+    def update_lorry_status(self):
+        if not hasattr(self, "imported_lorry_files"):
+            self.imported_lorry_files = []
+        if not self.imported_lorry_files:
+            import glob
+            defaults = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+            if defaults:
+                self.imported_lorry_files = [defaults[0]]
+        
+        if hasattr(self, "lbl_lorry_status"):
+            if self.imported_lorry_files:
+                fname = os.path.basename(self.imported_lorry_files[0])
+                self.lbl_lorry_status.config(
+                    text=f"生產履歷檔案 (Chemical_Lorry*.xlsx): ✅ 已就緒 ({fname})",
+                    fg="#2E7D32"
+                )
+            else:
+                self.lbl_lorry_status.config(
+                    text="生產履歷檔案 (Chemical_Lorry*.xlsx): ⚠️ 尚未載入 (點擊右側按鈕或下方工具列『📋 載入生產履歷』)",
+                    fg="#D32F2F"
+                )
+
+    def load_chemical_lorry_file(self):
+        filepath = filedialog.askopenfilename(
+            title="選擇生產履歷檔案 (Chemical_Lorry)",
+            filetypes=[("Excel 活頁簿", "*.xlsx *.xls"), ("所有檔案", "*.*")]
+        )
+        if not filepath:
+            return
+        if not hasattr(self, "imported_lorry_files"):
+            self.imported_lorry_files = []
+        self.imported_lorry_files = [filepath]
+        self.update_lorry_status()
+        self.gen_lorry_var.set(True)
+        fname = os.path.basename(filepath)
+        messagebox.showinfo(
+            "生產履歷已載入", 
+            f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n稍後點擊【開始批次產生】時，系統會自動比對每筆排程批號並單列輸出。"
+        )
+
     def reload_mapping_with_msg(self):
         """點擊『🔄 重新載入對照表』時執行"""
         self.load_mapping()
@@ -837,10 +878,11 @@ class App(tk.Tk):
         CalendarDialog(self, target_var)
 
     def setup_ui(self):
-        # 檔案狀態區
-        status_frame = tk.LabelFrame(self, text="系統狀態", font=("Arial", 10, "bold"), padx=10, pady=8)
+        # 1. 系統檔案狀態區
+        status_frame = tk.LabelFrame(self, text="系統狀態", font=("Microsoft JhengHei", 10, "bold"), padx=10, pady=8)
         status_frame.pack(fill="x", pady=(0, 8))
         
+        # 範本狀態
         t_color = "green" if os.path.exists(self.template_path) else "red"
         t_text = "✅ 已找到" if os.path.exists(self.template_path) else "❌ 未找到 (請將檔案放入資料夾)"
         tk.Label(status_frame, text=f"範本檔案 (台積電槽車barcode三合一單-範本.xlsx): {t_text}", fg=t_color).pack(anchor="w")
@@ -861,70 +903,92 @@ class App(tk.Tk):
             command=self.reload_mapping_with_msg, 
             bg="#607D8B", 
             fg="white", 
-            font=("Arial", 8, "bold"), 
+            font=("Microsoft JhengHei", 8, "bold"), 
             padx=6,
             cursor="hand2"
         ).pack(side="left", padx=10)
 
-        # 頂部快捷批次控制與匯入區
+        # 生產履歷狀態列 + 選擇檔案按鈕
+        lorry_status_frame = tk.Frame(status_frame)
+        lorry_status_frame.pack(anchor="w", pady=(2, 0))
+
+        self.lbl_lorry_status = tk.Label(lorry_status_frame, text="", fg="green")
+        self.lbl_lorry_status.pack(side="left")
+
+        tk.Button(
+            lorry_status_frame, 
+            text="📋 選擇生產履歷檔", 
+            command=self.load_chemical_lorry_file, 
+            bg="#E65100", 
+            fg="white", 
+            font=("Microsoft JhengHei", 8, "bold"), 
+            padx=6,
+            cursor="hand2"
+        ).pack(side="left", padx=10)
+        self.update_lorry_status()
+
+        # 2. 頂部快捷功能與檔案載入工具列
         top_ctrl_frame = tk.Frame(self)
         top_ctrl_frame.pack(fill="x", pady=(0, 6))
         
-        # 左側表格列控制區 (新增10列、清除全部)
+        # 左側：資料載入與匯入按鈕群組
         left_btn_frame = tk.Frame(top_ctrl_frame)
         left_btn_frame.pack(side="left")
         
-        tk.Button(left_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#009688", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=(0, 5))
-        tk.Button(left_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=5)
+        tk.Button(left_btn_frame, text="📥 從 Excel 匯入排程", command=self.import_from_excel, bg="#1976D2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(0, 4))
+        tk.Button(left_btn_frame, text="📋 載入生產履歷 (Chemical_Lorry)", command=self.load_chemical_lorry_file, bg="#E65100", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(left_btn_frame, text="📂 載入既有通知表修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(left_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
 
-        # 右側資料來源按鈕區 (COA截圖、載入通知表、Excel匯入)
+        # 右側：表格操作與日期快捷按鈕群組
         right_btn_frame = tk.Frame(top_ctrl_frame)
         right_btn_frame.pack(side="right")
         
-        tk.Button(right_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(right_btn_frame, text="📂 載入既有通知表修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(right_btn_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(right_btn_frame, text="📅 帶入今天日期", command=self.set_today_all_dates, bg="#607D8B", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=(4, 0))
+        tk.Button(right_btn_frame, text="📅 帶入今天日期", command=self.set_today_all_dates, bg="#546E7A", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(right_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#00897B", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(right_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(4, 0))
 
-        # 批次設定預設值列
-        batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (日期 / 預計時間 / 修正時間)", font=("Arial", 9, "bold"), padx=8, pady=5)
-        batch_setting_frame.pack(fill="x", pady=(0, 8))
+        # 3. 一鍵批次設定列 (純淨獨立，日期與時間欄位寬裕舒適)
+        batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (出貨日期 / 預計到廠時間 / 修正到廠時間)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        batch_setting_frame.pack(fill="x", pady=(0, 6))
         
         # 全選
         self.select_all_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(batch_setting_frame, text="全選", variable=self.select_all_var, command=self.toggle_select_all, font=("Arial", 10, "bold")).pack(side="left", padx=(0, 10))
+        tk.Checkbutton(batch_setting_frame, text="☑ 全選所有列", variable=self.select_all_var, command=self.toggle_select_all, font=("Microsoft JhengHei", 9, "bold")).pack(side="left", padx=(0, 15))
         
         # 日期
-        tk.Label(batch_setting_frame, text="批次日期:").pack(side="left")
+        tk.Label(batch_setting_frame, text="批次出貨日期:").pack(side="left")
         self.default_date_var = tk.StringVar(value="")
         date_batch_entry = tk.Entry(batch_setting_frame, textvariable=self.default_date_var, width=12)
         date_batch_entry.pack(side="left", padx=2)
         tk.Button(batch_setting_frame, text="📅", command=lambda: self.open_calendar_dialog(self.default_date_var), font=("Arial", 8), width=3).pack(side="left", padx=(0, 2))
-        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_date, bg="#607D8B", fg="white", font=("Arial", 8)).pack(side="left", padx=(2, 12))
+        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_date, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 16))
         
         # 預計時間
-        tk.Label(batch_setting_frame, text="批次預計時間:").pack(side="left")
+        tk.Label(batch_setting_frame, text="預計到廠時間:").pack(side="left")
         self.default_time_var = tk.StringVar(value="")
         tk.Entry(batch_setting_frame, textvariable=self.default_time_var, width=8).pack(side="left", padx=2)
-        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_time, bg="#607D8B", fg="white", font=("Arial", 8)).pack(side="left", padx=(2, 12))
+        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_time, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 16))
 
         # 修正時間
-        tk.Label(batch_setting_frame, text="批次修正時間:").pack(side="left")
+        tk.Label(batch_setting_frame, text="修正到廠時間:").pack(side="left")
         self.default_mod_time_var = tk.StringVar(value="")
         tk.Entry(batch_setting_frame, textvariable=self.default_mod_time_var, width=8).pack(side="left", padx=2)
-        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_mod_time, bg="#607D8B", fg="white", font=("Arial", 8)).pack(side="left", padx=(2, 10))
+        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_mod_time, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 10))
 
-        # 輸出選項
-        opt_frame = tk.Frame(batch_setting_frame)
-        opt_frame.pack(side="right")
+        # 4. 報表產出勾選專屬區塊 (獨立整列，寬度充裕，文字絕不截斷)
+        report_opt_frame = tk.LabelFrame(self, text="📦 欲產生的報表勾選 (可多選，點擊開始產生時將自動產出所勾選項目)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        report_opt_frame.pack(fill="x", pady=(0, 8))
+
         self.gen_3in1_var = tk.BooleanVar(value=True)
         self.gen_transport_var = tk.BooleanVar(value=True)
         self.gen_lorry_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(opt_frame, text="產生三合一單", variable=self.gen_3in1_var, font=("Arial", 9, "bold"), fg="#1B5E20").pack(side="left", padx=5)
-        tk.Checkbutton(opt_frame, text="產生運輸通知表", variable=self.gen_transport_var, font=("Arial", 9, "bold"), fg="#0D47A1").pack(side="left", padx=5)
-        tk.Checkbutton(opt_frame, text="產生單列 Chemical_Lorry", variable=self.gen_lorry_var, font=("Arial", 9, "bold"), fg="#E65100").pack(side="left", padx=5)
 
-        # 滾動容器
+        tk.Checkbutton(report_opt_frame, text="✅ 產生三合一單 Excel (含 Barcode 與 COA)", variable=self.gen_3in1_var, font=("Microsoft JhengHei", 9, "bold"), fg="#1B5E20").pack(side="left", padx=(0, 20))
+        tk.Checkbutton(report_opt_frame, text="✅ 產生運輸通知表 Excel (出貨與修正排程通知卡片)", variable=self.gen_transport_var, font=("Microsoft JhengHei", 9, "bold"), fg="#0D47A1").pack(side="left", padx=20)
+        tk.Checkbutton(report_opt_frame, text="✅ 產生單列生產履歷 Excel (Chemical_Lorry 槽車充填表)", variable=self.gen_lorry_var, font=("Microsoft JhengHei", 9, "bold"), fg="#E65100").pack(side="left", padx=20)
+
+        # 5. 表格滾動容器
         table_container = tk.Frame(self)
         table_container.pack(fill="both", expand=True)
 
@@ -1287,6 +1351,7 @@ class App(tk.Tk):
             if fp.lower().endswith(('.xlsx', '.xls')) and ('chemical' in fn or 'lorry' in fn or '勝一' in fn):
                 if fp not in self.imported_lorry_files:
                     self.imported_lorry_files.append(fp)
+        self.update_lorry_status()
 
         total_imported = 0
         for filepath in filepaths:

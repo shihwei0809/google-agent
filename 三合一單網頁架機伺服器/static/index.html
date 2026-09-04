@@ -53,29 +53,27 @@
 
     <div class="toolbar">
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <!-- 🖼️ 上傳 COA 截圖按鈕 (橘色) -->
-            <label class="btn btn-orange" style="cursor:pointer;">
+            <label class="btn btn-purple" style="cursor:pointer; background:#1976D2;">
+                📥 從 Excel 匯入排程
+                <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="importExcelFile(event)">
+            </label>
+            <label class="btn btn-orange" style="cursor:pointer; background:#E65100;">
+                📋 載入生產履歷 (Chemical_Lorry)
+                <input type="file" id="extraFileInput" accept=".xlsx, .xls" style="display:none;" onchange="uploadExtraFile(event)">
+            </label>
+            <label class="btn btn-blue" style="cursor:pointer; background:#7B1FA2;">
+                📂 載入既有通知表 (修訂時間)
+                <input type="file" id="transportInput" accept=".xlsx, .xls" style="display:none;" onchange="loadExistingTransportExcel(event)">
+            </label>
+            <label class="btn btn-orange" style="cursor:pointer; background:#FF9800;">
                 🖼️ 上傳 COA 截圖 (OCR 辨識)
                 <input type="file" id="coaInput" accept="image/*, .png, .jpg, .jpeg" style="display:none;" onchange="uploadCoaScreenshot(event)">
             </label>
-            <!-- 📁 上傳附加檔案按鈕 (黃色或橘色) -->
-            <label class="btn btn-orange" style="cursor:pointer; background:#F57C00;">
-                📁 上傳附加檔案 (自動依單命名)
-                <input type="file" id="extraFileInput" accept="*/*" style="display:none;" onchange="uploadExtraFile(event)">
-            </label>
-            <label class="btn btn-purple" style="cursor:pointer;">
-                📥 從 Excel 匯入 (排程表)
-                <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="importExcelFile(event)">
-            </label>
-            <label class="btn btn-blue" style="cursor:pointer; background:#1A237E;">
-                📑 載入既有運輸通知表 (修訂時間)
-                <input type="file" id="transportInput" accept=".xlsx, .xls" style="display:none;" onchange="loadExistingTransportExcel(event)">
-            </label>
-            <button class="btn btn-blue" onclick="setTodayAllDates()">📅 帶入今天日期</button>
+            <button class="btn btn-blue" style="background:#546E7A;" onclick="setTodayAllDates()">📅 帶入今天日期</button>
         </div>
-        <div>
+        <div style="display:flex; gap:8px;">
+            <button class="btn btn-blue" style="background:#00897B;" onclick="addMoreRows(10)">➕ 新增 10 列</button>
             <button class="btn btn-red" onclick="clearAllRows()">🗑️ 清除全部</button>
-            <button class="btn btn-blue" onclick="addMoreRows(10)">➕ 新增 10 列</button>
         </div>
     </div>
 
@@ -98,6 +96,22 @@
                 <!-- 動態生成列 -->
             </tbody>
         </table>
+    </div>
+
+    <div style="background:#FFF; padding:12px 20px; border-radius:8px; margin: 15px 0 10px 0; border: 1px solid #DDD; display:flex; align-items:center; gap:25px; flex-wrap:wrap; font-weight:bold; font-size:14px;">
+        <span style="color:#002060;">📦 欲產生的報表勾選：</span>
+        <label style="cursor:pointer; color:#1B5E20; display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="chkWeb3in1" checked style="width:18px; height:18px;">
+            ✅ 產生三合一單 Excel (含 Barcode 與 COA)
+        </label>
+        <label style="cursor:pointer; color:#0D47A1; display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="chkWebTransport" checked style="width:18px; height:18px;">
+            ✅ 產生運輸通知表 Excel
+        </label>
+        <label style="cursor:pointer; color:#E65100; display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="chkWebLorry" checked style="width:18px; height:18px;">
+            ✅ 產生單列生產履歷 Excel (Chemical_Lorry)
+        </label>
     </div>
 
     <div class="footer-action">
@@ -1050,13 +1064,18 @@
             }
             showActionMsg("⏳ 正在與伺服器通訊並產生所有 Excel 報表，請稍候...", "blue");
 
+            const do3in1 = document.getElementById("chkWeb3in1") ? document.getElementById("chkWeb3in1").checked : true;
+            const doTransport = document.getElementById("chkWebTransport") ? document.getElementById("chkWebTransport").checked : true;
+            const doLorry = document.getElementById("chkWebLorry") ? document.getElementById("chkWebLorry").checked : true;
+
             const res = await fetch("/api/generate_all_zip", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     records: records,
-                    do3in1: true,
-                    doTransport: true
+                    do3in1: do3in1,
+                    doTransport: doTransport,
+                    doLorry: doLorry
                 })
             });
 
