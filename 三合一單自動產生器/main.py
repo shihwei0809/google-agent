@@ -11,10 +11,16 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.cell.rich_text import TextBlock, CellRichText
 from openpyxl.cell.text import InlineFont
 import os
+import re
+import glob
+import json
+import csv
+import webbrowser
 from datetime import datetime, timedelta, date
 from openpyxl.utils import get_column_letter
 import calendar
 import qrcode
+from PIL import Image as PILImage, Image
 from io import BytesIO
 from copy import copy
 
@@ -194,7 +200,6 @@ def normalize_date_str(raw):
             return datetime.strptime(s_part, fmt).strftime("%Y-%m-%d")
         except ValueError:
             pass
-    import re
     m = re.match(r"^(\d{2,3})[-/\.](\d{1,2})[-/\.](\d{1,2})", s_part)
     if m and int(m.group(1)) < 1900:
         y = int(m.group(1)) + 1911
@@ -207,7 +212,6 @@ def clean_location_str(loc, mapping_dict=None):
     if not loc:
         return ""
     s = str(loc).strip().upper()
-    import re
     cleaned = re.sub(r'台積電?|新竹|台中|台南|廠|[-_\s]', '', s)
     if mapping_dict and cleaned in mapping_dict:
         return cleaned
@@ -862,7 +866,6 @@ class App(tk.Tk):
         if not hasattr(self, "imported_lorry_files"):
             self.imported_lorry_files = []
         if not self.imported_lorry_files:
-            import glob
             defaults = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
             if defaults:
                 self.imported_lorry_files = [defaults[0]]
@@ -1344,10 +1347,7 @@ class App(tk.Tk):
 
 
     def upload_coa(self):
-        import os
-        if not os.path.exists(r'C:\Program Files\Tesseract-OCR	esseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR	esseract.exe'):
-            from tkinter import messagebox
-            import webbrowser
+        if not os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'):
             ans = messagebox.askyesno(
                 "缺少 OCR 引擎", 
                 "系統偵測到您尚未安裝『Tesseract OCR 引擎』，無法使用截圖辨識功能！\n\n"
@@ -1361,11 +1361,9 @@ class App(tk.Tk):
         filepaths = filedialog.askopenfilenames(title="選擇 COA 截圖", filetypes=[("Image files", "*.jpg *.jpeg *.png")])
         if filepaths:
             self.coa_paths.extend(filepaths)
-            from tkinter import messagebox
             messagebox.showinfo("上傳成功", f"成功上傳 {len(filepaths)} 張截圖！\n目前共 {len(self.coa_paths)} 張待處理。")
 
     def import_from_excel(self):
-        from tkinter import filedialog
         filepaths = filedialog.askopenfilenames(
             title="選擇要匯入的 Excel 或 CSV 檔案 (可多選)",
             filetypes=[("Excel & CSV files", "*.xlsx *.xls *.csv")]
@@ -1390,7 +1388,6 @@ class App(tk.Tk):
 
                 if filepath.lower().endswith('.csv'):
                     rows = []
-                    import csv
                     try:
                         with open(filepath, 'r', encoding='utf-8-sig') as f:
                             reader = csv.reader(f)
@@ -1415,7 +1412,6 @@ class App(tk.Tk):
                                 val = str(row_vals[1]).strip()
                                 if key == "RawLotId": batch_val = val
                                 elif key == "DeliverDate": date_val = val
-                        import re
                         fname = os.path.basename(filepath)
                         m = re.search(r'\s([A-Za-z0-9]+)_\d+\.csv$', fname, re.IGNORECASE)
                         if m:
@@ -1456,7 +1452,6 @@ class App(tk.Tk):
                         if batch_col == -1 or loc_col == -1:
                             batch_col, date_col, tank_col, loc_col = 2, 1, 3, 4
                             start_row = 2
-                        import re
                         for r_idx in range(start_row, len(rows)):
                             row = rows[r_idx]
                             if not row: continue
@@ -1546,7 +1541,6 @@ class App(tk.Tk):
                             loc_col = 4
                             start_row = 2
 
-                        import re
                         for r_idx in range(start_row, len(rows)):
                             row = rows[r_idx]
                             if not row or len(row) == 0: continue
@@ -1663,8 +1657,6 @@ class App(tk.Tk):
         讓人員手動選擇要修訂的『運輸通知表.xlsx』或資料夾，預設開啟當天的輸出資料夾。
         還原原本的所有位置 (第1~N列)，讓人員直接於指定列輸入『修正到廠時間』！
         """
-        from tkinter import filedialog
-
         # 預設開啟今天的輸出資料夾
         today_dir_name = f"三合一單輸出_{datetime.now().strftime('%Y%m%d')}"
         today_dir = os.path.join(self.base_dir, today_dir_name)
@@ -1686,7 +1678,6 @@ class App(tk.Tk):
         session_file = os.path.join(target_dir, "session.json")
         if os.path.exists(session_file):
             try:
-                import json
                 with open(session_file, "r", encoding="utf-8") as f:
                     records = json.load(f)
             except Exception:
@@ -1830,13 +1821,11 @@ class App(tk.Tk):
         if do_3in1:
 
             coa_crops = {}
-            import os
             if os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe'):
                 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
             else:
                 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe' 
             if self.coa_paths:
-                from PIL import Image as PILImage
                 for img_path in self.coa_paths:
                     try:
                         orig_img = PILImage.open(img_path)
@@ -1912,7 +1901,6 @@ class App(tk.Tk):
                     qr.make(fit=True)
                     raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
                     
-                    from PIL import Image
                     offset_x = 35
                     offset_y = 45
                     new_width = raw_img.width + offset_x
@@ -1996,7 +1984,6 @@ class App(tk.Tk):
         if getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get():
             lorry_sources = list(getattr(self, "imported_lorry_files", []))
             if not lorry_sources:
-                import glob
                 lorry_sources = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
             
             for l_path in lorry_sources:
@@ -2049,7 +2036,6 @@ class App(tk.Tk):
 
         # 自動快取當前 Session 資料至輸出資料夾與根目錄，供往後一鍵精準還原修訂
         try:
-            import json
             for target_path in (os.path.join(output_dir, "session.json"), os.path.join(self.base_dir, "last_generated_session.json")):
                 with open(target_path, "w", encoding="utf-8") as f:
                     json.dump(valid_data, f, ensure_ascii=False, indent=2)
