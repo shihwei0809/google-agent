@@ -878,8 +878,10 @@ class App(tk.Tk):
         opt_frame.pack(side="right")
         self.gen_3in1_var = tk.BooleanVar(value=True)
         self.gen_transport_var = tk.BooleanVar(value=True)
+        self.gen_lorry_var = tk.BooleanVar(value=True)
         tk.Checkbutton(opt_frame, text="產生三合一單", variable=self.gen_3in1_var, font=("Arial", 9, "bold"), fg="#1B5E20").pack(side="left", padx=5)
         tk.Checkbutton(opt_frame, text="產生運輸通知表", variable=self.gen_transport_var, font=("Arial", 9, "bold"), fg="#0D47A1").pack(side="left", padx=5)
+        tk.Checkbutton(opt_frame, text="產生單列 Chemical_Lorry", variable=self.gen_lorry_var, font=("Arial", 9, "bold"), fg="#E65100").pack(side="left", padx=5)
 
         # 滾動容器
         table_container = tk.Frame(self)
@@ -1237,6 +1239,14 @@ class App(tk.Tk):
         if not filepaths:
             return
             
+        if not hasattr(self, "imported_lorry_files"):
+            self.imported_lorry_files = []
+        for fp in filepaths:
+            fn = os.path.basename(fp).lower()
+            if fp.lower().endswith(('.xlsx', '.xls')) and ('chemical' in fn or 'lorry' in fn or '勝一' in fn):
+                if fp not in self.imported_lorry_files:
+                    self.imported_lorry_files.append(fp)
+
         total_imported = 0
         for filepath in filepaths:
             try:
@@ -1847,6 +1857,74 @@ class App(tk.Tk):
             except Exception as e:
                 error_msgs.append(f"產生運輸通知表失敗: {e}")
 
+        success_lorry = 0
+        if getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get():
+            lorry_sources = list(getattr(self, "imported_lorry_files", []))
+            if not lorry_sources:
+                import glob
+                lorry_sources = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+            
+            for l_path in lorry_sources:
+                orig_filename = os.path.splitext(os.path.basename(l_path))[0]
+                orig_ext = os.path.splitext(l_path)[1]
+                base_lorry_name = orig_filename.rsplit('-', 1)[0] if '-' in orig_filename else orig_filename
+                
+                try:
+                    with open(l_path, "rb") as f:
+                        l_bytes = f.read()
+                        
+                    for item in valid_data:
+                        b_no = item["batch"]
+                        l_loc = item["loc"]
+                        t_no = item["tank"]
+                        d_str = item["date"]
+                        
+                        wb_l = openpyxl.load_workbook(BytesIO(l_bytes))
+                        ws_l = wb_l.active
+                        
+                        matched_r = None
+                        for r in range(7, ws_l.max_row + 1):
+                            val = str(ws_l.cell(row=r, column=1).value or "").strip().upper()
+                            if val == b_no:
+                                matched_r = r
+                                break
+                                
+                        if matched_r:
+                            if matched_r > 7:
+                                ws_l.delete_rows(7, matched_r - 7)
+                            if ws_l.max_row > 7:
+                                ws_l.delete_rows(8, ws_l.max_row - 7)
+                                
+                            ws_l.freeze_panes = 'A7'
+                            if ws_l.views and ws_l.views.sheetView:
+                                sv_l = ws_l.views.sheetView[0]
+                                sv_l.topLeftCell = 'A7'
+                                for sel_l in sv_l.selection:
+                                    sel_l.activeCell = 'A7'
+                                    sel_l.sqref = 'A7'
+                                    
+                            mmdd = "0000"
+                            if d_str:
+                                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                    try:
+                                        dt_l = datetime.strptime(d_str.split()[0], fmt)
+                                        mmdd = f"{dt_l.month:02d}{dt_l.day:02d}"
+                                        break
+                                    except ValueError:
+                                        pass
+                            if mmdd == "0000":
+                                now_l = datetime.now()
+                                mmdd = f"{now_l.month:02d}{now_l.day:02d}"
+                                
+                            t_part = f"{t_no} " if t_no else ""
+                            lorry_out_name = f"{base_lorry_name}-{mmdd} {t_part}{l_loc}{orig_ext}"
+                            out_l_path = os.path.join(output_dir, lorry_out_name)
+                            wb_l.save(out_l_path)
+                            wb_l.close()
+                            success_lorry += 1
+                except Exception as le:
+                    error_msgs.append(f"產生 Chemical_Lorry 失敗: {le}")
+
         # 自動快取當前 Session 資料至輸出資料夾與根目錄，供往後一鍵精準還原修訂
         try:
             import json
@@ -1862,6 +1940,8 @@ class App(tk.Tk):
         if do_transport:
             status_str = "成功" if success_transport else "失敗"
             msg_parts.append(f"• 運輸通知表：{status_str} (共 {len(valid_data)} 筆排程卡片)")
+        if getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get() and success_lorry > 0:
+            msg_parts.append(f"• 單列 Chemical_Lorry：成功產生 {success_lorry} 份 (已自動對齊第 7 列)")
             
         msg = "\n".join(msg_parts) + f"\n\n檔案已儲存於資料夾：\n{output_dir}"
         
