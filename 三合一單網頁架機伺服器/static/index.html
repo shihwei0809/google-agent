@@ -58,6 +58,11 @@
                 🖼️ 上傳 COA 截圖 (OCR 辨識)
                 <input type="file" id="coaInput" accept="image/*, .png, .jpg, .jpeg" style="display:none;" onchange="uploadCoaScreenshot(event)">
             </label>
+            <!-- 📁 上傳附加檔案按鈕 (黃色或橘色) -->
+            <label class="btn btn-orange" style="cursor:pointer; background:#F57C00;">
+                📁 上傳附加檔案 (自動依單命名)
+                <input type="file" id="extraFileInput" accept="*/*" style="display:none;" onchange="uploadExtraFile(event)">
+            </label>
             <label class="btn btn-purple" style="cursor:pointer;">
                 📥 從 Excel 匯入 (排程表)
                 <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="importExcelFile(event)">
@@ -83,7 +88,7 @@
                     <th style="width: 90px;">槽號 (自動)</th>
                     <th style="width: 120px;">地點 (如 18P3B)</th>
                     <th>長代號 (自動)</th>
-                    <th style="width: 130px;">出貨日期 📅 (運輸通知用)</th>
+                    <th style="width: 130px;">出貨日期 📅</th>
                     <th style="width: 100px;">預計到廠時間</th>
                     <th style="width: 100px;">修正到廠時間</th>
                     <th style="width: 60px;">操作</th>
@@ -540,6 +545,37 @@
         } catch(err) {
             alert(`COA 截圖處理出錯: ${err}`);
             document.getElementById("statusBox").innerText = "⚠️ 截圖上傳失敗。";
+        }
+    }
+
+    // 📁 上傳額外附加檔案 (產生ZIP時將自動複製並依據排程重命名)
+    async function uploadExtraFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        document.getElementById("statusBox").innerText = "📁 正在上傳附加檔案...";
+
+        try {
+            const res = await fetch("/api/upload_extra_file", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!res.ok) {
+                alert("附加檔案上傳失敗！");
+                document.getElementById("statusBox").innerText = "⚠️ 附加檔案上傳失敗。";
+                return;
+            }
+
+            const data = await res.json();
+            document.getElementById("statusBox").innerText = `✅ ${data.message}`;
+            alert(`🎉 附加檔案上傳成功！\n稍後點擊【一鍵產生所有報表】時，系統會自動為每一筆排程複製一份檔案，並自動改成「原檔名前半部-日期 地點」的格式。`);
+        } catch(err) {
+            alert(`附加檔案處理出錯: ${err}`);
+            document.getElementById("statusBox").innerText = "⚠️ 附加檔案上傳失敗。";
         }
     }
 

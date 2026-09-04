@@ -166,9 +166,10 @@ def generate_transport_workbook(items, mat_no="L12C53161"):
         weekday_str = ""
         if date_raw:
             dt = None
-            for fmt in ("%Y/%m/%d", "%Y-%m-%d", "%Y/%M/%d", "%Y.%m.%d"):
+            date_part = date_raw.split()[0]
+            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
                 try:
-                    dt = datetime.strptime(date_raw, fmt)
+                    dt = datetime.strptime(date_part, fmt)
                     break
                 except ValueError:
                     pass
@@ -268,6 +269,7 @@ async def generate_all_zip(request: Request):
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             # 1. 產生三合一單 Excel 報表
             if do_3in1 and os.path.exists(TEMPLATE_PATH):
+                used_filenames = set()
                 for item in records:
                     batch = item.get("batch", "").strip().upper()
                     loc = item.get("loc", "").strip().upper()
@@ -301,8 +303,8 @@ async def generate_all_zip(request: Request):
                     qr.make(fit=True)
                     raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
 
-                    offset_x, offset_y = 35, 25
-                    img_qr = Image.new('RGB', (raw_img.width + offset_x, raw_img.height + offset_y), 'white')
+                    offset_x, offset_y = 35, 45
+                    img_qr = Image.new('RGBA', (raw_img.width + offset_x, raw_img.height + offset_y), (255, 255, 255, 0))
                     img_qr.paste(raw_img, (offset_x, offset_y))
 
                     img_io = BytesIO()
@@ -376,8 +378,28 @@ async def generate_all_zip(request: Request):
                     excel_io.seek(0)
 
                     # 檔名公式：[出貨日期]. [地點]_[槽號]_台積電槽車barcode三合一單.xlsx
-                    date_prefix = f"{datetime.now().year}.{datetime.now().month}.{datetime.now().day}. "
-                    file_name = f"{date_prefix}{loc}_{tank_no}_台積電槽車barcode三合一單.xlsx"
+                    date_raw = str(item.get("date", "")).strip()
+                    dt_file = None
+                    if date_raw:
+                        date_part = date_raw.split()[0]
+                        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                            try:
+                                dt_file = datetime.strptime(date_part, fmt)
+                                break
+                            except ValueError:
+                                pass
+                    if not dt_file:
+                        dt_file = datetime.now()
+
+                    date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
+                    base_name = f"{date_prefix}{loc}_{tank_no}_台積電槽車barcode三合一單.xlsx"
+                    test_name = base_name
+                    counter = 1
+                    while f"{folder_name}/{test_name}" in used_filenames:
+                        test_name = f"{date_prefix}{loc}_{tank_no}_{counter}_台積電槽車barcode三合一單.xlsx"
+                        counter += 1
+                    file_name = test_name
+                    used_filenames.add(f"{folder_name}/{file_name}")
                     zip_file.writestr(f"{folder_name}/{file_name}", excel_io.getvalue())
 
             # 2. 產生獨立運輸通知表 Excel
@@ -404,6 +426,68 @@ async def generate_all_zip(request: Request):
                 zip_file.writestr(f"{folder_name}/session.json", json.dumps(session_payload, ensure_ascii=False, indent=2).encode('utf-8'))
             except Exception as se:
                 print(f"[Session JSON Error] {se}")
+            
+            # 3. 產生額外附加檔案 (若有上傳 Excel，依批號過濾並只保留單列)
+            extra_file = EXTRA_FILE_CACHE.get("latest_file")
+            if extra_file and extra_file["ext"].lower() in [".xlsx", ".xls"]:
+                for item in records:
+                    batch = item.get("batch", "").strip().upper()
+                    loc = item.get("loc", "").strip().upper()
+                    if not batch or not loc or len(batch) != 10 or loc not in mapping:
+                        continue
+                    
+                    try:
+                        # 每次都從記憶體重新讀取原始檔案
+                        new_wb = openpyxl.load_workbook(BytesIO(extra_file["content"]))
+                        new_ws = new_wb.active
+                        
+                        # 尋找匹配的批號 (從第 7 列開始找，批號通常在 A 欄)
+                        matched_row_idx = None
+                        for r in range(7, new_ws.max_row + 1):
+                            val = str(new_ws.cell(row=r, column=1).value or "").strip().upper()
+                            if val == batch:
+                                matched_row_idx = r
+                                break
+                                
+                        if matched_row_idx:
+                            # 巧妙利用刪除列來保留格式：刪除目標列之前的所有資料列 (7 ~ 目標-1)
+                            if matched_row_idx > 7:
+                                new_ws.delete_rows(7, matched_row_idx - 7)
+                                
+                            # 此時目標列已經往上移動變成第 7 列了，接著刪除第 8 列以後的所有資料
+                            if new_ws.max_row > 7:
+                                new_ws.delete_rows(8, new_ws.max_row - 7)
+                            
+                            # 組合新檔名：[原檔名前半部]-[MMDD] [Loc].[Ext]
+                            orig_name = extra_file["filename"]
+                            base_name = orig_name.rsplit('-', 1)[0] if '-' in orig_name else orig_name
+                            
+                            date_raw = item.get("date", "").strip()
+                            mmdd = "0000"
+                            if date_raw:
+                                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                    try:
+                                        dt = datetime.strptime(date_raw, fmt)
+                                        mmdd = f"{dt.month:02d}{dt.day:02d}"
+                                        break
+                                    except ValueError:
+                                        pass
+                            if mmdd == "0000":
+                                now = datetime.now()
+                                mmdd = f"{now.month:02d}{now.day:02d}"
+                                
+                            new_filename = f"{base_name}-{mmdd} {loc}{extra_file['ext']}"
+                            
+                            # 儲存到 ZIP
+                            out_buf = BytesIO()
+                            new_wb.save(out_buf)
+                            zip_file.writestr(f"{folder_name}/{new_filename}", out_buf.getvalue())
+                    except Exception as ex:
+                        print(f"處理附加檔案 {batch} 時發生錯誤: {ex}")
+
+        # 生成完成後，清空快取避免影響下一次
+        # COA_CACHE.clear() 
+        # EXTRA_FILE_CACHE.clear()
 
         zip_buffer.seek(0)
         zip_filename = f"{folder_name}.zip"
@@ -464,6 +548,27 @@ async def ocr_parse(file: UploadFile = File(...)):
 
 # 2. COA 截圖處理與 Excel 自動貼上 API (純 Python Pillow 零依賴 .exe 方案)
 COA_CACHE = {}
+EXTRA_FILE_CACHE = {}
+
+@app.post("/api/upload_extra_file")
+async def upload_extra_file(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        import os
+        filename, ext = os.path.splitext(file.filename)
+        
+        EXTRA_FILE_CACHE["latest_file"] = {
+            "content": content,
+            "filename": filename,
+            "ext": ext
+        }
+
+        return JSONResponse({
+            "status": "success",
+            "message": f"附加檔案 {file.filename} 上傳成功！產生報表時將自動依排程複製與命名。"
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"附加檔案處理失敗: {e}")
 
 @app.post("/api/upload_coa_image")
 async def upload_coa_image(file: UploadFile = File(...), ocr_data: str = Form(None)):
