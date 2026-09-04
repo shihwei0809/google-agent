@@ -600,10 +600,10 @@
 
             const data = await res.json();
             document.getElementById("statusBox").innerText = `✅ ${data.message}`;
-            alert(`🎉 附加檔案上傳成功！\n稍後點擊【一鍵產生所有報表】時，系統會自動為每一筆排程複製一份檔案，並自動改成「原檔名前半部-日期 地點」的格式。`);
+            alert(`🎉 生產履歷檔案上傳成功！\n稍後點擊【一鍵產生所有報表】時，系統會自動為每一筆排程產生專屬單列資料，並自動命名為「原檔名前半部-MMDD 槽號 廠別.xlsx」！`);
         } catch(err) {
-            alert(`附加檔案處理出錯: ${err}`);
-            document.getElementById("statusBox").innerText = "⚠️ 附加檔案上傳失敗。";
+            alert(`載入生產履歷出錯: ${err}\n\n若您是在本地網頁操作，請確認「架設伺服器_一鍵啟動.bat」是否仍在運行中。`);
+            document.getElementById("statusBox").innerText = "⚠️ 載入生產履歷出錯，請確認伺服器連線狀態。";
         }
     }
 
