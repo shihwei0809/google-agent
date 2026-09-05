@@ -1,0 +1,24 @@
+﻿{
+  "name": "N系列出貨條碼核對系統",
+  "short_name": "N系列出貨核對",
+  "description": "N系列槽車出貨條碼離線掃描與即時核對 PWA 應用程式",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1976d2",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

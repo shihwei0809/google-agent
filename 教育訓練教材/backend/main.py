@@ -154,7 +154,18 @@ async def chat_with_ai(req: ChatRequest):
     if not API_KEYS:
         return {"response": "系統尚未設定任何 GEMINI_API_KEY，無法提供 AI 服務。"}
     
-    prompt = f"你是一個專業的企業內訓 AI 助教。請根據以下教材內容，親切且專業地回答學員的問題。\n\n【教材內容】\n{req.context}\n\n【學員問題】\n{req.message}"
+    # 自動讀取所有教材 (全知模式)
+    all_materials_content = ""
+    if os.path.exists(MATERIALS_DIR):
+        for filename in os.listdir(MATERIALS_DIR):
+            if filename.endswith(".md"):
+                try:
+                    with open(os.path.join(MATERIALS_DIR, filename), "r", encoding="utf-8") as f:
+                        all_materials_content += f"\n\n--- 教材: {filename} ---\n" + f.read()
+                except:
+                    pass
+
+    prompt = f"你是一個專業的企業內訓 AI 助教。請根據以下【所有教材內容】，親切且專業地回答學員的問題。\n如果學員的問題跨越了多份教材，請幫忙統整答案。\n如果問題與教材完全無關，請委婉告知。\n\n【所有教材內容】\n{all_materials_content}\n\n【學員問題】\n{req.message}"
     
     # 雙重備援機制：先輪替 API Keys，再輪替模型
     for key_idx, current_key in enumerate(API_KEYS):
@@ -181,18 +192,34 @@ async def chat_with_ai(req: ChatRequest):
                     full_text += footer
                     yield footer
                     
-                    # --- 在回傳結束後寫入 CSV ---
-                    log_file = "chat_logs.csv"
-                    file_exists = os.path.isfile(log_file)
+                    # --- 在回傳結束後寫入 Excel (以月份分頁) ---
                     try:
-                        with open(log_file, "a", newline='', encoding="utf-8-sig") as f:
-                            writer = csv.writer(f)
-                            if not file_exists:
-                                writer.writerow(["時間", "教材名稱", "學員提問", "AI回覆"])
-                            timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            writer.writerow([timestamp, req.material_name, req.message, full_text])
+                        import openpyxl
+                        log_file = "chat_logs.xlsx"
+                        now = datetime.datetime.now()
+                        month_str = now.strftime("%Y-%m")
+                        timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
+                        
+                        if os.path.exists(log_file):
+                            wb = openpyxl.load_workbook(log_file)
+                        else:
+                            wb = openpyxl.Workbook()
+                            # 移除預設的空 Sheet
+                            if "Sheet" in wb.sheetnames:
+                                del wb["Sheet"]
+                                
+                        # 若當月的分頁不存在，則建立並寫入標題列
+                        if month_str not in wb.sheetnames:
+                            ws = wb.create_sheet(title=month_str)
+                            ws.append(["時間", "當前檢視教材", "學員提問", "AI回覆"])
+                        else:
+                            ws = wb[month_str]
+                            
+                        # 寫入提問紀錄
+                        ws.append([timestamp, req.material_name, req.message, full_text])
+                        wb.save(log_file)
                     except Exception as log_e:
-                        print(f"寫入日誌失敗: {log_e}")
+                        print(f"寫入 Excel 日誌失敗: {log_e}")
                     # -----------------------------
                     
                 return StreamingResponse(generate(), media_type="text/plain")

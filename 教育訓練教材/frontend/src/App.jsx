@@ -123,8 +123,8 @@ function App() {
   };
 
   const handleSend = async () => {
-    if (!input.trim()) return;
-
+    if (!input.trim() || !currentContent || isLoading) return;
+    
     const userMsg = input.trim();
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setInput('');
@@ -172,7 +172,12 @@ function App() {
         const chunk = decoder.decode(value, { stream: true });
         setMessages(prev => {
           const newMessages = [...prev];
-          newMessages[newMessages.length - 1].content += chunk;
+          const lastIndex = newMessages.length - 1;
+          // [重要修復] 必須拷貝物件，不能直接修改舊物件的屬性，否則 React 嚴格模式會導致文字重複疊加兩次
+          newMessages[lastIndex] = {
+            ...newMessages[lastIndex],
+            content: newMessages[lastIndex].content + chunk
+          };
           return newMessages;
         });
       }
@@ -337,8 +342,13 @@ function App() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="請針對當前教材提問..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="請輸入您的問題，AI 將自動跨教材為您解答..."
               className="flex-1 bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400"
             />
             <button 
