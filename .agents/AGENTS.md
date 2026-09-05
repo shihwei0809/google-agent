@@ -66,6 +66,22 @@
 每當 AI 建立或修改任何具有 Python 後端的專案時，必須自動產生或更新該專案的 `.bat` 啟動檔。
 
 ## 8. Web 專案 PWA 雙軌架構標準規範 (PWA Dual-Track Architecture)
+凡是建立或修改任何具備 Web 前端（HTML / JavaScript / Web API / Python Web 後端）的子專案時，必須**在專案內部建立兩個獨立分類資料夾**，實施雙軌分流存放：
+
+```text
+[專案名稱]/
+├── 1_Web_網頁版/            # 一般瀏覽器網頁版本 (原始邏輯、GAS/PHP/API 後端)
+└── 2_PWA_App版/             # PWA 獨立 App 版本 (可安裝 App、離線快取、全螢幕)
+    ├── index.html           # 引入 manifest 與 sw.js 註冊，含頂部智慧安裝條
+    ├── manifest.json        # PWA 配置 (名稱、standalone 獨立全螢幕、主題色)
+    ├── sw.js                # Service Worker 離線快取服務
+    ├── icons/               # 192x192 / 512x512 高解析 App 圖示
+    ├── run_server.py        # Python 本機 Web 伺服器 (自動偵測 IP 與 Port)
+    ├── 啟動PWA本機測試.bat   # 純 ASCII 啟動腳本 (呼叫 run_server.py)
+    ├── build_manual_doc.py  # 圖文手冊生成腳本 (含三端 PWA 安裝章節)
+    ├── [專案]_操作手冊.docx   # 繁體中文 Word 操作手冊
+    └── [專案]_操作手冊.pdf    # 繁體中文 PDF 操作手冊
+```
 凡是建立或修改任何具備 Web 前端（HTML / JavaScript / Web API / Python Web 後端）的子專案時，必須**全面採用 PWA 雙軌架構**，讓系統同時支援「一般瀏覽器網頁模式」與「獨立安裝 App 模式」：
 
 1. **必備 PWA 核心三件套 (每個 Web 專案皆必須具備)**：
