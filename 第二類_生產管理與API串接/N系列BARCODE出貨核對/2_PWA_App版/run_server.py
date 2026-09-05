@@ -4,6 +4,12 @@ import socket
 import webbrowser
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
+class UTF8Handler(SimpleHTTPRequestHandler):
+    def end_headers(self):
+        if self.path.endswith(".html") or self.path == "/" or self.path == "":
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+        super().end_headers()
+
 def get_local_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -24,7 +30,6 @@ def find_available_port(start_port=8080):
     return start_port
 
 def main():
-    # Set console encoding
     if sys.platform == "win32":
         os.system("chcp 65001 >nul")
         
@@ -48,7 +53,7 @@ def main():
     webbrowser.open(f"http://localhost:{port}")
     
     print("伺服器運行中 (按 Ctrl+C 可停止)...")
-    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    server = HTTPServer(('0.0.0.0', port), UTF8Handler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
