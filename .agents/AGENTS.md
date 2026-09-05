@@ -65,3 +65,17 @@
 ## 7. 專案啟動 BAT 自動產生規範 (Auto-Generated Launcher)
 每當 AI 建立或修改任何具有 Python 後端的專案時，必須自動產生或更新該專案的 `.bat` 啟動檔。
 
+## 8. Web 專案 PWA 雙軌架構標準規範 (PWA Dual-Track Architecture)
+凡是建立或修改任何具備 Web 前端（HTML / JavaScript / Web API / Python Web 後端）的子專案時，必須**全面採用 PWA 雙軌架構**，讓系統同時支援「一般瀏覽器網頁模式」與「獨立安裝 App 模式」：
+
+1. **必備 PWA 核心三件套 (每個 Web 專案皆必須具備)**：
+   - `manifest.json`：設定 App 名稱、short_name、`display: "standalone"`、主題色與圖示路徑。
+   - `sw.js`：Service Worker 背景離線快取機制。
+   - `icons/`：提供 `icon-192.png` 與 `icon-512.png` 專屬高解析度 App 桌面圖示。
+2. **HTML 頂部內建智慧安裝橫幅 (PWA Install Banner)**：
+   - 內建 `pwa-install-banner` 與 `立即安裝` 按鈕。
+   - 監聽 `beforeinstallprompt` 事件，支援電腦 Chrome/Edge 一鍵安裝、Android 新增至主畫面、iOS Safari 加入主畫面指引。
+3. **啟動腳本 (.bat) 具備 PWA 雙軌指示**：
+   - 伺服器啟動黑視窗中，必須自動顯示電腦網址、手機 IP 以及 PWA 安裝引導。
+4. **操作手冊必備 PWA 安裝指引章節**：
+   - `build_manual_doc.py` 產出的 Word/PDF 手冊必須包含「電腦端與手機端 PWA 安裝與離線操作步驟」。
