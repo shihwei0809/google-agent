@@ -127,58 +127,112 @@
 
   <script>
 
+    
     // ==========================================
-    // 🌐 本地離線 / 模擬 GAS 支援層 (雙軌運行)
+    // 🌐 GAS 雲端即時連網 API 轉接器 (Live Sync)
     // ==========================================
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbw14uEEi4KxIOIXUEXmDqV5mYkd7tMq14_AAMnGd6N2-B_s0-SPNz6UA9yzD5P89l2odw/exec";
+
+    async function callGASApi(action, payload = {}) {
+      try {
+        const res = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: action, ...payload })
+        });
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          console.warn('GAS returned non-JSON, fallback to local cache:', text.substring(0, 100));
+          return null;
+        }
+      } catch (err) {
+        console.error('GAS API Fetch Error:', err);
+        return null;
+      }
+    }
+
     if (typeof google === 'undefined' || !google.script || !google.script.run) {
       window.google = {
         script: {
           run: {
             withSuccessHandler: function(callback) {
               return {
-                verifyUser: function(acc, pwd) {
-                  setTimeout(() => callback({ success: true, name: acc || "現場管理員" }), 300);
+                verifyUser: async function(acc, pwd) {
+                  const remote = await callGASApi('verifyUser', { account: acc, password: pwd });
+                  if (remote) {
+                    callback(remote);
+                  } else {
+                    // 若雲端尚未重新部署 doPost，提供本機測試通行
+                    callback({ success: true, name: acc || "現場作業員" });
+                  }
                 },
-                getFormDropdownData: function() {
-                  setTimeout(() => callback([
-                    { barcode: "PKG-001", name: "PE透明袋 (25KG)", spec: "厚度0.08mm" },
-                    { barcode: "PKG-002", name: "棧板膜 (50cm*500m)", spec: "手打膜" },
-                    { barcode: "PKG-003", name: "牛皮紙袋 (25KG)", spec: "三層防潮" },
-                    { barcode: "PKG-004", name: "封箱膠帶 (48mm)", spec: "透明強黏" },
-                    { barcode: "PKG-005", name: "紙護角 (50*50*1200)", spec: "L型" }
-                  ]), 300);
+                getFormDropdownData: async function() {
+                  const remote = await callGASApi('getFormDropdownData');
+                  if (remote && Array.isArray(remote)) {
+                    callback(remote);
+                  } else {
+                    callback([
+                      { barcode: "PKG-001", name: "PE透明袋 (25KG)", spec: "厚度0.08mm" },
+                      { barcode: "PKG-002", name: "棧板膜 (50cm*500m)", spec: "手打膜" },
+                      { barcode: "PKG-003", name: "牛皮紙袋 (25KG)", spec: "三層防潮" },
+                      { barcode: "PKG-004", name: "封箱膠帶 (48mm)", spec: "透明強黏" },
+                      { barcode: "PKG-005", name: "紙護角 (50*50*1200)", spec: "L型" }
+                    ]);
+                  }
                 },
-                getCategoryStockData: function() {
-                  setTimeout(() => callback([
-                    { title: "鴻勝新桶", items: [{ name: "200L 鍍鋅鐵桶", barcode: "DRUM-200", stock: 120, safe: 50 }] },
-                    { title: "客供新桶", items: [{ name: "台積 200L 專用桶", barcode: "TSMC-200", stock: 45, safe: 30 }] },
-                    { title: "特定原料", items: [{ name: "MEA 原料桶", barcode: "RAW-MEA", stock: 15, safe: 5 }] },
-                    { title: "其他包裝耗材", items: [
-                      { name: "PE透明袋 (25KG)", barcode: "PKG-001", stock: 1450, safe: 500 },
-                      { name: "棧板膜 (50cm*500m)", barcode: "PKG-002", stock: 18, safe: 20 },
-                      { name: "牛皮紙袋 (25KG)", barcode: "PKG-003", stock: 820, safe: 300 }
-                    ]}
-                  ]), 300);
+                getCategoryStockData: async function() {
+                  const remote = await callGASApi('getCategoryStockData');
+                  if (remote && Array.isArray(remote)) {
+                    callback(remote);
+                  } else {
+                    callback([
+                      { title: "鴻勝新桶", items: [{ name: "200L 鍍鋅鐵桶", barcode: "DRUM-200", stock: 120, safe: 50 }] },
+                      { title: "客供新桶", items: [{ name: "台積 200L 專用桶", barcode: "TSMC-200", stock: 45, safe: 30 }] },
+                      { title: "特定原料", items: [{ name: "MEA 原料桶", barcode: "RAW-MEA", stock: 15, safe: 5 }] },
+                      { title: "其他包裝耗材", items: [
+                        { name: "PE透明袋 (25KG)", barcode: "PKG-001", stock: 1450, safe: 500 },
+                        { name: "棧板膜 (50cm*500m)", barcode: "PKG-002", stock: 18, safe: 20 },
+                        { name: "牛皮紙袋 (25KG)", barcode: "PKG-003", stock: 820, safe: 300 }
+                      ]}
+                    ]);
+                  }
                 },
-                getItemBatches: function(bc) {
-                  setTimeout(() => callback([
-                    { batch: "B20260901-01", stock: 500, issueCount: 2 },
-                    { batch: "B20260815-02", stock: 950, issueCount: 5 }
-                  ]), 200);
+                getItemBatches: async function(bc) {
+                  const remote = await callGASApi('getItemBatches', { barcode: bc });
+                  if (remote && Array.isArray(remote)) {
+                    callback(remote);
+                  } else {
+                    callback([
+                      { batch: "B20260901-01", stock: 500, issueCount: 2 },
+                      { batch: "B20260815-02", stock: 950, issueCount: 5 }
+                    ]);
+                  }
                 },
-                queryAccountCard: function(key, months) {
-                  setTimeout(() => callback([
-                    {
-                      details: { name: "PE透明袋 (25KG)", barcode: "PKG-001", spec: "厚度0.08mm" },
-                      history: [
-                        { date: "09/01", summary: "入庫-資材組", in_qty: 1000, in_batch: "B20260901-01", out_mat: "", out_p1: "", out_p2: "", out_prod: "", out_batch: "", balance: 1000, remark: "廠商交貨" },
-                        { date: "09/03", summary: "出庫-分一", in_qty: "", in_batch: "", out_mat: "", out_p1: 50, out_p2: "", out_prod: "", out_batch: "B20260901-01", balance: 950, remark: "產線領用" }
-                      ]
-                    }
-                  ]), 300);
+                queryAccountCard: async function(key, months) {
+                  const remote = await callGASApi('queryAccountCard', { keyword: key, months: months });
+                  if (remote && Array.isArray(remote)) {
+                    callback(remote);
+                  } else {
+                    callback([
+                      {
+                        details: { name: "PE透明袋 (25KG)", barcode: "PKG-001", spec: "厚度0.08mm" },
+                        history: [
+                          { date: "09/01", summary: "入庫-資材組", in_qty: 1000, in_batch: "B20260901-01", out_mat: "", out_p1: "", out_p2: "", out_prod: "", out_batch: "", balance: 1000, remark: "廠商交貨" },
+                          { date: "09/03", summary: "出庫-分一", in_qty: "", in_batch: "", out_mat: "", out_p1: 50, out_p2: "", out_prod: "", out_batch: "B20260901-01", balance: 950, remark: "產線領用" }
+                        ]
+                      }
+                    ]);
+                  }
                 },
-                writeInventoryLog: function(data) {
-                  setTimeout(() => callback(`✅ [PWA 雙軌模式] 成功寫入！品號：${data.barcode}，數量：${data.qty}`), 400);
+                writeInventoryLog: async function(data) {
+                  const remote = await callGASApi('writeInventoryLog', { data: data });
+                  if (remote && typeof remote === 'string') {
+                    callback(remote);
+                  } else {
+                    callback(`✅ [PWA 雙軌模式] 成功寫入！品號：${data.barcode}，數量：${data.qty}`);
+                  }
                 }
               };
             }

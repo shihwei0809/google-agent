@@ -656,3 +656,44 @@ function autoImportInitialStock() {
      SpreadsheetApp.getUi().alert("⚠️ 沒有找到任何大於 0 的庫存可以匯入。");
   }
 }
+
+/**
+ * 🌐 支援外部 PWA / API 呼叫 (JSON 接口)
+ */
+function doPost(e) {
+  try {
+    let req;
+    if (e.postData && e.postData.contents) {
+      req = JSON.parse(e.postData.contents);
+    } else if (e.parameter) {
+      req = e.parameter;
+    } else {
+      throw new Error("無效的請求資料");
+    }
+
+    const action = req.action;
+    let result = null;
+
+    if (action === 'verifyUser') {
+      result = verifyUser(req.account, req.password);
+    } else if (action === 'getCategoryStockData') {
+      result = getCategoryStockData();
+    } else if (action === 'getFormDropdownData') {
+      result = getFormDropdownData();
+    } else if (action === 'getItemBatches') {
+      result = getItemBatches(req.barcode);
+    } else if (action === 'queryAccountCard') {
+      result = queryAccountCard(req.keyword, req.months);
+    } else if (action === 'writeInventoryLog') {
+      result = writeInventoryLog(req.data);
+    } else {
+      result = { error: "未知操作指令: " + action };
+    }
+
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
