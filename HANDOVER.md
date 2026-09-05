@@ -1,5 +1,24 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 2026-09-05 收工交接 (正式上線發布：PWA 雙軌架構實施與 eshine-package 上線)
+- **完成項目**：
+  1. **全專案 PWA 雙軌架構標準化 (PWA Dual-Track Architecture)**：
+     - 在 `AGENTS.md` 與中央大腦 `INSTRUCTIONS.md` 確立 Rule 7 (純 ASCII BAT) 與 Rule 8 (PWA 雙軌 `1_Web_網頁版` / `2_PWA_App版`) 開發規範。
+     - 重構「倉庫常用包材管理」與「N系列BARCODE出貨核對」專案，拆分雙軌目錄並配齊 `manifest.json`、`sw.js`、高解析圖示 (`icons/`)、`run_server.py` 與 `一鍵部署到Cloudflare.bat`。
+  2. **鴻勝包材管理系統 v13.5 (Eshine Package) 雲端正式上線**：
+     - 整合即時 GAS Web App 後端與高質感藍灰 Bootstrap 5 介面。
+     - 透過 Wrangler Direct Upload 成功部署至 Cloudflare Pages：**`https://eshine-package.pages.dev`**。
+     - 具備離線快取防呆與三端 (Windows/Mac 電腦獨立視窗、Android 桌面圖示、iOS Safari 加入主畫面) PWA 獨立 App 安裝能力。
+  3. **Git 倉庫健全性修復 (Submodule / Gitlink 清理)**：
+     - 清除 Git 索引內殘留之 22 個無效 `160000` gitlink 孤立指標，徹底解決 Cloudflare 雲端 build clone 失敗問題。
+  4. **全套圖文手冊產出與 Git 強制納管**：
+     - 產出《鴻勝包材管理系統_操作手冊》與《Cloudflare_Pages_完整部署與疑難排解手冊》之 Word (.docx) 及 PDF (.pdf) 文件，並以 `git add -f` 強制納管。
+- **遇到的問題與解決**：
+  - **Windows CMD BAT 亂碼 (`嚜濃echo`)**：UTF-8 BOM 導致 CMD 報錯。解法：全面改為純 ASCII 3 行 BAT (`@echo off\npython run_server.py\npause`)，控制台繁體中文輸出全權由 Python 接管。
+  - **瀏覽器本機中文亂碼 (`暾餃蝠ㄥ蝟餌紋`)**：HTML 與伺服器缺少 utf-8 編碼宣告。解法：注入 `<meta charset="UTF-8">` 並在伺服器回應標頭設定 `Content-Type: text/html; charset=utf-8`。
+  - **Cloudflare Git Clone 報錯**：`fatal: No url found for submodule path in .gitmodules`。解法：使用 `git update-index --force-remove` 將所有 160000 虛擬指標從 Git 索引剔除。
+  - **Cloudflare 免費方案佇列排隊**：雲端 Build 需排隊等容器。解法：改用 Direct Upload (Wrangler API Token)，3 秒直傳全球邊緣節點。
+
 ## 2026-09-04 深夜收工 (正式上線發布：線上地點代號回寫主機端功能)
 - **完成項目**：
   1. **線上網頁端地點代號即時回寫主機電腦端**：
