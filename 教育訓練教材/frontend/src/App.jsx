@@ -18,6 +18,11 @@ function App() {
   const [currentContent, setCurrentContent] = useState('# 請從左側選擇教材');
   const [isAdmin, setIsAdmin] = useState(false);
   
+  // 新增編輯模式的狀態
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '您好！我是您的專屬 AI 助教。請問您對目前的教材有什麼疑問嗎？' }
   ]);
@@ -72,6 +77,7 @@ function App() {
 
   // 選擇並讀取教材
   const selectMaterial = async (filename) => {
+    setIsEditing(false);
     try {
       const res = await axios.get(`${API_BASE}/materials/${filename}`);
       setCurrentContent(res.data.content || '# 教材為空');
@@ -90,11 +96,11 @@ function App() {
     formData.append('file', file);
 
     try {
-      await axios.post(`${API_BASE}/materials`, formData, {
+      const res = await axios.post(`${API_BASE}/materials`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       await fetchMaterials();
-      selectMaterial(file.name);
+      selectMaterial(res.data.filename || file.name);
     } catch (err) {
       alert('上傳失敗');
       console.error(err);
@@ -106,19 +112,69 @@ function App() {
 
   // 處理刪除
   const handleDelete = async (e, filename) => {
-    e.stopPropagation(); // 避免觸發點擊切換教材
-    if (!window.confirm(`確定要刪除教材「${filename}」嗎？`)) return;
-    
+    e.stopPropagation();
+    if (!window.confirm(`確定要刪除教材 ${filename} 嗎？`)) return;
     try {
-      await axios.delete(`${API_BASE}/materials/${filename}`);
+      await fetch(`${API_BASE}/materials/${filename}`, { method: 'DELETE' });
       if (currentMaterialName === filename) {
         setCurrentMaterialName('');
         setCurrentContent('# 請從左側選擇教材');
+        setIsEditing(false);
       }
       await fetchMaterials();
     } catch (err) {
-      alert('刪除失敗，可能是後端伺服器尚未重新啟動讀取最新 API。');
+      alert('刪除失敗');
       console.error(err);
+    }
+  };
+
+  const handleSaveMaterial = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/materials/${currentMaterialName}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: editContent })
+      });
+      if (response.ok) {
+        setCurrentContent(editContent);
+        setIsEditing(false);
+        alert('儲存成功！');
+      } else {
+        alert('儲存失敗！');
+      }
+    } catch (err) {
+      alert('儲存失敗');
+      console.error(err);
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    const prompt = window.prompt("請輸入您想要 AI 畫出的畫面 (例如：工廠堆高機搬運鐵桶的示意圖)：");
+    if (!prompt) return;
+    
+    setIsGeneratingImage(true);
+    try {
+      const res = await fetch(`${API_BASE}/generate_image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+      });
+      const data = await res.json();
+      if (data.filename) {
+        const imgMarkdown = `\n\n![AI示意圖](${data.filename})\n\n`;
+        // 將圖片插入到目前編輯文字的游標處或是最下方
+        setEditContent(prev => prev + imgMarkdown);
+        alert('✨ 圖片已成功生成並插入至草稿最下方！');
+      } else {
+        alert('生成失敗: ' + data.error);
+      }
+    } catch (err) {
+      alert('圖片生成發生錯誤');
+      console.error(err);
+    } finally {
+      setIsGeneratingImage(false);
     }
   };
 
@@ -225,7 +281,7 @@ function App() {
             type="file" 
             ref={fileInputRef}
             onChange={handleUpload}
-            accept=".md,.txt,.pdf,.docx,.xlsx,.pptx"
+            accept=".md,.txt,.pdf,.docx,.xlsx,.pptx,.mp4,.mov,.avi,.webm"
             className="hidden" 
           />
         </div>
@@ -266,40 +322,125 @@ function App() {
         </div>
       </div>
 
-      {/* 中間：教材閱讀區 */}
-      <div className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-3xl mx-auto bg-white p-10 shadow-sm rounded-lg border border-gray-100">
-          <div className="prose prose-blue max-w-none">
-            <ReactMarkdown
-              components={{
-                code({ node, inline, className, children, ...props }) {
-                  const match = /language-(\w+)/.exec(className || '');
-                  if (!inline && match && match[1] === 'mermaid') {
-                    // 使用一個唯一的 ID 來避免重複渲染衝突
-                    const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
-                    useEffect(() => {
-                      try {
-                        mermaid.contentLoaded();
-                      } catch (e) {}
-                    }, []);
+      {/* 中間：教材內容顯示區塊 */}
+      <div className="flex-1 overflow-y-auto p-8 relative">
+        {currentMaterialName && isAdmin && (
+          <div className="absolute top-4 right-8 flex gap-2">
+            {!isEditing ? (
+              <button
+                onClick={() => {
+                  setEditContent(currentContent);
+                  setIsEditing(true);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 text-sm font-medium"
+              >
+                編輯教材
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleGenerateImage}
+                  disabled={isGeneratingImage}
+                  className="px-4 py-2 bg-purple-600 text-white rounded shadow hover:bg-purple-700 text-sm font-medium disabled:opacity-50"
+                >
+                  {isGeneratingImage ? "✨ 畫圖中..." : "✨ AI 生成圖片"}
+                </button>
+                <button
+                  onClick={handleSaveMaterial}
+                  className="px-4 py-2 bg-green-600 text-white rounded shadow hover:bg-green-700 text-sm font-medium"
+                >
+                  儲存修改
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-4 py-2 bg-gray-500 text-white rounded shadow hover:bg-gray-600 text-sm font-medium"
+                >
+                  取消
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        <div className="max-w-3xl mx-auto bg-white p-10 shadow-sm rounded-lg border border-gray-100 min-h-full">
+          {isEditing ? (
+            <textarea
+              className="w-full h-full min-h-[600px] p-4 border border-blue-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              onPaste={async (e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                for (let i = 0; i < items.length; i++) {
+                  if (items[i].type.indexOf('image') !== -1) {
+                    e.preventDefault(); // 阻止預設貼上文字行為
+                    const file = items[i].getAsFile();
+                    if (!file) continue;
                     
-                    return (
-                      <div className="mermaid flex justify-center my-8">
-                        {String(children).replace(/\n$/, '')}
-                      </div>
-                    );
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    
+                    try {
+                      // 顯示上傳中提示
+                      const start = e.target.selectionStart;
+                      const end = e.target.selectionEnd;
+                      const uploadingText = "\n![圖片上傳中...]()\n";
+                      setEditContent(prev => prev.substring(0, start) + uploadingText + prev.substring(end));
+                      
+                      const res = await fetch(`${API_BASE}/upload_image`, {
+                        method: 'POST',
+                        body: formData
+                      });
+                      const data = await res.json();
+                      if (data.url) {
+                        const imgMd = `\n![系統截圖](${data.url})\n`;
+                        // 替換掉上傳中文字
+                        setEditContent(prev => prev.replace(uploadingText, imgMd));
+                      } else {
+                        setEditContent(prev => prev.replace(uploadingText, "\n(圖片上傳失敗)\n"));
+                      }
+                    } catch(err) {
+                      console.error(err);
+                    }
+                    break;
                   }
-                  return (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
                 }
               }}
-            >
-              {currentContent}
-            </ReactMarkdown>
-          </div>
+              placeholder="您可以在這裡修改教材，或是直接按 Ctrl+V 貼上您的螢幕截圖！"
+            />
+          ) : (
+            <div className="prose prose-blue max-w-none">
+              <ReactMarkdown
+                components={{
+                  img: ({ node, ...props }) => {
+                    const src = props.src?.startsWith('http') ? props.src : `${API_BASE}/materials_static/${props.src}`;
+                    return <img {...props} src={src} className="max-w-full h-auto rounded shadow-sm" alt={props.alt || ''} />;
+                  },
+                  code({ node, inline, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || '');
+                    if (!inline && match && match[1] === 'mermaid') {
+                      useEffect(() => {
+                        try {
+                          mermaid.contentLoaded();
+                        } catch (e) {}
+                      }, []);
+                      return (
+                        <div className="mermaid flex justify-center my-8">
+                          {String(children).replace(/\n$/, '')}
+                        </div>
+                      );
+                    }
+                    return (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    );
+                  }
+                }}
+              >
+                {currentContent}
+              </ReactMarkdown>
+            </div>
+          )}
         </div>
       </div>
 
@@ -318,7 +459,16 @@ function App() {
               <div className={`max-w-[85%] rounded-lg p-3 ${msg.role === 'user' ? 'bg-blue-100 text-blue-900' : 'bg-gray-100 text-gray-800'}`}>
                 <div className="text-sm">
                   {msg.role === 'assistant' ? (
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    <ReactMarkdown
+                      components={{
+                        img: ({ node, ...props }) => {
+                          const src = props.src?.startsWith('http') ? props.src : `${API_BASE}/materials_static/${props.src}`;
+                          return <img {...props} src={src} className="max-w-full h-auto rounded shadow-sm" alt={props.alt || ''} />;
+                        }
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
                   ) : (
                     msg.content
                   )}

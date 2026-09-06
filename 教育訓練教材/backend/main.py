@@ -30,10 +30,30 @@ GEMINI_API_KEYS_STR = os.getenv("GEMINI_API_KEY", "")
 API_KEYS = [k.strip() for k in GEMINI_API_KEYS_STR.split(",") if k.strip()]
 
 if not API_KEYS:
-    print("[警告] 未設定任何 GEMINI_API_KEY！")
+    print("[警告] 未設定任何 GEMINI_API_KEY")
 else:
-    # 預設先用第一組 Key 初始化
     genai.configure(api_key=API_KEYS[0])
+
+# 定義模型優先順序清單 (2026 最新版本，以免費/高速的 Flash 為主)
+MODEL_FALLBACKS = [
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.1-pro'
+]
+
+def call_gemini_with_fallback(prompt_or_list):
+    """共用的 Gemini API 呼叫函數，支援多組 API Key 與多模型自動降級 (Fallback) 機制"""
+    for key in API_KEYS:
+        genai.configure(api_key=key)
+        for model_name in MODEL_FALLBACKS:
+            try:
+                model = genai.GenerativeModel(model_name)
+                res = model.generate_content(prompt_or_list)
+                return res
+            except Exception as e:
+                print(f"[Fallback] 模型 {model_name} (Key: {key[:4]}...) 呼叫失敗: {e}")
+                continue
+    raise Exception("所有模型與 API Key 皆無法順利回應，請檢查配額與網路連線")
 
 class ChatRequest(BaseModel):
     message: str
@@ -109,12 +129,59 @@ async def upload_material(file: UploadFile = File(...)):
         elif ext == 'pptx':
             ppt_file = io.BytesIO(content_bytes)
             prs = Presentation(ppt_file)
+            from pptx.enum.shapes import MSO_SHAPE_TYPE
             for i, slide in enumerate(prs.slides):
                 extracted_text += f"## 第 {i+1} 頁\n\n"
-                for shape in slide.shapes:
-                    if hasattr(shape, "text"):
+                for j, shape in enumerate(slide.shapes):
+                    if hasattr(shape, "text") and shape.text.strip():
                         extracted_text += shape.text + "\n"
+                    if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                        img_bytes = shape.image.blob
+                        img_ext = shape.image.ext
+                        img_filename = f"{filename.rsplit('.', 1)[0]}_p{i+1}_{j+1}.{img_ext}"
+                        img_filepath = os.path.join(MATERIALS_DIR, img_filename)
+                        with open(img_filepath, "wb") as img_f:
+                            img_f.write(img_bytes)
+                        extracted_text += f"\n![圖片]({img_filename})\n\n"
                 extracted_text += "\n"
+        elif ext in ['mp4', 'mov', 'avi', 'webm']:
+            import tempfile
+            import time
+            
+            # 暫存影片檔案供 Gemini 讀取
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tmp:
+                tmp.write(content_bytes)
+                tmp_path = tmp.name
+                
+            try:
+                if not API_KEYS:
+                    raise Exception("尚未設定 GEMINI_API_KEY，無法執行影片解析")
+                genai.configure(api_key=API_KEYS[0])
+                
+                print(f"正在上傳影片至 Gemini: {filename}...")
+                video_file = genai.upload_file(path=tmp_path)
+                
+                print("等待影片處理中...")
+                while video_file.state.name == 'PROCESSING':
+                    time.sleep(2)
+                    video_file = genai.get_file(video_file.name)
+                
+                if video_file.state.name == 'FAILED':
+                    raise Exception("Gemini 影片處理失敗")
+                    
+                print("影片處理完成，開始產生 SOP...")
+                prompt = "你是一個專業的技術文件撰寫專家。請仔細觀看這段系統操作影片（無論是否有聲音），將人員的操作流程詳細記錄下來，並撰寫成一份結構清晰、適合初學者的 Markdown 操作手冊（SOP）。必須包含每一個重要的點擊位置、欄位輸入與畫面變化。"
+                
+                res = call_gemini_with_fallback([video_file, prompt])
+                extracted_text += res.text
+                
+                try:
+                    genai.delete_file(video_file.name)  # 清理雲端空間
+                except:
+                    pass
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
         else:
             return {"error": "不支援的檔案格式"}
             
@@ -134,6 +201,77 @@ def delete_material(filename: str):
         os.remove(filepath)
         return {"message": "刪除成功"}
     return {"error": "檔案不存在"}
+
+from pydantic import BaseModel
+
+class UpdateMaterialRequest(BaseModel):
+    content: str
+
+@app.put("/materials/{filename}")
+def update_material(filename: str, req: UpdateMaterialRequest):
+    filepath = os.path.join(MATERIALS_DIR, filename)
+    if not os.path.exists(filepath):
+        return {"error": "找不到該教材"}
+    try:
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(req.content)
+        return {"message": "更新成功"}
+    except Exception as e:
+        return {"error": f"更新失敗: {str(e)}"}
+
+class GenerateImageRequest(BaseModel):
+    prompt: str
+
+import urllib.request
+import urllib.parse
+import time
+
+@app.post("/generate_image")
+def generate_image(req: GenerateImageRequest):
+    if not API_KEYS:
+        return {"error": "未設定 API Key"}
+    try:
+        # 1. 將使用者的中文提示翻譯成精準的英文繪圖提示詞 (使用 Gemini 自動降級機制)
+        prompt = f"Translate this image generation prompt to English. Just output the English text, add details if needed to make it look professional, no extra words: {req.prompt}"
+        trans_res = call_gemini_with_fallback(prompt)
+        eng_prompt = trans_res.text.strip()
+        
+        # 2. 呼叫外部免金鑰 AI 繪圖 API (Pollinations) 進行繪圖
+        safe_prompt = urllib.parse.quote(eng_prompt)
+        url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&width=800&height=600"
+        
+        # 3. 將生成的圖片下載並存入系統的教材圖片庫
+        timestamp = int(time.time())
+        filename = f"ai_img_{timestamp}.jpg"
+        filepath = os.path.join(MATERIALS_DIR, filename)
+        
+        req_img = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
+        with urllib.request.urlopen(req_img) as response, open(filepath, 'wb') as out_file:
+            out_file.write(response.read())
+        
+        return {"filename": filename}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/upload_image")
+async def upload_image(file: UploadFile = File(...)):
+    """專門處理前端貼上 (Paste) 截圖的 API"""
+    try:
+        ext = file.filename.split('.')[-1].lower()
+        if ext not in ['png', 'jpg', 'jpeg', 'gif']:
+            ext = 'png' # 預設副檔名
+            
+        content_bytes = await file.read()
+        timestamp = int(time.time())
+        filename = f"screenshot_{timestamp}.{ext}"
+        filepath = os.path.join(MATERIALS_DIR, filename)
+        
+        with open(filepath, "wb") as f:
+            f.write(content_bytes)
+            
+        return {"url": filename}
+    except Exception as e:
+        return {"error": str(e)}
 
 # --- AI 問答 API ---
 

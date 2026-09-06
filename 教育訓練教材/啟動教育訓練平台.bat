@@ -10,7 +10,7 @@ echo.
 
 echo [1/3] Starting FastAPI Backend (Port: 8000)...
 cd backend
-start /b cmd /c "venv\Scripts\activate.bat && uvicorn main:app --host 0.0.0.0 --port 8000"
+start /b cmd /c "venv\Scripts\python.exe -m uvicorn main:app --host 0.0.0.0 --port 8000"
 cd ..
 
 timeout /t 2 /nobreak >nul
