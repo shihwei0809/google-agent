@@ -142,7 +142,10 @@ async def upload_material(file: UploadFile = File(...)):
                         img_filepath = os.path.join(MATERIALS_DIR, img_filename)
                         with open(img_filepath, "wb") as img_f:
                             img_f.write(img_bytes)
-                        extracted_text += f"\n![圖片]({img_filename})\n\n"
+                        
+                        import urllib.parse
+                        safe_img_filename = urllib.parse.quote(img_filename)
+                        extracted_text += f"\n![圖片]({safe_img_filename})\n\n"
                 extracted_text += "\n"
         elif ext in ['mp4', 'mov', 'avi', 'webm']:
             import tempfile

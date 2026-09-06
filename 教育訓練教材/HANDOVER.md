@@ -2,12 +2,13 @@
 
 ## 前次進度與交接事項
 - **日期**：2026-09-06
-- **分支**：main`n- **今日完成項目**：
+- **分支**：main
+- **今日完成項目**：
   1. 修復 Gemini 模型與 403 圖片產生問題：加入 fallback 機制與 User-Agent 偽裝。
-  2. 實作 Ctrl+V 貼上截圖與跨機 LAN 相容：上傳 API 修正為相對路徑並結合 React window.location.hostname。
-  3. 升級靜態文件 (DOCX/PPTX/PDF) AI 重寫大腦：實作全自動化重點提煉與 Mermaid 流程圖生成。
+  2. 實作 Ctrl+V 貼上截圖與跨機 LAN 相容：上傳 API 修正為相對路徑並結合 React 顯示。
+  3. 升級靜態文件 (DOCX/PPTX/PDF) AI 重寫大腦：實作全自動化重點提煉與 Mermaid 流程圖。
   4. 升級 UI 防呆遮罩：上傳檔案與 AI 運算時顯示全螢幕讀取中提示。
-  5. 移除基層教材中的「講師講稿」：使輸出之 Markdown 更加精鍊並符合人員需求。
+  5. 精鍊教材格式：徹底移除講稿輸出，並修復 Markdown 圖片路徑空白導致的破圖問題 (URL Encoding)。
 - **待修復問題 / 後續建議**：
   - 舊版 .doc 檔案仍需人員自行另存為 .docx 才能上傳解析。
   - 若要在跨設備環境中使用 PWA，未來需加入相關 manifest 與 sw.js。
