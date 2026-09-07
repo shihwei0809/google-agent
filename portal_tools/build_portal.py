@@ -28,7 +28,8 @@ web_projects = [
     {"name": "test", "src": base_dir / "osaka-adventure-book"},
     {"name": "互動式網站", "src": base_dir / "interactive-web-training"},
     {"name": "padlet-board", "src": base_dir / "第三類_AI代理與指南企劃" / "padlet-board"},
-    {"name": "hr_quiz_v2", "src": base_dir / "hr-work-rules-quiz"}
+    {"name": "hr_quiz_v2", "src": base_dir / "hr-work-rules-quiz"},
+    {"name": "QC_Samples", "src": base_dir / "第二類_生產管理與API串接" / "QC-系統客製化電子化工廠" / "2_PWA_App版"}
 ]
 
 # Copy ignore patterns

@@ -4,6 +4,9 @@
 # This prevents the recursive URL bug when navigating between the portal and sub-projects.
 
 # Sub-project static assets (pass through as-is)
+/QC_Samples/*  /QC_Samples/:splat  200
+/qc-samples/*  /qc-samples/:splat  200
+/qc-system/*   /qc-system/:splat   200
 /projects/*  /projects/:splat  200
 
 # SPA fallback: only for paths without a dot (no file extension)
