@@ -1786,4 +1786,20 @@ function startServer(port) {
 
 startServer(PORT);
 
-
+// Render 24/7 保活防休眠機制 (每 10 分鐘自動發送心跳請求以重置 15 分鐘閒置計時器)
+const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL || 'https://google-agent-4gzi.onrender.com';
+if (process.env.RENDER || process.env.NODE_ENV === 'production' || process.env.KEEP_ALIVE) {
+  const https = require('https');
+  console.log(`[KeepAlive] 已啟動防休眠機制，目標網址: ${RENDER_EXTERNAL_URL}`);
+  setInterval(() => {
+    try {
+      https.get(`${RENDER_EXTERNAL_URL}/api/orders`, (res) => {
+        console.log(`[KeepAlive] 伺服器保活心跳成功 (${res.statusCode}) - ${new Date().toLocaleTimeString('zh-TW', { timeZone: 'Asia/Taipei' })}`);
+      }).on('error', (err) => {
+        console.warn('[KeepAlive 警告] 心跳失敗:', err.message);
+      });
+    } catch (e) {
+      console.warn('[KeepAlive 例外]', e.message);
+    }
+  }, 10 * 60 * 1000); // 每 10 分鐘發送一次
+}
