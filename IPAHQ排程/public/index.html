@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>勝一出貨清單管理系統</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
 </head>
@@ -52,19 +55,40 @@
         <div class="role-selector">
           <button class="nav-tab active" data-tab="tab-dashboard">儀表板總覽</button>
           <button class="nav-tab" data-tab="tab-sales">業務專區</button>
+          <button class="nav-tab" data-tab="tab-production">生產專區</button>
           <button class="nav-tab" data-tab="tab-tech">技服課專區</button>
           <button class="nav-tab" data-tab="tab-transport">運輸商專區</button>
           <button class="nav-tab" data-tab="tab-query">技服個人查詢</button>
+          <button class="nav-tab" data-tab="tab-users">帳號管理</button>
+          <button class="nav-tab" data-tab="tab-permissions">權限設定</button>
           <button class="nav-tab hidden" data-tab="tab-logs">作業日誌</button>
         </div>
         <div id="user-profile" class="user-profile hidden">
           <span class="user-avatar">👤</span>
           <span id="user-display-name" class="user-name">使用者</span>
+          <button id="btn-push-toggle" class="btn-push-toggle" title="手機即時推播狀態">🔔 開啟通知</button>
+          <button id="btn-push-test" class="btn-push-test hidden" title="測試推播通知">📲 測試</button>
+          <button id="btn-change-password" class="btn-change-pwd" title="修改登入密碼">修改密碼</button>
           <button id="btn-logout" class="btn-logout">登出</button>
         </div>
       </div>
     </div>
   </header>
+
+  <!-- 手機推播引導橫幅 -->
+  <div id="push-prompt-banner" class="push-prompt-banner hidden">
+    <div class="banner-inner">
+      <div class="banner-text">
+        <span class="bell-ring">🔔</span>
+        <span><b>開啟手機即時推播</b>：派工指派與到貨時間異動時，手機將立即收到系統彈窗提醒（App 關閉或未登入亦可接收）。</span>
+      </div>
+      <div class="banner-actions">
+        <button id="btn-enable-push" class="btn btn-sm btn-primary">立即啟用</button>
+        <button id="btn-dismiss-push" class="btn-close-banner" title="稍後再說">✕</button>
+      </div>
+    </div>
+  </div>
+
 
   <main class="container">
     <!-- 1. 儀表板總覽 -->
@@ -141,6 +165,7 @@
                 <th>時間</th>
                 <th>司機代碼</th>
                 <th>三合一單</th>
+                <th>通知狀態</th>
                 <th>操作</th>
               </tr>
             </thead>
@@ -311,17 +336,22 @@
         <h2>技服人員專屬日程查詢</h2>
         <p class="description">請選擇或輸入您的姓名，查詢您負責的出貨行程：</p>
         <div class="query-form">
-          <div class="form-group">
+          <div class="form-group" id="query-name-group">
             <label for="query-tech-name">技服充填手姓名：</label>
             <select id="query-tech-name" class="select-input">
               <option value="">-- 請選擇您的姓名 --</option>
             </select>
           </div>
           <div class="form-group">
-            <label for="query-date">出貨到貨日期 (選填)：</label>
-            <input type="date" id="query-date" class="date-input">
+            <label>排程日期篩選：</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+              <button type="button" class="btn btn-sm btn-cyan active" id="btn-tech-range-today-tmr">📅 當天與明天 (預設)</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-tech-range-past">📜 之前歷史排程</button>
+              <button type="button" class="btn btn-sm btn-secondary" id="btn-tech-range-all">🌐 全部日程</button>
+            </div>
+            <input type="date" id="query-date" class="date-input" style="display: none;" title="自訂指定日期">
           </div>
-          <button id="btn-query-search" class="btn btn-primary">開始查詢</button>
+          <button id="btn-query-search" class="btn btn-primary" style="display: none;">開始查詢</button>
         </div>
       </div>
 
@@ -365,6 +395,140 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 生產專區 -->
+    <section id="tab-production" class="tab-content">
+      <div class="card table-card">
+        <div class="table-header">
+          <div class="table-title-section">
+            <h2>🏭 生產與槽車充填履歷</h2>
+            <p>工廠充填作業狀態與產品批次進度追蹤</p>
+          </div>
+          <div class="table-actions">
+            <button id="btn-export-production" class="btn btn-secondary">📥 匯出生產履歷 Excel</button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="schedule-table">
+            <thead>
+              <tr>
+                <th>通知單號</th>
+                <th>槽車/批號</th>
+                <th>對象廠別</th>
+                <th>品名</th>
+                <th>預計到貨</th>
+                <th>充填手/技服</th>
+                <th>車牌/司機</th>
+                <th>狀態</th>
+              </tr>
+            </thead>
+            <tbody id="production-table-body">
+              <tr>
+                <td colspan="8" class="text-center">載入生產履歷資料中...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. 使用者帳號管理 (復刻線上版圖三) -->
+    <section id="tab-users" class="tab-content">
+      <div class="card table-card">
+        <div class="table-header">
+          <div class="table-title-section">
+            <h2>使用者帳號管理</h2>
+            <p>新增、編輯使用者基本資訊、登入密碼與角色設定（操作自動鏡像回寫本機 Excel）</p>
+          </div>
+        </div>
+
+        <!-- 篩選與工具列 -->
+        <div class="user-filter-toolbar">
+          <div class="filter-inputs">
+            <div class="search-box">
+              <input type="text" id="user-search-input" placeholder="搜尋帳號、名稱...">
+            </div>
+            <select id="user-role-filter" class="form-control">
+              <option value="">所有角色</option>
+            </select>
+            <select id="user-status-filter" class="form-control">
+              <option value="">所有狀態</option>
+              <option value="active">啟用</option>
+              <option value="inactive">停用</option>
+            </select>
+          </div>
+          <div class="filter-buttons">
+            <button id="btn-add-user" class="btn btn-cyan">
+              <span class="btn-icon">+</span> 新增使用者帳號
+            </button>
+            <input type="file" id="user-excel-file" accept=".xlsx,.xls" style="display: none;">
+            <button id="btn-import-users-excel" class="btn btn-outline-cyan">
+              📥 匯入 Excel
+            </button>
+            <button id="btn-download-users-template" class="btn btn-outline-cyan">
+              📄 下載範本
+            </button>
+          </div>
+        </div>
+
+        <!-- 帳號表格 -->
+        <div class="table-responsive">
+          <table class="schedule-table user-table">
+            <thead>
+              <tr>
+                <th style="width: 20%;">使用者帳號</th>
+                <th style="width: 25%;">名稱</th>
+                <th style="width: 20%;">權限角色</th>
+                <th style="width: 15%;">帳號狀態</th>
+                <th style="width: 20%;">編輯</th>
+              </tr>
+            </thead>
+            <tbody id="users-table-body">
+              <tr>
+                <td colspan="5" class="text-center">載入使用者列表中...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. 角色功能權限設定 (復刻線上版圖二) -->
+    <section id="tab-permissions" class="tab-content">
+      <div class="card table-card">
+        <div class="table-header">
+          <div class="table-title-section">
+            <h2>角色功能權限設定</h2>
+            <p>依據角色分配系統功能與操作權限（勾選後點選儲存）</p>
+          </div>
+          <div class="table-actions">
+            <button id="btn-add-role-modal" class="btn btn-cyan">
+              <span class="btn-icon">+</span> 新增角色
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="schedule-table permissions-matrix-table" id="permissions-matrix-table">
+            <thead>
+              <tr id="permissions-matrix-head">
+                <th style="min-width: 200px;">權限角色 \ 系統功能</th>
+                <!-- 動態注入各系統功能 -->
+              </tr>
+            </thead>
+            <tbody id="permissions-matrix-body">
+              <!-- 動態注入各角色與其勾選框 -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="matrix-footer-actions">
+          <button id="btn-save-permissions" class="btn btn-cyan btn-lg">
+            💾 儲存權限對應設定
+          </button>
         </div>
       </div>
     </section>
@@ -484,10 +648,122 @@
     </div>
   </div>
 
+  <!-- 點擊推播通知或查閱時的「單筆訂單專屬聚焦彈窗」 -->
+  <div class="modal" id="order-detail-modal">
+    <div class="modal-content card" style="max-width: 620px;">
+      <div class="modal-header">
+        <h3>📋 槽車充填任務確認單</h3>
+        <span class="close-modal" id="close-order-detail-modal">&times;</span>
+      </div>
+      <div class="order-detail-body" id="order-detail-content" style="padding: 1rem 0;">
+        <!-- 動態注入訂單明細 -->
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding-top: 1rem; border-top: 1px solid var(--card-border);">
+        <span id="detail-read-timestamp" style="font-size: 0.85rem; color: var(--accent-green);">已確認讀取</span>
+        <button type="button" class="btn btn-primary" id="btn-confirm-order-read">✓ 我已收到並確認</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 使用者帳號 新增/編輯 Modal -->
+  <div class="modal" id="user-modal">
+    <div class="modal-content card" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 id="user-modal-title">新增使用者帳號</h3>
+        <span class="close-modal" id="close-user-modal">&times;</span>
+      </div>
+      <form id="user-form">
+        <input type="hidden" id="user-modal-mode" value="create">
+        <div class="form-group">
+          <label for="user-username">使用者帳號 <span class="required">*</span></label>
+          <input type="text" id="user-username" required placeholder="如: C50100 或 姓名">
+        </div>
+        <div class="form-group">
+          <label for="user-displayname">名稱 / 姓名 <span class="required">*</span></label>
+          <input type="text" id="user-displayname" required placeholder="如: 鴻勝資材課 或 員工姓名">
+        </div>
+        <div class="form-group">
+          <label for="user-password">登入密碼 <span class="required" id="user-pwd-required">*</span></label>
+          <input type="text" id="user-password" placeholder="請設定密碼 (預設: 123)">
+          <small class="form-hint" id="user-pwd-hint" style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 4px;">新增時必填，編輯時若不變更請留空</small>
+        </div>
+        <div class="form-row">
+          <div class="form-group col">
+            <label for="user-role">權限角色 <span class="required">*</span></label>
+            <select id="user-role" required class="form-control">
+              <!-- 動態載入角色清單 -->
+            </select>
+          </div>
+          <div class="form-group col">
+            <label for="user-status">帳號狀態</label>
+            <select id="user-status" class="form-control">
+              <option value="active">啟用 (正常登入)</option>
+              <option value="inactive">停用 (禁止登入)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions" style="margin-top: 1.5rem;">
+          <button type="submit" class="btn btn-cyan btn-block">儲存使用者帳號</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 修改密碼 Modal -->
+  <div class="modal" id="change-password-modal">
+    <div class="modal-content card" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3>修改個人登入密碼</h3>
+        <span class="close-modal" id="close-pwd-modal">&times;</span>
+      </div>
+      <form id="change-password-form">
+        <div class="form-group">
+          <label for="pwd-old">目前舊密碼 <span class="required">*</span></label>
+          <input type="password" id="pwd-old" required placeholder="請輸入原密碼">
+        </div>
+        <div class="form-group">
+          <label for="pwd-new">設定新密碼 <span class="required">*</span></label>
+          <input type="password" id="pwd-new" required placeholder="請輸入新密碼">
+        </div>
+        <div class="form-group">
+          <label for="pwd-confirm">再次確認新密碼 <span class="required">*</span></label>
+          <input type="password" id="pwd-confirm" required placeholder="請再次輸入新密碼">
+        </div>
+        <div class="form-actions" style="margin-top: 1.5rem;">
+          <button type="submit" class="btn btn-cyan btn-block">確認變更密碼</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 新增角色 Modal -->
+  <div class="modal" id="role-modal">
+    <div class="modal-content card" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3>新增自訂權限角色</h3>
+        <span class="close-modal" id="close-role-modal">&times;</span>
+      </div>
+      <form id="role-form">
+        <div class="form-group">
+          <label for="new-role-id">角色英文代碼 <span class="required">*</span></label>
+          <input type="text" id="new-role-id" required placeholder="如: warehouse, qc 等 (英數底線)">
+        </div>
+        <div class="form-group">
+          <label for="new-role-name">角色中文名稱 <span class="required">*</span></label>
+          <input type="text" id="new-role-name" required placeholder="如: 倉管人員, 品保人員 等">
+        </div>
+        <div class="form-actions" style="margin-top: 1.5rem;">
+          <button type="submit" class="btn btn-cyan btn-block">確認新增角色</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
   <footer>
     <p>© 2026 勝一化工股份有限公司 - 技術服務課與運輸商排程管理系統</p>
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=20260907_live3"></script>
 </body>
 </html>

@@ -1226,3 +1226,353 @@ footer {
   border-top: 1px solid var(--card-border);
   background: rgba(0, 0, 0, 0.2);
 }
+
+/* Push Notification Styles */
+.btn-push-toggle, .btn-push-test {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all var(--transition-speed);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.btn-push-toggle:hover, .btn-push-test:hover {
+  background: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.btn-push-toggle.active {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #34d399;
+}
+
+.btn-push-test {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #93c5fd;
+}
+
+.push-prompt-banner {
+  background: linear-gradient(90deg, #1e3a8a 0%, #1e40af 100%);
+  border-bottom: 1px solid rgba(96, 165, 250, 0.3);
+  padding: 0.75rem 1.5rem;
+  color: #eff6ff;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  animation: slideDown 0.3s ease-out forwards;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.banner-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.banner-text {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  line-height: 1.4;
+}
+
+.bell-ring {
+  font-size: 1.25rem;
+  animation: bellShake 2s infinite ease-in-out;
+}
+
+@keyframes bellShake {
+  0%, 100% { transform: rotate(0); }
+  10%, 30% { transform: rotate(14deg); }
+  20%, 40% { transform: rotate(-14deg); }
+  50% { transform: rotate(0); }
+}
+
+.banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-close-banner {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+.btn-close-banner:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+/* ==========================================================================
+   使用者帳號管理 (User Management) & 權限設定 (Permissions) 樣式
+   ========================================================================== */
+
+/* 天藍漸層風格按鈕 (復刻線上版 tank.shinychem.com.tw) */
+.btn-cyan {
+  background: linear-gradient(135deg, #00d2ff 0%, #0099ff 100%);
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  border: none !important;
+  padding: 0.6rem 1.25rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: 0 4px 14px rgba(0, 210, 255, 0.35);
+  transition: all 0.25s ease;
+}
+
+.btn-cyan:hover {
+  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
+  color: #000 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 210, 255, 0.5);
+}
+
+.btn-outline-cyan {
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.4) !important;
+  color: #38bdf8 !important;
+  font-weight: 500;
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-cyan:hover {
+  background: rgba(6, 182, 212, 0.2);
+  border-color: #38bdf8 !important;
+  color: #fff !important;
+}
+
+.btn-change-pwd {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  transition: all var(--transition-speed);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.1);
+  color: #38bdf8;
+}
+
+.btn-change-pwd:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #fff;
+}
+
+/* 帳號篩選列 */
+.user-filter-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+}
+
+.filter-inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.filter-inputs .search-box input {
+  min-width: 240px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--card-border);
+  color: #fff;
+  padding: 0.55rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.filter-inputs select {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid var(--card-border);
+  color: #fff;
+  padding: 0.55rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.filter-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* 帳號表格 Badges */
+.badge-role {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-role-admin {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+.badge-role-production {
+  background: rgba(14, 165, 233, 0.2);
+  color: #7dd3fc;
+  border: 1px solid rgba(14, 165, 233, 0.4);
+}
+
+.badge-role-sales {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-role-tech, .badge-role-tech_staff, .badge-role-tech_manager {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-role-transporter {
+  background: rgba(168, 85, 247, 0.2);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.badge-status {
+  display: inline-block;
+  padding: 0.25rem 0.7rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge-status-active {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.badge-status-inactive {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.5);
+}
+
+.user-action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  margin-right: 0.4rem;
+  transition: all 0.2s;
+}
+
+.btn-edit-user {
+  color: #38bdf8;
+}
+.btn-edit-user:hover {
+  background: rgba(56, 189, 248, 0.15);
+  text-decoration: underline;
+}
+
+.btn-delete-user {
+  color: #f87171;
+}
+.btn-delete-user:hover {
+  background: rgba(239, 68, 68, 0.15);
+  text-decoration: underline;
+}
+
+/* 角色功能權限對應矩陣 (圖二) */
+.permissions-matrix-table {
+  margin-top: 1rem;
+}
+
+.permissions-matrix-table th {
+  background: rgba(15, 23, 42, 0.9);
+  padding: 0.9rem;
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.permissions-matrix-table th:first-child {
+  text-align: left;
+}
+
+.permissions-matrix-table td {
+  padding: 0.85rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.permissions-matrix-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.perm-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #00d2ff;
+  cursor: pointer;
+}
+
+.matrix-footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.required {
+  color: #f87171;
+  font-weight: bold;
+}
+
+

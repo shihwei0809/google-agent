@@ -19,11 +19,16 @@ document.addEventListener('DOMContentLoaded', () => {
   setupUploadZones();
   setupSearchAndFilters();
   setupEditModal();
+  setupUserManagement();
+  setupPermissionsManagement();
+  setupChangePasswordModal();
+  setupOrderDetailModal();
+  setupLiveSync();
 });
 
 // Login & Permissions Handling
 function checkLogin() {
-  const userJson = sessionStorage.getItem('user');
+  const userJson = localStorage.getItem('user');
   const overlay = document.getElementById('login-overlay');
   const profile = document.getElementById('user-profile');
   const displayName = document.getElementById('user-display-name');
@@ -34,60 +39,90 @@ function checkLogin() {
     profile.classList.remove('hidden');
     displayName.textContent = currentUser.displayName;
     applyRolePermissions(currentUser);
+    initPushNotification(currentUser);
   } else {
     currentUser = null;
     overlay.classList.remove('hidden');
     profile.classList.add('hidden');
+    initPushNotification(null);
   }
 }
 
-function applyRolePermissions(user) {
-  // Reset navigation tabs visibility
-  navTabs.forEach(t => t.classList.remove('hidden'));
-  
-  const querySelect = document.getElementById('query-tech-name');
-  querySelect.disabled = false;
+let systemRoles = [];
+let systemPermissions = {};
+let systemFeatures = [];
 
-  if (user.role === 'sales' || user.role === 'tech_manager') {
-    // Full access: can see and click all tabs including logs
-    const activeTab = document.querySelector('.nav-tab.active');
-    if (!activeTab || activeTab.classList.contains('hidden')) {
-      document.querySelector('[data-tab="tab-dashboard"]').click();
+async function applyRolePermissions(user) {
+  try {
+    const res = await fetch('/api/permissions');
+    const data = await res.json();
+    if (data.success) {
+      systemRoles = data.roles || [];
+      systemPermissions = data.permissions || {};
+      systemFeatures = data.features || [];
     }
-  } else {
-    // Non-admin roles cannot see logs tab
-    document.querySelector('[data-tab="tab-logs"]').classList.add('hidden');
-    
-    if (user.role === 'tech_staff') {
-      // Only query tab
-      navTabs.forEach(t => {
-        if (t.getAttribute('data-tab') !== 'tab-query') {
-          t.classList.add('hidden');
-        }
-      });
-      
-      // Auto-select user name and lock it
-      querySelect.value = user.username;
-      querySelect.disabled = true;
-      
-      // Switch to query tab
-      document.querySelector('[data-tab="tab-query"]').click();
-      
-      // Auto query schedule
-      queryTechSchedule();
-    } else if (user.role === 'transporter') {
-      // Only see Dashboard and Transporter tabs
-      navTabs.forEach(t => {
-        const tabName = t.getAttribute('data-tab');
-        if (tabName !== 'tab-dashboard' && tabName !== 'tab-transport') {
-          t.classList.add('hidden');
-        }
-      });
-      
-      const activeTab = document.querySelector('.nav-tab.active');
-      if (!activeTab || activeTab.classList.contains('hidden')) {
-        document.querySelector('[data-tab="tab-dashboard"]').click();
+  } catch (err) {
+    console.error('Failed to load permissions:', err);
+  }
+
+  const role = user.role;
+  let allowedTabs = systemPermissions[role];
+  if (!allowedTabs) {
+    if (role === 'admin') allowedTabs = ['tab-dashboard', 'tab-sales', 'tab-production', 'tab-tech', 'tab-transport', 'tab-query', 'tab-users', 'tab-permissions', 'tab-logs'];
+    else if (role === 'production') allowedTabs = ['tab-dashboard', 'tab-sales', 'tab-production'];
+    else if (role === 'sales') allowedTabs = ['tab-dashboard', 'tab-sales', 'tab-tech', 'tab-transport', 'tab-query'];
+    else if (role === 'tech_manager') allowedTabs = ['tab-dashboard', 'tab-sales', 'tab-tech', 'tab-transport', 'tab-query'];
+    else if (role === 'tech_staff') allowedTabs = ['tab-query'];
+    else if (role === 'transporter') allowedTabs = ['tab-dashboard', 'tab-transport'];
+    else allowedTabs = ['tab-dashboard'];
+  }
+
+  // 根據該角色的權限設定動態顯示/隱藏各分頁
+  navTabs.forEach(t => {
+    const tabName = t.getAttribute('data-tab');
+    if (allowedTabs.includes(tabName)) {
+      t.classList.remove('hidden');
+    } else {
+      t.classList.add('hidden');
+    }
+  });
+
+  const queryNameGroup = document.getElementById('query-name-group');
+  if (queryNameGroup) {
+    if (role === 'tech_staff') {
+      // 技服人員登入：自動鎖定其姓名
+      const targetName = user.displayName || user.username;
+      queryNameGroup.innerHTML = `
+        <label>目前登入技服同仁：</label>
+        <div style="font-size: 1.15rem; color: #38bdf8; font-weight: bold; padding: 0.5rem 0;">👤 ${escapeHtml(targetName)}</div>
+        <input type="hidden" id="query-tech-name" value="${escapeHtml(targetName)}">
+      `;
+      document.querySelector('[data-tab="tab-query"]')?.click();
+      if (ordersData && ordersData.length > 0) {
+        queryTechSchedule();
       }
+    } else {
+      // 管理員 / 業務 / 主管：提供技服人員下拉選單
+      queryNameGroup.innerHTML = `
+        <label for="query-tech-name">技服充填手姓名：</label>
+        <select id="query-tech-name" class="select-input">
+          <option value="">-- 請選擇技服人員 --</option>
+        </select>
+      `;
+      const select = document.getElementById('query-tech-name');
+      if (select) {
+        select.addEventListener('change', queryTechSchedule);
+      }
+      populateTechNamesDropdown();
+    }
+  }
+
+  // 若當前頁籤不在允許列表中，自動跳轉至第一個可見頁籤
+  const activeTab = document.querySelector('.nav-tab.active');
+  if (!activeTab || activeTab.classList.contains('hidden')) {
+    const firstVisible = Array.from(navTabs).find(t => !t.classList.contains('hidden'));
+    if (firstVisible) {
+      firstVisible.click();
     }
   }
 }
@@ -112,7 +147,7 @@ function setupLogin() {
       
       const json = await res.json();
       if (res.ok && json.success) {
-        sessionStorage.setItem('user', JSON.stringify(json.user));
+        localStorage.setItem('user', JSON.stringify(json.user));
         document.getElementById('login-username').value = '';
         document.getElementById('login-password').value = '';
         checkLogin();
@@ -128,11 +163,209 @@ function setupLogin() {
   });
 
   document.getElementById('btn-logout').addEventListener('click', () => {
-    sessionStorage.removeItem('user');
+    localStorage.removeItem('user');
     currentUser = null;
     checkLogin();
   });
 }
+
+// -----------------------------------------------------------------------------
+// Web Push 即時推播模組 (PWA 背景通知、改時間/派工自動提醒)
+// -----------------------------------------------------------------------------
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+let swRegistration = null;
+
+async function initPushNotification(user) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('[WebPush] 此瀏覽器或連線模式不支援 Service Worker / Push API');
+    const toggleBtn = document.getElementById('btn-push-toggle');
+    if (toggleBtn) toggleBtn.classList.add('hidden');
+    return;
+  }
+
+  try {
+    swRegistration = await navigator.serviceWorker.register('/sw.js');
+    console.log('[WebPush] Service Worker 註冊就緒，範圍:', swRegistration.scope);
+  } catch (err) {
+    console.warn('[WebPush] Service Worker 註冊失敗 (如非 HTTPS 或本機可能受限):', err);
+    return;
+  }
+
+  updatePushUI(user);
+  setupPushEventListeners();
+
+  // 若已獲取通知權限且已登入，背景自動將此設備訂閱憑證同步登記至伺服器
+  if (Notification.permission === 'granted' && user) {
+    subscribeUserToPush(false);
+  }
+}
+
+function updatePushUI(user) {
+  const toggleBtn = document.getElementById('btn-push-toggle');
+  const testBtn = document.getElementById('btn-push-test');
+  const banner = document.getElementById('push-prompt-banner');
+
+  if (!toggleBtn) return;
+
+  if (Notification.permission === 'granted') {
+    toggleBtn.textContent = '🔔 通知已開啟';
+    toggleBtn.classList.add('active');
+    toggleBtn.title = '點擊可重新同步推播設定';
+    if (testBtn) testBtn.classList.remove('hidden');
+    if (banner) banner.classList.add('hidden');
+  } else if (Notification.permission === 'denied') {
+    toggleBtn.textContent = '🔕 通知已被封鎖';
+    toggleBtn.classList.remove('active');
+    toggleBtn.title = '請至瀏覽器或手機設定允許本站通知';
+    if (testBtn) testBtn.classList.add('hidden');
+    if (banner) banner.classList.add('hidden');
+  } else {
+    toggleBtn.textContent = '🔔 開啟通知';
+    toggleBtn.classList.remove('active');
+    toggleBtn.title = '點擊開啟手機即時推播';
+    if (testBtn) testBtn.classList.add('hidden');
+    if (banner && user) {
+      if (!sessionStorage.getItem('push_banner_dismissed')) {
+        banner.classList.remove('hidden');
+      }
+    }
+  }
+}
+
+let pushEventsSetup = false;
+function setupPushEventListeners() {
+  if (pushEventsSetup) return;
+  pushEventsSetup = true;
+
+  const toggleBtn = document.getElementById('btn-push-toggle');
+  const testBtn = document.getElementById('btn-push-test');
+  const enableBannerBtn = document.getElementById('btn-enable-push');
+  const dismissBannerBtn = document.getElementById('btn-dismiss-push');
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+      subscribeUserToPush(true);
+    });
+  }
+
+  if (enableBannerBtn) {
+    enableBannerBtn.addEventListener('click', () => {
+      subscribeUserToPush(true);
+    });
+  }
+
+  if (dismissBannerBtn) {
+    dismissBannerBtn.addEventListener('click', () => {
+      const banner = document.getElementById('push-prompt-banner');
+      if (banner) banner.classList.add('hidden');
+      sessionStorage.setItem('push_banner_dismissed', '1');
+    });
+  }
+
+  if (testBtn) {
+    testBtn.addEventListener('click', async () => {
+      if (!currentUser) {
+        alert('請先登入帳號後再進行推播測試！');
+        return;
+      }
+      testBtn.disabled = true;
+      testBtn.textContent = '⏳ 發送中...';
+      try {
+        const res = await fetch('/api/push/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: currentUser.username || currentUser.displayName })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert('✅ 測試推播已發送！請檢視您的螢幕頂部通知橫幅或手機通知中心。');
+        } else {
+          alert('❌ 發送失敗：' + json.message);
+        }
+      } catch (err) {
+        alert('❌ 連線出錯：' + err.message);
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = '📲 測試';
+      }
+    });
+  }
+}
+
+async function subscribeUserToPush(isUserAction) {
+  if (!swRegistration) {
+    if (isUserAction) alert('Service Worker 尚未就緒，請重新整理頁面後再試！');
+    return;
+  }
+
+  try {
+    // 1. 請求瀏覽器通知權限
+    const permission = await Notification.requestPermission();
+    updatePushUI(currentUser);
+
+    if (permission !== 'granted') {
+      if (isUserAction) {
+        alert('您尚未允許通知權限。若想即時接收派工與改時間通知，請至瀏覽器或手機設定中開啟通知！');
+      }
+      return;
+    }
+
+    // 2. 向伺服器取得 VAPID 公鑰
+    const res = await fetch('/api/push/vapid-public-key');
+    const keyData = await res.json();
+    if (!keyData.success || !keyData.publicKey) {
+      throw new Error('無法自伺服器取得 VAPID 推播公鑰');
+    }
+
+    // 3. 透過 PushManager 向瀏覽器/系統推播伺服器訂閱
+    const applicationServerKey = urlBase64ToUint8Array(keyData.publicKey);
+    let subscription = await swRegistration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await swRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey
+      });
+    }
+
+    // 4. 將這台設備的推播憑證回傳後端，與目前登入之技服人員姓名綁定
+    const targetUsername = currentUser ? (currentUser.username || currentUser.displayName) : '未知技服';
+    const subRes = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: targetUsername,
+        subscription: subscription
+      })
+    });
+    const subJson = await subRes.json();
+
+    if (subJson.success) {
+      updatePushUI(currentUser);
+      if (isUserAction) {
+        alert('🎉 成功啟用手機即時推播！\n無論 App 是否開啟或登入，當有新派工或到貨時間修改時，手機都會立即收到提醒！');
+      }
+    } else {
+      throw new Error(subJson.message || '訂閱憑證儲存失敗');
+    }
+  } catch (err) {
+    console.error('[WebPush] 訂閱流程出錯:', err);
+    if (isUserAction) {
+      alert('啟用推播通知失敗：' + err.message);
+    }
+  }
+}
+
 
 // 1. Navigation Tabs
 function setupTabs() {
@@ -148,6 +381,12 @@ function setupTabs() {
       
       if (targetTab === 'tab-logs') {
         loadAndRenderLogs();
+      } else if (targetTab === 'tab-users') {
+        loadUsersData();
+      } else if (targetTab === 'tab-permissions') {
+        loadPermissionsMatrix();
+      } else if (targetTab === 'tab-production') {
+        loadProductionData();
       } else {
         // Auto-reload data on switching tabs to ensure freshness
         loadData();
@@ -242,7 +481,16 @@ async function loadData() {
       }
       
       refreshDashboardUI();
-      populateTechNamesDropdown(ordersData);
+      populateTechNamesDropdown();
+
+      // 若已有選定或登入的技服人員，資料載入後自動查詢行程
+      const currentTechInput = document.getElementById('query-tech-name');
+      if (currentTechInput && currentTechInput.value) {
+        queryTechSchedule();
+      }
+
+      // 檢查網址是否由推播點擊開啟 (?openOrder=xxx)
+      checkUrlForOpenOrder();
     }
 
     const driversRes = await fetch('/api/drivers');
@@ -288,7 +536,7 @@ function renderDashboardTable(orders) {
     const idText = o.id ? escapeHtml(o.id) : '<span class="text-muted">無</span>';
     const batchText = o.batch ? escapeHtml(o.batch) : '-';
     
-    const showEdit = currentUser && (currentUser.role === 'sales' || currentUser.role === 'tech_manager' || currentUser.role === 'transporter');
+    const showEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'sales' || currentUser.role === 'tech_manager' || currentUser.role === 'transporter' || currentUser.role === 'production');
     let editLink = '';
     if (showEdit) {
       editLink = `<span class="action-link" onclick="openEditModalByIndex(${idx})">編輯</span>`;
@@ -301,9 +549,10 @@ function renderDashboardTable(orders) {
       printLink = `<button class="btn btn-primary btn-sm" onclick="download3in1ByIndex(${idx})" style="padding: 2px 8px; font-size: 0.85rem;">🖨️ 下載</button>`;
     }
     const printCell = `<td>${printLink}</td>`;
+    const readStatusCell = `<td>${getReadStatusBadge(o)}</td>`;
 
     return `
-      <tr>
+      <tr onclick="onOrderRowClick(event, ${idx})" style="cursor: pointer;" title="點擊可直接檢視單筆詳細資訊">
         <td>${idText}</td>
         <td>${batchText}</td>
         <td>${escapeHtml(o.client) || '-'}</td>
@@ -320,6 +569,7 @@ function renderDashboardTable(orders) {
         <td>${escapeHtml(o.departure_time) || '-'}</td>
         <td>${escapeHtml(o.driver_code) || '-'}</td>
         ${printCell}
+        ${readStatusCell}
         ${actionCell}
       </tr>
     `;
@@ -329,20 +579,24 @@ function renderDashboardTable(orders) {
   if (cardsContainer) {
     cardsContainer.innerHTML = orders.map((o, idx) => {
       const statusBadge = getStatusBadge(o);
+      const readBadge = getReadStatusBadge(o);
       const idText = o.id ? escapeHtml(o.id) : '無單號';
-      const showEdit = currentUser && (currentUser.role === 'sales' || currentUser.role === 'tech_manager' || currentUser.role === 'transporter');
+      const showEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'sales' || currentUser.role === 'tech_manager' || currentUser.role === 'transporter' || currentUser.role === 'production');
       const editBtn = showEdit 
-        ? `<button class="btn btn-secondary btn-sm" onclick="openEditModalByIndex(${idx})">編輯</button>`
+        ? `<button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); openEditModalByIndex(${idx})">編輯</button>`
         : '';
         
       return `
-        <div class="mobile-order-card">
+        <div class="mobile-order-card" onclick="openOrderDetailModalByIndex(${idx})" style="cursor: pointer;">
           <div class="mobile-card-header">
             <div class="card-title-group">
               <span class="card-time">${escapeHtml(o.arrival_time) || '時間未定'}</span>
               <span class="card-date">${escapeHtml(o.expected_date) || ''}</span>
             </div>
-            <div>${statusBadge}</div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              ${readBadge}
+              ${statusBadge}
+            </div>
           </div>
           <div class="mobile-card-body">
             <div class="card-detail"><strong>對象：</strong>${escapeHtml(o.client) || '-'}</div>
@@ -357,7 +611,10 @@ function renderDashboardTable(orders) {
           </div>
           <div class="mobile-card-footer">
             <span>單號：${idText}</span>
-            ${editBtn}
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-outline-cyan btn-sm" onclick="event.stopPropagation(); openOrderDetailModalByIndex(${idx})">📋 查看詳細</button>
+              ${editBtn}
+            </div>
           </div>
         </div>
       `;
@@ -376,6 +633,225 @@ window.download3in1ByIndex = function(idx) {
   if (!o) return;
   download3in1(o.id || '', o.batch);
 };
+
+// 點擊表格行開啟單筆聚焦卡片 (排除點擊按鈕或連結)
+window.onOrderRowClick = function(event, idx) {
+  if (event.target.closest('button') || event.target.closest('.action-link')) {
+    return; // 若點擊的是下載或編輯按鈕，不觸發開單
+  }
+  openOrderDetailModalByIndex(idx);
+};
+
+let currentFocusedOrderKey = null;
+
+window.openOrderDetailModalByIndex = function(idx) {
+  const o = currentDashboardOrders[idx];
+  if (!o) return;
+  openOrderDetailModalByOrder(o);
+};
+
+window.openOrderDetailModalByKey = function(orderKey) {
+  const o = ordersData.find(item => (item.id && item.id === orderKey) || (`${item.destination}_${item.expected_date}_${item.arrival_time}` === orderKey));
+  if (o) openOrderDetailModalByOrder(o);
+};
+
+window.openOrderDetailModalByOrder = function(o) {
+  const modal = document.getElementById('order-detail-modal');
+  const content = document.getElementById('order-detail-content');
+  const timeSpan = document.getElementById('detail-read-timestamp');
+  if (!modal || !content) return;
+
+  const orderKey = o.id || `${o.destination}_${o.expected_date}_${o.arrival_time}`;
+  currentFocusedOrderKey = orderKey;
+
+  const isRead = o.read_status === 'read';
+  if (isRead) {
+    timeSpan.textContent = `✓ 技服已於 ${o.read_at || ''} 確認 (${o.read_by || ''})`;
+    timeSpan.style.color = '#34d399';
+  } else {
+    timeSpan.textContent = '⏳ 尚未確認讀取';
+    timeSpan.style.color = '#f87171';
+  }
+
+  content.innerHTML = `
+    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--card-border); border-radius: 12px; padding: 1.25rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <div>
+          <span style="font-size: 0.85rem; color: var(--text-muted);">出貨單號</span>
+          <h4 style="font-size: 1.2rem; color: #38bdf8; margin: 0.2rem 0 0 0;">${escapeHtml(o.id || '無單號')}</h4>
+        </div>
+        <div>${getStatusBadge(o)}</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.95rem;">
+        <div><strong>指送地：</strong><span style="color: #facc15; font-weight: 600;">${escapeHtml(o.destination || '-')}</span></div>
+        <div><strong>對象簡稱：</strong>${escapeHtml(o.client || '-')}</div>
+        <div><strong>品名：</strong><span class="product-badge">${escapeHtml(o.product || '-')}</span></div>
+        <div><strong>批號：</strong><b>${escapeHtml(o.batch || '-')}</b></div>
+        <div><strong>預計到貨：</strong><span style="color: #38bdf8; font-weight: bold;">${escapeHtml(o.expected_date || '')} ${escapeHtml(o.arrival_time || '')}</span></div>
+        <div><strong>運輸方式：</strong>${escapeHtml(o.transport_type || '-')}</div>
+      </div>
+
+      <div style="margin: 1rem 0; border-top: 1px dashed var(--card-border);"></div>
+
+      <div style="display: grid; grid-template-columns: 1fr; gap: 0.6rem; font-size: 0.95rem;">
+        <div><strong>🔧 技服充填手：</strong><span style="font-size: 1.05rem; color: #a78bfa; font-weight: bold;">${formatFillHand(o.fill_hand)}</span></div>
+        <div><strong>🚚 司機 / 車牌：</strong>${o.plate ? `${escapeHtml(o.plate)} (${escapeHtml(o.driver || '')})` : '⏳ 運輸車輛尚未排定'}</div>
+        <div><strong>📞 司機電話：</strong>${o.phone ? `<a href="tel:${escapeHtml(o.phone)}" style="color: #38bdf8;">${escapeHtml(o.phone)}</a>` : '-'}</div>
+        <div><strong>🕒 預計出車：</strong>${o.departure_date ? `${escapeHtml(o.departure_date)} ${escapeHtml(o.departure_time || '')}` : '-'}</div>
+      </div>
+    </div>
+  `;
+
+  modal.classList.add('open');
+
+  // 自動送出「已讀」登記 (若當前登入者身分為該充填手或技服人員)
+  if (currentUser) {
+    markOrderAsRead(orderKey, currentUser.displayName || currentUser.username);
+  }
+};
+
+async function markOrderAsRead(orderKey, username) {
+  try {
+    const res = await fetch('/api/orders/mark-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderKey, username })
+    });
+    const json = await res.json();
+    if (json.success) {
+      // 即時更新本機快取
+      const order = ordersData.find(o => (o.id && o.id === orderKey) || (`${o.destination}_${o.expected_date}_${o.arrival_time}` === orderKey));
+      if (order) {
+        order.read_status = 'read';
+        order.read_at = json.read_at;
+        order.read_by = json.read_by;
+      }
+      const timeSpan = document.getElementById('detail-read-timestamp');
+      if (timeSpan) {
+        timeSpan.textContent = `✓ 技服已於 ${json.read_at} 確認 (${json.read_by})`;
+        timeSpan.style.color = '#34d399';
+      }
+      // 即時刷新主表格與手機日程卡片
+      refreshDashboardUI();
+      const currentTechInput = document.getElementById('query-tech-name');
+      if (currentTechInput && currentTechInput.value) {
+        queryTechSchedule();
+      }
+    }
+  } catch (e) {
+    console.warn('Auto mark read failed:', e);
+  }
+}
+
+// 檢查網址列是否有 ?openOrder=... 參數，若有則直接開啟單筆專屬聚焦彈窗
+function checkUrlForOpenOrder() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const openOrderKey = urlParams.get('openOrder');
+  if (!openOrderKey) return;
+
+  const target = ordersData.find(o => (o.id && o.id === openOrderKey) || (`${o.destination}_${o.expected_date}_${o.arrival_time}` === openOrderKey));
+  if (target) {
+    console.log('[WebPush] 偵測到推播跳轉單號，自動聚焦開啟訂單：', openOrderKey);
+    openOrderDetailModalByOrder(target);
+  }
+}
+
+function setupOrderDetailModal() {
+  const closeBtn = document.getElementById('close-order-detail-modal');
+  const confirmBtn = document.getElementById('btn-confirm-order-read');
+  const modal = document.getElementById('order-detail-modal');
+
+  const reRenderAll = () => {
+    refreshDashboardUI();
+    const currentTechInput = document.getElementById('query-tech-name');
+    if (currentTechInput && currentTechInput.value) {
+      queryTechSchedule();
+    }
+  };
+
+  if (closeBtn && modal) {
+    closeBtn.addEventListener('click', () => {
+      modal.classList.remove('open');
+      reRenderAll();
+    });
+  }
+  if (confirmBtn && modal) {
+    confirmBtn.addEventListener('click', () => {
+      if (currentFocusedOrderKey && currentUser) {
+        markOrderAsRead(currentFocusedOrderKey, currentUser.displayName || currentUser.username);
+      }
+      modal.classList.remove('open');
+      reRenderAll();
+    });
+  }
+}
+
+// 雙向即時狀態同步機制 (SSE 毫秒廣播 + 5 秒心跳比對輪詢)
+function setupLiveSync() {
+  // 1. SSE 即時推播事件流監聽 (當手機端已讀，電腦端立刻自動翻綠)
+  try {
+    const evtSource = new EventSource('/api/events');
+    
+    evtSource.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'order_read') {
+          const { orderKey, orderId, read_status, read_at, read_by, destination, expected_date, arrival_time } = msg.data;
+          // 比對並更新 ordersData 快取
+          const found = ordersData.find(o => 
+            (orderId && o.id === orderId) || 
+            (orderKey && o.id === orderKey) || 
+            (`${o.destination}_${o.expected_date}_${o.arrival_time}` === `${destination}_${expected_date}_${arrival_time}`) || 
+            (`${o.destination}_${o.expected_date}_${o.arrival_time}` === orderKey)
+          );
+          if (found) {
+            found.read_status = read_status;
+            found.read_at = read_at;
+            found.read_by = read_by;
+            console.log(`[LiveSync] 收到同仁「${read_by}」已讀推播通知，自動刷新畫面！`);
+            refreshDashboardUI();
+            const currentTechInput = document.getElementById('query-tech-name');
+            if (currentTechInput && currentTechInput.value) {
+              queryTechSchedule();
+            }
+          }
+        } else if (msg.type === 'orders_changed') {
+          console.log('[LiveSync] 收到排程資料異動廣播，自動重新載入...');
+          loadData();
+        }
+      } catch (err) {}
+    };
+
+    evtSource.onerror = () => {
+      // 網路瞬斷時 EventSource 會自動重連
+    };
+  } catch (e) {
+    console.warn('SSE not initialized:', e);
+  }
+
+  // 2. 雙重保險：每 3 秒在背景靜態檢驗訂單狀態，若有變更自動對齊
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/orders?t=' + Date.now());
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        // 快速檢查 read_status 與 read_at 是否有變更
+        const remoteSig = json.data.map(o => `${o.id || o.destination}_${o.read_status}_${o.read_at}`).join('|');
+        const localSig = ordersData.map(o => `${o.id || o.destination}_${o.read_status}_${o.read_at}`).join('|');
+        if (remoteSig !== localSig) {
+          console.log('[LiveSync Poll] 偵測到伺服器有已讀或資料變更，自動對齊畫面！');
+          ordersData = json.data;
+          refreshDashboardUI();
+          const currentTechInput = document.getElementById('query-tech-name');
+          if (currentTechInput && currentTechInput.value) {
+            queryTechSchedule();
+          }
+        }
+      }
+    } catch (e) {}
+  }, 3000);
+}
 
 // Helper to truncate long strings
 function truncateStr(str, len) {
@@ -403,6 +879,19 @@ function getStatusBadge(o) {
   return '<span class="badge badge-secondary">已建檔</span>';
 }
 
+// 取得技服人員讀取狀態 Badge (已讀 / 未讀)
+function getReadStatusBadge(o) {
+  if (!o.fill_hand) {
+    return '<span class="text-muted" style="font-size: 0.85rem;">未派工</span>';
+  }
+  if (o.read_status === 'read') {
+    const timeShort = o.read_at ? o.read_at.split(' ')[1] || o.read_at : '';
+    const reader = o.read_by ? ` (${escapeHtml(o.read_by)})` : '';
+    return `<span class="badge badge-success" title="已讀時間: ${escapeHtml(o.read_at || '')}${reader}">🟢 已讀 ${timeShort}</span>`;
+  }
+  return '<span class="badge badge-danger" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);">🔴 未讀</span>';
+}
+
 // 4. Update Stats Cards
 function updateStats(orders) {
   const total = orders.length;
@@ -419,23 +908,33 @@ function updateStats(orders) {
 }
 
 // 5. Populate Tech Names Dropdown for Query Portal
-function populateTechNamesDropdown(orders) {
+const OFFICIAL_TECHS = [
+  '林聖龍', '楊立凱', '胡富閔', '陳國安', '陳俊佑', '陳志彥', '陳志源', '廖家民', 
+  '蘇昭溢', '王善禾', '葉仁豪', '吳柏昇', '黃國欽', '魏柏勳', '陳志聰', '謝嘉泰', 
+  '邱建銘', '楊家勝', '蘇哲儀', '王品揚', '江韋徵', '郭泰緒', '林聖壹', '周昆賢', 
+  '黃子峻', '黃宗勝', '何森寅', '洪宇勤', '葉志杰', '資材'
+];
+
+function populateTechNamesDropdown() {
   const select = document.getElementById('query-tech-name');
+  if (!select || select.tagName !== 'SELECT') return;
   const currentSelection = select.value;
   
-  // Extract unique names
-  const names = new Set();
-  orders.forEach(o => {
-    if (o.fill_hand) {
-      // Split by newline or slash to get name only
-      const nameOnly = o.fill_hand.split(/[\n/]/)[0].trim();
-      if (nameOnly) names.add(nameOnly);
-    }
-  });
+  // 嚴格僅採用官方 35 名單中的技服名冊與 tech_staff 帳號名單，杜絕任何測試字串或標題雜訊
+  const names = new Set(OFFICIAL_TECHS);
+
+  if (allUsersList && allUsersList.length > 0) {
+    allUsersList.forEach(u => {
+      if (u.role === 'tech_staff') {
+        const n = u.displayName || u.username;
+        if (n && n !== 'admin') names.add(n);
+      }
+    });
+  }
 
   // Keep default option
-  select.innerHTML = '<option value="">-- 請選擇您的姓名 --</option>';
-  Array.from(names).sort().forEach(name => {
+  select.innerHTML = '<option value="">-- 請選擇技服人員 --</option>';
+  Array.from(names).sort((a, b) => a.localeCompare(b, 'zh-Hant')).forEach(name => {
     select.innerHTML += `<option value="${name}">${name}</option>`;
   });
 
@@ -878,6 +1377,7 @@ function setupSearchAndFilters() {
 
   // Tech personal query search
   document.getElementById('btn-query-search').addEventListener('click', queryTechSchedule);
+  document.getElementById('query-tech-name')?.addEventListener('change', queryTechSchedule);
 
   // Refresh logs button
   const refreshLogsBtn = document.getElementById('btn-refresh-logs');
@@ -887,16 +1387,61 @@ function setupSearchAndFilters() {
 }
 
 // 9. Tech Service Query Logic
+let currentTechDateMode = 'today_tmr'; // 'today_tmr' | 'past' | 'all'
+
+function setupTechDateFilterButtons() {
+  const btnTodayTmr = document.getElementById('btn-tech-range-today-tmr');
+  const btnPast = document.getElementById('btn-tech-range-past');
+  const btnAll = document.getElementById('btn-tech-range-all');
+
+  function updateActive(activeBtn, mode) {
+    [btnTodayTmr, btnPast, btnAll].forEach(b => {
+      if (b) {
+        b.classList.remove('active', 'btn-cyan');
+        b.classList.add('btn-secondary');
+      }
+    });
+    if (activeBtn) {
+      activeBtn.classList.remove('btn-secondary');
+      activeBtn.classList.add('active', 'btn-cyan');
+    }
+    currentTechDateMode = mode;
+    queryTechSchedule();
+  }
+
+  if (btnTodayTmr && !btnTodayTmr.hasAttribute('data-bound')) {
+    btnTodayTmr.setAttribute('data-bound', '1');
+    btnTodayTmr.addEventListener('click', () => updateActive(btnTodayTmr, 'today_tmr'));
+  }
+  if (btnPast && !btnPast.hasAttribute('data-bound')) {
+    btnPast.setAttribute('data-bound', '1');
+    btnPast.addEventListener('click', () => updateActive(btnPast, 'past'));
+  }
+  if (btnAll && !btnAll.hasAttribute('data-bound')) {
+    btnAll.setAttribute('data-bound', '1');
+    btnAll.addEventListener('click', () => updateActive(btnAll, 'all'));
+  }
+}
+
 function queryTechSchedule() {
-  const techName = document.getElementById('query-tech-name').value;
-  const selectDate = document.getElementById('query-date').value; // YYYY-MM-DD
+  const techInput = document.getElementById('query-tech-name');
+  const techName = techInput ? techInput.value : '';
   const grid = document.getElementById('query-results-grid');
   const title = document.getElementById('query-results-title');
 
+  setupTechDateFilterButtons();
+
   if (!techName) {
-    alert('請選擇技服充填手姓名！');
+    if (grid) grid.innerHTML = `<div class="no-results">請選擇技服人員姓名並點選查詢。</div>`;
     return;
   }
+
+  // 取得今天與明天的 YYYY-MM-DD
+  const now = new Date();
+  const todayStr = formatDate(now);
+  const tmr = new Date(now);
+  tmr.setDate(tmr.getDate() + 1);
+  const tmrStr = formatDate(tmr);
 
   // Filter local memory orders
   const filtered = ordersData.filter(o => {
@@ -904,18 +1449,35 @@ function queryTechSchedule() {
     
     // Check if fill_hand contains the name
     const matchName = o.fill_hand.toLowerCase().includes(techName.toLowerCase());
-    
-    if (selectDate) {
-      return matchName && o.expected_date === selectDate;
+    if (!matchName) return false;
+
+    const oDate = o.expected_date || '';
+    if (currentTechDateMode === 'today_tmr') {
+      // 包含今天與明天 (若當天/明天無資料，且無任何近期資料，則寬鬆顯示)
+      return oDate === todayStr || oDate === tmrStr;
+    } else if (currentTechDateMode === 'past') {
+      // 之前歷史排程
+      return oDate && oDate < todayStr;
     }
-    return matchName;
+    // 'all'
+    return true;
   });
 
+  // 智能防呆：若「今天與明天」剛好沒有排程，但該人員有其他日程，自動提示並引導切換
+  let modeLabel = '當天與明天 (今天/明天)';
+  if (currentTechDateMode === 'past') modeLabel = '歷史排程 (今天之前)';
+  if (currentTechDateMode === 'all') modeLabel = '全部日程';
+
   title.classList.remove('hidden');
-  title.textContent = `查詢結果：${techName} (共 ${filtered.length} 筆)`;
+  title.textContent = `📋 ${techName} 的出貨日程【${modeLabel}】：共 ${filtered.length} 筆`;
 
   if (filtered.length === 0) {
-    grid.innerHTML = `<div class="no-results">查無您負責的出貨日程。${selectDate ? '可以清除日期再試一次。' : ''}</div>`;
+    const totalForPerson = ordersData.filter(o => o.fill_hand && o.fill_hand.toLowerCase().includes(techName.toLowerCase())).length;
+    let hint = '';
+    if (currentTechDateMode === 'today_tmr' && totalForPerson > 0) {
+      hint = `<div style="margin-top: 10px; font-size: 0.9rem; color: #38bdf8;">💡 提示：您今天與明天目前無出貨任務。系統中您尚有 <b>${totalForPerson} 筆</b> 其他日程，可點擊上方「<b>📜 之前歷史排程</b>」或「<b>🌐 全部日程</b>」查看！</div>`;
+    }
+    grid.innerHTML = `<div class="no-results">查無此時段之出貨日程。${hint}</div>`;
     return;
   }
 
@@ -929,14 +1491,20 @@ function queryTechSchedule() {
       ? `<div>🕒 出車時間: ${escapeHtml(o.departure_date)} ${escapeHtml(o.departure_time) || ''}</div>`
       : `<div>🕒 預計到貨時間: ${escapeHtml(o.expected_date)} ${escapeHtml(o.arrival_time) || ''}</div>`;
 
+    const readBadge = getReadStatusBadge(o);
+    const orderKey = o.id || `${o.destination}_${o.expected_date}_${o.arrival_time}`;
+
     return `
-      <div class="query-card">
+      <div class="query-card" onclick="openOrderDetailModalByKey('${escapeHtml(orderKey)}')" style="cursor: pointer;" title="點擊確認並標記已讀">
         <div class="query-card-header">
           <span class="query-card-time">${escapeHtml(o.arrival_time) || '到貨時間未定'}</span>
           <span class="query-card-date">${escapeHtml(o.expected_date)}</span>
         </div>
         <div class="query-card-body">
-          <div class="query-card-client">${escapeHtml(o.client) || '對象未提供'}</div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span class="query-card-client">${escapeHtml(o.client) || '對象未提供'}</span>
+            ${readBadge}
+          </div>
           <div class="query-card-dest" title="${escapeHtml(o.destination) || ''}">📍 ${escapeHtml(truncateStr(o.destination, 24))}</div>
           <div class="query-card-product">品名: ${escapeHtml(o.product) || '-'} | 批號: ${escapeHtml(o.batch) || '-'}</div>
         </div>
@@ -1261,3 +1829,563 @@ window.removeLocationMapping = function(index) {
   currentLocationMappings.splice(index, 1);
   renderLocationMappings();
 };
+
+// =============================================================================
+// 使用者帳號管理 (User Management)
+// =============================================================================
+let allUsersList = [];
+
+function setupUserManagement() {
+  const searchInput = document.getElementById('user-search-input');
+  const roleFilter = document.getElementById('user-role-filter');
+  const statusFilter = document.getElementById('user-status-filter');
+  const btnAddUser = document.getElementById('btn-add-user');
+  const userModal = document.getElementById('user-modal');
+  const closeUserModal = document.getElementById('close-user-modal');
+  const userForm = document.getElementById('user-form');
+  const btnImportExcel = document.getElementById('btn-import-users-excel');
+  const userExcelFile = document.getElementById('user-excel-file');
+  const btnDownloadTemplate = document.getElementById('btn-download-users-template');
+
+  if (searchInput) {
+    searchInput.addEventListener('input', filterAndRenderUsers);
+  }
+  if (roleFilter) {
+    roleFilter.addEventListener('change', filterAndRenderUsers);
+  }
+  if (statusFilter) {
+    statusFilter.addEventListener('change', filterAndRenderUsers);
+  }
+
+  if (btnAddUser) {
+    btnAddUser.addEventListener('click', () => {
+      openUserModal('create');
+    });
+  }
+
+  if (closeUserModal) {
+    closeUserModal.addEventListener('click', () => {
+      userModal.classList.remove('open');
+    });
+  }
+
+  if (userForm) {
+    userForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const mode = document.getElementById('user-modal-mode').value;
+      const username = document.getElementById('user-username').value.trim();
+      const displayName = document.getElementById('user-displayname').value.trim();
+      const password = document.getElementById('user-password').value.trim();
+      const role = document.getElementById('user-role').value;
+      const status = document.getElementById('user-status').value;
+
+      if (mode === 'create' && !password) {
+        alert('新增帳號時密碼為必填！');
+        return;
+      }
+
+      try {
+        const url = mode === 'create' ? '/api/users' : `/api/users/${encodeURIComponent(username)}`;
+        const method = mode === 'create' ? 'POST' : 'PUT';
+        const payload = {
+          username,
+          displayName,
+          role,
+          status,
+          operator: currentUser ? currentUser.displayName : 'admin'
+        };
+        if (password) {
+          payload.password = password;
+        }
+
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert(json.message);
+          userModal.classList.remove('open');
+          loadUsersData();
+        } else {
+          alert('操作失敗：' + json.message);
+        }
+      } catch (err) {
+        alert('連線伺服器出錯：' + err.message);
+      }
+    });
+  }
+
+  // Excel 批次匯入
+  if (btnImportExcel && userExcelFile) {
+    btnImportExcel.addEventListener('click', () => {
+      userExcelFile.click();
+    });
+    userExcelFile.addEventListener('change', async () => {
+      if (!userExcelFile.files || userExcelFile.files.length === 0) return;
+      const file = userExcelFile.files[0];
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        btnImportExcel.disabled = true;
+        btnImportExcel.textContent = '⏳ 匯入中...';
+        const res = await fetch(`/api/users/upload?operator=${encodeURIComponent(currentUser ? currentUser.displayName : 'admin')}`, {
+          method: 'POST',
+          body: formData
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert(json.message);
+          loadUsersData();
+        } else {
+          alert('匯入失敗：' + json.message);
+        }
+      } catch (err) {
+        alert('匯入出錯：' + err.message);
+      } finally {
+        userExcelFile.value = '';
+        btnImportExcel.disabled = false;
+        btnImportExcel.textContent = '📥 匯入 Excel';
+      }
+    });
+  }
+
+  // 下載帳號範本
+  if (btnDownloadTemplate) {
+    btnDownloadTemplate.addEventListener('click', () => {
+      window.location.href = '/api/users/download-template';
+    });
+  }
+}
+
+async function loadUsersData() {
+  const tbody = document.getElementById('users-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" class="text-center">載入使用者列表中...</td></tr>';
+
+  try {
+    const res = await fetch('/api/users');
+    const data = await res.json();
+    if (data.success) {
+      allUsersList = data.users || [];
+      populateUserRoleDropdowns();
+      filterAndRenderUsers();
+    } else {
+      tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: #f87171;">載入失敗: ${data.message}</td></tr>`;
+    }
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="color: #f87171;">連線錯誤: ${err.message}</td></tr>`;
+  }
+}
+
+function populateUserRoleDropdowns() {
+  const roleFilter = document.getElementById('user-role-filter');
+  const userRoleSelect = document.getElementById('user-role');
+  const roles = systemRoles.length > 0 ? systemRoles : [
+    { id: 'admin', name: '系統管理員 (admin)' },
+    { id: 'production', name: '生產人員 (production)' },
+    { id: 'sales', name: '業務人員 (sales)' },
+    { id: 'tech_manager', name: '技服主管 (tech_manager)' },
+    { id: 'tech_staff', name: '技服人員 (tech_staff)' },
+    { id: 'transporter', name: '運輸公司 (transporter)' }
+  ];
+
+  if (roleFilter) {
+    const curVal = roleFilter.value;
+    roleFilter.innerHTML = '<option value="">所有角色</option>';
+    roles.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.name;
+      roleFilter.appendChild(opt);
+    });
+    roleFilter.value = curVal;
+  }
+
+  if (userRoleSelect) {
+    const curVal = userRoleSelect.value;
+    userRoleSelect.innerHTML = '';
+    roles.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.name;
+      userRoleSelect.appendChild(opt);
+    });
+    if (curVal) userRoleSelect.value = curVal;
+  }
+}
+
+function filterAndRenderUsers() {
+  const searchInput = document.getElementById('user-search-input');
+  const roleFilter = document.getElementById('user-role-filter');
+  const statusFilter = document.getElementById('user-status-filter');
+
+  const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  const selectedRole = roleFilter ? roleFilter.value : '';
+  const selectedStatus = statusFilter ? statusFilter.value : '';
+
+  const filtered = allUsersList.filter(u => {
+    const matchQ = !q || (u.username.toLowerCase().includes(q) || (u.displayName && u.displayName.toLowerCase().includes(q)));
+    const matchRole = !selectedRole || u.role === selectedRole;
+    const matchStatus = !selectedStatus || u.status === selectedStatus;
+    return matchQ && matchRole && matchStatus;
+  });
+
+  renderUsersTable(filtered);
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('users-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (users.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">無符合條件的使用者帳號</td></tr>';
+    return;
+  }
+
+  users.forEach(u => {
+    const tr = document.createElement('tr');
+    const roleBadgeClass = `badge-role badge-role-${u.role}`;
+    const statusBadge = u.status === 'inactive'
+      ? '<span class="badge-status badge-status-inactive">停用</span>'
+      : '<span class="badge-status badge-status-active">啟用</span>';
+
+    tr.innerHTML = `
+      <td><b>${escapeHtml(u.username)}</b></td>
+      <td>${escapeHtml(u.displayName || u.username)}</td>
+      <td><span class="${roleBadgeClass}">${escapeHtml(u.role)}</span></td>
+      <td>${statusBadge}</td>
+      <td>
+        <button class="user-action-btn btn-edit-user" data-username="${escapeHtml(u.username)}">編輯</button>
+        ${u.username === 'admin' ? '' : `<button class="user-action-btn btn-delete-user" data-username="${escapeHtml(u.username)}">刪除</button>`}
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // 綁定編輯與刪除事件
+  tbody.querySelectorAll('.btn-edit-user').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const uName = btn.getAttribute('data-username');
+      const targetUser = allUsersList.find(u => u.username === uName);
+      if (targetUser) {
+        openUserModal('edit', targetUser);
+      }
+    });
+  });
+
+  tbody.querySelectorAll('.btn-delete-user').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const uName = btn.getAttribute('data-username');
+      if (!confirm(`確定要刪除使用者「${uName}」嗎？刪除後將自動同步更新本機 Excel。`)) return;
+
+      try {
+        const res = await fetch(`/api/users/${encodeURIComponent(uName)}?operator=${encodeURIComponent(currentUser ? currentUser.displayName : 'admin')}`, {
+          method: 'DELETE'
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert(json.message);
+          loadUsersData();
+        } else {
+          alert('刪除失敗: ' + json.message);
+        }
+      } catch (err) {
+        alert('刪除出錯: ' + err.message);
+      }
+    });
+  });
+}
+
+function openUserModal(mode, user = null) {
+  const modal = document.getElementById('user-modal');
+  const title = document.getElementById('user-modal-title');
+  const modeInput = document.getElementById('user-modal-mode');
+  const uInput = document.getElementById('user-username');
+  const dInput = document.getElementById('user-displayname');
+  const pInput = document.getElementById('user-password');
+  const pRequired = document.getElementById('user-pwd-required');
+  const rSelect = document.getElementById('user-role');
+  const sSelect = document.getElementById('user-status');
+
+  populateUserRoleDropdowns();
+
+  if (mode === 'create') {
+    title.textContent = '新增使用者帳號';
+    modeInput.value = 'create';
+    uInput.value = '';
+    uInput.readOnly = false;
+    uInput.classList.remove('input-readonly');
+    dInput.value = '';
+    pInput.value = '123';
+    pRequired.style.display = 'inline';
+    sSelect.value = 'active';
+  } else {
+    title.textContent = `編輯使用者：${user.username}`;
+    modeInput.value = 'edit';
+    uInput.value = user.username;
+    uInput.readOnly = true;
+    uInput.classList.add('input-readonly');
+    dInput.value = user.displayName || user.username;
+    pInput.value = '';
+    pRequired.style.display = 'none';
+    if (user.role && rSelect.querySelector(`option[value="${user.role}"]`)) {
+      rSelect.value = user.role;
+    }
+    sSelect.value = user.status || 'active';
+  }
+
+  modal.classList.add('open');
+}
+
+// =============================================================================
+// 角色功能權限設定 (Permissions Matrix - 復刻圖二)
+// =============================================================================
+function setupPermissionsManagement() {
+  const btnSavePerms = document.getElementById('btn-save-permissions');
+  const btnAddRole = document.getElementById('btn-add-role-modal');
+  const roleModal = document.getElementById('role-modal');
+  const closeRoleModal = document.getElementById('close-role-modal');
+  const roleForm = document.getElementById('role-form');
+
+  if (btnSavePerms) {
+    btnSavePerms.addEventListener('click', async () => {
+      const matrixTable = document.getElementById('permissions-matrix-table');
+      if (!matrixTable) return;
+
+      const newPerms = {};
+      const checkboxes = matrixTable.querySelectorAll('.perm-checkbox');
+      checkboxes.forEach(cb => {
+        const role = cb.getAttribute('data-role');
+        const feature = cb.getAttribute('data-feature');
+        if (!newPerms[role]) newPerms[role] = [];
+        if (cb.checked) {
+          newPerms[role].push(feature);
+        }
+      });
+
+      try {
+        btnSavePerms.disabled = true;
+        btnSavePerms.textContent = '⏳ 儲存中...';
+        const res = await fetch('/api/permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            permissions: newPerms,
+            operator: currentUser ? currentUser.displayName : 'admin'
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert('🎉 角色功能權限設定已成功儲存！');
+          systemPermissions = newPerms;
+          if (currentUser) {
+            applyRolePermissions(currentUser);
+          }
+        } else {
+          alert('儲存失敗：' + json.message);
+        }
+      } catch (err) {
+        alert('儲存失敗：' + err.message);
+      } finally {
+        btnSavePerms.disabled = false;
+        btnSavePerms.textContent = '💾 儲存權限對應設定';
+      }
+    });
+  }
+
+  if (btnAddRole) {
+    btnAddRole.addEventListener('click', () => {
+      document.getElementById('new-role-id').value = '';
+      document.getElementById('new-role-name').value = '';
+      roleModal.classList.add('open');
+    });
+  }
+
+  if (closeRoleModal) {
+    closeRoleModal.addEventListener('click', () => {
+      roleModal.classList.remove('open');
+    });
+  }
+
+  if (roleForm) {
+    roleForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const roleId = document.getElementById('new-role-id').value.trim();
+      const roleName = document.getElementById('new-role-name').value.trim();
+      try {
+        const res = await fetch('/api/roles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roleId,
+            roleName,
+            operator: currentUser ? currentUser.displayName : 'admin'
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert(json.message);
+          roleModal.classList.remove('open');
+          loadPermissionsMatrix();
+          populateUserRoleDropdowns();
+        } else {
+          alert('新增失敗：' + json.message);
+        }
+      } catch (err) {
+        alert('新增出錯：' + err.message);
+      }
+    });
+  }
+}
+
+async function loadPermissionsMatrix() {
+  const theadRow = document.getElementById('permissions-matrix-head');
+  const tbody = document.getElementById('permissions-matrix-body');
+  if (!theadRow || !tbody) return;
+
+  try {
+    const res = await fetch('/api/permissions');
+    const data = await res.json();
+    if (!data.success) return;
+
+    systemRoles = data.roles || [];
+    systemFeatures = data.features || [];
+    systemPermissions = data.permissions || {};
+
+    // 1. 渲染各系統功能表頭
+    theadRow.innerHTML = '<th style="min-width: 180px; text-align: left;">權限角色 \\ 系統功能</th>';
+    systemFeatures.forEach(feat => {
+      const th = document.createElement('th');
+      th.textContent = feat.name;
+      theadRow.appendChild(th);
+    });
+
+    // 2. 渲染各角色核取方塊列
+    tbody.innerHTML = '';
+    systemRoles.forEach(role => {
+      const tr = document.createElement('tr');
+      const rolePerms = systemPermissions[role.id] || [];
+      
+      let cellsHtml = `<td>${escapeHtml(role.name)}</td>`;
+      systemFeatures.forEach(feat => {
+        const isChecked = rolePerms.includes(feat.id) ? 'checked' : '';
+        cellsHtml += `
+          <td>
+            <input type="checkbox" class="perm-checkbox" data-role="${escapeHtml(role.id)}" data-feature="${escapeHtml(feat.id)}" ${isChecked}>
+          </td>
+        `;
+      });
+
+      tr.innerHTML = cellsHtml;
+      tbody.appendChild(tr);
+    });
+
+  } catch (err) {
+    console.error('Failed to load permissions matrix:', err);
+  }
+}
+
+// =============================================================================
+// 修改個人密碼 (Change Password Modal)
+// =============================================================================
+function setupChangePasswordModal() {
+  const btnOpen = document.getElementById('btn-change-password');
+  const modal = document.getElementById('change-password-modal');
+  const btnClose = document.getElementById('close-pwd-modal');
+  const form = document.getElementById('change-password-form');
+
+  if (btnOpen) {
+    btnOpen.addEventListener('click', () => {
+      document.getElementById('pwd-old').value = '';
+      document.getElementById('pwd-new').value = '';
+      document.getElementById('pwd-confirm').value = '';
+      modal.classList.add('open');
+    });
+  }
+
+  if (btnClose) {
+    btnClose.addEventListener('click', () => {
+      modal.classList.remove('open');
+    });
+  }
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const oldPassword = document.getElementById('pwd-old').value.trim();
+      const newPassword = document.getElementById('pwd-new').value.trim();
+      const confirmPassword = document.getElementById('pwd-confirm').value.trim();
+
+      if (!currentUser) {
+        alert('請先登入帳號！');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        alert('兩次輸入的新密碼不一致，請重新檢查！');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/users/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: currentUser.username,
+            oldPassword,
+            newPassword
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          alert(json.message);
+          modal.classList.remove('open');
+        } else {
+          alert('修改失敗：' + json.message);
+        }
+      } catch (err) {
+        alert('連線失敗：' + err.message);
+      }
+    });
+  }
+}
+
+// =============================================================================
+// 生產專區資料載入 (Production Data)
+// =============================================================================
+function loadProductionData() {
+  const tbody = document.getElementById('production-table-body');
+  if (!tbody) return;
+
+  if (ordersData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center">目前無生產充填排程資料</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '';
+  ordersData.forEach(o => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(o.id || '-')}</td>
+      <td><b>${escapeHtml(o.batch || '-')}</b></td>
+      <td>${escapeHtml(o.destination || '-')}</td>
+      <td><span class="product-badge">${escapeHtml(o.product || '-')}</span></td>
+      <td>${escapeHtml(o.expected_date || '')} ${escapeHtml(o.arrival_time || '')}</td>
+      <td>${escapeHtml(o.fill_hand || '-')}</td>
+      <td>${escapeHtml(o.plate || '')} ${escapeHtml(o.driver || '')}</td>
+      <td><span class="badge-status badge-status-active">已排程</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  const exportBtn = document.getElementById('btn-export-production');
+  if (exportBtn && !exportBtn.hasAttribute('data-bound')) {
+    exportBtn.setAttribute('data-bound', '1');
+    exportBtn.addEventListener('click', () => {
+      window.location.href = '/api/export';
+    });
+  }
+}
+

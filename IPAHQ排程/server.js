@@ -3,31 +3,96 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const webpush = require('web-push');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+let PORT = parseInt(process.env.PORT, 10) || 3000;
 
-app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use((req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+app.use(express.static(path.join(__dirname, 'public'), { etag: false, maxAge: 0 }));
+
+// Web Push VAPID 配置
+const VAPID_FILE = path.join(__dirname, 'vapid.json');
+let vapidKeys = null;
+if (fs.existsSync(VAPID_FILE)) {
+  try {
+    vapidKeys = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf-8'));
+  } catch (e) {
+    console.error('Error reading vapid.json:', e);
+  }
+}
+if (!vapidKeys || !vapidKeys.publicKey || !vapidKeys.privateKey) {
+  vapidKeys = webpush.generateVAPIDKeys();
+  fs.writeFileSync(VAPID_FILE, JSON.stringify(vapidKeys, null, 2), 'utf-8');
+  console.log('[WebPush] 已自動生成 VAPID 金鑰並儲存至 vapid.json');
+}
+
+webpush.setVapidDetails(
+  'mailto:tech_support@shinychem.com.tw',
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
 
 const DB_FILE = path.join(__dirname, 'database.json');
 const upload = multer({ storage: multer.memoryStorage() });
 
 const DEFAULT_USERS = [
-  { username: 'sales', password: '123', role: 'sales', displayName: '業務人員' },
-  { username: 'tech_mgr', password: '123', role: 'tech_manager', displayName: '技服主管' },
-  { username: 'transporter', password: '123', role: 'transporter', displayName: '運輸公司' },
-  { username: '林聖龍', password: '123', role: 'tech_staff', displayName: '林聖龍' },
-  { username: '楊立凱', password: '123', role: 'tech_staff', displayName: '楊立凱' },
-  { username: '胡富閔', password: '123', role: 'tech_staff', displayName: '胡富閔' },
-  { username: '陳國安', password: '123', role: 'tech_staff', displayName: '陳國安' },
-  { username: '陳俊佑', password: '123', role: 'tech_staff', displayName: '陳俊佑' },
-  { username: '陳志彥', password: '123', role: 'tech_staff', displayName: '陳志彥' },
-  { username: '陳志源', password: '123', role: 'tech_staff', displayName: '陳志源' },
-  { username: '廖家民', password: '123', role: 'tech_staff', displayName: '廖家民' },
-  { username: '蘇昭溢', password: '123', role: 'tech_staff', displayName: '蘇昭溢' },
-  { username: '王善禾', password: '123', role: 'tech_staff', displayName: '王善禾' }
+  { username: 'admin', password: '123', role: 'admin', displayName: '系統管理員', status: 'active' },
+  { username: 'shihwei', password: '123', role: 'admin', displayName: '鴻勝世偉', status: 'active' },
+  { username: 'eshinemmd', password: '123', role: 'admin', displayName: '鴻勝資材課', status: 'active' },
+  { username: 'sales', password: '123', role: 'sales', displayName: '業務人員', status: 'active' },
+  { username: 'production', password: '123', role: 'production', displayName: '生產人員', status: 'active' },
+  { username: 'tech_mgr', password: '123', role: 'tech_manager', displayName: '技服主管', status: 'active' },
+  { username: 'transporter', password: '123', role: 'transporter', displayName: '運輸公司', status: 'active' },
+  { username: '林聖龍', password: '123', role: 'tech_staff', displayName: '林聖龍', status: 'active' },
+  { username: '楊立凱', password: '123', role: 'tech_staff', displayName: '楊立凱', status: 'active' },
+  { username: '胡富閔', password: '123', role: 'tech_staff', displayName: '胡富閔', status: 'active' },
+  { username: '陳國安', password: '123', role: 'tech_staff', displayName: '陳國安', status: 'active' },
+  { username: '陳俊佑', password: '123', role: 'tech_staff', displayName: '陳俊佑', status: 'active' },
+  { username: '陳志彥', password: '123', role: 'tech_staff', displayName: '陳志彥', status: 'active' },
+  { username: '陳志源', password: '123', role: 'tech_staff', displayName: '陳志源', status: 'active' },
+  { username: '廖家民', password: '123', role: 'tech_staff', displayName: '廖家民', status: 'active' },
+  { username: '蘇昭溢', password: '123', role: 'tech_staff', displayName: '蘇昭溢', status: 'active' },
+  { username: '王善禾', password: '123', role: 'tech_staff', displayName: '王善禾', status: 'active' }
 ];
+
+const DEFAULT_ROLES = [
+  { id: 'admin', name: '系統管理員 (admin)' },
+  { id: 'production', name: '生產人員 (production)' },
+  { id: 'sales', name: '業務人員 (sales)' },
+  { id: 'tech_manager', name: '技服主管 (tech_manager)' },
+  { id: 'tech_staff', name: '技服人員 (tech_staff)' },
+  { id: 'transporter', name: '運輸公司 (transporter)' }
+];
+
+const DEFAULT_SYSTEM_FEATURES = [
+  { id: 'tab-dashboard', name: '儀表板總覽' },
+  { id: 'tab-sales', name: '業務專區' },
+  { id: 'tab-production', name: '生產專區' },
+  { id: 'tab-tech', name: '技服課專區' },
+  { id: 'tab-transport', name: '運輸商專區' },
+  { id: 'tab-query', name: '技服個人查詢' },
+  { id: 'tab-users', name: '帳號管理' },
+  { id: 'tab-permissions', name: '權限設定' },
+  { id: 'tab-logs', name: '作業日誌' }
+];
+
+const DEFAULT_PERMISSIONS = {
+  admin: ['tab-dashboard', 'tab-sales', 'tab-production', 'tab-tech', 'tab-transport', 'tab-query', 'tab-users', 'tab-permissions', 'tab-logs'],
+  production: ['tab-dashboard', 'tab-sales', 'tab-production'],
+  sales: ['tab-dashboard', 'tab-sales', 'tab-tech', 'tab-transport', 'tab-query'],
+  tech_manager: ['tab-dashboard', 'tab-sales', 'tab-tech', 'tab-transport', 'tab-query'],
+  tech_staff: ['tab-query'],
+  transporter: ['tab-dashboard', 'tab-transport']
+};
 
 const USER_EXCEL_FILE = path.join(__dirname, '帳號密碼管理.xlsx');
 
@@ -40,11 +105,10 @@ function loadUsersFromExcel() {
       username: 'A',
       password: 'B',
       role: 'C',
-      displayName: 'D'
+      displayName: 'D',
+      status: 'E'
     };
     
-    // Note: parseSheetByColumns is defined below, but we can call it here as long as it's defined in scope.
-    // However, function declarations are hoisted in JS, so it's perfectly safe to call it here!
     const rows = parseSheetByColumns(sheet, 2, config);
     const users = rows
       .filter(r => r.username && r.password && r.role)
@@ -52,16 +116,51 @@ function loadUsersFromExcel() {
         username: String(r.username).trim(),
         password: String(r.password).trim(),
         role: String(r.role).trim(),
-        displayName: r.displayName ? String(r.displayName).trim() : String(r.username).trim()
+        displayName: r.displayName ? String(r.displayName).trim() : String(r.username).trim(),
+        status: (r.status && String(r.status).trim() === '停用') ? 'inactive' : 'active'
       }));
       
     if (users.length > 0) {
+      if (!users.some(u => u.username.toLowerCase() === 'admin')) {
+        users.unshift({
+          username: 'admin',
+          password: '123',
+          role: 'admin',
+          displayName: '系統管理員',
+          status: 'active'
+        });
+      }
       return users;
     }
   } catch (err) {
     console.error('Error loading users from Excel:', err);
   }
   return null;
+}
+
+function saveUsersToExcel(users) {
+  try {
+    const headers = ['帳號', '密碼', '權限角色 (必填)', '顯示名稱', '狀態', '角色說明對照 (參考用)'];
+    const data = [headers];
+    users.forEach(u => {
+      data.push([
+        u.username,
+        u.password,
+        u.role,
+        u.displayName || u.username,
+        u.status === 'inactive' ? '停用' : '啟用',
+        u.role === 'admin' ? '系統管理員' : (u.role === 'sales' ? '業務員' : '')
+      ]);
+    });
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.aoa_to_sheet(data);
+    xlsx.utils.book_append_sheet(wb, ws, '帳號清單');
+    const buffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    fs.writeFileSync(USER_EXCEL_FILE, buffer);
+    console.log('[UserManagement] 成功同步鏡像回寫至 帳號密碼管理.xlsx');
+  } catch (err) {
+    console.error('Error exporting users to Excel:', err);
+  }
 }
 
 const DRIVER_EXCEL_FILE = path.join(__dirname, '司機名冊管理.xlsx');
@@ -127,7 +226,7 @@ function saveDriversToExcel(drivers) {
 // Initialize database
 function initDB() {
   let dbExists = fs.existsSync(DB_FILE);
-  let db = { orders: [], drivers: [], users: DEFAULT_USERS };
+  let db = { orders: [], drivers: [], users: DEFAULT_USERS, push_subscriptions: {} };
   
   if (dbExists) {
     try {
@@ -146,6 +245,21 @@ function initDB() {
         db.drivers = excelDrivers;
         updated = true;
       }
+
+      if (!db.push_subscriptions) {
+        db.push_subscriptions = {};
+        updated = true;
+      }
+
+      if (!db.roles) {
+        db.roles = DEFAULT_ROLES;
+        updated = true;
+      }
+
+      if (!db.permissions) {
+        db.permissions = DEFAULT_PERMISSIONS;
+        updated = true;
+      }
       
       if (updated) {
         fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
@@ -158,6 +272,9 @@ function initDB() {
     const excelDrivers = loadDriversFromExcel();
     if (excelUsers) db.users = excelUsers;
     if (excelDrivers) db.drivers = excelDrivers;
+    db.push_subscriptions = {};
+    db.roles = DEFAULT_ROLES;
+    db.permissions = DEFAULT_PERMISSIONS;
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
   }
 }
@@ -174,17 +291,93 @@ function getDB() {
     const excelDrivers = loadDriversFromExcel();
     if (excelDrivers) db.drivers = excelDrivers;
     
+    db.push_subscriptions = db.push_subscriptions || {};
+    db.roles = db.roles || DEFAULT_ROLES;
+    db.permissions = db.permissions || DEFAULT_PERMISSIONS;
     return db;
   } catch (err) {
     const excelUsers = loadUsersFromExcel();
     const excelDrivers = loadDriversFromExcel();
-    return { orders: [], drivers: excelDrivers || [], users: excelUsers || DEFAULT_USERS };
+    return {
+      orders: [],
+      drivers: excelDrivers || [],
+      users: excelUsers || DEFAULT_USERS,
+      push_subscriptions: {},
+      roles: DEFAULT_ROLES,
+      permissions: DEFAULT_PERMISSIONS
+    };
   }
 }
 
 function saveDB(db) {
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf-8');
 }
+
+// 發送 Web Push 推播函式 (可精準發送至技服人員登記的所有手機/設備)
+async function sendPushNotificationToUser(targetName, payload) {
+  if (!targetName) return;
+  const db = getDB();
+  db.push_subscriptions = db.push_subscriptions || {};
+
+  const cleanName = String(targetName).split(/[\r\n\s]/)[0].trim().toLowerCase();
+  if (!cleanName) return;
+
+  // 1. 取得該人員可能對應的所有別名 (帳號、顯示名稱)
+  const candidateNames = new Set([cleanName]);
+  if (db.users) {
+    db.users.forEach(u => {
+      const uName = (u.username || '').trim().toLowerCase();
+      const dName = (u.displayName || '').trim().toLowerCase();
+      if (uName === cleanName || dName === cleanName || (cleanName && (uName.includes(cleanName) || dName.includes(cleanName)))) {
+        if (uName) candidateNames.add(uName);
+        if (dName) candidateNames.add(dName);
+      }
+    });
+  }
+
+  // 2. 在推播訂閱名冊中搜尋匹配的憑證
+  const matchingKeys = Object.keys(db.push_subscriptions).filter(k => {
+    const lk = k.trim().toLowerCase();
+    for (const name of candidateNames) {
+      if (lk === name || lk.includes(name) || name.includes(lk)) return true;
+    }
+    return false;
+  });
+
+  if (matchingKeys.length === 0) {
+    console.log(`[WebPush] 未找到技服同仁「${cleanName}」的手機推播憑證 (尚未在手機啟用通知)`);
+    return;
+  }
+
+  let dbUpdated = false;
+
+  for (const key of matchingKeys) {
+    const subs = db.push_subscriptions[key] || [];
+    const validSubs = [];
+
+    for (const sub of subs) {
+      try {
+        await webpush.sendNotification(sub, JSON.stringify(payload));
+        console.log(`[WebPush] 🔔 成功發送推播給「${key}」: ${payload.title}`);
+        validSubs.push(sub);
+      } catch (err) {
+        console.error(`[WebPush] 發送給「${key}」失敗:`, err.statusCode || err.message);
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          console.log(`[WebPush] 設備推播憑證已過期失效，自動自名冊剔除: ${key}`);
+          dbUpdated = true;
+        } else {
+          validSubs.push(sub);
+        }
+      }
+    }
+    db.push_subscriptions[key] = validSubs;
+  }
+
+  if (dbUpdated) {
+    saveDB(db);
+  }
+}
+
 
 function addLog(db, operator, role, action, details) {
   try {
@@ -332,10 +525,155 @@ function parseSheetByColumns(sheet, startRow, columnsConfig) {
 
 // API Routes
 
+// 0. Web Push Notification APIs
+app.get('/api/push/vapid-public-key', (req, res) => {
+  res.json({ success: true, publicKey: vapidKeys.publicKey });
+});
+
+app.post('/api/push/subscribe', (req, res) => {
+  try {
+    const { username, subscription } = req.body;
+    if (!username || !subscription || !subscription.endpoint) {
+      return res.status(400).json({ success: false, message: '請提供使用者名稱與推播訂閱憑證' });
+    }
+    const cleanUser = String(username).split(/[\r\n\s]/)[0].trim();
+    const db = getDB();
+    db.push_subscriptions = db.push_subscriptions || {};
+    db.push_subscriptions[cleanUser] = db.push_subscriptions[cleanUser] || [];
+
+    // 檢查端點是否已登記過
+    const existsIdx = db.push_subscriptions[cleanUser].findIndex(s => s.endpoint === subscription.endpoint);
+    if (existsIdx >= 0) {
+      db.push_subscriptions[cleanUser][existsIdx] = {
+        ...subscription,
+        updatedAt: new Date().toISOString()
+      };
+    } else {
+      db.push_subscriptions[cleanUser].push({
+        ...subscription,
+        subscribedAt: new Date().toISOString()
+      });
+    }
+
+    saveDB(db);
+    console.log(`[WebPush] 成功為「${cleanUser}」登記推播設備。目前設備數：${db.push_subscriptions[cleanUser].length}`);
+    res.json({ success: true, message: `成功為 ${cleanUser} 綁定此設備推播！` });
+  } catch (err) {
+    console.error('[WebPush] 訂閱錯誤:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.post('/api/push/test', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) {
+      return res.status(400).json({ success: false, message: '請提供使用者名稱' });
+    }
+    const cleanUser = String(username).split(/[\r\n\s]/)[0].trim();
+    await sendPushNotificationToUser(cleanUser, {
+      title: '🔔 【勝一槽車排程】推播測試成功！',
+      body: `您好，${cleanUser}！這台設備已成功連線推播系統，派工與時間異動將隨時提醒您。`,
+      data: { url: '/' }
+    });
+    res.json({ success: true, message: '測試推播已發送！' });
+  } catch (err) {
+    console.error('[WebPush] 測試推播失敗:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // 1. Get all orders
+// Server-Sent Events (SSE) 即時推播事件流 (供電腦管理端與手機端即時雙向狀態同步)
+let sseClients = [];
+
+app.get('/api/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const clientId = Date.now();
+  const newClient = { id: clientId, res };
+  sseClients.push(newClient);
+
+  // 立即回傳已連線心跳
+  res.write(`data: ${JSON.stringify({ type: 'connected', clientId })}\n\n`);
+
+  req.on('close', () => {
+    sseClients = sseClients.filter(c => c.id !== clientId);
+  });
+});
+
+function broadcastEvent(eventType, data) {
+  const payload = `data: ${JSON.stringify({ type: eventType, data, timestamp: Date.now() })}\n\n`;
+  sseClients.forEach(c => {
+    try {
+      c.res.write(payload);
+    } catch(e) {}
+  });
+}
+
+// 每 20 秒送出保活心跳註解，防止代理伺服器或 Tunnel 中斷
+setInterval(() => {
+  sseClients.forEach(c => {
+    try {
+      c.res.write(': keep-alive\n\n');
+    } catch(e) {}
+  });
+}, 20000);
+
+// 1. Get all current orders
 app.get('/api/orders', (req, res) => {
   const db = getDB();
   res.json({ success: true, data: db.orders });
+});
+
+// 1.1 標記訂單為已讀 (技服人員點擊推播或開啟訂單卡片時記錄)
+app.post('/api/orders/mark-read', (req, res) => {
+  try {
+    const { orderKey, username } = req.body;
+    if (!orderKey || !username) {
+      return res.status(400).json({ success: false, message: '缺少 orderKey 或 username' });
+    }
+    const db = getDB();
+    const cleanUser = String(username).trim();
+    
+    // 比對 orderKey (支援 id 或複合欄位)
+    let order = db.orders.find(o => o.id && o.id === orderKey);
+    if (!order) {
+      order = db.orders.find(o => `${o.destination}_${o.expected_date}_${o.arrival_time}` === orderKey);
+    }
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: '找不到對應訂單' });
+    }
+
+    const nowStr = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+    order.read_status = 'read';
+    order.read_at = nowStr;
+    order.read_by = cleanUser;
+
+    saveDB(db);
+    console.log(`[ReadReceipt] 技服同仁「${cleanUser}」已讀訂單【${order.destination} (${order.arrival_time})】時間: ${nowStr}`);
+
+    // 即時廣播給全系統所有已連線之電腦與手機客戶端！
+    broadcastEvent('order_read', {
+      orderKey,
+      orderId: order.id,
+      destination: order.destination,
+      expected_date: order.expected_date,
+      arrival_time: order.arrival_time,
+      read_status: 'read',
+      read_at: nowStr,
+      read_by: cleanUser
+    });
+
+    res.json({ success: true, message: '已成功標記為已讀', read_status: 'read', read_at: nowStr, read_by: cleanUser });
+  } catch (err) {
+    console.error('Mark read error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 // 2. Get all drivers
@@ -350,6 +688,11 @@ app.post('/api/login', (req, res) => {
   const db = getDB();
   const user = db.users.find(u => u.username === username && u.password === password);
   if (user) {
+    if (user.status === 'inactive') {
+      addLog(db, user.username, user.role, '使用者登入', '登入失敗 (帳號已停用)');
+      saveDB(db);
+      return res.status(403).json({ success: false, message: '此帳號已被停用，請聯繫系統管理員！' });
+    }
     addLog(db, user.username, user.role, '使用者登入', '登入成功');
     saveDB(db);
     res.json({
@@ -357,8 +700,10 @@ app.post('/api/login', (req, res) => {
       user: {
         username: user.username,
         role: user.role,
-        displayName: user.displayName
-      }
+        displayName: user.displayName || user.username,
+        status: user.status || 'active'
+      },
+      permissions: (db.permissions && db.permissions[user.role]) ? db.permissions[user.role] : (DEFAULT_PERMISSIONS[user.role] || ['tab-dashboard'])
     });
   } else {
     addLog(db, username || '未知使用者', 'unknown', '使用者登入', '登入失敗 (密碼錯誤或帳號不存在)');
@@ -366,6 +711,287 @@ app.post('/api/login', (req, res) => {
     res.status(401).json({ success: false, message: '帳號或密碼錯誤！' });
   }
 });
+
+// =============================================================================
+// 使用者帳號管理 (User Management) & 角色權限設定 (Permissions) APIs
+// =============================================================================
+
+// 取得所有使用者帳號列表
+app.get('/api/users', (req, res) => {
+  try {
+    const db = getDB();
+    const users = (db.users || []).map(u => ({
+      username: u.username,
+      displayName: u.displayName || u.username,
+      role: u.role,
+      status: u.status || 'active'
+    }));
+    res.json({ success: true, users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 新增使用者帳號 (同步回寫 Excel)
+app.post('/api/users', (req, res) => {
+  try {
+    const { username, password, role, displayName, status, operator } = req.body;
+    if (!username || !password || !role) {
+      return res.status(400).json({ success: false, message: '請填寫必填欄位 (帳號、密碼、權限角色)' });
+    }
+    const cleanUser = String(username).trim();
+    const db = getDB();
+    if (db.users.some(u => u.username.toLowerCase() === cleanUser.toLowerCase())) {
+      return res.status(400).json({ success: false, message: `帳號「${cleanUser}」已存在！` });
+    }
+
+    const newUser = {
+      username: cleanUser,
+      password: String(password).trim(),
+      role: String(role).trim(),
+      displayName: displayName ? String(displayName).trim() : cleanUser,
+      status: status === 'inactive' ? 'inactive' : 'active'
+    };
+
+    db.users.push(newUser);
+    saveDB(db);
+    saveUsersToExcel(db.users);
+    addLog(db, operator || 'admin', 'admin', '新增使用者', `新增帳號「${cleanUser}」(${newUser.displayName} / 角色: ${newUser.role})`);
+    saveDB(db);
+
+    res.json({ success: true, message: `成功新增使用者「${cleanUser}」！`, user: newUser });
+  } catch (err) {
+    console.error('Add user error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 編輯使用者帳號 (同步回寫 Excel)
+app.put('/api/users/:username', (req, res) => {
+  try {
+    const targetUsername = req.params.username;
+    const { password, role, displayName, status, operator } = req.body;
+    const db = getDB();
+    const userIndex = db.users.findIndex(u => u.username === targetUsername);
+    if (userIndex === -1) {
+      return res.status(404).json({ success: false, message: '找不到該使用者' });
+    }
+
+    const user = db.users[userIndex];
+    if (displayName !== undefined) user.displayName = String(displayName).trim();
+    if (role !== undefined) user.role = String(role).trim();
+    if (status !== undefined) user.status = status === 'inactive' ? 'inactive' : 'active';
+    if (password && String(password).trim()) {
+      user.password = String(password).trim();
+    }
+
+    saveDB(db);
+    saveUsersToExcel(db.users);
+    addLog(db, operator || 'admin', 'admin', '編輯使用者', `修改帳號「${targetUsername}」資訊 (角色: ${user.role}, 狀態: ${user.status})`);
+    saveDB(db);
+
+    res.json({ success: true, message: `成功更新使用者「${targetUsername}」！`, user });
+  } catch (err) {
+    console.error('Update user error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 刪除使用者帳號 (同步回寫 Excel)
+app.delete('/api/users/:username', (req, res) => {
+  try {
+    const targetUsername = req.params.username;
+    const operator = req.query.operator || 'admin';
+    if (targetUsername.toLowerCase() === 'admin') {
+      return res.status(403).json({ success: false, message: '系統管理員帳號 (admin) 為核心保護帳號，不可刪除！' });
+    }
+
+    const db = getDB();
+    const userIndex = db.users.findIndex(u => u.username === targetUsername);
+    if (userIndex === -1) {
+      return res.status(404).json({ success: false, message: '找不到該使用者' });
+    }
+
+    const removed = db.users.splice(userIndex, 1)[0];
+    saveDB(db);
+    saveUsersToExcel(db.users);
+    addLog(db, operator, 'admin', '刪除使用者', `刪除帳號「${targetUsername}」(${removed.displayName || targetUsername})`);
+    saveDB(db);
+
+    res.json({ success: true, message: `已成功刪除使用者「${targetUsername}」！` });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 修改個人密碼 API
+app.post('/api/users/change-password', (req, res) => {
+  try {
+    const { username, oldPassword, newPassword } = req.body;
+    if (!username || !oldPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: '請提供帳號、舊密碼與新密碼' });
+    }
+    const db = getDB();
+    const user = db.users.find(u => u.username === username);
+    if (!user) {
+      return res.status(404).json({ success: false, message: '使用者不存在' });
+    }
+    if (user.password !== oldPassword) {
+      return res.status(400).json({ success: false, message: '原密碼輸入不正確，請重新輸入！' });
+    }
+
+    user.password = String(newPassword).trim();
+    saveDB(db);
+    saveUsersToExcel(db.users);
+    addLog(db, username, user.role, '修改個人密碼', '密碼變更成功');
+    saveDB(db);
+
+    res.json({ success: true, message: '密碼修改成功！下次登入請使用新密碼。' });
+  } catch (err) {
+    console.error('Change password error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 取得角色與功能權限設定對應矩陣
+app.get('/api/permissions', (req, res) => {
+  try {
+    const db = getDB();
+    res.json({
+      success: true,
+      roles: db.roles || DEFAULT_ROLES,
+      features: DEFAULT_SYSTEM_FEATURES,
+      permissions: db.permissions || DEFAULT_PERMISSIONS
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 儲存角色權限矩陣設定
+app.post('/api/permissions', (req, res) => {
+  try {
+    const { permissions, operator } = req.body;
+    if (!permissions || typeof permissions !== 'object') {
+      return res.status(400).json({ success: false, message: '無效的權限設定格式' });
+    }
+    const db = getDB();
+    db.permissions = permissions;
+    saveDB(db);
+    addLog(db, operator || 'admin', 'admin', '修改角色權限', '更新系統功能權限對應矩陣設定');
+    saveDB(db);
+
+    res.json({ success: true, message: '角色功能權限設定已成功儲存！' });
+  } catch (err) {
+    console.error('Save permissions error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 新增自訂角色
+app.post('/api/roles', (req, res) => {
+  try {
+    const { roleId, roleName, operator } = req.body;
+    if (!roleId || !roleName) {
+      return res.status(400).json({ success: false, message: '請提供角色代碼與角色名稱' });
+    }
+    const cleanId = String(roleId).trim().toLowerCase();
+    const cleanName = String(roleName).trim();
+    const db = getDB();
+    db.roles = db.roles || DEFAULT_ROLES;
+    if (db.roles.some(r => r.id === cleanId)) {
+      return res.status(400).json({ success: false, message: `角色代碼「${cleanId}」已存在！` });
+    }
+
+    const newRole = { id: cleanId, name: `${cleanName} (${cleanId})` };
+    db.roles.push(newRole);
+    db.permissions = db.permissions || DEFAULT_PERMISSIONS;
+    db.permissions[cleanId] = ['tab-dashboard'];
+    saveDB(db);
+    addLog(db, operator || 'admin', 'admin', '新增角色', `新增角色「${cleanName} (${cleanId})」`);
+    saveDB(db);
+
+    res.json({ success: true, message: `成功新增角色「${cleanName}」！`, role: newRole });
+  } catch (err) {
+    console.error('Add role error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Excel 批次匯入帳號
+app.post('/api/users/upload', upload.single('file'), (req, res) => {
+  try {
+    const operator = req.query.operator || 'admin';
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: '請選擇上傳的 Excel 檔案' });
+    }
+    const workbook = parseExcelBuffer(req.file.buffer);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const config = {
+      username: 'A',
+      password: 'B',
+      role: 'C',
+      displayName: 'D',
+      status: 'E'
+    };
+    const rows = parseSheetByColumns(sheet, 2, config);
+    const validRows = rows.filter(r => r.username && r.password && r.role);
+    if (validRows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Excel 內無有效帳號資料列' });
+    }
+
+    const db = getDB();
+    let addCount = 0;
+    let updateCount = 0;
+
+    validRows.forEach(r => {
+      const uName = String(r.username).trim();
+      const existing = db.users.find(u => u.username.toLowerCase() === uName.toLowerCase());
+      if (existing) {
+        existing.password = String(r.password).trim();
+        existing.role = String(r.role).trim();
+        if (r.displayName) existing.displayName = String(r.displayName).trim();
+        existing.status = (r.status && String(r.status).trim() === '停用') ? 'inactive' : 'active';
+        updateCount++;
+      } else {
+        db.users.push({
+          username: uName,
+          password: String(r.password).trim(),
+          role: String(r.role).trim(),
+          displayName: r.displayName ? String(r.displayName).trim() : uName,
+          status: (r.status && String(r.status).trim() === '停用') ? 'inactive' : 'active'
+        });
+        addCount++;
+      }
+    });
+
+    saveDB(db);
+    saveUsersToExcel(db.users);
+    addLog(db, operator, 'admin', 'Excel匯入帳號', `批次更新 ${updateCount} 筆，新增 ${addCount} 筆帳號`);
+    saveDB(db);
+
+    res.json({
+      success: true,
+      message: `成功自 Excel 匯入：新增 ${addCount} 筆、更新 ${updateCount} 筆帳號！`
+    });
+  } catch (err) {
+    console.error('Import users error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// 下載帳號密碼 Excel 範本
+app.get('/api/users/download-template', (req, res) => {
+  try {
+    const db = getDB();
+    saveUsersToExcel(db.users);
+    res.download(USER_EXCEL_FILE, '勝一帳號密碼名冊.xlsx');
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 
 
 // 3. Sales uploads the baseline Excel
@@ -517,6 +1143,7 @@ app.post('/api/import/tech', (req, res) => {
 
     const db = getDB();
     let updatedCount = 0;
+    const techAssignments = {};
 
     matchedRows.forEach(item => {
       // Find the order in DB
@@ -539,12 +1166,42 @@ app.post('/api/import/tech', (req, res) => {
 
       if (order) {
         order.fill_hand = item.fill_hand;
+        order.read_status = 'unread';
+        order.read_at = null;
+        order.read_by = null;
         updatedCount++;
+        const techName = (item.fill_hand || '').split(/[\r\n\s]/)[0].trim();
+        if (techName) {
+          if (!techAssignments[techName]) techAssignments[techName] = [];
+          const oKey = order.id || `${order.destination}_${order.expected_date}_${order.arrival_time}`;
+          techAssignments[techName].push({
+            key: oKey,
+            destination: order.destination,
+            product: order.product,
+            expected_date: order.expected_date,
+            arrival_time: order.arrival_time
+          });
+        }
       }
     });
 
     addLog(db, operator || '未知使用者', role || 'tech_manager', '匯入技服充填手', `成功比對更新了 ${updatedCount} 筆充填手資料`);
     saveDB(db);
+
+    // 發送即時推播通知給被指派之技服同仁
+    for (const [techName, orders] of Object.entries(techAssignments)) {
+      const count = orders.length;
+      const first = orders[0];
+      const bodyText = count === 1
+        ? `【${first.destination}】${first.product || ''}\n到貨時間：${first.expected_date || ''} ${first.arrival_time || ''}，請點擊確認！`
+        : `主管指派了 ${count} 筆槽車充填任務（首筆：${first.destination} ${first.expected_date || ''} ${first.arrival_time || ''}），請點擊查閱！`;
+      sendPushNotificationToUser(techName, {
+        title: `📋 【新派工通知】勝一槽車充填`,
+        body: bodyText,
+        data: { url: `/?openOrder=${encodeURIComponent(first.key)}`, orderKey: first.key }
+      }).catch(err => console.error('[WebPush] 派工推播失敗:', err));
+    }
+
     res.json({ success: true, message: `成功更新 ${updatedCount} 筆技服充填手資料` });
   } catch (err) {
     console.error(err);
@@ -703,7 +1360,8 @@ app.post('/api/orders/update-single', (req, res) => {
     }
 
     // Auto-lookup driver info if code is changed manually
-    const dbOrder = db.orders[orderIndex];
+    const oldOrder = { ...db.orders[orderIndex] };
+    const dbOrder = oldOrder;
     let newDriverCode = updatedOrder.driver_code;
     let newPlate = updatedOrder.plate;
     let newDriver = updatedOrder.driver;
@@ -768,7 +1426,67 @@ app.post('/api/orders/update-single', (req, res) => {
     const changeDetails = changes.join(', ') || '無欄位變動';
     addLog(db, operator, role, '手動編輯訂單', `修改訂單單號 ${dbOrder.id || '無'} / 指送地「${dbOrder.destination}」的內容：${changeDetails}`);
 
+    // 偵測排程時間、日期、地點或充填手變更並發送即時推播
+    const oldTime = dbOrder.arrival_time;
+    const newTime = db.orders[orderIndex].arrival_time;
+    const oldDate = dbOrder.expected_date;
+    const newDate = db.orders[orderIndex].expected_date;
+    const oldDest = dbOrder.destination;
+    const newDest = db.orders[orderIndex].destination;
+    const oldFill = dbOrder.fill_hand;
+    const newFill = db.orders[orderIndex].fill_hand;
+
+    const oldTech = (oldFill || '').split(/[\r\n\s]/)[0].trim();
+    const newTech = (newFill || '').split(/[\r\n\s]/)[0].trim();
+
+    // 1. 到貨時間、日期、指送地點或充填手異動：自動重設為「未讀」
+    const hasScheduleChanged = (oldTime !== newTime || oldDate !== newDate || oldDest !== newDest || oldFill !== newFill);
+    const orderKey = db.orders[orderIndex].id || `${newDest}_${newDate}_${newTime}`;
+
+    if (hasScheduleChanged && newTech) {
+      db.orders[orderIndex].read_status = 'unread';
+      db.orders[orderIndex].read_at = null;
+      db.orders[orderIndex].read_by = null;
+      console.log(`[ReadStatus] 訂單【${newDest}】時間/內容異動，已重設為「未讀」等待技服同仁查閱`);
+    }
+
+    // 1. 到貨時間、日期或指送地點異動
+    if (newTech && (oldTime !== newTime || oldDate !== newDate || oldDest !== newDest)) {
+      const diffList = [];
+      if (oldDate !== newDate) diffList.push(`日期：${oldDate || '無'} → ${newDate}`);
+      if (oldTime !== newTime) diffList.push(`時間：${oldTime || '無'} → ${newTime}`);
+      if (oldDest !== newDest) diffList.push(`地點：${oldDest || '無'} → ${newDest}`);
+
+      sendPushNotificationToUser(newTech, {
+        title: `⚠️ 【排程異動提醒】${newDest || '槽車排程'}`,
+        body: `您負責的【${newDest} / ${db.orders[orderIndex].product || ''}】排程已變更：${diffList.join('，')}，請點擊確認！`,
+        data: { url: `/?openOrder=${encodeURIComponent(orderKey)}`, orderKey: orderKey }
+      }).catch(err => console.error('[WebPush] 異動推播失敗:', err));
+    }
+
+    // 2. 充填手更換 (移交給新同仁)
+    if (newTech && oldTech && newTech !== oldTech) {
+      sendPushNotificationToUser(oldTech, {
+        title: `ℹ️ 【派工取消】任務已移交`,
+        body: `您原負責的【${newDest} (${newDate} ${newTime})】已移交給 ${newTech}。`,
+        data: { url: '/' }
+      }).catch(err => console.error('[WebPush] 移交推播失敗:', err));
+
+      sendPushNotificationToUser(newTech, {
+        title: `📋 【新派工通知】勝一槽車充填`,
+        body: `主管指派您負責【${newDest} / ${db.orders[orderIndex].product || ''}】到貨時間：${newDate} ${newTime}，請點擊確認！`,
+        data: { url: `/?openOrder=${encodeURIComponent(orderKey)}`, orderKey: orderKey }
+      }).catch(err => console.error('[WebPush] 派工推播失敗:', err));
+    } else if (!oldTech && newTech) {
+      sendPushNotificationToUser(newTech, {
+        title: `📋 【新派工通知】勝一槽車充填`,
+        body: `主管指派您負責【${newDest} / ${db.orders[orderIndex].product || ''}】到貨時間：${newDate} ${newTime}，請點擊確認！`,
+        data: { url: `/?openOrder=${encodeURIComponent(orderKey)}`, orderKey: orderKey }
+      }).catch(err => console.error('[WebPush] 派工推播失敗:', err));
+    }
+
     saveDB(db);
+    broadcastEvent('orders_changed', { order: db.orders[orderIndex] });
     res.json({ success: true, message: '訂單更新成功', order: db.orders[orderIndex] });
   } catch (err) {
     console.error(err);
@@ -998,6 +1716,74 @@ app.post('/api/location-mappings', (req, res) => {
 
 
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
-});
+function getLocalIP() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+const localtunnel = require('localtunnel');
+
+let currentTunnel = null;
+async function startTunnel(port) {
+  const TARGET_SUBDOMAIN = 'shinychem-ipahq';
+  const EXPECTED_URL = `https://${TARGET_SUBDOMAIN}.loca.lt`;
+  try {
+    const tunnel = await localtunnel({ port, subdomain: TARGET_SUBDOMAIN });
+    if (tunnel.url !== EXPECTED_URL) {
+      console.warn(`[Tunnel] 未取得指定的固定網址 (伺服器暫時給予 ${tunnel.url})，釋放連線並於 8 秒後重試鎖定 ${EXPECTED_URL}...`);
+      tunnel.close();
+      setTimeout(() => startTunnel(port), 8000);
+      return;
+    }
+    currentTunnel = tunnel;
+    console.log(`  [外網固定網址] ${tunnel.url}`);
+    console.log(`  [Tunnel 密碼] 118.232.17.163`);
+    console.log('============================================================');
+
+    tunnel.on('close', () => {
+      console.warn('[Tunnel] 連線中斷，8 秒後自動重連以保持固定網址...');
+      setTimeout(() => startTunnel(port), 8000);
+    });
+    tunnel.on('error', (err) => {
+      console.warn('[Tunnel 警告]', err.message);
+      try { tunnel.close(); } catch(e) {}
+    });
+  } catch (err) {
+    console.warn(`[Tunnel 連線重試] ${err.message}，8 秒後自動重試...`);
+    setTimeout(() => startTunnel(port), 8000);
+  }
+}
+
+function startServer(port) {
+  const server = app.listen(port, () => {
+    const localIP = getLocalIP();
+    console.log('============================================================');
+    console.log('  勝一化工 - 槽車排程管理與即時推播系統');
+    console.log('============================================================');
+    console.log(`  [本機電腦] http://localhost:${port}`);
+    console.log(`  [手機/區網] http://${localIP}:${port}`);
+    if (!process.env.RENDER) {
+      startTunnel(port);
+    }
+  });
+
+  server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.warn(`[Port Fallback] 連接埠 ${port} 已被佔用，自動嘗試切換至 ${port + 1}...`);
+      startServer(port + 1);
+    } else {
+      console.error('Server error:', err);
+    }
+  });
+}
+
+startServer(PORT);
+
+

@@ -177,7 +177,7 @@
       "destination": "台積12廠P1",
       "product": "SEP73E4",
       "expected_date": "2026-07-10",
-      "arrival_time": "00:00",
+      "arrival_time": "14:30",
       "transport_type": "【勝一派技服】",
       "fill_hand": "林聖龍\r\n0910-630-239",
       "plate": null,
@@ -185,7 +185,10 @@
       "phone": null,
       "departure_date": null,
       "departure_time": null,
-      "driver_code": null
+      "driver_code": null,
+      "read_status": "read",
+      "read_at": "2026/9/7 19:44:49",
+      "read_by": "shihwei"
     },
     {
       "id": "SNXM101-20260701070",
@@ -5900,57 +5903,6 @@
       "driver_code": null
     },
     {
-      "id": "<img src=x onerror=alert('R1-單號')>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R1 基準 img/onerror，測【單號】欄 sink",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "RTEST",
-      "batch": "<img src=x onerror=alert('R2-批號')>",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R2 測【批號】欄 sink",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "RTEST",
-      "batch": "B1",
-      "client": "<img src=x onerror=alert('R3-對象')>",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R3 測【對象】欄 sink",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
       "id": "RTEST",
       "batch": "B1",
       "client": "甲",
@@ -5959,211 +5911,7 @@
       "expected_date": "2026-08-15",
       "arrival_time": "08:00",
       "transport_type": "1",
-      "fill_hand": "R4 測【指送地】欄 sink",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "RTEST",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "<img src=x onerror=alert('R5-品名')>",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R5 測【品名】欄 sink",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<svg onload=alert('R6-svg')>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R6 svg/onload（若擋了 img/onerror）",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<svg/onload=alert('R7-svgslash')>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R7 svg 去空白變形",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<details open ontoggle=alert('R8-details')>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R8 details/ontoggle（少見事件）",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<input autofocus onfocus=alert('R9-onfocus')>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R9 autofocus/onfocus",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<video><source onerror=alert('R10-video')></video>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R10 video>source/onerror",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<img src=x onerror=alert&#40;'R11-entity'&#41;>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R11 HTML entity 括號（測是否只比對字面）",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<ScRiPt>alert('R12-case')</ScRiPt>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R12 大小寫變形 script",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "\"><img src=x onerror=alert('R13-breakout')>",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R13 屬性 breakout（先閉合引號/標籤）",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<a href=\"javascript:alert('R14-jsproto')\">R14-CLIC",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R14 javascript: 協定（需點擊該連結）",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "<iframe src=\"javascript:alert('R15-iframe')\"></ifr",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R15 iframe javascript:",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
-    },
-    {
-      "id": "R16-CONTROL-無payload純文字",
-      "batch": "B1",
-      "client": "甲",
-      "destination": "測試指送地",
-      "product": "測試品名",
-      "expected_date": "2026-08-15",
-      "arrival_time": "08:00",
-      "transport_type": "1",
-      "fill_hand": "R16 對照組：純文字，應正常顯示、不執行",
+      "fill_hand": null,
       "plate": null,
       "driver": null,
       "phone": null,
@@ -10634,13 +10382,16 @@
       "expected_date": "2026-09-07",
       "arrival_time": "01:00",
       "transport_type": "【勝一派技服】",
-      "fill_hand": "陳志源\n0975-279-765",
+      "fill_hand": "資材",
       "plate": "082-KP",
       "driver": "蘇睿雄",
       "phone": "0936-759-933",
       "departure_date": "2026-09-06",
       "departure_time": "21:00",
-      "driver_code": "90"
+      "driver_code": "90",
+      "read_status": "read",
+      "read_at": "2026/9/7 19:49:43",
+      "read_by": "資材"
     },
     {
       "id": "SNXM101-20260817057",
@@ -10651,13 +10402,16 @@
       "expected_date": "2026-09-07",
       "arrival_time": "01:00",
       "transport_type": "【勝一派技服】",
-      "fill_hand": "林聖壹\n0911-552-763",
+      "fill_hand": "資材",
       "plate": "KNA-3119",
       "driver": "林宗信",
       "phone": "0929-097-972",
       "departure_date": "2026-09-06",
-      "departure_time": "23:00",
-      "driver_code": "64"
+      "departure_time": "12:00",
+      "driver_code": "64",
+      "read_status": "read",
+      "read_at": "2026/9/7 20:14:23",
+      "read_by": "資材"
     },
     {
       "id": null,
@@ -10668,13 +10422,16 @@
       "expected_date": "2026-09-07",
       "arrival_time": "02:00",
       "transport_type": "【勝一派技服】",
-      "fill_hand": "廖家民\n0933-355-697",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
+      "fill_hand": "資材",
+      "plate": "",
+      "driver": "",
+      "phone": "",
+      "departure_date": "",
+      "departure_time": "",
+      "driver_code": "",
+      "read_status": "read",
+      "read_at": "2026/9/7 20:19:17",
+      "read_by": "資材"
     },
     {
       "id": null,
@@ -10685,13 +10442,16 @@
       "expected_date": "2026-09-07",
       "arrival_time": "02:00",
       "transport_type": "【勝一派技服】",
-      "fill_hand": "魏柏勳\n0978-803-365",
-      "plate": null,
-      "driver": null,
-      "phone": null,
-      "departure_date": null,
-      "departure_time": null,
-      "driver_code": null
+      "fill_hand": "資材",
+      "plate": "",
+      "driver": "",
+      "phone": "",
+      "departure_date": "",
+      "departure_time": "",
+      "driver_code": "",
+      "read_status": "read",
+      "read_at": "2026/9/7 20:23:03",
+      "read_by": "資材"
     },
     {
       "id": "SNXM101-20260824020",
@@ -10702,13 +10462,16 @@
       "expected_date": "2026-09-07",
       "arrival_time": "05:00",
       "transport_type": "【勝一派技服】",
-      "fill_hand": "謝嘉泰\n0910-588-953",
+      "fill_hand": "資材",
       "plate": "KLK-9122",
       "driver": "陳乾笙",
       "phone": "0979-126-736",
       "departure_date": "2026-09-07",
       "departure_time": "00:00",
-      "driver_code": "77"
+      "driver_code": "77",
+      "read_status": "unread",
+      "read_at": null,
+      "read_by": null
     },
     {
       "id": "SNXM101-20260817096",
@@ -12239,40 +12002,6 @@
       "departure_date": null,
       "departure_time": null,
       "driver_code": null
-    },
-    {
-      "id": "出貨通知單單別號",
-      "batch": "批號",
-      "client": "對象簡稱",
-      "destination": "指送地",
-      "product": "品名",
-      "expected_date": "預計到貨日期",
-      "arrival_time": "到貨時間",
-      "transport_type": "運輸方式",
-      "fill_hand": "趟次",
-      "plate": "車牌",
-      "driver": "司機",
-      "phone": "電話",
-      "departure_date": "出車日期",
-      "departure_time": "出車時間",
-      "driver_code": "備註"
-    },
-    {
-      "id": "出貨通知單單別號",
-      "batch": "批號",
-      "client": "對象簡稱",
-      "destination": "指送地",
-      "product": "品名",
-      "expected_date": "預計到貨日期",
-      "arrival_time": "到貨時間",
-      "transport_type": "運輸方式",
-      "fill_hand": "趟次",
-      "plate": "車牌",
-      "driver": "司機",
-      "phone": "電話",
-      "departure_date": "出車日期",
-      "departure_time": "出車時間",
-      "driver_code": "備註"
     }
   ],
   "drivers": [
@@ -12685,82 +12414,249 @@
   ],
   "users": [
     {
+      "username": "admin",
+      "password": "123",
+      "role": "admin",
+      "displayName": "系統管理員",
+      "status": "active"
+    },
+    {
       "username": "sales",
       "password": "123",
       "role": "sales",
-      "displayName": "業務人員"
+      "displayName": "業務人員",
+      "status": "active"
     },
     {
       "username": "tech_mgr",
       "password": "123",
       "role": "tech_manager",
-      "displayName": "技服主管"
+      "displayName": "技服主管",
+      "status": "active"
     },
     {
       "username": "transporter",
       "password": "123",
       "role": "transporter",
-      "displayName": "運輸公司"
+      "displayName": "運輸公司",
+      "status": "active"
+    },
+    {
+      "username": "shihwei",
+      "password": "710809",
+      "role": "admin",
+      "displayName": "陳世偉",
+      "status": "active"
+    },
+    {
+      "username": "C50100",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "資材",
+      "status": "active"
     },
     {
       "username": "林聖龍",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "林聖龍"
+      "displayName": "林聖龍",
+      "status": "active"
     },
     {
       "username": "楊立凱",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "楊立凱"
+      "displayName": "楊立凱",
+      "status": "active"
     },
     {
       "username": "胡富閔",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "胡富閔"
+      "displayName": "胡富閔",
+      "status": "active"
     },
     {
       "username": "陳國安",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "陳國安"
+      "displayName": "陳國安",
+      "status": "active"
     },
     {
       "username": "陳俊佑",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "陳俊佑"
+      "displayName": "陳俊佑",
+      "status": "active"
     },
     {
       "username": "陳志彥",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "陳志彥"
+      "displayName": "陳志彥",
+      "status": "active"
     },
     {
       "username": "陳志源",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "陳志源"
+      "displayName": "陳志源",
+      "status": "active"
     },
     {
       "username": "廖家民",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "廖家民"
+      "displayName": "廖家民",
+      "status": "active"
     },
     {
       "username": "蘇昭溢",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "蘇昭溢"
+      "displayName": "蘇昭溢",
+      "status": "active"
     },
     {
       "username": "王善禾",
       "password": "123",
       "role": "tech_staff",
-      "displayName": "王善禾"
+      "displayName": "王善禾",
+      "status": "active"
+    },
+    {
+      "username": "葉仁豪",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "葉仁豪",
+      "status": "active"
+    },
+    {
+      "username": "吳柏昇",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "吳柏昇",
+      "status": "active"
+    },
+    {
+      "username": "黃國欽",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "黃國欽",
+      "status": "active"
+    },
+    {
+      "username": "魏柏勳",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "魏柏勳",
+      "status": "active"
+    },
+    {
+      "username": "陳志聰",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "陳志聰",
+      "status": "active"
+    },
+    {
+      "username": "謝嘉泰",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "謝嘉泰",
+      "status": "active"
+    },
+    {
+      "username": "邱建銘",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "邱建銘",
+      "status": "active"
+    },
+    {
+      "username": "楊家勝",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "楊家勝",
+      "status": "active"
+    },
+    {
+      "username": "蘇哲儀",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "蘇哲儀",
+      "status": "active"
+    },
+    {
+      "username": "王品揚",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "王品揚",
+      "status": "active"
+    },
+    {
+      "username": "江韋徵",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "江韋徵",
+      "status": "active"
+    },
+    {
+      "username": "郭泰緒",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "郭泰緒",
+      "status": "active"
+    },
+    {
+      "username": "林聖壹",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "林聖壹",
+      "status": "active"
+    },
+    {
+      "username": "周昆賢",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "周昆賢",
+      "status": "active"
+    },
+    {
+      "username": "黃子峻",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "黃子峻",
+      "status": "active"
+    },
+    {
+      "username": "黃宗勝",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "黃宗勝",
+      "status": "active"
+    },
+    {
+      "username": "何森寅",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "何森寅",
+      "status": "active"
+    },
+    {
+      "username": "洪宇勤",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "洪宇勤",
+      "status": "active"
+    },
+    {
+      "username": "葉志杰",
+      "password": "123",
+      "role": "tech_staff",
+      "displayName": "葉志杰",
+      "status": "active"
     }
   ],
   "logs": [
@@ -13015,6 +12911,411 @@
       "action": "下載三合一單",
       "details": "訂單 SNXM101-20260821026",
       "timestamp": "2026/9/7 下午3:33:12"
+    },
+    {
+      "operator": "測試主管",
+      "role": "tech_manager",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 SNXM101-20260624047 / 指送地「台積12廠P1」的內容：到貨時間:「00:00」→「14:30」",
+      "timestamp": "2026/9/7 下午6:38:53"
+    },
+    {
+      "operator": "tech_mgr",
+      "role": "tech_manager",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午6:40:09"
+    },
+    {
+      "operator": "admin",
+      "role": "admin",
+      "action": "新增使用者",
+      "details": "新增帳號「test_user_qa」(測試人員 / 角色: sales)",
+      "timestamp": "2026/9/7 下午6:48:39"
+    },
+    {
+      "operator": "admin",
+      "role": "admin",
+      "action": "新增使用者",
+      "details": "新增帳號「test_auto_verify」(測試人員QA / 角色: tech_staff)",
+      "timestamp": "2026/9/7 下午6:50:22"
+    },
+    {
+      "operator": "admin",
+      "role": "admin",
+      "action": "編輯使用者",
+      "details": "修改帳號「test_auto_verify」資訊 (角色: sales, 狀態: inactive)",
+      "timestamp": "2026/9/7 下午6:50:22"
+    },
+    {
+      "operator": "admin",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「test_auto_verify」(測試人員QA_已改名)",
+      "timestamp": "2026/9/7 下午6:50:22"
+    },
+    {
+      "operator": "admin",
+      "role": "unknown",
+      "action": "使用者登入",
+      "details": "登入失敗 (密碼錯誤或帳號不存在)",
+      "timestamp": "2026/9/7 下午6:57:24"
+    },
+    {
+      "operator": "admin",
+      "role": "unknown",
+      "action": "使用者登入",
+      "details": "登入失敗 (密碼錯誤或帳號不存在)",
+      "timestamp": "2026/9/7 下午6:57:28"
+    },
+    {
+      "operator": "admin",
+      "role": "admin",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午6:58:54"
+    },
+    {
+      "operator": "admin",
+      "role": "admin",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午7:04:17"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「王善禾」(王善禾)",
+      "timestamp": "2026/9/7 下午7:06:28"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「陳俊佑」(陳俊佑)",
+      "timestamp": "2026/9/7 下午7:06:31"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「陳國安」(陳國安)",
+      "timestamp": "2026/9/7 下午7:06:34"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「胡富閔」(胡富閔)",
+      "timestamp": "2026/9/7 下午7:06:35"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「楊立凱」(楊立凱)",
+      "timestamp": "2026/9/7 下午7:06:37"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「陳志彥」(陳志彥)",
+      "timestamp": "2026/9/7 下午7:06:39"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「林聖龍」(林聖龍)",
+      "timestamp": "2026/9/7 下午7:06:42"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「陳志源」(陳志源)",
+      "timestamp": "2026/9/7 下午7:06:43"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「廖家民」(廖家民)",
+      "timestamp": "2026/9/7 下午7:06:44"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "刪除使用者",
+      "details": "刪除帳號「蘇昭溢」(蘇昭溢)",
+      "timestamp": "2026/9/7 下午7:06:45"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "新增使用者",
+      "details": "新增帳號「shihwei」(陳世偉 / 角色: admin)",
+      "timestamp": "2026/9/7 下午7:07:11"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午7:20:39"
+    },
+    {
+      "operator": "admin",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 SNXM101-20260821026 / 指送地「台積15廠P4」的內容：充填手:「陳志源\n0975-279-765」→「shihwei」",
+      "timestamp": "2026/9/7 下午7:22:32"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 SNXM101-20260817057 / 指送地「台積14廠P6」的內容：充填手:「林聖壹\n0911-552-763」→「陳世偉」",
+      "timestamp": "2026/9/7 下午7:30:43"
+    },
+    {
+      "operator": "系統管理員",
+      "role": "admin",
+      "action": "新增使用者",
+      "details": "新增帳號「C50100」(資材 / 角色: admin)",
+      "timestamp": "2026/9/7 下午7:31:06"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 SNXM101-20260817057 / 指送地「台積14廠P6」的內容：充填手:「陳世偉」→「資材」",
+      "timestamp": "2026/9/7 下午7:31:28"
+    },
+    {
+      "operator": "C50100",
+      "role": "admin",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午7:31:57"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 SNXM101-20260821026 / 指送地「台積15廠P4」的內容：充填手:「shihwei」→「資材」",
+      "timestamp": "2026/9/7 下午7:32:24"
+    },
+    {
+      "operator": "shihwei",
+      "role": "unknown",
+      "action": "使用者登入",
+      "details": "登入失敗 (密碼錯誤或帳號不存在)",
+      "timestamp": "2026/9/7 下午7:33:33"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午7:33:39"
+    },
+    {
+      "operator": "C50100",
+      "role": "admin",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午7:37:28"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午7:37:49"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 無 / 指送地「台積F15B P5A」的內容：充填手:「廖家民\n0933-355-697」→「資材」",
+      "timestamp": "2026/9/7 下午7:38:15"
+    },
+    {
+      "operator": "C50100",
+      "role": "admin",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午7:49:20"
+    },
+    {
+      "operator": "陳世偉",
+      "role": "admin",
+      "action": "編輯使用者",
+      "details": "修改帳號「C50100」資訊 (角色: tech_staff, 狀態: active)",
+      "timestamp": "2026/9/7 下午7:50:15"
+    },
+    {
+      "operator": "C50100",
+      "role": "tech_staff",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午7:50:41"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 SNXM101-20260817057 / 指送地「台積14廠P6」的內容：出車時間:「23:00」→「12:00」",
+      "timestamp": "2026/9/7 下午7:52:17"
+    },
+    {
+      "operator": "C50100",
+      "role": "tech_staff",
+      "action": "使用者登入",
+      "details": "登入成功",
+      "timestamp": "2026/9/7 下午8:14:03"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 無 / 指送地「台積中科15廠P6」的內容：充填手:「魏柏勳\n0978-803-365」→「資材」",
+      "timestamp": "2026/9/7 下午8:21:14"
+    },
+    {
+      "operator": "admin",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 SNXM101-20260629122 / 指送地「台積竹南廠A6B0(竹南B廠)」的內容：無欄位變動",
+      "timestamp": "2026/9/7 下午8:31:20"
+    },
+    {
+      "operator": "shihwei",
+      "role": "admin",
+      "action": "手動編輯訂單",
+      "details": "修改訂單單號 SNXM101-20260824020 / 指送地「台積竹南廠A6B0(竹南B廠)」的內容：充填手:「謝嘉泰\n0910-588-953」→「資材」",
+      "timestamp": "2026/9/7 下午8:40:38"
     }
-  ]
+  ],
+  "push_subscriptions": {
+    "admin": [
+      {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/cidnhPQABos:APA91bH3Psxg_S7o5qYC-ifWJl2VD7ldPVp2CA46rfAreNrqwR2CULYXbfJd0WUMEOM-j8-z1gMeFNHf-B89UDKFK9ZoTLMp7HyJMtQEIuPs113Rj74-EjM00j0tJfHQ7275lxEFz71U",
+        "expirationTime": null,
+        "keys": {
+          "p256dh": "BN1yJVNpIGOMGdBn0-5iQFofKjw8K5yyDptATCTx9q68-3xhxVgBrsUE9kgoc6I2kegPFl8hYbFkfYFdyoUp090",
+          "auth": "ZF9y4rURcAFZ4HYzjzv_9w"
+        },
+        "updatedAt": "2026-09-07T11:30:06.311Z"
+      }
+    ],
+    "C50100": [
+      {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/cidnhPQABos:APA91bH3Psxg_S7o5qYC-ifWJl2VD7ldPVp2CA46rfAreNrqwR2CULYXbfJd0WUMEOM-j8-z1gMeFNHf-B89UDKFK9ZoTLMp7HyJMtQEIuPs113Rj74-EjM00j0tJfHQ7275lxEFz71U",
+        "expirationTime": null,
+        "keys": {
+          "p256dh": "BN1yJVNpIGOMGdBn0-5iQFofKjw8K5yyDptATCTx9q68-3xhxVgBrsUE9kgoc6I2kegPFl8hYbFkfYFdyoUp090",
+          "auth": "ZF9y4rURcAFZ4HYzjzv_9w"
+        },
+        "updatedAt": "2026-09-07T11:32:30.726Z"
+      },
+      {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/eOaKVi9WmFI:APA91bGZ4TEbAo_RO70rdNhqJZjRwY4BJxXS9OP4KEtuZIAVONmAlAhouAIUQCydIVKpN3zW1u46ZmGMv4yFQ2JxodhUdlqcBUHQ1ruWMC4ReKDtzZATdTG8phase1QOg8PGZBfBZcFR",
+        "expirationTime": null,
+        "keys": {
+          "p256dh": "BIqv9DmKLU4y_jhpfe0JTSuL2xhJJ1Xz5HmemWwzea9oOSC15ntA6SPFqsj7XqMS7BWPBVM6S9XsyBCJnYlBmXQ",
+          "auth": "5d0dGEGz5-ghpNB0QgrgFA"
+        },
+        "updatedAt": "2026-09-07T11:38:30.649Z"
+      },
+      {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/cozDOguFzfA:APA91bHnxTDNptJGKSTMnpgo0SeYX8lhJ6xiwJFfj-bL_5o81Gu92Tghaav4S-UY3Aw6sUE_Fejo31PlE-HFBWxtCuXfwLSdGAjzQ-vK8mD6FF4bZi1093Dlk_c5LX-u5goeEoLGjJ7g",
+        "expirationTime": null,
+        "keys": {
+          "p256dh": "BBw4rDPbsGFCws24wIsnKE_cUU1vz15g4sC319KuK-HzZr_2MvsDEgeE0MOHE9bcBV6K9jOt4FAa4TDhz_2eNCY",
+          "auth": "hchFaoEaM9p3I2b717Yecw"
+        },
+        "updatedAt": "2026-09-07T12:22:57.228Z"
+      }
+    ],
+    "shihwei": [
+      {
+        "endpoint": "https://fcm.googleapis.com/fcm/send/cidnhPQABos:APA91bH3Psxg_S7o5qYC-ifWJl2VD7ldPVp2CA46rfAreNrqwR2CULYXbfJd0WUMEOM-j8-z1gMeFNHf-B89UDKFK9ZoTLMp7HyJMtQEIuPs113Rj74-EjM00j0tJfHQ7275lxEFz71U",
+        "expirationTime": null,
+        "keys": {
+          "p256dh": "BN1yJVNpIGOMGdBn0-5iQFofKjw8K5yyDptATCTx9q68-3xhxVgBrsUE9kgoc6I2kegPFl8hYbFkfYFdyoUp090",
+          "auth": "ZF9y4rURcAFZ4HYzjzv_9w"
+        },
+        "updatedAt": "2026-09-07T11:49:47.392Z"
+      }
+    ]
+  },
+  "roles": [
+    {
+      "id": "admin",
+      "name": "系統管理員 (admin)"
+    },
+    {
+      "id": "production",
+      "name": "生產人員 (production)"
+    },
+    {
+      "id": "sales",
+      "name": "業務人員 (sales)"
+    },
+    {
+      "id": "tech_manager",
+      "name": "技服主管 (tech_manager)"
+    },
+    {
+      "id": "tech_staff",
+      "name": "技服人員 (tech_staff)"
+    },
+    {
+      "id": "transporter",
+      "name": "運輸公司 (transporter)"
+    }
+  ],
+  "permissions": {
+    "admin": [
+      "tab-dashboard",
+      "tab-sales",
+      "tab-production",
+      "tab-tech",
+      "tab-transport",
+      "tab-query",
+      "tab-users",
+      "tab-permissions",
+      "tab-logs"
+    ],
+    "production": [
+      "tab-dashboard",
+      "tab-sales",
+      "tab-production"
+    ],
+    "sales": [
+      "tab-dashboard",
+      "tab-sales",
+      "tab-tech",
+      "tab-transport",
+      "tab-query"
+    ],
+    "tech_manager": [
+      "tab-dashboard",
+      "tab-sales",
+      "tab-tech",
+      "tab-transport",
+      "tab-query"
+    ],
+    "tech_staff": [
+      "tab-query"
+    ],
+    "transporter": [
+      "tab-dashboard",
+      "tab-transport"
+    ]
+  }
 }

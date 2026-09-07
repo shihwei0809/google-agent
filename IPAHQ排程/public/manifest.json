@@ -1,0 +1,24 @@
+﻿{
+  "name": "勝一化工 - 槽車排程管理系統",
+  "short_name": "槽車排程",
+  "description": "勝一化工 IPAHQ 槽車出貨排程與技服派工即時推播系統",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
