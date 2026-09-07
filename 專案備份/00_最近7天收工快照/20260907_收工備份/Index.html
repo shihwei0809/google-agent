@@ -1,0 +1,2357 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>鴻勝化學 QC 檢驗即時看板系統</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <!-- 引入 SheetJS 用於客戶端即時解析 T100 排程 Excel -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --blue: #2563eb;
+      --blue-light: #eff6ff;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --teams-purple: #5b5fc7;
+      --border: #e2e8f0;
+      --shadow: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+      --radius: 10px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 15px; color: var(--ink); }
+    .container { max-width: 1600px; margin: 0 auto; }
+    
+    /* PWA 安裝條 */
+    #pwa-install-banner {
+      display: none;
+      background: linear-gradient(90deg, #1e40af, #3b82f6);
+      color: white;
+      padding: 10px 18px;
+      border-radius: var(--radius);
+      margin-bottom: 15px;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: var(--shadow);
+    }
+    #pwa-install-banner button {
+      background: #ffffff;
+      color: #1e40af;
+      border: none;
+      font-weight: bold;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .card { background: var(--card-bg); padding: 22px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid var(--border); }
+    .card-title { margin: 0 0 16px; border-left: 5px solid var(--blue); padding-left: 12px; font-size: 1.25rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+    
+    /* T100 槽車快速排程選擇區塊 */
+    .t100-banner {
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+    .t100-badge {
+      background: #16a34a;
+      color: white;
+      font-size: 0.8rem;
+      font-weight: bold;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+    .t100-select-wrapper {
+      flex: 1;
+      min-width: 280px;
+    }
+    .t100-select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #16a34a;
+      border-radius: 6px;
+      font-weight: 600;
+      color: #14532d;
+      background: white;
+      font-size: 0.95rem;
+    }
+    .btn-t100-upload {
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 9px 15px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* 模擬測試控制列 */
+    .sim-toolbar {
+      background: #f8fafc;
+      border: 1.5px dashed #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 16px;
+      margin-bottom: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+    }
+    .btn-sim {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: white;
+      cursor: pointer;
+      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+    }
+    .btn-sim:hover { background: #f1f5f9; }
+    .btn-sim-teams { background: #5b5fc7; color: white; border: none; }
+    .btn-sim-teams:hover { background: #4f52b2; }
+
+    /* 表單格線排版 */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    label { display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 6px; }
+    .label-hint { font-size: 0.75rem; color: #64748b; font-weight: normal; margin-left: 4px; }
+    label.required::after { content: " *"; color: var(--red); font-weight: bold; }
+    input, select, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 9px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      background: #fff;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--blue); outline: none; }
+
+    .btn-submit {
+      background: #2563eb;
+      color: #fff;
+      font-weight: bold;
+      border: none;
+      padding: 12px;
+      width: 100%;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1.05rem;
+      transition: background 0.2s;
+    }
+    .btn-submit:hover { background: #1d4ed8; }
+
+    /* 動向標籤樣式 */
+    .tag-flow { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
+    .tag-in { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+    .tag-out { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .tag-replenish { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
+    .tag-commission { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
+
+    /* 逾期與等候時長動畫標籤 */
+    @keyframes pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .badge-overdue {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1.5px solid #f87171;
+      padding: 4px 8px;
+      border-radius: 5px;
+      font-weight: 800;
+      font-size: 0.82rem;
+      display: inline-block;
+      animation: pulse-red 1.8s infinite;
+      white-space: nowrap;
+    }
+    .badge-ontime {
+      background: #eff6ff;
+      color: #1e40af;
+      border: 1px solid #bfdbfe;
+      padding: 3px 8px;
+      border-radius: 5px;
+      font-weight: 600;
+      font-size: 0.8rem;
+      display: inline-block;
+      white-space: nowrap;
+    }
+
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; align-items: flex-end; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .kpi-card { background: white; padding: 16px; border-radius: var(--radius); box-shadow: var(--shadow); border-left: 5px solid; border: 1px solid var(--border); border-left-width: 5px; }
+    .kpi-value { font-size: 1.8rem; font-weight: bold; }
+    .kpi-label { font-size: 0.85rem; color: var(--muted); }
+
+    /* 響應式佈局：筆電螢幕 (≤ 1450px) 自動切換全寬上下排列，左右零捲軸 */
+    .kanban-container { display: grid; grid-template-columns: 1.25fr 1fr; gap: 20px; transition: all 0.3s ease; }
+    @media (max-width: 1450px) {
+      .kanban-container { grid-template-columns: 1fr; gap: 24px; }
+    }
+
+    /* 手動切換排版模式 */
+    .kanban-container.view-stacked { grid-template-columns: 1fr !important; gap: 24px !important; }
+    .kanban-container.view-sidebyside { grid-template-columns: 1.25fr 1fr !important; gap: 18px !important; }
+    .kanban-container.view-tabs .kanban-column { display: none !important; }
+    .kanban-container.view-tabs .kanban-column.active-tab { display: block !important; }
+
+    /* 視角切換器樣式 */
+    .layout-switcher {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 14px;
+      background: #ffffff;
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .btn-layout-group {
+      display: inline-flex;
+      background: #f1f5f9;
+      padding: 3px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      gap: 3px;
+    }
+    .btn-layout-toggle {
+      border: none;
+      background: transparent;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #64748b;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-layout-toggle:hover {
+      color: #0f172a;
+    }
+    .btn-layout-toggle.active {
+      background: #ffffff;
+      color: #1e40af;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .tabs-bar {
+      display: inline-flex;
+      gap: 8px;
+    }
+    .tab-btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1.5px solid #cbd5e1;
+      background: white;
+      font-weight: bold;
+      font-size: 0.84rem;
+      cursor: pointer;
+      color: #475569;
+      transition: all 0.2s;
+    }
+    .tab-btn.active.tab-pending {
+      background: #fef3c7;
+      border-color: #f59e0b;
+      color: #b45309;
+    }
+    .tab-btn.active.tab-completed {
+      background: #d1fae5;
+      border-color: #10b981;
+      color: #047857;
+    }
+
+    .kanban-column { background: white; border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
+    .kanban-header { padding: 12px 18px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+    .header-pending { background: #fffbeb; color: #b45309; }
+    .header-completed { background: #ecfdf5; color: #047857; }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    th { background: #f8fafc; color: var(--muted); font-weight: 700; white-space: nowrap; }
+
+    /* 自適應表格容器：徹底根除橫向滾動軸，筆電或小螢幕 100% 滿版無捲軸 */
+    .table-responsive {
+      width: 100%;
+      box-sizing: border-box;
+      transition: all 0.2s;
+    }
+    .table-responsive.adaptive-mode {
+      overflow-x: hidden !important;
+    }
+    .table-responsive.adaptive-mode table {
+      width: 100% !important;
+      table-layout: fixed !important;
+    }
+    .table-responsive.adaptive-mode th,
+    .table-responsive.adaptive-mode td {
+      padding: 8px 6px;
+      font-size: 0.82rem;
+      white-space: normal !important;
+      word-break: break-word;
+      vertical-align: middle;
+    }
+    .table-responsive.adaptive-mode th {
+      white-space: nowrap !important;
+      font-size: 0.78rem;
+      background: #f8fafc;
+    }
+    .table-responsive.full-mode {
+      overflow-x: auto !important;
+    }
+    .table-responsive.full-mode table {
+      width: 100%;
+      min-width: 840px;
+      table-layout: auto;
+    }
+    .table-responsive.full-mode th,
+    .table-responsive.full-mode td {
+      padding: 9px 10px;
+      white-space: nowrap;
+    }
+    
+    /* 吸附固定操作欄位：即使在縮小的螢幕上捲動，操作欄也永遠固定在右側，絕不被移出視窗外！ */
+    .col-action {
+      position: sticky;
+      right: 0;
+      background: white;
+      z-index: 5;
+      text-align: center;
+      white-space: nowrap;
+      box-shadow: -4px 0 6px rgba(0,0,0,0.06);
+    }
+    th.col-action {
+      background: #f8fafc;
+      z-index: 6;
+    }
+
+    .btn-action { color: white; border: none; padding: 6px 11px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+    .btn-print { background: #3b82f6; margin-right: 4px; } 
+    .btn-judge { background: #10b981; } 
+    
+    /* 彈跳視窗通用樣式 */
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center; }
+    .modal-content { background:white; padding:25px; border-radius:12px; width:420px; max-width:92vw; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.25); max-height:90vh; overflow-y:auto; }
+
+    /* Teams 訊息卡片預覽樣式 (仿照 Microsoft Teams 介面) */
+    .teams-card-preview {
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.08);
+      overflow: hidden;
+      margin-top: 15px;
+    }
+    .teams-card-bar { height: 6px; width: 100%; }
+    .teams-card-bar.green { background: #107c41; }
+    .teams-card-bar.red { background: #d9381e; }
+    .teams-card-bar.blue { background: #0078d4; }
+    .teams-card-body { padding: 16px; font-size: 0.9rem; line-height: 1.5; }
+    .teams-card-title { font-size: 1.05rem; font-weight: bold; margin-bottom: 4px; }
+    .teams-card-subtitle { font-size: 0.82rem; color: #5f6368; margin-bottom: 14px; }
+    .teams-fact-row { display: flex; margin-bottom: 6px; font-size: 0.88rem; }
+    .teams-fact-name { width: 110px; font-weight: bold; color: #4b5563; }
+    .teams-fact-value { flex: 1; color: #111827; }
+    .teams-channel-tag {
+      background: #eef2ff;
+      border: 1px solid #c7d2fe;
+      color: #4338ca;
+      font-weight: bold;
+      padding: 6px 10px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mode-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; background: #e0e7ff; color: #3730a3; font-weight: bold; }
+    .toast { position: fixed; bottom: 25px; right: 25px; background: #1e293b; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); z-index: 2000; display: none; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- PWA 安裝提示橫幅 -->
+  <div id="pwa-install-banner">
+    <div><b>📱 安裝為獨立 App</b>：將本系統安裝至手機主畫面或電腦桌面，操作體驗更流暢！</div>
+    <button id="pwa-install-btn" onclick="installPWA()">立即安裝</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span>進出貨樣品登錄</span>
+      <div>
+        <span id="teamsStatusBadge" class="mode-badge" style="background:#f3e8ff; color:#6b21a8; margin-right:6px; cursor:pointer;" onclick="openTeamsConfigModal()">🔔 Teams 通知：就緒</span>
+        <span id="envBadge" class="mode-badge">⚡ 系統運作中</span>
+      </div>
+    </div>
+
+    <!-- T100 槽車排程快速選擇列 (支援出貨與進料雙區塊) -->
+    <div class="t100-banner">
+      <span class="t100-badge">🚛 T100 槽車排程</span>
+      <div class="t100-select-wrapper">
+        <select id="t100Select" class="t100-select" onchange="onT100SelectChange(this.value)">
+          <option value="">-- 點此直接選擇 T100 槽車排程 (包含出貨與進料) --</option>
+        </select>
+      </div>
+      <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
+      <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
+        📂 匯入最新 T100 排程 Excel
+      </button>
+      <button type="button" onclick="resetForm()" style="padding:9px 12px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+        清空重選
+      </button>
+    </div>
+
+    <!-- 本機 PWA 專用模擬測試控制箱 -->
+    <div class="sim-toolbar">
+      <span style="font-weight:bold; color:#475569;">🧪 本機模擬測試箱：</span>
+      <button type="button" class="btn-sim" onclick="injectOverdueTestSample()">
+        ⏱️ 注入逾期樣品 (>2小時)
+      </button>
+      <button type="button" class="btn-sim" onclick="triggerOverdueCheckLocal()">
+        🚨 執行逾期巡檢 (觸發Teams警報)
+      </button>
+      <button type="button" class="btn-sim btn-sim-teams" onclick="openTeamsConfigModal()">
+        ⚙️ Teams Webhook 設定與卡片測試
+      </button>
+      <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none;" onclick="openPrintSettingsGlobal()">
+        🖨️ 標籤機設定 (改紙/改張數)
+      </button>
+      <span style="color:#64748b; font-size:0.8rem; margin-left:auto;">
+        💡 本機模擬無需聯網即可完整驗收 Teams 精準分流與超時警告
+      </span>
+    </div>
+
+    <form id="qcForm">
+      <div class="form-grid">
+        <div>
+          <label>出通/入庫單號<span class="label-hint">(選填，提前充填庫存留空自動帶入)</span></label>
+          <input type="text" id="barcode" placeholder="選填，留空自動設為日期-庫存">
+        </div>
+        <div>
+          <label>動向</label>
+          <select id="flowType">
+            <option value="出貨">出貨</option>
+            <option value="進料">進料</option>
+            <option value="補料">補料</option>
+            <option value="委託">委託</option>
+          </select>
+        </div>
+        <div>
+          <label>等級</label>
+          <select id="grade">
+            <option value="工業級">工業級</option>
+            <option value="UPS">UPS</option>
+            <option value="IF">IF</option>
+          </select>
+        </div>
+        <div>
+          <label class="required">品名</label>
+          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required>
+          <datalist id="productList">
+            <option value="IPA"></option><option value="IPAUPS"></option><option value="IPAHQ"></option>
+            <option value="CPNE3(T)"></option><option value="CPNE4"></option><option value="CPN-P1R"></option>
+            <option value="EBR"></option><option value="EBR-P1R"></option><option value="NBAC"></option>
+            <option value="NBAC-P1R"></option><option value="CPN"></option><option value="EG"></option>
+            <option value="NMP"></option><option value="GAA"></option><option value="ACT"></option>
+            <option value="PM"></option><option value="PMA98"></option><option value="heavy-R"></option>
+            <option value="DPM"></option><option value="DPM-B1"></option><option value="SEP73"></option>
+            <option value="Anone"></option><option value="GBL"></option><option value="PG"></option><option value="EBRR"></option>
+          </datalist>
+        </div>
+        <div>
+          <label class="required">進出貨槽號</label>
+          <input type="text" id="tankNo" placeholder="例: TK605 或 TKC05" required>
+        </div>
+        <div>
+          <label class="required">車牌/櫃號</label>
+          <input type="text" id="customer" placeholder="例: PPCU7019228 或 KEQ-3506" required>
+        </div>
+        <div>
+          <label>數量</label>
+          <input type="text" id="quantity" placeholder="例: 5000 KG">
+        </div>
+        <div>
+          <label>送樣單位 (Teams 分流通報依據)</label>
+          <select id="dept">
+            <option value="資材課">資材課</option>
+            <option value="現場一課">現場一課</option>
+            <option value="現場二課">現場二課</option>
+            <option value="回收處理課">回收處理課</option>
+          </select>
+        </div>
+        <div>
+          <label class="required">送樣人員</label>
+          <input type="text" id="requester" placeholder="請輸入姓名" required>
+        </div>
+      </div>
+      <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
+    </form>
+  </div>
+
+  <div class="filter-bar">
+    <div style="flex:1; min-width: 220px;">
+      <label>即時搜尋 (單號 / 品名 / 車牌 / 槽號 / 單位)</label>
+      <input type="text" id="kwInput" oninput="render()" placeholder="輸入內容即時過濾...">
+    </div>
+    <div><label>日期(起)</label><input type="date" id="dateStart" onchange="render()"></div>
+    <div><label>日期(迄)</label><input type="date" id="dateEnd" onchange="render()"></div>
+    <button onclick="resetFilters()" style="padding:10px 16px; cursor:pointer; height:40px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">全部顯示 (清除)</button>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card" style="border-left-color: var(--amber);"><div class="kpi-value" id="kpi-pending">0</div><div class="kpi-label">待驗中</div></div>
+    <div class="kpi-card" style="border-left-color: var(--red);"><div class="kpi-value" id="kpi-overdue" style="color:var(--red);">0</div><div class="kpi-label">已逾期 (>2小時)</div></div>
+    <div class="kpi-card" style="border-left-color: var(--green);"><div class="kpi-value" id="kpi-completed">0</div><div class="kpi-label">已檢驗完成</div></div>
+    <div class="kpi-card" style="border-left-color: var(--blue);"><div class="kpi-value" id="kpi-today">0</div><div class="kpi-label">今日送樣總數</div></div>
+  </div>
+
+  <!-- 看板視角排版切換器 (筆電免左右滑動解決方案) -->
+  <div class="layout-switcher">
+    <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:0.85rem; font-weight:bold; color:#475569;">📐 看板排版：</span>
+        <div class="btn-layout-group">
+          <button type="button" class="btn-layout-toggle active" id="btnLayoutAuto" onclick="setLayoutView('auto')" title="依螢幕自動決定：筆電自動全寬，大螢幕雙欄">⚡ 自動適應</button>
+          <button type="button" class="btn-layout-toggle" id="btnLayoutStacked" onclick="setLayoutView('stacked')" title="待驗在上、完成在下，兩者皆 100% 滿版，徹底消滅橫向捲軸">↕️ 上下全寬 (免橫移)</button>
+          <button type="button" class="btn-layout-toggle" id="btnLayoutTabs" onclick="setLayoutView('tabs')" title="筆電首選：以標籤分頁切換待驗與完成，畫面最乾淨寬敞">📑 分頁切換 (筆電首選)</button>
+          <button type="button" class="btn-layout-toggle" id="btnLayoutSide" onclick="setLayoutView('side')" title="強制左右雙欄並排 (適合大螢幕或外接顯示器)">📊 雙欄並排</button>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:0.85rem; font-weight:bold; color:#475569;">📊 表格自適應：</span>
+        <div class="btn-layout-group">
+          <button type="button" class="btn-layout-toggle active" id="btnTableModeAdaptive" onclick="setTableMode('adaptive')" title="四欄自適應複合欄，筆電免左右滑動，100% 滿版無捲軸">⚡ 自適應 (免左右移)</button>
+          <button type="button" class="btn-layout-toggle" id="btnTableModeFull" onclick="setTableMode('full')" title="傳統 9~10 欄明細完整展開">📋 傳統九欄展開</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分頁標籤切換列 (僅在分頁切換模式下顯示) -->
+    <div id="tabsHeaderBar" class="tabs-bar" style="display:none;">
+      <button type="button" class="tab-btn active tab-pending" id="tabBtnPending" onclick="switchKanbanTab('pending')">
+        ⏳ 待檢驗樣品 (<span id="tabCountPending">0</span>)
+      </button>
+      <button type="button" class="tab-btn tab-completed" id="tabBtnCompleted" onclick="switchKanbanTab('completed')">
+        ✅ 已檢驗完成 (<span id="tabCountCompleted">0</span>)
+      </button>
+    </div>
+  </div>
+
+  <div class="kanban-container" id="kanbanContainer">
+    <div class="kanban-column active-tab" id="col-pending">
+      <div class="kanban-header header-pending">
+        <span style="display:flex; align-items:center; gap:6px;">
+          ⏳ 待檢驗樣品 (支援超時自動預警)
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" onclick="toggleTableMode()" title="點擊切換表格欄位排版模式" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1.5px solid #d97706; background:#fff; color:#b45309; cursor:pointer; font-weight:bold;">
+            <span class="table-mode-icon">⚡</span> <span class="table-mode-label">自適應 (免左右移)</span>
+          </button>
+          <span id="pendingCountBadge" style="font-size:0.85rem; font-weight:normal; background:white; padding:2px 8px; border-radius:12px; border:1px solid #fcd34d;">0 件</span>
+        </div>
+      </div>
+      <div id="tableWrapPending" class="table-responsive adaptive-mode">
+        <table id="table-pending">
+          <thead>
+            <tr>
+              <th style="width: 30%;">品項 / 單號</th>
+              <th style="width: 23%;">槽號 / 車牌</th>
+              <th style="width: 28%;">送樣單位 / 等候時長</th>
+              <th style="width: 19%; text-align:center;">操作</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="kanban-column" id="col-completed">
+      <div class="kanban-header header-completed">
+        <span style="display:flex; align-items:center; gap:6px;">
+          ✅ 已檢驗完成
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" onclick="toggleTableMode()" title="點擊切換表格欄位排版模式" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1.5px solid #059669; background:#fff; color:#047857; cursor:pointer; font-weight:bold;">
+            <span class="table-mode-icon">⚡</span> <span class="table-mode-label">自適應 (免左右移)</span>
+          </button>
+          <span id="completedCountBadge" style="font-size:0.85rem; font-weight:normal; background:white; padding:2px 8px; border-radius:12px; border:1px solid #a7f3d0;">0 件</span>
+        </div>
+      </div>
+      <div id="tableWrapCompleted" class="table-responsive adaptive-mode">
+        <table id="table-completed">
+          <thead>
+            <tr>
+              <th style="width: 30%;">品項 / 單號</th>
+              <th style="width: 23%;">槽號 / 車牌</th>
+              <th style="width: 26%;">送樣單位 / 判定</th>
+              <th style="width: 21%;">判定備註</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 判定對話框 Modal -->
+<div id="judgeModal" class="modal">
+  <div class="modal-content">
+    <h3 style="margin-top:0; border-left:4px solid var(--green); padding-left:10px;">品管放行判定</h3>
+    <input type="hidden" id="currentId">
+    <label>判定結果</label>
+    <select id="modalResult" style="margin-bottom:15px; font-size:1.1rem; color:#059669; font-weight:bold;">
+      <option value="PASS">PASS (合格放行)</option>
+      <option value="FAIL">FAIL (不合格退回)</option>
+    </select>
+    <label>判定備註</label>
+    <textarea id="modalNote" style="height:60px; margin-bottom:15px;" placeholder="請輸入檢驗數據或備註事項..."></textarea>
+    <div style="background:#fef2f2; padding:12px; border-radius:6px; margin-bottom:20px; border-left:4px solid var(--red);">
+      <label style="color:#b91c1c;">🔐 授權密碼 (預設為 8888 或後台設定)</label>
+      <input type="password" id="modalPin" placeholder="請輸入 4 碼 PIN 碼" style="letter-spacing:3px; font-weight:bold; text-align:center; margin-top:4px;">
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button onclick="submitJudge()" id="modalBtn" class="btn-action btn-judge" style="flex:1; padding:12px; font-size:0.95rem;">確認判定並通知 Teams</button>
+      <button onclick="closeModal()" style="flex:1; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- Microsoft Teams Webhook 設定與卡片測試 Modal -->
+<div id="teamsConfigModal" class="modal">
+  <div class="modal-content" style="width:520px;">
+    <h3 style="margin-top:0; border-left:4px solid var(--teams-purple); padding-left:10px; color:#3b4096;">
+      🔔 Microsoft Teams 分流通報設定
+    </h3>
+    <p style="font-size:0.83rem; color:#64748b; margin-top:-6px;">
+      設定各頻道專屬 Webhook，檢驗完成或超時 2 小時會<strong>精準推送至「主管頻道 + 該送樣課室頻道」</strong>，其他課室完全不受干擾！
+    </p>
+
+    <div style="margin-bottom:12px;">
+      <label>👔 品管 / 製造主管頻道 Webhook (所有超時與完成必收)</label>
+      <input type="text" id="teamsManagerWebhook" placeholder="https://xxx.webhook.office.com/...">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label>📦 資材課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_資材課" placeholder="https://xxx.webhook.office.com/...">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label>🏭 現場一課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_現場一課" placeholder="https://xxx.webhook.office.com/...">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label>🏭 現場二課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_現場二課" placeholder="https://xxx.webhook.office.com/...">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label>♻️ 回收處理課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_回收處理課" placeholder="https://xxx.webhook.office.com/...">
+    </div>
+
+    <div style="background:#f1f5f9; padding:10px 12px; border-radius:6px; margin-bottom:16px; font-size:0.82rem; color:#475569;">
+      <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
+        <input type="checkbox" id="teamsEnableRealSend" style="width:auto;">
+        <span>啟用本機真實發送 (需已填有效 Webhook URL；未打勾則自動使用互動預覽視窗)</span>
+      </label>
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <button type="button" onclick="saveTeamsConfig()" class="btn-submit" style="background:#16a34a; flex:1; padding:10px; font-size:0.9rem;">
+        💾 儲存設定
+      </button>
+      <button type="button" onclick="testTeamsPreviewCard()" class="btn-submit" style="background:#5b5fc7; flex:1; padding:10px; font-size:0.9rem;">
+        🧪 模擬卡片預覽
+      </button>
+      <button type="button" onclick="closeTeamsConfigModal()" style="padding:10px 16px; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">
+        關閉
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Teams 訊息卡片預覽彈窗 (展示分流結果與排版) -->
+<div id="teamsCardModal" class="modal">
+  <div class="modal-content" style="width:480px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="font-weight:bold; font-size:1.05rem; color:#5b5fc7; display:flex; align-items:center; gap:6px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 4h-15A2.5 2.5 0 002 6.5v11A2.5 2.5 0 004.5 20h15a2.5 2.5 0 002.5-2.5v-11A2.5 2.5 0 0019.5 4zm-9 13H8v-6H6.5V9.5h4.5V11H9.5v6zm7.5 0h-1.6l-2-4.2V17h-1.4V9.5h1.6l2 4.2V9.5h1.4V17z"/></svg>
+        Microsoft Teams 卡片即時通報預覽
+      </div>
+      <button onclick="closeTeamsCardModal()" style="border:none; background:transparent; font-size:1.3rem; cursor:pointer; color:#64748b;">✕</button>
+    </div>
+
+    <div id="teamsPreviewChannelTag" class="teams-channel-tag">
+      📢 發送目標：【品管主管頻道】 + 【現場一課頻道】
+    </div>
+
+    <!-- 仿 Teams 實體 MessageCard 卡片 -->
+    <div class="teams-card-preview">
+      <div id="teamsPreviewBar" class="teams-card-bar green"></div>
+      <div class="teams-card-body">
+        <div id="teamsPreviewTitle" class="teams-card-title">✅【QC 檢驗完成 - 判定合格放行】</div>
+        <div id="teamsPreviewSubtitle" class="teams-card-subtitle">檢驗結果已判定，請現場進行後續作業</div>
+        
+        <div id="teamsPreviewFacts"></div>
+
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid #f1f5f9;">
+          <button style="background:#5b5fc7; color:white; border:none; padding:6px 14px; border-radius:4px; font-weight:bold; font-size:0.85rem; cursor:pointer;">
+            📱 開啟 PWA 看板查看
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:16px; text-align:right;">
+      <button onclick="closeTeamsCardModal()" class="btn-submit" style="background:#475569; padding:8px 18px; font-size:0.9rem; width:auto;">
+        了解 (關閉視窗)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 9x10 標籤機專用列印設定對話框 (UniPrinter / Zebra / TSC) -->
+<div id="printModal" class="modal">
+  <div class="modal-content" style="width:470px;">
+    <h3 style="margin-top:0; border-left:4px solid #0284c7; padding-left:10px; color:#0369a1;">
+      🖨️ 9×10 標籤機專用列印設定 (水分、GC、Metal)
+    </h3>
+    <input type="hidden" id="printTargetId">
+    
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; margin-bottom:14px; font-size:0.88rem;">
+      <div>📋 檢驗單號：<b id="printPreviewBarcode" style="color:#1e40af;">-</b></div>
+      <div style="margin-top:4px;">🧪 品名槽號：<b id="printPreviewProduct">-</b> (<span id="printPreviewTank">-</span> / <span id="printPreviewTruck">-</span>)</div>
+      <div style="margin-top:4px; color:#64748b; font-size:0.82rem;">🏢 送樣單位：<span id="printPreviewDept">-</span>（送樣人：<span id="printPreviewRequester">-</span>）</div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <!-- 貼紙實體尺寸設定 (支援自訂更換貼紙) -->
+      <div style="background:#f1f5f9; padding:10px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; font-size:0.85rem;">
+        <span style="font-weight:bold; color:#334155;">📐 貼紙規格 (可自訂修改)：</span>
+        <div style="display:flex; align-items:center; gap:5px;">
+          <span>寬</span>
+          <input type="number" id="printLabelWidth" value="90" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
+          <span>mm × 高</span>
+          <input type="number" id="printLabelHeight" value="100" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
+          <span>mm</span>
+        </div>
+      </div>
+
+      <label style="font-size:0.92rem; color:#1e293b; margin-bottom:8px;">請設定各檢驗項目列印張數：</label>
+
+      <!-- 水分 & GC 設定 -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:8px; margin-bottom:9px;">
+        <div>
+          <div style="font-weight:bold; color:#1e40af; font-size:0.95rem;">💧 水分 & 氣相層析 (GC) 標籤</div>
+          <div style="font-size:0.78rem; color:#3b82f6;">含水分 ppm、GC 純度% 手寫數據記錄欄</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <input type="number" id="printQtyWaterGC" min="0" max="10" value="1" style="width:65px; text-align:center; font-weight:bold; font-size:1.05rem;" onchange="updateTotalLabelCount()">
+          <span style="font-size:0.88rem; font-weight:bold;">張</span>
+        </div>
+      </div>
+
+      <!-- Metal 金屬離子設定 -->
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; margin-bottom:10px;">
+        <div>
+          <div style="font-weight:bold; color:#0f172a; font-size:0.95rem;">🔬 Metal (金屬離子 ICP-MS) 標籤</div>
+          <div style="font-size:0.78rem; color:#64748b;">自動分流標註「瓶 1 (分析正樣)」與「瓶 2 (留樣存查)」</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <input type="number" id="printQtyMetal" min="0" max="10" value="2" style="width:65px; text-align:center; font-weight:bold; font-size:1.05rem;" onchange="updateTotalLabelCount()">
+          <span style="font-size:0.88rem; font-weight:bold;">張</span>
+        </div>
+      </div>
+
+      <!-- 總張數統計 -->
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1px solid #a7f3d0; padding:8px 12px; border-radius:6px; font-size:0.88rem; color:#065f46;">
+        <span>📄 預計連續出紙總張數：</span>
+        <span style="font-size:1.1rem; font-weight:bold;" id="printTotalLabelCount">3 張 (90mm × 100mm)</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.83rem; color:#475569;">
+        <input type="checkbox" id="rememberPrintSettings" style="width:auto;">
+        <span>記住此設定，下次點擊「列印」直接快速出單 (免再彈出確認視窗)</span>
+      </label>
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <button type="button" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:2; padding:11px; font-size:0.95rem;">
+        🖨️ 送出列印
+      </button>
+      <button type="button" onclick="resetPrintSettingsToDefault()" style="padding:11px 12px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold; font-size:0.82rem; cursor:pointer;" title="清除記憶並恢復預設 (90x100, 水分1, Metal 2)">
+        🔄 恢復預設
+      </button>
+      <button type="button" onclick="closePrintModal()" style="padding:11px 16px; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">
+        取消
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  // 1. 完整預載明天槽車排程（共 20 筆：10 筆出貨 + 10 筆進料）
+  let t100Orders = [
+    // --- 【出貨槽車 (10 筆)】 ---
+    { "doc_no": "ESXM101-20260901013", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK624", "customer": "關東鑫林", "container": "PPCU7019228", "quantity": "5000 KG", "note": "L2 08:00 槽號:PPCU7019228 隨貨附樣" },
+    { "doc_no": "ESXM101-20260901020", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7020018", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7020018 隨貨附樣" },
+    { "doc_no": "ESXM101-20260901021", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019193", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7019193 隨貨附樣" },
+    { "doc_no": "ESXM101-20260902005", "time": "09:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE3(T)", "tankNo": "S223", "customer": "勝一化工", "container": "S223", "quantity": "15000 KG", "note": "出TK-683,提貨槽車S223 (FOR TSMC),當天拉回永安二廠" },
+    { "doc_no": "ESXM101-20260901022", "time": "13:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019212", "quantity": "5000 KG", "note": "L3崙尾 13:00 槽號:PPCU7019212 隨貨附樣" },
+    { "doc_no": "ESXM109-20260902011", "time": "13:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE4", "tankNo": "S224", "customer": "勝一化工", "container": "S224", "quantity": "15000 KG", "note": "PM13:00 槽號：S224，充15噸" },
+    { "doc_no": "ESXM101-20260831012", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服，隨COA+三合一單" },
+    { "doc_no": "ESXM101-20260831027", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260831028", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260903004", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    // --- 【進料槽車 (10 筆)】 ---
+    { "doc_no": "ESPM411-20260906001", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC05", "customer": "台積電 (南科18廠P5)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906002", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC01", "customer": "台積電 (南科18廠P7)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906003", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P4)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906004", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P6)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906005", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (南科18廠P4)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906006", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P1)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906007", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P2)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906008", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P3)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906010", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測7廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906011", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測8廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" }
+  ];
+
+  let allData = [];
+  const IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
+  const DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxRK8do1QBaYC8cDgfXDgWt-l9R4Dt6Ig1OQ_-8T1eJT50NiqGfSYWYGGh9hY0HWaPy/exec';
+  let GAS_API_URL = localStorage.getItem('HS_QC_GAS_API_URL') || DEFAULT_GAS_API_URL;
+
+  // 優先讀取曾匯入過的排程快取
+  const cachedOrders = localStorage.getItem('HS_QC_T100_ORDERS');
+  if (cachedOrders) {
+    try { t100Orders = JSON.parse(cachedOrders); } catch(e){}
+  }
+
+  // Teams 頻道 Webhook 本機快取設定
+  let localTeamsConfig = {
+    managerWebhook: '',
+    depts: {
+      '資材課': '',
+      '現場一課': '',
+      '現場二課': '',
+      '回收處理課': ''
+    },
+    enableRealSend: false
+  };
+
+  function loadTeamsConfig() {
+    const saved = localStorage.getItem('HS_QC_TEAMS_CONFIG');
+    if (saved) {
+      try { localTeamsConfig = JSON.parse(saved); } catch(e) {}
+    }
+  }
+
+  function saveTeamsConfig() {
+    localTeamsConfig.managerWebhook = document.getElementById('teamsManagerWebhook').value.trim();
+    localTeamsConfig.depts['資材課'] = document.getElementById('teamsWebhook_資材課').value.trim();
+    localTeamsConfig.depts['現場一課'] = document.getElementById('teamsWebhook_現場一課').value.trim();
+    localTeamsConfig.depts['現場二課'] = document.getElementById('teamsWebhook_現場二課').value.trim();
+    localTeamsConfig.depts['回收處理課'] = document.getElementById('teamsWebhook_回收處理課').value.trim();
+    localTeamsConfig.enableRealSend = document.getElementById('teamsEnableRealSend').checked;
+
+    localStorage.setItem('HS_QC_TEAMS_CONFIG', JSON.stringify(localTeamsConfig));
+    closeTeamsConfigModal();
+    showToast("💾 Teams Webhook 設定已成功保存！");
+  }
+
+  function openTeamsConfigModal() {
+    loadTeamsConfig();
+    document.getElementById('teamsManagerWebhook').value = localTeamsConfig.managerWebhook || '';
+    document.getElementById('teamsWebhook_資材課').value = localTeamsConfig.depts['資材課'] || '';
+    document.getElementById('teamsWebhook_現場一課').value = localTeamsConfig.depts['現場一課'] || '';
+    document.getElementById('teamsWebhook_現場二課').value = localTeamsConfig.depts['現場二課'] || '';
+    document.getElementById('teamsWebhook_回收處理課').value = localTeamsConfig.depts['回收處理課'] || '';
+    document.getElementById('teamsEnableRealSend').checked = !!localTeamsConfig.enableRealSend;
+    document.getElementById('teamsConfigModal').style.display = 'flex';
+  }
+
+  function closeTeamsConfigModal() {
+    document.getElementById('teamsConfigModal').style.display = 'none';
+  }
+
+  function closeTeamsCardModal() {
+    document.getElementById('teamsCardModal').style.display = 'none';
+  }
+
+  // 顯示 Teams 訊息卡片預覽
+  function showTeamsPreviewModal(targetDept, cardData) {
+    const channelTag = document.getElementById('teamsPreviewChannelTag');
+    channelTag.innerHTML = `📢 訊息分流目標：<b>【品管主管頻道】</b> + <b>【${targetDept}頻道】</b> <span style="margin-left:auto; font-size:0.75rem; color:#6b7280;">(其他課室完全不受干擾)</span>`;
+
+    const bar = document.getElementById('teamsPreviewBar');
+    bar.className = 'teams-card-bar ' + (cardData.color || 'green');
+
+    document.getElementById('teamsPreviewTitle').innerText = cardData.title;
+    document.getElementById('teamsPreviewSubtitle').innerText = cardData.subtitle;
+
+    const factsContainer = document.getElementById('teamsPreviewFacts');
+    factsContainer.innerHTML = cardData.facts.map(f => `
+      <div class="teams-fact-row">
+        <div class="teams-fact-name">${f.name}</div>
+        <div class="teams-fact-value">${f.value}</div>
+      </div>
+    `).join('');
+
+    document.getElementById('teamsCardModal').style.display = 'flex';
+  }
+
+  // 本機執行 Teams 發送或彈出卡片預覽
+  function dispatchTeamsCard(targetDept, cardPayload, previewData) {
+    loadTeamsConfig();
+    
+    // 如果有設定真實 Webhook 且開啟發送
+    if (localTeamsConfig.enableRealSend) {
+      const urls = [];
+      if (localTeamsConfig.managerWebhook) urls.push(localTeamsConfig.managerWebhook);
+      if (localTeamsConfig.depts[targetDept]) urls.push(localTeamsConfig.depts[targetDept]);
+
+      urls.forEach(url => {
+        try {
+          fetch(url, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cardPayload)
+          }).then(() => console.log('Teams POST dispatched:', url));
+        } catch(e) {
+          console.warn('Teams fetch error:', e);
+        }
+      });
+      showToast(`📢 Teams 卡片已推播至【主管頻道】+【${targetDept}頻道】！`);
+    }
+
+    // 無論是否真實發送，都在本機跳出卡片預覽，讓測試人員一目了然！
+    showTeamsPreviewModal(targetDept, previewData);
+  }
+
+  // 測試模擬卡片
+  function testTeamsPreviewCard() {
+    const dummyData = {
+      title: "✅【QC 檢驗完成 - 判定合格放行】",
+      subtitle: "檢驗結果已判定，請現場一課進行後續作業",
+      color: "green",
+      facts: [
+        { name: "🏢 送樣單位", value: "現場一課（送樣人：陳明哲）" },
+        { name: "🧪 檢驗品名", value: "IPAUPS" },
+        { name: "🛢️ 槽號 / 車牌", value: "TK624 / PPCU7019228" },
+        { name: "📋 檢驗單號", value: "ESXM101-20260901013" },
+        { name: "🎯 判定結果", value: "PASS (合格放行)" },
+        { name: "📝 判定備註", value: "水分與金屬離子檢驗合規" },
+        { name: "⏱️ 完成時間", value: new Date().toLocaleString() }
+      ]
+    };
+    closeTeamsConfigModal();
+    showTeamsPreviewModal("現場一課", dummyData);
+  }
+
+  // 本機測試：一鍵注入一筆 2.5 小時前的超時樣品
+  function injectOverdueTestSample() {
+    const twoAndHalfHoursAgo = new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString();
+    const testSample = {
+      id: "sample-overdue-" + Date.now(),
+      barcode: "ESXM101-超時測試單",
+      flowType: "出貨",
+      grade: "UPS",
+      productName: "IPAUPS",
+      tankNo: "TK605",
+      customer: "PPCU7020018",
+      quantity: "5000 KG",
+      dept: "現場一課",
+      requester: "王大同",
+      status: "pending",
+      createdAt: twoAndHalfHoursAgo,
+      isAlerted: false
+    };
+
+    allData.unshift(testSample);
+    if (!IS_GAS) {
+      localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+    }
+    render();
+    showToast("⚠️ 已注入等候 2.5 小時的測試樣品！看板已呈現紅字警報。");
+  }
+
+  // 本機測試：手動觸發 2 小時巡檢警報
+  function triggerOverdueCheckLocal() {
+    const overdueList = allData.filter(s => {
+      if (s.status !== 'pending' || !s.createdAt) return false;
+      const diffMs = Date.now() - new Date(s.createdAt).getTime();
+      return diffMs >= (2 * 60 * 60 * 1000);
+    });
+
+    if (overdueList.length === 0) {
+      alert("目前沒有等候超過 2 小時的待驗樣品！\n\n您可以先點擊「⏱️ 注入逾期樣品 (>2小時)」進行模擬。");
+      return;
+    }
+
+    const target = overdueList[0];
+    const diffHours = ((Date.now() - new Date(target.createdAt).getTime()) / (1000 * 60 * 60)).toFixed(1);
+
+    const overdueCardPayload = {
+      "@type": "MessageCard",
+      "@context": "http://schema.org/extensions",
+      "themeColor": "D9381E",
+      "summary": `🚨【QC 檢驗超時警報】${target.productName} 等候已達 ${diffHours} 小時`,
+      "sections": [{
+        "activityTitle": `🚨【QC 檢驗超時警報】等候已達 ${diffHours} 小時`,
+        "activitySubtitle": `樣品檢驗已逾 2 小時未判定，請品管與 ${target.dept} 儘速處理`,
+        "facts": [
+          { "name": "🏢 送樣單位", "value": `${target.dept}（送樣人：${target.requester || '無'}）` },
+          { "name": "🧪 檢驗品名", "value": target.productName },
+          { "name": "🛢️ 槽號 / 車牌", "value": `${target.tankNo || '-'} / ${target.customer || '-'}` },
+          { "name": "📋 單號編號", "value": target.barcode },
+          { "name": "⏰ 送樣時間", "value": formatSimpleDate(target.createdAt) }
+        ],
+        "markdown": true
+      }]
+    };
+
+    const previewData = {
+      title: `🚨【QC 檢驗超時警報】等候已達 ${diffHours} 小時`,
+      subtitle: `樣品檢驗已逾 2 小時未判定，請品管與 ${target.dept} 儘速處理`,
+      color: "red",
+      facts: [
+        { name: "🏢 送樣單位", value: `${target.dept}（送樣人：${target.requester || '無'}）` },
+        { name: "🧪 檢驗品名", value: target.productName },
+        { name: "🛢️ 槽號 / 車牌", value: `${target.tankNo || '-'} / ${target.customer || '-'}` },
+        { name: "📋 單號編號", value: target.barcode },
+        { name: "⏰ 送樣時間", value: formatSimpleDate(target.createdAt) }
+      ]
+    };
+
+    dispatchTeamsCard(target.dept, overdueCardPayload, previewData);
+  }
+
+  // 初始化 T100 下拉選單（依出貨/進料分群）
+  function renderT100Dropdown() {
+    const sel = document.getElementById('t100Select');
+    const outOrders = t100Orders.filter(o => o.flowType === '出貨');
+    const inOrders = t100Orders.filter(o => o.flowType === '進料');
+
+    let html = `<option value="">-- 點此直接選擇 T100 槽車排程 (共 ${t100Orders.length} 車次：${outOrders.length} 出貨 + ${inOrders.length} 進料) --</option>`;
+
+    if(outOrders.length > 0) {
+      html += `<optgroup label="🚚 【出貨槽車排程】(${outOrders.length} 車次)">`;
+      outOrders.forEach(o => {
+        const globalIdx = t100Orders.indexOf(o);
+        const timeBadge = o.time ? `[${o.time}] ` : '';
+        const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
+        const boxBadge = o.container ? ` [車/櫃:${o.container}]` : '';
+        html += `<option value="${globalIdx}">${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    if(inOrders.length > 0) {
+      html += `<optgroup label="📥 【進料/入庫槽車排程】(${inOrders.length} 車次)">`;
+      inOrders.forEach(o => {
+        const globalIdx = t100Orders.indexOf(o);
+        const timeBadge = o.time ? `[${o.time}] ` : '';
+        const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
+        const boxBadge = o.container ? ` [車:${o.container}]` : '';
+        html += `<option value="${globalIdx}">${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
+      });
+      html += `</optgroup>`;
+    }
+
+    sel.innerHTML = html;
+  }
+
+  // 當使用者在下拉選單選取某車次時，自動帶入表單
+  function onT100SelectChange(val) {
+    if(val === "") return;
+    const item = t100Orders[parseInt(val)];
+    if(!item) return;
+
+    document.getElementById('barcode').value = item.doc_no || '';
+    document.getElementById('flowType').value = item.flowType || '出貨';
+    document.getElementById('grade').value = item.grade || '工業級';
+    document.getElementById('productName').value = item.productName || '';
+    document.getElementById('tankNo').value = item.tankNo || '';
+    document.getElementById('customer').value = item.container || item.customer || '';
+    document.getElementById('quantity').value = item.quantity || '';
+    
+    showToast(`✅ 已自動帶入 [${item.flowType}] 排程：${item.productName} (${item.container || item.tankNo})`);
+    document.getElementById('requester').focus();
+  }
+
+  // 前端即時解析上傳的 Excel（自動動態掃描「出貨」與「進料」雙區塊）
+  function handleExcelUpload(e) {
+    const file = e.target.files[0];
+    if(!file) return;
+
+    showToast("正在解析 Excel 槽車分頁(出貨與進料)...");
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      try {
+        const data = new Uint8Array(evt.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        let targetSheetName = workbook.SheetNames.find(n => n.includes('槽車'));
+        if(!targetSheetName) {
+          targetSheetName = workbook.SheetNames[0];
+          alert(`⚠️ 試算表中未找到包含「槽車」的分頁，預設使用第一分頁：「${targetSheetName}」`);
+        }
+
+        const worksheet = workbook.Sheets[targetSheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if(rows.length < 5) {
+          alert("Excel 列數不足，請確認檔案格式是否正確。");
+          return;
+        }
+
+        let currentMode = null;
+        let colMap = {};
+        const newOrders = [];
+
+        for(let r = 0; r < rows.length; r++) {
+          const row = rows[r];
+          if(!row || row.length === 0) continue;
+
+          const firstCell = String(row[0] || '').trim();
+          if(firstCell.includes('出貨通知單') || firstCell.includes('出通單')) {
+            currentMode = '出貨';
+            colMap = {};
+            for(let c = 0; c < row.length; c++) {
+              const h = String(row[c] || '').trim();
+              if(h) colMap[h] = c;
+            }
+            continue;
+          } else if(firstCell.includes('入庫單') || firstCell.includes('進貨單')) {
+            currentMode = '進料';
+            colMap = {};
+            for(let c = 0; c < row.length; c++) {
+              const h = String(row[c] || '').trim();
+              if(h) colMap[h] = c;
+            }
+            continue;
+          }
+
+          if(!currentMode || Object.keys(colMap).length === 0) continue;
+
+          if(currentMode === '出貨') {
+            const docNo = row[colMap['出貨通知單']];
+            const prod = row[colMap['品名']];
+            if(!docNo || !prod) continue;
+
+            const timeStr = row[colMap['預計出貨時間']] || '';
+            const tank = row[colMap['出貨槽號']] || row[colMap['槽號']] || '';
+            const cust = row[colMap['客戶名稱']] || '';
+            const container = row[colMap['貨櫃號碼']] || '';
+            const qty = row[colMap['預計出貨數量(KG)']] || '';
+            const spec = row[colMap['規格說明']] || '';
+            const note = row[colMap['備註']] || '';
+
+            let grade = '工業級';
+            if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
+            else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
+
+            newOrders.push({
+              doc_no: String(docNo).trim(),
+              time: String(timeStr || '').trim(),
+              flowType: '出貨',
+              grade: grade,
+              productName: String(prod).trim(),
+              tankNo: String(tank || '').trim(),
+              customer: String(cust || '').trim(),
+              container: container ? container : String(cust || '').trim(),
+              quantity: qty ? `${qty} KG` : String(spec || '').trim(),
+              note: String(note || '').trim()
+            });
+          } else if(currentMode === '進料') {
+            const docNo = row[colMap['入庫單']];
+            const prod = row[colMap['品名']];
+            if(!docNo || !prod) continue;
+
+            const timeStr = row[colMap['預計進貨時間']] || '';
+            const tank = row[colMap['槽别']] || row[colMap['儲位']] || '';
+            const spec = row[colMap['規格']] || '';
+            const vendor = row[colMap['供應商簡稱']] || '';
+            const origin = row[colMap['出貨廠別(廠商)']] || '';
+            const truck = row[colMap['車牌號碼']] || '';
+            const box = row[colMap['櫃號']] || '';
+            const qty = row[colMap['預計進貨數量(KG)']] || '';
+            const note = row[colMap['備註']] || '';
+
+            let container = String(truck || '').trim();
+            if(box && String(box).trim()) {
+              container = container ? `${container} (櫃:${box})` : String(box).trim();
+            }
+
+            const custStr = (vendor && origin) ? `${vendor} (${origin})` : (origin || vendor || '');
+
+            let grade = '工業級';
+            if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
+            else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
+
+            newOrders.push({
+              doc_no: String(docNo).trim(),
+              time: String(timeStr || '').trim(),
+              flowType: '進料',
+              grade: grade,
+              productName: String(prod).trim(),
+              tankNo: String(tank || '').trim(),
+              customer: custStr.trim(),
+              container: container ? container : custStr.trim(),
+              quantity: qty ? `${qty} KG` : String(spec || '').trim(),
+              note: String(note || '').trim()
+            });
+          }
+        }
+
+        if(newOrders.length === 0) {
+          alert("未在此分頁解析出任何有效的槽車排程！");
+          return;
+        }
+
+        t100Orders = newOrders;
+        renderT100Dropdown();
+        const outCount = newOrders.filter(o => o.flowType === '出貨').length;
+        const inCount = newOrders.filter(o => o.flowType === '進料').length;
+        showToast(`🎉 成功自「${targetSheetName}」匯入 ${newOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`);
+      } catch(err) {
+        console.error(err);
+        alert("解析 Excel 失敗：" + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function getFlowTag(type) {
+    if(type === '進料') return `<span class="tag-flow tag-in">進料</span>`;
+    if(type === '出貨') return `<span class="tag-flow tag-out">出貨</span>`;
+    if(type === '補料') return `<span class="tag-flow tag-replenish">補料</span>`;
+    if(type === '委託') return `<span class="tag-flow tag-commission">委託</span>`;
+    return `<span class="tag-flow tag-in">${type || '-'}</span>`;
+  }
+
+  function formatSimpleDate(isoString) {
+    if(!isoString) return '-';
+    const d = new Date(isoString);
+    if(isNaN(d.getTime())) return isoString;
+    const pad = n => n.toString().padStart(2, '0');
+    return `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  // 計算等候時間並產生紅/藍狀態徽章
+  function getWaitTimeBadge(createdAt) {
+    if(!createdAt) return '-';
+    const createdTime = new Date(createdAt).getTime();
+    if(isNaN(createdTime)) return '-';
+
+    const diffMs = Date.now() - createdTime;
+    const diffHours = (diffMs / (1000 * 60 * 60)).toFixed(1);
+
+    if (diffMs >= (2 * 60 * 60 * 1000)) {
+      return `<div class="badge-overdue">⚠️ 等候 ${diffHours} 小時 (逾期)</div>`;
+    }
+    return `<div class="badge-ontime">⏱️ 等候 ${diffHours} 小時</div>`;
+  }
+
+  // 動態套用雲端/本機自訂下拉選單選項 (動向、等級、品名)
+  function applyDynamicDropdownOptions(cfg) {
+    if(!cfg) return;
+
+    // 1. 動態填充「動向」
+    if(cfg.flowTypes && cfg.flowTypes.length) {
+      const selFlow = document.getElementById('flowType');
+      if(selFlow) {
+        const cur = selFlow.value;
+        selFlow.innerHTML = cfg.flowTypes.map(f => `<option value="${f}">${f}</option>`).join('');
+        if(cfg.flowTypes.includes(cur)) selFlow.value = cur;
+      }
+    }
+
+    // 2. 動態填充「等級」
+    if(cfg.grades && cfg.grades.length) {
+      const selGrade = document.getElementById('grade');
+      if(selGrade) {
+        const cur = selGrade.value;
+        selGrade.innerHTML = cfg.grades.map(g => `<option value="${g}">${g}</option>`).join('');
+        if(cfg.grades.includes(cur)) selGrade.value = cur;
+      }
+    }
+
+    // 3. 動態填充「品名」datalist
+    if(cfg.products && cfg.products.length) {
+      const dl = document.getElementById('productList');
+      if(dl) {
+        dl.innerHTML = cfg.products.map(p => `<option value="${p}">`).join('');
+      }
+    }
+
+    // 4. 動態填充「送樣單位」
+    if(cfg.depts && cfg.depts.length) {
+      const selDept = document.getElementById('dept');
+      if(selDept) {
+        const cur = selDept.value;
+        selDept.innerHTML = cfg.depts.map(d => `<option value="${d}">${d}</option>`).join('');
+        if(cfg.depts.includes(cur)) selDept.value = cur;
+      }
+    }
+  }
+
+  function getLocalDynamicOptions() {
+    const raw = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    if(raw) {
+      try { return JSON.parse(raw); } catch(e){}
+    }
+    return {
+      flowTypes: ['出貨', '進料', '補料', '委託'],
+      grades: ['工業級', 'UPS', 'IF'],
+      depts: ['資材課', '現場一課', '現場二課', '回收處理課'],
+      products: [
+        'IPA', 'IPAUPS', 'IPAHQ', 'CPNE3(T)', 'CPNE4', 'CPN-P1R',
+        'EBR', 'EBR-P1R', 'NBAC', 'NBAC-P1R', 'CPN', 'EG',
+        'NMP', 'GAA', 'ACT', 'PM', 'PMA98', 'heavy-R',
+        'DPM', 'DPM-B1', 'SEP73', 'Anone', 'GBL', 'PG', 'EBRR'
+      ]
+    };
+  }
+
+  // 雙模數據載入（GAS 模式 / Cloudflare Pages PWA API 連線 / 離線快取模式）
+  function load() {
+    loadTeamsConfig();
+    if(IS_GAS) {
+      document.getElementById('envBadge').innerText = "☁️ GAS 雲端連線中";
+      google.script.run.withSuccessHandler(data => { allData = data; render(); }).getSamples();
+      google.script.run.withSuccessHandler(cfg => {
+        if(cfg) {
+          applyDynamicDropdownOptions(cfg);
+          localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
+        }
+      }).getSystemConfig();
+    } else if (GAS_API_URL) {
+      document.getElementById('envBadge').innerText = "☁️ 雲端 API 同步中";
+      // 1. 抓取試算表樣品
+      fetch(`${GAS_API_URL}?action=getSamples`)
+        .then(res => res.json())
+        .then(data => {
+          allData = data;
+          localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+          render();
+        })
+        .catch(err => {
+          console.warn("API 取得樣品失敗，使用離線資料", err);
+          document.getElementById('envBadge').innerText = "💻 離線模式";
+          const stored = localStorage.getItem('HS_QC_SAMPLES');
+          if(stored) { try { allData = JSON.parse(stored); } catch(e){} }
+          render();
+        });
+
+      // 2. 抓取試算表系統配置 (選單與 PIN 碼)
+      fetch(`${GAS_API_URL}?action=getConfig`)
+        .then(res => res.json())
+        .then(cfg => {
+          if(cfg) {
+            applyDynamicDropdownOptions(cfg);
+            localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
+          }
+        })
+        .catch(err => {
+          console.warn("API 取得選單失敗，使用快取", err);
+          applyDynamicDropdownOptions(getLocalDynamicOptions());
+        });
+    } else {
+      document.getElementById('envBadge').innerText = "💻 獨立 PWA 運作模式";
+      applyDynamicDropdownOptions(getLocalDynamicOptions());
+      const stored = localStorage.getItem('HS_QC_SAMPLES');
+      if(stored) {
+        try { allData = JSON.parse(stored); } catch(e) { allData = []; }
+      } else {
+        allData = [
+          { id: "sample-1", barcode: "ESXM101-20260901013", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK624", customer: "PPCU7019228", quantity: "5000 KG", dept: "資材課", requester: "陳明哲", status: "pending", createdAt: new Date(Date.now() - 2.5 * 3600 * 1000).toISOString() },
+          { id: "sample-2", barcode: "ESPM411-20260906001", flowType: "進料", grade: "工業級", productName: "EBR-P1R", tankNo: "TKC05", customer: "KEQ-3506 (櫃:6108)", quantity: "8000 KG", dept: "回收處理課", requester: "張建國", status: "pending", createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
+          { id: "sample-3", barcode: "ESXM101-20260901020", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK605", customer: "PPCU7020018", quantity: "5000 KG", dept: "現場一課", requester: "林大為", status: "completed", qcResult: "PASS", qcNote: "品質合格放行", createdAt: new Date(Date.now()-3600000).toISOString(), completedAt: new Date().toISOString() }
+        ];
+        localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+      }
+      render();
+    }
+  }
+
+  function render() {
+    const kw = (document.getElementById('kwInput').value || '').toLowerCase();
+    const start = document.getElementById('dateStart').value;
+    const end = document.getElementById('dateEnd').value;
+    const pHead = document.querySelector("#table-pending thead");
+    const cHead = document.querySelector("#table-completed thead");
+    const pBody = document.querySelector("#table-pending tbody");
+    const cBody = document.querySelector("#table-completed tbody");
+    const isAdaptive = (localStorage.getItem('HS_QC_TABLE_MODE') || 'adaptive') === 'adaptive';
+
+    const filtered = allData.filter(s => {
+      const matchKw = String(s.barcode || '').toLowerCase().includes(kw) || 
+                      String(s.productName || '').toLowerCase().includes(kw) || 
+                      String(s.tankNo || '').toLowerCase().includes(kw) ||
+                      String(s.customer || '').toLowerCase().includes(kw) ||
+                      String(s.dept || '').toLowerCase().includes(kw);
+      const sDate = s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : '';
+      const matchDate = (!start || sDate >= start) && (!end || sDate <= end);
+      return matchKw && matchDate;
+    });
+
+    const pData = filtered.filter(s => s.status === 'pending');
+    const cData = filtered.filter(s => s.status === 'completed');
+
+    // 計算逾期件數
+    const overdueCount = pData.filter(s => {
+      if (!s.createdAt) return false;
+      return (Date.now() - new Date(s.createdAt).getTime()) >= (2 * 60 * 60 * 1000);
+    }).length;
+
+    document.getElementById('kpi-pending').innerText = pData.length;
+    document.getElementById('kpi-overdue').innerText = overdueCount;
+    document.getElementById('kpi-completed').innerText = cData.length;
+    document.getElementById('pendingCountBadge').innerText = `${pData.length} 件 (逾期 ${overdueCount})`;
+    document.getElementById('completedCountBadge').innerText = `${cData.length} 件`;
+    const tabP = document.getElementById('tabCountPending');
+    if(tabP) tabP.innerText = `${pData.length} (逾期 ${overdueCount})`;
+    const tabC = document.getElementById('tabCountCompleted');
+    if(tabC) tabC.innerText = `${cData.length}`;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('kpi-today').innerText = allData.filter(s => s.createdAt && s.createdAt.startsWith(todayStr)).length;
+
+    // 動態切換表頭 Thead
+    if (isAdaptive) {
+      if (pHead) {
+        pHead.innerHTML = `<tr>
+          <th style="width: 30%;">品項 / 單號</th>
+          <th style="width: 23%;">槽號 / 車牌</th>
+          <th style="width: 28%;">送樣單位 / 等候時長</th>
+          <th style="width: 19%; text-align:center;">操作</th>
+        </tr>`;
+      }
+      if (cHead) {
+        cHead.innerHTML = `<tr>
+          <th style="width: 30%;">品項 / 單號</th>
+          <th style="width: 23%;">槽號 / 車牌</th>
+          <th style="width: 26%;">送樣單位 / 判定</th>
+          <th style="width: 21%;">判定備註</th>
+        </tr>`;
+      }
+
+      // 自適應 4 欄內容（零水平捲軸）
+      pBody.innerHTML = pData.length ? pData.map(s => `<tr>
+        <td>
+          <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:2px;">
+            <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
+            ${getFlowTag(s.flowType)}
+            <span style="font-size:0.72rem; font-weight:bold; color:#1e40af; background:#eff6ff; padding:1px 4px; border-radius:3px;">${s.grade || '-'}</span>
+          </div>
+          <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">單: <b>${s.barcode}</b></div>
+        </td>
+        <td>
+          <div style="margin-bottom:2px;">
+            <span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.78rem;">${s.tankNo || '-'}</span>
+          </div>
+          <div style="font-size:0.76rem; color:#334155; word-break:break-all;">車: <b>${s.customer || '-'}</b></div>
+        </td>
+        <td>
+          <div style="font-weight:600; color:#1e293b; font-size:0.8rem; margin-bottom:2px;">
+            ${s.dept} ${s.requester ? `<span style="font-size:0.72rem; color:#64748b;">(${s.requester})</span>` : ''}
+          </div>
+          <div style="font-size:0.72rem; color:#64748b;">${formatSimpleDate(s.createdAt)}</div>
+          <div style="margin-top:2px;">${getWaitTimeBadge(s.createdAt)}</div>
+        </td>
+        <td style="text-align:center;">
+          <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+            <button class="btn-action btn-print" onclick="printLabelById('${s.id}')" style="width:100%; padding:4px 0; font-size:0.75rem; margin:0;">列印</button>
+            <button class="btn-action btn-judge" onclick="openJudge('${s.id}')" style="width:100%; padding:4px 0; font-size:0.75rem; margin:0;">判定</button>
+          </div>
+        </td>
+      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
+
+      cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
+        <td>
+          <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:2px;">
+            <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
+            ${getFlowTag(s.flowType)}
+            <span style="font-size:0.72rem; font-weight:bold; color:#1e40af; background:#eff6ff; padding:1px 4px; border-radius:3px;">${s.grade || '-'}</span>
+          </div>
+          <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">單: <b>${s.barcode}</b></div>
+        </td>
+        <td>
+          <div style="margin-bottom:2px;">
+            <span style="background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.78rem;">${s.tankNo || '-'}</span>
+          </div>
+          <div style="font-size:0.76rem; color:#334155; word-break:break-all;">車: <b>${s.customer || '-'}</b></div>
+        </td>
+        <td>
+          <div style="display:flex; align-items:center; gap:4px; margin-bottom:2px; flex-wrap:wrap;">
+            <span style="font-weight:600; color:#1e293b; font-size:0.8rem;">${s.dept || '-'}</span>
+            <b style="color:${s.qcResult==='PASS'?'#059669':'#dc2626'}; background:${s.qcResult==='PASS'?'#d1fae5':'#fee2e2'}; padding:1px 5px; border-radius:4px; font-size:0.74rem;">${s.qcResult}</b>
+          </div>
+          <div style="font-size:0.72rem; color:#64748b;">完成: ${formatSimpleDate(s.completedAt)}</div>
+        </td>
+        <td>
+          <div style="font-size:0.76rem; color:#475569; line-height:1.3; max-height:48px; overflow-y:auto; word-break:break-word;">
+            ${s.qcNote || '<span style="color:#94a3b8;">無備註</span>'}
+          </div>
+        </td>
+      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
+    } else {
+      // 傳統完整九欄展開模式
+      if (pHead) {
+        pHead.innerHTML = `<tr>
+          <th>單號</th>
+          <th>動向</th>
+          <th>等級</th>
+          <th>品名</th>
+          <th>槽號</th>
+          <th>車牌/櫃號</th>
+          <th>送樣單位</th>
+          <th>送樣時間 / 等候時長</th>
+          <th class="col-action">操作</th>
+        </tr>`;
+      }
+      if (cHead) {
+        cHead.innerHTML = `<tr>
+          <th>單號</th>
+          <th>動向</th>
+          <th>等級</th>
+          <th>品名</th>
+          <th>槽號</th>
+          <th>車牌/櫃號</th>
+          <th>送樣單位</th>
+          <th>判定結果</th>
+          <th>完成時間</th>
+          <th>判定備註</th>
+        </tr>`;
+      }
+
+      pBody.innerHTML = pData.length ? pData.map(s => `<tr>
+        <td><b>${s.barcode}</b></td>
+        <td>${getFlowTag(s.flowType)}</td>
+        <td><span style="font-weight:bold; color:#1e40af;">${s.grade || '-'}</span></td>
+        <td><b>${s.productName}</b></td>
+        <td><span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:bold;">${s.tankNo || '-'}</span></td>
+        <td>${s.customer || '-'}</td>
+        <td><span style="font-weight:bold; color:#475569;">${s.dept}</span></td>
+        <td>
+          <div style="color:#64748b; font-size:0.8rem; font-weight:bold;">${formatSimpleDate(s.createdAt)}</div>
+          <div style="margin-top:3px;">${getWaitTimeBadge(s.createdAt)}</div>
+        </td>
+        <td class="col-action" style="white-space: nowrap; text-align:center;">
+          <button class="btn-action btn-print" onclick="printLabelById('${s.id}')">列印</button>
+          <button class="btn-action btn-judge" onclick="openJudge('${s.id}')">判定</button>
+        </td>
+      </tr>`).join('') : `<tr><td colspan="9" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
+      
+      cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
+        <td><b>${s.barcode}</b></td>
+        <td>${getFlowTag(s.flowType)}</td>
+        <td><b>${s.grade || '-'}</b></td>
+        <td><b>${s.productName}</b></td>
+        <td>${s.tankNo || '-'}</td>
+        <td>${s.customer || '-'}</td>
+        <td><span style="font-weight:600; color:#475569;">${s.dept || '-'}</span></td>
+        <td><b style="color:${s.qcResult==='PASS'?'#059669':'#dc2626'}; background:${s.qcResult==='PASS'?'#d1fae5':'#fee2e2'}; padding:3px 8px; border-radius:4px;">${s.qcResult}</b></td>
+        <td style="color:#4b5563;">${formatSimpleDate(s.completedAt)}</td>
+        <td style="font-size:0.8rem; color:#64748b;">${s.qcNote || '-'}</td>
+      </tr>`).join('') : `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
+    }
+  }
+
+  function resetFilters() {
+    document.getElementById('kwInput').value = '';
+    document.getElementById('dateStart').value = '';
+    document.getElementById('dateEnd').value = '';
+    render();
+  }
+
+  function resetForm() {
+    document.getElementById('qcForm').reset();
+    document.getElementById('t100Select').value = '';
+    setBarcodePlaceholder();
+  }
+
+  function submitForm() {
+    let barcode = document.getElementById('barcode').value.trim();
+    const productName = document.getElementById('productName').value.trim();
+    const tankNo = document.getElementById('tankNo').value.trim();
+    const customer = document.getElementById('customer').value.trim();
+    const requester = document.getElementById('requester').value.trim();
+    const dept = document.getElementById('dept').value;
+
+    if (!productName || !tankNo || !customer || !requester) {
+      alert("⚠️ 提交失敗！\n\n「品名、進出貨槽號、車牌/櫃號、送樣人員」皆為必填項目，請確認填妥後再送出。");
+      return; 
+    }
+
+    if (!barcode) {
+      const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      barcode = `${todayStr}-庫存`;
+    }
+
+    const btn = document.getElementById('submitBtn'); 
+    btn.disabled = true; 
+    btn.innerText = "寫入送樣紀錄中...";
+    
+    const payload = { 
+      id: 'ID-' + Date.now(),
+      barcode: barcode, 
+      flowType: document.getElementById('flowType').value, 
+      grade: document.getElementById('grade').value,
+      productName: productName, 
+      tankNo: tankNo, 
+      customer: customer, 
+      quantity: document.getElementById('quantity').value, 
+      dept: dept, 
+      requester: requester,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    if(IS_GAS) {
+      google.script.run.withSuccessHandler(() => { 
+        resetForm();
+        btn.disabled = false; 
+        btn.innerText = "確認提交送樣 🚀"; 
+        showToast("✅ 送樣成功已寫入 Google 試算表！");
+        load(); 
+      }).createSample(payload);
+    } else if(GAS_API_URL) {
+      fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'createSample', payload: payload })
+      })
+      .then(res => res.json())
+      .then(res => {
+        resetForm();
+        btn.disabled = false;
+        btn.innerText = "確認提交送樣 🚀";
+        if(res.success) {
+          showToast("✅ 送樣成功已即時寫入 Google 試算表！");
+          load();
+        } else {
+          alert("送樣失敗：" + (res.error || "未知錯誤"));
+        }
+      })
+      .catch(err => {
+        console.warn("API 送樣異常，暫存本機", err);
+        allData.unshift(payload);
+        localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        resetForm();
+        btn.disabled = false;
+        btn.innerText = "確認提交送樣 🚀";
+        showToast("⚠️ 雲端連線失敗，已先暫存於本機！");
+        render();
+      });
+    } else {
+      setTimeout(() => {
+        allData.unshift(payload);
+        localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        resetForm();
+        btn.disabled = false; 
+        btn.innerText = "確認提交送樣 🚀"; 
+        showToast("✅ 送樣成功（本機/離線紀錄已更新）！");
+        render();
+      }, 300);
+    }
+  }
+
+  function printLabelById(id) { 
+    const targetData = allData.find(d => d.id === id); 
+    if(!targetData) return;
+
+    // 若曾記住偏好設定，直接快速列印 (水分/GC 1張 + Metal 2張)
+    const remember = localStorage.getItem('HS_QC_REMEMBER_PRINT');
+    if(remember === 'true') {
+      const wQty = parseInt(localStorage.getItem('HS_QC_PRINT_WATER') || '1', 10);
+      const mQty = parseInt(localStorage.getItem('HS_QC_PRINT_METAL') || '2', 10);
+      doPrintLabels(targetData, wQty, mQty);
+      return;
+    }
+
+    openPrintModal(targetData);
+  }
+
+  // 工具箱點擊：隨時開啟設定修改貼紙規格或張數
+  function openPrintSettingsGlobal() {
+    const dummy = allData[0] || {
+      id: "dummy",
+      barcode: "ESXM101-設定預覽單",
+      productName: "IPAUPS",
+      grade: "UPS",
+      tankNo: "TK624",
+      customer: "PPCU7019228",
+      flowType: "出貨",
+      quantity: "5000 KG",
+      dept: "資材課",
+      requester: "品管測試員",
+      createdAt: new Date().toISOString()
+    };
+    openPrintModal(dummy);
+  }
+
+  function openPrintModal(data) {
+    document.getElementById('printTargetId').value = data.id;
+    document.getElementById('printPreviewBarcode').innerText = data.barcode;
+    document.getElementById('printPreviewProduct').innerText = data.productName + ' (' + (data.grade || '-') + ')';
+    document.getElementById('printPreviewTank').innerText = data.tankNo || '-';
+    document.getElementById('printPreviewTruck').innerText = data.customer || '-';
+    document.getElementById('printPreviewDept').innerText = data.dept;
+    document.getElementById('printPreviewRequester').innerText = data.requester;
+
+    const savedW = localStorage.getItem('HS_QC_PRINT_WATER') || '1';
+    const savedM = localStorage.getItem('HS_QC_PRINT_METAL') || '2';
+    const savedWidth = localStorage.getItem('HS_QC_PRINT_WIDTH') || '90';
+    const savedHeight = localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100';
+
+    document.getElementById('printQtyWaterGC').value = savedW;
+    document.getElementById('printQtyMetal').value = savedM;
+    document.getElementById('printLabelWidth').value = savedWidth;
+    document.getElementById('printLabelHeight').value = savedHeight;
+    document.getElementById('rememberPrintSettings').checked = (localStorage.getItem('HS_QC_REMEMBER_PRINT') === 'true');
+
+    updateTotalLabelCount();
+    document.getElementById('printModal').style.display = 'flex';
+  }
+
+  function closePrintModal() {
+    document.getElementById('printModal').style.display = 'none';
+  }
+
+  function updateTotalLabelCount() {
+    const w = parseInt(document.getElementById('printQtyWaterGC').value || '0', 10);
+    const m = parseInt(document.getElementById('printQtyMetal').value || '0', 10);
+    const width = parseInt(document.getElementById('printLabelWidth').value || '90', 10);
+    const height = parseInt(document.getElementById('printLabelHeight').value || '100', 10);
+    const total = w + m;
+    document.getElementById('printTotalLabelCount').innerText = `${total} 張 (${width}mm × ${height}mm)`;
+  }
+
+  function resetPrintSettingsToDefault() {
+    localStorage.removeItem('HS_QC_REMEMBER_PRINT');
+    localStorage.removeItem('HS_QC_PRINT_WATER');
+    localStorage.removeItem('HS_QC_PRINT_METAL');
+    localStorage.removeItem('HS_QC_PRINT_WIDTH');
+    localStorage.removeItem('HS_QC_PRINT_HEIGHT');
+    document.getElementById('printQtyWaterGC').value = '1';
+    document.getElementById('printQtyMetal').value = '2';
+    document.getElementById('printLabelWidth').value = '90';
+    document.getElementById('printLabelHeight').value = '100';
+    document.getElementById('rememberPrintSettings').checked = false;
+    updateTotalLabelCount();
+    showToast("🔄 已恢復預設規格：90mm × 100mm，水分/GC 1張 + Metal 2張！");
+  }
+
+  function confirmPrintLabels() {
+    const id = document.getElementById('printTargetId').value;
+    const targetData = allData.find(d => d.id === id);
+    if(!targetData) return;
+
+    const wQty = parseInt(document.getElementById('printQtyWaterGC').value || '0', 10);
+    const mQty = parseInt(document.getElementById('printQtyMetal').value || '0', 10);
+    const width = parseInt(document.getElementById('printLabelWidth').value || '90', 10);
+    const height = parseInt(document.getElementById('printLabelHeight').value || '100', 10);
+
+    if(wQty + mQty <= 0) {
+      alert("請至少選擇列印 1 張標籤！");
+      return;
+    }
+
+    localStorage.setItem('HS_QC_PRINT_WATER', String(wQty));
+    localStorage.setItem('HS_QC_PRINT_METAL', String(mQty));
+    localStorage.setItem('HS_QC_PRINT_WIDTH', String(width));
+    localStorage.setItem('HS_QC_PRINT_HEIGHT', String(height));
+
+    if(document.getElementById('rememberPrintSettings').checked) {
+      localStorage.setItem('HS_QC_REMEMBER_PRINT', 'true');
+    } else {
+      localStorage.removeItem('HS_QC_REMEMBER_PRINT');
+    }
+
+    closePrintModal();
+    doPrintLabels(targetData, wQty, mQty);
+  }
+
+  // 標籤機專用連續列印輸出核心 (支援動態貼紙寬度與高度)
+  function doPrintLabels(data, waterCount, metalCount) {
+    const totalLabels = waterCount + metalCount;
+    const labelWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '90', 10);
+    const labelHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100', 10);
+    let labelPagesHtml = '';
+    let currentIdx = 1;
+
+    // 1. 水分 & GC 檢驗標籤 (共 waterCount 張)
+    for(let i = 1; i <= waterCount; i++) {
+      labelPagesHtml += `
+        <div class="label-page">
+          <div class="label-border">
+            <div class="label-header">
+              <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
+              <div class="badge-cat water">💧【水分 & GC 氣相層析】檢驗樣品 (第 ${currentIdx}/${totalLabels} 張)</div>
+            </div>
+            
+            <div class="barcode-banner">
+              <div class="barcode-num">${data.barcode}</div>
+            </div>
+
+            <table class="info-table">
+              <tr><td class="f-name">品名規格：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
+              <tr><td class="f-name">儲位槽號：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
+              <tr><td class="f-name">車牌/櫃號：</td><td class="f-val">${data.customer || '-'}</td></tr>
+              <tr><td class="f-name">動向/數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
+              <tr><td class="f-name">送樣單位：</td><td class="f-val">${data.dept} (送樣人: <b>${data.requester}</b>)</td></tr>
+              <tr><td class="f-name">送樣時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
+            </table>
+
+            <div class="lab-record-box">
+              <div class="lab-title">🧪 實驗室化驗手寫記錄：</div>
+              <div class="lab-row"><span>• 水分 (Karl Fischer)：</span><span class="fill-line">________________ ppm</span></div>
+              <div class="lab-row"><span>• GC 純度 (Purity)：</span><span class="fill-line">________________ %</span></div>
+              <div class="lab-row"><span>• 化驗員簽章：________</span><span>分析日期：____________</span></div>
+            </div>
+
+            <div class="label-footer">
+              <span>貼紙規格: ${labelWidth}mm×${labelHeight}mm</span>
+              <span>TSC / 標籤機適用</span>
+              <span>頁次: ${currentIdx} / ${totalLabels}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      currentIdx++;
+    }
+
+    // 2. Metal 金屬離子 ICP-MS 標籤 (共 metalCount 張)
+    for(let i = 1; i <= metalCount; i++) {
+      const isSecondSample = (i >= 2);
+      const bottleTitle = isSecondSample ? "瓶 2 (留樣存查 / 複檢)" : "瓶 1 (分析正樣)";
+      const bottleBadgeClass = isSecondSample ? "metal-retention" : "metal-main";
+
+      labelPagesHtml += `
+        <div class="label-page">
+          <div class="label-border">
+            <div class="label-header">
+              <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
+              <div class="badge-cat ${bottleBadgeClass}">🔬【Metal 金屬離子 ICP-MS】${bottleTitle} (第 ${currentIdx}/${totalLabels} 張)</div>
+            </div>
+            
+            <div class="barcode-banner">
+              <div class="barcode-num">${data.barcode}</div>
+            </div>
+
+            <table class="info-table">
+              <tr><td class="f-name">品名規格：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
+              <tr><td class="f-name">儲位槽號：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
+              <tr><td class="f-name">車牌/櫃號：</td><td class="f-val">${data.customer || '-'}</td></tr>
+              <tr><td class="f-name">動向/數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
+              <tr><td class="f-name">送樣單位：</td><td class="f-val">${data.dept} (送樣人: <b>${data.requester}</b>)</td></tr>
+              <tr><td class="f-name">送樣時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
+            </table>
+
+            <div class="lab-record-box">
+              <div class="lab-title">🔬 ICP-MS 痕量分析與留樣管控：</div>
+              <div class="lab-row"><span>• ICP-MS 檢驗案號：</span><span class="fill-line">__________________________</span></div>
+              <div class="lab-row"><span>• 樣品屬性：</span><span>${isSecondSample ? '☑ 48H 留樣存查   □ 複測備用' : '☑ 產線首驗正樣   □ 急件加測'}</span></div>
+              <div class="lab-row"><span>• 化驗員簽章：________</span><span>分析日期：____________</span></div>
+            </div>
+
+            <div class="label-footer">
+              <span>貼紙規格: ${labelWidth}mm×${labelHeight}mm</span>
+              <span>TSC / 標籤機適用</span>
+              <span>頁次: ${currentIdx} / ${totalLabels}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      currentIdx++;
+    }
+
+    const printWindow = window.open('', '_blank', 'width=750,height=800');
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>檢驗送樣標籤 - ${data.barcode}</title>
+        <style>
+          @page {
+            size: ${labelWidth}mm ${labelHeight}mm;
+            margin: 0;
+          }
+          * { box-sizing: border-box; }
+          html, body {
+            width: ${labelWidth}mm;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
+            background: #fff;
+            color: #000;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .label-page {
+            width: ${labelWidth}mm;
+            height: ${labelHeight}mm;
+            max-width: ${labelWidth}mm;
+            max-height: ${labelHeight}mm;
+            padding: 3mm 3.5mm;
+            page-break-after: always;
+            page-break-inside: avoid;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+          .label-page:last-child {
+            page-break-after: auto;
+          }
+          .label-border {
+            border: 2.5px solid #000;
+            border-radius: 6px;
+            height: 100%;
+            padding: 2.5mm 3mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+          .label-header {
+            text-align: center;
+            border-bottom: 1.5px solid #000;
+            padding-bottom: 2mm;
+          }
+          .corp-title {
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #333;
+          }
+          .badge-cat {
+            margin-top: 1.5mm;
+            padding: 2mm 1mm;
+            font-size: 13px;
+            font-weight: 900;
+            color: #fff;
+            border-radius: 4px;
+            text-align: center;
+          }
+          .badge-cat.water {
+            background: #1e3a8a;
+          }
+          .badge-cat.metal-main {
+            background: #0f172a;
+          }
+          .badge-cat.metal-retention {
+            background: #334155;
+          }
+          .barcode-banner {
+            margin: 1.5mm 0;
+            text-align: center;
+            background: #f1f5f9;
+            border: 1px dashed #475569;
+            border-radius: 4px;
+            padding: 1mm 2mm;
+          }
+          .barcode-num {
+            font-size: 15px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: #000;
+          }
+          .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11.5px;
+            margin: 1mm 0;
+          }
+          .info-table td {
+            padding: 1.2mm 0.5mm;
+            vertical-align: middle;
+            border-bottom: 0.5px solid #e2e8f0;
+          }
+          .info-table tr:last-child td {
+            border-bottom: none;
+          }
+          .f-name {
+            width: 23mm;
+            font-weight: 700;
+            color: #334155;
+            white-space: nowrap;
+          }
+          .f-val {
+            font-weight: 800;
+            color: #0f172a;
+          }
+          .tag-grade {
+            background: #dbeafe;
+            color: #1e40af;
+            font-size: 10px;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 2px;
+          }
+          .tag-tank {
+            background: #e0f2fe;
+            color: #0369a1;
+            padding: 1px 5px;
+            border-radius: 3px;
+          }
+          .lab-record-box {
+            border: 1.5px dashed #000;
+            border-radius: 4px;
+            padding: 1.5mm 2mm;
+            background: #fafafa;
+            font-size: 10.5px;
+            margin: 1mm 0;
+          }
+          .lab-title {
+            font-weight: 900;
+            color: #000;
+            margin-bottom: 1mm;
+          }
+          .lab-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1mm;
+          }
+          .lab-row:last-child {
+            margin-bottom: 0;
+          }
+          .fill-line {
+            font-weight: bold;
+            color: #444;
+          }
+          .label-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #64748b;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 1mm;
+            margin-top: 0.5mm;
+          }
+        </style>
+      </head>
+      <body>
+        ${labelPagesHtml}
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function(){ window.close(); };
+            }, 250);
+          };
+        <\/script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }
+
+  function openJudge(id) { 
+    document.getElementById('currentId').value = id; 
+    document.getElementById('modalNote').value = '合格放行'; 
+    document.getElementById('modalPin').value = ''; 
+    document.getElementById('judgeModal').style.display = 'flex'; 
+    document.getElementById('modalPin').focus();
+  }
+  function closeModal() { document.getElementById('judgeModal').style.display = 'none'; }
+
+  function submitJudge() {
+    const pin = document.getElementById('modalPin').value;
+    if(!pin) { alert("請輸入授權密碼！"); return; }
+    const btn = document.getElementById('modalBtn'); 
+    btn.disabled = true; 
+    btn.innerText = "驗證授權中...";
+    
+    const id = document.getElementById('currentId').value;
+    const result = document.getElementById('modalResult').value;
+    const note = document.getElementById('modalNote').value;
+    const targetItem = allData.find(d => d.id === id);
+
+    if(IS_GAS) {
+      google.script.run.withSuccessHandler((res) => { 
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
+        if(res.success) { 
+          closeModal(); 
+          showToast("✅ 判定放行完成！Teams 卡片已精準通報主管與該單位。");
+          load(); 
+        } else { 
+          alert(res.error); 
+          document.getElementById('modalPin').value = ''; 
+        }
+      }).completeSample(id, result, note, pin);
+    } else if(GAS_API_URL) {
+      fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'completeSample',
+          id: id,
+          result: result,
+          note: note,
+          pin: pin
+        })
+      })
+      .then(res => res.json())
+      .then(res => {
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
+        if(res.success) {
+          closeModal();
+          showToast("✅ 判定放行完成！試算表已更新，Teams 卡片已發送。");
+          load();
+        } else {
+          alert(res.error || "判定失敗");
+          document.getElementById('modalPin').value = '';
+        }
+      })
+      .catch(err => {
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
+        alert("雲端 API 連線異常：" + err.message);
+      });
+    } else {
+      setTimeout(() => {
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
+        if(pin !== '8888') {
+          alert("⛔ 授權失敗：品管專屬密碼錯誤！(預設為 8888)");
+          document.getElementById('modalPin').value = '';
+          return;
+        }
+        if(targetItem) {
+          targetItem.status = 'completed';
+          targetItem.qcResult = result;
+          targetItem.qcNote = note;
+          targetItem.completedAt = new Date().toISOString();
+          localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+
+          // 本機模擬 Teams 判定完成發送與彈窗預覽
+          const isPass = (result === 'PASS');
+          const themeColor = isPass ? "107C41" : "D9381E";
+          const statusTitle = isPass ? "✅【QC 檢驗完成 - 判定合格放行】" : "❌【QC 檢驗完成 - 判定不合格】";
+
+          const teamsPayload = {
+            "@type": "MessageCard",
+            "@context": "http://schema.org/extensions",
+            "themeColor": themeColor,
+            "summary": statusTitle,
+            "sections": [{
+              "activityTitle": statusTitle,
+              "activitySubtitle": `檢驗結果已判定，請 ${targetItem.dept} 進行後續作業`,
+              "facts": [
+                { "name": "🏢 送樣單位", "value": `${targetItem.dept}（送樣人：${targetItem.requester || '無'}）` },
+                { "name": "🧪 檢驗品名", "value": targetItem.productName },
+                { "name": "🛢️ 槽號 / 車牌", "value": `${targetItem.tankNo || '-'} / ${targetItem.customer || '-'}` },
+                { "name": "📋 檢驗單號", "value": targetItem.barcode },
+                { "name": "🎯 判定結果", "value": result },
+                { "name": "📝 判定備註", "value": note || "無" },
+                { "name": "⏱️ 完成時間", "value": new Date().toLocaleString() }
+              ],
+              "markdown": true
+            }]
+          };
+
+          const previewData = {
+            title: statusTitle,
+            subtitle: `檢驗結果已判定，請 ${targetItem.dept} 進行後續作業`,
+            color: isPass ? "green" : "red",
+            facts: [
+              { name: "🏢 送樣單位", value: `${targetItem.dept}（送樣人：${targetItem.requester || '無'}）` },
+              { name: "🧪 檢驗品名", value: targetItem.productName },
+              { name: "🛢️ 槽號 / 車牌", value: `${targetItem.tankNo || '-'} / ${targetItem.customer || '-'}` },
+              { name: "📋 檢驗單號", value: targetItem.barcode },
+              { name: "🎯 判定結果", value: result },
+              { name: "📝 判定備註", value: note || "無" },
+              { name: "⏱️ 完成時間", value: new Date().toLocaleString() }
+            ]
+          };
+
+          dispatchTeamsCard(targetItem.dept, teamsPayload, previewData);
+        }
+        closeModal();
+        showToast("✅ 判定成功（本機紀錄已更新）！Teams 卡片已產生。");
+        render();
+      }, 300);
+    }
+  }
+
+  function setBarcodePlaceholder() {
+    const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    document.getElementById('barcode').placeholder = "例: " + todayStr;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.innerText = msg;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 3500);
+  }
+
+  // PWA Install Prompt
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('pwa-install-banner').style.display = 'flex';
+  });
+
+  function installPWA() {
+    if(!deferredPrompt) {
+      alert("提示：可使用瀏覽器選單中的「安裝為應用程式」或「加到主畫面」進行安裝！");
+      return;
+    }
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        document.getElementById('pwa-install-banner').style.display = 'none';
+      }
+      deferredPrompt = null;
+    });
+  }
+
+  function setLayoutView(mode) {
+    localStorage.setItem('HS_QC_LAYOUT_VIEW', mode);
+    applyLayoutView(mode);
+  }
+
+  function applyLayoutView(mode) {
+    const c = document.getElementById('kanbanContainer');
+    const tabsBar = document.getElementById('tabsHeaderBar');
+    if(!c) return;
+
+    ['btnLayoutAuto', 'btnLayoutStacked', 'btnLayoutTabs', 'btnLayoutSide'].forEach(id => {
+      const btn = document.getElementById(id);
+      if(btn) btn.classList.remove('active');
+    });
+
+    c.classList.remove('view-stacked', 'view-sidebyside', 'view-tabs');
+    if(tabsBar) tabsBar.style.display = 'none';
+
+    if(mode === 'stacked') {
+      c.classList.add('view-stacked');
+      document.getElementById('btnLayoutStacked')?.classList.add('active');
+    } else if(mode === 'side') {
+      c.classList.add('view-sidebyside');
+      document.getElementById('btnLayoutSide')?.classList.add('active');
+    } else if(mode === 'tabs') {
+      c.classList.add('view-tabs');
+      if(tabsBar) tabsBar.style.display = 'inline-flex';
+      document.getElementById('btnLayoutTabs')?.classList.add('active');
+      const activeTab = localStorage.getItem('HS_QC_ACTIVE_TAB') || 'pending';
+      switchKanbanTab(activeTab);
+    } else {
+      document.getElementById('btnLayoutAuto')?.classList.add('active');
+    }
+  }
+
+  function switchKanbanTab(tab) {
+    localStorage.setItem('HS_QC_ACTIVE_TAB', tab);
+    const colP = document.getElementById('col-pending');
+    const colC = document.getElementById('col-completed');
+    const btnP = document.getElementById('tabBtnPending');
+    const btnC = document.getElementById('tabBtnCompleted');
+    if(!colP || !colC || !btnP || !btnC) return;
+
+    if(tab === 'completed') {
+      colP.classList.remove('active-tab');
+      colC.classList.add('active-tab');
+      btnP.classList.remove('active');
+      btnC.classList.add('active');
+    } else {
+      colC.classList.remove('active-tab');
+      colP.classList.add('active-tab');
+      btnC.classList.remove('active');
+      btnP.classList.add('active');
+    }
+  }
+
+  function setTableMode(mode) {
+    localStorage.setItem('HS_QC_TABLE_MODE', mode);
+    applyTableMode(mode);
+    render();
+  }
+
+  function toggleTableMode() {
+    const current = localStorage.getItem('HS_QC_TABLE_MODE') || 'adaptive';
+    const next = current === 'adaptive' ? 'full' : 'adaptive';
+    setTableMode(next);
+  }
+
+  function applyTableMode(mode) {
+    const wrapP = document.getElementById('tableWrapPending');
+    const wrapC = document.getElementById('tableWrapCompleted');
+    const btnAdap = document.getElementById('btnTableModeAdaptive');
+    const btnFull = document.getElementById('btnTableModeFull');
+    const isAdaptive = (mode === 'adaptive');
+
+    if(wrapP) {
+      wrapP.className = isAdaptive ? 'table-responsive adaptive-mode' : 'table-responsive full-mode';
+    }
+    if(wrapC) {
+      wrapC.className = isAdaptive ? 'table-responsive adaptive-mode' : 'table-responsive full-mode';
+    }
+    if(btnAdap) btnAdap.classList.toggle('active', isAdaptive);
+    if(btnFull) btnFull.classList.toggle('active', !isAdaptive);
+
+    document.querySelectorAll('.table-mode-label').forEach(el => {
+      el.innerText = isAdaptive ? '自適應 (免左右移)' : '傳統九欄展開';
+    });
+    document.querySelectorAll('.table-mode-icon').forEach(el => {
+      el.innerText = isAdaptive ? '⚡' : '📋';
+    });
+  }
+
+  window.onload = () => {
+    applyLayoutView(localStorage.getItem('HS_QC_LAYOUT_VIEW') || 'auto');
+    applyTableMode(localStorage.getItem('HS_QC_TABLE_MODE') || 'adaptive');
+    loadTeamsConfig();
+    setBarcodePlaceholder();
+    renderT100Dropdown();
+    load();
+    if(IS_GAS) setInterval(load, 30000);
+    
+    // 定時刷新等候時長動畫與 KPI
+    setInterval(render, 60000);
+
+    // 註冊 Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW register failed:', err));
+    }
+  };
+</script>
+</body>
+</html>
