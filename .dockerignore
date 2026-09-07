@@ -1,0 +1,11 @@
+﻿node_modules
+.git
+__pycache__
+*.log
+temp
+venv
+第二類_生產管理與API串接
+教育訓練教材
+員工教育訓練測驗系統
+aigc-music-video-hub
+old
