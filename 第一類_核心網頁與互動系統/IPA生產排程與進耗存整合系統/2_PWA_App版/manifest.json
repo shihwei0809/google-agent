@@ -1,0 +1,24 @@
+{
+  "name": "IPA 生產排程與進耗存整合系統",
+  "short_name": "IPA生產排程",
+  "description": "IPA 雙廠區生產排程與進耗存整合管理系統 v3.1",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#1e40af",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

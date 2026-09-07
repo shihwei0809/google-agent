@@ -52,6 +52,9 @@ yarn-error.log*
 *.webm
 *.mp3
 *.wav
+*.avi
+*.mkv
+*.mov
 
 # Jobs & Media Working Dirs
 jobs/

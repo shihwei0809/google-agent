@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { MessageCircle, Send, BookOpen, ChevronRight, Upload, FileText, Trash2 } from 'lucide-react';
+import { MessageCircle, Send, BookOpen, ChevronRight, Upload, FileText, Trash2, Camera } from 'lucide-react';
 import axios from 'axios';
 import mermaid from 'mermaid';
 
@@ -11,6 +11,51 @@ mermaid.initialize({
   theme: 'default',
   securityLevel: 'loose',
 });
+
+function MarkdownImage({ src, alt, ...props }) {
+  const isRealImage = /\.(png|jpe?g|gif|webp|svg)$/i.test(src || '');
+  const [hasError, setHasError] = useState(false);
+
+  // 如果不是標準圖片檔案名稱，或者後端載入失敗，優雅渲染為精美 SOP 提示卡片
+  if (!isRealImage || hasError) {
+    let hintText = (!isRealImage ? src : null) || alt || "請於系統中截取對應操作畫面";
+    try {
+      hintText = decodeURIComponent(hintText);
+    } catch (e) {}
+    return (
+      <div className="my-5 p-4 border border-blue-200 bg-gradient-to-r from-blue-50/80 to-indigo-50/50 rounded-xl flex items-start gap-3 shadow-xs">
+        <div className="p-2 bg-blue-500 text-white rounded-lg shrink-0 mt-0.5 shadow-sm">
+          <Camera className="w-5 h-5" />
+        </div>
+        <div className="flex-1">
+          <div className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+            <span>📸 建議操作截圖</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-blue-200/70 text-blue-800 rounded font-normal">SOP重點</span>
+          </div>
+          <div className="text-sm font-medium text-gray-800 leading-relaxed">
+            {hintText}
+          </div>
+          <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
+            <span>💡 提示：點擊右上方「編輯教材」，按</span>
+            <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded shadow-2xs text-[11px] font-mono text-gray-700">Ctrl+V</kbd>
+            <span>即可直接貼上真實系統畫面截圖！</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const fullSrc = src?.startsWith('http') ? src : `${API_BASE}/materials_static/${src}`;
+  return (
+    <img 
+      {...props}
+      src={fullSrc} 
+      className="max-w-full h-auto rounded-lg shadow-md my-4 border border-gray-100" 
+      alt={alt || ''} 
+      onError={() => setHasError(true)}
+    />
+  );
+}
 
 function App() {
   const [materials, setMaterials] = useState([]);
@@ -23,6 +68,7 @@ function App() {
   const [editContent, setEditContent] = useState('');
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
   
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '您好！我是您的專屬 AI 助教。請問您對目前的教材有什麼疑問嗎？' }
@@ -93,22 +139,36 @@ function App() {
     const file = e.target.files[0];
     if (!file) return;
 
+    const isVideo = /\.(mp4|mov|avi|webm)$/i.test(file.name);
+    setUploadMessage(isVideo 
+      ? `正在上傳並由 Gemini 深度觀看影片「${file.name}」，提煉操作 SOP 與生成流程圖，通常需要 30~60 秒，請稍候...` 
+      : `正在上傳並解析文件「${file.name}」...`
+    );
+    setIsUploading(true);
+
     const formData = new FormData();
     formData.append('file', file);
 
-    setIsUploading(true);
     try {
       const res = await axios.post(`${API_BASE}/materials`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
+      
+      if (res.data?.error) {
+        throw new Error(res.data.error);
+      }
+
       await fetchMaterials();
-      selectMaterial(res.data.filename || file.name);
-      alert('✅ 檔案上傳與 AI 轉化完成！');
+      const targetName = res.data?.filename || (file.name.replace(/\.[^/.]+$/, "") + ".md");
+      await selectMaterial(targetName);
+      alert(`✅ 檔案「${file.name}」已由 AI 成功轉化為教學手冊！`);
     } catch (err) {
-      alert('上傳失敗或 AI 處理超時');
-      console.error(err);
+      const errorDetail = err.response?.data?.detail || err.response?.data?.error || err.message;
+      alert(`❌ 上傳解析失敗：\n${errorDetail}`);
+      console.error("上傳失敗", err);
     } finally {
       setIsUploading(false);
+      setUploadMessage('');
     }
     
     // 清空 input 讓下次同檔名也能觸發 onChange
@@ -259,10 +319,12 @@ function App() {
     <div className="flex h-screen bg-gray-50 relative">
       {/* 上傳等待遮罩 */}
       {isUploading && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/60 text-white backdrop-blur-sm">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-white mb-4"></div>
-          <h2 className="text-2xl font-bold mb-2">檔案上傳與 AI 處理中...</h2>
-          <p className="text-gray-200">正在萃取文件並使用 AI 提煉精華，這可能需要幾十秒鐘，請稍候</p>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/75 text-white backdrop-blur-sm p-6 text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-400 mb-4"></div>
+          <h2 className="text-2xl font-bold mb-2">AI 智能解析進行中...</h2>
+          <p className="text-gray-200 text-base max-w-lg leading-relaxed">
+            {uploadMessage || "正在萃取文件並使用 AI 提煉教學重點，請稍候..."}
+          </p>
         </div>
       )}
       
@@ -425,10 +487,7 @@ function App() {
             <div className="prose prose-blue max-w-none">
               <ReactMarkdown
                 components={{
-                  img: ({ node, ...props }) => {
-                    const src = props.src?.startsWith('http') ? props.src : `${API_BASE}/materials_static/${props.src}`;
-                    return <img {...props} src={src} className="max-w-full h-auto rounded shadow-sm" alt={props.alt || ''} />;
-                  },
+                  img: MarkdownImage,
                   code({ node, inline, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
                     if (!inline && match && match[1] === 'mermaid') {

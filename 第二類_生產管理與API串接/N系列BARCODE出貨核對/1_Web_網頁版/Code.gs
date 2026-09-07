@@ -111,6 +111,11 @@ function extractRealMat(fullString) {
     if (part1.length > 14) return part1.substring(14); 
     return part1;
   }
+  // 【2026-09-07 更新註記】：1 系列外箱條碼相容 20/24 碼料號自動截取 (20 碼前 9 碼，24 碼前 13 碼)
+  if (s.startsWith("1") && (s.length === 20 || s.length === 24)) {
+    var p1 = parse1SeriesBarcode(s);
+    if (p1 && p1.mat) return cleanMatMaster(p1.mat);
+  }
   return cleanMatMaster(s);
 }
 
@@ -142,30 +147,98 @@ function check7SeriesFormat(code) {
   return "OK";
 }
 
-function check1SeriesFormat(code) {
+// ==========================================
+// 【2026-09-07 更新註記】：專門解析 1 系列外箱條碼 (相容 20 碼舊庫存 & 24 碼新標籤)
+// - 長度驗證：需為 20 碼或 24 碼 (len !== 20 && len !== 24)
+// - 料號截取：20 碼取前 9 碼 (1~10)；24 碼取前 13 碼 (1~14)
+// - 效期截取：20 碼為 10~18；24 碼位移至 14~22
+// - 結尾代碼：同時放行 TS 與 TW (suffix !== 'TS' && suffix !== 'TW')
+// ==========================================
+function parse1SeriesBarcode(boxBarcode) {
+  if (!boxBarcode) return null;
+  var s = String(boxBarcode).trim();
+  var len = s.length;
+  if (!s.startsWith("1") || (len !== 20 && len !== 24)) return null;
+
+  var mat = (len === 24) ? s.substring(1, 14).trim() : s.substring(1, 10).trim();
+  var expiry = (len === 24) ? s.substring(14, 22) : s.substring(10, 18);
+  var suffix = s.substring(len - 2).toUpperCase();
+
+  return {
+    len: len,
+    mat: mat,
+    expiry: expiry,
+    suffix: suffix
+  };
+}
+
+// ==========================================
+// 【2026-09-07 更新註記】：檢查 1 系列格式 (相容 M76 儲槽 24 碼 與 非 M76 一般儲槽 20 碼)
+// - M76 儲槽（批號帶有 M76）：條碼長度強制 24 碼
+//   若為 20 碼或其他長度 ➔ ❌ [料號與保存期限條碼] 長度錯誤！M76 儲槽只能是 24 碼 (目前長度: [長度])
+// - 一般儲槽（批號無 M76）：條碼長度強制 20 碼
+//   若誤貼為 24 碼或其他長度 ➔ ❌ [料號與保存期限條碼] 長度錯誤！一般儲槽(非 M76)應為 20 碼 (目前長度: [長度])
+// - 結尾代碼：放行 TS 與 TW (suffix === "TS" || suffix === "TW")
+// ==========================================
+function check1SeriesFormat(code, isM76) {
   var s = String(code).trim();
   if (s.startsWith("1")) {
-    if (s.length !== 20) return "❌ 格式錯誤！\n👉 [1開頭] 長度需 20 碼 (目前 " + s.length + ")";
-    if (!s.endsWith("TS")) return "❌ 格式錯誤！\n👉 [1開頭] 必須以 'TS' 結尾";
+    var len = s.length;
+
+    // 1. 結尾代碼：同時放行 TSMC 常見的 TS 與 Email 說明的 TW
+    var suffix = (len >= 2) ? s.substring(len - 2).toUpperCase() : "";
+    if (suffix !== "TS" && suffix !== "TW") {
+      return "❌ 格式錯誤！\n👉 [1開頭] 必須以 'TS' 或 'TW' 結尾 (目前為 " + suffix + ")";
+    }
+
+    // 2. 儲槽精準長度卡控 (M76 嚴格 24 碼 / 一般儲槽嚴格 20 碼)
+    if (isM76 === true) {
+      if (len !== 24) {
+        return "❌ [料號與保存期限條碼] 長度錯誤！\n👉 M76 儲槽只能是 24 碼 (目前長度: " + len + ")";
+      }
+    } else if (isM76 === false) {
+      if (len !== 20) {
+        return "❌ [料號與保存期限條碼] 長度錯誤！\n👉 一般儲槽(非 M76)應為 20 碼 (目前長度: " + len + ")";
+      }
+    } else {
+      // 若未提供儲槽資訊，預設雙軌相容 20 或 24 碼
+      if (len !== 20 && len !== 24) {
+        return "❌ 格式錯誤！\n👉 [1開頭] 長度需 20 碼或 24 碼 (目前 " + len + " 碼)";
+      }
+    }
   }
   return "OK";
 }
 
 // 【共用驗證函式：專門用來執行 1/7 開頭的長度檢查】
-function validate17Series(val, label, errors) {
+function validate17Series(val, label, errors, isM76) {
   if (!val || String(val).trim() === "") return;
-  var c1 = check1SeriesFormat(val);
+  var realVal = extractRealBatch(val);
+  if (realVal.indexOf('+') !== -1) {
+    realVal = realVal.split('+')[0];
+  }
+  var c1 = check1SeriesFormat(realVal, isM76);
   if (c1 !== "OK") errors.push('❌ [' + label + '] ' + c1);
-  var c7 = check7SeriesFormat(val);
+  var c7 = check7SeriesFormat(realVal);
   if (c7 !== "OK") errors.push('❌ [' + label + '] ' + c7);
 }
 
-function verifyPairStrict(scanVal, masterVal) {
+function verifyPairStrict(scanVal, masterVal, isM76) {
   var scan = String(scanVal).trim();
   var master = String(masterVal).trim();
   if (scan === "" || master === "") return { pass: false, msg: "資料空白" };
 
-  if (scan.startsWith("1") && scan.length === 20 && scan.endsWith("TS")) {
+  // 【2026-09-07 更新註記】：1 系列單據比對支援 20/24 碼與 TS/TW 結尾
+  var scanUpper = scan.toUpperCase();
+  var scanLen = scan.length;
+  var scanSuffix = (scanLen >= 2) ? scan.substring(scanLen - 2).toUpperCase() : "";
+  var lengthMatch = (isM76 === true) ? (scanLen === 24) : 
+                    (isM76 === false) ? (scanLen === 20) : 
+                    (scanLen === 20 || scanLen === 24);
+
+  var is1Series = scan.startsWith("1") && lengthMatch && (scanSuffix === "TS" || scanSuffix === "TW");
+
+  if (is1Series) {
       if (scan === master) return { pass: true, msg: "OK" };
       if (scan.indexOf(master) !== -1 && master.length > 5) return { pass: true, msg: "OK" };
       return { pass: false, msg: "1字頭比對失敗\n現場: " + scan + "\n單據: " + master };
@@ -214,6 +287,19 @@ function processAndSave(data) {
   var headers = [];
   var writeData = []; 
 
+  // ==========================================
+  // 【2026-09-07 更新註記】：自動巡檢現場與單據批號，偵測是否屬於 M76 儲槽
+  // - 若批號包含 M76：isM76 = true (1系列條碼嚴格限制 24 碼)
+  // - 若批號無 M76：isM76 = false (1系列條碼嚴格限制 20 碼)
+  // ==========================================
+  var isM76 = false;
+  for (var k = 0; k < f.length; k++) {
+    if (String(f[k]).toUpperCase().indexOf("M76") !== -1) {
+      isM76 = true;
+      break;
+    }
+  }
+
   var tankMap = [
     { batch: 0, mat: 1, name: '第一桶', masterBatchIdx: 9 },
     { batch: 2, mat: 3, name: '第二桶', masterBatchIdx: 10 },
@@ -237,8 +323,8 @@ function processAndSave(data) {
         activeTankCount++;
         rawBatches.push(rawBatch);
 
-        // 確保桶批號格式正確
-        validate17Series(rawBatch, item.name + ' 批號', allErrors);
+        // 確保桶批號格式正確 (結合 M76 儲槽碼數精準檢驗)
+        validate17Series(rawBatch, item.name + ' 批號', allErrors, isM76);
         
         // ==========================================
         // 【未來擴充區：AZ 模式桶槽料號 檢查】
@@ -292,8 +378,8 @@ function processAndSave(data) {
     var masterMaterial = cleanMatMaster(rawMasterMat); 
     if (!masterMaterial) return { status: 'error', message: '❌ [四合一料號] 為必填項目！' };
     
-    // 【重點】四合一料號強制檢查長度
-    validate17Series(rawMasterMat, '四合一料號', allErrors);
+    // 【重點】四合一料號強制檢查長度 (結合 M76 儲槽碼數精準檢驗)
+    validate17Series(rawMasterMat, '四合一料號', allErrors, isM76);
 
     var activeTankCount = 0; 
     var activeBatchesShort = []; 
@@ -309,8 +395,8 @@ function processAndSave(data) {
       if (tankRawBatch !== "" || tankInputMat !== "") {
         activeTankCount++;
 
-        // 確保桶批號格式正確
-        validate17Series(tankRawBatch, item.name + ' 批號', allErrors);
+        // 確保桶批號格式正確 (結合 M76 儲槽碼數精準檢驗)
+        validate17Series(tankRawBatch, item.name + ' 批號', allErrors, isM76);
         
         // ==========================================
         // 【未來擴充區：現場桶槽料號 檢查】
@@ -319,7 +405,7 @@ function processAndSave(data) {
         //          若值為「7開頭」，強制要求 29 碼且包含 -T0。
         // 啟用方法：刪除下方這行最前面的「//」符號。
         // ==========================================
-        // validate17Series(tankInputMat, item.name + ' 料號', allErrors);
+        // validate17Series(tankInputMat, item.name + ' 料號', allErrors, isM76);
 
         // ==========================================
         // 【未來擴充區：四合一對應批號 檢查】
@@ -328,7 +414,7 @@ function processAndSave(data) {
         //          若值為「7開頭」，強制要求 29 碼且包含 -T0。
         // 啟用方法：刪除下方這行最前面的「//」符號。
         // ==========================================
-        // validate17Series(masterBatchVal, '四合一單據 (對應' + item.name + ')', allErrors);
+        // validate17Series(masterBatchVal, '四合一單據 (對應' + item.name + ')', allErrors, isM76);
 
         var normBatch = normalizeBatch(tankRawBatch);
         if (normBatch !== "") {
@@ -350,7 +436,7 @@ function processAndSave(data) {
         if (masterBatchVal === "") {
            allErrors.push('❌ [' + item.name + '] 對應的「四合一單據批號」未輸入！');
         } else {
-           var verifyResult = verifyPairStrict(tankRawBatch, masterBatchVal);
+           var verifyResult = verifyPairStrict(tankRawBatch, masterBatchVal, isM76);
            if (!verifyResult.pass) {
               var detailedMsg = '❌ [' + item.name + '] 與四合一單據不符！\n👉 現場: ' + tankRawBatch + '\n👉 單據: ' + masterBatchVal;
               allErrors.push(detailedMsg);

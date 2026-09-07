@@ -479,6 +479,11 @@ class MainActivity : AppCompatActivity() {
             if (part1.length > 14) return part1.substring(14)
             return part1
         }
+        // 【2026-09-07 更新註記】：1 系列外箱條碼相容 20/24 碼料號自動截取 (20 碼前 9 碼，24 碼前 13 碼)
+        if (s.startsWith("1") && (s.length == 20 || s.length == 24)) {
+            val p1 = parse1SeriesBarcode(s)
+            if (p1 != null && p1.mat.isNotEmpty()) return cleanMatMaster(p1.mat)
+        }
         return cleanMatMaster(s)
     }
 
@@ -503,11 +508,47 @@ class MainActivity : AppCompatActivity() {
         return "OK"
     }
 
-    private fun check1SeriesFormat(code: String?): String {
+    // ==========================================
+    // 【2026-09-07 更新註記】：專門解析 1 系列外箱條碼 (相容 20 碼舊庫存 & 24 碼新標籤)
+    // - 長度驗證：需為 20 碼或 24 碼 (len != 20 && len != 24)
+    // - 料號截取：20 碼取前 9 碼 (1~10)；24 碼取前 13 碼 (1~14)
+    // - 效期截取：20 碼為 10~18；24 碼位移至 14~22
+    // - 結尾代碼：同時放行 TS 與 TW (suffix != "TS" && suffix != "TW")
+    // ==========================================
+    data class Parsed1Series(val len: Int, val mat: String, val expiry: String, val suffix: String)
+
+    private fun parse1SeriesBarcode(code: String?): Parsed1Series? {
+        val s = (code ?: "").trim()
+        val len = s.length
+        if (!s.startsWith("1") || (len != 20 && len != 24)) return null
+        val mat = if (len == 24) s.substring(1, 14).trim() else s.substring(1, 10).trim()
+        val expiry = if (len == 24) s.substring(14, 22) else s.substring(10, 18)
+        val suffix = s.takeLast(2).uppercase()
+        return Parsed1Series(len, mat, expiry, suffix)
+    }
+
+    // ==========================================
+    // 【2026-09-07 更新註記】：檢查 1 系列格式 (相容 M76 儲槽 24 碼 與 非 M76 一般儲槽 20 碼)
+    // - M76 儲槽（批號帶有 M76）：條碼長度強制 24 碼
+    //   若為 20 碼或其他長度 ➔ ❌ [料號與保存期限條碼] 長度錯誤！M76 儲槽只能是 24 碼 (目前長度: [長度])
+    // - 一般儲槽（批號無 M76）：條碼長度強制 20 碼
+    //   若誤貼為 24 碼或其他長度 ➔ ❌ [料號與保存期限條碼] 長度錯誤！一般儲槽(非 M76)應為 20 碼 (目前長度: [長度])
+    // - 結尾代碼：放行 TS 與 TW
+    // ==========================================
+    private fun check1SeriesFormat(code: String?, isM76: Boolean? = null): String {
         val s = (code ?: "").trim()
         if (s.startsWith("1")) {
-            if (s.length != 20) return "❌ 格式錯誤！\n👉 [1開頭] 長度需 20 碼 (目前 ${s.length})"
-            if (!s.uppercase().endsWith("TS")) return "❌ 格式錯誤！\n👉 [1開頭] 必須以 'TS' 結尾"
+            val len = s.length
+            val suffix = s.takeLast(2).uppercase()
+            if (suffix != "TS" && suffix != "TW") return "❌ 格式錯誤！\n👉 [1開頭] 必須以 'TS' 或 'TW' 結尾 (目前為 $suffix)"
+
+            if (isM76 == true) {
+                if (len != 24) return "❌ [料號與保存期限條碼] 長度錯誤！\n👉 M76 儲槽只能是 24 碼 (目前長度: $len)"
+            } else if (isM76 == false) {
+                if (len != 20) return "❌ [料號與保存期限條碼] 長度錯誤！\n👉 一般儲槽(非 M76)應為 20 碼 (目前長度: $len)"
+            } else {
+                if (len != 20 && len != 24) return "❌ 格式錯誤！\n👉 [1開頭] 長度需 20 碼或 24 碼 (目前 ${len})"
+            }
         }
         return "OK"
     }
@@ -522,7 +563,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun validate17Series(valStr: String?, label: String, errors: MutableList<String>) {
+    private fun validate17Series(valStr: String?, label: String, errors: MutableList<String>, isM76: Boolean? = null) {
         if (valStr.isNullOrBlank()) return
         val s = valStr.trim()
         // 攔截網址型條碼 (如 HTTP://WWW.BIOFCS.COM/)
@@ -530,7 +571,7 @@ class MainActivity : AppCompatActivity() {
             errors.add("❌ [$label] 格式錯誤！\n👉 掃到網址條碼，請改掃正確批號/料號")
             return
         }
-        val c1 = check1SeriesFormat(s)
+        val c1 = check1SeriesFormat(s, isM76)
         if (c1 != "OK") errors.add("❌ [$label] $c1")
         val c7 = check7SeriesFormat(s)
         if (c7 != "OK") errors.add("❌ [$label] $c7")
@@ -538,12 +579,23 @@ class MainActivity : AppCompatActivity() {
 
     data class VerifyResult(val pass: Boolean, val msg: String)
 
-    private fun verifyPairStrict(scanVal: String, masterVal: String, localLabel: String, masterLabel: String): VerifyResult {
+    private fun verifyPairStrict(scanVal: String, masterVal: String, localLabel: String, masterLabel: String, isM76: Boolean? = null): VerifyResult {
         val scan = scanVal.trim()
         val master = masterVal.trim()
         if (scan.isEmpty() || master.isEmpty()) return VerifyResult(false, "資料空白")
 
-        if (scan.startsWith("1") && scan.length == 20 && scan.endsWith("TS")) {
+        // 【2026-09-07 更新註記】：1 系列單據比對支援 20/24 碼與 TS/TW 結尾 (結合 M76 儲槽碼數驗證)
+        val scanUpper = scan.uppercase()
+        val scanLen = scan.length
+        val scanSuffix = if (scanLen >= 2) scan.takeLast(2).uppercase() else ""
+        val lengthMatch = when (isM76) {
+            true -> scanLen == 24
+            false -> scanLen == 20
+            null -> scanLen == 20 || scanLen == 24
+        }
+        val is1Series = scan.startsWith("1") && lengthMatch && (scanSuffix == "TS" || scanSuffix == "TW")
+
+        if (is1Series) {
             if (scan == master) return VerifyResult(true, "OK")
             if (scan.contains(master) && master.length > 5) return VerifyResult(true, "OK")
             return VerifyResult(false, "1字頭比對失敗\n👉 $localLabel: $scan\n👉 $masterLabel: $master")
@@ -574,6 +626,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun performLocalCheck(f: Array<String>, mode: String): String? {
         val allErrors = mutableListOf<String>()
+
+        // ==========================================
+        // 【2026-09-07 更新註記】：自動巡檢批號，偵測是否屬於 M76 儲槽
+        // - 若批號包含 M76：isM76 = true (1系列條碼嚴格限制 24 碼)
+        // - 若批號無 M76：isM76 = false (1系列條碼嚴格限制 20 碼)
+        // ==========================================
+        val isM76 = f.any { it.uppercase().contains("M76") }
+
         val tankMap = listOf(
             Triple(0, 1, "第一桶"),
             Triple(2, 3, "第二桶"),
@@ -597,9 +657,10 @@ class MainActivity : AppCompatActivity() {
                     activeTankCount++
                     rawBatches.add(rawBatch)
 
-                    validate17Series(rawBatch, "桶${i + 1} 批號", allErrors)
+                    // 結合 M76 儲槽碼數精準檢驗
+                    validate17Series(rawBatch, "桶${i + 1} 批號", allErrors, isM76)
                     // 【未來擴充區：AZ模式桶槽料號 檢查】
-                    // validate17Series(rawMat, "桶${i + 1} 料號", allErrors)
+                    // validate17Series(rawMat, "桶${i + 1} 料號", allErrors, isM76)
 
                     val norm = normalizeBatch(rawBatch)
                     if (norm.isNotEmpty()) {
@@ -670,11 +731,12 @@ class MainActivity : AppCompatActivity() {
                 if (tankRawBatch.isNotEmpty() || tankInputMat.isNotEmpty()) {
                     activeTankCount++
 
-                    validate17Series(tankRawBatch, localBatchLabel, allErrors)
+                    // 結合 M76 儲槽碼數精準檢驗
+                    validate17Series(tankRawBatch, localBatchLabel, allErrors, isM76)
                     // 【未來擴充區：現場桶槽料號 檢查】
-                    // validate17Series(tankInputMat, localMatLabel, allErrors)
+                    // validate17Series(tankInputMat, localMatLabel, allErrors, isM76)
                     // 【未來擴充區：四合一對應批號 檢查】
-                    // validate17Series(masterBatchVal, masterBatchLabel, allErrors)
+                    // validate17Series(masterBatchVal, masterBatchLabel, allErrors, isM76)
 
                     val normBatch = normalizeBatch(tankRawBatch)
                     if (normBatch.isNotEmpty()) {
@@ -707,7 +769,7 @@ class MainActivity : AppCompatActivity() {
                     if (masterBatchVal.isEmpty()) {
                         allErrors.add("❌ [${item.third}] 對應的「$masterBatchLabel」未輸入！")
                     } else {
-                        val verifyResult = verifyPairStrict(tankRawBatch, masterBatchVal, localBatchLabel, masterBatchLabel)
+                        val verifyResult = verifyPairStrict(tankRawBatch, masterBatchVal, localBatchLabel, masterBatchLabel, isM76)
                         if (!verifyResult.pass) {
                             allErrors.add("❌ [${item.third}] 與四合一單據不符！\n${verifyResult.msg}")
                         }
@@ -817,8 +879,8 @@ class MainActivity : AppCompatActivity() {
         
         return if (isMat) {
             if (index == 8) {
-                // 四合一料號 (20 碼或 30 碼)
-                (s.startsWith("1") && s.length == 20) || (s.startsWith("7") && s.length == 30)
+                // 四合一料號 (相容 20 碼舊標籤與 24 碼新標籤，或 7 開頭 29~30 碼)
+                (s.startsWith("1") && (s.length == 20 || s.length == 24)) || (s.startsWith("7") && (s.length == 29 || s.length == 30))
             } else {
                 // 一般桶料號/繳庫料號 (L開頭7~8碼，1開頭8~9碼，7開頭13碼)
                 (s.startsWith("1") && (s.length == 8 || s.length == 9)) ||

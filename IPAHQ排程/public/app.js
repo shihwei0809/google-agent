@@ -255,12 +255,26 @@ async function loadData() {
   }
 }
 
+// // Helper for HTML escaping (prevents XSS vulnerabilities)
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+let currentDashboardOrders = [];
+
 // 3. Render Dashboard Table
 function renderDashboardTable(orders) {
+  currentDashboardOrders = orders || [];
   const tbody = document.getElementById('dashboard-table-body');
   const cardsContainer = document.getElementById('dashboard-cards-list');
   
-  if (orders.length === 0) {
+  if (!orders || orders.length === 0) {
     tbody.innerHTML = `<tr><td colspan="16" class="text-center">請先至「業務專區」上傳基準出貨清單 Excel</td></tr>`;
     if (cardsContainer) {
       cardsContainer.innerHTML = `<div class="no-results">請先至「業務專區」上傳基準出貨清單 Excel</div>`;
@@ -269,78 +283,77 @@ function renderDashboardTable(orders) {
   }
 
   // Render desktop table
-  tbody.innerHTML = orders.map(o => {
+  tbody.innerHTML = orders.map((o, idx) => {
     const statusBadge = getStatusBadge(o);
-    const idText = o.id || '<span class="text-muted">無</span>';
-    const batchText = o.batch || '-';
+    const idText = o.id ? escapeHtml(o.id) : '<span class="text-muted">無</span>';
+    const batchText = o.batch ? escapeHtml(o.batch) : '-';
     
     const showEdit = currentUser && (currentUser.role === 'sales' || currentUser.role === 'tech_manager' || currentUser.role === 'transporter');
-      let editLink = '';
-      if (showEdit) {
-        editLink = `<span class="action-link" onclick="openEditModal('${o.id}', '${o.destination}', '${o.product}', '${o.expected_date}', '${o.arrival_time}')">編輯</span>`;
-      }
-      const actionCell = editLink ? `<td>${editLink}</td>` : `<td>-</td>`;
-      
-      // 三合一單獨立一欄 (無批號不顯示)
-      let printLink = '-';
-      if (o.client && (o.client.includes('台積') || o.client.includes('TSMC')) && o.batch && o.batch.trim() !== '' && o.batch !== '-' && o.batch !== 'null') {
-        const safeId = o.id || '';
-        printLink = `<button class="btn btn-primary btn-sm" onclick="download3in1('${safeId}', '${o.batch}')" style="padding: 2px 8px; font-size: 0.85rem;">🖨️ 下載</button>`;
-      }
-      const printCell = `<td>${printLink}</td>`;
+    let editLink = '';
+    if (showEdit) {
+      editLink = `<span class="action-link" onclick="openEditModalByIndex(${idx})">編輯</span>`;
+    }
+    const actionCell = editLink ? `<td>${editLink}</td>` : `<td>-</td>`;
+    
+    // 三合一單獨立一欄 (無批號不顯示)
+    let printLink = '-';
+    if (o.client && (o.client.includes('台積') || o.client.includes('TSMC')) && o.batch && String(o.batch).trim() !== '' && o.batch !== '-' && o.batch !== 'null') {
+      printLink = `<button class="btn btn-primary btn-sm" onclick="download3in1ByIndex(${idx})" style="padding: 2px 8px; font-size: 0.85rem;">🖨️ 下載</button>`;
+    }
+    const printCell = `<td>${printLink}</td>`;
 
     return `
       <tr>
         <td>${idText}</td>
         <td>${batchText}</td>
-        <td>${o.client || '-'}</td>
-        <td title="${o.destination || ''}">${truncateStr(o.destination, 18)}</td>
-        <td>${o.product || '-'}</td>
-        <td>${o.expected_date || '-'}</td>
-        <td>${o.arrival_time || '-'}</td>
-        <td>${o.transport_type || '-'}</td>
+        <td>${escapeHtml(o.client) || '-'}</td>
+        <td title="${escapeHtml(o.destination) || ''}">${escapeHtml(truncateStr(o.destination, 18))}</td>
+        <td>${escapeHtml(o.product) || '-'}</td>
+        <td>${escapeHtml(o.expected_date) || '-'}</td>
+        <td>${escapeHtml(o.arrival_time) || '-'}</td>
+        <td>${escapeHtml(o.transport_type) || '-'}</td>
         <td>${formatFillHand(o.fill_hand)}</td>
-        <td>${o.plate || '-'}</td>
-        <td>${o.driver || '-'}</td>
-        <td>${o.phone || '-'}</td>
-        <td>${o.departure_date || '-'}</td>
-        <td>${o.departure_time || '-'}</td>
-        <td>${o.driver_code || '-'}</td>
+        <td>${escapeHtml(o.plate) || '-'}</td>
+        <td>${escapeHtml(o.driver) || '-'}</td>
+        <td>${escapeHtml(o.phone) || '-'}</td>
+        <td>${escapeHtml(o.departure_date) || '-'}</td>
+        <td>${escapeHtml(o.departure_time) || '-'}</td>
+        <td>${escapeHtml(o.driver_code) || '-'}</td>
         ${printCell}
-          ${actionCell}
+        ${actionCell}
       </tr>
     `;
   }).join('');
 
   // Render mobile cards list
   if (cardsContainer) {
-    cardsContainer.innerHTML = orders.map(o => {
+    cardsContainer.innerHTML = orders.map((o, idx) => {
       const statusBadge = getStatusBadge(o);
-      const idText = o.id || '無單號';
+      const idText = o.id ? escapeHtml(o.id) : '無單號';
       const showEdit = currentUser && (currentUser.role === 'sales' || currentUser.role === 'tech_manager' || currentUser.role === 'transporter');
       const editBtn = showEdit 
-        ? `<button class="btn btn-secondary btn-sm" onclick="openEditModal('${o.id}', '${o.destination}', '${o.product}', '${o.expected_date}', '${o.arrival_time}')">編輯</button>`
+        ? `<button class="btn btn-secondary btn-sm" onclick="openEditModalByIndex(${idx})">編輯</button>`
         : '';
         
       return `
         <div class="mobile-order-card">
           <div class="mobile-card-header">
             <div class="card-title-group">
-              <span class="card-time">${o.arrival_time || '時間未定'}</span>
-              <span class="card-date">${o.expected_date || ''}</span>
+              <span class="card-time">${escapeHtml(o.arrival_time) || '時間未定'}</span>
+              <span class="card-date">${escapeHtml(o.expected_date) || ''}</span>
             </div>
             <div>${statusBadge}</div>
           </div>
           <div class="mobile-card-body">
-            <div class="card-detail"><strong>對象：</strong>${o.client || '-'}</div>
-            <div class="card-detail" title="${o.destination || ''}"><strong>指送地：</strong>${o.destination || '-'}</div>
-            <div class="card-detail"><strong>品名：</strong>${o.product || '-'} | <strong>批號：</strong>${o.batch || '-'}</div>
-            <div class="card-detail"><strong>運輸方式：</strong>${o.transport_type || '-'}</div>
+            <div class="card-detail"><strong>對象：</strong>${escapeHtml(o.client) || '-'}</div>
+            <div class="card-detail" title="${escapeHtml(o.destination) || ''}"><strong>指送地：</strong>${escapeHtml(o.destination) || '-'}</div>
+            <div class="card-detail"><strong>品名：</strong>${escapeHtml(o.product) || '-'} | <strong>批號：</strong>${escapeHtml(o.batch) || '-'}</div>
+            <div class="card-detail"><strong>運輸方式：</strong>${escapeHtml(o.transport_type) || '-'}</div>
             <div class="card-detail-divider"></div>
             <div class="card-detail"><strong>技服充填手：</strong>${formatFillHand(o.fill_hand)}</div>
-            <div class="card-detail"><strong>車牌司機：</strong>${o.plate ? `${o.plate} (${o.driver})` : '⏳ 尚未排定'}</div>
-            ${o.phone ? `<div class="card-detail"><strong>司機電話：</strong>${o.phone}</div>` : ''}
-            ${o.departure_date ? `<div class="card-detail"><strong>出車時間：</strong>${o.departure_date} ${o.departure_time || ''}</div>` : ''}
+            <div class="card-detail"><strong>車牌司機：</strong>${o.plate ? `${escapeHtml(o.plate)} (${escapeHtml(o.driver)})` : '⏳ 尚未排定'}</div>
+            ${o.phone ? `<div class="card-detail"><strong>司機電話：</strong>${escapeHtml(o.phone)}</div>` : ''}
+            ${o.departure_date ? `<div class="card-detail"><strong>出車時間：</strong>${escapeHtml(o.departure_date)} ${escapeHtml(o.departure_time) || ''}</div>` : ''}
           </div>
           <div class="mobile-card-footer">
             <span>單號：${idText}</span>
@@ -352,6 +365,18 @@ function renderDashboardTable(orders) {
   }
 }
 
+window.openEditModalByIndex = function(idx) {
+  const o = currentDashboardOrders[idx];
+  if (!o) return;
+  openEditModal(o.id, o.destination, o.product, o.expected_date, o.arrival_time);
+};
+
+window.download3in1ByIndex = function(idx) {
+  const o = currentDashboardOrders[idx];
+  if (!o) return;
+  download3in1(o.id || '', o.batch);
+};
+
 // Helper to truncate long strings
 function truncateStr(str, len) {
   if (!str) return '';
@@ -361,7 +386,7 @@ function truncateStr(str, len) {
 // Helper to format fill_hand for display (replace \n with spaces or small tags)
 function formatFillHand(val) {
   if (!val) return '-';
-  return val.replace(/\n/g, ' / ');
+  return escapeHtml(val).replace(/\n/g, ' / ');
 }
 
 // Helper to calculate order status
@@ -575,12 +600,12 @@ async function compareTechExcel() {
         tbody.innerHTML += `
           <tr class="preview-matched">
             <td>${item.rowNum}</td>
-            <td>${item.uploaded.id || '<span class="text-muted">無</span>'}</td>
-            <td>${item.uploaded.destination || '-'}</td>
-            <td>${item.uploaded.product || '-'}</td>
-            <td>${item.uploaded.expected_date || '-'}</td>
-            <td>${item.uploaded.arrival_time || '-'}</td>
-            <td><span class="badge badge-info">${item.uploaded.fill_hand || '-'}</span></td>
+            <td>${item.uploaded.id ? escapeHtml(item.uploaded.id) : '<span class="text-muted">無</span>'}</td>
+            <td>${escapeHtml(item.uploaded.destination) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.product) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.expected_date) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.arrival_time) || '-'}</td>
+            <td><span class="badge badge-info">${escapeHtml(item.uploaded.fill_hand) || '-'}</span></td>
             <td><span class="badge badge-success">比對成功 (${item.matchBy === 'id' ? '訂單單號' : '關鍵欄位'})</span></td>
           </tr>
         `;
@@ -591,12 +616,12 @@ async function compareTechExcel() {
         tbody.innerHTML += `
           <tr class="preview-mismatched">
             <td>${item.rowNum}</td>
-            <td>${item.uploaded.id || '<span class="text-muted">無</span>'}</td>
-            <td>${item.uploaded.destination || '-'}</td>
-            <td>${item.uploaded.product || '-'}</td>
-            <td>${item.uploaded.expected_date || '-'}</td>
-            <td>${item.uploaded.arrival_time || '-'}</td>
-            <td>${item.uploaded.fill_hand || '-'}</td>
+            <td>${item.uploaded.id ? escapeHtml(item.uploaded.id) : '<span class="text-muted">無</span>'}</td>
+            <td>${escapeHtml(item.uploaded.destination) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.product) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.expected_date) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.arrival_time) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.fill_hand) || '-'}</td>
             <td><span class="badge badge-danger">查無基準訂單 (不予更新)</span></td>
           </tr>
         `;
@@ -706,18 +731,18 @@ async function compareTransportExcel() {
       json.results.matched.forEach(item => {
         // Highlight auto-filled fields if code matched but details came from DB
         const isAutoFilled = item.uploaded.driver && !item.existing.driver;
-        const driverCodeDisplay = item.uploaded.driver_code ? `${item.uploaded.driver_code} (${item.uploaded.driver || '-'})` : '-';
-        const carInfo = `${item.uploaded.plate || '-'} / ${item.uploaded.phone || '-'}`;
-        const timeDisplay = `${item.uploaded.departure_date || '-'} ${item.uploaded.departure_time || '-'}`;
+        const driverCodeDisplay = item.uploaded.driver_code ? `${escapeHtml(item.uploaded.driver_code)} (${escapeHtml(item.uploaded.driver) || '-'})` : '-';
+        const carInfo = `${escapeHtml(item.uploaded.plate) || '-'} / ${escapeHtml(item.uploaded.phone) || '-'}`;
+        const timeDisplay = `${escapeHtml(item.uploaded.departure_date) || '-'} ${escapeHtml(item.uploaded.departure_time) || '-'}`;
         
         tbody.innerHTML += `
           <tr class="preview-matched">
             <td>${item.rowNum}</td>
-            <td>${item.uploaded.id || '<span class="text-muted">無</span>'}</td>
-            <td>${item.uploaded.destination || '-'}</td>
-            <td>${item.uploaded.product || '-'}</td>
-            <td>${item.uploaded.expected_date || '-'}</td>
-            <td>${item.uploaded.arrival_time || '-'}</td>
+            <td>${item.uploaded.id ? escapeHtml(item.uploaded.id) : '<span class="text-muted">無</span>'}</td>
+            <td>${escapeHtml(item.uploaded.destination) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.product) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.expected_date) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.arrival_time) || '-'}</td>
             <td>${timeDisplay}</td>
             <td><span class="badge badge-success">${driverCodeDisplay}</span></td>
             <td>${carInfo} ${isAutoFilled ? '<span class="badge badge-info" style="font-size: 0.65rem;">代碼自動補齊</span>' : ''}</td>
@@ -731,11 +756,11 @@ async function compareTransportExcel() {
         tbody.innerHTML += `
           <tr class="preview-mismatched">
             <td>${item.rowNum}</td>
-            <td>${item.uploaded.id || '<span class="text-muted">無</span>'}</td>
-            <td>${item.uploaded.destination || '-'}</td>
-            <td>${item.uploaded.product || '-'}</td>
-            <td>${item.uploaded.expected_date || '-'}</td>
-            <td>${item.uploaded.arrival_time || '-'}</td>
+            <td>${item.uploaded.id ? escapeHtml(item.uploaded.id) : '<span class="text-muted">無</span>'}</td>
+            <td>${escapeHtml(item.uploaded.destination) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.product) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.expected_date) || '-'}</td>
+            <td>${escapeHtml(item.uploaded.arrival_time) || '-'}</td>
             <td>-</td>
             <td>-</td>
             <td>-</td>
@@ -897,29 +922,29 @@ function queryTechSchedule() {
   grid.innerHTML = filtered.map(o => {
     const isCompleted = o.plate && o.driver;
     const transportInfo = isCompleted 
-      ? `<div class="query-card-driver">🚚 司機: ${o.driver} | ${o.plate} | 📞 ${o.phone}</div>`
+      ? `<div class="query-card-driver">🚚 司機: ${escapeHtml(o.driver)} | ${escapeHtml(o.plate)} | 📞 ${escapeHtml(o.phone)}</div>`
       : `<div class="query-card-driver" style="color: var(--accent-orange);">⏳ 運輸車輛尚未排定</div>`;
       
     const departureInfo = o.departure_date 
-      ? `<div>🕒 出車時間: ${o.departure_date} ${o.departure_time || ''}</div>`
-      : `<div>🕒 預計到貨時間: ${o.expected_date} ${o.arrival_time || ''}</div>`;
+      ? `<div>🕒 出車時間: ${escapeHtml(o.departure_date)} ${escapeHtml(o.departure_time) || ''}</div>`
+      : `<div>🕒 預計到貨時間: ${escapeHtml(o.expected_date)} ${escapeHtml(o.arrival_time) || ''}</div>`;
 
     return `
       <div class="query-card">
         <div class="query-card-header">
-          <span class="query-card-time">${o.arrival_time || '到貨時間未定'}</span>
-          <span class="query-card-date">${o.expected_date}</span>
+          <span class="query-card-time">${escapeHtml(o.arrival_time) || '到貨時間未定'}</span>
+          <span class="query-card-date">${escapeHtml(o.expected_date)}</span>
         </div>
         <div class="query-card-body">
-          <div class="query-card-client">${o.client || '對象未提供'}</div>
-          <div class="query-card-dest" title="${o.destination || ''}">📍 ${truncateStr(o.destination, 24)}</div>
-          <div class="query-card-product">品名: ${o.product || '-'} | 批號: ${o.batch || '-'}</div>
+          <div class="query-card-client">${escapeHtml(o.client) || '對象未提供'}</div>
+          <div class="query-card-dest" title="${escapeHtml(o.destination) || ''}">📍 ${escapeHtml(truncateStr(o.destination, 24))}</div>
+          <div class="query-card-product">品名: ${escapeHtml(o.product) || '-'} | 批號: ${escapeHtml(o.batch) || '-'}</div>
         </div>
         <div class="query-card-footer">
           ${departureInfo}
           ${transportInfo}
           <div class="query-card-status">
-            <span>出貨單號: ${o.id || '無'}</span>
+            <span>出貨單號: ${escapeHtml(o.id) || '無'}</span>
             <span>${getStatusBadge(o)}</span>
           </div>
         </div>
@@ -1081,11 +1106,11 @@ async function loadAndRenderLogs() {
         
         return `
           <tr>
-            <td>${log.timestamp}</td>
-            <td>${log.operator}</td>
-            <td><span class="badge ${badgeClass}">${log.role}</span></td>
-            <td><strong>${log.action}</strong></td>
-            <td title="${log.details || ''}">${log.details || ''}</td>
+            <td>${escapeHtml(log.timestamp)}</td>
+            <td>${escapeHtml(log.operator)}</td>
+            <td><span class="badge ${badgeClass}">${escapeHtml(log.role)}</span></td>
+            <td><strong>${escapeHtml(log.action)}</strong></td>
+            <td title="${escapeHtml(log.details) || ''}">${escapeHtml(log.details) || ''}</td>
           </tr>
         `;
       }).join('');

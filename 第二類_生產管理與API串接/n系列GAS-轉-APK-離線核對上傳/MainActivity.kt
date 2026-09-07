@@ -213,14 +213,35 @@ class MainActivity : AppCompatActivity() {
         row4in14.visibility = if (barrelCount >= 4) View.VISIBLE else View.GONE
     }
 
+    // ==========================================
+    // 【2026-09-07 更新註記】：檢查 1 系列格式 (相容 M76 儲槽 24 碼 與 非 M76 一般儲槽 20 碼)
+    // - M76 儲槽（批號帶有 M76）：條碼長度強制 24 碼
+    //   若為 20 碼或其他長度 ➔ ❌ [料號與保存期限條碼] 長度錯誤！M76 儲槽只能是 24 碼 (目前長度: [長度])
+    // - 一般儲槽（批號無 M76）：條碼長度強制 20 碼
+    //   若誤貼為 24 碼或其他長度 ➔ ❌ [料號與保存期限條碼] 長度錯誤！一般儲槽(非 M76)應為 20 碼 (目前長度: [長度])
+    // - 結尾代碼：放行 TS 與 TW
+    // ==========================================
     private fun validateBarcodeFormat(code: String): String {
         val s = code.trim()
         if (s.startsWith("7")) {
-            if (s.length != 29) return "[7開頭] 長度需 29 碼"
+            if (s.length != 29 && s.length != 13) return "[7開頭] 長度需 29 碼或 13 碼"
             if (!s.contains("-T0", ignoreCase = true)) return "[7開頭] 需包含 '-T0'"
         } else if (s.startsWith("1")) {
-            if (s.length != 20) return "[1開頭] 長度需 20 碼"
-            if (!s.endsWith("TS", ignoreCase = true)) return "[1開頭] 必須以 'TS' 結尾"
+            val len = s.length
+            val suffix = s.takeLast(2).uppercase()
+            // 結尾代碼：同時放行 TS 與 TW
+            if (suffix != "TS" && suffix != "TW") return "[1開頭] 必須以 'TS' 或 'TW' 結尾"
+
+            // 自動偵測當前畫面已填寫欄位中是否包含 M76
+            val hasM76InInputs = fields.any { it?.text?.toString()?.uppercase()?.contains("M76") == true }
+            val anyBatchFilled = listOf(0, 2, 4, 6).any { idx -> !fields[idx]?.text.isNullOrBlank() }
+            if (hasM76InInputs) {
+                if (len != 24) return "❌ [料號與保存期限條碼] 長度錯誤！\n👉 M76 儲槽只能是 24 碼 (目前長度: $len)"
+            } else if (anyBatchFilled) {
+                if (len != 20) return "❌ [料號與保存期限條碼] 長度錯誤！\n👉 一般儲槽(非 M76)應為 20 碼 (目前長度: $len)"
+            } else {
+                if (len != 20 && len != 24) return "[1開頭] 長度需 20 碼或 24 碼 (目前 ${len} 碼)"
+            }
         }
         return "OK"
     }
