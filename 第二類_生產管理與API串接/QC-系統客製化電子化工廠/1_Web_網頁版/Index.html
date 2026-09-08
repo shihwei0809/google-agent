@@ -60,18 +60,51 @@
       padding: 14px 16px;
       margin-bottom: 18px;
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
+      flex-direction: column;
       gap: 12px;
     }
     .t100-badge {
       background: #16a34a;
       color: white;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       font-weight: bold;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 5px 10px;
+      border-radius: 6px;
       white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .t100-date-picker {
+      padding: 6px 10px;
+      border: 1.5px solid #16a34a;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #14532d;
+      background: #fff;
+      cursor: pointer;
+    }
+    .btn-t100-filter {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #86efac;
+      background: #fff;
+      color: #166534;
+      font-size: 0.82rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-t100-filter:hover {
+      background: #dcfce7;
+    }
+    .btn-t100-filter.active {
+      background: #16a34a;
+      color: #fff;
+      border-color: #16a34a;
+      box-shadow: 0 1px 3px rgba(22, 163, 74, 0.3);
     }
     .t100-select-wrapper {
       flex: 1;
@@ -99,6 +132,21 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
+    }
+    .t100-alert-box {
+      display: none;
+      width: 100%;
+      background: #fffbeb;
+      border: 1.5px solid #f59e0b;
+      color: #92400e;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      box-sizing: border-box;
+      animation: fadeIn 0.25s ease;
+      align-items: center;
+      gap: 8px;
     }
 
     /* 模擬測試控制列 (預設隱藏，解鎖後以 flex 顯示) */
@@ -448,21 +496,47 @@
       </div>
     </div>
 
-    <!-- T100 槽車排程快速選擇列 (支援出貨與進料雙區塊) -->
+    <!-- T100 槽車排程快速選擇列 (支援出貨與進料雙區塊、日期篩選與已送樣記號) -->
     <div class="t100-banner">
-      <span class="t100-badge">🚛 T100 槽車排程</span>
-      <div class="t100-select-wrapper">
-        <select id="t100Select" class="t100-select" onchange="onT100SelectChange(this.value)">
-          <option value="">-- 點此直接選擇 T100 槽車排程 (包含出貨與進料) --</option>
-        </select>
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; width:100%;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span class="t100-badge">🚛 T100 槽車排程</span>
+          
+          <!-- 日期選擇與模式篩選 -->
+          <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <label for="t100DateFilter" style="font-size:0.82rem; margin:0; color:#166534; font-weight:bold;">📅 日期：</label>
+            <input type="date" id="t100DateFilter" class="t100-date-picker" onchange="onT100DateFilterChange(this.value)" title="切換指定日期查詢排程">
+            <button type="button" class="btn-t100-filter active" id="btnFilterToday" onclick="setT100FilterMode('today')" title="只看今日排程">📅 今日排程</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterPending" onclick="setT100FilterMode('pending')" title="查詢所有放櫃或未送樣車次">📦 待送樣放櫃</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterAll" onclick="setT100FilterMode('all')" title="檢視所有匯入排程">🔍 顯示全部</button>
+          </div>
+        </div>
+
+        <span id="t100StatsBadge" style="background:#dcfce7; color:#15803d; padding:4px 10px; border-radius:12px; font-size:0.82rem; font-weight:bold; border:1px solid #86efac;">
+          載入中...
+        </span>
       </div>
-      <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
-      <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
-        📂 匯入最新 T100 排程 Excel
-      </button>
-      <button type="button" onclick="resetForm()" style="padding:9px 12px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
-        清空重選
-      </button>
+
+      <div style="display:flex; gap:10px; width:100%; align-items:center; flex-wrap:wrap;">
+        <div class="t100-select-wrapper">
+          <select id="t100Select" class="t100-select" onchange="onT100SelectChange(this.value)">
+            <option value="">-- 點此直接選擇 T100 槽車排程 (包含出貨與進料) --</option>
+          </select>
+        </div>
+        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
+        <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
+          📂 匯入最新 T100 排程 Excel
+        </button>
+        <button type="button" onclick="resetForm()" style="padding:9px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap;">
+          清空重選
+        </button>
+      </div>
+
+      <!-- 已送樣提示通知條 (當選擇已送樣車次時動態顯示) -->
+      <div id="t100AlreadySubmittedAlert" class="t100-alert-box">
+        <span style="font-size:1.15rem;">⚠️</span>
+        <span id="t100AlertText" style="flex:1;">此車次單號已送樣過！</span>
+      </div>
     </div>
 
     <!-- 本機 PWA 專用模擬測試控制箱 (預設隱藏，需管理員 PIN 碼解鎖) -->
@@ -886,31 +960,40 @@
 <div id="toast" class="toast"></div>
 
 <script>
-  // 1. 完整預載明天槽車排程（共 20 筆：10 筆出貨 + 10 筆進料）
+  // 1. 完整預載明天槽車排程（共 20 筆：10 筆出貨 + 10 筆進料，預設日期為報表日 2026-09-06）
   let t100Orders = [
     // --- 【出貨槽車 (10 筆)】 ---
-    { "doc_no": "ESXM101-20260901013", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK624", "customer": "關東鑫林", "container": "PPCU7019228", "quantity": "5000 KG", "note": "L2 08:00 槽號:PPCU7019228 隨貨附樣" },
-    { "doc_no": "ESXM101-20260901020", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7020018", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7020018 隨貨附樣" },
-    { "doc_no": "ESXM101-20260901021", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019193", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7019193 隨貨附樣" },
-    { "doc_no": "ESXM101-20260902005", "time": "09:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE3(T)", "tankNo": "S223", "customer": "勝一化工", "container": "S223", "quantity": "15000 KG", "note": "出TK-683,提貨槽車S223 (FOR TSMC),當天拉回永安二廠" },
-    { "doc_no": "ESXM101-20260901022", "time": "13:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019212", "quantity": "5000 KG", "note": "L3崙尾 13:00 槽號:PPCU7019212 隨貨附樣" },
-    { "doc_no": "ESXM109-20260902011", "time": "13:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE4", "tankNo": "S224", "customer": "勝一化工", "container": "S224", "quantity": "15000 KG", "note": "PM13:00 槽號：S224，充15噸" },
-    { "doc_no": "ESXM101-20260831012", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服，隨COA+三合一單" },
-    { "doc_no": "ESXM101-20260831027", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
-    { "doc_no": "ESXM101-20260831028", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
-    { "doc_no": "ESXM101-20260903004", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260901013", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK624", "customer": "關東鑫林", "container": "PPCU7019228", "quantity": "5000 KG", "note": "L2 08:00 槽號:PPCU7019228 隨貨附樣" },
+    { "doc_no": "ESXM101-20260901020", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7020018", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7020018 隨貨附樣" },
+    { "doc_no": "ESXM101-20260901021", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019193", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7019193 隨貨附樣" },
+    { "doc_no": "ESXM101-20260902005", "date": "2026-09-06", "time": "09:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE3(T)", "tankNo": "S223", "customer": "勝一化工", "container": "S223", "quantity": "15000 KG", "note": "出TK-683,提貨槽車S223 (FOR TSMC),當天拉回永安二廠" },
+    { "doc_no": "ESXM101-20260901022", "date": "2026-09-06", "time": "13:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019212", "quantity": "5000 KG", "note": "L3崙尾 13:00 槽號:PPCU7019212 隨貨附樣" },
+    { "doc_no": "ESXM109-20260902011", "date": "2026-09-06", "time": "13:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE4", "tankNo": "S224", "customer": "勝一化工", "container": "S224", "quantity": "15000 KG", "note": "PM13:00 槽號：S224，充15噸" },
+    { "doc_no": "ESXM101-20260831012", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服，隨COA+三合一單" },
+    { "doc_no": "ESXM101-20260831027", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260831028", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260903004", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
     // --- 【進料槽車 (10 筆)】 ---
-    { "doc_no": "ESPM411-20260906001", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC05", "customer": "台積電 (南科18廠P5)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906002", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC01", "customer": "台積電 (南科18廠P7)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906003", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P4)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906004", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P6)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906005", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (南科18廠P4)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906006", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P1)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906007", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P2)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906008", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P3)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906010", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測7廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906011", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測8廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" }
+    { "doc_no": "ESPM411-20260906001", "date": "2026-09-06", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC05", "customer": "台積電 (南科18廠P5)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906002", "date": "2026-09-06", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC01", "customer": "台積電 (南科18廠P7)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906003", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P4)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906004", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P6)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906005", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (南科18廠P4)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906006", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P1)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906007", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P2)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906008", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P3)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906010", "date": "2026-09-06", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測7廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906011", "date": "2026-09-06", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測8廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" }
   ];
+
+  let t100FilterMode = 'today'; // 'today' | 'date' | 'pending' | 'all'
+
+  function getLocalDateString(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
   let allData = [];
   const IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
@@ -1123,46 +1206,174 @@
     dispatchTeamsCard(target.dept, overdueCardPayload, previewData);
   }
 
-  // 初始化 T100 下拉選單（依出貨/進料分群）
+  // 檢查某筆排程是否已在看板/系統中送樣過 (支援單號比對與槽號+車櫃比對)
+  function getOrderSubmissionInfo(order) {
+    if (!allData || allData.length === 0 || !order) return null;
+    
+    // 1. 單號精準比對 (最優先且最精確)
+    if (order.doc_no && String(order.doc_no).trim()) {
+      const targetDoc = String(order.doc_no).trim().toLowerCase();
+      const matchDoc = allData.find(s => s.barcode && String(s.barcode).trim().toLowerCase() === targetDoc);
+      if (matchDoc) return matchDoc;
+    }
+    
+    // 2. 槽號 + 品名 + 客戶/車號/櫃號比對 (針對無單號或預先充填送樣)
+    const matchDetails = allData.find(s => {
+      const sameTank = order.tankNo && s.tankNo && (String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase());
+      const sameProd = order.productName && s.productName && (String(s.productName).trim().toLowerCase() === String(order.productName).trim().toLowerCase());
+      const sameCont = order.container && s.customer && (
+        String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
+        String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase())
+      );
+      return (sameTank && sameProd) || (sameCont && sameProd);
+    });
+    return matchDetails || null;
+  }
+
+  // 切換 T100 篩選模式 ('today': 今日排程, 'date': 指定日期, 'pending': 待送樣放櫃, 'all': 全部)
+  function setT100FilterMode(mode) {
+    t100FilterMode = mode;
+    const todayStr = getLocalDateString();
+    const dateInput = document.getElementById('t100DateFilter');
+    
+    if (mode === 'today' && dateInput) {
+      dateInput.value = todayStr;
+    }
+    
+    // 更新按鈕 active 狀態
+    const btnToday = document.getElementById('btnFilterToday');
+    const btnPending = document.getElementById('btnFilterPending');
+    const btnAll = document.getElementById('btnFilterAll');
+    if (btnToday) btnToday.className = 'btn-t100-filter' + (mode === 'today' ? ' active' : '');
+    if (btnPending) btnPending.className = 'btn-t100-filter' + (mode === 'pending' ? ' active' : '');
+    if (btnAll) btnAll.className = 'btn-t100-filter' + (mode === 'all' ? ' active' : '');
+    
+    renderT100Dropdown();
+  }
+
+  // 日期選取器變更事件
+  function onT100DateFilterChange(val) {
+    if (!val) return;
+    t100FilterMode = 'date';
+    const btnToday = document.getElementById('btnFilterToday');
+    const btnPending = document.getElementById('btnFilterPending');
+    const btnAll = document.getElementById('btnFilterAll');
+    if (btnToday) btnToday.className = 'btn-t100-filter' + (val === getLocalDateString() ? ' active' : '');
+    if (btnPending) btnPending.className = 'btn-t100-filter';
+    if (btnAll) btnAll.className = 'btn-t100-filter';
+    renderT100Dropdown();
+  }
+
+  // 初始化與動態渲染 T100 下拉選單（依日期過濾、標記已送樣/待送樣）
   function renderT100Dropdown() {
     const sel = document.getElementById('t100Select');
-    const outOrders = t100Orders.filter(o => o.flowType === '出貨');
-    const inOrders = t100Orders.filter(o => o.flowType === '進料');
+    if (!sel) return;
 
-    let html = `<option value="">-- 點此直接選擇 T100 槽車排程 (共 ${t100Orders.length} 車次：${outOrders.length} 出貨 + ${inOrders.length} 進料) --</option>`;
+    const todayStr = getLocalDateString();
+    const dateInput = document.getElementById('t100DateFilter');
+    if (dateInput && !dateInput.value) {
+      dateInput.value = todayStr;
+    }
+    const selectedDate = (dateInput && dateInput.value) ? dateInput.value : todayStr;
 
-    if(outOrders.length > 0) {
-      html += `<optgroup label="🚚 【出貨槽車排程】(${outOrders.length} 車次)">`;
-      outOrders.forEach(o => {
-        const globalIdx = t100Orders.indexOf(o);
-        const timeBadge = o.time ? `[${o.time}] ` : '';
-        const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
-        const boxBadge = o.container ? ` [車/櫃:${o.container}]` : '';
-        html += `<option value="${globalIdx}">${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
-      });
-      html += `</optgroup>`;
+    // 依模式過濾出符合條件的排程
+    let filteredOrders = [];
+    let filterDescription = '';
+
+    if (t100FilterMode === 'today') {
+      filteredOrders = t100Orders.filter(o => o.date === todayStr);
+      filterDescription = `今日 (${todayStr})`;
+    } else if (t100FilterMode === 'date') {
+      filteredOrders = t100Orders.filter(o => o.date === selectedDate);
+      filterDescription = `${selectedDate}`;
+    } else if (t100FilterMode === 'pending') {
+      filteredOrders = t100Orders.filter(o => !getOrderSubmissionInfo(o));
+      filterDescription = `待送樣放櫃/排程`;
+    } else if (t100FilterMode === 'all') {
+      filteredOrders = [...t100Orders];
+      filterDescription = `全部匯入排程`;
     }
 
-    if(inOrders.length > 0) {
-      html += `<optgroup label="📥 【進料/入庫槽車排程】(${inOrders.length} 車次)">`;
-      inOrders.forEach(o => {
-        const globalIdx = t100Orders.indexOf(o);
-        const timeBadge = o.time ? `[${o.time}] ` : '';
-        const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
-        const boxBadge = o.container ? ` [車:${o.container}]` : '';
-        html += `<option value="${globalIdx}">${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
-      });
-      html += `</optgroup>`;
+    // 計算狀態統計
+    const totalCount = t100Orders.length;
+    const submittedInTotal = t100Orders.filter(o => getOrderSubmissionInfo(o)).length;
+    const submittedInView = filteredOrders.filter(o => getOrderSubmissionInfo(o)).length;
+    const pendingInView = filteredOrders.length - submittedInView;
+
+    const statsBadge = document.getElementById('t100StatsBadge');
+    if (statsBadge) {
+      if (t100FilterMode === 'today') {
+        statsBadge.innerHTML = `今日排程: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView}) · 總排程: ${totalCount}`;
+      } else if (t100FilterMode === 'pending') {
+        statsBadge.innerHTML = `📦 待送樣放櫃: <b>${filteredOrders.length}</b> 車未送樣 (已送 ${submittedInTotal} / 總排程 ${totalCount})`;
+      } else {
+        statsBadge.innerHTML = `${filterDescription}: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView})`;
+      }
+    }
+
+    let html = '';
+    const outOrders = filteredOrders.filter(o => o.flowType === '出貨');
+    const inOrders = filteredOrders.filter(o => o.flowType === '進料');
+
+    if (filteredOrders.length === 0) {
+      if (t100FilterMode === 'today') {
+        const availableDates = [...new Set(t100Orders.map(o => o.date).filter(Boolean))].sort();
+        const latestDate = availableDates.length ? availableDates[availableDates.length - 1] : '';
+        const hintText = latestDate ? `排程日為 ${latestDate}，可點擊上方日期切換` : '可匯入最新排程或點擊「待送樣放櫃」';
+        html += `<option value="">-- 📅 今日 (${todayStr}) 尚無排程 (共 ${totalCount} 筆放櫃/預約車次，${hintText}) --</option>`;
+      } else if (t100FilterMode === 'pending') {
+        html += `<option value="">-- 🎉 太棒了！所有放櫃與排程車次 (共 ${totalCount} 筆) 皆已完成送樣 --</option>`;
+      } else {
+        html += `<option value="">-- 📅 日期 [${selectedDate}] 無排程 (共 ${totalCount} 筆其他日期排程，可切換日期查詢) --</option>`;
+      }
+    } else {
+      html += `<option value="">-- 點此選擇 ${filterDescription} (共 ${filteredOrders.length} 車次：${outOrders.length} 出貨 + ${inOrders.length} 進料) --</option>`;
+
+      if (outOrders.length > 0) {
+        html += `<optgroup label="🚚 【出貨槽車排程】(${outOrders.length} 車次)">`;
+        outOrders.forEach(o => {
+          const globalIdx = t100Orders.indexOf(o);
+          const sub = getOrderSubmissionInfo(o);
+          const mark = sub ? (sub.status === 'completed' ? '✅ [已送樣-完成]' : '✅ [已送樣-檢驗中]') : '⏳ [待送樣]';
+          const timeBadge = o.time ? `[${o.time}] ` : '';
+          const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
+          const boxBadge = o.container ? ` [車/櫃:${o.container}]` : '';
+          const dateBadge = (t100FilterMode !== 'today' && o.date) ? ` (${o.date})` : '';
+          html += `<option value="${globalIdx}">${mark} ${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})${dateBadge}</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      if (inOrders.length > 0) {
+        html += `<optgroup label="📥 【進料/入庫槽車排程】(${inOrders.length} 車次)">`;
+        inOrders.forEach(o => {
+          const globalIdx = t100Orders.indexOf(o);
+          const sub = getOrderSubmissionInfo(o);
+          const mark = sub ? (sub.status === 'completed' ? '✅ [已送樣-完成]' : '✅ [已送樣-檢驗中]') : '⏳ [待送樣]';
+          const timeBadge = o.time ? `[${o.time}] ` : '';
+          const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
+          const boxBadge = o.container ? ` [車:${o.container}]` : '';
+          const dateBadge = (t100FilterMode !== 'today' && o.date) ? ` (${o.date})` : '';
+          html += `<option value="${globalIdx}">${mark} ${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})${dateBadge}</option>`;
+        });
+        html += `</optgroup>`;
+      }
     }
 
     sel.innerHTML = html;
   }
 
-  // 當使用者在下拉選單選取某車次時，自動帶入表單
+  // 當使用者在下拉選單選取某車次時，自動帶入表單並偵測重複送樣
   function onT100SelectChange(val) {
-    if(val === "") return;
+    const alertBox = document.getElementById('t100AlreadySubmittedAlert');
+    const alertText = document.getElementById('t100AlertText');
+
+    if (val === "") {
+      if (alertBox) alertBox.style.display = 'none';
+      return;
+    }
     const item = t100Orders[parseInt(val)];
-    if(!item) return;
+    if (!item) return;
 
     document.getElementById('barcode').value = item.doc_no || '';
     document.getElementById('flowType').value = item.flowType || '出貨';
@@ -1171,12 +1382,24 @@
     document.getElementById('tankNo').value = item.tankNo || '';
     document.getElementById('customer').value = item.container || item.customer || '';
     document.getElementById('quantity').value = item.quantity || '';
-    
-    showToast(`✅ 已自動帶入 [${item.flowType}] 排程：${item.productName} (${item.container || item.tankNo})`);
+
+    // 檢查該訂單是否已送過樣
+    const sub = getOrderSubmissionInfo(item);
+    if (sub && alertBox && alertText) {
+      alertBox.style.display = 'flex';
+      const timeStr = formatSimpleDate(sub.createdAt);
+      const statusDesc = (sub.status === 'completed') ? '已完成檢驗 (放行)' : '檢驗中 (等候結果)';
+      alertText.innerHTML = `<strong>⚠️ 重複送樣警示：</strong>此車次單號 <code>${item.doc_no}</code> 已於 <strong>${timeStr}</strong> 提交送樣！目前狀態為 <strong>【${statusDesc}】</strong>。<br>若此車次需重新抽樣或進行二次複驗，請確認後再提交。`;
+      showToast(`⚠️ 注意：此車次已於 ${timeStr} 送樣過 (${statusDesc})！`, 4500);
+    } else if (alertBox) {
+      alertBox.style.display = 'none';
+      showToast(`✅ 已自動帶入 [${item.flowType}] 排程：${item.productName} (${item.container || item.tankNo})`);
+    }
+
     document.getElementById('requester').focus();
   }
 
-  // 前端即時解析上傳的 Excel（自動動態掃描「出貨」與「進料」雙區塊）
+  // 前端即時解析上傳的 Excel（自動動態掃描「出貨」與「進料」雙區塊，並提取排程日期）
   function handleExcelUpload(e) {
     const file = e.target.files[0];
     if(!file) return;
@@ -1186,7 +1409,7 @@
     reader.onload = function(evt) {
       try {
         const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
         let targetSheetName = workbook.SheetNames.find(n => n.includes('槽車'));
         if(!targetSheetName) {
@@ -1197,7 +1420,7 @@
         const worksheet = workbook.Sheets[targetSheetName];
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
         
-        if(rows.length < 5) {
+        if(rows.length < 4) {
           alert("Excel 列數不足，請確認檔案格式是否正確。");
           return;
         }
@@ -1205,13 +1428,32 @@
         let currentMode = null;
         let colMap = {};
         const newOrders = [];
+        let lastSeenDate = '';
+
+        function parseRowDate(rowVals) {
+          for(const v of rowVals) {
+            if(!v) continue;
+            if(v instanceof Date && !isNaN(v.getTime())) {
+              const y = v.getFullYear();
+              const m = String(v.getMonth() + 1).padStart(2, '0');
+              const d = String(v.getDate()).padStart(2, '0');
+              return `${y}-${m}-${d}`;
+            }
+            const s = String(v).trim();
+            const match = s.match(/(202\d)[-/.](\d{1,2})[-/.](\d{1,2})/);
+            if(match) {
+              return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+            }
+          }
+          return '';
+        }
 
         for(let r = 0; r < rows.length; r++) {
           const row = rows[r];
           if(!row || row.length === 0) continue;
 
-          const firstCell = String(row[0] || '').trim();
-          if(firstCell.includes('出貨通知單') || firstCell.includes('出通單')) {
+          const rowStr = row.map(v => String(v || '')).join(' ');
+          if(rowStr.includes('出貨通知單') || rowStr.includes('出通單')) {
             currentMode = '出貨';
             colMap = {};
             for(let c = 0; c < row.length; c++) {
@@ -1219,7 +1461,7 @@
               if(h) colMap[h] = c;
             }
             continue;
-          } else if(firstCell.includes('入庫單') || firstCell.includes('進貨單')) {
+          } else if(rowStr.includes('入庫單') || rowStr.includes('進貨單')) {
             currentMode = '進料';
             colMap = {};
             for(let c = 0; c < row.length; c++) {
@@ -1231,25 +1473,57 @@
 
           if(!currentMode || Object.keys(colMap).length === 0) continue;
 
+          const rowDate = parseRowDate(row);
+          if(rowDate) {
+            lastSeenDate = rowDate;
+          }
+
+          const gv = (keys) => {
+            if(typeof keys === 'string') keys = [keys];
+            for(const k of keys) {
+              if(colMap[k] !== undefined && row[colMap[k]] !== undefined && row[colMap[k]] !== null) {
+                return row[colMap[k]];
+              }
+            }
+            return '';
+          };
+
           if(currentMode === '出貨') {
-            const docNo = row[colMap['出貨通知單']];
-            const prod = row[colMap['品名']];
+            const docNo = gv(['出貨通知單', '出通單']);
+            const prod = gv(['品名']);
             if(!docNo || !prod) continue;
 
-            const timeStr = row[colMap['預計出貨時間']] || '';
-            const tank = row[colMap['出貨槽號']] || row[colMap['槽號']] || '';
-            const cust = row[colMap['客戶名稱']] || '';
-            const container = row[colMap['貨櫃號碼']] || '';
-            const qty = row[colMap['預計出貨數量(KG)']] || '';
-            const spec = row[colMap['規格說明']] || '';
-            const note = row[colMap['備註']] || '';
+            const timeStr = gv(['預計出貨時間', '出貨時間']);
+            const tank = gv(['儲位名稱', '出貨槽號', '槽號', '儲位']);
+            const cust = gv(['交易對象簡稱', '客戶名稱', '客戶']);
+            const truck = gv(['出通單單頭.車牌號碼', '車牌號碼', '車牌號碼(磅)']);
+            const qty = gv(['換算數量', '預計出貨數量(KG)']);
+            const spec = gv(['規格說明', '規格']);
+            const note = gv(['注意事項', '備註']);
+
+            let container = String(truck || '').trim();
+            if(!container && note) {
+              const m = String(note).match(/槽號[:：]?\s*([A-Za-z0-9\-]+)/);
+              if(m) container = m[1];
+              else {
+                const m2 = String(note).match(/提貨槽車\s*([A-Za-z0-9\-]+)/);
+                if(m2) container = m2[1];
+              }
+            }
 
             let grade = '工業級';
             if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
             else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
 
+            let orderDate = lastSeenDate;
+            if(!orderDate && docNo) {
+              const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
+              if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
+            }
+
             newOrders.push({
               doc_no: String(docNo).trim(),
+              date: orderDate || getLocalDateString(),
               time: String(timeStr || '').trim(),
               flowType: '出貨',
               grade: grade,
@@ -1261,19 +1535,19 @@
               note: String(note || '').trim()
             });
           } else if(currentMode === '進料') {
-            const docNo = row[colMap['入庫單']];
-            const prod = row[colMap['品名']];
+            const docNo = gv(['入庫單', '進貨單']);
+            const prod = gv(['品名']);
             if(!docNo || !prod) continue;
 
-            const timeStr = row[colMap['預計進貨時間']] || '';
-            const tank = row[colMap['槽别']] || row[colMap['儲位']] || '';
-            const spec = row[colMap['規格']] || '';
-            const vendor = row[colMap['供應商簡稱']] || '';
-            const origin = row[colMap['出貨廠別(廠商)']] || '';
-            const truck = row[colMap['車牌號碼']] || '';
-            const box = row[colMap['櫃號']] || '';
-            const qty = row[colMap['預計進貨數量(KG)']] || '';
-            const note = row[colMap['備註']] || '';
+            const timeStr = gv(['預計進貨時間', '進貨時間']);
+            const tank = gv(['槽别', '槽別', '儲位', '槽號']);
+            const spec = gv(['規格', '規格說明']);
+            const vendor = gv(['供應商簡稱', '廠商簡稱', '供應商']);
+            const origin = gv(['出貨廠別(廠商)', '廠別']);
+            const truck = gv(['車牌號碼', '車號']);
+            const box = gv(['櫃號', '貨櫃號碼']);
+            const qty = gv(['預計進貨數量(KG)', '進貨數量(KG)', '數量']);
+            const note = gv(['備註', '注意事項']);
 
             let container = String(truck || '').trim();
             if(box && String(box).trim()) {
@@ -1286,8 +1560,15 @@
             if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
             else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
 
+            let orderDate = lastSeenDate;
+            if(!orderDate && docNo) {
+              const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
+              if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
+            }
+
             newOrders.push({
               doc_no: String(docNo).trim(),
+              date: orderDate || getLocalDateString(),
               time: String(timeStr || '').trim(),
               flowType: '進料',
               grade: grade,
@@ -1307,7 +1588,22 @@
         }
 
         t100Orders = newOrders;
-        renderT100Dropdown();
+        localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
+
+        // 自動同步日期過濾器
+        const todayStr = getLocalDateString();
+        const hasToday = newOrders.some(o => o.date === todayStr);
+        const dateInput = document.getElementById('t100DateFilter');
+        if(hasToday) {
+          setT100FilterMode('today');
+        } else {
+          // 如果沒有今日排程，自動切換至排程最新日期並提示
+          const dates = [...new Set(newOrders.map(o => o.date).filter(Boolean))].sort();
+          const targetDate = dates.length ? dates[dates.length - 1] : todayStr;
+          if(dateInput) dateInput.value = targetDate;
+          setT100FilterMode('date');
+        }
+
         const outCount = newOrders.filter(o => o.flowType === '出貨').length;
         const inCount = newOrders.filter(o => o.flowType === '進料').length;
         showToast(`🎉 成功自「${targetSheetName}」匯入 ${newOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`);
@@ -1656,6 +1952,9 @@
         <td style="font-size:0.8rem; color:#64748b;">${s.qcNote || '-'}</td>
       </tr>`).join('') : `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
     }
+
+    // 當樣品列表更新時，同步刷新 T100 排程選單的送樣狀態記號
+    renderT100Dropdown();
   }
 
   function resetFilters() {
@@ -1668,6 +1967,8 @@
   function resetForm() {
     document.getElementById('qcForm').reset();
     document.getElementById('t100Select').value = '';
+    const alertBox = document.getElementById('t100AlreadySubmittedAlert');
+    if (alertBox) alertBox.style.display = 'none';
     setBarcodePlaceholder();
   }
 

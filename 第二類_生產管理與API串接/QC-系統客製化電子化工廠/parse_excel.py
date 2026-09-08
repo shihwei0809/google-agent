@@ -11,6 +11,7 @@ import sys
 import re
 import json
 import os
+import datetime
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -38,6 +39,7 @@ def parse_t100_tank_schedule(excel_path):
     current_mode = None
     headers = {}
     orders = []
+    last_date = ""
 
     for r in range(1, sheet.max_row + 1):
         row_vals = [sheet.cell(row=r, column=c).value for c in range(1, sheet.max_column + 1)]
@@ -63,6 +65,14 @@ def parse_t100_tank_schedule(excel_path):
         def gv(col_name):
             c = headers.get(col_name)
             return sheet.cell(row=r, column=c).value if c else None
+
+        # 嘗試解析日期欄位
+        date_raw = gv('預計出貨日期') or gv('預計進貨日') or gv('預計到貨日期') or gv('單據日期')
+        if date_raw:
+            if isinstance(date_raw, (datetime.datetime, datetime.date)):
+                last_date = date_raw.strftime('%Y-%m-%d')
+            elif isinstance(date_raw, str) and re.search(r'202\d-\d{2}-\d{2}', date_raw):
+                last_date = re.search(r'202\d-\d{2}-\d{2}', date_raw).group(0)
 
         if current_mode == '出貨':
             doc_no = gv('出貨通知單')
@@ -92,9 +102,16 @@ def parse_t100_tank_schedule(excel_path):
                 grade = 'UPS'
             elif 'IF' in str(prod).upper():
                 grade = 'IF'
+
+            order_date = last_date
+            if not order_date and doc_no:
+                m_doc = re.search(r'(202\d)([01]\d)([0-3]\d)', str(doc_no))
+                if m_doc:
+                    order_date = f"{m_doc.group(1)}-{m_doc.group(2)}-{m_doc.group(3)}"
                 
             orders.append({
                 'doc_no': str(doc_no).strip(),
+                'date': order_date,
                 'time': str(time_str).strip(),
                 'flowType': '出貨',
                 'grade': grade,
@@ -132,9 +149,16 @@ def parse_t100_tank_schedule(excel_path):
                 grade = 'UPS'
             elif 'IF' in str(prod).upper():
                 grade = 'IF'
+
+            order_date = last_date
+            if not order_date and doc_no:
+                m_doc = re.search(r'(202\d)([01]\d)([0-3]\d)', str(doc_no))
+                if m_doc:
+                    order_date = f"{m_doc.group(1)}-{m_doc.group(2)}-{m_doc.group(3)}"
                 
             orders.append({
                 'doc_no': str(doc_no).strip(),
+                'date': order_date,
                 'time': str(time_str).strip(),
                 'flowType': '進料',
                 'grade': grade,
