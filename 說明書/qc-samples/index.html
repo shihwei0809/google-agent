@@ -1334,12 +1334,19 @@
         outOrders.forEach(o => {
           const globalIdx = t100Orders.indexOf(o);
           const sub = getOrderSubmissionInfo(o);
-          const mark = sub ? (sub.status === 'completed' ? '✅ [已送樣-完成]' : '✅ [已送樣-檢驗中]') : '⏳ [待送樣]';
-          const timeBadge = o.time ? `[${o.time}] ` : '';
+          const mark = sub ? (sub.status === 'completed' ? '✅[已驗合格] ' : '✅[已送樣待驗] ') : '⏳[待送樣] ';
+          
+          let dtStr = o.date || '';
+          if (o.time && o.time !== '排程') {
+            dtStr = dtStr ? `${dtStr} ${o.time}` : o.time;
+          } else if (o.time === '排程') {
+            dtStr = dtStr ? `${dtStr} 排程` : '排程';
+          }
+          const dtBadge = dtStr ? `[${dtStr}] ` : '';
+
           const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
           const boxBadge = o.container ? ` [車/櫃:${o.container}]` : '';
-          const dateBadge = (t100FilterMode !== 'today' && o.date) ? ` (${o.date})` : '';
-          html += `<option value="${globalIdx}">${mark} ${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})${dateBadge}</option>`;
+          html += `<option value="${globalIdx}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
         });
         html += `</optgroup>`;
       }
@@ -1349,12 +1356,19 @@
         inOrders.forEach(o => {
           const globalIdx = t100Orders.indexOf(o);
           const sub = getOrderSubmissionInfo(o);
-          const mark = sub ? (sub.status === 'completed' ? '✅ [已送樣-完成]' : '✅ [已送樣-檢驗中]') : '⏳ [待送樣]';
-          const timeBadge = o.time ? `[${o.time}] ` : '';
+          const mark = sub ? (sub.status === 'completed' ? '✅[已驗合格] ' : '✅[已送樣待驗] ') : '⏳[待送樣] ';
+          
+          let dtStr = o.date || '';
+          if (o.time && o.time !== '排程') {
+            dtStr = dtStr ? `${dtStr} ${o.time}` : o.time;
+          } else if (o.time === '排程') {
+            dtStr = dtStr ? `${dtStr} 排程` : '排程';
+          }
+          const dtBadge = dtStr ? `[${dtStr}] ` : '';
+
           const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
           const boxBadge = o.container ? ` [車:${o.container}]` : '';
-          const dateBadge = (t100FilterMode !== 'today' && o.date) ? ` (${o.date})` : '';
-          html += `<option value="${globalIdx}">${mark} ${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})${dateBadge}</option>`;
+          html += `<option value="${globalIdx}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
         });
         html += `</optgroup>`;
       }
