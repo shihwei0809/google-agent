@@ -1399,7 +1399,7 @@
     document.getElementById('requester').focus();
   }
 
-  // 前端即時解析上傳的 Excel（自動動態掃描「出貨」與「進料」雙區塊，並提取排程日期）
+  // 前端即時解析上傳的 Excel（智慧自動搜尋「槽車」分頁，並支援多重備援分頁自動掃描）
   function handleExcelUpload(e) {
     const file = e.target.files[0];
     if(!file) return;
@@ -1411,202 +1411,219 @@
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
-        let targetSheetName = workbook.SheetNames.find(n => n.includes('槽車'));
-        if(!targetSheetName) {
-          targetSheetName = workbook.SheetNames[0];
-          alert(`⚠️ 試算表中未找到包含「槽車」的分頁，預設使用第一分頁：「${targetSheetName}」`);
-        }
+        // 核心單一工作表解析器
+        function parseSheet(sheetName) {
+          const worksheet = workbook.Sheets[sheetName];
+          if (!worksheet) return [];
+          const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          if (!rows || rows.length < 4) return [];
 
-        const worksheet = workbook.Sheets[targetSheetName];
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        if(rows.length < 4) {
-          alert("Excel 列數不足，請確認檔案格式是否正確。");
-          return;
-        }
+          let currentMode = null;
+          let colMap = {};
+          const parsedOrders = [];
+          let lastSeenDate = '';
 
-        let currentMode = null;
-        let colMap = {};
-        const newOrders = [];
-        let lastSeenDate = '';
-
-        function parseRowDate(rowVals) {
-          for(const v of rowVals) {
-            if(!v) continue;
-            if(v instanceof Date && !isNaN(v.getTime())) {
-              const y = v.getFullYear();
-              const m = String(v.getMonth() + 1).padStart(2, '0');
-              const d = String(v.getDate()).padStart(2, '0');
-              return `${y}-${m}-${d}`;
-            }
-            const s = String(v).trim();
-            const match = s.match(/(202\d)[-/.](\d{1,2})[-/.](\d{1,2})/);
-            if(match) {
-              return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
-            }
-          }
-          return '';
-        }
-
-        for(let r = 0; r < rows.length; r++) {
-          const row = rows[r];
-          if(!row || row.length === 0) continue;
-
-          const rowStr = row.map(v => String(v || '')).join(' ');
-          if(rowStr.includes('出貨通知單') || rowStr.includes('出通單')) {
-            currentMode = '出貨';
-            colMap = {};
-            for(let c = 0; c < row.length; c++) {
-              const h = String(row[c] || '').trim();
-              if(h) colMap[h] = c;
-            }
-            continue;
-          } else if(rowStr.includes('入庫單') || rowStr.includes('進貨單')) {
-            currentMode = '進料';
-            colMap = {};
-            for(let c = 0; c < row.length; c++) {
-              const h = String(row[c] || '').trim();
-              if(h) colMap[h] = c;
-            }
-            continue;
-          }
-
-          if(!currentMode || Object.keys(colMap).length === 0) continue;
-
-          const rowDate = parseRowDate(row);
-          if(rowDate) {
-            lastSeenDate = rowDate;
-          }
-
-          const gv = (keys) => {
-            if(typeof keys === 'string') keys = [keys];
-            for(const k of keys) {
-              if(colMap[k] !== undefined && row[colMap[k]] !== undefined && row[colMap[k]] !== null) {
-                return row[colMap[k]];
+          function parseRowDate(rowVals) {
+            for(const v of rowVals) {
+              if(!v) continue;
+              if(v instanceof Date && !isNaN(v.getTime())) {
+                const y = v.getFullYear();
+                const m = String(v.getMonth() + 1).padStart(2, '0');
+                const d = String(v.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+              }
+              const s = String(v).trim();
+              const match = s.match(/(202\d)[-/.](\d{1,2})[-/.](\d{1,2})/);
+              if(match) {
+                return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
               }
             }
             return '';
-          };
+          }
 
-          if(currentMode === '出貨') {
-            const docNo = gv(['出貨通知單', '出通單']);
-            const prod = gv(['品名']);
-            if(!docNo || !prod) continue;
+          for(let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            if(!row || row.length === 0) continue;
 
-            const timeStr = gv(['預計出貨時間', '出貨時間']);
-            const tank = gv(['儲位名稱', '出貨槽號', '槽號', '儲位']);
-            const cust = gv(['交易對象簡稱', '客戶名稱', '客戶']);
-            const truck = gv(['出通單單頭.車牌號碼', '車牌號碼', '車牌號碼(磅)']);
-            const qty = gv(['換算數量', '預計出貨數量(KG)']);
-            const spec = gv(['規格說明', '規格']);
-            const note = gv(['注意事項', '備註']);
-
-            let container = String(truck || '').trim();
-            if(!container && note) {
-              const m = String(note).match(/槽號[:：]?\s*([A-Za-z0-9\-]+)/);
-              if(m) container = m[1];
-              else {
-                const m2 = String(note).match(/提貨槽車\s*([A-Za-z0-9\-]+)/);
-                if(m2) container = m2[1];
+            const rowStr = row.map(v => String(v || '')).join(' ');
+            if(rowStr.includes('出貨通知單') || rowStr.includes('出通單')) {
+              currentMode = '出貨';
+              colMap = {};
+              for(let c = 0; c < row.length; c++) {
+                const h = String(row[c] || '').trim();
+                if(h) colMap[h] = c;
               }
+              continue;
+            } else if(rowStr.includes('入庫單') || rowStr.includes('進貨單')) {
+              currentMode = '進料';
+              colMap = {};
+              for(let c = 0; c < row.length; c++) {
+                const h = String(row[c] || '').trim();
+                if(h) colMap[h] = c;
+              }
+              continue;
             }
 
-            let grade = '工業級';
-            if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
-            else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
+            if(!currentMode || Object.keys(colMap).length === 0) continue;
 
-            let orderDate = lastSeenDate;
-            if(!orderDate && docNo) {
-              const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
-              if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
+            const rowDate = parseRowDate(row);
+            if(rowDate) {
+              lastSeenDate = rowDate;
             }
 
-            newOrders.push({
-              doc_no: String(docNo).trim(),
-              date: orderDate || getLocalDateString(),
-              time: String(timeStr || '').trim(),
-              flowType: '出貨',
-              grade: grade,
-              productName: String(prod).trim(),
-              tankNo: String(tank || '').trim(),
-              customer: String(cust || '').trim(),
-              container: container ? container : String(cust || '').trim(),
-              quantity: qty ? `${qty} KG` : String(spec || '').trim(),
-              note: String(note || '').trim()
-            });
-          } else if(currentMode === '進料') {
-            const docNo = gv(['入庫單', '進貨單']);
-            const prod = gv(['品名']);
-            if(!docNo || !prod) continue;
+            const gv = (keys) => {
+              if(typeof keys === 'string') keys = [keys];
+              for(const k of keys) {
+                if(colMap[k] !== undefined && row[colMap[k]] !== undefined && row[colMap[k]] !== null) {
+                  return row[colMap[k]];
+                }
+              }
+              return '';
+            };
 
-            const timeStr = gv(['預計進貨時間', '進貨時間']);
-            const tank = gv(['槽别', '槽別', '儲位', '槽號']);
-            const spec = gv(['規格', '規格說明']);
-            const vendor = gv(['供應商簡稱', '廠商簡稱', '供應商']);
-            const origin = gv(['出貨廠別(廠商)', '廠別']);
-            const truck = gv(['車牌號碼', '車號']);
-            const box = gv(['櫃號', '貨櫃號碼']);
-            const qty = gv(['預計進貨數量(KG)', '進貨數量(KG)', '數量']);
-            const note = gv(['備註', '注意事項']);
+            if(currentMode === '出貨') {
+              const docNo = gv(['出貨通知單', '出通單']);
+              const prod = gv(['品名']);
+              if(!docNo || !prod) continue;
 
-            let container = String(truck || '').trim();
-            if(box && String(box).trim()) {
-              container = container ? `${container} (櫃:${box})` : String(box).trim();
+              const timeStr = gv(['預計出貨時間', '出貨時間']);
+              const tank = gv(['儲位名稱', '出貨槽號', '槽號', '儲位']);
+              const cust = gv(['交易對象簡稱', '客戶名稱', '客戶']);
+              const truck = gv(['出通單單頭.車牌號碼', '車牌號碼', '車牌號碼(磅)']);
+              const qty = gv(['換算數量', '預計出貨數量(KG)']);
+              const spec = gv(['規格說明', '規格']);
+              const note = gv(['注意事項', '備註']);
+
+              let container = String(truck || '').trim();
+              if(!container && note) {
+                const m = String(note).match(/槽號[:：]?\s*([A-Za-z0-9\-]+)/);
+                if(m) container = m[1];
+                else {
+                  const m2 = String(note).match(/提貨槽車\s*([A-Za-z0-9\-]+)/);
+                  if(m2) container = m2[1];
+                }
+              }
+
+              let grade = '工業級';
+              if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
+              else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
+
+              let orderDate = lastSeenDate;
+              if(!orderDate && docNo) {
+                const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
+                if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
+              }
+
+              parsedOrders.push({
+                doc_no: String(docNo).trim(),
+                date: orderDate || getLocalDateString(),
+                time: String(timeStr || '').trim(),
+                flowType: '出貨',
+                grade: grade,
+                productName: String(prod).trim(),
+                tankNo: String(tank || '').trim(),
+                customer: String(cust || '').trim(),
+                container: container ? container : String(cust || '').trim(),
+                quantity: qty ? `${qty} KG` : String(spec || '').trim(),
+                note: String(note || '').trim()
+              });
+            } else if(currentMode === '進料') {
+              const docNo = gv(['入庫單', '進貨單']);
+              const prod = gv(['品名']);
+              if(!docNo || !prod) continue;
+
+              const timeStr = gv(['預計進貨時間', '進貨時間']);
+              const tank = gv(['槽别', '槽別', '儲位', '槽號']);
+              const spec = gv(['規格', '規格說明']);
+              const vendor = gv(['供應商簡稱', '廠商簡稱', '供應商']);
+              const origin = gv(['出貨廠別(廠商)', '廠別']);
+              const truck = gv(['車牌號碼', '車號']);
+              const box = gv(['櫃號', '貨櫃號碼']);
+              const qty = gv(['預計進貨數量(KG)', '進貨數量(KG)', '數量']);
+              const note = gv(['備註', '注意事項']);
+
+              let container = String(truck || '').trim();
+              if(box && String(box).trim()) {
+                container = container ? `${container} (櫃:${box})` : String(box).trim();
+              }
+
+              const custStr = (vendor && origin) ? `${vendor} (${origin})` : (origin || vendor || '');
+
+              let grade = '工業級';
+              if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
+              else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
+
+              let orderDate = lastSeenDate;
+              if(!orderDate && docNo) {
+                const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
+                if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
+              }
+
+              parsedOrders.push({
+                doc_no: String(docNo).trim(),
+                date: orderDate || getLocalDateString(),
+                time: String(timeStr || '').trim(),
+                flowType: '進料',
+                grade: grade,
+                productName: String(prod).trim(),
+                tankNo: String(tank || '').trim(),
+                customer: custStr.trim(),
+                container: container ? container : custStr.trim(),
+                quantity: qty ? `${qty} KG` : String(spec || '').trim(),
+                note: String(note || '').trim()
+              });
             }
+          }
+          return parsedOrders;
+        }
 
-            const custStr = (vendor && origin) ? `${vendor} (${origin})` : (origin || vendor || '');
+        // 1. 優先鎖定含「槽車」之分頁
+        let targetSheetName = workbook.SheetNames.find(n => n.includes('槽車'));
+        let finalOrders = [];
+        let actualSheetUsed = '';
 
-            let grade = '工業級';
-            if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
-            else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
+        if (targetSheetName) {
+          finalOrders = parseSheet(targetSheetName);
+          if (finalOrders.length > 0) actualSheetUsed = targetSheetName;
+        }
 
-            let orderDate = lastSeenDate;
-            if(!orderDate && docNo) {
-              const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
-              if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
+        // 2. 若「槽車」分頁未找到或解析出 0 筆，自動遍歷其餘所有分頁進行備援解析
+        if (finalOrders.length === 0) {
+          for(const sName of workbook.SheetNames) {
+            if(sName === targetSheetName) continue;
+            const res = parseSheet(sName);
+            if(res.length > 0) {
+              finalOrders = res;
+              actualSheetUsed = sName;
+              break;
             }
-
-            newOrders.push({
-              doc_no: String(docNo).trim(),
-              date: orderDate || getLocalDateString(),
-              time: String(timeStr || '').trim(),
-              flowType: '進料',
-              grade: grade,
-              productName: String(prod).trim(),
-              tankNo: String(tank || '').trim(),
-              customer: custStr.trim(),
-              container: container ? container : custStr.trim(),
-              quantity: qty ? `${qty} KG` : String(spec || '').trim(),
-              note: String(note || '').trim()
-            });
           }
         }
 
-        if(newOrders.length === 0) {
-          alert("未在此分頁解析出任何有效的槽車排程！");
+        if(finalOrders.length === 0) {
+          alert(`⚠️ 未能自此試算表解析出任何有效的槽車排程！\n\n已檢查的活頁簿分頁：\n${workbook.SheetNames.map((s, idx) => `  [${idx+1}] ${s}`).join('\n')}\n\n請確認分頁內是否含有「出貨通知單」或「入庫單」之資料列。`);
           return;
         }
 
-        t100Orders = newOrders;
+        t100Orders = finalOrders;
         localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
 
         // 自動同步日期過濾器
         const todayStr = getLocalDateString();
-        const hasToday = newOrders.some(o => o.date === todayStr);
+        const hasToday = finalOrders.some(o => o.date === todayStr);
         const dateInput = document.getElementById('t100DateFilter');
         if(hasToday) {
           setT100FilterMode('today');
         } else {
-          // 如果沒有今日排程，自動切換至排程最新日期並提示
-          const dates = [...new Set(newOrders.map(o => o.date).filter(Boolean))].sort();
+          const dates = [...new Set(finalOrders.map(o => o.date).filter(Boolean))].sort();
           const targetDate = dates.length ? dates[dates.length - 1] : todayStr;
           if(dateInput) dateInput.value = targetDate;
           setT100FilterMode('date');
         }
 
-        const outCount = newOrders.filter(o => o.flowType === '出貨').length;
-        const inCount = newOrders.filter(o => o.flowType === '進料').length;
-        showToast(`🎉 成功自「${targetSheetName}」匯入 ${newOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`);
+        const outCount = finalOrders.filter(o => o.flowType === '出貨').length;
+        const inCount = finalOrders.filter(o => o.flowType === '進料').length;
+        showToast(`🎉 成功鎖定「${actualSheetUsed}」分頁，匯入 ${finalOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`, 5000);
       } catch(err) {
         console.error(err);
         alert("解析 Excel 失敗：" + err.message);
@@ -2842,9 +2859,11 @@
     // 定時刷新等候時長動畫與 KPI
     setInterval(render, 60000);
 
-    // 註冊 Service Worker
+    // 註冊 Service Worker (強制檢查更新，保證每次載入最新版本)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW register failed:', err));
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        reg.update();
+      }).catch(err => console.log('SW register failed:', err));
     }
   };
 </script>
