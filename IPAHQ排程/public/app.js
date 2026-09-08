@@ -1165,14 +1165,36 @@ async function confirmTechImport() {
     });
     const json = await res.json();
     if (json.success) {
-      alert(json.message);
       document.getElementById('tech-preview-container').classList.add('hidden');
-      // Reset upload inputs
       document.getElementById('tech-file-input').value = '';
       document.getElementById('tech-file-info').textContent = '未選擇檔案';
       document.getElementById('btn-tech-upload').disabled = true;
       loadData();
       document.querySelector('[data-tab="tab-dashboard"]').click();
+
+      // 彈出推播確認視窗
+      const summary = json.assignmentSummary || [];
+      if (summary.length > 0) {
+        const nameList = summary.map(s => `　• ${s.name}（${s.count} 筆）`).join('\n');
+        const doSend = confirm(
+          `✅ ${json.message}\n\n` +
+          `以下 ${summary.length} 位技服人員有新派工任務：\n${nameList}\n\n` +
+          `是否立即發送推播通知給所有人員？`
+        );
+        if (doSend) {
+          const notifyRes = await fetch('/api/import/tech/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assignmentSummary: summary })
+          });
+          const notifyJson = await notifyRes.json();
+          alert(notifyJson.message || '推播已發送！');
+        } else {
+          alert('已完成匯入，推播通知已略過。');
+        }
+      } else {
+        alert(json.message);
+      }
     } else {
       alert(`更新失敗: ${json.message}`);
     }

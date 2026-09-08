@@ -1204,24 +1204,51 @@ app.post('/api/import/tech', (req, res) => {
     addLog(db, operator || '未知使用者', role || 'tech_manager', '匯入技服充填手', `成功比對更新了 ${updatedCount} 筆充填手資料`);
     saveDB(db);
 
-    // 發送即時推播通知給被指派之技服同仁
-    for (const [techName, orders] of Object.entries(techAssignments)) {
-      const count = orders.length;
-      const first = orders[0];
-      const bodyText = count === 1
-        ? `【${first.destination}】${first.product || ''}\n到貨時間：${first.expected_date || ''} ${first.arrival_time || ''}，請點擊確認！`
-        : `主管指派了 ${count} 筆槽車充填任務（首筆：${first.destination} ${first.expected_date || ''} ${first.arrival_time || ''}），請點擊查閱！`;
-      sendPushNotificationToUser(techName, {
-        title: `📋 【新派工通知】勝一槽車充填`,
-        body: bodyText,
-        data: { url: `/?openOrder=${encodeURIComponent(first.key)}`, orderKey: first.key }
-      }).catch(err => console.error('[WebPush] 派工推播失敗:', err));
-    }
+    // 不自動推播，回傳指派摘要讓主管確認後再送
+    const assignmentSummary = Object.entries(techAssignments).map(([name, orders]) => ({
+      name,
+      count: orders.length,
+      firstOrder: orders[0]
+    }));
 
-    res.json({ success: true, message: `成功更新 ${updatedCount} 筆技服充填手資料` });
+    res.json({
+      success: true,
+      message: `成功更新 ${updatedCount} 筆技服充填手資料`,
+      assignmentSummary
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: `伺服器處理錯誤: ${err.message}` });
+  }
+});
+
+// 5b. 確認後手動觸發推播通知
+app.post('/api/import/tech/notify', async (req, res) => {
+  try {
+    const { assignmentSummary } = req.body;
+    if (!assignmentSummary || !Array.isArray(assignmentSummary)) {
+      return res.status(400).json({ success: false, message: '無效的推播資料' });
+    }
+
+    let sent = 0;
+    for (const item of assignmentSummary) {
+      const { name, count, firstOrder } = item;
+      if (!name || !firstOrder) continue;
+      const bodyText = count === 1
+        ? `【${firstOrder.destination}】${firstOrder.product || ''}\n到貨時間：${firstOrder.expected_date || ''} ${firstOrder.arrival_time || ''}，請點擊確認！`
+        : `主管指派了 ${count} 筆槽車充填任務（首筆：${firstOrder.destination} ${firstOrder.expected_date || ''} ${firstOrder.arrival_time || ''}），請點擊查閱！`;
+      await sendPushNotificationToUser(name, {
+        title: `📋 【新派工通知】勝一槽車充填`,
+        body: bodyText,
+        data: { url: `/?openOrder=${encodeURIComponent(firstOrder.key || '')}`, orderKey: firstOrder.key || '' }
+      }).catch(err => console.error('[WebPush] 派工推播失敗:', err));
+      sent++;
+    }
+
+    res.json({ success: true, message: `已成功發送 ${sent} 位技服人員推播通知！` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: `推播發送失敗: ${err.message}` });
   }
 });
 
