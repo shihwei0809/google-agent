@@ -101,18 +101,19 @@
       gap: 6px;
     }
 
-    /* 模擬測試控制列 */
+    /* 模擬測試控制列 (預設隱藏，解鎖後以 flex 顯示) */
     .sim-toolbar {
       background: #f8fafc;
       border: 1.5px dashed #cbd5e1;
       border-radius: 8px;
       padding: 10px 16px;
       margin-bottom: 18px;
-      display: flex;
+      display: none;
       flex-wrap: wrap;
       align-items: center;
       gap: 10px;
       font-size: 0.85rem;
+      animation: fadeIn 0.3s ease;
     }
     .btn-sim {
       padding: 6px 12px;
@@ -129,6 +130,36 @@
     .btn-sim:hover { background: #f1f5f9; }
     .btn-sim-teams { background: #5b5fc7; color: white; border: none; }
     .btn-sim-teams:hover { background: #4f52b2; }
+
+    /* 管理員解鎖按鈕樣式 */
+    .btn-admin-unlock {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+      color: #475569;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-admin-unlock:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+    .btn-admin-unlock.unlocked {
+      background: #ecfdf5;
+      color: #047857;
+      border-color: #6ee7b7;
+      box-shadow: 0 1px 2px rgba(16,185,129,0.15);
+    }
+    .btn-admin-unlock.unlocked:hover {
+      background: #d1fae5;
+    }
 
     /* 表單格線排版 */
     .form-grid {
@@ -408,8 +439,11 @@
   <div class="card">
     <div class="card-title">
       <span>進出貨樣品登錄</span>
-      <div>
-        <span id="teamsStatusBadge" class="mode-badge" style="background:#f3e8ff; color:#6b21a8; margin-right:6px; cursor:pointer;" onclick="openTeamsConfigModal()">🔔 Teams 通知：就緒</span>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <button id="btnAdminUnlock" type="button" class="btn-admin-unlock" onclick="handleAdminUnlockClick()" title="點擊輸入管理員 PIN 碼以展開測試箱與進階設定">
+          🔒 解鎖管理功能
+        </button>
+        <span id="teamsStatusBadge" class="mode-badge" style="background:#f3e8ff; color:#6b21a8; cursor:pointer;" onclick="handleTeamsBadgeClick()">🔔 Teams 通知：就緒</span>
         <span id="envBadge" class="mode-badge">⚡ 系統運作中</span>
       </div>
     </div>
@@ -431,8 +465,8 @@
       </button>
     </div>
 
-    <!-- 本機 PWA 專用模擬測試控制箱 -->
-    <div class="sim-toolbar">
+    <!-- 本機 PWA 專用模擬測試控制箱 (預設隱藏，需管理員 PIN 碼解鎖) -->
+    <div id="simToolbar" class="sim-toolbar" style="display:none;">
       <span style="font-weight:bold; color:#475569;">🧪 本機模擬測試箱：</span>
       <button type="button" class="btn-sim" onclick="injectOverdueTestSample()">
         ⏱️ 注入逾期樣品 (>2小時)
@@ -446,9 +480,9 @@
       <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none;" onclick="openPrintSettingsGlobal()">
         🖨️ 標籤機設定 (改紙/改張數)
       </button>
-      <span style="color:#64748b; font-size:0.8rem; margin-left:auto;">
-        💡 本機模擬無需聯網即可完整驗收 Teams 精準分流與超時警告
-      </span>
+      <button type="button" class="btn-sim" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; margin-left:auto;" onclick="lockAdminFeatures(true)" title="重新上鎖並隱藏模擬測試箱">
+        🔒 鎖定隱藏
+      </button>
     </div>
 
     <form id="qcForm">
@@ -621,6 +655,34 @@
           <tbody></tbody>
         </table>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 管理員 PIN 碼解鎖視窗 Modal -->
+<div id="adminUnlockModal" class="modal">
+  <div class="modal-content" style="width: 420px; text-align: center;">
+    <div style="font-size: 2.2rem; margin-bottom: 6px;">🔐</div>
+    <h3 style="margin-top: 0; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+      管理員權限驗證
+    </h3>
+    <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 16px; line-height: 1.4; text-align: left;">
+      「本機模擬測試箱」包含逾期樣品注入、Teams 廣播巡檢與標籤機配置。為防現場人員誤觸，請輸入品管管理員 PIN 碼以解鎖：
+    </p>
+    <div style="background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 16px; border: 1.5px solid #cbd5e1; text-align: left;">
+      <label style="color: #334155; font-weight: bold; margin-bottom: 6px; display: block;">🔑 管理員 PIN 碼 (預設 8888 或後台自訂)</label>
+      <input type="password" id="adminUnlockPinInput" placeholder="請輸入 4 碼 PIN 碼" maxlength="20"
+             style="letter-spacing: 5px; font-size: 1.3rem; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1.5px solid #94a3b8; border-radius: 6px;"
+             onkeydown="if(event.key==='Enter') confirmAdminUnlock()">
+      <div id="adminUnlockError" style="color: #dc2626; font-size: 0.82rem; font-weight: bold; margin-top: 6px; display: none;"></div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button type="button" onclick="confirmAdminUnlock()" class="btn-action btn-judge" style="flex: 1; padding: 11px; font-size: 0.95rem; background: #2563eb;">
+        驗證並解鎖 🔓
+      </button>
+      <button type="button" onclick="closeAdminUnlockModal()" style="flex: 1; background: #94a3b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+        取消
+      </button>
     </div>
   </div>
 </div>
@@ -1359,6 +1421,7 @@
         if(cfg) {
           applyDynamicDropdownOptions(cfg);
           localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
+          if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
         }
       }).getSystemConfig();
     } else if (GAS_API_URL) {
@@ -1386,6 +1449,7 @@
           if(cfg) {
             applyDynamicDropdownOptions(cfg);
             localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
+            if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
           }
         })
         .catch(err => {
@@ -2335,12 +2399,142 @@
     });
   }
 
+  // =========================================================================
+  // 🔐 管理員權限驗證與模擬測試箱卡控邏輯
+  // =========================================================================
+  let isAdminUnlocked = false;
+
+  function getEffectiveAdminPin() {
+    // 優先順序：試算表 System_Config 中的 QC_PIN -> localStorage 快取 -> 預設 8888
+    return localStorage.getItem('HS_QC_ADMIN_PIN') || '8888';
+  }
+
+  function checkAdminUnlockOnStartup() {
+    // 1. 檢查網址參數 (?admin=1 或 ?debug=1 或 ?pin=8888)
+    const urlParams = new URLSearchParams(window.location.search);
+    const pinParam = urlParams.get('pin');
+    const validPin = getEffectiveAdminPin();
+    
+    if (pinParam && pinParam === validPin) {
+      unlockAdminFeatures(false);
+      return;
+    }
+    
+    // 2. 檢查目前 Session 是否已解鎖過 (關閉分頁或瀏覽器即失效)
+    const isSessionUnlocked = sessionStorage.getItem('HS_QC_ADMIN_UNLOCKED');
+    if (isSessionUnlocked === 'true') {
+      unlockAdminFeatures(false);
+    } else {
+      lockAdminFeatures(false);
+    }
+  }
+
+  function handleAdminUnlockClick() {
+    if (isAdminUnlocked) {
+      // 若已解鎖，點擊則立即上鎖
+      lockAdminFeatures(true);
+    } else {
+      openAdminUnlockModal();
+    }
+  }
+
+  function handleTeamsBadgeClick() {
+    if (isAdminUnlocked) {
+      openTeamsConfigModal();
+    } else {
+      openAdminUnlockModal();
+    }
+  }
+
+  function openAdminUnlockModal() {
+    const modal = document.getElementById('adminUnlockModal');
+    const input = document.getElementById('adminUnlockPinInput');
+    const err = document.getElementById('adminUnlockError');
+    if (modal && input) {
+      input.value = '';
+      if (err) { err.innerText = ''; err.style.display = 'none'; }
+      modal.style.display = 'flex';
+      setTimeout(() => input.focus(), 150);
+    }
+  }
+
+  function closeAdminUnlockModal() {
+    const modal = document.getElementById('adminUnlockModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function confirmAdminUnlock() {
+    const input = document.getElementById('adminUnlockPinInput');
+    const err = document.getElementById('adminUnlockError');
+    const pin = input ? input.value.trim() : '';
+    const validPin = getEffectiveAdminPin();
+
+    if (!pin) {
+      if (err) { err.innerText = '⚠️ 請輸入 PIN 碼！'; err.style.display = 'block'; }
+      if (input) input.focus();
+      return;
+    }
+
+    if (pin === validPin) {
+      closeAdminUnlockModal();
+      unlockAdminFeatures(true);
+    } else {
+      if (err) {
+        err.innerText = '⛔ PIN 碼錯誤，請重新輸入！(預設為 8888)';
+        err.style.display = 'block';
+      }
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    }
+  }
+
+  function unlockAdminFeatures(showNotification = true) {
+    isAdminUnlocked = true;
+    sessionStorage.setItem('HS_QC_ADMIN_UNLOCKED', 'true');
+    
+    const toolbar = document.getElementById('simToolbar');
+    if (toolbar) toolbar.style.display = 'flex';
+    
+    const btn = document.getElementById('btnAdminUnlock');
+    if (btn) {
+      btn.className = 'btn-admin-unlock unlocked';
+      btn.innerHTML = '🔓 管理功能已解鎖 (點擊上鎖)';
+      btn.title = '點擊即可重新鎖定並隱藏本機測試箱';
+    }
+    
+    if (showNotification) {
+      showToast('✅ 管理員權限已解鎖！本機模擬測試箱已展開。');
+    }
+  }
+
+  function lockAdminFeatures(showNotification = true) {
+    isAdminUnlocked = false;
+    sessionStorage.removeItem('HS_QC_ADMIN_UNLOCKED');
+    
+    const toolbar = document.getElementById('simToolbar');
+    if (toolbar) toolbar.style.display = 'none';
+    
+    const btn = document.getElementById('btnAdminUnlock');
+    if (btn) {
+      btn.className = 'btn-admin-unlock';
+      btn.innerHTML = '🔒 解鎖管理功能';
+      btn.title = '點擊輸入管理員 PIN 碼解鎖測試箱';
+    }
+    
+    if (showNotification) {
+      showToast('🔒 管理功能已上鎖，模擬測試箱已隱藏。');
+    }
+  }
+
   window.onload = () => {
     applyLayoutView(localStorage.getItem('HS_QC_LAYOUT_VIEW') || 'auto');
     applyTableMode(localStorage.getItem('HS_QC_TABLE_MODE') || 'adaptive');
     loadTeamsConfig();
     setBarcodePlaceholder();
     renderT100Dropdown();
+    checkAdminUnlockOnStartup();
     load();
     if(IS_GAS) setInterval(load, 30000);
     
