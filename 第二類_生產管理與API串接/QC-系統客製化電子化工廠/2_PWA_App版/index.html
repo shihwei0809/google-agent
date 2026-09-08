@@ -1435,22 +1435,21 @@
           let currentMode = null;
           let colMap = {};
           const parsedOrders = [];
-          let lastSeenDate = '';
+          let lastOutDate = '';
+          let lastInDate = '';
 
-          function parseRowDate(rowVals) {
-            for(const v of rowVals) {
-              if(!v) continue;
-              if(v instanceof Date && !isNaN(v.getTime())) {
-                const y = v.getFullYear();
-                const m = String(v.getMonth() + 1).padStart(2, '0');
-                const d = String(v.getDate()).padStart(2, '0');
-                return `${y}-${m}-${d}`;
-              }
-              const s = String(v).trim();
-              const match = s.match(/(202\d)[-/.](\d{1,2})[-/.](\d{1,2})/);
-              if(match) {
-                return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
-              }
+          function parseCellDate(v) {
+            if(!v) return '';
+            if(v instanceof Date && !isNaN(v.getTime())) {
+              const y = v.getFullYear();
+              const m = String(v.getMonth() + 1).padStart(2, '0');
+              const d = String(v.getDate()).padStart(2, '0');
+              return `${y}-${m}-${d}`;
+            }
+            const s = String(v).trim();
+            const match = s.match(/(202\d)[-/.](\d{1,2})[-/.](\d{1,2})/);
+            if(match) {
+              return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
             }
             return '';
           }
@@ -1480,11 +1479,6 @@
 
             if(!currentMode || Object.keys(colMap).length === 0) continue;
 
-            const rowDate = parseRowDate(row);
-            if(rowDate) {
-              lastSeenDate = rowDate;
-            }
-
             const gv = (keys) => {
               if(typeof keys === 'string') keys = [keys];
               for(const k of keys) {
@@ -1496,15 +1490,22 @@
             };
 
             if(currentMode === '出貨') {
-              const docNo = gv(['出貨通知單', '出通單']);
-              const prod = gv(['品名']);
+              const docNo = gv(['出貨通知單', '出通單', '出貨單']);
+              const prod = gv(['品名', '物料名稱']);
               if(!docNo || !prod) continue;
 
+              // 嚴格只從「預計出貨日期」欄位抓取，若為合併儲存格向下繼承！
+              const rawDate = gv(['預計出貨日期', '預計出貨日', '出貨日期', '出貨日', '預計到貨日期']);
+              const cellDate = parseCellDate(rawDate);
+              if(cellDate) {
+                lastOutDate = cellDate;
+              }
+
               const timeStr = gv(['預計出貨時間', '出貨時間']);
-              const tank = gv(['儲位名稱', '出貨槽號', '槽號', '儲位']);
-              const cust = gv(['交易對象簡稱', '客戶名稱', '客戶']);
-              const truck = gv(['出通單單頭.車牌號碼', '車牌號碼', '車牌號碼(磅)']);
-              const qty = gv(['換算數量', '預計出貨數量(KG)']);
+              const tank = gv(['儲位名稱', '出貨槽號', '槽號', '儲位', '槽別', '槽别']);
+              const cust = gv(['交易對象簡稱', '客戶名稱', '客戶', '送貨地址簡稱']);
+              const truck = gv(['出通單單頭.車牌號碼', '車牌號碼', '車牌號碼(磅)', '車牌', '車號']);
+              const qty = gv(['換算數量', '預計出貨數量(KG)', '出貨數量(KG)', '數量']);
               const spec = gv(['規格說明', '規格']);
               const note = gv(['注意事項', '備註']);
 
@@ -1522,7 +1523,7 @@
               if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
               else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
 
-              let orderDate = lastSeenDate;
+              let orderDate = lastOutDate;
               if(!orderDate && docNo) {
                 const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
                 if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
@@ -1542,18 +1543,25 @@
                 note: String(note || '').trim()
               });
             } else if(currentMode === '進料') {
-              const docNo = gv(['入庫單', '進貨單']);
-              const prod = gv(['品名']);
+              const docNo = gv(['入庫單', '進貨單', '入庫單號', '進貨單號']);
+              const prod = gv(['品名', '物料名稱']);
               if(!docNo || !prod) continue;
 
-              const timeStr = gv(['預計進貨時間', '進貨時間']);
-              const tank = gv(['槽别', '槽別', '儲位', '槽號']);
+              // 嚴格只從「預計進貨日」欄位抓取，若為合併儲存格向下繼承！絕對不讀取「單據日期」與「採購單號」！
+              const rawDate = gv(['預計進貨日', '預計進貨日期', '預計到貨日期', '進貨日', '進貨日期']);
+              const cellDate = parseCellDate(rawDate);
+              if(cellDate) {
+                lastInDate = cellDate;
+              }
+
+              const timeStr = gv(['預計進貨時間', '進貨時間', '預計到貨時間']);
+              const tank = gv(['槽别', '槽別', '儲位', '儲位名稱', '槽號']);
               const spec = gv(['規格', '規格說明']);
-              const vendor = gv(['供應商簡稱', '廠商簡稱', '供應商']);
-              const origin = gv(['出貨廠別(廠商)', '廠別']);
-              const truck = gv(['車牌號碼', '車號']);
-              const box = gv(['櫃號', '貨櫃號碼']);
-              const qty = gv(['預計進貨數量(KG)', '進貨數量(KG)', '數量']);
+              const vendor = gv(['供應商簡稱', '廠商簡稱', '供應商', '交易對象簡稱', '廠商']);
+              const origin = gv(['出貨廠別(廠商)', '出貨廠別(備用)', '廠別', '來源廠別', '出貨廠別']);
+              const truck = gv(['車牌號碼', '車號', '車號/櫃號', '車牌/櫃號', '車牌', '出通單單頭.車牌號碼']);
+              const box = gv(['櫃號', '貨櫃號碼', '貨櫃編號']);
+              const qty = gv(['預計進貨數量(KG)', '進貨數量(KG)', '預計進貨數量', '換算數量', '數量']);
               const note = gv(['備註', '注意事項']);
 
               let container = String(truck || '').trim();
@@ -1567,7 +1575,7 @@
               if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
               else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
 
-              let orderDate = lastSeenDate;
+              let orderDate = lastInDate;
               if(!orderDate && docNo) {
                 const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
                 if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;

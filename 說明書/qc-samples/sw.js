@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qc-kanban-v2.1.2';
+const CACHE_NAME = 'qc-kanban-v2.1.3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -11,7 +11,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker v2.1.2] 快取核心靜態資產');
+      console.log('[Service Worker v2.1.3] 快取核心靜態資產');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );

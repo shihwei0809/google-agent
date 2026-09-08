@@ -66,13 +66,19 @@ def parse_t100_tank_schedule(excel_path):
             c = headers.get(col_name)
             return sheet.cell(row=r, column=c).value if c else None
 
-        # 嘗試解析日期欄位
-        date_raw = gv('預計出貨日期') or gv('預計進貨日') or gv('預計到貨日期') or gv('單據日期')
+        # 嘗試解析日期欄位（嚴格限定預計進出貨日期，避免誤讀單據日期/採購日期，並支援向下繼承合併儲存格）
+        if current_mode == '出貨':
+            date_raw = gv('預計出貨日期') or gv('預計出貨日') or gv('出貨日期') or gv('預計到貨日期')
+        else:
+            date_raw = gv('預計進貨日') or gv('預計進貨日期') or gv('預計到貨日期') or gv('進貨日')
+
         if date_raw:
             if isinstance(date_raw, (datetime.datetime, datetime.date)):
                 last_date = date_raw.strftime('%Y-%m-%d')
-            elif isinstance(date_raw, str) and re.search(r'202\d-\d{2}-\d{2}', date_raw):
-                last_date = re.search(r'202\d-\d{2}-\d{2}', date_raw).group(0)
+            elif isinstance(date_raw, str):
+                m = re.search(r'(202\d)[-/.](\d{1,2})[-/.](\d{1,2})', date_raw)
+                if m:
+                    last_date = f"{m.group(1)}-{m.group(2).zfill(2)}-{m.group(3).zfill(2)}"
 
         if current_mode == '出貨':
             doc_no = gv('出貨通知單')
@@ -128,11 +134,11 @@ def parse_t100_tank_schedule(excel_path):
             prod = gv('品名')
             if not doc_no or not prod:
                 continue
-            tank = gv('槽别') or gv('儲位') or ''
+            tank = gv('槽别') or gv('槽別') or gv('儲位') or gv('儲位名稱') or ''
             spec = gv('規格') or ''
             vendor = gv('供應商簡稱') or ''
-            origin = gv('出貨廠別(廠商)') or ''
-            truck = gv('車牌號碼') or ''
+            origin = gv('出貨廠別(廠商)') or gv('出貨廠別(備用)') or gv('廠別') or ''
+            truck = gv('車牌號碼') or gv('車號') or gv('車號/櫃號') or ''
             box = gv('櫃號') or ''
             qty = gv('預計進貨數量(KG)') or ''
             note = gv('備註') or ''
