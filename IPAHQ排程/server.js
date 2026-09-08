@@ -1181,13 +1181,35 @@ app.post('/api/import/tech', (req, res) => {
       }
 
       if (order) {
+        const oldFillHand = (order.fill_hand || '').split(/[\r\n\s]/)[0].trim();
+        const newFillHand = (item.fill_hand || '').split(/[\r\n\s]/)[0].trim();
+        const personChanged = oldFillHand !== newFillHand;
+
         order.fill_hand = item.fill_hand;
-        order.read_status = 'unread';
-        order.read_at = null;
-        order.read_by = null;
+
+        if (personChanged || !order.read_status) {
+          // 換人或全新指派 → 重置為未讀
+          order.read_status = 'unread';
+          order.read_at = null;
+          order.read_by = null;
+        }
+        // 同一個人 → 保留原本的已讀/未讀狀態不動
+
         updatedCount++;
-        const techName = (item.fill_hand || '').split(/[\r\n\s]/)[0].trim();
-        if (techName) {
+        const techName = newFillHand;
+        if (techName && personChanged) {
+          // 只有換人才列入推播名單（避免已讀的人收到重複通知）
+          if (!techAssignments[techName]) techAssignments[techName] = [];
+          const oKey = order.id || `${order.destination}_${order.expected_date}_${order.arrival_time}`;
+          techAssignments[techName].push({
+            key: oKey,
+            destination: order.destination,
+            product: order.product,
+            expected_date: order.expected_date,
+            arrival_time: order.arrival_time
+          });
+        } else if (techName && order.read_status === 'unread') {
+          // 同一個人但還是未讀 → 也列入推播名單（讓主管可選擇要不要再提醒）
           if (!techAssignments[techName]) techAssignments[techName] = [];
           const oKey = order.id || `${order.destination}_${order.expected_date}_${order.arrival_time}`;
           techAssignments[techName].push({
