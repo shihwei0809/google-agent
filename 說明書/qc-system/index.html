@@ -1646,12 +1646,60 @@
         const outCount = finalOrders.filter(o => o.flowType === '出貨').length;
         const inCount = finalOrders.filter(o => o.flowType === '進料').length;
         showToast(`🎉 成功鎖定「${actualSheetUsed}」分頁，匯入 ${finalOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`, 5000);
+
+        // ☁️ 雲端同步：將排程上傳至 Google Sheets（若已設定 GAS API）
+        uploadOrdersToCloud(finalOrders);
       } catch(err) {
         console.error(err);
         alert("解析 Excel 失敗：" + err.message);
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+  // ☁️ 排程上傳：匯入 Excel 後自動同步至 Google Sheets（覆蓋模式）
+  async function uploadOrdersToCloud(orders) {
+    if (!GAS_API_URL) return; // 未設定 GAS 則略過
+    showToast('⬆️ 正在將排程同步至雲端...', 3000);
+    try {
+      const resp = await fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'saveOrders', orders: orders })
+      });
+      const result = await resp.json();
+      if (result.success) {
+        showToast(`☁️ 雲端同步完成！共 ${result.count} 筆排程已上傳 (${result.importedAt})`, 6000);
+      } else {
+        showToast(`⚠️ 雲端同步失敗：${result.error || '未知錯誤'}（資料已保存於本機）`, 6000);
+      }
+    } catch(err) {
+      console.warn('雲端排程上傳失敗（僅影響跨裝置同步）：', err);
+      showToast('⚠️ 雲端連線逾時，排程僅保存於本機', 4000);
+    }
+  }
+
+  // ☁️ 排程下載：頁面載入時從 Google Sheets 拉取排程（供所有設備共用）
+  async function loadOrdersFromCloud() {
+    if (!GAS_API_URL) return; // 未設定 GAS 則略過
+    try {
+      const resp = await fetch(`${GAS_API_URL}?action=getOrders`);
+      const result = await resp.json();
+      if (result.success && Array.isArray(result.orders) && result.orders.length > 0) {
+        // 合併：以雲端為主（覆蓋 localStorage），但保留 localStorage 若雲端為空
+        t100Orders = result.orders;
+        localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
+        renderT100Dropdown();
+        const outCount = result.orders.filter(o => o.flowType === '出貨').length;
+        const inCount = result.orders.filter(o => o.flowType === '進料').length;
+        showToast(`☁️ 已從雲端載入 ${result.count} 筆排程 (${outCount} 出貨 + ${inCount} 進料)`, 5000);
+        // 自動過濾今天
+        const todayStr = getLocalDateString();
+        const hasToday = t100Orders.some(o => o.date === todayStr);
+        if (hasToday) setT100FilterMode('today');
+      }
+    } catch(err) {
+      console.info('雲端排程讀取失敗（使用本機快取）：', err);
+    }
   }
 
   function getFlowTag(type) {
@@ -1791,6 +1839,10 @@
           console.warn("API 取得選單失敗，使用快取", err);
           applyDynamicDropdownOptions(getLocalDynamicOptions());
         });
+
+      // 3. 從 Google Sheets 載入排程（供所有設備共享下拉選單）
+      loadOrdersFromCloud();
+
     } else {
       document.getElementById('envBadge').innerText = "💻 獨立 PWA 運作模式";
       applyDynamicDropdownOptions(getLocalDynamicOptions());

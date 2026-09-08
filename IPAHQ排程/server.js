@@ -95,10 +95,16 @@ const DEFAULT_PERMISSIONS = {
 };
 
 const USER_EXCEL_FILE = path.join(__dirname, '帳號密碼管理.xlsx');
+let lastUserMtime = 0;
+let cachedUsers = null;
 
-function loadUsersFromExcel() {
+function loadUsersFromExcel(forceReload = false) {
   if (!fs.existsSync(USER_EXCEL_FILE)) return null;
   try {
+    const stat = fs.statSync(USER_EXCEL_FILE);
+    if (!forceReload && cachedUsers && stat.mtimeMs === lastUserMtime) {
+      return cachedUsers;
+    }
     const workbook = xlsx.readFile(USER_EXCEL_FILE);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const config = {
@@ -130,12 +136,14 @@ function loadUsersFromExcel() {
           status: 'active'
         });
       }
+      cachedUsers = users;
+      lastUserMtime = stat.mtimeMs;
       return users;
     }
   } catch (err) {
     console.error('Error loading users from Excel:', err);
   }
-  return null;
+  return cachedUsers || null;
 }
 
 function saveUsersToExcel(users) {
@@ -164,10 +172,16 @@ function saveUsersToExcel(users) {
 }
 
 const DRIVER_EXCEL_FILE = path.join(__dirname, '司機名冊管理.xlsx');
+let lastDriverMtime = 0;
+let cachedDrivers = null;
 
-function loadDriversFromExcel() {
+function loadDriversFromExcel(forceReload = false) {
   if (!fs.existsSync(DRIVER_EXCEL_FILE)) return null;
   try {
+    const stat = fs.statSync(DRIVER_EXCEL_FILE);
+    if (!forceReload && cachedDrivers && stat.mtimeMs === lastDriverMtime) {
+      return cachedDrivers;
+    }
     const workbook = xlsx.readFile(DRIVER_EXCEL_FILE);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const config = {
@@ -190,12 +204,14 @@ function loadDriversFromExcel() {
       }));
       
     if (drivers.length > 0) {
+      cachedDrivers = drivers;
+      lastDriverMtime = stat.mtimeMs;
       return drivers;
     }
   } catch (err) {
     console.error('Error loading drivers from Excel:', err);
   }
-  return null;
+  return cachedDrivers || null;
 }
 
 function saveDriversToExcel(drivers) {

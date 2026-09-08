@@ -1,3 +1,4 @@
+import traceback
 import os
 import sys
 import socket
@@ -9,6 +10,9 @@ from copy import copy
 import openpyxl
 from openpyxl.utils import get_column_letter
 from openpyxl.drawing.image import Image as OpenpyxlImage
+from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
+from openpyxl.drawing.xdr import XDRPositiveSize2D
+from openpyxl.utils.units import pixels_to_EMU
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.cell.rich_text import TextBlock, CellRichText
 from openpyxl.cell.text import InlineFont
@@ -226,10 +230,41 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
     new_ws.row_dimensions[6].height = 28.0
     new_ws.row_dimensions[7].height = 22.0
 
-    # 保持正常從第 1 列 (A1) 完整顯示表頭與第 7 列資料 (如圖二)，不捲動遮蔽
-    new_ws.freeze_panes = 'A7'
-            
     return new_wb
+
+def parse_tsmc_query_table_accurate(im):
+    """
+    精確解析台積電 Query Result 表格結構：
+    自動掃描圖片下半部的水平灰色邊界線 (標準表格分隔線)，
+    返回 (表頭底線 Y, [(第1列top, 第1列bot), (第2列top, 第2列bot), ...])
+    """
+    w, h = im.size
+    grey_lines = []
+    # 掃描從 h*0.3 到 h 的水平線
+    for y in range(int(h * 0.3), h):
+        sample_xs = range(int(w * 0.1), int(w * 0.9), 10)
+        pixels = [im.getpixel((x, y)) for x in sample_xs]
+        if all(abs(p[0]-p[1]) < 8 and abs(p[1]-p[2]) < 8 and 170 < p[0] < 240 for p in pixels):
+            grey_lines.append(y)
+    
+    merged_lines = []
+    for y in grey_lines:
+        if not merged_lines or y - merged_lines[-1] > 5:
+            merged_lines.append(y)
+
+    if len(merged_lines) >= 2:
+        row_intervals = []
+        for i in range(len(merged_lines)-1, 0, -1):
+            diff = merged_lines[i] - merged_lines[i-1]
+            if 20 <= diff <= 55:
+                row_intervals.insert(0, (merged_lines[i-1], merged_lines[i]))
+            else:
+                break
+        if row_intervals:
+            header_bottom = row_intervals[0][0]
+            return header_bottom, row_intervals
+            
+    return int(h * 0.85), []
 
 # ================= 3. FastAPI Web 應用程式 =================
 
@@ -448,6 +483,51 @@ def generate_transport_workbook(items, mat_no="L12C53161"):
 
     return wb
 
+def parse_tsmc_query_table_accurate(coa_raw):
+    w, h = coa_raw.size
+    img_rgb = coa_raw.convert('RGB')
+    query_result_y = None
+    for y in range(int(h * 0.3), int(h * 0.9)):
+        sample = [img_rgb.getpixel((x, y)) for x in range(int(w * 0.1), int(w * 0.9), max(1, int(w * 0.05)))]
+        if sum(1 for p in sample if p[0] < 100 and p[1] < 160 and p[2] > 200) > len(sample) * 0.7:
+            query_result_y = y
+            break
+    start_y = query_result_y if query_result_y else int(h * 0.5)
+    btn_y_list = []
+    for y in range(start_y + 20, h):
+        sample = [img_rgb.getpixel((x, y)) for x in range(15, 65, 2)]
+        blue_cnt = sum(1 for p in sample if p[0] < 60 and p[2] > 180)
+        if blue_cnt >= 8:
+            btn_y_list.append(y)
+    btn_clusters = []
+    for y in btn_y_list:
+        if not btn_clusters or y > btn_clusters[-1][-1] + 5:
+            btn_clusters.append([y])
+        else:
+            btn_clusters[-1].append(y)
+    def find_border_line(start_y, direction, max_search=40):
+        for step in range(max_search):
+            curr_y = start_y + step * direction
+            if curr_y <= 0 or curr_y >= h:
+                break
+            sample_xs = range(int(w * 0.2), int(w * 0.8), max(1, int(w * 0.05)))
+            pixels = [img_rgb.getpixel((x, curr_y)) for x in sample_xs]
+            if all(abs(p[0] - p[1]) < 8 and abs(p[1] - p[2]) < 8 and 150 < p[0] < 235 for p in pixels):
+                if step > 1:
+                    return curr_y
+        return None
+    if not btn_clusters:
+        return None, []
+    first_btn_top = btn_clusters[0][0]
+    header_bottom = find_border_line(first_btn_top, -1, max_search=50) or (first_btn_top - 6)
+    data_rows = []
+    for cluster in btn_clusters:
+        mid_y = int(sum(cluster) / len(cluster))
+        row_t = find_border_line(mid_y, -1, max_search=30) or (cluster[0] - 6)
+        row_b = find_border_line(mid_y, +1, max_search=30) or (cluster[-1] + 8)
+        data_rows.append((max(0, row_t), min(h, row_b + 1)))
+    return header_bottom, data_rows
+
 # 1. 一鍵打包產生所有報表 ZIP (與 BAT 產出完全相同)
 @app.post("/api/generate_all_zip")
 async def generate_all_zip(request: Request):
@@ -471,7 +551,7 @@ async def generate_all_zip(request: Request):
             # 1. 產生三合一單 Excel 報表
             if do_3in1 and os.path.exists(TEMPLATE_PATH):
                 used_filenames = set()
-                for item in records:
+                for item_idx, item in enumerate(records):
                     batch = item.get("batch", "").strip().upper()
                     loc = item.get("loc", "").strip().upper()
                     if not batch or not loc or len(batch) != 10 or loc not in mapping:
@@ -525,56 +605,60 @@ async def generate_all_zip(request: Request):
                         try:
                             coa_raw = Image.open(BytesIO(COA_CACHE["latest_coa"])).convert("RGB")
                             w, h = coa_raw.size
-
-                            # 1. 如果有瀏覽器端傳來的 OCR 座標，就能精準切出單一列！
-                            ocr_data = COA_CACHE.get("ocr_data")
                             cropped_coa = None
-                            if ocr_data and "boxes" in ocr_data and ocr_data["boxes"]:
-                                header_bottom = ocr_data.get("header_bottom", int(h * 0.35))
-                                header_bottom = max(0, min(h, int(header_bottom)))
-                                img_top = coa_raw.crop((0, 0, w, header_bottom))
+                            
+                            hb_struct, rows_struct = parse_tsmc_query_table_accurate(coa_raw)
+                            
+                            if hb_struct and rows_struct:
+                                img_top = coa_raw.crop((0, 0, w, hb_struct))
+                                target_row = None
+                                target_digits = "".join(c for c in batch if c.isdigit())
                                 
-                                # 尋找與當前 batch 匹配的區塊
-                                target_digits = ''.join(c for c in batch if c.isdigit())
-                                batch_box = None
+                                ocr_data = COA_CACHE.get("ocr_data")
+                                if ocr_data and "boxes" in ocr_data:
+                                    for box in ocr_data["boxes"]:
+                                        box_text = box.get("text", "").upper()
+                                        box_digits = "".join(c for c in box_text if c.isdigit())
+                                        if box_text == batch or (len(box_digits) >= 6 and (box_digits in target_digits or target_digits in box_digits)):
+                                            text_y = int((box.get("top", 0) + box.get("bottom", 0)) / 2)
+                                            for row in rows_struct:
+                                                if row[0] - 15 <= text_y <= row[1] + 15:
+                                                    target_row = row
+                                                    break
+                                            if target_row:
+                                                break
                                 
-                                for box in ocr_data.get("boxes", []):
-                                    box_text = box.get("text", "").upper()
-                                    box_digits = ''.join(c for c in box_text if c.isdigit())
-                                    if box_text == batch or (len(box_digits) >= 6 and (box_digits in target_digits or target_digits in box_digits)):
-                                        batch_box = box
-                                        break
+                                if not target_row:
+                                    target_row_idx = min(item_idx, len(rows_struct) - 1)
+                                    if target_row_idx >= 0:
+                                        target_row = rows_struct[target_row_idx]
                                     
-                                if batch_box:
-                                    row_t = int(batch_box.get("row_top", batch_box.get("top", 0) - 8))
-                                    row_b = int(batch_box.get("row_bottom", batch_box.get("bottom", h) + 12))
-                                    row_top = max(0, min(h, row_t))
-                                    row_bottom = max(row_top + 5, min(h, row_b))
-                                    
-                                    img_row = coa_raw.crop((0, row_top, w, row_bottom))
-                                    
+                                if target_row:
+                                    img_row = coa_raw.crop((0, target_row[0], w, target_row[1]))
                                     cropped_coa = Image.new("RGB", (w, img_top.height + img_row.height), "white")
                                     cropped_coa.paste(img_top, (0, 0))
                                     cropped_coa.paste(img_row, (0, img_top.height))
-                                    print(f"[COA Crop] 成功為批號 {batch} 裁切：表頭高 {img_top.height}px + 數據列高 {img_row.height}px")
-
-                            # 如果 OCR 失敗或沒有匹配到該批號，降級使用全保留方式
+                                
                             if not cropped_coa:
-                                crop_bottom = int(h * 0.95)
+                                crop_bottom = int(h * 0.98)
                                 cropped_coa = coa_raw.crop((0, 0, w, crop_bottom))
-
-                            # 4. 保持原始高解析度畫質，在 Excel 中設定精準尺寸：寬 23.7cm (~896px) x 高 11.5cm (~435px)
+                                
                             coa_io = BytesIO()
                             cropped_coa.save(coa_io, format="PNG")
                             coa_io.seek(0)
 
                             coa_img = OpenpyxlImage(coa_io)
-                            coa_img.width = int(round(23.7 * 96 / 2.54))   # 23.7 公分 (~896 px)
-                            coa_img.height = int(round(11.5 * 96 / 2.54))  # 11.5 公分 (~435 px)
+                            coa_img.width = int(round(27.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
+                            coa_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分 (~435 px)
 
-                            coa_img.anchor = 'F5'  # 100% 精準貼入圖一 barcode 分頁的 F5 儲存格！
-                            ws.add_image(coa_img)
+                            col_off = 0 # 往左微調
+                            row_off = 0
+                            _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
+                            size = XDRPositiveSize2D(int(coa_img.width * 9525), int(coa_img.height * 9525))
+                            coa_img.anchor = OneCellAnchor(_from=_from, ext=size)
+                            print("Adding COA image to Excel"); ws.add_image(coa_img)
                         except Exception as coa_e:
+                            traceback.print_exc()
                             print(f"[COA Crop Error] 處理批號 {batch} COA 發生錯誤: {coa_e}")
 
                     excel_io = BytesIO()

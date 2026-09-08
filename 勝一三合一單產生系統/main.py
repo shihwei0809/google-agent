@@ -11,6 +11,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import openpyxl
 from openpyxl.drawing.image import Image as OpenpyxlImage
+from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
+from openpyxl.drawing.xdr import XDRPositiveSize2D
+from openpyxl.utils.units import pixels_to_EMU
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.cell.rich_text import TextBlock, CellRichText
 from openpyxl.cell.text import InlineFont
@@ -1539,27 +1542,54 @@ class App(tk.Tk):
                 for img_path in self.coa_paths:
                     try:
                         orig_img = PILImage.open(img_path)
-                        img = orig_img.resize((orig_img.width * 2, orig_img.height * 2), PILImage.Resampling.LANCZOS)
-                        d = pytesseract.image_to_data(img, output_type=Output.DICT)
+                        img_rgb = orig_img.convert('RGB')
+                        w, h = orig_img.size
                         
-                        header_bottom = int(img.height * 0.4)
+                        # 水平表格邊界線檢測輔助 (避免切到下一列按鈕或多餘白邊)
+                        def find_border_y(start_y, direction, search_range=50):
+                            for step in range(search_range):
+                                curr_y = start_y + step * direction
+                                if curr_y <= 0 or curr_y >= h:
+                                    break
+                                sample_xs = range(int(w * 0.2), int(w * 0.8), max(1, int(w * 0.05)))
+                                pixels = [img_rgb.getpixel((x, curr_y)) for x in sample_xs]
+                                is_grey_line = all(abs(p[0] - p[1]) < 8 and abs(p[1] - p[2]) < 8 and 150 < p[0] < 235 for p in pixels)
+                                if is_grey_line and step > 2:
+                                    return curr_y
+                            return None
+
+                        img_scaled = orig_img.resize((orig_img.width * 2, orig_img.height * 2), PILImage.Resampling.LANCZOS)
+                        d = pytesseract.image_to_data(img_scaled, output_type=Output.DICT)
+                        
+                        header_bottom = int(h * 0.35)
                         for i in range(len(d['text'])):
                             if 'Batch' in d['text'][i] or 'ID' in d['text'][i] or 'No' in d['text'][i]:
-                                header_bottom = d['top'][i] + d['height'][i] + 12
+                                header_bottom = int((d['top'][i] + d['height'][i]) / 2) + 6
                                 break
-                                
-                        img_top = img.crop((0, 0, img.width, header_bottom))
+                        
+                        hb_border = find_border_y(header_bottom, +1) or find_border_y(header_bottom, -1)
+                        if hb_border:
+                            header_bottom = hb_border
+                        
+                        img_top = orig_img.crop((0, 0, w, header_bottom))
                         
                         for i in range(len(d['text'])):
                             text = d['text'][i].strip()
                             digits = ''.join(c for c in text if c.isdigit())
                             if len(digits) >= 8:
                                 batch_digits = digits
-                                row_top = max(0, d['top'][i] - 14)
-                                row_bottom = min(img.height, d['top'][i] + d['height'][i] + 16)
+                                text_y = int((d['top'][i] + d['height'][i] / 2) / 2)
+                                row_b = find_border_y(text_y, +1, search_range=35)
+                                row_t = find_border_y(text_y, -1, search_range=35)
+                                if not row_b:
+                                    row_b = text_y + 12
+                                if not row_t:
+                                    row_t = text_y - 12
+                                row_top = max(0, min(h, row_t))
+                                row_bottom = max(row_top + 5, min(h, row_b + 1))
                                 
-                                img_row = img.crop((0, row_top, img.width, row_bottom))
-                                new_img = PILImage.new('RGB', (img.width, img_top.height + img_row.height))
+                                img_row = orig_img.crop((0, row_top, w, row_bottom))
+                                new_img = PILImage.new('RGB', (w, img_top.height + img_row.height), 'white')
                                 new_img.paste(img_top, (0, 0))
                                 new_img.paste(img_row, (0, img_top.height))
                                 
@@ -1653,9 +1683,14 @@ class App(tk.Tk):
                             crop_img.save(img_byte_arr2, format='PNG')
                             img_byte_arr2.seek(0)
                             xl_img = OpenpyxlImage(img_byte_arr2)
-                            xl_img.width = 867
-                            xl_img.height = 450
-                            xl_img.anchor = 'F5'
+                            xl_img.width = int(round(27.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
+                            xl_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分 (~435 px)
+                            
+                            col_off = 0 # ~0.78 cm (向右微調，精準對齊上方 QR Code 與填滿右側版面)
+                            row_off = 0
+                            _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
+                            size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
+                            xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
                             ws.add_image(xl_img)
                             found_coa = True
                             break

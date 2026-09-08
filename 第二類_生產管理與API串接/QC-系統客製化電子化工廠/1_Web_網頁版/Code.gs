@@ -1,6 +1,7 @@
 const CONFIG = {
   sheetName: 'QC_Samples',
   configSheetName: 'System_Config', // 存放密碼與 Webhook 的工作表 (QC_PIN, TEAMS_WEBHOOK)
+  ordersSheetName: 'Orders',        // 存放每日進出貨排程 (從 Excel 匯入後同步至此)
   spreadsheetId: '1_4zrITMtrKCC9x_DmazqxYz63366ro-OpZOkNRTFhqo',
   
   // Teams 頻道 Webhook 預設設定 (亦可於 System_Config 工作表動態填寫)
@@ -47,6 +48,8 @@ function doPost(e) {
       result = checkOverdueSamples();
     } else if (action === 'testTeams') {
       result = testTeamsNotification(postData.dept);
+    } else if (action === 'saveOrders') {
+      result = saveOrders(postData.orders);
     }
 
     return ContentService.createTextOutput(JSON.stringify(result))
@@ -65,6 +68,8 @@ function handleApiGet(params) {
     result = checkOverdueSamples();
   } else if (params.action === 'getConfig') {
     result = getSystemConfig();
+  } else if (params.action === 'getOrders') {
+    result = getOrders();
   }
   return ContentService.createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
@@ -174,6 +179,72 @@ function initSystemConfigSheet() {
     return { success: true, message: "System_Config 設定項已自動補齊！" };
   } catch(err) {
     return { success: false, error: err.message };
+  }
+}
+
+// =========================================================================
+// 排程雲端同步模組：saveOrders / getOrders
+// =========================================================================
+
+const ORDERS_HEADERS = [
+  'importedAt', 'doc_no', 'date', 'time', 'flowType',
+  'productName', 'tankNo', 'customer', 'container', 'quantity', 'grade', 'note'
+];
+
+// 前端匯入 Excel 後呼叫：完全覆蓋 Orders 工作表（以最新匯入資料為準）
+function saveOrders(orders) {
+  try {
+    if (!Array.isArray(orders) || orders.length === 0) {
+      return { success: false, error: '無有效排程資料' };
+    }
+    const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
+    let sheet = ss.getSheetByName(CONFIG.ordersSheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(CONFIG.ordersSheetName);
+    } else {
+      sheet.clearContents();
+    }
+    // 寫入標題列
+    sheet.appendRow(ORDERS_HEADERS.map(h => {
+      const labels = {
+        importedAt: '匯入時間', doc_no: '單號', date: '排程日期', time: '排程時間',
+        flowType: '類型', productName: '品名', tankNo: '槽號/櫃號', customer: '客戶/車號',
+        container: '容器/艙別', quantity: '數量', grade: '等級', note: '備註'
+      };
+      return labels[h] || h;
+    }));
+    // 批次寫入所有訂單
+    const nowStr = Utilities.formatDate(new Date(), 'GMT+8', 'yyyy-MM-dd HH:mm:ss');
+    const rows = orders.map(o => ORDERS_HEADERS.map(h => {
+      if (h === 'importedAt') return nowStr;
+      return o[h] !== undefined ? String(o[h]) : '';
+    }));
+    if (rows.length > 0) {
+      sheet.getRange(2, 1, rows.length, ORDERS_HEADERS.length).setValues(rows);
+    }
+    return { success: true, count: orders.length, importedAt: nowStr };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+// 前端頁面載入時呼叫：讀取 Orders 工作表，回傳排程陣列
+function getOrders() {
+  try {
+    const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
+    const sheet = ss.getSheetByName(CONFIG.ordersSheetName);
+    if (!sheet) return { success: true, orders: [], count: 0 };
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return { success: true, orders: [], count: 0 };
+    const headers = data[0]; // 中文標題列，改用固定 ORDERS_HEADERS 索引對應
+    const orders = data.slice(1).filter(row => row[1]).map(row => {
+      const obj = {};
+      ORDERS_HEADERS.forEach((h, i) => { obj[h] = String(row[i] || ''); });
+      return obj;
+    });
+    return { success: true, orders: orders, count: orders.length };
+  } catch (err) {
+    return { success: false, error: err.message, orders: [] };
   }
 }
 

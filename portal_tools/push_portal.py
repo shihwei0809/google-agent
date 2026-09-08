@@ -79,7 +79,14 @@ try:
         subprocess.run(["git", "remote", "add", name, url], check=False)
         
         # Push to remote main branch (force push to ensure identical copy)
-        result = subprocess.run(["git", "push", name, "main", "--force"], capture_output=True, text=True)
+        push_env = os.environ.copy()
+        push_env["GIT_TERMINAL_PROMPT"] = "0"
+        push_env["GCM_INTERACTIVE"] = "never"
+        try:
+            result = subprocess.run(["git", "push", name, "main", "--force"], capture_output=True, text=True, env=push_env, timeout=40)
+        except subprocess.TimeoutExpired:
+            print(f"⚠️ 推送至 {name} 逾時 (40秒)。")
+            continue
         if result.returncode == 0:
             print(f"✅ 成功推送至 {name}！")
         else:

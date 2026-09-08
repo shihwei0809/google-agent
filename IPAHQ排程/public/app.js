@@ -830,7 +830,7 @@ function setupLiveSync() {
     console.warn('SSE not initialized:', e);
   }
 
-  // 2. 雙重保險：每 3 秒在背景靜態檢驗訂單狀態，若有變更自動對齊
+  // 2. 雙重保險：在背景低頻檢驗訂單狀態 (主要由即時 SSE 推播，此處維持 30 秒以大幅減輕伺服器負擔)
   setInterval(async () => {
     try {
       const res = await fetch('/api/orders?t=' + Date.now());
@@ -850,7 +850,7 @@ function setupLiveSync() {
         }
       }
     } catch (e) {}
-  }, 3000);
+  }, 30000);
 }
 
 // Helper to truncate long strings

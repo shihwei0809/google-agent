@@ -732,6 +732,16 @@
 
             const imgHeight = ret.data.image_height || (ret.data.lines && ret.data.lines.length > 0 ? ret.data.lines[ret.data.lines.length-1].bbox.y1 + 50 : 1000);
             
+            // 0. 抓取目前畫面上已輸入的所有批號，優先作為精確比對標的
+            const enteredBatches = [];
+            const totalRows = document.getElementById("tableBody") ? document.getElementById("tableBody").children.length : 0;
+            for (let i = 1; i <= totalRows; i++) {
+                const bEl = document.getElementById(`batch_${i}`);
+                if (bEl && bEl.value.trim().length >= 6) {
+                    enteredBatches.push(bEl.value.trim().toUpperCase());
+                }
+            }
+
             // 1. 抓取所有辨識行與字詞
             let rawBoxes = [];
             let tableHeaderCandidates = [];
@@ -740,19 +750,54 @@
             if (ret.data.lines && ret.data.lines.length > 0) {
                 ret.data.lines.forEach(line => {
                     const lText = line.text.trim();
-                    const cleanText = lText.replace(/[^A-Za-z0-9]/g, '');
+                    const cleanLine = lText.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
                     
-                    // 表頭行識別 (包含 Batch, Lot, Item, Spec, Test, Result, No, 批號, 規格, 檢驗)
-                    if (/batch|lot|item|spec|result|test|date|tank/i.test(lText) && !/\d{8,}/.test(cleanText)) {
+                    // 表頭行識別 (包含 Batch, Lot, Item, Spec, Test, Result, No, 批號, 規格, 檢驗, Query Result)
+                    if (/batch|lot|item|spec|result|test|date|tank|query\s*result|certificate/i.test(lText) && !/\d{8,}/.test(cleanLine)) {
                         tableHeaderCandidates.push(line.bbox.y1);
                     }
 
-                    // 檢查行內是否有單獨或包含 >= 8 碼的批號詞
+                    // 策略 A: 比對表格中已填寫之批號 (整行去除空白後比對)
+                    enteredBatches.forEach(eb => {
+                        if (cleanLine.includes(eb)) {
+                            rawBoxes.push({
+                                text: eb,
+                                top: line.bbox.y0,
+                                bottom: line.bbox.y1
+                            });
+                        }
+                    });
+
+                    // 策略 B: 正規表達式自動搜尋批號 (例如: 26906E3181 或 8~14 碼包含英文數字)
+                    const matches = cleanLine.match(/[0-9]{4,6}[A-Z0-9]{3,8}/g);
+                    if (matches) {
+                        matches.forEach(m => {
+                            const digits = m.replace(/\D/g, '');
+                            if (m.length >= 8 && digits.length >= 5) {
+                                rawBoxes.push({
+                                    text: m,
+                                    top: line.bbox.y0,
+                                    bottom: line.bbox.y1
+                                });
+                            }
+                        });
+                    }
+
+                    // 策略 C: 逐字檢驗 line.words
                     if (line.words && line.words.length > 0) {
                         line.words.forEach(w => {
                             const wText = w.text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
                             const digits = wText.replace(/\D/g, '');
-                            if (wText.length >= 8 && digits.length >= 6) {
+                            enteredBatches.forEach(eb => {
+                                if (wText === eb || (wText.length >= 8 && eb.includes(wText))) {
+                                    rawBoxes.push({
+                                        text: eb,
+                                        top: line.bbox.y0,
+                                        bottom: line.bbox.y1
+                                    });
+                                }
+                            });
+                            if (wText.length >= 8 && digits.length >= 5) {
                                 rawBoxes.push({
                                     text: wText,
                                     top: line.bbox.y0,
@@ -762,18 +807,30 @@
                         });
                     }
                 });
-            } else if (ret.data.words && ret.data.words.length > 0) {
+            }
+
+            // 策略 D: 補充掃描 ret.data.words
+            if (ret.data.words && ret.data.words.length > 0) {
                 ret.data.words.forEach(w => {
                     const wText = w.text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
                     const digits = wText.replace(/\D/g, '');
-                    if (wText.length >= 8 && digits.length >= 6) {
+                    enteredBatches.forEach(eb => {
+                        if (wText === eb || (wText.length >= 8 && eb.includes(wText))) {
+                            rawBoxes.push({
+                                text: eb,
+                                top: w.bbox.y0,
+                                bottom: w.bbox.y1
+                            });
+                        }
+                    });
+                    if (wText.length >= 8 && digits.length >= 5) {
                         rawBoxes.push({
                             text: wText,
                             top: w.bbox.y0,
                             bottom: w.bbox.y1
                         });
                     }
-                    if (/batch|lot|item|spec|result|test|date|tank/i.test(w.text)) {
+                    if (/batch|lot|item|spec|result|test|date|tank|query/i.test(w.text)) {
                         tableHeaderCandidates.push(w.bbox.y1);
                     }
                 });
@@ -817,8 +874,8 @@
                     : Math.max(headerBottom, Math.floor((uniqueBoxes[idx-1].bottom + b.top) / 2));
                 
                 let rowBottom = (idx === uniqueBoxes.length - 1)
-                    ? b.bottom + 16
-                    : Math.floor((b.bottom + uniqueBoxes[idx+1].top) / 2);
+                    ? b.bottom + 10
+                    : Math.floor((b.bottom + uniqueBoxes[idx+1].top) / 2) - 4;
 
                 return {
                     text: b.text,
@@ -842,8 +899,13 @@
             }
 
             const data = await res.json();
-            document.getElementById("statusBox").innerText = `✅ 截圖上傳成功！已成功精準定位 ${finalBoxes.length} 個批號數據列。`;
-            alert(`🎉 COA 截圖上傳與 AI 辨識成功！\n系統已抓到圖片中 ${finalBoxes.length} 筆批號：\n${finalBoxes.map(b=>'• ' + b.text).join('\n')}\n\n產生 Excel 時會自動為每張單子裁切【表頭 + 該批號專屬數據列】！`);
+            if (finalBoxes.length > 0) {
+                document.getElementById("statusBox").innerText = `✅ 截圖上傳成功！已成功精準定位 ${finalBoxes.length} 個批號數據列。`;
+                alert(`🎉 COA 截圖上傳與 AI 辨識成功！\n系統已抓到圖片中 ${finalBoxes.length} 筆批號：\n${finalBoxes.map(b=>'• ' + b.text).join('\n')}\n\n產生 Excel 時會自動為每張單子裁切【表頭 + 該批號專屬數據列】！`);
+            } else {
+                document.getElementById("statusBox").innerText = "✅ 截圖上傳成功！將由後端 Python 自動分析 TSMC 表格邊界與數據列。";
+                alert(`🎉 COA 截圖上傳成功！\n前端文字辨識無直接命中，後端 Python 已啟動【表格幾何邊界識別】，自動為每張單子精確裁切【表頭 + 各筆數據列】！`);
+            }
         } catch(err) {
             alert(`COA 截圖處理出錯: ${err}`);
             document.getElementById("statusBox").innerText = "⚠️ 截圖上傳失敗。";
@@ -1334,12 +1396,18 @@
             return;
         }
 
+        const btn = document.getElementById("btnAll");
+        const origBtnText = btn ? btn.innerHTML : "🚀 一鍵產生所有報表 (三合一單 + 運輸通知表 ZIP)";
+        const statusBox = document.getElementById("statusBox");
+
         try {
             if (btn) {
                 btn.disabled = true;
                 btn.innerHTML = "⏳ 正在產生所有報表，請稍候...";
             }
-            showActionMsg("⏳ 正在與伺服器通訊並產生所有 Excel 報表，請稍候...", "blue");
+            if (statusBox) {
+                statusBox.innerText = "⏳ 正在與伺服器通訊並產生所有 Excel 報表，請稍候...";
+            }
 
             const do3in1 = document.getElementById("chkWeb3in1") ? document.getElementById("chkWeb3in1").checked : true;
             const doTransport = document.getElementById("chkWebTransport") ? document.getElementById("chkWebTransport").checked : true;
@@ -1382,9 +1450,20 @@
             a.click();
             a.remove();
 
+            if (statusBox) {
+                statusBox.innerText = "🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！";
+            }
             alert("🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！");
         } catch(e) {
             alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
+            if (statusBox) {
+                statusBox.innerText = `⚠️ 產生失敗: ${e}`;
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origBtnText;
+            }
         }
     }
 
@@ -1421,7 +1500,19 @@
             return;
         }
 
+        const btn = document.getElementById("btnSingle3in1");
+        const origBtnText = btn ? btn.innerHTML : "📄 單獨產生三合一單 Excel";
+        const statusBox = document.getElementById("statusBox");
+
         try {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = "⏳ 正在產生三合一單，請稍候...";
+            }
+            if (statusBox) {
+                statusBox.innerText = "⏳ 正在產生三合一單 Excel，請稍候...";
+            }
+
             const res = await fetch("/api/generate_all_zip", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1458,9 +1549,20 @@
             a.click();
             a.remove();
 
+            if (statusBox) {
+                statusBox.innerText = "🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！";
+            }
             alert("🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！");
         } catch(e) {
             alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
+            if (statusBox) {
+                statusBox.innerText = `⚠️ 產生失敗: ${e}`;
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origBtnText;
+            }
         }
     }
 
@@ -1605,7 +1707,19 @@
             return;
         }
 
+        const btn = document.getElementById("btnSingleTransport");
+        const origBtnText = btn ? btn.innerHTML : "📄 單獨產生運輸通知表 Excel";
+        const statusBox = document.getElementById("statusBox");
+
         try {
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = "⏳ 正在產生運輸通知表，請稍候...";
+            }
+            if (statusBox) {
+                statusBox.innerText = "⏳ 正在產生運輸通知表 Excel，請稍候...";
+            }
+
             const res = await fetch("/api/generate_all_zip", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -1632,9 +1746,20 @@
             a.click();
             a.remove();
 
+            if (statusBox) {
+                statusBox.innerText = "🎉 單獨產生運輸通知表成功！已為您下載運輸通知表 Excel！";
+            }
             alert("🎉 單獨產生運輸通知表成功！已為您下載運輸通知表 Excel！");
         } catch(e) {
             alert(`產生失敗: ${e}`);
+            if (statusBox) {
+                statusBox.innerText = `⚠️ 產生失敗: ${e}`;
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = origBtnText;
+            }
         }
     }
 </script>
