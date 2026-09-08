@@ -45,6 +45,62 @@ def find_available_port(start_port: int, max_attempts: int = 50) -> int:
                 continue
     return start_port
 
+
+# ================= 1.5. 本機 Tesseract OCR 自動偵測 =================
+import shutil as _shutil
+
+def _auto_detect_tesseract():
+    """自動偵測本機 tesseract.exe，回傳路徑或 None"""
+    candidates = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        r"C:\Tesseract-OCR\tesseract.exe",
+        r"D:\Tesseract-OCR\tesseract.exe",
+    ]
+    from_path = _shutil.which("tesseract")
+    if from_path:
+        candidates.insert(0, from_path)
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    return None
+
+TESSERACT_EXE = _auto_detect_tesseract()
+TESSERACT_AVAILABLE = TESSERACT_EXE is not None
+
+if TESSERACT_AVAILABLE:
+    try:
+        import pytesseract as _pytes
+        _pytes.pytesseract.tesseract_cmd = TESSERACT_EXE
+        print(f"[OCR] Local Tesseract found: {TESSERACT_EXE}")
+    except ImportError:
+        TESSERACT_AVAILABLE = False
+        print("[OCR] tesseract.exe found but pytesseract not installed")
+else:
+    print("[OCR] No local Tesseract, using frontend OCR + geometric crop")
+
+def backend_ocr_batch(img_pil):
+    """用本機 Tesseract 辨識圖片，回傳字詞 list（含座標）"""
+    if not TESSERACT_AVAILABLE:
+        return []
+    try:
+        import pytesseract
+        data = pytesseract.image_to_data(img_pil, lang="eng", config="--psm 6",
+                                         output_type=pytesseract.Output.DICT)
+        results = []
+        for i, word in enumerate(data["text"]):
+            word = word.strip()
+            if word and data["conf"][i] > 30:
+                x, y, w, h = data["left"][i], data["top"][i], data["width"][i], data["height"][i]
+                results.append({
+                    "text": word.upper(), "left": x, "top": y,
+                    "right": x + w, "bottom": y + h,
+                })
+        return results
+    except Exception as e:
+        print(f"[OCR] 後端 OCR 失敗: {e}")
+        return []
+
 # ================= 2. 核心業務邏輯 (批號解析與對照) =================
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -548,7 +604,7 @@ async def generate_all_zip(request: Request):
         folder_name = f"三合一單輸出_{today_str}"
 
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            # 1. 產生三合一單 Excel 報表
+            # 1. 產生三合一單 Excel 報表 (依具體短地點各自獨立資料夾，如 15P5/, 15P6/, 18P3B/)
             if do_3in1 and os.path.exists(TEMPLATE_PATH):
                 used_filenames = set()
                 for item_idx, item in enumerate(records):
@@ -600,66 +656,75 @@ async def generate_all_zip(request: Request):
                     new_qr.anchor = 'F2'
                     ws.add_image(new_qr)
 
-                    # 若使用者有上傳 COA 截圖，自動針對「該筆排程的指定單一批號列」進行標頭+單列精確裁切 (與對照手冊 100% 相同)
+                    # COA 截圖自動裁切 - 三層降級策略：
+                    # 1.後端Tesseract(有安裝才用) -> 2.前端tesseract.js -> 3.幾何排程順序
                     if "latest_coa" in COA_CACHE and COA_CACHE["latest_coa"]:
-                        try:
-                            coa_raw = Image.open(BytesIO(COA_CACHE["latest_coa"])).convert("RGB")
-                            w, h = coa_raw.size
-                            cropped_coa = None
-                            
-                            hb_struct, rows_struct = parse_tsmc_query_table_accurate(coa_raw)
-                            
-                            if hb_struct and rows_struct:
-                                img_top = coa_raw.crop((0, 0, w, hb_struct))
-                                target_row = None
-                                target_digits = "".join(c for c in batch if c.isdigit())
-                                
-                                ocr_data = COA_CACHE.get("ocr_data")
-                                if ocr_data and "boxes" in ocr_data:
-                                    for box in ocr_data["boxes"]:
-                                        box_text = box.get("text", "").upper()
-                                        box_digits = "".join(c for c in box_text if c.isdigit())
-                                        if box_text == batch or (len(box_digits) >= 6 and (box_digits in target_digits or target_digits in box_digits)):
-                                            text_y = int((box.get("top", 0) + box.get("bottom", 0)) / 2)
-                                            for row in rows_struct:
-                                                if row[0] - 15 <= text_y <= row[1] + 15:
-                                                    target_row = row
-                                                    break
-                                            if target_row:
-                                                break
-                                
-                                if not target_row:
-                                    target_row_idx = min(item_idx, len(rows_struct) - 1)
-                                    if target_row_idx >= 0:
-                                        target_row = rows_struct[target_row_idx]
-                                    
-                                if target_row:
-                                    img_row = coa_raw.crop((0, target_row[0], w, target_row[1]))
-                                    cropped_coa = Image.new("RGB", (w, img_top.height + img_row.height), "white")
-                                    cropped_coa.paste(img_top, (0, 0))
-                                    cropped_coa.paste(img_row, (0, img_top.height))
-                                
-                            if not cropped_coa:
-                                crop_bottom = int(h * 0.98)
-                                cropped_coa = coa_raw.crop((0, 0, w, crop_bottom))
-                                
-                            coa_io = BytesIO()
-                            cropped_coa.save(coa_io, format="PNG")
-                            coa_io.seek(0)
-
-                            coa_img = OpenpyxlImage(coa_io)
-                            coa_img.width = int(round(27.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
-                            coa_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分 (~435 px)
-
-                            col_off = 0 # 往左微調
-                            row_off = 0
-                            _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
-                            size = XDRPositiveSize2D(int(coa_img.width * 9525), int(coa_img.height * 9525))
-                            coa_img.anchor = OneCellAnchor(_from=_from, ext=size)
-                            print("Adding COA image to Excel"); ws.add_image(coa_img)
-                        except Exception as coa_e:
-                            traceback.print_exc()
-                            print(f"[COA Crop Error] 處理批號 {batch} COA 發生錯誤: {coa_e}")
+                         try:
+                             coa_raw = Image.open(BytesIO(COA_CACHE["latest_coa"])).convert("RGB")
+                             w, h = coa_raw.size
+                             cropped_coa = None
+                             hb_struct, rows_struct = parse_tsmc_query_table_accurate(coa_raw)
+                             if hb_struct and rows_struct:
+                                 img_top = coa_raw.crop((0, 0, w, hb_struct))
+                                 target_row = None
+                                 target_digits = "".join(c for c in batch if c.isdigit())
+                                 # === Layer 1: Local Tesseract (if installed) ===
+                                 if TESSERACT_AVAILABLE:
+                                     for box in backend_ocr_batch(coa_raw):
+                                         box_text = box.get("text", "").upper()
+                                         box_digits = "".join(c for c in box_text if c.isdigit())
+                                         if box_text == batch or (len(box_digits) >= 6 and (box_digits in target_digits or target_digits in box_digits)):
+                                             text_y = int((box.get("top", 0) + box.get("bottom", 0)) / 2)
+                                             for row in rows_struct:
+                                                 if row[0] - 20 <= text_y <= row[1] + 20:
+                                                     target_row = row
+                                                     print(f"[COA] Tesseract hit: {batch}")
+                                                     break
+                                             if target_row:
+                                                 break
+                                 # === Layer 2: Frontend tesseract.js OCR result ===
+                                 if not target_row:
+                                     ocr_data = COA_CACHE.get("ocr_data")
+                                     if ocr_data and "boxes" in ocr_data and ocr_data["boxes"]:
+                                         for box in ocr_data["boxes"]:
+                                             box_text = box.get("text", "").upper()
+                                             box_digits = "".join(c for c in box_text if c.isdigit())
+                                             if box_text == batch or (len(box_digits) >= 6 and (box_digits in target_digits or target_digits in box_digits)):
+                                                 text_y = int((box.get("top", 0) + box.get("bottom", 0)) / 2)
+                                                 for row in rows_struct:
+                                                     if row[0] - 15 <= text_y <= row[1] + 15:
+                                                         target_row = row
+                                                         print(f"[COA] Frontend OCR hit: {batch}")
+                                                         break
+                                                 if target_row:
+                                                     break
+                                 # === Layer 3: Geometric order fallback (no OCR needed) ===
+                                 if not target_row:
+                                     idx3 = min(item_idx, len(rows_struct) - 1)
+                                     if idx3 >= 0:
+                                         target_row = rows_struct[idx3]
+                                         print(f"[COA] Geometric fallback idx={idx3} for {batch}")
+                                 if target_row:
+                                     img_row = coa_raw.crop((0, target_row[0], w, target_row[1]))
+                                     cropped_coa = Image.new("RGB", (w, img_top.height + img_row.height), "white")
+                                     cropped_coa.paste(img_top, (0, 0))
+                                     cropped_coa.paste(img_row, (0, img_top.height))
+                             if not cropped_coa:
+                                 cropped_coa = coa_raw.crop((0, 0, w, int(h * 0.98)))
+                             coa_io = BytesIO()
+                             cropped_coa.save(coa_io, format="PNG")
+                             coa_io.seek(0)
+                             coa_img = OpenpyxlImage(coa_io)
+                             coa_img.width = int(round(24.1 * 96 / 2.54))
+                             coa_img.height = int(round(11.51 * 96 / 2.54))
+                             _from = AnchorMarker(col=5, colOff=pixels_to_EMU(15), row=4, rowOff=0)
+                             size = XDRPositiveSize2D(pixels_to_EMU(coa_img.width), pixels_to_EMU(coa_img.height))
+                             coa_img.anchor = OneCellAnchor(_from=_from, ext=size)
+                             ws.add_image(coa_img)
+                             print(f"[COA] Image inserted (w={coa_img.width}, h={coa_img.height})")
+                         except Exception as coa_e:
+                             traceback.print_exc()
+                             print(f"[COA Error] {batch}: {coa_e}")
 
                     excel_io = BytesIO()
                     wb.save(excel_io)
@@ -685,23 +750,14 @@ async def generate_all_zip(request: Request):
                     base_name = f"{date_prefix}{tank_part}{loc}台積電槽車barcode三合一單.xlsx"
                     test_name = base_name
                     counter = 1
-                    while f"{folder_name}/{test_name}" in used_filenames:
+                    while f"{folder_name}/{loc}/{test_name}" in used_filenames:
                         test_name = f"{date_prefix}{tank_part}{loc}_{counter}台積電槽車barcode三合一單.xlsx"
                         counter += 1
                     file_name = test_name
-                    used_filenames.add(f"{folder_name}/{file_name}")
-                    zip_file.writestr(f"{folder_name}/{file_name}", excel_io.getvalue())
+                    used_filenames.add(f"{folder_name}/{loc}/{file_name}")
+                    zip_file.writestr(f"{folder_name}/{loc}/{file_name}", excel_io.getvalue())
 
-            # 2. 產生獨立運輸通知表 Excel
-            if do_transport:
-                wb_t = generate_transport_workbook(records)
-                t_io = BytesIO()
-                wb_t.save(t_io)
-                wb_t.close()
-                t_io.seek(0)
-                zip_file.writestr(f"{folder_name}/運輸通知表.xlsx", t_io.getvalue())
-
-            # 3. 寫入 session.json 至 ZIP 根目錄，供本機 BAT 或網頁版載入時 100% 精準還原原始完整 10 碼批號
+            # 2. 寫入 session.json 至 ZIP 根目錄，供本機 BAT 或網頁版載入時 100% 精準還原原始完整 10 碼批號
             try:
                 session_payload = []
                 for r in records:
@@ -717,7 +773,7 @@ async def generate_all_zip(request: Request):
             except Exception as se:
                 print(f"[Session JSON Error] {se}")
 
-            # 4. 產生額外附加檔案 / 生產履歷 (若有上傳 Excel，依批號過濾並只保留單列)
+            # 3. 產生單列生產履歷 Excel (Chemical_Lorry)，依短地點歸入對應子資料夾
             extra_file = EXTRA_FILE_CACHE.get("latest_file")
             if do_lorry and extra_file and extra_file["ext"].lower() in [".xlsx", ".xls"]:
                 try:
@@ -764,11 +820,11 @@ async def generate_all_zip(request: Request):
                             tank_part = f"{tank_no} " if tank_no else ""
                             new_filename = f"{base_name}-{mmdd} {tank_part}{loc}{extra_file['ext']}"
                             
-                            # 儲存到 ZIP
+                            # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
                             out_buf = BytesIO()
                             new_wb.save(out_buf)
                             new_wb.close()
-                            zip_file.writestr(f"{folder_name}/{new_filename}", out_buf.getvalue())
+                            zip_file.writestr(f"{folder_name}/{loc}/{new_filename}", out_buf.getvalue())
                     src_wb.close()
                 except Exception as ex:
                     print(f"處理附加檔案時發生錯誤: {ex}")
