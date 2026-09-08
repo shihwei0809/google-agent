@@ -1865,55 +1865,80 @@ class App(tk.Tk):
                         img_rgb = orig_img.convert('RGB')
                         w, h = orig_img.size
                         
-                        # 水平表格邊界線檢測輔助 (避免切到下一列按鈕或多餘白邊)
-                        def find_border_y(start_y, direction, search_range=50):
-                            for step in range(search_range):
-                                curr_y = start_y + step * direction
-                                if curr_y <= 0 or curr_y >= h:
+                        # 移植伺服版的精確定位演算法
+                        def parse_tsmc_query_table_accurate(coa_raw):
+                            w, h = coa_raw.size
+                            img_rgb = coa_raw.convert('RGB')
+                            query_result_y = None
+                            for y in range(int(h * 0.3), int(h * 0.9)):
+                                sample = [img_rgb.getpixel((x, y)) for x in range(int(w * 0.1), int(w * 0.9), max(1, int(w * 0.05)))]
+                                if sum(1 for p in sample if p[0] < 100 and p[1] < 160 and p[2] > 200) > len(sample) * 0.7:
+                                    query_result_y = y
                                     break
-                                sample_xs = range(int(w * 0.2), int(w * 0.8), max(1, int(w * 0.05)))
-                                pixels = [img_rgb.getpixel((x, curr_y)) for x in sample_xs]
-                                is_grey_line = all(abs(p[0] - p[1]) < 8 and abs(p[1] - p[2]) < 8 and 150 < p[0] < 235 for p in pixels)
-                                if is_grey_line and step > 2:
-                                    return curr_y
-                            return None
+                            start_y = query_result_y if query_result_y else int(h * 0.5)
+                            btn_y_list = []
+                            for y in range(start_y + 20, h):
+                                sample = [img_rgb.getpixel((x, y)) for x in range(15, 65, 2)]
+                                blue_cnt = sum(1 for p in sample if p[0] < 60 and p[2] > 180)
+                                if blue_cnt >= 8:
+                                    btn_y_list.append(y)
+                            btn_clusters = []
+                            for y in btn_y_list:
+                                if not btn_clusters or y > btn_clusters[-1][-1] + 5:
+                                    btn_clusters.append([y])
+                                else:
+                                    btn_clusters[-1].append(y)
+                            def find_border_line(start_y, direction, max_search=40):
+                                for step in range(max_search):
+                                    curr_y = start_y + step * direction
+                                    if curr_y <= 0 or curr_y >= h:
+                                        break
+                                    sample_xs = range(int(w * 0.2), int(w * 0.8), max(1, int(w * 0.05)))
+                                    pixels = [img_rgb.getpixel((x, curr_y)) for x in sample_xs]
+                                    if all(abs(p[0] - p[1]) < 8 and abs(p[1] - p[2]) < 8 and 150 < p[0] < 235 for p in pixels):
+                                        if step > 1:
+                                            return curr_y
+                                return None
+                            if not btn_clusters:
+                                return None, []
+                            first_btn_top = btn_clusters[0][0]
+                            header_bottom = find_border_line(first_btn_top, -1, max_search=50) or (first_btn_top - 6)
+                            data_rows = []
+                            for cluster in btn_clusters:
+                                mid_y = int(sum(cluster) / len(cluster))
+                                row_t = find_border_line(mid_y, -1, max_search=30) or (cluster[0] - 6)
+                                row_b = find_border_line(mid_y, +1, max_search=30) or (cluster[-1] + 8)
+                                data_rows.append((max(0, row_t), min(h, row_b + 1)))
+                            return header_bottom, data_rows
 
-                        img_scaled = orig_img.resize((orig_img.width * 2, orig_img.height * 2), PILImage.Resampling.LANCZOS)
-                        d = pytesseract.image_to_data(img_scaled, output_type=Output.DICT)
-                        
-                        header_bottom = int(h * 0.35)
-                        for i in range(len(d['text'])):
-                            if 'Batch' in d['text'][i] or 'ID' in d['text'][i] or 'No' in d['text'][i]:
-                                header_bottom = int((d['top'][i] + d['height'][i]) / 2) + 6
-                                break
-                        
-                        hb_border = find_border_y(header_bottom, +1) or find_border_y(header_bottom, -1)
-                        if hb_border:
-                            header_bottom = hb_border
-                        
-                        img_top = orig_img.crop((0, 0, w, header_bottom))
-                        
-                        for i in range(len(d['text'])):
-                            text = d['text'][i].strip()
-                            digits = ''.join(c for c in text if c.isdigit())
-                            if len(digits) >= 8:
-                                batch_digits = digits
-                                text_y = int((d['top'][i] + d['height'][i] / 2) / 2)
-                                row_b = find_border_y(text_y, +1, search_range=35)
-                                row_t = find_border_y(text_y, -1, search_range=35)
-                                if not row_b:
-                                    row_b = text_y + 12
-                                if not row_t:
-                                    row_t = text_y - 12
-                                row_top = max(0, min(h, row_t))
-                                row_bottom = max(row_top + 5, min(h, row_b + 1))
-                                
-                                img_row = orig_img.crop((0, row_top, w, row_bottom))
+                        hb_struct, rows_struct = parse_tsmc_query_table_accurate(orig_img)
+                        if hb_struct and rows_struct:
+                            img_top = orig_img.crop((0, 0, w, hb_struct))
+                            
+                            if not hasattr(self, 'fallback_coa'):
+                                self.fallback_coa = []
+                            
+                            for row in rows_struct:
+                                img_row = orig_img.crop((0, row[0], w, row[1]))
                                 new_img = PILImage.new('RGB', (w, img_top.height + img_row.height), 'white')
                                 new_img.paste(img_top, (0, 0))
                                 new_img.paste(img_row, (0, img_top.height))
                                 
-                                coa_crops[batch_digits] = new_img
+                                self.fallback_coa.append(new_img)
+                                
+                                # OCR to find batch number in this row
+                                row_scaled = img_row.resize((img_row.width * 2, img_row.height * 2), PILImage.Resampling.LANCZOS)
+                                d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
+                                for i in range(len(d['text'])):
+                                    text = d['text'][i].strip()
+                                    digits = ''.join(c for c in text if c.isdigit())
+                                    if len(digits) >= 6:
+                                        coa_crops[digits] = new_img
+                        else:
+                            # 找不到結構，整張圖備用
+                            if not hasattr(self, 'fallback_coa'):
+                                self.fallback_coa = []
+                            self.fallback_coa.append(orig_img)
                     except Exception as e:
                         print("OCR error:", e)
 
@@ -2004,10 +2029,10 @@ class App(tk.Tk):
                             crop_img.save(img_byte_arr2, format='PNG')
                             img_byte_arr2.seek(0)
                             xl_img = OpenpyxlImage(img_byte_arr2)
-                            xl_img.width = int(round(27.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
+                            xl_img.width = int(round(24.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
                             xl_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分 (~435 px)
                             
-                            col_off = 0 # ~0.78 cm (向右微調，精準對齊上方 QR Code 與填滿右側版面)
+                            col_off = pixels_to_EMU(15) # ~0.78 cm (向右微調，精準對齊上方 QR Code 與填滿右側版面)
                             row_off = 0
                             _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
                             size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
@@ -2016,17 +2041,36 @@ class App(tk.Tk):
                             found_coa = True
                             break
                     
+
+                    if not found_coa and hasattr(self, 'fallback_coa') and self.fallback_coa:
+                        if len(self.fallback_coa) > 0:
+                            fb_img = self.fallback_coa.pop(0)
+                            img_byte_arr2 = BytesIO()
+                            fb_img.save(img_byte_arr2, format='PNG')
+                            img_byte_arr2.seek(0)
+                            xl_img = OpenpyxlImage(img_byte_arr2)
+                            xl_img.width = int(round(24.1 * 96 / 2.54))
+                            xl_img.height = int(round(11.51 * 96 / 2.54))
+                            _from = AnchorMarker(col=5, colOff=pixels_to_EMU(15), row=4, rowOff=0)
+                            size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
+                            xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
+                            ws.add_image(xl_img)
+                            found_coa = True
+                            error_msgs.append(f"⚠️ 提示: 批號 {batch_no} OCR未找到完全吻合，已採用幾何自動裁切拼接備份圖。")
                     if not found_coa and self.coa_paths:
                         error_msgs.append(f"⚠️ 警告: 批號 {batch_no} 未在截圖找到，已留白處理！")
 
                     date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
                     tank_part = f"{tank_no} " if tank_no else ""
                     base_filename = f"{date_prefix}{tank_part}{safe_loc}台積電槽車barcode三合一單.xlsx"
-                    output_path = os.path.join(output_dir, base_filename)
+                    loc_folder = os.path.join(output_dir, safe_loc)
+                    if not os.path.exists(loc_folder):
+                        os.makedirs(loc_folder)
+                    output_path = os.path.join(loc_folder, base_filename)
                     counter = 1
                     while os.path.exists(output_path):
                         base_filename = f"{date_prefix}{tank_part}{safe_loc}_{counter}台積電槽車barcode三合一單.xlsx"
-                        output_path = os.path.join(output_dir, base_filename)
+                        output_path = os.path.join(loc_folder, base_filename)
                         counter += 1
                         
                     output_filename = base_filename

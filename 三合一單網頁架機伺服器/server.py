@@ -604,7 +604,7 @@ async def generate_all_zip(request: Request):
         folder_name = f"三合一單輸出_{today_str}"
 
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-            # 1. 產生三合一單 Excel 報表
+            # 1. 產生三合一單 Excel 報表 (依具體短地點各自獨立資料夾，如 15P5/, 15P6/, 18P3B/)
             if do_3in1 and os.path.exists(TEMPLATE_PATH):
                 used_filenames = set()
                 for item_idx, item in enumerate(records):
@@ -715,9 +715,9 @@ async def generate_all_zip(request: Request):
                              cropped_coa.save(coa_io, format="PNG")
                              coa_io.seek(0)
                              coa_img = OpenpyxlImage(coa_io)
-                             coa_img.width = int(round(27.1 * 96 / 2.54))
+                             coa_img.width = int(round(24.1 * 96 / 2.54))
                              coa_img.height = int(round(11.51 * 96 / 2.54))
-                             _from = AnchorMarker(col=5, colOff=0, row=4, rowOff=0)
+                             _from = AnchorMarker(col=5, colOff=pixels_to_EMU(15), row=4, rowOff=0)
                              size = XDRPositiveSize2D(pixels_to_EMU(coa_img.width), pixels_to_EMU(coa_img.height))
                              coa_img.anchor = OneCellAnchor(_from=_from, ext=size)
                              ws.add_image(coa_img)
@@ -750,23 +750,14 @@ async def generate_all_zip(request: Request):
                     base_name = f"{date_prefix}{tank_part}{loc}台積電槽車barcode三合一單.xlsx"
                     test_name = base_name
                     counter = 1
-                    while f"{folder_name}/{test_name}" in used_filenames:
+                    while f"{folder_name}/{loc}/{test_name}" in used_filenames:
                         test_name = f"{date_prefix}{tank_part}{loc}_{counter}台積電槽車barcode三合一單.xlsx"
                         counter += 1
                     file_name = test_name
-                    used_filenames.add(f"{folder_name}/{file_name}")
-                    zip_file.writestr(f"{folder_name}/{file_name}", excel_io.getvalue())
+                    used_filenames.add(f"{folder_name}/{loc}/{file_name}")
+                    zip_file.writestr(f"{folder_name}/{loc}/{file_name}", excel_io.getvalue())
 
-            # 2. 產生獨立運輸通知表 Excel
-            if do_transport:
-                wb_t = generate_transport_workbook(records)
-                t_io = BytesIO()
-                wb_t.save(t_io)
-                wb_t.close()
-                t_io.seek(0)
-                zip_file.writestr(f"{folder_name}/運輸通知表.xlsx", t_io.getvalue())
-
-            # 3. 寫入 session.json 至 ZIP 根目錄，供本機 BAT 或網頁版載入時 100% 精準還原原始完整 10 碼批號
+            # 2. 寫入 session.json 至 ZIP 根目錄，供本機 BAT 或網頁版載入時 100% 精準還原原始完整 10 碼批號
             try:
                 session_payload = []
                 for r in records:
@@ -782,7 +773,7 @@ async def generate_all_zip(request: Request):
             except Exception as se:
                 print(f"[Session JSON Error] {se}")
 
-            # 4. 產生額外附加檔案 / 生產履歷 (若有上傳 Excel，依批號過濾並只保留單列)
+            # 3. 產生單列生產履歷 Excel (Chemical_Lorry)，依短地點歸入對應子資料夾
             extra_file = EXTRA_FILE_CACHE.get("latest_file")
             if do_lorry and extra_file and extra_file["ext"].lower() in [".xlsx", ".xls"]:
                 try:
@@ -829,11 +820,11 @@ async def generate_all_zip(request: Request):
                             tank_part = f"{tank_no} " if tank_no else ""
                             new_filename = f"{base_name}-{mmdd} {tank_part}{loc}{extra_file['ext']}"
                             
-                            # 儲存到 ZIP
+                            # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
                             out_buf = BytesIO()
                             new_wb.save(out_buf)
                             new_wb.close()
-                            zip_file.writestr(f"{folder_name}/{new_filename}", out_buf.getvalue())
+                            zip_file.writestr(f"{folder_name}/{loc}/{new_filename}", out_buf.getvalue())
                     src_wb.close()
                 except Exception as ex:
                     print(f"處理附加檔案時發生錯誤: {ex}")

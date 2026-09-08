@@ -99,14 +99,10 @@
     </div>
 
     <div style="background:#FFF; padding:12px 20px; border-radius:8px; margin: 15px 0 10px 0; border: 1px solid #DDD; display:flex; align-items:center; gap:25px; flex-wrap:wrap; font-weight:bold; font-size:14px;">
-        <span style="color:#002060;">📦 欲產生的報表勾選：</span>
+        <span style="color:#002060;">📦 欲產生的報表勾選（自動依短地點建獨立資料夾）：</span>
         <label style="cursor:pointer; color:#1B5E20; display:flex; align-items:center; gap:6px;">
             <input type="checkbox" id="chkWeb3in1" checked style="width:18px; height:18px;">
             ✅ 產生三合一單 Excel (含 Barcode 與 COA)
-        </label>
-        <label style="cursor:pointer; color:#0D47A1; display:flex; align-items:center; gap:6px;">
-            <input type="checkbox" id="chkWebTransport" checked style="width:18px; height:18px;">
-            ✅ 產生運輸通知表 Excel
         </label>
         <label style="cursor:pointer; color:#E65100; display:flex; align-items:center; gap:6px;">
             <input type="checkbox" id="chkWebLorry" checked style="width:18px; height:18px;">
@@ -115,9 +111,8 @@
     </div>
 
     <div class="footer-action">
-        <button id="btnAll" class="btn btn-green btn-large" onclick="generateAllZip()">🚀 一鍵產生所有報表 (三合一單 + 運輸通知表 ZIP)</button>
-        <button id="btnSingle3in1" class="btn btn-blue btn-large" onclick="generate3in1Single()">📄 單獨產生三合一單 Excel</button>
-        <button id="btnSingleTransport" class="btn btn-blue btn-large" onclick="generateTransportExcel()">📄 單獨產生運輸通知表 Excel</button>
+        <button id="btnAll" class="btn btn-green btn-large" onclick="generateAllZip()">🚀 一鍵打包產生所有報表 (依地點分夾 ZIP)</button>
+        <button id="btnSingle3in1" class="btn btn-blue btn-large" onclick="generate3in1Single()">📄 單獨產生三合一單 Excel (依地點分夾)</button>
     </div>
 </div>
 
@@ -1397,7 +1392,7 @@
         }
 
         const btn = document.getElementById("btnAll");
-        const origBtnText = btn ? btn.innerHTML : "🚀 一鍵產生所有報表 (三合一單 + 運輸通知表 ZIP)";
+        const origBtnText = btn ? btn.innerHTML : "🚀 一鍵打包產生所有報表 (依地點分夾 ZIP)";
         const statusBox = document.getElementById("statusBox");
 
         try {
@@ -1410,7 +1405,6 @@
             }
 
             const do3in1 = document.getElementById("chkWeb3in1") ? document.getElementById("chkWeb3in1").checked : true;
-            const doTransport = document.getElementById("chkWebTransport") ? document.getElementById("chkWebTransport").checked : true;
             const doLorry = document.getElementById("chkWebLorry") ? document.getElementById("chkWebLorry").checked : true;
 
             const res = await fetch("/api/generate_all_zip", {
@@ -1419,7 +1413,7 @@
                 body: JSON.stringify({
                     records: records,
                     do3in1: do3in1,
-                    doTransport: doTransport,
+                    doTransport: false,
                     doLorry: doLorry
                 })
             });
