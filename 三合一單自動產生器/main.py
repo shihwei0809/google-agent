@@ -98,9 +98,104 @@ def get_gcp_vision_text(img_pil):
     except Exception as e:
         print(f"GCP Vision API 發生錯誤 ({selected_key}):", e)
         return None
+# ================= GCP 金鑰管理器介面 =================
+from tkinter import ttk
+
+class GcpKeyManagerDialog(tk.Toplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("GCP Vision API 金鑰管理")
+        self.geometry("550x500")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+        
+        self.key_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gcp_keys")
+        if not os.path.exists(self.key_dir):
+            os.makedirs(self.key_dir)
+        self.tracker_file = os.path.join(self.key_dir, "usage_tracker.json")
+        
+        tk.Label(self, text="目前已安裝的 GCP 金鑰狀態 (每月上限 800 次):", font=("Microsoft JhengHei", 10, "bold")).pack(pady=10)
+        
+        self.tree = ttk.Treeview(self, columns=("File", "Usage"), show="headings", height=5)
+        self.tree.heading("File", text="金鑰檔名")
+        self.tree.heading("Usage", text="本月使用次數")
+        self.tree.column("File", width=350, anchor="w")
+        self.tree.column("Usage", width=150, anchor="center")
+        self.tree.pack(padx=15, pady=5, fill="x")
+        
+        self.refresh_list()
+        
+        btn_frame = tk.Frame(self)
+        btn_frame.pack(pady=5)
+        tk.Button(btn_frame, text="🗑️ 刪除選取金鑰", command=self.delete_key, bg="#E53935", fg="white", font=("Microsoft JhengHei", 9)).pack(side="left", padx=5)
+        
+        tk.Label(self, text="新增金鑰 (請將 GCP JSON 金鑰內容貼在下方):", font=("Microsoft JhengHei", 10, "bold")).pack(pady=(15, 5))
+        self.text_area = tk.Text(self, height=12, width=60, font=("Consolas", 9))
+        self.text_area.pack(padx=15, pady=5, fill="both", expand=True)
+        
+        tk.Button(self, text="💾 儲存並啟用新金鑰", bg="#4CAF50", fg="white", font=("Microsoft JhengHei", 10, "bold"), command=self.save_key, pady=5).pack(pady=10)
+        
+        # 置中顯示
+        self.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() - self.winfo_width()) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - self.winfo_height()) // 2
+        self.geometry(f"+{x}+{y}")
+        
+    def refresh_list(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        tracker = {}
+        if os.path.exists(self.tracker_file):
+            try:
+                with open(self.tracker_file, 'r', encoding='utf-8') as f:
+                    tracker = json.load(f)
+            except:
+                pass
+        current_month = datetime.now().strftime("%Y-%m")
+        
+        for f_name in os.listdir(self.key_dir):
+            if f_name.endswith(".json") and f_name != "usage_tracker.json":
+                data = tracker.get(f_name, {"month": current_month, "count": 0})
+                usage = data["count"] if data["month"] == current_month else 0
+                self.tree.insert("", "end", values=(f_name, f"{usage} / 800"))
+                
+    def delete_key(self):
+        selected = self.tree.selection()
+        if not selected:
+            return
+        item = self.tree.item(selected[0])
+        f_name = item['values'][0]
+        if messagebox.askyesno("確認", f"確定要刪除金鑰 {f_name} 嗎？"):
+            try:
+                os.remove(os.path.join(self.key_dir, f_name))
+                self.refresh_list()
+            except Exception as e:
+                messagebox.showerror("錯誤", f"刪除失敗: {e}")
+            
+    def save_key(self):
+        content = self.text_area.get("1.0", tk.END).strip()
+        if not content:
+            messagebox.showwarning("錯誤", "請先貼上 JSON 內容！")
+            return
+        try:
+            json_data = json.loads(content)
+            if "project_id" not in json_data or "private_key" not in json_data:
+                messagebox.showwarning("警告", "這似乎不是有效的 GCP Service Account JSON 格式 (缺少 project_id 或 private_key)！")
+                return
+            
+            import uuid
+            new_filename = f"key_{uuid.uuid4().hex[:6]}.json"
+            with open(os.path.join(self.key_dir, new_filename), "w", encoding="utf-8") as f:
+                f.write(content)
+                
+            messagebox.showinfo("成功", "金鑰已成功儲存並啟用！您現在可以開始使用超高精度辨識了。")
+            self.text_area.delete("1.0", tk.END)
+            self.refresh_list()
+        except Exception as e:
+            messagebox.showerror("解析錯誤", f"JSON 格式不正確:\n{e}")
 
 
-# ================= 浮動日曆選擇器 =================
 
 class CalendarDialog(tk.Toplevel):
     def __init__(self, parent, target_var):
@@ -1080,6 +1175,7 @@ class App(tk.Tk):
         tk.Button(left_btn_frame, text="📂 載入既有通知表修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="📋 貼上 COA 截圖", command=self.paste_coa, bg="#4CAF50", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(left_btn_frame, text="🔑 設定 GCP 金鑰", command=lambda: GcpKeyManagerDialog(self), bg="#3949AB", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
 
         # 右側：表格操作與日期快捷按鈕群組
         right_btn_frame = tk.Frame(top_ctrl_frame)
