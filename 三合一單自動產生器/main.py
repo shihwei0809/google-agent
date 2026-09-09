@@ -28,14 +28,14 @@ from io import BytesIO
 from copy import copy
 
 
-# ================= OCR 雙引擎系統：Gemini API + GCP Vision + Tesseract 三重保險 =================
+# ================= OCR 三重引擎：Gemini 2.0 Flash + GCP Vision + Tesseract =================
 
 KEY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gcp_keys")
 GEMINI_KEYS_FILE = os.path.join(KEY_DIR, "gemini_keys.json")
 GCP_TRACKER_FILE = os.path.join(KEY_DIR, "usage_tracker.json")
 
+
 def _load_gemini_keys():
-    """讀取 Gemini API Key 清單及用量"""
     if not os.path.exists(GEMINI_KEYS_FILE):
         return []
     try:
@@ -44,14 +44,15 @@ def _load_gemini_keys():
     except:
         return []
 
+
 def _save_gemini_keys(keys_data):
-    if not os.path.exists(KEY_DIR):
-        os.makedirs(KEY_DIR)
+    os.makedirs(KEY_DIR, exist_ok=True)
     with open(GEMINI_KEYS_FILE, 'w', encoding='utf-8') as f:
         json.dump(keys_data, f, indent=4, ensure_ascii=False)
 
+
 def get_gemini_ocr_text(img_pil):
-    """使用 Gemini API 解析圖片中的批號，自動輪替 Key"""
+    """優先使用 Gemini 2.0 Flash（最新模型）解析圖片批號，自動輪替 Key"""
     try:
         import google.generativeai as genai
     except ImportError:
@@ -72,23 +73,24 @@ def get_gemini_ocr_text(img_pil):
             break
 
     if not selected:
-        print("⚠️ 所有 Gemini API Key 皆已達 800 次上限，嘗試退回 GCP Vision 或 Tesseract。")
+        print("⚠️ 所有 Gemini Key 皆已達 800 次上限，退回備援引擎。")
         return None
 
     try:
         genai.configure(api_key=selected["key"])
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        # 使用最新的 gemini-2.0-flash（支援視覺、速度最快）
+        model = genai.GenerativeModel("gemini-2.0-flash")
 
         img_byte_arr = BytesIO()
         img_pil.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
-
         import PIL.Image
         pil_img = PIL.Image.open(img_byte_arr)
 
         response = model.generate_content([
-            "請只回報這張圖片中所有你看到的批號數字（Batch ID），格式通常為6位以上純數字，"
-            "多個批號請用逗號分隔。不要說明、不要解釋、只輸出數字。",
+            "請只回報這張圖片中你看到的所有批號數字（Batch ID），"
+            "格式通常是6位以上純數字。多個批號請用逗號分隔。"
+            "不要說明、不要解釋，只輸出數字。",
             pil_img
         ])
         selected["count"] = selected.get("count", 0) + 1
@@ -98,6 +100,7 @@ def get_gemini_ocr_text(img_pil):
         print(f"Gemini API 發生錯誤: {e}")
         return None
 
+
 def get_gcp_vision_text(img_pil):
     """使用 GCP Cloud Vision 解析，自動輪替 JSON Key"""
     try:
@@ -106,11 +109,9 @@ def get_gcp_vision_text(img_pil):
     except ImportError:
         return None
 
-    if not os.path.exists(KEY_DIR):
-        os.makedirs(KEY_DIR)
-        return None
-
-    keys = [f for f in os.listdir(KEY_DIR) if f.endswith('.json') and f not in ("usage_tracker.json",)]
+    os.makedirs(KEY_DIR, exist_ok=True)
+    keys = [f for f in os.listdir(KEY_DIR) if f.endswith('.json')
+            and f not in ("usage_tracker.json", "gemini_keys.json", "engine_config.json")]
     if not keys:
         return None
 
@@ -138,77 +139,86 @@ def get_gcp_vision_text(img_pil):
         return None
 
     try:
-        key_path = os.path.join(KEY_DIR, selected_key)
-        credentials = service_account.Credentials.from_service_account_file(key_path)
+        credentials = service_account.Credentials.from_service_account_file(
+            os.path.join(KEY_DIR, selected_key))
         client = vision.ImageAnnotatorClient(credentials=credentials)
-
         img_byte_arr = BytesIO()
         img_pil.save(img_byte_arr, format='PNG')
-        content = img_byte_arr.getvalue()
-        image = vision.Image(content=content)
+        image = vision.Image(content=img_byte_arr.getvalue())
         response = client.text_detection(image=image)
-
         if response.error.message:
-            raise Exception(f"Vision API 錯誤: {response.error.message}")
-
+            raise Exception(response.error.message)
         tracker[selected_key]["count"] += 1
         with open(GCP_TRACKER_FILE, 'w', encoding='utf-8') as f:
             json.dump(tracker, f, indent=4)
-
         texts = response.text_annotations
         return texts[0].description if texts else ""
     except Exception as e:
-        print(f"GCP Vision API 發生錯誤 ({selected_key}): {e}")
+        print(f"GCP Vision 錯誤 ({selected_key}): {e}")
         return None
+
+
+def _get_engine_mode():
+    cfg_path = os.path.join(KEY_DIR, "engine_config.json")
+    try:
+        with open(cfg_path, 'r', encoding='utf-8') as f:
+            return json.load(f).get("engine", "gemini")
+    except:
+        return "gemini"
+
 
 def get_ocr_text(img_pil, engine_mode="gemini"):
     """
-    統一 OCR 入口：
-      engine_mode = 'gemini'     → 優先 Gemini，失敗退 GCP Vision，再退 Tesseract
-      engine_mode = 'gcp'        → 優先 GCP Vision，失敗退 Tesseract
-      engine_mode = 'tesseract'  → 直接 Tesseract
+    統一 OCR 入口（三重保險）：
+      gemini    → Gemini 2.0 Flash → GCP Vision → Tesseract
+      gcp       → GCP Vision → Tesseract
+      tesseract → 直接 Tesseract
     """
     if engine_mode == "gemini":
         text = get_gemini_ocr_text(img_pil)
         if text is None:
             text = get_gcp_vision_text(img_pil)
-        return text  # None 代表退回 Tesseract
+        return text
     elif engine_mode == "gcp":
         return get_gcp_vision_text(img_pil)
     else:
-        return None  # 退回 Tesseract
+        return None
+
 
 # ================= OCR 引擎金鑰管理介面（雙引擎切換）=================
 from tkinter import ttk
 
+
 class OcrKeyManagerDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
-        self.title("AI OCR 引擎設定")
+        self.title("🤖 AI OCR 引擎設定")
         self.geometry("600x560")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
 
         self.key_dir = KEY_DIR
-        if not os.path.exists(self.key_dir):
-            os.makedirs(self.key_dir)
+        os.makedirs(self.key_dir, exist_ok=True)
 
         # ---- 引擎選擇 ----
-        engine_frame = tk.LabelFrame(self, text="OCR 引擎優先順序", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        engine_frame = tk.LabelFrame(self, text="OCR 引擎優先順序（選好後按儲存）",
+                                     font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
         engine_frame.pack(fill="x", padx=15, pady=(10, 5))
 
         cfg = self._load_engine_config()
         self.engine_var = tk.StringVar(value=cfg.get("engine", "gemini"))
-
-        tk.Radiobutton(engine_frame, text="⚡ Gemini API（免費、無需信用卡，最推薦）",
-                       variable=self.engine_var, value="gemini", font=("Microsoft JhengHei", 9)).pack(anchor="w")
-        tk.Radiobutton(engine_frame, text="🔬 GCP Cloud Vision（最高精度 OCR 專用引擎，需綁信用卡）",
-                       variable=self.engine_var, value="gcp", font=("Microsoft JhengHei", 9)).pack(anchor="w")
-        tk.Radiobutton(engine_frame, text="📴 僅 Tesseract 本機（離線模式，精度較低）",
-                       variable=self.engine_var, value="tesseract", font=("Microsoft JhengHei", 9)).pack(anchor="w")
-        tk.Button(engine_frame, text="💾 儲存引擎選擇", command=self._save_engine, bg="#1565C0", fg="white",
-                  font=("Microsoft JhengHei", 9)).pack(anchor="e", pady=(5, 0))
+        tk.Radiobutton(engine_frame, text="⚡ Gemini 2.0 Flash（免費、無需信用卡，最推薦）",
+                       variable=self.engine_var, value="gemini",
+                       font=("Microsoft JhengHei", 9)).pack(anchor="w")
+        tk.Radiobutton(engine_frame, text="🔬 GCP Cloud Vision（最高精度 OCR，需 GCP 帳號）",
+                       variable=self.engine_var, value="gcp",
+                       font=("Microsoft JhengHei", 9)).pack(anchor="w")
+        tk.Radiobutton(engine_frame, text="📴 僅 Tesseract 本機（完全離線，精度較低）",
+                       variable=self.engine_var, value="tesseract",
+                       font=("Microsoft JhengHei", 9)).pack(anchor="w")
+        tk.Button(engine_frame, text="💾 儲存引擎選擇", command=self._save_engine,
+                  bg="#1565C0", fg="white", font=("Microsoft JhengHei", 9)).pack(anchor="e", pady=(5, 0))
 
         # ---- Gemini Key 區 ----
         g_frame = tk.LabelFrame(self, text="Gemini API Keys（可加多把，每月 800 次自動輪替）",
@@ -223,18 +233,18 @@ class OcrKeyManagerDialog(tk.Toplevel):
         self.gemini_tree.pack(fill="x")
         self._refresh_gemini()
 
-        g_btn_frame = tk.Frame(g_frame)
-        g_btn_frame.pack(fill="x", pady=(3, 0))
-        tk.Label(g_btn_frame, text="貼上 Gemini API Key：", font=("Microsoft JhengHei", 9)).pack(side="left")
-        self.gemini_entry = tk.Entry(g_btn_frame, width=36, font=("Consolas", 9), show="*")
+        g_btn = tk.Frame(g_frame)
+        g_btn.pack(fill="x", pady=(3, 0))
+        tk.Label(g_btn, text="貼上 Gemini API Key：", font=("Microsoft JhengHei", 9)).pack(side="left")
+        self.gemini_entry = tk.Entry(g_btn, width=36, font=("Consolas", 9), show="*")
         self.gemini_entry.pack(side="left", padx=5)
-        tk.Button(g_btn_frame, text="➕ 新增", bg="#4CAF50", fg="white",
+        tk.Button(g_btn, text="➕ 新增", bg="#4CAF50", fg="white",
                   font=("Microsoft JhengHei", 9), command=self._add_gemini_key).pack(side="left")
-        tk.Button(g_btn_frame, text="🗑️ 刪除", bg="#E53935", fg="white",
+        tk.Button(g_btn, text="🗑️ 刪除", bg="#E53935", fg="white",
                   font=("Microsoft JhengHei", 9), command=self._del_gemini_key).pack(side="left", padx=5)
 
         # ---- GCP Key 區 ----
-        v_frame = tk.LabelFrame(self, text="GCP Cloud Vision Keys（貼上 JSON 內容，可加多份）",
+        v_frame = tk.LabelFrame(self, text="GCP Cloud Vision Keys（貼上 JSON，可加多份）",
                                 font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
         v_frame.pack(fill="both", expand=True, padx=15, pady=5)
 
@@ -246,11 +256,11 @@ class OcrKeyManagerDialog(tk.Toplevel):
         self.gcp_tree.pack(fill="x")
         self._refresh_gcp()
 
-        v_btn_frame = tk.Frame(v_frame)
-        v_btn_frame.pack(fill="x", pady=(3, 0))
-        tk.Button(v_btn_frame, text="📋 貼上 JSON 新增", bg="#4CAF50", fg="white",
+        v_btn = tk.Frame(v_frame)
+        v_btn.pack(fill="x", pady=(3, 0))
+        tk.Button(v_btn, text="📋 貼上 JSON 新增", bg="#4CAF50", fg="white",
                   font=("Microsoft JhengHei", 9), command=self._add_gcp_key_dialog).pack(side="left")
-        tk.Button(v_btn_frame, text="🗑️ 刪除", bg="#E53935", fg="white",
+        tk.Button(v_btn, text="🗑️ 刪除", bg="#E53935", fg="white",
                   font=("Microsoft JhengHei", 9), command=self._del_gcp_key).pack(side="left", padx=5)
 
         self.update_idletasks()
@@ -258,55 +268,52 @@ class OcrKeyManagerDialog(tk.Toplevel):
         y = parent.winfo_y() + (parent.winfo_height() - self.winfo_height()) // 2
         self.geometry(f"+{x}+{y}")
 
-    # ---- Engine config helpers ----
     def _load_engine_config(self):
-        cfg_path = os.path.join(KEY_DIR, "engine_config.json")
-        if os.path.exists(cfg_path):
-            try:
-                with open(cfg_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except:
-                pass
-        return {"engine": "gemini"}
+        p = os.path.join(KEY_DIR, "engine_config.json")
+        try:
+            with open(p, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return {"engine": "gemini"}
 
     def _save_engine(self):
-        cfg_path = os.path.join(KEY_DIR, "engine_config.json")
+        p = os.path.join(KEY_DIR, "engine_config.json")
         os.makedirs(KEY_DIR, exist_ok=True)
-        with open(cfg_path, 'w', encoding='utf-8') as f:
+        with open(p, 'w', encoding='utf-8') as f:
             json.dump({"engine": self.engine_var.get()}, f)
-        label = {"gemini": "Gemini API", "gcp": "GCP Cloud Vision", "tesseract": "本機 Tesseract"}
+        label = {"gemini": "Gemini 2.0 Flash", "gcp": "GCP Cloud Vision", "tesseract": "本機 Tesseract"}
         messagebox.showinfo("已儲存", f"OCR 引擎已切換為：{label.get(self.engine_var.get())}")
 
-    # ---- Gemini helpers ----
     def _refresh_gemini(self):
         for item in self.gemini_tree.get_children():
             self.gemini_tree.delete(item)
         current_month = datetime.now().strftime("%Y-%m")
         for entry in _load_gemini_keys():
             usage = entry.get("count", 0) if entry.get("month") == current_month else 0
-            key_preview = entry["key"][:20] + "..."
-            self.gemini_tree.insert("", "end", values=(key_preview, f"{usage} / 800"))
+            self.gemini_tree.insert("", "end", values=(entry["key"][:20] + "...", f"{usage} / 800"))
 
     def _add_gemini_key(self):
         key = self.gemini_entry.get().strip()
-        if not key.startswith("AIza"):
-            messagebox.showwarning("格式錯誤", "Gemini API Key 通常以 AIza 開頭，請確認是否貼對！")
+        if not key:
             return
+        if not (key.startswith("AIza") or key.startswith("AQ.")):
+            if not messagebox.askyesno("格式確認", "這把 Key 看起來不像標準的 Gemini Key (不是 AIza 或 AQ. 開頭)，確定要儲存嗎？"):
+                return
         keys_data = _load_gemini_keys()
         if any(e["key"] == key for e in keys_data):
-            messagebox.showinfo("重複", "這把 Key 已經存在！")
+            messagebox.showinfo("重複", "這把 Key 已存在！")
             return
         keys_data.append({"key": key, "month": datetime.now().strftime("%Y-%m"), "count": 0})
         _save_gemini_keys(keys_data)
         self.gemini_entry.delete(0, tk.END)
         self._refresh_gemini()
-        messagebox.showinfo("成功", "Gemini API Key 已新增！")
+        messagebox.showinfo("成功", "Gemini API Key 已新增並啟用！")
 
     def _del_gemini_key(self):
-        selected = self.gemini_tree.selection()
-        if not selected:
+        sel = self.gemini_tree.selection()
+        if not sel:
             return
-        idx = self.gemini_tree.index(selected[0])
+        idx = self.gemini_tree.index(sel[0])
         keys_data = _load_gemini_keys()
         if 0 <= idx < len(keys_data):
             if messagebox.askyesno("確認", "確定要刪除這把 Gemini Key？"):
@@ -314,7 +321,6 @@ class OcrKeyManagerDialog(tk.Toplevel):
                 _save_gemini_keys(keys_data)
                 self._refresh_gemini()
 
-    # ---- GCP helpers ----
     def _refresh_gcp(self):
         for item in self.gcp_tree.get_children():
             self.gcp_tree.delete(item)
@@ -326,8 +332,6 @@ class OcrKeyManagerDialog(tk.Toplevel):
             except:
                 pass
         current_month = datetime.now().strftime("%Y-%m")
-        if not os.path.exists(self.key_dir):
-            return
         for f_name in os.listdir(self.key_dir):
             if f_name.endswith(".json") and f_name not in ("usage_tracker.json", "gemini_keys.json", "engine_config.json"):
                 data = tracker.get(f_name, {"month": current_month, "count": 0})
@@ -340,7 +344,8 @@ class OcrKeyManagerDialog(tk.Toplevel):
         dlg.geometry("500x340")
         dlg.transient(self)
         dlg.grab_set()
-        tk.Label(dlg, text="請貼上 GCP Service Account JSON 內容：", font=("Microsoft JhengHei", 10)).pack(pady=8)
+        tk.Label(dlg, text="請貼上 GCP Service Account JSON 內容：",
+                 font=("Microsoft JhengHei", 10)).pack(pady=8)
         txt = tk.Text(dlg, height=12, width=58, font=("Consolas", 9))
         txt.pack(padx=10)
 
@@ -349,13 +354,13 @@ class OcrKeyManagerDialog(tk.Toplevel):
             try:
                 d = json.loads(content)
                 if "project_id" not in d or "private_key" not in d:
-                    raise ValueError("缺少必要欄位")
+                    raise ValueError("缺少 project_id 或 private_key")
                 import uuid
                 fname = f"gcp_key_{uuid.uuid4().hex[:6]}.json"
                 with open(os.path.join(self.key_dir, fname), "w", encoding="utf-8") as f:
                     f.write(content)
                 self._refresh_gcp()
-                messagebox.showinfo("成功", f"已儲存 {fname}")
+                messagebox.showinfo("成功", f"已儲存並啟用 {fname}")
                 dlg.destroy()
             except Exception as e:
                 messagebox.showerror("錯誤", f"JSON 格式不正確：{e}")
@@ -364,27 +369,16 @@ class OcrKeyManagerDialog(tk.Toplevel):
                   font=("Microsoft JhengHei", 10, "bold"), command=do_save).pack(pady=10)
 
     def _del_gcp_key(self):
-        selected = self.gcp_tree.selection()
-        if not selected:
+        sel = self.gcp_tree.selection()
+        if not sel:
             return
-        item = self.gcp_tree.item(selected[0])
-        f_name = item['values'][0]
+        f_name = self.gcp_tree.item(sel[0])['values'][0]
         if messagebox.askyesno("確認", f"確定要刪除 {f_name}？"):
             try:
                 os.remove(os.path.join(self.key_dir, f_name))
                 self._refresh_gcp()
             except Exception as e:
                 messagebox.showerror("錯誤", str(e))
-
-
-def _get_engine_mode():
-    """讀取目前設定的 OCR 引擎"""
-    cfg_path = os.path.join(KEY_DIR, "engine_config.json")
-    try:
-        with open(cfg_path, 'r', encoding='utf-8') as f:
-            return json.load(f).get("engine", "gemini")
-    except:
-        return "gemini"
 
 
 class CalendarDialog(tk.Toplevel):
@@ -630,8 +624,8 @@ class ImportRangeDialog(tk.Toplevel):
         self.title("📥 Excel 匯入筆數與範圍選擇 (跨分頁智慧過濾)")
         self.geometry("1080x700")
         self.minsize(920, 560)
-        self.configure(padx=15, pady=15)
-        self.transient(parent)
+        genai.configure(api_key=selected["key"])
+        model = genai.GenerativeModel("gemini-2.0-flash")
         self.grab_set()
 
         # 視窗居中於父視窗
@@ -1365,7 +1359,7 @@ class App(tk.Tk):
         tk.Button(left_btn_frame, text="📂 載入既有通知表修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="📋 貼上 COA 截圖", command=self.paste_coa, bg="#4CAF50", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(left_btn_frame, text="🤖 AI OCR 引擎設定", command=lambda: OcrKeyManagerDialog(self), bg="#3949AB", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(left_btn_frame, text="🔑 設定 GCP 金鑰", command=lambda: GcpKeyManagerDialog(self), bg="#3949AB", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
 
         # 右側：表格操作與日期快捷按鈕群組
         right_btn_frame = tk.Frame(top_ctrl_frame)
@@ -2227,357 +2221,371 @@ class App(tk.Tk):
             messagebox.showerror("錯誤", f"地點代號對照表中找不到以下地點：\n{missing_str}\n\n請先更新對照表後再試！")
             return
 
-        # === 依出貨日分群，自動建立多個輸出資料夾 ===
-        _date_dir_map = {}
-        def get_output_dir_for(data_item):
-            d_raw = data_item.get("date", "").strip()
-            ds = datetime.now().strftime('%Y%m%d')
+        # 按出貨日分群，每個日期產生獨立資料夾
+        groups = {}
+        for data in valid_data:
+            d_raw = data.get("date", "").strip()
+            g_date_str = datetime.now().strftime('%Y%m%d')
             if d_raw:
-                dp = d_raw.split()[0]
-                for _fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                d_part = d_raw.split()[0]
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
                     try:
-                        ds = datetime.strptime(dp, _fmt).strftime('%Y%m%d')
+                        dt_found = datetime.strptime(d_part, fmt)
+                        g_date_str = dt_found.strftime('%Y%m%d')
                         break
                     except ValueError:
                         pass
-            if ds not in _date_dir_map:
-                _d = os.path.join(self.base_dir, f"三合一單輸出_{ds}")
-                os.makedirs(_d, exist_ok=True)
-                _date_dir_map[ds] = _d
-            return _date_dir_map[ds]
+            groups.setdefault(g_date_str, []).append(data)
 
-        # 取第一筆日期當 output_dir（供運輸通知表 / lorry 備用）
-        output_dir = get_output_dir_for(valid_data[0]) if valid_data else self.base_dir
-
-
-        
-        success_3in1 = 0
-        error_msgs = []
+        all_output_dirs = []
+        total_success_3in1 = 0
+        total_success_transport = False
+        total_success_lorry = 0
+        total_error_msgs = []
         mat_no = "L12C53161"
 
-        if do_3in1:
+        for _g_date_str, _g_data in groups.items():
+            valid_data = _g_data
+            output_dir = os.path.join(self.base_dir, f"三合一單輸出_{_g_date_str}")
+            os.makedirs(output_dir, exist_ok=True)
+            all_output_dirs.append(output_dir)
+            success_3in1 = 0
+            error_msgs = []
+            success_transport = False
+            success_lorry = 0
 
-            coa_crops = {}
-            if os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe'):
-                pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-            else:
-                pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe' 
-            if self.coa_paths:
-                for img_path in self.coa_paths:
+            if do_3in1:
+
+                coa_crops = {}
+                if os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe'):
+                    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+                else:
+                    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe' 
+                if self.coa_paths:
+                    for img_path in self.coa_paths:
+                        try:
+                            orig_img = PILImage.open(img_path)
+                            img_rgb = orig_img.convert('RGB')
+                            w, h = orig_img.size
+                        
+                            # 移植伺服版的精確定位演算法
+                            def parse_tsmc_query_table_accurate(coa_raw):
+                                w, h = coa_raw.size
+                                img_rgb = coa_raw.convert('RGB')
+                                query_result_y = None
+                                for y in range(int(h * 0.3), int(h * 0.9)):
+                                    sample = [img_rgb.getpixel((x, y)) for x in range(int(w * 0.1), int(w * 0.9), max(1, int(w * 0.05)))]
+                                    if sum(1 for p in sample if p[0] < 100 and p[1] < 160 and p[2] > 200) > len(sample) * 0.7:
+                                        query_result_y = y
+                                        break
+                                start_y = query_result_y if query_result_y else int(h * 0.5)
+                                btn_y_list = []
+                                for y in range(start_y + 20, h):
+                                    sample = [img_rgb.getpixel((x, y)) for x in range(15, 65, 2)]
+                                    blue_cnt = sum(1 for p in sample if p[0] < 60 and p[2] > 180)
+                                    if blue_cnt >= 8:
+                                        btn_y_list.append(y)
+                                btn_clusters = []
+                                for y in btn_y_list:
+                                    if not btn_clusters or y > btn_clusters[-1][-1] + 5:
+                                        btn_clusters.append([y])
+                                    else:
+                                        btn_clusters[-1].append(y)
+                                def find_border_line(start_y, direction, max_search=40):
+                                    for step in range(max_search):
+                                        curr_y = start_y + step * direction
+                                        if curr_y <= 0 or curr_y >= h:
+                                            break
+                                        sample_xs = range(int(w * 0.2), int(w * 0.8), max(1, int(w * 0.05)))
+                                        pixels = [img_rgb.getpixel((x, curr_y)) for x in sample_xs]
+                                        if all(abs(p[0] - p[1]) < 8 and abs(p[1] - p[2]) < 8 and 150 < p[0] < 235 for p in pixels):
+                                            if step > 1:
+                                                return curr_y
+                                    return None
+                                if not btn_clusters:
+                                    return None, []
+                                first_btn_top = btn_clusters[0][0]
+                                header_bottom = find_border_line(first_btn_top, -1, max_search=50) or (first_btn_top - 6)
+                                data_rows = []
+                                for cluster in btn_clusters:
+                                    mid_y = int(sum(cluster) / len(cluster))
+                                    row_t = find_border_line(mid_y, -1, max_search=30) or (cluster[0] - 6)
+                                    row_b = find_border_line(mid_y, +1, max_search=30) or (cluster[-1] + 8)
+                                    data_rows.append((max(0, row_t), min(h, row_b + 1)))
+                                return header_bottom, data_rows
+
+                            hb_struct, rows_struct = parse_tsmc_query_table_accurate(orig_img)
+                            if hb_struct and rows_struct:
+                                img_top = orig_img.crop((0, 0, w, hb_struct))
+                            
+                                if not hasattr(self, 'fallback_coa'):
+                                    self.fallback_coa = []
+                            
+                                for row in rows_struct:
+                                    img_row = orig_img.crop((0, row[0], w, row[1]))
+                                    new_img = PILImage.new('RGB', (w, img_top.height + img_row.height), 'white')
+                                    new_img.paste(img_top, (0, 0))
+                                    new_img.paste(img_row, (0, img_top.height))
+                                
+                                    new_img = new_img.resize((new_img.width * 4, new_img.height * 4), PILImage.Resampling.LANCZOS)
+                                
+                                    self.fallback_coa.append(new_img)
+                                
+                                    # OCR 尋找此行的批號：優先使用 GCP Vision，失敗或超過額度則退回 Tesseract
+                                    row_scaled = img_row.resize((img_row.width * 2, img_row.height * 2), PILImage.Resampling.LANCZOS)
+                                    gcp_text = get_gcp_vision_text(row_scaled)
+                                
+                                    if gcp_text is not None:
+                                        # GCP API 成功
+                                        words = gcp_text.replace('\n', ' ').split()
+                                        for text in words:
+                                            digits = ''.join(c for c in text.strip() if c.isdigit())
+                                            if len(digits) >= 6:
+                                                coa_crops[digits] = new_img
+                                    else:
+                                        # Tesseract 備用方案
+                                        d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
+                                        for i in range(len(d['text'])):
+                                            text = d['text'][i].strip()
+                                            digits = ''.join(c for c in text if c.isdigit())
+                                            if len(digits) >= 6:
+                                                coa_crops[digits] = new_img
+                            else:
+                                # 找不到結構，整張圖備用
+                                if not hasattr(self, 'fallback_coa'):
+                                    self.fallback_coa = []
+                                orig_img_hr = orig_img.resize((orig_img.width * 2, orig_img.height * 2), PILImage.Resampling.LANCZOS)
+                                self.fallback_coa.append(orig_img_hr)
+                        except Exception as e:
+                            print("OCR error:", e)
+
+                for data in valid_data:
+                    batch_no = data["batch"]
+                    tank_no = data["tank"]
+                    loc = data["loc"]
+                    loc_code = self.mapping_dict[loc]
+                
                     try:
-                        orig_img = PILImage.open(img_path)
-                        img_rgb = orig_img.convert('RGB')
-                        w, h = orig_img.size
-                        
-                        # 移植伺服版的精確定位演算法
-                        def parse_tsmc_query_table_accurate(coa_raw):
-                            w, h = coa_raw.size
-                            img_rgb = coa_raw.convert('RGB')
-                            query_result_y = None
-                            for y in range(int(h * 0.3), int(h * 0.9)):
-                                sample = [img_rgb.getpixel((x, y)) for x in range(int(w * 0.1), int(w * 0.9), max(1, int(w * 0.05)))]
-                                if sum(1 for p in sample if p[0] < 100 and p[1] < 160 and p[2] > 200) > len(sample) * 0.7:
-                                    query_result_y = y
+                        wb = openpyxl.load_workbook(self.template_path)
+                        ws = wb.worksheets[0]
+                    
+                        tank_row = find_row_by_label(ws, ['槽號']) or 5
+                        batch_row = find_row_by_label(ws, ['批號']) or 7
+                        loc_row = find_row_by_label(ws, ['送達地點', '地點']) or 11
+                        mat_row = find_row_by_label(ws, ['料號']) or 3
+                        sup_row = find_row_by_label(ws, ['供應商']) or 9
+                    
+                        raw_mat = str(ws.cell(row=mat_row, column=3).value or "").strip()
+                        if raw_mat.startswith("4"):
+                            mat_no = raw_mat[1:]
+                        elif raw_mat:
+                            mat_no = raw_mat
+                    
+                        final_tank_no = "5" + tank_no
+                        final_batch_no = "6" + batch_no
+                    
+                        ws.cell(row=tank_row, column=3).value = final_tank_no
+                        ws.cell(row=batch_row, column=3).value = final_batch_no
+                        ws.cell(row=loc_row, column=3).value = loc_code
+                    
+                        images_to_keep = []
+                        for img in ws._images:
+                            if img.height < 150 and img.width > 200:
+                                images_to_keep.append(img)
+                        ws._images = images_to_keep
+                    
+                        c3_val = ws.cell(row=mat_row, column=3).value or ""
+                        c6_val = ws.cell(row=sup_row, column=3).value or ""
+                        qr_str = f"||{c3_val}||{final_tank_no}||{final_batch_no}||{c6_val}||{loc_code}"
+                    
+                        qr = qrcode.QRCode(box_size=4, border=2)
+                        qr.add_data(qr_str)
+                        qr.make(fit=True)
+                        raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+                    
+                        offset_x = 35
+                        offset_y = 45
+                        new_width = raw_img.width + offset_x
+                        new_height = raw_img.height + offset_y
+                        img_qr = Image.new('RGBA', (new_width, new_height), (255,255,255,0))
+                        img_qr.paste(raw_img, (offset_x, offset_y))
+                    
+                        img_byte_arr = BytesIO()
+                        img_qr.save(img_byte_arr, format='PNG')
+                        img_byte_arr.seek(0)
+                    
+                        new_qr = OpenpyxlImage(img_byte_arr)
+                        new_qr.anchor = 'F2'
+                        ws.add_image(new_qr)
+                    
+                        safe_loc = "".join(c for c in loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
+                        if not safe_loc:
+                            safe_loc = "未命名地點"
+                    
+                        # 產生檔名規格：[出貨日期]. [地點]台積電槽車barcode三合一單.xlsx (例如: 2026.8.18. 18P3B台積電槽車barcode三合一單.xlsx)
+                        date_raw = data.get("date", "").strip()
+                        dt_file = None
+                        if date_raw:
+                            date_part = date_raw.split()[0]
+                            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                try:
+                                    dt_file = datetime.strptime(date_part, fmt)
                                     break
-                            start_y = query_result_y if query_result_y else int(h * 0.5)
-                            btn_y_list = []
-                            for y in range(start_y + 20, h):
-                                sample = [img_rgb.getpixel((x, y)) for x in range(15, 65, 2)]
-                                blue_cnt = sum(1 for p in sample if p[0] < 60 and p[2] > 180)
-                                if blue_cnt >= 8:
-                                    btn_y_list.append(y)
-                            btn_clusters = []
-                            for y in btn_y_list:
-                                if not btn_clusters or y > btn_clusters[-1][-1] + 5:
-                                    btn_clusters.append([y])
-                                else:
-                                    btn_clusters[-1].append(y)
-                            def find_border_line(start_y, direction, max_search=40):
-                                for step in range(max_search):
-                                    curr_y = start_y + step * direction
-                                    if curr_y <= 0 or curr_y >= h:
-                                        break
-                                    sample_xs = range(int(w * 0.2), int(w * 0.8), max(1, int(w * 0.05)))
-                                    pixels = [img_rgb.getpixel((x, curr_y)) for x in sample_xs]
-                                    if all(abs(p[0] - p[1]) < 8 and abs(p[1] - p[2]) < 8 and 150 < p[0] < 235 for p in pixels):
-                                        if step > 1:
-                                            return curr_y
-                                return None
-                            if not btn_clusters:
-                                return None, []
-                            first_btn_top = btn_clusters[0][0]
-                            header_bottom = find_border_line(first_btn_top, -1, max_search=50) or (first_btn_top - 6)
-                            data_rows = []
-                            for cluster in btn_clusters:
-                                mid_y = int(sum(cluster) / len(cluster))
-                                row_t = find_border_line(mid_y, -1, max_search=30) or (cluster[0] - 6)
-                                row_b = find_border_line(mid_y, +1, max_search=30) or (cluster[-1] + 8)
-                                data_rows.append((max(0, row_t), min(h, row_b + 1)))
-                            return header_bottom, data_rows
+                                except ValueError:
+                                    pass
+                        if not dt_file:
+                            dt_file = datetime.now()
+                        
 
-                        hb_struct, rows_struct = parse_tsmc_query_table_accurate(orig_img)
-                        if hb_struct and rows_struct:
-                            img_top = orig_img.crop((0, 0, w, hb_struct))
+                        # Insert COA Crop
+                        found_coa = False
+                        user_digits = ''.join(c for c in batch_no if c.isdigit())
+                        for k_batch, crop_img in coa_crops.items():
+                            if user_digits in k_batch or k_batch in user_digits:
+                                img_byte_arr2 = BytesIO()
+                                crop_img.save(img_byte_arr2, format='PNG', dpi=(600, 600))
+                                img_byte_arr2.seek(0)
+                                xl_img = OpenpyxlImage(img_byte_arr2)
+                                xl_img.width = int(round(24.1 * 96 / 2.54))   # 24.1 公分
+                                xl_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分
                             
-                            if not hasattr(self, 'fallback_coa'):
-                                self.fallback_coa = []
-                            
-                            for row in rows_struct:
-                                img_row = orig_img.crop((0, row[0], w, row[1]))
-                                new_img = PILImage.new('RGB', (w, img_top.height + img_row.height), 'white')
-                                new_img.paste(img_top, (0, 0))
-                                new_img.paste(img_row, (0, img_top.height))
-                                
-                                new_img = new_img.resize((new_img.width * 4, new_img.height * 4), PILImage.Resampling.LANCZOS)
-                                
-                                self.fallback_coa.append(new_img)
-                                
-                                # OCR 尋找此行的批號：依設定自動選擇引擎（Gemini → GCP Vision → Tesseract）
-                                row_scaled = img_row.resize((img_row.width * 2, img_row.height * 2), PILImage.Resampling.LANCZOS)
-                                engine_mode = _get_engine_mode()
-                                api_text = get_ocr_text(row_scaled, engine_mode)
-                                
-                                if api_text is not None:
-                                    words = api_text.replace('\n', ' ').replace(',', ' ').split()
-                                    for text in words:
-                                        digits = ''.join(c for c in text.strip() if c.isdigit())
-                                        if len(digits) >= 6:
-                                            coa_crops[digits] = new_img
-                                else:
-                                    # Tesseract 最終備用方案
-                                    d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
-                                    for i in range(len(d['text'])):
-                                        text = d['text'][i].strip()
-                                        digits = ''.join(c for c in text if c.isdigit())
-                                        if len(digits) >= 6:
-                                            coa_crops[digits] = new_img
-                        else:
-                            # 找不到結構，整張圖備用
-                            if not hasattr(self, 'fallback_coa'):
-                                self.fallback_coa = []
-                            orig_img_hr = orig_img.resize((orig_img.width * 2, orig_img.height * 2), PILImage.Resampling.LANCZOS)
-                            self.fallback_coa.append(orig_img_hr)
-                    except Exception as e:
-                        print("OCR error:", e)
-
-            for data in valid_data:
-                batch_no = data["batch"]
-                tank_no = data["tank"]
-                loc = data["loc"]
-                loc_code = self.mapping_dict[loc]
-                
-                try:
-                    wb = openpyxl.load_workbook(self.template_path)
-                    ws = wb.worksheets[0]
-                    
-                    tank_row = find_row_by_label(ws, ['槽號']) or 5
-                    batch_row = find_row_by_label(ws, ['批號']) or 7
-                    loc_row = find_row_by_label(ws, ['送達地點', '地點']) or 11
-                    mat_row = find_row_by_label(ws, ['料號']) or 3
-                    sup_row = find_row_by_label(ws, ['供應商']) or 9
-                    
-                    raw_mat = str(ws.cell(row=mat_row, column=3).value or "").strip()
-                    if raw_mat.startswith("4"):
-                        mat_no = raw_mat[1:]
-                    elif raw_mat:
-                        mat_no = raw_mat
-                    
-                    final_tank_no = "5" + tank_no
-                    final_batch_no = "6" + batch_no
-                    
-                    ws.cell(row=tank_row, column=3).value = final_tank_no
-                    ws.cell(row=batch_row, column=3).value = final_batch_no
-                    ws.cell(row=loc_row, column=3).value = loc_code
-                    
-                    images_to_keep = []
-                    for img in ws._images:
-                        if img.height < 150 and img.width > 200:
-                            images_to_keep.append(img)
-                    ws._images = images_to_keep
-                    
-                    c3_val = ws.cell(row=mat_row, column=3).value or ""
-                    c6_val = ws.cell(row=sup_row, column=3).value or ""
-                    qr_str = f"||{c3_val}||{final_tank_no}||{final_batch_no}||{c6_val}||{loc_code}"
-                    
-                    qr = qrcode.QRCode(box_size=4, border=2)
-                    qr.add_data(qr_str)
-                    qr.make(fit=True)
-                    raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-                    
-                    offset_x = 35
-                    offset_y = 45
-                    new_width = raw_img.width + offset_x
-                    new_height = raw_img.height + offset_y
-                    img_qr = Image.new('RGBA', (new_width, new_height), (255,255,255,0))
-                    img_qr.paste(raw_img, (offset_x, offset_y))
-                    
-                    img_byte_arr = BytesIO()
-                    img_qr.save(img_byte_arr, format='PNG')
-                    img_byte_arr.seek(0)
-                    
-                    new_qr = OpenpyxlImage(img_byte_arr)
-                    new_qr.anchor = 'F2'
-                    ws.add_image(new_qr)
-                    
-                    safe_loc = "".join(c for c in loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
-                    if not safe_loc:
-                        safe_loc = "未命名地點"
-                    
-                    # 產生檔名規格：[出貨日期]. [地點]台積電槽車barcode三合一單.xlsx (例如: 2026.8.18. 18P3B台積電槽車barcode三合一單.xlsx)
-                    date_raw = data.get("date", "").strip()
-                    dt_file = None
-                    if date_raw:
-                        date_part = date_raw.split()[0]
-                        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
-                            try:
-                                dt_file = datetime.strptime(date_part, fmt)
+                                col_off = pixels_to_EMU(15) # 向右微調
+                                row_off = 0
+                                _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
+                                size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
+                                xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
+                                ws.add_image(xl_img)
+                                found_coa = True
                                 break
-                            except ValueError:
-                                pass
-                    if not dt_file:
-                        dt_file = datetime.now()
-                        
-
-                    # Insert COA Crop
-                    found_coa = False
-                    user_digits = ''.join(c for c in batch_no if c.isdigit())
-                    for k_batch, crop_img in coa_crops.items():
-                        if user_digits in k_batch or k_batch in user_digits:
-                            img_byte_arr2 = BytesIO()
-                            crop_img.save(img_byte_arr2, format='PNG', dpi=(600, 600))
-                            img_byte_arr2.seek(0)
-                            xl_img = OpenpyxlImage(img_byte_arr2)
-                            xl_img.width = int(round(24.1 * 96 / 2.54))   # 24.1 公分
-                            xl_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分
-                            
-                            col_off = pixels_to_EMU(15) # 向右微調
-                            row_off = 0
-                            _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
-                            size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
-                            xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
-                            ws.add_image(xl_img)
-                            found_coa = True
-                            break
                     
 
-                    if not found_coa and self.coa_paths:
-                        error_msgs.append(f"⚠️ 警告: 批號 {batch_no} OCR未找到完全吻合的截圖，已留白處理，請人工確認！")
+                        if not found_coa and self.coa_paths:
+                            error_msgs.append(f"⚠️ 警告: 批號 {batch_no} OCR未找到完全吻合的截圖，已留白處理，請人工確認！")
 
-                    date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
-                    tank_part = f"{tank_no} " if tank_no else ""
-                    base_filename = f"{date_prefix}{tank_part}{safe_loc}台積電槽車barcode三合一單.xlsx"
+                        date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
+                        tank_part = f"{tank_no} " if tank_no else ""
+                        base_filename = f"{date_prefix}{tank_part}{safe_loc}台積電槽車barcode三合一單.xlsx"
                     
-                    # 修正產出資料夾結構為 [出貨日] [廠區] [槽號]
-                    date_MMDD = f"{dt_file.month:02d}{dt_file.day:02d}"
-                    safe_tank = str(tank_no).strip() if tank_no else ""
-                    loc_sub_dir = f"{date_MMDD} {safe_loc} {safe_tank}".strip()
-                    loc_folder = os.path.join(output_dir, loc_sub_dir)
+                        # 修正產出資料夾結構為 [出貨日] [廠區] [槽號]
+                        date_MMDD = f"{dt_file.month:02d}{dt_file.day:02d}"
+                        safe_tank = str(tank_no).strip() if tank_no else ""
+                        loc_sub_dir = f"{date_MMDD} {safe_loc} {safe_tank}".strip()
+                        loc_folder = os.path.join(output_dir, loc_sub_dir)
                     
-                    if not os.path.exists(loc_folder):
-                        os.makedirs(loc_folder)
-                    output_path = os.path.join(loc_folder, base_filename)
-                    counter = 1
-                    while os.path.exists(output_path):
-                        base_filename = f"{date_prefix}{tank_part}{safe_loc}_{counter}台積電槽車barcode三合一單.xlsx"
+                        if not os.path.exists(loc_folder):
+                            os.makedirs(loc_folder)
                         output_path = os.path.join(loc_folder, base_filename)
-                        counter += 1
+                        counter = 1
+                        while os.path.exists(output_path):
+                            base_filename = f"{date_prefix}{tank_part}{safe_loc}_{counter}台積電槽車barcode三合一單.xlsx"
+                            output_path = os.path.join(loc_folder, base_filename)
+                            counter += 1
                         
-                    output_filename = base_filename
-                    wb.save(output_path)
-                    wb.close()
-                    success_3in1 += 1
-                except Exception as e:
-                    error_msgs.append(f"處理三合一單 {loc}_{batch_no} 失敗: {e}")
+                        output_filename = base_filename
+                        wb.save(output_path)
+                        wb.close()
+                        success_3in1 += 1
+                    except Exception as e:
+                        error_msgs.append(f"處理三合一單 {loc}_{batch_no} 失敗: {e}")
 
-        success_transport = False
-        if do_transport:
-            try:
-                transport_path = os.path.join(output_dir, "運輸通知表.xlsx")
-                generate_transport_notice_file(transport_path, valid_data, mat_no=mat_no)
-                success_transport = True
-            except Exception as e:
-                error_msgs.append(f"產生運輸通知表失敗: {e}")
+                if do_transport:
+                    try:
+                        transport_path = os.path.join(output_dir, "運輸通知表.xlsx")
+                        generate_transport_notice_file(transport_path, valid_data, mat_no=mat_no)
+                        success_transport = True
+                    except Exception as e:
+                        error_msgs.append(f"產生運輸通知表失敗: {e}")
 
-        success_lorry = 0
-        if getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get():
-            lorry_sources = list(getattr(self, "imported_lorry_files", []))
-            if not lorry_sources:
-                lorry_sources = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
-            
-            for l_path in lorry_sources:
-                orig_filename = os.path.splitext(os.path.basename(l_path))[0]
-                orig_ext = os.path.splitext(l_path)[1]
-                base_lorry_name = orig_filename.rsplit('-', 1)[0] if '-' in orig_filename else orig_filename
-                
+                if getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get():
+                    lorry_sources = list(getattr(self, "imported_lorry_files", []))
+                    if not lorry_sources:
+                        lorry_sources = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+
+                    for l_path in lorry_sources:
+                        orig_filename = os.path.splitext(os.path.basename(l_path))[0]
+                        orig_ext = os.path.splitext(l_path)[1]
+                        base_lorry_name = orig_filename.rsplit('-', 1)[0] if '-' in orig_filename else orig_filename
+
+                        try:
+                            src_wb_l = openpyxl.load_workbook(l_path, data_only=False)
+                            src_ws_l = src_wb_l.active
+
+                            batch_row_map = {}
+                            for r in range(7, src_ws_l.max_row + 1):
+                                val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
+                                if val and val not in batch_row_map:
+                                    batch_row_map[val] = r
+
+                            for item in valid_data:
+                                b_no = item["batch"]
+                                l_loc = item["loc"]
+                                t_no = item["tank"]
+                                d_str = item["date"]
+
+                                matched_r = batch_row_map.get(b_no)
+                                if matched_r:
+                                    wb_l = build_single_row_lorry_workbook(src_ws_l, matched_r)
+
+                                    mmdd = "0000"
+                                    if d_str:
+                                        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                            try:
+                                                dt_l = datetime.strptime(d_str.split()[0], fmt)
+                                                mmdd = f"{dt_l.month:02d}{dt_l.day:02d}"
+                                                break
+                                            except ValueError:
+                                                pass
+                                    if mmdd == "0000":
+                                        now_l = datetime.now()
+                                        mmdd = f"{now_l.month:02d}{now_l.day:02d}"
+
+                                    t_part = f"{t_no} " if t_no else ""
+                                    lorry_out_name = f"{base_lorry_name}-{mmdd} {t_part}{l_loc}{orig_ext}"
+                                    out_l_path = os.path.join(output_dir, lorry_out_name)
+                                    wb_l.save(out_l_path)
+                                    wb_l.close()
+                                    success_lorry += 1
+                            src_wb_l.close()
+                        except Exception as le:
+                            error_msgs.append(f"產生 Chemical_Lorry 失敗: {le}")
+
+                # 快取 session
                 try:
-                    src_wb_l = openpyxl.load_workbook(l_path, data_only=False)
-                    src_ws_l = src_wb_l.active
-                    
-                    batch_row_map = {}
-                    for r in range(7, src_ws_l.max_row + 1):
-                        val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
-                        if val and val not in batch_row_map:
-                            batch_row_map[val] = r
-                        
-                    for item in valid_data:
-                        b_no = item["batch"]
-                        l_loc = item["loc"]
-                        t_no = item["tank"]
-                        d_str = item["date"]
-                        
-                        matched_r = batch_row_map.get(b_no)
-                        if matched_r:
-                            wb_l = build_single_row_lorry_workbook(src_ws_l, matched_r)
-                            
-                            mmdd = "0000"
-                            if d_str:
-                                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
-                                    try:
-                                        dt_l = datetime.strptime(d_str.split()[0], fmt)
-                                        mmdd = f"{dt_l.month:02d}{dt_l.day:02d}"
-                                        break
-                                    except ValueError:
-                                        pass
-                            if mmdd == "0000":
-                                now_l = datetime.now()
-                                mmdd = f"{now_l.month:02d}{now_l.day:02d}"
-                                
-                            t_part = f"{t_no} " if t_no else ""
-                            lorry_out_name = f"{base_lorry_name}-{mmdd} {t_part}{l_loc}{orig_ext}"
-                            out_l_path = os.path.join(output_dir, lorry_out_name)
-                            wb_l.save(out_l_path)
-                            wb_l.close()
-                            success_lorry += 1
-                    src_wb_l.close()
-                except Exception as le:
-                    error_msgs.append(f"產生 Chemical_Lorry 失敗: {le}")
+                    for target_path in (os.path.join(output_dir, "session.json"), os.path.join(self.base_dir, "last_generated_session.json")):
+                        with open(target_path, "w", encoding="utf-8") as f:
+                            json.dump(valid_data, f, ensure_ascii=False, indent=2)
+                except Exception:
+                    pass
 
-        # 自動快取當前 Session 資料至輸出資料夾與根目錄，供往後一鍵精準還原修訂
-        try:
-            for target_path in (os.path.join(output_dir, "session.json"), os.path.join(self.base_dir, "last_generated_session.json")):
-                with open(target_path, "w", encoding="utf-8") as f:
-                    json.dump(valid_data, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+                # 累計至全域
+                total_success_3in1 += success_3in1
+                total_success_lorry += success_lorry
+                if success_transport:
+                    total_success_transport = True
+                total_error_msgs.extend(error_msgs)
 
+        # 全部日期群組跑完後，顯示訊息
         msg_parts = []
         if do_3in1:
-            msg_parts.append(f"• 三合一單：成功產生 {success_3in1} 份")
+            msg_parts.append(f"• 三合一單：成功產生 {total_success_3in1} 份")
         if do_transport:
-            status_str = "成功" if success_transport else "失敗"
-            msg_parts.append(f"• 運輸通知表：{status_str} (共 {len(valid_data)} 筆排程卡片)")
-        if getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get() and success_lorry > 0:
-            msg_parts.append(f"• 單列 Chemical_Lorry：成功產生 {success_lorry} 份 (已自動對齊第 7 列)")
-            
-        msg = "\n".join(msg_parts) + f"\n\n檔案已儲存於資料夾：\n{output_dir}"
-        
-        if error_msgs:
-            msg += "\n\n部分錯誤:\n" + "\n".join(error_msgs[:5])
+            status_str = "成功" if total_success_transport else "失敗"
+            total_count = sum(len(g) for g in groups.values())
+            msg_parts.append(f"• 運輸通知表：{status_str} (共 {total_count} 筆排程卡片)")
+        if getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get() and total_success_lorry > 0:
+            msg_parts.append(f"• 單列 Chemical_Lorry：成功產生 {total_success_lorry} 份 (已自動對齊第 7 列)")
+
+        dirs_str = "\n".join(all_output_dirs)
+        msg = "\n".join(msg_parts) + f"\n\n檔案已儲存於資料夾：\n{dirs_str}"
+
+        if total_error_msgs:
+            msg += "\n\n部分錯誤:\n" + "\n".join(total_error_msgs[:5])
             messagebox.showwarning("完成 (但有部分錯誤)", msg)
         else:
             messagebox.showinfo("成功", msg)
-            
-        os.startfile(output_dir)
+
+        for d in all_output_dirs:
+            os.startfile(d)
 
 if __name__ == "__main__":
     app = App()

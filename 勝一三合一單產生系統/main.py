@@ -1525,288 +1525,307 @@ class App(tk.Tk):
             messagebox.showerror("錯誤", f"地點代號對照表中找不到以下地點：\n{missing_str}\n\n請先更新對照表後再試！")
             return
 
-                output_date_str = datetime.now().strftime('%Y%m%d')
+        # 按出貨日分群，每個日期產生獨立資料夾
+        groups = {}
         for data in valid_data:
             d_raw = data.get("date", "").strip()
+            g_date_str = datetime.now().strftime('%Y%m%d')
             if d_raw:
                 d_part = d_raw.split()[0]
                 for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
                     try:
                         dt_found = datetime.strptime(d_part, fmt)
-                        output_date_str = dt_found.strftime('%Y%m%d')
+                        g_date_str = dt_found.strftime('%Y%m%d')
                         break
                     except ValueError:
                         pass
-                if output_date_str != datetime.now().strftime('%Y%m%d'):
-                    break
-        output_dir = os.path.join(self.base_dir, f"勝一三合一單輸出_{output_date_str}")
-        os.makedirs(output_dir, exist_ok=True)
-        
-        success_3in1 = 0
-        error_msgs = []
+            groups.setdefault(g_date_str, []).append(data)
+
+        all_output_dirs = []
+        total_success_3in1 = 0
+        total_success_transport = False
+        total_error_msgs = []
         mat_no = "L12C53161"
 
-        if do_3in1:
-            coa_crops = {}
-            if os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe'):
-                pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-            else:
-                pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe' 
-            if self.coa_paths:
-                for img_path in self.coa_paths:
-                    try:
-                        orig_img = PILImage.open(img_path)
-                        img_rgb = orig_img.convert('RGB')
-                        w, h = orig_img.size
+        for _g_date_str, _g_data in groups.items():
+            valid_data = _g_data
+            output_dir = os.path.join(self.base_dir, f"勝一三合一單輸出_{_g_date_str}")
+            os.makedirs(output_dir, exist_ok=True)
+            all_output_dirs.append(output_dir)
+            success_3in1 = 0
+            error_msgs = []
+            success_transport = False
+
+
+            if do_3in1:
+                coa_crops = {}
+                if os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe'):
+                    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+                else:
+                    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe' 
+                if self.coa_paths:
+                    for img_path in self.coa_paths:
+                        try:
+                            orig_img = PILImage.open(img_path)
+                            img_rgb = orig_img.convert('RGB')
+                            w, h = orig_img.size
                         
-                        # 移植伺服版的精確定位演算法
-                        def parse_tsmc_query_table_accurate(coa_raw):
-                            w, h = coa_raw.size
-                            img_rgb = coa_raw.convert('RGB')
-                            query_result_y = None
-                            for y in range(int(h * 0.3), int(h * 0.9)):
-                                sample = [img_rgb.getpixel((x, y)) for x in range(int(w * 0.1), int(w * 0.9), max(1, int(w * 0.05)))]
-                                if sum(1 for p in sample if p[0] < 100 and p[1] < 160 and p[2] > 200) > len(sample) * 0.7:
-                                    query_result_y = y
-                                    break
-                            start_y = query_result_y if query_result_y else int(h * 0.5)
-                            btn_y_list = []
-                            for y in range(start_y + 20, h):
-                                sample = [img_rgb.getpixel((x, y)) for x in range(15, 65, 2)]
-                                blue_cnt = sum(1 for p in sample if p[0] < 60 and p[2] > 180)
-                                if blue_cnt >= 8:
-                                    btn_y_list.append(y)
-                            btn_clusters = []
-                            for y in btn_y_list:
-                                if not btn_clusters or y > btn_clusters[-1][-1] + 5:
-                                    btn_clusters.append([y])
-                                else:
-                                    btn_clusters[-1].append(y)
-                            def find_border_line(start_y, direction, max_search=40):
-                                for step in range(max_search):
-                                    curr_y = start_y + step * direction
-                                    if curr_y <= 0 or curr_y >= h:
+                            # 移植伺服版的精確定位演算法
+                            def parse_tsmc_query_table_accurate(coa_raw):
+                                w, h = coa_raw.size
+                                img_rgb = coa_raw.convert('RGB')
+                                query_result_y = None
+                                for y in range(int(h * 0.3), int(h * 0.9)):
+                                    sample = [img_rgb.getpixel((x, y)) for x in range(int(w * 0.1), int(w * 0.9), max(1, int(w * 0.05)))]
+                                    if sum(1 for p in sample if p[0] < 100 and p[1] < 160 and p[2] > 200) > len(sample) * 0.7:
+                                        query_result_y = y
                                         break
-                                    sample_xs = range(int(w * 0.2), int(w * 0.8), max(1, int(w * 0.05)))
-                                    pixels = [img_rgb.getpixel((x, curr_y)) for x in sample_xs]
-                                    if all(abs(p[0] - p[1]) < 8 and abs(p[1] - p[2]) < 8 and 150 < p[0] < 235 for p in pixels):
-                                        if step > 1:
-                                            return curr_y
-                                return None
-                            if not btn_clusters:
-                                return None, []
-                            first_btn_top = btn_clusters[0][0]
-                            header_bottom = find_border_line(first_btn_top, -1, max_search=50) or (first_btn_top - 6)
-                            data_rows = []
-                            for cluster in btn_clusters:
-                                mid_y = int(sum(cluster) / len(cluster))
-                                row_t = find_border_line(mid_y, -1, max_search=30) or (cluster[0] - 6)
-                                row_b = find_border_line(mid_y, +1, max_search=30) or (cluster[-1] + 8)
-                                data_rows.append((max(0, row_t), min(h, row_b + 1)))
-                            return header_bottom, data_rows
+                                start_y = query_result_y if query_result_y else int(h * 0.5)
+                                btn_y_list = []
+                                for y in range(start_y + 20, h):
+                                    sample = [img_rgb.getpixel((x, y)) for x in range(15, 65, 2)]
+                                    blue_cnt = sum(1 for p in sample if p[0] < 60 and p[2] > 180)
+                                    if blue_cnt >= 8:
+                                        btn_y_list.append(y)
+                                btn_clusters = []
+                                for y in btn_y_list:
+                                    if not btn_clusters or y > btn_clusters[-1][-1] + 5:
+                                        btn_clusters.append([y])
+                                    else:
+                                        btn_clusters[-1].append(y)
+                                def find_border_line(start_y, direction, max_search=40):
+                                    for step in range(max_search):
+                                        curr_y = start_y + step * direction
+                                        if curr_y <= 0 or curr_y >= h:
+                                            break
+                                        sample_xs = range(int(w * 0.2), int(w * 0.8), max(1, int(w * 0.05)))
+                                        pixels = [img_rgb.getpixel((x, curr_y)) for x in sample_xs]
+                                        if all(abs(p[0] - p[1]) < 8 and abs(p[1] - p[2]) < 8 and 150 < p[0] < 235 for p in pixels):
+                                            if step > 1:
+                                                return curr_y
+                                    return None
+                                if not btn_clusters:
+                                    return None, []
+                                first_btn_top = btn_clusters[0][0]
+                                header_bottom = find_border_line(first_btn_top, -1, max_search=50) or (first_btn_top - 6)
+                                data_rows = []
+                                for cluster in btn_clusters:
+                                    mid_y = int(sum(cluster) / len(cluster))
+                                    row_t = find_border_line(mid_y, -1, max_search=30) or (cluster[0] - 6)
+                                    row_b = find_border_line(mid_y, +1, max_search=30) or (cluster[-1] + 8)
+                                    data_rows.append((max(0, row_t), min(h, row_b + 1)))
+                                return header_bottom, data_rows
 
-                        hb_struct, rows_struct = parse_tsmc_query_table_accurate(orig_img)
-                        if hb_struct and rows_struct:
-                            img_top = orig_img.crop((0, 0, w, hb_struct))
+                            hb_struct, rows_struct = parse_tsmc_query_table_accurate(orig_img)
+                            if hb_struct and rows_struct:
+                                img_top = orig_img.crop((0, 0, w, hb_struct))
                             
-                            if not hasattr(self, 'fallback_coa'):
-                                self.fallback_coa = []
+                                if not hasattr(self, 'fallback_coa'):
+                                    self.fallback_coa = []
                             
-                            for row in rows_struct:
-                                img_row = orig_img.crop((0, row[0], w, row[1]))
-                                new_img = PILImage.new('RGB', (w, img_top.height + img_row.height), 'white')
-                                new_img.paste(img_top, (0, 0))
-                                new_img.paste(img_row, (0, img_top.height))
+                                for row in rows_struct:
+                                    img_row = orig_img.crop((0, row[0], w, row[1]))
+                                    new_img = PILImage.new('RGB', (w, img_top.height + img_row.height), 'white')
+                                    new_img.paste(img_top, (0, 0))
+                                    new_img.paste(img_row, (0, img_top.height))
                                 
-                                self.fallback_coa.append(new_img)
+                                    self.fallback_coa.append(new_img)
                                 
-                                # OCR to find batch number in this row
-                                row_scaled = img_row.resize((img_row.width * 2, img_row.height * 2), PILImage.Resampling.LANCZOS)
-                                d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
-                                for i in range(len(d['text'])):
-                                    text = d['text'][i].strip()
-                                    digits = ''.join(c for c in text if c.isdigit())
-                                    if len(digits) >= 6:
-                                        coa_crops[digits] = new_img
-                        else:
-                            # 找不到結構，整張圖備用
-                            if not hasattr(self, 'fallback_coa'):
-                                self.fallback_coa = []
-                            self.fallback_coa.append(orig_img)
-                    except Exception as e:
-                        print("OCR error:", e)
+                                    # OCR to find batch number in this row
+                                    row_scaled = img_row.resize((img_row.width * 2, img_row.height * 2), PILImage.Resampling.LANCZOS)
+                                    d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
+                                    for i in range(len(d['text'])):
+                                        text = d['text'][i].strip()
+                                        digits = ''.join(c for c in text if c.isdigit())
+                                        if len(digits) >= 6:
+                                            coa_crops[digits] = new_img
+                            else:
+                                # 找不到結構，整張圖備用
+                                if not hasattr(self, 'fallback_coa'):
+                                    self.fallback_coa = []
+                                self.fallback_coa.append(orig_img)
+                        except Exception as e:
+                            print("OCR error:", e)
 
-            for data in valid_data:
-                batch_no = data["batch"]
-                tank_no = data["tank"]
-                loc = data["loc"]
-                loc_code = self.mapping_dict[loc]
+                for data in valid_data:
+                    batch_no = data["batch"]
+                    tank_no = data["tank"]
+                    loc = data["loc"]
+                    loc_code = self.mapping_dict[loc]
                 
-                try:
-                    wb = openpyxl.load_workbook(self.template_path)
-                    ws = wb.worksheets[0]
+                    try:
+                        wb = openpyxl.load_workbook(self.template_path)
+                        ws = wb.worksheets[0]
                     
-                    tank_row = find_row_by_label(ws, ['槽號']) or 5
-                    batch_row = find_row_by_label(ws, ['批號']) or 7
-                    loc_row = find_row_by_label(ws, ['送達地點', '地點']) or 11
-                    mat_row = find_row_by_label(ws, ['料號']) or 3
-                    sup_row = find_row_by_label(ws, ['供應商']) or 9
+                        tank_row = find_row_by_label(ws, ['槽號']) or 5
+                        batch_row = find_row_by_label(ws, ['批號']) or 7
+                        loc_row = find_row_by_label(ws, ['送達地點', '地點']) or 11
+                        mat_row = find_row_by_label(ws, ['料號']) or 3
+                        sup_row = find_row_by_label(ws, ['供應商']) or 9
                     
-                    raw_mat = str(ws.cell(row=mat_row, column=3).value or "").strip()
-                    if raw_mat.startswith("4"):
-                        mat_no = raw_mat[1:]
-                    elif raw_mat:
-                        mat_no = raw_mat
+                        raw_mat = str(ws.cell(row=mat_row, column=3).value or "").strip()
+                        if raw_mat.startswith("4"):
+                            mat_no = raw_mat[1:]
+                        elif raw_mat:
+                            mat_no = raw_mat
                     
-                    final_tank_no = "5" + tank_no
-                    final_batch_no = "6" + batch_no
+                        final_tank_no = "5" + tank_no
+                        final_batch_no = "6" + batch_no
                     
-                    ws.cell(row=tank_row, column=3).value = final_tank_no
-                    ws.cell(row=batch_row, column=3).value = final_batch_no
-                    ws.cell(row=loc_row, column=3).value = loc_code
+                        ws.cell(row=tank_row, column=3).value = final_tank_no
+                        ws.cell(row=batch_row, column=3).value = final_batch_no
+                        ws.cell(row=loc_row, column=3).value = loc_code
                     
-                    images_to_keep = []
-                    for img in ws._images:
-                        if img.height < 150 and img.width > 200:
-                            images_to_keep.append(img)
-                    ws._images = images_to_keep
+                        images_to_keep = []
+                        for img in ws._images:
+                            if img.height < 150 and img.width > 200:
+                                images_to_keep.append(img)
+                        ws._images = images_to_keep
                     
-                    c3_val = ws.cell(row=mat_row, column=3).value or ""
-                    c6_val = ws.cell(row=sup_row, column=3).value or ""
-                    qr_str = f"||{c3_val}||{final_tank_no}||{final_batch_no}||{c6_val}||{loc_code}"
+                        c3_val = ws.cell(row=mat_row, column=3).value or ""
+                        c6_val = ws.cell(row=sup_row, column=3).value or ""
+                        qr_str = f"||{c3_val}||{final_tank_no}||{final_batch_no}||{c6_val}||{loc_code}"
                     
-                    qr = qrcode.QRCode(box_size=4, border=2)
-                    qr.add_data(qr_str)
-                    qr.make(fit=True)
-                    raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+                        qr = qrcode.QRCode(box_size=4, border=2)
+                        qr.add_data(qr_str)
+                        qr.make(fit=True)
+                        raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
                     
-                    offset_x = 35
-                    offset_y = 15
-                    new_width = raw_img.width + offset_x
-                    new_height = raw_img.height + offset_y
-                    img_qr = Image.new('RGBA', (new_width, new_height), (255,255,255,0))
-                    img_qr.paste(raw_img, (offset_x, offset_y))
+                        offset_x = 35
+                        offset_y = 15
+                        new_width = raw_img.width + offset_x
+                        new_height = raw_img.height + offset_y
+                        img_qr = Image.new('RGBA', (new_width, new_height), (255,255,255,0))
+                        img_qr.paste(raw_img, (offset_x, offset_y))
                     
-                    img_byte_arr = BytesIO()
-                    img_qr.save(img_byte_arr, format='PNG')
-                    img_byte_arr.seek(0)
+                        img_byte_arr = BytesIO()
+                        img_qr.save(img_byte_arr, format='PNG')
+                        img_byte_arr.seek(0)
                     
-                    new_qr = OpenpyxlImage(img_byte_arr)
-                    new_qr.anchor = 'F2'
-                    ws.add_image(new_qr)
+                        new_qr = OpenpyxlImage(img_byte_arr)
+                        new_qr.anchor = 'F2'
+                        ws.add_image(new_qr)
                     
-                    safe_loc = "".join(c for c in loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
-                    if not safe_loc:
-                        safe_loc = "未命名地點"
+                        safe_loc = "".join(c for c in loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
+                        if not safe_loc:
+                            safe_loc = "未命名地點"
                     
-                    # 產生檔名規格：[出貨日期]. [地點]台積電槽車barcode三合一單.xlsx (例如: 2026.8.18. 18P3B台積電槽車barcode三合一單.xlsx)
-                    date_raw = data.get("date", "").strip()
-                    dt_file = None
-                    if date_raw:
-                        for fmt in ("%Y/%m/%d", "%Y-%m-%d", "%Y/%M/%d", "%Y.%m.%d"):
-                            try:
-                                dt_file = datetime.strptime(date_raw, fmt)
-                                break
-                            except ValueError:
-                                pass
-                    if not dt_file:
-                        dt_file = datetime.now()
+                        # 產生檔名規格：[出貨日期]. [地點]台積電槽車barcode三合一單.xlsx (例如: 2026.8.18. 18P3B台積電槽車barcode三合一單.xlsx)
+                        date_raw = data.get("date", "").strip()
+                        dt_file = None
+                        if date_raw:
+                            for fmt in ("%Y/%m/%d", "%Y-%m-%d", "%Y/%M/%d", "%Y.%m.%d"):
+                                try:
+                                    dt_file = datetime.strptime(date_raw, fmt)
+                                    break
+                                except ValueError:
+                                    pass
+                        if not dt_file:
+                            dt_file = datetime.now()
                         
 
-                    # Insert COA Crop
-                    found_coa = False
-                    user_digits = ''.join(c for c in batch_no if c.isdigit())
-                    for k_batch, crop_img in coa_crops.items():
-                        if user_digits in k_batch or k_batch in user_digits:
-                            img_byte_arr2 = BytesIO()
-                            crop_img.save(img_byte_arr2, format='PNG')
-                            img_byte_arr2.seek(0)
-                            xl_img = OpenpyxlImage(img_byte_arr2)
-                            xl_img.width = int(round(24.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
-                            xl_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分 (~435 px)
+                        # Insert COA Crop
+                        found_coa = False
+                        user_digits = ''.join(c for c in batch_no if c.isdigit())
+                        for k_batch, crop_img in coa_crops.items():
+                            if user_digits in k_batch or k_batch in user_digits:
+                                img_byte_arr2 = BytesIO()
+                                crop_img.save(img_byte_arr2, format='PNG')
+                                img_byte_arr2.seek(0)
+                                xl_img = OpenpyxlImage(img_byte_arr2)
+                                xl_img.width = int(round(24.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
+                                xl_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分 (~435 px)
                             
-                            col_off = pixels_to_EMU(15) # ~0.78 cm (向右微調，精準對齊上方 QR Code 與填滿右側版面)
-                            row_off = 0
-                            _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
-                            size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
-                            xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
-                            ws.add_image(xl_img)
-                            found_coa = True
-                            break
+                                col_off = pixels_to_EMU(15) # ~0.78 cm (向右微調，精準對齊上方 QR Code 與填滿右側版面)
+                                row_off = 0
+                                _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
+                                size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
+                                xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
+                                ws.add_image(xl_img)
+                                found_coa = True
+                                break
                     
 
-                    if not found_coa and hasattr(self, 'fallback_coa') and self.fallback_coa:
-                        if len(self.fallback_coa) > 0:
-                            fb_img = self.fallback_coa.pop(0)
-                            img_byte_arr2 = BytesIO()
-                            fb_img.save(img_byte_arr2, format='PNG')
-                            img_byte_arr2.seek(0)
-                            xl_img = OpenpyxlImage(img_byte_arr2)
-                            xl_img.width = int(round(24.1 * 96 / 2.54))
-                            xl_img.height = int(round(11.51 * 96 / 2.54))
-                            _from = AnchorMarker(col=5, colOff=pixels_to_EMU(15), row=4, rowOff=0)
-                            size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
-                            xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
-                            ws.add_image(xl_img)
-                            found_coa = True
-                            error_msgs.append(f"⚠️ 提示: 批號 {batch_no} OCR未找到完全吻合，已採用幾何自動裁切拼接備份圖。")
-                    if not found_coa and self.coa_paths:
-                        error_msgs.append(f"⚠️ 警告: 批號 {batch_no} 未在截圖找到，已留白處理！")
+                        if not found_coa and hasattr(self, 'fallback_coa') and self.fallback_coa:
+                            if len(self.fallback_coa) > 0:
+                                fb_img = self.fallback_coa.pop(0)
+                                img_byte_arr2 = BytesIO()
+                                fb_img.save(img_byte_arr2, format='PNG')
+                                img_byte_arr2.seek(0)
+                                xl_img = OpenpyxlImage(img_byte_arr2)
+                                xl_img.width = int(round(24.1 * 96 / 2.54))
+                                xl_img.height = int(round(11.51 * 96 / 2.54))
+                                _from = AnchorMarker(col=5, colOff=pixels_to_EMU(15), row=4, rowOff=0)
+                                size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
+                                xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
+                                ws.add_image(xl_img)
+                                found_coa = True
+                                error_msgs.append(f"⚠️ 提示: 批號 {batch_no} OCR未找到完全吻合，已採用幾何自動裁切拼接備份圖。")
+                        if not found_coa and self.coa_paths:
+                            error_msgs.append(f"⚠️ 警告: 批號 {batch_no} 未在截圖找到，已留白處理！")
 
-                    date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
-                    tank_suffix = f"_{tank_no}" if tank_no else ""
-                    base_filename = f"{date_prefix}{safe_loc}{tank_suffix}_台積電槽車barcode三合一單.xlsx"
+                        date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
+                        tank_suffix = f"_{tank_no}" if tank_no else ""
+                        base_filename = f"{date_prefix}{safe_loc}{tank_suffix}_台積電槽車barcode三合一單.xlsx"
                     
-                    loc_sub_dir = os.path.join(output_dir, safe_loc)
-                    os.makedirs(loc_sub_dir, exist_ok=True)
-                    output_path = os.path.join(loc_sub_dir, base_filename)
-                    counter = 1
-                    while os.path.exists(output_path):
-                        base_filename = f"{date_prefix}{safe_loc}_{counter}_台積電槽車barcode三合一單.xlsx"
+                        loc_sub_dir = os.path.join(output_dir, safe_loc)
+                        os.makedirs(loc_sub_dir, exist_ok=True)
                         output_path = os.path.join(loc_sub_dir, base_filename)
-                        counter += 1
+                        counter = 1
+                        while os.path.exists(output_path):
+                            base_filename = f"{date_prefix}{safe_loc}_{counter}_台積電槽車barcode三合一單.xlsx"
+                            output_path = os.path.join(loc_sub_dir, base_filename)
+                            counter += 1
                         
-                    output_filename = base_filename
-                    wb.save(output_path)
-                    wb.close()
-                    success_3in1 += 1
+                        output_filename = base_filename
+                        wb.save(output_path)
+                        wb.close()
+                        success_3in1 += 1
+                    except Exception as e:
+                        error_msgs.append(f"處理三合一單 {loc}_{batch_no} 失敗: {e}")
+
+            if do_transport:
+                try:
+                    transport_path = os.path.join(output_dir, "運輸通知表.xlsx")
+                    generate_transport_notice_file(transport_path, valid_data, mat_no=mat_no)
+                    success_transport = True
                 except Exception as e:
-                    error_msgs.append(f"處理三合一單 {loc}_{batch_no} 失敗: {e}")
+                    error_msgs.append(f"產生運輸通知表失敗: {e}")
 
-        success_transport = False
-        if do_transport:
+
+            # 快取 session
             try:
-                transport_path = os.path.join(output_dir, "運輸通知表.xlsx")
-                generate_transport_notice_file(transport_path, valid_data, mat_no=mat_no)
-                success_transport = True
-            except Exception as e:
-                error_msgs.append(f"產生運輸通知表失敗: {e}")
+                for target_path in (os.path.join(output_dir, "session.json"), os.path.join(self.base_dir, "last_generated_session.json")):
+                    with open(target_path, "w", encoding="utf-8") as f:
+                        json.dump(valid_data, f, ensure_ascii=False, indent=2)
+            except Exception:
+                pass
 
-        # 自動快取當前 Session 資料至輸出資料夾與根目錄，供往後一鍵精準還原修訂
-        try:
-            for target_path in (os.path.join(output_dir, "session.json"), os.path.join(self.base_dir, "last_generated_session.json")):
-                with open(target_path, "w", encoding="utf-8") as f:
-                    json.dump(valid_data, f, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
+            # 累計至全域
+            total_success_3in1 += success_3in1
+            if success_transport:
+                total_success_transport = True
+            total_error_msgs.extend(error_msgs)
 
         msg_parts = []
         if do_3in1:
-            msg_parts.append(f"• 三合一單：成功產生 {success_3in1} 份")
+            msg_parts.append(f"• 三合一單：成功產生 {total_success_3in1} 份")
         if do_transport:
-            status_str = "成功" if success_transport else "失敗"
-            msg_parts.append(f"• 運輸通知表：{status_str} (共 {len(valid_data)} 筆排程卡片)")
+            status_str = "成功" if total_success_transport else "失敗"
+            total_count = sum(len(g) for g in groups.values())
+            msg_parts.append(f"• 運輸通知表：{status_str} (共 {total_count} 筆排程卡片)")
             
-        msg = "\n".join(msg_parts) + f"\n\n檔案已儲存於資料夾：\n{output_dir}"
+        dirs_str = "\n".join(all_output_dirs)
+        msg = "\n".join(msg_parts) + f"\n\n檔案已儲存於資料夾：\n{dirs_str}"
         
-        if error_msgs:
-            msg += "\n\n部分錯誤:\n" + "\n".join(error_msgs[:5])
+        if total_error_msgs:
+            msg += "\n\n部分錯誤:\n" + "\n".join(total_error_msgs[:5])
             messagebox.showwarning("完成 (但有部分錯誤)", msg)
         else:
             messagebox.showinfo("成功", msg)
             
-        os.startfile(output_dir)
-
+        for d in all_output_dirs:
+            os.startfile(d)
 if __name__ == "__main__":
     app = App()
     app.mainloop()
