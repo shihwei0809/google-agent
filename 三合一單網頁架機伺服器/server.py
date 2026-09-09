@@ -713,7 +713,7 @@ async def generate_all_zip(request: Request):
                                  cropped_coa = coa_raw.crop((0, 0, w, int(h * 0.98)))
                              # 提高解析度：將圖片放大2倍 (使用高品質 Lanczos 重新取樣)，這樣印出來會更清晰
                              try:
-                                 from PIL import Image
+ 
                                  resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
                                  cropped_coa = cropped_coa.resize((cropped_coa.width * 2, cropped_coa.height * 2), resample_filter)
                              except Exception as e:
