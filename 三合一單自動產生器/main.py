@@ -27,174 +27,364 @@ from PIL import Image as PILImage, Image
 from io import BytesIO
 from copy import copy
 
-# ================= GCP Vision OCR 智慧切換與追蹤機制 =================
+
+# ================= OCR 雙引擎系統：Gemini API + GCP Vision + Tesseract 三重保險 =================
+
+KEY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gcp_keys")
+GEMINI_KEYS_FILE = os.path.join(KEY_DIR, "gemini_keys.json")
+GCP_TRACKER_FILE = os.path.join(KEY_DIR, "usage_tracker.json")
+
+def _load_gemini_keys():
+    """讀取 Gemini API Key 清單及用量"""
+    if not os.path.exists(GEMINI_KEYS_FILE):
+        return []
+    try:
+        with open(GEMINI_KEYS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        return []
+
+def _save_gemini_keys(keys_data):
+    if not os.path.exists(KEY_DIR):
+        os.makedirs(KEY_DIR)
+    with open(GEMINI_KEYS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(keys_data, f, indent=4, ensure_ascii=False)
+
+def get_gemini_ocr_text(img_pil):
+    """使用 Gemini API 解析圖片中的批號，自動輪替 Key"""
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        return None
+
+    keys_data = _load_gemini_keys()
+    if not keys_data:
+        return None
+
+    current_month = datetime.now().strftime("%Y-%m")
+    selected = None
+    for entry in keys_data:
+        if entry.get("month") != current_month:
+            entry["month"] = current_month
+            entry["count"] = 0
+        if entry.get("count", 0) < 800:
+            selected = entry
+            break
+
+    if not selected:
+        print("⚠️ 所有 Gemini API Key 皆已達 800 次上限，嘗試退回 GCP Vision 或 Tesseract。")
+        return None
+
+    try:
+        genai.configure(api_key=selected["key"])
+        model = genai.GenerativeModel("gemini-1.5-flash")
+
+        img_byte_arr = BytesIO()
+        img_pil.save(img_byte_arr, format='PNG')
+        img_byte_arr.seek(0)
+
+        import PIL.Image
+        pil_img = PIL.Image.open(img_byte_arr)
+
+        response = model.generate_content([
+            "請只回報這張圖片中所有你看到的批號數字（Batch ID），格式通常為6位以上純數字，"
+            "多個批號請用逗號分隔。不要說明、不要解釋、只輸出數字。",
+            pil_img
+        ])
+        selected["count"] = selected.get("count", 0) + 1
+        _save_gemini_keys(keys_data)
+        return response.text.strip() if response.text else ""
+    except Exception as e:
+        print(f"Gemini API 發生錯誤: {e}")
+        return None
+
 def get_gcp_vision_text(img_pil):
+    """使用 GCP Cloud Vision 解析，自動輪替 JSON Key"""
     try:
         from google.oauth2 import service_account
         from google.cloud import vision
     except ImportError:
-        return None  # 套件未安裝，退回 Tesseract
-        
-    key_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gcp_keys")
-    if not os.path.exists(key_dir):
-        os.makedirs(key_dir)
         return None
-        
-    keys = [f for f in os.listdir(key_dir) if f.endswith('.json')]
+
+    if not os.path.exists(KEY_DIR):
+        os.makedirs(KEY_DIR)
+        return None
+
+    keys = [f for f in os.listdir(KEY_DIR) if f.endswith('.json') and f not in ("usage_tracker.json",)]
     if not keys:
         return None
-        
-    tracker_file = os.path.join(key_dir, "usage_tracker.json")
+
     tracker = {}
-    if os.path.exists(tracker_file):
+    if os.path.exists(GCP_TRACKER_FILE):
         try:
-            with open(tracker_file, 'r', encoding='utf-8') as f:
+            with open(GCP_TRACKER_FILE, 'r', encoding='utf-8') as f:
                 tracker = json.load(f)
         except:
             pass
-            
+
     current_month = datetime.now().strftime("%Y-%m")
     selected_key = None
-    
-    # 尋找這個月額度尚未滿 800 次的 Key
     for key in keys:
         data = tracker.get(key, {"month": current_month, "count": 0})
         if data["month"] != current_month:
             data = {"month": current_month, "count": 0}
-        
         if data["count"] < 800:
             selected_key = key
             tracker[key] = data
             break
-            
+
     if not selected_key:
-        print("⚠️ 警告: 所有 GCP Key 皆已達 800 次上限，將自動退回使用本機 Tesseract OCR。")
-        return None  
-        
+        print("⚠️ 所有 GCP Vision Key 皆已達 800 次上限。")
+        return None
+
     try:
-        key_path = os.path.join(key_dir, selected_key)
+        key_path = os.path.join(KEY_DIR, selected_key)
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = vision.ImageAnnotatorClient(credentials=credentials)
-        
+
         img_byte_arr = BytesIO()
         img_pil.save(img_byte_arr, format='PNG')
         content = img_byte_arr.getvalue()
         image = vision.Image(content=content)
-        
         response = client.text_detection(image=image)
-        
+
         if response.error.message:
             raise Exception(f"Vision API 錯誤: {response.error.message}")
-            
-        # 成功後才扣除額度
+
         tracker[selected_key]["count"] += 1
-        with open(tracker_file, 'w', encoding='utf-8') as f:
+        with open(GCP_TRACKER_FILE, 'w', encoding='utf-8') as f:
             json.dump(tracker, f, indent=4)
-            
+
         texts = response.text_annotations
-        if texts:
-            return texts[0].description
-        return ""
+        return texts[0].description if texts else ""
     except Exception as e:
-        print(f"GCP Vision API 發生錯誤 ({selected_key}):", e)
+        print(f"GCP Vision API 發生錯誤 ({selected_key}): {e}")
         return None
-# ================= GCP 金鑰管理器介面 =================
+
+def get_ocr_text(img_pil, engine_mode="gemini"):
+    """
+    統一 OCR 入口：
+      engine_mode = 'gemini'     → 優先 Gemini，失敗退 GCP Vision，再退 Tesseract
+      engine_mode = 'gcp'        → 優先 GCP Vision，失敗退 Tesseract
+      engine_mode = 'tesseract'  → 直接 Tesseract
+    """
+    if engine_mode == "gemini":
+        text = get_gemini_ocr_text(img_pil)
+        if text is None:
+            text = get_gcp_vision_text(img_pil)
+        return text  # None 代表退回 Tesseract
+    elif engine_mode == "gcp":
+        return get_gcp_vision_text(img_pil)
+    else:
+        return None  # 退回 Tesseract
+
+# ================= OCR 引擎金鑰管理介面（雙引擎切換）=================
 from tkinter import ttk
 
-class GcpKeyManagerDialog(tk.Toplevel):
+class OcrKeyManagerDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
-        self.title("GCP Vision API 金鑰管理")
-        self.geometry("550x500")
+        self.title("AI OCR 引擎設定")
+        self.geometry("600x560")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
-        
-        self.key_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gcp_keys")
+
+        self.key_dir = KEY_DIR
         if not os.path.exists(self.key_dir):
             os.makedirs(self.key_dir)
-        self.tracker_file = os.path.join(self.key_dir, "usage_tracker.json")
-        
-        tk.Label(self, text="目前已安裝的 GCP 金鑰狀態 (每月上限 800 次):", font=("Microsoft JhengHei", 10, "bold")).pack(pady=10)
-        
-        self.tree = ttk.Treeview(self, columns=("File", "Usage"), show="headings", height=5)
-        self.tree.heading("File", text="金鑰檔名")
-        self.tree.heading("Usage", text="本月使用次數")
-        self.tree.column("File", width=350, anchor="w")
-        self.tree.column("Usage", width=150, anchor="center")
-        self.tree.pack(padx=15, pady=5, fill="x")
-        
-        self.refresh_list()
-        
-        btn_frame = tk.Frame(self)
-        btn_frame.pack(pady=5)
-        tk.Button(btn_frame, text="🗑️ 刪除選取金鑰", command=self.delete_key, bg="#E53935", fg="white", font=("Microsoft JhengHei", 9)).pack(side="left", padx=5)
-        
-        tk.Label(self, text="新增金鑰 (請將 GCP JSON 金鑰內容貼在下方):", font=("Microsoft JhengHei", 10, "bold")).pack(pady=(15, 5))
-        self.text_area = tk.Text(self, height=12, width=60, font=("Consolas", 9))
-        self.text_area.pack(padx=15, pady=5, fill="both", expand=True)
-        
-        tk.Button(self, text="💾 儲存並啟用新金鑰", bg="#4CAF50", fg="white", font=("Microsoft JhengHei", 10, "bold"), command=self.save_key, pady=5).pack(pady=10)
-        
-        # 置中顯示
+
+        # ---- 引擎選擇 ----
+        engine_frame = tk.LabelFrame(self, text="OCR 引擎優先順序", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        engine_frame.pack(fill="x", padx=15, pady=(10, 5))
+
+        cfg = self._load_engine_config()
+        self.engine_var = tk.StringVar(value=cfg.get("engine", "gemini"))
+
+        tk.Radiobutton(engine_frame, text="⚡ Gemini API（免費、無需信用卡，最推薦）",
+                       variable=self.engine_var, value="gemini", font=("Microsoft JhengHei", 9)).pack(anchor="w")
+        tk.Radiobutton(engine_frame, text="🔬 GCP Cloud Vision（最高精度 OCR 專用引擎，需綁信用卡）",
+                       variable=self.engine_var, value="gcp", font=("Microsoft JhengHei", 9)).pack(anchor="w")
+        tk.Radiobutton(engine_frame, text="📴 僅 Tesseract 本機（離線模式，精度較低）",
+                       variable=self.engine_var, value="tesseract", font=("Microsoft JhengHei", 9)).pack(anchor="w")
+        tk.Button(engine_frame, text="💾 儲存引擎選擇", command=self._save_engine, bg="#1565C0", fg="white",
+                  font=("Microsoft JhengHei", 9)).pack(anchor="e", pady=(5, 0))
+
+        # ---- Gemini Key 區 ----
+        g_frame = tk.LabelFrame(self, text="Gemini API Keys（可加多把，每月 800 次自動輪替）",
+                                font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        g_frame.pack(fill="both", expand=True, padx=15, pady=5)
+
+        self.gemini_tree = ttk.Treeview(g_frame, columns=("Key", "Usage"), show="headings", height=4)
+        self.gemini_tree.heading("Key", text="API Key（前20碼）")
+        self.gemini_tree.heading("Usage", text="本月次數")
+        self.gemini_tree.column("Key", width=380, anchor="w")
+        self.gemini_tree.column("Usage", width=120, anchor="center")
+        self.gemini_tree.pack(fill="x")
+        self._refresh_gemini()
+
+        g_btn_frame = tk.Frame(g_frame)
+        g_btn_frame.pack(fill="x", pady=(3, 0))
+        tk.Label(g_btn_frame, text="貼上 Gemini API Key：", font=("Microsoft JhengHei", 9)).pack(side="left")
+        self.gemini_entry = tk.Entry(g_btn_frame, width=36, font=("Consolas", 9), show="*")
+        self.gemini_entry.pack(side="left", padx=5)
+        tk.Button(g_btn_frame, text="➕ 新增", bg="#4CAF50", fg="white",
+                  font=("Microsoft JhengHei", 9), command=self._add_gemini_key).pack(side="left")
+        tk.Button(g_btn_frame, text="🗑️ 刪除", bg="#E53935", fg="white",
+                  font=("Microsoft JhengHei", 9), command=self._del_gemini_key).pack(side="left", padx=5)
+
+        # ---- GCP Key 區 ----
+        v_frame = tk.LabelFrame(self, text="GCP Cloud Vision Keys（貼上 JSON 內容，可加多份）",
+                                font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        v_frame.pack(fill="both", expand=True, padx=15, pady=5)
+
+        self.gcp_tree = ttk.Treeview(v_frame, columns=("File", "Usage"), show="headings", height=3)
+        self.gcp_tree.heading("File", text="金鑰檔名")
+        self.gcp_tree.heading("Usage", text="本月次數")
+        self.gcp_tree.column("File", width=380, anchor="w")
+        self.gcp_tree.column("Usage", width=120, anchor="center")
+        self.gcp_tree.pack(fill="x")
+        self._refresh_gcp()
+
+        v_btn_frame = tk.Frame(v_frame)
+        v_btn_frame.pack(fill="x", pady=(3, 0))
+        tk.Button(v_btn_frame, text="📋 貼上 JSON 新增", bg="#4CAF50", fg="white",
+                  font=("Microsoft JhengHei", 9), command=self._add_gcp_key_dialog).pack(side="left")
+        tk.Button(v_btn_frame, text="🗑️ 刪除", bg="#E53935", fg="white",
+                  font=("Microsoft JhengHei", 9), command=self._del_gcp_key).pack(side="left", padx=5)
+
         self.update_idletasks()
         x = parent.winfo_x() + (parent.winfo_width() - self.winfo_width()) // 2
         y = parent.winfo_y() + (parent.winfo_height() - self.winfo_height()) // 2
         self.geometry(f"+{x}+{y}")
-        
-    def refresh_list(self):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        tracker = {}
-        if os.path.exists(self.tracker_file):
+
+    # ---- Engine config helpers ----
+    def _load_engine_config(self):
+        cfg_path = os.path.join(KEY_DIR, "engine_config.json")
+        if os.path.exists(cfg_path):
             try:
-                with open(self.tracker_file, 'r', encoding='utf-8') as f:
+                with open(cfg_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {"engine": "gemini"}
+
+    def _save_engine(self):
+        cfg_path = os.path.join(KEY_DIR, "engine_config.json")
+        os.makedirs(KEY_DIR, exist_ok=True)
+        with open(cfg_path, 'w', encoding='utf-8') as f:
+            json.dump({"engine": self.engine_var.get()}, f)
+        label = {"gemini": "Gemini API", "gcp": "GCP Cloud Vision", "tesseract": "本機 Tesseract"}
+        messagebox.showinfo("已儲存", f"OCR 引擎已切換為：{label.get(self.engine_var.get())}")
+
+    # ---- Gemini helpers ----
+    def _refresh_gemini(self):
+        for item in self.gemini_tree.get_children():
+            self.gemini_tree.delete(item)
+        current_month = datetime.now().strftime("%Y-%m")
+        for entry in _load_gemini_keys():
+            usage = entry.get("count", 0) if entry.get("month") == current_month else 0
+            key_preview = entry["key"][:20] + "..."
+            self.gemini_tree.insert("", "end", values=(key_preview, f"{usage} / 800"))
+
+    def _add_gemini_key(self):
+        key = self.gemini_entry.get().strip()
+        if not key.startswith("AIza"):
+            messagebox.showwarning("格式錯誤", "Gemini API Key 通常以 AIza 開頭，請確認是否貼對！")
+            return
+        keys_data = _load_gemini_keys()
+        if any(e["key"] == key for e in keys_data):
+            messagebox.showinfo("重複", "這把 Key 已經存在！")
+            return
+        keys_data.append({"key": key, "month": datetime.now().strftime("%Y-%m"), "count": 0})
+        _save_gemini_keys(keys_data)
+        self.gemini_entry.delete(0, tk.END)
+        self._refresh_gemini()
+        messagebox.showinfo("成功", "Gemini API Key 已新增！")
+
+    def _del_gemini_key(self):
+        selected = self.gemini_tree.selection()
+        if not selected:
+            return
+        idx = self.gemini_tree.index(selected[0])
+        keys_data = _load_gemini_keys()
+        if 0 <= idx < len(keys_data):
+            if messagebox.askyesno("確認", "確定要刪除這把 Gemini Key？"):
+                keys_data.pop(idx)
+                _save_gemini_keys(keys_data)
+                self._refresh_gemini()
+
+    # ---- GCP helpers ----
+    def _refresh_gcp(self):
+        for item in self.gcp_tree.get_children():
+            self.gcp_tree.delete(item)
+        tracker = {}
+        if os.path.exists(GCP_TRACKER_FILE):
+            try:
+                with open(GCP_TRACKER_FILE, 'r', encoding='utf-8') as f:
                     tracker = json.load(f)
             except:
                 pass
         current_month = datetime.now().strftime("%Y-%m")
-        
+        if not os.path.exists(self.key_dir):
+            return
         for f_name in os.listdir(self.key_dir):
-            if f_name.endswith(".json") and f_name != "usage_tracker.json":
+            if f_name.endswith(".json") and f_name not in ("usage_tracker.json", "gemini_keys.json", "engine_config.json"):
                 data = tracker.get(f_name, {"month": current_month, "count": 0})
                 usage = data["count"] if data["month"] == current_month else 0
-                self.tree.insert("", "end", values=(f_name, f"{usage} / 800"))
-                
-    def delete_key(self):
-        selected = self.tree.selection()
+                self.gcp_tree.insert("", "end", values=(f_name, f"{usage} / 800"))
+
+    def _add_gcp_key_dialog(self):
+        dlg = tk.Toplevel(self)
+        dlg.title("貼上 GCP JSON 金鑰")
+        dlg.geometry("500x340")
+        dlg.transient(self)
+        dlg.grab_set()
+        tk.Label(dlg, text="請貼上 GCP Service Account JSON 內容：", font=("Microsoft JhengHei", 10)).pack(pady=8)
+        txt = tk.Text(dlg, height=12, width=58, font=("Consolas", 9))
+        txt.pack(padx=10)
+
+        def do_save():
+            content = txt.get("1.0", tk.END).strip()
+            try:
+                d = json.loads(content)
+                if "project_id" not in d or "private_key" not in d:
+                    raise ValueError("缺少必要欄位")
+                import uuid
+                fname = f"gcp_key_{uuid.uuid4().hex[:6]}.json"
+                with open(os.path.join(self.key_dir, fname), "w", encoding="utf-8") as f:
+                    f.write(content)
+                self._refresh_gcp()
+                messagebox.showinfo("成功", f"已儲存 {fname}")
+                dlg.destroy()
+            except Exception as e:
+                messagebox.showerror("錯誤", f"JSON 格式不正確：{e}")
+
+        tk.Button(dlg, text="💾 儲存並啟用", bg="#4CAF50", fg="white",
+                  font=("Microsoft JhengHei", 10, "bold"), command=do_save).pack(pady=10)
+
+    def _del_gcp_key(self):
+        selected = self.gcp_tree.selection()
         if not selected:
             return
-        item = self.tree.item(selected[0])
+        item = self.gcp_tree.item(selected[0])
         f_name = item['values'][0]
-        if messagebox.askyesno("確認", f"確定要刪除金鑰 {f_name} 嗎？"):
+        if messagebox.askyesno("確認", f"確定要刪除 {f_name}？"):
             try:
                 os.remove(os.path.join(self.key_dir, f_name))
-                self.refresh_list()
+                self._refresh_gcp()
             except Exception as e:
-                messagebox.showerror("錯誤", f"刪除失敗: {e}")
-            
-    def save_key(self):
-        content = self.text_area.get("1.0", tk.END).strip()
-        if not content:
-            messagebox.showwarning("錯誤", "請先貼上 JSON 內容！")
-            return
-        try:
-            json_data = json.loads(content)
-            if "project_id" not in json_data or "private_key" not in json_data:
-                messagebox.showwarning("警告", "這似乎不是有效的 GCP Service Account JSON 格式 (缺少 project_id 或 private_key)！")
-                return
-            
-            import uuid
-            new_filename = f"key_{uuid.uuid4().hex[:6]}.json"
-            with open(os.path.join(self.key_dir, new_filename), "w", encoding="utf-8") as f:
-                f.write(content)
-                
-            messagebox.showinfo("成功", "金鑰已成功儲存並啟用！您現在可以開始使用超高精度辨識了。")
-            self.text_area.delete("1.0", tk.END)
-            self.refresh_list()
-        except Exception as e:
-            messagebox.showerror("解析錯誤", f"JSON 格式不正確:\n{e}")
+                messagebox.showerror("錯誤", str(e))
 
+
+def _get_engine_mode():
+    """讀取目前設定的 OCR 引擎"""
+    cfg_path = os.path.join(KEY_DIR, "engine_config.json")
+    try:
+        with open(cfg_path, 'r', encoding='utf-8') as f:
+            return json.load(f).get("engine", "gemini")
+    except:
+        return "gemini"
 
 
 class CalendarDialog(tk.Toplevel):
@@ -1175,7 +1365,7 @@ class App(tk.Tk):
         tk.Button(left_btn_frame, text="📂 載入既有通知表修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="📋 貼上 COA 截圖", command=self.paste_coa, bg="#4CAF50", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(left_btn_frame, text="🔑 設定 GCP 金鑰", command=lambda: GcpKeyManagerDialog(self), bg="#3949AB", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(left_btn_frame, text="🤖 AI OCR 引擎設定", command=lambda: OcrKeyManagerDialog(self), bg="#3949AB", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
 
         # 右側：表格操作與日期快捷按鈕群組
         right_btn_frame = tk.Frame(top_ctrl_frame)
@@ -2037,22 +2227,29 @@ class App(tk.Tk):
             messagebox.showerror("錯誤", f"地點代號對照表中找不到以下地點：\n{missing_str}\n\n請先更新對照表後再試！")
             return
 
-                output_date_str = datetime.now().strftime('%Y%m%d')
-        for data in valid_data:
-            d_raw = data.get("date", "").strip()
+        # === 依出貨日分群，自動建立多個輸出資料夾 ===
+        _date_dir_map = {}
+        def get_output_dir_for(data_item):
+            d_raw = data_item.get("date", "").strip()
+            ds = datetime.now().strftime('%Y%m%d')
             if d_raw:
-                d_part = d_raw.split()[0]
-                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                dp = d_raw.split()[0]
+                for _fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
                     try:
-                        dt_found = datetime.strptime(d_part, fmt)
-                        output_date_str = dt_found.strftime('%Y%m%d')
+                        ds = datetime.strptime(dp, _fmt).strftime('%Y%m%d')
                         break
                     except ValueError:
                         pass
-                if output_date_str != datetime.now().strftime('%Y%m%d'):
-                    break
-        output_dir = os.path.join(self.base_dir, f"三合一單輸出_{output_date_str}")
-        os.makedirs(output_dir, exist_ok=True)
+            if ds not in _date_dir_map:
+                _d = os.path.join(self.base_dir, f"三合一單輸出_{ds}")
+                os.makedirs(_d, exist_ok=True)
+                _date_dir_map[ds] = _d
+            return _date_dir_map[ds]
+
+        # 取第一筆日期當 output_dir（供運輸通知表 / lorry 備用）
+        output_dir = get_output_dir_for(valid_data[0]) if valid_data else self.base_dir
+
+
         
         success_3in1 = 0
         error_msgs = []
@@ -2135,19 +2332,19 @@ class App(tk.Tk):
                                 
                                 self.fallback_coa.append(new_img)
                                 
-                                # OCR 尋找此行的批號：優先使用 GCP Vision，失敗或超過額度則退回 Tesseract
+                                # OCR 尋找此行的批號：依設定自動選擇引擎（Gemini → GCP Vision → Tesseract）
                                 row_scaled = img_row.resize((img_row.width * 2, img_row.height * 2), PILImage.Resampling.LANCZOS)
-                                gcp_text = get_gcp_vision_text(row_scaled)
+                                engine_mode = _get_engine_mode()
+                                api_text = get_ocr_text(row_scaled, engine_mode)
                                 
-                                if gcp_text is not None:
-                                    # GCP API 成功
-                                    words = gcp_text.replace('\n', ' ').split()
+                                if api_text is not None:
+                                    words = api_text.replace('\n', ' ').replace(',', ' ').split()
                                     for text in words:
                                         digits = ''.join(c for c in text.strip() if c.isdigit())
                                         if len(digits) >= 6:
                                             coa_crops[digits] = new_img
                                 else:
-                                    # Tesseract 備用方案
+                                    # Tesseract 最終備用方案
                                     d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
                                     for i in range(len(d['text'])):
                                         text = d['text'][i].strip()
