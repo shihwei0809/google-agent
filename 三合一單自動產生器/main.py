@@ -1924,6 +1924,8 @@ class App(tk.Tk):
                                 new_img.paste(img_top, (0, 0))
                                 new_img.paste(img_row, (0, img_top.height))
                                 
+                                new_img = new_img.resize((new_img.width * 2, new_img.height * 2), PILImage.Resampling.LANCZOS)
+                                
                                 self.fallback_coa.append(new_img)
                                 
                                 # OCR to find batch number in this row
@@ -1938,7 +1940,8 @@ class App(tk.Tk):
                             # 找不到結構，整張圖備用
                             if not hasattr(self, 'fallback_coa'):
                                 self.fallback_coa = []
-                            self.fallback_coa.append(orig_img)
+                            orig_img_hr = orig_img.resize((orig_img.width * 2, orig_img.height * 2), PILImage.Resampling.LANCZOS)
+                            self.fallback_coa.append(orig_img_hr)
                     except Exception as e:
                         print("OCR error:", e)
 
@@ -2026,7 +2029,7 @@ class App(tk.Tk):
                     for k_batch, crop_img in coa_crops.items():
                         if user_digits in k_batch or k_batch in user_digits:
                             img_byte_arr2 = BytesIO()
-                            crop_img.save(img_byte_arr2, format='PNG')
+                            crop_img.save(img_byte_arr2, format='PNG', dpi=(300, 300))
                             img_byte_arr2.seek(0)
                             xl_img = OpenpyxlImage(img_byte_arr2)
                             xl_img.width = int(round(24.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
@@ -2046,7 +2049,7 @@ class App(tk.Tk):
                         if len(self.fallback_coa) > 0:
                             fb_img = self.fallback_coa.pop(0)
                             img_byte_arr2 = BytesIO()
-                            fb_img.save(img_byte_arr2, format='PNG')
+                            fb_img.save(img_byte_arr2, format='PNG', dpi=(300, 300))
                             img_byte_arr2.seek(0)
                             xl_img = OpenpyxlImage(img_byte_arr2)
                             xl_img.width = int(round(24.1 * 96 / 2.54))
@@ -2063,7 +2066,13 @@ class App(tk.Tk):
                     date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
                     tank_part = f"{tank_no} " if tank_no else ""
                     base_filename = f"{date_prefix}{tank_part}{safe_loc}台積電槽車barcode三合一單.xlsx"
-                    loc_folder = os.path.join(output_dir, safe_loc)
+                    
+                    # 修正產出資料夾結構為 [出貨日] [廠區] [槽號]
+                    date_MMDD = f"{dt_file.month:02d}{dt_file.day:02d}"
+                    safe_tank = str(tank_no).strip() if tank_no else ""
+                    loc_sub_dir = f"{date_MMDD} {safe_loc} {safe_tank}".strip()
+                    loc_folder = os.path.join(output_dir, loc_sub_dir)
+                    
                     if not os.path.exists(loc_folder):
                         os.makedirs(loc_folder)
                     output_path = os.path.join(loc_folder, base_filename)
