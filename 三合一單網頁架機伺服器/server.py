@@ -600,8 +600,22 @@ async def generate_all_zip(request: Request):
         mapping = load_location_mapping()
         zip_buffer = BytesIO()
 
-        today_str = datetime.now().strftime('%Y%m%d')
-        folder_name = f"三合一單輸出_{today_str}"
+        output_date_str = datetime.now().strftime('%Y%m%d')
+        for item in records:
+            d_raw = str(item.get("date", "")).strip()
+            if d_raw:
+                d_part = d_raw.split()[0]
+                dt_found = None
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                    try:
+                        dt_found = datetime.strptime(d_part, fmt)
+                        break
+                    except ValueError:
+                        pass
+                if dt_found:
+                    output_date_str = dt_found.strftime('%Y%m%d')
+                    break
+        folder_name = f"三合一單輸出_{output_date_str}" 
 
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             # 1. 產生三合一單 Excel 報表 (依具體短地點各自獨立資料夾，如 15P5/, 15P6/, 18P3B/)

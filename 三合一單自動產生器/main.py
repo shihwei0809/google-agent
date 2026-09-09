@@ -2037,7 +2037,21 @@ class App(tk.Tk):
             messagebox.showerror("錯誤", f"地點代號對照表中找不到以下地點：\n{missing_str}\n\n請先更新對照表後再試！")
             return
 
-        output_dir = os.path.join(self.base_dir, f"三合一單輸出_{datetime.now().strftime('%Y%m%d')}")
+                output_date_str = datetime.now().strftime('%Y%m%d')
+        for data in valid_data:
+            d_raw = data.get("date", "").strip()
+            if d_raw:
+                d_part = d_raw.split()[0]
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                    try:
+                        dt_found = datetime.strptime(d_part, fmt)
+                        output_date_str = dt_found.strftime('%Y%m%d')
+                        break
+                    except ValueError:
+                        pass
+                if output_date_str != datetime.now().strftime('%Y%m%d'):
+                    break
+        output_dir = os.path.join(self.base_dir, f"三合一單輸出_{output_date_str}")
         os.makedirs(output_dir, exist_ok=True)
         
         success_3in1 = 0
