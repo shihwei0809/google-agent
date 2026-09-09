@@ -1006,6 +1006,7 @@ class App(tk.Tk):
         tk.Button(left_btn_frame, text="📋 載入生產履歷 (Chemical_Lorry)", command=self.load_chemical_lorry_file, bg="#E65100", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="📂 載入既有通知表修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(left_btn_frame, text="📋 貼上 COA 截圖", command=self.paste_coa, bg="#4CAF50", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
 
         # 右側：表格操作與日期快捷按鈕群組
         right_btn_frame = tk.Frame(top_ctrl_frame)
@@ -1397,6 +1398,29 @@ class App(tk.Tk):
         if filepaths:
             self.coa_paths.extend(filepaths)
             messagebox.showinfo("上傳成功", f"成功上傳 {len(filepaths)} 張截圖！\n目前共 {len(self.coa_paths)} 張待處理。")
+
+    def paste_coa(self):
+        try:
+            from PIL import ImageGrab
+            img = ImageGrab.grabclipboard()
+            if img is None:
+                messagebox.showwarning("剪貼簿無影像", "剪貼簿中沒有影像，請先使用截圖工具 (例如 Win+Shift+S) 截圖後再點擊貼上！")
+                return
+            if isinstance(img, list):
+                messagebox.showwarning("格式不符", "請直接複製「影像」圖片本身，而不是檔案。")
+                return
+            
+            import tempfile
+            import uuid
+            temp_dir = tempfile.gettempdir()
+            temp_path = os.path.join(temp_dir, f"coa_paste_{uuid.uuid4().hex[:8]}.png")
+            img.save(temp_path, "PNG")
+            
+            self.coa_paths.append(temp_path)
+            messagebox.showinfo("貼上成功", f"成功貼上 1 張截圖！\n目前共 {len(self.coa_paths)} 張待處理。")
+        except Exception as e:
+            messagebox.showerror("貼上失敗", f"無法讀取剪貼簿內容：{e}")
+
 
     def import_from_excel(self):
         filepaths = filedialog.askopenfilenames(
