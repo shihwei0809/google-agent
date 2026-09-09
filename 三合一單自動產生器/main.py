@@ -1948,11 +1948,11 @@ class App(tk.Tk):
                                 new_img.paste(img_top, (0, 0))
                                 new_img.paste(img_row, (0, img_top.height))
                                 
-                                new_img = new_img.resize((new_img.width * 2, new_img.height * 2), PILImage.Resampling.LANCZOS)
+                                new_img = new_img.resize((new_img.width * 4, new_img.height * 4), PILImage.Resampling.LANCZOS)
                                 
                                 self.fallback_coa.append(new_img)
                                 
-                                # OCR to find batch number in this row
+                                # OCR to find batch number in this row (still use 2x for OCR speed/accuracy)
                                 row_scaled = img_row.resize((img_row.width * 2, img_row.height * 2), PILImage.Resampling.LANCZOS)
                                 d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
                                 for i in range(len(d['text'])):
@@ -2053,13 +2053,13 @@ class App(tk.Tk):
                     for k_batch, crop_img in coa_crops.items():
                         if user_digits in k_batch or k_batch in user_digits:
                             img_byte_arr2 = BytesIO()
-                            crop_img.save(img_byte_arr2, format='PNG', dpi=(300, 300))
+                            crop_img.save(img_byte_arr2, format='PNG', dpi=(600, 600))
                             img_byte_arr2.seek(0)
                             xl_img = OpenpyxlImage(img_byte_arr2)
-                            xl_img.width = int(round(24.1 * 96 / 2.54))   # 27.1 公分 (~1024 px)
-                            xl_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分 (~435 px)
+                            xl_img.width = int(round(24.1 * 96 / 2.54))   # 24.1 公分
+                            xl_img.height = int(round(11.51 * 96 / 2.54)) # 11.51 公分
                             
-                            col_off = pixels_to_EMU(15) # ~0.78 cm (向右微調，精準對齊上方 QR Code 與填滿右側版面)
+                            col_off = pixels_to_EMU(15) # 向右微調
                             row_off = 0
                             _from = AnchorMarker(col=5, colOff=col_off, row=4, rowOff=row_off)
                             size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
@@ -2069,23 +2069,8 @@ class App(tk.Tk):
                             break
                     
 
-                    if not found_coa and hasattr(self, 'fallback_coa') and self.fallback_coa:
-                        if len(self.fallback_coa) > 0:
-                            fb_img = self.fallback_coa.pop(0)
-                            img_byte_arr2 = BytesIO()
-                            fb_img.save(img_byte_arr2, format='PNG', dpi=(300, 300))
-                            img_byte_arr2.seek(0)
-                            xl_img = OpenpyxlImage(img_byte_arr2)
-                            xl_img.width = int(round(24.1 * 96 / 2.54))
-                            xl_img.height = int(round(11.51 * 96 / 2.54))
-                            _from = AnchorMarker(col=5, colOff=pixels_to_EMU(15), row=4, rowOff=0)
-                            size = XDRPositiveSize2D(pixels_to_EMU(xl_img.width), pixels_to_EMU(xl_img.height))
-                            xl_img.anchor = OneCellAnchor(_from=_from, ext=size)
-                            ws.add_image(xl_img)
-                            found_coa = True
-                            error_msgs.append(f"⚠️ 提示: 批號 {batch_no} OCR未找到完全吻合，已採用幾何自動裁切拼接備份圖。")
                     if not found_coa and self.coa_paths:
-                        error_msgs.append(f"⚠️ 警告: 批號 {batch_no} 未在截圖找到，已留白處理！")
+                        error_msgs.append(f"⚠️ 警告: 批號 {batch_no} OCR未找到完全吻合的截圖，已留白處理，請人工確認！")
 
                     date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
                     tank_part = f"{tank_no} " if tank_no else ""
