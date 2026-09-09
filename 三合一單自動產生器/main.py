@@ -78,26 +78,50 @@ def get_gemini_ocr_text(img_pil):
 
     try:
         genai.configure(api_key=selected["key"])
-        # 使用最新的 gemini-2.0-flash（支援視覺、速度最快）
-        model = genai.GenerativeModel("gemini-2.0-flash")
 
         img_byte_arr = BytesIO()
         img_pil.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
         import PIL.Image
         pil_img = PIL.Image.open(img_byte_arr)
-
-        response = model.generate_content([
+        
+        prompt = (
             "請只回報這張圖片中你看到的所有批號數字（Batch ID），"
             "格式通常是6位以上純數字。多個批號請用逗號分隔。"
-            "不要說明、不要解釋，只輸出數字。",
-            pil_img
-        ])
+            "不要說明、不要解釋，只輸出數字。"
+        )
+
+        # 多工自動降級：嘗試最新的模型，失敗則往下一個版本找
+        models_to_try = [
+            "gemini-3.8-flash",
+            "gemini-3.5-flash",
+            "gemini-3.1-flash",
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash"
+        ]
+
+        response_text = None
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content([prompt, pil_img])
+                if response.text:
+                    response_text = response.text.strip()
+                    print(f"✅ 成功使用 {model_name} 解析")
+                    break
+            except Exception as model_e:
+                print(f"⚠️ {model_name} 呼叫失敗，嘗試下一個版本...")
+                continue
+                
+        if response_text is None:
+            raise Exception("所有 Gemini 模型版本皆呼叫失敗。")
+
         selected["count"] = selected.get("count", 0) + 1
         _save_gemini_keys(keys_data)
-        return response.text.strip() if response.text else ""
+        return response_text
     except Exception as e:
-        print(f"Gemini API 發生錯誤: {e}")
+        print(f"Gemini API 整體發生錯誤: {e}")
         return None
 
 
