@@ -711,11 +711,18 @@ async def generate_all_zip(request: Request):
                                      cropped_coa.paste(img_row, (0, img_top.height))
                              if not cropped_coa:
                                  cropped_coa = coa_raw.crop((0, 0, w, int(h * 0.98)))
+                             # 提高解析度：將圖片放大2倍 (使用高品質 Lanczos 重新取樣)，這樣印出來會更清晰
+                             try:
+                                 from PIL import Image
+                                 resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
+                                 cropped_coa = cropped_coa.resize((cropped_coa.width * 2, cropped_coa.height * 2), resample_filter)
+                             except Exception as e:
+                                 print(f'Upscaling failed: {e}')
                              coa_io = BytesIO()
-                             cropped_coa.save(coa_io, format="PNG")
+                             cropped_coa.save(coa_io, format="PNG", dpi=(300, 300))
                              coa_io.seek(0)
                              coa_img = OpenpyxlImage(coa_io)
-                             coa_img.width = int(round(24.1 * 96 / 2.54))
+                             coa_img.width = int(round(27.1 * 96 / 2.54))
                              coa_img.height = int(round(11.51 * 96 / 2.54))
                              _from = AnchorMarker(col=5, colOff=pixels_to_EMU(15), row=4, rowOff=0)
                              size = XDRPositiveSize2D(pixels_to_EMU(coa_img.width), pixels_to_EMU(coa_img.height))
@@ -745,17 +752,20 @@ async def generate_all_zip(request: Request):
                     if not dt_file:
                         dt_file = datetime.now()
 
+                    mmdd_3in1 = f"{dt_file.month:02d}{dt_file.day:02d}"
                     date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
                     tank_part = f"{tank_no} " if tank_no else ""
+                    tank_str = tank_no if tank_no else ""
+                    sub_folder = f"{mmdd_3in1} {loc} {tank_str}".strip()
                     base_name = f"{date_prefix}{tank_part}{loc}台積電槽車barcode三合一單.xlsx"
                     test_name = base_name
                     counter = 1
-                    while f"{folder_name}/{loc}/{test_name}" in used_filenames:
+                    while f"{folder_name}/{sub_folder}/{test_name}" in used_filenames:
                         test_name = f"{date_prefix}{tank_part}{loc}_{counter}台積電槽車barcode三合一單.xlsx"
                         counter += 1
                     file_name = test_name
-                    used_filenames.add(f"{folder_name}/{loc}/{file_name}")
-                    zip_file.writestr(f"{folder_name}/{loc}/{file_name}", excel_io.getvalue())
+                    used_filenames.add(f"{folder_name}/{sub_folder}/{file_name}")
+                    zip_file.writestr(f"{folder_name}/{sub_folder}/{file_name}", excel_io.getvalue())
 
             # 2. 寫入 session.json 至 ZIP 根目錄，供本機 BAT 或網頁版載入時 100% 精準還原原始完整 10 碼批號
             try:
@@ -819,12 +829,14 @@ async def generate_all_zip(request: Request):
                                 tank_no = extract_tank_from_batch(batch)
                             tank_part = f"{tank_no} " if tank_no else ""
                             new_filename = f"{base_name}-{mmdd} {tank_part}{loc}{extra_file['ext']}"
+                            tank_str = tank_no if tank_no else ""
+                            sub_folder = f"{mmdd} {loc} {tank_str}".strip()
                             
                             # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
                             out_buf = BytesIO()
                             new_wb.save(out_buf)
                             new_wb.close()
-                            zip_file.writestr(f"{folder_name}/{loc}/{new_filename}", out_buf.getvalue())
+                            zip_file.writestr(f"{folder_name}/{sub_folder}/{new_filename}", out_buf.getvalue())
                     src_wb.close()
                 except Exception as ex:
                     print(f"處理附加檔案時發生錯誤: {ex}")

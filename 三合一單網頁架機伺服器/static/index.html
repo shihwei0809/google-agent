@@ -1072,7 +1072,7 @@
                 // 遍歷 Excel 所有分頁
                 workbook.SheetNames.forEach(sheetName => {
                     const worksheet = workbook.Sheets[sheetName];
-                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", blankrows: false });
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", blankrows: false, raw: false });
                     if (!rows || rows.length === 0) return;
 
                     let batchCol = -1, locCol = -1, dateCol = -1, tankCol = -1, timeCol = -1, modTimeCol = -1, custCol = -1, prodCol = -1;
