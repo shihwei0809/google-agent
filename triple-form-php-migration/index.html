@@ -47,7 +47,10 @@
                     <p class="text-xs text-gray-500">輕量極速版</p>
                 </div>
             </div>
-            <a href="query.php" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">查詢紀錄</a>
+            <div class="flex items-center gap-2">
+                <button onclick="openSettings()" class="text-gray-600 font-bold text-sm bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition">⚙️ AI設定</button>
+                <a href="query.php" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">查詢紀錄</a>
+            </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3 mb-4">
@@ -169,24 +172,22 @@
         }
 
         function stopAiCamera() {
-            const videoContainer = document.getElementById('ai-camera-view');
-            const videoElement = document.getElementById('ai-video');
             if (aiStream) {
                 aiStream.getTracks().forEach(track => track.stop());
                 aiStream = null;
             }
-            videoElement.srcObject = null;
-            videoContainer.style.display = 'none';
+            document.getElementById('ai-camera-view').style.display = 'none';
         }
 
         function captureAiImage() {
+            if (isProcessing) return;
+            isProcessing = true;
+            
             const video = document.getElementById('ai-video');
             const canvas = document.createElement('canvas');
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            // ★ V41: 畫質降為 0.6，減少 Base64 體積
+            canvas.getContext('2d').drawImage(video, 0, 0);
             const imageData = canvas.toDataURL('image/jpeg', 0.6);
             stopAiCamera();
             document.getElementById('loadingOverlay').style.display = 'flex';
@@ -195,7 +196,10 @@
             fetch('process_ai_read.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ photoData: imageData })
+                body: JSON.stringify({ 
+                    photoData: imageData,
+                    geminiKey: localStorage.getItem('geminiKey') || ''
+                })
             })
             .then(res => {
                 if (!res.ok) throw new Error("伺服器連線錯誤: " + res.status);

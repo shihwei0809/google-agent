@@ -40,16 +40,55 @@ function callGoogleVision($base64Image, $apiKey) {
     return json_decode($result, true);
 }
 
+function callGeminiApi($base64Image, $apiKey) {
+    if (strpos($base64Image, ',') !== false) {
+        $parts = explode(',', $base64Image);
+        $base64Image = end($parts);
+    }
+    $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' . $apiKey;
+    $requestData = [
+        "contents" => [ [
+            "parts" => [
+                ["text" => "請將這張出貨單上的所有文字完整辨識出來，不要遺漏任何數字、料號、槽號、批號或地點。不要做任何解釋，直接輸出原始文字。"],
+                ["inline_data" => ["mime_type" => "image/jpeg", "data" => $base64Image]]
+            ]
+        ] ]
+    ];
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $apiUrl);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($requestData));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
+    $result = curl_exec($ch);
+    curl_close($ch);
+    $json = json_decode($result, true);
+    if (isset($json['candidates'][0]['content']['parts'][0]['text'])) {
+        return $json['candidates'][0]['content']['parts'][0]['text'];
+    }
+    if (isset($json['error'])) {
+        throw new Exception("Gemini API Error: " . $json['error']['message']);
+    }
+    return "";
+}
+
 try {
     $inputJSON = file_get_contents('php://input');
     $input = json_decode($inputJSON, true);
     $photoData = $input['photoData'] ?? '';
+    $geminiKey = $input['geminiKey'] ?? '';
 
     if (empty($photoData)) throw new Exception('未收到照片');
 
-    // 呼叫 AI
-    $ocrResult = callGoogleVision($photoData, $currentKey);
-    $text = $ocrResult['responses'][0]['fullTextAnnotation']['text'] ?? '';
+    // 呼叫 AI (有 Gemini Key 則優先用 Gemini，否則退回舊版 GCP Vision)
+    $text = '';
+    if (!empty($geminiKey)) {
+        $text = callGeminiApi($photoData, $geminiKey);
+    } else {
+        $ocrResult = callGoogleVision($photoData, $currentKey);
+        $text = $ocrResult['responses'][0]['fullTextAnnotation']['text'] ?? '';
+    }
     
     // 預處理：移除可能干擾的符號，將全形冒號轉半形
     $cleanText = str_replace(['：', '　', '|'], [':', ' ', ' '], $text);
