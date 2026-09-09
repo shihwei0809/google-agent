@@ -62,18 +62,18 @@ def get_gemini_ocr_text(img_pil):
     if not keys_data:
         return None
 
-    current_month = datetime.now().strftime("%Y-%m")
+    current_day = datetime.now().strftime("%Y-%m-%d")
     selected = None
     for entry in keys_data:
-        if entry.get("month") != current_month:
-            entry["month"] = current_month
+        if entry.get("day") != current_day:
+            entry["day"] = current_day
             entry["count"] = 0
-        if entry.get("count", 0) < 800:
+        if entry.get("count", 0) < 1500:
             selected = entry
             break
 
     if not selected:
-        print("⚠️ 所有 Gemini Key 皆已達 800 次上限，退回備援引擎。")
+        print("⚠️ 所有 Gemini Key 皆已達每日 1500 次上限，退回備援引擎。")
         return None
 
     try:
@@ -94,11 +94,12 @@ def get_gemini_ocr_text(img_pil):
         # 多工自動降級：嘗試最新的模型，失敗則往下一個版本找
         models_to_try = [
             "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.6-flash",
             "gemini-3.5-flash",
-            "gemini-3.1-flash",
+            "gemini-3.0-flash",
             "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash"
+            "gemini-2.0-flash"
         ]
 
         response_text = None
@@ -153,13 +154,13 @@ def get_gcp_vision_text(img_pil):
         data = tracker.get(key, {"month": current_month, "count": 0})
         if data["month"] != current_month:
             data = {"month": current_month, "count": 0}
-        if data["count"] < 800:
+        if data["count"] < 1000:
             selected_key = key
             tracker[key] = data
             break
 
     if not selected_key:
-        print("⚠️ 所有 GCP Vision Key 皆已達 800 次上限。")
+        print("⚠️ 所有 GCP Vision Key 皆已達每月 1000 次上限。")
         return None
 
     try:
@@ -245,7 +246,7 @@ class OcrKeyManagerDialog(tk.Toplevel):
                   bg="#1565C0", fg="white", font=("Microsoft JhengHei", 9)).pack(anchor="e", pady=(5, 0))
 
         # ---- Gemini Key 區 ----
-        g_frame = tk.LabelFrame(self, text="Gemini API Keys（可加多把，每月 800 次自動輪替）",
+        g_frame = tk.LabelFrame(self, text="Gemini API Keys（可加多把，每日 1500 次自動降級輪替）",
                                 font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
         g_frame.pack(fill="both", expand=True, padx=15, pady=5)
 
@@ -268,7 +269,7 @@ class OcrKeyManagerDialog(tk.Toplevel):
                   font=("Microsoft JhengHei", 9), command=self._del_gemini_key).pack(side="left", padx=5)
 
         # ---- GCP Key 區 ----
-        v_frame = tk.LabelFrame(self, text="GCP Cloud Vision Keys（貼上 JSON，可加多份）",
+        v_frame = tk.LabelFrame(self, text="GCP Cloud Vision Keys（每月 1000 次，貼上 JSON 自動輪替）",
                                 font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
         v_frame.pack(fill="both", expand=True, padx=15, pady=5)
 
@@ -311,10 +312,10 @@ class OcrKeyManagerDialog(tk.Toplevel):
     def _refresh_gemini(self):
         for item in self.gemini_tree.get_children():
             self.gemini_tree.delete(item)
-        current_month = datetime.now().strftime("%Y-%m")
+        current_day = datetime.now().strftime("%Y-%m-%d")
         for entry in _load_gemini_keys():
-            usage = entry.get("count", 0) if entry.get("month") == current_month else 0
-            self.gemini_tree.insert("", "end", values=(entry["key"][:20] + "...", f"{usage} / 800"))
+            usage = entry.get("count", 0) if entry.get("day") == current_day else 0
+            self.gemini_tree.insert("", "end", values=(entry["key"][:20] + "...", f"{usage} / 1500"))
 
     def _add_gemini_key(self):
         key = self.gemini_entry.get().strip()
@@ -327,7 +328,7 @@ class OcrKeyManagerDialog(tk.Toplevel):
         if any(e["key"] == key for e in keys_data):
             messagebox.showinfo("重複", "這把 Key 已存在！")
             return
-        keys_data.append({"key": key, "month": datetime.now().strftime("%Y-%m"), "count": 0})
+        keys_data.append({"key": key, "day": datetime.now().strftime("%Y-%m-%d"), "count": 0})
         _save_gemini_keys(keys_data)
         self.gemini_entry.delete(0, tk.END)
         self._refresh_gemini()
@@ -360,7 +361,7 @@ class OcrKeyManagerDialog(tk.Toplevel):
             if f_name.endswith(".json") and f_name not in ("usage_tracker.json", "gemini_keys.json", "engine_config.json"):
                 data = tracker.get(f_name, {"month": current_month, "count": 0})
                 usage = data["count"] if data["month"] == current_month else 0
-                self.gcp_tree.insert("", "end", values=(f_name, f"{usage} / 800"))
+                self.gcp_tree.insert("", "end", values=(f_name, f"{usage} / 1000"))
 
     def _add_gcp_key_dialog(self):
         dlg = tk.Toplevel(self)
