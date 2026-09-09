@@ -27,6 +27,79 @@ from PIL import Image as PILImage, Image
 from io import BytesIO
 from copy import copy
 
+# ================= GCP Vision OCR 智慧切換與追蹤機制 =================
+def get_gcp_vision_text(img_pil):
+    try:
+        from google.oauth2 import service_account
+        from google.cloud import vision
+    except ImportError:
+        return None  # 套件未安裝，退回 Tesseract
+        
+    key_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gcp_keys")
+    if not os.path.exists(key_dir):
+        os.makedirs(key_dir)
+        return None
+        
+    keys = [f for f in os.listdir(key_dir) if f.endswith('.json')]
+    if not keys:
+        return None
+        
+    tracker_file = os.path.join(key_dir, "usage_tracker.json")
+    tracker = {}
+    if os.path.exists(tracker_file):
+        try:
+            with open(tracker_file, 'r', encoding='utf-8') as f:
+                tracker = json.load(f)
+        except:
+            pass
+            
+    current_month = datetime.now().strftime("%Y-%m")
+    selected_key = None
+    
+    # 尋找這個月額度尚未滿 800 次的 Key
+    for key in keys:
+        data = tracker.get(key, {"month": current_month, "count": 0})
+        if data["month"] != current_month:
+            data = {"month": current_month, "count": 0}
+        
+        if data["count"] < 800:
+            selected_key = key
+            tracker[key] = data
+            break
+            
+    if not selected_key:
+        print("⚠️ 警告: 所有 GCP Key 皆已達 800 次上限，將自動退回使用本機 Tesseract OCR。")
+        return None  
+        
+    try:
+        key_path = os.path.join(key_dir, selected_key)
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = vision.ImageAnnotatorClient(credentials=credentials)
+        
+        img_byte_arr = BytesIO()
+        img_pil.save(img_byte_arr, format='PNG')
+        content = img_byte_arr.getvalue()
+        image = vision.Image(content=content)
+        
+        response = client.text_detection(image=image)
+        
+        if response.error.message:
+            raise Exception(f"Vision API 錯誤: {response.error.message}")
+            
+        # 成功後才扣除額度
+        tracker[selected_key]["count"] += 1
+        with open(tracker_file, 'w', encoding='utf-8') as f:
+            json.dump(tracker, f, indent=4)
+            
+        texts = response.text_annotations
+        if texts:
+            return texts[0].description
+        return ""
+    except Exception as e:
+        print(f"GCP Vision API 發生錯誤 ({selected_key}):", e)
+        return None
+
+
 # ================= 浮動日曆選擇器 =================
 
 class CalendarDialog(tk.Toplevel):
@@ -1952,14 +2025,25 @@ class App(tk.Tk):
                                 
                                 self.fallback_coa.append(new_img)
                                 
-                                # OCR to find batch number in this row (still use 2x for OCR speed/accuracy)
+                                # OCR 尋找此行的批號：優先使用 GCP Vision，失敗或超過額度則退回 Tesseract
                                 row_scaled = img_row.resize((img_row.width * 2, img_row.height * 2), PILImage.Resampling.LANCZOS)
-                                d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
-                                for i in range(len(d['text'])):
-                                    text = d['text'][i].strip()
-                                    digits = ''.join(c for c in text if c.isdigit())
-                                    if len(digits) >= 6:
-                                        coa_crops[digits] = new_img
+                                gcp_text = get_gcp_vision_text(row_scaled)
+                                
+                                if gcp_text is not None:
+                                    # GCP API 成功
+                                    words = gcp_text.replace('\n', ' ').split()
+                                    for text in words:
+                                        digits = ''.join(c for c in text.strip() if c.isdigit())
+                                        if len(digits) >= 6:
+                                            coa_crops[digits] = new_img
+                                else:
+                                    # Tesseract 備用方案
+                                    d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
+                                    for i in range(len(d['text'])):
+                                        text = d['text'][i].strip()
+                                        digits = ''.join(c for c in text if c.isdigit())
+                                        if len(digits) >= 6:
+                                            coa_crops[digits] = new_img
                         else:
                             # 找不到結構，整張圖備用
                             if not hasattr(self, 'fallback_coa'):
