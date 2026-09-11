@@ -1419,15 +1419,18 @@ class App(tk.Tk):
                 
                 row = valid_batches[matched_batch]
                 loc_str = row["loc_var"].get().strip()
+                # 廠區代號是用長代號的2-5碼 (index 1 to 4)
                 factory_code = loc_str[1:5] if len(loc_str) >= 5 else loc_str
                 
                 date_str = row["date_var"].get().strip()
                 formatted_date = date_str.replace("/", "").replace("-", "")
                 
+                # split on the first occurrence (case-insensitive)
                 idx = base_name.upper().find(matched_batch)
                 prefix = base_name[:idx]
                 suffix = base_name[idx + len(matched_batch):]
                 
+                # replace date in prefix
                 date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
                 if re.search(date_pattern, prefix):
                     prefix = re.sub(date_pattern, formatted_date, prefix)
@@ -1437,6 +1440,7 @@ class App(tk.Tk):
                     else:
                         prefix = formatted_date + "_" + prefix if prefix else formatted_date + "_"
                 
+                # suffix adds factory_code
                 if suffix.startswith("_") or suffix.startswith("-"):
                     new_suffix = f"_{factory_code}{suffix}"
                 else:
@@ -1453,8 +1457,10 @@ class App(tk.Tk):
                     wb.save(new_file_path)
                 elif ext.lower() == '.csv':
                     import csv
+                    # Detect encoding for csv
                     with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
                         reader = list(csv.reader(f))
+                    # pad rows if necessary
                     while len(reader) <= 16:
                         reader.append([])
                     for r in reader:
@@ -1474,10 +1480,15 @@ class App(tk.Tk):
 
         msg = f"成功處理 {success_count} 份 COA 表單。"
         if error_msgs:
-            msg += "\n\n錯誤紀錄:\n" + "\n".join(error_msgs)
+            msg += "
+
+錯誤紀錄:
+" + "
+".join(error_msgs)
             messagebox.showwarning("完成", msg)
         else:
             messagebox.showinfo("完成", msg)
+
 
     def upload_coa(self):
         if not os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'):
