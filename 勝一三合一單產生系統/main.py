@@ -1,11 +1,12 @@
 import os
+import glob
 import sys
 import re
 import json
 import csv
 import webbrowser
 import calendar
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from io import BytesIO
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
@@ -14,6 +15,7 @@ from openpyxl.drawing.image import Image as OpenpyxlImage
 from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
 from openpyxl.drawing.xdr import XDRPositiveSize2D
 from openpyxl.utils.units import pixels_to_EMU
+from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.cell.rich_text import TextBlock, CellRichText
 from openpyxl.cell.text import InlineFont
@@ -21,6 +23,7 @@ from PIL import Image as PILImage, Image
 import qrcode
 import pytesseract
 from pytesseract import Output
+from copy import copy
 
 # ================= 浮動日曆選擇器 =================
 
@@ -200,170 +203,279 @@ def split_date_and_time(raw_val):
 
     return val_str, ""
 
+
+def normalize_time_str(raw):
+    """
+    將各種時間格式 (如 09:00, 9:00, 09:00:00, Sat Dec 30 1899 09:00:00, 0.375, 900)
+    一律精準轉換為 4 碼時間 (如 '0900', '1400')，絕不夾帶日期或星期文字。
+    """
+    if raw is None or raw == "":
+        return ""
+    if hasattr(raw, "hour") and hasattr(raw, "minute"):
+        return f"{raw.hour:02d}{raw.minute:02d}"
+    s = str(raw).strip()
+    if not s:
+        return ""
+    try:
+        f = float(s)
+        if 0 < f < 1:
+            total_minutes = round(f * 24 * 60)
+            h = (total_minutes // 60) % 24
+            m = total_minutes % 60
+            return f"{h:02d}{m:02d}"
+        if 0 <= f < 2400 and len(s) in (3, 4) and s.isdigit():
+            return s.zfill(4)
+    except ValueError:
+        pass
+    m = re.search(r'(\d{1,2}):(\d{2})', s)
+    if m:
+        return f"{int(m.group(1)):02d}{int(m.group(2)):02d}"
+    if len(s) == 4 and s.isdigit():
+        return s
+    if len(s) == 3 and s.isdigit():
+        return "0" + s
+    return ""
+
+def normalize_date_str(raw):
+    if not raw:
+        return ""
+    if hasattr(raw, "strftime"):
+        return raw.strftime("%Y-%m-%d")
+    s = str(raw).strip()
+    if not s:
+        return ""
+    try:
+        f = float(s)
+        if 20000 < f < 60000:
+            dt = datetime(1899, 12, 30) + timedelta(days=int(f))
+            return dt.strftime("%Y-%m-%d")
+    except ValueError:
+        pass
+    s_part = s.split()[0]
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(s_part, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    m = re.match(r"^(\d{2,3})[-/\.](\d{1,2})[-/\.](\d{1,2})", s_part)
+    if m and int(m.group(1)) < 1900:
+        y = int(m.group(1)) + 1911
+        m_val = int(m.group(2))
+        d_val = int(m.group(3))
+        return f"{y:04d}-{m_val:02d}-{d_val:02d}"
+    return s_part
+
+def clean_location_str(loc, mapping_dict=None):
+    if not loc:
+        return ""
+    s = str(loc).strip().upper()
+    cleaned = re.sub(r'台積電?|新竹|台中|台南|廠|[-_\s]', '', s)
+    if mapping_dict and cleaned in mapping_dict:
+        return cleaned
+    if mapping_dict and s in mapping_dict:
+        return s
+    m_ap = re.search(r'(AP\d+[A-Z0-9]*)', s)
+    if m_ap:
+        return m_ap.group(1)
+    m_loc = re.search(r'(\d+[A-Z]\d+[A-Z0-9]*|\d+[A-Z0-9]+)', s)
+    if m_loc:
+        val = m_loc.group(1)
+        if (mapping_dict and val in mapping_dict) or any(x in val for x in ["18P", "15P", "12P", "14P"]):
+            return val
+    return cleaned or s
+
 class ImportRangeDialog(tk.Toplevel):
     """
-    Excel 匯入筆數與範圍選擇對話框（預設以「當天日期加二天 (今天~後天)」為優先智慧顯示）
+    Excel 匯入筆數與範圍選擇對話框 (支援全分頁跨頁統計、今天~後天智慧過濾與倒數擷取)
     """
-    def __init__(self, parent, records, filename=""):
+    def __init__(self, parent, records, filename="", sheet_count=1):
         super().__init__(parent)
-        self.title("📥 勝一訂單匯入選擇 (優先顯示當天至+2天排程)")
-        self.geometry("820x640")
-        self.configure(padx=15, pady=15)
-        self.transient(parent)
+        self.parent_app = parent
+        self.title("📥 Excel 匯入筆數與範圍選擇 (跨分頁智慧過濾)")
+        self.geometry("1080x700")
+        self.minsize(920, 560)
         self.grab_set()
 
-        self.records = records
-        self.total_count = len(records)
+        # 視窗居中於父視窗
+        try:
+            self.update_idletasks()
+            pw = parent.winfo_width()
+            ph = parent.winfo_height()
+            px = parent.winfo_rootx()
+            py = parent.winfo_rooty()
+            w, h = 1080, 700
+            x = max(20, px + (pw - w) // 2)
+            y = max(20, py + (ph - h) // 2)
+            self.geometry(f"{w}x{h}+{x}+{y}")
+        except Exception:
+            pass
+
+        self.all_records = records
+        self.sheet_count = max(1, sheet_count)
+        self.total_records_count = len(records)
         self.selected_records = None
-        self.current_filtered_records = []
 
-        # 計算當天日期 + 2 天 (今天、明天、後天)
-        now_dt = datetime.now()
-        self.d0_str = now_dt.strftime('%Y-%m-%d')
-        self.d1_str = (now_dt + timedelta(days=1)).strftime('%Y-%m-%d')
-        self.d2_str = (now_dt + timedelta(days=2)).strftime('%Y-%m-%d')
-        self.target_window = [self.d0_str, self.d1_str, self.d2_str]
+        # 計算 今天、明天、後天 日期
+        today = datetime.now().date()
+        self.d0 = today.strftime("%Y-%m-%d")
+        self.d1 = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+        self.d2 = (today + timedelta(days=2)).strftime("%Y-%m-%d")
+        self.d0_d2 = [self.d0, self.d1, self.d2]
 
-        # 檢查檔案內是否有符合當天至+2天的記錄
-        matched_window = [r for r in self.records if self.normalize_date_str(r.get('date')) in self.target_window]
-        
-        # 若當前日期完全無匹配（如為歷史範例檔），自動尋找檔案中最大日期為基準的 3 天區間
-        if not matched_window:
-            valid_dates = []
-            for r in self.records:
-                nd = self.normalize_date_str(r.get('date'))
-                if nd:
-                    try:
-                        valid_dates.append(datetime.strptime(nd, '%Y-%m-%d'))
-                    except Exception:
-                        pass
-            if valid_dates:
-                max_d = max(valid_dates)
-                self.d0_str = (max_d - timedelta(days=2)).strftime('%Y-%m-%d')
-                self.d1_str = (max_d - timedelta(days=1)).strftime('%Y-%m-%d')
-                self.d2_str = max_d.strftime('%Y-%m-%d')
-                self.target_window = [self.d0_str, self.d1_str, self.d2_str]
-                matched_window = [r for r in self.records if self.normalize_date_str(r.get('date')) in self.target_window]
+        # 預設過濾邏輯：優先過濾「今天~後天 (3天)」
+        window_matches = [r for r in self.all_records if r.get("date") in self.d0_d2]
+        if window_matches:
+            self.current_filtered_records = window_matches
+            self.active_mode = "d0_d2"
+            self.summary_text = f"已優先過濾「今天~後天 ({self.d0} ~ {self.d2})」共 {len(window_matches)} 筆 (全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆)"
+        else:
+            self.current_filtered_records = list(self.all_records)
+            self.active_mode = "all"
+            self.summary_text = f"全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆排程 (無今天~後天資料，顯示全部)"
 
-        self.matched_window_records = matched_window
+        self.count_var = tk.IntVar(value=len(self.current_filtered_records) if len(self.current_filtered_records) <= 10 else 10)
+        self.info_var = tk.StringVar(value=self.summary_text)
 
-        # 預設選取筆數模式
-        self.mode_var = tk.StringVar(value="window" if self.matched_window_records else "count")
-        self.count_var = tk.IntVar(value=min(20, self.total_count))
-
+        self.date_btns = {}
         self.setup_ui(filename)
-        self.apply_filter()
-
-    def normalize_date_str(self, d_val):
-        if not d_val:
-            return ""
-        s = str(d_val).strip().replace('/', '-').replace('.', '-')
-        parts = s.split(' ')[0].split('-')
-        if len(parts) == 3:
-            try:
-                y, m, d = int(parts[0]), int(parts[1]), int(parts[2])
-                return f"{y:04d}-{m:02d}-{d:02d}"
-            except Exception:
-                pass
-        return s
+        self.update_preview()
 
     def setup_ui(self, filename):
         # 頂部提示資訊
-        info_frame = tk.LabelFrame(self, text="檔案與排程日期偵測", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#002060")
-        info_frame.pack(fill="x", pady=(0, 8))
+        info_frame = tk.LabelFrame(self, text="檔案偵測結果", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#002060")
+        info_frame.pack(fill="x", pady=(0, 10))
 
-        tk.Label(info_frame, text=f"📄 檔案名稱：{filename} | 📊 總計台積電排程：{self.total_count} 筆", font=("Arial", 9, "bold")).pack(anchor="w")
-        
-        window_label = f"🎯 優先篩選區間（當天至+2天）：{self.d0_str} 至 {self.d2_str} (共 {len(self.matched_window_records)} 筆排程)"
-        tk.Label(info_frame, text=window_label, fg="#2E7D32", font=("Arial", 10, "bold")).pack(anchor="w", pady=(2, 0))
+        tk.Label(info_frame, text=f"📄 檔案名稱：{filename}", font=("Arial", 10, "bold")).pack(anchor="w")
+        lbl_sum = tk.Label(info_frame, textvariable=self.info_var, fg="#2E7D32", font=("Arial", 10, "bold"), wraplength=1020, justify="left")
+        lbl_sum.pack(anchor="w", pady=(2, 0))
 
-        # 篩選與快速選擇控制區
-        ctrl_frame = tk.LabelFrame(self, text="⚡ 快速選擇匯入範圍 (預設優先顯示當天至+2天)", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#C00000")
-        ctrl_frame.pack(fill="x", pady=(0, 8))
+        # 篩選控制區
+        ctrl_frame = tk.LabelFrame(self, text="🎯 篩選與筆數設定（支援日期過濾與倒數擷取）", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#C00000")
+        ctrl_frame.pack(fill="x", pady=(0, 10))
 
-        # 第一列：依日期快速篩選
+        # 1. 篩選日期按鈕列
         date_bar = tk.Frame(ctrl_frame)
         date_bar.pack(fill="x", pady=(0, 6))
 
-        tk.Label(date_bar, text="【日期優先】", font=("Arial", 9, "bold"), fg="#1B5E20").pack(side="left")
-        
-        btn_win = tk.Button(
+        tk.Label(date_bar, text="篩選日期：", font=("Arial", 10, "bold")).pack(side="left")
+
+        btn_3days = tk.Button(
             date_bar, 
-            text=f"🌟 當天至+2天 ({len(self.matched_window_records)} 筆)", 
-            command=lambda: self.set_mode("window"), 
+            text="📅 優先抓今天~後天 (3天)", 
+            command=lambda: self.filter_by_date_mode("d0_d2"), 
             font=("Arial", 9, "bold"), 
-            bg="#E8F5E9", 
-            fg="#2E7D32", 
-            padx=10,
-            relief="groove",
+            padx=8, 
             cursor="hand2"
         )
-        btn_win.pack(side="left", padx=4)
+        btn_3days.pack(side="left", padx=3)
+        self.date_btns["d0_d2"] = btn_3days
 
-        tk.Button(
+        btn_d0 = tk.Button(
             date_bar, 
-            text=f"今天 ({self.d0_str})", 
-            command=lambda: self.set_mode("d0"), 
-            font=("Arial", 9), 
-            bg="#F1F8E9", 
-            padx=6,
+            text="今天", 
+            command=lambda: self.filter_by_date_mode("d0"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
             cursor="hand2"
-        ).pack(side="left", padx=3)
+        )
+        btn_d0.pack(side="left", padx=3)
+        self.date_btns["d0"] = btn_d0
 
-        tk.Button(
+        btn_d1 = tk.Button(
             date_bar, 
-            text=f"明天 ({self.d1_str})", 
-            command=lambda: self.set_mode("d1"), 
-            font=("Arial", 9), 
-            bg="#F1F8E9", 
-            padx=6,
+            text="明天", 
+            command=lambda: self.filter_by_date_mode("d1"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
             cursor="hand2"
-        ).pack(side="left", padx=3)
+        )
+        btn_d1.pack(side="left", padx=3)
+        self.date_btns["d1"] = btn_d1
 
-        tk.Button(
+        btn_d2 = tk.Button(
             date_bar, 
-            text=f"後天 ({self.d2_str})", 
-            command=lambda: self.set_mode("d2"), 
-            font=("Arial", 9), 
-            bg="#F1F8E9", 
-            padx=6,
+            text="後天", 
+            command=lambda: self.filter_by_date_mode("d2"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
             cursor="hand2"
-        ).pack(side="left", padx=3)
+        )
+        btn_d2.pack(side="left", padx=3)
+        self.date_btns["d2"] = btn_d2
 
-        # 第二列：依倒數筆數選擇
+        btn_all_date = tk.Button(
+            date_bar, 
+            text="全部日期", 
+            command=lambda: self.filter_by_date_mode("all"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
+            cursor="hand2"
+        )
+        btn_all_date.pack(side="left", padx=3)
+        self.date_btns["all"] = btn_all_date
+
+        self.refresh_date_buttons()
+
+        # 2. 筆數快速按鈕列
         count_bar = tk.Frame(ctrl_frame)
         count_bar.pack(fill="x")
 
-        tk.Label(count_bar, text="【筆數擷取】", font=("Arial", 9, "bold"), fg="#0D47A1").pack(side="left")
+        tk.Label(count_bar, text="選擇筆數：", font=("Arial", 10, "bold")).pack(side="left")
 
-        for n in [5, 10, 20, self.total_count]:
-            lbl = f"最新 {n} 筆" if n < self.total_count else f"全部 ({n} 筆)"
+        for num, text in [(5, "5 筆"), (10, "10 筆"), (20, "20 筆"), ("all", "全部")]:
             tk.Button(
                 count_bar, 
-                text=lbl, 
-                command=lambda num=n: self.set_count_mode(num), 
-                font=("Arial", 9), 
+                text=text, 
+                command=lambda n=num: self.set_count(n), 
+                font=("Arial", 9, "bold"), 
                 bg="#E3F2FD", 
                 fg="#0D47A1", 
-                padx=6,
+                padx=6, 
                 cursor="hand2"
             ).pack(side="left", padx=3)
 
-        tk.Label(count_bar, text="自訂倒數筆數：", font=("Arial", 9)).pack(side="left", padx=(10, 2))
-        spin = tk.Spinbox(count_bar, from_=1, to=self.total_count, textvariable=self.count_var, width=6, command=lambda: self.set_count_mode(self.count_var.get()), font=("Arial", 9, "bold"))
-        spin.pack(side="left")
-        spin.bind("<KeyRelease>", lambda e: self.set_count_mode(self.count_var.get()))
+        tk.Label(count_bar, text="自訂筆數：", font=("Arial", 9)).pack(side="left", padx=(10, 0))
+        self.spin = tk.Spinbox(count_bar, from_=1, to=max(1, len(self.current_filtered_records)), textvariable=self.count_var, width=6, command=self.update_preview, font=("Arial", 10, "bold"))
+        self.spin.pack(side="left", padx=5)
+        self.spin.bind("<KeyRelease>", lambda e: self.update_preview())
+        tk.Label(count_bar, text="筆", font=("Arial", 9)).pack(side="left")
 
-        # 預覽表格區
-        preview_frame = tk.LabelFrame(self, text="📋 即將匯入台積電排程資料預覽", font=("Arial", 9, "bold"), padx=8, pady=6)
-        preview_frame.pack(fill="both", expand=True, pady=(0, 8))
+        # 預覽表格區 (採用專業 Treeview 多欄呈現，欄寬自由拖拉，全資料完整展示)
+        preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽 (欄寬可自由拉動，全欄位完整呈現)", font=("Arial", 10, "bold"), padx=6, pady=6, fg="#002060")
+        preview_frame.pack(fill="both", expand=True, pady=(0, 10))
 
-        self.preview_listbox = tk.Listbox(preview_frame, font=("Consolas", 10), selectmode="none", borderwidth=0)
-        scroll = ttk.Scrollbar(preview_frame, orient="vertical", command=self.preview_listbox.yview)
-        self.preview_listbox.configure(yscrollcommand=scroll.set)
+        # 定義 Treeview 欄位
+        columns = ("chk", "idx", "sheet", "date", "time", "batch", "tank", "loc", "long_code")
+        self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
 
-        self.preview_listbox.pack(side="left", fill="both", expand=True)
-        scroll.pack(side="right", fill="y")
+        col_defs = [
+            ("chk", "✅選取", 50, "center"),
+            ("idx", "項次", 50, "center"),
+            ("sheet", "來源分頁", 150, "w"),
+            ("date", "出貨日期 📅", 105, "center"),
+            ("time", "到廠時間", 85, "center"),
+            ("batch", "批號 (10碼)", 125, "center"),
+            ("tank", "槽號", 75, "center"),
+            ("loc", "指送地點", 95, "center"),
+            ("long_code", "地點長代號 (全稱)", 250, "w")
+        ]
+
+        for col_id, heading_text, width, anchor in col_defs:
+            self.tree.heading(col_id, text=heading_text, anchor=anchor)
+            self.tree.column(col_id, width=width, minwidth=40, anchor=anchor, stretch=True)
+
+        scroll_y = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
+        scroll_x = ttk.Scrollbar(preview_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+
+        scroll_y.pack(side="right", fill="y")
+        scroll_x.pack(side="bottom", fill="x")
+        self.tree.pack(side="left", fill="both", expand=True)
+
+        # 斑馬紋樣式設定
+        self.tree.tag_configure("evenrow", background="#FFFFFF")
+        self.tree.tag_configure("oddrow", background="#F2F7FA")
+        self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
 
         # 底部確定按鈕區
         action_frame = tk.Frame(self)
@@ -373,10 +485,10 @@ class ImportRangeDialog(tk.Toplevel):
             action_frame, 
             text="🚀 確認匯入資料", 
             command=self.confirm_import, 
-            bg="#2E7D32", 
+            bg="#4CAF50", 
             fg="white", 
             font=("Arial", 11, "bold"), 
-            pady=6,
+            pady=7,
             cursor="hand2"
         )
         self.btn_confirm.pack(side="left", fill="x", expand=True, padx=(0, 5))
@@ -388,75 +500,475 @@ class ImportRangeDialog(tk.Toplevel):
             bg="#9E9E9E", 
             fg="white", 
             font=("Arial", 10), 
-            pady=6,
+            pady=7,
             width=10,
             cursor="hand2"
         ).pack(side="right", padx=5)
 
-    def set_mode(self, mode):
-        self.mode_var.set(mode)
-        self.apply_filter()
-
-    def set_count_mode(self, num):
-        try:
-            num = int(num)
-        except Exception:
-            num = 10
-        num = max(1, min(num, self.total_count))
-        self.count_var.set(num)
-        self.mode_var.set("count")
-        self.apply_filter()
-
-    def apply_filter(self):
-        mode = self.mode_var.get()
-        
-        if mode == "window":
-            if self.matched_window_records:
-                self.current_filtered_records = list(self.matched_window_records)
-                desc = f"「當天至+2天 ({self.d0_str} ~ {self.d2_str})」"
+    def refresh_date_buttons(self):
+        for mode, btn in self.date_btns.items():
+            if mode == self.active_mode:
+                if mode == "d0_d2":
+                    btn.config(bg="#FF9800", fg="white")
+                elif mode == "all":
+                    btn.config(bg="#7B1FA2", fg="white")
+                else:
+                    btn.config(bg="#1976D2", fg="white")
             else:
-                self.current_filtered_records = self.records[-10:]
-                desc = "「最新 10 筆」"
+                btn.config(bg="#EEEEEE", fg="#424242")
+
+    def filter_by_date_mode(self, mode):
+        if mode == "d0_d2":
+            filtered = [r for r in self.all_records if r.get("date") in self.d0_d2]
+            label = f"「今天~後天 ({self.d0} ~ {self.d2})」"
         elif mode == "d0":
-            matched = [r for r in self.records if self.normalize_date_str(r.get('date')) == self.d0_str]
-            self.current_filtered_records = matched if matched else self.records[-5:]
-            desc = f"「今天 ({self.d0_str})」"
+            filtered = [r for r in self.all_records if r.get("date") == self.d0]
+            label = f"「今天 ({self.d0})」"
         elif mode == "d1":
-            matched = [r for r in self.records if self.normalize_date_str(r.get('date')) == self.d1_str]
-            self.current_filtered_records = matched if matched else self.records[-5:]
-            desc = f"「明天 ({self.d1_str})」"
+            filtered = [r for r in self.all_records if r.get("date") == self.d1]
+            label = f"「明天 ({self.d1})」"
         elif mode == "d2":
-            matched = [r for r in self.records if self.normalize_date_str(r.get('date')) == self.d2_str]
-            self.current_filtered_records = matched if matched else self.records[-5:]
-            desc = f"「後天 ({self.d2_str})」"
+            filtered = [r for r in self.all_records if r.get("date") == self.d2]
+            label = f"「後天 ({self.d2})」"
         else:
-            try:
-                cnt = int(self.count_var.get())
-            except Exception:
-                cnt = 10
-            cnt = max(1, min(cnt, self.total_count))
-            self.current_filtered_records = self.records[-cnt:]
-            desc = f"「最新 {cnt} 筆」"
+            filtered = list(self.all_records)
+            label = "「全部日期」"
 
-        # 更新預覽列表
-        self.preview_listbox.delete(0, tk.END)
-        for idx, rec in enumerate(self.current_filtered_records, 1):
-            d_norm = self.normalize_date_str(rec.get("date")) or "無日期"
-            t_val = rec.get("time", "") or "無時間"
-            b_str = (rec.get("batch") or "").ljust(12)
-            l_str = (rec.get("loc") or "").ljust(10)
-            tk_str = (get_tank_from_batch(rec.get("batch") or "")).ljust(6)
-            
-            tag = "★優先" if d_norm in self.target_window else "  "
-            self.preview_listbox.insert(tk.END, f"{tag} [{idx:02d}] 日期: {d_norm.ljust(10)} | 時間: {t_val.ljust(6)} | 批號: {b_str} | 槽號: {tk_str} | 地點: {l_str}")
+        if not filtered:
+            messagebox.showinfo("無排程資料", f"在所有 {self.sheet_count} 個分頁中，找不到符合 {label} 的出貨排程！")
+            return
 
-        cnt_res = len(self.current_filtered_records)
-        self.btn_confirm.config(text=f"🚀 確認匯入 {desc} 共 {cnt_res} 筆排程資料")
+        self.active_mode = mode
+        self.current_filtered_records = filtered
+        self.refresh_date_buttons()
+        self.info_var.set(f"已篩選 {label} 共 {len(filtered)} 筆 (全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆)")
+        
+        self.spin.config(to=max(1, len(filtered)))
+        self.count_var.set(len(filtered))
+        self.update_preview()
+
+    def set_count(self, num):
+        if num == "all":
+            self.count_var.set(len(self.current_filtered_records))
+        else:
+            self.count_var.set(min(int(num), len(self.current_filtered_records)))
+        self.update_preview()
+
+    def update_preview(self):
+        total = len(self.current_filtered_records)
+        try:
+            cnt = self.count_var.get()
+        except Exception:
+            cnt = 1
+        cnt = max(1, min(cnt, total))
+        self.count_var.set(cnt)
+
+        slice_records = self.current_filtered_records[-cnt:]
+
+        # 清空 Treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        for idx, rec in enumerate(slice_records):
+            sheet_name = rec.get("sheet", "分頁")
+            d_str = rec.get("date") or ""
+            t_str = rec.get("time") or ""
+            b_str = rec.get("batch") or ""
+            tank_str = rec.get("tank") or ""
+            loc_str = rec.get("loc") or ""
+            long_code_str = rec.get("long_code") or getattr(self.parent_app, "mapping_dict", {}).get(loc_str, "")
+
+            tag = "evenrow" if idx % 2 == 0 else "oddrow"
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    "☑",
+                    f"[{idx+1:02d}]",
+                    sheet_name,
+                    d_str,
+                    t_str,
+                    b_str,
+                    tank_str,
+                    loc_str,
+                    long_code_str
+                ),
+                tags=(tag,)
+            )
+
+        self.btn_confirm.config(text=f"🚀 確認由下往上擷取最新的 {cnt} 筆匯入系統")
+
+    def on_tree_click(self, event):
+        region = self.tree.identify("region", event.x, event.y)
+        if region == "cell":
+            column = self.tree.identify_column(event.x)
+            if column == "#1":
+                item_id = self.tree.identify_row(event.y)
+                if item_id:
+                    vals = list(self.tree.item(item_id, "values"))
+                    vals[0] = "☐" if vals[0] == "☑" else "☑"
+                    self.tree.item(item_id, values=vals)
+                    
+                    checked = sum(1 for item in self.tree.get_children() if self.tree.item(item, "values")[0] == "☑")
+                    self.btn_confirm.config(text=f"🚀 確認將這 {checked} 筆匯入系統")
 
     def confirm_import(self):
-        self.selected_records = self.current_filtered_records
+        cnt = self.count_var.get()
+        cnt = max(1, min(cnt, len(self.current_filtered_records)))
+        slice_records = self.current_filtered_records[-cnt:]
+        
+        selected_recs = []
+        for idx, item in enumerate(self.tree.get_children()):
+            vals = self.tree.item(item, "values")
+            if vals[0] == "☑" and idx < len(slice_records):
+                selected_recs.append(slice_records[idx])
+                
+        self.selected_records = selected_recs
         self.destroy()
 
+# ================= 核心邏輯 =================
+
+class ImportRangeDialog(tk.Toplevel):
+    """
+    Excel 匯入筆數與範圍選擇對話框 (支援全分頁跨頁統計、今天~後天智慧過濾與倒數擷取)
+    """
+    def __init__(self, parent, records, filename="", sheet_count=1):
+        super().__init__(parent)
+        self.parent_app = parent
+        self.title("📥 Excel 匯入筆數與範圍選擇 (跨分頁智慧過濾)")
+        self.geometry("1080x700")
+        self.minsize(920, 560)
+        self.grab_set()
+
+        # 視窗居中於父視窗
+        try:
+            self.update_idletasks()
+            pw = parent.winfo_width()
+            ph = parent.winfo_height()
+            px = parent.winfo_rootx()
+            py = parent.winfo_rooty()
+            w, h = 1080, 700
+            x = max(20, px + (pw - w) // 2)
+            y = max(20, py + (ph - h) // 2)
+            self.geometry(f"{w}x{h}+{x}+{y}")
+        except Exception:
+            pass
+
+        self.all_records = records
+        self.sheet_count = max(1, sheet_count)
+        self.total_records_count = len(records)
+        self.selected_records = None
+
+        # 計算 今天、明天、後天 日期
+        today = datetime.now().date()
+        self.d0 = today.strftime("%Y-%m-%d")
+        self.d1 = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+        self.d2 = (today + timedelta(days=2)).strftime("%Y-%m-%d")
+        self.d0_d2 = [self.d0, self.d1, self.d2]
+
+        # 預設過濾邏輯：優先過濾「今天~後天 (3天)」
+        window_matches = [r for r in self.all_records if r.get("date") in self.d0_d2]
+        if window_matches:
+            self.current_filtered_records = window_matches
+            self.active_mode = "d0_d2"
+            self.summary_text = f"已優先過濾「今天~後天 ({self.d0} ~ {self.d2})」共 {len(window_matches)} 筆 (全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆)"
+        else:
+            self.current_filtered_records = list(self.all_records)
+            self.active_mode = "all"
+            self.summary_text = f"全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆排程 (無今天~後天資料，顯示全部)"
+
+        self.count_var = tk.IntVar(value=len(self.current_filtered_records) if len(self.current_filtered_records) <= 10 else 10)
+        self.info_var = tk.StringVar(value=self.summary_text)
+
+        self.date_btns = {}
+        self.setup_ui(filename)
+        self.update_preview()
+
+    def setup_ui(self, filename):
+        # 頂部提示資訊
+        info_frame = tk.LabelFrame(self, text="檔案偵測結果", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#002060")
+        info_frame.pack(fill="x", pady=(0, 10))
+
+        tk.Label(info_frame, text=f"📄 檔案名稱：{filename}", font=("Arial", 10, "bold")).pack(anchor="w")
+        lbl_sum = tk.Label(info_frame, textvariable=self.info_var, fg="#2E7D32", font=("Arial", 10, "bold"), wraplength=1020, justify="left")
+        lbl_sum.pack(anchor="w", pady=(2, 0))
+
+        # 篩選控制區
+        ctrl_frame = tk.LabelFrame(self, text="🎯 篩選與筆數設定（支援日期過濾與倒數擷取）", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#C00000")
+        ctrl_frame.pack(fill="x", pady=(0, 10))
+
+        # 1. 篩選日期按鈕列
+        date_bar = tk.Frame(ctrl_frame)
+        date_bar.pack(fill="x", pady=(0, 6))
+
+        tk.Label(date_bar, text="篩選日期：", font=("Arial", 10, "bold")).pack(side="left")
+
+        btn_3days = tk.Button(
+            date_bar, 
+            text="📅 優先抓今天~後天 (3天)", 
+            command=lambda: self.filter_by_date_mode("d0_d2"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
+            cursor="hand2"
+        )
+        btn_3days.pack(side="left", padx=3)
+        self.date_btns["d0_d2"] = btn_3days
+
+        btn_d0 = tk.Button(
+            date_bar, 
+            text="今天", 
+            command=lambda: self.filter_by_date_mode("d0"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
+            cursor="hand2"
+        )
+        btn_d0.pack(side="left", padx=3)
+        self.date_btns["d0"] = btn_d0
+
+        btn_d1 = tk.Button(
+            date_bar, 
+            text="明天", 
+            command=lambda: self.filter_by_date_mode("d1"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
+            cursor="hand2"
+        )
+        btn_d1.pack(side="left", padx=3)
+        self.date_btns["d1"] = btn_d1
+
+        btn_d2 = tk.Button(
+            date_bar, 
+            text="後天", 
+            command=lambda: self.filter_by_date_mode("d2"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
+            cursor="hand2"
+        )
+        btn_d2.pack(side="left", padx=3)
+        self.date_btns["d2"] = btn_d2
+
+        btn_all_date = tk.Button(
+            date_bar, 
+            text="全部日期", 
+            command=lambda: self.filter_by_date_mode("all"), 
+            font=("Arial", 9, "bold"), 
+            padx=8, 
+            cursor="hand2"
+        )
+        btn_all_date.pack(side="left", padx=3)
+        self.date_btns["all"] = btn_all_date
+
+        self.refresh_date_buttons()
+
+        # 2. 筆數快速按鈕列
+        count_bar = tk.Frame(ctrl_frame)
+        count_bar.pack(fill="x")
+
+        tk.Label(count_bar, text="選擇筆數：", font=("Arial", 10, "bold")).pack(side="left")
+
+        for num, text in [(5, "5 筆"), (10, "10 筆"), (20, "20 筆"), ("all", "全部")]:
+            tk.Button(
+                count_bar, 
+                text=text, 
+                command=lambda n=num: self.set_count(n), 
+                font=("Arial", 9, "bold"), 
+                bg="#E3F2FD", 
+                fg="#0D47A1", 
+                padx=6, 
+                cursor="hand2"
+            ).pack(side="left", padx=3)
+
+        tk.Label(count_bar, text="自訂筆數：", font=("Arial", 9)).pack(side="left", padx=(10, 0))
+        self.spin = tk.Spinbox(count_bar, from_=1, to=max(1, len(self.current_filtered_records)), textvariable=self.count_var, width=6, command=self.update_preview, font=("Arial", 10, "bold"))
+        self.spin.pack(side="left", padx=5)
+        self.spin.bind("<KeyRelease>", lambda e: self.update_preview())
+        tk.Label(count_bar, text="筆", font=("Arial", 9)).pack(side="left")
+
+        # 預覽表格區 (採用專業 Treeview 多欄呈現，欄寬自由拖拉，全資料完整展示)
+        preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽 (欄寬可自由拉動，全欄位完整呈現)", font=("Arial", 10, "bold"), padx=6, pady=6, fg="#002060")
+        preview_frame.pack(fill="both", expand=True, pady=(0, 10))
+
+        # 定義 Treeview 欄位
+        columns = ("chk", "idx", "sheet", "date", "time", "batch", "tank", "loc", "long_code")
+        self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
+
+        col_defs = [
+            ("chk", "✅選取", 50, "center"),
+            ("idx", "項次", 50, "center"),
+            ("sheet", "來源分頁", 150, "w"),
+            ("date", "出貨日期 📅", 105, "center"),
+            ("time", "到廠時間", 85, "center"),
+            ("batch", "批號 (10碼)", 125, "center"),
+            ("tank", "槽號", 75, "center"),
+            ("loc", "指送地點", 95, "center"),
+            ("long_code", "地點長代號 (全稱)", 250, "w")
+        ]
+
+        for col_id, heading_text, width, anchor in col_defs:
+            self.tree.heading(col_id, text=heading_text, anchor=anchor)
+            self.tree.column(col_id, width=width, minwidth=40, anchor=anchor, stretch=True)
+
+        scroll_y = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
+        scroll_x = ttk.Scrollbar(preview_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+
+        scroll_y.pack(side="right", fill="y")
+        scroll_x.pack(side="bottom", fill="x")
+        self.tree.pack(side="left", fill="both", expand=True)
+
+        # 斑馬紋樣式設定
+        self.tree.tag_configure("evenrow", background="#FFFFFF")
+        self.tree.tag_configure("oddrow", background="#F2F7FA")
+        self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
+
+        # 底部確定按鈕區
+        action_frame = tk.Frame(self)
+        action_frame.pack(fill="x")
+
+        self.btn_confirm = tk.Button(
+            action_frame, 
+            text="🚀 確認匯入資料", 
+            command=self.confirm_import, 
+            bg="#4CAF50", 
+            fg="white", 
+            font=("Arial", 11, "bold"), 
+            pady=7,
+            cursor="hand2"
+        )
+        self.btn_confirm.pack(side="left", fill="x", expand=True, padx=(0, 5))
+
+        tk.Button(
+            action_frame, 
+            text="❌ 取消", 
+            command=self.destroy, 
+            bg="#9E9E9E", 
+            fg="white", 
+            font=("Arial", 10), 
+            pady=7,
+            width=10,
+            cursor="hand2"
+        ).pack(side="right", padx=5)
+
+    def refresh_date_buttons(self):
+        for mode, btn in self.date_btns.items():
+            if mode == self.active_mode:
+                if mode == "d0_d2":
+                    btn.config(bg="#FF9800", fg="white")
+                elif mode == "all":
+                    btn.config(bg="#7B1FA2", fg="white")
+                else:
+                    btn.config(bg="#1976D2", fg="white")
+            else:
+                btn.config(bg="#EEEEEE", fg="#424242")
+
+    def filter_by_date_mode(self, mode):
+        if mode == "d0_d2":
+            filtered = [r for r in self.all_records if r.get("date") in self.d0_d2]
+            label = f"「今天~後天 ({self.d0} ~ {self.d2})」"
+        elif mode == "d0":
+            filtered = [r for r in self.all_records if r.get("date") == self.d0]
+            label = f"「今天 ({self.d0})」"
+        elif mode == "d1":
+            filtered = [r for r in self.all_records if r.get("date") == self.d1]
+            label = f"「明天 ({self.d1})」"
+        elif mode == "d2":
+            filtered = [r for r in self.all_records if r.get("date") == self.d2]
+            label = f"「後天 ({self.d2})」"
+        else:
+            filtered = list(self.all_records)
+            label = "「全部日期」"
+
+        if not filtered:
+            messagebox.showinfo("無排程資料", f"在所有 {self.sheet_count} 個分頁中，找不到符合 {label} 的出貨排程！")
+            return
+
+        self.active_mode = mode
+        self.current_filtered_records = filtered
+        self.refresh_date_buttons()
+        self.info_var.set(f"已篩選 {label} 共 {len(filtered)} 筆 (全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆)")
+        
+        self.spin.config(to=max(1, len(filtered)))
+        self.count_var.set(len(filtered))
+        self.update_preview()
+
+    def set_count(self, num):
+        if num == "all":
+            self.count_var.set(len(self.current_filtered_records))
+        else:
+            self.count_var.set(min(int(num), len(self.current_filtered_records)))
+        self.update_preview()
+
+    def update_preview(self):
+        total = len(self.current_filtered_records)
+        try:
+            cnt = self.count_var.get()
+        except Exception:
+            cnt = 1
+        cnt = max(1, min(cnt, total))
+        self.count_var.set(cnt)
+
+        slice_records = self.current_filtered_records[-cnt:]
+
+        # 清空 Treeview
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        for idx, rec in enumerate(slice_records):
+            sheet_name = rec.get("sheet", "分頁")
+            d_str = rec.get("date") or ""
+            t_str = rec.get("time") or ""
+            b_str = rec.get("batch") or ""
+            tank_str = rec.get("tank") or ""
+            loc_str = rec.get("loc") or ""
+            long_code_str = rec.get("long_code") or getattr(self.parent_app, "mapping_dict", {}).get(loc_str, "")
+
+            tag = "evenrow" if idx % 2 == 0 else "oddrow"
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    "☑",
+                    f"[{idx+1:02d}]",
+                    sheet_name,
+                    d_str,
+                    t_str,
+                    b_str,
+                    tank_str,
+                    loc_str,
+                    long_code_str
+                ),
+                tags=(tag,)
+            )
+
+        self.btn_confirm.config(text=f"🚀 確認由下往上擷取最新的 {cnt} 筆匯入系統")
+
+    def on_tree_click(self, event):
+        region = self.tree.identify("region", event.x, event.y)
+        if region == "cell":
+            column = self.tree.identify_column(event.x)
+            if column == "#1":
+                item_id = self.tree.identify_row(event.y)
+                if item_id:
+                    vals = list(self.tree.item(item_id, "values"))
+                    vals[0] = "☐" if vals[0] == "☑" else "☑"
+                    self.tree.item(item_id, values=vals)
+                    
+                    checked = sum(1 for item in self.tree.get_children() if self.tree.item(item, "values")[0] == "☑")
+                    self.btn_confirm.config(text=f"🚀 確認將這 {checked} 筆匯入系統")
+
+    def confirm_import(self):
+        cnt = self.count_var.get()
+        cnt = max(1, min(cnt, len(self.current_filtered_records)))
+        slice_records = self.current_filtered_records[-cnt:]
+        
+        selected_recs = []
+        for idx, item in enumerate(self.tree.get_children()):
+            vals = self.tree.item(item, "values")
+            if vals[0] == "☑" and idx < len(slice_records):
+                selected_recs.append(slice_records[idx])
+                
+        self.selected_records = selected_recs
+        self.destroy()
 # ================= 核心邏輯 =================
 
 def normalize_location(loc_raw):
@@ -674,6 +1186,74 @@ def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
     wb.save(output_path)
     wb.close()
 
+def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
+    new_wb = openpyxl.Workbook()
+    new_ws = new_wb.active
+    new_ws.title = src_ws.title
+    
+    # 複製欄寬
+    for col_letter, col_dim in src_ws.column_dimensions.items():
+        if col_dim.width:
+            new_ws.column_dimensions[col_letter].width = col_dim.width
+            
+    def copy_cell(s_cell, d_cell):
+        d_cell.value = s_cell.value
+        if s_cell.has_style:
+            d_cell.font = copy(s_cell.font)
+            d_cell.border = copy(s_cell.border)
+            d_cell.fill = copy(s_cell.fill)
+            d_cell.number_format = copy(s_cell.number_format)
+            d_cell.protection = copy(s_cell.protection)
+            d_cell.alignment = copy(s_cell.alignment)
+
+    # 複製列高 (保持第 6 列表頭與資料列原始高度)
+    for r in range(1, 8):
+        src_r = r if r <= 6 else target_row
+        if src_ws.row_dimensions[src_r].height:
+            new_ws.row_dimensions[r].height = src_ws.row_dimensions[src_r].height
+
+    # 複製 1~6 列表頭
+    for r in range(1, 7):
+        for c in range(1, max_cols + 1):
+            copy_cell(src_ws.cell(r, c), new_ws.cell(r, c))
+            
+    # 複製目標資料列至第 7 列
+    for c in range(1, max_cols + 1):
+        copy_cell(src_ws.cell(target_row, c), new_ws.cell(7, c))
+        
+    # 自動智慧調整欄寬，確保所有欄位表頭與資料完整顯示不被遮擋
+    for col_idx in range(1, max_cols + 1):
+        col_letter = get_column_letter(col_idx)
+        max_len = 0
+        for r in range(1, 8):
+            val = new_ws.cell(r, col_idx).value
+            if val is not None:
+                if isinstance(val, (datetime, date)):
+                    s = val.strftime('%Y/%m/%d')
+                else:
+                    s = str(val).strip()
+                lines = s.split('\n')
+                for line in lines:
+                    line_len = sum(2.0 if ord(ch) > 127 else 1.15 for ch in line)
+                    if line_len > max_len:
+                        max_len = line_len
+        if max_len > 0:
+            # 依最長文字加上留白邊界 (+4.0)，至少 13.0
+            adjusted_width = max(max_len + 4.0, 13.0)
+            orig_w = new_ws.column_dimensions[col_letter].width
+            if orig_w and orig_w > adjusted_width:
+                adjusted_width = orig_w
+            new_ws.column_dimensions[col_letter].width = round(adjusted_width, 1)
+
+    # 確保第 6 列表頭高度 (28.0) 與第 7 列資料列高度 (22.0) 呼吸空間
+    new_ws.row_dimensions[6].height = 28.0
+    new_ws.row_dimensions[7].height = 22.0
+
+    # 保持正常從第 1 列 (A1) 完整顯示表頭與第 7 列資料 (如圖二)，不捲動遮蔽
+    new_ws.freeze_panes = 'A7'
+            
+    return new_wb
+
 # ================= 介面與操作 =================
 
 class App(tk.Tk):
@@ -693,7 +1273,34 @@ class App(tk.Tk):
         self.setup_ui()
         self.entries = []
         self.coa_paths = []
+        self.lorry_df = None
+        self.lorry_df = None
         self.add_input_rows(20)
+
+    def show_loading(self, msg="⏳ 系統處理中，請稍候..."):
+        self.config(cursor="wait")
+        self.loading_win = tk.Toplevel(self)
+        self.loading_win.title("處理中")
+        self.loading_win.geometry("300x120")
+        self.loading_win.transient(self)
+        self.loading_win.grab_set()
+        
+        self.update_idletasks()
+        x = self.winfo_x() + (self.winfo_width() // 2) - 150
+        y = self.winfo_y() + (self.winfo_height() // 2) - 60
+        self.loading_win.geometry(f"+{x}+{y}")
+        self.loading_win.overrideredirect(True)
+        self.loading_win.configure(bg="white", relief="raised", bd=2)
+        
+        tk.Label(self.loading_win, text=msg, font=("Microsoft JhengHei", 12, "bold"), fg="#002060", bg="white").pack(expand=True)
+        self.update()
+
+    def hide_loading(self):
+        self.config(cursor="")
+        if hasattr(self, 'loading_win') and self.loading_win:
+            self.loading_win.grab_release()
+            self.loading_win.destroy()
+            self.loading_win = None
 
     def load_mapping(self):
         self.mapping_dict = {}
@@ -778,8 +1385,9 @@ class App(tk.Tk):
         right_btn_frame.pack(side="right")
         
         tk.Button(right_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(right_btn_frame, text="📂 載入既有通知表修訂", command=self.load_existing_transport_notice, bg="#7B1FA2", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(right_btn_frame, text="📥 從 Excel 匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"), padx=8, cursor="hand2").pack(side="left", padx=(4, 0))
+        tk.Button(right_btn_frame, text="📄 載入 COA 表單", command=self.load_coa_forms, bg="#00ACC1", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(right_btn_frame, text="📋 載入生產履歷", command=self.load_chemical_lorry_file, bg="#8E44AD", fg="white", font=("Arial", 9, "bold"), padx=8, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(right_btn_frame, text="📥 從排程匯入", command=self.import_from_excel, bg="#2196F3", fg="white", font=("Arial", 10, "bold"), padx=8, cursor="hand2").pack(side="left", padx=(4, 0))
 
         # 批次設定預設值列
         batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (日期 / 預計時間 / 修正時間)", font=("Arial", 9, "bold"), padx=8, pady=5)
@@ -813,9 +1421,9 @@ class App(tk.Tk):
         opt_frame = tk.Frame(batch_setting_frame)
         opt_frame.pack(side="right")
         self.gen_3in1_var = tk.BooleanVar(value=True)
-        self.gen_transport_var = tk.BooleanVar(value=True)
+        self.gen_lorry_var = tk.BooleanVar(value=True)
         tk.Checkbutton(opt_frame, text="產生三合一單", variable=self.gen_3in1_var, font=("Arial", 9, "bold"), fg="#1B5E20").pack(side="left", padx=5)
-        tk.Checkbutton(opt_frame, text="產生運輸通知表", variable=self.gen_transport_var, font=("Arial", 9, "bold"), fg="#0D47A1").pack(side="left", padx=5)
+        tk.Checkbutton(opt_frame, text="產生單列生產履歷 Excel", variable=self.gen_lorry_var, font=("Arial", 9, "bold"), fg="#0D47A1").pack(side="left", padx=5)
 
         # 滾動容器
         table_container = tk.Frame(self)
@@ -853,7 +1461,8 @@ class App(tk.Tk):
             (7, "出貨日期 📅"),
             (8, "預計到廠時間"),
             (9, "修正到廠時間"),
-            (10, "單列清空")
+            (10, "採購單號"),
+            (11, "單列清空")
         ]
         
         for col_idx, title in headers:
@@ -957,7 +1566,12 @@ class App(tk.Tk):
             mod_time_entry = tk.Entry(self.scrollable_frame, textvariable=mod_time_var, width=10, font=("Arial", 10), fg="red")
             mod_time_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 10: 單列清空按鈕
+            # Col 10: 採購單號
+            po_var = tk.StringVar(value="")
+            po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=18, font=("Arial", 10), fg="#333")
+            po_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
+
+            # Col 11: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
                 text="清空", 
@@ -969,13 +1583,13 @@ class App(tk.Tk):
                 width=6,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=10, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=11, padx=4, pady=2)
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
             
-            for widget in (batch_entry, loc_entry, date_entry, prod_entry):
+            for widget in (batch_entry, loc_entry, date_entry, prod_entry, po_entry):
                 widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
@@ -989,7 +1603,8 @@ class App(tk.Tk):
                 "long_code_var": long_code_var,
                 "date_var": date_var,
                 "time_var": time_var,
-                "mod_time_var": mod_time_var
+                "mod_time_var": mod_time_var,
+                "po_var": po_var
             })
 
     def clear_all_rows(self):
@@ -1144,7 +1759,7 @@ class App(tk.Tk):
 
 
     def upload_coa(self):
-        if not os.path.exists(r'C:\Program Files\Tesseract-OCR	esseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR	esseract.exe'):
+        if not os.path.exists(r'C:\Program Files\Tesseract-OCR    esseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR    esseract.exe'):
             ans = messagebox.askyesno(
                 "缺少 OCR 引擎", 
                 "系統偵測到您尚未安裝『Tesseract OCR 引擎』，無法使用截圖辨識功能！\n\n"
@@ -1160,6 +1775,7 @@ class App(tk.Tk):
             self.coa_paths.extend(filepaths)
             messagebox.showinfo("上傳成功", f"成功上傳 {len(filepaths)} 張截圖！\n目前共 {len(self.coa_paths)} 張待處理。")
 
+
     def import_from_excel(self):
         filepaths = filedialog.askopenfilenames(
             title="選擇要匯入的 Excel 或 CSV 檔案 (可多選)",
@@ -1168,11 +1784,23 @@ class App(tk.Tk):
         if not filepaths:
             return
             
+        if not hasattr(self, "imported_lorry_files"):
+            self.imported_lorry_files = []
+        for fp in filepaths:
+            fn = os.path.basename(fp).lower()
+            if fp.lower().endswith(('.xlsx', '.xls')) and ('chemical' in fn or 'lorry' in fn or '勝一' in fn):
+                if fp not in self.imported_lorry_files:
+                    self.imported_lorry_files.append(fp)
+        self.update_lorry_status()
+
         total_imported = 0
         for filepath in filepaths:
             try:
-                rows = []
+                records = []
+                sheet_count = 1
+
                 if filepath.lower().endswith('.csv'):
+                    rows = []
                     try:
                         with open(filepath, 'r', encoding='utf-8-sig') as f:
                             reader = csv.reader(f)
@@ -1181,147 +1809,233 @@ class App(tk.Tk):
                         with open(filepath, 'r', encoding='cp950') as f:
                             reader = csv.reader(f)
                             rows = list(reader)
-                else:
-                    wb = openpyxl.load_workbook(filepath, data_only=True)
-                    if '空白班表' in wb.sheetnames:
-                        ws = wb['空白班表']
-                    else:
-                        ws = wb.active
-                    for r in ws.iter_rows(values_only=True):
-                        rows.append(r)
-                    wb.close()
-                
-                records = []
-                
-                # Check for vertical CSV format (e.g. RawLotId in first column)
-                is_vertical_csv = False
-                for r_idx, row_vals in enumerate(rows[:20]):
-                    if len(row_vals) >= 2:
-                        key = str(row_vals[0]).strip()
-                        if key == "RawLotId":
+
+                    # Check for vertical CSV format (e.g. RawLotId in first column)
+                    is_vertical_csv = False
+                    for r_idx, row_vals in enumerate(rows[:20]):
+                        if len(row_vals) >= 2 and str(row_vals[0]).strip() == "RawLotId":
                             is_vertical_csv = True
                             break
-                            
-                if is_vertical_csv:
-                    batch_val = ""
-                    date_val = ""
-                    loc_val = ""
-                    
-                    for r_idx, row_vals in enumerate(rows[:30]):
-                        if len(row_vals) >= 2:
-                            key = str(row_vals[0]).strip()
-                            val = str(row_vals[1]).strip()
-                            if key == "RawLotId":
-                                batch_val = val
-                            elif key == "DeliverDate":
-                                date_val = val
-                                
-                    fname = os.path.basename(filepath)
-                    m = re.search(r'\s([A-Za-z0-9]+)_\d+\.csv$', fname, re.IGNORECASE)
-                    if m:
-                        loc_val = m.group(1)
-                    else:
-                        parts = fname.split('_')
-                        if len(parts) >= 2:
-                            last_part = parts[-2]
-                            sub_parts = last_part.split(' ')
-                            loc_val = sub_parts[-1]
-                            
-                    if batch_val:
-                        d_pure, t_pure = split_date_and_time(date_val) if date_val else ("", "")
-                        records.append({
-                            "batch": batch_val,
-                            "loc": loc_val,
-                            "date": d_pure,
-                            "time": "",
-                            "mod_time": ""
-                        })
-                else:
-                    # Original horizontal format parsing
-                    batch_col = -1
-                    loc_col = -1
-                    date_col = -1
-                    time_col = -1
-                    mod_time_col = -1
-                    cust_col = -1
-                    prod_col = -1
-                    start_row = -1
-                    
-                    for r_idx, row_vals in enumerate(rows[:10]):
-                        for c_idx, val in enumerate(row_vals):
-                            if val is None: continue
-                            v_str = str(val).strip()
-                            if "批號" in v_str:
-                                batch_col = c_idx
-                            if "對象" in v_str or "客戶" in v_str or "廠商" in v_str:
-                                cust_col = c_idx
-                            if "品名" in v_str or "產品" in v_str:
-                                prod_col = c_idx
-                            if "地點" in v_str or "交貨地點" in v_str or "指送地" in v_str or "指送" in v_str:
-                                loc_col = c_idx
-                            if "日期" in v_str or "到貨日期" in v_str or "出車日期" in v_str:
-                                date_col = c_idx
-                            if "修正" in v_str and "時間" in v_str:
-                                mod_time_col = c_idx
-                            elif ("時間" in v_str or "到貨時間" in v_str) and mod_time_col == -1:
-                                time_col = c_idx
-                                
-                        if batch_col != -1 and loc_col != -1:
-                            start_row = r_idx + 1
-                            break
-                            
-                    if batch_col == -1 or loc_col == -1:
-                        batch_col = 1
-                        loc_col = 3
-                        start_row = 1
-                    
-                    for r_idx in range(start_row, len(rows)):
-                        row = rows[r_idx]
-                        if len(row) <= max(batch_col, loc_col): continue
-                        
-                        b_val = row[batch_col] if batch_col < len(row) else None
-                        c_val = row[cust_col] if cust_col != -1 and cust_col < len(row) else None
-                        l_val = row[loc_col] if loc_col < len(row) else None
-                        d_val = row[date_col] if date_col != -1 and date_col < len(row) else None
-                        t_val = row[time_col] if time_col != -1 and time_col < len(row) else None
-                        mt_val = row[mod_time_col] if mod_time_col != -1 and mod_time_col < len(row) else None
-                        
-                        # 嚴格過濾：僅保留台積電 (TSMC) 訂單
-                        is_tsmc = False
-                        if c_val and "台積" in str(c_val):
-                            is_tsmc = True
-                        elif l_val and ("台積" in str(l_val) or re.search(r'^(?:12P|14P|15P|18P|AP|F\d+)', str(l_val).strip())):
-                            is_tsmc = True
-                        elif not c_val and l_val:
-                            norm_l = normalize_location(l_val)
-                            if norm_l in self.mapping_dict or "台積" in str(l_val) or re.search(r'^(?:12P|14P|15P|18P|AP|F\d+)', str(l_val).strip()):
-                                is_tsmc = True
-                                
-                        if not is_tsmc:
-                            continue
-                        
-                        p_val = row[prod_col] if prod_col != -1 and prod_col < len(row) else None
-                        p_str = str(p_val).strip() if p_val else "IPA"
-                        
-                        if b_val and str(b_val).strip() and not str(b_val).startswith('批號'):
-                            d_pure, t_pure = split_date_and_time(d_val)
-                            t_final = str(t_val).strip() if t_val else t_pure
-                            
+
+                    if is_vertical_csv:
+                        batch_val, date_val, loc_val = "", "", ""
+                        for r_idx, row_vals in enumerate(rows[:30]):
+                            if len(row_vals) >= 2:
+                                key = str(row_vals[0]).strip()
+                                val = str(row_vals[1]).strip()
+                                if key == "RawLotId": batch_val = val
+                                elif key == "DeliverDate": date_val = val
+                        fname = os.path.basename(filepath)
+                        m = re.search(r'\s([A-Za-z0-9]+)_\d+\.csv$', fname, re.IGNORECASE)
+                        if m:
+                            loc_val = m.group(1)
+                        else:
+                            parts = fname.split('_')
+                            if len(parts) >= 2:
+                                loc_val = parts[-2].split(' ')[-1]
+                        po_val = ""
+                        if batch_val:
+                            norm_d = normalize_date_str(date_val)
                             records.append({
-                                "batch": str(b_val).strip(),
-                                "product": p_str,
-                                "weight": "4300",
-                                "loc": normalize_location(l_val) if l_val else "",
-                                "date": d_pure,
-                                "time": t_final,
-                                "mod_time": str(mt_val).strip() if mt_val else ""
+                                "sheet": "CSV",
+                                "batch": batch_val,
+                                "loc": clean_location_str(loc_val, self.mapping_dict),
+                                "date": norm_d,
+                                "time": "",
+                                "mod_time": "",
+                                "tank": get_tank_from_batch(batch_val)
                             })
-                        
+                    else:
+                        # Standard horizontal CSV
+                        batch_col, loc_col, date_col, tank_col, time_col, mod_time_col, po_col = -1, -1, -1, -1, -1, -1, -1
+                        start_row = 0
+                        for r_idx in range(min(15, len(rows))):
+                            row = rows[r_idx]
+                            if not row: continue
+                            for c_idx, val in enumerate(row):
+                                v = str(val or "").strip().upper()
+                                if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
+                                if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
+                                if date_col == -1 and any(k in v for k in ["到貨日", "出貨日", "出車日", "日期", "DATE"]) and "地" not in v and "點" not in v: date_col = c_idx
+                                if tank_col == -1 and any(k in v for k in ["槽號", "槽車", "TANK"]) and not any(k in v for k in ["日", "期", "時間", "TIME", "DATE", "到廠", "出車", "出貨"]): tank_col = c_idx
+                                if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
+                                if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
+                                if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                            if batch_col != -1 and (loc_col != -1 or date_col != -1):
+                                start_row = r_idx + 1
+                                break
+                        if batch_col == -1 or loc_col == -1:
+                            batch_col, date_col, tank_col, loc_col = 2, 1, 3, 4
+                            start_row = 2
+                        for r_idx in range(start_row, len(rows)):
+                            row = rows[r_idx]
+                            if not row: continue
+                            def get_c(c): return row[c] if c != -1 and c < len(row) else None
+                            b_val = str(get_c(batch_col) or "").strip().upper()
+                            l_val = str(get_c(loc_col) or "").strip().upper()
+                            d_val = get_c(date_col)
+                            t_val = str(get_c(tank_col) or "").strip()
+                            tm_val = normalize_time_str(get_c(time_col))
+                            mt_val = normalize_time_str(get_c(mod_time_col))
+                            po_val = str(get_c(po_col) or "").strip()
+                            if len(b_val) != 10 or not re.search(r'[0-9]', b_val):
+                                for cell in row:
+                                    cs = str(cell or "").strip().upper()
+                                    if len(cs) == 10 and re.search(r'[0-9]', cs) and re.search(r'[A-Z]', cs) and "/" not in cs and "-" not in cs:
+                                        b_val = cs
+                                        break
+                            if len(b_val) == 10 and re.search(r'[0-9]', b_val):
+                                is_valid_tank = (
+                                    t_val and 
+                                    len(t_val) <= 6 and 
+                                    not any(c in t_val for c in ["-", "/", ":", " "]) and
+                                    not (len(t_val) > 4 and t_val.isdigit())
+                                )
+                                tank_final = t_val if is_valid_tank else get_tank_from_batch(b_val)
+                                clean_l = clean_location_str(l_val, self.mapping_dict)
+                                records.append({
+                                    "sheet": "CSV",
+                                    "batch": b_val,
+                                    "tank": tank_final,
+                                    "loc": clean_l,
+                                    "long_code": self.mapping_dict.get(clean_l, ""),
+                                    "date": normalize_date_str(d_val),
+                                    "time": tm_val,
+                                    "mod_time": mt_val,
+                                "po": po_val
+                            })
+                else:
+                    # 遍歷 Excel 所有分頁 (跨分頁抓取所有有效排程)
+                    wb = openpyxl.load_workbook(filepath, data_only=True)
+                    sheet_count = len(wb.worksheets)
+
+                    for ws in wb.worksheets:
+                        sheet_name = ws.title
+                        rows = list(ws.iter_rows(values_only=True))
+                        if not rows or len(rows) == 0:
+                            continue
+
+                        # 檢查分頁全域文字是否標記為台積電
+                        sheet_has_tsmc = False
+                        for r_idx in range(min(5, len(rows))):
+                            row_str = " ".join(str(cell or "") for cell in rows[r_idx]).upper()
+                            if "TSMC" in row_str or "台積" in row_str:
+                                sheet_has_tsmc = True
+                                break
+
+                        # 動態掃描前 15 列尋找標題欄位
+                        batch_col = -1
+                        loc_col = -1
+                        date_col = -1
+                        tank_col = -1
+                        time_col = -1
+                        mod_time_col = -1
+                        cust_col = -1
+                        po_col = -1
+                        start_row = 0
+
+                        for r_idx in range(min(15, len(rows))):
+                            row = rows[r_idx]
+                            if not row: continue
+                            for c_idx, val in enumerate(row):
+                                v = str(val or "").strip().upper()
+                                if not v: continue
+                                if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
+                                if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
+                                if date_col == -1 and (v in ["到貨", "到貨日", "日期", "出車"] or any(k in v for k in ["到貨日", "出貨日", "出車日", "日期", "DATE"])) and "地" not in v and "點" not in v: date_col = c_idx
+                                if tank_col == -1 and any(k in v for k in ["槽號", "槽車", "TANK"]) and not any(k in v for k in ["日", "期", "時間", "TIME", "DATE", "到廠", "出車", "出貨"]): tank_col = c_idx
+                                if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
+                                if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
+                                if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if cust_col == -1 and any(k in v for k in ["對象", "客戶", "廠商", "CUSTOMER"]): cust_col = c_idx
+
+                            if batch_col != -1 and (loc_col != -1 or date_col != -1):
+                                start_row = r_idx + 1
+                                break
+
+                        if batch_col == -1 or loc_col == -1:
+                            batch_col = 2
+                            date_col = 1
+                            tank_col = 3
+                            loc_col = 4
+                            start_row = 2
+
+                        for r_idx in range(start_row, len(rows)):
+                            row = rows[r_idx]
+                            if not row or len(row) == 0: continue
+
+                            def get_cell_val(c):
+                                return row[c] if c != -1 and c < len(row) else None
+
+                            b_val = str(get_cell_val(batch_col) or "").strip().upper()
+                            l_val = str(get_cell_val(loc_col) or "").strip().upper()
+                            d_val = get_cell_val(date_col)
+                            t_val = str(get_cell_val(tank_col) or "").strip()
+                            time_val = normalize_time_str(get_cell_val(time_col))
+                            mt_val = normalize_time_str(get_cell_val(mod_time_col))
+                            po_val = str(get_cell_val(po_col) or "").strip()
+                            cust_val = str(get_cell_val(cust_col) or "").strip()
+
+                            # 若預設欄位非 10 碼批號，全列搜尋 10 碼英數混合批號
+                            if len(b_val) != 10 or not any(c.isdigit() for c in b_val):
+                                for cell in row:
+                                    cell_str = str(cell or "").strip().upper()
+                                    if len(cell_str) == 10 and any(c.isdigit() for c in cell_str) and any(c.isalpha() for c in cell_str) and "/" not in cell_str and "-" not in cell_str:
+                                        b_val = cell_str
+                                        break
+
+                            if len(b_val) != 10 or not any(c.isdigit() for c in b_val):
+                                continue
+
+                            # 排除非台積電客戶 (例如南亞、長春、聯電、日月光)
+                            if cust_val and any(non in cust_val for non in ["南亞", "長春", "聯電", "日月光"]) and "台積" not in cust_val:
+                                continue
+
+                            clean_loc = clean_location_str(l_val, self.mapping_dict)
+                            is_tsmc = sheet_has_tsmc or ("台積" in cust_val if cust_val else False) or \
+                                      any(k in l_val for k in ["台積", "18P", "15P", "12P", "14P", "AP", "F"]) or \
+                                      (clean_loc in self.mapping_dict)
+                            if not is_tsmc and cust_val and "台積" not in cust_val:
+                                continue
+
+                            norm_date = normalize_date_str(d_val)
+                            
+                            # 槽號驗證：槽號為 3~6 碼英數代號（如 E319、E308、E29J），排除誤抓之日期或時間字串
+                            is_valid_tank = (
+                                t_val and 
+                                len(t_val) <= 6 and 
+                                not any(sep in t_val for sep in ["-", "/", ":", " "]) and 
+                                not (len(t_val) > 4 and t_val.isdigit())
+                            )
+                            if not is_valid_tank:
+                                t_val = get_tank_from_batch(b_val)
+
+                            # 格式化時間 (統一為 4 碼如 0900)
+                            t_final = time_val
+                            if isinstance(d_val, datetime) and not t_final:
+                                hm = f"{d_val.hour:02d}{d_val.minute:02d}"
+                                if hm != "0000": t_final = hm
+
+                            records.append({
+                                "sheet": sheet_name,
+                                "batch": b_val,
+                                "tank": t_val,
+                                "loc": clean_loc,
+                                "long_code": self.mapping_dict.get(clean_loc, ""),
+                                "date": norm_date,
+                                "time": t_final,
+                                "mod_time": mt_val,
+                                "po": po_val
+                            })
+                    wb.close()
+
                 if not records:
-                    messagebox.showinfo("提示", f"在檔案 {os.path.basename(filepath)} 中找不到有效資料！")
+                    messagebox.showinfo("匯入提示", f"在檔案 {os.path.basename(filepath)} 的所有 {sheet_count} 個分頁中，找不到任何有效的台積電排程資料！")
                     continue
 
-                dialog = ImportRangeDialog(self, records, os.path.basename(filepath))
+                dialog = ImportRangeDialog(self, records, os.path.basename(filepath), sheet_count=sheet_count)
                 self.wait_window(dialog)
 
                 if not dialog.selected_records:
@@ -1343,126 +2057,229 @@ class App(tk.Tk):
                     
                 for i, rec in enumerate(target_records):
                     row_e = self.entries[start_idx + i]
-                    row_e["chk_var"].set(True)
-                    row_e["batch_var"].set(rec["batch"])
-                    if rec.get("product"): row_e["prod_var"].set(rec["product"])
-                    row_e["loc_var"].set(rec["loc"])
-                    if rec["date"]: row_e["date_var"].set(rec["date"])
-                    if rec["time"]: row_e["time_var"].set(rec["time"])
-                    if rec["mod_time"]: row_e["mod_time_var"].set(rec["mod_time"])
+                    row_e["batch_var"].set(rec.get("batch", ""))
+                    if "tank_var" in row_e and rec.get("tank"):
+                        row_e["tank_var"].set(rec["tank"])
+                    row_e["loc_var"].set(rec.get("loc", ""))
+                    if rec.get("product"): row_e.get("prod_var", tk.StringVar()).set(rec["product"])
+                    if rec.get("date"): row_e["date_var"].set(rec["date"])
+                    if rec.get("time"): row_e["time_var"].set(rec["time"])
+                    if rec.get("mod_time"): row_e["mod_time_var"].set(rec["mod_time"])
+                    if rec.get("po"): row_e.get("po_var", tk.StringVar()).set(rec["po"])
                     
                 total_imported += len(target_records)
                 
             except Exception as e:
-                messagebox.showerror("匯入失敗", f"解析檔案 {os.path.basename(filepath)} 時發生錯誤:\n{e}")
+                messagebox.showerror("匯入錯誤", f"解析檔案 {os.path.basename(filepath)} 時發生錯誤:\n{e}")
                 
         if total_imported > 0:
-            messagebox.showinfo("匯入完成", f"已成功從所選檔案中匯入共 {total_imported} 筆資料！")
+            messagebox.showinfo("匯入成功", f"成功從所選檔案匯入 {total_imported} 筆！")
 
-    def load_existing_transport_notice(self):
-        """
-        讓人員手動選擇要修訂的『運輸通知表.xlsx』或資料夾，預設開啟當天的輸出資料夾。
-        還原原本的所有位置 (第1~N列)，讓人員直接於指定列輸入『修正到廠時間』！
-        """
+    def update_lorry_status(self):
+        if not hasattr(self, "imported_lorry_files"):
+            self.imported_lorry_files = []
+        if not self.imported_lorry_files:
+            defaults = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+            if defaults:
+                self.imported_lorry_files = [defaults[0]]
+        
+        if hasattr(self, "lbl_lorry_status"):
+            if self.imported_lorry_files:
+                fname = os.path.basename(self.imported_lorry_files[0])
+                self.lbl_lorry_status.config(
+                    text=f"生產履歷檔案 (Chemical_Lorry*.xlsx): ✅ 已就緒 ({fname})",
+                    fg="#2E7D32"
+                )
+            else:
+                self.lbl_lorry_status.config(
+                    text="生產履歷檔案 (Chemical_Lorry*.xlsx): ⚠️ 尚未載入 (點擊右側按鈕或下方工具列『📋 載入生產履歷』)",
+                    fg="#D32F2F"
+                )
 
-        # 預設開啟今天的輸出資料夾
-        today_dir_name = f"勝一三合一單輸出_{datetime.now().strftime('%Y%m%d')}"
-        today_dir = os.path.join(self.base_dir, today_dir_name)
-        initial_dir = today_dir if os.path.exists(today_dir) else self.base_dir
-
+    def load_chemical_lorry_file(self):
         filepath = filedialog.askopenfilename(
-            initialdir=initial_dir,
-            title="選擇要修訂的運輸通知表 Excel 檔案",
-            filetypes=[("Excel 運輸通知表", "*.xlsx *.xls")]
+            title="選擇生產履歷檔案 (Chemical_Lorry)",
+            filetypes=[("Excel 活頁簿", "*.xlsx *.xls"), ("所有檔案", "*.*")]
         )
         if not filepath:
             return
+            
+        try:
+            self.show_loading("⏳ 正在處理生產履歷，請稍候...")
+            self.imported_lorry_files = [filepath]
+            self.update_lorry_status()
+            self.gen_lorry_var.set(True)
+            fname = os.path.basename(filepath)
+            
+            # 因為這步驟僅是讀取路徑非常快，故意加上 0.5 秒延遲讓畫面顯示給人員看，避免覺得沒反應
+            import time
+            time.sleep(0.5)
+            self.update()
+        finally:
+            self.hide_loading()
+            
+        messagebox.showinfo(
+            "生產履歷已載入", 
+            f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n稍後點擊【開始批次產生】時，系統會自動比對每筆排程批號並單列輸出。"
+        )
 
-        records = []
-        target_dir = os.path.dirname(filepath)
-        folder_name = os.path.basename(target_dir)
-
-        # 1. 優先嘗試讀取該輸出資料夾中的 session.json 快取（包含完整 10 碼批號）
-        session_file = os.path.join(target_dir, "session.json")
-        if os.path.exists(session_file):
-            try:
-                with open(session_file, "r", encoding="utf-8") as f:
-                    records = json.load(f)
-            except Exception:
-                records = []
-
-        # 2. 若快取不存在，則直接分析選取的 Excel 運輸通知表卡片
-        if not records:
-            try:
-                wb = openpyxl.load_workbook(filepath, data_only=True)
-                ws = wb.active
-
-                curr_r = 1
-                while curr_r <= ws.max_row:
-                    d_val = ws.cell(row=curr_r, column=6).value
-                    t_val = ws.cell(row=curr_r+2, column=6).value
-                    mt_val = ws.cell(row=curr_r+3, column=6).value or ws.cell(row=curr_r+3, column=13).value
-                    l_val = ws.cell(row=curr_r+1, column=4).value
-                    tank_val = ws.cell(row=curr_r+1, column=5).value
-
-                    l_str = str(l_val).replace("台積電", "").replace("台積", "").replace("新竹", "").replace("台中", "").replace("台南", "").replace("廠", "").replace("\n", "").replace("\r", "").strip() if l_val else ""
-                    d_pure, t_pure = split_date_and_time(d_val)
-                    t_final = str(t_val).strip() if t_val else t_pure
-
-                    clean_tank = str(tank_val).replace("None", "").strip() if tank_val else ""
-                    if clean_tank in ("槽號", "4300", "6 支"):
-                        clean_tank = ""
-
-                    if d_pure or l_str or clean_tank:
-                        clean_t = t_final if t_final not in ("4300", "6 支", "None") else ""
-                        clean_mt = str(mt_val).strip() if mt_val and str(mt_val).strip() not in ("4300", "6 支", "None") else ""
-                        records.append({
-                            "batch": "",
-                            "tank": clean_tank,
-                            "loc": l_str,
-                            "date": d_pure,
-                            "time": clean_t,
-                            "mod_time": clean_mt
-                        })
-                    curr_r += 7
-                wb.close()
-            except Exception as e:
-                messagebox.showerror("載入失敗", f"讀取既有運輸通知表失敗:\n{e}")
-                return
-
-        if not records:
-            messagebox.showwarning("提示", "選取的檔案中無任何可還原的運輸通知表卡片！")
+    def load_coa_forms(self):
+        file_paths = filedialog.askopenfilenames(
+            title="選擇要載入的 COA 表單 (可多選)",
+            filetypes=[("Excel 或 CSV", "*.xlsx *.xls *.csv"), ("所有檔案", "*.*")]
+        )
+        if not file_paths:
             return
 
-        # 清空目前表格
-        for entry in self.entries:
-            entry["batch_var"].set("")
-            entry["loc_var"].set("")
-            entry["long_code_var"].set("")
-            entry["tank_var"].set("")
-            entry["date_var"].set("")
-            entry["time_var"].set("")
-            entry["mod_time_var"].set("")
+        valid_batches = {}
+        for row in self.entries:
+            if row["chk_var"].get():
+                batch = row["batch_var"].get().strip().upper()
+                if batch:
+                    valid_batches[batch] = row
 
-        needed_rows = len(records)
-        if needed_rows > len(self.entries):
-            self.add_input_rows(needed_rows - len(self.entries))
+        if not valid_batches:
+            messagebox.showwarning("提示", "請先在列表中填寫並勾選包含批號的資料！")
+            return
 
-        for idx, rec in enumerate(records):
-            row_e = self.entries[idx]
-            if rec.get("batch"): row_e["batch_var"].set(rec["batch"])
-            if rec.get("loc"): row_e["loc_var"].set(rec["loc"])
-            if rec.get("tank"): row_e["tank_var"].set(rec["tank"])
-            if rec.get("date"): row_e["date_var"].set(rec["date"])
-            if rec.get("time"): row_e["time_var"].set(rec["time"])
-            if rec.get("mod_time"): row_e["mod_time_var"].set(rec["mod_time"])
+        try:
+            self.show_loading("⏳ 正在處理 COA 表單，請稍候...")
+            success_count = 0
+            error_msgs = []
 
-        messagebox.showinfo(
-            "還原成功", 
-            f"已成功從『{folder_name}』載入 {len(records)} 筆既有排程紀錄！\n\n"
-            f"所有排程已按原始位置 (第 1~{len(records)} 列) 精準對齊。\n"
-            f"請直接在需要修正的排程列填寫【修正到廠時間】即可！"
-        )
+            for file_path in file_paths:
+                try:
+                    base_name, ext = os.path.splitext(os.path.basename(file_path))
+                    dir_name = os.path.dirname(file_path)
+                
+                    matched_batch = None
+                    for b in valid_batches:
+                        if b in base_name.upper():
+                            matched_batch = b
+                            break
+                
+                    if not matched_batch:
+                        error_msgs.append(f"找不到對應批號: {os.path.basename(file_path)}")
+                        continue
+                
+                    row = valid_batches[matched_batch]
+                    loc_str = row["loc_var"].get().strip()
+                    factory_code = loc_str[1:5] if len(loc_str) >= 5 else loc_str
+                
+                    date_str = row["date_var"].get().strip()
+                    formatted_date = date_str.replace("/", "").replace("-", "")
+                
+                    idx = base_name.upper().find(matched_batch)
+                    prefix = base_name[:idx]
+                    suffix = base_name[idx + len(matched_batch):]
+                
+                    date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
+                    mmdd_pattern = r'\b\d{4}(?=[-_]$)'
+                    date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
+                
+                    if re.search(date_pattern, prefix):
+                        prefix = re.sub(date_pattern, formatted_date, prefix)
+                    elif re.search(mmdd_pattern, prefix):
+                        prefix = re.sub(mmdd_pattern, date_MMDD, prefix)
+                    else:
+                        if prefix.endswith("_") or prefix.endswith("-"):
+                            prefix = formatted_date + prefix
+                        else:
+                            prefix = formatted_date + "_" + prefix if prefix else formatted_date + "_"
+                
+                    new_base = f"{prefix}{base_name[idx:idx+len(matched_batch)]}{suffix}"
+                    output_dir = os.path.join(self.base_dir, f"勝一三合一單輸出_{formatted_date}")
+                
+                    tank_str = row["tank_var"].get().strip()
+                    date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
+                    safe_loc = "".join(c for c in loc_str if c.isalnum() or c in (' ', '_', '-')).rstrip()
+                    if not safe_loc: safe_loc = "未命名地點"
+                    loc_sub_dir = f"{date_MMDD} {safe_loc} {tank_str}".strip()
+                
+                    loc_folder = os.path.join(output_dir, loc_sub_dir)
+                    os.makedirs(loc_folder, exist_ok=True)
+                
+                    new_file_path = os.path.join(loc_folder, new_base + ext)
+                
+                    col_b, col_g, col_c = "", "", ""
+                    # 提取生產履歷的對應欄位
+                    if hasattr(self, "imported_lorry_files") and self.imported_lorry_files:
+                        try:
+                            src_wb_l = openpyxl.load_workbook(self.imported_lorry_files[0], data_only=True)
+                            src_ws_l = src_wb_l.active
+                            batch_row_map = {}
+                            for r in range(7, src_ws_l.max_row + 1):
+                                val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
+                                if val and val not in batch_row_map:
+                                    batch_row_map[val] = r
+                        
+                            matched_r = batch_row_map.get(matched_batch)
+                            if matched_r:
+                                col_b = str(src_ws_l.cell(row=matched_r, column=2).value or "").strip()
+                                raw_c = src_ws_l.cell(row=matched_r, column=3).value
+                                if isinstance(raw_c, datetime):
+                                    col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
+                                else:
+                                    col_c = str(raw_c or "").strip().split()[0] if raw_c else ""
+                                
+                                col_g = str(src_ws_l.cell(row=matched_r, column=7).value or "").strip()
+                            
+                                # 找出排程中的採購單號前 10 碼
+                                po_no = ""
+                                matched_row = valid_batches.get(matched_batch)
+                                if matched_row and "po_var" in matched_row:
+                                    full_po = matched_row["po_var"].get().strip()
+                                    po_no = full_po[:10] if len(full_po) >= 10 else full_po
+                            src_wb_l.close()
+                        except Exception as le:
+                            error_msgs.append(f"讀取生產履歷失敗: {le}")
+                    # 處理 COA 本身
+                    if ext.lower() in ['.xlsx', '.xls']:
+                        wb = openpyxl.load_workbook(file_path)
+                        ws = wb.active
+                        if col_b or col_g or col_c:
+                            if col_b: ws["B6"] = col_b
+                            if col_g: ws["B7"] = col_g
+                            if col_c: ws["B11"] = col_c
+                            if 'po_no' in locals() and po_no: ws["B12"] = po_no
+                        else:
+                            ws["B6"] = factory_code
+                        wb.save(new_file_path)
+                        try:
+                            wb.close()
+                        except:
+                            pass
+                    elif ext.lower() == '.csv':
+                        import csv
+                        with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                            reader = list(csv.reader(f))
+                        while len(reader) <= 17: reader.append([])
+                        for r in reader: 
+                            while len(r) <= 11: r.append("")
+                        if col_b or col_g or col_c:
+                            if col_b: reader[5][1] = col_b
+                            if col_g: reader[6][1] = col_g
+                            if col_c: reader[10][1] = col_c
+                            if 'po_no' in locals() and po_no: reader[11][1] = po_no
+                        else:
+                            reader[5][1] = factory_code
+                        with open(new_file_path, 'w', encoding='utf-8-sig', newline='') as f:
+                            writer = csv.writer(f)
+                            writer.writerows(reader)
+                    success_count += 1
+                except Exception as e:
+                    error_msgs.append(f"處理 {os.path.basename(file_path)} 失敗: {str(e)}")
+
+        finally:
+            self.hide_loading()
+
+        msg = f"成功處理 {success_count} 份 COA 表單。"
+        if error_msgs:
+            msg += "\n\n錯誤紀錄:\n" + "\n".join(error_msgs)
+            messagebox.showwarning("完成", msg)
+        else:
+            messagebox.showinfo("完成", msg)
+
 
     def generate_files(self):
         if not os.path.exists(self.template_path):
@@ -1473,9 +2290,9 @@ class App(tk.Tk):
             return
             
         do_3in1 = self.gen_3in1_var.get()
-        do_transport = self.gen_transport_var.get()
+        do_lorry = getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get()
         
-        if not do_3in1 and not do_transport:
+        if not do_3in1 and not do_lorry:
             messagebox.showwarning("提示", "請至少勾選一種報表類型（三合一單 或 運輸通知表）！")
             return
 
@@ -1525,6 +2342,8 @@ class App(tk.Tk):
             messagebox.showerror("錯誤", f"地點代號對照表中找不到以下地點：\n{missing_str}\n\n請先更新對照表後再試！")
             return
 
+        self.show_loading("⏳ 正在產生所有報表，請稍候...")
+
         # 按出貨日分群，每個日期產生獨立資料夾
         groups = {}
         for data in valid_data:
@@ -1543,7 +2362,7 @@ class App(tk.Tk):
 
         all_output_dirs = []
         total_success_3in1 = 0
-        total_success_transport = False
+        total_success_lorry = 0
         total_error_msgs = []
         mat_no = "L12C53161"
 
@@ -1554,7 +2373,7 @@ class App(tk.Tk):
             all_output_dirs.append(output_dir)
             success_3in1 = 0
             error_msgs = []
-            success_transport = False
+            success_lorry = 0
 
 
             if do_3in1:
@@ -1768,7 +2587,12 @@ class App(tk.Tk):
                         tank_suffix = f"_{tank_no}" if tank_no else ""
                         base_filename = f"{date_prefix}{safe_loc}{tank_suffix}_台積電槽車barcode三合一單.xlsx"
                     
-                        loc_sub_dir = os.path.join(output_dir, safe_loc)
+                        # 讓三合一單、COA、單列生產履歷放在同一個資料夾 (例如 0912 15P5 E307)
+                        date_MMDD = f"{dt_file.month:02d}{dt_file.day:02d}"
+                        safe_tank = str(tank_no).strip() if tank_no else ""
+                        loc_sub_dir_name = f"{date_MMDD} {safe_loc} {safe_tank}".strip()
+                        loc_sub_dir = os.path.join(output_dir, loc_sub_dir_name)
+                        
                         os.makedirs(loc_sub_dir, exist_ok=True)
                         output_path = os.path.join(loc_sub_dir, base_filename)
                         
@@ -1779,14 +2603,76 @@ class App(tk.Tk):
                     except Exception as e:
                         error_msgs.append(f"處理三合一單 {loc}_{batch_no} 失敗: {e}")
 
-            if do_transport:
-                try:
-                    transport_path = os.path.join(output_dir, "運輸通知表.xlsx")
-                    generate_transport_notice_file(transport_path, valid_data, mat_no=mat_no)
-                    success_transport = True
-                except Exception as e:
-                    error_msgs.append(f"產生運輸通知表失敗: {e}")
+            if getattr(self, "gen_lorry_var", None) and self.gen_lorry_var.get():
+                lorry_sources = list(getattr(self, "imported_lorry_files", []))
+                if not lorry_sources:
+                    lorry_sources = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
 
+                for l_path in lorry_sources:
+                    orig_filename = os.path.splitext(os.path.basename(l_path))[0]
+                    orig_ext = os.path.splitext(l_path)[1]
+                    base_lorry_name = orig_filename.rsplit('-', 1)[0] if '-' in orig_filename else orig_filename
+
+                    try:
+                        src_wb_l = openpyxl.load_workbook(l_path, data_only=False)
+                        src_ws_l = src_wb_l.active
+
+                        batch_row_map = {}
+                        for r in range(7, src_ws_l.max_row + 1):
+                            val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
+                            if val and val not in batch_row_map:
+                                batch_row_map[val] = r
+
+                        for item in valid_data:
+                            b_no = item["batch"]
+                            l_loc = item["loc"]
+                            t_no = item["tank"]
+                            d_str = item["date"]
+                            # 重新計算 loc_folder，避免全部擠在最後一個
+                            date_MMDD = "0000"
+                            if d_str:
+                                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                    try:
+                                        dt_l = datetime.strptime(d_str.split()[0], fmt)
+                                        date_MMDD = f"{dt_l.month:02d}{dt_l.day:02d}"
+                                        break
+                                    except ValueError:
+                                        pass
+                            if date_MMDD == "0000":
+                                now_l = datetime.now()
+                                date_MMDD = f"{now_l.month:02d}{now_l.day:02d}"
+                            safe_loc = "".join(c for c in l_loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
+                            safe_tank = str(t_no).strip() if t_no else ""
+                            loc_sub_dir = f"{date_MMDD} {safe_loc} {safe_tank}".strip()
+                            current_loc_folder = os.path.join(output_dir, loc_sub_dir)
+                            os.makedirs(current_loc_folder, exist_ok=True)
+
+                            matched_r = batch_row_map.get(b_no)
+                            if matched_r:
+                                wb_l = build_single_row_lorry_workbook(src_ws_l, matched_r)
+
+                                mmdd = "0000"
+                                if d_str:
+                                    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                        try:
+                                            dt_l = datetime.strptime(d_str.split()[0], fmt)
+                                            mmdd = f"{dt_l.month:02d}{dt_l.day:02d}"
+                                            break
+                                        except ValueError:
+                                            pass
+                                if mmdd == "0000":
+                                    now_l = datetime.now()
+                                    mmdd = f"{now_l.month:02d}{now_l.day:02d}"
+
+                                t_part = f"{t_no} " if t_no else ""
+                                lorry_out_name = f"{base_lorry_name}-{mmdd} {t_part}{l_loc}{orig_ext}"
+                                out_l_path = os.path.join(current_loc_folder, lorry_out_name)
+                                wb_l.save(out_l_path)
+                                wb_l.close()
+                                success_lorry += 1
+                        src_wb_l.close()
+                    except Exception as le:
+                        error_msgs.append(f"產生 Chemical_Lorry 失敗: {le}")
 
             # 快取 session
             try:
@@ -1798,17 +2684,15 @@ class App(tk.Tk):
 
             # 累計至全域
             total_success_3in1 += success_3in1
-            if success_transport:
-                total_success_transport = True
+            total_success_lorry += success_lorry
             total_error_msgs.extend(error_msgs)
 
+        self.hide_loading()
         msg_parts = []
         if do_3in1:
             msg_parts.append(f"• 三合一單：成功產生 {total_success_3in1} 份")
-        if do_transport:
-            status_str = "成功" if total_success_transport else "失敗"
-            total_count = sum(len(g) for g in groups.values())
-            msg_parts.append(f"• 運輸通知表：{status_str} (共 {total_count} 筆排程卡片)")
+        if do_lorry:
+            msg_parts.append(f"✅ 單列生產履歷：成功 {total_success_lorry} 筆")
             
         dirs_str = "\n".join(all_output_dirs)
         msg = "\n".join(msg_parts) + f"\n\n檔案已儲存於資料夾：\n{dirs_str}"
@@ -1824,4 +2708,3 @@ class App(tk.Tk):
 if __name__ == "__main__":
     app = App()
     app.mainloop()
-

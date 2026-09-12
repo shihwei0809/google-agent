@@ -1357,6 +1357,11 @@ class App(tk.Tk):
             self.update_lorry_status()
             self.gen_lorry_var.set(True)
             fname = os.path.basename(filepath)
+            
+            # 因為這步驟僅是讀取路徑非常快，故意加上 0.5 秒延遲讓畫面顯示給人員看，避免覺得沒反應
+            import time
+            time.sleep(0.5)
+            self.update()
         finally:
             self.hide_loading()
             
@@ -1844,128 +1849,128 @@ class App(tk.Tk):
             success_count = 0
             error_msgs = []
 
-        for file_path in file_paths:
-            try:
-                base_name, ext = os.path.splitext(os.path.basename(file_path))
-                dir_name = os.path.dirname(file_path)
+            for file_path in file_paths:
+                try:
+                    base_name, ext = os.path.splitext(os.path.basename(file_path))
+                    dir_name = os.path.dirname(file_path)
                 
-                matched_batch = None
-                for b in valid_batches:
-                    if b in base_name.upper():
-                        matched_batch = b
-                        break
+                    matched_batch = None
+                    for b in valid_batches:
+                        if b in base_name.upper():
+                            matched_batch = b
+                            break
                 
-                if not matched_batch:
-                    error_msgs.append(f"找不到對應批號: {os.path.basename(file_path)}")
-                    continue
+                    if not matched_batch:
+                        error_msgs.append(f"找不到對應批號: {os.path.basename(file_path)}")
+                        continue
                 
-                row = valid_batches[matched_batch]
-                loc_str = row["loc_var"].get().strip()
-                factory_code = loc_str[1:5] if len(loc_str) >= 5 else loc_str
+                    row = valid_batches[matched_batch]
+                    loc_str = row["loc_var"].get().strip()
+                    factory_code = loc_str[1:5] if len(loc_str) >= 5 else loc_str
                 
-                date_str = row["date_var"].get().strip()
-                formatted_date = date_str.replace("/", "").replace("-", "")
+                    date_str = row["date_var"].get().strip()
+                    formatted_date = date_str.replace("/", "").replace("-", "")
                 
-                idx = base_name.upper().find(matched_batch)
-                prefix = base_name[:idx]
-                suffix = base_name[idx + len(matched_batch):]
+                    idx = base_name.upper().find(matched_batch)
+                    prefix = base_name[:idx]
+                    suffix = base_name[idx + len(matched_batch):]
                 
-                date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
-                mmdd_pattern = r'\b\d{4}(?=[-_]$)'
-                date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
+                    date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
+                    mmdd_pattern = r'\b\d{4}(?=[-_]$)'
+                    date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
                 
-                if re.search(date_pattern, prefix):
-                    prefix = re.sub(date_pattern, formatted_date, prefix)
-                elif re.search(mmdd_pattern, prefix):
-                    prefix = re.sub(mmdd_pattern, date_MMDD, prefix)
-                else:
-                    if prefix.endswith("_") or prefix.endswith("-"):
-                        prefix = formatted_date + prefix
+                    if re.search(date_pattern, prefix):
+                        prefix = re.sub(date_pattern, formatted_date, prefix)
+                    elif re.search(mmdd_pattern, prefix):
+                        prefix = re.sub(mmdd_pattern, date_MMDD, prefix)
                     else:
-                        prefix = formatted_date + "_" + prefix if prefix else formatted_date + "_"
+                        if prefix.endswith("_") or prefix.endswith("-"):
+                            prefix = formatted_date + prefix
+                        else:
+                            prefix = formatted_date + "_" + prefix if prefix else formatted_date + "_"
                 
-                new_base = f"{prefix}{base_name[idx:idx+len(matched_batch)]}{suffix}"
-                output_dir = os.path.join(self.base_dir, f"三合一單輸出_{formatted_date}")
+                    new_base = f"{prefix}{base_name[idx:idx+len(matched_batch)]}{suffix}"
+                    output_dir = os.path.join(self.base_dir, f"三合一單輸出_{formatted_date}")
                 
-                tank_str = row["tank_var"].get().strip()
-                date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
-                safe_loc = "".join(c for c in loc_str if c.isalnum() or c in (' ', '_', '-')).rstrip()
-                if not safe_loc: safe_loc = "未命名地點"
-                loc_sub_dir = f"{date_MMDD} {safe_loc} {tank_str}".strip()
+                    tank_str = row["tank_var"].get().strip()
+                    date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
+                    safe_loc = "".join(c for c in loc_str if c.isalnum() or c in (' ', '_', '-')).rstrip()
+                    if not safe_loc: safe_loc = "未命名地點"
+                    loc_sub_dir = f"{date_MMDD} {safe_loc} {tank_str}".strip()
                 
-                loc_folder = os.path.join(output_dir, loc_sub_dir)
-                os.makedirs(loc_folder, exist_ok=True)
+                    loc_folder = os.path.join(output_dir, loc_sub_dir)
+                    os.makedirs(loc_folder, exist_ok=True)
                 
-                new_file_path = os.path.join(loc_folder, new_base + ext)
+                    new_file_path = os.path.join(loc_folder, new_base + ext)
                 
-                col_b, col_g, col_c = "", "", ""
-                # 提取生產履歷的對應欄位
-                if hasattr(self, "imported_lorry_files") and self.imported_lorry_files:
-                    try:
-                        src_wb_l = openpyxl.load_workbook(self.imported_lorry_files[0], data_only=True)
-                        src_ws_l = src_wb_l.active
-                        batch_row_map = {}
-                        for r in range(7, src_ws_l.max_row + 1):
-                            val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
-                            if val and val not in batch_row_map:
-                                batch_row_map[val] = r
+                    col_b, col_g, col_c = "", "", ""
+                    # 提取生產履歷的對應欄位
+                    if hasattr(self, "imported_lorry_files") and self.imported_lorry_files:
+                        try:
+                            src_wb_l = openpyxl.load_workbook(self.imported_lorry_files[0], data_only=True)
+                            src_ws_l = src_wb_l.active
+                            batch_row_map = {}
+                            for r in range(7, src_ws_l.max_row + 1):
+                                val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
+                                if val and val not in batch_row_map:
+                                    batch_row_map[val] = r
                         
-                        matched_r = batch_row_map.get(matched_batch)
-                        if matched_r:
-                            col_b = str(src_ws_l.cell(row=matched_r, column=2).value or "").strip()
-                            raw_c = src_ws_l.cell(row=matched_r, column=3).value
-                            if isinstance(raw_c, datetime):
-                                col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
-                            else:
-                                col_c = str(raw_c or "").strip().split()[0] if raw_c else ""
+                            matched_r = batch_row_map.get(matched_batch)
+                            if matched_r:
+                                col_b = str(src_ws_l.cell(row=matched_r, column=2).value or "").strip()
+                                raw_c = src_ws_l.cell(row=matched_r, column=3).value
+                                if isinstance(raw_c, datetime):
+                                    col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
+                                else:
+                                    col_c = str(raw_c or "").strip().split()[0] if raw_c else ""
                                 
-                            col_g = str(src_ws_l.cell(row=matched_r, column=7).value or "").strip()
+                                col_g = str(src_ws_l.cell(row=matched_r, column=7).value or "").strip()
                             
-                            # 找出排程中的採購單號前 10 碼
-                            po_no = ""
-                            matched_row = valid_batches.get(matched_batch)
-                            if matched_row and "po_var" in matched_row:
-                                full_po = matched_row["po_var"].get().strip()
-                                po_no = full_po[:10] if len(full_po) >= 10 else full_po
-                        src_wb_l.close()
-                    except Exception as le:
-                        error_msgs.append(f"讀取生產履歷失敗: {le}")
-                # 處理 COA 本身
-                if ext.lower() in ['.xlsx', '.xls']:
-                    wb = openpyxl.load_workbook(file_path)
-                    ws = wb.active
-                    if col_b or col_g or col_c:
-                        if col_b: ws["B6"] = col_b
-                        if col_g: ws["B7"] = col_g
-                        if col_c: ws["B11"] = col_c
-                        if 'po_no' in locals() and po_no: ws["B12"] = po_no
-                    else:
-                        ws["B6"] = factory_code
-                    wb.save(new_file_path)
-                    try:
-                        wb.close()
-                    except:
-                        pass
-                elif ext.lower() == '.csv':
-                    import csv
-                    with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-                        reader = list(csv.reader(f))
-                    while len(reader) <= 17: reader.append([])
-                    for r in reader: 
-                        while len(r) <= 11: r.append("")
-                    if col_b or col_g or col_c:
-                        if col_b: reader[5][1] = col_b
-                        if col_g: reader[6][1] = col_g
-                        if col_c: reader[10][1] = col_c
-                        if 'po_no' in locals() and po_no: reader[11][1] = po_no
-                    else:
-                        reader[5][1] = factory_code
-                    with open(new_file_path, 'w', encoding='utf-8-sig', newline='') as f:
-                        writer = csv.writer(f)
-                        writer.writerows(reader)
-                success_count += 1
-            except Exception as e:
-                error_msgs.append(f"處理 {os.path.basename(file_path)} 失敗: {str(e)}")
+                                # 找出排程中的採購單號前 10 碼
+                                po_no = ""
+                                matched_row = valid_batches.get(matched_batch)
+                                if matched_row and "po_var" in matched_row:
+                                    full_po = matched_row["po_var"].get().strip()
+                                    po_no = full_po[:10] if len(full_po) >= 10 else full_po
+                            src_wb_l.close()
+                        except Exception as le:
+                            error_msgs.append(f"讀取生產履歷失敗: {le}")
+                    # 處理 COA 本身
+                    if ext.lower() in ['.xlsx', '.xls']:
+                        wb = openpyxl.load_workbook(file_path)
+                        ws = wb.active
+                        if col_b or col_g or col_c:
+                            if col_b: ws["B6"] = col_b
+                            if col_g: ws["B7"] = col_g
+                            if col_c: ws["B11"] = col_c
+                            if 'po_no' in locals() and po_no: ws["B12"] = po_no
+                        else:
+                            ws["B6"] = factory_code
+                        wb.save(new_file_path)
+                        try:
+                            wb.close()
+                        except:
+                            pass
+                    elif ext.lower() == '.csv':
+                        import csv
+                        with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                            reader = list(csv.reader(f))
+                        while len(reader) <= 17: reader.append([])
+                        for r in reader: 
+                            while len(r) <= 11: r.append("")
+                        if col_b or col_g or col_c:
+                            if col_b: reader[5][1] = col_b
+                            if col_g: reader[6][1] = col_g
+                            if col_c: reader[10][1] = col_c
+                            if 'po_no' in locals() and po_no: reader[11][1] = po_no
+                        else:
+                            reader[5][1] = factory_code
+                        with open(new_file_path, 'w', encoding='utf-8-sig', newline='') as f:
+                            writer = csv.writer(f)
+                            writer.writerows(reader)
+                    success_count += 1
+                except Exception as e:
+                    error_msgs.append(f"處理 {os.path.basename(file_path)} 失敗: {str(e)}")
 
         finally:
             self.hide_loading()
@@ -2716,7 +2721,7 @@ class App(tk.Tk):
 
                 # 快取 session
                 try:
-                for target_path in [os.path.join(self.base_dir, "last_generated_session.json")]:
+                    for target_path in [os.path.join(self.base_dir, "last_generated_session.json")]:
                         with open(target_path, "w", encoding="utf-8") as f:
                             json.dump(valid_data, f, ensure_ascii=False, indent=2)
                 except Exception:

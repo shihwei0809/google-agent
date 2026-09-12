@@ -1,4 +1,4 @@
-﻿import os
+import os
 import win32com.client
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -43,7 +43,7 @@ def create_manual_docx(docx_path):
     p0 = doc.add_paragraph()
     p0.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p0.paragraph_format.space_after = Pt(10)
-    r0 = p0.add_run("三合一單與運輸通知表自動產生器\n圖文步驟操作手冊 (Illustrated User Manual)")
+    r0 = p0.add_run("三合一單與單列生產履歷 (Chemical_Lorry)自動產生器\n圖文步驟操作手冊 (Illustrated User Manual)")
     r0.font.name = 'Microsoft JhengHei'
     r0.font.size = Pt(22)
     r0.font.bold = True
@@ -53,7 +53,7 @@ def create_manual_docx(docx_path):
     p1 = doc.add_paragraph()
     p1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     p1.paragraph_format.space_after = Pt(15)
-    r1 = p1.add_run("適用對象：現場、排程與物流作業人員 | 最新版本：v3.1 (含 COA 辨識、槽號檔名與故障排除)")
+    r1 = p1.add_run("適用對象：現場、排程與物流作業人員 | 最新版本：v3.2 (含 COA 智慧填表、全螢幕防呆遮罩與槽號檔名)")
     r1.font.name = 'Microsoft JhengHei'
     r1.font.size = Pt(9.5)
     r1.font.italic = True
@@ -71,7 +71,7 @@ def create_manual_docx(docx_path):
 
     # Section 1 Desc
     p3 = doc.add_paragraph()
-    r3 = p3.add_run("本工具專為物流、排程與現場作業人員設計，提供直觀的桌面圖形介面 (GUI)，能自動完成槽號計算、二維條碼 (QR Code) 重新生成、COA 檢驗截圖自動 OCR 辨識貼入、日期時間拆分與同檔併排修正通知卡片產出。")
+    r3 = p3.add_run("本工具專為物流、排程與現場作業人員設計，提供直觀的桌面圖形介面 (GUI)，能自動完成槽號計算、二維條碼 (QR Code) 重新生成、COA 檢驗截圖自動 OCR 辨識貼入，以及日期時間智慧拆分。")
     r3.font.name = 'Microsoft JhengHei'
 
     # Section 1 Bullet 1
@@ -87,7 +87,7 @@ def create_manual_docx(docx_path):
     # Section 1 Bullet 2
     p5 = doc.add_paragraph(style='List Bullet')
     p5.paragraph_format.space_after = Pt(4)
-    r5_1 = p5.add_run("2. 運輸通知表 Excel：")
+    r5_1 = p5.add_run("2. 單列生產履歷 (Chemical_Lorry) Excel：")
     r5_1.font.name = 'Microsoft JhengHei'
     r5_1.font.bold = True
     r5_1.font.color.rgb = RGBColor(0x00, 0x20, 0x60)
@@ -141,21 +141,27 @@ def create_manual_docx(docx_path):
         ),
         (
             "【步驟 5】Excel 倒數筆數由下往上智慧擷取",
-            "點擊「從 Excel 匯入」時，系統會彈出 750px 寬版視窗，預設從檔案最後一筆由下往上擷取最新的 5 筆、10 筆或全部資料，防呆避免讀到歷史舊資料！",
+            "點擊「從排程匯入」時，系統會彈出 750px 寬版視窗，預設從檔案最後一筆由下往上擷取最新的 5 筆、10 筆或全部資料，防呆避免讀到歷史舊資料！",
             "image4.png",
             "▲ 圖 5：由下往上倒數擷取與即時預覽對話框示意圖"
         ),
         (
-            "【步驟 6】還原既有通知表與點對點修正到廠時間",
-            "當下午需要修正上午產生的通知表時，點擊「載入既有『運輸通知表』修訂」（預設開啟當天資料夾）。一鍵還原所有原始列號與 10 碼批號，只需在該列輸入「修正到廠時間」即可產出併排修正卡片！",
-            "image5.png",
-            "▲ 圖 6：載入既有通知表與填寫修正時間示意圖"
-        ),
-        (
-            "【步驟 7】一鍵產生報表與全新【槽號】檔名格式",
+            "【步驟 6】一鍵產生報表與全新【槽號】檔名格式",
             "勾選欲產生的報表種類後，點擊下方「開始批次產生 Excel 報表」。三合一單最新檔名規格加入【槽號】，徹底解決同天同地點出車檔案覆蓋的問題！",
             "image6.png",
-            "▲ 圖 7：一鍵批次產生報表與槽號檔名格式示意圖"
+            "▲ 圖 6：一鍵批次產生報表與槽號檔名格式示意圖"
+        ),
+        (
+            "【步驟 7】COA 表單自動欄位填寫與防呆覆蓋",
+            "點擊「載入 COA 表單」或「上傳 COA 表單」後，系統會比對排程批號，自動將您填寫的「採購單號前 10 碼」寫入 COA 的 B12。同時若有載入「生產履歷 (Chemical_Lorry)」，更會自動將 Lorry 的廠區 (第 2 欄)、廠期 (第 7 欄)、出貨日 (第 3 欄) 寫入 COA B6、B7 與 B11，且絕對不會異動原本的第 17 欄 (檢驗日期)！",
+            "image7.png",
+            "▲ 圖 7：COA 表單與生產履歷資料自動 Mapping 示意圖"
+        ),
+        (
+            "【步驟 8】防重複點擊的載入保護機制",
+            "在執行「上傳表單」或「一鍵產生報表」等需處理時間的作業時，系統會自動啟動【全螢幕防呆保護遮罩】並顯示「⏳ 系統處理中，請稍候...」。此狀態下強制鎖住滑鼠點擊功能，徹底防止人員因等待而連按造成的檔案重複上傳與當機問題！",
+            "image8.png",
+            "▲ 圖 8：防重複點擊全螢幕保護遮罩示意圖"
         )
     ]
 
@@ -229,7 +235,7 @@ def create_manual_docx(docx_path):
 
     rows_data = [
         ("獨立三合一單", "[出貨日期]. [地點]_[槽號]_台積電槽車barcode三合一單.xlsx", "例如：2026.8.20. 18P3B_E319_台積電槽車barcode三合一單.xlsx（含自動 QR Code 與 COA 檢驗截圖嵌入）"),
-        ("運輸通知表", "運輸通知表.xlsx", "若當天已存在自動接力寫入，併排顯示修正通知（支援紅字加粗與刪除線）"),
+        ("單列生產履歷 (Chemical_Lorry)", "單列生產履歷 (Chemical_Lorry).xlsx", "將多筆排程資料自動彙整並產生單列生產履歷報表，方便後續對接 COA 等其他表單"),
         ("歸檔資料夾", "三合一單輸出_YYYYMMDD", "例如：三合一單輸出_20260820，一天集中於同一資料夾")
     ]
 
@@ -324,8 +330,8 @@ def convert_docx_to_pdf(docx_path, pdf_path):
         print(f"Failed to convert to PDF via Word COM: {e}")
 
 if __name__ == "__main__":
-    docx_file = os.path.join(base_dir, "三合一單與運輸通知表自動產生器_操作手冊.docx")
-    pdf_file = os.path.join(base_dir, "三合一單與運輸通知表自動產生器_操作手冊.pdf")
+    docx_file = os.path.join(base_dir, "三合一單與單列生產履歷 (Chemical_Lorry)自動產生器_操作手冊_V4.docx")
+    pdf_file = os.path.join(base_dir, "三合一單與單列生產履歷 (Chemical_Lorry)自動產生器_操作手冊_V4.pdf")
     
     create_manual_docx(docx_file)
     convert_docx_to_pdf(docx_file, pdf_file)

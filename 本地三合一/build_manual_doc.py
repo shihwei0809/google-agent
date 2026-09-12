@@ -104,8 +104,8 @@ def style_table_row(row, values, is_even=False, aligns=None):
         run.font.color.rgb = RGBColor(0x33, 0x33, 0x33)
 
 def create_manual():
-    docx_path = os.path.join(base_dir, "三合一單與COA雙重核對系統_操作手冊.docx")
-    pdf_path = os.path.join(base_dir, "三合一單與COA雙重核對系統_操作手冊.pdf")
+    docx_path = os.path.join(base_dir, "三合一單與COA雙重核對系統_操作手冊_V2.docx")
+    pdf_path = os.path.join(base_dir, "三合一單與COA雙重核對系統_操作手冊_V2.pdf")
     
     doc = Document()
     
