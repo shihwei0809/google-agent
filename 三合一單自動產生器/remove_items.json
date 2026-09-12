@@ -1,0 +1,70 @@
+[
+  {
+    "line": 613,
+    "text": "ws.title = \"運輸通知表\""
+  },
+  {
+    "line": 853,
+    "text": "self.title(\"三合一單自動產生器 & 運輸通知表產生器\")"
+  },
+  {
+    "line": 1007,
+    "text": "tk.Button(left_btn_frame, text=\"📂 載入既有通知表修訂\", command=self.load_existing_transport_notice, bg=\"#7B1FA2\", fg=\"white\", font=(\"Microsoft JhengHei\", 9, \"bold\"), padx=8, pady=2, cursor=\"hand2\").pack(side=\"left\", padx=4)"
+  },
+  {
+    "line": 1051,
+    "text": "self.gen_transport_var = tk.BooleanVar(value=True)"
+  },
+  {
+    "line": 1055,
+    "text": "tk.Checkbutton(report_opt_frame, text=\"✅ 產生運輸通知表 Excel (出貨與修正排程通知卡片)\", variable=self.gen_transport_var, font=(\"Microsoft JhengHei\", 9, \"bold\"), fg=\"#0D47A1\").pack(side=\"left\", padx=20)"
+  },
+  {
+    "line": 1688,
+    "text": "def load_existing_transport_notice(self):"
+  },
+  {
+    "line": 1690,
+    "text": "讓人員手動選擇要修訂的『運輸通知表.xlsx』或資料夾，預設開啟當天的輸出資料夾。"
+  },
+  {
+    "line": 1700,
+    "text": "title=\"選擇要修訂的運輸通知表 Excel 檔案\","
+  },
+  {
+    "line": 1701,
+    "text": "filetypes=[(\"Excel 運輸通知表\", \"*.xlsx *.xls\")]"
+  },
+  {
+    "line": 1719,
+    "text": "# 2. 若該目錄無 session.json 快取，則直接精準解析選取的 Excel 運輸通知表卡片"
+  },
+  {
+    "line": 1755,
+    "text": "messagebox.showerror(\"載入失敗\", f\"讀取既有運輸通知表失敗:\\n{e}\")"
+  },
+  {
+    "line": 1759,
+    "text": "messagebox.showwarning(\"提示\", \"選取的檔案中無任何可還原的運輸通知表卡片！\")"
+  },
+  {
+    "line": 1801,
+    "text": "do_transport = self.gen_transport_var.get()"
+  },
+  {
+    "line": 1804,
+    "text": "messagebox.showwarning(\"提示\", \"請至少勾選一種報表類型（三合一單 或 運輸通知表）！\")"
+  },
+  {
+    "line": 2086,
+    "text": "transport_path = os.path.join(output_dir, \"運輸通知表.xlsx\")"
+  },
+  {
+    "line": 2090,
+    "text": "error_msgs.append(f\"產生運輸通知表失敗: {e}\")"
+  },
+  {
+    "line": 2159,
+    "text": "msg_parts.append(f\"• 運輸通知表：{status_str} (共 {len(valid_data)} 筆排程卡片)\")"
+  }
+]

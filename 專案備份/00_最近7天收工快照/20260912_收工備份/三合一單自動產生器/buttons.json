@@ -1,0 +1,142 @@
+[
+  {
+    "line": 69,
+    "text": "tk.Button(header, text=\"◄\", command=self.prev_month, width=3, relief=\"groove\").pack(side=\"left\", padx=5)"
+  },
+  {
+    "line": 72,
+    "text": "tk.Button(header, text=\"►\", command=self.next_month, width=3, relief=\"groove\").pack(side=\"right\", padx=5)"
+  },
+  {
+    "line": 85,
+    "text": "tk.Button(btn_frame, text=\"今天\", command=self.select_today, bg=\"#E3F2FD\", relief=\"groove\", font=(\"Arial\", 9)).pack(side=\"left\", padx=5)"
+  },
+  {
+    "line": 86,
+    "text": "tk.Button(btn_frame, text=\"明天\", command=self.select_tomorrow, bg=\"#E8F5E9\", relief=\"groove\", font=(\"Arial\", 9)).pack(side=\"left\", padx=5)"
+  },
+  {
+    "line": 87,
+    "text": "tk.Button(btn_frame, text=\"清除\", command=self.clear_date, bg=\"#FFEBEE\", relief=\"groove\", font=(\"Arial\", 9)).pack(side=\"right\", padx=5)"
+  },
+  {
+    "line": 105,
+    "text": "btn = tk.Button("
+  },
+  {
+    "line": 342,
+    "text": "btn_3days = tk.Button("
+  },
+  {
+    "line": 353,
+    "text": "btn_d0 = tk.Button("
+  },
+  {
+    "line": 364,
+    "text": "btn_d1 = tk.Button("
+  },
+  {
+    "line": 375,
+    "text": "btn_d2 = tk.Button("
+  },
+  {
+    "line": 386,
+    "text": "btn_all_date = tk.Button("
+  },
+  {
+    "line": 406,
+    "text": "tk.Button("
+  },
+  {
+    "line": 462,
+    "text": "self.btn_confirm = tk.Button("
+  },
+  {
+    "line": 474,
+    "text": "tk.Button("
+  },
+  {
+    "line": 967,
+    "text": "tk.Button("
+  },
+  {
+    "line": 985,
+    "text": "tk.Button("
+  },
+  {
+    "line": 1005,
+    "text": "tk.Button(left_btn_frame, text=\"📥 從 Excel 匯入排程\", command=self.import_from_excel, bg=\"#1976D2\", fg=\"white\", font=(\"Microsoft JhengHei\", 9, \"bold\"), padx=8, pady=2, cursor=\"hand2\").pack(side=\"left\", padx=(0, 4))"
+  },
+  {
+    "line": 1006,
+    "text": "tk.Button(left_btn_frame, text=\"📋 載入生產履歷 (Chemical_Lorry)\", command=self.load_chemical_lorry_file, bg=\"#E65100\", fg=\"white\", font=(\"Microsoft JhengHei\", 9, \"bold\"), padx=8, pady=2, cursor=\"hand2\").pack(side=\"left\", padx=4)"
+  },
+  {
+    "line": 1007,
+    "text": "tk.Button(left_btn_frame, text=\"📂 載入既有通知表修訂\", command=self.load_existing_transport_notice, bg=\"#7B1FA2\", fg=\"white\", font=(\"Microsoft JhengHei\", 9, \"bold\"), padx=8, pady=2, cursor=\"hand2\").pack(side=\"left\", padx=4)"
+  },
+  {
+    "line": 1008,
+    "text": "tk.Button(left_btn_frame, text=\"🖼️ 上傳 COA 截圖\", command=self.upload_coa, bg=\"#FF9800\", fg=\"white\", font=(\"Microsoft JhengHei\", 9, \"bold\"), padx=8, pady=2, cursor=\"hand2\").pack(side=\"left\", padx=4)"
+  },
+  {
+    "line": 1014,
+    "text": "tk.Button(right_btn_frame, text=\"📅 帶入今天日期\", command=self.set_today_all_dates, bg=\"#546E7A\", fg=\"white\", font=(\"Microsoft JhengHei\", 9, \"bold\"), padx=8, pady=2, cursor=\"hand2\").pack(side=\"left\", padx=4)"
+  },
+  {
+    "line": 1015,
+    "text": "tk.Button(right_btn_frame, text=\"➕ 新增 10 列\", command=lambda: self.add_input_rows(10), bg=\"#00897B\", fg=\"white\", font=(\"Microsoft JhengHei\", 9, \"bold\"), padx=8, pady=2, cursor=\"hand2\").pack(side=\"left\", padx=4)"
+  },
+  {
+    "line": 1016,
+    "text": "tk.Button(right_btn_frame, text=\"🗑️ 清除全部資料\", command=self.clear_all_rows, bg=\"#D32F2F\", fg=\"white\", font=(\"Microsoft JhengHei\", 9, \"bold\"), padx=8, pady=2, cursor=\"hand2\").pack(side=\"left\", padx=(4, 0))"
+  },
+  {
+    "line": 1024,
+    "text": "tk.Checkbutton(batch_setting_frame, text=\"☑ 全選所有列\", variable=self.select_all_var, command=self.toggle_select_all, font=(\"Microsoft JhengHei\", 9, \"bold\")).pack(side=\"left\", padx=(0, 15))"
+  },
+  {
+    "line": 1031,
+    "text": "tk.Button(batch_setting_frame, text=\"📅\", command=lambda: self.open_calendar_dialog(self.default_date_var), font=(\"Arial\", 8), width=3).pack(side=\"left\", padx=(0, 2))"
+  },
+  {
+    "line": 1032,
+    "text": "tk.Button(batch_setting_frame, text=\"套用至全列\", command=self.apply_default_date, bg=\"#607D8B\", fg=\"white\", font=(\"Microsoft JhengHei\", 8)).pack(side=\"left\", padx=(2, 16))"
+  },
+  {
+    "line": 1038,
+    "text": "tk.Button(batch_setting_frame, text=\"套用至全列\", command=self.apply_default_time, bg=\"#607D8B\", fg=\"white\", font=(\"Microsoft JhengHei\", 8)).pack(side=\"left\", padx=(2, 16))"
+  },
+  {
+    "line": 1044,
+    "text": "tk.Button(batch_setting_frame, text=\"套用至全列\", command=self.apply_default_mod_time, bg=\"#607D8B\", fg=\"white\", font=(\"Microsoft JhengHei\", 8)).pack(side=\"left\", padx=(2, 10))"
+  },
+  {
+    "line": 1054,
+    "text": "tk.Checkbutton(report_opt_frame, text=\"✅ 產生三合一單 Excel (含 Barcode 與 COA)\", variable=self.gen_3in1_var, font=(\"Microsoft JhengHei\", 9, \"bold\"), fg=\"#1B5E20\").pack(side=\"left\", padx=(0, 20))"
+  },
+  {
+    "line": 1055,
+    "text": "tk.Checkbutton(report_opt_frame, text=\"✅ 產生運輸通知表 Excel (出貨與修正排程通知卡片)\", variable=self.gen_transport_var, font=(\"Microsoft JhengHei\", 9, \"bold\"), fg=\"#0D47A1\").pack(side=\"left\", padx=20)"
+  },
+  {
+    "line": 1056,
+    "text": "tk.Checkbutton(report_opt_frame, text=\"✅ 產生單列生產履歷 Excel (Chemical_Lorry 槽車充填表)\", variable=self.gen_lorry_var, font=(\"Microsoft JhengHei\", 9, \"bold\"), fg=\"#E65100\").pack(side=\"left\", padx=20)"
+  },
+  {
+    "line": 1114,
+    "text": "tk.Button(btn_frame, text=\"🚀 開始批次產生 Excel 報表\", command=self.generate_files, bg=\"#4CAF50\", fg=\"white\", font=(\"Arial\", 12, \"bold\"), pady=8).pack(fill=\"x\")"
+  },
+  {
+    "line": 1146,
+    "text": "chk = tk.Checkbutton(self.scrollable_frame, variable=chk_var)"
+  },
+  {
+    "line": 1181,
+    "text": "btn_cal = tk.Button(date_frame, text=\"📅\", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=(\"Arial\", 8), cursor=\"hand2\")"
+  },
+  {
+    "line": 1195,
+    "text": "btn_clear_row = tk.Button("
+  }
+]

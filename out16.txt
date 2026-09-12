@@ -1,0 +1,12 @@
+48: <div class="subtitle">同仁免安裝 Python！開啟此網頁即可貼上資料或上傳 COA 截圖，由架機主機 Python 一鍵產生完美三合一單與運輸通知表 Excel！</div>
+69: 🖼️ 上傳 COA 截圖 (OCR 辨識)
+70: <input type="file" id="coaInput" accept="image/*, .png, .jpg, .jpeg" style="display:none;" onchange="uploadCoaScreenshot(event)">
+105: ✅ 產生三合一單 Excel (含 Barcode 與 COA)
+705: // 🖼️ 上傳 COA 截圖 (圖片自動預處理與前端 AI OCR 辨識)
+706: async function uploadCoaScreenshot(e) {
+713: document.getElementById("statusBox").innerText = "🖼️ 正在透過瀏覽器 AI 分析 COA 圖片文字座標 (免安裝本地 OCR)... 這可能需要幾秒鐘";
+886: const res = await fetch("/api/upload_coa_image", {
+892: alert("COA 截圖上傳失敗！");
+899: alert(`🎉 COA 截圖上傳與 AI 辨識成功！\n系統已抓到圖片中 ${finalBoxes.length} 筆批號：\n${finalBoxes.map(b=>'• ' + b.text).join('\n')}\n\n產生 Excel 時會自動為每張單子裁切【表頭 + 該批號專屬數據列】！`);
+902: alert(`🎉 COA 截圖上傳成功！\n前端文字辨識無直接命中，後端 Python 已啟動【表格幾何邊界識別】，自動為每張單子精確裁切【表頭 + 各筆數據列】！`);
+905: alert(`COA 截圖處理出錯: ${err}`);

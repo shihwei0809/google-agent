@@ -1,0 +1,300 @@
+1945:         filepaths = filedialog.askopenfilenames(
+1946:             title="選擇要匯入的 Excel 或 CSV 檔案 (可多選)",
+1947:             filetypes=[("Excel & CSV files", "*.xlsx *.xls *.csv")]
+1948:         )
+1949:         if not filepaths:
+1950:             return
+1951:             
+1952:         if not hasattr(self, "imported_lorry_files"):
+1953:             self.imported_lorry_files = []
+1954:         for fp in filepaths:
+1955:             fn = os.path.basename(fp).lower()
+1956:             if fp.lower().endswith(('.xlsx', '.xls')) and ('chemical' in fn or 'lorry' in fn or '勝一' in fn):
+1957:                 if fp not in self.imported_lorry_files:
+1958:                     self.imported_lorry_files.append(fp)
+1959:         self.update_lorry_status()
+1960: 
+1961:         total_imported = 0
+1962:         for filepath in filepaths:
+1963:             try:
+1964:                 records = []
+1965:                 sheet_count = 1
+1966: 
+1967:                 if filepath.lower().endswith('.csv'):
+1968:                     rows = []
+1969:                     try:
+1970:                         with open(filepath, 'r', encoding='utf-8-sig') as f:
+1971:                             reader = csv.reader(f)
+1972:                             rows = list(reader)
+1973:                     except UnicodeDecodeError:
+1974:                         with open(filepath, 'r', encoding='cp950') as f:
+1975:                             reader = csv.reader(f)
+1976:                             rows = list(reader)
+1977: 
+1978:                     # Check for vertical CSV format (e.g. RawLotId in first column)
+1979:                     is_vertical_csv = False
+1980:                     for r_idx, row_vals in enumerate(rows[:20]):
+1981:                         if len(row_vals) >= 2 and str(row_vals[0]).strip() == "RawLotId":
+1982:                             is_vertical_csv = True
+1983:                             break
+1984: 
+1985:                     if is_vertical_csv:
+1986:                         batch_val, date_val, loc_val = "", "", ""
+1987:                         for r_idx, row_vals in enumerate(rows[:30]):
+1988:                             if len(row_vals) >= 2:
+1989:                                 key = str(row_vals[0]).strip()
+1990:                                 val = str(row_vals[1]).strip()
+1991:                                 if key == "RawLotId": batch_val = val
+1992:                                 elif key == "DeliverDate": date_val = val
+1993:                         fname = os.path.basename(filepath)
+1994:                         m = re.search(r'\s([A-Za-z0-9]+)_\d+\.csv$', fname, re.IGNORECASE)
+1995:                         if m:
+1996:                             loc_val = m.group(1)
+1997:                         else:
+1998:                             parts = fname.split('_')
+1999:                             if len(parts) >= 2:
+2000:                                 loc_val = parts[-2].split(' ')[-1]
+2001:                         po_val = ""
+2002:                         if batch_val:
+2003:                             norm_d = normalize_date_str(date_val)
+2004:                             records.append({
+2005:                                 "sheet": "CSV",
+2006:                                 "batch": batch_val,
+2007:                                 "loc": clean_location_str(loc_val, self.mapping_dict),
+2008:                                 "date": norm_d,
+2009:                                 "time": "",
+2010:                                 "mod_time": "",
+2011:                                 "tank": get_tank_from_batch(batch_val)
+2012:                             })
+2013:                     else:
+2014:                         # Standard horizontal CSV
+2015:                         batch_col, loc_col, date_col, tank_col, time_col, mod_time_col, po_col = -1, -1, -1, -1, -1, -1, -1
+2016:                         start_row = 0
+2017:                         for r_idx in range(min(15, len(rows))):
+2018:                             row = rows[r_idx]
+2019:                             if not row: continue
+2020:                             for c_idx, val in enumerate(row):
+2021:                                 v = str(val or "").strip().upper()
+2022:                                 if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
+2023:                                 if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
+2024:                                 if date_col == -1 and any(k in v for k in ["到貨日", "出貨日", "出車日", "日期", "DATE"]) and "地" not in v and "點" not in v: date_col = c_idx
+2025:                                 if tank_col == -1 and any(k in v for k in ["槽號", "槽車", "TANK"]) and not any(k in v for k in ["日", "期", "時間", "TIME", "DATE", "到廠", "出車", "出貨"]): tank_col = c_idx
+2026:                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
+2027:                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
+2028:                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+2029:                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+2030:                             if batch_col != -1 and (loc_col != -1 or date_col != -1):
+2031:                                 start_row = r_idx + 1
+2032:                                 break
+2033:                         if batch_col == -1 or loc_col == -1:
+2034:                             batch_col, date_col, tank_col, loc_col = 2, 1, 3, 4
+2035:                             start_row = 2
+2036:                         for r_idx in range(start_row, len(rows)):
+2037:                             row = rows[r_idx]
+2038:                             if not row: continue
+2039:                             def get_c(c): return row[c] if c != -1 and c < len(row) else None
+2040:                             b_val = str(get_c(batch_col) or "").strip().upper()
+2041:                             l_val = str(get_c(loc_col) or "").strip().upper()
+2042:                             d_val = get_c(date_col)
+2043:                             t_val = str(get_c(tank_col) or "").strip()
+2044:                             tm_val = normalize_time_str(get_c(time_col))
+2045:                             mt_val = normalize_time_str(get_c(mod_time_col))
+2046:                             po_val = str(get_c(po_col) or "").strip()
+2047:                             if len(b_val) != 10 or not re.search(r'[0-9]', b_val):
+2048:                                 for cell in row:
+2049:                                     cs = str(cell or "").strip().upper()
+2050:                                     if len(cs) == 10 and re.search(r'[0-9]', cs) and re.search(r'[A-Z]', cs) and "/" not in cs and "-" not in cs:
+2051:                                         b_val = cs
+2052:                                         break
+2053:                             if len(b_val) == 10 and re.search(r'[0-9]', b_val):
+2054:                                 is_valid_tank = (
+2055:                                     t_val and 
+2056:                                     len(t_val) <= 6 and 
+2057:                                     not any(c in t_val for c in ["-", "/", ":", " "]) and
+2058:                                     not (len(t_val) > 4 and t_val.isdigit())
+2059:                                 )
+2060:                                 tank_final = t_val if is_valid_tank else get_tank_from_batch(b_val)
+2061:                                 clean_l = clean_location_str(l_val, self.mapping_dict)
+2062:                                 records.append({
+2063:                                     "sheet": "CSV",
+2064:                                     "batch": b_val,
+2065:                                     "tank": tank_final,
+2066:                                     "loc": clean_l,
+2067:                                     "long_code": self.mapping_dict.get(clean_l, ""),
+2068:                                     "date": normalize_date_str(d_val),
+2069:                                     "time": tm_val,
+2070:                                     "mod_time": mt_val,
+2071:                                 "po": po_val
+2072:                             })
+2073:                 else:
+2074:                     # 遍歷 Excel 所有分頁 (跨分頁抓取所有有效排程)
+2075:                     wb = openpyxl.load_workbook(filepath, data_only=True)
+2076:                     sheet_count = len(wb.worksheets)
+2077: 
+2078:                     for ws in wb.worksheets:
+2079:                         sheet_name = ws.title
+2080:                         rows = list(ws.iter_rows(values_only=True))
+2081:                         if not rows or len(rows) == 0:
+2082:                             continue
+2083: 
+2084:                         # 檢查分頁全域文字是否標記為台積電
+2085:                         sheet_has_tsmc = False
+2086:                         for r_idx in range(min(5, len(rows))):
+2087:                             row_str = " ".join(str(cell or "") for cell in rows[r_idx]).upper()
+2088:                             if "TSMC" in row_str or "台積" in row_str:
+2089:                                 sheet_has_tsmc = True
+2090:                                 break
+2091: 
+2092:                         # 動態掃描前 15 列尋找標題欄位
+2093:                         batch_col = -1
+2094:                         loc_col = -1
+2095:                         date_col = -1
+2096:                         tank_col = -1
+2097:                         time_col = -1
+2098:                         mod_time_col = -1
+2099:                         cust_col = -1
+2100:                         po_col = -1
+2101:                         start_row = 0
+2102: 
+2103:                         for r_idx in range(min(15, len(rows))):
+2104:                             row = rows[r_idx]
+2105:                             if not row: continue
+2106:                             for c_idx, val in enumerate(row):
+2107:                                 v = str(val or "").strip().upper()
+2108:                                 if not v: continue
+2109:                                 if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
+2110:                                 if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
+2111:                                 if date_col == -1 and (v in ["到貨", "到貨日", "日期", "出車"] or any(k in v for k in ["到貨日", "出貨日", "出車日", "日期", "DATE"])) and "地" not in v and "點" not in v: date_col = c_idx
+2112:                                 if tank_col == -1 and any(k in v for k in ["槽號", "槽車", "TANK"]) and not any(k in v for k in ["日", "期", "時間", "TIME", "DATE", "到廠", "出車", "出貨"]): tank_col = c_idx
+2113:                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
+2114:                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
+2115:                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+2116:                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+2117:                                 if cust_col == -1 and any(k in v for k in ["對象", "客戶", "廠商", "CUSTOMER"]): cust_col = c_idx
+2118: 
+2119:                             if batch_col != -1 and (loc_col != -1 or date_col != -1):
+2120:                                 start_row = r_idx + 1
+2121:                                 break
+2122: 
+2123:                         if batch_col == -1 or loc_col == -1:
+2124:                             batch_col = 2
+2125:                             date_col = 1
+2126:                             tank_col = 3
+2127:                             loc_col = 4
+2128:                             start_row = 2
+2129: 
+2130:                         for r_idx in range(start_row, len(rows)):
+2131:                             row = rows[r_idx]
+2132:                             if not row or len(row) == 0: continue
+2133: 
+2134:                             def get_cell_val(c):
+2135:                                 return row[c] if c != -1 and c < len(row) else None
+2136: 
+2137:                             b_val = str(get_cell_val(batch_col) or "").strip().upper()
+2138:                             l_val = str(get_cell_val(loc_col) or "").strip().upper()
+2139:                             d_val = get_cell_val(date_col)
+2140:                             t_val = str(get_cell_val(tank_col) or "").strip()
+2141:                             time_val = normalize_time_str(get_cell_val(time_col))
+2142:                             mt_val = normalize_time_str(get_cell_val(mod_time_col))
+2143:                             po_val = str(get_cell_val(po_col) or "").strip()
+2144:                             cust_val = str(get_cell_val(cust_col) or "").strip()
+2145: 
+2146:                             # 若預設欄位非 10 碼批號，全列搜尋 10 碼英數混合批號
+2147:                             if len(b_val) != 10 or not any(c.isdigit() for c in b_val):
+2148:                                 for cell in row:
+2149:                                     cell_str = str(cell or "").strip().upper()
+2150:                                     if len(cell_str) == 10 and any(c.isdigit() for c in cell_str) and any(c.isalpha() for c in cell_str) and "/" not in cell_str and "-" not in cell_str:
+2151:                                         b_val = cell_str
+2152:                                         break
+2153: 
+2154:                             if len(b_val) != 10 or not any(c.isdigit() for c in b_val):
+2155:                                 continue
+2156: 
+2157:                             # 排除非台積電客戶 (例如南亞、長春、聯電、日月光)
+2158:                             if cust_val and any(non in cust_val for non in ["南亞", "長春", "聯電", "日月光"]) and "台積" not in cust_val:
+2159:                                 continue
+2160: 
+2161:                             clean_loc = clean_location_str(l_val, self.mapping_dict)
+2162:                             is_tsmc = sheet_has_tsmc or ("台積" in cust_val if cust_val else False) or \
+2163:                                       any(k in l_val for k in ["台積", "18P", "15P", "12P", "14P", "AP", "F"]) or \
+2164:                                       (clean_loc in self.mapping_dict)
+2165:                             if not is_tsmc and cust_val and "台積" not in cust_val:
+2166:                                 continue
+2167: 
+2168:                             norm_date = normalize_date_str(d_val)
+2169:                             
+2170:                             # 槽號驗證：槽號為 3~6 碼英數代號（如 E319、E308、E29J），排除誤抓之日期或時間字串
+2171:                             is_valid_tank = (
+2172:                                 t_val and 
+2173:                                 len(t_val) <= 6 and 
+2174:                                 not any(sep in t_val for sep in ["-", "/", ":", " "]) and 
+2175:                                 not (len(t_val) > 4 and t_val.isdigit())
+2176:                             )
+2177:                             if not is_valid_tank:
+2178:                                 t_val = get_tank_from_batch(b_val)
+2179: 
+2180:                             # 格式化時間 (統一為 4 碼如 0900)
+2181:                             t_final = time_val
+2182:                             if isinstance(d_val, datetime) and not t_final:
+2183:                                 hm = f"{d_val.hour:02d}{d_val.minute:02d}"
+2184:                                 if hm != "0000": t_final = hm
+2185: 
+2186:                             records.append({
+2187:                                 "sheet": sheet_name,
+2188:                                 "batch": b_val,
+2189:                                 "tank": t_val,
+2190:                                 "loc": clean_loc,
+2191:                                 "long_code": self.mapping_dict.get(clean_loc, ""),
+2192:                                 "date": norm_date,
+2193:                                 "time": t_final,
+2194:                                 "mod_time": mt_val,
+2195:                                 "po": po_val
+2196:                             })
+2197:                     wb.close()
+2198: 
+2199:                 if not records:
+2200:                     messagebox.showinfo("匯入提示", f"在檔案 {os.path.basename(filepath)} 的所有 {sheet_count} 個分頁中，找不到任何有效的台積電排程資料！")
+2201:                     continue
+2202: 
+2203:                 dialog = ImportRangeDialog(self, records, os.path.basename(filepath), sheet_count=sheet_count)
+2204:                 self.wait_window(dialog)
+2205: 
+2206:                 if not dialog.selected_records:
+2207:                     continue
+2208: 
+2209:                 target_records = dialog.selected_records
+2210: 
+2211:                 start_idx = 0
+2212:                 for idx, entry in enumerate(self.entries):
+2213:                     if not entry["batch_var"].get().strip():
+2214:                         start_idx = idx
+2215:                         break
+2216:                 else:
+2217:                     start_idx = len(self.entries)
+2218:                     
+2219:                 needed_rows = start_idx + len(target_records)
+2220:                 if needed_rows > len(self.entries):
+2221:                     self.add_input_rows(needed_rows - len(self.entries))
+2222:                     
+2223:                 for i, rec in enumerate(target_records):
+2224:                     row_e = self.entries[start_idx + i]
+2225:                     row_e["batch_var"].set(rec.get("batch", ""))
+2226:                     if "tank_var" in row_e and rec.get("tank"):
+2227:                         row_e["tank_var"].set(rec["tank"])
+2228:                     row_e["loc_var"].set(rec.get("loc", ""))
+2229:                     if rec.get("date"): row_e["date_var"].set(rec["date"])
+2230:                     if rec.get("time"): row_e["time_var"].set(rec["time"])
+2231:                     if rec.get("mod_time"): row_e["mod_time_var"].set(rec["mod_time"])
+2232:                     if rec.get("po"): row_e.get("po_var", tk.StringVar()).set(rec["po"])
+2233:                     
+2234:                 total_imported += len(target_records)
+2235:                 
+2236:             except Exception as e:
+2237:                 messagebox.showerror("匯入錯誤", f"解析檔案 {os.path.basename(filepath)} 時發生錯誤:\n{e}")
+2238:                 
+2239:         if total_imported > 0:
+2240:             messagebox.showinfo("匯入成功", f"成功從所選檔案匯入 {total_imported} 筆！")
+2241: 
+2242: 
+2243:     def generate_files(self):
+2244:         if not os.path.exists(self.template_path):

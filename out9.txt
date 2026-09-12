@@ -1,0 +1,360 @@
+641: 
+642: class ImportRangeDialog(tk.Toplevel):
+643:     """
+644:     Excel 匯入筆數與範圍選擇對話框 (支援全分頁跨頁統計、今天~後天智慧過濾與倒數擷取)
+645:     """
+646:     def __init__(self, parent, records, filename="", sheet_count=1):
+647:         super().__init__(parent)
+648:         self.parent_app = parent
+649:         self.title("📥 Excel 匯入筆數與範圍選擇 (跨分頁智慧過濾)")
+650:         self.geometry("1080x700")
+651:         self.minsize(920, 560)
+652:         self.grab_set()
+653: 
+654:         # 視窗居中於父視窗
+655:         try:
+656:             self.update_idletasks()
+657:             pw = parent.winfo_width()
+658:             ph = parent.winfo_height()
+659:             px = parent.winfo_rootx()
+660:             py = parent.winfo_rooty()
+661:             w, h = 1080, 700
+662:             x = max(20, px + (pw - w) // 2)
+663:             y = max(20, py + (ph - h) // 2)
+664:             self.geometry(f"{w}x{h}+{x}+{y}")
+665:         except Exception:
+666:             pass
+667: 
+668:         self.all_records = records
+669:         self.sheet_count = max(1, sheet_count)
+670:         self.total_records_count = len(records)
+671:         self.selected_records = None
+672: 
+673:         # 計算 今天、明天、後天 日期
+674:         today = datetime.now().date()
+675:         self.d0 = today.strftime("%Y-%m-%d")
+676:         self.d1 = (today + timedelta(days=1)).strftime("%Y-%m-%d")
+677:         self.d2 = (today + timedelta(days=2)).strftime("%Y-%m-%d")
+678:         self.d0_d2 = [self.d0, self.d1, self.d2]
+679: 
+680:         # 預設過濾邏輯：優先過濾「今天~後天 (3天)」
+681:         window_matches = [r for r in self.all_records if r.get("date") in self.d0_d2]
+682:         if window_matches:
+683:             self.current_filtered_records = window_matches
+684:             self.active_mode = "d0_d2"
+685:             self.summary_text = f"已優先過濾「今天~後天 ({self.d0} ~ {self.d2})」共 {len(window_matches)} 筆 (全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆)"
+686:         else:
+687:             self.current_filtered_records = list(self.all_records)
+688:             self.active_mode = "all"
+689:             self.summary_text = f"全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆排程 (無今天~後天資料，顯示全部)"
+690: 
+691:         self.count_var = tk.IntVar(value=len(self.current_filtered_records) if len(self.current_filtered_records) <= 10 else 10)
+692:         self.info_var = tk.StringVar(value=self.summary_text)
+693: 
+694:         self.date_btns = {}
+695:         self.setup_ui(filename)
+696:         self.update_preview()
+697: 
+698:     def setup_ui(self, filename):
+699:         # 頂部提示資訊
+700:         info_frame = tk.LabelFrame(self, text="檔案偵測結果", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#002060")
+701:         info_frame.pack(fill="x", pady=(0, 10))
+702: 
+703:         tk.Label(info_frame, text=f"📄 檔案名稱：{filename}", font=("Arial", 10, "bold")).pack(anchor="w")
+704:         lbl_sum = tk.Label(info_frame, textvariable=self.info_var, fg="#2E7D32", font=("Arial", 10, "bold"), wraplength=1020, justify="left")
+705:         lbl_sum.pack(anchor="w", pady=(2, 0))
+706: 
+707:         # 篩選控制區
+708:         ctrl_frame = tk.LabelFrame(self, text="🎯 篩選與筆數設定（支援日期過濾與倒數擷取）", font=("Arial", 10, "bold"), padx=10, pady=8, fg="#C00000")
+709:         ctrl_frame.pack(fill="x", pady=(0, 10))
+710: 
+711:         # 1. 篩選日期按鈕列
+712:         date_bar = tk.Frame(ctrl_frame)
+713:         date_bar.pack(fill="x", pady=(0, 6))
+714: 
+715:         tk.Label(date_bar, text="篩選日期：", font=("Arial", 10, "bold")).pack(side="left")
+716: 
+717:         btn_3days = tk.Button(
+718:             date_bar, 
+719:             text="📅 優先抓今天~後天 (3天)", 
+720:             command=lambda: self.filter_by_date_mode("d0_d2"), 
+721:             font=("Arial", 9, "bold"), 
+722:             padx=8, 
+723:             cursor="hand2"
+724:         )
+725:         btn_3days.pack(side="left", padx=3)
+726:         self.date_btns["d0_d2"] = btn_3days
+727: 
+728:         btn_d0 = tk.Button(
+729:             date_bar, 
+730:             text="今天", 
+731:             command=lambda: self.filter_by_date_mode("d0"), 
+732:             font=("Arial", 9, "bold"), 
+733:             padx=8, 
+734:             cursor="hand2"
+735:         )
+736:         btn_d0.pack(side="left", padx=3)
+737:         self.date_btns["d0"] = btn_d0
+738: 
+739:         btn_d1 = tk.Button(
+740:             date_bar, 
+741:             text="明天", 
+742:             command=lambda: self.filter_by_date_mode("d1"), 
+743:             font=("Arial", 9, "bold"), 
+744:             padx=8, 
+745:             cursor="hand2"
+746:         )
+747:         btn_d1.pack(side="left", padx=3)
+748:         self.date_btns["d1"] = btn_d1
+749: 
+750:         btn_d2 = tk.Button(
+751:             date_bar, 
+752:             text="後天", 
+753:             command=lambda: self.filter_by_date_mode("d2"), 
+754:             font=("Arial", 9, "bold"), 
+755:             padx=8, 
+756:             cursor="hand2"
+757:         )
+758:         btn_d2.pack(side="left", padx=3)
+759:         self.date_btns["d2"] = btn_d2
+760: 
+761:         btn_all_date = tk.Button(
+762:             date_bar, 
+763:             text="全部日期", 
+764:             command=lambda: self.filter_by_date_mode("all"), 
+765:             font=("Arial", 9, "bold"), 
+766:             padx=8, 
+767:             cursor="hand2"
+768:         )
+769:         btn_all_date.pack(side="left", padx=3)
+770:         self.date_btns["all"] = btn_all_date
+771: 
+772:         self.refresh_date_buttons()
+773: 
+774:         # 2. 筆數快速按鈕列
+775:         count_bar = tk.Frame(ctrl_frame)
+776:         count_bar.pack(fill="x")
+777: 
+778:         tk.Label(count_bar, text="選擇筆數：", font=("Arial", 10, "bold")).pack(side="left")
+779: 
+780:         for num, text in [(5, "5 筆"), (10, "10 筆"), (20, "20 筆"), ("all", "全部")]:
+781:             tk.Button(
+782:                 count_bar, 
+783:                 text=text, 
+784:                 command=lambda n=num: self.set_count(n), 
+785:                 font=("Arial", 9, "bold"), 
+786:                 bg="#E3F2FD", 
+787:                 fg="#0D47A1", 
+788:                 padx=6, 
+789:                 cursor="hand2"
+790:             ).pack(side="left", padx=3)
+791: 
+792:         tk.Label(count_bar, text="自訂筆數：", font=("Arial", 9)).pack(side="left", padx=(10, 0))
+793:         self.spin = tk.Spinbox(count_bar, from_=1, to=max(1, len(self.current_filtered_records)), textvariable=self.count_var, width=6, command=self.update_preview, font=("Arial", 10, "bold"))
+794:         self.spin.pack(side="left", padx=5)
+795:         self.spin.bind("<KeyRelease>", lambda e: self.update_preview())
+796:         tk.Label(count_bar, text="筆", font=("Arial", 9)).pack(side="left")
+797: 
+798:         # 預覽表格區 (採用專業 Treeview 多欄呈現，欄寬自由拖拉，全資料完整展示)
+799:         preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽 (欄寬可自由拉動，全欄位完整呈現)", font=("Arial", 10, "bold"), padx=6, pady=6, fg="#002060")
+800:         preview_frame.pack(fill="both", expand=True, pady=(0, 10))
+801: 
+802:         # 定義 Treeview 欄位
+803:         columns = ("chk", "idx", "sheet", "date", "time", "batch", "tank", "loc", "long_code")
+804:         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
+805: 
+806:         col_defs = [
+807:             ("chk", "✅選取", 50, "center"),
+808:             ("idx", "項次", 50, "center"),
+809:             ("sheet", "來源分頁", 150, "w"),
+810:             ("date", "出貨日期 📅", 105, "center"),
+811:             ("time", "到廠時間", 85, "center"),
+812:             ("batch", "批號 (10碼)", 125, "center"),
+813:             ("tank", "槽號", 75, "center"),
+814:             ("loc", "指送地點", 95, "center"),
+815:             ("long_code", "地點長代號 (全稱)", 250, "w")
+816:         ]
+817: 
+818:         for col_id, heading_text, width, anchor in col_defs:
+819:             self.tree.heading(col_id, text=heading_text, anchor=anchor)
+820:             self.tree.column(col_id, width=width, minwidth=40, anchor=anchor, stretch=True)
+821: 
+822:         scroll_y = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
+823:         scroll_x = ttk.Scrollbar(preview_frame, orient="horizontal", command=self.tree.xview)
+824:         self.tree.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
+825: 
+826:         scroll_y.pack(side="right", fill="y")
+827:         scroll_x.pack(side="bottom", fill="x")
+828:         self.tree.pack(side="left", fill="both", expand=True)
+829: 
+830:         # 斑馬紋樣式設定
+831:         self.tree.tag_configure("evenrow", background="#FFFFFF")
+832:         self.tree.tag_configure("oddrow", background="#F2F7FA")
+833:         self.tree.bind("<ButtonRelease-1>", self.on_tree_click)
+834: 
+835:         # 底部確定按鈕區
+836:         action_frame = tk.Frame(self)
+837:         action_frame.pack(fill="x")
+838: 
+839:         self.btn_confirm = tk.Button(
+840:             action_frame, 
+841:             text="🚀 確認匯入資料", 
+842:             command=self.confirm_import, 
+843:             bg="#4CAF50", 
+844:             fg="white", 
+845:             font=("Arial", 11, "bold"), 
+846:             pady=7,
+847:             cursor="hand2"
+848:         )
+849:         self.btn_confirm.pack(side="left", fill="x", expand=True, padx=(0, 5))
+850: 
+851:         tk.Button(
+852:             action_frame, 
+853:             text="❌ 取消", 
+854:             command=self.destroy, 
+855:             bg="#9E9E9E", 
+856:             fg="white", 
+857:             font=("Arial", 10), 
+858:             pady=7,
+859:             width=10,
+860:             cursor="hand2"
+861:         ).pack(side="right", padx=5)
+862: 
+863:     def refresh_date_buttons(self):
+864:         for mode, btn in self.date_btns.items():
+865:             if mode == self.active_mode:
+866:                 if mode == "d0_d2":
+867:                     btn.config(bg="#FF9800", fg="white")
+868:                 elif mode == "all":
+869:                     btn.config(bg="#7B1FA2", fg="white")
+870:                 else:
+871:                     btn.config(bg="#1976D2", fg="white")
+872:             else:
+873:                 btn.config(bg="#EEEEEE", fg="#424242")
+874: 
+875:     def filter_by_date_mode(self, mode):
+876:         if mode == "d0_d2":
+877:             filtered = [r for r in self.all_records if r.get("date") in self.d0_d2]
+878:             label = f"「今天~後天 ({self.d0} ~ {self.d2})」"
+879:         elif mode == "d0":
+880:             filtered = [r for r in self.all_records if r.get("date") == self.d0]
+881:             label = f"「今天 ({self.d0})」"
+882:         elif mode == "d1":
+883:             filtered = [r for r in self.all_records if r.get("date") == self.d1]
+884:             label = f"「明天 ({self.d1})」"
+885:         elif mode == "d2":
+886:             filtered = [r for r in self.all_records if r.get("date") == self.d2]
+887:             label = f"「後天 ({self.d2})」"
+888:         else:
+889:             filtered = list(self.all_records)
+890:             label = "「全部日期」"
+891: 
+892:         if not filtered:
+893:             messagebox.showinfo("無排程資料", f"在所有 {self.sheet_count} 個分頁中，找不到符合 {label} 的出貨排程！")
+894:             return
+895: 
+896:         self.active_mode = mode
+897:         self.current_filtered_records = filtered
+898:         self.refresh_date_buttons()
+899:         self.info_var.set(f"已篩選 {label} 共 {len(filtered)} 筆 (全 {self.sheet_count} 個分頁總計 {self.total_records_count} 筆)")
+900:         
+901:         self.spin.config(to=max(1, len(filtered)))
+902:         self.count_var.set(len(filtered))
+903:         self.update_preview()
+904: 
+905:     def set_count(self, num):
+906:         if num == "all":
+907:             self.count_var.set(len(self.current_filtered_records))
+908:         else:
+909:             self.count_var.set(min(int(num), len(self.current_filtered_records)))
+910:         self.update_preview()
+911: 
+912:     def update_preview(self):
+913:         total = len(self.current_filtered_records)
+914:         try:
+915:             cnt = self.count_var.get()
+916:         except Exception:
+917:             cnt = 1
+918:         cnt = max(1, min(cnt, total))
+919:         self.count_var.set(cnt)
+920: 
+921:         slice_records = self.current_filtered_records[-cnt:]
+922: 
+923:         # 清空 Treeview
+924:         for item in self.tree.get_children():
+925:             self.tree.delete(item)
+926: 
+927:         for idx, rec in enumerate(slice_records):
+928:             sheet_name = rec.get("sheet", "分頁")
+929:             d_str = rec.get("date") or ""
+930:             t_str = rec.get("time") or ""
+931:             b_str = rec.get("batch") or ""
+932:             tank_str = rec.get("tank") or ""
+933:             loc_str = rec.get("loc") or ""
+934:             long_code_str = rec.get("long_code") or getattr(self.parent_app, "mapping_dict", {}).get(loc_str, "")
+935: 
+936:             tag = "evenrow" if idx % 2 == 0 else "oddrow"
+937:             self.tree.insert(
+938:                 "",
+939:                 "end",
+940:                 values=(
+941:                     "☑",
+942:                     f"[{idx+1:02d}]",
+943:                     sheet_name,
+944:                     d_str,
+945:                     t_str,
+946:                     b_str,
+947:                     tank_str,
+948:                     loc_str,
+949:                     long_code_str
+950:                 ),
+951:                 tags=(tag,)
+952:             )
+953: 
+954:         self.btn_confirm.config(text=f"🚀 確認由下往上擷取最新的 {cnt} 筆匯入系統")
+955: 
+956:     def on_tree_click(self, event):
+957:         region = self.tree.identify("region", event.x, event.y)
+958:         if region == "cell":
+959:             column = self.tree.identify_column(event.x)
+960:             if column == "#1":
+961:                 item_id = self.tree.identify_row(event.y)
+962:                 if item_id:
+963:                     vals = list(self.tree.item(item_id, "values"))
+964:                     vals[0] = "☐" if vals[0] == "☑" else "☑"
+965:                     self.tree.item(item_id, values=vals)
+966:                     
+967:                     checked = sum(1 for item in self.tree.get_children() if self.tree.item(item, "values")[0] == "☑")
+968:                     self.btn_confirm.config(text=f"🚀 確認將這 {checked} 筆匯入系統")
+969: 
+970:     def confirm_import(self):
+971:         cnt = self.count_var.get()
+972:         cnt = max(1, min(cnt, len(self.current_filtered_records)))
+973:         slice_records = self.current_filtered_records[-cnt:]
+974:         
+975:         selected_recs = []
+976:         for idx, item in enumerate(self.tree.get_children()):
+977:             vals = self.tree.item(item, "values")
+978:             if vals[0] == "☑" and idx < len(slice_records):
+979:                 selected_recs.append(slice_records[idx])
+980:                 
+981:         self.selected_records = selected_recs
+982:         self.destroy()
+983: 
+984: # ================= 核心邏輯 =================
+985: 
+986: def get_tank_from_batch(batch):
+987:     batch = batch.strip()
+988:     if not batch:
+989:         return ""
+990:     if len(batch) != 10:
+991:         return "長度錯誤"
+992:     if batch.endswith('J1'):
+993:         return batch[5:8]
+994:     return batch[5:9]
+995: 
+996: def find_row_by_label(ws, labels):
+997:     for r in range(1, 20):
+998:         val = ws.cell(row=r, column=2).value
+999:         if val and isinstance(val, str):
+1000:             for label in labels:

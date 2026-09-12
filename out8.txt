@@ -1,0 +1,50 @@
+1871:                     wb = openpyxl.load_workbook(file_path)
+1872:                     ws = wb.active
+1873:                     ws['B6'] = factory_code
+1874:                     ws['B17'] = date_str
+1875:                     wb.save(new_file_path)
+1876:                 elif ext.lower() == '.csv':
+1877:                     import csv
+1878:                     with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+1879:                         reader = list(csv.reader(f))
+1880:                     while len(reader) <= 16:
+1881:                         reader.append([])
+1882:                     for r in reader:
+1883:                         while len(r) <= 1:
+1884:                             r.append("")
+1885:                     
+1886:                     reader[5][1] = factory_code
+1887:                     reader[16][1] = date_str
+1888:                     
+1889:                     with open(new_file_path, 'w', encoding='utf-8-sig', newline='') as f:
+1890:                         writer = csv.writer(f)
+1891:                         writer.writerows(reader)
+1892:                 
+1893:                 success_count += 1
+1894:             except Exception as e:
+1895:                 error_msgs.append(f"處理 {os.path.basename(file_path)} 失敗: {str(e)}")
+1896: 
+1897:         msg = f"成功處理 {success_count} 份 COA 表單。"
+1898:         if error_msgs:
+1899:             msg += "\n\n錯誤紀錄:\n" + "\n".join(error_msgs)
+1900:             messagebox.showwarning("完成", msg)
+1901:         else:
+1902:             messagebox.showinfo("完成", msg)
+1903: 
+1904:     def upload_coa(self):
+1905:         if not os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'):
+1906:             ans = messagebox.askyesno(
+1907:                 "缺少 OCR 引擎", 
+1908:                 "系統偵測到您尚未安裝『Tesseract OCR 引擎』，無法使用截圖辨識功能！\n\n"
+1909:                 "是否要立即開啟官方下載網頁？\n\n"
+1910:                 "(請下載最新的 64 bit 安裝檔，並【一直按下一步】安裝在預設路徑即可)"
+1911:             )
+1912:             if ans:
+1913:                 webbrowser.open("https://github.com/UB-Mannheim/tesseract/wiki")
+1914:             return
+1915:             
+1916:         filepaths = filedialog.askopenfilenames(title="選擇 COA 截圖", filetypes=[("Image files", "*.jpg *.jpeg *.png")])
+1917:         if filepaths:
+1918:             self.coa_paths.extend(filepaths)
+1919:             messagebox.showinfo("上傳成功", f"成功上傳 {len(filepaths)} 張截圖！\n目前共 {len(self.coa_paths)} 張待處理。")
+1920: 

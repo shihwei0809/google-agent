@@ -1,0 +1,36 @@
+1268:         self.coa_paths = []
+1407:         tk.Button(left_btn_frame, text="📄 載入 COA 表單", command=self.load_coa_forms, bg="#8E24AA", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+1408:         tk.Button(left_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+1409:         tk.Button(left_btn_frame, text="📋 貼上 COA 截圖", command=self.paste_coa, bg="#4CAF50", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+1455:         tk.Checkbutton(report_opt_frame, text="✅ 產生三合一單 Excel (含 Barcode 與 COA)", variable=self.gen_3in1_var, font=("Microsoft JhengHei", 9, "bold"), fg="#1B5E20").pack(side="left", padx=(0, 20))
+1794:     def load_coa_forms(self):
+1796:             title="選擇要載入的 COA 表單 (可多選)",
+1902:                         # 寫入 COA (B, G, C)
+1936:         msg = f"成功處理 {success_count} 份 COA 表單。"
+1943:     def upload_coa(self):
+1955:         filepaths = filedialog.askopenfilenames(title="選擇 COA 截圖", filetypes=[("Image files", "*.jpg *.jpeg *.png")])
+1957:             self.coa_paths.extend(filepaths)
+1958:             messagebox.showinfo("上傳成功", f"成功上傳 {len(filepaths)} 張截圖！\n目前共 {len(self.coa_paths)} 張待處理。")
+1960:     def paste_coa(self):
+1974:             temp_path = os.path.join(temp_dir, f"coa_paste_{uuid.uuid4().hex[:8]}.png")
+1977:             self.coa_paths.append(temp_path)
+1978:             messagebox.showinfo("貼上成功", f"成功貼上 1 張截圖！\n目前共 {len(self.coa_paths)} 張待處理。")
+2372:                 coa_crops = {}
+2377:                 if self.coa_paths:
+2378:                     for img_path in self.coa_paths:
+2385:                             def parse_tsmc_query_table_accurate(coa_raw):
+2386:                                 w, h = coa_raw.size
+2387:                                 img_rgb = coa_raw.convert('RGB')
+2434:                                 if not hasattr(self, 'fallback_coa'):
+2435:                                     self.fallback_coa = []
+2445:                                     self.fallback_coa.append(new_img)
+2457:                                                 coa_crops[digits] = new_img
+2465:                                                 coa_crops[digits] = new_img
+2468:                                 if not hasattr(self, 'fallback_coa'):
+2469:                                     self.fallback_coa = []
+2471:                                 self.fallback_coa.append(orig_img_hr)
+2553:                         # Insert COA Crop
+2554:                         found_coa = False
+2556:                         for k_batch, crop_img in coa_crops.items():
+2571:                                 found_coa = True
+2575:                         if not found_coa and self.coa_paths:
