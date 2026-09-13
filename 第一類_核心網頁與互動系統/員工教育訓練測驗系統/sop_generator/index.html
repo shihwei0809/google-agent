@@ -3035,8 +3035,61 @@ function doPost(e) {
    - 在「雲端同步網址」欄位中貼入您剛才複製的 Google Web App URL，然後儲存。
    - 同仁提交時，成績就會自動非同步備份到雲端的 Google 試算表中！`;
 
+        // Cloudflare D1 整合檔案
+        const schemaSqlCode = `DROP TABLE IF EXISTS exam_records;
+CREATE TABLE exam_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT,
+    name TEXT,
+    score INTEGER,
+    correctCount INTEGER,
+    total INTEGER,
+    q1 TEXT,
+    q2 TEXT,
+    q3 TEXT,
+    q4 TEXT,
+    q5 TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);`;
+
+        const wranglerTomlCode = `name = "sop-training"
+pages_build_output_dir = "."
+compatibility_date = "2024-03-20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sop_exam_records"
+database_id = "your-database-id-here"`;
+
+        const submitJsCode = `export async function onRequestPost(context) {
+  try {
+    const data = await context.request.json();
+    const name = data.name || "未知";
+    const timestamp = data.timestamp || new Date().toLocaleString('zh-TW');
+    const score = data.score !== undefined ? data.score : 0;
+    const correctCount = data.correctCount || 0;
+    const total = data.total || 5;
+    const q1 = data.q1 || "";
+    const q2 = data.q2 || "";
+    const q3 = data.q3 || "";
+    const q4 = data.q4 || "";
+    const q5 = data.q5 || "";
+    const stmt = context.env.DB.prepare(\`
+      INSERT INTO exam_records (timestamp, name, score, correctCount, total, q1, q2, q3, q4, q5)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    \`).bind(timestamp, name, score, correctCount, total, q1, q2, q3, q4, q5);
+    await stmt.run();
+    return new Response(JSON.stringify({ status: "ok" }), { headers: { "Content-Type": "application/json" } });
+  } catch (err) {
+    return new Response(JSON.stringify({ status: "error", message: err.message }), { status: 500 });
+  }
+}`;
+
         // 3. 包裝 ZIP 檔案
         zip.file("index.html", playerHtml);
+        zip.file("schema.sql", schemaSqlCode);
+        zip.file("wrangler.toml", wranglerTomlCode);
+        zip.file("functions/api/submit.js", submitJsCode);
         zip.file("serve_intranet.txt", psServerCode);
         zip.file("點我啟動內網伺服器(Windows免安裝).bat", batShortcutCode);
         zip.file("apps_script_code.gs", appsScriptCode);
