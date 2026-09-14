@@ -926,12 +926,13 @@ async def rescue_video_to_script(
         # 建立候選模型清單，使用者選取的排第一
         candidate_models = [gemini_model]
         all_models = [
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-flash",
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.6-flash",
             "gemini-3.5-flash",
             "gemini-3.5-pro",
             "gemini-2.5-flash",
-            "gemini-1.5-pro-latest"
+            "gemini-1.5-flash-latest"
         ]
         for m in all_models:
             if m not in candidate_models:

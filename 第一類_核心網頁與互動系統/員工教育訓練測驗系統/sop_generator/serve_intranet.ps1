@@ -51,6 +51,7 @@ while ($true) {
         }
         $client = $listener.AcceptTcpClient()
         $stream = $client.GetStream()
+        $stream.ReadTimeout = 500
         
         $reader = New-Object System.IO.StreamReader($stream)
         $requestLine = $reader.ReadLine()
@@ -95,3 +96,4 @@ while ($true) {
         # 忽略單個請求錯誤
     }
 }
+

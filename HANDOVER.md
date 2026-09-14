@@ -15,3 +15,13 @@
 
 ## 待辦事項
 - 無。教育訓練教材加框標註與跨機同步功能驗收完畢，版本標籤升級並正式發布。
+## 2026-09-14 收工交接
+- **今日完成事項**:
+  1. 修復了 sop_generator 因缺乏 ReadTimeout 導致的白屏/死鎖問題。
+  2. 修復了 點我啟動教育訓練產生器.bat 啟動器的編碼問題 (改用 cp950)。
+  3. 為產生器 UI 與後端套用了 Gemini 與 Groq 的自動容錯梯隊降級機制 (包含最新加入的 Gemini 3.8 Flash, 3.7 Flash, 3.6 Flash 等模型)。
+  4. 將 sop_generator 的自動生圖圖庫由 LoremFlickr 升級為 pollinations.ai AI 自動即時生圖引擎。
+  5. 於產生器打包的教材內，新增並內建了 一鍵自動部署上雲端.bat，可全自動透過 Wrangler 創建 D1、上傳 schema 並發布至 Cloudflare Pages。
+- **遺留問題 / 待確認**:
+  - 用戶已下載的教材套件可手動加入獨立的 Cloudflare 自動部署工具包進行補救。
+  - 目前所有 Gemini 系列最新模型已對齊完成。

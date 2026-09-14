@@ -267,10 +267,13 @@ async def extract_document(
     
         # Model fallback 清單：選到的 model 排第一，失敗自動往下試
         FALLBACK_MODELS = [
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-pro",
             "gemini-3.5-flash",
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-2.0-flash-lite",
+            "gemini-2.5-pro",
+            "gemini-2.5-flash"
         ]
         if model in FALLBACK_MODELS:
             model_queue = [model] + [m for m in FALLBACK_MODELS if m != model]
@@ -353,8 +356,9 @@ async def generate_quiz_endpoint(
     )
 
     FALLBACK_MODELS = [
-        "gemini-3.5-flash", "gemini-2.5-flash",
-        "gemini-2.0-flash", "gemini-2.0-flash-lite",
+        "gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.6-flash",
+        "gemini-3.5-pro", "gemini-3.5-flash",
+        "gemini-2.5-pro", "gemini-2.5-flash"
     ]
     model_queue = [model] + [m for m in FALLBACK_MODELS if m != model]
 

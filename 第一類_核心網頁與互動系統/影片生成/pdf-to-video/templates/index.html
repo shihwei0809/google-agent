@@ -624,8 +624,11 @@
                 <div>
                   <label style="font-size: 0.8rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 6px;">分析模型 (優先使用)</label>
                   <select id="rescue-gemini-model" style="font-size: 0.82rem; color: var(--text); background: var(--surface); border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px; width: 100%; box-sizing: border-box; height: 35px; outline: none;">
-                    <option value="gemini-3.5-flash">Gemini 3.5 Flash (最新推薦)</option>
+                    <option value="gemini-3.8-flash">Gemini 3.8 Flash (最新極速)</option>
+                    <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                    <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
                     <option value="gemini-3.5-pro">Gemini 3.5 Pro</option>
+                    <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
                     <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                     <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                   </select>
@@ -769,20 +772,34 @@
           <span>⚙️</span> 語音節奏與語速設定
         </div>
         
-        <!-- Speech Rate (Edge only note) -->
-        <div id="speech-rate-container" style="margin-bottom: 24px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 — Edge TTS 專用 (Gemini TTS 自動感知)</label>
-            <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">正常 (1.0x)</span>
-          </div>
-          <input type="range" id="rate-slider" min="1.0" max="2.0" step="0.1" value="1.0" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
-          <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
-            <span>正常 (1.0x)</span>
-            <span>快速 (1.5x)</span>
-            <span>極快 (2.0x)</span>
-          </div>
-        </div>
-
+        <!-- Speech Rate (Edge only note) -->
+
+        <div id="speech-rate-container" style="margin-bottom: 24px;">
+
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+
+            <label style="font-size: 0.9rem; font-weight: 600; color: var(--text);">語速調整 — Edge TTS 專用 (Gemini TTS 自動感知)</label>
+
+            <span id="rate-value" style="font-size: 0.82rem; font-weight: 700; color: var(--accent); background: rgba(79,142,247,0.15); padding: 3px 10px; border-radius: 12px;">正常 (1.0x)</span>
+
+          </div>
+
+          <input type="range" id="rate-slider" min="1.0" max="2.0" step="0.1" value="1.0" style="width: 100%; accent-color: var(--accent); background: var(--surface); height: 6px; border-radius: 3px; outline: none; cursor: pointer; margin: 8px 0;">
+
+          <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); margin-top: 4px;">
+
+            <span>正常 (1.0x)</span>
+
+            <span>快速 (1.5x)</span>
+
+            <span>極快 (2.0x)</span>
+
+          </div>
+
+        </div>
+
+
+
         <!-- Auto Pause -->
         <div id="auto-pause-container" style="margin-bottom: 24px;">
           <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer; font-size: 0.9rem; color: var(--text); user-select: none;">
@@ -1007,9 +1024,24 @@
         apiSettingsArea.style.display = 'block';
         modelSelect.innerHTML = '';
         if (selectedMethod === 'gemini') {
+          const opt38f = document.createElement('option');
+          opt38f.value = 'gemini-3.8-flash';
+          opt38f.textContent = 'Gemini 3.8 Flash (最新極速)';
+          modelSelect.appendChild(opt38f);
+
+          const opt37f = document.createElement('option');
+          opt37f.value = 'gemini-3.7-flash';
+          opt37f.textContent = 'Gemini 3.7 Flash';
+          modelSelect.appendChild(opt37f);
+
+          const opt36f = document.createElement('option');
+          opt36f.value = 'gemini-3.6-flash';
+          opt36f.textContent = 'Gemini 3.6 Flash';
+          modelSelect.appendChild(opt36f);
+
           const opt35f = document.createElement('option');
           opt35f.value = 'gemini-3.5-flash';
-          opt35f.textContent = 'Gemini 3.5 Flash (預設推薦)';
+          opt35f.textContent = 'Gemini 3.5 Flash';
           
           const opt35p = document.createElement('option');
           opt35p.value = 'gemini-3.5-pro';

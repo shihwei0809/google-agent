@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0sop_generator"
-call "é»æˆ‘å•Ÿå‹•ç”¢ç”Ÿå™¨(Windowså…å®‰è£).bat"
+call "ÂI§Ú±Ò°Ê²£¥Í¾¹(Windows§K¦w¸Ë).bat"
