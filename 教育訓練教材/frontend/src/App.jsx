@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { MessageCircle, Send, BookOpen, ChevronRight, Upload, FileText, Trash2, Camera } from 'lucide-react';
+import { MessageCircle, Send, BookOpen, ChevronRight, Upload, FileText, Trash2, Camera, Square, Edit3 } from 'lucide-react';
 import axios from 'axios';
 import mermaid from 'mermaid';
+import ImageAnnotatorModal from './ImageAnnotatorModal';
 
 const API_BASE = `http://${window.location.hostname}:8000`;
 
@@ -12,7 +13,39 @@ mermaid.initialize({
   securityLevel: 'loose',
 });
 
-function MarkdownImage({ src, alt, ...props }) {
+// 動態解析圖片路徑：支援相對路徑、自動將寫死的 localhost:8000/127.0.0.1:8000 替換為當前伺服器主機 IP
+export function resolveImageUrl(rawSrc) {
+  if (!rawSrc) return '';
+  let s = rawSrc.trim();
+
+  // 若圖片路徑寫死了 localhost:8000 或 127.0.0.1:8000，自動替換為當前連線的主機 API_BASE
+  s = s.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8000\/materials_static\//i, `${API_BASE}/materials_static/`);
+  s = s.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8000/i, API_BASE);
+
+  // 若為外部完整網址且非本地，直接返回
+  if (s.startsWith('http://') || s.startsWith('https://')) {
+    return s;
+  }
+
+  // 處理以 /materials_static/ 開頭的相對路徑
+  if (s.startsWith('/materials_static/')) {
+    return `${API_BASE}${s}`;
+  }
+  if (s.startsWith('materials_static/')) {
+    return `${API_BASE}/${s}`;
+  }
+
+  // 純檔名（安全編碼路徑，確保中文檔名與特殊字元均能正常請求）
+  let safeSrc = s;
+  try {
+    safeSrc = encodeURI(decodeURI(s));
+  } catch (e) {
+    safeSrc = s;
+  }
+  return `${API_BASE}/materials_static/${safeSrc}`;
+}
+
+function MarkdownImage({ src, alt, onOpenAnnotator, onUploadAndAnnotate, ...props }) {
   const isRealImage = /\.(png|jpe?g|gif|webp|svg)$/i.test(src || '');
   const [hasError, setHasError] = useState(false);
 
@@ -35,25 +68,57 @@ function MarkdownImage({ src, alt, ...props }) {
           <div className="text-sm font-medium text-gray-800 leading-relaxed">
             {hintText}
           </div>
-          <div className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-            <span>💡 提示：點擊右上方「編輯教材」，按</span>
-            <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded shadow-2xs text-[11px] font-mono text-gray-700">Ctrl+V</kbd>
-            <span>即可直接貼上真實系統畫面截圖！</span>
+          <div className="text-xs text-gray-500 mt-2.5 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1">
+              <span>💡 提示：點擊右上方「編輯教材」，按</span>
+              <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded shadow-2xs text-[11px] font-mono text-gray-700">Ctrl+V</kbd>
+              <span>即可貼上截圖，或直接：</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onUploadAndAnnotate && onUploadAndAnnotate(src)}
+              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+            >
+              <Square className="w-3.5 h-3.5" />
+              <span>選圖加框標註</span>
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
-  const fullSrc = src?.startsWith('http') ? src : `${API_BASE}/materials_static/${src}`;
+  const fullSrc = resolveImageUrl(src);
   return (
-    <img 
-      {...props}
-      src={fullSrc} 
-      className="max-w-full h-auto rounded-lg shadow-md my-4 border border-gray-100" 
-      alt={alt || ''} 
-      onError={() => setHasError(true)}
-    />
+    <div className="relative group my-4 inline-block max-w-full">
+      <img 
+        {...props}
+        src={fullSrc} 
+        className="max-w-full h-auto rounded-lg shadow-md border border-gray-100 block" 
+        alt={alt || ''} 
+        onError={() => setHasError(true)}
+      />
+      {/* 圖片懸浮標註按鈕 */}
+      <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1 bg-gray-900/80 backdrop-blur-xs p-1 rounded-xl shadow-lg">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpenAnnotator && onOpenAnnotator({
+              src: fullSrc,
+              originalFilename: src,
+              fromEditor: false
+            });
+          }}
+          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+          title="在圖片上加框、標記代號(①②③)或說明文字"
+        >
+          <Square className="w-3.5 h-3.5" />
+          <span>加框/代號標註</span>
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -78,6 +143,83 @@ function App() {
   
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const annotateFileInputRef = useRef(null);
+  const targetReplacePlaceholderRef = useRef(null);
+
+  // 圖片標註彈窗狀態
+  const [annotatingImage, setAnnotatingImage] = useState(null); // { src, originalFilename, fromEditor }
+
+  // 開啟圖片標註編輯器
+  const handleOpenAnnotator = ({ src, originalFilename, fromEditor = false }) => {
+    setAnnotatingImage({
+      src,
+      originalFilename,
+      fromEditor
+    });
+  };
+
+  // 從本機選擇圖片進行標註
+  const handleUploadAndAnnotate = (targetPlaceholder = null) => {
+    targetReplacePlaceholderRef.current = targetPlaceholder;
+    annotateFileInputRef.current?.click();
+  };
+
+  const handleAnnotateFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result;
+      setAnnotatingImage({
+        src: dataUrl,
+        originalFilename: targetReplacePlaceholderRef.current,
+        fromEditor: isEditing
+      });
+      targetReplacePlaceholderRef.current = null;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // 重置 input 供下次重複選擇相同檔案
+  };
+
+  // 儲存標註後的圖片並自動更新教材
+  const handleSaveAnnotatedImage = async (newFilename) => {
+    if (!annotatingImage) return;
+    const oldName = annotatingImage.originalFilename;
+
+    if (oldName && currentMaterialName) {
+      // 替換現有教材中的舊圖檔名或佔位符
+      let updatedContent = currentContent.replaceAll(oldName, newFilename);
+      let updatedEditContent = editContent.replaceAll(oldName, newFilename);
+
+      // 若原為無括號佔位符，包裝為正確 markdown 圖片語法
+      if (!updatedContent.includes(`](${newFilename})`)) {
+        updatedContent = updatedContent.replaceAll(oldName, `![操作標註圖](${newFilename})`);
+        updatedEditContent = updatedEditContent.replaceAll(oldName, `![操作標註圖](${newFilename})`);
+      }
+
+      setCurrentContent(updatedContent);
+      setEditContent(updatedEditContent);
+
+      try {
+        await fetch(`${API_BASE}/materials/${currentMaterialName}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: updatedContent })
+        });
+        alert('🎉 圖片標註儲存成功！已自動更新教材畫面。');
+      } catch (e) {
+        console.error(e);
+        alert('標註圖片已上傳，但自動同步至教材時發生錯誤，請點擊「儲存修改」。');
+      }
+    } else if (isEditing || annotatingImage.fromEditor) {
+      const imgMarkdown = `\n\n![操作標註圖](${newFilename})\n\n`;
+      setEditContent(prev => prev + imgMarkdown);
+      alert('🎉 標註圖片已成功插入至編輯區最下方！');
+    }
+
+    setAnnotatingImage(null);
+  };
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -415,6 +557,15 @@ function App() {
             ) : (
               <>
                 <button
+                  type="button"
+                  onClick={() => handleUploadAndAnnotate(null)}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded shadow hover:bg-indigo-700 text-sm font-medium flex items-center gap-1.5"
+                  title="選擇本機圖片加框、標記代號(①②③)或文字後插入教材"
+                >
+                  <Square className="w-4 h-4" />
+                  <span>圖片加框標註</span>
+                </button>
+                <button
                   onClick={handleGenerateImage}
                   disabled={isGeneratingImage}
                   className="px-4 py-2 bg-purple-600 text-white rounded shadow hover:bg-purple-700 text-sm font-medium disabled:opacity-50"
@@ -471,6 +622,17 @@ function App() {
                         const imgMd = `\n![系統截圖](${data.url})\n`;
                         // 替換掉上傳中文字
                         setEditContent(prev => prev.replace(uploadingText, imgMd));
+                        
+                        // 提示是否立即加框標註
+                        setTimeout(() => {
+                          if (window.confirm("📸 截圖已成功貼上！\n需要立即開啟「加框與代號標註工具」，在圖片上加紅框、步驟序號(①②③)或說明文字嗎？")) {
+                            handleOpenAnnotator({
+                              src: `${API_BASE}/materials_static/${data.url}`,
+                              originalFilename: data.url,
+                              fromEditor: true
+                            });
+                          }
+                        }, 200);
                       } else {
                         setEditContent(prev => prev.replace(uploadingText, "\n(圖片上傳失敗)\n"));
                       }
@@ -487,7 +649,13 @@ function App() {
             <div className="prose prose-blue max-w-none">
               <ReactMarkdown
                 components={{
-                  img: MarkdownImage,
+                  img: (props) => (
+                    <MarkdownImage 
+                      {...props} 
+                      onOpenAnnotator={handleOpenAnnotator}
+                      onUploadAndAnnotate={handleUploadAndAnnotate}
+                    />
+                  ),
                   code({ node, inline, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
                     if (!inline && match && match[1] === 'mermaid') {
@@ -535,7 +703,7 @@ function App() {
                     <ReactMarkdown
                       components={{
                         img: ({ node, ...props }) => {
-                          const src = props.src?.startsWith('http') ? props.src : `${API_BASE}/materials_static/${props.src}`;
+                          const src = resolveImageUrl(props.src);
                           return <img {...props} src={src} className="max-w-full h-auto rounded shadow-sm" alt={props.alt || ''} />;
                         }
                       }}
@@ -584,6 +752,25 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* 隱藏的標註圖片選擇器 */}
+      <input
+        type="file"
+        ref={annotateFileInputRef}
+        onChange={handleAnnotateFileSelect}
+        accept="image/*"
+        className="hidden"
+      />
+
+      {/* 圖片加框/代號/文字標註編輯器彈窗 */}
+      {annotatingImage && (
+        <ImageAnnotatorModal
+          imageSrc={annotatingImage.src}
+          apiBase={API_BASE}
+          onClose={() => setAnnotatingImage(null)}
+          onSave={handleSaveAnnotatedImage}
+        />
+      )}
     </div>
   );
 }
