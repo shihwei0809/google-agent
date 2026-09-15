@@ -9,9 +9,10 @@ const CONFIG = {
     MANAGER_WEBHOOK: '', // 品管/製造主管頻道 Webhook (必收所有逾時警報與檢驗完成)
     DEPTS: {
       '資材課': '',
-      '現場一課': '',
-      '現場二課': '',
-      '回收處理課': ''
+      '二部一課': '',
+      '二部二課': '',
+      '一部一課': '',
+      '一部二課': ''
     },
     PWA_URL: 'https://google-agent.pages.dev/qc-system'
   },
@@ -112,7 +113,7 @@ function getSystemConfigFromSheet_() {
     pwaUrl: CONFIG.teamsRouting.PWA_URL,
     flowTypes: ['出貨', '進料', '補料', '委託'],
     grades: ['工業級', 'UPS', 'IF'],
-    depts: ['資材課', '現場一課', '現場二課', '回收處理課'],
+    depts: ['資材課', '二部一課', '二部二課', '一部一課', '一部二課'],
     products: [
       'IPA', 'IPAUPS', 'IPAHQ', 'CPNE3(T)', 'CPNE4', 'CPN-P1R',
       'EBR', 'EBR-P1R', 'NBAC', 'NBAC-P1R', 'CPN', 'EG',
@@ -189,13 +190,14 @@ function initSystemConfigSheet() {
       ['QC_PIN', '8888', '品管放行授權 4 碼 PIN 碼'],
       ['TEAMS_MANAGER_WEBHOOK', '', '品管/製造主管頻道 Webhook (必收逾時警報與完成)'],
       ['TEAMS_WEBHOOK_資材課', '', '資材課專屬 Webhook'],
-      ['TEAMS_WEBHOOK_現場一課', '', '現場一課專屬 Webhook'],
-      ['TEAMS_WEBHOOK_現場二課', '', '現場二課專屬 Webhook'],
-      ['TEAMS_WEBHOOK_回收處理課', '', '回收處理課專屬 Webhook'],
+      ['TEAMS_WEBHOOK_二部一課', '', '二部一課專屬 Webhook'],
+      ['TEAMS_WEBHOOK_二部二課', '', '二部二課專屬 Webhook'],
+      ['TEAMS_WEBHOOK_一部一課', '', '一部一課專屬 Webhook'],
+      ['TEAMS_WEBHOOK_一部二課', '', '一部二課專屬 Webhook'],
       ['PWA_URL', 'https://google-agent.pages.dev/qc-system', 'PWA 系統網址'],
       ['OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託', '動向選單項目 (以逗號隔開)'],
       ['OPTIONS_GRADES', '工業級, UPS, IF', '等級選單項目 (以逗號隔開)'],
-      ['OPTIONS_DEPTS', '資材課, 現場一課, 現場二課, 回收處理課', '送樣單位選單 (以逗號隔開)'],
+      ['OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課', '送樣單位選單 (以逗號隔開)'],
       ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR', '品名建議選單 (以逗號隔開)']
     ];
     
@@ -423,17 +425,17 @@ function returnForResample(id, note, pin) {
 // Microsoft Teams 核心模組：精準分流與 2 小時超時預警
 // =========================================================================
 
-// Teams MessageCard 發送核心 (支援指定課室 + 主管雙發送)
-function sendTeamsCard(targetDept, cardPayload, sysConfig) {
+// Teams MessageCard 發送核心 (分流邏輯：一般通知給各課室，逾時警報給主管+課室)
+function sendTeamsCard(targetDept, cardPayload, sysConfig, notifyType) {
   const cfg = sysConfig || getSystemConfigFromSheet_();
   const targetWebhooks = [];
 
-  // 1. 加入主管頻道 Webhook
-  if (cfg.managerWebhook && cfg.managerWebhook.startsWith('http')) {
+  // 1. 只有「逾時警報(OVERDUE)」或「測試(TEST)」時，才發送給主管頻道，避免主管平時被洗版
+  if ((notifyType === 'OVERDUE' || notifyType === 'TEST') && cfg.managerWebhook && cfg.managerWebhook.startsWith('http')) {
     targetWebhooks.push(cfg.managerWebhook);
   }
 
-  // 2. 加入送樣課室專屬 Webhook
+  // 2. 加入送樣課室專屬 Webhook (所有通知都會發給各自的課室)
   if (targetDept && cfg.deptWebhooks && cfg.deptWebhooks[targetDept] && cfg.deptWebhooks[targetDept].startsWith('http')) {
     targetWebhooks.push(cfg.deptWebhooks[targetDept]);
   }
@@ -467,63 +469,107 @@ function sendTeamsCompletionNotify(dept, requester, barcode, productName, tankNo
   const statusTitle = isPass ? "✅【QC 檢驗完成 - 判定合格放行】" : "❌【QC 檢驗完成 - 判定不合格】";
 
   const completionCard = {
-    "@type": "MessageCard",
-    "@context": "http://schema.org/extensions",
-    "themeColor": themeColor,
-    "summary": statusTitle,
-    "sections": [{
-      "activityTitle": statusTitle,
-      "activitySubtitle": `檢驗結果已判定，請 ${dept} 進行後續作業`,
-      "facts": [
-        { "name": "🏢 送樣單位", "value": `${dept}（送樣人：${requester || '無'}）` },
-        { "name": "🧪 檢驗品名", "value": productName },
-        { "name": "🛢️ 槽號 / 車牌", "value": `${tankNo || '-'} / ${truck || '-'}` },
-        { "name": "📋 檢驗單號", "value": barcode },
-        { "name": "🎯 判定結果", "value": `**${result}**` },
-        { "name": "📝 判定備註", "value": note || "無" },
-        { "name": "⏱️ 完成時間", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
-      ],
-      "markdown": true
-    }],
-    "potentialAction": [{
-      "@type": "OpenUri",
-      "name": "📱 開啟 PWA 看板查看",
-      "targets": [{ "os": "default", "uri": cfg.pwaUrl }]
-    }]
+    "type": "message",
+    "attachments": [
+      {
+        "contentType": "application/vnd.microsoft.card.adaptive",
+        "contentUrl": null,
+        "content": {
+          "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+          "type": "AdaptiveCard",
+          "version": "1.4",
+          "body": [
+            {
+              "type": "TextBlock",
+              "text": statusTitle,
+              "weight": "Bolder",
+              "size": "Large",
+              "color": isPass ? "Good" : "Attention"
+            },
+            {
+              "type": "TextBlock",
+              "text": `檢驗結果已判定，請 ${dept} 進行後續作業`,
+              "wrap": true
+            },
+            {
+              "type": "FactSet",
+              "facts": [
+                { "title": "🏢 送樣單位:", "value": `${dept}（送樣人：${requester || '無'}）` },
+                { "title": "🧪 檢驗品名:", "value": productName },
+                { "title": "🛢️ 槽號 / 車牌:", "value": `${tankNo || '-'} / ${truck || '-'}` },
+                { "title": "📋 檢驗單號:", "value": barcode },
+                { "title": "🎯 判定結果:", "value": `**${result}**` },
+                { "title": "📝 判定備註:", "value": note || "無" },
+                { "title": "⏱️ 完成時間:", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": "Action.OpenUrl",
+              "title": "📱 開啟 PWA 看板查看",
+              "url": cfg.pwaUrl
+            }
+          ]
+        }
+      }
+    ]
   };
 
-  sendTeamsCard(dept, completionCard, cfg);
+  sendTeamsCard(dept, completionCard, cfg, 'COMPLETION');
 }
 
 // 退回重新送樣：發送 Teams 通知給送樣課室
 function sendTeamsReturnNotify(dept, requester, barcode, productName, tankNo, truck, newRound, note, sysConfig) {
   const cfg = sysConfig || getSystemConfigFromSheet_();
   const returnCard = {
-    "@type": "MessageCard",
-    "@context": "http://schema.org/extensions",
-    "themeColor": "F97316", // 橘色警示
-    "summary": `↩️【QC 退回重新送樣】${productName} 需進行第 ${newRound} 次送樣`,
-    "sections": [{
-      "activityTitle": `↩️【QC 退回重新送樣 - 第 ${newRound} 次】`,
-      "activitySubtitle": `品管已判定不合格，請 ${dept} 重新送樣`,
-      "facts": [
-        { "name": "🏢 送樣單位", "value": `${dept}（送樣人：${requester || '無'}）` },
-        { "name": "🧪 檢驗品名", "value": productName },
-        { "name": "🛢️ 槽號 / 車牌", "value": `${tankNo || '-'} / ${truck || '-'}` },
-        { "name": "📋 檢驗單號", "value": barcode },
-        { "name": "🔄 送樣輪次", "value": `**第 ${newRound} 次送樣**` },
-        { "name": "📝 退回原因", "value": note || "判定不合格，請重新送樣" },
-        { "name": "⏱️ 退回時間", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
-      ],
-      "markdown": true
-    }],
-    "potentialAction": [{
-      "@type": "OpenUri",
-      "name": "📱 開啟 PWA 看板確認",
-      "targets": [{ "os": "default", "uri": cfg.pwaUrl }]
-    }]
+    "type": "message",
+    "attachments": [
+      {
+        "contentType": "application/vnd.microsoft.card.adaptive",
+        "contentUrl": null,
+        "content": {
+          "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+          "type": "AdaptiveCard",
+          "version": "1.4",
+          "body": [
+            {
+              "type": "TextBlock",
+              "text": `↩️【QC 退回重新送樣 - 第 ${newRound} 次】`,
+              "weight": "Bolder",
+              "size": "Large",
+              "color": "Warning"
+            },
+            {
+              "type": "TextBlock",
+              "text": `品管已判定不合格，請 ${dept} 重新送樣`,
+              "wrap": true
+            },
+            {
+              "type": "FactSet",
+              "facts": [
+                { "title": "🏢 送樣單位:", "value": `${dept}（送樣人：${requester || '無'}）` },
+                { "title": "🧪 檢驗品名:", "value": productName },
+                { "title": "🛢️ 槽號 / 車牌:", "value": `${tankNo || '-'} / ${truck || '-'}` },
+                { "title": "📋 檢驗單號:", "value": barcode },
+                { "title": "🔄 送樣輪次:", "value": `**第 ${newRound} 次送樣**` },
+                { "title": "📝 退回原因:", "value": note || "判定不合格，請重新送樣" },
+                { "title": "⏱️ 退回時間:", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
+              ]
+            }
+          ],
+          "actions": [
+            {
+              "type": "Action.OpenUrl",
+              "title": "📱 開啟 PWA 看板確認",
+              "url": cfg.pwaUrl
+            }
+          ]
+        }
+      }
+    ]
   };
-  sendTeamsCard(dept, returnCard, cfg);
+  sendTeamsCard(dept, returnCard, cfg, 'RETURN');
 }
 
 // 逾時 2 小時巡檢 (GAS 時間驅動觸發器：建議設定每 10 分鐘執行一次)
@@ -560,31 +606,53 @@ function checkOverdueSamples() {
         const requester = row[h.indexOf('requester')];
 
         const overdueCard = {
-          "@type": "MessageCard",
-          "@context": "http://schema.org/extensions",
-          "themeColor": "D9381E", // 鮮紅警示色
-          "summary": `🚨【QC 檢驗超時警報】${prod} 等候已達 ${diffHours} 小時`,
-          "sections": [{
-            "activityTitle": `🚨【QC 檢驗超時警報】等候已達 ${diffHours} 小時`,
-            "activitySubtitle": `樣品檢驗已逾 2 小時未判定，請品管與 ${dept} 儘速處理`,
-            "facts": [
-              { "name": "🏢 送樣單位", "value": `${dept}（送樣人：${requester || '無'}）` },
-              { "name": "🧪 檢驗品名", "value": prod },
-              { "name": "🛢️ 槽號 / 車牌", "value": `${tank || '-'} / ${truck || '-'}` },
-              { "name": "📋 單號編號", "value": barcode },
-              { "name": "⏰ 送樣時間", "value": Utilities.formatDate(new Date(createdTime), "GMT+8", "yyyy-MM-dd HH:mm") }
-            ],
-            "markdown": true
-          }],
-          "potentialAction": [{
-            "@type": "OpenUri",
-            "name": "📱 開啟 PWA 看板立即判定",
-            "targets": [{ "os": "default", "uri": sysConfig.pwaUrl }]
-          }]
+          "type": "message",
+          "attachments": [
+            {
+              "contentType": "application/vnd.microsoft.card.adaptive",
+              "contentUrl": null,
+              "content": {
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "type": "AdaptiveCard",
+                "version": "1.4",
+                "body": [
+                  {
+                    "type": "TextBlock",
+                    "text": `🚨【QC 檢驗超時警報】等候已達 ${diffHours} 小時`,
+                    "weight": "Bolder",
+                    "size": "Large",
+                    "color": "Attention"
+                  },
+                  {
+                    "type": "TextBlock",
+                    "text": `樣品檢驗已逾 2 小時未判定，請品管與 ${dept} 儘速處理`,
+                    "wrap": true
+                  },
+                  {
+                    "type": "FactSet",
+                    "facts": [
+                      { "title": "🏢 送樣單位:", "value": `${dept}（送樣人：${requester || '無'}）` },
+                      { "title": "🧪 檢驗品名:", "value": prod },
+                      { "title": "🛢️ 槽號 / 車牌:", "value": `${tank || '-'} / ${truck || '-'}` },
+                      { "title": "📋 單號編號:", "value": barcode },
+                      { "title": "⏰ 送樣時間:", "value": Utilities.formatDate(new Date(createdTime), "GMT+8", "yyyy-MM-dd HH:mm") }
+                    ]
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "Action.OpenUrl",
+                    "title": "📱 開啟 PWA 看板立即判定",
+                    "url": sysConfig.pwaUrl
+                  }
+                ]
+              }
+            }
+          ]
         };
 
         // 精準推送給主管 + 該送樣課室頻道
-        sendTeamsCard(dept, overdueCard, sysConfig);
+        sendTeamsCard(dept, overdueCard, sysConfig, 'OVERDUE');
 
         // 標記 YES，避免下次觸發時重複發送洗版
         sheet.getRange(i + 1, h.indexOf('isAlerted') + 1).setValue('YES');
@@ -600,21 +668,40 @@ function testTeamsNotification(dept) {
   const targetDept = dept || '現場一課';
   const sysConfig = getSystemConfigFromSheet_();
   const testCard = {
-    "@type": "MessageCard",
-    "@context": "http://schema.org/extensions",
-    "themeColor": "0078D4",
-    "summary": "🧪 Teams Webhook 連線測試成功",
-    "sections": [{
-      "activityTitle": "🧪【QC 系統 - Teams Webhook 測試連線】",
-      "activitySubtitle": `此訊息由 Google Apps Script 測試發送至 ${targetDept} 與主管頻道`,
-      "facts": [
-        { "name": "測試單位", "value": targetDept },
-        { "name": "發送時間", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss") },
-        { "name": "連線狀態", "value": "🟢 正常運作" }
-      ],
-      "markdown": true
-    }]
+    "type": "message",
+    "attachments": [
+      {
+        "contentType": "application/vnd.microsoft.card.adaptive",
+        "contentUrl": null,
+        "content": {
+          "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+          "type": "AdaptiveCard",
+          "version": "1.4",
+          "body": [
+            {
+              "type": "TextBlock",
+              "text": "🧪【QC 系統 - Teams Webhook 測試連線】",
+              "weight": "Bolder",
+              "size": "Large",
+              "color": "Accent"
+            },
+            {
+              "type": "TextBlock",
+              "text": `此訊息由 Google Apps Script 測試發送至 ${targetDept} 與主管頻道`,
+              "wrap": true
+            },
+            {
+              "type": "FactSet",
+              "facts": [
+                { "title": "測試單位:", "value": targetDept },
+                { "title": "連線狀態:", "value": "🟢 正常運作" }
+              ]
+            }
+          ]
+        }
+      }
+    ]
   };
-  sendTeamsCard(targetDept, testCard, sysConfig);
+  sendTeamsCard(targetDept, testCard, sysConfig, 'TEST');
   return { success: true, dept: targetDept };
 }

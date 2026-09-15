@@ -1205,6 +1205,13 @@
 
                 allExtractedRecords = extractedRecords;
                 
+                // 核心修正：跨分頁收集資料後，必須依日期進行排序，確保由下往上抓取的最新筆數包含所有分頁
+                allExtractedRecords.sort((a, b) => {
+                    let d1 = a.date || "";
+                    let d2 = b.date || "";
+                    return d1.localeCompare(d2);
+                });
+                
                 // 預設嘗試啟用「今天~後天」優先過濾
                 const today = new Date();
                 const getFmt = (d) => {

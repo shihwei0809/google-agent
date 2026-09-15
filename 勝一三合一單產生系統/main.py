@@ -655,6 +655,8 @@ class ImportRangeDialog(tk.Toplevel):
             pass
 
         self.all_records = records
+        # 核心修正：跨分頁收集資料後，必須依日期與時間進行排序，確保由下往上抓取的最新筆數包含所有分頁
+        self.all_records.sort(key=lambda x: (x.get("date", ""), x.get("time", "")))
         self.sheet_count = max(1, sheet_count)
         self.total_records_count = len(records)
         self.selected_records = None
@@ -877,6 +879,10 @@ class ImportRangeDialog(tk.Toplevel):
         else:
             filtered = list(self.all_records)
             label = "「全部日期」"
+
+        # 核心修正：跨分頁收集資料後，必須依日期與時間進行排序
+        # 這樣擷取「最後 10 筆」時，才會是真正跨分頁的「最新資料」，而不是單純最後一個分頁的資料。
+        filtered.sort(key=lambda x: (x.get("date", ""), x.get("time", "")))
 
         if not filtered:
             messagebox.showinfo("無排程資料", f"在所有 {self.sheet_count} 個分頁中，找不到符合 {label} 的出貨排程！")

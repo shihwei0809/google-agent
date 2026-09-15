@@ -666,6 +666,7 @@ class ImportRangeDialog(tk.Toplevel):
             pass
 
         self.all_records = records
+        self.all_records.sort(key=lambda x: (x.get("date", ""), x.get("time", "")))
         self.sheet_count = max(1, sheet_count)
         self.total_records_count = len(records)
         self.selected_records = None
@@ -888,6 +889,8 @@ class ImportRangeDialog(tk.Toplevel):
         else:
             filtered = list(self.all_records)
             label = "「全部日期」"
+            
+        filtered.sort(key=lambda x: (x.get("date", ""), x.get("time", "")))
 
         if not filtered:
             messagebox.showinfo("無排程資料", f"在所有 {self.sheet_count} 個分頁中，找不到符合 {label} 的出貨排程！")
