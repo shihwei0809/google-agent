@@ -539,19 +539,6 @@
       </div>
     </div>
 
-    <!-- 常用工具列（永遠可見，無需解鎖）-->
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; align-items:center;">
-      <button type="button" class="btn-sim btn-sim-teams" onclick="openTeamsConfigModal()" style="font-size:0.82rem; padding:7px 12px;">
-        ⚙️ Teams Webhook 設定與卡片測試
-      </button>
-      <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none; font-size:0.82rem; padding:7px 12px;" onclick="openPrintSettingsGlobal()">
-        🖨️ 標籤機設定 (改紙/改張數)
-      </button>
-      <button type="button" class="btn-sim" style="background:#7c3aed; color:white; border:none; font-size:0.82rem; padding:7px 12px;" onclick="openEmpMapModal()">
-        👤 員工工號對照表管理
-      </button>
-    </div>
-
     <!-- 本機 PWA 專用模擬測試控制箱 (預設隱藏，需管理員 PIN 碼解鎖) -->
     <div id="simToolbar" class="sim-toolbar" style="display:none;">
       <span style="font-weight:bold; color:#475569;">🧪 本機模擬測試箱：</span>
@@ -560,6 +547,15 @@
       </button>
       <button type="button" class="btn-sim" onclick="triggerOverdueCheckLocal()">
         🚨 執行逾期巡檢 (觸發Teams警報)
+      </button>
+      <button type="button" class="btn-sim btn-sim-teams" onclick="openTeamsConfigModal()">
+        ⚙️ Teams Webhook 設定與卡片測試
+      </button>
+      <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none;" onclick="openPrintSettingsGlobal()">
+        🖨️ 標籤機設定 (改紙/改張數)
+      </button>
+      <button type="button" class="btn-sim" style="background:#7c3aed; color:white; border:none;" onclick="openEmpMapModal()">
+        👤 員工工號對照表管理
       </button>
       <button type="button" class="btn-sim" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; margin-left:auto;" onclick="lockAdminFeatures(true)" title="重新上鎖並隱藏模擬測試箱">
         🔒 鎖定隱藏
@@ -1085,11 +1081,16 @@
   function loadTeamsConfig() {
     const saved = localStorage.getItem('HS_QC_TEAMS_CONFIG');
     if (saved) {
-      try { localTeamsConfig = JSON.parse(saved); } catch(e) {}
+      try { 
+        const parsed = JSON.parse(saved);
+        localTeamsConfig = { ...localTeamsConfig, ...parsed };
+        if (!localTeamsConfig.depts) localTeamsConfig.depts = {}; // 防呆：舊版紀錄沒有 depts 的情況
+      } catch(e) {}
     }
   }
 
   function saveTeamsConfig() {
+    if (!localTeamsConfig.depts) localTeamsConfig.depts = {};
     localTeamsConfig.managerWebhook = document.getElementById('teamsManagerWebhook').value.trim();
     localTeamsConfig.depts['資材課'] = document.getElementById('teamsWebhook_資材課').value.trim();
     localTeamsConfig.depts['現場一課'] = document.getElementById('teamsWebhook_現場一課').value.trim();
