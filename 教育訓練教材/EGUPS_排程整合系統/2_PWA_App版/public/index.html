@@ -263,12 +263,9 @@
            } catch(e) {
              alert("資料解析失敗！");
            }
-        }
-      };
-
       const formatDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-      // 雙軌分離：生產與排程計算
+      // 雙軌分離：生產與排程      // 動態抽離：預先計算進度
       const { dailyUsageMap, dailyProductionMap, scheduleList } = useMemo(() => {
         const usageMap = {}; const prodMap = {}; const list = [];
         const flow = Number(flowRate) || 0; const tonnage = Number(totalTonnage) || 0;
@@ -276,9 +273,9 @@
         
         if (!startDateTime || flow <= 0 || tonnage <= 0) return { dailyUsageMap: usageMap, dailyProductionMap: prodMap, scheduleList: list };
         
-        // 1. 生產與耗用邏輯 (嚴格綁定 startDateTime 開機時間)
+        // 1. 生產與耗用邏輯 (依使用者要求：生產量依出料時間計算)
         let prodRem = tonnage; 
-        let prodCur = new Date(startDateTime).getTime();
+        let prodCur = scheduleStartDateTime ? new Date(scheduleStartDateTime).getTime() : new Date(startDateTime).getTime();
         
         while (prodRem > 0.001) {
           const load = Math.min(prodRem, flow * 24); 
@@ -341,8 +338,12 @@
         for (let i = 0; i < 30; i++) {
           const d = new Date(startObj); d.setDate(startObj.getDate() + i); const dStr = formatDateStr(d);
           const input = manualInputs[dStr] || {}; 
-          const usage = dailyUsageMap[dStr] || 0;
-          const prod = dailyProductionMap[dStr] || 0;
+          
+          const autoUsage = dailyUsageMap[dStr] || 0;
+          const autoProd = dailyProductionMap[dStr] || 0;
+          
+          const usage = input.manualUsage !== undefined ? (input.manualUsage === '' ? 0 : Number(input.manualUsage)) : autoUsage;
+          const prod = input.manualProd !== undefined ? (input.manualProd === '' ? 0 : Number(input.manualProd)) : autoProd;
           
           const transfer = Number(input.transfer) || 0; 
           const incoming = Number(input.incoming) || 0; 
@@ -359,8 +360,12 @@
 
           res.push({
             dateStr: dStr, displayDate: `${d.getMonth() + 1}/${d.getDate()}`,
-            initialRaw: curRawStock, transfer: input.transfer||'', incoming: input.incoming||'', usage, returnAmt: input.returnAmt||'', totalIn, remainingRaw,
-            initialProd: curProdStock, prod, manualOut: input.manualOut||'', remainingProd,
+            initialRaw: curRawStock, transfer: input.transfer||'', incoming: input.incoming||'', 
+            usage, autoUsage,
+            returnAmt: input.returnAmt||'', totalIn, remainingRaw,
+            initialProd: curProdStock, 
+            prod, autoProd,
+            manualOut: input.manualOut||'', remainingProd,
             isWeekend: [0, 6].includes(d.getDay()),
             prodWarning
           });
@@ -469,11 +474,11 @@
                 <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center"><span className="mr-2">⏱️</span> 產線排程設定</h2>
                 <div className="grid grid-cols-4 gap-3">
                   <div className="col-span-2">
-                    <label className="block text-[11px] font-bold mb-1 text-slate-700">預計開機時間 (耗用與生產起點)</label>
+                    <label className="block text-[11px] font-bold mb-1 text-slate-700">預計開機時間 (排程表起始日)</label>
                     <input type="datetime-local" value={startDateTime} onChange={e => setStartDateTime(e.target.value)} className="w-full p-2 border rounded text-xs" />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-[11px] font-bold mb-1 text-purple-600">製程出料時間 (槽車調度起點)</label>
+                    <label className="block text-[11px] font-bold mb-1 text-purple-600">製程出料時間 (耗用與生產起點)</label>
                     <input type="datetime-local" value={scheduleStartDateTime} onChange={e => setScheduleStartDateTime(e.target.value)} className="w-full p-2 border-2 border-purple-200 bg-purple-50 rounded text-xs" />
                   </div>
                   
@@ -608,7 +613,14 @@
                     </tr>
                     <tr className="bg-orange-50/30">
                       <td className="sticky-col p-2 pl-4 text-left font-bold text-orange-700 border-b">預估使用量 (-)</td>
-                      {inventoryData.map(d => <td key={d.dateStr} className="p-1 border-b text-orange-600 font-bold">{d.usage > 0 ? Math.round(d.usage) : '-'}</td>)}
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className="p-0 border-b">
+                          <input type="number" 
+                            value={manualInputs[d.dateStr]?.manualUsage !== undefined ? manualInputs[d.dateStr].manualUsage : (d.autoUsage > 0 ? Math.round(d.autoUsage) : '')} 
+                            onChange={e => setManualInputs(prev => ({...prev, [d.dateStr]: {...(prev[d.dateStr]||{}), manualUsage: e.target.value}}))}
+                            className={`w-full p-1 text-center font-bold focus:outline-none ${manualInputs[d.dateStr]?.manualUsage !== undefined ? 'text-orange-800 bg-orange-100' : 'text-orange-600 focus:bg-orange-50'}`} placeholder="-" />
+                        </td>
+                      ))}
                     </tr>
                     <tr>
                       <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-teal-600">槽車回吃 (+)</td>
@@ -636,7 +648,14 @@
                     </tr>
                     <tr className="bg-emerald-50/30">
                       <td className="sticky-col p-2 pl-4 text-left font-bold text-emerald-700 border-b">預估生產量 (+)</td>
-                      {inventoryData.map(d => <td key={d.dateStr} className="p-1 border-b text-emerald-600 font-bold">{d.prod > 0 ? Math.round(d.prod) : '-'}</td>)}
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className="p-0 border-b">
+                          <input type="number" 
+                            value={manualInputs[d.dateStr]?.manualProd !== undefined ? manualInputs[d.dateStr].manualProd : (d.autoProd > 0 ? Math.round(d.autoProd) : '')} 
+                            onChange={e => setManualInputs(prev => ({...prev, [d.dateStr]: {...(prev[d.dateStr]||{}), manualProd: e.target.value}}))}
+                            className={`w-full p-1 text-center font-bold focus:outline-none ${manualInputs[d.dateStr]?.manualProd !== undefined ? 'text-emerald-900 bg-emerald-200' : 'text-emerald-600 focus:bg-emerald-100'}`} placeholder="-" />
+                        </td>
+                      ))}
                     </tr>
                     <tr className="bg-rose-50/30">
                       <td className="sticky-col p-2 pl-4 text-left font-bold text-rose-700 border-b">成品出料 (-)</td>
