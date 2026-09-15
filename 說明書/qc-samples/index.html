@@ -624,7 +624,7 @@
           <label class="required">送樣人員</label>
           <div style="display:flex; gap:6px; align-items:center;">
             <input type="text" id="empIdInput" placeholder="掃描或輸入工號" style="width:110px; flex-shrink:0;"
-              oninput="lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupEmployeeId(document.getElementById('empIdInput').value);}">
+              oninput="lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
             <input type="text" id="requester" placeholder="姓名（工號查到後自動填入）" required style="flex:1;">
           </div>
           <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
@@ -774,18 +774,16 @@
 
 <!-- 員工工號對照表 Modal -->
 <div id="empMapModal" class="modal" style="display:none;">
-  <div class="modal-content" style="max-width:450px;">
-    <h3 style="margin-top:0; border-left:4px solid #7c3aed; padding-left:10px; color:#5b21b6;">👤 員工工號與姓名對照表</h3>
-    <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:12px; margin-bottom:14px; font-size:0.85rem; color:#4c1d95;">
-      請在下方輸入工號與姓名的對照關係，格式為 <b>工號:姓名</b>，每行一筆。<br>
-      例如：<br>
-      111:王大明<br>
-      222:陳小華
+  <div class="modal-content" style="max-width:400px;">
+    <h3 style="margin-top:0; border-left:4px solid #7c3aed; padding-left:10px; color:#7c3aed;">👤 員工工號對照表</h3>
+    <div style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">
+      💡 系統已自動從 Google Sheets 的 **「員工資料」** 分頁抓取全廠名單。<br>
+      若雲端尚未建立該分頁，您也可以在這裡暫時手動輸入（格式：工號:姓名，每行一筆）。
     </div>
-    <textarea id="empMapTextarea" rows="8" style="width:100%; box-sizing:border-box; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.9rem; font-family:monospace; resize:vertical; line-height:1.4;"></textarea>
-    <div style="display:flex; gap:10px; margin-top:16px;">
-      <button onclick="closeEmpMapModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem;">取消</button>
-      <button onclick="saveEmpMap()" style="flex:2; padding:10px; background:#7c3aed; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:bold;">💾 儲存對照表</button>
+    <textarea id="empMapTextarea" rows="8" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-family:monospace; font-size:0.9rem;" placeholder="C0606:王大明&#10;C0607:陳小華"></textarea>
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button onclick="saveEmpMap()" style="flex:1; padding:10px; background:#7c3aed; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 儲存本機設定</button>
+      <button onclick="closeEmpMapModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:6px; cursor:pointer;">取消</button>
     </div>
   </div>
 </div>
@@ -1912,6 +1910,11 @@
           if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
         }
       }).getSystemConfig();
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success && res.data) {
+          localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(res.data));
+        }
+      }).getEmployeesFromSheet();
     } else if (GAS_API_URL) {
       document.getElementById('envBadge').innerText = "☁️ 雲端 API 同步中";
       // 1. 抓取試算表樣品
@@ -1947,6 +1950,16 @@
 
       // 3. 從 Google Sheets 載入排程（供所有設備共享下拉選單）
       loadOrdersFromCloud();
+
+      // 4. 抓取雲端員工名單
+      fetch(`${GAS_API_URL}?action=getEmployees`)
+        .then(res => res.json())
+        .then(res => {
+          if (res && res.success && res.data) {
+            localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(res.data));
+          }
+        })
+        .catch(err => console.warn("API 取得員工名單失敗", err));
 
     } else {
       document.getElementById('envBadge').innerText = "💻 獨立 PWA 運作模式";
@@ -2201,7 +2214,6 @@
       if (msg) { msg.innerText = `✅ ${id} → ${map[id]}`; msg.style.color = '#059669'; }
     } else {
       if (msg) { msg.innerText = `⚠️ 未找到工號 ${id}，請直接在姓名欄輸入`; msg.style.color = '#d97706'; }
-      nameInput.focus();
     }
   }
 

@@ -73,9 +73,34 @@ function handleApiGet(params) {
     result = getSystemConfig();
   } else if (params.action === 'getOrders') {
     result = getOrders();
+  } else if (params.action === 'getEmployees') {
+    result = getEmployeesFromSheet();
   }
   return ContentService.createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getEmployeesFromSheet() {
+  try {
+    const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
+    let sheet = ss.getSheetByName('員工資料');
+    if (!sheet) {
+      return { success: true, data: {} };
+    }
+    const data = sheet.getDataRange().getValues();
+    let map = {};
+    // 假設第一列是標題 [工號, 姓名]
+    for (let i = 1; i < data.length; i++) {
+      let id = String(data[i][0]).trim();
+      let name = String(data[i][1]).trim();
+      if (id && name) {
+        map[id] = name;
+      }
+    }
+    return { success: true, data: map };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
 }
 
 // 從試算表動態讀取系統設定 (QC_PIN, Teams Webhooks 與 動態下拉選單)
