@@ -1,4 +1,4 @@
-const CACHE_NAME = 'egups-v1';
+const CACHE_NAME = 'egups-v2';
 const urlsToCache = [
   './',
   './index.html',
@@ -21,12 +21,13 @@ self.addEventListener('fetch', event => {
   }
   
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
+    fetch(event.request).then(response => {
+      return caches.open(CACHE_NAME).then(cache => {
+        cache.put(event.request, response.clone());
+        return response;
+      });
+    }).catch(() => {
+      return caches.match(event.request);
+    })
   );
 });

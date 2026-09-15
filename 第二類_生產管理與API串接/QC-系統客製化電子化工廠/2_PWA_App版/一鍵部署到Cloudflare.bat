@@ -6,6 +6,8 @@ echo ========================================================
 echo 若尚未登入，瀏覽器將自動開啟授權頁面，請點擊【Allow】即可。
 echo.
 set NODE_TLS_REJECT_UNAUTHORIZED=0
+set WRANGLER_SEND_METRICS=false
+set WRANGLER_LOG=debug
 npx wrangler pages deploy . --project-name=qc-samples --commit-dirty=true
 echo.
 echo 部署指令執行完成！

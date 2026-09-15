@@ -42,6 +42,7 @@
       const [stockTK689, setStockTK689] = useState('');
       const [stockTK692, setStockTK692] = useState('');
       const [stockOther, setStockOther] = useState('');
+      const [otherCapacity, setOtherCapacity] = useState('');
 
       const [safetyStock, setSafetyStock] = useState('');
       const [manualInputs, setManualInputs] = useState({});
@@ -89,6 +90,7 @@
         if (data.stockTK689 !== undefined) setStockTK689(data.stockTK689 === '' ? '' : Number(data.stockTK689));
         if (data.stockTK692 !== undefined) setStockTK692(data.stockTK692 === '' ? '' : Number(data.stockTK692));
         if (data.stockOther !== undefined) setStockOther(data.stockOther === '' ? '' : Number(data.stockOther));
+        if (data.otherCapacity !== undefined) setOtherCapacity(data.otherCapacity === '' ? '' : Number(data.otherCapacity));
 
         if (data.manualInputs) setManualInputs(data.manualInputs); else setManualInputs({});
         if (data.scheduleInputs) setScheduleInputs(data.scheduleInputs); else setScheduleInputs({});
@@ -108,7 +110,7 @@
 
       const getCurrentPayload = () => ({
         startDateTime, scheduleStartDateTime, totalTonnage, flowRate, carCapacity, yieldRate, safetyStock, initialStockDay0,
-        stockTK623, stockTK689, stockTK692, stockOther, manualInputs, carSequence, scheduleInputs, manualCarOverrides 
+        stockTK623, stockTK689, stockTK692, stockOther, otherCapacity, manualInputs, carSequence, scheduleInputs, manualCarOverrides 
       });
 
       const handleSave = () => {
@@ -258,7 +260,7 @@
         let curRawStock = parseFloat(initialStockDay0) || 0;
         let curProdStock = (parseFloat(stockTK623) || 0) + (parseFloat(stockTK689) || 0) + (parseFloat(stockTK692) || 0) + (parseFloat(stockOther) || 0);
         
-        const maxTankCapacity = 497; // 125 + 110 + 262
+        const maxTankCapacity = 497 + (Number(otherCapacity) || 0); // 125 + 110 + 262 + otherCapacity
         const maxTruckCapacity = (carSequence.length || 0) * (Number(carCapacity) || 0);
         const maxTotalCapacity = maxTankCapacity + maxTruckCapacity;
         
@@ -300,7 +302,7 @@
           curProdStock = remainingProd;
         }
         return res;
-      }, [startDateTime, initialStockDay0, stockTK623, stockTK689, stockTK692, stockOther, manualInputs, dailyUsageMap, dailyProductionMap, carSequence, carCapacity]);
+      }, [startDateTime, initialStockDay0, stockTK623, stockTK689, stockTK692, stockOther, otherCapacity, manualInputs, dailyUsageMap, dailyProductionMap, carSequence, carCapacity]);
 
       const maxTruckCapacityVal = (carSequence.length || 0) * (Number(carCapacity) || 0);
 
@@ -443,10 +445,10 @@
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-                  <div className="col-span-4 text-[11px] font-bold text-emerald-800 pb-1 border-b border-emerald-200 mb-1 flex justify-between">
+                <div className="grid grid-cols-5 gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                  <div className="col-span-5 text-[11px] font-bold text-emerald-800 pb-1 border-b border-emerald-200 mb-1 flex justify-between">
                     <span>期初各儲槽庫存量 (T) - 成品</span>
-                    <span>總容量滿位: 儲槽 497 T + 槽車 {maxTruckCapacityVal} T</span>
+                    <span>總容量滿位: 儲槽 {497 + (Number(otherCapacity)||0)} T + 槽車 {maxTruckCapacityVal} T</span>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK623 (125T)</label>
@@ -461,10 +463,14 @@
                     <input type="number" value={stockTK692} onChange={e => setStockTK692(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-emerald-300 rounded text-xs font-bold text-emerald-800" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold mb-1 text-orange-600">其他 / 槽車</label>
+                    <label className="block text-[10px] font-bold mb-1 text-orange-600">其他庫存量</label>
                     <input type="number" value={stockOther} onChange={e => setStockOther(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-orange-300 bg-orange-50 rounded text-xs font-bold text-orange-800" />
                   </div>
-                  <div className="col-span-4 text-right text-[11px] font-bold text-emerald-800 mt-1">
+                  <div>
+                    <label className="block text-[10px] font-bold mb-1 text-indigo-600">額外總容量</label>
+                    <input type="number" value={otherCapacity} onChange={e => setOtherCapacity(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-indigo-300 bg-indigo-50 rounded text-xs font-bold text-indigo-800" placeholder="0" />
+                  </div>
+                  <div className="col-span-5 text-right text-[11px] font-bold text-emerald-800 mt-1">
                     總計期初成品: { (Number(stockTK623)||0) + (Number(stockTK689)||0) + (Number(stockTK692)||0) + (Number(stockOther)||0) } T
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { MessageCircle, Send, BookOpen, ChevronRight, Upload, FileText, Trash2, Camera, Square, Edit3 } from 'lucide-react';
+import { MessageCircle, Send, BookOpen, ChevronRight, Upload, FileText, Trash2, Camera, Square, Edit3, ZoomIn, X, ExternalLink, Maximize2 } from 'lucide-react';
 import axios from 'axios';
 import mermaid from 'mermaid';
 import ImageAnnotatorModal from './ImageAnnotatorModal';
@@ -45,7 +45,7 @@ export function resolveImageUrl(rawSrc) {
   return `${API_BASE}/materials_static/${safeSrc}`;
 }
 
-function MarkdownImage({ src, alt, onOpenAnnotator, onUploadAndAnnotate, ...props }) {
+function MarkdownImage({ src, alt, onOpenAnnotator, onUploadAndAnnotate, onPreviewImage, isAdmin, ...props }) {
   const isRealImage = /\.(png|jpe?g|gif|webp|svg)$/i.test(src || '');
   const [hasError, setHasError] = useState(false);
 
@@ -68,21 +68,27 @@ function MarkdownImage({ src, alt, onOpenAnnotator, onUploadAndAnnotate, ...prop
           <div className="text-sm font-medium text-gray-800 leading-relaxed">
             {hintText}
           </div>
-          <div className="text-xs text-gray-500 mt-2.5 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <span>💡 提示：點擊右上方「編輯教材」，按</span>
-              <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded shadow-2xs text-[11px] font-mono text-gray-700">Ctrl+V</kbd>
-              <span>即可貼上截圖，或直接：</span>
+          {isAdmin ? (
+            <div className="text-xs text-gray-500 mt-2.5 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                <span>💡 提示：點擊右上方「編輯教材」，按</span>
+                <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded shadow-2xs text-[11px] font-mono text-gray-700">Ctrl+V</kbd>
+                <span>即可貼上截圖，或直接：</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onUploadAndAnnotate && onUploadAndAnnotate(src)}
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+              >
+                <Square className="w-3.5 h-3.5" />
+                <span>選圖加框標註</span>
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => onUploadAndAnnotate && onUploadAndAnnotate(src)}
-              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
-            >
-              <Square className="w-3.5 h-3.5" />
-              <span>選圖加框標註</span>
-            </button>
-          </div>
+          ) : (
+            <div className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+              <span>💡 請參閱此步驟對應之系統操作畫面</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -96,33 +102,49 @@ function MarkdownImage({ src, alt, onOpenAnnotator, onUploadAndAnnotate, ...prop
   const fullSrc = resolveImageUrl(src);
   return (
     <div className="relative group my-4 inline-block max-w-full">
-      <img 
-        {...props}
-        src={fullSrc} 
-        className="max-w-full h-auto rounded-lg shadow-md border border-gray-100 block" 
-        alt={alt || ''} 
-        onError={() => setHasError(true)}
-      />
-      {/* 圖片懸浮標註按鈕 */}
-      <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1 bg-gray-900/80 backdrop-blur-xs p-1 rounded-xl shadow-lg">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onOpenAnnotator && onOpenAnnotator({
-              src: fullSrc,
-              originalFilename: cleanOriginalName,
-              fromEditor: false
-            });
-          }}
-          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-          title="在圖片上加框、標記代號(①②③)或說明文字"
-        >
-          <Square className="w-3.5 h-3.5" />
-          <span>加框/代號標註</span>
-        </button>
+      {/* 圖片點擊可放大容器 */}
+      <div 
+        className="relative overflow-hidden rounded-lg cursor-zoom-in border border-gray-100 shadow-md hover:shadow-xl transition-all"
+        onClick={() => onPreviewImage && onPreviewImage({ src: fullSrc, alt: alt || cleanOriginalName, originalFilename: cleanOriginalName })}
+        title="點擊放大檢視圖片"
+      >
+        <img 
+          {...props}
+          src={fullSrc} 
+          className="max-w-full h-auto block transition-transform duration-300 group-hover:scale-[1.01]" 
+          alt={alt || ''} 
+          onError={() => setHasError(true)}
+        />
+        
+        {/* 懸浮放大提示徽章（左下角） */}
+        <div className="absolute bottom-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-gray-900/80 backdrop-blur-xs text-white text-[11px] px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow pointer-events-none">
+          <ZoomIn className="w-3.5 h-3.5 text-blue-400" />
+          <span>點擊放大檢視</span>
+        </div>
       </div>
+
+      {/* 管理員專屬：圖片懸浮標註按鈕（右上角，僅登入管理員可見） */}
+      {isAdmin && (
+        <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1 bg-gray-900/85 backdrop-blur-xs p-1 rounded-xl shadow-lg z-10">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenAnnotator && onOpenAnnotator({
+                src: fullSrc,
+                originalFilename: cleanOriginalName,
+                fromEditor: false
+              });
+            }}
+            className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
+            title="在圖片上加框、標記代號(①②③)或說明文字"
+          >
+            <Square className="w-3.5 h-3.5" />
+            <span>加框/代號標註</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -153,6 +175,20 @@ function App() {
 
   // 圖片標註彈窗狀態
   const [annotatingImage, setAnnotatingImage] = useState(null); // { src, originalFilename, fromEditor }
+
+  // 圖片放大預覽燈箱狀態
+  const [previewImage, setPreviewImage] = useState(null); // { src, alt, originalFilename }
+
+  // 監聽鍵盤 ESC 關閉預覽
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (previewImage) setPreviewImage(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previewImage]);
 
   // 開啟圖片標註編輯器
   const handleOpenAnnotator = ({ src, originalFilename, fromEditor = false }) => {
@@ -690,8 +726,10 @@ function App() {
                   img: (props) => (
                     <MarkdownImage 
                       {...props} 
+                      isAdmin={isAdmin}
                       onOpenAnnotator={handleOpenAnnotator}
                       onUploadAndAnnotate={handleUploadAndAnnotate}
+                      onPreviewImage={(imgData) => setPreviewImage(imgData)}
                     />
                   ),
                   code({ node, inline, className, children, ...props }) {
@@ -742,7 +780,16 @@ function App() {
                       components={{
                         img: ({ node, ...props }) => {
                           const src = resolveImageUrl(props.src);
-                          return <img {...props} src={src} className="max-w-full h-auto rounded shadow-sm" alt={props.alt || ''} />;
+                          return (
+                            <img 
+                              {...props} 
+                              src={src} 
+                              className="max-w-full h-auto rounded shadow-sm cursor-zoom-in hover:opacity-95 transition-opacity" 
+                              alt={props.alt || ''} 
+                              onClick={() => setPreviewImage({ src, alt: props.alt || '', originalFilename: props.src })}
+                              title="點擊放大檢視"
+                            />
+                          );
                         }
                       }}
                     >
@@ -808,6 +855,86 @@ function App() {
           onClose={() => setAnnotatingImage(null)}
           onSave={handleSaveAnnotatedImage}
         />
+      )}
+
+      {/* 圖片點擊放大檢視燈箱 (Lightbox) */}
+      {previewImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200 select-none"
+          onClick={() => setPreviewImage(null)}
+        >
+          {/* 頂部操作列 */}
+          <div 
+            className="absolute top-0 left-0 right-0 px-6 py-4 flex items-center justify-between text-white bg-gradient-to-b from-black/80 via-black/40 to-transparent z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-gray-100 truncate max-w-md">
+                {previewImage.alt || previewImage.originalFilename || '圖片放大檢視'}
+              </span>
+              <span className="text-xs px-2 py-0.5 bg-white/15 rounded-full text-gray-300 font-mono hidden sm:inline-block">
+                按 ESC 或點擊背景關閉
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* 如果是已登入管理員，支援直接從大圖開啟加框標註工具 */}
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = previewImage;
+                    setPreviewImage(null);
+                    handleOpenAnnotator({
+                      src: current.src,
+                      originalFilename: current.originalFilename || current.src,
+                      fromEditor: false
+                    });
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-md"
+                  title="開啟加框與代號標註工具"
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  <span>加框/代號標註</span>
+                </button>
+              )}
+
+              <a
+                href={previewImage.src}
+                target="_blank"
+                rel="noopener noreferrer"
+                download={previewImage.originalFilename || "image.png"}
+                className="p-2 hover:bg-white/20 text-gray-200 hover:text-white rounded-lg transition-colors cursor-pointer"
+                title="在新分頁開啟/下載原圖"
+              >
+                <ExternalLink className="w-5 h-5" />
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-2 hover:bg-white/20 text-gray-200 hover:text-white rounded-lg transition-colors cursor-pointer ml-1"
+                title="關閉放大檢視 (ESC)"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+
+          {/* 大圖本體 */}
+          <div 
+            className="max-w-[96vw] max-h-[88vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewImage.src}
+              alt={previewImage.alt || ''}
+              className="max-w-full max-h-[88vh] object-contain rounded-lg shadow-2xl transition-transform duration-200 cursor-zoom-out"
+              onClick={() => setPreviewImage(null)}
+              title="點擊圖片關閉"
+            />
+          </div>
+        </div>
       )}
     </div>
   );
