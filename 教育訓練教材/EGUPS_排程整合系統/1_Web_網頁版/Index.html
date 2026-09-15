@@ -41,6 +41,7 @@
       const [stockTK623, setStockTK623] = useState('');
       const [stockTK689, setStockTK689] = useState('');
       const [stockTK692, setStockTK692] = useState('');
+      const [stockOther, setStockOther] = useState('');
 
       const [safetyStock, setSafetyStock] = useState('');
       const [manualInputs, setManualInputs] = useState({});
@@ -87,6 +88,7 @@
         if (data.stockTK623 !== undefined) setStockTK623(data.stockTK623 === '' ? '' : Number(data.stockTK623));
         if (data.stockTK689 !== undefined) setStockTK689(data.stockTK689 === '' ? '' : Number(data.stockTK689));
         if (data.stockTK692 !== undefined) setStockTK692(data.stockTK692 === '' ? '' : Number(data.stockTK692));
+        if (data.stockOther !== undefined) setStockOther(data.stockOther === '' ? '' : Number(data.stockOther));
 
         if (data.manualInputs) setManualInputs(data.manualInputs); else setManualInputs({});
         if (data.scheduleInputs) setScheduleInputs(data.scheduleInputs); else setScheduleInputs({});
@@ -106,7 +108,7 @@
 
       const getCurrentPayload = () => ({
         startDateTime, scheduleStartDateTime, totalTonnage, flowRate, carCapacity, yieldRate, safetyStock, initialStockDay0,
-        stockTK623, stockTK689, stockTK692, manualInputs, carSequence, scheduleInputs, manualCarOverrides 
+        stockTK623, stockTK689, stockTK692, stockOther, manualInputs, carSequence, scheduleInputs, manualCarOverrides 
       });
 
       const handleSave = () => {
@@ -254,8 +256,11 @@
         const startObj = startDateTime ? new Date(startDateTime) : new Date(); const res = [];
         
         let curRawStock = parseFloat(initialStockDay0) || 0;
-        let curProdStock = (parseFloat(stockTK623) || 0) + (parseFloat(stockTK689) || 0) + (parseFloat(stockTK692) || 0);
-        const maxProdStock = 497; // 125 + 110 + 262
+        let curProdStock = (parseFloat(stockTK623) || 0) + (parseFloat(stockTK689) || 0) + (parseFloat(stockTK692) || 0) + (parseFloat(stockOther) || 0);
+        
+        const maxTankCapacity = 497; // 125 + 110 + 262
+        const maxTruckCapacity = (carSequence.length || 0) * (Number(carCapacity) || 0);
+        const maxTotalCapacity = maxTankCapacity + maxTruckCapacity;
         
         for (let i = 0; i < 30; i++) {
           const d = new Date(startObj); d.setDate(startObj.getDate() + i); const dStr = formatDateStr(d);
@@ -272,19 +277,25 @@
           const remainingRaw = curRawStock + totalIn - usage;
           const remainingProd = curProdStock + prod - manualOut;
           
+          let prodWarning = 'none';
+          if (remainingProd >= maxTotalCapacity) prodWarning = 'full';
+          else if (remainingProd >= maxTankCapacity) prodWarning = 'truck';
+
           res.push({
             dateStr: dStr, displayDate: `${d.getMonth() + 1}/${d.getDate()}`,
             initialRaw: curRawStock, transfer: input.transfer||'', incoming: input.incoming||'', usage, returnAmt: input.returnAmt||'', totalIn, remainingRaw,
             initialProd: curProdStock, prod, manualOut: input.manualOut||'', remainingProd,
             isWeekend: [0, 6].includes(d.getDay()),
-            prodIsFull: remainingProd >= maxProdStock
+            prodWarning
           });
           
           curRawStock = remainingRaw;
           curProdStock = remainingProd;
         }
         return res;
-      }, [startDateTime, initialStockDay0, stockTK623, stockTK689, stockTK692, manualInputs, dailyUsageMap, dailyProductionMap]);
+      }, [startDateTime, initialStockDay0, stockTK623, stockTK689, stockTK692, stockOther, manualInputs, dailyUsageMap, dailyProductionMap, carSequence, carCapacity]);
+
+      const maxTruckCapacityVal = (carSequence.length || 0) * (Number(carCapacity) || 0);
 
       const totalIncoming30Days = useMemo(() => inventoryData.reduce((sum, day) => sum + day.totalIn, 0), [inventoryData]);
 
@@ -356,10 +367,10 @@
                   <span className="mr-1">🗑️</span> 全清空畫面
                 </button>
                 <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
-                  <span className="mr-1">☁️</span> 強制儲存
+                  <span className="mr-1">☁️</span> 寫入雲端
                 </button>
                 <div className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-inner ${saveStatus === 'success' ? 'bg-emerald-500 text-white' : saveStatus === 'saving' ? 'bg-amber-500 text-white animate-pulse' : saveStatus === 'error' ? 'bg-red-500 text-white' : 'bg-slate-900 text-slate-300'}`}>
-                   {saveStatus === 'success' ? '● 雲端同步就緒' : saveStatus === 'saving' ? '○ 儲存中...' : saveStatus === 'error' ? '！寫入失敗' : '○ 多人連線中'}
+                   {saveStatus === 'success' ? '● 雲端同步就緒' : saveStatus === 'saving' ? '○ 寫入中...' : saveStatus === 'error' ? '！寫入失敗' : '○ 已連線'}
                 </div>
               </div>
             </div>
@@ -425,25 +436,29 @@
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
-                  <div className="col-span-3 text-[11px] font-bold text-emerald-800 pb-1 border-b border-emerald-200 mb-1 flex justify-between">
+                <div className="grid grid-cols-4 gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                  <div className="col-span-4 text-[11px] font-bold text-emerald-800 pb-1 border-b border-emerald-200 mb-1 flex justify-between">
                     <span>期初各儲槽庫存量 (T) - 成品</span>
-                    <span>總容量滿位: 497 T</span>
+                    <span>總容量滿位: 儲槽 497 T + 槽車 {maxTruckCapacityVal} T</span>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK623 (滿槽125T)</label>
+                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK623 (125T)</label>
                     <input type="number" value={stockTK623} onChange={e => setStockTK623(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-emerald-300 rounded text-xs font-bold text-emerald-800" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK689 (滿槽110T)</label>
+                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK689 (110T)</label>
                     <input type="number" value={stockTK689} onChange={e => setStockTK689(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-emerald-300 rounded text-xs font-bold text-emerald-800" />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK692 (滿槽262T)</label>
+                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK692 (262T)</label>
                     <input type="number" value={stockTK692} onChange={e => setStockTK692(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-emerald-300 rounded text-xs font-bold text-emerald-800" />
                   </div>
-                  <div className="col-span-3 text-right text-[11px] font-bold text-emerald-800 mt-1">
-                    總計期初成品: { (Number(stockTK623)||0) + (Number(stockTK689)||0) + (Number(stockTK692)||0) } T
+                  <div>
+                    <label className="block text-[10px] font-bold mb-1 text-orange-600">其他 / 槽車</label>
+                    <input type="number" value={stockOther} onChange={e => setStockOther(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-orange-300 bg-orange-50 rounded text-xs font-bold text-orange-800" />
+                  </div>
+                  <div className="col-span-4 text-right text-[11px] font-bold text-emerald-800 mt-1">
+                    總計期初成品: { (Number(stockTK623)||0) + (Number(stockTK689)||0) + (Number(stockTK692)||0) + (Number(stockOther)||0) } T
                   </div>
                 </div>
 
@@ -546,11 +561,24 @@
                     </tr>
                     <tr className="bg-slate-100 shadow-inner">
                       <td className="sticky-col p-3 pl-4 text-left font-bold text-slate-800 bg-emerald-200/50">成品結存估算</td>
-                      {inventoryData.map(d => (
-                        <td key={d.dateStr} className={`p-1 border-b text-sm font-black border-r border-slate-200 ${d.prodIsFull ? 'bg-red-600 text-white shadow-inner animate-pulse' : 'text-emerald-900 bg-emerald-100'}`}>
-                          {Math.round(d.remainingProd)}
-                        </td>
-                      ))}
+                      {inventoryData.map(d => {
+                        let bgColor = 'bg-emerald-100 text-emerald-900';
+                        let animClass = '';
+                        let title = '儲槽仍有空間';
+                        if (d.prodWarning === 'full') {
+                          bgColor = 'bg-red-600 text-white shadow-inner';
+                          animClass = 'animate-pulse';
+                          title = '全部爆滿 (儲槽+槽車皆滿)';
+                        } else if (d.prodWarning === 'truck') {
+                          bgColor = 'bg-orange-500 text-white shadow-inner';
+                          title = '儲槽已滿，成品存放於槽車中';
+                        }
+                        return (
+                          <td key={d.dateStr} title={title} className={`p-1 border-b text-sm font-black border-r border-slate-200 ${bgColor} ${animClass}`}>
+                            {Math.round(d.remainingProd)}
+                          </td>
+                        );
+                      })}
                     </tr>
                   </tbody>
                 </table>
