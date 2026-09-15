@@ -19,7 +19,8 @@ const CONFIG = {
   headers: [
     'id', 'barcode', 'productName', 'tankNo', 'customer', 
     'quantity', 'flowType', 'dept', 'requester', 'grade', 
-    'qcResult', 'createdAt', 'completedAt', 'status', 'qcNote', 'isAlerted'
+    'qcResult', 'createdAt', 'completedAt', 'status', 'qcNote', 'isAlerted',
+    'parentId', 'round'
   ]
 };
 
@@ -50,6 +51,8 @@ function doPost(e) {
       result = testTeamsNotification(postData.dept);
     } else if (action === 'saveOrders') {
       result = saveOrders(postData.orders);
+    } else if (action === 'returnForResample') {
+      result = returnForResample(postData.id, postData.note, postData.pin);
     }
 
     return ContentService.createTextOutput(JSON.stringify(result))
@@ -319,6 +322,79 @@ function completeSample(id, result, note, pin) {
 }
 
 // =========================================================================
+// 退回重新送樣模組：returnForResample
+// =========================================================================
+
+// 品管判定 FAIL 後退回：將舊記錄標記為 'failed'，自動建立 round+1 的新記錄
+function returnForResample(id, note, pin) {
+  const sysConfig = getSystemConfigFromSheet_();
+  if (pin !== sysConfig.pin) {
+    return { success: false, error: '⛔ 授權失敗：品管專屬密碼錯誤！' };
+  }
+
+  const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
+  const sheet = ss.getSheetByName(CONFIG.sheetName);
+  const data = sheet.getDataRange().getValues();
+  const h = CONFIG.headers;
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][h.indexOf('id')] === id) {
+      const row = i + 1;
+
+      // 1. 讀取原記錄所有欄位
+      const oldBarcode   = data[i][h.indexOf('barcode')];
+      const oldProduct   = data[i][h.indexOf('productName')];
+      const oldTankNo    = data[i][h.indexOf('tankNo')];
+      const oldCustomer  = data[i][h.indexOf('customer')];
+      const oldQuantity  = data[i][h.indexOf('quantity')];
+      const oldFlowType  = data[i][h.indexOf('flowType')];
+      const oldDept      = data[i][h.indexOf('dept')];
+      const oldRequester = data[i][h.indexOf('requester')];
+      const oldGrade     = data[i][h.indexOf('grade')];
+      const oldParentId  = h.indexOf('parentId') >= 0 ? data[i][h.indexOf('parentId')] : '';
+      const oldRound     = h.indexOf('round') >= 0 ? (parseInt(data[i][h.indexOf('round')]) || 1) : 1;
+
+      // 2. 計算根記錄 ID（parentId 若已有就繼承，否則自己就是根）
+      const rootId = oldParentId || id;
+      const newRound = oldRound + 1;
+
+      // 3. 標記舊記錄為 'failed'（保留，可查詢）
+      sheet.getRange(row, h.indexOf('status') + 1).setValue('failed');
+      sheet.getRange(row, h.indexOf('completedAt') + 1).setValue(new Date().toISOString());
+      sheet.getRange(row, h.indexOf('qcResult') + 1).setValue('FAIL');
+      sheet.getRange(row, h.indexOf('qcNote') + 1).setValue(note || '判定不合格，退回重新送樣');
+
+      // 4. 建立新的 pending 記錄（相同品名/槽號，round+1）
+      const newId = Utilities.getUuid();
+      const newRowData = CONFIG.headers.map(field => {
+        if (field === 'id')          return newId;
+        if (field === 'status')      return 'pending';
+        if (field === 'createdAt')   return new Date().toISOString();
+        if (field === 'barcode')     return oldBarcode;
+        if (field === 'productName') return oldProduct;
+        if (field === 'tankNo')      return oldTankNo;
+        if (field === 'customer')    return oldCustomer;
+        if (field === 'quantity')    return oldQuantity;
+        if (field === 'flowType')    return oldFlowType;
+        if (field === 'dept')        return oldDept;
+        if (field === 'requester')   return oldRequester;
+        if (field === 'grade')       return oldGrade;
+        if (field === 'parentId')    return rootId;
+        if (field === 'round')       return newRound;
+        return '';  // qcResult, completedAt, qcNote, isAlerted 等留空
+      });
+      sheet.appendRow(newRowData);
+
+      // 5. Teams 通知：退回重新送樣
+      sendTeamsReturnNotify(oldDept, oldRequester, oldBarcode, oldProduct, oldTankNo, oldCustomer, newRound, note, sysConfig);
+
+      return { success: true, newId: newId, round: newRound };
+    }
+  }
+  return { success: false, error: '找不到該筆資料' };
+}
+
+// =========================================================================
 // Microsoft Teams 核心模組：精準分流與 2 小時超時預警
 // =========================================================================
 
@@ -392,6 +468,37 @@ function sendTeamsCompletionNotify(dept, requester, barcode, productName, tankNo
   };
 
   sendTeamsCard(dept, completionCard, cfg);
+}
+
+// 退回重新送樣：發送 Teams 通知給送樣課室
+function sendTeamsReturnNotify(dept, requester, barcode, productName, tankNo, truck, newRound, note, sysConfig) {
+  const cfg = sysConfig || getSystemConfigFromSheet_();
+  const returnCard = {
+    "@type": "MessageCard",
+    "@context": "http://schema.org/extensions",
+    "themeColor": "F97316", // 橘色警示
+    "summary": `↩️【QC 退回重新送樣】${productName} 需進行第 ${newRound} 次送樣`,
+    "sections": [{
+      "activityTitle": `↩️【QC 退回重新送樣 - 第 ${newRound} 次】`,
+      "activitySubtitle": `品管已判定不合格，請 ${dept} 重新送樣`,
+      "facts": [
+        { "name": "🏢 送樣單位", "value": `${dept}（送樣人：${requester || '無'}）` },
+        { "name": "🧪 檢驗品名", "value": productName },
+        { "name": "🛢️ 槽號 / 車牌", "value": `${tankNo || '-'} / ${truck || '-'}` },
+        { "name": "📋 檢驗單號", "value": barcode },
+        { "name": "🔄 送樣輪次", "value": `**第 ${newRound} 次送樣**` },
+        { "name": "📝 退回原因", "value": note || "判定不合格，請重新送樣" },
+        { "name": "⏱️ 退回時間", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
+      ],
+      "markdown": true
+    }],
+    "potentialAction": [{
+      "@type": "OpenUri",
+      "name": "📱 開啟 PWA 看板確認",
+      "targets": [{ "os": "default", "uri": cfg.pwaUrl }]
+    }]
+  };
+  sendTeamsCard(dept, returnCard, cfg);
 }
 
 // 逾時 2 小時巡檢 (GAS 時間驅動觸發器：建議設定每 10 分鐘執行一次)

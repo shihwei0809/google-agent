@@ -88,6 +88,11 @@ function MarkdownImage({ src, alt, onOpenAnnotator, onUploadAndAnnotate, ...prop
     );
   }
 
+  let cleanOriginalName = src;
+  try {
+    cleanOriginalName = decodeURIComponent(src);
+  } catch (e) {}
+
   const fullSrc = resolveImageUrl(src);
   return (
     <div className="relative group my-4 inline-block max-w-full">
@@ -107,7 +112,7 @@ function MarkdownImage({ src, alt, onOpenAnnotator, onUploadAndAnnotate, ...prop
             e.stopPropagation();
             onOpenAnnotator && onOpenAnnotator({
               src: fullSrc,
-              originalFilename: src,
+              originalFilename: cleanOriginalName,
               fromEditor: false
             });
           }}
@@ -188,14 +193,47 @@ function App() {
     const oldName = annotatingImage.originalFilename;
 
     if (oldName && currentMaterialName) {
-      // 替換現有教材中的舊圖檔名或佔位符
-      let updatedContent = currentContent.replaceAll(oldName, newFilename);
-      let updatedEditContent = editContent.replaceAll(oldName, newFilename);
+      let decodedOldName = oldName;
+      try {
+        decodedOldName = decodeURIComponent(oldName);
+      } catch (e) {}
 
-      // 若原為無括號佔位符，包裝為正確 markdown 圖片語法
-      if (!updatedContent.includes(`](${newFilename})`)) {
-        updatedContent = updatedContent.replaceAll(oldName, `![操作標註圖](${newFilename})`);
-        updatedEditContent = updatedEditContent.replaceAll(oldName, `![操作標註圖](${newFilename})`);
+      // 提取純檔名（去除任何 URL 前綴如 http://... 或 materials_static/）
+      const cleanOldName = decodedOldName.split('/').pop().split('\\').pop();
+
+      // 所有可能出現在 Markdown 中的舊檔名樣式
+      const targetsToReplace = Array.from(new Set([
+        oldName,
+        decodedOldName,
+        cleanOldName,
+        encodeURI(cleanOldName),
+        encodeURIComponent(cleanOldName)
+      ])).filter(t => t && t.length > 1);
+
+      let updatedContent = currentContent;
+      let updatedEditContent = editContent;
+      let replaced = false;
+
+      // 1. 正規表達式精準替換 markdown 圖片語法: ![alt](target) -> ![alt](newFilename)
+      for (const target of targetsToReplace) {
+        const escaped = target.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const imgRegex = new RegExp(`(!\\[[^\\]]*\\]\\()([^)]*?${escaped})(\\))`, 'g');
+        if (imgRegex.test(updatedContent)) {
+          updatedContent = updatedContent.replace(imgRegex, `$1${newFilename}$3`);
+          updatedEditContent = updatedEditContent.replace(imgRegex, `$1${newFilename}$3`);
+          replaced = true;
+        }
+      }
+
+      // 2. 若不是標準 markdown 圖片（例如純文字佔位符），直接全局替換
+      if (!replaced) {
+        for (const target of targetsToReplace) {
+          if (updatedContent.includes(target)) {
+            updatedContent = updatedContent.replaceAll(target, `![操作標註圖](${newFilename})`);
+            updatedEditContent = updatedEditContent.replaceAll(target, `![操作標註圖](${newFilename})`);
+            replaced = true;
+          }
+        }
       }
 
       setCurrentContent(updatedContent);
@@ -207,10 +245,10 @@ function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: updatedContent })
         });
-        alert('🎉 圖片標註儲存成功！已自動更新教材畫面。');
+        alert('🎉 圖片已成功更新！畫面已自動套用最新圖片。');
       } catch (e) {
         console.error(e);
-        alert('標註圖片已上傳，但自動同步至教材時發生錯誤，請點擊「儲存修改」。');
+        alert('新圖片已上傳，但自動同步至教材時發生錯誤，請點擊「儲存修改」。');
       }
     } else if (isEditing || annotatingImage.fromEditor) {
       const imgMarkdown = `\n\n![操作標註圖](${newFilename})\n\n`;

@@ -98,3 +98,16 @@
    - 伺服器啟動黑視窗中，必須自動顯示電腦網址、手機 IP 以及 PWA 安裝引導。
 4. **操作手冊必備 PWA 安裝指引章節**：
    - `build_manual_doc.py` 產出的 Word/PDF 手冊必須包含「電腦端與手機端 PWA 安裝與離線操作步驟」。
+
+## 9. Cloudflare Pages + D1 雲端資料庫架構標準 (Serverless Architecture)
+凡是評估具備高可用性需求、需脫離 Google Apps Script (GAS) 配額限制，或適合無伺服器 (Serverless) 部署之系統，AI 代理必須主動建議並導入 **Cloudflare Pages + D1 Database** 部署架構：
+
+1. **結構規範**：
+   - 專案資料夾內須包含 `schema.sql` 定義 D1 SQLite 資料表結構。
+   - 建立 `functions/api/` 目錄存放 Cloudflare Pages Functions (如 `data.js`, `save.js`)，作為 REST API 提供前端存取。
+   - 前端靜態檔案 (HTML, JS, PWA 設定) 統一放置於 `public/` 目錄中。
+2. **組態與自動化**：
+   - 必須建立 `wrangler.toml` 定義專案與 D1 綁定 (`[[d1_databases]]`)。
+   - 必須提供 `setup_env.ps1` 一鍵部署腳本，內含 `wrangler login`、`wrangler d1 create`、自動回填 `database_id`、`wrangler d1 execute` 及 `wrangler pages deploy` 的自動化流程。
+3. **PWA 相容性**：
+   - Cloudflare Pages 專案的 `public/` 目錄亦須嚴格遵守第 8 點「PWA 雙軌架構標準規範」，包含 `manifest.json`、`sw.js` 與智慧安裝橫幅。
