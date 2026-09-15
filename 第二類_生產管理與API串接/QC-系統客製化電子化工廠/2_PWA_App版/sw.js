@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qc-kanban-v2.1.4';
+const CACHE_NAME = 'qc-kanban-v2.1.6';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

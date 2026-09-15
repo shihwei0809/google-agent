@@ -539,6 +539,19 @@
       </div>
     </div>
 
+    <!-- 常用工具列（永遠可見，無需解鎖）-->
+    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px; align-items:center;">
+      <button type="button" class="btn-sim btn-sim-teams" onclick="openTeamsConfigModal()" style="font-size:0.82rem; padding:7px 12px;">
+        ⚙️ Teams Webhook 設定與卡片測試
+      </button>
+      <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none; font-size:0.82rem; padding:7px 12px;" onclick="openPrintSettingsGlobal()">
+        🖨️ 標籤機設定 (改紙/改張數)
+      </button>
+      <button type="button" class="btn-sim" style="background:#7c3aed; color:white; border:none; font-size:0.82rem; padding:7px 12px;" onclick="openEmpMapModal()">
+        👤 員工工號對照表管理
+      </button>
+    </div>
+
     <!-- 本機 PWA 專用模擬測試控制箱 (預設隱藏，需管理員 PIN 碼解鎖) -->
     <div id="simToolbar" class="sim-toolbar" style="display:none;">
       <span style="font-weight:bold; color:#475569;">🧪 本機模擬測試箱：</span>
@@ -547,12 +560,6 @@
       </button>
       <button type="button" class="btn-sim" onclick="triggerOverdueCheckLocal()">
         🚨 執行逾期巡檢 (觸發Teams警報)
-      </button>
-      <button type="button" class="btn-sim btn-sim-teams" onclick="openTeamsConfigModal()">
-        ⚙️ Teams Webhook 設定與卡片測試
-      </button>
-      <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none;" onclick="openPrintSettingsGlobal()">
-        🖨️ 標籤機設定 (改紙/改張數)
       </button>
       <button type="button" class="btn-sim" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; margin-left:auto;" onclick="lockAdminFeatures(true)" title="重新上鎖並隱藏模擬測試箱">
         🔒 鎖定隱藏
@@ -619,7 +626,12 @@
         </div>
         <div>
           <label class="required">送樣人員</label>
-          <input type="text" id="requester" placeholder="請輸入姓名" required>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="text" id="empIdInput" placeholder="掃描或輸入工號" style="width:110px; flex-shrink:0;"
+              oninput="lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupEmployeeId(document.getElementById('empIdInput').value);}">
+            <input type="text" id="requester" placeholder="姓名（工號查到後自動填入）" required style="flex:1;">
+          </div>
+          <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
         </div>
       </div>
       <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
@@ -757,6 +769,24 @@
       <button type="button" onclick="closeAdminUnlockModal()" style="flex: 1; background: #94a3b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
         取消
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- 員工工號對照表 Modal -->
+<div id="empMapModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:450px;">
+    <h3 style="margin-top:0; border-left:4px solid #7c3aed; padding-left:10px; color:#5b21b6;">👤 員工工號與姓名對照表</h3>
+    <div style="background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; padding:12px; margin-bottom:14px; font-size:0.85rem; color:#4c1d95;">
+      請在下方輸入工號與姓名的對照關係，格式為 <b>工號:姓名</b>，每行一筆。<br>
+      例如：<br>
+      111:王大明<br>
+      222:陳小華
+    </div>
+    <textarea id="empMapTextarea" rows="8" style="width:100%; box-sizing:border-box; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.9rem; font-family:monospace; resize:vertical; line-height:1.4;"></textarea>
+    <div style="display:flex; gap:10px; margin-top:16px;">
+      <button onclick="closeEmpMapModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem;">取消</button>
+      <button onclick="saveEmpMap()" style="flex:2; padding:10px; background:#7c3aed; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:bold;">💾 儲存對照表</button>
     </div>
   </div>
 </div>
@@ -2102,7 +2132,59 @@
     document.getElementById('t100Select').value = '';
     const alertBox = document.getElementById('t100AlreadySubmittedAlert');
     if (alertBox) alertBox.style.display = 'none';
+    const empId = document.getElementById('empIdInput');
+    if (empId) empId.value = '';
+    const empMsg = document.getElementById('empLookupMsg');
+    if (empMsg) empMsg.innerText = '';
     setBarcodePlaceholder();
+  }
+
+  // =========================================================
+  // 工號查詢模組：掃描或輸入工號自動帶出姓名
+  // =========================================================
+
+  function getEmployeeMap() {
+    try {
+      return JSON.parse(localStorage.getItem('HS_QC_EMP_MAP') || '{}');
+    } catch(e) { return {}; }
+  }
+
+  function lookupEmployeeId(empId) {
+    const id = String(empId || '').trim();
+    const msg = document.getElementById('empLookupMsg');
+    const nameInput = document.getElementById('requester');
+    if (!id) { if (msg) msg.innerText = ''; return; }
+    const map = getEmployeeMap();
+    if (map[id]) {
+      nameInput.value = map[id];
+      if (msg) { msg.innerText = `✅ ${id} → ${map[id]}`; msg.style.color = '#059669'; }
+    } else {
+      if (msg) { msg.innerText = `⚠️ 未找到工號 ${id}，請直接在姓名欄輸入`; msg.style.color = '#d97706'; }
+      nameInput.focus();
+    }
+  }
+
+  function openEmpMapModal() {
+    const map = getEmployeeMap();
+    const lines = Object.entries(map).map(([k,v]) => `${k}:${v}`).join('\n');
+    document.getElementById('empMapTextarea').value = lines;
+    document.getElementById('empMapModal').style.display = 'flex';
+  }
+
+  function closeEmpMapModal() {
+    document.getElementById('empMapModal').style.display = 'none';
+  }
+
+  function saveEmpMap() {
+    const raw = document.getElementById('empMapTextarea').value;
+    const map = {};
+    raw.split('\n').forEach(line => {
+      const [id, ...rest] = line.split(':');
+      if (id && rest.length) map[id.trim()] = rest.join(':').trim();
+    });
+    localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(map));
+    closeEmpMapModal();
+    showToast(`✅ 已儲存 ${Object.keys(map).length} 筆員工資料！`);
   }
 
   function submitForm() {
