@@ -192,7 +192,7 @@
 
       const formatDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-      // 雙軌分離：生產與排程      // 動態抽離：預先計算進度
+      // 動態抽離：預先計算進度
       const { dailyUsageMap, dailyProductionMap, scheduleList } = useMemo(() => {
         const usageMap = {}; const prodMap = {}; const list = [];
         const flow = Number(flowRate) || 0; const tonnage = Number(totalTonnage) || 0;
