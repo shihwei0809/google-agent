@@ -641,7 +641,10 @@
     </div>
     <div><label>日期(起)</label><input type="date" id="dateStart" onchange="render()"></div>
     <div><label>日期(迄)</label><input type="date" id="dateEnd" onchange="render()"></div>
-    <button onclick="resetFilters()" style="padding:10px 16px; cursor:pointer; height:40px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">全部顯示 (清除)</button>
+    <div style="display:flex; gap:8px; align-items:flex-end;">
+      <button onclick="resetFilters()" style="padding:10px 16px; cursor:pointer; height:40px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">全部顯示 (清除)</button>
+      <button type="button" onclick="openGlobalHistoryModal()" style="padding:10px 16px; cursor:pointer; height:40px; background:#4f46e5; color:white; border:none; border-radius:6px; font-weight:bold;">🔍 全紀錄查詢</button>
+    </div>
   </div>
 
   <div class="kpi-grid">
@@ -817,6 +820,43 @@
     <div id="sampleHistoryContent" style="max-height:400px; overflow-y:auto;"></div>
     <div style="margin-top:14px; text-align:right;">
       <button onclick="closeSampleHistoryModal()" style="padding:8px 20px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer;">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 全廠紀錄查詢 Modal -->
+<div id="globalHistoryModal" class="modal" style="display:none; z-index:9999;">
+  <div class="modal-content" style="max-width:900px; width:95%;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="margin:0; border-left:4px solid #4f46e5; padding-left:10px; color:#4f46e5;">🔍 全廠送樣紀錄總表</h3>
+      <button onclick="closeGlobalHistoryModal()" style="padding:6px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer;">✖ 關閉</button>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:14px; align-items:center;">
+      <input type="text" id="ghSearchKw" placeholder="搜尋單號 / 品名 / 槽號 / 車牌..." style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px;" oninput="renderGlobalHistory()">
+      <select id="ghStatusFilter" onchange="renderGlobalHistory()" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
+        <option value="">所有狀態</option>
+        <option value="pending">待檢驗 (pending)</option>
+        <option value="completed">已完成 (completed)</option>
+        <option value="failed">退回重送 (failed)</option>
+      </select>
+    </div>
+    <div class="table-container" style="max-height:60vh; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px;">
+      <table class="data-table" id="ghTable" style="margin:0;">
+        <thead>
+          <tr>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">時間</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">單號(輪次)</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">品名/等級</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">槽號/車牌</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">單位/人員</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">狀態/判定</th>
+          </tr>
+        </thead>
+        <tbody id="ghTableBody"></tbody>
+      </table>
+    </div>
+    <div style="text-align:right; font-size:0.8rem; color:#64748b; margin-top:8px;">
+      * 顯示最新 200 筆符合條件的歷史紀錄
     </div>
   </div>
 </div>
@@ -2900,6 +2940,67 @@
   function closeSampleHistoryModal() {
     document.getElementById('sampleHistoryModal').style.display = 'none';
   }
+
+  // ==========================================
+  // 全廠紀錄查詢 (Global History)
+  // ==========================================
+  function openGlobalHistoryModal() {
+    document.getElementById('ghSearchKw').value = '';
+    document.getElementById('ghStatusFilter').value = '';
+    renderGlobalHistory();
+    document.getElementById('globalHistoryModal').style.display = 'flex';
+  }
+
+  function closeGlobalHistoryModal() {
+    document.getElementById('globalHistoryModal').style.display = 'none';
+  }
+
+  function renderGlobalHistory() {
+    const kw = document.getElementById('ghSearchKw').value.toLowerCase();
+    const status = document.getElementById('ghStatusFilter').value;
+    const tbody = document.getElementById('ghTableBody');
+    
+    // 篩選
+    const filtered = allData.filter(s => {
+      const matchKw = !kw || 
+        String(s.barcode||'').toLowerCase().includes(kw) ||
+        String(s.productName||'').toLowerCase().includes(kw) ||
+        String(s.tankNo||'').toLowerCase().includes(kw) ||
+        String(s.customer||'').toLowerCase().includes(kw);
+      const matchStatus = !status || s.status === status;
+      return matchKw && matchStatus;
+    });
+
+    // 限制顯示筆數避免卡頓
+    const maxRows = 200;
+    const toShow = filtered.slice(0, maxRows);
+
+    if (toShow.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#94a3b8;">查無符合的歷史紀錄</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = toShow.map(s => {
+      let statusBadge = '';
+      if (s.status === 'pending') statusBadge = `<span style="background:#fef08a; color:#854d0e; padding:2px 6px; border-radius:4px; font-size:0.8rem;">待檢驗</span>`;
+      else if (s.status === 'completed' && s.qcResult === 'PASS') statusBadge = `<span style="background:#d1fae5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:0.8rem;">合格(PASS)</span>`;
+      else if (s.status === 'completed' && s.qcResult === 'FAIL') statusBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:0.8rem;">不合格(FAIL)</span>`;
+      else if (s.status === 'failed') statusBadge = `<span style="background:#fed7aa; color:#9a3412; padding:2px 6px; border-radius:4px; font-size:0.8rem;">退回(failed)</span>`;
+      else statusBadge = s.status;
+
+      const roundHtml = (parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem; color:#ea580c; background:#ffedd5; padding:1px 4px; border-radius:4px;">第${s.round}次</span>` : '';
+
+      return `<tr>
+        <td style="font-size:0.85rem; color:#475569;">${s.createdAt ? s.createdAt.substring(0,16).replace('T',' ') : '-'}</td>
+        <td><b>${s.barcode}</b>${roundHtml}</td>
+        <td><b>${s.productName}</b> <span style="color:#64748b; font-size:0.8rem;">(${s.grade||'-'})</span></td>
+        <td>${s.tankNo||'-'} / <span style="font-size:0.8rem;">${s.customer||'-'}</span></td>
+        <td style="font-size:0.85rem;">${s.dept} <br><span style="color:#64748b;">(${s.requester})</span></td>
+        <td>${statusBadge} <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">${s.qcNote||''}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
 
   function setBarcodePlaceholder() {
     const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
