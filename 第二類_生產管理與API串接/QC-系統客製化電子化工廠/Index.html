@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
@@ -2001,7 +2001,18 @@
     });
 
     const pData = filtered.filter(s => s.status === 'pending');
-    const cData = filtered.filter(s => s.status === 'completed');
+    let cData = filtered.filter(s => s.status === 'completed');
+
+    // 如果使用者沒有輸入明確的起迄日期，則「已檢驗完成」預設只顯示近3天 (今天、昨天、前天)
+    if (!start && !end) {
+      const d = new Date();
+      d.setDate(d.getDate() - 2); // 往前推2天 = 包含今天共3天
+      const minDateStr = d.toISOString().split('T')[0];
+      cData = cData.filter(s => {
+        const sDate = s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : '';
+        return sDate >= minDateStr;
+      });
+    }
 
     // 計算逾期件數
     const overdueCount = pData.filter(s => {
