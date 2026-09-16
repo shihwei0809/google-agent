@@ -60,18 +60,51 @@
       padding: 14px 16px;
       margin-bottom: 18px;
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
+      flex-direction: column;
       gap: 12px;
     }
     .t100-badge {
       background: #16a34a;
       color: white;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       font-weight: bold;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 5px 10px;
+      border-radius: 6px;
       white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .t100-date-picker {
+      padding: 6px 10px;
+      border: 1.5px solid #16a34a;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #14532d;
+      background: #fff;
+      cursor: pointer;
+    }
+    .btn-t100-filter {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #86efac;
+      background: #fff;
+      color: #166534;
+      font-size: 0.82rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-t100-filter:hover {
+      background: #dcfce7;
+    }
+    .btn-t100-filter.active {
+      background: #16a34a;
+      color: #fff;
+      border-color: #16a34a;
+      box-shadow: 0 1px 3px rgba(22, 163, 74, 0.3);
     }
     .t100-select-wrapper {
       flex: 1;
@@ -99,6 +132,21 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
+      white-space: nowrap;
+    }
+    .t100-alert-box {
+      display: none;
+      width: 100%;
+      background: #fffbeb;
+      border: 1.5px solid #f59e0b;
+      color: #92400e;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      box-sizing: border-box;
+      animation: fadeIn 0.25s ease;
+      align-items: center;
+      gap: 8px;
     }
 
     /* 模擬測試控制列 (預設隱藏，解鎖後以 flex 顯示) */
@@ -448,21 +496,47 @@
       </div>
     </div>
 
-    <!-- T100 槽車排程快速選擇列 (支援出貨與進料雙區塊) -->
+    <!-- T100 槽車排程快速選擇列 (支援出貨與進料雙區塊、日期篩選與已送樣記號) -->
     <div class="t100-banner">
-      <span class="t100-badge">🚛 T100 槽車排程</span>
-      <div class="t100-select-wrapper">
-        <select id="t100Select" class="t100-select" onchange="onT100SelectChange(this.value)">
-          <option value="">-- 點此直接選擇 T100 槽車排程 (包含出貨與進料) --</option>
-        </select>
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; width:100%;">
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span class="t100-badge">🚛 T100 槽車排程</span>
+          
+          <!-- 日期選擇與模式篩選 -->
+          <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <label for="t100DateFilter" style="font-size:0.82rem; margin:0; color:#166534; font-weight:bold;">📅 日期：</label>
+            <input type="date" id="t100DateFilter" class="t100-date-picker" onchange="onT100DateFilterChange(this.value)" title="切換指定日期查詢排程">
+            <button type="button" class="btn-t100-filter active" id="btnFilterToday" onclick="setT100FilterMode('today')" title="只看今日排程">📅 今日排程</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterPending" onclick="setT100FilterMode('pending')" title="查詢所有放櫃或未送樣車次">📦 待送樣放櫃</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterAll" onclick="setT100FilterMode('all')" title="檢視所有匯入排程">🔍 顯示全部</button>
+          </div>
+        </div>
+
+        <span id="t100StatsBadge" style="background:#dcfce7; color:#15803d; padding:4px 10px; border-radius:12px; font-size:0.82rem; font-weight:bold; border:1px solid #86efac;">
+          載入中...
+        </span>
       </div>
-      <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
-      <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
-        📂 匯入最新 T100 排程 Excel
-      </button>
-      <button type="button" onclick="resetForm()" style="padding:9px 12px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
-        清空重選
-      </button>
+
+      <div style="display:flex; gap:10px; width:100%; align-items:center; flex-wrap:wrap;">
+        <div class="t100-select-wrapper">
+          <select id="t100Select" class="t100-select" onchange="onT100SelectChange(this.value)">
+            <option value="">-- 點此直接選擇 T100 槽車排程 (包含出貨與進料) --</option>
+          </select>
+        </div>
+        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
+        <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
+          📂 匯入最新 T100 排程 Excel
+        </button>
+        <button type="button" onclick="resetForm()" style="padding:9px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap;">
+          清空重選
+        </button>
+      </div>
+
+      <!-- 已送樣提示通知條 (當選擇已送樣車次時動態顯示) -->
+      <div id="t100AlreadySubmittedAlert" class="t100-alert-box">
+        <span style="font-size:1.15rem;">⚠️</span>
+        <span id="t100AlertText" style="flex:1;">此車次單號已送樣過！</span>
+      </div>
     </div>
 
     <!-- 本機 PWA 專用模擬測試控制箱 (預設隱藏，需管理員 PIN 碼解鎖) -->
@@ -479,6 +553,9 @@
       </button>
       <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none;" onclick="openPrintSettingsGlobal()">
         🖨️ 標籤機設定 (改紙/改張數)
+      </button>
+      <button type="button" class="btn-sim" style="background:#7c3aed; color:white; border:none;" onclick="openEmpMapModal()">
+        👤 員工工號對照表管理
       </button>
       <button type="button" class="btn-sim" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; margin-left:auto;" onclick="lockAdminFeatures(true)" title="重新上鎖並隱藏模擬測試箱">
         🔒 鎖定隱藏
@@ -545,7 +622,12 @@
         </div>
         <div>
           <label class="required">送樣人員</label>
-          <input type="text" id="requester" placeholder="請輸入姓名" required>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="text" id="empIdInput" placeholder="掃描或輸入工號" style="width:110px; flex-shrink:0;"
+              oninput="lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
+            <input type="text" id="requester" placeholder="姓名（工號查到後自動填入）" required style="flex:1;">
+          </div>
+          <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
         </div>
       </div>
       <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
@@ -559,7 +641,10 @@
     </div>
     <div><label>日期(起)</label><input type="date" id="dateStart" onchange="render()"></div>
     <div><label>日期(迄)</label><input type="date" id="dateEnd" onchange="render()"></div>
-    <button onclick="resetFilters()" style="padding:10px 16px; cursor:pointer; height:40px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">全部顯示 (清除)</button>
+    <div style="display:flex; gap:8px; align-items:flex-end;">
+      <button onclick="resetFilters()" style="padding:10px 16px; cursor:pointer; height:40px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">全部顯示 (清除)</button>
+      <button type="button" onclick="openGlobalHistoryModal()" style="padding:10px 16px; cursor:pointer; height:40px; background:#4f46e5; color:white; border:none; border-radius:6px; font-weight:bold;">🔍 全紀錄查詢</button>
+    </div>
   </div>
 
   <div class="kpi-grid">
@@ -687,6 +772,93 @@
   </div>
 </div>
 
+<!-- 員工工號對照表 Modal -->
+<div id="empMapModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:400px;">
+    <h3 style="margin-top:0; border-left:4px solid #7c3aed; padding-left:10px; color:#7c3aed;">👤 員工工號對照表</h3>
+    <div style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">
+      💡 系統已自動從 Google Sheets 的 **「員工資料」** 分頁抓取全廠名單。<br>
+      若雲端尚未建立該分頁，您也可以在這裡暫時手動輸入（格式：工號:姓名，每行一筆）。
+    </div>
+    <textarea id="empMapTextarea" rows="8" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-family:monospace; font-size:0.9rem;" placeholder="C0606:王大明&#10;C0607:陳小華"></textarea>
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button onclick="saveEmpMap()" style="flex:1; padding:10px; background:#7c3aed; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 儲存本機設定</button>
+      <button onclick="closeEmpMapModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:6px; cursor:pointer;">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 退回重新送樣 Modal -->
+<div id="returnResampleModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:420px;">
+    <h3 style="margin-top:0; border-left:4px solid #f97316; padding-left:10px; color:#c2410c;">↩️ 退回重新送樣</h3>
+    <input type="hidden" id="returnResampleId">
+    <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:12px; margin-bottom:14px; font-size:0.85rem; color:#92400e;">
+      ⚠️ 確認退回後，本筆紀錄將標記為「不合格」，系統將自動建立一筆新的待檢驗送樣記錄，並通知送樣課室重新送樣。
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-weight:600; color:#374151; font-size:0.9rem;">📝 退回原因 / 不合格說明</label>
+      <textarea id="returnResampleNote" rows="3" placeholder="請輸入不合格原因，例如：顏色不符規格、pH 值超標..." style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem; resize:vertical;"></textarea>
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-weight:600; color:#374151; font-size:0.9rem;">🔑 品管授權 PIN 碼</label>
+      <input type="password" id="returnResamplePin" maxlength="8" placeholder="請輸入品管專屬 PIN 碼" style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem;">
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button onclick="closeReturnResampleModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem;">取消</button>
+      <button id="returnResampleBtn" onclick="submitReturnResample()" style="flex:2; padding:10px; background:#f97316; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:bold;">確認退回並建立重送記錄</button>
+    </div>
+  </div>
+</div>
+
+<!-- 送樣歷史記錄 Modal -->
+<div id="sampleHistoryModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:520px;">
+    <h3 style="margin-top:0; border-left:4px solid #3b82f6; padding-left:10px;">📋 送樣歷史記錄</h3>
+    <div id="sampleHistoryContent" style="max-height:400px; overflow-y:auto;"></div>
+    <div style="margin-top:14px; text-align:right;">
+      <button onclick="closeSampleHistoryModal()" style="padding:8px 20px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer;">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 全廠紀錄查詢 Modal -->
+<div id="globalHistoryModal" class="modal" style="display:none; z-index:9999;">
+  <div class="modal-content" style="max-width:900px; width:95%;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="margin:0; border-left:4px solid #4f46e5; padding-left:10px; color:#4f46e5;">🔍 全廠送樣紀錄總表</h3>
+      <button onclick="closeGlobalHistoryModal()" style="padding:6px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer;">✖ 關閉</button>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:14px; align-items:center;">
+      <input type="text" id="ghSearchKw" placeholder="搜尋單號 / 品名 / 槽號 / 車牌..." style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px;" oninput="renderGlobalHistory()">
+      <select id="ghStatusFilter" onchange="renderGlobalHistory()" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
+        <option value="">所有狀態</option>
+        <option value="pending">待檢驗 (pending)</option>
+        <option value="completed">已完成 (completed)</option>
+        <option value="failed">退回重送 (failed)</option>
+      </select>
+    </div>
+    <div class="table-container" style="max-height:60vh; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px;">
+      <table class="data-table" id="ghTable" style="margin:0;">
+        <thead>
+          <tr>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">時間</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">單號(輪次)</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">品名/等級</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">槽號/車牌</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">單位/人員</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">狀態/判定</th>
+          </tr>
+        </thead>
+        <tbody id="ghTableBody"></tbody>
+      </table>
+    </div>
+    <div style="text-align:right; font-size:0.8rem; color:#64748b; margin-top:8px;">
+      * 顯示最新 200 筆符合條件的歷史紀錄
+    </div>
+  </div>
+</div>
+
 <!-- 判定對話框 Modal -->
 <div id="judgeModal" class="modal">
   <div class="modal-content">
@@ -774,7 +946,7 @@
     </div>
 
     <div id="teamsPreviewChannelTag" class="teams-channel-tag">
-      📢 發送目標：【品管主管頻道】 + 【現場一課頻道】
+      📢 發送目標：【品管主管頻道】 + 【一部一課頻道】
     </div>
 
     <!-- 仿 Teams 實體 MessageCard 卡片 -->
@@ -886,31 +1058,40 @@
 <div id="toast" class="toast"></div>
 
 <script>
-  // 1. 完整預載明天槽車排程（共 20 筆：10 筆出貨 + 10 筆進料）
+  // 1. 完整預載明天槽車排程（共 20 筆：10 筆出貨 + 10 筆進料，預設日期為報表日 2026-09-06）
   let t100Orders = [
     // --- 【出貨槽車 (10 筆)】 ---
-    { "doc_no": "ESXM101-20260901013", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK624", "customer": "關東鑫林", "container": "PPCU7019228", "quantity": "5000 KG", "note": "L2 08:00 槽號:PPCU7019228 隨貨附樣" },
-    { "doc_no": "ESXM101-20260901020", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7020018", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7020018 隨貨附樣" },
-    { "doc_no": "ESXM101-20260901021", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019193", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7019193 隨貨附樣" },
-    { "doc_no": "ESXM101-20260902005", "time": "09:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE3(T)", "tankNo": "S223", "customer": "勝一化工", "container": "S223", "quantity": "15000 KG", "note": "出TK-683,提貨槽車S223 (FOR TSMC),當天拉回永安二廠" },
-    { "doc_no": "ESXM101-20260901022", "time": "13:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019212", "quantity": "5000 KG", "note": "L3崙尾 13:00 槽號:PPCU7019212 隨貨附樣" },
-    { "doc_no": "ESXM109-20260902011", "time": "13:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE4", "tankNo": "S224", "customer": "勝一化工", "container": "S224", "quantity": "15000 KG", "note": "PM13:00 槽號：S224，充15噸" },
-    { "doc_no": "ESXM101-20260831012", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服，隨COA+三合一單" },
-    { "doc_no": "ESXM101-20260831027", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
-    { "doc_no": "ESXM101-20260831028", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
-    { "doc_no": "ESXM101-20260903004", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260901013", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK624", "customer": "關東鑫林", "container": "PPCU7019228", "quantity": "5000 KG", "note": "L2 08:00 槽號:PPCU7019228 隨貨附樣" },
+    { "doc_no": "ESXM101-20260901020", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7020018", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7020018 隨貨附樣" },
+    { "doc_no": "ESXM101-20260901021", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019193", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7019193 隨貨附樣" },
+    { "doc_no": "ESXM101-20260902005", "date": "2026-09-06", "time": "09:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE3(T)", "tankNo": "S223", "customer": "勝一化工", "container": "S223", "quantity": "15000 KG", "note": "出TK-683,提貨槽車S223 (FOR TSMC),當天拉回永安二廠" },
+    { "doc_no": "ESXM101-20260901022", "date": "2026-09-06", "time": "13:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019212", "quantity": "5000 KG", "note": "L3崙尾 13:00 槽號:PPCU7019212 隨貨附樣" },
+    { "doc_no": "ESXM109-20260902011", "date": "2026-09-06", "time": "13:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE4", "tankNo": "S224", "customer": "勝一化工", "container": "S224", "quantity": "15000 KG", "note": "PM13:00 槽號：S224，充15噸" },
+    { "doc_no": "ESXM101-20260831012", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服，隨COA+三合一單" },
+    { "doc_no": "ESXM101-20260831027", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260831028", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260903004", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
     // --- 【進料槽車 (10 筆)】 ---
-    { "doc_no": "ESPM411-20260906001", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC05", "customer": "台積電 (南科18廠P5)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906002", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC01", "customer": "台積電 (南科18廠P7)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906003", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P4)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906004", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P6)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906005", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (南科18廠P4)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906006", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P1)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906007", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P2)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906008", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P3)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906010", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測7廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906011", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測8廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" }
+    { "doc_no": "ESPM411-20260906001", "date": "2026-09-06", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC05", "customer": "台積電 (南科18廠P5)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906002", "date": "2026-09-06", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC01", "customer": "台積電 (南科18廠P7)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906003", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P4)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906004", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P6)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906005", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (南科18廠P4)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906006", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P1)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906007", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P2)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906008", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P3)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906010", "date": "2026-09-06", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測7廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906011", "date": "2026-09-06", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測8廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" }
   ];
+
+  let t100FilterMode = 'today'; // 'today' | 'date' | 'pending' | 'all'
+
+  function getLocalDateString(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
   let allData = [];
   const IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
@@ -938,11 +1119,16 @@
   function loadTeamsConfig() {
     const saved = localStorage.getItem('HS_QC_TEAMS_CONFIG');
     if (saved) {
-      try { localTeamsConfig = JSON.parse(saved); } catch(e) {}
+      try { 
+        const parsed = JSON.parse(saved);
+        localTeamsConfig = { ...localTeamsConfig, ...parsed };
+        if (!localTeamsConfig.depts) localTeamsConfig.depts = {}; // 防呆：舊版紀錄沒有 depts 的情況
+      } catch(e) {}
     }
   }
 
   function saveTeamsConfig() {
+    if (!localTeamsConfig.depts) localTeamsConfig.depts = {};
     localTeamsConfig.managerWebhook = document.getElementById('teamsManagerWebhook').value.trim();
     localTeamsConfig.depts['資材課'] = document.getElementById('teamsWebhook_資材課').value.trim();
     localTeamsConfig.depts['現場一課'] = document.getElementById('teamsWebhook_現場一課').value.trim();
@@ -1029,10 +1215,10 @@
   function testTeamsPreviewCard() {
     const dummyData = {
       title: "✅【QC 檢驗完成 - 判定合格放行】",
-      subtitle: "檢驗結果已判定，請現場一課進行後續作業",
+      subtitle: "檢驗結果已判定，請一部一課進行後續作業",
       color: "green",
       facts: [
-        { name: "🏢 送樣單位", value: "現場一課（送樣人：陳明哲）" },
+        { name: "🏢 送樣單位", value: "一部一課（送樣人：陳明哲）" },
         { name: "🧪 檢驗品名", value: "IPAUPS" },
         { name: "🛢️ 槽號 / 車牌", value: "TK624 / PPCU7019228" },
         { name: "📋 檢驗單號", value: "ESXM101-20260901013" },
@@ -1042,7 +1228,7 @@
       ]
     };
     closeTeamsConfigModal();
-    showTeamsPreviewModal("現場一課", dummyData);
+    showTeamsPreviewModal("一部一課", dummyData);
   }
 
   // 本機測試：一鍵注入一筆 2.5 小時前的超時樣品
@@ -1057,7 +1243,7 @@
       tankNo: "TK605",
       customer: "PPCU7020018",
       quantity: "5000 KG",
-      dept: "現場一課",
+      dept: "一部一課",
       requester: "王大同",
       status: "pending",
       createdAt: twoAndHalfHoursAgo,
@@ -1123,46 +1309,188 @@
     dispatchTeamsCard(target.dept, overdueCardPayload, previewData);
   }
 
-  // 初始化 T100 下拉選單（依出貨/進料分群）
+  // 檢查某筆排程是否已在看板/系統中送樣過 (支援單號比對與槽號+車櫃比對)
+  function getOrderSubmissionInfo(order) {
+    if (!allData || allData.length === 0 || !order) return null;
+    
+    // 1. 單號精準比對 (最優先且最精確)
+    if (order.doc_no && String(order.doc_no).trim()) {
+      const targetDoc = String(order.doc_no).trim().toLowerCase();
+      const matchDoc = allData.find(s => s.barcode && String(s.barcode).trim().toLowerCase() === targetDoc);
+      if (matchDoc) return matchDoc;
+    }
+    
+    // 2. 槽號 + 品名 + 客戶/車號/櫃號比對 (針對無單號或預先充填送樣)
+    const matchDetails = allData.find(s => {
+      const sameTank = order.tankNo && s.tankNo && (String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase());
+      const sameProd = order.productName && s.productName && (String(s.productName).trim().toLowerCase() === String(order.productName).trim().toLowerCase());
+      const sameCont = order.container && s.customer && (
+        String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
+        String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase())
+      );
+      return (sameTank && sameProd) || (sameCont && sameProd);
+    });
+    return matchDetails || null;
+  }
+
+  // 切換 T100 篩選模式 ('today': 今日排程, 'date': 指定日期, 'pending': 待送樣放櫃, 'all': 全部)
+  function setT100FilterMode(mode) {
+    t100FilterMode = mode;
+    const todayStr = getLocalDateString();
+    const dateInput = document.getElementById('t100DateFilter');
+    
+    if (mode === 'today' && dateInput) {
+      dateInput.value = todayStr;
+    }
+    
+    // 更新按鈕 active 狀態
+    const btnToday = document.getElementById('btnFilterToday');
+    const btnPending = document.getElementById('btnFilterPending');
+    const btnAll = document.getElementById('btnFilterAll');
+    if (btnToday) btnToday.className = 'btn-t100-filter' + (mode === 'today' ? ' active' : '');
+    if (btnPending) btnPending.className = 'btn-t100-filter' + (mode === 'pending' ? ' active' : '');
+    if (btnAll) btnAll.className = 'btn-t100-filter' + (mode === 'all' ? ' active' : '');
+    
+    renderT100Dropdown();
+  }
+
+  // 日期選取器變更事件
+  function onT100DateFilterChange(val) {
+    if (!val) return;
+    t100FilterMode = 'date';
+    const btnToday = document.getElementById('btnFilterToday');
+    const btnPending = document.getElementById('btnFilterPending');
+    const btnAll = document.getElementById('btnFilterAll');
+    if (btnToday) btnToday.className = 'btn-t100-filter' + (val === getLocalDateString() ? ' active' : '');
+    if (btnPending) btnPending.className = 'btn-t100-filter';
+    if (btnAll) btnAll.className = 'btn-t100-filter';
+    renderT100Dropdown();
+  }
+
+  // 初始化與動態渲染 T100 下拉選單（依日期過濾、標記已送樣/待送樣）
   function renderT100Dropdown() {
     const sel = document.getElementById('t100Select');
-    const outOrders = t100Orders.filter(o => o.flowType === '出貨');
-    const inOrders = t100Orders.filter(o => o.flowType === '進料');
+    if (!sel) return;
 
-    let html = `<option value="">-- 點此直接選擇 T100 槽車排程 (共 ${t100Orders.length} 車次：${outOrders.length} 出貨 + ${inOrders.length} 進料) --</option>`;
+    const todayStr = getLocalDateString();
+    const dateInput = document.getElementById('t100DateFilter');
+    if (dateInput && !dateInput.value) {
+      dateInput.value = todayStr;
+    }
+    const selectedDate = (dateInput && dateInput.value) ? dateInput.value : todayStr;
 
-    if(outOrders.length > 0) {
-      html += `<optgroup label="🚚 【出貨槽車排程】(${outOrders.length} 車次)">`;
-      outOrders.forEach(o => {
-        const globalIdx = t100Orders.indexOf(o);
-        const timeBadge = o.time ? `[${o.time}] ` : '';
-        const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
-        const boxBadge = o.container ? ` [車/櫃:${o.container}]` : '';
-        html += `<option value="${globalIdx}">${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
-      });
-      html += `</optgroup>`;
+    // 依模式過濾出符合條件的排程
+    let filteredOrders = [];
+    let filterDescription = '';
+
+    if (t100FilterMode === 'today') {
+      filteredOrders = t100Orders.filter(o => o.date === todayStr);
+      filterDescription = `今日 (${todayStr})`;
+    } else if (t100FilterMode === 'date') {
+      filteredOrders = t100Orders.filter(o => o.date === selectedDate);
+      filterDescription = `${selectedDate}`;
+    } else if (t100FilterMode === 'pending') {
+      filteredOrders = t100Orders.filter(o => !getOrderSubmissionInfo(o));
+      filterDescription = `待送樣放櫃/排程`;
+    } else if (t100FilterMode === 'all') {
+      filteredOrders = [...t100Orders];
+      filterDescription = `全部匯入排程`;
     }
 
-    if(inOrders.length > 0) {
-      html += `<optgroup label="📥 【進料/入庫槽車排程】(${inOrders.length} 車次)">`;
-      inOrders.forEach(o => {
-        const globalIdx = t100Orders.indexOf(o);
-        const timeBadge = o.time ? `[${o.time}] ` : '';
-        const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
-        const boxBadge = o.container ? ` [車:${o.container}]` : '';
-        html += `<option value="${globalIdx}">${timeBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
-      });
-      html += `</optgroup>`;
+    // 計算狀態統計
+    const totalCount = t100Orders.length;
+    const submittedInTotal = t100Orders.filter(o => getOrderSubmissionInfo(o)).length;
+    const submittedInView = filteredOrders.filter(o => getOrderSubmissionInfo(o)).length;
+    const pendingInView = filteredOrders.length - submittedInView;
+
+    const statsBadge = document.getElementById('t100StatsBadge');
+    if (statsBadge) {
+      if (t100FilterMode === 'today') {
+        statsBadge.innerHTML = `今日排程: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView}) · 總排程: ${totalCount}`;
+      } else if (t100FilterMode === 'pending') {
+        statsBadge.innerHTML = `📦 待送樣放櫃: <b>${filteredOrders.length}</b> 車未送樣 (已送 ${submittedInTotal} / 總排程 ${totalCount})`;
+      } else {
+        statsBadge.innerHTML = `${filterDescription}: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView})`;
+      }
+    }
+
+    let html = '';
+    const outOrders = filteredOrders.filter(o => o.flowType === '出貨');
+    const inOrders = filteredOrders.filter(o => o.flowType === '進料');
+
+    if (filteredOrders.length === 0) {
+      if (t100FilterMode === 'today') {
+        const availableDates = [...new Set(t100Orders.map(o => o.date).filter(Boolean))].sort();
+        const latestDate = availableDates.length ? availableDates[availableDates.length - 1] : '';
+        const hintText = latestDate ? `排程日為 ${latestDate}，可點擊上方日期切換` : '可匯入最新排程或點擊「待送樣放櫃」';
+        html += `<option value="">-- 📅 今日 (${todayStr}) 尚無排程 (共 ${totalCount} 筆放櫃/預約車次，${hintText}) --</option>`;
+      } else if (t100FilterMode === 'pending') {
+        html += `<option value="">-- 🎉 太棒了！所有放櫃與排程車次 (共 ${totalCount} 筆) 皆已完成送樣 --</option>`;
+      } else {
+        html += `<option value="">-- 📅 日期 [${selectedDate}] 無排程 (共 ${totalCount} 筆其他日期排程，可切換日期查詢) --</option>`;
+      }
+    } else {
+      html += `<option value="">-- 點此選擇 ${filterDescription} (共 ${filteredOrders.length} 車次：${outOrders.length} 出貨 + ${inOrders.length} 進料) --</option>`;
+
+      if (outOrders.length > 0) {
+        html += `<optgroup label="🚚 【出貨槽車排程】(${outOrders.length} 車次)">`;
+        outOrders.forEach(o => {
+          const globalIdx = t100Orders.indexOf(o);
+          const sub = getOrderSubmissionInfo(o);
+          const mark = sub ? (sub.status === 'completed' ? '✅[已驗合格] ' : '✅[已送樣待驗] ') : '⏳[待送樣] ';
+          
+          let dtStr = o.date || '';
+          if (o.time && o.time !== '排程') {
+            dtStr = dtStr ? `${dtStr} ${o.time}` : o.time;
+          } else if (o.time === '排程') {
+            dtStr = dtStr ? `${dtStr} 排程` : '排程';
+          }
+          const dtBadge = dtStr ? `[${dtStr}] ` : '';
+
+          const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
+          const boxBadge = o.container ? ` [車/櫃:${o.container}]` : '';
+          html += `<option value="${globalIdx}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
+        });
+        html += `</optgroup>`;
+      }
+
+      if (inOrders.length > 0) {
+        html += `<optgroup label="📥 【進料/入庫槽車排程】(${inOrders.length} 車次)">`;
+        inOrders.forEach(o => {
+          const globalIdx = t100Orders.indexOf(o);
+          const sub = getOrderSubmissionInfo(o);
+          const mark = sub ? (sub.status === 'completed' ? '✅[已驗合格] ' : '✅[已送樣待驗] ') : '⏳[待送樣] ';
+          
+          let dtStr = o.date || '';
+          if (o.time && o.time !== '排程') {
+            dtStr = dtStr ? `${dtStr} ${o.time}` : o.time;
+          } else if (o.time === '排程') {
+            dtStr = dtStr ? `${dtStr} 排程` : '排程';
+          }
+          const dtBadge = dtStr ? `[${dtStr}] ` : '';
+
+          const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
+          const boxBadge = o.container ? ` [車:${o.container}]` : '';
+          html += `<option value="${globalIdx}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
+        });
+        html += `</optgroup>`;
+      }
     }
 
     sel.innerHTML = html;
   }
 
-  // 當使用者在下拉選單選取某車次時，自動帶入表單
+  // 當使用者在下拉選單選取某車次時，自動帶入表單並偵測重複送樣
   function onT100SelectChange(val) {
-    if(val === "") return;
+    const alertBox = document.getElementById('t100AlreadySubmittedAlert');
+    const alertText = document.getElementById('t100AlertText');
+
+    if (val === "") {
+      if (alertBox) alertBox.style.display = 'none';
+      return;
+    }
     const item = t100Orders[parseInt(val)];
-    if(!item) return;
+    if (!item) return;
 
     document.getElementById('barcode').value = item.doc_no || '';
     document.getElementById('flowType').value = item.flowType || '出貨';
@@ -1171,12 +1499,24 @@
     document.getElementById('tankNo').value = item.tankNo || '';
     document.getElementById('customer').value = item.container || item.customer || '';
     document.getElementById('quantity').value = item.quantity || '';
-    
-    showToast(`✅ 已自動帶入 [${item.flowType}] 排程：${item.productName} (${item.container || item.tankNo})`);
+
+    // 檢查該訂單是否已送過樣
+    const sub = getOrderSubmissionInfo(item);
+    if (sub && alertBox && alertText) {
+      alertBox.style.display = 'flex';
+      const timeStr = formatSimpleDate(sub.createdAt);
+      const statusDesc = (sub.status === 'completed') ? '已完成檢驗 (放行)' : '檢驗中 (等候結果)';
+      alertText.innerHTML = `<strong>⚠️ 重複送樣警示：</strong>此車次單號 <code>${item.doc_no}</code> 已於 <strong>${timeStr}</strong> 提交送樣！目前狀態為 <strong>【${statusDesc}】</strong>。<br>若此車次需重新抽樣或進行二次複驗，請確認後再提交。`;
+      showToast(`⚠️ 注意：此車次已於 ${timeStr} 送樣過 (${statusDesc})！`, 4500);
+    } else if (alertBox) {
+      alertBox.style.display = 'none';
+      showToast(`✅ 已自動帶入 [${item.flowType}] 排程：${item.productName} (${item.container || item.tankNo})`);
+    }
+
     document.getElementById('requester').focus();
   }
 
-  // 前端即時解析上傳的 Excel（自動動態掃描「出貨」與「進料」雙區塊）
+  // 前端即時解析上傳的 Excel（智慧自動搜尋「槽車」分頁，並支援多重備援分頁自動掃描）
   function handleExcelUpload(e) {
     const file = e.target.files[0];
     if(!file) return;
@@ -1186,137 +1526,283 @@
     reader.onload = function(evt) {
       try {
         const data = new Uint8Array(evt.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
+        // 核心單一工作表解析器
+        function parseSheet(sheetName) {
+          const worksheet = workbook.Sheets[sheetName];
+          if (!worksheet) return [];
+          const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          if (!rows || rows.length < 4) return [];
+
+          let currentMode = null;
+          let colMap = {};
+          const parsedOrders = [];
+          let lastOutDate = '';
+          let lastInDate = '';
+
+          function parseCellDate(v) {
+            if(!v) return '';
+            if(v instanceof Date && !isNaN(v.getTime())) {
+              const y = v.getFullYear();
+              const m = String(v.getMonth() + 1).padStart(2, '0');
+              const d = String(v.getDate()).padStart(2, '0');
+              return `${y}-${m}-${d}`;
+            }
+            const s = String(v).trim();
+            const match = s.match(/(202\d)[-/.](\d{1,2})[-/.](\d{1,2})/);
+            if(match) {
+              return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+            }
+            return '';
+          }
+
+          for(let r = 0; r < rows.length; r++) {
+            const row = rows[r];
+            if(!row || row.length === 0) continue;
+
+            const rowStr = row.map(v => String(v || '')).join(' ');
+            if(rowStr.includes('出貨通知單') || rowStr.includes('出通單')) {
+              currentMode = '出貨';
+              colMap = {};
+              for(let c = 0; c < row.length; c++) {
+                const h = String(row[c] || '').trim();
+                if(h) colMap[h] = c;
+              }
+              continue;
+            } else if(rowStr.includes('入庫單') || rowStr.includes('進貨單')) {
+              currentMode = '進料';
+              colMap = {};
+              for(let c = 0; c < row.length; c++) {
+                const h = String(row[c] || '').trim();
+                if(h) colMap[h] = c;
+              }
+              continue;
+            }
+
+            if(!currentMode || Object.keys(colMap).length === 0) continue;
+
+            const gv = (keys) => {
+              if(typeof keys === 'string') keys = [keys];
+              for(const k of keys) {
+                if(colMap[k] !== undefined && row[colMap[k]] !== undefined && row[colMap[k]] !== null) {
+                  return row[colMap[k]];
+                }
+              }
+              return '';
+            };
+
+            if(currentMode === '出貨') {
+              const docNo = gv(['出貨通知單', '出通單', '出貨單']);
+              const prod = gv(['品名', '物料名稱']);
+              if(!docNo || !prod) continue;
+
+              // 嚴格只從「預計出貨日期」欄位抓取，若為合併儲存格向下繼承！
+              const rawDate = gv(['預計出貨日期', '預計出貨日', '出貨日期', '出貨日', '預計到貨日期']);
+              const cellDate = parseCellDate(rawDate);
+              if(cellDate) {
+                lastOutDate = cellDate;
+              }
+
+              const timeStr = gv(['預計出貨時間', '出貨時間']);
+              const tank = gv(['儲位名稱', '出貨槽號', '槽號', '儲位', '槽別', '槽别']);
+              const cust = gv(['交易對象簡稱', '客戶名稱', '客戶', '送貨地址簡稱']);
+              const truck = gv(['出通單單頭.車牌號碼', '車牌號碼', '車牌號碼(磅)', '車牌', '車號']);
+              const qty = gv(['換算數量', '預計出貨數量(KG)', '出貨數量(KG)', '數量']);
+              const spec = gv(['規格說明', '規格']);
+              const note = gv(['注意事項', '備註']);
+
+              let container = String(truck || '').trim();
+              if(!container && note) {
+                const m = String(note).match(/槽號[:：]?\s*([A-Za-z0-9\-]+)/);
+                if(m) container = m[1];
+                else {
+                  const m2 = String(note).match(/提貨槽車\s*([A-Za-z0-9\-]+)/);
+                  if(m2) container = m2[1];
+                }
+              }
+
+              let grade = '工業級';
+              if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
+              else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
+
+              let orderDate = lastOutDate;
+              if(!orderDate && docNo) {
+                const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
+                if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
+              }
+
+              parsedOrders.push({
+                doc_no: String(docNo).trim(),
+                date: orderDate || getLocalDateString(),
+                time: String(timeStr || '').trim(),
+                flowType: '出貨',
+                grade: grade,
+                productName: String(prod).trim(),
+                tankNo: String(tank || '').trim(),
+                customer: String(cust || '').trim(),
+                container: container ? container : String(cust || '').trim(),
+                quantity: qty ? `${qty} KG` : String(spec || '').trim(),
+                note: String(note || '').trim()
+              });
+            } else if(currentMode === '進料') {
+              const docNo = gv(['入庫單', '進貨單', '入庫單號', '進貨單號']);
+              const prod = gv(['品名', '物料名稱']);
+              if(!docNo || !prod) continue;
+
+              // 嚴格只從「預計進貨日」欄位抓取，若為合併儲存格向下繼承！絕對不讀取「單據日期」與「採購單號」！
+              const rawDate = gv(['預計進貨日', '預計進貨日期', '預計到貨日期', '進貨日', '進貨日期']);
+              const cellDate = parseCellDate(rawDate);
+              if(cellDate) {
+                lastInDate = cellDate;
+              }
+
+              const timeStr = gv(['預計進貨時間', '進貨時間', '預計到貨時間']);
+              const tank = gv(['槽别', '槽別', '儲位', '儲位名稱', '槽號']);
+              const spec = gv(['規格', '規格說明']);
+              const vendor = gv(['供應商簡稱', '廠商簡稱', '供應商', '交易對象簡稱', '廠商']);
+              const origin = gv(['出貨廠別(廠商)', '出貨廠別(備用)', '廠別', '來源廠別', '出貨廠別']);
+              const truck = gv(['車牌號碼', '車號', '車號/櫃號', '車牌/櫃號', '車牌', '出通單單頭.車牌號碼']);
+              const box = gv(['櫃號', '貨櫃號碼', '貨櫃編號']);
+              const qty = gv(['預計進貨數量(KG)', '進貨數量(KG)', '預計進貨數量', '換算數量', '數量']);
+              const note = gv(['備註', '注意事項']);
+
+              let container = String(truck || '').trim();
+              if(box && String(box).trim()) {
+                container = container ? `${container} (櫃:${box})` : String(box).trim();
+              }
+
+              const custStr = (vendor && origin) ? `${vendor} (${origin})` : (origin || vendor || '');
+
+              let grade = '工業級';
+              if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
+              else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
+
+              let orderDate = lastInDate;
+              if(!orderDate && docNo) {
+                const mDoc = String(docNo).match(/(202\d)([01]\d)([0-3]\d)/);
+                if(mDoc) orderDate = `${mDoc[1]}-${mDoc[2]}-${mDoc[3]}`;
+              }
+
+              parsedOrders.push({
+                doc_no: String(docNo).trim(),
+                date: orderDate || getLocalDateString(),
+                time: String(timeStr || '').trim(),
+                flowType: '進料',
+                grade: grade,
+                productName: String(prod).trim(),
+                tankNo: String(tank || '').trim(),
+                customer: custStr.trim(),
+                container: container ? container : custStr.trim(),
+                quantity: qty ? `${qty} KG` : String(spec || '').trim(),
+                note: String(note || '').trim()
+              });
+            }
+          }
+          return parsedOrders;
+        }
+
+        // 1. 優先鎖定含「槽車」之分頁
         let targetSheetName = workbook.SheetNames.find(n => n.includes('槽車'));
-        if(!targetSheetName) {
-          targetSheetName = workbook.SheetNames[0];
-          alert(`⚠️ 試算表中未找到包含「槽車」的分頁，預設使用第一分頁：「${targetSheetName}」`);
+        let finalOrders = [];
+        let actualSheetUsed = '';
+
+        if (targetSheetName) {
+          finalOrders = parseSheet(targetSheetName);
+          if (finalOrders.length > 0) actualSheetUsed = targetSheetName;
         }
 
-        const worksheet = workbook.Sheets[targetSheetName];
-        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        
-        if(rows.length < 5) {
-          alert("Excel 列數不足，請確認檔案格式是否正確。");
-          return;
-        }
-
-        let currentMode = null;
-        let colMap = {};
-        const newOrders = [];
-
-        for(let r = 0; r < rows.length; r++) {
-          const row = rows[r];
-          if(!row || row.length === 0) continue;
-
-          const firstCell = String(row[0] || '').trim();
-          if(firstCell.includes('出貨通知單') || firstCell.includes('出通單')) {
-            currentMode = '出貨';
-            colMap = {};
-            for(let c = 0; c < row.length; c++) {
-              const h = String(row[c] || '').trim();
-              if(h) colMap[h] = c;
+        // 2. 若「槽車」分頁未找到或解析出 0 筆，自動遍歷其餘所有分頁進行備援解析
+        if (finalOrders.length === 0) {
+          for(const sName of workbook.SheetNames) {
+            if(sName === targetSheetName) continue;
+            const res = parseSheet(sName);
+            if(res.length > 0) {
+              finalOrders = res;
+              actualSheetUsed = sName;
+              break;
             }
-            continue;
-          } else if(firstCell.includes('入庫單') || firstCell.includes('進貨單')) {
-            currentMode = '進料';
-            colMap = {};
-            for(let c = 0; c < row.length; c++) {
-              const h = String(row[c] || '').trim();
-              if(h) colMap[h] = c;
-            }
-            continue;
-          }
-
-          if(!currentMode || Object.keys(colMap).length === 0) continue;
-
-          if(currentMode === '出貨') {
-            const docNo = row[colMap['出貨通知單']];
-            const prod = row[colMap['品名']];
-            if(!docNo || !prod) continue;
-
-            const timeStr = row[colMap['預計出貨時間']] || '';
-            const tank = row[colMap['出貨槽號']] || row[colMap['槽號']] || '';
-            const cust = row[colMap['客戶名稱']] || '';
-            const container = row[colMap['貨櫃號碼']] || '';
-            const qty = row[colMap['預計出貨數量(KG)']] || '';
-            const spec = row[colMap['規格說明']] || '';
-            const note = row[colMap['備註']] || '';
-
-            let grade = '工業級';
-            if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
-            else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
-
-            newOrders.push({
-              doc_no: String(docNo).trim(),
-              time: String(timeStr || '').trim(),
-              flowType: '出貨',
-              grade: grade,
-              productName: String(prod).trim(),
-              tankNo: String(tank || '').trim(),
-              customer: String(cust || '').trim(),
-              container: container ? container : String(cust || '').trim(),
-              quantity: qty ? `${qty} KG` : String(spec || '').trim(),
-              note: String(note || '').trim()
-            });
-          } else if(currentMode === '進料') {
-            const docNo = row[colMap['入庫單']];
-            const prod = row[colMap['品名']];
-            if(!docNo || !prod) continue;
-
-            const timeStr = row[colMap['預計進貨時間']] || '';
-            const tank = row[colMap['槽别']] || row[colMap['儲位']] || '';
-            const spec = row[colMap['規格']] || '';
-            const vendor = row[colMap['供應商簡稱']] || '';
-            const origin = row[colMap['出貨廠別(廠商)']] || '';
-            const truck = row[colMap['車牌號碼']] || '';
-            const box = row[colMap['櫃號']] || '';
-            const qty = row[colMap['預計進貨數量(KG)']] || '';
-            const note = row[colMap['備註']] || '';
-
-            let container = String(truck || '').trim();
-            if(box && String(box).trim()) {
-              container = container ? `${container} (櫃:${box})` : String(box).trim();
-            }
-
-            const custStr = (vendor && origin) ? `${vendor} (${origin})` : (origin || vendor || '');
-
-            let grade = '工業級';
-            if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
-            else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
-
-            newOrders.push({
-              doc_no: String(docNo).trim(),
-              time: String(timeStr || '').trim(),
-              flowType: '進料',
-              grade: grade,
-              productName: String(prod).trim(),
-              tankNo: String(tank || '').trim(),
-              customer: custStr.trim(),
-              container: container ? container : custStr.trim(),
-              quantity: qty ? `${qty} KG` : String(spec || '').trim(),
-              note: String(note || '').trim()
-            });
           }
         }
 
-        if(newOrders.length === 0) {
-          alert("未在此分頁解析出任何有效的槽車排程！");
+        if(finalOrders.length === 0) {
+          alert(`⚠️ 未能自此試算表解析出任何有效的槽車排程！\n\n已檢查的活頁簿分頁：\n${workbook.SheetNames.map((s, idx) => `  [${idx+1}] ${s}`).join('\n')}\n\n請確認分頁內是否含有「出貨通知單」或「入庫單」之資料列。`);
           return;
         }
 
-        t100Orders = newOrders;
-        renderT100Dropdown();
-        const outCount = newOrders.filter(o => o.flowType === '出貨').length;
-        const inCount = newOrders.filter(o => o.flowType === '進料').length;
-        showToast(`🎉 成功自「${targetSheetName}」匯入 ${newOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`);
+        t100Orders = finalOrders;
+        localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
+
+        // 自動同步日期過濾器
+        const todayStr = getLocalDateString();
+        const hasToday = finalOrders.some(o => o.date === todayStr);
+        const dateInput = document.getElementById('t100DateFilter');
+        if(hasToday) {
+          setT100FilterMode('today');
+        } else {
+          const dates = [...new Set(finalOrders.map(o => o.date).filter(Boolean))].sort();
+          const targetDate = dates.length ? dates[dates.length - 1] : todayStr;
+          if(dateInput) dateInput.value = targetDate;
+          setT100FilterMode('date');
+        }
+
+        const outCount = finalOrders.filter(o => o.flowType === '出貨').length;
+        const inCount = finalOrders.filter(o => o.flowType === '進料').length;
+        showToast(`🎉 成功鎖定「${actualSheetUsed}」分頁，匯入 ${finalOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`, 5000);
+
+        // ☁️ 雲端同步：將排程上傳至 Google Sheets（若已設定 GAS API）
+        uploadOrdersToCloud(finalOrders);
       } catch(err) {
         console.error(err);
         alert("解析 Excel 失敗：" + err.message);
       }
     };
     reader.readAsArrayBuffer(file);
+  }
+  // ☁️ 排程上傳：匯入 Excel 後自動同步至 Google Sheets（覆蓋模式）
+  async function uploadOrdersToCloud(orders) {
+    if (!GAS_API_URL) return; // 未設定 GAS 則略過
+    showToast('⬆️ 正在將排程同步至雲端...', 3000);
+    try {
+      const resp = await fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'saveOrders', orders: orders })
+      });
+      const result = await resp.json();
+      if (result.success) {
+        showToast(`☁️ 雲端同步完成！共 ${result.count} 筆排程已上傳 (${result.importedAt})`, 6000);
+      } else {
+        showToast(`⚠️ 雲端同步失敗：${result.error || '未知錯誤'}（資料已保存於本機）`, 6000);
+      }
+    } catch(err) {
+      console.warn('雲端排程上傳失敗（僅影響跨裝置同步）：', err);
+      showToast('⚠️ 雲端連線逾時，排程僅保存於本機', 4000);
+    }
+  }
+
+  // ☁️ 排程下載：頁面載入時從 Google Sheets 拉取排程（供所有設備共用）
+  async function loadOrdersFromCloud() {
+    if (!GAS_API_URL) return; // 未設定 GAS 則略過
+    try {
+      const resp = await fetch(`${GAS_API_URL}?action=getOrders`);
+      const result = await resp.json();
+      if (result.success && Array.isArray(result.orders) && result.orders.length > 0) {
+        // 合併：以雲端為主（覆蓋 localStorage），但保留 localStorage 若雲端為空
+        t100Orders = result.orders;
+        localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
+        renderT100Dropdown();
+        const outCount = result.orders.filter(o => o.flowType === '出貨').length;
+        const inCount = result.orders.filter(o => o.flowType === '進料').length;
+        showToast(`☁️ 已從雲端載入 ${result.count} 筆排程 (${outCount} 出貨 + ${inCount} 進料)`, 5000);
+        // 自動過濾今天
+        const todayStr = getLocalDateString();
+        const hasToday = t100Orders.some(o => o.date === todayStr);
+        if (hasToday) setT100FilterMode('today');
+      }
+    } catch(err) {
+      console.info('雲端排程讀取失敗（使用本機快取）：', err);
+    }
   }
 
   function getFlowTag(type) {
@@ -1401,7 +1887,7 @@
     return {
       flowTypes: ['出貨', '進料', '補料', '委託'],
       grades: ['工業級', 'UPS', 'IF'],
-      depts: ['資材課', '現場一課', '現場二課', '回收處理課'],
+      depts: ['資材課', '二部一課', '二部二課', '一部一課', '一部二課'],
       products: [
         'IPA', 'IPAUPS', 'IPAHQ', 'CPNE3(T)', 'CPNE4', 'CPN-P1R',
         'EBR', 'EBR-P1R', 'NBAC', 'NBAC-P1R', 'CPN', 'EG',
@@ -1424,6 +1910,11 @@
           if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
         }
       }).getSystemConfig();
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success && res.data) {
+          localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(res.data));
+        }
+      }).getEmployeesFromSheet();
     } else if (GAS_API_URL) {
       document.getElementById('envBadge').innerText = "☁️ 雲端 API 同步中";
       // 1. 抓取試算表樣品
@@ -1456,6 +1947,20 @@
           console.warn("API 取得選單失敗，使用快取", err);
           applyDynamicDropdownOptions(getLocalDynamicOptions());
         });
+
+      // 3. 從 Google Sheets 載入排程（供所有設備共享下拉選單）
+      loadOrdersFromCloud();
+
+      // 4. 抓取雲端員工名單
+      fetch(`${GAS_API_URL}?action=getEmployees`)
+        .then(res => res.json())
+        .then(res => {
+          if (res && res.success && res.data) {
+            localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(res.data));
+          }
+        })
+        .catch(err => console.warn("API 取得員工名單失敗", err));
+
     } else {
       document.getElementById('envBadge').innerText = "💻 獨立 PWA 運作模式";
       applyDynamicDropdownOptions(getLocalDynamicOptions());
@@ -1466,7 +1971,7 @@
         allData = [
           { id: "sample-1", barcode: "ESXM101-20260901013", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK624", customer: "PPCU7019228", quantity: "5000 KG", dept: "資材課", requester: "陳明哲", status: "pending", createdAt: new Date(Date.now() - 2.5 * 3600 * 1000).toISOString() },
           { id: "sample-2", barcode: "ESPM411-20260906001", flowType: "進料", grade: "工業級", productName: "EBR-P1R", tankNo: "TKC05", customer: "KEQ-3506 (櫃:6108)", quantity: "8000 KG", dept: "回收處理課", requester: "張建國", status: "pending", createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
-          { id: "sample-3", barcode: "ESXM101-20260901020", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK605", customer: "PPCU7020018", quantity: "5000 KG", dept: "現場一課", requester: "林大為", status: "completed", qcResult: "PASS", qcNote: "品質合格放行", createdAt: new Date(Date.now()-3600000).toISOString(), completedAt: new Date().toISOString() }
+          { id: "sample-3", barcode: "ESXM101-20260901020", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK605", customer: "PPCU7020018", quantity: "5000 KG", dept: "一部一課", requester: "林大為", status: "completed", qcResult: "PASS", qcNote: "品質合格放行", createdAt: new Date(Date.now()-3600000).toISOString(), completedAt: new Date().toISOString() }
         ];
         localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
       }
@@ -1496,7 +2001,18 @@
     });
 
     const pData = filtered.filter(s => s.status === 'pending');
-    const cData = filtered.filter(s => s.status === 'completed');
+    let cData = filtered.filter(s => s.status === 'completed');
+
+    // 如果使用者沒有輸入明確的起迄日期，則「已檢驗完成」預設只顯示近3天 (今天、昨天、前天)
+    if (!start && !end) {
+      const d = new Date();
+      d.setDate(d.getDate() - 2); // 往前推2天 = 包含今天共3天
+      const minDateStr = d.toISOString().split('T')[0];
+      cData = cData.filter(s => {
+        const sDate = s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : '';
+        return sDate >= minDateStr;
+      });
+    }
 
     // 計算逾期件數
     const overdueCount = pData.filter(s => {
@@ -1537,12 +2053,13 @@
       }
 
       // 自適應 4 欄內容（零水平捲軸）
-      pBody.innerHTML = pData.length ? pData.map(s => `<tr>
+      pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
         <td>
           <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:2px;">
             <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
             ${getFlowTag(s.flowType)}
             <span style="font-size:0.72rem; font-weight:bold; color:#1e40af; background:#eff6ff; padding:1px 4px; border-radius:3px;">${s.grade || '-'}</span>
+            ${(parseInt(s.round)||1) >= 2 ? `<span style="font-size:0.72rem; font-weight:bold; color:#ea580c; background:#fed7aa; padding:1px 6px; border-radius:10px;">⚠️ 第${s.round}次送樣</span>` : ''}
           </div>
           <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">單: <b>${s.barcode}</b></div>
         </td>
@@ -1573,6 +2090,7 @@
             <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
             ${getFlowTag(s.flowType)}
             <span style="font-size:0.72rem; font-weight:bold; color:#1e40af; background:#eff6ff; padding:1px 4px; border-radius:3px;">${s.grade || '-'}</span>
+            ${(parseInt(s.round)||1) >= 2 ? `<span style="font-size:0.72rem; font-weight:bold; color:#ea580c; background:#fed7aa; padding:1px 6px; border-radius:10px;">第${s.round}次</span>` : ''}
           </div>
           <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">單: <b>${s.barcode}</b></div>
         </td>
@@ -1590,9 +2108,11 @@
           <div style="font-size:0.72rem; color:#64748b;">完成: ${formatSimpleDate(s.completedAt)}</div>
         </td>
         <td>
-          <div style="font-size:0.76rem; color:#475569; line-height:1.3; max-height:48px; overflow-y:auto; word-break:break-word;">
+          <div style="font-size:0.76rem; color:#475569; line-height:1.3; max-height:36px; overflow-y:auto; word-break:break-word; margin-bottom:4px;">
             ${s.qcNote || '<span style="color:#94a3b8;">無備註</span>'}
           </div>
+          ${s.qcResult === 'FAIL' ? `<button onclick="openReturnResample('${s.id}')" style="font-size:0.7rem; background:#f97316; color:white; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%;">↩️ 退回重新送樣</button>` : ''}
+          ${(s.parentId || s.round > 1) ? `<button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%; margin-top:3px;">📋 查看送樣歷史</button>` : ''}
         </td>
       </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
     } else {
@@ -1625,8 +2145,8 @@
         </tr>`;
       }
 
-      pBody.innerHTML = pData.length ? pData.map(s => `<tr>
-        <td><b>${s.barcode}</b></td>
+      pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
+        <td><b>${s.barcode}</b>${(parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem;font-weight:bold;color:#ea580c;background:#fed7aa;padding:1px 5px;border-radius:8px;">第${s.round}次</span>` : ''}</td>
         <td>${getFlowTag(s.flowType)}</td>
         <td><span style="font-weight:bold; color:#1e40af;">${s.grade || '-'}</span></td>
         <td><b>${s.productName}</b></td>
@@ -1644,7 +2164,7 @@
       </tr>`).join('') : `<tr><td colspan="9" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
       
       cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
-        <td><b>${s.barcode}</b></td>
+        <td><b>${s.barcode}</b>${(parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem;font-weight:bold;color:#ea580c;background:#fed7aa;padding:1px 5px;border-radius:8px;">第${s.round}次</span>` : ''}</td>
         <td>${getFlowTag(s.flowType)}</td>
         <td><b>${s.grade || '-'}</b></td>
         <td><b>${s.productName}</b></td>
@@ -1653,9 +2173,16 @@
         <td><span style="font-weight:600; color:#475569;">${s.dept || '-'}</span></td>
         <td><b style="color:${s.qcResult==='PASS'?'#059669':'#dc2626'}; background:${s.qcResult==='PASS'?'#d1fae5':'#fee2e2'}; padding:3px 8px; border-radius:4px;">${s.qcResult}</b></td>
         <td style="color:#4b5563;">${formatSimpleDate(s.completedAt)}</td>
-        <td style="font-size:0.8rem; color:#64748b;">${s.qcNote || '-'}</td>
+        <td style="font-size:0.8rem; color:#64748b;">
+          ${s.qcNote || '-'}
+          ${s.qcResult === 'FAIL' ? `<br><button onclick="openReturnResample('${s.id}')" style="font-size:0.7rem; background:#f97316; color:white; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:3px;">↩️ 退回重新送樣</button>` : ''}
+          ${(s.parentId || s.round > 1) ? `<br><button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:2px;">📋 送樣歷史</button>` : ''}
+        </td>
       </tr>`).join('') : `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
     }
+
+    // 當樣品列表更新時，同步刷新 T100 排程選單的送樣狀態記號
+    renderT100Dropdown();
   }
 
   function resetFilters() {
@@ -1668,7 +2195,60 @@
   function resetForm() {
     document.getElementById('qcForm').reset();
     document.getElementById('t100Select').value = '';
+    const alertBox = document.getElementById('t100AlreadySubmittedAlert');
+    if (alertBox) alertBox.style.display = 'none';
+    const empId = document.getElementById('empIdInput');
+    if (empId) empId.value = '';
+    const empMsg = document.getElementById('empLookupMsg');
+    if (empMsg) empMsg.innerText = '';
     setBarcodePlaceholder();
+  }
+
+  // =========================================================
+  // 工號查詢模組：掃描或輸入工號自動帶出姓名
+  // =========================================================
+
+  function getEmployeeMap() {
+    try {
+      return JSON.parse(localStorage.getItem('HS_QC_EMP_MAP') || '{}');
+    } catch(e) { return {}; }
+  }
+
+  function lookupEmployeeId(empId) {
+    const id = String(empId || '').trim();
+    const msg = document.getElementById('empLookupMsg');
+    const nameInput = document.getElementById('requester');
+    if (!id) { if (msg) msg.innerText = ''; return; }
+    const map = getEmployeeMap();
+    if (map[id]) {
+      nameInput.value = map[id];
+      if (msg) { msg.innerText = `✅ ${id} → ${map[id]}`; msg.style.color = '#059669'; }
+    } else {
+      if (msg) { msg.innerText = `⚠️ 未找到工號 ${id}，請直接在姓名欄輸入`; msg.style.color = '#d97706'; }
+    }
+  }
+
+  function openEmpMapModal() {
+    const map = getEmployeeMap();
+    const lines = Object.entries(map).map(([k,v]) => `${k}:${v}`).join('\n');
+    document.getElementById('empMapTextarea').value = lines;
+    document.getElementById('empMapModal').style.display = 'flex';
+  }
+
+  function closeEmpMapModal() {
+    document.getElementById('empMapModal').style.display = 'none';
+  }
+
+  function saveEmpMap() {
+    const raw = document.getElementById('empMapTextarea').value;
+    const map = {};
+    raw.split('\n').forEach(line => {
+      const [id, ...rest] = line.split(':');
+      if (id && rest.length) map[id.trim()] = rest.join(':').trim();
+    });
+    localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(map));
+    closeEmpMapModal();
+    showToast(`✅ 已儲存 ${Object.keys(map).length} 筆員工資料！`);
   }
 
   function submitForm() {
@@ -2273,6 +2853,178 @@
     }
   }
 
+  // =========================================================
+  // 退回重新送樣模組
+  // =========================================================
+
+  function openReturnResample(id) {
+    document.getElementById('returnResampleId').value = id;
+    document.getElementById('returnResampleNote').value = '';
+    document.getElementById('returnResamplePin').value = '';
+    document.getElementById('returnResampleModal').style.display = 'flex';
+  }
+
+  function closeReturnResampleModal() {
+    document.getElementById('returnResampleModal').style.display = 'none';
+  }
+
+  async function submitReturnResample() {
+    const id = document.getElementById('returnResampleId').value;
+    const note = document.getElementById('returnResampleNote').value.trim();
+    const pin = document.getElementById('returnResamplePin').value.trim();
+    if (!note) { alert('請輸入退回原因！'); return; }
+    if (!pin) { alert('請輸入品管授權 PIN 碼！'); return; }
+
+    const btn = document.getElementById('returnResampleBtn');
+    btn.disabled = true;
+    btn.innerText = '處理中...';
+
+    const handleSuccess = (res) => {
+      btn.disabled = false;
+      btn.innerText = '確認退回並建立重送記錄';
+      if (res && res.success) {
+        closeReturnResampleModal();
+        showToast(`↩️ 已退回！系統已自動建立第 ${res.round} 次送樣記錄，請通知課室重新送樣。`);
+        // 更新本機資料
+        const item = allData.find(d => d.id === id);
+        if (item) { item.status = 'failed'; item.qcResult = 'FAIL'; item.qcNote = note; }
+        if (res.newId) {
+          const newItem = item ? { ...item, id: res.newId, status: 'pending', round: res.round, parentId: item.parentId || id, qcResult: '', qcNote: '', completedAt: '', createdAt: new Date().toISOString() } : null;
+          if (newItem) allData.push(newItem);
+        }
+        localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        load();
+      } else {
+        alert((res && res.error) || '退回失敗，請再試一次');
+        document.getElementById('returnResamplePin').value = '';
+      }
+    };
+
+    if (IS_GAS) {
+      google.script.run.withSuccessHandler(handleSuccess).returnForResample(id, note, pin);
+    } else if (GAS_API_URL) {
+      try {
+        const resp = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'returnForResample', id, note, pin })
+        });
+        handleSuccess(await resp.json());
+      } catch(err) {
+        btn.disabled = false;
+        btn.innerText = '確認退回並建立重送記錄';
+        alert('API 連線異常：' + err.message);
+      }
+    } else {
+      // 本機離線模式
+      const sysPin = localStorage.getItem('HS_QC_ADMIN_PIN') || '8888';
+      if (pin !== sysPin) { btn.disabled = false; btn.innerText = '確認退回並建立重送記錄'; alert('⛔ 授權失敗：PIN 碼錯誤！'); document.getElementById('returnResamplePin').value = ''; return; }
+      const item = allData.find(d => d.id === id);
+      const oldRound = parseInt(item?.round) || 1;
+      const rootId = item?.parentId || id;
+      const newId = 'RR-' + Date.now();
+      const newItem = { ...item, id: newId, status: 'pending', round: oldRound + 1, parentId: rootId, qcResult: '', qcNote: '', completedAt: '', isAlerted: '', createdAt: new Date().toISOString() };
+      if (item) { item.status = 'failed'; item.qcResult = 'FAIL'; item.qcNote = note; item.completedAt = new Date().toISOString(); }
+      allData.push(newItem);
+      handleSuccess({ success: true, newId, round: oldRound + 1 });
+    }
+  }
+
+  // =========================================================
+  // 送樣歷史記錄檢視
+  // =========================================================
+
+  function showSampleHistory(rootId) {
+    // 找出同一批次的所有紀錄（自己是根或 parentId 等於根）
+    const history = allData.filter(d => d.id === rootId || d.parentId === rootId)
+      .sort((a, b) => (parseInt(a.round)||1) - (parseInt(b.round)||1));
+
+    const statusLabel = { pending: '⏳ 待檢驗', completed: '✅ 完成', failed: '❌ 不合格退回' };
+    const statusColor = { pending: '#0369a1', completed: '#059669', failed: '#dc2626' };
+
+    document.getElementById('sampleHistoryContent').innerHTML = history.length
+      ? history.map(s => `
+        <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px; background:${s.status==='completed'?'#f0fdf4':s.status==='failed'?'#fff1f2':'#f8fafc'};">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+            <span style="font-weight:bold; font-size:1rem; background:#fed7aa; color:#c2410c; padding:2px 8px; border-radius:10px;">第 ${s.round||1} 次</span>
+            <span style="font-weight:600; color:${statusColor[s.status]||'#475569'};">${statusLabel[s.status]||s.status}</span>
+            ${s.qcResult ? `<b style="color:${s.qcResult==='PASS'?'#059669':'#dc2626'}; background:${s.qcResult==='PASS'?'#d1fae5':'#fee2e2'}; padding:1px 8px; border-radius:4px;">${s.qcResult}</b>` : ''}
+          </div>
+          <div style="font-size:0.82rem; color:#374151;"><b>送樣時間：</b>${formatSimpleDate(s.createdAt)}</div>
+          ${s.completedAt ? `<div style="font-size:0.82rem; color:#374151;"><b>完成時間：</b>${formatSimpleDate(s.completedAt)}</div>` : ''}
+          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>備註：</b>${s.qcNote}</div>` : ''}
+        </div>
+      `).join('')
+      : '<div style="text-align:center; color:#94a3b8; padding:20px;">找不到送樣歷史記錄</div>';
+
+    document.getElementById('sampleHistoryModal').style.display = 'flex';
+  }
+
+  function closeSampleHistoryModal() {
+    document.getElementById('sampleHistoryModal').style.display = 'none';
+  }
+
+  // ==========================================
+  // 全廠紀錄查詢 (Global History)
+  // ==========================================
+  function openGlobalHistoryModal() {
+    document.getElementById('ghSearchKw').value = '';
+    document.getElementById('ghStatusFilter').value = '';
+    renderGlobalHistory();
+    document.getElementById('globalHistoryModal').style.display = 'flex';
+  }
+
+  function closeGlobalHistoryModal() {
+    document.getElementById('globalHistoryModal').style.display = 'none';
+  }
+
+  function renderGlobalHistory() {
+    const kw = document.getElementById('ghSearchKw').value.toLowerCase();
+    const status = document.getElementById('ghStatusFilter').value;
+    const tbody = document.getElementById('ghTableBody');
+    
+    // 篩選
+    const filtered = allData.filter(s => {
+      const matchKw = !kw || 
+        String(s.barcode||'').toLowerCase().includes(kw) ||
+        String(s.productName||'').toLowerCase().includes(kw) ||
+        String(s.tankNo||'').toLowerCase().includes(kw) ||
+        String(s.customer||'').toLowerCase().includes(kw);
+      const matchStatus = !status || s.status === status;
+      return matchKw && matchStatus;
+    });
+
+    // 限制顯示筆數避免卡頓
+    const maxRows = 200;
+    const toShow = filtered.slice(0, maxRows);
+
+    if (toShow.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#94a3b8;">查無符合的歷史紀錄</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = toShow.map(s => {
+      let statusBadge = '';
+      if (s.status === 'pending') statusBadge = `<span style="background:#fef08a; color:#854d0e; padding:2px 6px; border-radius:4px; font-size:0.8rem;">待檢驗</span>`;
+      else if (s.status === 'completed' && s.qcResult === 'PASS') statusBadge = `<span style="background:#d1fae5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:0.8rem;">合格(PASS)</span>`;
+      else if (s.status === 'completed' && s.qcResult === 'FAIL') statusBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:0.8rem;">不合格(FAIL)</span>`;
+      else if (s.status === 'failed') statusBadge = `<span style="background:#fed7aa; color:#9a3412; padding:2px 6px; border-radius:4px; font-size:0.8rem;">退回(failed)</span>`;
+      else statusBadge = s.status;
+
+      const roundHtml = (parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem; color:#ea580c; background:#ffedd5; padding:1px 4px; border-radius:4px;">第${s.round}次</span>` : '';
+
+      return `<tr>
+        <td style="font-size:0.85rem; color:#475569;">${s.createdAt ? s.createdAt.substring(0,16).replace('T',' ') : '-'}</td>
+        <td><b>${s.barcode}</b>${roundHtml}</td>
+        <td><b>${s.productName}</b> <span style="color:#64748b; font-size:0.8rem;">(${s.grade||'-'})</span></td>
+        <td>${s.tankNo||'-'} / <span style="font-size:0.8rem;">${s.customer||'-'}</span></td>
+        <td style="font-size:0.85rem;">${s.dept} <br><span style="color:#64748b;">(${s.requester})</span></td>
+        <td>${statusBadge} <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">${s.qcNote||''}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+
   function setBarcodePlaceholder() {
     const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
     document.getElementById('barcode').placeholder = "例: " + todayStr;
@@ -2541,11 +3293,14 @@
     // 定時刷新等候時長動畫與 KPI
     setInterval(render, 60000);
 
-    // 註冊 Service Worker
+    // 註冊 Service Worker (強制檢查更新，保證每次載入最新版本)
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(err => console.log('SW register failed:', err));
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        reg.update();
+      }).catch(err => console.log('SW register failed:', err));
     }
   };
 </script>
 </body>
 </html>
+
