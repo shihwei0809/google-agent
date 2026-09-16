@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = 'qc-kanban-v2.1.11';
+﻿const CACHE_NAME = 'qc-kanban-v2.1.12';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -70,4 +70,5 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
 

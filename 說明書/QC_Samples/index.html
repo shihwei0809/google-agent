@@ -2009,6 +2009,7 @@
       d.setDate(d.getDate() - 2); // 往前推2天 = 包含今天共3天
       const minDateStr = d.toISOString().split('T')[0];
       cData = cData.filter(s => {
+        if (s.qcResult === 'FAIL') return true; // FAIL 案件不隱藏，保留以供特採評估
         const sDate = s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : '';
         return sDate >= minDateStr;
       });
