@@ -38,6 +38,7 @@
       const [isRestoring, setIsRestoring] = useState(false);
       const lastSyncDataStrRef = useRef("");
       const [conflictWarning, setConflictWarning] = useState(false);
+      const [debugInfo, setDebugInfo] = useState("");
       
       const [startDateTime, setStartDateTime] = useState('');
       const [scheduleStartDateTime, setScheduleStartDateTime] = useState('');
@@ -115,6 +116,7 @@
                 setTimeout(() => setSaveStatus('idle'), 5000);
               } else {
                 // Conflict
+                setDebugInfo(`Incoming (${incomingDataStr.length}): ${incomingDataStr.substring(0, 50)}...\nLastSync (${lastSyncDataStrRef.current.length}): ${lastSyncDataStrRef.current.substring(0, 50)}...\nPayload (${currentPayloadStr.length}): ${currentPayloadStr.substring(0, 50)}...`);
                 setConflictWarning(true);
               }
             }
@@ -423,11 +425,14 @@
         <div className="min-h-screen bg-slate-100 p-4 text-[13px]">
           
           {conflictWarning && (
-            <div className="fixed top-0 left-0 w-full bg-red-600 text-white p-3 z-50 text-center font-bold shadow-lg animate-pulse flex justify-center items-center gap-4">
-              <span>⚠️ 警告：雲端資料已被其他人更新！繼續儲存將會覆蓋他人的進度。</span>
+            <div className="fixed top-0 left-0 w-full bg-red-600 text-white p-3 z-50 text-center shadow-lg flex flex-col justify-center items-center gap-2">
+              <span className="font-bold">⚠️ 警告：雲端資料已被其他人更新！繼續儲存將會覆蓋他人的進度。</span>
+              <span className="text-xs text-red-200">
+                {debugInfo}
+              </span>
               <button 
                 onClick={() => { setConflictWarning(false); fetchAllData(); }}
-                className="bg-white text-red-600 px-3 py-1 rounded text-xs hover:bg-red-50 shadow"
+                className="bg-white text-red-600 px-3 py-1 rounded text-xs hover:bg-red-50 shadow font-bold"
               >
                 放棄我的變更並載入最新資料
               </button>
