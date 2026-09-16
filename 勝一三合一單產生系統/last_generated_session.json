@@ -1,42 +1,42 @@
 [
   {
-    "batch": "26909E3071",
-    "tank": "E307",
-    "product": "IPA",
-    "weight": "4300",
-    "loc": "15P5",
-    "date": "2026-09-12",
-    "time": "0300",
+    "batch": "26907S91T1",
+    "tank": "S91",
+    "loc": "14P1",
+    "date": "2026-09-09",
+    "time": "",
     "mod_time": ""
   },
   {
-    "batch": "26910E3191",
-    "tank": "E319",
-    "product": "IPA",
-    "weight": "4300",
-    "loc": "15P5",
-    "date": "2026-09-12",
-    "time": "1800",
+    "batch": "26906S403T1",
+    "tank": "S403",
+    "loc": "14P6",
+    "date": "2026-09-09",
+    "time": "",
     "mod_time": ""
   },
   {
-    "batch": "26910E3081",
-    "tank": "E308",
-    "product": "IPA",
-    "weight": "4300",
-    "loc": "15P6",
-    "date": "2026-09-12",
-    "time": "0400",
+    "batch": "26906S151T1",
+    "tank": "S151",
+    "loc": "18P7",
+    "date": "2026-09-09",
+    "time": "",
     "mod_time": ""
   },
   {
-    "batch": "26910E3061",
-    "tank": "E306",
-    "product": "IPA",
-    "weight": "4300",
-    "loc": "15P6",
-    "date": "2026-09-12",
-    "time": "1600",
+    "batch": "26907S135T1",
+    "tank": "S135",
+    "loc": "18P6",
+    "date": "2026-09-09",
+    "time": "",
+    "mod_time": ""
+  },
+  {
+    "batch": "26906S172T1",
+    "tank": "S172",
+    "loc": "14P5",
+    "date": "2026-09-09",
+    "time": "",
     "mod_time": ""
   }
 ]
