@@ -1,0 +1,22 @@
+{
+  "name": "黑鐵桶進出與庫存管理系統",
+  "short_name": "黑鐵桶管理",
+  "description": "黑鐵桶進出場與庫存掃描報廢管理系統",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f6f9",
+  "theme_color": "#1e3c72",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

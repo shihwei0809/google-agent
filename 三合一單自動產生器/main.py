@@ -1,4 +1,4 @@
-import pytesseract
+﻿import pytesseract
 from pytesseract import Output
 from tkinter import filedialog
 from io import BytesIO
@@ -1253,7 +1253,7 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("三合一單自動產生器 & 運輸通知表產生器")
+        self.title("三合一單自動產生器")
         self.geometry("1260x820")
         self.minsize(1080, 620)
         self.configure(padx=15, pady=15)
@@ -1442,9 +1442,6 @@ class App(tk.Tk):
         tk.Button(left_btn_frame, text="📥 從 Excel 匯入排程", command=self.import_from_excel, bg="#1976D2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(0, 4))
         tk.Button(left_btn_frame, text="📋 載入生產履歷 (Chemical_Lorry)", command=self.load_chemical_lorry_file, bg="#E65100", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="📄 載入 COA 表單", command=self.load_coa_forms, bg="#8E24AA", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(left_btn_frame, text="🖼️ 上傳 COA 截圖", command=self.upload_coa, bg="#FF9800", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(left_btn_frame, text="📋 貼上 COA 截圖", command=self.paste_coa, bg="#4CAF50", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(left_btn_frame, text="🔑 設定 GCP 金鑰", command=lambda: OcrKeyManagerDialog(self), bg="#3949AB", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
 
         # 右側：表格操作與日期快捷按鈕群組
         right_btn_frame = tk.Frame(top_ctrl_frame)
@@ -1471,18 +1468,6 @@ class App(tk.Tk):
         tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_date, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 16))
         
         # 預計時間
-        tk.Label(batch_setting_frame, text="預計到廠時間:").pack(side="left")
-        self.default_time_var = tk.StringVar(value="")
-        tk.Entry(batch_setting_frame, textvariable=self.default_time_var, width=8).pack(side="left", padx=2)
-        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_time, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 16))
-
-        # 修正時間
-        tk.Label(batch_setting_frame, text="修正到廠時間:").pack(side="left")
-        self.default_mod_time_var = tk.StringVar(value="")
-        tk.Entry(batch_setting_frame, textvariable=self.default_mod_time_var, width=8).pack(side="left", padx=2)
-        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_mod_time, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 10))
-
-        # 4. 報表產出勾選專屬區塊 (獨立整列，寬度充裕，文字絕不截斷)
         report_opt_frame = tk.LabelFrame(self, text="📦 欲產生的報表勾選 (可多選，點擊開始產生時將自動產出所勾選項目)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
         report_opt_frame.pack(fill="x", pady=(0, 8))
 
@@ -1527,10 +1512,8 @@ class App(tk.Tk):
             (4, "地點 (如 15P5)"),
             (5, "長代號 (自動)"),
             (6, "出貨日期 📅"),
-            (7, "預計到廠時間"),
-            (8, "修正到廠時間"),
-            (9, "採購單號"),
-            (10, "單列清空")
+            (7, "採購單號"),
+            (8, "單列清空")
         ]
         
         for col_idx, title in headers:
@@ -1560,19 +1543,20 @@ class App(tk.Tk):
         val = self.default_date_var.get().strip()
         for entry in self.entries:
             if entry["batch_var"].get().strip():
+                pass
                 entry["date_var"].set(val)
 
     def apply_default_time(self):
         val = self.default_time_var.get().strip()
         for entry in self.entries:
             if entry["batch_var"].get().strip():
-                entry["time_var"].set(val)
+                pass
 
     def apply_default_mod_time(self):
         val = self.default_mod_time_var.get().strip()
         for entry in self.entries:
             if entry["batch_var"].get().strip():
-                entry["mod_time_var"].set(val)
+                pass
 
     def add_input_rows(self, count):
         for i in range(count):
@@ -1619,22 +1603,12 @@ class App(tk.Tk):
             btn_cal = tk.Button(date_frame, text="📅", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal.pack(side="right", padx=(2, 0))
             
-            # Col 7: 預計到廠時間
-            time_var = tk.StringVar(value="")
-            time_entry = tk.Entry(self.scrollable_frame, textvariable=time_var, width=10, font=("Arial", 10))
-            time_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
-
-            # Col 8: 修正到廠時間
-            mod_time_var = tk.StringVar(value="")
-            mod_time_entry = tk.Entry(self.scrollable_frame, textvariable=mod_time_var, width=10, font=("Arial", 10), fg="red")
-            mod_time_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
-
-            # Col 9: 採購單號
+            # Col 7: 採購單號
             po_var = tk.StringVar(value="")
             po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=18, font=("Arial", 10), fg="#333")
-            po_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
+            po_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
 
-            # Col 10: 單列清空按鈕
+            # Col 8: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
                 text="清空", 
@@ -1646,7 +1620,7 @@ class App(tk.Tk):
                 width=6,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=10, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=8, padx=4, pady=2)
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
@@ -1664,8 +1638,6 @@ class App(tk.Tk):
                 "loc_var": loc_var,
                 "long_code_var": long_code_var,
                 "date_var": date_var,
-                "time_var": time_var,
-                "mod_time_var": mod_time_var,
                 "po_var": po_var
             })
 
@@ -1678,8 +1650,7 @@ class App(tk.Tk):
                 entry["long_code_var"].set("")
                 entry["tank_var"].set("")
                 entry["date_var"].set("")
-                entry["time_var"].set("")
-                entry["mod_time_var"].set("")
+                if "po_var" in entry: entry["po_var"].set("")
                 if "po_var" in entry: entry["po_var"].set("")
 
     def set_today_all_dates(self):
@@ -1698,8 +1669,7 @@ class App(tk.Tk):
             entry["long_code_var"].set("")
             entry["tank_var"].set("")
             entry["date_var"].set("")
-            entry["time_var"].set("")
-            entry["mod_time_var"].set("")
+            if "po_var" in entry: entry["po_var"].set("")
             if "po_var" in entry: entry["po_var"].set("")
 
     def on_batch_change(self, batch_var, tank_var):
@@ -1800,10 +1770,6 @@ class App(tk.Tk):
                         self.entries[curr_row]["loc_var"].set(parsed["loc"])
                     if parsed["date"]:
                         self.entries[curr_row]["date_var"].set(parsed["date"])
-                    if parsed["time"]:
-                        self.entries[curr_row]["time_var"].set(parsed["time"])
-                    if parsed["mod_time"]:
-                        self.entries[curr_row]["mod_time_var"].set(parsed["mod_time"])
                     
                     curr_row += 1
                 elif len(parts) == 1:
@@ -1827,6 +1793,37 @@ class App(tk.Tk):
             return "break"
 
 
+
+
+    def _extract_batch_from_coa(self, file_path):
+        import csv
+        try:
+            with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if len(row) >= 2 and 'RawLotId' in str(row[0]):
+                        return str(row[1]).strip()
+        except:
+            pass
+        try:
+            with open(file_path, 'r', encoding='cp950', errors='ignore') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if len(row) >= 2 and 'RawLotId' in str(row[0]):
+                        return str(row[1]).strip()
+        except:
+            pass
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(file_path, data_only=True)
+            for sheet in wb.sheetnames:
+                ws = wb[sheet]
+                for row in ws.iter_rows(min_row=1, max_row=50, min_col=1, max_col=2):
+                    if row[0].value and 'RawLotId' in str(row[0].value) and row[1].value:
+                        return str(row[1].value).strip()
+        except:
+            pass
+        return None
 
     def load_coa_forms(self):
         file_paths = filedialog.askopenfilenames(
@@ -1864,6 +1861,13 @@ class App(tk.Tk):
                             break
                 
                     if not matched_batch:
+                        found_batch = self._extract_batch_from_coa(file_path)
+                        if found_batch:
+                            for b in valid_batches:
+                                if b == found_batch or b in found_batch or found_batch in b:
+                                    matched_batch = b
+                                    break
+                    if not matched_batch:
                         error_msgs.append(f"找不到對應批號: {os.path.basename(file_path)}")
                         continue
                 
@@ -1875,8 +1879,17 @@ class App(tk.Tk):
                     formatted_date = date_str.replace("/", "").replace("-", "")
                 
                     idx = base_name.upper().find(matched_batch)
-                    prefix = base_name[:idx]
-                    suffix = base_name[idx + len(matched_batch):]
+                    if idx == -1:
+                        # 如果檔名原本沒有批號，我們就在檔名最後補上批號
+                        import os as _os
+                        name_no_ext, ext_part = _os.path.splitext(base_name)
+                        prefix = name_no_ext + "_"
+                        suffix = ext_part
+                        idx = len(prefix)
+                        base_name = prefix + matched_batch + suffix
+                    else:
+                        prefix = base_name[:idx]
+                        suffix = base_name[idx + len(matched_batch):]
                 
                     date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
                     mmdd_pattern = r'\b\d{4}(?=[-_]$)'
@@ -2311,8 +2324,6 @@ class App(tk.Tk):
                         row_e["tank_var"].set(rec["tank"])
                     row_e["loc_var"].set(rec.get("loc", ""))
                     if rec.get("date"): row_e["date_var"].set(rec["date"])
-                    if rec.get("time"): row_e["time_var"].set(rec["time"])
-                    if rec.get("mod_time"): row_e["mod_time_var"].set(rec["mod_time"])
                     if rec.get("po"): row_e.get("po_var", tk.StringVar()).set(rec["po"])
                     
                 total_imported += len(target_records)
@@ -2348,8 +2359,8 @@ class App(tk.Tk):
             loc = row["loc_var"].get().strip().upper()
             tank = row["tank_var"].get().strip()
             date_str = row["date_var"].get().strip()
-            time_str = row["time_var"].get().strip()
-            mod_time_str = row["mod_time_var"].get().strip()
+            time_str = ""
+            mod_time_str = ""
             
             if not batch and not loc:
                 continue

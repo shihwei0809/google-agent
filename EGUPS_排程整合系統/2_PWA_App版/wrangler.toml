@@ -1,0 +1,9 @@
+﻿name = "egups-system"
+compatibility_date = "2024-03-01"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "DB" # i.e. available in your Worker on env.DB
+database_name = "egups-db"
+database_id = "b87a145c-937d-430b-94f0-1962255abd04" # Will be filled by setup script
+

@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>黑鐵桶庫存系統 PWA 版</title>
+  
+  <!-- PWA Manifest & Theme -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e3c72">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  
+  <style>
+    body { background-color: #f4f6f9; font-family: "Microsoft JhengHei", sans-serif; padding-bottom: 80px; }
+    
+    /* PWA 安裝提示列 */
+    #installBanner {
+      display: none; background: #ffc107; color: #000; padding: 10px; text-align: center;
+      font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    /* 庫存看板 */
+    .stats-container {
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      color: white; padding: 15px; border-radius: 0 0 20px 20px;
+      margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .stat-main-number { font-size: 2rem; font-weight: bold; line-height: 1.2;}
+    .stat-title { font-size: 0.9rem; opacity: 0.9; margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 5px;}
+    
+    .stat-detail { font-size: 0.75rem; text-align: left; margin-top: 5px; line-height: 1.4; }
+    .detail-row { display: flex; justify-content: space-between; border-bottom: 1px dotted rgba(255,255,255,0.2); }
+    .detail-row:last-child { border-bottom: none; }
+    
+    .nav-tabs .nav-link { color: #495057; font-weight: bold; background: #e9ecef; margin-right: 2px; }
+    .nav-tabs .nav-link.active { color: #0d6efd; background: white; border-bottom: 3px solid #0d6efd; }
+    
+    .display-box {
+      background: white; border: 1px solid #ced4da; border-radius: 5px;
+      padding: 10px; min-height: 42px; display: flex; align-items: center;
+      cursor: pointer; position: relative; font-size: 1.1rem;
+    }
+    .display-box.active {
+      border-color: #0d6efd; box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+      background-color: #f8f9fa;
+    }
+    .display-box.active::after {
+      content: '|'; margin-left: 5px; color: #0d6efd;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    .placeholder { color: #aaa; font-style: italic; font-size: 0.9rem; }
+    
+    .scan-item { margin-bottom: 10px; }
+    .scan-index { width: 30px; height: 30px; background: #e9ecef; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; font-weight: bold; color: #555;}
+
+    .fab-container { position: sticky; bottom: 20px; z-index: 100; padding: 0 10px; margin-top: 20px;}
+    .btn-submit { width: 100%; border-radius: 50px; padding: 12px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+    .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.85); z-index: 9999; flex-direction: column; justify-content: center; align-items: center; }
+
+    #scanner-trap {
+      position: absolute; top: -1000px; left: -1000px;
+      opacity: 0; width: 1px; height: 1px;
+    }
+
+    #queryTable th { font-size: 0.85rem; color: #6c757d; font-weight: bold; }
+    #queryTable td { vertical-align: middle; }
+    .export-btn { background-color: #198754; color: white; border: none; }
+    .export-btn:hover { background-color: #157347; color: white; }
+  </style>
+</head>
+<body>
+
+<div id="installBanner">
+  <i class="fas fa-download me-2"></i>點此將系統安裝為桌面/手機 App，支援全螢幕與離線快取！
+</div>
+
+<div class="loading-overlay" id="loading">
+  <div class="spinner-border text-primary" role="status"></div>
+  <div class="mt-3 fw-bold text-secondary" id="loadingText">處理中...</div>
+</div>
+
+<textarea id="scanner-trap" inputmode="none" autocomplete="off"></textarea>
+
+<div class="container p-3" style="max-width: 1200px;">
+  
+  <div class="stats-container">
+    <div class="row g-2">
+      <div class="col-6 border-end border-white-50">
+        <div class="stat-title">廠內庫存 (總計)</div>
+        <div class="stat-main-number" id="inTotal">0</div>
+        <div class="stat-detail ps-2 pe-2">
+          <div class="detail-row"><span>采鈺(2ACT  1)</span> <span id="inVisera">0</span></div>
+          <div class="detail-row"><span>東應化(2ACT  2)</span> <span id="inTok">0</span></div>
+          <div class="detail-row"><span>其他</span> <span id="inOther">0</span></div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="stat-title">客戶端/在外 (總計)</div>
+        <div class="stat-main-number" id="outTotal">0</div>
+        <div class="stat-detail ps-2 pe-2">
+          <div class="detail-row"><span>采鈺(2ACT  1)</span> <span id="outVisera">0</span></div>
+          <div class="detail-row"><span>東應化(2ACT  2)</span> <span id="outTok">0</span></div>
+          <div class="detail-row"><span>其他</span> <span id="outOther">0</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="px-3">
+    
+    <div class="d-flex justify-content-end mb-2">
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="hideKeyboardSwitch" onchange="toggleCompatibility()">
+        <label class="form-check-label small text-muted" for="hideKeyboardSwitch">相容模式 (掃描慢/手動輸入多時開啟)</label>
+      </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" id="myTab" role="tablist">
+      <li class="nav-item flex-fill text-center" role="presentation">
+        <button class="nav-link w-100 active px-1" id="scan-tab" data-bs-toggle="tab" data-bs-target="#scan" type="button" role="tab"><i class="fas fa-barcode"></i> 掃描</button>
+      </li>
+      <li class="nav-item flex-fill text-center" role="presentation">
+        <button class="nav-link w-100 px-1" id="manage-tab" data-bs-toggle="tab" data-bs-target="#manage" type="button" role="tab" onclick="loadHighUsageList()"><i class="fas fa-trash-alt"></i> 報廢</button>
+      </li>
+      <li class="nav-item flex-fill text-center" role="presentation">
+        <button class="nav-link w-100 px-1" id="query-tab" data-bs-toggle="tab" data-bs-target="#query" type="button" role="tab"><i class="fas fa-history"></i> 查詢</button>
+      </li>
+    </ul>
+
+    <div class="tab-content">
+      
+      <!-- 掃描 Tab -->
+      <div class="tab-pane fade show active" id="scan" role="tabpanel">
+        <form id="mainForm" onsubmit="handleFormSubmit(event)">
+          <div class="card p-3 mb-3 border-0 shadow-sm">
+            <div class="btn-group w-100 mb-3">
+              <input type="radio" class="btn-check" name="actionType" id="actionIn" value="進場" checked>
+              <label class="btn btn-outline-success" for="actionIn">進場</label>
+              <input type="radio" class="btn-check" name="actionType" id="actionOut" value="出場">
+              <label class="btn btn-outline-danger" for="actionOut">出場</label>
+            </div>
+            <label class="small text-muted fw-bold">設定欄位數量</label>
+            <div class="input-group">
+              <input type="number" class="form-control" id="scanCount" value="4" min="1">
+              <button class="btn btn-primary" type="button" onclick="renderFields('scanCount', 'scanArea', 'drum_', 'inputs-scan')">生成欄位</button>
+            </div>
+          </div>
+          <div id="scanArea"></div>
+          <div class="fab-container"><button type="submit" class="btn btn-primary btn-submit">確認送出</button></div>
+        </form>
+      </div>
+
+      <!-- 報廢 Tab -->
+      <div class="tab-pane fade" id="manage" role="tabpanel">
+        <div class="card p-3 mb-3 border-0 shadow-sm" style="border-left: 5px solid #6c757d;">
+          <h6 class="fw-bold text-secondary"><i class="fas fa-boxes me-2"></i>批量報廢掃描</h6>
+          <div class="input-group mb-2">
+            <input type="number" class="form-control" id="archiveCount" value="1" min="1" placeholder="數量">
+            <button class="btn btn-secondary" type="button" onclick="renderFields('archiveCount', 'archiveArea', 'archive_drum_', 'inputs-archive')">生成欄位</button>
+          </div>
+        </div>
+        <form id="archiveForm" onsubmit="handleArchiveSubmit(event)">
+          <div id="archiveArea" class="mb-3"></div>
+          <div id="archiveBtnContainer" style="display:none;" class="mb-4">
+             <button type="submit" class="btn btn-danger w-100 rounded-pill py-2 shadow fw-bold">
+               <i class="fas fa-archive me-2"></i>確認封存移除
+             </button>
+          </div>
+        </form>
+        <hr>
+        <div class="alert alert-warning small">
+          <i class="fas fa-exclamation-triangle me-1"></i> 建議報廢 (使用 ≥ 7 次)
+        </div>
+        <div id="archiveListArea">
+          <div class="text-center text-muted py-3">讀取中...</div>
+        </div>
+      </div>
+
+      <!-- 查詢 Tab -->
+      <div class="tab-pane fade" id="query" role="tabpanel">
+        <div class="card p-3 mb-3 border-0 shadow-sm">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold m-0"><i class="fas fa-file-alt me-2 text-primary"></i>歷史紀錄</h5>
+            <span id="queryCount" class="text-muted small">共 0 筆資料</span>
+          </div>
+          
+          <div class="row g-2 mb-3">
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted mb-1">開始日期</label>
+              <input type="date" class="form-control form-control-sm" id="queryStartDate">
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label small text-muted mb-1">結束日期</label>
+              <input type="date" class="form-control form-control-sm" id="queryEndDate">
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small text-muted mb-1">動作篩選</label>
+              <select class="form-select form-select-sm" id="queryAction">
+                <option value="">所有動作</option>
+                <option value="進場">進場</option>
+                <option value="出場">出場</option>
+                <option value="報廢">報廢</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-3">
+              <label class="form-label small text-muted mb-1">搜尋桶號 (選填)</label>
+              <input type="text" class="form-control form-control-sm" id="queryDrumId" placeholder="掃描或輸入桶號...">
+            </div>
+          </div>
+          
+          <div class="d-flex gap-2 mb-3">
+            <button class="btn btn-primary flex-grow-1" type="button" onclick="handleQuery()">
+              <i class="fas fa-search me-1"></i> 搜尋
+            </button>
+            <button class="btn export-btn" type="button" onclick="exportToExcel()">
+              <i class="fas fa-download me-1"></i> 匯出 Excel
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-hover align-middle text-nowrap" id="queryTable">
+              <thead class="table-light">
+                <tr>
+                  <th>時間 / 狀態</th>
+                  <th>桶號 (BATCH)</th>
+                  <th>資料來源</th>
+                </tr>
+              </thead>
+              <tbody id="queryResultArea">
+                 <tr><td colspan="3" class="text-center text-muted py-4">請設定條件後點擊搜尋。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+  // ==========================================
+  // 【重要設定】請填入您發布為 Web App 的 GAS 網址
+  // ==========================================
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbwqImUUekckJHeOik3KTaYXG2gu-f-olT5notRFsQSgAb-KJo5NYUfb9MdwPPAuvZo-iw/exec";
+  
+  // API 通訊函式
+  async function fetchGasAPI(action, data = null) {
+    if (GAS_URL.includes("在此輸入")) {
+        alert("⚠️ 請先在 index.html 頂端設定 GAS_URL！\n\n(步驟: 到 Google Apps Script 右上角點擊「部署 > 新增部署」，設定為 Web App，存取權限設為「所有人」，將拿到的網址貼上來)");
+        return null;
+    }
+    try {
+        const response = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action: action, data: data })
+        });
+        return await response.json();
+    } catch (e) {
+        console.error(e);
+        alert("API 請求失敗，可能為網路問題或 CORS 設定被阻擋。");
+        return null;
+    }
+  }
+
+  // 註冊 Service Worker (PWA 核心)
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js');
+    });
+  }
+
+  // PWA 安裝橫幅邏輯
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBanner').style.display = 'block';
+  });
+
+  document.getElementById('installBanner').addEventListener('click', () => {
+    document.getElementById('installBanner').style.display = 'none';
+    if(deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => { deferredPrompt = null; });
+    }
+  });
+
+  // --- 介面邏輯 ---
+  let boxesData = {}; 
+  let activeIndex = 0; 
+  let currentPrefix = 'drum_';
+  let totalCount = 0;
+  let trapMode = 'none'; 
+  let currentQueryData = [];
+
+  window.onload = function() {
+    refreshStats();     
+    renderFields('scanCount', 'scanArea', 'drum_', 'inputs-scan');
+    
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('queryStartDate').value = today;
+    document.getElementById('queryEndDate').value = today;
+    
+    const trap = document.getElementById('scanner-trap');
+    trap.addEventListener('input', handleTrapInput);
+    
+    trap.addEventListener('blur', function() {
+        if (trapMode === 'none') {
+             setTimeout(() => {
+                 const activeTag = document.activeElement.tagName;
+                 if (!['INPUT', 'BUTTON', 'SELECT', 'OPTION', 'TEXTAREA'].includes(activeTag)) {
+                     trap.focus();
+                 }
+             }, 150);
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (trapMode === 'none') {
+        const allowedTags = ['BUTTON', 'INPUT', 'SELECT', 'OPTION', 'TEXTAREA'];
+        if(!allowedTags.includes(e.target.tagName) && !e.target.closest('.btn')) {
+          trap.focus();
+        }
+      }
+    });
+    
+    document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+       tab.addEventListener('shown.bs.tab', function (event) {
+          if (event.target.id === 'query-tab') {
+              trapMode = 'disabled';
+          } else {
+              trapMode = document.getElementById('hideKeyboardSwitch').checked ? 'text' : 'none';
+              trap.focus();
+          }
+       });
+    });
+
+    if(document.getElementById('query-tab').classList.contains('active')) {
+        trapMode = 'disabled';
+    } else {
+        trap.focus();
+    }
+
+    document.getElementById('queryDrumId').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleQuery();
+      }
+    });
+  };
+
+  async function refreshStats() {
+    const stats = await fetchGasAPI('getInventoryStats');
+    if(stats) {
+      document.getElementById('inTotal').innerText = stats.in.total;
+      document.getElementById('inVisera').innerText = stats.in.visera;
+      document.getElementById('inTok').innerText = stats.in.tok;
+      document.getElementById('inOther').innerText = stats.in.other;
+      
+      document.getElementById('outTotal').innerText = stats.out.total;
+      document.getElementById('outVisera').innerText = stats.out.visera;
+      document.getElementById('outTok').innerText = stats.out.tok;
+      document.getElementById('outOther').innerText = stats.out.other;
+    }
+    hideLoading();
+  }
+
+  function toggleCompatibility() {
+    const trap = document.getElementById('scanner-trap');
+    if (trapMode === 'none') {
+        trapMode = 'text';
+        trap.setAttribute('inputmode', 'text');
+        alert('相容模式開啟：手機虛擬鍵盤可能跳出，掃描完成後請手動按 Enter 或 Tab。');
+        trap.focus();
+    } else {
+        trapMode = 'none';
+        trap.setAttribute('inputmode', 'none');
+        alert('掃描優化模式開啟：鍵盤將被隱藏，掃描槍輸入的資料會自動確認並跳轉。');
+        trap.focus();
+    }
+  }
+
+  let typingTimer;
+  function handleTrapInput(e) {
+    const trap = e.target;
+    const val = trap.value;
+    
+    if (val.includes('\n') || e.inputType === 'insertLineBreak' || trapMode === 'none') {
+        const cleanVal = val.replace(/\n/g, '').trim();
+        if (cleanVal) confirmValue(cleanVal);
+        trap.value = ''; 
+        return;
+    }
+
+    updateDisplayBox(activeIndex, val);
+
+    if (trapMode === 'none') {
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => {
+            if(trap.value.trim() !== '') {
+                confirmValue(trap.value);
+                trap.value = '';
+            }
+        }, 300);
+    }
+  }
+
+  function confirmValue(text) {
+    boxesData[currentPrefix + activeIndex] = text.toUpperCase(); 
+    updateDisplayBox(activeIndex, text.toUpperCase());
+    
+    if (activeIndex + 1 < totalCount) {
+        setActiveBox(activeIndex + 1);
+    } else {
+        const formId = (currentPrefix === 'drum_') ? 'mainForm' : 'archiveForm';
+        const form = document.getElementById(formId);
+        const btn = form.querySelector('button[type="submit"]');
+        if(btn) btn.focus();
+    }
+  }
+
+  function renderFields(countId, areaId, prefix, className) {
+    const countInput = document.getElementById(countId);
+    let count = countInput ? parseInt(countInput.value) : 1;
+    if (!count || count < 1) count = 1;
+
+    const container = document.getElementById(areaId);
+    if (!container) return;
+
+    currentPrefix = prefix;
+    totalCount = count;
+    boxesData = {}; 
+    activeIndex = 0;
+
+    let html = '';
+    for (let i = 0; i < count; i++) {
+      html += `
+        <div class="scan-item animate__animated animate__fadeIn">
+          <div class="d-flex align-items-center w-100">
+            <div class="scan-index">${i + 1}</div>
+            <div class="display-box flex-grow-1 ${i === 0 ? 'active' : ''}" 
+                 id="box_${prefix}${i}" 
+                 onclick="setActiveBox(${i})">
+              <span class="placeholder">等待掃描...</span>
+            </div>
+            <button class="btn btn-outline-danger ms-2 border-0" type="button"
+                    onclick="clearBox(${i})" title="清除欄位">
+              <i class="fas fa-times-circle fa-lg"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+    container.innerHTML = html;
+    setActiveBox(0); 
+    
+    if(areaId === 'archiveArea') {
+      document.getElementById('archiveBtnContainer').style.display = 'block';
+    }
+  }
+
+  function setActiveBox(index) {
+    document.querySelectorAll('.display-box').forEach(el => el.classList.remove('active'));
+    const target = document.getElementById(`box_${currentPrefix}${index}`);
+    if (target) {
+        target.classList.add('active');
+        activeIndex = index;
+        const existingData = boxesData[currentPrefix + index] || '';
+        const trap = document.getElementById('scanner-trap');
+        trap.value = existingData;
+        trap.focus();
+    }
+  }
+
+  function updateDisplayBox(index, text) {
+    const box = document.getElementById(`box_${currentPrefix}${index}`);
+    if(box) {
+        if(text) {
+            box.innerText = text;
+            box.style.color = '#000';
+            box.classList.remove('placeholder');
+        } else {
+            box.innerHTML = '<span class="placeholder">等待掃描...</span>';
+        }
+    }
+  }
+
+  function clearBox(index) {
+    boxesData[currentPrefix + index] = ''; 
+    updateDisplayBox(index, '');
+    setActiveBox(index); 
+  }
+
+  async function handleFormSubmit(e) {
+    e.preventDefault();
+    const formObj = {};
+    for (const [key, value] of Object.entries(boxesData)) {
+        if(value) formObj[key] = value;
+    }
+    
+    if(Object.keys(formObj).length === 0) { alert('請至少輸入一筆資料'); return; }
+    formObj.actionType = document.querySelector('input[name="actionType"]:checked').value;
+    
+    showLoading('儲存中...');
+    const res = await fetchGasAPI('processForm', formObj);
+    hideLoading();
+    
+    if(res && res.status === 'success') {
+      if(res.stats) {
+        // inline update
+        document.getElementById('inTotal').innerText = res.stats.in.total;
+        document.getElementById('inVisera').innerText = res.stats.in.visera;
+        document.getElementById('inTok').innerText = res.stats.in.tok;
+        document.getElementById('inOther').innerText = res.stats.in.other;
+        document.getElementById('outTotal').innerText = res.stats.out.total;
+        document.getElementById('outVisera').innerText = res.stats.out.visera;
+        document.getElementById('outTok').innerText = res.stats.out.tok;
+        document.getElementById('outOther').innerText = res.stats.out.other;
+      }
+      renderFields('scanCount', 'scanArea', 'drum_', 'inputs-scan'); 
+      if (res.alerts && res.alerts.length > 0) {
+        alert("✅ 儲存成功！\n\n⚠️ 但以下桶號已達 7 次，請至「舊桶報廢」分頁移除：\n" + res.alerts.join("\n"));
+      } else {
+        alert('✅ ' + res.message);
+      }
+    } else if(res) {
+      alert('❌ ' + res.message);
+    }
+  }
+
+  async function handleArchiveSubmit(e) {
+    e.preventDefault();
+    const formObj = {};
+    for (const [key, value] of Object.entries(boxesData)) { if(value) formObj[key] = value; }
+    if(Object.keys(formObj).length === 0) { alert('請至少輸入一筆資料'); return; }
+
+    if(!confirm("確定要將這些桶子封存並移除庫存嗎？")) return;
+    
+    showLoading('封存處理中...');
+    const res = await fetchGasAPI('processArchiveForm', formObj);
+    hideLoading();
+
+    if(res && res.status === 'success') {
+      if(res.stats) refreshStats(); // 重新拉取
+      renderFields('archiveCount', 'archiveArea', 'archive_drum_', 'inputs-archive'); 
+      loadHighUsageList(); 
+      alert(res.message);
+    } else if(res) {
+      alert('❌ ' + res.message);
+    }
+  }
+
+  async function loadHighUsageList() {
+    const listArea = document.getElementById('archiveListArea');
+    if(!listArea) return;
+    listArea.innerHTML = '<div class="text-center text-muted py-3"><div class="spinner-border spinner-border-sm"></div> 讀取中...</div>';
+    
+    const list = await fetchGasAPI('getHighUsageDrums');
+    if(!list) {
+      listArea.innerHTML = '<div class="text-center text-danger py-3">讀取失敗</div>';
+      return;
+    }
+
+    if (list.length === 0) {
+      listArea.innerHTML = '<div class="text-center text-muted py-3">目前沒有超過 7 次的桶子 👍</div>';
+      return;
+    }
+    let html = '';
+    list.forEach(item => {
+      let dateStr = new Date(item.lastDate).toLocaleDateString();
+      html += `
+        <div class="archive-item d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+          <div>
+            <div class="fw-bold">${item.drumId}</div>
+            <div class="text-muted small">次數: ${item.count} | 狀態: ${item.status}</div>
+          </div>
+          <div class="text-end text-muted small">${dateStr}</div>
+        </div>
+      `;
+    });
+    listArea.innerHTML = html;
+  }
+
+  async function handleQuery() {
+    const startDate = document.getElementById('queryStartDate').value;
+    const endDate = document.getElementById('queryEndDate').value;
+    const action = document.getElementById('queryAction').value;
+    const drumId = document.getElementById('queryDrumId').value.trim();
+    
+    showLoading('搜尋中...');
+    const history = await fetchGasAPI('queryDrumHistoryAdvanced', {
+       startDate: startDate,
+       endDate: endDate,
+       action: action,
+       drumId: drumId
+    });
+    hideLoading();
+
+    const resultArea = document.getElementById('queryResultArea');
+    if(!history) return;
+
+    currentQueryData = history;
+    document.getElementById('queryCount').innerText = `共 ${history.length} 筆資料`;
+    
+    if (history.length === 0) {
+      resultArea.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4">查無符合條件的紀錄。</td></tr>';
+      return;
+    }
+    
+    let html = '';
+    history.forEach(item => {
+      let badgeClass = 'bg-secondary';
+      let icon = '';
+      if (item.action === '進場') { badgeClass = 'bg-success'; icon = '<i class="fas fa-sign-in-alt me-1"></i>'; }
+      else if (item.action === '出場') { badgeClass = 'bg-danger'; icon = '<i class="fas fa-sign-out-alt me-1"></i>'; }
+      else if (item.action === '報廢') { badgeClass = 'bg-dark'; icon = '<i class="fas fa-trash-alt me-1"></i>'; }
+      
+      const dateParts = item.date.split(' ');
+      const dateStr = dateParts[0] || item.date;
+      const timeStr = dateParts[1] || '';
+
+      html += `
+        <tr>
+          <td>
+            <div class="text-muted" style="font-size: 0.85rem;">${dateStr}</div>
+            <div class="text-muted mb-1" style="font-size: 0.85rem;">${timeStr}</div>
+            <span class="badge ${badgeClass}">${icon} ${item.action}</span>
+          </td>
+          <td class="fw-bold text-primary">${item.id}</td>
+          <td class="text-muted small"><i class="fas fa-file-excel me-1"></i>${item.sheet}</td>
+        </tr>
+      `;
+    });
+    resultArea.innerHTML = html;
+  }
+
+  function exportToExcel() {
+    if (currentQueryData.length === 0) {
+      alert("沒有可匯出的資料！請先進行搜尋。");
+      return;
+    }
+    
+    const exportData = currentQueryData.map(item => ({
+      "時間 / 狀態": item.date,
+      "動作": item.action,
+      "桶號 (BATCH)": item.id,
+      "資料來源": item.sheet
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    
+    worksheet['!cols'] = [
+      { wch: 22 }, 
+      { wch: 10 }, 
+      { wch: 25 }, 
+      { wch: 15 }  
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "歷史紀錄");
+    
+    const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, "");
+    XLSX.writeFile(workbook, `歷史紀錄_${dateStr}.xlsx`);
+  }
+
+  function showLoading(txt) { document.getElementById('loadingText').innerText = txt; document.getElementById('loading').style.display = 'flex'; }
+  function hideLoading() { document.getElementById('loading').style.display = 'none'; }
+</script>
+
+</body>
+</html>

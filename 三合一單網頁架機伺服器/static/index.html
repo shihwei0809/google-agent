@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>台積電槽車 Barcode 三合一單與運輸通知表 - 架機專用線上產生器</title>
+    <title>勝一三合一單與運輸通知表 - 架機專用線上產生器</title>
     <!-- 引入 SheetJS -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
@@ -104,7 +104,7 @@
             <thead>
                 <tr>
                     <th style="width: 40px;">項次</th>
-                    <th style="width: 170px;">批號 (請輸入 10 碼)</th>
+                    <th style="width: 170px;">批號 (請輸入 10~11 碼)</th>
                     <th style="width: 90px;">槽號 (自動)</th>
                     <th style="width: 120px;">地點 (如 18P3B)</th>
                     <th style="width: 220px;">長代號 (自動)</th>
@@ -381,7 +381,7 @@
 
             tr.innerHTML = `
                 <td>${rowIdx}</td>
-                <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="10" placeholder="26814E3191" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
+                <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="11" placeholder="26814E3191" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
                 <td><input type="text" class="read-only" id="tank_${rowIdx}" readonly placeholder="自動槽號"></td>
                 <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
                 <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照" onclick="handleLongCodeClick(${rowIdx})"></td>
@@ -405,18 +405,19 @@
 
     function getTankFromBatch(batch) {
         batch = batch.trim().toUpperCase();
-        if (batch.length !== 10) return "";
-        if (batch.endsWith("J1")) {
-            return batch.substring(5, 8);
+        if (!batch) return "";
+        // 從第6碼 (index 5) 開始抓，抓到倒數第2碼之前 (剃除結尾的 T1)
+        if (batch.length === 10 || batch.length === 11) {
+            return batch.substring(5, batch.length - 2);
         }
-        return batch.substring(5, 9);
+        return "";
     }
 
     function onBatchChange(idx) {
         const batchVal = document.getElementById(`batch_${idx}`).value.trim().toUpperCase();
         document.getElementById(`batch_${idx}`).value = batchVal;
         
-        if (batchVal.length === 10) {
+        if (batchVal.length === 10 || batchVal.length === 11) {
             const tank = getTankFromBatch(batchVal);
             document.getElementById(`tank_${idx}`).value = tank;
         } else {
@@ -677,7 +678,7 @@
                 // 檢查是否為日期 (包含 / 或 - 且有數字)
                 if ((upper.includes('/') || upper.includes('-')) && /\d/.test(upper) && !dateVal) {
                     dateVal = upper;
-                } else if (upper.length === 10 && !batchVal && /[A-Z]/.test(upper) && /\d/.test(upper)) {
+                } else if ((upper.length === 10 || upper.length === 11) && !batchVal && /[A-Z]/.test(upper) && /\d/.test(upper)) {
                     batchVal = upper;
                 } else if ((SERVER_MAPPING[upper] || upper.includes('18P') || upper.includes('15P') || upper.includes('P3') || upper.length <= 6) && !locVal && upper !== batchVal && !upper.includes('/')) {
                     locVal = upper;
@@ -1156,19 +1157,19 @@
                         let poVal = poCol !== -1 ? String(row[poCol] || "").trim() : "";
                         let custVal = custCol !== -1 ? String(row[custCol] || "").trim() : "";
 
-                        // 如果指定欄位不是有效 10 碼批號，在整列搜尋符合 10 碼英數混合字串 (如 26817E3051, 26731E44J1)
-                        if (batchVal.length !== 10 || !/[0-9]/.test(batchVal)) {
+                        // 如果指定欄位不是有效 10~11 碼批號，在整列搜尋符合 10~11 碼英數混合字串 (如 26817E3051, 26731E44J1)
+                        if ((batchVal.length !== 10 && batchVal.length !== 11) || !/[0-9]/.test(batchVal)) {
                             for (let c = 0; c < row.length; c++) {
                                 let cellStr = String(row[c] || "").trim().toUpperCase();
-                                if (cellStr.length === 10 && /[0-9]/.test(cellStr) && /[A-Z]/.test(cellStr) && !cellStr.includes("/") && !cellStr.includes("-")) {
+                                if ((cellStr.length === 10 || cellStr.length === 11) && /[0-9]/.test(cellStr) && /[A-Z]/.test(cellStr) && !cellStr.includes("/") && !cellStr.includes("-")) {
                                     batchVal = cellStr;
                                     break;
                                 }
                             }
                         }
 
-                        // 鴻勝批號嚴格必須剛好為 10 碼
-                        if (batchVal.length !== 10 || !/[0-9]/.test(batchVal)) continue;
+                        // 鴻勝批號嚴格必須剛好為 10~11 碼
+                        if ((batchVal.length !== 10 && batchVal.length !== 11) || !/[0-9]/.test(batchVal)) continue;
 
                         // 排除明確非台積電客戶 (例如 南亞、長春、聯電、日月光等)
                         if (custVal && (custVal.includes("南亞") || custVal.includes("長春") || custVal.includes("聯電") || custVal.includes("日月光")) && !custVal.includes("台積")) {
@@ -1445,8 +1446,8 @@
             const poVal = document.getElementById(`po_${i}`) ? document.getElementById(`po_${i}`).value.trim() : "";
 
             if (batch || loc) {
-                if (batch.length !== 10) {
-                    alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10 碼。`);
+                if (batch.length !== 10 && batch.length !== 11) {
+                    alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10~11 碼。`);
                     return;
                 }
                 if (!SERVER_MAPPING[loc]) {
@@ -1532,6 +1533,7 @@
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {
+            hideLoading();
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = origBtnText;
@@ -1551,8 +1553,8 @@
             const poVal = document.getElementById(`po_${i}`) ? document.getElementById(`po_${i}`).value.trim() : "";
 
             if (batch || loc) {
-                if (batch.length !== 10) {
-                    alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10 碼。`);
+                if (batch.length !== 10 && batch.length !== 11) {
+                    alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10~11 碼。`);
                     return;
                 }
                 if (!SERVER_MAPPING[loc]) {
@@ -1633,6 +1635,7 @@
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {
+            hideLoading();
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = origBtnText;
@@ -1758,6 +1761,7 @@
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {
+            hideLoading();
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = origBtnText;

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -1533,6 +1533,7 @@
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {
+            hideLoading();
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = origBtnText;
@@ -1634,6 +1635,7 @@
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {
+            hideLoading();
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = origBtnText;
@@ -1759,6 +1761,7 @@
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {
+            hideLoading();
             if (btn) {
                 btn.disabled = false;
                 btn.innerHTML = origBtnText;

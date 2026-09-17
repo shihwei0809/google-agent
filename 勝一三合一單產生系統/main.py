@@ -1,4 +1,4 @@
-import pytesseract
+﻿import pytesseract
 from pytesseract import Output
 from tkinter import filedialog
 from io import BytesIO
@@ -1816,6 +1816,37 @@ class App(tk.Tk):
 
 
 
+
+    def _extract_batch_from_coa(self, file_path):
+        import csv
+        try:
+            with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if len(row) >= 2 and 'RawLotId' in str(row[0]):
+                        return str(row[1]).strip()
+        except:
+            pass
+        try:
+            with open(file_path, 'r', encoding='cp950', errors='ignore') as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    if len(row) >= 2 and 'RawLotId' in str(row[0]):
+                        return str(row[1]).strip()
+        except:
+            pass
+        try:
+            import openpyxl
+            wb = openpyxl.load_workbook(file_path, data_only=True)
+            for sheet in wb.sheetnames:
+                ws = wb[sheet]
+                for row in ws.iter_rows(min_row=1, max_row=50, min_col=1, max_col=2):
+                    if row[0].value and 'RawLotId' in str(row[0].value) and row[1].value:
+                        return str(row[1].value).strip()
+        except:
+            pass
+        return None
+
     def load_coa_forms(self):
         file_paths = filedialog.askopenfilenames(
             title="選擇要載入的 COA 表單 (可多選)",
@@ -1852,6 +1883,13 @@ class App(tk.Tk):
                             break
                 
                     if not matched_batch:
+                        found_batch = self._extract_batch_from_coa(file_path)
+                        if found_batch:
+                            for b in valid_batches:
+                                if b == found_batch or b in found_batch or found_batch in b:
+                                    matched_batch = b
+                                    break
+                    if not matched_batch:
                         error_msgs.append(f"找不到對應批號: {os.path.basename(file_path)}")
                         continue
                 
@@ -1863,8 +1901,14 @@ class App(tk.Tk):
                     formatted_date = date_str.replace("/", "").replace("-", "")
                 
                     idx = base_name.upper().find(matched_batch)
-                    prefix = base_name[:idx]
-                    suffix = base_name[idx + len(matched_batch):]
+                    if idx == -1:
+                        prefix = base_name + "_"
+                        suffix = ""
+                        idx = len(prefix)
+                        base_name = prefix + matched_batch
+                    else:
+                        prefix = base_name[:idx]
+                        suffix = base_name[idx + len(matched_batch):]
                 
                     date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
                     mmdd_pattern = r'\b\d{4}(?=[-_]$)'

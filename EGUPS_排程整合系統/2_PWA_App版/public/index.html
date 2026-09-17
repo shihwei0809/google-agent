@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e293b">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
+  </script>
+  
+  <style>
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .sticky-col { position: sticky; left: 0; z-index: 20; background: #f8fafc; border-right: 2px solid #cbd5e1; min-width: 110px; white-space: nowrap; }
+    .section-divider { border-bottom: 2px dashed #94a3b8; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    function CombinedManager() {
+      const [isDataLoaded, setIsDataLoaded] = useState(false);
+      const [saveStatus, setSaveStatus] = useState('idle');
+      
+      const [archiveList, setArchiveList] = useState([]);
+      const [selectedArchive, setSelectedArchive] = useState('');
+      const [isRestoring, setIsRestoring] = useState(false);
+      const lastSyncDataStrRef = useRef("");
+      const [conflictWarning, setConflictWarning] = useState(false);
+      const [debugInfo, setDebugInfo] = useState("");
+      
+      const [startDateTime, setStartDateTime] = useState('');
+      const [scheduleStartDateTime, setScheduleStartDateTime] = useState('');
+      
+      const [totalTonnage, setTotalTonnage] = useState('');
+      const [flowRate, setFlowRate] = useState('');
+      const [carCapacity, setCarCapacity] = useState('');
+      const [yieldRate, setYieldRate] = useState('');
+      const [carSequenceStr, setCarSequenceStr] = useState('');
+      const [carSequence, setCarSequence] = useState([]);
+      
+      const [initialStockDay0, setInitialStockDay0] = useState('');
+      const [stockTK623, setStockTK623] = useState(10);
+      const [stockTK689, setStockTK689] = useState(0);
+      const [stockTK692, setStockTK692] = useState(188);
+      const [stockOther, setStockOther] = useState(0);
+      const [otherCapacity, setOtherCapacity] = useState(0);
+
+      const [safetyStock, setSafetyStock] = useState('');
+      const [manualInputs, setManualInputs] = useState({});
+      const [scheduleInputs, setScheduleInputs] = useState({});
+      const [manualCarOverrides, setManualCarOverrides] = useState({});
+
+      const formatDateTimeForInput = (rawVal) => {
+        if (!rawVal) return '';
+        let cleanVal = String(rawVal).replace(/'/g, '').trim(); 
+        if (cleanVal.includes(' ')) cleanVal = cleanVal.replace(' ', 'T'); 
+        if (cleanVal.length >= 16) cleanVal = cleanVal.substring(0, 16);
+        return cleanVal;
+      };
+
+      const getCurrentPayload = () => ({
+        startDateTime, scheduleStartDateTime, totalTonnage, flowRate, carCapacity, yieldRate, safetyStock, initialStockDay0,
+        stockTK623, stockTK689, stockTK692, stockOther, otherCapacity, manualInputs, carSequence, scheduleInputs, manualCarOverrides 
+      });
+
+      // 幫助函數：產生深度排序的 JSON 字串，避免任何嵌套層級的屬性順序不同導致比對失敗
+      const getNormalizedString = (obj) => {
+        if (obj === null || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(getNormalizedString);
+        const sorted = {};
+        Object.keys(obj).sort().forEach(k => {
+          sorted[k] = getNormalizedString(obj[k]);
+        });
+        return sorted;
+      };
+
+      const getDeepSortedJsonStr = (obj) => JSON.stringify(getNormalizedString(obj || {}));
+
+      const payloadRef = useRef({});
+      useEffect(() => {
+        payloadRef.current = getCurrentPayload();
+      });
+
+      const fetchAllData = async (isBackground = false) => {
+        if (!isBackground) setIsDataLoaded(false);
+        try {
+          const res = await fetch('/api/data');
+          const json = await res.json();
+          if (json._error) {
+            if (!isBackground) { alert("【連線失敗】\n" + json._error); setIsDataLoaded(true); }
+            return;
+          }
+          
+          const incomingDataStr = getDeepSortedJsonStr(json.data);
+          
+          if (isBackground) {
+            if (incomingDataStr !== lastSyncDataStrRef.current) {
+              const currentPayloadStr = getDeepSortedJsonStr(payloadRef.current);
+              if (currentPayloadStr === lastSyncDataStrRef.current) {
+                // User hasn't made changes, auto update silently
+                applyDataToState(json.data || {});
+                lastSyncDataStrRef.current = incomingDataStr;
+                setSaveStatus('updated_by_other');
+                setTimeout(() => setSaveStatus('idle'), 5000);
+              } else {
+                // Conflict
+                setDebugInfo(`Incoming (${incomingDataStr.length}): ${incomingDataStr.substring(0, 50)}...\nLastSync (${lastSyncDataStrRef.current.length}): ${lastSyncDataStrRef.current.substring(0, 50)}...\nPayload (${currentPayloadStr.length}): ${currentPayloadStr.substring(0, 50)}...`);
+                setConflictWarning(true);
+              }
+            }
+          } else {
+            applyDataToState(json.data || {});
+            lastSyncDataStrRef.current = incomingDataStr;
+            setArchiveList(json.archiveList || []);
+            setIsDataLoaded(true);
+            setConflictWarning(false);
+          }
+        } catch (err) {
+          if (!isBackground) { alert("【伺服器無回應】\n" + err); setIsDataLoaded(true); }
+        }
+      };
+
+      const applyDataToState = (data) => {
+        if (data.startDateTime !== undefined) setStartDateTime(formatDateTimeForInput(data.startDateTime));
+        if (data.scheduleStartDateTime !== undefined) setScheduleStartDateTime(formatDateTimeForInput(data.scheduleStartDateTime));
+        if (data.totalTonnage !== undefined) setTotalTonnage(data.totalTonnage === '' ? '' : Number(data.totalTonnage));
+        if (data.flowRate !== undefined) setFlowRate(data.flowRate === '' ? '' : Number(data.flowRate));
+        if (data.carCapacity !== undefined) setCarCapacity(data.carCapacity === '' ? '' : Number(data.carCapacity));
+        if (data.yieldRate !== undefined) setYieldRate(data.yieldRate === '' ? '' : Number(data.yieldRate));
+        if (data.safetyStock !== undefined) setSafetyStock(data.safetyStock === '' ? '' : Number(data.safetyStock));
+        
+        if (data.initialStockDay0 !== undefined) setInitialStockDay0(data.initialStockDay0 === '' ? '' : Number(data.initialStockDay0));
+        if (data.stockTK623 !== undefined) setStockTK623(data.stockTK623 === '' ? '' : Number(data.stockTK623));
+        if (data.stockTK689 !== undefined) setStockTK689(data.stockTK689 === '' ? '' : Number(data.stockTK689));
+        if (data.stockTK692 !== undefined) setStockTK692(data.stockTK692 === '' ? '' : Number(data.stockTK692));
+        if (data.stockOther !== undefined) setStockOther(data.stockOther === '' ? '' : Number(data.stockOther));
+        if (data.otherCapacity !== undefined) setOtherCapacity(data.otherCapacity === '' ? '' : Number(data.otherCapacity));
+
+        if (data.manualInputs) setManualInputs(data.manualInputs); else setManualInputs({});
+        if (data.scheduleInputs) setScheduleInputs(data.scheduleInputs); else setScheduleInputs({});
+        if (data.manualCarOverrides) setManualCarOverrides(data.manualCarOverrides); else setManualCarOverrides({});
+        
+        if (data.carSequence && Array.isArray(data.carSequence)) { 
+          setCarSequence(data.carSequence); 
+          setCarSequenceStr(data.carSequence.join(', ')); 
+        } else {
+          setCarSequence([]); setCarSequenceStr("");
+        }
+      };
+
+      useEffect(() => {
+        fetchAllData();
+        const intervalId = setInterval(() => {
+           fetchAllData(true);
+        }, 10000);
+        return () => clearInterval(intervalId);
+      }, []);
+
+      const handleSave = async () => {
+        setSaveStatus('saving');
+        try {
+          const payload = getCurrentPayload();
+          const payloadStr = getNormalizedString(payload);
+          
+          const res = await fetch('/api/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const text = await res.text();
+          if (text === "SUCCESS") {
+            setSaveStatus('success');
+            lastSyncDataStrRef.current = payloadStr;
+            setConflictWarning(false);
+            setTimeout(() => setSaveStatus('idle'), 3000);
+          } else {
+            setSaveStatus('error');
+            alert("儲存失敗: " + text);
+          }
+        } catch (err) {
+          setSaveStatus('error');
+          alert("網路錯誤: " + err);
+        }
+      };
+
+      useEffect(() => {
+        if (!isDataLoaded || isRestoring) return;
+        const timer = setTimeout(handleSave, 2000);
+        return () => clearTimeout(timer);
+      }, [startDateTime, scheduleStartDateTime, totalTonnage, flowRate, carCapacity, yieldRate, safetyStock, initialStockDay0, stockTK623, stockTK689, stockTK692, manualInputs, carSequence, scheduleInputs]); 
+
+      const handleArchiveOnly = async () => {
+        const archiveName = window.prompt("請為這次的紀錄命名 (例如：2026-05專案)，以利未來讀取：\n\n系統將自動備份，且【不會】清空您目前的畫面。");
+        if (archiveName === null) return; 
+        if (archiveName.trim() === '') {
+          alert("必須輸入名稱才能備份！"); return;
+        }
+
+        setSaveStatus('saving');
+        const payload = getCurrentPayload();
+        
+        try {
+          const res = await fetch('/api/archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payload, archiveName })
+          });
+          const text = await res.text();
+          if (text === "SUCCESS") {
+            alert(`✅ 備份成功！已存為「${archiveName}」`);
+            fetchAllData();
+            setSaveStatus('success');
+            setTimeout(() => setSaveStatus('idle'), 2000);
+          } else {
+            alert("備份失敗：" + text); setSaveStatus('error');
+          }
+        } catch(err) {
+          alert("備份失敗：" + err); setSaveStatus('error');
+        }
+      };
+
+      const handleClearDataOnly = () => {
+        const isConfirmed = window.confirm("【系統警告】\n\n確定要清空「開機時間」、「目標產量」、「所有原料進貨資料」以及「排程明細資料」嗎？\n\n按「確定」將立即清除並同步至雲端，無法復原。");
+        if (isConfirmed) {
+          setStartDateTime('');
+          setScheduleStartDateTime('');
+          setTotalTonnage('');
+          setManualInputs({});
+          setScheduleInputs({});
+        }
+      };
+
+      const handleClearScheduleInputs = () => {
+        const isConfirmed = window.confirm("【警告】\n確定要清空排程表中所有手動輸入的「重車」與「空車」時間嗎？\n清空後將自動同步至雲端，無法復原。");
+        if (isConfirmed) {
+          setScheduleInputs({});
+        }
+      };
+
+      const handleRestoreArchive = () => {
+        if (!selectedArchive) {
+          alert("請先從下拉選單選擇一個歷史紀錄！"); return;
+        }
+        const isConfirmed = window.confirm(`【警告】\n確定要載入「${selectedArchive}」嗎？\n這將會完全覆蓋您畫面上目前的資料！`);
+        if (!isConfirmed) return;
+
+        const targetArchive = archiveList.find(a => a.id === selectedArchive);
+        if (targetArchive && targetArchive.dataStr) {
+           try {
+             setIsRestoring(true);
+             const parsedData = JSON.parse(targetArchive.dataStr);
+             applyDataToState(parsedData);
+             alert("✅ 載入成功！");
+             setTimeout(() => { setIsRestoring(false); handleSave(); }, 1000); 
+           } catch(e) {
+             alert("資料解析失敗！");
+           }
+        }
+      };
+
+      const formatDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+      // 雙軌分離：生產與排程計算
+      const { dailyUsageMap, dailyProductionMap, scheduleList } = useMemo(() => {
+        const usageMap = {}; const prodMap = {}; const list = [];
+        const flow = Number(flowRate) || 0; const tonnage = Number(totalTonnage) || 0;
+        const capacity = Number(carCapacity) || 0; const yieldR = Number(yieldRate) || 0;
+        
+        if (!startDateTime || flow <= 0 || tonnage <= 0) return { dailyUsageMap: usageMap, dailyProductionMap: prodMap, scheduleList: list };
+        
+        // 1. 生產與耗用邏輯 (依使用者要求：生產量依出料時間計算)
+        let prodRem = tonnage; 
+        let prodCur = scheduleStartDateTime ? new Date(scheduleStartDateTime).getTime() : new Date(startDateTime).getTime();
+        
+        while (prodRem > 0.001) {
+          const load = Math.min(prodRem, flow * 24); 
+          const dur = (load / flow) * 3600000;
+          const end = prodCur + dur;
+          
+          let chunkS = prodCur;
+          while (chunkS < end) {
+            const d = new Date(chunkS); const dStr = formatDateStr(d);
+            const nextM = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+            const chunkE = Math.min(end, nextM);
+            const prod = ((chunkE - chunkS) / 3600000) * flow;
+            const usage = yieldR > 0 ? (prod / (yieldR / 100)) : 0;
+            
+            prodMap[dStr] = (prodMap[dStr] || 0) + prod;
+            usageMap[dStr] = (usageMap[dStr] || 0) + usage;
+            chunkS = chunkE;
+          }
+          prodCur = end; prodRem -= load;
+        }
+
+        // 2. 槽車排程邏輯 (嚴格綁定 scheduleStartDateTime 排程起始時間)
+        if (carSequence.length > 0) {
+          let schStartMs = scheduleStartDateTime ? new Date(scheduleStartDateTime).getTime() : new Date(startDateTime).getTime();
+          let schCur = schStartMs; 
+          let schRem = tonnage; let count = 0;
+          while (schRem > 0.001) {
+            count++; const load = Math.min(schRem, capacity); const dur = (load / flow) * 3600000;
+            const end = schCur + dur;
+            
+            const baseCar = carSequence[(count-1) % carSequence.length];
+            const manualCar = manualCarOverrides[count];
+            
+            list.push({ 
+              id: count, 
+              baseCar: baseCar,
+              car: manualCar !== undefined ? manualCar : baseCar, 
+              start: schCur, 
+              end: end, 
+              load 
+            });
+            schCur = end; schRem -= load;
+          }
+        }
+        
+        return { dailyUsageMap: usageMap, dailyProductionMap: prodMap, scheduleList: list };
+      }, [startDateTime, scheduleStartDateTime, flowRate, totalTonnage, carCapacity, yieldRate, carSequence, manualCarOverrides]);
+
+      // 進耗存與成品估算合併表邏輯
+      const inventoryData = useMemo(() => {
+        const startObj = startDateTime ? new Date(startDateTime) : new Date(); const res = [];
+        
+        let curRawStock = parseFloat(initialStockDay0) || 0;
+        let curProdStock = (parseFloat(stockTK623) || 0) + (parseFloat(stockTK689) || 0) + (parseFloat(stockTK692) || 0) + (parseFloat(stockOther) || 0);
+        
+        const maxTankCapacity = 497 + (Number(otherCapacity) || 0); // 125 + 110 + 262 + otherCapacity
+        const maxTruckCapacity = (carSequence.length || 0) * (Number(carCapacity) || 0);
+        const maxTotalCapacity = maxTankCapacity + maxTruckCapacity;
+        
+        for (let i = 0; i < 30; i++) {
+          const d = new Date(startObj); d.setDate(startObj.getDate() + i); const dStr = formatDateStr(d);
+          const input = manualInputs[dStr] || {}; 
+          
+          const autoUsage = dailyUsageMap[dStr] || 0;
+          const autoProd = dailyProductionMap[dStr] || 0;
+          
+          const usage = input.manualUsage !== undefined ? (input.manualUsage === '' ? 0 : Number(input.manualUsage)) : autoUsage;
+          const prod = input.manualProd !== undefined ? (input.manualProd === '' ? 0 : Number(input.manualProd)) : autoProd;
+          
+          const transfer = Number(input.transfer) || 0; 
+          const incoming = Number(input.incoming) || 0; 
+          const returnAmt = Number(input.returnAmt) || 0; 
+          const manualOut = Number(input.manualOut) || 0; // 成品出料
+          
+          const totalIn = transfer + incoming + returnAmt; 
+          const remainingRaw = curRawStock + totalIn - usage;
+          const remainingProd = curProdStock + prod - manualOut;
+          
+          let prodWarning = 'none';
+          if (remainingProd >= maxTotalCapacity) prodWarning = 'full';
+          else if (remainingProd >= maxTankCapacity) prodWarning = 'truck';
+
+          res.push({
+            dateStr: dStr, displayDate: `${d.getMonth() + 1}/${d.getDate()}`,
+            initialRaw: curRawStock, transfer: input.transfer||'', incoming: input.incoming||'', 
+            usage, autoUsage,
+            returnAmt: input.returnAmt||'', totalIn, remainingRaw,
+            initialProd: curProdStock, 
+            prod, autoProd,
+            manualOut: input.manualOut||'', remainingProd,
+            isWeekend: [0, 6].includes(d.getDay()),
+            prodWarning
+          });
+          
+          curRawStock = remainingRaw;
+          curProdStock = remainingProd;
+        }
+        return res;
+      }, [startDateTime, initialStockDay0, stockTK623, stockTK689, stockTK692, stockOther, otherCapacity, carSequence, carCapacity, manualInputs, dailyUsageMap, dailyProductionMap]);
+
+      const maxTruckCapacityVal = (carSequence.length || 0) * (Number(carCapacity) || 0);
+
+      const totalIncoming30Days = useMemo(() => inventoryData.reduce((sum, day) => sum + day.totalIn, 0), [inventoryData]);
+
+      const exportCSV = (type) => {
+        let rows = []; let fileName = "";
+        if (type === 'inv') {
+          rows = [['日期', '期初原料', '調撥', '進貨', '耗用', '回吃', '原料結存', '期初成品', '預估生產', '成品出料', '成品結存']];
+          inventoryData.forEach(d => rows.push([
+            d.displayDate, Math.round(d.initialRaw), d.transfer, d.incoming, Math.round(d.usage), d.returnAmt, Math.round(d.remainingRaw),
+            Math.round(d.initialProd), Math.round(d.prod), d.manualOut, Math.round(d.remainingProd)
+          ]));
+          fileName = `原料與成品進耗存_${new Date().toLocaleDateString()}.csv`;
+        } else {
+          rows = [['序號', '車號', '開始時間', '預計完成時間', '重車回鴻勝', '空車回一廠', '備註 / 狀態', '負載(T)']];
+          scheduleList.forEach((s, index) => {
+            const isLast = index === scheduleList.length - 1;
+            const status = isLast ? `全案完工 (尾數 ${Math.round(s.load)}T)` : '滿載';
+            const heavy = scheduleInputs[s.id]?.heavyReturn || '';
+            const empty = scheduleInputs[s.id]?.emptyReturn || '';
+            rows.push([s.id, s.car, new Date(s.start).toLocaleString(), new Date(s.end).toLocaleString(), heavy, empty, status, Math.round(s.load)]);
+          });
+          fileName = `排程明細_${new Date().toLocaleDateString()}.csv`;
+        }
+        const csvContent = "\uFEFF" + rows.map(r => r.join(",")).join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a"); link.setAttribute("href", url); link.setAttribute("download", fileName);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      };
+
+      if (!isDataLoaded) return (
+        <div className="flex flex-col h-screen items-center justify-center font-bold text-slate-500 bg-slate-100">
+          <span className="text-4xl mb-4 animate-bounce">📦</span>
+          <p>系統連線初始化中...</p>
+        </div>
+      );
+
+      return (
+        <div className="min-h-screen bg-slate-100 p-4 text-[13px]">
+          
+          {conflictWarning && (
+            <div className="fixed top-0 left-0 w-full bg-red-600 text-white p-3 z-50 text-center shadow-lg flex flex-col justify-center items-center gap-2">
+              <span className="font-bold">⚠️ 警告：雲端資料已被其他人更新！繼續儲存將會覆蓋他人的進度。</span>
+              <span className="text-xs text-red-200">
+                {debugInfo}
+              </span>
+              <button 
+                onClick={() => { setConflictWarning(false); fetchAllData(); }}
+                className="bg-white text-red-600 px-3 py-1 rounded text-xs hover:bg-red-50 shadow font-bold"
+              >
+                放棄我的變更並載入最新資料
+              </button>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-[1500px] space-y-4">
+            
+            {/* 頂部控制面板 */}
+            <div className="bg-slate-800 text-white p-4 rounded-xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
+              <h1 className="text-lg font-bold flex items-center"><span className="mr-2 text-xl">📦</span> EGUPS 動態生產排程與進耗存整合系統</h1>
+              
+              <div className="flex flex-wrap items-center gap-3 bg-slate-700 p-2 rounded-lg border border-slate-600">
+                <span className="text-xs font-bold text-slate-300 ml-1">歷史存檔區：</span>
+                <select 
+                  className="bg-slate-600 text-white text-xs p-1.5 rounded border border-slate-500 focus:outline-none focus:border-blue-400 max-w-[150px]"
+                  value={selectedArchive}
+                  onChange={(e) => setSelectedArchive(e.target.value)}
+                >
+                  <option value="">-- 選擇歷史紀錄 --</option>
+                  {archiveList.map((a, idx) => (
+                    <option key={a.id + '_' + idx} value={a.id}>{a.id} ({String(a.time).split(' ')[0]})</option>
+                  ))}
+                </select>
+                <button onClick={handleRestoreArchive} className="bg-slate-500 hover:bg-slate-400 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
+                  <span className="mr-1">📂</span> 讀取
+                </button>
+                <div className="h-6 w-px bg-slate-600 mx-1"></div>
+                <button onClick={handleArchiveOnly} className="bg-indigo-500 hover:bg-indigo-400 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
+                  <span className="mr-1">💾</span> 備份存檔
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button onClick={handleClearDataOnly} className="bg-red-500 hover:bg-red-400 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
+                  <span className="mr-1">🗑️</span> 全清空畫面
+                </button>
+                <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
+                  <span className="mr-1">☁️</span> 強制儲存
+                </button>
+                <div className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-inner ${saveStatus === 'success' ? 'bg-emerald-500 text-white' : saveStatus === 'updated_by_other' ? 'bg-sky-500 text-white' : saveStatus === 'saving' ? 'bg-amber-500 text-white animate-pulse' : saveStatus === 'error' ? 'bg-red-500 text-white' : 'bg-slate-900 text-slate-300'}`}>
+                   {saveStatus === 'success' ? '● 雲端同步就緒' : saveStatus === 'updated_by_other' ? '🔄 已自動載入最新版' : saveStatus === 'saving' ? '○ 儲存中...' : saveStatus === 'error' ? '！寫入失敗' : '○ 即時輪詢中'}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-xl shadow border grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center"><span className="mr-2">⏱️</span> 產線排程設定</h2>
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="col-span-2">
+                    <label className="block text-[11px] font-bold mb-1 text-slate-700">預計開機時間 (排程表起始日)</label>
+                    <input type="datetime-local" value={startDateTime} onChange={e => setStartDateTime(e.target.value)} className="w-full p-2 border rounded text-xs" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-[11px] font-bold mb-1 text-purple-600">製程出料時間 (耗用與生產起點)</label>
+                    <input type="datetime-local" value={scheduleStartDateTime} onChange={e => setScheduleStartDateTime(e.target.value)} className="w-full p-2 border-2 border-purple-200 bg-purple-50 rounded text-xs" />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1">總目標產量(T)</label>
+                    <input type="number" value={totalTonnage} onChange={e => setTotalTonnage(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2 border rounded text-xs" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1">流速(T/hr)</label>
+                    <input type="number" step="0.1" value={flowRate} onChange={e => setFlowRate(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2 border rounded text-xs" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1">單車容量(T)</label>
+                    <input type="number" value={carCapacity} onChange={e => setCarCapacity(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2 border rounded text-xs" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1 text-orange-600">生產良率 (%)</label>
+                    <input type="number" value={yieldRate} onChange={e => setYieldRate(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2 border-2 border-orange-200 bg-orange-50 rounded text-xs font-bold text-orange-700" />
+                  </div>
+                  
+                  <div className="col-span-4 bg-indigo-50 border-2 border-indigo-100 p-2 rounded flex justify-between items-center">
+                    <label className="block text-[11px] font-bold text-indigo-600">預估原料總量 (T)</label>
+                    <div className="text-xs font-black text-indigo-800 flex items-center space-x-2">
+                      <span>{Number(yieldRate) > 0 && Number(totalTonnage) > 0 ? Math.round(Number(totalTonnage) / (Number(yieldRate)/100)) : '-'}</span>
+                      <span className="text-[9px] bg-indigo-200 px-1 rounded">自動計算</span>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold mb-1">槽車出車順序 (請使用逗號分隔)</label>
+                  <input type="text" value={carSequenceStr} onChange={e => {
+                    setCarSequenceStr(e.target.value);
+                    setCarSequence(e.target.value.split(',').map(s=>s.trim()).filter(Boolean));
+                  }} className="w-full p-2 border rounded text-xs" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center"><span className="mr-2">⚙️</span> 庫存防呆設定</h2>
+                
+                <div className="grid grid-cols-2 gap-3 mb-2">
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1 text-blue-600">第 1 日初始庫存 (T) - 原料</label>
+                    <input type="number" value={initialStockDay0} onChange={e => setInitialStockDay0(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2 border-2 border-blue-300 bg-blue-50 rounded text-xs font-bold text-blue-800" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold mb-1 text-red-500">安全庫存警示 (T)</label>
+                    <input type="number" value={safetyStock} onChange={e => setSafetyStock(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-2 border-2 border-red-200 bg-red-50 rounded text-xs font-bold text-red-800" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                  <div className="col-span-5 text-[11px] font-bold text-emerald-800 pb-1 border-b border-emerald-200 mb-1 flex justify-between">
+                    <span>期初各儲槽庫存量 (T) - 成品</span>
+                    <span>總容量滿位: 儲槽 {497 + (Number(otherCapacity)||0)} T + 槽車 {maxTruckCapacityVal} T</span>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK623 (125T)</label>
+                    <input type="number" value={stockTK623} onChange={e => setStockTK623(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-emerald-300 rounded text-xs font-bold text-emerald-800" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK689 (110T)</label>
+                    <input type="number" value={stockTK689} onChange={e => setStockTK689(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-emerald-300 rounded text-xs font-bold text-emerald-800" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold mb-1 text-emerald-700">TK692 (262T)</label>
+                    <input type="number" value={stockTK692} onChange={e => setStockTK692(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-emerald-300 rounded text-xs font-bold text-emerald-800" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold mb-1 text-orange-600">其他庫存量</label>
+                    <input type="number" value={stockOther} onChange={e => setStockOther(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-orange-300 bg-orange-50 rounded text-xs font-bold text-orange-800" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold mb-1 text-indigo-600">額外總容量</label>
+                    <input type="number" value={otherCapacity} onChange={e => setOtherCapacity(e.target.value === '' ? '' : Number(e.target.value))} className="w-full p-1.5 border border-indigo-300 bg-indigo-50 rounded text-xs font-bold text-indigo-800" placeholder="0" />
+                  </div>
+                  <div className="col-span-5 text-right text-[11px] font-bold text-emerald-800 mt-1">
+                    總計期初成品: { (Number(stockTK623)||0) + (Number(stockTK689)||0) + (Number(stockTK692)||0) + (Number(stockOther)||0) } T
+                  </div>
+                </div>
+
+                <div className="bg-sky-50 border-2 border-sky-100 p-2 rounded shadow-inner">
+                  <label className="block text-[11px] font-bold text-sky-600 mb-1">預排進貨總計 (T)</label>
+                  <div className="text-sm font-black text-sky-800 flex justify-between items-center">
+                    <span>{Math.round(totalIncoming30Days)}</span>
+                    <span className="text-[9px] bg-sky-200 px-1 rounded">動態讀取</span>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* 進耗存預估表 */}
+            <div className="bg-white rounded-xl shadow-md border overflow-hidden">
+               <div className="bg-slate-50 p-3 border-b flex justify-between items-center">
+                <span className="font-bold flex items-center text-slate-700"><span className="mr-2 text-base">📅</span> 未來 30 日動態進耗存與成品估算表</span>
+                 <button onClick={() => exportCSV('inv')} className="bg-white border px-3 py-1 rounded text-[11px] font-bold hover:bg-indigo-50 transition-colors shadow-sm flex items-center text-slate-600">
+                   <span className="mr-1.5">📥</span> 匯出 Excel
+                 </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-center border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-200">
+                      <th className="sticky-col p-3 font-bold border-b-2 border-slate-300">項目 / 日期</th>
+                      {inventoryData.map(d => (
+                        <th key={d.dateStr} className={`min-w-[65px] px-1 py-2 border-b-2 border-slate-300 font-bold ${d.isWeekend ? 'text-red-500 bg-red-50' : 'text-slate-600'}`}>{d.displayDate}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* ===== 原料區塊 ===== */}
+                    <tr className="bg-slate-50/50">
+                      <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-800 bg-blue-50/50">期初庫存量 (原料)</td>
+                      {inventoryData.map(d => <td key={d.dateStr} className="p-1 border-b font-bold text-slate-600 bg-blue-50/20">{Math.round(d.initialRaw)}</td>)}
+                    </tr>
+                    <tr>
+                      <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700">鴻勝調撥 (+)</td>
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className="p-0 border-b">
+                          <input type="number" value={manualInputs[d.dateStr]?.transfer || ''} 
+                            onChange={e => setManualInputs(prev => ({...prev, [d.dateStr]: {...(prev[d.dateStr]||{}), transfer: e.target.value}}))}
+                            className="w-full p-1 text-center text-blue-600 font-bold focus:bg-blue-50 focus:outline-none" />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700">進貨量 (+)</td>
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className="p-0 border-b">
+                          <input type="number" value={manualInputs[d.dateStr]?.incoming || ''} 
+                            onChange={e => setManualInputs(prev => ({...prev, [d.dateStr]: {...(prev[d.dateStr]||{}), incoming: e.target.value}}))}
+                            className="w-full p-1 text-center text-blue-600 font-bold focus:bg-blue-50 focus:outline-none" />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="bg-orange-50/30">
+                      <td className="sticky-col p-2 pl-4 text-left font-bold text-orange-700 border-b">預估使用量 (-)</td>
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className="p-0 border-b">
+                          <input type="number" 
+                            value={manualInputs[d.dateStr]?.manualUsage !== undefined ? manualInputs[d.dateStr].manualUsage : (d.autoUsage > 0 ? Math.round(d.autoUsage) : '')} 
+                            onChange={e => setManualInputs(prev => ({...prev, [d.dateStr]: {...(prev[d.dateStr]||{}), manualUsage: e.target.value}}))}
+                            className={`w-full p-1 text-center font-bold focus:outline-none ${manualInputs[d.dateStr]?.manualUsage !== undefined ? 'text-orange-800 bg-orange-100' : 'text-orange-600 focus:bg-orange-50'}`} placeholder="-" />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-teal-600">槽車回吃 (+)</td>
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className="p-0 border-b">
+                          <input type="number" value={manualInputs[d.dateStr]?.returnAmt || ''} 
+                            onChange={e => setManualInputs(prev => ({...prev, [d.dateStr]: {...(prev[d.dateStr]||{}), returnAmt: e.target.value}}))}
+                            className="w-full p-1 text-center text-teal-600 font-bold focus:bg-teal-50 focus:outline-none" />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="bg-slate-100 shadow-inner section-divider">
+                      <td className="sticky-col p-3 pl-4 text-left font-bold text-slate-800 bg-slate-200">原料結存剩餘</td>
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className={`p-1 border-b border-r border-slate-200 text-sm font-black ${Number(safetyStock) !== 0 && d.remainingRaw < Number(safetyStock) ? 'bg-red-500 text-white shadow-inner' : 'text-slate-800'}`}>
+                          {Math.round(d.remainingRaw)}
+                        </td>
+                      ))}
+                    </tr>
+                    
+                    {/* ===== 成品區塊 ===== */}
+                    <tr className="bg-emerald-50/30">
+                      <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-emerald-800 bg-emerald-50">期初庫存量 (成品)</td>
+                      {inventoryData.map(d => <td key={d.dateStr} className="p-1 border-b font-bold text-emerald-700 bg-emerald-50/50">{Math.round(d.initialProd)}</td>)}
+                    </tr>
+                    <tr className="bg-emerald-50/30">
+                      <td className="sticky-col p-2 pl-4 text-left font-bold text-emerald-700 border-b">預估生產量 (+)</td>
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className="p-0 border-b">
+                          <input type="number" 
+                            value={manualInputs[d.dateStr]?.manualProd !== undefined ? manualInputs[d.dateStr].manualProd : (d.autoProd > 0 ? Math.round(d.autoProd) : '')} 
+                            onChange={e => setManualInputs(prev => ({...prev, [d.dateStr]: {...(prev[d.dateStr]||{}), manualProd: e.target.value}}))}
+                            className={`w-full p-1 text-center font-bold focus:outline-none ${manualInputs[d.dateStr]?.manualProd !== undefined ? 'text-emerald-900 bg-emerald-200' : 'text-emerald-600 focus:bg-emerald-100'}`} placeholder="-" />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="bg-rose-50/30">
+                      <td className="sticky-col p-2 pl-4 text-left font-bold text-rose-700 border-b">成品出料 (-)</td>
+                      {inventoryData.map(d => (
+                        <td key={d.dateStr} className="p-0 border-b">
+                          <input type="number" value={manualInputs[d.dateStr]?.manualOut || ''} 
+                            onChange={e => setManualInputs(prev => ({...prev, [d.dateStr]: {...(prev[d.dateStr]||{}), manualOut: e.target.value}}))}
+                            className="w-full p-1 text-center text-rose-600 font-bold focus:bg-rose-50 focus:outline-none placeholder:text-rose-200" placeholder="-" />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="bg-slate-100 shadow-inner">
+                      <td className="sticky-col p-3 pl-4 text-left font-bold text-slate-800 bg-emerald-200/50">成品結存估算</td>
+                      {inventoryData.map(d => {
+                        let bgColor = 'bg-emerald-100 text-emerald-900';
+                        let animClass = '';
+                        let title = '儲槽仍有空間';
+                        if (d.prodWarning === 'full') {
+                          bgColor = 'bg-red-600 text-white shadow-inner';
+                          animClass = 'animate-pulse';
+                          title = '全部爆滿 (儲槽+槽車皆滿)';
+                        } else if (d.prodWarning === 'truck') {
+                          bgColor = 'bg-orange-500 text-white shadow-inner';
+                          title = '儲槽已滿，成品存放於槽車中';
+                        }
+                        return (
+                          <td key={d.dateStr} title={title} className={`p-1 border-b text-sm font-black border-r border-slate-200 ${bgColor} ${animClass}`}>
+                            {Math.round(d.remainingProd)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 排程明細表 */}
+            <div className="bg-white rounded-xl shadow-md border overflow-hidden">
+               <div className="bg-slate-50 p-3 border-b flex justify-between items-center">
+                <span className="font-bold flex items-center text-slate-700"><span className="mr-2 text-base">🚛</span> 自動產生排程明細 ({scheduleList.length} 車次)</span>
+                <div className="flex space-x-2">
+                  <button onClick={handleClearScheduleInputs} className="bg-white border border-red-200 text-red-600 px-3 py-1 rounded text-[11px] font-bold hover:bg-red-50 transition-colors shadow-sm flex items-center">
+                    <span className="mr-1.5">🧽</span> 清空空重車時間
+                  </button>
+                  <button onClick={() => exportCSV('sch')} className="bg-white border px-3 py-1 rounded text-[11px] font-bold hover:bg-emerald-50 transition-colors shadow-sm flex items-center text-slate-600">
+                    <span className="mr-1.5">📥</span> 匯出 Excel
+                  </button>
+                </div>
+              </div>
+              <div className="max-h-[350px] overflow-y-auto">
+                <table className="w-full text-center text-xs border-collapse">
+                  <thead className="bg-slate-100 sticky top-0 shadow-sm z-10">
+                    <tr>
+                      <th className="p-3 border-b border-slate-200 text-slate-600">序號</th>
+                      <th className="p-3 border-b border-slate-200 text-slate-800 font-bold">車號</th>
+                      <th className="p-3 border-b border-slate-200 text-slate-600">排程開始時間</th>
+                      <th className="p-3 border-b border-slate-200 text-slate-600">預計完成</th>
+                      <th className="p-3 border-b border-slate-200 text-blue-600 font-bold">重車回鴻勝<br/><span className="text-[10px] text-blue-400 font-normal">填寫日期/時間</span></th>
+                      <th className="p-3 border-b border-slate-200 text-teal-600 font-bold">空車回一廠<br/><span className="text-[10px] text-teal-400 font-normal">填寫日期/時間</span></th>
+                      <th className="p-3 border-b border-slate-200 text-slate-600">備註 / 狀態</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scheduleList.map((s, idx) => {
+                      const isLast = idx === scheduleList.length - 1;
+                      const isOverridden = manualCarOverrides[s.id] !== undefined && manualCarOverrides[s.id] !== s.baseCar;
+                      return (
+                        <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                          <td className="p-2 text-slate-500">{s.id}</td>
+                          <td className="p-1">
+                            <input type="text"
+                              value={s.car}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setManualCarOverrides(prev => ({...prev, [s.id]: val}));
+                              }}
+                              className={`w-20 p-1.5 text-center font-bold rounded focus:outline-none focus:ring-1 focus:ring-blue-400 transition-all ${isOverridden ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-transparent text-slate-800 hover:bg-slate-200'}`}
+                              title={isOverridden ? `原本為: ${s.baseCar}` : '點擊修改車號'}
+                            />
+                            {isOverridden && (
+                              <div className="text-[9px] text-amber-600">
+                                ✎ 手動 ({s.baseCar})
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-2 text-slate-600">{new Date(s.start).toLocaleString()}</td>
+                          <td className="p-2 text-slate-600">{new Date(s.end).toLocaleString()}</td>
+                          
+                          <td className="p-1">
+                            <input type="text" 
+                              value={scheduleInputs[s.id]?.heavyReturn || ''}
+                              onChange={e => setScheduleInputs(prev => ({...prev, [s.id]: {...(prev[s.id]||{}), heavyReturn: e.target.value}}))}
+                              className="w-28 p-1.5 text-center text-blue-700 bg-white border border-slate-200 rounded focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none transition-all placeholder:text-slate-300"
+                              placeholder="例如: 5/8 14:00"
+                            />
+                          </td>
+                          
+                          <td className="p-1">
+                            <input type="text" 
+                              value={scheduleInputs[s.id]?.emptyReturn || ''}
+                              onChange={e => setScheduleInputs(prev => ({...prev, [s.id]: {...(prev[s.id]||{}), emptyReturn: e.target.value}}))}
+                              className="w-28 p-1.5 text-center text-teal-700 bg-white border border-slate-200 rounded focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all placeholder:text-slate-300"
+                              placeholder="例如: 5/8 16:30"
+                            />
+                          </td>
+                          
+                          <td className="p-2">
+                            {isLast ? 
+                              <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-[10px] font-bold">全案完工 (尾數 {Math.round(s.load)}T)</span> 
+                              : <span className="text-slate-400 text-[11px]">滿載</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {scheduleList.length === 0 && (
+                      <tr><td colSpan="7" className="p-6 text-slate-400 font-medium">尚未設定完整的排程參數，無法產生明細。</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<CombinedManager />);
+  </script>
+</body>
+</html>

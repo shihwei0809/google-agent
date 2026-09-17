@@ -1,4 +1,4 @@
-import traceback
+﻿import traceback
 import os
 import sys
 import socket
@@ -194,6 +194,38 @@ def delete_location_from_excel(loc: str):
                 wb.close()
             except Exception as e:
                 print(f"自 {file_path} 刪除地點失敗: {e}")
+
+
+def _extract_batch_from_coa_bytes(content, ext):
+    import io
+    import csv
+    try:
+        f = io.StringIO(content.decode('utf-8-sig', errors='ignore'))
+        reader = csv.reader(f)
+        for row in reader:
+            if len(row) >= 2 and 'RawLotId' in str(row[0]):
+                return str(row[1]).strip()
+    except:
+        pass
+    try:
+        f = io.StringIO(content.decode('cp950', errors='ignore'))
+        reader = csv.reader(f)
+        for row in reader:
+            if len(row) >= 2 and 'RawLotId' in str(row[0]):
+                return str(row[1]).strip()
+    except:
+        pass
+    try:
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+        for sheet in wb.sheetnames:
+            ws = wb[sheet]
+            for row in ws.iter_rows(min_row=1, max_row=50, min_col=1, max_col=2):
+                if row[0].value and 'RawLotId' in str(row[0].value) and row[1].value:
+                    return str(row[1].value).strip()
+    except:
+        pass
+    return None
 
 def extract_tank_from_batch(batch_no: str) -> str:
     batch = batch_no.strip().upper()
@@ -906,6 +938,12 @@ async def generate_all_zip(request: Request):
                                 break
                         
                         if not matched_batch:
+                            found_batch = _extract_batch_from_coa_bytes(coa_file["content"], ext)
+                            if found_batch:
+                                for b in valid_records:
+                                    if b == found_batch or b in found_batch or found_batch in b:
+                                        matched_batch = b
+                                        break
                             continue
 
                         r = valid_records[matched_batch]
@@ -932,8 +970,16 @@ async def generate_all_zip(request: Request):
                                     pass
 
                         idx = base_name.upper().find(matched_batch)
-                        prefix = base_name[:idx]
-                        suffix = base_name[idx + len(matched_batch):]
+                        if idx == -1:
+                            import os as _os
+                            name_no_ext, ext_part = _os.path.splitext(base_name)
+                            prefix = name_no_ext + "_"
+                            suffix = ext_part
+                            idx = len(prefix)
+                            base_name = prefix + matched_batch + suffix
+                        else:
+                            prefix = base_name[:idx]
+                            suffix = base_name[idx + len(matched_batch):]
                         
                         import re
                         date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
