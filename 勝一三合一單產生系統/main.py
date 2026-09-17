@@ -2015,7 +2015,12 @@ class App(tk.Tk):
             msg += "\n\n錯誤紀錄:\n" + "\n".join(error_msgs)
             messagebox.showwarning("完成", msg)
         else:
+            
+        if success_count > 0:
+            self.generate_files()
+        else:
             messagebox.showinfo("完成", msg)
+
 
     def upload_coa(self):
         if not os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'):

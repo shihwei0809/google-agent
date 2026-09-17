@@ -1,4 +1,4 @@
-﻿import pytesseract
+import pytesseract
 from pytesseract import Output
 from tkinter import filedialog
 from io import BytesIO
@@ -1878,18 +1878,17 @@ class App(tk.Tk):
                     date_str = row["date_var"].get().strip()
                     formatted_date = date_str.replace("/", "").replace("-", "")
                 
-                    idx = base_name.upper().find(matched_batch)
+                    import os as _os
+                    name_no_ext, _ = _os.path.splitext(base_name)
+                    idx = name_no_ext.upper().find(matched_batch)
                     if idx == -1:
-                        # 如果檔名原本沒有批號，我們就在檔名最後補上批號
-                        import os as _os
-                        name_no_ext, ext_part = _os.path.splitext(base_name)
                         prefix = name_no_ext + "_"
-                        suffix = ext_part
+                        suffix = ""
                         idx = len(prefix)
-                        base_name = prefix + matched_batch + suffix
+                        name_no_ext = prefix + matched_batch
                     else:
-                        prefix = base_name[:idx]
-                        suffix = base_name[idx + len(matched_batch):]
+                        prefix = name_no_ext[:idx]
+                        suffix = name_no_ext[idx + len(matched_batch):]
                 
                     date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
                     mmdd_pattern = r'\b\d{4}(?=[-_]$)'
@@ -1899,13 +1898,8 @@ class App(tk.Tk):
                         prefix = re.sub(date_pattern, formatted_date, prefix)
                     elif re.search(mmdd_pattern, prefix):
                         prefix = re.sub(mmdd_pattern, date_MMDD, prefix)
-                    else:
-                        if prefix.endswith("_") or prefix.endswith("-"):
-                            prefix = formatted_date + prefix
-                        else:
-                            prefix = formatted_date + "_" + prefix if prefix else formatted_date + "_"
                 
-                    new_base = f"{prefix}{base_name[idx:idx+len(matched_batch)]}{suffix}"
+                    new_base = f"{prefix}{name_no_ext[idx:idx+len(matched_batch)]}{suffix}"
                     output_dir = os.path.join(self.base_dir, f"三合一單輸出_{formatted_date}")
                 
                     tank_str = row["tank_var"].get().strip()

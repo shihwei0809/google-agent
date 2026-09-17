@@ -1,4 +1,4 @@
-﻿import traceback
+import traceback
 import os
 import sys
 import socket
@@ -943,7 +943,8 @@ async def generate_all_zip(request: Request):
                                     if b == found_batch or b in found_batch or found_batch in b:
                                         matched_batch = b
                                         break
-                            continue
+                            if not matched_batch:
+                                continue
 
                         r = valid_records[matched_batch]
                         loc = r.get("loc", "").strip().upper()
@@ -968,32 +969,28 @@ async def generate_all_zip(request: Request):
                                 except ValueError:
                                     pass
 
+                        import os as _os
+                        base_name, real_ext = _os.path.splitext(base_name)
+                        
                         idx = base_name.upper().find(matched_batch)
                         if idx == -1:
-                            import os as _os
-                            name_no_ext, ext_part = _os.path.splitext(base_name)
-                            prefix = name_no_ext + "_"
-                            suffix = ext_part
+                            prefix = base_name + "_"
+                            suffix = ""
                             idx = len(prefix)
-                            base_name = prefix + matched_batch + suffix
+                            base_name = prefix + matched_batch
                         else:
                             prefix = base_name[:idx]
                             suffix = base_name[idx + len(matched_batch):]
                         
                         import re
                         date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
-                        mmdd_pattern = r'\b\d{4}(?=[-_]$)'
+                        mmdd_pattern = r'\b(?:0[1-9]|1[0-2])[0-3]\d\b'
                         if re.search(date_pattern, prefix) and formatted_date:
                             prefix = re.sub(date_pattern, formatted_date, prefix)
                         elif re.search(mmdd_pattern, prefix) and mmdd != "0000":
                             prefix = re.sub(mmdd_pattern, mmdd, prefix)
-                        else:
-                            if prefix.endswith("_") or prefix.endswith("-"):
-                                prefix = formatted_date + prefix if formatted_date else prefix
-                            else:
-                                prefix = formatted_date + "_" + prefix if prefix and formatted_date else (formatted_date + "_" if formatted_date else "")
 
-                        new_base = f"{prefix}{base_name[idx:idx+len(matched_batch)]}{suffix}"
+                        new_base = f"{prefix}{base_name[idx:idx+len(matched_batch)]}{suffix}{real_ext}"
                         
                         custom_tank = r.get("tank", "").strip()
                         if custom_tank and custom_tank != "自動槽號":
