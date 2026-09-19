@@ -99,6 +99,8 @@
         </div>
     </div>
 
+    <div id="coaStatusBox" style="display:none; margin: 6px 0 10px 0; padding: 10px 14px; border-radius: 6px; font-size:13px; border-left: 4px solid #388E3C; background:#E8F5E9; color:#1B5E20; white-space: pre-line;"></div>
+
     <div class="table-responsive">
         <table>
             <thead>
@@ -731,7 +733,7 @@
         const formData = new FormData();
         formData.append("file", file);
 
-        document.getElementById("statusBox").innerText = "🖼️ 正在透過瀏覽器 AI 分析 COA 圖片文字座標 (免安裝本地 OCR)... 這可能需要幾秒鐘";
+        document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = "🖼️ 正在透過瀏覽器 AI 分析 COA 圖片文字座標 (免安裝本地 OCR)... 這可能需要幾秒鐘";
         
         try {
             // 載入 Tesseract.js
@@ -916,15 +918,15 @@
 
             const data = await res.json();
             if (finalBoxes.length > 0) {
-                document.getElementById("statusBox").innerText = `✅ 截圖上傳成功！已成功精準定位 ${finalBoxes.length} 個批號數據列。`;
+                document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = `✅ 截圖上傳成功！已成功精準定位 ${finalBoxes.length} 個批號數據列。`;
                 alert(`🎉 COA 截圖上傳與 AI 辨識成功！\n系統已抓到圖片中 ${finalBoxes.length} 筆批號：\n${finalBoxes.map(b=>'• ' + b.text).join('\n')}\n\n產生 Excel 時會自動為每張單子裁切【表頭 + 該批號專屬數據列】！`);
             } else {
-                document.getElementById("statusBox").innerText = "✅ 截圖上傳成功！將由後端 Python 自動分析 TSMC 表格邊界與數據列。";
+                document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = "✅ 截圖上傳成功！將由後端 Python 自動分析 TSMC 表格邊界與數據列。";
                 alert(`🎉 COA 截圖上傳成功！\n前端文字辨識無直接命中，後端 Python 已啟動【表格幾何邊界識別】，自動為每張單子精確裁切【表頭 + 各筆數據列】！`);
             }
         } catch(err) {
             alert(`COA 截圖處理出錯: ${err}`);
-            document.getElementById("statusBox").innerText = "⚠️ 截圖上傳失敗。";
+            document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = "⚠️ 截圖上傳失敗。";
         } finally {
             hideLoading();
         }
@@ -936,11 +938,16 @@
         const file = e.target.files[0];
         if (!file) return;
 
+        const coaBox = document.getElementById("coaStatusBox");
+        coaBox.style.display = "block";
+        coaBox.style.borderLeftColor = "#F57C00";
+        coaBox.style.background = "#FFF8E1";
+        coaBox.style.color = "#E65100";
+        coaBox.textContent = "⏳ 正在上傳生產履歷...";
+
         showLoading("⏳ 正在上傳生產履歷...");
         const formData = new FormData();
         formData.append("file", file);
-
-        document.getElementById("statusBox").innerText = "📁 正在上傳附加檔案...";
 
         try {
             const res = await fetch("/api/upload_extra_file", {
@@ -949,17 +956,52 @@
             });
 
             if (!res.ok) {
+                coaBox.style.borderLeftColor = "#D32F2F";
+                coaBox.style.background = "#FFEBEE";
+                coaBox.style.color = "#B71C1C";
+                coaBox.textContent = "❌ 附加檔案上傳失敗。";
                 alert("附加檔案上傳失敗！");
-                document.getElementById("statusBox").innerText = "⚠️ 附加檔案上傳失敗。";
                 return;
             }
 
             const data = await res.json();
-            document.getElementById("statusBox").innerText = `✅ ${data.message}`;
-            alert(`🎉 生產履歷檔案上傳成功！\n稍後點擊【一鍵產生所有報表】時，系統會自動為每一筆排程產生專屬單列資料，並自動命名為「原檔名前半部-MMDD 槽號 廠別.xlsx」！`);
+            const lorryBatches = data.lorry_batches || [];
+
+            // 取得目前表格裡所有批號
+            const tableBatches = [];
+            document.querySelectorAll("input[id^='batch_']").forEach(el => {
+                const v = el.value.trim().toUpperCase();
+                if (v) tableBatches.push(v);
+            });
+
+            // 比對：找表格中有哪些批號「不在」生產履歷裡
+            let lines = [`✅ 生產履歷上傳成功（共 ${lorryBatches.length} 筆批號），排程比對結果：\n`];
+            let hasError = false;
+
+            if (tableBatches.length === 0) {
+                lines.push("ℹ️ 排程表格尚未輸入批號，無法比對。");
+            } else {
+                tableBatches.forEach(b => {
+                    if (!lorryBatches.includes(b)) {
+                        lines.push(`❌ 排程批號 ${b} ─ 生產履歷中找不到！`);
+                        hasError = true;
+                    } else {
+                        lines.push(`✅ 排程批號 ${b} ─ 生產履歷已找到`);
+                    }
+                });
+            }
+
+            coaBox.style.borderLeftColor = hasError ? "#D32F2F" : "#388E3C";
+            coaBox.style.background = hasError ? "#FFEBEE" : "#E8F5E9";
+            coaBox.style.color = hasError ? "#B71C1C" : "#1B5E20";
+            coaBox.textContent = lines.join("\n");
+
         } catch(err) {
+            coaBox.style.borderLeftColor = "#D32F2F";
+            coaBox.style.background = "#FFEBEE";
+            coaBox.style.color = "#B71C1C";
+            coaBox.textContent = `❌ 載入生產履歷出錯: ${err}`;
             alert(`載入生產履歷出錯: ${err}\n\n若您是在本地網頁操作，請確認「架設伺服器_一鍵啟動.bat」是否仍在運行中。`);
-            document.getElementById("statusBox").innerText = "⚠️ 載入生產履歷出錯，請確認伺服器連線狀態。";
         } finally {
             hideLoading();
         }
@@ -1156,7 +1198,7 @@
                         let poVal = poCol !== -1 ? String(row[poCol] || "").trim() : "";
                         let custVal = custCol !== -1 ? String(row[custCol] || "").trim() : "";
 
-                        // 如果指定欄位不是有效 10~11 碼批號，在整列搜尋符合 10~11 碼英數混合字串 (如 26817E3051, 26731E44J1)
+                        // 如果指定欄位不是有效 10 碼批號，在整列搜尋符合 10 碼英數混合字串 (如 26817E3051, 26731E44J1)
                         if (batchVal.length !== 10 || !/[0-9]/.test(batchVal)) {
                             for (let c = 0; c < row.length; c++) {
                                 let cellStr = String(row[c] || "").trim().toUpperCase();
@@ -1412,7 +1454,7 @@
             }
         });
 
-        document.getElementById("statusBox").innerText = `✅ 成功從 Excel 匯入 ${selectedRecords.length} 筆排程！`;
+        document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = `✅ 成功從 Excel 匯入 ${selectedRecords.length} 筆排程！`;
         hideImportModal();
     }
 
@@ -1470,7 +1512,7 @@
 
         const btn = document.getElementById("btnAll");
         const origBtnText = btn ? btn.innerHTML : "🚀 一鍵打包產生所有報表 (依地點分夾 ZIP)";
-        const statusBox = document.getElementById("statusBox");
+        const statusBox = document.getElementById("coaStatusBox");
 
         try {
             showLoading("⏳ 正在與伺服器通訊並產生所有 Excel 報表，請稍候...");
@@ -1478,7 +1520,7 @@
                 btn.disabled = true;
                 btn.innerHTML = "⏳ 正在產生所有報表，請稍候...";
             }
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = "⏳ 正在與伺服器通訊並產生所有 Excel 報表，請稍候...";
             }
 
@@ -1522,13 +1564,13 @@
             a.click();
             a.remove();
 
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = "🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！";
             }
             alert("🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！");
         } catch(e) {
             alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {
@@ -1577,14 +1619,14 @@
 
         const btn = document.getElementById("btnSingle3in1");
         const origBtnText = btn ? btn.innerHTML : "📄 單獨產生三合一單 Excel";
-        const statusBox = document.getElementById("statusBox");
+        const statusBox = document.getElementById("coaStatusBox");
 
         try {
             if (btn) {
                 btn.disabled = true;
                 btn.innerHTML = "⏳ 正在產生三合一單，請稍候...";
             }
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = "⏳ 正在產生三合一單 Excel，請稍候...";
             }
 
@@ -1624,13 +1666,13 @@
             a.click();
             a.remove();
 
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = "🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！";
             }
             alert("🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！");
         } catch(e) {
             alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {
@@ -1647,14 +1689,18 @@
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
+        const coaBox = document.getElementById("coaStatusBox");
+        coaBox.style.display = "block";
+        coaBox.style.borderLeftColor = "#F57C00";
+        coaBox.style.background = "#FFF8E1";
+        coaBox.style.color = "#E65100";
+        coaBox.textContent = `⏳ 正在上傳 ${files.length} 份 COA 表單...`;
+
         showLoading(`⏳ 正在上傳 ${files.length} 份 COA 表單...`);
         const formData = new FormData();
         for (let i = 0; i < files.length; i++) {
             formData.append("files", files[i]);
         }
-
-        const statusBox = document.getElementById("statusBox");
-        statusBox.innerText = `⏳ 正在上傳 ${files.length} 份 COA 表單...`;
 
         try {
             const res = await fetch("/api/upload_coa_files", {
@@ -1664,15 +1710,49 @@
 
             if (res.ok) {
                 const data = await res.json();
-                statusBox.innerText = `✅ ${data.message}`;
-                alert(data.message);
+                const coaBatches = data.coa_batches || [];
+
+                // 取得目前表格裡所有批號
+                const tableBatches = [];
+                document.querySelectorAll("input[id^='batch_']").forEach(el => {
+                    const v = el.value.trim();
+                    if (v) tableBatches.push(v.toUpperCase());
+                });
+
+                // 比對
+                let matchLines = [`✅ 成功上傳 ${files.length} 份 COA 表單，批號比對結果：\n`];
+                let hasError = false;
+                coaBatches.forEach(item => {
+                    const b = item.batch ? item.batch.toUpperCase() : "";
+                    const fname = item.filename;
+                    if (!b) {
+                        matchLines.push(`⚠️ ${fname}：無法解析批號`);
+                        hasError = true;
+                    } else if (tableBatches.length > 0 && !tableBatches.includes(b)) {
+                        matchLines.push(`❌ ${fname}：批號 ${b} ─ 表格中無此批號！`);
+                        hasError = true;
+                    } else {
+                        matchLines.push(`✅ ${fname}：批號 ${b} ─ 比對成功`);
+                    }
+                });
+
+                coaBox.style.borderLeftColor = hasError ? "#D32F2F" : "#388E3C";
+                coaBox.style.background = hasError ? "#FFEBEE" : "#E8F5E9";
+                coaBox.style.color = hasError ? "#B71C1C" : "#1B5E20";
+                coaBox.textContent = matchLines.join("\n");
             } else {
                 const err = await res.json();
-                statusBox.innerText = `❌ COA 表單上傳失敗: ${err.detail}`;
+                coaBox.style.borderLeftColor = "#D32F2F";
+                coaBox.style.background = "#FFEBEE";
+                coaBox.style.color = "#B71C1C";
+                coaBox.textContent = `❌ COA 表單上傳失敗: ${err.detail}`;
                 alert(`上傳失敗: ${err.detail}`);
             }
         } catch (error) {
-            statusBox.innerText = `❌ 連線失敗: ${error}`;
+            coaBox.style.borderLeftColor = "#D32F2F";
+            coaBox.style.background = "#FFEBEE";
+            coaBox.style.color = "#B71C1C";
+            coaBox.textContent = `❌ 連線失敗: ${error}`;
             alert(`連線失敗: ${error}`);
         } finally {
             hideLoading();
@@ -1713,14 +1793,14 @@
 
         const btn = document.getElementById("btnSingleTransport");
         const origBtnText = btn ? btn.innerHTML : "📄 單獨產生運輸通知表 Excel";
-        const statusBox = document.getElementById("statusBox");
+        const statusBox = document.getElementById("coaStatusBox");
 
         try {
             if (btn) {
                 btn.disabled = true;
                 btn.innerHTML = "⏳ 正在產生運輸通知表，請稍候...";
             }
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = "⏳ 正在產生運輸通知表 Excel，請稍候...";
             }
 
@@ -1750,13 +1830,13 @@
             a.click();
             a.remove();
 
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = "🎉 單獨產生運輸通知表成功！已為您下載運輸通知表 Excel！";
             }
             alert("🎉 單獨產生運輸通知表成功！已為您下載運輸通知表 Excel！");
         } catch(e) {
             alert(`產生失敗: ${e}`);
-            if (statusBox) {
+            if (statusBox) { statusBox.style.display="block";
                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
             }
         } finally {

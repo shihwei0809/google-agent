@@ -1,4 +1,4 @@
-﻿import pytesseract
+import pytesseract
 from pytesseract import Output
 from tkinter import filedialog
 from io import BytesIO
@@ -1013,12 +1013,14 @@ class ImportRangeDialog(tk.Toplevel):
 # ================= 核心邏輯 =================
 
 def get_tank_from_batch(batch):
-    batch = batch.strip().upper()
-    if not batch:
+    raw = batch.strip()  # 不轉大寫，嚴格要求 T1 本身必須是大寫
+    if not raw:
         return ""
-    # 不管 10 碼還是 11 碼，都是從第 6 碼 (index 5) 開始抓，並剃除最後 2 碼 (T1)
-    if len(batch) in (10, 11):
-        return batch[5:-2]
+    # 10 碼或 11 碼都合法，但最後 2 碼必須嚴格是大寫 T1
+    if len(raw) in (10, 11):
+        if raw[-2:] != "T1":
+            return "批號格式錯誤(尾碼非T1)"
+        return raw[5:-2]
     return "長度錯誤"
 
 def find_row_by_label(ws, labels):
@@ -1390,10 +1392,38 @@ class App(tk.Tk):
         finally:
             self.hide_loading()
             
-        messagebox.showinfo(
-            "生產履歷已載入", 
-            f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n稍後點擊【開始批次產生】時，系統會自動比對每筆排程批號並單列輸出。"
-        )
+        # 比對排程批號 vs 生產履歷批號
+        try:
+            import openpyxl as _opxl
+            _wb = _opxl.load_workbook(filepath, data_only=True)
+            _ws = _wb.active
+            lorry_batches = set()
+            for _r in range(7, _ws.max_row + 1):
+                _val = str(_ws.cell(row=_r, column=1).value or "").strip().upper()
+                if _val:
+                    lorry_batches.add(_val)
+
+            table_batches = [row["batch_var"].get().strip().upper() for row in self.entries if row["batch_var"].get().strip()]
+
+            missing = [b for b in table_batches if b not in lorry_batches]
+            found   = [b for b in table_batches if b in lorry_batches]
+
+            lines = [f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n"]
+            if not table_batches:
+                lines.append("ℹ️ 排程表格尚未輸入批號，無法比對。")
+            else:
+                for b in found:
+                    lines.append(f"✅ {b} ─ 生產履歷已找到")
+                for b in missing:
+                    lines.append(f"❌ {b} ─ 生產履歷中找不到！")
+
+            title = "生產履歷已載入" if not missing else "⚠️ 生產履歷載入 (有批號不符)"
+            messagebox.showinfo(title, "\n".join(lines))
+        except Exception as _e:
+            messagebox.showinfo(
+                "生產履歷已載入",
+                f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n稍後點擊【開始批次產生】時，系統會自動比對每筆排程批號並單列輸出。"
+            )
 
     def reload_mapping_with_msg(self):
         """點擊『🔄 重新載入對照表』時執行"""
@@ -1589,7 +1619,7 @@ class App(tk.Tk):
             
             # Col 3: 槽號
             tank_var = tk.StringVar()
-            tank_entry = tk.Entry(self.scrollable_frame, textvariable=tank_var, state="readonly", width=10, font=("Arial", 10), fg="blue")
+            tank_entry = tk.Entry(self.scrollable_frame, textvariable=tank_var, state="readonly", width=25, font=("Arial", 10), fg="blue")
             tank_entry.grid(row=row_grid_idx, column=3, padx=2, pady=2, sticky="ew")
 
             # Col 4: 品名
@@ -2014,10 +2044,6 @@ class App(tk.Tk):
         if error_msgs:
             msg += "\n\n錯誤紀錄:\n" + "\n".join(error_msgs)
             messagebox.showwarning("完成", msg)
-        else:
-            
-        if success_count > 0:
-            self.generate_files()
         else:
             messagebox.showinfo("完成", msg)
 

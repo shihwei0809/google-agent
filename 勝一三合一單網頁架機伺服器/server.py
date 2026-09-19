@@ -1,4 +1,4 @@
-﻿import traceback
+import traceback
 import os
 import sys
 import socket
@@ -228,12 +228,14 @@ def _extract_batch_from_coa_bytes(content, ext):
     return None
 
 def extract_tank_from_batch(batch_no: str) -> str:
-    batch = batch_no.strip().upper()
-    if not batch:
+    raw = batch_no.strip()  # 不轉大寫，嚴格要求 T1 本身必須是大寫
+    if not raw:
         return ""
-    # 不管 10 碼還是 11 碼，都是從第 6 碼 (index 5) 開始抓，並剃除最後 2 碼 (T1)
-    if len(batch) in (10, 11):
-        return batch[5:-2]
+    # 10 碼或 11 碼都合法，但最後 2 碼必須嚴格是大寫 T1
+    if len(raw) in (10, 11):
+        if raw[-2:] != "T1":
+            return ""
+        return raw[5:-2]
     return ""
 
 def normalize_time_str(raw):
@@ -1121,9 +1123,23 @@ async def upload_extra_file(file: UploadFile = File(...)):
             "ext": ext
         }
 
+        # 解析生產履歷裡的批號清單（第 1 欄，第 7 列起）
+        lorry_batches = []
+        try:
+            import openpyxl, io
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+            ws = wb.active
+            for r in range(7, ws.max_row + 1):
+                val = str(ws.cell(row=r, column=1).value or "").strip().upper()
+                if val and val not in lorry_batches:
+                    lorry_batches.append(val)
+        except:
+            pass
+
         return JSONResponse({
             "status": "success",
-            "message": f"附加檔案 {file.filename} 上傳成功！產生報表時將自動依排程複製與命名。"
+            "message": f"附加檔案 {file.filename} 上傳成功！產生報表時將自動依排程複製與命名。",
+            "lorry_batches": lorry_batches
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"附加檔案處理失敗: {e}")
@@ -1181,7 +1197,7 @@ if os.path.exists(static_dir):
     app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
 if __name__ == "__main__":
-    port = find_available_port(8002)
+    port = find_available_port(8004)
     local_ip = get_local_ip()
     print("============================================================")
     print(f"TSMC Lorry Barcode Server started successfully!")

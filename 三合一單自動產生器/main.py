@@ -1368,10 +1368,38 @@ class App(tk.Tk):
         finally:
             self.hide_loading()
             
-        messagebox.showinfo(
-            "生產履歷已載入", 
-            f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n稍後點擊【開始批次產生】時，系統會自動比對每筆排程批號並單列輸出。"
-        )
+        # 比對排程批號 vs 生產履歷批號
+        try:
+            import openpyxl as _opxl
+            _wb = _opxl.load_workbook(filepath, data_only=True)
+            _ws = _wb.active
+            lorry_batches = set()
+            for _r in range(7, _ws.max_row + 1):
+                _val = str(_ws.cell(row=_r, column=1).value or "").strip().upper()
+                if _val:
+                    lorry_batches.add(_val)
+            
+            table_batches = [row["batch_var"].get().strip().upper() for row in self.entries if row["batch_var"].get().strip()]
+            
+            missing = [b for b in table_batches if b not in lorry_batches]
+            found   = [b for b in table_batches if b in lorry_batches]
+            
+            lines = [f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n"]
+            if not table_batches:
+                lines.append("ℹ️ 排程表格尚未輸入批號，無法比對。")
+            else:
+                for b in found:
+                    lines.append(f"✅ {b} ─ 生產履歷已找到")
+                for b in missing:
+                    lines.append(f"❌ {b} ─ 生產履歷中找不到！")
+            
+            title = "生產履歷已載入" if not missing else "⚠️ 生產履歷載入 (有批號不符)"
+            messagebox.showinfo(title, "\n".join(lines))
+        except Exception as _e:
+            messagebox.showinfo(
+                "生產履歷已載入", 
+                f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n稍後點擊【開始批次產生】時，系統會自動比對每筆排程批號並單列輸出。"
+            )
 
     def reload_mapping_with_msg(self):
         """點擊『🔄 重新載入對照表』時執行"""

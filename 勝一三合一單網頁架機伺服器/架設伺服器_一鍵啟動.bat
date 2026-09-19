@@ -9,6 +9,6 @@ if %errorlevel% neq 0 (
     pip install fastapi uvicorn openpyxl qrcode pillow --disable-pip-version-check -q >nul 2>&1
 )
 
-start "" "http://localhost:8002"
+start "" "http://localhost:8004"
 cls
 python server.py

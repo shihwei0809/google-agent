@@ -1117,9 +1117,23 @@ async def upload_extra_file(file: UploadFile = File(...)):
             "ext": ext
         }
 
+        # 解析生產履歷裡的批號清單（第 1 欄，第 7 列起）
+        lorry_batches = []
+        try:
+            import openpyxl, io
+            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+            ws = wb.active
+            for r in range(7, ws.max_row + 1):
+                val = str(ws.cell(row=r, column=1).value or "").strip().upper()
+                if val and val not in lorry_batches:
+                    lorry_batches.append(val)
+        except:
+            pass
+
         return JSONResponse({
             "status": "success",
-            "message": f"附加檔案 {file.filename} 上傳成功！產生報表時將自動依排程複製與命名。"
+            "message": f"附加檔案 {file.filename} 上傳成功！產生報表時將自動依排程複製與命名。",
+            "lorry_batches": lorry_batches
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"附加檔案處理失敗: {e}")
@@ -1157,6 +1171,7 @@ COA_FILE_CACHE = []
 async def upload_coa_files(files: List[UploadFile] = File(...)):
     try:
         COA_FILE_CACHE.clear()
+        coa_batches = []
         for file in files:
             content = await file.read()
             ext = os.path.splitext(file.filename)[1].lower()
@@ -1165,9 +1180,15 @@ async def upload_coa_files(files: List[UploadFile] = File(...)):
                 "ext": ext,
                 "content": content
             })
+            batch = _extract_batch_from_coa_bytes(content, ext)
+            coa_batches.append({
+                "filename": file.filename,
+                "batch": batch or ""
+            })
         return JSONResponse({
             "status": "success",
-            "message": f"成功上傳 {len(files)} 份 COA 表單！產生三合一單時將自動比對批號並處理。"
+            "message": f"成功上傳 {len(files)} 份 COA 表單！產生三合一單時將自動比對批號並處理。",
+            "coa_batches": coa_batches
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"COA 表單上傳失敗: {e}")
