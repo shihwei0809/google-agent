@@ -43,6 +43,35 @@
       .badge-success { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
       .badge-fail { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
       .btn-photo { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; text-decoration: none; display: inline-flex; margin-left: 6px; }
+      /* 日期快捷晶片 */
+      .date-chip { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; border: 1.5px solid #e2e8f0; color: #64748b; background: #f8fafc; white-space: nowrap; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+      .date-chip.active { background: #2563eb; color: white; border-color: #2563eb; }
+      /* 紀錄卡片 */
+      .record-card { background: white; border-radius: 14px; padding: 14px 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+      .record-card-batch { font-size: 1.05rem; font-weight: 700; color: #1d4ed8; font-family: monospace; word-break: break-all; }
+      .record-card-time { font-size: 0.7rem; color: #94a3b8; font-family: monospace; }
+      .record-card-label { font-size: 0.68rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 1px; }
+      .record-card-field { font-size: 0.8rem; color: #475569; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      /* 查詢頁頂部 sticky */
+      #query-header { position: sticky; top: 0; z-index: 20; background: white; border-bottom: 1px solid #e2e8f0; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+      /* ── 響應式雙軌：桌機表格 / 手機卡片 ── */
+      @media (min-width: 769px) {
+        #view-query { max-width: 1280px !important; }
+        #cardContainer { display: none !important; }
+        #tableWrapper { display: block !important; }
+        #query-header { position: relative; }   /* 桌機不需黏頂 */
+      }
+      @media (max-width: 768px) {
+        #cardContainer { display: flex !important; flex-direction: column; gap: 10px; }
+        #tableWrapper { display: none !important; }
+      }
+      /* 桌機表格樣式 */
+      .dt-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+      .dt-table thead th { background: #f8fafc; color: #64748b; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; padding: 11px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+      .dt-table tbody td { padding: 13px 14px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; vertical-align: middle; }
+      .dt-table tbody tr:hover { background: #f8fafc; }
     </style>
   </head>
   <body>
@@ -113,61 +142,130 @@
       </div>
     </div>
 
-    <div id="view-query" class="w-full max-w-7xl mx-auto hidden-section">
-      <div class="bg-white rounded-2xl shadow-xl border border-white/60 overflow-hidden">
-         <div class="p-6 border-b border-slate-100 bg-white">
-             <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 mb-4">
-                 <div class="flex items-center gap-3">
-                    <div class="header-icon bg-slate-800"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg></div>
-                    <div><h1 class="text-xl font-bold text-slate-800">歷史紀錄</h1><p class="text-xs text-slate-500">共 <span id="total-badge">0</span> 筆資料</p></div>
-                 </div>
-                 <button onclick="showScan()" class="btn-action">回掃描頁</button>
-             </div>
-             
-             <div class="flex flex-col md:flex-row gap-3 mb-4">
-                 <div class="flex items-center gap-2 w-full md:w-auto">
-                     <input type="date" id="startDate" class="bg-slate-50 shadow-sm border p-2 rounded">
-                     <span class="text-slate-400">~</span>
-                     <input type="date" id="endDate" class="bg-slate-50 shadow-sm border p-2 rounded">
-                 </div>
-                 <div class="flex gap-2 flex-1">
-                     <input type="text" id="searchInput" placeholder="搜尋批號 / 單號 / 料號..." class="bg-slate-50 shadow-sm">
-                     <button onclick="searchData()" class="btn bg-blue-600 text-white hover:bg-blue-700 px-6 shadow-sm w-auto">搜尋</button>
-                     <button onclick="exportExcel()" class="btn btn-export shadow-sm w-auto whitespace-nowrap">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
-                        匯出 Excel
-                     </button>
-                 </div>
-             </div>
-         </div>
-         
-         <div class="overflow-x-auto min-h-[400px]">
-             <table class="custom-table">
-                 <thead>
-                     <tr>
-                         <th class="w-32">時間 / 狀態</th>
-                         <th class="text-blue-700">批號 (BATCH)</th>
-                         <th class="text-slate-600">單號資訊</th>
-                         <th>供應商</th>
-                         <th>料號</th>
-                         <th>槽號</th>
-                         <th>地點</th>
-                         <th>照片</th>
-                     </tr>
-                 </thead>
-                 <tbody id="tableBody"></tbody>
-             </table>
-             <div id="loadingOverlay" class="hidden-section p-10 text-center text-slate-400">讀取資料中...</div>
-         </div>
-         <div id="pagination" class="hidden-section p-4 border-t border-slate-100 flex justify-between items-center bg-slate-50">
-             <button id="prevBtn" onclick="changePage(-1)" class="btn-action">« 上一頁</button><span id="pageInfo" class="text-sm font-bold">1/1</span><button id="nextBtn" onclick="changePage(1)" class="btn-action">下一頁 »</button>
-         </div>
+
+    <div id="view-query" class="w-full max-w-2xl mx-auto hidden-section" style="padding-bottom:80px;">
+
+      <!-- 黏頂 header -->
+      <div id="query-header">
+        <!-- 標題列 -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="header-icon" style="width:36px;height:36px;background:linear-gradient(135deg,#1e293b,#334155);">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            </div>
+            <div>
+              <h1 class="text-base font-bold text-slate-800">歷史紀錄</h1>
+              <p class="text-xs text-slate-400">共 <span id="total-badge">0</span> 筆</p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="exportExcel()" class="btn-action btn-export" style="font-size:0.78rem;padding:6px 10px;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;display:inline;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>匯出
+            </button>
+            <button onclick="showScan()" class="btn-action" style="font-size:0.78rem;padding:6px 10px;">← 返回</button>
+          </div>
+        </div>
+
+        <!-- 日期快捷晶片 -->
+        <div class="flex gap-2 mb-2 overflow-x-auto no-scrollbar pb-1">
+          <button onclick="setQuickDate('3')" id="chip-3d" class="date-chip active">近3天</button>
+          <button onclick="setQuickDate('0')" id="chip-today" class="date-chip">今天</button>
+          <button onclick="setQuickDate('1')" id="chip-yday" class="date-chip">昨天</button>
+          <button onclick="setQuickDate('2')" id="chip-d2ago" class="date-chip">大昨天</button>
+          <button onclick="setQuickDate('custom')" id="chip-custom" class="date-chip">🗓 自訂</button>
+        </div>
+
+        <!-- 自訂日期列（預設隱藏） -->
+        <div id="customDateRow" class="hidden mb-2" style="display:none;">
+          <div class="flex gap-2 items-center">
+            <input type="date" id="startDate" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm flex-1">
+            <span class="text-slate-400 text-sm">~</span>
+            <input type="date" id="endDate" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm flex-1">
+            <button onclick="searchData()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold">GO</button>
+          </div>
+        </div>
+
+        <!-- 搜尋列 -->
+        <div class="flex gap-2">
+          <input type="text" id="searchInput" placeholder="批號 / 料號 / 供應商..." style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.875rem;flex:1;width:auto;">
+          <button onclick="searchData()" style="background:#2563eb;color:white;border-radius:8px;padding:9px 16px;font-size:0.875rem;font-weight:700;white-space:nowrap;">搜尋</button>
+        </div>
       </div>
+
+      <!-- 讀取中 -->
+      <div id="loadingOverlay" class="hidden-section p-10 text-center text-slate-400 text-sm">⏳ 讀取資料中...</div>
+
+      <!-- 桌機表格（手機隱藏） -->
+      <div id="tableWrapper" style="display:none;">
+        <div class="overflow-x-auto">
+          <table class="dt-table">
+            <thead>
+              <tr>
+                <th style="width:130px;">時間 / 狀態</th>
+                <th>單號資訊</th>
+                <th style="color:#1d4ed8;">批號 (BATCH)</th>
+                <th>供應商</th>
+                <th>料號</th>
+                <th>槽號</th>
+                <th>地點</th>
+                <th style="text-align:right;">照片</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 手機卡片容器（桌機隱藏） -->
+      <div id="cardContainer" class="p-3"></div>
+
+      <!-- 分頁 -->
+      <div id="pagination" class="hidden-section" style="background:white;border-top:1px solid #e2e8f0;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+        <button id="prevBtn" onclick="changePage(-1)" class="btn-action">« 上一頁</button>
+        <span id="pageInfo" class="text-sm font-bold text-slate-600">1 / 1</span>
+        <button id="nextBtn" onclick="changePage(1)" class="btn-action">下一頁 »</button>
+      </div>
+
+
     </div>
 
+
     <script>
-      function showQuery() { document.getElementById('view-scan').classList.add('hidden-section'); document.getElementById('view-query').classList.remove('hidden-section'); fetchData(); }
-      function showScan() { document.getElementById('view-query').classList.add('hidden-section'); document.getElementById('view-scan').classList.remove('hidden-section'); }
+      // ─── 頁面切換 ───────────────────────────────────────────
+      function showQuery() {
+        document.getElementById('view-scan').classList.add('hidden-section');
+        document.getElementById('view-query').classList.remove('hidden-section');
+        setQuickDate('3'); // 預設近3天
+      }
+      function showScan() {
+        document.getElementById('view-query').classList.add('hidden-section');
+        document.getElementById('view-scan').classList.remove('hidden-section');
+      }
+
+      // ─── 日期快捷邏輯 ────────────────────────────────────────
+      let activeChip = '3';
+      function getDateStr(offset) {
+        const d = new Date(); d.setDate(d.getDate() - offset);
+        return d.toISOString().slice(0, 10);
+      }
+      function setQuickDate(mode) {
+        activeChip = mode;
+        const chipMap = { '3':'chip-3d', '0':'chip-today', '1':'chip-yday', '2':'chip-d2ago', 'custom':'chip-custom' };
+        document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
+        document.getElementById(chipMap[mode]).classList.add('active');
+        const row = document.getElementById('customDateRow');
+        if (mode === 'custom') { row.style.display = 'block'; return; }
+        row.style.display = 'none';
+        currentPage = 1; fetchData();
+      }
+      function getQueryDates() {
+        if (activeChip === 'custom') {
+          return { start: document.getElementById('startDate').value, end: document.getElementById('endDate').value };
+        }
+        const map = { '3': [2, 0], '0': [0, 0], '1': [1, 1], '2': [2, 2] };
+        const [s, e] = map[activeChip] || [0, 0];
+        return { start: getDateStr(s), end: getDateStr(e) };
+      }
 
       // ★ V36 新增：匯出 Excel 功能
       function exportExcel() {
@@ -176,8 +274,8 @@
           btn.innerHTML = '處理中...'; btn.disabled = true;
 
           const search = document.getElementById('searchInput').value;
-          const start = document.getElementById('startDate').value;
-          const end = document.getElementById('endDate').value;
+          const { start, end } = getQueryDates();
+
 
           google.script.run.withSuccessHandler(function(data) {
               if(!data || data.length === 0) { alert("沒有資料可匯出"); btn.innerHTML = originalText; btn.disabled = false; return; }
@@ -313,32 +411,99 @@
       let currentPage = 1;
       function searchData() { currentPage = 1; fetchData(); }
       function changePage(d) { currentPage += d; fetchData(); }
-      function fetchData() { document.getElementById('loadingOverlay').classList.remove('hidden-section'); document.getElementById('tableBody').innerHTML = ''; google.script.run.withSuccessHandler(renderTable).getLogData(currentPage, document.getElementById('searchInput').value, document.getElementById('startDate').value, document.getElementById('endDate').value); }
-      function renderTable(data) {
-         document.getElementById('loadingOverlay').classList.add('hidden-section'); const tbody = document.getElementById('tableBody');
-         document.getElementById('total-badge').innerText = data.total;
-         if(data.records.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="p-10 text-center text-slate-400">📭 查無資料</td></tr>'; return; }
-         let html = '';
-         data.records.forEach(r => {
-            const success = r.status.includes('成功');
-            const statusBadge = `<span class="${success ? 'badge badge-success' : 'badge badge-fail'}">${success ? '✅' : '❌'}</span>`;
-            let photoBtns = '';
-            if(r.photoBatch && r.photoBatch.startsWith('http')) photoBtns += `<a href="${r.photoBatch}" target="_blank" class="btn-photo">📦COA批號</a>`;
-            if(r.photoLoc && r.photoLoc.startsWith('http')) photoBtns += `<a href="${r.photoLoc}" target="_blank" class="btn-photo">🏭槽號、批號、廠區和廠別</a>`;
-            
-            let orderHtml = '-';
-            if(r.sourceOrder || r.docOrder) {
-                orderHtml = '<div class="flex flex-col gap-1">';
-                if(r.sourceOrder) orderHtml += `<span class="text-xs bg-slate-100 p-1 rounded text-slate-600 font-mono" title="來源單號">來源單號: ${r.sourceOrder}</span>`;
-                if(r.docOrder)    orderHtml += `<span class="text-xs bg-blue-50 p-1 rounded text-blue-600 font-mono" title="磅單編號">磅單編號: ${r.docOrder}</span>`;
-                orderHtml += '</div>';
-            }
 
-            html += `<tr><td><div class="text-xs text-slate-400 mb-1 font-mono">${r.time}</div>${statusBadge}</td><td class="font-bold text-blue-700 font-mono text-sm">${r.batch}</td><td>${orderHtml}</td><td class="text-slate-500 text-xs">${r.supplier||'-'}</td><td class="text-slate-600 font-mono text-xs">${r.material}</td><td class="text-slate-600 font-mono text-xs">${r.tank}</td><td class="text-slate-600 text-xs">${r.location}</td><td>${photoBtns||'-'}</td></tr>`;
-         });
-         tbody.innerHTML = html;
-         document.getElementById('pagination').classList.remove('hidden-section'); document.getElementById('pageInfo').innerText = currentPage + " / " + data.totalPages;
-         document.getElementById('prevBtn').disabled = currentPage <= 1; document.getElementById('nextBtn').disabled = currentPage >= data.totalPages;
+      function fetchData() {
+        document.getElementById('loadingOverlay').classList.remove('hidden-section');
+        document.getElementById('cardContainer').innerHTML = '';
+        document.getElementById('tableBody').innerHTML = '';
+        const { start, end } = getQueryDates();
+        google.script.run
+          .withSuccessHandler(renderData)
+          .withFailureHandler(function(e){ document.getElementById('loadingOverlay').classList.add('hidden-section'); alert('載入失敗: ' + e); })
+          .getLogData(currentPage, document.getElementById('searchInput').value, start, end);
+      }
+
+      function renderData(data) {
+        document.getElementById('loadingOverlay').classList.add('hidden-section');
+        document.getElementById('total-badge').innerText = data.total;
+
+        const container  = document.getElementById('cardContainer');
+        const tbody      = document.getElementById('tableBody');
+
+        if (data.records.length === 0) {
+          container.innerHTML = '<div style="text-align:center;padding:60px 0;color:#94a3b8;font-size:0.9rem;">📭 查無資料</div>';
+          tbody.innerHTML = '<tr><td colspan="8" style="padding:60px;text-align:center;color:#94a3b8;">📭 查無資料</td></tr>';
+          document.getElementById('pagination').classList.add('hidden-section');
+          return;
+        }
+
+        let cardHtml  = '';
+        let tableHtml = '';
+
+        data.records.forEach(r => {
+          const success = r.status && (r.status.includes('成功') || r.status.includes('放行'));
+          const badge = success
+            ? '<span class="badge badge-success">✅ 核對成功</span>'
+            : '<span class="badge badge-fail">❌ 核對失敗</span>';
+
+          let photoBtns = '';
+          if (r.photoBatch && r.photoBatch.startsWith('http'))
+            photoBtns += `<a href="${r.photoBatch}" target="_blank" class="btn-photo">📦 COA</a>`;
+          if (r.photoLoc && r.photoLoc.startsWith('http'))
+            photoBtns += `<a href="${r.photoLoc}" target="_blank" class="btn-photo">🏭 地磅</a>`;
+
+          // ── 手機卡片 ──
+          const orderRows = [
+            r.sourceOrder ? `<div><div class="record-card-label">來源單號</div><div class="record-card-field" style="font-family:monospace;color:#475569;">${r.sourceOrder}</div></div>` : '',
+            r.docOrder    ? `<div><div class="record-card-label">磅單編號</div><div class="record-card-field" style="font-family:monospace;color:#2563eb;">${r.docOrder}</div></div>` : ''
+          ].join('');
+
+          cardHtml += `
+          <div class="record-card">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+              <div>
+                <div class="record-card-batch">${r.batch}</div>
+                <div class="record-card-time" style="margin-top:2px;">${r.time}</div>
+              </div>
+              ${badge}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:10px;">
+              <div><div class="record-card-label">料號</div><div class="record-card-field" style="font-family:monospace;">${r.material || '-'}</div></div>
+              <div><div class="record-card-label">槽號</div><div class="record-card-field" style="font-family:monospace;">${r.tank || '-'}</div></div>
+              <div><div class="record-card-label">供應商</div><div class="record-card-field">${r.supplier || '-'}</div></div>
+              <div><div class="record-card-label">地點</div><div class="record-card-field">${r.location || '-'}</div></div>
+              ${orderRows}
+            </div>
+            ${photoBtns ? `<div style="display:flex;gap:6px;padding-top:8px;border-top:1px solid #f1f5f9;">${photoBtns}</div>` : ''}
+          </div>`;
+
+          // ── 桌機表格列 ──
+          let orderCell = '-';
+          if (r.sourceOrder || r.docOrder) {
+            orderCell = '';
+            if (r.sourceOrder) orderCell += `<div style="font-size:0.75rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace;margin-bottom:2px;">來源: ${r.sourceOrder}</div>`;
+            if (r.docOrder)    orderCell += `<div style="font-size:0.75rem;background:#eff6ff;color:#2563eb;padding:2px 6px;border-radius:4px;font-family:monospace;">磅單: ${r.docOrder}</div>`;
+          }
+          tableHtml += `<tr>
+            <td><div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;margin-bottom:4px;">${r.time}</div>${badge}</td>
+            <td>${orderCell}</td>
+            <td style="font-weight:700;color:#1d4ed8;font-family:monospace;">${r.batch}</td>
+            <td style="color:#475569;font-size:0.82rem;">${r.supplier || '-'}</td>
+            <td style="font-family:monospace;font-size:0.82rem;color:#475569;">${r.material || '-'}</td>
+            <td style="font-family:monospace;font-size:0.82rem;color:#475569;">${r.tank || '-'}</td>
+            <td style="font-size:0.82rem;color:#475569;">${r.location || '-'}</td>
+            <td style="text-align:right;">${photoBtns || '-'}</td>
+          </tr>`;
+        });
+
+        container.innerHTML = cardHtml;
+        tbody.innerHTML     = tableHtml;
+
+        const pagination = document.getElementById('pagination');
+        pagination.classList.remove('hidden-section');
+        document.getElementById('pageInfo').innerText = currentPage + ' / ' + data.totalPages;
+        document.getElementById('prevBtn').disabled = currentPage <= 1;
+        document.getElementById('nextBtn').disabled = currentPage >= data.totalPages;
       }
     </script>
   </body>

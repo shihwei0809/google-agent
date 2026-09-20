@@ -1,0 +1,1403 @@
+       #!/usr/bin/env python3
+       # -*- coding: utf-8 -*-
+    1: """
+       CWA Weather Monitor and Notifier (CWA Open Data API 版)
+       透過 CWA Open Data API 拓取彰化縣線西鄉線西站即時觀測資料，自行計算體感溫度。
+       當溫度首次超標或首次回落時發送通知，並提供狀態防重複機制。
+       """
+       
+    1: import os
+    1: import sys
+    1: import re
+    1: import ast
+    1: import json
+    1: import datetime
+    1: import urllib.request
+    1: import urllib.error
+    1: import smtplib
+    1: import csv
+    1: import io
+    1: import math
+    1: import ssl
+    1: import time
+    1: from email.mime.text import MIMEText
+    1: from email.header import Header
+       
+       # 強制將標準輸出與錯誤輸出設定為 UTF-8 編碼，防止 Windows 終端機顯示亂碼
+    1: if hasattr(sys.stdout, 'reconfigure'):
+    1:     sys.stdout.reconfigure(encoding='utf-8')
+    1: if hasattr(sys.stderr, 'reconfigure'):
+    1:     sys.stderr.reconfigure(encoding='utf-8')
+       
+       # 設定工作目錄為腳本所在的目錄，以便讀取相對路徑的設定檔
+    1: SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    1: CONFIG_PATH = os.path.join(SCRIPT_DIR, "config.json")
+    1: STATE_PATH = os.path.join(SCRIPT_DIR, "last_notified.json")
+       
+       # 本機 CSV & XLSX 備份路徑 (分開為歷史通報與心跳明細)
+    1: LOCAL_NOTIFY_CSV = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報.csv")
+    1: LOCAL_HEARTBEAT_CSV = os.path.join(SCRIPT_DIR, "本地歷史紀錄_心跳明細.csv")
+    1: LOCAL_NOTIFY_XLSX = os.path.join(SCRIPT_DIR, "本地歷史紀錄_歷史通報.xlsx")
+    1: LOCAL_HEARTBEAT_XLSX = os.path.join(SCRIPT_DIR, "本地歷史紀錄_心跳明細.xlsx")
+       
+    1: def get_realtime_backup_paths():
+           """取得 24 小時趨勢備份的本機/雲端硬碟儲存路徑，支援自動建立資料夾，返回季度 CSV 與 XLSX 及每日 Sheet 名"""
+    1:     tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+    1:     now = datetime.datetime.now(tz_taiwan)
+    1:     year_str = now.strftime('%Y')
+    1:     quarter = (now.month - 1) // 3 + 1
+    1:     sheet_name = now.strftime('%m月%d日') # 例如 "06月30日"
+           
+    1:     csv_file = f"{year_str}-Q{quarter}_24小時趨勢備份.csv"
+    1:     xlsx_file = f"{year_str}-Q{quarter}_24小時趨勢備份.xlsx"
+           
+           # 優先嘗試寫入 Google Drive 虛擬硬碟 G:\
+    1:     g_drive_dir = r"G:\我的雲端硬碟\GOOGLE ANGET\溫度通報\24 小時趨勢備份"
+    1:     try:
+    1:         os.makedirs(g_drive_dir, exist_ok=True)
+    1:         return os.path.join(g_drive_dir, csv_file), os.path.join(g_drive_dir, xlsx_file), sheet_name
+           except Exception:
+               # 若 G 槽未掛載或無寫入權限，回退到本地目錄下
+               local_dir = os.path.join(SCRIPT_DIR, "24 小時趨勢備份")
+               os.makedirs(local_dir, exist_ok=True)
+               return os.path.join(local_dir, csv_file), os.path.join(local_dir, xlsx_file), sheet_name
+       
+    1: def append_to_monthly_xlsx(file_path, sheet_name, headers, row_data):
+           """將資料寫入指定年份 XLSX 檔案的指定月份工作表 (sheet_name)"""
+    1:     try:
+    1:         import openpyxl
+    1:         from openpyxl.utils import get_column_letter
+    1:         from openpyxl.styles import Font, PatternFill, Alignment
+           except ImportError:
+               return
+       
+    1:     try:
+    1:         file_exists = os.path.exists(file_path)
+    1:         if file_exists:
+    1:             try:
+    1:                 wb = openpyxl.load_workbook(file_path)
+                   except Exception:
+                       wb = openpyxl.Workbook()
+               else:
+                   wb = openpyxl.Workbook()
+       
+               # 獲取或建立指定工作表
+    1:         if sheet_name in wb.sheetnames:
+                   ws = wb[sheet_name]
+               else:
+    1:             ws = wb.create_sheet(title=sheet_name)
+                   # 如果新建的工作表是第一個（且預設工作表存在且為空），可以刪除預設的 "Sheet"
+    1:             if "Sheet" in wb.sheetnames and len(wb.sheetnames) > 1:
+                       default_sheet = wb["Sheet"]
+                       if default_sheet.max_row == 1 and default_sheet.cell(row=1, column=1).value is None:
+                           wb.remove(default_sheet)
+    1:             ws.append(headers)
+       
+    1:         ws.append(row_data)
+       
+               # 設定字型、背景填充與對齊
+    1:         header_font = Font(name="微軟正黑體", size=11, bold=True)
+    1:         header_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+    1:         header_align = Alignment(horizontal="center", vertical="center")
+    1:         data_font = Font(name="微軟正黑體", size=11)
+    1:         data_align = Alignment(horizontal="center", vertical="center")
+       
+               # 格式化所有儲存格的樣式
+    3:         for r_idx in range(1, ws.max_row + 1):
+    2:             is_header = (r_idx == 1)
+   10:             for c_idx in range(1, ws.max_column + 1):
+    8:                 cell = ws.cell(row=r_idx, column=c_idx)
+    8:                 if is_header:
+    4:                     cell.font = header_font
+    4:                     cell.fill = header_fill
+    4:                     cell.alignment = header_align
+                       else:
+    4:                     cell.font = data_font
+    4:                     if isinstance(cell.value, (int, float)):
+    2:                         cell.alignment = Alignment(horizontal="right", vertical="center")
+                           else:
+    2:                         cell.alignment = data_align
+       
+               # 自動調整欄寬
+    5:         for col in ws.columns:
+    4:             max_len = 0
+    4:             col_letter = get_column_letter(col[0].column)
+   12:             for cell in col:
+    8:                 if cell.value is not None:
+    8:                     val_str = str(cell.value)
+    8:                     width = 0
+   90:                     for char in val_str:
+   82:                         if ord(char) > 127:  # 中文與全形字元
+   18:                             width += 2
+                               else:
+   64:                             width += 1.1
+    8:                     if width > max_len:
+    7:                         max_len = width
+    4:             ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+       
+               # 更新總覽工作表
+    1:         update_quarterly_summary(wb)
+       
+    1:         wb.save(file_path)
+           except Exception as e:
+               print(f"【本機備份警告】寫入 {os.path.basename(file_path)} 工作表 {sheet_name} 失敗: {e}", file=sys.stderr)
+       
+    1: def update_quarterly_summary(wb):
+    1:     from openpyxl.styles import Font, PatternFill, Alignment
+    1:     summary_title = "季度單一匯總表總覽"
+    1:     if summary_title in wb.sheetnames:
+    1:         ws = wb[summary_title]
+    1:         wb.remove(ws)
+    1:     ws = wb.create_sheet(title=summary_title, index=0)
+           
+    1:     header_font = Font(name="微軟正黑體", size=14, bold=True, color="1F4E79")
+    1:     sub_font = Font(name="微軟正黑體", size=11, bold=True)
+    1:     normal_font = Font(name="微軟正黑體", size=11)
+    1:     fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    1:     fill_font = Font(name="微軟正黑體", size=11, bold=True, color="FFFFFF")
+    1:     align = Alignment(horizontal="center", vertical="center")
+    1:     left_align = Alignment(horizontal="left", vertical="center")
+           
+    1:     ws["A1"] = "24小時趨勢備份 — 季度單一匯總表總覽"
+    1:     ws["A1"].font = header_font
+    1:     ws["A3"] = "【匯總統計與月份標註】"
+    1:     ws["A3"].font = sub_font
+           
+    1:     ws.append(["項目", "內容說明"])
+           
+    1:     total_records = 0
+    1:     earliest_time = None
+    1:     latest_time = None
+    1:     month_stats = {}
+           
+    5:     for sheet_name in wb.sheetnames:
+    4:         if sheet_name == summary_title:
+    1:             continue
+    3:         sheet = wb[sheet_name]
+    3:         month_str = sheet_name[:3] if "月" in sheet_name else sheet_name
+    3:         if month_str not in month_stats:
+    3:             month_stats[month_str] = {"count": 0, "temps": [], "start": None, "end": None}
+                   
+    8:         for row in sheet.iter_rows(min_row=2, values_only=True):
+    5:             if not row or not row[0]: continue
+    5:             time_str = str(row[0])
+    5:             try:
+    5:                 temp = float(row[1])
+    5:                 month_stats[month_str]["temps"].append(temp)
+                   except:
+                       pass
+                       
+    5:             total_records += 1
+    5:             if not earliest_time or time_str < earliest_time:
+    1:                 earliest_time = time_str
+    5:             if not latest_time or time_str > latest_time:
+    5:                 latest_time = time_str
+                       
+    5:             if not month_stats[month_str]["start"] or time_str < month_stats[month_str]["start"]:
+    3:                 month_stats[month_str]["start"] = time_str
+    5:             if not month_stats[month_str]["end"] or time_str > month_stats[month_str]["end"]:
+    5:                 month_stats[month_str]["end"] = time_str
+                       
+    1:     ws.append(["資料類型", "24小時環境溫度趨勢備份紀錄"])
+    1:     months_covered = ", ".join(sorted(month_stats.keys()))
+    1:     ws.append(["目前涵蓋月份範圍", f"包含 {months_covered} (共 {len(month_stats)} 個月份)"])
+    1:     ws.append(["總資料筆數", f"{total_records} 筆"])
+    1:     ws.append(["最早記錄時間", earliest_time or "-"])
+    1:     ws.append(["最新記錄時間", latest_time or "-"])
+           
+    7:     for row_idx in range(4, 10):
+   18:         for col_idx in [1, 2]:
+   12:             cell = ws.cell(row=row_idx, column=col_idx)
+   12:             cell.font = normal_font
+   12:             cell.alignment = left_align
+   12:             if row_idx == 4:
+    2:                 cell.fill = fill
+    2:                 cell.font = fill_font
+    2:                 cell.alignment = align
+                       
+    1:     ws.append([])
+    1:     ws.append(["【各月份明細統計】"])
+    1:     ws.cell(row=11, column=1).font = sub_font
+           
+    1:     headers = ["月份", "記錄筆數", "起始記錄時間", "結束記錄時間", "平均溫度 (°C)", "最高溫度 (°C)", "最低溫度 (°C)"]
+    1:     ws.append(headers)
+           
+    8:     for col_idx, _ in enumerate(headers, 1):
+    7:         cell = ws.cell(row=12, column=col_idx)
+    7:         cell.fill = fill
+    7:         cell.font = fill_font
+    7:         cell.alignment = align
+               
+    4:     for m in sorted(month_stats.keys()):
+    3:         stat = month_stats[m]
+    3:         temps = stat["temps"]
+    3:         if not temps: continue
+    3:         avg_temp = round(sum(temps) / len(temps), 1)
+    3:         max_temp = round(max(temps), 1)
+    3:         min_temp = round(min(temps), 1)
+    3:         row = [m, f"{len(temps)} 筆", stat["start"], stat["end"], avg_temp, max_temp, min_temp]
+    3:         ws.append(row)
+               
+    3:         last_row = ws.max_row
+   24:         for col_idx in range(1, len(row) + 1):
+   21:             cell = ws.cell(row=last_row, column=col_idx)
+   21:             cell.font = normal_font
+   21:             cell.alignment = align
+       
+    1:     ws.column_dimensions["A"].width = 25
+    1:     ws.column_dimensions["B"].width = 35
+    1:     ws.column_dimensions["C"].width = 25
+    1:     ws.column_dimensions["D"].width = 25
+    1:     ws.column_dimensions["E"].width = 18
+    1:     ws.column_dimensions["F"].width = 18
+    1:     ws.column_dimensions["G"].width = 18
+       
+    1: def append_to_local_csv(file_path, headers, row_data):
+           """將資料寫入本機 CSV 檔案，若檔案不存在則自動建立並寫入表頭"""
+    3:     import csv
+    3:     file_exists = os.path.exists(file_path)
+    3:     try:
+               # 使用 utf-8-sig 以便 Excel 開啟時不亂碼 (BOM)
+    6:         with open(file_path, "a", encoding="utf-8-sig", newline="") as f:
+    3:             writer = csv.writer(f)
+    3:             if not file_exists:
+    2:                 writer.writerow(headers)
+    3:             writer.writerow(row_data)
+           except Exception as e:
+               print(f"【本機備份警告】寫入 {os.path.basename(file_path)} 失敗: {e}", file=sys.stderr)
+       
+    1: def append_to_local_xlsx(file_path, headers, row_data):
+           """將資料寫入本機 XLSX 檔案，若檔案不存在則自動從 CSV 載入歷史資料或建立新工作表，並自動調整欄寬與格式"""
+    2:     try:
+    2:         import openpyxl
+    2:         from openpyxl.utils import get_column_letter
+    2:         from openpyxl.styles import Font, PatternFill, Alignment
+           except ImportError:
+               # 若沒有安裝 openpyxl，則優雅地跳過以保持相容性
+               return
+       
+    2:     try:
+    2:         file_exists = os.path.exists(file_path)
+    2:         wb = openpyxl.Workbook()
+    2:         ws = wb.active
+    2:         ws.title = "歷史紀錄"
+       
+               # 如果 XLSX 不存在，但對應的 CSV 存在，則自動匯入舊資料
+    2:         csv_path = file_path.replace(".xlsx", ".csv")
+    2:         imported_from_csv = False
+               
+    2:         if not file_exists and os.path.exists(csv_path):
+    2:             try:
+    2:                 import csv
+    4:                 with open(csv_path, "r", encoding="utf-8-sig") as csv_f:
+    2:                     reader = csv.reader(csv_f)
+    2:                     rows = list(reader)
+    2:                     if rows:
+    6:                         for r in rows:
+    4:                             converted_row = []
+   28:                             for cell_val in r:
+   24:                                 try:
+   24:                                     if "." in cell_val:
+    4:                                         converted_row.append(float(cell_val))
+                                           else:
+   20:                                         converted_row.append(int(cell_val))
+   20:                                 except ValueError:
+   20:                                     converted_row.append(cell_val)
+    4:                             ws.append(converted_row)
+    2:                         imported_from_csv = True
+                   except Exception as csv_e:
+                       print(f"【匯入 CSV 警告】從 {os.path.basename(csv_path)} 匯入舊資料失敗: {csv_e}", file=sys.stderr)
+       
+    2:         if not file_exists and not imported_from_csv:
+                   # 檔案與 CSV 都不存在，建立全新工作表並寫入表頭與當前列
+                   ws.append(headers)
+                   ws.append(row_data)
+    2:         elif file_exists:
+                   # 檔案已存在，載入並附加新資料
+                   try:
+                       wb = openpyxl.load_workbook(file_path)
+                       ws = wb.active
+                       ws.append(row_data)
+                   except Exception:
+                       # 檔案損壞則重新建立
+                       ws.append(headers)
+                       ws.append(row_data)
+               else:
+                   # 已從 CSV 匯入舊資料，附加新資料（若新資料尚未寫入）
+   14:             last_row_vals = [ws.cell(row=ws.max_row, column=c).value for c in range(1, len(row_data) + 1)]
+    2:             csv_last_time = str(last_row_vals[0]) if last_row_vals and last_row_vals[0] else ""
+    2:             new_time = str(row_data[0])
+    2:             if csv_last_time != new_time:
+                       ws.append(row_data)
+       
+               # 設定字型、背景填充與對齊
+    2:         header_font = Font(name="微軟正黑體", size=11, bold=True)
+    2:         header_fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+    2:         header_align = Alignment(horizontal="center", vertical="center")
+    2:         data_font = Font(name="微軟正黑體", size=11)
+    2:         data_align = Alignment(horizontal="center", vertical="center")
+       
+               # 格式化所有儲存格的樣式
+    6:         for r_idx in range(1, ws.max_row + 1):
+    4:             is_header = (r_idx == 1)
+   28:             for c_idx in range(1, ws.max_column + 1):
+   24:                 cell = ws.cell(row=r_idx, column=c_idx)
+   24:                 if is_header:
+   12:                     cell.font = header_font
+   12:                     cell.fill = header_fill
+   12:                     cell.alignment = header_align
+                       else:
+   12:                     cell.font = data_font
+   12:                     if isinstance(cell.value, (int, float)):
+    4:                         cell.alignment = Alignment(horizontal="right", vertical="center")
+                           else:
+    8:                         cell.alignment = data_align
+       
+               # 自動調整欄寬
+   14:         for col in ws.columns:
+   12:             max_len = 0
+   12:             col_letter = get_column_letter(col[0].column)
+   36:             for cell in col:
+   24:                 if cell.value is not None:
+   24:                     val_str = str(cell.value)
+   24:                     width = 0
+  234:                     for char in val_str:
+  210:                         if ord(char) > 127:  # 中文與全形字元
+   81:                             width += 2
+                               else:  # 英文與半形字元
+  129:                             width += 1.1
+   24:                     if width > max_len:
+   20:                         max_len = width
+   12:             ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+       
+    2:         wb.save(file_path)
+           except Exception as e:
+               print(f"【本機備份警告】寫入 {os.path.basename(file_path)} 失敗: {e}", file=sys.stderr)
+       
+    1: def load_config():
+           """載入設定檔 config.json"""
+    1:     if not os.path.exists(CONFIG_PATH):
+               print(f"【錯誤】找不到設定檔: {CONFIG_PATH}", file=sys.stderr)
+               print("請參考 config.json 範例建立設定檔。", file=sys.stderr)
+               sys.exit(1)
+    1:     try:
+    2:         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    1:             return json.load(f)
+           except Exception as e:
+               print(f"【錯誤】讀取設定檔失敗: {e}", file=sys.stderr)
+               sys.exit(1)
+       
+    1: def load_state():
+           """載入最後發送狀態，用以防重複通知"""
+    1:     if os.path.exists(STATE_PATH):
+    1:         try:
+    2:             with open(STATE_PATH, "r", encoding="utf-8") as f:
+    1:                 return json.load(f)
+               except Exception:
+                   pass
+           return {"last_state": "COOL"}
+       
+    1: def save_state(state_name, last_run_time_str=None):
+           """儲存發送狀態與最後執行時間，如果為手動強制執行則不更新執行時間以防干擾排程"""
+    2:     try:
+    2:         existing_data = {}
+    2:         if os.path.exists(STATE_PATH):
+    2:             try:
+    4:                 with open(STATE_PATH, "r", encoding="utf-8") as f:
+    2:                     existing_data = json.load(f)
+                   except Exception:
+                       pass
+       
+    2:         data = {"last_state": state_name}
+    2:         is_force = "--force" in sys.argv
+       
+    2:         if is_force:
+                   # 手動測試不更新執行時間，優先保留原本檔案內的執行時間
+    2:             if "last_run_time" in existing_data:
+    2:                 data["last_run_time"] = existing_data["last_run_time"]
+                   elif last_run_time_str:
+                       data["last_run_time"] = last_run_time_str
+                   else:
+                       tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+                       data["last_run_time"] = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
+               else:
+                   if last_run_time_str:
+                       data["last_run_time"] = last_run_time_str
+                   else:
+                       tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+                       data["last_run_time"] = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
+                   
+    4:         with open(STATE_PATH, "w", encoding="utf-8") as f:
+    2:             json.dump(data, f, ensure_ascii=False, indent=2)
+           except Exception as e:
+               print(f"【警告】儲存發送狀態失敗: {e}", file=sys.stderr)
+       
+    1: import ssl
+       
+    1: def fetch_url(url):
+           """安全地下載網頁/資料內容"""
+    2:     req = urllib.request.Request(
+    1:         url,
+    1:         headers={
+    1:             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+               }
+           )
+    1:     context = ssl._create_unverified_context()
+    2:     with urllib.request.urlopen(req, timeout=15, context=context) as response:
+    1:         return response.read().decode("utf-8")
+       
+    1: def calc_apparent_temp(temp, rh, wind):
+           """依 CWA 公式計算體感溫度 AT
+           AT = T + 0.33*e - 0.70*V - 4.0
+           e  = (RH/100) * 6.105 * exp(17.27*T / (237.7+T))
+           """
+           e = (rh / 100.0) * 6.105 * math.exp((17.27 * temp) / (237.7 + temp))
+           at = temp + 0.33 * e - 0.70 * wind - 4.0
+           return round(at, 1)
+       
+       # ── Firebase 直接寫入（不依賴 GAS web_app_url）──────────────────────
+    1: _fb_token = None
+    1: _fb_token_expire = 0
+    1: _fb_project_id = None
+    1: _fb_ssl_ctx = ssl._create_unverified_context()
+       
+    1: def _get_firebase_token():
+           """取得 Firebase service account access token（有快取，每小時重新取一次）"""
+           global _fb_token, _fb_token_expire, _fb_project_id
+    4:     now = time.time()
+    4:     if _fb_token and now < _fb_token_expire - 60:
+    3:         return _fb_token, _fb_project_id
+    1:     key_path = os.path.join(SCRIPT_DIR, "firebase_key.json")
+    1:     if not os.path.exists(key_path):
+               return None, None
+    1:     try:
+    1:         from google.oauth2 import service_account
+    1:         from google.auth.transport.requests import Request as GRequest
+    2:         creds = service_account.Credentials.from_service_account_file(
+    1:             key_path,
+    1:             scopes=[
+    1:                 "https://www.googleapis.com/auth/datastore",
+    1:                 "https://www.googleapis.com/auth/spreadsheets.readonly"
+                   ]
+               )
+    1:         creds.refresh(GRequest())
+    2:         with open(key_path) as f:
+    1:             _fb_project_id = json.load(f)["project_id"]
+    1:         _fb_token = creds.token
+    1:         _fb_token_expire = now + 3600
+    1:         return _fb_token, _fb_project_id
+           except Exception as e:
+               print(f"【Firebase 憑證】取得失敗: {e}", file=sys.stderr)
+               return None, None
+       
+    1: def send_heartbeat_firebase(current_temp=None, threshold=None, obs_time=None,
+                                   alert_state=None, status_text=None):
+           """直接用 service account 把心跳資料寫入 Firestore realtime_data/status"""
+    2:     token, project_id = _get_firebase_token()
+    2:     if not token:
+               return
+    4:     url = (f"https://firestore.googleapis.com/v1/projects/{project_id}"
+    2:            f"/databases/(default)/documents/realtime_data/status")
+    2:     now_ms = int(time.time() * 1000)
+       
+    2:     def _fs(v):
+   14:         if isinstance(v, bool):  return {"booleanValue": v}
+   14:         if isinstance(v, int):   return {"integerValue": str(v)}
+   12:         if isinstance(v, float): return {"doubleValue": v}
+    8:         if v is None:            return {"nullValue": None}
+    8:         return {"stringValue": str(v)}
+       
+    2:     fields = {"last_heartbeat": _fs(now_ms), "heartbeat_source": _fs("local")}
+    2:     if current_temp is not None: fields["current_temp"] = _fs(current_temp)
+    2:     if threshold is not None:    fields["threshold"]    = _fs(threshold)
+    2:     if obs_time is not None:     fields["obs_time"]     = _fs(obs_time)
+    2:     if alert_state is not None:  fields["alert_state"]  = _fs(alert_state)
+    2:     if status_text is not None:  fields["status_text"]  = _fs(status_text)
+       
+           # 只 PATCH 這幾個欄位（不覆蓋其他設定欄位）
+   18:     update_mask = "&".join(f"updateMask.fieldPaths={k}" for k in fields)
+    2:     patch_url = url + "?" + update_mask
+       
+    2:     payload = json.dumps({"fields": fields}).encode("utf-8")
+    4:     req = urllib.request.Request(
+    2:         patch_url, data=payload, method="PATCH",
+    4:         headers={"Authorization": f"Bearer {token}",
+    2:                  "Content-Type": "application/json"}
+           )
+    2:     try:
+    4:         with urllib.request.urlopen(req, timeout=10, context=_fb_ssl_ctx):
+    2:             pass
+    2:         print("【Firebase 心跳】已直接寫入 Firestore")
+           except Exception as e:
+               print(f"【Firebase 心跳】寫入失敗: {e}", file=sys.stderr)
+       # ─────────────────────────────────────────────────────────────────────
+       
+    1: def add_realtime_log_to_firebase(current_temp, obs_time):
+           """將即時 10 分鐘觀測數據寫入 Firestore realtime_logs，並自動清理 24 小時前舊資料"""
+    1:     token, project_id = _get_firebase_token()
+    1:     if not token:
+               return
+    1:     url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents/realtime_logs"
+    1:     now_ms = int(time.time() * 1000)
+           
+           # 1. 寫入 10 分鐘即時記錄
+    1:     doc_id = "rt_" + str(now_ms)
+    1:     doc_url = f"{url}/{doc_id}"
+           
+    1:     def _fs(v):
+    3:         if isinstance(v, float): return {"doubleValue": v}
+    2:         return {"stringValue": str(v)}
+               
+    1:     fields = {
+    1:         "temp": _fs(current_temp),
+    1:         "time": _fs(datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime('%Y-%m-%d %H:%M:%S')),
+    1:         "obs_time": _fs(obs_time),
+    1:         "timestamp": {"integerValue": str(now_ms)}
+           }
+           
+    1:     payload = json.dumps({"fields": fields}).encode("utf-8")
+    2:     req = urllib.request.Request(
+    1:         doc_url, data=payload, method="PATCH",
+    2:         headers={"Authorization": f"Bearer {token}",
+    1:                  "Content-Type": "application/json"}
+           )
+    1:     try:
+    2:         with urllib.request.urlopen(req, timeout=10, context=_fb_ssl_ctx):
+    1:             pass
+    1:         print("【Firebase 即時紀錄】已寫入 realtime_logs")
+           except Exception as e:
+               print(f"【Firebase 即時紀錄】寫入失敗: {e}", file=sys.stderr)
+               
+           # 2. 自動清理 24 小時前的舊資料
+    1:     try:
+    1:         cutoff_ms = now_ms - 24 * 60 * 60 * 1000
+    1:         query_url = f"https://firestore.googleapis.com/v1/projects/{project_id}/databases/(default)/documents:runQuery"
+    1:         query_payload = {
+    2:             "structuredQuery": {
+    1:                 "from": [{"collectionId": "realtime_logs"}],
+    2:                 "where": {
+    2:                     "fieldFilter": {
+    1:                         "field": {"fieldPath": "timestamp"},
+    1:                         "op": "LESS_THAN",
+    1:                         "value": {"integerValue": str(cutoff_ms)}
+                           }
+                       }
+                   }
+               }
+    2:         req_query = urllib.request.Request(
+    1:             query_url, data=json.dumps(query_payload).encode("utf-8"), method="POST",
+    2:             headers={"Authorization": f"Bearer {token}",
+    1:                      "Content-Type": "application/json"}
+               )
+    2:         with urllib.request.urlopen(req_query, timeout=10, context=_fb_ssl_ctx) as resp:
+    1:             results = json.loads(resp.read().decode("utf-8"))
+    2:             for res in results:
+    1:                 doc = res.get("document")
+    1:                 if doc:
+                           doc_name = doc.get("name")
+                           del_url = f"https://firestore.googleapis.com/v1/{doc_name}"
+                           req_del = urllib.request.Request(
+                               del_url, method="DELETE",
+                               headers={"Authorization": f"Bearer {token}"}
+                           )
+                           with urllib.request.urlopen(req_del, timeout=5, context=_fb_ssl_ctx):
+                               pass
+    1:         print("【Firebase 即時紀錄】已清理 24 小時前舊資料")
+           except Exception as e:
+               print(f"【Firebase 即時紀錄】清理舊資料失敗: {e}", file=sys.stderr)
+       
+    1: def send_heartbeat(url, state_name=None, sync_type="heartbeat", current_temp=None, threshold=None, obs_time=None, alert_state=None, status_text=None):
+           """發送心跳與狀態同步給 Google Apps Script 雲端 Web App"""
+    3:     payload = {
+    3:         "action": "heartbeat",
+    3:         "type": sync_type
+           }
+    3:     if state_name:
+    2:         payload["local_state"] = state_name
+    3:     if current_temp is not None:
+    2:         payload["current_temp"] = current_temp
+    3:     if threshold is not None:
+    2:         payload["threshold"] = threshold
+    3:     if obs_time is not None:
+    2:         payload["obs_time"] = obs_time
+    3:     if alert_state is not None:
+    2:         payload["alert_state"] = alert_state
+    3:     if status_text is not None:
+    2:         payload["status_text"] = status_text
+               
+    3:     try:
+    3:         data = json.dumps(payload).encode("utf-8")
+    6:         req = urllib.request.Request(
+    3:             url,
+    3:             data=data,
+    3:             headers={
+    3:                 "Content-Type": "application/json",
+    3:                 "User-Agent": "Mozilla/5.0"
+                   },
+    3:             method="POST"
+               )
+    3:         context = ssl._create_unverified_context()
+    6:         with urllib.request.urlopen(req, timeout=10, context=context) as response:
+    3:             res_data = json.loads(response.read().decode("utf-8"))
+    3:             if res_data.get("status") == "success":
+    3:                 return res_data.get("cloud_state")
+           except Exception as e:
+               print(f"【同步警告】與雲端同步失敗: {e}", file=sys.stderr)
+           return None
+       
+    1: def parse_js_var(js_content, var_name):
+           """解析 JavaScript 檔案中的變數並轉換成 Python 物件"""
+           pattern = r"(?:var\s+)?{var_name}\s*=\s*({{.*?}}|[\[\'].*?[\]\'])\s*;".format(var_name=var_name)
+           match = re.search(pattern, js_content, re.DOTALL)
+           if not match:
+               pattern_no_semicolon = r"(?:var\s+)?{var_name}\s*=\s*({{.*?}}|[\[\'].*?[\]\'])".format(var_name=var_name)
+               match = re.search(pattern_no_semicolon, js_content, re.DOTALL)
+               
+           if match:
+               raw_str = match.group(1).strip()
+               raw_str = re.sub(r"//.*?\n", "\n", raw_str)
+               raw_str = re.sub(r"/\*.*?\*/", "", raw_str, flags=re.DOTALL)
+               
+               try:
+                   return ast.literal_eval(raw_str)
+               except Exception as e:
+                   try:
+                       json_str = raw_str.replace("'", '"')
+                       return json.loads(json_str)
+                   except Exception:
+                       raise ValueError(f"無法解析變數 {var_name}: {e}")
+                       
+           raise ValueError(f"在 JavaScript 中找不到變數 {var_name}")
+       
+    1: def fetch_recipients_from_google_sheet(csv_url):
+           """從 Google 試算表（已發布為 CSV）載入收件者清單與設定"""
+           recipients = {"emails": [], "line_ids": []}
+           threshold_override = None
+           if not csv_url or "YOUR_GOOGLE_SHEET" in csv_url:
+               return recipients, threshold_override
+               
+           try:
+               print(f"正在從 Google 試算表載入聯絡人資料... ({csv_url})")
+               csv_data = fetch_url(csv_url)
+               
+               # 使用 StringIO 將字串轉為類檔案物件以利 csv 讀取
+               f = io.StringIO(csv_data)
+               reader = csv.DictReader(f)
+               
+               for row in reader:
+                   # 清理鍵值與資料前後的空白
+                   row = {k.strip(): v.strip() for k, v in row.items() if k}
+                   
+                   name = row.get("Name", "").strip()
+                   name_lower = name.lower()
+                   
+                   # 檢查是否為溫度閾值設定列
+                   if any(k in name_lower for k in ("threshold", "溫度", "閥值", "閾值")):
+                       for col in ("Email", "LINE_ID", "Enabled"):
+                           val_str = row.get(col, "").strip()
+                           num_match = re.search(r"(\d+(?:\.\d+)?)", val_str)
+                           if num_match:
+                               try:
+                                   threshold_override = float(num_match.group(1))
+                                   print(f"【試算表設定】從試算表讀取到溫度閾值設定：{threshold_override}°C (將覆蓋本機設定)")
+                                   break
+                               except ValueError:
+                                   pass
+                       continue
+                   
+                   # 判斷是否啟用（預設啟用）
+                   enabled = row.get("Enabled", "Y").upper()
+                   if enabled not in ("Y", "YES", "TRUE", "1", ""):
+                       continue
+                       
+                   email = row.get("Email", "")
+                   line_id = row.get("LINE_ID", "")
+                   
+                   if email and "@" in email:
+                       recipients["emails"].append(email)
+                   if line_id:
+                       prefix = line_id[0].upper()
+                       if prefix in ("U", "C", "R"):
+                           recipients["line_ids"].append(line_id)
+                       
+               print(f"從 Google 試算表載入成功：Email x {len(recipients['emails'])} 人, LINE ID x {len(recipients['line_ids'])} 人")
+           except Exception as e:
+               print(f"【警告】從 Google 試算表載入名單失敗: {e}", file=sys.stderr)
+               
+           return recipients, threshold_override
+       
+    1: def get_first_sheet_name(token, spreadsheet_id):
+           """透過 Google Sheets API 取得試算表中第一個分頁的名稱"""
+    1:     import urllib.parse
+    1:     url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}?fields=sheets(properties(title))"
+    2:     req = urllib.request.Request(
+    1:         url,
+    1:         headers={"Authorization": f"Bearer {token}"}
+           )
+    1:     try:
+    2:         with urllib.request.urlopen(req, timeout=10, context=_fb_ssl_ctx) as response:
+    1:             meta = json.loads(response.read().decode("utf-8"))
+    1:             sheets = meta.get("sheets", [])
+    1:             if sheets:
+    1:                 return sheets[0].get("properties", {}).get("title")
+           except Exception as e:
+               print(f"【警告】動態取得分頁名稱失敗: {e}", file=sys.stderr)
+           return "工作表1"
+       
+    1: def fetch_recipients_from_google_sheet_api(token, spreadsheet_id):
+           """透過 Google Sheets API (使用 service account token) 載入收件者清單與設定"""
+    1:     import urllib.parse
+    1:     recipients = {"emails": [], "line_ids": []}
+    1:     threshold_override = None
+    1:     if not spreadsheet_id:
+               return recipients, threshold_override
+               
+    1:     try:
+    1:         sheet_name = get_first_sheet_name(token, spreadsheet_id)
+    1:         print(f"正在透過 Google Sheets API 載入聯絡人資料... (試算表 ID: {spreadsheet_id}, 分頁: {sheet_name})")
+               
+               # 讀取 A 到 D 欄
+    1:         range_notation = "A:D"
+    1:         url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{urllib.parse.quote(sheet_name + '!' + range_notation)}"
+    2:         req = urllib.request.Request(
+    1:             url,
+    1:             headers={"Authorization": f"Bearer {token}"}
+               )
+    2:         with urllib.request.urlopen(req, timeout=15, context=_fb_ssl_ctx) as response:
+    1:             res_data = json.loads(response.read().decode("utf-8"))
+    1:             values = res_data.get("values", [])
+                   
+    1:         if not values:
+                   print("【警告】Google Sheets 回傳空資料")
+                   return recipients, threshold_override
+                   
+               # 第一列為表頭
+    5:         headers = [h.strip() for h in values[0]]
+               
+               # 將其後的列轉換為 Dictionary 以利比對
+    9:         for row in values[1:]:
+    8:             row_dict = {}
+   40:             for idx, header in enumerate(headers):
+   32:                 if idx < len(row):
+   32:                     row_dict[header] = row[idx].strip()
+                       else:
+                           row_dict[header] = ""
+                           
+    8:             name = row_dict.get("Name", "").strip()
+    8:             name_lower = name.lower()
+                   
+                   # 檢查是否為溫度閾值設定列
+   80:             if any(k in name_lower for k in ("threshold", "溫度", "閥值", "閾值")):
+                       for col in ("Email", "LINE_ID", "Enabled"):
+                           val_str = row_dict.get(col, "").strip()
+                           num_match = re.search(r"(\d+(?:\.\d+)?)", val_str)
+                           if num_match:
+                               try:
+                                   threshold_override = float(num_match.group(1))
+                                   print(f"【試算表設定】從試算表讀取到溫度閾值設定：{threshold_override}°C (將覆蓋本機設定)")
+                                   break
+                               except ValueError:
+                                   pass
+                       continue
+                       
+                   # 判斷是否啟用（預設啟用）
+    8:             enabled = row_dict.get("Enabled", "Y").upper()
+    8:             if enabled not in ("Y", "YES", "TRUE", "1", ""):
+    1:                 continue
+                       
+    7:             email = row_dict.get("Email", "")
+    7:             line_id = row_dict.get("LINE_ID", "")
+                   
+    7:             if email and "@" in email:
+    7:                 recipients["emails"].append(email)
+    7:             if line_id:
+                       prefix = line_id[0].upper()
+                       if prefix in ("U", "C", "R"):
+                           recipients["line_ids"].append(line_id)
+                           
+    1:         print(f"從 Google 試算表 (API) 載入成功：Email x {len(recipients['emails'])} 人, LINE ID x {len(recipients['line_ids'])} 人")
+           except Exception as e:
+               print(f"【警告】透過 Google Sheets API 載入名單失敗: {e}", file=sys.stderr)
+               
+    1:     return recipients, threshold_override
+       
+    1: def fetch_system_config_from_google_sheet_api(token, spreadsheet_id):
+           """透過 Google Sheets API (使用 service account token) 載入系統設定分頁中的設定參數"""
+    1:     import urllib.parse
+    1:     config_overrides = {}
+    1:     if not spreadsheet_id:
+               return config_overrides
+               
+    1:     try:
+    1:         sheet_name = "系統設定"
+    1:         print(f"正在透過 Google Sheets API 載入系統設定... (分頁: {sheet_name})")
+               
+               # 讀取 A 到 B 欄
+    1:         range_notation = "A:B"
+    1:         url = f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/{urllib.parse.quote(sheet_name + '!' + range_notation)}"
+    2:         req = urllib.request.Request(
+    1:             url,
+    1:             headers={"Authorization": f"Bearer {token}"}
+               )
+    2:         with urllib.request.urlopen(req, timeout=15, context=_fb_ssl_ctx) as response:
+    1:             res_data = json.loads(response.read().decode("utf-8"))
+    1:             values = res_data.get("values", [])
+                   
+    1:         if not values:
+                   return config_overrides
+                   
+               # 表頭在第一列
+    8:         for row in values[1:]:
+    7:             if len(row) >= 2:
+    7:                 key = str(row[0]).strip()
+    7:                 val = str(row[1]).strip()
+    7:                 key_lower = key.lower()
+                       
+   52:                 if any(k in key_lower for k in ("start", "開始", "啟動")):
+    1:                     try:
+    1:                         config_overrides["start_hour"] = int(val)
+                           except ValueError:
+                               pass
+   44:                 elif any(k in key_lower for k in ("end", "結束", "停止")):
+    1:                     try:
+    1:                         config_overrides["end_hour"] = int(val)
+                           except ValueError:
+                               pass
+   36:                 elif any(k in key_lower for k in ("frequency", "頻率", "間隔")):
+    1:                     try:
+    1:                         config_overrides["frequency"] = int(val)
+                           except ValueError:
+                               pass
+                               
+    1:         print(f"從 Google 試算表 (API) 載入系統設定成功: {config_overrides}")
+           except Exception as e:
+               print(f"【警告】透過 Google Sheets API 載入系統設定失敗: {e}", file=sys.stderr)
+               
+    1:     return config_overrides
+       
+    1: def check_weather(config):
+           """透過 CWA Open Data API 抓取即時觀測的環境溫度"""
+    1:     api_key    = config.get("cwa_api_key", "")
+    1:     station_id = config.get("cwa_station_id", "C2G870") # 預設改為伸港站
+       
+    1:     if not api_key:
+               raise ValueError("請在 config.json 中設定 cwa_api_key。")
+       
+           # 改為 O-A0003-001 (自動氣象站)
+    1:     url = (
+    2:         f"https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001"
+    1:         f"?Authorization={api_key}&StationId={station_id}"
+           )
+    1:     print(f"正在透過 CWA Open Data API 抓取觀測資料... (站點: {station_id})")
+    1:     content = fetch_url(url)
+    1:     data = json.loads(content)
+       
+    1:     stations = data.get("records", {}).get("Station", [])
+    1:     if not stations:
+               raise ValueError(f"CWA API 回傳空資料，StationId={station_id}")
+       
+    1:     s        = stations[0]
+    1:     we       = s.get("WeatherElement", {})
+    1:     raw_obs_time = s.get("ObsTime", {}).get("DateTime", "")
+    1:     obs_time = raw_obs_time.replace("T", " ")[:19] if raw_obs_time else ""
+       
+    1:     temp = float(we.get("AirTemperature", -99))
+       
+    1:     if temp == -99:
+               raise ValueError(f"站點 {station_id} 觀測環境溫度異常（-99），無法讀取。")
+       
+    1:     print(f"觀測時間: {obs_time}, 環境溫度: {temp}°C")
+    1:     return temp, obs_time
+       
+    1: def send_line_notifications(line_config, message, recipients):
+           """發送 LINE 訊息通知（支援 Multicast API 一次推播多人）"""
+    1:     token = line_config.get("channel_access_token")
+    1:     if not token or "YOUR_LINE" in token:
+               print("【警告】未設定有效的 LINE Token，跳過 LINE 發送。")
+               return False
+               
+    1:     if not recipients:
+               print("【警告】LINE 收件者清單為空，跳過發送。")
+               return False
+               
+           # 分離 User ID (U/u 開頭) 與 Group/Room ID (C/c 或 R/r 開頭)
+    3:     user_ids = [r for r in recipients if r.upper().startswith("U")]
+    3:     group_ids = [r for r in recipients if r.upper().startswith("C") or r.upper().startswith("R")]
+           
+    1:     success = False
+           
+           # 1. 對個人 ID 使用 Multicast API (支援一次最多 500 位個人接收者)
+    1:     if user_ids:
+               # 將收件者切分為每 500 人一組
+    3:         for chunk in [user_ids[i:i + 500] for i in range(0, len(user_ids), 500)]:
+    1:             url = "https://api.line.me/v2/bot/message/multicast"
+    1:             headers = {
+    1:                 "Content-Type": "application/json",
+    1:                 "Authorization": f"Bearer {token}"
+                   }
+    1:             payload = {
+    1:                 "to": chunk,
+    2:                 "messages": [
+    1:                     {
+    1:                         "type": "text",
+    1:                         "text": message
+                           }
+                       ]
+                   }
+                   
+    1:             data = json.dumps(payload).encode("utf-8")
+    1:             req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    1:             try:
+    2:                 with urllib.request.urlopen(req, timeout=10) as response:
+    1:                     print(f"LINE 訊息 Multicast 推播成功！(收件者數量: {len(chunk)} 人)")
+    1:                     success = True
+                   except urllib.error.HTTPError as e:
+                       err_body = e.read().decode("utf-8")
+                       print(f"【LINE Multicast API 錯誤】狀態碼 {e.code}: {err_body}", file=sys.stderr)
+                   except Exception as e:
+                       print(f"【錯誤】發送 LINE Multicast 時發生異常: {e}", file=sys.stderr)
+                       
+           # 2. 對群組/聊天室 ID 使用 Push API（群組不支援 Multicast，需單獨發送）
+    2:     for gid in group_ids:
+    1:         url = "https://api.line.me/v2/bot/message/push"
+    1:         headers = {
+    1:             "Content-Type": "application/json",
+    1:             "Authorization": f"Bearer {token}"
+               }
+    1:         payload = {
+    1:             "to": gid,
+    2:             "messages": [
+    1:                 {
+    1:                     "type": "text",
+    1:                     "text": message
+                       }
+                   ]
+               }
+               
+    1:         data = json.dumps(payload).encode("utf-8")
+    1:         req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    1:         try:
+    2:             with urllib.request.urlopen(req, timeout=10) as response:
+    1:                 print(f"LINE 群組/聊天室推播成功！(ID: {gid})")
+    1:                 success = True
+               except urllib.error.HTTPError as e:
+                   err_body = e.read().decode("utf-8")
+                   print(f"【LINE Push API 錯誤】狀態碼 {e.code}: {err_body}", file=sys.stderr)
+               except Exception as e:
+                   print(f"【錯誤】發送 LINE Push 時發生異常: {e}", file=sys.stderr)
+                   
+    1:     return success
+       
+    1: def send_email_notifications(email_config, subject, body, recipients):
+           """透過 SMTP 一次發送電子郵件通知給多個收件人"""
+    1:     smtp_server = email_config.get("smtp_server")
+    1:     smtp_port = email_config.get("smtp_port", 587)
+    1:     user = email_config.get("smtp_user")
+    1:     password = email_config.get("smtp_password")
+    1:     from_email = email_config.get("from_email", user)
+           
+    1:     if not smtp_server or "YOUR_EMAIL" in user:
+               print("【警告】未設定有效的 SMTP 帳號資訊，跳過郵件發送。")
+               return False
+               
+    1:     if not recipients:
+               print("【警告】郵件收件者清單為空，跳過發送. ")
+               return False
+               
+    1:     msg = MIMEText(body, "plain", "utf-8")
+    1:     msg["Subject"] = Header(subject, "utf-8")
+    1:     msg["From"] = from_email
+    1:     msg["To"] = ", ".join(recipients)
+           
+    1:     try:
+    1:         if smtp_port == 465:
+                   server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
+               else:
+    1:             server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+    1:             server.ehlo()
+    1:             server.starttls()
+    1:             server.ehlo()
+                   
+    1:         if user and password:
+    1:             server.login(user, password)
+                   
+    1:         server.sendmail(from_email, recipients, msg.as_string())
+    1:         server.close()
+    1:         print(f"電子郵件發送成功！(收件者數量: {len(recipients)} 人)")
+    1:         return True
+           except Exception as e:
+               print(f"【錯誤】發送電子郵件時發生異常: {e}", file=sys.stderr)
+               return False
+       
+    1: def send_teams_notifications(teams_config, subject, message):
+           """發送 Microsoft Teams Webhook 通知"""
+    1:     webhook_url = teams_config.get("webhook_url")
+    1:     if not webhook_url or "YOUR_TEAMS" in webhook_url:
+               print("【警告】未設定有效的 Teams Webhook URL，跳過 Teams 發送。")
+               return False
+               
+    1:     payload = {
+    1:         "@type": "MessageCard",
+    1:         "@context": "http://schema.org/extensions",
+    1:         "themeColor": "D9534F" if "警報" in subject else "5CB85C",
+    1:         "summary": subject,
+    1:         "title": subject,
+    1:         "text": message.replace("\n", "\n\n")
+           }
+           
+    1:     data = json.dumps(payload).encode("utf-8")
+    2:     req = urllib.request.Request(
+    1:         webhook_url, 
+    1:         data=data, 
+    1:         headers={"Content-Type": "application/json"}, 
+    1:         method="POST"
+           )
+           
+    1:     try:
+    2:         with urllib.request.urlopen(req, timeout=10) as response:
+    1:             status_code = response.getcode()
+    1:             if status_code in [200, 202]:
+    1:                 print("Teams 訊息推播成功！")
+    1:                 return True
+                   else:
+                       print(f"【Teams API 錯誤】狀態碼 {status_code}", file=sys.stderr)
+                       return False
+           except urllib.error.HTTPError as e:
+               err_body = e.read().decode("utf-8")
+               print(f"【Teams API 錯誤】狀態碼 {e.code}: {err_body}", file=sys.stderr)
+               return False
+           except Exception as e:
+               print(f"【錯誤】發送 Teams 時發生異常: {e}", file=sys.stderr)
+               return False
+       
+    1: def main():
+    1:     force_run = "--force" in sys.argv
+    1:     config = load_config()
+    1:     state = load_state()
+           
+           # 預設監控時段與設定
+    1:     start_hour = config.get("start_hour", 0)
+    1:     end_hour = config.get("end_hour", 24)
+    1:     frequency = config.get("frequency", 60)
+    1:     threshold = config.get("temperature_threshold", 28.0)
+           
+           # 1. 嘗試從 Google 試算表載入最新聯絡人名冊與系統參數設定
+    1:     spreadsheet_id = config.get("spreadsheet_id", "")
+    1:     sheet_recipients = {"emails": [], "line_ids": []}
+    1:     threshold_override = None
+    1:     config_overrides = {}
+           
+    1:     if spreadsheet_id:
+    1:         token, _ = _get_firebase_token()
+    1:         if token:
+    1:             try:
+    1:                 sheet_recipients, threshold_override = fetch_recipients_from_google_sheet_api(token, spreadsheet_id)
+    1:                 config_overrides = fetch_system_config_from_google_sheet_api(token, spreadsheet_id)
+                   except Exception as e:
+                       print(f"【警告】動態載入雲端設定失敗: {e}", file=sys.stderr)
+               else:
+                   print("【警告】找不到憑證 Token，無法使用 Google Sheets API，嘗試備用 CSV 機制...")
+                   sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
+           else:
+               sheet_recipients, threshold_override = fetch_recipients_from_google_sheet(config.get("google_sheet_csv_url", ""))
+               
+           # 套用雲端覆蓋參數設定
+    1:     if threshold_override is not None:
+               config["temperature_threshold"] = threshold_override
+               threshold = threshold_override
+    1:     if "start_hour" in config_overrides:
+    1:         config["start_hour"] = config_overrides["start_hour"]
+    1:         start_hour = config_overrides["start_hour"]
+    1:     if "end_hour" in config_overrides:
+    1:         config["end_hour"] = config_overrides["end_hour"]
+    1:         end_hour = config_overrides["end_hour"]
+    1:     if "frequency" in config_overrides:
+    1:         config["frequency"] = config_overrides["frequency"]
+    1:         frequency = config_overrides["frequency"]
+       
+           # 2. 檢查目前是否在監測時段內 (支援跨日排程，例如 08:00 - 24:00 或 22:00 - 06:00)
+    1:     tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+    1:     current_hour = datetime.datetime.now(tz_taiwan).hour
+           
+    1:     is_in_time_window = False
+    1:     if start_hour < end_hour:
+    1:         is_in_time_window = (start_hour <= current_hour < end_hour)
+           else:
+               is_in_time_window = (current_hour >= start_hour or current_hour < end_hour)
+               
+    1:     if not is_in_time_window and not force_run:
+               print(f"目前時間為 {current_hour:02d}:00，不在監測時段 ({start_hour:02d}:00 - {end_hour:02d}:00) 內，跳過監測。")
+               sys.exit(0)
+           
+           # 2. 獲取 CWA 氣象數據 (無論是否節流都需要獲取即時數據)
+    1:     try:
+    1:         current_temp, display_time = check_weather(config)
+           except Exception as e:
+               print(f"【錯誤】獲取即時觀測數據失敗: {e}", file=sys.stderr)
+               sys.exit(1)
+               
+           # 3. 將 10 分鐘即時觀測數據寫入 Firestore realtime_logs (供 HMI 即時 24H 趨勢圖呈現)
+    1:     try:
+    1:         add_realtime_log_to_firebase(current_temp, display_time)
+           except Exception as e:
+               print(f"【警告】寫入即時觀測紀錄失敗: {e}", file=sys.stderr)
+               
+           # 同時備份寫入 Google Drive 雲端同步目錄（自動以日期分檔，若失敗則退回本機目錄）
+    1:     try:
+    1:         realtime_csv_path, realtime_xlsx_path, sheet_name = get_realtime_backup_paths()
+    1:         now_time_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
+    1:         headers = ["記錄時間", "環境溫度 (°C)", "氣象觀測時間", "時間戳 (ms)"]
+    1:         now_ms = int(time.time() * 1000)
+    1:         append_to_local_csv(realtime_csv_path, headers, [now_time_str, current_temp, display_time, now_ms])
+    1:         append_to_monthly_xlsx(realtime_xlsx_path, sheet_name, headers, [now_time_str, current_temp, display_time, now_ms])
+           except Exception as e:
+               print(f"【本機備份警告】寫入即時溫度備份失敗: {e}", file=sys.stderr)
+               
+           # 4. 更新即時狀態 (儀表板溫度計與在線心跳指標)
+    1:     try:
+    2:         send_heartbeat_firebase(
+    1:             current_temp=current_temp,
+    1:             threshold=threshold,
+    1:             obs_time=display_time,
+    1:             alert_state="正常 (未超標)" if current_temp <= threshold else "高溫超標警報",
+    1:             status_text="即時觀測更新"
+               )
+               # 寫入本機心跳明細紀錄 (10分鐘頻率，與 24小時紀錄同步)
+    1:         try:
+    1:             now_time_str = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
+    1:             headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
+    2:             append_to_local_csv(LOCAL_HEARTBEAT_CSV, headers, 
+    2:                 [now_time_str, threshold, current_temp, display_time, 
+    1:                  "正常 (未超標)" if current_temp <= threshold else "高溫超標警報", "即時觀測更新"])
+    2:             append_to_local_xlsx(LOCAL_HEARTBEAT_XLSX, headers, 
+    2:                 [now_time_str, threshold, current_temp, display_time, 
+    1:                  "正常 (未超標)" if current_temp <= threshold else "高溫超標警報", "即時觀測更新"])
+               except Exception as e:
+                   print(f"【本機備份警告】寫入本地心跳明細紀錄失敗: {e}", file=sys.stderr)
+       
+               # 同時發送即時心跳與觀測數據給 GAS，更新 GAS 在線時間並由 GAS 寫入 24 小時紀錄
+    1:         web_app_url = config.get("web_app_url", "")
+    1:         if web_app_url:
+    2:             send_heartbeat(web_app_url, sync_type="heartbeat",
+    1:                 current_temp=current_temp, threshold=threshold,
+    1:                 obs_time=display_time, alert_state="正常 (未超標)" if current_temp <= threshold else "高溫超標警報",
+    1:                 status_text="即時觀測更新")
+           except Exception as e:
+               print(f"【警告】更新即時心跳失敗: {e}", file=sys.stderr)
+               
+           # 5. 進行本機排程自動節流 (僅節流通知與試算表寫入)
+    1:     if not force_run:
+               now_time = datetime.datetime.now(tz_taiwan)
+               # 如果設定為每小時 (60 分鐘) 執行，且當前分鐘不在 58 分附近，直接節流跳過主流程
+               if frequency == 60 and not (55 <= now_time.minute <= 59):
+                   print(f"【時間未到】每小時排程設定於 58 分執行。當前為 {now_time.minute} 分，跳過主通報流程。已更新即時溫度。")
+                   sys.exit(0)
+                   
+               last_run_str = state.get("last_run_time")
+               if last_run_str:
+                   try:
+                       last_run_time = datetime.datetime.strptime(last_run_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=tz_taiwan)
+                       diff_minutes = (now_time - last_run_time).total_seconds() / 60.0
+                       if diff_minutes < (frequency - 2): # 減 2 分鐘做為微小時間差容錯
+                           print(f"【節流跳過】距離上一次執行僅 {diff_minutes:.1f} 分鐘，未達設定頻率 {frequency} 分鐘。已成功更新即時溫度與 24H 趨勢圖。")
+                           sys.exit(0)
+                   except Exception as e:
+                       print(f"【警告】解析上次執行時間失敗: {e}", file=sys.stderr)
+           
+           # 進行本機與雲端的狀態同步與心跳報告 (Sync status)
+    1:     web_app_url = config.get("web_app_url", "")
+    1:     if web_app_url:
+    1:         print("正在向雲端同步當前狀態與發送心跳...")
+    1:         cloud_state = send_heartbeat(web_app_url, state.get("last_state", "COOL"), sync_type="sync")
+    1:         if cloud_state:
+    1:             if cloud_state != state.get("last_state"):
+    1:                 print(f"【同步完成】雲端狀態為 {cloud_state}，本機為 {state.get('last_state')}，已將本機同步為 {cloud_state}。")
+    1:                 state["last_state"] = cloud_state
+    1:                 save_state(cloud_state)
+           
+           # 取得今日日期字串
+    1:     tz_taiwan = datetime.timezone(datetime.timedelta(hours=8))
+           
+    1:     print(f"=== 啟動天氣監控排程 ({datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')}) ===")
+               
+           # 2. 獲取收件者名單與設定
+           # A. 從本機 config 載入
+    1:     local_emails = config.get("email", {}).get("to_email", [])
+    1:     if isinstance(local_emails, str):
+               local_emails = [local_emails]
+               
+    1:     local_line_ids = config.get("line", {}).get("to", [])
+    1:     if isinstance(local_line_ids, str):
+               local_line_ids = [local_line_ids]
+               
+           # B. 從 Google 試算表載入並與本機名單合併
+           # 已於 main() 開頭完成載入，此處直接使用已下載的 sheet_recipients 與 threshold
+           
+           # 合併並去除重複 (新增自動分割逗號、提取 Name <email> 中乾淨 Email 的防錯機制)
+    1:     import email.utils
+    1:     cleaned_emails = []
+    1:     raw_emails_pool = local_emails + sheet_recipients["emails"]
+   15:     for raw_item in raw_emails_pool:
+   14:         if not raw_item:
+                   continue
+               # 如果單一字串中含有多個逗號隔開的 Email，自動分割
+   14:         parts = raw_item.split(",") if isinstance(raw_item, str) else [raw_item]
+   28:         for part in parts:
+   14:             part_str = str(part).strip()
+   14:             if part_str:
+   14:                 _, addr = email.utils.parseaddr(part_str)
+                       # 如果 parseaddr 成功解析出 @，則使用解析出的乾淨 Email；否則當作普通字串處理
+   14:                 addr = addr.strip() if (addr and "@" in addr) else part_str
+   14:                 if addr and "@" in addr and "RECIPIENT_EMAIL" not in addr and "YOUR_EMAIL" not in addr:
+   14:                     cleaned_emails.append(addr)
+                           
+    1:     final_emails = list(set(cleaned_emails))
+    1:     final_line_ids = list(set(local_line_ids + sheet_recipients["line_ids"]))
+    3:     final_line_ids = [l for l in final_line_ids if l and "YOUR_LINE" not in l]
+           
+    1:     print(f"【聯絡人名單確認】電子郵件收件人: {final_emails} | LINE 推播收件人: {final_line_ids}")
+           
+    1:     if not final_emails and not final_line_ids:
+               print("【錯誤】未偵測到任何有效的 Email 或 LINE 收件者，無法通報。", file=sys.stderr)
+               sys.exit(1)
+               
+           # 3. 已在開頭完成氣象數據抓取與即時日誌上傳
+               
+           # 4. 狀態機邏輯比對
+    1:     last_state = state.get("last_state", "COOL")
+    1:     is_hot = current_temp > threshold
+           
+    1:     should_notify = False
+    1:     notify_subject = ""
+    1:     notify_body = ""
+    1:     town_name = config.get("town_name", "彰化縣線西鄉")
+    1:     formatted_time = datetime.datetime.now(tz_taiwan).strftime('%Y-%m-%d %H:%M:%S')
+           
+    1:     if is_hot:
+    1:         if last_state != "HOT" or force_run:
+    1:             should_notify = True
+    1:             notify_subject = f"【高溫警報】{town_name}目前環境溫度已達 {current_temp}°C，超過設定溫度閾值！"
+                   
+    1:             notify_body = f"【環境高溫警報】\n"
+    1:             notify_body += f"當前環境溫度：{current_temp}°C ⚠️ (已超過設定閾值 {threshold}°C)\n"
+    1:             notify_body += f"氣象觀測時間：{display_time}\n"
+    1:             notify_body += f"通報時間：{formatted_time}\n\n"
+    1:             notify_body += "※ 請相關人員開啟灑水設備降溫循環過濾器。\n"
+    1:             notify_body += "※ 請相關人員注意防暑、多補充水分，並採取防範措施。"
+               else:
+                   print(f"當前環境溫度 {current_temp}°C 超標，但前次已通報高溫，跳過重複通知。")
+           else:
+               if last_state == "HOT" or force_run:
+                   should_notify = True
+                   notify_subject = f"【高溫解除】{town_name}目前環境溫度已回落至 {current_temp}°C，低於設定溫度閾值。"
+                   
+                   notify_body = f"【環境溫度回落通知】\n"
+                   notify_body += f"當前環境溫度：{current_temp}°C ✅ (已降至設定閾值 {threshold}°C 以下)\n"
+                   notify_body += f"氣象觀測時間：{display_time}\n"
+                   notify_body += f"通報時間：{formatted_time}\n\n"
+                   notify_body += "※ 目前高溫警報已解除，氣溫已回落至安全範圍。"
+               else:
+                   print(f"當前環境溫度 {current_temp}°C 正常，且前次狀態為正常，跳過通知。")
+                   
+    1:     if not should_notify:
+               # 本機執行成功但未觸發通知，發送一般心跳給雲端，回報本機已完成觀測，並帶上當前數據
+               alert_state_text = "高溫持續中" if is_hot else "正常 (未超標)"
+               print("本機已完成本次溫度觀測，發送觀測成功心跳...")
+               # 直接寫 Firebase（不依賴 GAS）
+               send_heartbeat_firebase(
+                   current_temp=current_temp,
+                   threshold=threshold,
+                   obs_time=display_time,
+                   alert_state=alert_state_text,
+                   status_text="未發送 (重複或正常)"
+               )
+               # 已於 10 分鐘即時更新處同步寫入本地心跳明細，此處不再重複寫入
+               pass
+               # 同時嘗試舊的 GAS 路徑（若有設定 web_app_url）
+               if web_app_url:
+                   send_heartbeat(web_app_url, sync_type="heartbeat",
+                       current_temp=current_temp, threshold=threshold,
+                       obs_time=display_time, alert_state=alert_state_text,
+                       status_text="未發送 (重複或正常)")
+               save_state(last_state)
+               sys.exit(0)
+               
+    1:     print("\n--- 觸發通知內容 ---")
+    1:     print(notify_body)
+    1:     print("--------------------\n")
+           
+           # 5. 開始發送
+    1:     line_sent = False
+    1:     email_sent = False
+    1:     teams_sent = False
+           
+           # 發送 LINE
+    1:     if config.get("line", {}).get("enabled", True) and final_line_ids:
+    1:         line_sent = send_line_notifications(config["line"], notify_body, final_line_ids)
+               
+           # 發送 Email
+    1:     if config.get("email", {}).get("enabled", True) and final_emails:
+    1:         email_sent = send_email_notifications(config["email"], notify_subject, notify_body, final_emails)
+               
+           # 發送 Teams
+    1:     if config.get("teams", {}).get("enabled", True) and config.get("teams", {}).get("webhook_url"):
+    1:         teams_sent = send_teams_notifications(config["teams"], notify_subject, notify_body)
+               
+           # 若成功發送任一通知，更新狀態防止重複發送
+    1:     if line_sent or email_sent or teams_sent:
+    1:         new_state = "HOT" if is_hot else "COOL"
+    1:         save_state(new_state)
+    1:         print("狀態已更新，記錄前次狀態。")
+    1:         status_text_list = []
+    1:         if line_sent: status_text_list.append("LINE")
+    1:         if email_sent: status_text_list.append("Email")
+    1:         if teams_sent: status_text_list.append("Teams")
+    1:         status_str = " & ".join(status_text_list) + " 已發送" if status_text_list else "發送失敗"
+    1:         alert_str = "高溫超標警報" if is_hot else "溫度回落正常"
+    1:         print("正在向 Firebase 同步更新後的警報狀態...")
+               # 直接寫 Firebase
+    2:         send_heartbeat_firebase(
+    1:             current_temp=current_temp, threshold=threshold,
+    1:             obs_time=display_time, alert_state=alert_str,
+    1:             status_text=status_str
+               )
+               # 寫入本機歷史通報紀錄
+    1:         try:
+    1:             headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
+    2:             append_to_local_csv(LOCAL_NOTIFY_CSV, headers, 
+    1:                 [formatted_time, threshold, current_temp, display_time, alert_str, status_str])
+    2:             append_to_local_xlsx(LOCAL_NOTIFY_XLSX, headers, 
+    1:                 [formatted_time, threshold, current_temp, display_time, alert_str, status_str])
+               except Exception as e:
+                   print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
+    1:         if web_app_url:
+    2:             send_heartbeat(web_app_url, new_state, sync_type="update",
+    1:                 current_temp=current_temp, threshold=threshold,
+    1:                 obs_time=display_time, alert_state=alert_str,
+    1:                 status_text=status_str)
+           else:
+               print("未成功發送任何通知，不更新狀態，但記錄本次執行時間。")
+               save_state(last_state)
+               alert_str2 = "正常 (未超標)" if not is_hot else "高溫持續中"
+               send_heartbeat_firebase(
+                   current_temp=current_temp, threshold=threshold,
+                   obs_time=display_time, alert_state=alert_str2,
+                   status_text="發送失敗"
+               )
+               # 寫入本機歷史通報紀錄
+               try:
+                   headers = ["通報時間", "溫度設定 (°C)", "通報環境溫度 (°C)", "氣象觀測時間", "警報狀態", "通知狀態"]
+                   append_to_local_csv(LOCAL_NOTIFY_CSV, headers, 
+                       [formatted_time, threshold, current_temp, display_time, alert_str2, "發送失敗"])
+                   append_to_local_xlsx(LOCAL_NOTIFY_XLSX, headers, 
+                       [formatted_time, threshold, current_temp, display_time, alert_str2, "發送失敗"])
+               except Exception as e:
+                   print(f"【本機備份警告】寫入本地通報歷史紀錄失敗: {e}", file=sys.stderr)
+               if web_app_url:
+                   send_heartbeat(web_app_url, sync_type="heartbeat",
+                       current_temp=current_temp, threshold=threshold,
+                       obs_time=display_time, alert_state=alert_str2,
+                       status_text="發送失敗")
+       
+    1: if __name__ == "__main__":
+    1:     main()
