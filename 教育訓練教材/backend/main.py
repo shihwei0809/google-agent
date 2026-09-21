@@ -119,14 +119,53 @@ async def upload_material(file: UploadFile = File(...)):
     try:
         if ext == 'pdf':
             doc = fitz.open(stream=content_bytes, filetype="pdf")
-            for page in doc:
+            for page_num, page in enumerate(doc):
                 extracted_text += page.get_text() + "\n\n"
+                
+                # 自動擷取該頁面的所有圖片
+                image_list = page.get_images(full=True)
+                for img_index, img_info in enumerate(image_list):
+                    xref = img_info[0]
+                    base_image = doc.extract_image(xref)
+                    image_bytes = base_image["image"]
+                    img_ext = base_image["ext"]
+                    
+                    # 產生圖檔名稱並存檔
+                    img_filename = f"{filename.rsplit('.', 1)[0]}_p{page_num+1}_{img_index+1}.{img_ext}"
+                    img_filepath = os.path.join(MATERIALS_DIR, img_filename)
+                    with open(img_filepath, "wb") as img_f:
+                        img_f.write(image_bytes)
+                    
+                    import urllib.parse
+                    safe_img_filename = urllib.parse.quote(img_filename)
+                    extracted_text += f"\n![圖片]({safe_img_filename})\n\n"
                 
         elif ext == 'docx':
             doc_file = io.BytesIO(content_bytes)
             doc = docx.Document(doc_file)
+            
+            # 1. 擷取文字
             for para in doc.paragraphs:
-                extracted_text += para.text + "\n\n"
+                if para.text.strip():
+                    extracted_text += para.text + "\n\n"
+            
+            # 2. 擷取圖片 (透過關聯物件找尋所有內嵌圖片)
+            img_count = 0
+            for rel in doc.part.rels.values():
+                if "image" in rel.target_ref:
+                    img_count += 1
+                    image_bytes = rel.target_part.blob
+                    img_ext = rel.target_part.content_type.split('/')[-1]
+                    if img_ext == 'jpeg': img_ext = 'jpg'
+                    
+                    img_filename = f"{filename.rsplit('.', 1)[0]}_img_{img_count}.{img_ext}"
+                    img_filepath = os.path.join(MATERIALS_DIR, img_filename)
+                    with open(img_filepath, "wb") as img_f:
+                        img_f.write(image_bytes)
+                    
+                    import urllib.parse
+                    safe_img_filename = urllib.parse.quote(img_filename)
+                    extracted_text += f"\n![圖片]({safe_img_filename})\n\n"
                 
         elif ext == 'xlsx':
             excel_file = io.BytesIO(content_bytes)
@@ -359,7 +398,8 @@ async def upload_material(file: UploadFile = File(...)):
 {extracted_text}
 """
             try:
-                res = call_gemini_with_fallback(rewrite_prompt)
+                # 修復：使用 asyncio.to_thread 將同步的 API 請求放到背景執行緒，避免卡死整個 FastAPI 網頁
+                res = await asyncio.to_thread(call_gemini_with_fallback, rewrite_prompt)
                 extracted_text = res.text
             except Exception as e:
                 print(f"AI 提煉失敗，退回原始萃取文字: {e}")

@@ -1907,27 +1907,17 @@ class App(tk.Tk):
                     formatted_date = date_str.replace("/", "").replace("-", "")
                 
                     import os as _os
+                    import re
                     name_no_ext, _ = _os.path.splitext(base_name)
-                    idx = name_no_ext.upper().find(matched_batch)
-                    if idx == -1:
-                        prefix = name_no_ext + "_"
-                        suffix = ""
-                        idx = len(prefix)
-                        name_no_ext = prefix + matched_batch
-                    else:
-                        prefix = name_no_ext[:idx]
-                        suffix = name_no_ext[idx + len(matched_batch):]
-                
-                    date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
-                    mmdd_pattern = r'\b\d{4}(?=[-_]$)'
+                    
+                    # 擷取原始檔名的產品前綴（遇到第一個空白前為止）
+                    prefix_match = re.match(r'^([A-Za-z0-9_]+)', name_no_ext)
+                    product_prefix = prefix_match.group(1) if prefix_match else "L12C53161_IPA_Lorry_TSMC"
+                    
                     date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
-                
-                    if re.search(date_pattern, prefix):
-                        prefix = re.sub(date_pattern, formatted_date, prefix)
-                    elif re.search(mmdd_pattern, prefix):
-                        prefix = re.sub(mmdd_pattern, date_MMDD, prefix)
-                
-                    new_base = f"{prefix}{name_no_ext[idx:idx+len(matched_batch)]}{suffix}"
+                    
+                    # 依據您指定的格式重組檔名: [產品名稱] [出貨日期MMDD] [廠區代號]_[批號]
+                    new_base = f"{product_prefix} {date_MMDD} {factory_code}_{matched_batch}"
                     output_dir = os.path.join(self.base_dir, f"三合一單輸出_{formatted_date}")
                 
                     tank_str = row["tank_var"].get().strip()

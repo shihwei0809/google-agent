@@ -972,25 +972,13 @@ async def generate_all_zip(request: Request):
                         import os as _os
                         base_name, real_ext = _os.path.splitext(base_name)
                         
-                        idx = base_name.upper().find(matched_batch)
-                        if idx == -1:
-                            prefix = base_name + "_"
-                            suffix = ""
-                            idx = len(prefix)
-                            base_name = prefix + matched_batch
-                        else:
-                            prefix = base_name[:idx]
-                            suffix = base_name[idx + len(matched_batch):]
-                        
                         import re
-                        date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
-                        mmdd_pattern = r'\b(?:0[1-9]|1[0-2])[0-3]\d\b'
-                        if re.search(date_pattern, prefix) and formatted_date:
-                            prefix = re.sub(date_pattern, formatted_date, prefix)
-                        elif re.search(mmdd_pattern, prefix) and mmdd != "0000":
-                            prefix = re.sub(mmdd_pattern, mmdd, prefix)
-
-                        new_base = f"{prefix}{base_name[idx:idx+len(matched_batch)]}{suffix}{real_ext}"
+                        # 擷取原始檔名的產品前綴（遇到第一個空白前為止）
+                        prefix_match = re.match(r'^([A-Za-z0-9_]+)', base_name)
+                        product_prefix = prefix_match.group(1) if prefix_match else "L12C53161_IPA_Lorry_TSMC"
+                        
+                        # 依據您指定的格式重組檔名: [產品名稱] [出貨日期MMDD] [廠區代號]_[批號]
+                        new_base = f"{product_prefix} {mmdd} {factory_code}_{matched_batch}{real_ext}"
                         
                         custom_tank = r.get("tank", "").strip()
                         if custom_tank and custom_tank != "自動槽號":
