@@ -971,32 +971,16 @@ async def generate_all_zip(request: Request):
                                 except ValueError:
                                     pass
 
-                        idx = base_name.upper().find(matched_batch)
-                        if idx == -1:
-                            import os as _os
-                            name_no_ext, ext_part = _os.path.splitext(base_name)
-                            prefix = name_no_ext + "_"
-                            suffix = ext_part
-                            idx = len(prefix)
-                            base_name = prefix + matched_batch + suffix
-                        else:
-                            prefix = base_name[:idx]
-                            suffix = base_name[idx + len(matched_batch):]
+                        import os as _os
+                        base_name, real_ext = _os.path.splitext(base_name)
                         
                         import re
-                        date_pattern = r'\d{4}[-_]?\d{2}[-_]?\d{2}|\d{8}'
-                        mmdd_pattern = r'\b\d{4}(?=[-_]$)'
-                        if re.search(date_pattern, prefix) and formatted_date:
-                            prefix = re.sub(date_pattern, formatted_date, prefix)
-                        elif re.search(mmdd_pattern, prefix) and mmdd != "0000":
-                            prefix = re.sub(mmdd_pattern, mmdd, prefix)
-                        else:
-                            if prefix.endswith("_") or prefix.endswith("-"):
-                                prefix = formatted_date + prefix if formatted_date else prefix
-                            else:
-                                prefix = formatted_date + "_" + prefix if prefix and formatted_date else (formatted_date + "_" if formatted_date else "")
-
-                        new_base = f"{prefix}{base_name[idx:idx+len(matched_batch)]}{suffix}"
+                        # 擷取原始檔名的產品前綴（遇到第一個空白前為止）
+                        prefix_match = re.match(r'^([A-Za-z0-9_]+)', base_name)
+                        product_prefix = prefix_match.group(1) if prefix_match else "L12C53161_IPA_Lorry_TSMC"
+                        
+                        # 依據您指定的格式重組檔名: [產品名稱] [出貨日期MMDD] [廠區代號]_[批號]
+                        new_base = f"{product_prefix} {mmdd} {factory_code}_{matched_batch}{real_ext}"
                         
                         custom_tank = r.get("tank", "").strip()
                         if custom_tank and custom_tank != "自動槽號":
