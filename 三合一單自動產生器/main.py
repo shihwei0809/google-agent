@@ -1901,8 +1901,9 @@ class App(tk.Tk):
                 
                     row = valid_batches[matched_batch]
                     loc_str = row["loc_var"].get().strip()
-                    factory_code = loc_str[1:5] if len(loc_str) >= 5 else loc_str
-                
+                    import re
+                    fc_match = re.search(r'[A-Za-z0-9]+', loc_str)
+                    factory_code = fc_match.group(0) if fc_match else loc_str
                     date_str = row["date_var"].get().strip()
                     formatted_date = date_str.replace("/", "").replace("-", "")
                 
@@ -1981,11 +1982,18 @@ class App(tk.Tk):
                             pass
                     elif ext.lower() == '.csv':
                         import csv
-                        with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-                            reader = list(csv.reader(f))
+                        try:
+                            with open(file_path, 'r', encoding='big5') as f:
+                                reader = list(csv.reader(f))
+                        except UnicodeDecodeError:
+                            with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                                reader = list(csv.reader(f))
+                                
                         while len(reader) <= 17: reader.append([])
-                        for r in reader: 
-                            while len(r) <= 11: r.append("")
+                        # 僅針對會修改的行補齊欄位，避免破壞 SchemaName 等標題行結構
+                        for r_idx in [5, 6, 10, 11]:
+                            while len(reader[r_idx]) <= 1: reader[r_idx].append("")
+                            
                         if col_b or col_g or col_c:
                             if col_b: reader[5][1] = col_b
                             if col_g: reader[6][1] = col_g
@@ -1993,7 +2001,9 @@ class App(tk.Tk):
                             if 'po_no' in locals() and po_no: reader[11][1] = po_no
                         else:
                             reader[5][1] = factory_code
-                        with open(new_file_path, 'w', encoding='utf-8-sig', newline='') as f:
+                            
+                        # 存檔時強制使用 big5 (ANSI)，避免 UTF-8 BOM 導致 TSMC 系統解析失敗
+                        with open(new_file_path, 'w', encoding='big5', errors='ignore', newline='') as f:
                             writer = csv.writer(f)
                             writer.writerows(reader)
                     success_count += 1

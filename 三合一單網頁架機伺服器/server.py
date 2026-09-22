@@ -950,7 +950,9 @@ async def generate_all_zip(request: Request):
                         loc = r.get("loc", "").strip().upper()
                         date_raw = r.get("date", "").strip()
                         po_no = r.get("po", "").strip()[:10]
-                        factory_code = loc[1:5] if len(loc) >= 5 else loc
+                        import re
+                        fc_match = re.search(r'[A-Za-z0-9]+', loc)
+                        factory_code = fc_match.group(0) if fc_match else loc
                         
                         lorry_info = lorry_data_map.get(matched_batch, {})
                         val_b = lorry_info.get("b") or factory_code
@@ -1006,11 +1008,15 @@ async def generate_all_zip(request: Request):
                         elif ext == '.csv':
                             try:
                                 import csv
-                                text_content = coa_file["content"].decode('utf-8-sig', errors='ignore')
+                                try:
+                                    text_content = coa_file["content"].decode('big5')
+                                except UnicodeDecodeError:
+                                    text_content = coa_file["content"].decode('utf-8-sig', errors='ignore')
                                 reader = list(csv.reader(text_content.splitlines()))
                                 while len(reader) <= 17: reader.append([])
-                                for row in reader:
-                                    while len(row) <= 11: row.append("")
+                                # 僅針對會修改的行補齊欄位，避免產生多餘逗號破壞 TSMC 系統解析
+                                for r_idx in [5, 6, 10, 11]:
+                                    while len(reader[r_idx]) <= 1: reader[r_idx].append("")
                                 reader[5][1] = val_b
                                 if val_g: reader[6][1] = val_g
                                 reader[10][1] = val_c
@@ -1020,7 +1026,8 @@ async def generate_all_zip(request: Request):
                                 str_io = io.StringIO()
                                 writer = csv.writer(str_io)
                                 writer.writerows(reader)
-                                zip_file.writestr(f"{folder_name}/{sub_folder}/{new_base}", str_io.getvalue().encode('utf-8-sig'))
+                                # 存為 Big5 (ANSI) 以通過 TSMC 檢查
+                                zip_file.writestr(f"{folder_name}/{sub_folder}/{new_base}", str_io.getvalue().encode('big5', errors='ignore'))
                             except Exception as e:
                                 print(f"[COA CSV Error] {e}")
 
