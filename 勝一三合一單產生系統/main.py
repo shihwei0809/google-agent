@@ -1398,6 +1398,8 @@ class App(tk.Tk):
         try:
             import openpyxl as _opxl
             lorry_batches = set()
+            lorry_factory_info = {}
+            lorry_factory_info = {}
             if hasattr(self, "imported_lorry_files"):
                 for l_file in self.imported_lorry_files:
                     try:
@@ -1407,14 +1409,33 @@ class App(tk.Tk):
                             _val = str(_ws.cell(row=_r, column=1).value or "").strip().upper()
                             if _val:
                                 lorry_batches.add(_val)
+                                f_code = str(_ws.cell(row=_r, column=2).value or "").strip().upper()
+                                lorry_factory_info[_val] = f_code
+                                f_code = str(_ws.cell(row=_r, column=2).value or "").strip().upper()
+                                lorry_factory_info[_val] = f_code
                         _wb.close()
                     except:
                         pass
 
-            table_batches = [row["batch_var"].get().strip().upper() for row in self.entries if row["batch_var"].get().strip()]
+            table_entries = []
+            for row in self.entries:
+                b = row["batch_var"].get().strip().upper()
+                if b:
+                    table_entries.append((b, row["long_code_var"].get().strip().upper()))
 
+            table_batches = [b for b, lc in table_entries]
             missing = [b for b in table_batches if b not in lorry_batches]
             found   = [b for b in table_batches if b in lorry_batches]
+            
+            wrong_factory_msgs = []
+            for b, lc in table_entries:
+                if b in lorry_batches:
+                    l_fac = lorry_factory_info.get(b, "")
+                    expected_substr = lc[1:5] if len(lc) >= 5 else lc
+                    if not l_fac:
+                        wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區空白 (應含 {expected_substr})")
+                    elif l_fac not in lc:
+                        wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區錯誤 ({l_fac})，未對齊長代號 ({lc})")
 
             fname = f"已選 {len(self.imported_lorry_files)} 份檔案" if len(self.imported_lorry_files) > 1 else os.path.basename(self.imported_lorry_files[0]) if self.imported_lorry_files else ""
             lines = [f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n"]
@@ -1423,10 +1444,14 @@ class App(tk.Tk):
             else:
                 for b in found:
                     lines.append(f"✅ {b} ─ 生產履歷已找到")
+                if wrong_factory_msgs:
+                    lines.append("\n--- 廠區異常提醒 ---")
+                    lines.extend(wrong_factory_msgs)
+                    lines.append("--------------------\n")
                 for b in missing:
                     lines.append(f"❌ {b} ─ 生產履歷中找不到！")
 
-            title = "生產履歷已載入" if not missing else "⚠️ 生產履歷載入 (有批號不符)"
+            title = "生產履歷已載入" if not (missing or wrong_factory_msgs) else "⚠️ 生產履歷載入 (有異常)"
             messagebox.showinfo(title, "\n".join(lines))
         except Exception as _e:
             messagebox.showinfo(
