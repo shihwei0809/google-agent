@@ -1,0 +1,1137 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>員工教育訓練測驗系統 — 儲槽氮氣閥作動原理</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--surface:#111827;--surface2:#1f2937;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.15);
+  --text:rgba(255,255,255,.9);--muted:rgba(255,255,255,.45);
+  --primary:#6366f1;--primary2:#4f46e5;
+  --success:#10b981;--glow:0 0 40px rgba(99,102,241,.12);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh}
+
+/* HEADER */
+.hdr{background:rgba(17,24,39,.96);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:14px 0;position:sticky;top:0;z-index:100}
+.hdr .inn{max-width:920px;margin:auto;padding:0 24px;display:flex;align-items:center;gap:14px}
+.hdr-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--primary),var(--primary2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.hdr-t{font-size:1.05rem;font-weight:700}.hdr-s{font-size:.75rem;color:var(--muted)}
+
+/* STEPS */
+.sw{background:rgba(17,24,39,.6);border-bottom:1px solid var(--border);padding:12px 24px}
+.sp{max-width:920px;margin:auto;display:flex;align-items:center}
+.st{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted)}
+.st.active{color:var(--text)}.st.done{color:#6ee7b7}
+.sn{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex-shrink:0}
+.st.active .sn{background:var(--primary);border-color:var(--primary);color:#fff}
+.st.done .sn{background:var(--success);border-color:var(--success);color:#fff}
+.sl{flex:1;height:1px;background:rgba(255,255,255,.1);margin:0 12px;min-width:24px}
+
+/* MAIN */
+main{max-width:920px;margin:28px auto;padding:0 24px 60px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:28px;margin-bottom:20px;box-shadow:var(--glow)}
+.badge{display:inline-flex;align-items:center;gap:6px;background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.22);color:#a5b4fc;border-radius:100px;padding:3px 12px;font-size:.72rem;font-weight:600;margin-bottom:12px}
+.card h2{font-size:1.3rem;font-weight:700;margin-bottom:6px}
+.sub{font-size:.85rem;color:var(--muted);margin-bottom:18px}
+
+/* ═══ PRESENTATION PLAYER ═══ */
+#pbox{position:relative;border-radius:14px 14px 0 0;overflow:hidden;border:1px solid var(--border2);border-bottom:none;box-shadow:var(--glow);margin-bottom:0;background:#000;aspect-ratio:16/9;max-height:540px}
+
+/* Slide images */
+.pimg{position:absolute;inset:0;opacity:0;transition:opacity .45s ease;pointer-events:none}
+.pimg.active{opacity:1;pointer-events:auto}
+.pimg img{width:100%;height:100%;object-fit:contain}
+
+/* Activation overlay */
+#pstart{position:absolute;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:20;cursor:pointer;border-radius:14px 14px 0 0}
+#pstart.gone{display:none}
+.ps-box{background:rgba(10,18,32,.97);border:1px solid rgba(99,102,241,.3);border-radius:16px;padding:28px 34px;text-align:center;max-width:320px}
+.ps-icon{font-size:46px;margin-bottom:12px}.ps-title{font-size:1.1rem;font-weight:700;margin-bottom:8px}
+.ps-sub{font-size:.8rem;color:rgba(255,255,255,.5);line-height:1.65;margin-bottom:18px}
+.ps-btn{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border:none;border-radius:50px;padding:11px 26px;font-size:.92rem;font-weight:600;cursor:pointer;font-family:inherit;box-shadow:0 4px 18px rgba(99,102,241,.4)}
+
+/* Controls bar */
+#pctrl{background:rgba(8,12,22,.97);border:1px solid var(--border2);border-top:1px solid rgba(255,255,255,.07);border-radius:0 0 14px 14px;padding:10px 16px;display:flex;align-items:center;gap:10px;margin-bottom:18px}
+#pprog{height:3px;background:rgba(255,255,255,.06);border-radius:2px;margin-bottom:0;position:absolute;top:0;left:0;right:0}
+#ppfill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:2px;width:0%;transition:width .35s}
+.pb{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.72);border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:15px;flex-shrink:0}
+.pb:hover{background:rgba(255,255,255,.16);color:#fff}
+.pb:disabled{opacity:.28;cursor:not-allowed;pointer-events:none}
+#pvb{width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.16);font-size:19px}
+#pvb.on{border-color:#6366f1;background:rgba(99,102,241,.18);color:#a5b4fc;animation:vp .9s ease-in-out infinite}
+@keyframes vp{0%{box-shadow:0 0 0 0 rgba(99,102,241,.5)}70%{box-shadow:0 0 0 10px rgba(99,102,241,0)}100%{box-shadow:0 0 0 0 rgba(99,102,241,0)}}
+#pct{font-size:.75rem;color:rgba(255,255,255,.36);min-width:48px;text-align:center}
+#plb{flex:1;font-size:.74rem;color:rgba(255,255,255,.46);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:center}
+.ptg{font-size:.68rem;padding:4px 10px;border-radius:100px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:rgba(255,255,255,.38);cursor:pointer;transition:all .2s;white-space:nowrap}
+.ptg.on{background:rgba(99,102,241,.18);border-color:#6366f1;color:#a5b4fc}
+
+/* Speed selector */
+.spd-sel{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.11);color:rgba(255,255,255,.5);border-radius:6px;padding:3px 6px;font-size:.68rem;cursor:pointer;font-family:inherit}
+.spd-sel option{background:#1f2937;color:#e2e8f0}
+
+/* Notice */
+.notice{display:flex;align-items:flex-start;gap:10px;background:rgba(99,102,241,.07);border:1px solid rgba(99,102,241,.18);border-radius:11px;padding:11px 15px;font-size:.8rem;color:rgba(255,255,255,.58);line-height:1.6;margin-bottom:16px}
+.notice strong{color:rgba(255,255,255,.82)}
+
+/* Unlock button */
+.btn-unlock{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;border:none;padding:13px 38px;border-radius:50px;font-size:.98rem;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .2s,box-shadow .2s,opacity .2s;box-shadow:0 4px 20px rgba(99,102,241,.35)}
+.btn-unlock:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(99,102,241,.45)}
+.btn-unlock:disabled{opacity:.38;cursor:not-allowed;transform:none}
+.uhint{font-size:.74rem;color:var(--muted);margin-top:8px}
+
+/* ═══ QUIZ ═══ */
+#qsec{opacity:.35;pointer-events:none;transition:opacity .5s,filter .5s;filter:blur(2px)}
+#qsec.on{opacity:1;pointer-events:auto;filter:none}
+.ncard{background:linear-gradient(135deg,rgba(59,130,246,.07),rgba(99,102,241,.07));border:1px solid rgba(99,130,246,.18);border-radius:14px;padding:22px;margin-bottom:18px}
+.ncard h3{font-size:.98rem;font-weight:600;margin-bottom:4px}
+.ncard p{color:var(--muted);font-size:.8rem;margin-bottom:12px}
+.iw{position:relative}
+.ii{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none}
+#ename{width:100%;background:var(--surface2);border:1.5px solid var(--border2);border-radius:10px;padding:11px 13px 11px 40px;font-size:.92rem;color:var(--text);font-family:inherit;transition:border-color .2s,box-shadow .2s;outline:none}
+#ename:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.15)}
+.qh{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.qh h2{font-size:1.15rem;font-weight:700}
+.qbadge{background:rgba(99,102,241,.12);border:1px solid rgba(99,102,241,.22);color:#a5b4fc;border-radius:100px;padding:3px 13px;font-size:.73rem;font-weight:600}
+.qc{background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:18px;margin-bottom:12px;transition:border-color .3s}
+.qc.done{border-color:rgba(16,185,129,.3)}
+.qn{font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:7px}
+.qt{font-size:.9rem;font-weight:500;margin-bottom:12px;line-height:1.6}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:9px;border:1.5px solid var(--border);background:rgba(255,255,255,.02);cursor:pointer;transition:border-color .2s,background .2s;font-size:.86rem;line-height:1.5}
+.opt:hover{border-color:rgba(99,102,241,.35);background:rgba(99,102,241,.06)}
+.opt input{display:none}
+.od{width:17px;height:17px;border-radius:50%;border:2px solid rgba(255,255,255,.22);flex-shrink:0;position:relative;transition:all .2s}
+.opt input:checked~.od{border-color:var(--primary);background:var(--primary)}
+.opt input:checked~.od::after{content:'';position:absolute;inset:3px;border-radius:50%;background:#fff}
+.sub-area{text-align:center;margin-top:24px}
+.btn-sub{display:inline-flex;align-items:center;gap:9px;background:linear-gradient(135deg,var(--success),#059669);color:#fff;border:none;padding:13px 42px;border-radius:50px;font-size:.98rem;font-weight:700;cursor:pointer;font-family:inherit;transition:transform .2s,box-shadow .2s,opacity .2s;box-shadow:0 4px 20px rgba(16,185,129,.35)}
+.btn-sub:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 28px rgba(16,185,129,.45)}
+.btn-sub:disabled{opacity:.38;cursor:not-allowed}
+.spin{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;flex-shrink:0}
+@keyframes sp{to{transform:rotate(360deg)}}
+#res{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);z-index:999;align-items:center;justify-content:center}
+#res.show{display:flex}
+.rb{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:42px 34px;max-width:400px;width:90%;text-align:center;animation:pi .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pi{from{transform:scale(.7);opacity:0}to{transform:scale(1);opacity:1}}
+.ri{font-size:52px;margin-bottom:12px}.rt{font-size:1.35rem;font-weight:700;margin-bottom:8px}
+.rs{color:var(--muted);font-size:.86rem;line-height:1.6}
+.res-btn{margin-top:24px;background:var(--primary);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit;width:100%}
+.res-btn:hover{background:var(--primary2)}
+@media(max-width:600px){main{padding:0 14px 48px}.card{padding:18px}#pbox{max-height:240px}}
+
+/* ═══ SETTINGS MODAL ═══ */
+.btn-cfg{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.72);border-radius:8px;padding:6px 14px;font-size:.8rem;cursor:pointer;transition:all .2s;font-family:inherit}
+.btn-cfg:hover{background:rgba(255,255,255,.16);color:#fff}
+.cfg-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(5px);z-index:1000;align-items:center;justify-content:center}
+.cfg-mask.show{display:flex}
+.cfg-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;width:90%;max-width:500px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:cfgPlayIn .3s cubic-bezier(.34,1.56,.64,1)}
+@keyframes cfgPlayIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
+.cfg-hdr{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+.cfg-hdr h3{font-size:1.05rem;font-weight:700}
+.cfg-close{background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;line-height:1}
+.cfg-close:hover{color:var(--text)}
+.cfg-body{padding:20px}
+.cfg-label{display:block;font-size:.85rem;color:var(--text);margin-bottom:8px;font-weight:500}
+#cfg-api-url{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:.88rem;outline:none;margin-bottom:12px}
+#cfg-api-url:focus{border-color:var(--primary)}
+.cfg-tip{font-size:.76rem;color:var(--muted);line-height:1.6;margin-bottom:20px}
+.cfg-actions{display:flex;gap:10px;justify-content:flex-end}
+.cfg-btn{border:none;border-radius:8px;padding:10px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .2s;font-family:inherit}
+.cfg-btn.primary{background:var(--primary);color:#fff}
+.cfg-btn.primary:hover{background:var(--primary2)}
+.cfg-btn.secondary{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:var(--text)}
+.cfg-btn.secondary:hover{background:rgba(255,255,255,.16)}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="inn">
+    <div class="hdr-icon">📋</div>
+    <div style="flex:1"><div class="hdr-t" id="main-title">員工教育訓練測驗系統</div><div class="hdr-s" id="main-subtitle">請完整觀看簡報後，再進行測驗</div></div>
+    <button class="btn-cfg" onclick="toggleCfgModal()">⚙️ 系統設定</button>
+  </div>
+</header>
+
+<!-- 設定彈窗 -->
+<div id="cfg-modal" class="cfg-mask" onclick="closeCfgModal(event)">
+  <div class="cfg-box" style="max-width:560px">
+    <div class="cfg-hdr">
+      <h3>⚙️ 系統設定</h3>
+      <button class="cfg-close" onclick="toggleCfgModal()">&times;</button>
+    </div>
+    <div class="cfg-body">
+
+      <!-- 資料來源說明 -->
+      <div style="background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:12px 14px;font-size:.8rem;color:rgba(255,255,255,.6);line-height:1.7;margin-bottom:16px">
+        📋 <strong style="color:rgba(255,255,255,.85)">考題讀取順序：</strong>本機 quiz_data.json → 雲端 Google Sheets → 內建預設<br>
+        💾 <strong style="color:rgba(255,255,255,.85)">作答結果：</strong>自動存入本機瀏覽器 + 同步至雲端（若有設定）
+      </div>
+
+      <label class="cfg-label">☁️ 雲端備份（選填）— Google Apps Script 網址：</label>
+      <input type="text" id="cfg-api-url" placeholder="https://script.google.com/macros/s/.../exec（留空則純本機模式）" />
+      <p class="cfg-tip" style="margin-bottom:16px">留空代表純本機模式，考題從 quiz_data.json 讀取，作答結果只存在此裝置。</p>
+
+      <div class="cfg-actions" style="margin-bottom:16px">
+        <button class="cfg-btn secondary" onclick="downloadConfiguredHTML()">📥 下載設定好的 HTML 檔</button>
+        <button class="cfg-btn primary" onclick="saveCfg()">💾 儲存並套用</button>
+      </div>
+
+      <!-- 作答紀錄管理 -->
+      <div style="border-top:1px solid rgba(255,255,255,.08);padding-top:14px">
+        <label class="cfg-label">📊 本機作答紀錄（管理員專用）</label>
+        <div id="cfg-record-info" style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:10px">載入中…</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="cfg-btn primary" onclick="exportResultsCSV()" style="font-size:.8rem;padding:8px 14px">📥 匯出 CSV</button>
+          <button class="cfg-btn secondary" onclick="viewResultsInline()" style="font-size:.8rem;padding:8px 14px">👁 預覽紀錄</button>
+          <button class="cfg-btn" onclick="clearResultsConfirm()" style="font-size:.8rem;padding:8px 14px;background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)">🗑 清除紀錄</button>
+        </div>
+        <div id="cfg-records-preview" style="display:none;margin-top:12px;max-height:200px;overflow-y:auto;background:rgba(0,0,0,.3);border-radius:8px;padding:10px;font-size:.75rem;font-family:monospace;color:rgba(255,255,255,.6);white-space:pre-wrap"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="sw">
+  <div class="sp">
+    <div class="st active" id="s1"><div class="sn">1</div><span>觀看簡報</span></div>
+    <div class="sl"></div>
+    <div class="st" id="s2"><div class="sn">2</div><span>填寫資料</span></div>
+    <div class="sl"></div>
+    <div class="st" id="s3"><div class="sn">3</div><span>完成測驗</span></div>
+  </div>
+</div>
+
+<main>
+  <section>
+    <div class="card">
+      <div class="badge">📽️ 步驟一</div>
+      <h2>觀看教育訓練簡報</h2>
+      <p class="sub">簡報內容直接來自「工作規則管理簡報.pptx」，點擊「▶ 開始播放」啟用語音朗讀，自動換頁播完後進行測驗。</p>
+
+      <div id="pbox" style="position:relative; width:100%; height:500px; max-height:80vh; overflow:hidden; background:#0b0f19;">
+        <!-- 跨網頁互動式簡報 iframe -->
+        <iframe id="p-iframe" src="" allow="autoplay" style="display:none; width:100%; height:100%; border:none; background:#0b0f19;"></iframe>
+
+        <!-- Progress bar -->
+        <div id="pprog" style="position:absolute; top:0; left:0; width:100%; z-index:10;"><div id="ppfill"></div></div>
+
+        <!-- Activation overlay -->
+        <div id="pstart" onclick="pActivate()">
+          <div class="ps-box">
+            <div class="ps-icon">🔊</div>
+            <div class="ps-title">點擊開始教育訓練</div>
+            <div class="ps-sub">簡報共 <strong>6頁</strong>，包含語音朗讀<br>開啟後自動播放，無需手動操作</div>
+            <button class="ps-btn">▶ 開始播放（含語音）</button>
+          </div>
+        </div>
+
+        <!-- Slide images -->
+        <div id="pstage" style="width:100%; height:100%;"></div>
+      </div>
+
+      <!-- Controls -->
+      <div id="pctrl" style="display:flex; justify-content:center; align-items:center; gap:12px; margin-top:16px;">
+        <button class="pb" id="pbprev" onclick="pPrev()">◀</button>
+        <button class="pb" id="pvb" onclick="pToggleVoice()" style="width:44px;height:44px;border-radius:50%;border:2px solid rgba(255,255,255,.16)">🔊</button>
+        <button class="pb" id="pbnext" onclick="pNext()">▶</button>
+        <span id="pct">1 / 6</span>
+        <span id="plb">從業人員工作規則</span>
+        <select class="spd-sel" id="voice-sel" title="語音選擇">
+          <option value="">正在載入語音...</option>
+        </select>
+        <select class="spd-sel" id="spd-sel" title="語音速度">
+          <option value="0.7">0.7x 慢速</option>
+          <option value="0.9" selected>0.9x 正常</option>
+          <option value="1.0">1.0x 標準</option>
+          <option value="1.2">1.2x 快速</option>
+          <option value="1.5">1.5x 很快</option>
+          <option value="1.8">1.8x 飛快</option>
+          <option value="2.0">2.0x 極速</option>
+        </select>
+        <button class="ptg on" id="pauto" onclick="pToggleAuto()">自動換頁 ON</button>
+      </div>
+
+      <div class="notice">
+        <span>💡</span>
+        <span>簡報畫面直接來自原始 PPTX，<strong>內容完全一致</strong>。語音速度可自行調整。按鍵盤 <strong>← →</strong> 可手動翻頁，<strong>V</strong> 暫停/繼續語音。</span>
+      </div>
+
+      <div style="text-align:center">
+        <button class="btn-unlock" id="btn-unlock" onclick="unlockQuiz()" disabled>✅ 我已看完簡報，進入測驗</button>
+        <div class="uhint" id="uhint">請先點擊並觀看完整簡報</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="qsec">
+    <div class="ncard">
+      <h3>👤 填寫您的姓名</h3>
+      <p>請輸入真實姓名，將與測驗結果一同記錄至系統。</p>
+      <div class="iw"><span class="ii">✍️</span><input type="text" id="ename" placeholder="請輸入姓名（例：王小明）" maxlength="20" oninput="chkSub()"/></div>
+    </div>
+
+    <div class="card">
+      <div class="badge">📝 步驟二</div>
+      <div class="qh"><h2>測驗題目</h2><div class="qbadge" id="qbadge">已作答 0 / 5 題</div></div>
+      <p class="sub" style="margin-bottom:20px">每題皆為單選題，請根據簡報內容選擇最正確的答案。</p>
+      <div id="qbox"></div>
+      <div class="sub-area">
+        <button class="btn-sub" id="btn-sub" disabled onclick="doSubmit()">📤 送出測驗結果</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="res" onclick="closeResModal(event)">
+  <div class="rb">
+    <div class="ri" id="ri">✅</div>
+    <div class="rt" id="rt">提交成功！</div>
+    <div class="rs" id="rs">您的測驗結果已記錄，感謝完成本次教育訓練！</div>
+    <button class="res-btn" onclick="hideRes()">確定</button>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════
+//  SLIDE DATA  — 朗讀文字直接來自 PPTX 原文
+// ════════════════════════════════════════
+let SLIDES = [
+  {
+    "img": "slides/slide_01.png",
+    "label": "第 1 頁｜儲槽氮氣閥與氮封系統作動原理",
+    "say": "各位同仁好，歡迎參加本次教育訓練。今天我們要學習的是「儲槽氮氣閥與氮封系統之作動原理」。氮封系統是石化及化學工廠中，保護儲槽安全、防止火災爆炸及防止物料變質的重要安全設施。請大家仔細學習其作動機制。"
+  },
+  {
+    "img": "slides/slide_02.png",
+    "label": "第 2 頁｜什麼是氮氣覆蓋(氮封)系統？",
+    "say": "氮封系統的主要目的，是在儲槽頂部的氣相空間充入惰性氮氣，維持微正壓。這樣做有三個核心作用：第一，排除氧氣，避免形成爆炸性混合氣體；第二，防止外部空氣及水氣進入，避免物料氧化、受潮或變質；第三，透過精密閥門控制，避免儲槽因溫度變化或物料進出而發生超壓變形或真空癟罐。"
+  },
+  {
+    "img": "slides/slide_03.png",
+    "label": "第 3 頁｜供氮閥 (Regulator) 作動原理",
+    "say": "供氮閥是一種自力式微壓調節閥。當儲槽進行出料操作，或夜間氣溫下降使槽內氣體收縮時，儲槽內的壓力會開始下降。當槽內壓力低於供氮閥的設定點時，控制膜片受壓減小，彈簧推動閥芯開啟，氮氣隨之流入槽內。當槽內壓力回升到設定值時，膜片克服彈簧力，帶動閥芯關閉，停止供氮。"
+  },
+  {
+    "img": "slides/slide_04.png",
+    "label": "第 4 頁｜洩氮閥 (Vent Valve) 作動原理",
+    "say": "與供氮閥相反，洩氮閥負責槽內超壓時的排氣。當儲槽進行進料操作，或日間太陽曝曬使槽內溫度升高時，槽內壓力會上升。當壓力高於洩氮閥的設定點時，槽內壓力推動膜片克服彈簧張力，使閥門開啟，將槽內多餘的氮氣或混合氣體排出。當槽內壓力降回設定值時，閥門自動關閉，維持系統微正壓。"
+  },
+  {
+    "img": "slides/slide_05.png",
+    "label": "第 5 頁｜雙重安全保障機制",
+    "say": "為了防止供氮閥或洩氮閥故障，儲槽設有雙重防護機制。第一重是安全呼吸閥，在槽內壓力達到極限高壓或真空值時，分別向外排氣或向內吸入空氣，防止儲槽破裂或吸扁。第二重是緊急洩爆人孔，當遭遇外部大火導致槽內急劇升壓時，洩爆人孔會瞬間開啟，進行大排量洩壓，是儲槽的最終安全保障。"
+  },
+  {
+    "img": "slides/slide_06.png",
+    "label": "第 6 頁｜教育訓練總結與課後測驗",
+    "say": "本次課程我們學習了氮封系統「降壓補充、升壓排放」的自力式反饋原理，以及呼吸閥與緊急洩爆孔的雙重安全保護機制。請同仁務必熟記各閥門的作動方向與目的。簡報播放已結束，請點擊下方按鈕，填寫姓名並開始進行課後測驗，祝大家順利通過！"
+  }
+];
+
+// ════════════════════════════════════════
+//  PLAYER STATE
+// ════════════════════════════════════════
+// ════════════════════════════════════════
+//  PLAYER STATE
+// ════════════════════════════════════════
+let cur=0, spk=false, auto=true, ready=false, utt=null, paused=false;
+let sentences=[];
+let sentenceIdx=0;
+let playedSlides = new Set(); // 記錄已經聽完的投影片頁數
+let isInteractiveMode = false; // 是否正在使用互動式簡報
+
+function initSlides(){
+  const st=document.getElementById('pstage');
+  st.innerHTML = ''; // 清除舊投影片
+  SLIDES.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.className='pimg'+(i===0?' active':'');
+    d.id='pi'+i;
+    d.innerHTML=`<img src="${s.img}" alt="第${i+1}頁" loading="lazy" draggable="false"/>`;
+    st.appendChild(d);
+  });
+  refresh();
+}
+
+function go(n){
+  if(n<0||n>=SLIDES.length) return;
+  // 手動往後翻頁防刷：如果想往後翻，且當前頁 cur 還沒聽完，則予以攔截
+  if (n > cur && !playedSlides.has(cur)) {
+    alert("請先完整聽完當前頁面的語音配音喔！");
+    return;
+  }
+  stopSpeak();
+  document.getElementById('pi'+cur).classList.remove('active');
+  cur=n;
+  document.getElementById('pi'+cur).classList.add('active');
+  refresh();
+  if(ready) setTimeout(speak,200);
+}
+function pNext(){go(cur+1);}
+function pPrev(){go(cur-1);}
+
+function refresh(){
+  if (isInteractiveMode) return; // 互動模式下由 iframe 自行控制
+  document.getElementById('ppfill').style.width=((cur+1)/SLIDES.length*100)+'%';
+  document.getElementById('pct').textContent=(cur+1)+' / '+SLIDES.length;
+  document.getElementById('plb').textContent=SLIDES[cur].label;
+  document.getElementById('pbprev').disabled=(cur===0);
+  
+  // 當前頁尚未聽完時，禁止按「下一頁」
+  document.getElementById('pbnext').disabled=(cur===SLIDES.length-1 || !playedSlides.has(cur));
+  
+  // 只有當全部頁數皆聽完，才解鎖「開始測驗」按鈕
+  if (ready) {
+    if(playedSlides.size === SLIDES.length){
+      document.getElementById('btn-unlock').disabled=false;
+      document.getElementById('uhint').textContent='✅ 已看畢所有簡報，點擊開始測驗';
+    } else {
+      document.getElementById('btn-unlock').disabled=true;
+      document.getElementById('uhint').textContent=`請觀看並聽完所有簡報 (目前已聽完 ${playedSlides.size} / ${SLIDES.length} 頁)`;
+    }
+  } else {
+    document.getElementById('btn-unlock').disabled=true;
+    document.getElementById('uhint').textContent='請先點擊開始播放教育訓練';
+  }
+}
+
+// ════════════════════════════════════════
+//  SPEECH
+// ════════════════════════════════════════
+function safeCancel(){
+  if(!window.speechSynthesis) return;
+  if(speechSynthesis.paused){
+    speechSynthesis.resume();
+  }
+  speechSynthesis.cancel();
+}
+
+function speak(){
+  if(!window.speechSynthesis) return;
+  safeCancel();
+  paused = false;
+  spk = true;
+  updVoiceBtn();
+  
+  // 依標點符號將朗讀文字切割為句子
+  sentences = SLIDES[cur].say.match(/[^。！？；\n]+[。！？；\n]*/g) || [SLIDES[cur].say];
+  sentenceIdx = 0;
+  
+  speakSentence();
+}
+
+function speakSentence(){
+  if(!window.speechSynthesis) return;
+  if(sentenceIdx >= sentences.length){
+    // 整頁朗讀完畢
+    playedSlides.add(cur);
+    refresh();
+    spk = false;
+    updVoiceBtn();
+    if(auto && cur < SLIDES.length - 1){
+      setTimeout(()=>go(cur+1), 700);
+    }
+    return;
+  }
+  
+  const text = sentences[sentenceIdx].trim();
+  if(!text){
+    sentenceIdx++;
+    speakSentence();
+    return;
+  }
+  
+  const rate = parseFloat(document.getElementById('spd-sel').value) || 0.9;
+  utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'zh-TW'; 
+  utt.rate = rate; 
+  utt.pitch = 1; 
+  utt.volume = 1;
+  
+  const vs = speechSynthesis.getVoices();
+  const voiceSelect = document.getElementById("voice-sel");
+  let v = null;
+  if (voiceSelect && voiceSelect.value) {
+    v = vs.find(x => x.name === voiceSelect.value);
+  }
+  if (!v) {
+    v = vs.find(x => x.lang === 'zh-TW') || vs.find(x => x.lang.startsWith('zh')) || null;
+  }
+  if(v) utt.voice = v;
+  
+  utt.onstart = () => {
+    spk = true;
+    paused = false;
+    updVoiceBtn();
+  };
+  
+  utt.onend = () => {
+    if(paused) return; // 暫停中，不自動播放下一句
+    sentenceIdx++;
+    speakSentence();
+  };
+  
+  utt.onerror = (e) => {
+    console.error('Speech error:', e);
+    if(paused) return;
+    sentenceIdx++;
+    speakSentence();
+  };
+  
+  speechSynthesis.speak(utt);
+}
+
+function stopSpeak(){ 
+  if(utt){
+    utt.onstart = null;
+    utt.onend = null;
+    utt.onerror = null;
+  }
+  safeCancel(); 
+  spk = false; 
+  paused = false; 
+  updVoiceBtn(); 
+}
+
+function pToggleVoice(){ 
+  if(spk){ 
+    paused = true;
+    if(utt){
+      utt.onstart = null;
+      utt.onend = null;
+      utt.onerror = null;
+    }
+    safeCancel(); 
+    spk = false; 
+    updVoiceBtn(); 
+  } else { 
+    if(paused){
+      paused = false;
+      spk = true;
+      updVoiceBtn();
+      speakSentence();
+    } else {
+      speak();
+    }
+  } 
+}
+
+function updVoiceBtn(){
+  const b = document.getElementById('pvb'); if(!b) return;
+  b.textContent = spk ? '⏸' : (paused ? '▶' : '🔊');
+  (spk||paused) ? b.classList.add('on') : b.classList.remove('on');
+}
+
+function pToggleAuto(){
+  auto=!auto;
+  const b=document.getElementById('pauto');
+  b.textContent=auto?'自動換頁 ON':'自動換頁 OFF';
+  b.className=auto?'ptg on':'ptg';
+}
+
+function pActivate(){
+  ready=true;
+  document.getElementById('pstart').classList.add('gone');
+  refresh();
+  if(speechSynthesis.getVoices().length===0){ 
+    speechSynthesis.onvoiceschanged = () => {
+      speechSynthesis.onvoiceschanged = null;
+      populateVoiceList();
+      speak();
+    }; 
+  } else { 
+    populateVoiceList();
+    speak(); 
+  }
+}
+
+// 輔助函式：偵測檔案是否存在（相容 file:// 與 http:// 協定）
+function checkFileExists(url) {
+  if (window.location.protocol === 'file:') {
+    return new Promise((resolve) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = url + '?t=' + Date.now();
+      link.onload = () => {
+        resolve(true);
+        link.remove();
+      };
+      link.onerror = () => {
+        resolve(false);
+        link.remove();
+      };
+      document.head.appendChild(link);
+    });
+  } else {
+    return fetch(url, { method: 'HEAD' })
+      .then(res => res.ok)
+      .catch(() => false);
+  }
+}
+
+// 偵測是否含有互動式簡報 (Reveal.js/GSAP) 網頁
+async function checkInteractiveSlides() {
+  const hasInteractive = await checkFileExists('slides/index.html');
+  if (hasInteractive) {
+    isInteractiveMode = true;
+    // 隱藏靜態簡報的所有控制與顯示，改為顯示 iframe
+    document.getElementById('pstage').style.display = 'none';
+    document.getElementById('pprog').style.display = 'none';
+    document.getElementById('pstart').style.display = 'none';
+    document.getElementById('pctrl').style.display = 'none';
+    
+    // 動態拉高外層容器，確保互動簡報內容與播放器完整展現
+    document.getElementById('pbox').style.maxHeight = 'none';
+    document.getElementById('pbox').style.height = '720px';
+    
+    const iframe = document.getElementById('p-iframe');
+    iframe.src = 'slides/index.html';
+    iframe.style.display = 'block';
+    
+    // 鎖定開始測驗，顯示觀看警告
+    document.getElementById('btn-unlock').disabled = true;
+    document.getElementById('uhint').textContent = '⚠️ 請觀看完影片簡報後即可進行測驗';
+  } else {
+    console.log("偵測不到互動式簡報，已自動降級至靜態圖片播放器模式。");
+  }
+}
+
+// 監聽來自 iframe 的簡報結束訊號
+window.addEventListener('message', (event) => {
+  if (event.data && (event.data.type === 'slide-completed' || event.data.type === 'video-completed')) {
+    document.getElementById('btn-unlock').disabled = false;
+    document.getElementById('uhint').textContent = '✅ 已看畢影片/簡報，點擊開始測驗';
+    // 標記為全部看完
+    ready = true; 
+  }
+});
+
+// 在網頁載入時啟動偵測
+window.addEventListener('DOMContentLoaded', () => {
+  checkInteractiveSlides();
+  populateVoiceList();
+  if (window.speechSynthesis && speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = populateVoiceList;
+  }
+});
+
+// 動態載入語音清單
+function populateVoiceList() {
+  if (!window.speechSynthesis) return;
+  const voiceSelect = document.getElementById("voice-sel");
+  if (!voiceSelect) return;
+  
+  const voices = speechSynthesis.getVoices();
+  voiceSelect.innerHTML = "";
+  
+  const zhVoices = voices.filter(v => v.lang.includes("zh-TW") || v.lang.includes("zh-CN") || v.lang.includes("zh"));
+  if (zhVoices.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "系統預設語音";
+    voiceSelect.appendChild(opt);
+    return;
+  }
+  
+  zhVoices.forEach(v => {
+    const opt = document.createElement("option");
+    opt.value = v.name;
+    let displayName = v.name;
+    if (v.name.includes("Microsoft")) {
+      displayName = "微軟 " + v.name.replace("Microsoft", "").replace("Online", "").replace("(Natural)", "").trim();
+    } else if (v.name.includes("Google")) {
+      displayName = "谷歌 " + v.name.replace("Google", "").trim();
+    }
+    opt.textContent = displayName;
+    voiceSelect.appendChild(opt);
+  });
+  
+  let defaultVoiceName = "";
+  const preferred = ["HsiaoChen", "Yunxi", "Microsoft", "Google"];
+  for (const pref of preferred) {
+    const found = zhVoices.find(v => v.name.includes(pref));
+    if (found) {
+      defaultVoiceName = found.name;
+      break;
+    }
+  }
+  if (defaultVoiceName) {
+    voiceSelect.value = defaultVoiceName;
+  }
+}
+
+// 監聽速度選擇器變更，如果在播放中則立即以新語速重新播放當前句子；如果在暫停中，則僅更新語速（等點擊播放時套用）
+document.getElementById('spd-sel').addEventListener('change', ()=>{
+  if(spk){ 
+    if(utt){
+      utt.onstart = null;
+      utt.onend = null;
+      utt.onerror = null;
+    }
+    safeCancel();
+    setTimeout(() => {
+      speakSentence();
+    }, 100);
+  }
+});
+
+// 監聽語音選擇器變更
+document.getElementById('voice-sel').addEventListener('change', ()=>{
+  if(spk){ 
+    if(utt){
+      utt.onstart = null;
+      utt.onend = null;
+      utt.onerror = null;
+    }
+    safeCancel();
+    setTimeout(() => {
+      speakSentence();
+    }, 100);
+  }
+});
+
+// ════════════════════════════════════════
+//  QUIZ DATA
+// ════════════════════════════════════════
+// 預設內建題目（當本機 quiz_data.json 與雲端均無法讀取時使用）
+let QS = [
+  {
+    "q": "關於儲槽氮封系統的主要目的，以下何者錯誤？",
+    "opts": [
+      "A. 充入惰性氮氣以排除氧氣，防止火災與爆炸",
+      "B. 防止外部空氣與水分進入，保護槽內物料不變質",
+      "C. 使儲槽內部維持微正壓，保護槽體結構安全",
+      "D. 為了冷卻槽內液體，降低儲槽的整體操作溫度"
+    ],
+    "a": "D"
+  },
+  {
+    "q": "當儲槽進行「出料（泵出）」或「溫度降低」時，儲槽壓力會如何變化？此時哪一個閥門會自動開啟？",
+    "opts": [
+      "A. 儲槽壓力上升；洩氮閥開啟",
+      "B. 儲槽壓力下降；供氮閥開啟",
+      "C. 儲槽壓力上升；供氮閥開啟",
+      "D. 儲槽壓力下降；洩氮閥開啟"
+    ],
+    "a": "B"
+  },
+  {
+    "q": "氮封系統中的供氮閥與洩氮閥，通常採用何種形式的閥門來達到自動控制？",
+    "opts": [
+      "A. 需要外部電源驅動的電動球閥",
+      "B. 需要氣源信號控制的氣動調節閥",
+      "C. 無需外部動力、利用儲槽壓力自我反饋的自力式調節閥",
+      "D. 需要人工手動操作的閘閥"
+    ],
+    "a": "C"
+  },
+  {
+    "q": "當槽內壓力因異常狀況急劇升高，且洩氮閥來不及排放時，下列哪一個安全防護設施會首先發揮排氣作用以防止儲槽超壓破裂？",
+    "opts": [
+      "A. 安全呼吸閥 (Breather Valve)",
+      "B. 緊急洩爆人孔 (Emergency Vent)",
+      "C. 供氮閥 (Nitrogen Supply Valve)",
+      "D. 排泥閥 (Drain Valve)"
+    ],
+    "a": "A"
+  },
+  {
+    "q": "為了避免儲槽在極端真空狀態下被大氣壓「吸扁（癟罐）」，安全呼吸閥的真空閥座在達到設定真空度時會進行什麼作動？",
+    "opts": [
+      "A. 關閉閥門，完全封鎖槽內氣體",
+      "B. 開啟閥門，允許外部空氣進入槽內以平衡壓力",
+      "C. 開啟供氮閥，以超高壓注入更多氮氣",
+      "D. 開啟排泥閥，把槽內液體排出"
+    ],
+    "a": "B"
+  }
+];
+let DATA_SOURCE = '內建預設'; // 記錄實際載入來源（for 管理員顯示）
+
+let ansd={};
+function buildQ(){
+  document.getElementById('qbox').innerHTML=QS.map((q,i)=>`
+    <div class="qc" id="qc${i}">
+      <div class="qn">第 ${i+1} 題</div>
+      <div class="qt">${q.q}</div>
+      <div class="opts">${q.opts.map((o,j)=>{
+        const v=['A','B','C','D'][j];
+        return `<label class="opt"><input type="radio" name="q${i}" value="${v}" onchange="onAns(${i})"/><div class="od"></div><span>${o}</span></label>`;
+      }).join('')}</div>
+    </div>`).join('');
+}
+
+function onAns(i){
+  ansd[i]=true;
+  document.getElementById('qc'+i).classList.add('done');
+  const n=Object.keys(ansd).length;
+  document.getElementById('qbadge').textContent='已作答 '+n+' / '+QS.length+' 題';
+  chkSub();
+}
+function chkSub(){
+  const name=document.getElementById('ename').value.trim();
+  const done=Object.keys(ansd).length===QS.length;
+  document.getElementById('btn-sub').disabled=!(name&&done);
+}
+
+function unlockQuiz(){
+  document.getElementById('qsec').classList.add('on');
+  document.getElementById('s1').classList.remove('active');
+  document.getElementById('s1').classList.add('done');
+  document.getElementById('s1').querySelector('.sn').textContent='✓';
+  document.getElementById('s2').classList.add('active');
+  document.getElementById('qsec').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ════════════════════════════════════════
+//  SUBMIT
+// ════════════════════════════════════════
+let APPS_SCRIPT_URL='https://script.google.com/macros/s/AKfycbwOoe0VhYTmdpl3oLrXevpVaQB1SC7gokaxN_l08fYU2JmLm19U_4_mJlEITNwRlLVI/exec'; // ← 填入 Apps Script 部署網址
+
+// 從瀏覽器快取讀取已設定的 API 網址以支援動態套用
+const cachedApiUrl = localStorage.getItem('apps_script_url');
+if(cachedApiUrl) {
+  APPS_SCRIPT_URL = cachedApiUrl;
+}
+
+async function doSubmit(){
+  const name=document.getElementById('ename').value.trim();
+  const ts=new Date().toLocaleString('zh-TW');
+  const btn=document.getElementById('btn-sub');
+  btn.disabled=true; btn.innerHTML='<div class="spin"></div> 提交中…';
+
+  // ── 1. 前端計算得分（不依賴網路）────────────────────────────
+  const payload={timestamp:ts, name};
+  let correctCount=0;
+  QS.forEach((q,i)=>{
+    const sel=document.querySelector(`input[name="q${i}"]:checked`);
+    const ans=sel?sel.value:'';
+    payload['q'+(i+1)]=ans;
+    if(ans && ans.toUpperCase()===(q.a||'').toUpperCase()) correctCount++;
+  });
+  const total=QS.length;
+  const score=total>0?Math.round(correctCount/total*100):0;
+  payload.score=score;
+  payload.correctCount=correctCount;
+  payload.total=total;
+
+  // ── 2. 存入本機 localStorage（靜默，所有裝置都支援）──────────
+  saveResultLocal(payload);
+
+  // ── 3. 更新畫面（立即完成，不等網路）────────────────────────
+  function setSubmitSuccess(){
+    btn.innerHTML='✅ 已成功送出'; btn.disabled=true;
+    document.querySelectorAll('input[type="radio"]').forEach(el=>el.disabled=true);
+    document.getElementById('ename').disabled=true;
+    ['s2'].forEach(id=>{
+      document.getElementById(id).classList.remove('active');
+      document.getElementById(id).classList.add('done');
+      document.getElementById(id).querySelector('.sn').textContent='✓';
+    });
+    document.getElementById('s3').classList.add('done');
+    document.getElementById('s3').querySelector('.sn').textContent='✓';
+  }
+
+  const scoreText=`您的得分為：<strong style="font-size:1.15rem;color:#10b981">${score} 分</strong>（答對 ${correctCount} / ${total} 題）<br><br>您的測驗結果已儲存於本裝置，感謝完成本次教育訓練！`;
+  showRes(true, scoreText);
+  setSubmitSuccess();
+
+  // ── 4. 非同步備份至雲端（失敗不影響員工看到結果）────────────
+  if(APPS_SCRIPT_URL && APPS_SCRIPT_URL!=='YOUR_APPS_SCRIPT_URL_HERE'){
+    fetch(APPS_SCRIPT_URL,{method:'POST',body:JSON.stringify(payload)})
+      .then(r=>r.json())
+      .then(d=>console.log('雲端備份成功',d))
+      .catch(e=>console.warn('雲端備份失敗（本機已儲存）：',e));
+  }
+
+  // ── 5. 同步至本機伺服器結果檔案（CORS 相容）──────────────────
+  fetch('./api/submit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  .then(r=>r.json())
+  .then(d=>console.log('本機伺服器儲存成功',d))
+  .catch(e=>console.warn('本機伺服器未開啟或儲存失敗（不影響作答）：',e));
+}
+
+// ════════════════════════════════════════
+//  LOCAL STORAGE 作答紀錄管理
+// ════════════════════════════════════════
+const RESULT_KEY='quiz_results_v2';
+
+function saveResultLocal(record){
+  try{
+    const arr=JSON.parse(localStorage.getItem(RESULT_KEY)||'[]');
+    arr.push(record);
+    localStorage.setItem(RESULT_KEY,JSON.stringify(arr));
+  }catch(e){ console.warn('本機儲存失敗：',e); }
+}
+
+function getResultCount(){
+  try{ return JSON.parse(localStorage.getItem(RESULT_KEY)||'[]').length; }catch(e){ return 0; }
+}
+
+function exportResultsCSV(){
+  const arr=JSON.parse(localStorage.getItem(RESULT_KEY)||'[]');
+  if(!arr.length){ alert('目前沒有任何作答紀錄'); return; }
+  const keys=Object.keys(arr[0]);
+  const csvRows=[keys.join(',')];
+  arr.forEach(r=>{
+    csvRows.push(keys.map(k=>{
+      const v=String(r[k]||'').replace(/"/g,'""');
+      return `"${v}"`;
+    }).join(','));
+  });
+  const blob=new Blob(['\uFEFF'+csvRows.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='作答紀錄_'+new Date().toLocaleDateString('zh-TW').replace(/\//g,'-')+'.csv';
+  a.click();
+}
+
+function viewResultsInline(){
+  const arr=JSON.parse(localStorage.getItem(RESULT_KEY)||'[]');
+  const preview=document.getElementById('cfg-records-preview');
+  if(!arr.length){ preview.style.display='none'; alert('目前沒有任何作答紀錄'); return; }
+  preview.style.display='block';
+  preview.textContent=arr.map((r,i)=>
+    `[${i+1}] ${r.timestamp} ${r.name} 得分:${r.score}分 (${r.correctCount}/${r.total}題)`
+  ).join('\n');
+}
+
+function clearResultsConfirm(){
+  const n=getResultCount();
+  if(!n){ alert('目前沒有任何紀錄'); return; }
+  if(confirm(`確定要清除所有 ${n} 筆作答紀錄？此操作不可復原！`)){
+    localStorage.removeItem(RESULT_KEY);
+    document.getElementById('cfg-record-info').textContent='紀錄已清除';
+    document.getElementById('cfg-records-preview').style.display='none';
+    alert('已清除全部作答紀錄');
+  }
+}
+
+function showRes(ok, msg){
+  document.getElementById('ri').textContent=ok?'🎉':'❌';
+  document.getElementById('rt').textContent=ok?'提交成功！':'提交失敗';
+  
+  if(ok) {
+    document.getElementById('rs').innerHTML = msg || '您的測驗結果已記錄至系統，感謝完成本次教育訓練！';
+  } else {
+    document.getElementById('rs').innerHTML = msg || '請確認網路連線後重試。';
+  }
+  document.getElementById('res').classList.add('show');
+}
+function hideRes(){
+  document.getElementById('res').classList.remove('show');
+}
+function closeResModal(e){
+  if(e.target.id==='res'){
+    hideRes();
+  }
+}
+
+// ════════════════════════════════════════
+//  KEYBOARD
+// ════════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();pNext();}
+  if(e.key==='ArrowLeft'){e.preventDefault();pPrev();}
+  if(e.key==='v'||e.key==='V') pToggleVoice();
+});
+
+// 格式化選項前置字元 (防止重複出現 A. A. 情況)
+function formatOption(prefix, text) {
+  if (!text) return '';
+  const trimmed = text.trim();
+  const regex = new RegExp('^' + prefix + '[.、\\s]', 'i');
+  if (regex.test(trimmed)) {
+    return trimmed;
+  }
+  return prefix + '. ' + trimmed;
+}
+
+// ════════════════════════════════════════
+//  資料載入：本機 quiz_data.json → 雲端 → 內建預設
+// ════════════════════════════════════════
+async function loadData(){
+  let loaded = false;
+
+  // ── 1. 嘗試本機 quiz_data.json（最優先）────────────────────
+  try{
+    const res = await fetch('./quiz_data.json?_t='+Date.now(), {cache:'no-store'});
+    if(res.ok){
+      const data = await res.json();
+      if(data && data.status==='ok'){
+        applyData(data);
+        DATA_SOURCE='本機 quiz_data.json';
+        loaded=true;
+        console.log('✅ 已從本機 quiz_data.json 載入');
+      }
+    }
+  }catch(e){ console.log('本機 JSON 不可讀（正常，若無此檔）：',e.message); }
+
+  // ── 2. 嘗試雲端 Google Sheets（若本機未讀到）──────────────
+  if(!loaded && APPS_SCRIPT_URL && APPS_SCRIPT_URL!=='YOUR_APPS_SCRIPT_URL_HERE'){
+    try{
+      const url=APPS_SCRIPT_URL+(APPS_SCRIPT_URL.indexOf('?')>=0?'&':'?')+'_t='+Date.now();
+      const res=await fetch(url);
+      const data=await res.json();
+      if(data && data.status==='ok'){
+        applyData(data);
+        DATA_SOURCE='雲端 Google Sheets';
+        loaded=true;
+        console.log('✅ 已從雲端 Google Sheets 載入');
+      }
+    }catch(e){ console.warn('雲端載入失敗，將使用內建預設：',e); }
+  }
+
+  // ── 3. 使用內建預設（fallback）──────────────────────────
+  if(!loaded) DATA_SOURCE='內建預設題目';
+  console.log('資料來源：'+DATA_SOURCE);
+
+  initSlides();
+  buildQ();
+}
+
+function applyData(data){
+  if(data.title) {
+    document.title = data.title;
+    const titleEl = document.getElementById('main-title');
+    if(titleEl) titleEl.textContent = data.title;
+  }
+  if(data.subtitle) {
+    const subEl = document.getElementById('main-subtitle');
+    if(subEl) subEl.textContent = data.subtitle;
+  }
+  if(data.apps_script_url && !localStorage.getItem('apps_script_url')){
+    APPS_SCRIPT_URL = data.apps_script_url;
+  }
+  if(data.slides && data.slides.length>0){
+    SLIDES=data.slides.map(s=>({img:s.img, label:s.label, say:s.say}));
+  }
+  if(data.questions && data.questions.length>0){
+    QS=data.questions.map(q=>({
+      q: q.question,
+      opts:[
+        formatOption('A',q.a),
+        formatOption('B',q.b),
+        formatOption('C',q.c),
+        formatOption('D',q.d)
+      ].filter(o=>o!==''),
+      a: String(q.answer||q.a_key||'').trim().toUpperCase() // 正確答案欄位
+    }));
+  }
+}
+
+// 控制設定視窗顯示/隱藏
+function toggleCfgModal(){
+  const m=document.getElementById('cfg-modal');
+  if(!m.classList.contains('show')){
+    const pwd=prompt('請輸入管理員密碼以進入系統設定：');
+    if(pwd===null) return;
+    if(pwd!=='admin888'){
+      alert('密碼錯誤，拒絕存取！');
+      return;
+    }
+  }
+  m.classList.toggle('show');
+  if(m.classList.contains('show')){
+    document.getElementById('cfg-api-url').value=APPS_SCRIPT_URL==='YOUR_APPS_SCRIPT_URL_HERE'?'':APPS_SCRIPT_URL;
+    // 更新本機紀錄統計
+    const n=getResultCount();
+    document.getElementById('cfg-record-info').textContent=
+      n>0?`共 ${n} 筆作答紀錄（資料來源：${DATA_SOURCE}）`:`目前無作答紀錄（資料來源：${DATA_SOURCE}）`;
+    document.getElementById('cfg-records-preview').style.display='none';
+  }
+}
+
+// 點擊遮罩關閉設定視窗
+function closeCfgModal(e) {
+  if (e.target.id === 'cfg-modal') {
+    toggleCfgModal();
+  }
+}
+
+// 儲存設定至 localStorage
+async function saveCfg() {
+  const url = document.getElementById('cfg-api-url').value.trim();
+  if (url) {
+    if (!url.startsWith('https://script.google.com/')) {
+      alert('請輸入正確的 Google Apps Script 部署網址！');
+      return;
+    }
+    localStorage.setItem('apps_script_url', url);
+    APPS_SCRIPT_URL = url;
+    alert('設定已成功儲存並套用！系統即將重新載入雲端設定。');
+    toggleCfgModal();
+    await loadData();
+  } else {
+    localStorage.removeItem('apps_script_url');
+    APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+    alert('已清除設定！系統將恢復使用內建的預設資料。');
+    toggleCfgModal();
+    location.reload();
+  }
+}
+
+// 下載帶有設定網址的 HTML 網頁原始檔（免開發者手動編輯）
+async function downloadConfiguredHTML(){
+  const url = document.getElementById('cfg-api-url').value.trim();
+  if(!url){
+    alert('請先輸入有效的 Apps Script 網址！');
+    return;
+  }
+  if (!url.startsWith('https://script.google.com/')) {
+    alert('請輸入正確的 Google Apps Script 部署網址！');
+    return;
+  }
+  
+  let htmlContent = '';
+  try {
+    const response = await fetch(window.location.href);
+    htmlContent = await response.text();
+  } catch(e) {
+    // 降級方案：若 fetch 失敗，使用 outerHTML 還原原始碼結構
+    htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  }
+  
+  // 替換代碼中的 APPS_SCRIPT_URL 常量/變量定義
+  const regex = /let APPS_SCRIPT_URL\s*=\s*['"`](.*?)['"`]\s*;/;
+  if(regex.test(htmlContent)){
+    htmlContent = htmlContent.replace(regex, `let APPS_SCRIPT_URL='${url}';`);
+  } else {
+    const constRegex = /const APPS_SCRIPT_URL\s*=\s*['"`](.*?)['"`]\s*;/;
+    if(constRegex.test(htmlContent)){
+      htmlContent = htmlContent.replace(constRegex, `let APPS_SCRIPT_URL='${url}';`);
+    }
+  }
+  
+  const blob = new Blob([htmlContent], {type: 'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'index.html';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  alert('已成功產生設定好的 index.html 檔案！請將此下載的檔案放回資料夾覆蓋舊檔案，即可直接散佈使用！');
+}
+
+window.addEventListener('DOMContentLoaded', async ()=>{ 
+  await loadData(); 
+});
+</script>
+
+
+
+</body>
+</html>

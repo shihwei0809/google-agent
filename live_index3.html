@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <!-- ✅ SPA fallback 防呆：若大廳被 Cloudflare 在錯誤路徑下提供，立刻導回根目錄 -->
+    <script>
+        (function() {
+            var p = window.location.pathname;
+            var proto = window.location.protocol;
+            if (proto !== 'file:' && p !== '/' && p !== '/index.html') {
+                // 被 SPA fallback 在子路徑下載入，立刻強制導回根目錄
+                window.location.replace('/');
+            }
+        })();
+    </script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOOGLE AGENT - 專案大廳與說明書中心</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --sidebar-bg: #111827;
+            --card-bg: rgba(31, 41, 55, 0.45);
+            --card-hover: rgba(31, 41, 55, 0.7);
+            --border-color: #374151;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #00f2fe;
+            --primary-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            --accent: #3b82f6;
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 10% 20%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(59, 130, 246, 0.05) 0%, transparent 40%);
+        }
+
+        /* Top Navbar */
+        .navbar {
+            height: 70px;
+            background-color: rgba(17, 24, 39, 0.7);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            z-index: 100;
+            flex-shrink: 0;
+        }
+
+        .nav-logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary-gradient);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #000;
+            font-size: 20px;
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+        }
+
+        .nav-logo-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .nav-tab-btn {
+            background: none;
+            border: none;
+            padding: 8px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 8px;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-tab-btn:hover {
+            color: var(--text-main);
+        }
+
+        .nav-tab-btn.active {
+            background: var(--primary-gradient);
+            color: #000;
+            box-shadow: 0 4px 15px rgba(0, 242, 254, 0.2);
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-backup-guide {
+            background: rgba(0, 242, 254, 0.1);
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-backup-guide:hover {
+            background: rgba(0, 242, 254, 0.2);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.15);
+        }
+
+        /* Views Container */
+        .views-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .view-panel {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            overflow: hidden;
+        }
+
+        .view-panel.active {
+            display: flex;
+        }
+
+        /* 1. Portal View Styling */
+        .portal-view {
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        .portal-header {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .portal-title-area h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .portal-title-area p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .filter-btn:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: var(--text-main);
+        }
+
+        .filter-btn.active {
+            border-color: var(--primary);
+            color: var(--primary);
+            background-color: rgba(0, 242, 254, 0.05);
+        }
+
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+            padding-bottom: 40px;
+        }
+
+        /* Glassmorphism Cards */
+        .project-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .project-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--primary-gradient);
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .project-card:hover {
+            transform: translateY(-5px);
+            background: var(--card-hover);
+            border-color: rgba(0, 242, 254, 0.2);
+            box-shadow: 0 12px 40px rgba(0, 242, 254, 0.08);
+        }
+
+        .project-card:hover::before {
+            opacity: 1;
+        }
+
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .category-badge {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 700;
+        }
+
+        .badge-cat1 {
+            background-color: rgba(168, 85, 247, 0.15);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .badge-cat2 {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-cat3 {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .project-card h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .project-desc {
+            font-size: 13.5px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            flex-grow: 1;
+        }
+
+        .tag-container {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .project-tag {
+            font-size: 11px;
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: var(--text-muted);
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .card-btn {
+            flex: 1;
+            padding: 9px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+
+        .btn-launch {
+            background: var(--primary-gradient);
+            color: #000;
+            border: none;
+        }
+
+        .btn-launch:hover {
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+            opacity: 0.95;
+        }
+
+        .btn-manual {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .btn-manual:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-muted);
+        }
+
+        /* 2. Reader View (Manual View) */
+        .reader-view {
+            display: none;
+        }
+
+        .sidebar {
+            width: 320px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-back-to-lobby {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-back-to-lobby:hover {
+            background-color: rgba(0, 242, 254, 0.1);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .search-wrapper {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 14px 10px 36px;
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 13px;
+            outline: none;
+            transition: var(--transition);
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+            background-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            width: 14px;
+            height: 14px;
+        }
+
+        .menu-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .category-group {
+            margin-bottom: 20px;
+        }
+
+        .category-header {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--primary);
+            margin-bottom: 8px;
+            padding-left: 8px;
+        }
+
+        .doc-list {
+            list-style: none;
+        }
+
+        .doc-item-btn {
+            width: 100%;
+            padding: 9px 12px;
+            background: none;
+            border: none;
+            border-radius: 8px;
+            color: var(--text-muted);
+            text-align: left;
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        .doc-item-btn:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            padding-left: 16px;
+        }
+
+        .doc-item-btn.active {
+            background: var(--primary-gradient);
+            color: #000;
+            font-weight: 600;
+            padding-left: 16px;
+        }
+
+        .reader-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-color);
+            overflow: hidden;
+        }
+
+        .reader-header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            background-color: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        .reader-title-area {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .reader-category {
+            font-size: 11px;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .reader-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .action-btn {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            background-color: var(--border-color);
+            border-color: var(--text-muted);
+        }
+
+        .reader-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .welcome-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--primary-gradient);
+            border-radius: 20px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            box-shadow: 0 10px 25px -5px rgba(0, 242, 254, 0.3);
+        }
+
+        .welcome-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .welcome-desc {
+            color: var(--text-muted);
+            max-width: 450px;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        /* Modal Layout */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-box {
+            background-color: #111827;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 600px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .modal-header h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-close-modal {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .btn-close-modal:hover {
+            color: var(--text-main);
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            max-height: 70vh;
+        }
+
+        /* Terminal Style Code Block */
+        .terminal-block {
+            background-color: #030712;
+            border: 1px solid #1f2937;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 13.5px;
+            color: #10b981;
+            margin: 16px 0;
+            position: relative;
+            overflow-x: auto;
+        }
+
+        .terminal-header {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .term-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red { background-color: #ef4444; }
+        .term-dot-yellow { background-color: #f59e0b; }
+        .term-dot-green { background-color: #10b981; }
+
+        .term-copy-btn {
+            position: absolute;
+            right: 12px;
+            top: 12px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-main);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .term-copy-btn:hover {
+            background-color: var(--primary);
+            color: #000;
+        }
+
+        .modal-instructions {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .modal-instructions ul {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+
+        .modal-instructions li {
+            margin-bottom: 6px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        .modal-btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        /* Markdown Styles */
+        .markdown-body {
+            line-height: 1.625;
+            font-size: 15px;
+        }
+
+        .markdown-body h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            color: var(--text-main);
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .markdown-body h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 32px;
+            margin-bottom: 16px;
+            color: var(--text-main);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 6px;
+        }
+
+        .markdown-body h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: var(--primary);
+        }
+
+        .markdown-body p {
+            margin-bottom: 16px;
+            color: #d1d5db;
+        }
+
+        .markdown-body ul, .markdown-body ol {
+            margin-bottom: 16px;
+            padding-left: 24px;
+            color: #d1d5db;
+        }
+
+        .markdown-body li {
+            margin-bottom: 6px;
+        }
+
+        .markdown-body code {
+            background-color: rgba(255, 255, 255, 0.08);
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-family: Consolas, Monaco, monospace;
+            font-size: 13px;
+            color: #ff79c6;
+        }
+
+        .markdown-body pre {
+            background-color: #161b22;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .markdown-body pre code {
+            background: none;
+            padding: 0;
+            color: #e6edf3;
+            font-size: 13px;
+            display: block;
+        }
+
+        .markdown-body blockquote {
+            padding: 16px;
+            background-color: rgba(59, 130, 246, 0.08);
+            border-left: 4px solid var(--accent);
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 20px;
+        }
+
+        .markdown-body .alert {
+            padding: 14px 18px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #fff;
+        }
+
+        .markdown-body .alert-note {
+            background-color: rgba(59, 130, 246, 0.08);
+            border-left-color: #3b82f6;
+        }
+
+        .markdown-body .alert-tip {
+            background-color: rgba(16, 185, 129, 0.08);
+            border-left-color: #10b981;
+        }
+
+        .markdown-body .alert-warning {
+            background-color: rgba(245, 158, 11, 0.08);
+            border-left-color: #f59e0b;
+        }
+
+        .markdown-body .alert-title {
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .alert-note .alert-title { color: #3b82f6; }
+        .alert-tip .alert-title { color: #10b981; }
+        .alert-warning .alert-title { color: #f59e0b; }
+
+        .copy-code-btn {
+            position: absolute;
+            right: 8px;
+            top: 8px;
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+            opacity: 0;
+            transition: var(--transition);
+        }
+
+        .markdown-body pre:hover .copy-code-btn {
+            opacity: 1;
+        }
+
+        .copy-code-btn:hover {
+            color: var(--text-main);
+            background-color: var(--border-color);
+        }
+
+        .github-badge-link {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background-color: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .github-badge-link:hover {
+            color: #fff;
+            background-color: #24292e;
+            border-color: #8b949e;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+        }
+    
+    </style>
+    <!-- 動態載入說明書資料庫 -->
+    <script src="manuals_db.js"></script>
+</head>
+<body>
+
+    <!-- Top Navbar -->
+    <div class="navbar">
+        <div class="nav-logo-area">
+            <div class="nav-logo-icon">G</div>
+            <div class="nav-logo-text">AGENT 專案大廳</div>
+        </div>
+
+        <div class="nav-tabs">
+            <button id="tabBtnPortal" class="nav-tab-btn active" onclick="switchView('portal')">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z"></path></svg>
+                專案大廳
+            </button>
+            <button id="tabBtnReader" class="nav-tab-btn" onclick="switchView('reader')">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4 1.253"></path></svg>
+                說明書中心
+            </button>
+        </div>
+
+        <div class="nav-actions" style="display: flex; gap: 10px;">
+            <a href="deploy-guide.html" target="_blank" class="btn-backup-guide" style="text-decoration: none; border-color: #f6821f; color: #f6821f; background: rgba(246, 130, 31, 0.1);" onclick="if(window.location.protocol.startsWith('http')) this.href='/deploy-guide.html';">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                無限部署教學
+            </a>
+            <button class="btn-backup-guide" onclick="openBackupModal()">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                一鍵備份/移轉指南
+            </button>
+        </div>
+    </div>
+
+    <!-- Views Container -->
+    <div class="views-container">
+
+        <!-- VIEW 1: Project Portal -->
+        <div id="viewPortal" class="view-panel portal-view active">
+            <div class="portal-header">
+                <div class="portal-title-area">
+                    <h2>📂 Google Agent 專案總大廳</h2>
+                    <p>管理並快速進入本電腦部署與開發之所有技能專案</p>
+                </div>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterProjects('all', this)">全部</button>
+                    <button class="filter-btn" onclick="filterProjects('cat1', this)">網頁與互動</button>
+                    <button class="filter-btn" onclick="filterProjects('cat2', this)">生產與 API</button>
+                    <button class="filter-btn" onclick="filterProjects('cat3', this)">AI 代理與工具</button>
+                </div>
+            </div>
+
+            <div class="project-grid" id="projectGrid">
+                <!-- Cards rendered dynamically -->
+            </div>
+        </div>
+
+        <!-- VIEW 2: Manual Reader -->
+        <div id="viewReader" class="view-panel reader-view">
+            <!-- Left Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <button class="btn-back-to-lobby" onclick="switchView('portal')">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                        返回專案大廳
+                    </button>
+                    <div class="search-wrapper">
+                        <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        <input type="text" id="searchInput" class="search-input" placeholder="搜尋說明書..." oninput="handleSearch()">
+                    </div>
+                </div>
+
+                <div class="menu-area" id="menuArea">
+                    <!-- Dynamic menu loaded here -->
+                </div>
+            </div>
+
+            <!-- Right Reader Area -->
+            <div class="reader-area" id="readerArea">
+                <div class="welcome-screen" id="welcomeScreen">
+                    <div class="welcome-icon">📖</div>
+                    <h2 class="welcome-title">歡迎來到專案說明書中心</h2>
+                    <p class="welcome-desc">請在左側選擇一個專案，或者使用搜尋欄輸入關鍵字，即可立即查閱對應的操作與部署手冊。</p>
+                </div>
+                
+                <div class="reader-header" id="readerHeader" style="display: none;">
+                    <div class="reader-title-area">
+                        <span class="reader-category" id="readerCategory">CATEGORY</span>
+                        <h1 class="reader-title" id="readerTitle">Manual Title</h1>
+                    </div>
+                    <div class="header-actions">
+                        <button class="action-btn" onclick="window.print()">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            列印 / 匯出
+                        </button>
+                    </div>
+                </div>
+                <div class="reader-content" id="readerContent" style="display: none;">
+                    <div class="markdown-body" id="renderedMarkdown">
+                        <!-- Content injected dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Terminal Command Modal -->
+    <div id="cmdModal" class="modal-overlay" onclick="closeCmdModal(event)">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 id="cmdModalTitle">💻 本機命令執行提示</h3>
+                <button class="btn-close-modal" onclick="closeCmdModal(null)">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-instructions">
+                    <p>此專案為本機執行的服務或自動化指令腳本。請複製下方指令，在您的本機電腦終端機 (PowerShell / CMD) 中執行它：</p>
+                </div>
+                <div class="terminal-block">
+                    <div class="terminal-header">
+                        <div class="term-dot term-dot-red"></div>
+                        <div class="term-dot term-dot-yellow"></div>
+                        <div class="term-dot term-dot-green"></div>
+                    </div>
+                    <span id="terminalCommand">python weather_monitor.py</span>
+                    <button class="term-copy-btn" onclick="copyTerminalCommand()">複製指令</button>
+                </div>
+                <div class="modal-instructions">
+                    <p><strong>說明：</strong></p>
+                    <ul id="cmdModalNotes">
+                        <li>請先確認您已在新電腦上完成環境初始化（若為新電腦環境）。</li>
+                        <li>部分專案需要安裝 python-pptx 等額外函式庫（可參考說明書進行安裝）。</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn btn-manual" id="btnGoToManual">閱讀該說明書</button>
+                <button class="modal-btn btn-launch" onclick="closeCmdModal(null)">我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backup Guide Modal -->
+    <div id="backupModal" class="modal-overlay" onclick="closeBackupModal(event)">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>💾 AI 技能與設定一鍵備份及轉移指南</h3>
+                <button class="btn-close-modal" onclick="closeBackupModal(null)">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-instructions">
+                    <p>為避免電腦損毀或壞軌，本專案提供了一套強大的<strong>一鍵備份與新電腦環境自動部署</strong>方案，將全域 MCP 授權檔、自訂技能 (Prompt Skills) 與本機設定檔備份到 Google Drive 中。</p>
+                    
+                    <h4 style="color: var(--primary); margin-top: 16px; margin-bottom: 8px;">A. 每月自動排程（最推薦）</h4>
+                    <p>您可以雙擊執行根目錄的 <code>一鍵設定排程.bat</code>。系統會在 Windows 自動建立排程任務，於<strong>每個月 1 號中午 12:00</strong> 自動在背景備份更新至雲端 Google Drive 的 <code>GOOGLE ANGET/backup</code> 目錄下。</p>
+
+                    <h4 style="color: var(--primary); margin-top: 16px; margin-bottom: 8px;">B. 手動立即備份</h4>
+                    <p>若需要立即備份，請至本機 <code>C:\GOOGLE ANGET</code>，雙擊執行：</p>
+                </div>
+                <div class="terminal-block">
+                    <div class="terminal-header">
+                        <div class="term-dot term-dot-red"></div>
+                        <div class="term-dot term-dot-yellow"></div>
+                        <div class="term-dot term-dot-green"></div>
+                    </div>
+                    <span>一鍵備份技能.bat</span>
+                    <button class="term-copy-btn" onclick="navigator.clipboard.writeText('C:\\GOOGLE ANGET\\一鍵備份技能.bat')">複製路徑</button>
+                </div>
+                <div class="modal-instructions">
+                    <h4 style="color: var(--primary); margin-top: 16px; margin-bottom: 8px;">C. 雙庫連動與跨電腦一鍵還原轉移</h4>
+                    <p>本系統採用「雙庫獨立 + 一鍵自動連動」架構（🧠 <strong>中央大腦 my-ai-brain</strong> 負責記憶與規範，🛠️ <strong>跨電腦技能庫 cross-device-agent-skills</strong> 負責工具與腳本）：</p>
+                    <ol style="margin-left: 20px; margin-top: 6px;">
+                        <li>在新電腦同步或下載根目錄至 <code>C:\GOOGLE ANGET</code> (或 <code>D:\GOOGLE ANGET</code>)。</li>
+                        <li>於資料夾中執行 <code>setup_new_computer.ps1</code> 初始化腳本。</li>
+                    </ol>
+                    <p style="margin-top: 8px;">腳本將會自動安裝開發環境、自動連動 <strong>my-ai-brain</strong> 與 <strong>cross-device-agent-skills</strong> 兩大獨立倉庫，並自動將全域 AI 規範 (<code>AGENTS.md</code>) 與 MCP 工具鏈注入本機 AI 引擎！</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn btn-launch" onclick="closeBackupModal(null)">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 專案大廳資料
+        const projectsData = [{title: "儲槽氮氣閥作動原理教育訓練",
+                category: "cat1",
+                launchUrl: "https://nitrogen-valve-training.pages.dev/",
+                manualTitle: "儲槽氮氣閥作動原理",
+                desc: "結合 P&ID 互動式 SVG 動態模擬動畫的儲槽氮封與防爆安全教材。支援自適應語音朗讀、自動換頁與 5 題課後測驗，並具備行動裝置防文字擠壓之流暢排版。",
+                tags: ["SVG 動畫", "自力式氮封", "TTS 旁白", "微壓模擬"],
+                githubUrl: "https://github.com/shihwei0809/nitrogen-valve-training",},
+        {title: "簡報自動語音影片生成器 (ocr-video)",
+                category: "cat1",
+                launchUrl: "command:ocrvideo",
+                manualTitle: "簡報自動語音影片生成器 (ocr-video) - 操作說明書",
+                desc: "一鍵將簡報 PDF 自動辨識並合成台灣女聲旁白的影片生成器。支援 Web UI 圖文旁白修改、即時試聽、與 50 倍渲染加速，本機雙擊 bat 即可啟動。",
+                tags: ["FastAPI", "EasyOCR", "edge-tts", "MoviePy 50x"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/OCR%E6%B8%AC%E8%A9%A6",},
+        {title: "員工教育訓練測驗系統 (本機優先版)",
+
+                category: "cat1",
+                launchUrl: "https://hr-quiz-v2.pages.dev/index_with_mp3.html",
+                manualTitle: "員工教育訓練測驗系統",
+                desc: "本機優先的通用 SOP 教育訓練與測驗系統。支援離線作答與前端評分、自動回寫 results.csv、以及完全圖形化變更 SOP 主題與題目的管理後台。",
+                tags: ["HTML5", "微軟TTS", "本機CSV寫入", "免安裝管理工具"],
+                githubUrl: "https://github.com/shihwei0809/hr-work-rules-quiz",},
+        {title: "flowchart-web 產品製程流程圖系統",
+                category: "cat1",
+                launchUrl: "https://product-flowchart.web.app/",
+                manualTitle: "flowchart-web 產品製程流程圖系統",
+                desc: "鴻勝化學的槽體製程管控系統。提供廠區原料、製程、成品槽之互動式 SVG 流程圖、動態液位水波計、壓力與 N2 吹掃模擬。",
+                tags: ["HTML5", "CSS3", "SVG", "互動網頁"],
+                githubUrl: "https://github.com/shihwei0809/flowchart-web",},
+        {title: "hongsheng-web 軟管對刷稽核系統",
+                category: "cat1",
+                launchUrl: "https://hongsheng-web-portal.pages.dev/",
+                manualTitle: "hongsheng-web 軟管對刷稽核系統",
+                desc: "暗黑科技風格之現場教育訓練與模擬演練應用。包含防錯警示燈、條碼模擬掃描配對、與 Firebase Firestore 即時資料庫連線。",
+                tags: ["HTML5", "Vanilla CSS", "Firebase", "WebUI"],
+                githubUrl: "https://github.com/shihwei0809/hongsheng-web",},
+        {title: "isotank-training 化學品卸料安全訓練",
+                category: "cat1",
+                launchUrl: "https://isotank-training.pages.dev/",
+                manualTitle: "isotank-training 化學品卸料安全訓練",
+                desc: "視覺化卸料安全教材。以 CSS 卡片與 9 步驟展示現場控制點，點擊可觀看防溢流堤、接地、接管氣密測試之 SVG 動畫。",
+                tags: ["HTML5", "SVG動畫", "語音旁白"],
+                githubUrl: "https://github.com/shihwei0809/isotank-training",},
+        {title: "isotank-hf-demo 化學品卸料動畫與影片",
+                category: "cat1",
+                launchUrl: "https://isotank-hf-demo.pages.dev/",
+                manualTitle: "isotank-hf-demo 化學品卸料動畫與影片",
+                desc: "基於 HyperFrames CLI 影音生成框架開發之 GSAP 網頁動畫投影片。支援 edge-tts 台灣男聲，並可一鍵自動渲染輸出 MP4 影片。",
+                tags: ["GSAP", "HyperFrames", "edge-tts", "影片輸出"],
+                githubUrl: "https://github.com/shihwei0809/isotank-hf-demo",},
+        {title: "test 大阪冒險電子書",
+                category: "cat1",
+                launchUrl: "https://osaka-book.pages.dev/",
+                manualTitle: "test 大阪冒險電子書",
+                desc: "小妤一家四口大阪五天四夜四格漫畫互動電子書。針對 10 歲主角小融修正微軟原生台灣腔男聲（+35Hz音高），並整合 ElevenLabs 電影級配音與試聽面板。",
+                tags: ["HTML5", "微軟語音", "ElevenLabs", "角色試聽"],
+                githubUrl: "https://github.com/shihwei0809/osaka-adventure-book",},
+        {title: "聲音轉文字 NoType語音助理",
+                category: "cat1",
+                launchUrl: "command:NoType",
+                manualTitle: "聲音轉文字 NoType語音助理",
+                desc: "本機執行全域快捷鍵語音助理，按下快捷鍵即快速錄音並透過 Whisper / Groq API 轉為文字，隨後模擬鍵盤將文字打字輸入游標處。",
+                tags: ["Electron", "Groq API", "Whisper", "自動打字"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/%E8%81%B2%E9%9F%B3%E8%BD%8A%E6%96%87%E5%AD%97",},
+        {title: "互動式網站 Lv1 - Lv5",
+                category: "cat1",
+                launchUrl: "https://interactive-site.pages.dev/",
+                manualTitle: "Lv1 純前端說明書",
+                desc: "用 AI 打造互動教學網頁五階段教材。展示從單選題（Lv1）、GAS 試算表存檔（Lv2）、講師與學員即時同步（Lv3）到 AI 批改與多輪對話助教（Lv4/Lv5）的完整實作。",
+                tags: ["Node.js", "Firebase", "Gemini API", "GAS"],
+                githubUrl: "https://github.com/shihwei0809/interactive-web-training",},
+        {title: "鼎新 T100 ERP QC 串接與三重對刷演練控制台",
+                category: "cat2",
+                launchUrl: "https://google-agent.pages.dev/projects/t100_simulator.html",
+                manualTitle: "鼎新 T100 ERP QC 串接中間件備案 — 操作與設定手冊",
+                desc: "專門提供給資訊人員與長官簡報展示的視覺化模擬演練控制台。包含【一關: 現場對刷】、【二關: T100 QC合格檢驗】、【三關: QC授權放行】與即時動態流程圖。",
+                tags: ["模擬演練", "T100 ERP", "三重防呆", "SVG 畫布"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/第二類_生產管理與API串接/IPAHQ-槽車確認-GAS-to-PHPSQL"},
+        {title: "IPAHQ 槽車確認與掃描系統",
+                category: "cat2",
+                launchUrl: "command:IPAHQ",
+                manualTitle: "IPAHQ 槽車確認與掃描系統",
+                desc: "廠區進貨與槽車防錯確認登記系統。透過手持條碼槍掃描，比對 ERP 品名車號，並利用 PHP API 對接 SQL Server 進口品管 COA。",
+                tags: ["PHP", "SQL Server", "GAS", "出貨核對"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/IPAHQ槽車掃描系統代碼原始APP優化",},
+        {title: "IPA 生產排程雙儲槽優化",
+                category: "cat2",
+                launchUrl: "command:IPA",
+                manualTitle: "IPA 生產排程雙儲槽優化",
+                desc: "彰化廠 IPA 生產排程優化。以 Python 演算法預測未來 24H 儲槽容量狀態，避免溢流風險，並透過 PHP 輸出甘特圖與排程報表。",
+                tags: ["Python", "Pandas", "PHP甘特圖"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/IPA-生產排程雙儲槽優化",},
+        {title: "n系列 GAS轉APK與出貨",
+                category: "cat2",
+                launchUrl: "command:nseries",
+                manualTitle: "n系列 GAS轉APK與出貨",
+                desc: "將 Google 試算表 GAS 系統封裝為 Android APK。供現場包裝人員配戴手持 Android 掃描槍進行出貨核對，支援 SQLite 離線暫存與批次同步。",
+                tags: ["Android SDK", "Cordova", "SQLite", "GAS"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/n系列GAS-轉-APK-離線核對上傳",},
+        {title: "N系列 條碼出貨核對與串接",
+                category: "cat2",
+                launchUrl: "command:Nseries_Check",
+                manualTitle: "N系列 條碼出貨核對與串接",
+                desc: "包裝人員利用掃描槍核對棧板與外箱條碼，防止出錯貨。核對完成後自動發送 API，將結果同步至企業 ERP 出貨庫存模組中。",
+                tags: ["PHP", "JavaScript", "SQL", "ERP API"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/N系列BARCODE出貨核對",},
+        {title: "QC 系統客製化電子化工廠",
+                category: "cat2",
+                launchUrl: "command:QC",
+                manualTitle: "QC 系統客製化電子化工廠",
+                desc: "品管部門客製化的檢驗數據自動化登錄系統。支援批號防重複登錄，並將每日合格率與雜質含量以 Chart.js 儀表板呈現在中控室大螢幕上。",
+                tags: ["PHP", "Chart.js", "SQL Server"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/QC-系統客製化電子化工廠",},
+        {title: "三合一單 to PHP Migration",
+                category: "cat2",
+                launchUrl: "command:Migration",
+                manualTitle: "三合一單 to PHP Migration",
+                desc: "工廠資訊系統升級。提供 Excel 三合一確認單遷移至 PHP + SQL 中央資料庫架構指南，並含歷史 Excel 批次導入 API 腳本。",
+                tags: ["PHP 8", "Database", "Excel匯入"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/三合一單-to-PHP-Migration",},
+        {title: "三合一單網頁架機伺服器",
+                category: "cat2",
+                launchUrl: "command:TripleWeb",
+                manualTitle: "三合一單網頁架機伺服器 — 操作說明書",
+                desc: "台積電槽車 Barcode 三合一單與運輸通知表專用架機伺服器。支援瀏覽器端純前端 AI OCR 截圖精準裁切嵌入、Excel 多分頁智慧匯入與時間修訂。",
+                tags: ["FastAPI", "Tesseract.js", "SheetJS", "openpyxl"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/第二類_生產管理與API串接/三合一單網頁架機伺服器",},
+        {title: "軟管 KeyCode 管理優化方案",
+                category: "cat2",
+                launchUrl: "command:KeyCode",
+                manualTitle: "軟管 KeyCode 管理優化方案",
+                desc: "現場製程管線軟管防呆編碼（Key-Code）條碼化管理。當接頭不匹配時發出大螢幕紅燈警告。",
+                tags: ["HTML5", "JavaScript", "PHP API"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/軟管-Key-Code-管理優化方案",},
+        {title: "溫度通報系統 本機與雲端同步備援監控",
+                category: "cat2",
+                launchUrl: "https://hongsheng-temp-523.web.app",
+                manualTitle: "溫度通報系統 本機與雲端同步備援監控",
+                desc: "彰化彰濱廠區環境高溫雙軌備援系統。本機 Python 與雲端 GAS 排程雙向同步心跳。Firebase 實時 HMI 支援 Chart.js 趨勢、LINE/Teams 通知。",
+                tags: ["Python", "GAS", "Firebase", "Teams Webhook"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/溫度通報",},
+        {title: "Google Classroom Agent",
+                category: "cat3",
+                launchUrl: "command:Classroom",
+                manualTitle: "Google Classroom anget",
+                desc: "自動化上傳課程講義、管理課程公告、彙整學生作業及成績回傳的 Google Classroom AI 助教。",
+                tags: ["Google API", "AI Agent"],
+                githubUrl: "https://github.com/shihwei0809/google-classroom-agent",},
+        {title: "Clasp + Netlify 部署指南",
+                category: "cat3",
+                launchUrl: "command:Clasp",
+                manualTitle: "clasp netlify mcp guide",
+                desc: "指南指導 AI Agent（如 Antigravity）如何一鍵將靜態網頁前端加上 Google Sheets 後端，並完成 Netlify 的非互動式快速部署。",
+                tags: ["clasp", "Netlify", "Serverless"],
+                githubUrl: "https://github.com/shihwei0809/clasp-netlify-mcp-guide",},
+        {title: "Claude HTML Slide Builder",
+                category: "cat3",
+                launchUrl: "command:SlideBuilder",
+                manualTitle: "claude html slide builder",
+                desc: "將 Markdown 文字自動生成為帶 GSAP 動畫與 reveal.js 互動之簡報。內建 wordcloud2 文字雲與 Firebase 投票看板，並能自動部署到 GitHub Pages。",
+                tags: ["Reveal.js", "Python", "GitHub Pages"],
+                githubUrl: "https://github.com/shihwei0809/claude-html-slide-builder",},
+        {title: "畢業旅行與簡報企劃 (grad-trip)",
+                category: "cat3",
+                launchUrl: "command:GradTrip",
+                manualTitle: "grad trip 畢業旅行與簡報企劃",
+                desc: "大學畢業旅行多媒體企劃生成，整合 edge-tts 語音與 Python 自動化 PPT 簡報製作。",
+                tags: ["Python", "PPTX", "旅遊企劃"],
+                githubUrl: "https://github.com/shihwei0809/grad-trip",},
+        {title: "保養品 客服聊天機器人",
+                category: "cat3",
+                launchUrl: "command:BeautyBot",
+                manualTitle: "保養品 客服聊天機器人",
+                desc: "LINE 保養品客服聊天機器人，整合 Gemini 與知識庫，提供即時商品推薦與保養諮詢。",
+                tags: ["LINE Bot", "Gemini", "知識庫"],
+                githubUrl: "https://github.com/shihwei0809/skincare-product-guide",},
+        {title: "Padlet 留言板系統",
+                category: "cat3",
+                launchUrl: "https://padlet-board-app.pages.dev/",
+                manualTitle: "padlet board 留言板操作說明書",
+                desc: "互動式留言板系統，支援匿名留言、留言分類、大廳即時瀑布流看板。",
+                tags: ["HTML5", "CSS Grid", "輕量儲存"]},
+        {title: "AI 克隆聲音",
+                category: "cat3",
+                launchUrl: "command:VoiceClone",
+                manualTitle: "AI 克隆聲音",
+                desc: "VoxCPM2 克隆音色與語調。支援 Web 端錄音與 AI Agent 自然語言指令連動。",
+                tags: ["Python 3.12", "Gradio", "VoxCPM2", "PyTorch"],
+                githubUrl: "https://github.com/shihwei0809/voxcpm2-voice-cloner",},
+        {title: "AI Agent Obsidian 知識庫建置",
+                category: "cat3",
+                launchUrl: "command:Obsidian",
+                manualTitle: "AI Agent Obsidian 知識庫建置",
+                desc: "YouTube 影片字幕提取清洗與 Obsidian 三層式（Clipping、創作庫、知識庫）二次大腦知識庫整理。",
+                tags: ["yt-dlp", "Obsidian", "知識管理"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%89%E9%A1%9E_AI%E4%BB%A3%E7%90%86%E8%88%87%E6%8C%87%E5%8D%97%E4%BC%81%E5%8A%83/ai%20anget",},
+        {title: "AIGC 音樂影片生成系統",
+                category: "cat3",
+                launchUrl: "command:AIGC_MV",
+                manualTitle: "AIGC 音樂影片生成系統",
+                desc: "宣傳歌Sun AI生成、故事板分配與影音批次合成儀表板，已託管於 Firebase。",
+                tags: ["Suno AI", "FFmpeg", "Firebase Hosting"],
+                githubUrl: "https://github.com/shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%89%E9%A1%9E_AI%E4%BB%A3%E7%90%86%E8%88%87%E6%8C%87%E5%8D%97%E4%BC%81%E5%8A%83/aigc-music-video-hub",},
+        {title: "Claude Video Specs 影片規格與技能指南",
+                category: "cat3",
+                launchUrl: "command:VideoSpecs",
+                manualTitle: "Claude Video Specs 影片規格與技能指南",
+                desc: "三類 Reveal-Slide 影音製作規格、自動安裝腳本以及打包為 Agent Skill 的開發工具包。",
+                tags: ["Reveal.js", "Python", "SkillsPackager"],
+                githubUrl: "https://github.com/shihwei0809/claude-video-specs",},
+        {title: "跨電腦一鍵備份與還原轉移系統",
+                category: "cat3",
+                launchUrl: "command:BackupRestore",
+                manualTitle: "跨電腦一鍵備份與還原轉移系統",
+                desc: "AI Agent 與本機開發環境一鍵備份、還原與排程自動化系統，支援跨電腦無痛技能轉移。",
+                tags: ["PowerShell", "TaskScheduler", "一鍵還原"],
+                githubUrl: "https://github.com/shihwei0809/google-agent",}];
+
+        // 內嵌所有說明書 JSON 資料 (優先讀取 manuals_db.js)
+        const manualsData = (typeof window !== 'undefined' && window.manualsData && window.manualsData.length > 0) ? window.manualsData : [{"title": "產品製程流程圖系統 (flowchart-web) - 操作說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/flowchart-web_產品製程流程圖系統_說明書.md", "content": "# 產品製程流程圖系統 (flowchart-web) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/flowchart-web](https://github.com/shihwei0809/flowchart-web)\n\n\n## 專案簡介\n此專案為鴻勝化學的「產品製程流程圖系統 (槽體製程管控系統)」，提供廠區槽體、原料、製程、成品槽及格外品之互動式流程圖與即時狀態監控。\n\n## 主要功能特色\n- **SVG 互動式畫布**：高解析度 SVG 流程圖，可縮放、平移，點擊任一槽體可查看詳細規格。\n- **液位動態視覺效果**：槽體詳細資訊彈窗中，液位計具備動態水波動畫與即時數值更新。\n- **重要製程數據**：實時顯示溫度、壓力、成分狀態，並支援 N2 吹掃動態模擬。\n- **側邊欄智能導航**：快速過濾不同區域的製程槽體。\n- **匯入/匯出功能**：支援將配置參數與手動產能備份為 JSON 檔案下載，並可隨時匯入復原。\n\n## 技術棧\n- HTML5, CSS3, JavaScript (ES6)\n- SVG (可縮放向量圖形)\n\n## 本機執行與操作\n1. 進入 `flowchart-web` 目錄，雙擊 `index.html`。\n2. 點擊畫面上的槽體（如原料槽、成品槽），將彈出詳細規格視窗。\n3. 可點擊上方的 **「修改產能描述」** 手動調整黃色總產能標示，或點選 **「匯出/匯入」** 備份目前配置。\n"}, {"title": "軟管對刷稽核系統 (hongsheng-web) - 操作說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/hongsheng-web_軟管對刷稽核系統_說明書.md", "content": "# 軟管對刷稽核系統 (hongsheng-web) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/hongsheng-web](https://github.com/shihwei0809/hongsheng-web)\n\n\n## 專案簡介\n本專案為鴻勝化學的「軟管對刷稽核系統 — 互動式教育訓練與模擬演練」網頁應用程式。旨在幫助現場操作員通過暗黑科技風格的介面，進行模擬演練與 QC 檢驗培訓。\n\n## 主要功能特色\n- **科技感 UI 設計**：採用深色模式、霓虹光暈與動態掃描線視覺效果。\n- **即時連線狀態**：前端與 Firebase Firestore 實時連線，並設有連線狀態指示燈。\n- **雙模式切換**：\n  - **簡報模式**：用於講授軟管對刷與稽核的理論知識。\n  - **模擬演練模式**：模擬現場條碼掃描、操作員手動配對確認、以及 QC 儀表板檢驗流程。\n- **防錯警示系統**：實時比對刷卡資訊與預計配對，如出錯會觸發紅色警示燈與警告音效。\n\n## 技術棧\n- 前端：HTML5, CSS3 (Vanilla), JavaScript (ES6)\n- 後端資料庫：Firebase Firestore\n\n## 本機執行與操作\n1. 按兩下開起 `hongsheng-web/index.html` 即可單機運行。\n2. 若需實時 Firebase 連線，請確保 `.env` 或 `app.js` 中配置了正確的 Firebase API 金鑰。\n3. 進入網頁後，點選右上角的 **「開始演練」**，依序執行條碼掃描與對刷稽核操作。\n"}, {"title": "員工教育訓練測驗系統 — 操作說明書（通用本機優先版）", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/hr_quiz_v2_員工教育訓練測驗系統_說明書.md", "content": "# 員工教育訓練測驗系統 — 操作說明書（通用本機優先版）\n\n本系統為一套完全免安裝、支援離線作答、一鍵切換 SOP 主題與自動收集作答結果的通用教育訓練系統。\n\n---\n\n## 📁 系統目錄結構與檔案說明\n\n在 `hr_quiz_v2/` 目錄中，主要包含以下檔案：\n*   **`🎙 點我啟動MP3生成工具.bat`**：雙擊即可啟動「SOP 內容與題目管理中心」，直接在瀏覽器進行設定與配音。\n*   **`MP3生成工具.exe`**：管理中心的執行檔（雙擊 bat 後會自動調用此 exe，無須安裝 Python）。\n*   **`index.html`**：主測驗網頁（文字朗讀為內建 TTS 機械音版本）。\n*   **`index_with_mp3.html`**：進階測驗網頁（優先播真人生產的 MP3 配音，找不到則自動降級為 TTS 備援）。\n*   **`quiz_data.json`**：系統的設定與題目庫檔案（由管理工具自動寫入，無須手動編輯）。\n*   **`results.csv`**：**【核心收集】** 所有同仁的作答紀錄檔案（自動生成，直接用 Excel 開啟）。\n*   **`slides/`**：存放簡報圖片（`slide_01.png`~`slide_20.png`）與配音檔（`slide_01.mp3`）的資料夾。\n\n---\n\n## 🚀 核心操作步驟\n\n### 第一步：更換簡報投影片與標題題目 (SOP 更換)\n如果你有新的 SOP 教育訓練（例如消防安全宣導）：\n1.  將你的投影片匯出為圖片（支援 PNG 格式），命名為 `slide_01.png`, `slide_02.png` 依序放入 `slides/` 資料夾中。\n2.  雙擊執行 **`🎙 點我啟動MP3生成工具.bat`**。\n3.  開啟自動彈出的網頁管理後台：\n    *   **大標題 / 副標題**：填入這次的 SOP 主題（例如：115年度安全防護訓練）。\n    *   **旁白管理 (Tab 1)**：在表格中填入每一頁投影片要朗讀的文字。\n    *   **題目編輯 (Tab 2)**：直接填寫測驗題目、A/B/C/D 選項，並透過**下拉選單選取正確答案**（例如：第一題正確答案是 B）。\n4.  點擊最上方綠色的 **「儲存所有 SOP 設定」**。\n\n---\n\n### 第二步：一鍵批次配音 MP3 (選擇性)\n為了讓同仁聽到流暢的真人語音而非機械音：\n1.  在管理後台 (Tab 1) 右上方選擇偏好的語音（如「曉臻」）與語速。\n2.  點擊 **「▶ 一鍵生成全部配音」** 按鈕。\n3.  系統會自動連接微軟語音引擎，在幾秒鐘內於 `slides/` 下產生所有的 `slide_XX.mp3` 音檔。\n\n---\n\n### 第三步：內網共享，讓同仁開始測驗\n當設定好題目與語音後，要如何發送給同仁作答？\n1.  雙擊 **`點我啟動內網伺服器(Windows內建無須Python).bat`**。\n2.  黑色視窗會啟動並顯示你的本機 IP 網址（例如：`http://192.168.1.100:8000/index_with_mp3.html`）。**請勿關閉此視窗**。\n3.  將該網址（或產生的 QR code）發送給同仁。同仁的手機或電腦只要連線到相同的 Wi-Fi，即可開啟並進行測驗。\n\n---\n\n### 第四步：收集並導出作答紀錄\n當同仁點擊送出測驗後，系統會自動在後台進行**三重存檔**，保證資料不遺失：\n1.  **本機 Excel 收集 (results.csv)**：在主機電腦同目錄下會自動產生並更新 `results.csv`。你可以直接用 Excel 開啟，即時看到所有同仁的「姓名、作答時間、得分、各題答對狀況與明細」。\n2.  **網頁端匯出**：管理員可以在測驗網頁右上角點擊 **⚙️ 系統設定**，隨時「匯出 CSV」或是「預覽紀錄」。\n3.  **雲端同步備份 (Google Sheets)**：若你已在設定中填入 Google Apps Script 網址，系統會自動把結果非同步備份到雲端試算表。\n\n---\n\n## ⚠️ 注意事項\n1.  **離線算分**：題目和正確答案都包含在 `quiz_data.json` 中，就算完全斷網，員工交卷時，網頁也會自行核對並計算分數，再傳回主機 `results.csv` 存檔。\n2.  **圖片覆蓋**：簡報圖片名稱必須對齊，若有 10 頁，請確保為 `slide_01.png` 到 `slide_10.png`。\n"}, {"title": "ISOTANK 化學品卸料安全訓練動畫與影片 (isotank-hf-demo) - 操作說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/isotank-hf-demo_化學品卸料動畫與影片_說明書.md", "content": "# ISOTANK 化學品卸料安全訓練動畫與影片 (isotank-hf-demo) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/isotank-hf-demo](https://github.com/shihwei0809/isotank-hf-demo)\n\n\n## 專案簡介\n本專案為鴻勝化學「ISOTANK 化學品卸料安全訓練」的動畫簡報與影片生成系統。本專案為 `isotank-training` 專案的全面升級版，使用最新的 **HyperFrames** 影音生成框架開發，採用深色暗黑科技感風格的網頁投影片（GSAP 動畫效果），配上微軟 Edge TTS 產生的台灣腔男聲旁白，並能自動渲染輸出高畫質的 MP4 教育訓練影片。\n\n## 主要功能特色\n- **HyperFrames 動畫簡報**：以 HTML + GSAP 編寫 12 頁精緻動畫投影片，每頁具有高質感、極流暢的動態圖形（Motion Graphics）。\n- **精準音訊與字幕對齊**：旁白使用微軟 Edge TTS 台灣男聲 `zh-TW-YunJheNeural` 產生。每頁的播放時長會根據旁白音檔長度（外加 1 秒緩衝）進行動態調整（而不是固定 10 秒）。\n- **自動化時間更新腳本**：提供 `fix_timing.py` 腳本，能夠根據旁白音檔的長度重新計算並自動修改 HTML 中各個 `clip` 的 `data-start` 與 `data-duration` 屬性。\n- **全自動影片渲染**：可以直接使用 `npx hyperframes render`（或執行編譯腳本）調用 Playwright 於無頭瀏覽器中自動錄製網頁動畫，並合併旁白音軌，一鍵生成 1920x1080 規格的 MP4 影片。\n\n## 技術棧\n- **前端動畫**：HTML5, CSS3, GSAP (GreenSock Animation Platform)\n- **影音渲染**：HyperFrames CLI (基於 Playwright)\n- **語音合成**：edge-tts (Microsoft Cognitive Services)\n- **多媒體處理**：FFmpeg (音訊延遲與音視訊混音)\n\n## 專案結構\n- `index.html`：主要的投影片動畫網頁（含 12 個投影片 clips、GSAP 時間軸等）。\n- `assets/narration/`：每頁對應的旁白音檔（`page-01.mp3` ~ `page-12.mp3`）。\n- `combined_audio.mp3`：串接完成的全程旁白音軌。\n- `fix_timing.py` / `apply_timing.py`：時間碼自動更新與同步腳本。\n- `package.json`：定義 `dev` (預覽)、`check` (檢查)、`render` (輸出影片) 等 script。\n- `isotank-final.mp4`：最終產出的含音軌高畫質影片（4分6秒，1920×1080）。\n\n## 本機執行與操作\n1. **啟動預覽 Studio**：\n   進入 `isotank-hf-demo` 目錄，執行：\n   ```bash\n   npm run dev\n   ```\n   即可在瀏覽器開啟 `http://localhost:3002` 預覽帶旁白與動畫的互動式簡報。\n\n2. **時間碼校準**：\n   若修改了簡報內容或旁白音檔，執行以下腳本自動重新計算並更新 `index.html` 的時間軸屬性：\n   ```bash\n   python fix_timing.py\n   ```\n\n3. **渲染輸出影片**：\n   執行以下命令，將網頁動畫自動導出為無音軌影片：\n   ```bash\n   npm run render\n   ```\n\n4. **音軌合成**：\n   使用 FFmpeg 將 `combined_audio.mp3` 與無音軌影片進行 mux，即可合成最終帶旁白的 `isotank-final.mp4` 教育訓練影片。\n"}, {"title": "ISOTANK 化學品卸料安全訓練 (isotank-training) - 操作說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/isotank-training_化學品卸料安全訓練_說明書.md", "content": "# ISOTANK 化學品卸料安全訓練 (isotank-training) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/isotank-training](https://github.com/shihwei0809/isotank-training)\n\n\n## 專案簡介\n本網頁為 ISOTANK 化學品進貨安全與卸料訓練的互動式安全教材，提供視覺化的 9 個安全步驟指導。\n\n## 主要功能特色\n- **視覺化教學步驟**：包含「隱形危機、進場核對、雙重防線、接管氣密」等 9 個安全控制點。\n- **SVG 動態演示**：點擊步驟時，會以 SVG 動畫展示防溢流堤架設、接地測試、以及管線對接氣密測試等現場流程。\n- **語音旁白與字幕**：結合配音檔，提供流暢的教材時間軸控制。\n\n## 技術棧\n- HTML5, CSS3, 內嵌 SVG 動畫與 CSS Keyframes。\n\n## 本機執行與操作\n1. 進入 `isotank-training` 目錄，雙擊 `index.html`。\n2. 點擊下方時間軸的 **「播放」**，教材將伴隨旁白自動播演。\n3. 亦可直接點選上方步驟圖示，跳轉至指定步驟查看 SVG 動畫演示。\n"}, {"title": "簡報自動語音影片生成器 (ocr-video) - 操作說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/ocr-video_簡報自動語音影片生成器_說明書.md", "content": "# 簡報自動語音影片生成器 (ocr-video) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/OCR測試](https://github.com/shihwei0809/google-agent/tree/main/OCR測試)\n\n## 專案簡介\n本專案為一個高效率的「PDF 簡報自動化語音影片生成系統」，能夠將任何簡報 PDF 檔案，全自動解析為每頁投影片的影像，並透過 OCR 辨識投影片內容，最終結合微軟高音質的台灣女生配音，渲染輸出為高畫質的 MP4 導覽影片。\n\n本專案同時提供了**單機指令版**與**視覺化網頁編輯介面（Web UI）**，方便同仁在直觀的介面上即時修正配音稿、聽取語音預覽並一鍵產生影片。\n\n## 主要功能特色\n- **1.2x 降載解析度優化**：預設將投影片圖片匯出比例調降至 1.2x，在維持 EasyOCR 高精準度的前提下，將 CPU 辨識文字的速度提升 4 到 5 倍。\n- **純原生 MP3 處理與 FFMPEG 合併**：使用微軟 Edge TTS 的原生 MP3 音訊輸出，並在背景以 `ffmpeg concat` 快速無損合併所有音軌，完全避免了傳統音訊多處理器鎖定（Deadlock）的崩潰問題。\n- **一鍵式兩階段處理流程**：\n  - **Prepare（準備階段）**：僅執行 PDF 轉圖片與文字 OCR 辨識，並將文字草稿儲存為 `narration.json`。\n  - **Generate（生成階段）**：載入編輯後的 `narration.json` 文字，呼叫 edge-tts 生成語音，最終以 `fps=5` 與 `preset=\"ultrafast\"` 快速渲染導出影片。\n- **視覺化 Web 編輯平台**：\n  - 採用深色質感玻璃微光風格（Glassmorphism）UI。\n  - 提供**圖文對照編輯**，左側為投影片縮圖，右側為可編輯旁白輸入框，方便直接刪除頁碼等雜訊。\n  - 內建 **「🔊 試聽語音」** 按鈕，可在瀏覽器中直接試聽個別投影片的台灣女聲發音效果。\n  - 支援網頁端直接播放生成影片與一鍵下載成品。\n\n## 技術棧\n- **後端服務**：FastAPI (Python 3.12), Uvicorn\n- **文件解析**：PyMuPDF (fitz)\n- **文字辨識**：EasyOCR (PyTorch)\n- **語音合成**：edge-tts (Microsoft Cognitive Services, 預設 `zh-TW-HsiaoChenNeural` 台灣女聲)\n- **多媒體處理**：moviepy, FFmpeg (影像影像串接與音軌疊加)\n- **前端介面**：HTML5, CSS3 (Vanilla), JavaScript (ES6)\n\n## 🚀 視覺化網頁操作步驟 (推薦)\n\n### 第一步：啟動本機網頁伺服器\n1. 進入 `OCR測試` 目錄下。\n2. 雙擊執行 **`run_pdf_to_video_web.bat`** 批次檔。\n3. 系統將會啟動本地後端服務（監聽 Port 8002），並自動在您的預設瀏覽器中開啟 **[http://localhost:8002/](http://localhost:8002/)** 編輯頁面。\n\n### 第二步：上傳 PDF 並提取旁白\n1. 將簡報 PDF 檔案拖曳至網頁的拖放區域中，或點擊上傳。\n2. 選擇偏好的**語音發音員**（曉臻、曉雨、雲哲）與**語速**。\n3. 點擊 **「1. 匯出投影片並提取旁白」** 按鈕。\n4. 網頁將會顯示進度條，等待數十秒後，系統會自動在下方展開「旁白編輯列表」。\n\n### 第三步：編輯旁白與試聽\n1. 在各投影片旁的輸入框中直接修改文字。建議刪除頁碼（如 `01`、`04` 等）與多餘雜訊。\n2. 點擊右下角的 **「🔊 試聽語音」**，可在瀏覽器中即時試聽修正後的配音效果。\n\n### 第四步：合成並下載影片\n1. 確認所有頁面的旁白文字皆正確後，點擊最底部的 **「2. 開始合成並產生導覽影片」** 按鈕。\n2. 系統會合併音軌並以優化速度進行影片渲染（寫入時進度條會快速前進）。\n3. 生成完畢後，網頁將會切換至成品頁面。您可以在線上直接觀看，並點選 **「💾 下載說明影片 (MP4)」** 下載高畫質影片。\n\n---\n\n## ⌨️ 終端機指令操作步驟 (工程師專用)\n\n若您習慣使用指令進行操作，可以透過以下方式執行：\n\n* **一鍵直接生成影片（預設全部流程）**：\n  ```bash\n  python pdf_onekey_video.py --pdf \"您的簡報.pdf\"\n  ```\n\n* **第一階段（僅生成文字草稿並停止）**：\n  ```bash\n  python pdf_onekey_video.py --pdf \"您的簡報.pdf\" --prepare\n  ```\n  *此時您可以手動打開 `video_output/narration.json` 修正各頁面的文字。*\n\n* **第二階段（載入編輯後的說明稿合成影片）**：\n  ```bash\n  python pdf_onekey_video.py --pdf \"您的簡報.pdf\" --generate\n  ```\n\n---\n\n## ⚠️ 避坑與維護注意事項\n1. **中文字元路徑編碼限制**：OpenCV 在 Windows 下若遇到包含中文的檔案路徑，常會因為編碼解析出錯而無法開啟圖片。本專案已改用 `PIL (Pillow)` 讀取圖片，並轉換為 `NumPy` 陣列直接傳遞給 EasyOCR 處理，請勿改回直接傳遞路徑字串。\n2. **多進程死鎖防範**：簡報投影片頁數較多時，請勿在迴圈中建立多個 `AudioFileClip` 子進程讀取個別音檔，否則會佔用大量本機系統管線（Pipes）導致程式卡死。本專案一律先輸出 MP3，以 `ffmpeg concat` 合併為單一音檔後，再使用單一 `AudioFileClip` 進程載入合成。\n"}, {"title": "大阪冒險之旅四格漫畫電子書 (test) - 操作說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/test_大阪冒險電子書_說明書.md", "content": "# 大阪冒險之旅四格漫畫電子書 (test) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/test](https://github.com/shihwei0809/osaka-adventure-book)\n\n\n## 專案簡介\n本專案為小妤一家四口大阪五天四夜旅遊的四格漫畫互動式電子書，內建雙語音播放（微軟原生台灣國語與 ElevenLabs 電影級語音）與角色試聽功能。\n\n## 主要功能特色\n- **微軟原生 (Microsoft Native) 模式**：優化台灣腔聲線；針對 10 歲主角弟弟「小融 (Taiga)」進行童音校正（以微軟台灣男聲 `zh-TW-YunJheNeural` 結合 `+35Hz` 音高及 `+15%` 語速調整），完美呈現活潑小男童聲音。\n- **ElevenLabs 模式**：支援電影級高擬真配音，且設有額度耗盡自動降級至微軟語音的防錯機制。\n- **試聽面板**：提供獨立試聽按鈕，方便預覽個別角色音色。\n\n## 技術棧\n- 前端：HTML5, CSS3, JavaScript\n- 後端語音生成：Python (edge-tts), ElevenLabs API\n\n## 本機執行與操作\n1. 雙擊開起 `test/index.html` 查看電子書。\n2. 點選頁面右上角的設定（齒輪）圖示，可切換「語音模式」或對各角色進行語音試聽。\n"}, {"title": "聲音轉文字 (NoType 語音助理) - 操作說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/聲音轉文字_NoType語音助理_說明書.md", "content": "# 聲音轉文字 (NoType 語音助理) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/%E8%81%B2%E9%9F%B3%E8%BD%8A%E6%96%87%E5%AD%97](https://github.com/shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/%E8%81%B2%E9%9F%B3%E8%BD%8A%E6%96%87%E5%AD%97)\n\n\n## 專案簡介\nNoType 是一個本機安裝的語音助理，允許使用者按下快捷鍵進行快速錄音，並自動透過 Whisper / Groq API 轉成文字，隨後模擬鍵盤將文字自動輸入至目前游標所在的任何應用程式中。\n\n## 主要功能特色\n- **全域快捷鍵**：可在任何視窗下按下快捷鍵觸發錄音。\n- **自動打字輸入**：識別完成後，免手動貼上，程式會模擬鍵盤直接打字輸入。\n- **設定面板**：支援設定 API KEY、AI 模型推薦、以及快捷鍵綁定。\n\n## 技術棧\n- 框架：Electron (Node.js)\n- API 服務：OpenAI Whisper API / Groq API\n\n## 本機執行與操作\n1. 雙擊執行 `聲音轉文字` 目錄底下的 `start.bat`。\n2. 啟動後會在系統右下角系統匣（Tray）運行。\n3. 按下設定好的錄音快捷鍵，說完話後再次按下快捷鍵，系統將自動在您光標位置輸入識別後的文字。\n"}, {"title": "Level 1：純前端單機測驗 - 使用說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/互動式網站教學說明/Lv1_純前端說明書.md", "content": "# Level 1：純前端單機測驗 - 使用說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/%E4%BA%92%E5%8B%95%E5%BC%8F%E7%B6%B2%E7%AB%99](https://github.com/shihwei0809/interactive-web-training)\n\n\n---\n\n## 📝 模組概述\n本模組為互動式教學的第一步：**單機純網頁測驗**。所有題庫、作答逻辑與計分演算法皆封裝在瀏覽器端（前端），無須任何後端伺服器或資料庫。\n\n*   **適用場景**：課堂前的快速複習、學員自我評量、無須保存數據的單純互動練習。\n*   **優點**：零主機成本、載入速度極快、原始碼完全公開。\n*   **缺點**：學員一旦重新整理或關閉網頁，作答紀錄與分數即會完全歸零，且不安全，無法防護 AI API 金鑰。\n\n---\n\n## 🛠️ 技術實作與程式架構\n\n### 檔案位置\n*   `互動式網站/lv1-frontend.html`\n\n### 前端 JavaScript 判定邏輯\n我們將正確答案陣列硬編碼於前端，透過 DOM 操作即時更改選項的邊框顏色，並顯示原先隱藏的 `class=\"explanation\"` 區塊：\n\n```javascript\nconst correctAnswers = ['B', 'A']; // 正確選項\nlet userAnswers = [null, null];   // 學員作答狀態\nlet isGraded = false;\n\nfunction selectOption(qIndex, optionLetter) {\n  if (isGraded) return;\n  // 更新 UI 選取項樣式...\n  userAnswers[qIndex] = optionLetter;\n}\n\nfunction submitQuiz() {\n  // 1. 檢查是否回答完畢\n  // 2. 顯示隱藏的解析區塊 (.style.display = 'block')\n  // 3. 與 correctAnswers 對照，答對加分，並為選項套用 .correct / .incorrect 樣式\n  // 4. 顯示總分\n}\n```\n\n---\n\n## 🚀 操作說明\n1.  **開啟方式**：在檔案總管中雙擊 `互動式網站/lv1-frontend.html`，直接以瀏覽器開啟即可，不依賴任何本地伺服器。\n2.  **進行測驗**：\n    *   在單選題中點擊選項，該選項將以霓虹藍邊框標記為已選。\n    *   點擊「**送出測驗**」按鈕，題目下方會即時顯示**綠色（答對）**與**紅色（答錯）**的反饋。\n    *   解析區塊會自動展開，最下方會顯示總分圓環與回饋評語。\n    *   點擊「**重新挑戰**」會重置所有狀態。\n"}, {"title": "Level 2：試算表後端 - 使用說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/互動式網站教學說明/Lv2_Google試算表說明書.md", "content": "# Level 2：試算表後端 - 使用說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/%E4%BA%92%E5%8B%95%E5%BC%8F%E7%B6%B2%E7%AB%99](https://github.com/shihwei0809/interactive-web-training)\n\n\n---\n\n## 📝 模組概述\n本模組引入了「輕量級資料儲存」概念。學員完成測驗後，網頁會透過 HTTP POST 將學員的姓名、總分、以及詳細的答題選項傳送至 **Google Apps Script (GAS)**，並自動追加寫入到指定的 **Google 試算表**中。\n\n*   **適用場景**：課後成績靜態回收、簡單的人員訓練簽到與考核記錄。\n*   **解決的痛點**：克服 Level 1 關閉網頁即丟失數據的缺點，讓講師能在最熟悉的 Excel 介面中隨時統計成績。\n*   **技術限制**：GAS / 試算表寫入會有約 1~2 秒的同步延遲，當多人同時點擊送出時，可能會因為併發冲突而卡死，因此不適合即時對戰。\n\n---\n\n## 🛠️ 技術實作與程式架構\n\n### 檔案位置\n*   **前端頁面**：`互動式網站/lv2-sheets.html`\n*   **GAS 程式碼**：`互動式網站/gas-code.js`\n\n### 後端 GAS 鎖定防護機制\n為了避免多人同時寫入造成資料覆蓋，我們在 GAS 中加載了 `LockService`：\n```javascript\nfunction doPost(e) {\n  var lock = LockService.getScriptLock();\n  try {\n    lock.waitLock(10000); // 鎖定 10 秒以進行排隊寫入\n    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();\n    var data = JSON.parse(e.postData.contents);\n    sheet.appendRow([new Date(), data.nickname, data.score, ...data.answers]);\n    return ContentService.createTextOutput(JSON.stringify({status: 'success'}));\n  } finally {\n    lock.releaseLock(); // 釋放鎖\n  }\n}\n```\n\n---\n\n## 🚀 部署與操作步驟\n\n### 第一步：部署雲端試算表 GAS 後端\n1.  開啟您的 Google 雲端硬碟，建立一個新的 **Google 試算表**。\n2.  點擊選單的「**擴充功能**」 $\\rightarrow$ 「**Apps Script**」。\n3.  將 `互動式網站/gas-code.js` 內容完整複製貼上。\n4.  點擊右上方「**部署**」 $\\rightarrow$ 「**新增部署**」。\n5.  設定部署類型為「**網頁應用程式**」：\n    *   **執行身分**：我 (您的 Google 帳號)\n    *   **誰有權限存取**：任何人 (Anyone)\n6.  點擊「部署」，授權 Google 帳戶後，**複製產生的網頁應用程式 URL**。\n\n### 第二步：配置前端與測試\n1.  在瀏覽器開啟 `互動式網站/lv2-sheets.html`。\n2.  在頁面頂部的「**GAS 部署網頁應用程式 URL**」輸入框中貼上您剛剛複製的 URL（狀態會即時從模擬模式切換為連線模式）。\n3.  輸入「姓名」，勾選測驗題，點擊「**送出測驗並存檔**」。\n4.  回到你的雲端 Google 試算表，你將會看到一列全新的作答紀錄即時追加到最後一行！\n"}, {"title": "Level 3：多人即時同步連線 - 使用說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/互動式網站教學說明/Lv3_多人即時連線說明書.md", "content": "# Level 3：多人即時同步連線 - 使用說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%80%E9%A1%9E_%E6%A0%B8%E5%BF%83%E7%B6%B2%E9%A0%81%E8%88%87%E4%BA%92%E5%8B%95%E7%B3%BB%E7%B5%B1/%E4%BA%92%E5%8B%95%E5%BC%8F%E7%B6%B2%E7%AB%99](https://github.com/shihwei0809/interactive-web-training)\n\n\n---\n\n## 📝 模組概述\n本模組重現了三師爸「**互動教學駕駛艙**」的核心多人同步機制。\n將系統完全分離為：\n1.  **講師投影幕端 (Tutor View)**：控制投影片翻頁、推播題目，並在大螢幕上即時以圓形統計圖 (Donut Chart) 累計學生票數。\n2.  **學員答題端 (Student View)**：同步追隨講師投影片，若講師進入測驗，自動彈出答題卡並提交。\n\n*   **解決的痛點**：克服 Google Sheets 等傳統 API 的寫入瓶頸，提供秒級的即時數據處理，避免班級多人同時提交時卡死。\n*   **技術原理**：在正式環境使用 Firebase Firestore 的 `onSnapshot()` WebSocket 連線監聽；在本機環境則使用我們為您寫好的 Node 本機同步伺服器 (`server.js`) 進行資料交換。\n\n---\n\n## 🛠️ 技術實作與程式架構\n\n### 檔案位置\n*   **講師端頁面**：`互動式網站/lv3-tutor.html`\n*   **學員端頁面**：`互動式網站/lv3-student.html`\n*   **同步伺服器**：`互動式網站/server.js`\n\n### 同步運作流程 (Polling Mechanism)\n本機環境下，學員端與講師端每 500 毫秒向本地 Node 服務 `GET /api/class-state` 查詢當前狀態：\n1.  **講師翻頁**：講師在 `lv3-tutor.html` 翻到第 $N$ 頁 $\\rightarrow$ 發送 `POST /api/class-state` 將 `currentSlide` 設為 $N$ $\\rightarrow$ 學員端 `lv3-student.html` 在 500ms 內檢測到變化，自動轉頁。\n2.  **學員提交**：學員提交選項 $\\rightarrow$ 發送 `POST /api/submit-answer` $\\rightarrow$ 伺服器將該選項累加 $\\rightarrow$ 講師端在 500ms 內讀取新數據，**Conic-Gradient 圓餅圖即時動態重繪**。\n\n---\n\n## 🚀 操作測試指南\n\n### 第一步：啟動本機同步伺服器\n打開終端機，執行：\n```bash\nnode server.js\n```\n\n### 第二步：開啟講師端與學員端分頁\n1.  在瀏覽器開啟 **講師端**：[http://localhost:8888/lv3-tutor.html](http://localhost:8888/lv3-tutor.html)\n2.  點擊右上角「**複製學生端連結**」，並開啟一個**無痕視窗分頁**貼上（或使用手機掃描區域網址連線）：[http://localhost:8888/lv3-student.html](http://localhost:8888/lv3-student.html)\n\n### 第三步：測試即時互動效果\n1.  在學員端輸入暱稱（如：小明），點擊進入互動室。此時會顯示「講師正在講授投影片中...」。\n2.  回到講師端，點擊左側選單的「**3. 測驗 Q2: 喜愛的運動**」。\n3.  切回學員端，你會發現畫面**已自動秒級同步跳轉**，並出現 A/B/C 三個答題按鈕。\n4.  在學員端點擊「B) 足球」，點擊送出。學員端會即時出現綠色答對框與詳解。\n5.  此時看向講師端大螢幕，**總票數會立刻從 0 變為 1，圓形圖自動繪製出 B 選項佔比 100% 的區塊**！\n6.  講師可點擊「**重置本題答題**」讓全班重新作答。\n"}, {"title": "Level 4 & Level 5：AI 即時批改與對談 - 使用說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/互動式網站教學說明/Lv4_AI批改與對談說明書.md", "content": "# Level 4 & Level 5：AI 即時批改與對談 - 使用說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n---\n\n## 📝 模組概述\n本模組展示了將 **AI 大語言模型 (Gemini API / Groq API)** 導入教學現場的完整架構。\n*   **Level 4 (AI 批改免登入)**：學員撰寫簡答/問答題，提交後後端即時向 AI 發送請求，AI 根據提示詞（規準）給出分數與修改建議，但做完即丟不存檔。\n*   **Level 5 (AI 全端一條龍)**：結合 AI 批改與長期資料庫儲存。AI 的批改分數與分析結果，會自動寫入 Firestore 資料庫中，累積為個人的長期學習歷程。\n*   **對談模式 (Chat Tutor)**：使用多輪對話歷史陣列 (Chat Context)，實現一個具有教學引導性的 AI 技術助教。\n\n---\n\n## 🔒 技術關鍵：後端安全中轉（API Proxy）\n這是本專案最核心的安全防護設計：**絕對不能在瀏覽器前端直接呼叫 API**，否則 API 金鑰 (API Key) 會在 F12 的網路 (Network) 標頭中被學員隨手複製。\n\n本系統的後端安全轉發設計如下：\n```\n[前端瀏覽器] ──(呼叫 /.netlify/functions/groq-chat)──> [Node.js 後端 (server.js)]\n                                                            │\n                                                  (讀取 .env 中的金鑰，中轉)\n                                                            ▼\n                                                     [Groq 官方 API]\n```\n\n---\n\n## 🛠️ 檔案位置與實作\n\n*   **後端代理邏輯**：`互動式網站/server.js` 中的 `/api/groq-chat` 與 `/api/ask-ai` 路由。\n*   **AI 批改問答頁面**：`互動式網站/lv4-netlify-ai.html`\n    *   *提示：在網址後方加入 `?level=5` 參數即可切換為 Level 5 模式，開啟姓名欄位與本地 Firebase 模擬學習歷程日誌。*\n*   **AI 多輪對談頁面**：`互動式網站/chat-tutor.html`\n\n---\n\n## 🚀 測試與操作步驟\n\n### 1. 本地啟動伺服器\n1.  確保 `互動式網站` 根目錄下的 `.env` 配置了 `GROQ_API_KEY` 或 `GEMINI_API_KEY`。\n2.  執行 `node server.js`。\n\n### 2. 測試 AI 簡答題批改\n1.  開啟 [http://localhost:8888/lv4-netlify-ai.html](http://localhost:8888/lv4-netlify-ai.html)。\n2.  在問答題輸入答案（例如：「Level 4用完即忘，Level 5會將評語分數存入Firebase中」）。\n3.  點擊「**提交並由 AI 即時批改**」。\n4.  系統將會回傳由 AI 產生的分數與具體建議。\n\n### 3. 測試 AI 即時對談 (Chat Mode)\n1.  開啟 [http://localhost:8888/chat-tutor.html](http://localhost:8888/chat-tutor.html)。\n2.  在下方輸入問題發送，AI 助教將會進行繁體中文回應，並在每次回答完後，自動提出一個引導性的追問問題以幫助您深造！\n"}, {"title": "互動式教學系統 - 全面操作說明書", "category": "第一類 核心網頁與互動系統", "path": "第一類_核心網頁與互動系統/互動式網站教學說明/README.md", "content": "# 互動式教學系統 - 全面操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n本專案是一個基於「用 AI 打造互動教學網頁五個階段」所開發的教學套件本機實作版本。旨在幫助講師/訓練官建立高互動性的數位課堂，提升人員訓練效率。\n\n---\n\n## 📂 專案說明書目錄\n\n我們已將各模組的操作說明進行了拆分整理，您可以點選以下連結查看各等級的詳細程式架構與配置方法：\n\n1. 📖 **[Lv.1 純前端單機版說明書](Lv1_純前端說明書.md)**\n   * 無須伺服器與資料庫，單機即時判定單選題對錯。\n2. 📖 **[Lv.2 Google 試算表連線說明書](Lv2_Google試算表說明書.md)**\n   * 前端 fetch 透過 GAS (Google Apps Script) 後端代理，自動將學員作答紀錄寫入雲端 Google 試算表。\n3. 📖 **[Lv.3 多人即時同步連線說明書](Lv3_多人即時連線說明書.md)**\n   * 「講者大螢幕 (Tutor View)」與「學員答題端 (Student View)」分離，實現秒級同步翻頁與圓餅圖計票結果實時渲染。\n4. 📖 **[Lv.4 & Lv.5 AI 即時批改與對談說明書](Lv4_AI批改與對談說明書.md)**\n   * 後端安全代理 (Serverless) 防護金鑰，串接 Groq/Gemini API 進行問答題批改與多輪語意對話。\n\n---\n\n## 🚀 本地開發伺服器啟動與操作指南\n\n為了讓本地環境的「多人即時連線 (Lv.3)」以及「AI 後端安全代理 (Lv.4)」能正常運作，本專案內置了一個 **零依賴的 Node.js 伺服器 (`server.js`)**。\n\n### 第一步：金鑰配置\n在 `互動式網站` 根目錄下，確認 `.env` 檔案內包含以下金鑰配置：\n```env\nGROQ_API_KEY=gsk_your_groq_key_here\nGEMINI_API_KEY=your_gemini_key_here\n```\n\n### 第二步：啟動本機伺服器\n打開終端機 (PowerShell/CMD)，進入 `互動式網站` 專案目錄，執行以下指令：\n```bash\nnode server.js\n```\n看見 `🚀 本地開發伺服器啟動成功！` 後，代表伺服器已在本地 **Port 8888** 監聽。\n\n### 第三步：開啟瀏覽器操作\n*   **主入口網頁**：`http://localhost:8888/index.html`\n*   **教學駕駛艙 (Lv.3 講者端)**：`http://localhost:8888/lv3-tutor.html`\n*   **學員答題端 (Lv.3 學員端)**：`http://localhost:8888/lv3-student.html`\n*   **AI 安全對談助教**：`http://localhost:8888/chat-tutor.html`\n"}, {"title": "IPAHQ 槽車確認與掃描系統 - 操作說明書", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/IPAHQ_槽車確認與掃描系統_說明書.md", "content": "# IPAHQ 槽車確認與掃描系統 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/IPAHQ槽車掃描系統代碼原始APP優化](https://github.com/shihwei0809/google-agent/tree/main/IPAHQ槽車掃描系統代碼原始APP優化)\n\n\n## 專案簡介\n本專案用於鴻勝化學的 IPAHQ 槽車進貨確認與掃描登記，透過條碼掃描防錯，確保卸料車號與採購單一致。\n\n## 主要功能特色\n- **GAS 雲端備份**：自動將槽車確認紀錄寫入 Google 試算表。\n- **本機資料庫連線**：使用 PHP 讀寫 SQL Server / MySQL，將車牌號碼與品管報告（COA）進行防錯匹配。\n- **行動裝置友善**：前端介面針對手持掃描槍與平板進行優化。\n\n## 技術棧\n- HTML5, Vanilla JS, PHP, Google Apps Script (GAS)\n\n## 操作步驟\n1. 確保本地 PHP 環境與 SQL 資料庫已啟動。\n2. 使用平板或掃描槍開啟系統網頁。\n3. 掃描槽車條碼，系統會即時綠燈過關或紅燈警告（代表車號或品名不符）。\n"}, {"title": "IPA 生產排程雙儲槽優化 - 操作說明書", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/IPA_生產排程雙儲槽優化_說明書.md", "content": "# IPA 生產排程雙儲槽優化 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/IPA-生產排程雙儲槽優化](https://github.com/shihwei0809/google-agent/tree/main/IPA-生產排程雙儲槽優化)\n\n\n## 專案簡介\n本專案針對 IPA 生產排程進行雙儲槽（儲槽 A、儲槽 B）容量分配優化，通過演算法自動計算進出料排程，防止槽體溢流並達到最大產能配置。\n\n## 主要功能特色\n- **雙儲槽容積計算**：實時試算進料流速、出料需求，預測未來 24 小時槽體剩餘容積。\n- **排程建議演算法**：當預測到溢流風險時，自動產生切換儲槽或降載之排程建議。\n- **試算表串接**：支援將試算結果輸出至 Google 試算表或本機 SQL 資料庫。\n\n## 技術棧\n- Python 3, Pandas (資料處理), PHP (網頁前台報表呈現)。\n\n## 操作步驟\n1. 進入 `IPA-生產排程雙儲槽優化` 目錄。\n2. 執行 Python 優化試算指令：\n   ```bash\n   python optimize_schedule.py\n   ```\n3. 打開瀏覽器至本地 PHP 伺服器網頁，即可查閱雙儲槽動態曲線與排程甘特圖。\n"}, {"title": "n系列 GAS 轉 APK 與出貨系統 - 操作說明書", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/n系列_GAS轉APK與出貨_說明書.md", "content": "# n系列 GAS 轉 APK 與出貨系統 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/n系列GAS-轉-APK-離線核對上傳](https://github.com/shihwei0809/google-agent/tree/main/n系列GAS-轉-APK-離線核對上傳)\n\n---\n\n## 專案簡介\n本專案為將原有 Google 試算表（GAS）出貨登錄功能遷移至手持式 Android 條碼掃描裝置的**原生 Android 應用程式** (Native Android App)。\n專為現場包裝核對人員設計，支援 SQLite 離線暫存、格式驗證、防斷電/休眠失憶機制，並在網路連通時自動或手動同步至 Google Apps Script 雲端試算表。\n\n---\n\n## 主要功能特色\n1. **離線 SQLite 暫存**：在廠區無 Wi-Fi 訊號之盲區（如庫房深處或貨櫃內）掃描時，自動將出貨紀錄暫存於手機本地資料庫，待重獲訊號後同步。\n2. **ZXing 穩定掃描**：整合官方 `zxing-android-embedded` 掃描器，相容多種手持掃描槍硬體，具備高效率、防閃退特性。\n3. **欄位自動聚焦**：條碼掃描成功後，系統自動判定目前模式並自動聚焦下一個未填寫欄位，減少人工點擊次數。\n4. **防失憶回復機制**：實作 `onSaveInstanceState`，當相機掃描器開啟時若發生系統記憶體回收，返回後仍可自動找回當前輸入欄位，確保資料不丟失。\n5. **客製化 UI 與文字加黑**：針對現場強光環境，將輸入框、提示字與 Spinner 下拉選單（場所、數量）調整為黑體、放大、粗體，方便現場人員辨識。\n6. **背景非同步同步與自動重試**：實作 `ConnectivityManager` 監聽器，網路恢復時自動觸發背景執行緒非同步同步，防止 UI 卡死並有效避開 Android NetworkOnMainThread 閃退問題。\n\n---\n\n## 技術棧\n- **開發語言**：Kotlin\n- **建置工具**：Android Gradle Plugin (AGP), Kotlin DSL (`.gradle.kts`)\n- **資料庫**：SQLite (本機暫存)\n- **網路通訊**：OkHttp 4 (JSON 傳輸與 Line Notify 連線)\n- **掃描套件**：`com.journeyapps:zxing-android-embedded`\n- **雲端整合**：Google Apps Script (GAS) Web App, Line Notify API (異常回報)\n\n---\n\n## 本地 SQLite 結構\n暫存資料表 `pending_shipments`：\n```sql\nCREATE TABLE pending_shipments (\n    id INTEGER PRIMARY KEY AUTOINCREMENT, \n    barcode TEXT, \n    timestamp TEXT\n)\n```\n\n---\n\n## 部署與使用說明\n1. **設定金鑰與伺服器網址**：\n   - 開啟 `app/src/main/java/com/example/barcode_out/NetworkHelper.kt`，填入正式的 `LINE_TOKEN` 與 `GAS_URL`。\n2. **編譯產出 APK**：\n   - 在 Android Studio 中開啟此專案目錄 `BARCODEout-20260601`，執行 `Build > Build Bundle(s) / APK(s) > Build APK(s)`，或在終端機執行 `.\\gradlew.bat assembleDebug`。\n3. **手機安裝與設定**：\n   - 將產出的 `app-debug.apk` 安裝至實體 Android 手機或掃描槍。\n   - 第一次使用需於系統提示時，核准相機 (Camera) 與網路 (Internet) 權限。\n4. **現場操作**：\n   - 選擇出貨模式（整板、混板、散桶、AZ），並設定場所與數量。\n   - 點擊欄位旁的「📷」按鈕啟動掃描。\n   - 點擊「🚀 巡檢核對並存檔」儲存至手機資料庫。\n   - 點擊「🔄 同步暫存資料」或靜待網路自動恢復，系統即會將資料批次上傳至 GAS。\n\n"}, {"title": "N系列 條碼出貨核對與串接 - 操作說明書", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/N系列_條碼出貨核對與串接_說明書.md", "content": "# N系列 條碼出貨核對與串接 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/N系列BARCODE出貨核對](https://github.com/shihwei0809/google-agent/tree/main/N系列BARCODE出貨核對)\n\n## 專案簡介\n本系統專為 N 系列產品出貨設計，提供手持掃描槍/網頁端條碼對刷與核對，驗證「現場桶槽」、「四合一標籤」與「繳庫單」的一致性，防堵人為出貨錯誤。\n\n## 主要功能特色\n- **實時核對**：掃描後立即在畫面比對出貨型號與數量，防止重複掃描、混批。\n- **Teams Webhook 異常通知**：當巡檢核對失敗（例如批號/料號不符、貼紙錯誤或格式不符），或是雲端系統寫入錯誤時，系統會自動發送警報至指定的 Microsoft Teams 頻道。\n- **API 自動同步**：手機 App 端離線核對成功後，可批次將記錄上傳並寫入 Google 試算表。\n\n## 技術棧\n- Google Apps Script (GAS), HTML, CSS, JavaScript, Microsoft Teams Webhook\n\n## 配置說明\n- **Teams Webhook 網址設定**：\n  1. 可在 GAS 專案設定中的「指令碼屬性」新增 `TEAMS_WEBHOOK_URL` 鍵值。\n  2. 或在專案試算表中，新建名為「系統設定」的工作表，在 A1 輸入 `Teams Webhook URL`，B1 貼上網址。\n\n## 操作步驟\n1. 打開出貨核對網頁（或使用 APK 掃描端）。\n2. 依序掃描「現場桶槽」、「四合一標籤」、「繳庫單」上的產品與批號條碼。\n3. 點選「巡檢核對並存檔」，若核對相符則自動寫入資料庫；若不符則彈出警報，並即時通報 Teams 頻道。\n"}, {"title": "QC 系統客製化電子化工廠 - 操作說明書", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/QC_系統客製化電子化工廠_說明書.md", "content": "# QC 系統客製化電子化工廠 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/QC-系統客製化電子化工廠](https://github.com/shihwei0809/google-agent/tree/main/QC-系統客製化電子化工廠)\n\n\n## 專案簡介\n此專案為品管部門客製化的 QC 檢驗結果自動化登錄系統，實現化學品品質檢驗數據與工廠管理系統的對接。\n\n## 主要功能特色\n- **自動防重複登錄**：寫入資料庫時自動比對批號與日期。\n- **數據看板**：實時將合格率、雜質含量以圖表（Chart.js）呈現於中控室螢幕。\n\n## 技術棧\n- PHP, Chart.js, SQL Server\n\n## 操作步驟\n1. QC 檢驗員於檢驗完成後，在網頁輸入產品批號與各項化學檢驗數值。\n2. 點擊「提交」，數據會即時寫入中央資料庫並同步更新在中控看板上。\n"}, {"title": "三合一單 to PHP Migration - 操作說明書", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/三合一單_to_PHP_Migration_說明書.md", "content": "# 三合一單 to PHP Migration - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/三合一單-to-PHP-Migration](https://github.com/shihwei0809/google-agent/tree/main/三合一單-to-PHP-Migration)\n\n\n## 專案簡介\n本指南與代碼用於將舊有的「三合一出貨確認單」系統（基於 Excel 巨集與 GAS），遷移至以 PHP + SQL 為架構的本地化工廠中央系統中。\n\n## 主要功能特色\n- **資料庫綱要遷移**：提供 Excel 資料庫化欄位對照表。\n- **PHP 資料匯入 API**：一鍵將歷史 Excel 三合一單轉換為資料庫紀錄。\n\n## 技術棧\n- PHP 8, SQL Server / MySQL\n\n## 遷移與操作步驟\n1. 於資料庫建立資料表（使用 `schema.sql`）。\n2. 將歷史 Excel 檔案放入 `import` 資料夾，並執行 `php import.php` 進行資料導入。\n"}, {"title": "員工教育訓練測驗系統 (hr_quiz_v2) - 操作說明書", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/員工教育訓練測驗系統_說明書.md", "content": "# 員工教育訓練測驗系統 (hr_quiz_v2) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/影片生成/hr_quiz_v2](https://github.com/shihwei0809/google-agent/tree/main/影片生成/hr_quiz_v2)\n\n## 專案簡介\n本專案為簡報播放與測驗作答合一的員工教育訓練網頁系統。員工可直接在瀏覽器中觀看簡報、聽取語音朗讀，並在簡報播放結束後直接進行測驗。測驗結果會自動寫入 Google 試算表，方便人資與管理人員統計作答紀錄。\n\n## 主要功能特色\n- **免安裝**：前端為純 HTML + JS，員工開啟即可作答，不需要安裝任何軟體。\n- **簡報播放與語音朗讀**：整合簡報展示，並提供繁體中文語音朗讀功能，支援 0.7x ~ 1.5x 播放速度調整與自動換頁。\n- **雲端同步**：透過 Google Apps Script (GAS) 將測驗結果（作答時間、姓名、各題答案）寫入雲端 Google 試算表。\n- **免代碼題庫與設定修改**：簡報內容（標題、圖片、朗讀文字）與測驗題目均可直接在 Google 試算表中修改，系統載入時會自動同步最新題庫，無需修改 HTML 程式碼。\n- **內網一鍵共享**：內建 Python 與免 Python (Windows 內建) 的內網啟動器腳本，一鍵啟動本地網頁伺服器，讓同一個局域網/Wi-Fi 下的手機或電腦直接連線作答。\n\n## 技術棧\n- HTML5, CSS3, JavaScript (Vanilla JS)\n- Google Apps Script (GAS)\n- PowerShell (Windows 內網伺服器支援)\n\n## 連接 Google Sheet 與部署步驟\n1. **建立 Google Sheet**：前往 [sheets.new](https://sheets.new) 建立新試算表，命名為「員工測驗紀錄」。\n2. **開啟 Apps Script**：在該試算表上方選單，點選 `擴充功能` -> `Apps Script`。\n3. **貼上程式碼**：將專案中的 `apps_script_code.gs` 內容全部複製，貼入 Apps Script 編輯器中取代原代碼並存檔。\n4. **新增部署作業**：\n   - 點選右上角 `部署` -> `新增部署作業`。\n   - 類型選擇：`網頁應用程式`。\n   - 執行身分：`我`。\n   - 誰可以存取：`所有人`。\n   - 點選 `部署`，並複製產生的網頁應用程式 URL（API 網址）。\n5. **填入 index.html**：打開 `index.html`，將 `const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_URL_HERE';` 替換為剛才複製的 API 網址，保存即可。\n\n## 本機內網共享作答方式\n若要讓同仁在同一個 Wi-Fi/局域網下透過手機或電腦連線至您的本機進行測驗：\n- **若本機已安裝 Python**：雙擊執行 `點我啟動內網伺服器.bat`。\n- **若本機未安裝 Python**：雙擊執行 `點我啟動內網伺服器(Windows內建無須Python).bat`。\n- 啟動後，請勿關閉視窗，同仁只需在瀏覽器中輸入視窗內顯示的逆色網址（例如：`http://192.168.3.35:8000/index.html`）即可直接開始作答。\n"}, {"title": "彰化縣線西鄉環境溫度監控與雙軌備援通報系統 — 操作與維護說明書 (v4.9)", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/溫度通報系統_本機與雲端同步備援監控_說明書.md", "content": "# 彰化縣線西鄉環境溫度監控與雙軌備援通報系統 — 操作與維護說明書 (v4.9)\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/溫度通報](https://github.com/shihwei0809/google-agent/tree/main/溫度通報)\n\n\n本系統為**混合架構雙備援通報系統**，整合了**本機 Python 排程程式（主要端）**、**Google Apps Script 雲端腳本（備援端與安全設定後端）**，以及 **Firebase 即時監控人機介面（HMI 儀表板）**。\n系統實現 24 小時不間斷的天氣觀測與雙向狀態同步，當溫度高於設定閾值時將透過 LINE、Email 及 Microsoft Teams 頻道發送通知，提供工業級的高可用性與簡便的行動化管理。\n\n---\n\n## 🏗️ 系統架構與運作邏輯\n\n```\n                         ┌─────────────────────────────┐\n                         │    Google 試算表 (雲端 DB)   │\n                         │ - 系統設定 (閾值/時段/密碼)   │\n                         │ - 紀錄_YYYY-MM (歷史歸檔)   │\n                         └──────────────┬──────────────┘\n                                        │\n           ┌────────────────────────────┼────────────────────────────┐\n           ▼ (主要監測端)               ▼ (備援監測端)               ▼ (同步工具)\n  ┌─────────────────┐          ┌─────────────────┐          ┌─────────────────────┐\n  │  本機 Python    │          │  Google Apps    │          │  sync_sheet_to_     │\n  │  weather_       │          │  Script 雲端    │          │  firebase.py        │\n  │  monitor.py     │          │  checkWeather   │          │  (手動補資料用)     │\n  │  (每10分鐘執行)  │          │  (每小時執行)    │          │                     │\n  └────────┬────────┘          └────────┬────────┘          └──────────┬──────────┘\n           │                            │                              │\n           ├────────────────────────────┴──────────────────────────────┤\n           │  雙向寫入數據與狀態\n           ▼\n  ┌──────────────────────────────────────────────────────────────────────┐\n  │                    Firebase Firestore 即時資料庫                     │\n  │  - realtime_data/status  ← 即時溫度、三態心跳燈、閾值與警報狀態       │\n  │  - history_logs/         ← 歷史通報明細（每筆一份文件）               │\n  │  - contacts/             │ 聯絡人名冊與啟閉狀態                       │\n  └───────────────────────────────┬──────────────────────────────────────┘\n                                  │ 即時推播 (Firestore onSnapshot)\n                                  ▼\n                     ┌─────────────────────────┐\n                     │   Firebase HMI 儀表板   │\n                     │  (任意行動/桌面裝置可開) │\n                     │  https://hongsheng-     │\n                     │  temp-523.web.app        │\n                     └─────────────────────────┘\n```\n\n### 雙備援運作邏輯\n1. **本機主要端**：透過 Windows 工作排程器設定**每天 07:58 至 23:58 之間每 10 分鐘**執行一次。它會抓取氣象署伸港站 API 最新溫度，並在執行完成後向 **Firebase Firestore** 與 **GAS Web App** 雙向發送心跳與觀測數據。\n2. **雲端備援端**：每小時排程自動啟動時檢查本機心跳。若本機在指定時間內有活躍紀錄，雲端會自動跳過本次排程；若本機電腦關機、斷電或網絡中斷（無心跳），雲端將接管觀測並發送通知，並在通報紀錄中註記 `(雲端備援)`。\n3. **即時數據庫同步**：本機程式與雲端 GAS 均可讀寫 Firebase Firestore，確保 Firebase HMI 即時儀表板與試算表數據保持最新狀態。\n\n### 📊 觀測溫度數據來源\n* **氣象數據源**：中華民國交通部中央氣象署 (CWA) 開放資料平台 API。\n* **觀測站點**：彰化縣伸港鄉「伸港觀測站」（站點編號：`C2G870`），提供 10 分鐘即時更新。\n* **抓取指標**：即時環境溫度 / 乾球溫度（API 中之 `AirTemperature` 欄位）。\n\n---\n\n## 🖥️ 雙軌 HMI 人機介面操作指南\n\n系統提供兩個相輔相成的人機操作介面，管理人員不需直接開啟 Google 試算表即可輕鬆進行日常維護。\n\n### 1. Firebase HMI 即時監控網頁 (任意行動/桌面裝置)\n在瀏覽器開啟以下網頁（免安裝 App，資料每秒即時同步更新）：\n```\nhttps://hongsheng-temp-523.web.app\n```\n\n* **📊 儀表板首頁**：\n  - **環形溫度計**：大字級顯示即時溫度，圓環顏色隨溫度狀態變色（正常：綠色、接近閾值：黃色、高溫超標：紅色呼吸發光）。\n  - **心跳燈狀態**：\n    - 🟢 **在線 (正常)**：本機電腦正常運作並定時上報心跳。\n    - 🟡 **雲端監控（本機異常）**（琥珀色閃爍）：本機電腦已斷開（可能斷電/斷網），雲端備援已接手。\n    - 🔴 **離線警報**：本機與雲端備援皆無上報心跳，請立即前往機房檢查。\n* **⚙️ 系統設定（需輸入管理密碼）**：可調整警報溫度閥值（°C）、監控時段與密碼。*(注意：此處修改僅直接寫入 Firebase 供網頁呈現。若要同步至本機與試算表，需手動執行同步工具)*。\n* **👥 聯絡名冊（需輸入管理密碼）**：可於網頁直接新增、編輯、刪除或一鍵勾選「啟用/停用」LINE/Email 收件人，儲存後即時生效。\n* **📋 通報紀錄**：顯示最近 100 筆通報明細，支援即時搜尋關鍵字（如「高溫」、「LINE」、「備援」），並提供「匯出 CSV」一鍵下載為 Excel 檔案。\n\n### 2. GAS Web App 安全管理設定入口 (試算表後端)\n透過 Google Apps Script 部署所得的 **Web App 網址**進入：\n* **安全性密碼驗證**：進入系統設定、管理聯絡人或點擊測試按鈕時，系統會要求輸入管理密碼（預設密碼為 **`admin888`**），成功解鎖後會保持登入狀態，並提供右上角「安全登出」功能。\n* **手機窄螢幕適配**：\n  - 當螢幕寬度 <= 768px 時，左側側邊欄會自動轉換為**底部懸浮導覽列**，方便單手觸碰。\n  - 表格支援**手勢橫向滑動 (Swipe-scroll)**，避免 LINE ID 與 Email 在手機上被截斷或擠壓換行。\n\n---\n\n## 🛠️ 本機端設定指南\n\n### 1. 配置設定檔 `config.json`\n本機程式設定檔位於 `C:\\GOOGLE ANGET\\溫度通報\\config.json`：\n```json\n{\n  \"tid\": \"1000704\",\n  \"town_name\": \"彰化縣線西鄉\",\n  \"cwa_api_key\": \"CWA-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX\",\n  \"cwa_station_id\": \"C2G870\",\n  \"temperature_threshold\": 28.0,\n  \"mode\": \"both\",\n  \"google_sheet_csv_url\": \"您的試算表已發布CSV網址\",\n  \"web_app_url\": \"您的Google Apps Script Web App部署網址\",\n  \"line\": {\n    \"enabled\": true,\n    \"channel_access_token\": \"您的LINE Bot Token\",\n    \"to\": [\n      \"Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\n      \"Cxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n    ]\n  },\n  \"email\": {\n    \"enabled\": true,\n    \"smtp_server\": \"smtp.gmail.com\",\n    \"smtp_port\": 587,\n    \"smtp_user\": \"您的發信信箱@gmail.com\",\n    \"smtp_password\": \"您的16位應用程式密碼\",\n    \"to_email\": [\n      \"收信人信箱@gmail.com\"\n    ],\n    \"from_email\": \"您的發信信箱@gmail.com\"\n  },\n  \"teams\": {\n    \"enabled\": true,\n    \"webhook_url\": \"您的 Microsoft Teams Webhook 連結\"\n  }\n}\n```\n> **說明**：\n> - `web_app_url`：為 GAS 網頁部署網址。本機程式會在每次執行時透過此 URL 回傳心跳與數據以更新試算表。\n> - `firebase_key.json`：本機程式亦會讀取同目錄下的 Service Account 私鑰，將心跳直接 Patch 寫入 Firebase Firestore，無須中轉，提供極速更新。\n> - `teams`：填入 Teams 頻道的 Webhook URL（由 Power Automate 工作流程產生），啟用後會自動將警報傳送至 Teams 頻道。\n\n### 2. 必要檔案確認\n請確認以下檔案存放在 `C:\\GOOGLE ANGET\\溫度通報\\` 目錄下：\n* `config.json`：本機設定檔（含 LINE / SMTP 金鑰）。\n* `firebase_key.json`：Firebase 雲端資料庫連線私鑰。\n* `weather_monitor.py`：本機主監測程式.\n* `sync_sheet_to_firebase.py`：手動補資料同步工具。\n* `last_notified.json`：自動生成，記錄最後通報狀態（防重複）與最後執行時間。\n\n### 3. 設定 Windows 工作排程器 (每10分鐘更新)\n1. 按下 `Win + R`，輸入 `taskschd.msc` 開啟工作排程器。\n2. 於右側點選「建立基本工作」，名稱輸入「`環境溫度監控通報系統`」。\n3. 觸發程序選擇「每天」，執行時間設定為「`07:58`」AM。\n4. 動作選擇「啟動程式」：\n   - **程式或指令碼**：`pythonw`（若未加入系統環境變數，請使用 pythonw.exe 完整路徑。使用 `pythonw` 可以使排程在背景隱形執行，不彈出任何 CMD 黑色視窗）\n   - **新增引數**：`weather_monitor.py`\n   - **開始位置**：`C:\\GOOGLE ANGET\\溫度通報`\n5. 建立完成後，在清單中找到該排程，右鍵點擊選擇「內容」：\n   - 切換至「觸發程序」頁籤，按「編輯」。\n   - 勾選「重複工作間隔」，設定為「`10 分鐘`」。\n   - 持續時間選擇「`1 天`」。\n   - 點擊確定儲存。\n6. 這將確保系統在每天 07:58 AM 開始，每 10 分鐘執行一次監控，直到晚上 23:58 PM 進行當天最後一次監控。\n\n### 4. 設定 Microsoft Teams Webhook 通報\n1. 在 Microsoft Teams 欲接收通知的頻道點選 **`...` (更多選項)** -> **「工作流程」(Workflows)**。\n2. 搜尋並選取 **「在收到 Webhook 要求時張貼至頻道」** 範本，按步驟建立後，複製生成的 **Webhook URL**。\n3. 將該 URL 貼入本機 `config.json` 的 `\"teams\" -> \"webhook_url\"` 欄位中。\n\n---\n\n## ☁️ Google Apps Script (GAS) 雲端備援設定\n\n1. **更新 Code**：開啟 Google 試算表 → 擴充功能 → Apps Script。開啟 `Code.gs` 全選清除，並將最新代碼貼上，按 Ctrl+S 存檔。\n2. **設定雲端 Teams Webhook**：在試算表的 **「系統設定」** 工作表分頁中，手動新增一列：\n   * **設定項目**：`Teams Webhook URL`\n   * **設定值**：貼上你剛複製的 Teams Webhook 網址\n   * **說明**：`傳送高溫警報與溫度回落通知的 MS Teams Webhook 連結 (選填)`\n2. **管理部署**：點選 部署 → 管理部署。選取現有版本，點選編輯（鉛筆）並選擇「建立新版本」後進行部署。複製產出的網頁應用程式 URL，填入本機的 `config.json` 中。\n3. **定時觸發器設定**：\n   - 點擊左側「時鐘」圖示（觸發條件）。\n   - 新增觸發條件：\n     - 執行功能：`checkWeatherAndNotify`\n     - 部署版本：選取剛建立的最新版本。\n     - 來源：時間型觸發程序。\n     - 時間間隔：每小時執行一次。\n   - 雲端備援在執行時，若發現本機最後心跳時間超過 70 分鐘，將自動在 Firebase 中將 `heartbeat_source` 寫入 `\"cloud\"`，此時 HMI 將顯示黃燈提醒人員本機已關機或斷網，隨後雲端將主動接管警報監控與發送。\n\n---\n\n## 🔧 日常維護與手動同步工具\n\n### 1. 試算表選單操作 (Google Sheet 端)\n開啟試算表，頂端選單列會自動產生「`🌡️ 溫度通報系統`」的專屬工具選單：\n* `🧪 測試即時通報`：忽略時段與防重複鎖定，立即向所有人發送測試 LINE 與 Email。\n* `🔄 重置防重複鎖定`：清除當天通知紀錄，下次超溫立即通報（不必等待溫度先降回常溫）。\n* `🔄 同步資料至 Firebase`：一鍵將試算表中的系統設定、聯絡名冊以及本月歷史通報紀錄全部同步至 Firestore。\n* `📏 重設欄寬為最佳預設`：自動重新排版歷史紀錄表格欄寬，保持極佳的視覺美觀。\n\n### 2. 手動歷史補登工具\n當 Firebase 重新建立，或者雲端同步出現故障時，管理員可以在本機執行以下指令：\n```cmd\ncd \"C:\\GOOGLE ANGET\\溫度通報\"\npython sync_sheet_to_firebase.py\n```\n此工具會讀取試算表中的資料，批量格式化（統一 `obs_time`, `alert_state`, `status_text` 欄位），並寫入 Firebase Firestore，為 HMI 儀表板提供完整的歷史紀錄。\n\n---\n\n## 🔒 安全注意事項\n\n| 項目 | 安全危害程度 | 說明與指引 |\n|:---|:---|:---|\n| `firebase_key.json` | 🔴 **高危 (Secret Key)** | 包含雲端資料庫完整控制私鑰，嚴禁傳送給他人或上傳至 Github 公開倉庫。 |\n| `config.json` | 🟡 **中危 (API Key)** | 包含 LINE Access Token、Gmail 應用程式密碼等敏感設定，請妥善保管。 |\n| HMI 管理密碼 | 🟡 **中危 (Password)** | 預設為 `admin888`。請務必在系統上線後第一時間於 HMI 設定頁面變更為強密碼。 |\n| Firestore 規則 | 🟢 **低危 (Rules)** | 如需精細控制權限，請於 Firebase Console 限制寫入權限僅限該 Service Account。 |\n\n---\n\n## 🆕 v4.5 版本更新摘要\n\n相較於先前的舊版本，v4.5 整合版進行了如下優化：\n1. **雙軌寫入整合**：本機端 `weather_monitor.py` 同時雙寫 GAS Web App 與 Firebase，完美融合兩者優勢。\n2. **三段式心跳**：HMI 儀表板以 🟢在線、🟡雲端接管、🔴完全離線 清晰呈現系統健康狀態。\n3. **手動同步加強**：`sync_sheet_to_firebase.py` 整合歷史紀錄 schema，確保資料統一。\n4. **介面安全防護**：GAS 網頁端新增密碼驗證（預設 `admin888`）與登出機制，行動端版面全面適配。\n5. **排程優化**：本機排程對齊至 `07:58` AM daily 開始，每 10 分鐘執行一次，排除 15 分鐘延遲，高頻精準監控。\n\n---\n\n## 🆕 v4.7 版本更新摘要\n\n相較於 v4.5 版本，v4.7 版本進行了如下重大優化：\n1. **📊 雙模溫度趨勢圖**：不論是 Firebase HMI 還是 GAS 雲端後台，皆全面整合了 Chart.js 溫度趨勢圖。支援「即時 24H 監控」與「歷史區間範圍查詢」，並內建「等距降採樣 (Downsampling) 演算法」，即使查詢 1 至 2 個月的上千筆數據也能在手機上流暢縮放。\n2. **⏰ 精準整點心跳排程 (`XX:58`)**：修正了 CWA 時段限制與本機排程節流設定。現在 Python 監控排程在 07:58 啟動，且在每天 `07:58`, `08:58`, `09:58`, ..., `23:58` 整點前的 58 分準時發送心跳，確保晚上 23:58 還能進行最後一次安全監控。\n3. **🔄 試算表異動與刪除即時自動同步**：重構了 `Code.gs` 的同步邏輯為「雙向對齊機制」，當人員在試算表手動刪除或修改歷史數據時，Firebase 端會自動發送 `DELETE` 移除。此外，點選「套用設定並更新排程」後，系統會自動在雲端註冊「安裝式 onChange 監聽器」，當試算表有任何變更時，便會即時自動同步至 Firebase。\n4. **🐞 HMI 功能相容性修正**：修正了 HMI 網頁端的 `chartMode` 重複宣告語法錯誤，並針對 CSS 與 JS 檔案載入加入了快取清理機制（Cache-busting `v=4.6`），徹底解決「歷史查詢」按鈕無反應的問題。\n\n---\n\n## 🆕 v4.8 版本更新摘要\n\n相較於 v4.7 版本，v4.8 版本進行了如下優化：\n1. **💬 新增 Microsoft Teams Webhook 通報**：本機端及雲端備援腳本均全面支援 MS Teams Webhook 管道，當高溫超標或溫度回落時會自動發送 MessageCard 警報至 Teams 頻道。\n2. **⚙️ 試算表設定檔動態載入**：雲端 GAS 支援從「系統設定」分頁動態讀取 `Teams Webhook URL` 列，方便管理者於試算表介面中直接設定與修改。\n\n---\n\n## 🆕 v4.9 版本更新摘要\n\n相較於 v4.8 版本，v4.9 版本進行了如下重大優化：\n1. **📊 獨立的月度 24 小時記錄分頁**：雲端 Apps Script 重構了日誌寫入路由。現在每 10 分鐘一次的日常例行心跳與溫度觀測，將被分流寫入專屬的西元月度分頁（例如：`24小時紀錄_2026-06`），完美防範跨年度的名稱衝突，並避免主要的「通報紀錄分頁」（如 `紀錄_2026-06`）被洗版，使通報紀錄僅保留真正的警報事件，版面更乾淨。\n2. **🎨 專屬綠色系排版風格**：針對「24小時記錄分頁」套用專屬的深綠色主題表頭（`#2E7D32`）與排版格式，利於視覺區分。\n3. **💬 警報訊息格式美化**：移除了警報簡訊內文前的試算表分頁名稱字串（`sheet.getName()`），使 LINE/Email 警報標題更直接簡潔（如：`【環境高溫警報】` 或 `【環境溫度回落通知】`）。\n"}, {"title": "軟管 Key-Code 管理優化方案 - 操作說明書", "category": "第二類 生產管理與API串接", "path": "第二類_生產管理與API串接/軟管_KeyCode_管理優化方案_說明書.md", "content": "# 軟管 Key-Code 管理優化方案 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/軟管-Key-Code-管理優化方案](https://github.com/shihwei0809/google-agent/tree/main/軟管-Key-Code-管理優化方案)\n\n\n## 專案簡介\n本方案針對鴻勝化學現場各製程管線的「軟管金鑰防錯編碼 (Key-Code)」進行條碼化與資料庫化管理，杜絕人工接錯管路的風險。\n\n## 主要功能特色\n- **管線編碼自動對應**：系統登錄每一條軟管的防呆編碼與適用槽體。\n- **警示燈號防錯**：當現場掃描時接頭 Key-Code 不匹配，立即在大螢幕發出紅燈警告。\n\n## 技術棧\n- HTML5, Javascript, PHP API\n\n## 操作步驟\n1. 進入 `軟管-Key-Code-管理優化方案` 網頁。\n2. 進行軟管配對掃描，確保畫面上顯示「匹配成功（綠燈）」再進行閥門開拓。\n"}, {"title": "AIGC 音樂影片生成系統 (aigc-music-video-hub) - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/AIGC_音樂影片生成系統_說明書.md", "content": "# AIGC 音樂影片生成系統 (aigc-music-video-hub) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n## 專案簡介\n本專案為 **勝一化學 AI 音樂影片 (AIGC Music Video Hub)** 的專案整合中心。它利用 Suno AI 生成企業宣傳與科普音樂，並搭配自動化腳本產出精緻的故事板 (Storyboard) 與影片畫面，最終使用 FFmpeg 合成帶有音軌的 MP4 高畫質音樂影片。本專案前端看板已託管於 Firebase Hosting 服務。\n\n## 主要功能特色\n- **AI 音樂生成與合輯**：包含《彰濱的科技之翼》、《綠色循環的脈動》、《純淨之光》等多首 Suno AI 創作的主題歌曲。\n- **全自動故事板生成**：利用 Python 腳本 `generate_storyboards_for_all_songs.py` 自動為每首歌曲設計 12 畫面影像故事板與歌詞配對。\n- **批次影片渲染與混音**：提供一鍵渲染指令，使用 FFmpeg 自動將生成的影像素材（每張播映時長已依歌詞對齊）與 MP3 背景音軌合成為最終的 MP4 音樂影片。\n- **專案 HMI 看板**：具備網頁版「音樂影片專案總覽」看板，整合音樂試聽、故事板瀏覽與 MP4 影片線上播放。\n\n## 技術棧\n- **多媒體處理**：FFmpeg (影像轉場、音訊延遲與音視訊混音)\n- **開發語言**：Python 3 (圖片重命名與批次影片渲染)\n- **部署託管**：Firebase Hosting (託管前端看板)\n\n## 專案結構\n- `build_mv_dashboard.py`：建立音樂影片儀表板看板。\n- `generate_storyboards_for_all_songs.py`：自動生成歌曲故事板腳本。\n- `organize_and_generate_all_mvs.py` / `render_all_videos.py`：批次生成與渲染影片。\n- `音樂影片專案總覽.html`：音樂影片本機/網頁版成果總覽看板。\n- `純淨之光.mp3` / `勝一化學_純淨之光_MV.mp4`：生成的主打歌曲與 MV。\n- `firebase.json`：Firebase Hosting 託管設定檔。\n\n## 本機執行與操作\n1. **生成故事板**：\n   執行以下命令，自動產生所有歌曲的故事板描述：\n   ```bash\n   python generate_storyboards_for_all_songs.py\n   ```\n2. **影片批次渲染**：\n   將生成的故事板圖片放至 `圖片/` 資料夾，執行以下腳本，將自動結合 MP3 合成 MP4 影片：\n   ```bash\n   python organize_and_generate_all_mvs.py\n   ```\n3. **開啟專案看板**：\n   在瀏覽器雙擊開啟 `音樂影片專案總覽.html`，即可進入專案的 HMI 展示看板。\n"}, {"title": "AI Agent Obsidian 知識庫建置 (ai-anget) - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/AI_Agent_Obsidian_知識庫建置_說明書.md", "content": "# AI Agent Obsidian 知識庫建置 (ai-anget) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%89%E9%A1%9E_AI%E4%BB%A3%E7%90%86%E8%88%87%E6%8C%87%E5%8D%97%E4%BC%81%E5%8A%83/ai%20anget](https://github.com/shihwei0809/google-agent/tree/main/%E7%AC%AC%E4%B8%89%E9%A1%9E_AI%E4%BB%A3%E7%90%86%E8%88%87%E6%8C%87%E5%8D%97%E4%BC%81%E5%8A%83/ai%20anget)\n\n\n## 專案簡介\n本專案定義並實作了一套供 AI Agent 自動執行的 **Obsidian 二次大腦知識庫自動建置與整理工作流**。系統能夠自動從指定的 YouTube 頻道中提取影片字幕、進行去重與清洗，並按照 Obsidian 三層架構（Clipping、創作庫、知識庫）進行整理，最後產出結構化的教學與簡報企劃。\n\n## 主要功能特色\n- **自動化字幕抓取與清洗**：利用 `yt-dlp` 下載頻道影片字幕，並自動過濾時間碼、HTML 標記，特別是針對 YouTube 自動字幕的「滾動重複行」進行去重處理。\n- **三層 Obsidian 知識庫架構**：\n  * **`Clipping/` (外部來源)**：存放最原始的影片逐字稿 Markdown 檔案。\n  * **`創作庫/` (創作成果)**：存放本機的原創講義、腳本與教學草稿。\n  * **`知識庫/` (核心知識)**：由 AI Agent 根據外部逐字稿整理出的結構化筆記與索引目錄。\n- **Agent 定期自動整理**：設定 AI Agent 定期（如每週）掃描外部逐字稿與創作庫，提取關鍵詞、主題，自動生成知識庫筆記，並維護全域索引。\n\n## 技術棧\n- **開發語言**：Python 3\n- **核心庫**：`yt-dlp` (YouTube 影片與字幕下載)\n- **資料庫/視覺化**：Obsidian (Markdown 筆記關聯圖)\n\n## 專案結構\n- `extract_videos.py`：從指定頻道獲取影片中繼資料，並篩選關鍵詞影片網址。\n- `download_all_subs.py`：循環下載並清洗字幕，導出為 Markdown 格式。\n- `sync_projects.py`：專案與知識庫同步腳本。\n- `sensebar_ai_urls.txt`：篩選出的影片網址清單。\n- `sensebar_ai_videos.md`：影片與字幕提取紀錄。\n\n## 本機執行與操作\n1. **環境準備**：\n   確保本機安裝了 Python，並安裝 dependencies：\n   ```bash\n   pip install yt-dlp\n   ```\n2. **提取影片網址**：\n   執行以下腳本，獲取頻道內包含關鍵詞的影片清單：\n   ```bash\n   python extract_videos.py\n   ```\n3. **下載並清洗逐字稿**：\n   執行以下腳本，將自動下載字幕並將其清洗為乾淨的 Markdown 逐字稿：\n   ```bash\n   python download_all_subs.py\n   ```\n4. **建立 Obsidian 資料夾**：\n   在工作區建立 `Clipping`、`創作庫`、`知識庫` 三個資料夾，將產出的逐字稿放入 `Clipping/` 下。\n5. **AI 代理整理**：\n   指示 AI 代理（如 Antigravity）：「請讀取 `Clipping` 與 `創作庫` 資料夾，並在 `知識庫` 中建立結構化筆記與全域索引（`Index.md`）」。\n"}, {"title": "AI 克隆聲音 (AI-Voice-Cloning) - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/AI_克隆聲音_說明書.md", "content": "# AI 克隆聲音 (AI-Voice-Cloning) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n## 專案簡介\n本專案為基於 **VoxCPM2** 語音克隆模型所開發的本機語音生成與 Agent 工具包。它能夠克隆使用者或指定角色的音色與語調，並將任意文字轉換為該角色的語音輸出。本系統具備全自動硬體加速偵測，且深度整合了 AI Agent，讓使用者能透過自然語言指令直接呼叫進行語音生成與對話合成。\n\n## 主要功能特色\n- **自動偵測 GPU 加速**：自動偵測本機硬體，智慧切換於 NVIDIA GPU (CUDA)、Intel Arc GPU (XPU) 與純 CPU 模式之間。\n- **精準語調克隆 (Ultimate Cloning)**：同時使用參考音檔與錄音逐字稿，保留原始音色的呼吸節奏與語氣起伏。\n- **網頁錄音 WebUI**：提供極簡網頁錄音介面，使用者可命名角色、看稿朗讀並一鍵錄製與儲存參考音色。\n- **Agent 自然語言對接**：深度整合 AI 代理人，支援「用王老師的聲音說...」等自然語言指令，由 Agent 自動在背景執行腳本並回傳音檔。\n\n## 技術棧\n- **核心模型**：VoxCPM2 (OpenBMB)\n- **開發語言**：Python 3.10–3.12 (以 uv 管理本機虛擬環境)\n- **前端介面**：Gradio (WebUI)\n- **硬體加速**：PyTorch (CUDA / Intel IPEX / CPU)\n\n## 專案結構\n- `app.py` / `webui_record.py`：網頁版語音錄製 UI 程式。\n- `clone.py`：單人克隆語音生成工具。\n- `dialogue.py`：多人對話克隆語音生成工具。\n- `record.py`：本機命令列錄音備用程式。\n- `voices/`：存放已錄製的角色聲音目錄（如 `voices/王老師/ref_voice.wav`）。\n- `output/`：存放生成的語音檔（.wav）。\n- `install.bat` / `start.bat`：一鍵安裝與一鍵啟動錄音 UI 的批次檔。\n\n## 本機執行與操作\n1. **一鍵安裝**：\n   雙擊 `install.bat`，系統會自動偵測顯卡、建立虛擬環境並安裝所有依賴套件。\n\n2. **錄製音色 (WebUI)**：\n   雙擊 `start.bat`，瀏覽器會自動開啟錄音介面。\n   * 輸入聲音名稱（如 `王老師`）。\n   * 點選「錄音」對著麥克風念出畫面上的逐字稿。\n   * 錄完點選「儲存」，音色會自動儲存於 `voices/王老師/` 中。\n\n3. **生成克隆語音**：\n   在虛擬環境下執行：\n   ```bash\n   python clone.py \"要生成的文字內容\" --voice 王老師\n   ```\n   產出音檔將存於 `output/cloned_voice.wav`。\n   *(或者直接告訴 AI 代理人：「用王老師的聲音說同學們早安，我們開始上課」即可自動生成)*\n\n4. **多人對話生成**：\n   編輯 `dialogue.py` 中的對話內容清單，然後執行：\n   ```bash\n   python dialogue.py\n   ```\n   將會在 `output/` 下生成雙人對話的音訊檔案。\n"}, {"title": "Clasp + Netlify 部署指南 - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/clasp_netlify_mcp_guide_說明書.md", "content": "# Clasp + Netlify 部署指南 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[mathruffian-dot/clasp-netlify-mcp-guide](https://github.com/shihwei0809/clasp-netlify-mcp-guide)\n\n\n## 專案簡介\n本專案提供標準安裝與部署指南，指導 AI Agent 如何將網頁前端自動部署至 Netlify，並將後端 Apps Script 透過 Google clasp 工具同步，實現無縫的雲端備份與部署。\n\n## 主要功能特色\n- **自動化 clasp 設定**：包含 `.clasp.json` 設定範例，防範 AI 部署權限錯誤。\n- **Netlify CLI 自動發布**：提供一鍵建置前端並發布至 Netlify 託管空間的腳本。\n\n## 技術棧\n- Node.js, @google/clasp, Netlify CLI\n\n## 操作步驟\n1. 參考說明書中的命令，安裝並登入 clasp：\n   ```bash\n   npm install -g @google/clasp\n   clasp login\n   ```\n2. 執行 `clasp push` 將 GAS 代碼推送到雲端試算表。\n3. 執行 `netlify deploy --prod` 發布前端網頁。\n"}, {"title": "Claude HTML Slide Builder - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/claude_html_slide_builder_說明書.md", "content": "# Claude HTML Slide Builder - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n## 專案簡介\n此工具為專門設計給 Claude Code/Antigravity 使用的 Skill，能將純文字教材或教學大綱，自動重構並轉換為 Reveal.js 的互動式網頁簡報。\n\n## 主要功能特色\n- **Reveal.js 簡報框架**：自動配置翻頁動畫、程式碼高亮、與響應式排版。\n- **動態文字雲**：整合 wordcloud2.js 渲染即時問卷結果。\n- **GitHub Actions 自動部署**：簡報產出後，可自動打包並發布至 GitHub Pages。\n\n## 技術棧\n- Python 3, Reveal.js, wordcloud2.js\n\n## 操作步驟\n1. 將純文字教材放入 `input.txt`。\n2. 執行 Python 簡報建置腳本：\n   ```bash\n   python build_slides.py\n   ```\n3. 產出的簡報檔案為 `index.html`，可直接使用瀏覽器播放。\n"}, {"title": "Claude Video Specs 影片規格與技能指南 (claude-video-specs) - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/Claude_Video_Specs_影片規格與技能指南_說明書.md", "content": "# Claude Video Specs 影片規格與技能指南 (claude-video-specs) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n## 專案簡介\n本專案為 **三類影片製作規範與 AI Agent 自動化技能建置流程**。它為創作者與 AI Agent（如 Antigravity, Claude Code）定義了標準的影片製作流程與視覺設計依據，並提供自動化安裝與打包腳本，能將影片規格打包成 AI Agent 可直接呼叫的獨立「技能（Skill）」。\n\n## 主要功能特色\n- **三類影片規範核心**：\n  * **01-活動紀錄影片** (60-180秒)：口白、大字卡與 BGM 過場。\n  * **02-教學影片** (4-8分鐘)：SOIL 教學脈絡、動畫與 Edge-TTS。\n  * **03-社群科普影片** (2-3分鐘)：強 Hook、多版面與照片佐證。\n- **設計理論依據**：引進**李俊儀教授之 SOIL 教學心法**與**林長揚簡報 30 原則**（包括黃金字級階梯 55/34/21/13，以及預設下載源石黑體字型）。\n- **Agent 自動化整合 (Bootstrap)**：提供 5 階段流程（環境檢查、字體安裝、動畫設定、渲染打包），使 AI Agent 能夠遵循規範一鍵產出網頁簡報並錄製成影片。\n\n## 技術棧\n- **規範排版**：Reveal.js / Reveal-HTML 視覺化簡報\n- **自動化指令**：Bash / Python 雙平台腳本\n- **技能打包**：JSON / Agent Skills 整合工具\n\n## 專案結構\n- `specs/`：三類影片製作規範 Markdown 檔與視覺化版 HTML。\n- `examples/`：可直接複製使用的 HTML 動畫範本。\n- `install/`：包含環境檢查、源石黑體字體自動下載安裝、技能打包等腳本。\n  * `check_env.sh` / `setup.py`：環境檢查工具。\n  * `install_fonts.sh`：自動下載並安裝源石黑體。\n  * `pack_skill.sh`：將影片專案打包成 Agent 專屬 Skills。\n- `opencode.json`：OpenCode Agent 的引導設定檔。\n\n## 本機執行與操作\n1. **一鍵安裝環境與字體**：\n   在 PowerShell 執行以下命令自動配置：\n   ```powershell\n   powershell -ExecutionPolicy Bypass -File install/install_all.ps1\n   ```\n   *(或使用 Python：`python install/setup.py all`)*\n\n2. **啟動影片專案製作**：\n   對著 AI 代理（如 Antigravity）下指令：「請啟動 `claude-video-specs` 並為我製作一個 02 類型的教學影片」。Agent 會讀取規範並引導進行。\n\n3. **打包影片專案為 Agent 技能**：\n   執行以下命令，將影片專案編譯打包為獨立 Skill（例如以 Reveal.js 生成 Reveal-Slide 技能）：\n   ```bash\n   python install/setup.py pack my-video 02 --target=antigravity\n   ```\n"}, {"title": "Google Classroom Agent - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/Google_Classroom_anget_說明書.md", "content": "# Google Classroom Agent - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[mathruffian-dot/classroom-agent-kit](https://github.com/shihwei0809/google-classroom-agent)\n\n\n## 專案簡介\n本專案為一個自動化 AI 代理服務，串接 Google Classroom API，能協助講師自動發布作業、管理學員作答、並自動批改上傳作業。\n\n## 主要功能特色\n- **Classroom 自動發課**：支援以 API 批次建立課程單元。\n- **作業監控**：自動輪詢（Poll）學員繳交狀態，並在繳交時觸發 AI 進行初步評分。\n\n## 技術棧\n- Node.js, Google Classroom API, Google OAuth 2.0\n\n## 操作步驟\n1. 在專案目錄下配置 `credentials.json` (從 Google Cloud Console 申請)。\n2. 本地執行：\n   ```bash\n   node server.js\n   ```\n3. 瀏覽器開啟 `http://localhost:3000` 進行 Google 帳號授權，即可啟動自動化管理。\n"}, {"title": "畢業旅行與簡報企劃 (grad-trip) - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/grad_trip_畢業旅行與簡報企劃_說明書.md", "content": "# 畢業旅行與簡報企劃 (grad-trip) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n## 專案簡介\n本專案用於生成國小畢旅二天一夜回憶錄的互動式電子書網頁與配音影片合成。\n\n## 主要功能特色\n- **配音語音合成**：使用 Python 腳本將段落文字合成語音 Mp3 檔。\n- **影片與音訊混音**：提供 `mux_video.py` 與 `merge_audio.py`，使用 FFmpeg 自動將背景音樂與旁白配音進行混音，並與旅遊照片序列合成為最終 MP4 影片。\n\n## 技術棧\n- Python (edge-tts), FFmpeg, HTML5 (電子書展示)\n\n## 操作步驟\n1. 進入 `grad-trip` 目錄。\n2. 執行 `python generate_narration.py` 產出旁白配音檔。\n3. 執行 `python mux_video.py` 生成回憶錄 MP4 影片（已透過 .gitignore 排除大檔，影片會保留在本地 `grad-trip/renders/` 下）。\n"}, {"title": "Padlet 留言板系統 - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/padlet_board_留言板操作說明書.md", "content": "# Padlet 留言板系統 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent/tree/main/padlet-board](https://github.com/shihwei0809/google-agent/tree/main/padlet-board)\n\n\n## 專案簡介\n此專案實作了一個類 Padlet 風格的互動看板系統，使用者可以在板上自由新增便利貼、留言、與進行拖曳排版。\n\n## 主要功能特色\n- **互動便利貼**：支援新增、編輯、刪除便利貼，並可為便利貼自訂顏色。\n- **拖曳排列**：支援拖曳操作，卡片位置會自動儲存於本地暫存。\n\n## 技術棧\n- HTML5, CSS3, JavaScript (Drag and Drop API)\n\n## 操作步驟\n1. 雙擊 `padlet-board/留言板操作說明書.md` 查看詳細手冊。\n2. 開啟 `padlet-board/index.html` 即可在瀏覽器上操作留言板。\n"}, {"title": "專案大廳維護工具箱 (portal_tools) - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/portal_tools_專案大廳維護工具_說明書.md", "content": "# 專案大廳維護工具箱 (portal_tools) - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n> 📁 **工具箱本機路徑**：[portal_tools/](file:///D:/GOOGLE%20ANGET/portal_tools)\n\n## 專案簡介\n本工具箱包含四個關鍵的自動化維護工具，專為 **GOOGLE ANGET** 專案大廳設計。旨在透過自動化流程，解決「程式更新後說明書未同步」、「網頁大廳搜尋快取過期」及「手動製作 PPT 簡報費時」等維護痛點，實現「程式即文檔」的無縫自動化管理。\n\n---\n\n## 🛠️ 核心工具功能介紹\n\n### 1. 📥 源碼自動備份工具 (`export_sources.py`)\n- **用途**：將分散在各專案資料夾的核心原始碼自動備份並包裝成 Markdown 檔案，放置於 `說明書/sources_backup/` 中。\n- **好處**：AI 協同助理（如 Antigravity）只需讀取此單一備份目錄，即可在 1 秒內載入您所有核心專案的程式全貌，無需解析龐大的專案結構（如 Android build 或 Python venv 檔案）。\n- **備份項目**：\n  - N系列BARCODE出貨核對 (GAS `Code.gs`, `Index.html`, `Query.html`)\n  - n系列GAS轉APK (Kotlin `MainActivity.kt`, `NetworkHelper.kt`)\n  - 溫度通報系統 (Python `weather_monitor.py`, `config.json`, GAS `Code.gs`)\n\n### 2. ⚙️ 說明書資料庫編譯器 (`compile_manuals.py`)\n- **用途**：自動掃描三大類別資料夾下的所有 Markdown 說明書檔案，將其標題、路徑與內容轉換為 JSON 格式，並注入到 `說明書/index.html` 網頁中的 `const manualsData` 變數中。\n- **好處**：更新說明書後，網頁大廳的**即時搜尋框與全文檢索資料庫會自動更新**，無需手動複製 JSON，杜絕特殊符號轉義錯誤（Escape errors）。\n\n### 3. 📦 靜態大廳打包工具 (`build_portal.py`)\n- **用途**：將具備純前端網頁展示性質的核心專案（如 flowchart-web、hongsheng-web 等）複製並打包至 `說明書/projects/` 底下。\n- **好處**：自動將網頁中的「回大廳」相對路徑修正為 `./projects/` 相應路徑，以便一鍵部署至雲端託管空間（如 Netlify）。\n\n### 4. 📊 說明書簡報產生器 (`generate_all_pptx.py`)\n- **用途**：讀取所有 Markdown 說明書，自動解析其中的簡介、特色、技術棧、操作步驟，並套用專屬暗色科技風格主題，自動產生對應的 `[說明書名稱].pptx` 簡報。\n- **好處**：提供自動化生成教育訓練簡報與主管匯報投影片的能力。\n\n---\n\n## 🔄 自動化同步流程圖\n\n```mermaid\ngraph TD\n    A[修改原始程式 / 說明書 md 檔] --> B[1. 執行 export_sources.py]\n    B -->|備份原始碼| C[說明書/sources_backup/ 目錄]\n    A --> D[2. 執行 compile_manuals.py]\n    D -->|更新搜尋資料庫| E[說明書/index.html]\n    D -->|產生 PPT 簡報| F[各目錄下 .pptx 檔案]\n    A --> G[3. 執行 build_portal.py]\n    G -->|打包網頁專案| H[說明書/projects/ 目錄]\n    E & F & H --> I[4. 部署 '說明書' 資料夾至 Netlify]\n```\n\n---\n\n## 💻 本機執行與操作步驟\n\n### 📋 系統環境需求\n本工具箱使用 **Python 3.x** 執行，部分腳本需要安裝第三方套件：\n```powershell\npip install python-pptx\n```\n\n### 🚀 執行命令\n在終端機（CMD 或 PowerShell）中進入 `portal_tools` 資料夾，依序或選擇性執行腳本：\n\n```powershell\n# 1. 進入維護資料夾\ncd \"D:\\GOOGLE ANGET\\portal_tools\"\n\n# 2. 自動備份關鍵原始碼\npython export_sources.py\n\n# 3. 編譯說明書網頁資料庫並更新 PPT 簡報\npython compile_manuals.py\n\n# 4. 打包靜態網頁專案\npython build_portal.py\n```\n\n---\n\n## ⚠️ 注意事項\n1. **防脫節協定**：每次有更新 GAS、Android App 或 Python 監控程式碼時，**請務必執行 `export_sources.py`** 重新產生原始碼備份，確保 AI 助手後續排查時讀取的是最新版本。\n2. **編碼規格**：所有 Markdown 說明書檔案必須存成 `UTF-8` 編碼，以防止編譯至 `index.html` 時出現亂碼。\n"}, {"title": "保養品 客服聊天機器人 - 操作說明書", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/保養品_客服聊天機器人_說明書.md", "content": "# 保養品 客服聊天機器人 - 操作說明書\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n## 專案簡介\n本專案為保養品智能客服問答與商品推薦機器人，能引導顧客進行肌膚檢測，並基於 Gemini/Groq API 進行個性化的保養品搭配推薦。\n\n## 主要功能特色\n- **多輪肌膚對談**：引導式問答（乾性/油性肌膚、敏感程度等）。\n- **商品知識庫檢索**：自動比對後台商品清單進行精準推薦。\n\n## 技術棧\n- HTML, CSS, JavaScript, Gemini API / Groq API\n\n## 操作步驟\n1. 於 `保養品` 目錄下開啟 `index.html`。\n2. 在交談視窗中輸入如：「我的皮膚很容易出油，有沒有推薦的保養品？」，機器人會自動引導分析並推薦產品。\n"}, {"title": "跨電腦一鍵備份與還原轉移系統 (Backup & Sync System)", "category": "第三類 AI代理與指南企劃", "path": "第三類_AI代理與指南企劃/跨電腦一鍵備份與還原轉移_說明書.md", "content": "# 跨電腦一鍵備份與還原轉移系統 (Backup & Sync System)\n\n> 🔗 **GitHub 專案庫**：[shihwei0809/google-agent](https://github.com/shihwei0809/google-agent)\n\n\n本系統是為 AI Agent (如 Anti-Gravity, Claude Code 等) 與本機開發環境量身打造的**跨電腦一鍵移植與備份方案**。它解決了電腦壞軌、系統損毀或轉移新電腦時，需要重新配置技能、設定與環境授權的痛點。\n\n---\n\n## 🛠️ 核心功能\n\n1. **一鍵備份技能與授權 (Local to Google Drive)**：\n   - 備份全域設定（包含 API Keys 與 MCP 配置）：`C:\\Users\\<Username>\\.gemini\\config\\`\n   - 備份 Anti-Gravity 提示詞技能：`C:\\Users\\<Username>\\.gemini\\antigravity\\skills\\`\n   - 備份 Anti-Gravity 使用者設定：`C:\\Users\\<Username>\\.gemini\\antigravity\\user_settings.pb`\n   - 備份本機工作區技能：`C:\\GOOGLE ANGET\\skills\\`\n   - 備份檔將自動上傳至 Google Drive 的 `GOOGLE ANGET/backup` 目錄。\n\n2. **一鍵自動排程 (Monthly Auto-Backup)**：\n   - 在 Windows 工作排程器註冊 `AntiGravity_Monthly_Backup` 任務，於每個月 1 號中午 12:00 自動在背景執行備份，免去手動操作。\n\n3. **跨電腦一鍵還原 (Environment Auto-Setup)**：\n   - 自動偵測並透過 Windows `winget` 安裝 Git、GitHub CLI、Node.js、Python 等必備軟體。\n   - 自動安裝 Obsidian MCP (MCPVault)、NotebookLM 等 MCP 套件。\n   - 自動將 Google Drive 的 `backup` 還原到新電腦對應的 AppData 與本機工作區目錄，實現 100% 技能無痛轉移。\n   - 自動引導 GitHub、Firebase 與 NotebookLM 的登入驗證。\n\n---\n\n## 📁 檔案清單\n\n- 📜 **[backup_skills.ps1](file:///C:/GOOGLE%20ANGET/backup_skills.ps1)**：主備份 PowerShell 腳本，具備 Unicode 動態重組防編碼出錯設計。\n- 📜 **[setup_new_computer.ps1](file:///C:/GOOGLE%20ANGET/setup_new_computer.ps1)**：新電腦一鍵還原與環境建置 PowerShell 腳本。\n- 📜 **[setup_schedule.ps1](file:///C:/GOOGLE%20ANGET/setup_schedule.ps1)**：Windows 工作排程器自動註冊腳本。\n- ⚡ **[一鍵備份技能.bat](file:///C:/GOOGLE%20ANGET/一鍵備份技能.bat)**：雙擊即可備份。\n- ⚡ **[一鍵設定排程.bat](file:///C:/GOOGLE%20ANGET/一鍵設定排程.bat)**：雙擊即可設定每月自動排程。\n- ⚡ **[一鍵還原新電腦.bat](file:///C:/GOOGLE%20ANGET/一鍵還原新電腦.bat)**：在新電腦雙擊即可一鍵還原與部署環境。\n\n---\n\n## 🚀 操作說明\n\n### A. 首次設定排程\n1. 雙擊執行 `一鍵設定排程.bat`。\n2. 系統會自動請求系統管理員權限，並於 Windows 排程器中註冊每個月 1 號中午 12:00 的自動備份工作。\n\n### B. 手動執行備份\n1. 雙擊執行 `一鍵備份技能.bat`。\n2. 備份完成後，請確保 Google Drive 電腦版客戶端正在運行，檔案將會自動同步至雲端。\n\n### C. 雲端資料夾備註 (手動步驟)\n由於 Google Drive API 的限制，建議您在瀏覽器上登入 Google Drive 網頁版，在 `GOOGLE ANGET` 資料夾上點擊右鍵選取「詳細資料」/「新增描述」，備註如下：\n> 「此資料夾存放 Anti-Gravity AI Agent 的技能與設定備份。轉移新電腦時，將此資料夾下載後即可點擊還原。」\n\n### D. 轉移至新電腦\n1. 在新電腦上安裝 **Google Drive 電腦版**，並登入您的 Google 帳號。\n2. 將雲端的 `GOOGLE ANGET` 目錄同步或下載至新電腦的 `C:\\GOOGLE ANGET`。\n3. 進入 `C:\\GOOGLE ANGET` 目錄，按右鍵以「系統管理員身分執行」`setup_new_computer.ps1`，或使用 PowerShell 執行它。\n4. 腳本會引導完成所有軟體安裝、備份檔還原以及帳號授權，完成後重啟 AI 即可使用所有自訂技能！\n"}];
+
+        
+
+        // 切換頁面 View
+        function switchView(viewName) {
+            document.querySelectorAll(".view-panel").forEach(panel => panel.classList.remove("active"));
+            document.querySelectorAll(".nav-tab-btn").forEach(btn => btn.classList.remove("active"));
+
+            if (viewName === 'portal') {
+                document.getElementById("viewPortal").classList.add("active");
+                document.getElementById("tabBtnPortal").classList.add("active");
+            } else if (viewName === 'reader') {
+                document.getElementById("viewReader").classList.add("active");
+                document.getElementById("tabBtnReader").classList.add("active");
+            }
+        }
+
+        // 大廳過濾卡片
+        function filterProjects(category, btn) {
+            document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+
+            const cards = document.querySelectorAll(".project-card");
+            cards.forEach(card => {
+                if (category === 'all' || card.dataset.category === category) {
+                    card.style.display = "flex";
+                } else {
+                    card.style.display = "none";
+                }
+            });
+        }
+
+        // 渲染大廳卡片
+        
+        // 雙模網址動態解析器 (線上使用根目錄絕對路徑防層疊，本機使用相對路徑)
+        function getCorrectLaunchUrl(url) {
+            if (!url) return "#";
+            if (url.startsWith("command:") || url.startsWith("http://") || url.startsWith("https://")) {
+                return url;
+            }
+            if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+                // 清理多餘相對路徑前綴，強制組合出網域根目錄的絕對路徑，徹底避免相對路徑死迴圈
+                const clean = url.replace(/^(\.\/|\.\.\/)+/, '').replace(/^\/+/, '');
+                return window.location.origin + '/' + clean;
+            }
+            return url;
+        }
+
+        function renderPortal() {
+            const grid = document.getElementById("projectGrid");
+            grid.innerHTML = "";
+
+            projectsData.forEach(p => {
+                const card = document.createElement("div");
+                card.className = "project-card";
+                card.dataset.category = p.category;
+
+                let catBadgeText = "";
+                let catBadgeClass = "";
+                if (p.category === 'cat1') {
+                    catBadgeText = "第一類 網頁與互動";
+                    catBadgeClass = "badge-cat1";
+                } else if (p.category === 'cat2') {
+                    catBadgeText = "第二類 生產與 API";
+                    catBadgeClass = "badge-cat2";
+                } else if (p.category === 'cat3') {
+                    catBadgeText = "第三類 AI 代理工具";
+                    catBadgeClass = "badge-cat3";
+                }
+
+                const tagsHtml = p.tags.map(t => `<span class="project-tag">${t}</span>`).join("");
+
+                // 處理 Launch 按鈕行為
+                let launchActionHtml = "";
+                if (p.launchUrl.startsWith("command:")) {
+                    const cmdName = p.launchUrl.split(":")[1];
+                    launchActionHtml = `<button class="card-btn btn-launch" onclick="triggerCommandModal('${cmdName}', '${p.title}', '${p.manualTitle}')">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        執行指令
+                    </button>`;
+                } else {
+                    // 一般連結
+                    const safeUrl = getCorrectLaunchUrl(p.launchUrl);
+                    launchActionHtml = `<a href="${safeUrl}" class="card-btn btn-launch" target="_blank">
+                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        進入系統
+                    </a>`;
+                }
+
+                card.innerHTML = `
+                    <div class="card-header-row">
+                        <span class="category-badge ${catBadgeClass}">${catBadgeText}</span>
+                        ${p.githubUrl ? `
+                        <a href="${p.githubUrl}" class="github-badge-link" target="_blank" title="GitHub 專案庫" onclick="event.stopPropagation()">
+                            <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="display:inline-block; vertical-align:text-bottom; margin-right:3px;"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z"></path></svg>
+                            GitHub
+                        </a>` : ''}
+                    </div>
+                    <h3>${p.title}</h3>
+                    <p class="project-desc">${p.desc}</p>
+                    <div class="tag-container">${tagsHtml}</div>
+                    <div class="card-actions">
+                        ${launchActionHtml}
+                        <button class="card-btn btn-manual" onclick="showManualByTitle('${p.manualTitle}')">
+                            <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4 1.253"></path></svg>
+                            說明書
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // 大廳進入說明書的觸發函式
+        function showManualByTitle(title) {
+            // 在 manualsData 尋找 title
+            const item = manualsData.find(m => m.title.toLowerCase().includes(title.toLowerCase()));
+            if (item) {
+                switchView('reader');
+                selectDoc(item);
+            } else {
+                alert(`未找到 "${title}" 說明書項目。`);
+            }
+        }
+
+        // 本機指令 Modal 控制
+        let currentModalCommand = "";
+        let currentModalManualTitle = "";
+        function triggerCommandModal(cmdName, projTitle, manualTitle) {
+            currentModalManualTitle = manualTitle;
+            const titleEl = document.getElementById("cmdModalTitle");
+            const cmdEl = document.getElementById("terminalCommand");
+            const notesEl = document.getElementById("cmdModalNotes");
+            const btnManual = document.getElementById("btnGoToManual");
+
+            titleEl.innerText = `💻 ${projTitle} 本機指令提示`;
+            btnManual.onclick = () => {
+                closeCmdModal(null);
+                showManualByTitle(manualTitle);
+            };
+
+            let commandText = "";
+            let notesHtml = "";
+
+            if (cmdName === "ocrvideo") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\OCR測試\" && run_pdf_to_video_web.bat";
+                notesHtml = `<li>這是簡報自動語音影片生成器的本機網頁啟動腳本。</li>
+                             <li>執行後系統會自動在瀏覽器中開啟 <code>http://localhost:8002/</code>。</li>`;
+            } else if (cmdName === "NoType") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\聲音轉文字\" && start.bat";
+                notesHtml = `<li>這是本機 Electron 桌面語音助理，點選「複製指令」並在終端機執行即可啟動。</li>
+                             <li>也可以直接到檔案總管雙擊 <code>聲音轉文字/start.bat</code> 啟動。</li>`;
+            } else if (cmdName === "IPAHQ") {
+                commandText = "php -S localhost:8000 -t \"C:\\GOOGLE ANGET\\IPAHQ槽車確認-GAS-to-PHPSQL\"";
+                notesHtml = `<li>本專案為本機 PHP 與 SQL 連線服務。請先確認已安裝並啟動 PHP 與 MySQL 資料庫。</li>
+                             <li>在終端機執行指令啟動本地伺服器後，可開啟 <code>http://localhost:8000</code> 進入系統。</li>`;
+            } else if (cmdName === "IPA") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\IPA-生產排程雙儲槽優化\" && python optimize_schedule.py";
+                notesHtml = `<li>本專案是雙儲槽產能分配優化 Python 腳本。</li>
+                             <li>執行腳本後，產生的排程建議與圖表可於本地 PHP 前端查閱。</li>`;
+            } else if (cmdName === "nseries") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\n系列GAS-轉-APK-離線核對上傳\" && npm run build";
+                notesHtml = `<li>本專案是 Cordova 安裝包編譯腳本，用於將 GAS 功能打包為 Android APK。</li>`;
+            } else if (cmdName === "Nseries_Check") {
+                commandText = "php -S localhost:8001 -t \"C:\\GOOGLE ANGET\\N系列BARCODE出貨核對\"";
+                notesHtml = `<li>本專案為 N 系列出貨條碼核對 PHP API。</li>`;
+            } else if (cmdName === "QC") {
+                commandText = "php -S localhost:8002 -t \"C:\\GOOGLE ANGET\\QC-系統客製化電子化工廠\"";
+                notesHtml = `<li>本專案是客製化品管 QC 自動登錄與看板系統。</li>`;
+            } else if (cmdName === "Migration") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\三合一單-to-PHP-Migration\" && php import.php";
+                notesHtml = `<li>這是 Excel 數據批量導入資料庫之 PHP 遷移指令，請確保資料庫連線設定已就緒。</li>`;
+            } else if (cmdName === "TripleWeb") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\第二類_生產管理與API串接\\三合一單網頁架機伺服器\" && 架設伺服器_一鍵啟動.bat";
+                notesHtml = `<li>這是台積電槽車 Barcode 三合一單專用架機伺服器。</li>
+                             <li>執行後系統會自動在瀏覽器中開啟 <code>http://localhost:8002/</code>。</li>`;
+            } else if (cmdName === "KeyCode") {
+                commandText = "php -S localhost:8003 -t \"C:\\GOOGLE ANGET\\軟管-Key-Code-管理優化方案\"";
+                notesHtml = `<li>製程軟管 Key-Code 防呆與警示系統。</li>`;
+            } else if (cmdName === "Classroom") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\Google Classroom anget\" && node index.js";
+                notesHtml = `<li>Google Classroom AI 自動化助教腳本。</li>`;
+            } else if (cmdName === "Clasp") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\clasp-netlify-mcp-guide\" && clasp login";
+                notesHtml = `<li>Clasp 本機 CLI 工具，執行指令前請先安裝 clasp 套件。</li>`;
+            } else if (cmdName === "SlideBuilder") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\claude-html-slide-builder\" && python -m http.server 3000";
+                notesHtml = `<li>Reveal.js 投影片大廳本地預覽伺服器。執行後請開啟 <code>http://localhost:3000</code>。</li>`;
+            } else if (cmdName === "GradTrip") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\grad-trip\" && python make_travel_slideshow.py";
+                notesHtml = `<li>大學畢業旅行企劃 PPT 自動生成腳本。</li>`;
+            } else if (cmdName === "BeautyBot") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\保養品\" && python beauty_bot.py";
+                notesHtml = `<li>保養品 LINE 客服對談機器人本地調試腳本。</li>`;
+            } else if (cmdName === "VoiceClone") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\AI 克隆聲音\" && python webui.py";
+                notesHtml = `<li>聲音克隆 WebUI 控制台，請確保 Python 已安裝 PyTorch 及 Gradio 套件。</li>`;
+            } else if (cmdName === "Obsidian") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\ai anget\" && python cli.py --task sync-obsidian";
+                notesHtml = `<li> Obsidian 知識庫建置與自動整理腳本。</li>`;
+            } else if (cmdName === "AIGC_MV") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\aigc-music-video-hub\" && python main.py";
+                notesHtml = `<li>企業宣傳歌曲故事板與 MV 批次影音渲染系統。</li>`;
+            } else if (cmdName === "VideoSpecs") {
+                commandText = "cd \"C:\\GOOGLE ANGET\\claude-video-specs\" && python -m http.server 3005";
+                notesHtml = `<li>Reveal 影片規格與技能指南本地預覽，請開啟 <code>http://localhost:3005</code>。</li>`;
+            } else if (cmdName === "BackupRestore") {
+                commandText = "C:\\GOOGLE ANGET\\一鍵備份技能.bat";
+                notesHtml = `<li>雙擊 C:\\GOOGLE ANGET\\一鍵備份技能.bat 或一鍵設定排程.bat 即可管理備份。</li>`;
+            }
+
+            currentModalCommand = commandText;
+            cmdEl.innerText = commandText;
+            notesEl.innerHTML = notesHtml;
+
+            document.getElementById("cmdModal").style.display = "flex";
+        }
+
+        function closeCmdModal(e) {
+            if (!e || e.target.id === "cmdModal" || e.target.className === "btn-close-modal" || e.target.innerHTML === "我知道了") {
+                document.getElementById("cmdModal").style.display = "none";
+            }
+        }
+
+        function copyTerminalCommand() {
+            navigator.clipboard.writeText(currentModalCommand).then(() => {
+                const btn = document.querySelector(".term-copy-btn");
+                btn.innerText = "已複製！";
+                setTimeout(() => {
+                    btn.innerText = "複製指令";
+                }, 2000);
+            });
+        }
+
+        // 備份指南 Modal 控制
+        function openBackupModal() {
+            document.getElementById("backupModal").style.display = "flex";
+        }
+
+        function closeBackupModal(e) {
+            if (!e || e.target.id === "backupModal" || e.target.className === "btn-close-modal" || e.target.innerHTML === "關閉") {
+                document.getElementById("backupModal").style.display = "none";
+            }
+        }
+
+        // --- 說明書中心 JS 邏輯 ---
+        function renderMenu(data) {
+            const menuArea = document.getElementById("menuArea");
+            menuArea.innerHTML = "";
+
+            // Group by category
+            const categories = {};
+            data.forEach(item => {
+                if (!categories[item.category]) {
+                    categories[item.category] = [];
+                }
+                categories[item.category].push(item);
+            });
+
+            for (const [catName, items] of Object.entries(categories)) {
+                const group = document.createElement("div");
+                group.className = "category-group";
+                
+                const header = document.createElement("div");
+                header.className = "category-header";
+                header.innerText = catName;
+                group.appendChild(header);
+
+                const ul = document.createElement("ul");
+                ul.className = "doc-list";
+
+                items.forEach(item => {
+                    const li = document.createElement("li");
+                    const btn = document.createElement("button");
+                    btn.className = "doc-item-btn";
+                    btn.innerText = item.title;
+                    btn.onclick = () => selectDoc(item);
+                    li.appendChild(btn);
+                    ul.appendChild(li);
+                });
+
+                group.appendChild(ul);
+                menuArea.appendChild(group);
+            }
+        }
+
+                function selectDoc(item) {
+            // Update active state in sidebar
+            document.querySelectorAll(".doc-item-btn").forEach(btn => {
+                if (btn.innerText === item.title) {
+                    btn.classList.add("active");
+                } else {
+                    btn.classList.remove("active");
+                }
+            });
+
+            document.getElementById("welcomeScreen").style.display = "none";
+            document.getElementById("readerHeader").style.display = "flex";
+            document.getElementById("readerContent").style.display = "block";
+
+            document.getElementById("readerCategory").innerText = item.category;
+            document.getElementById("readerTitle").innerText = item.title;
+            
+            const contentArea = document.getElementById("renderedMarkdown");
+            contentArea.innerHTML = parseMarkdown(item.content, item.path);
+
+            // Dynamically show GitHub link in reader header actions
+            const proj = projectsData.find(p => p.title === item.title || p.manualTitle === item.title || item.title.includes(p.title) || p.title.includes(item.title));
+            const headerActions = document.querySelector(".header-actions");
+            
+            let actionsHtml = `
+                <button class="action-btn" onclick="window.print()">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    列印 / 匯出
+                </button>
+            `;
+            
+            if (proj && proj.githubUrl) {
+                actionsHtml = `
+                    <a href="${proj.githubUrl}" class="action-btn" target="_blank" style="text-decoration: none; background-color: #24292e; border-color: #444d56; color: #c9d1d9;">
+                        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24" style="margin-right: 4px;"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.9-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0012 2z"></path></svg>
+                        GitHub 專案庫
+                    </a>
+                ` + actionsHtml;
+            }
+            headerActions.innerHTML = actionsHtml;
+        }
+
+        function handleSearch() {
+            const query = document.getElementById("searchInput").value.toLowerCase().trim();
+            if (!query) {
+                renderMenu(manualsData);
+                return;
+            }
+
+            const filtered = manualsData.filter(item => {
+                return item.title.toLowerCase().includes(query) || 
+                       item.category.toLowerCase().includes(query) || 
+                       item.content.toLowerCase().includes(query);
+            });
+
+            renderMenu(filtered);
+        }
+
+        // markdown 解析
+        function parseMarkdown(md) {
+            if (!md) return "";
+            
+            // Newline escape formatting (replace double escape if any)
+            let html = md.replace(/\\n/g, '\n');
+
+            // Escape HTML entities to prevent raw markup rendering bugs
+            html = html
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+
+            // Headings
+            html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+            html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+            html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+
+            // Blockquotes & Alerts (GitHub alerts parser)
+            // Support: > [!NOTE] or > [!TIP] etc.
+            html = html.replace(/^&gt;\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*([^]*?)(?=(?:^[^&>])|\n\n|$)/gim, function(match, type, content) {
+                const lowerType = type.toLowerCase();
+                const icon = lowerType === 'note' ? 'ℹ️' : lowerType === 'tip' ? '💡' : lowerType === 'warning' ? '⚠️' : '🚨';
+                const formattedContent = content.replace(/^&gt;\s?/gm, '').trim();
+                return `<div class="alert alert-${lowerType}"><div class="alert-title">${icon} ${type}</div><div>${formattedContent}</div></div>`;
+            });
+
+            // Standard blockquotes
+            html = html.replace(/^&gt;\s+(.*$)/gim, '<blockquote>$1</blockquote>');
+
+            // Pre & Code blocks
+            html = html.replace(/```([a-z0-9+#]*)\n([^]*?)```/gim, function(match, lang, code) {
+                const cleanCode = code.trim();
+                return `<pre><code>${cleanCode}</code><button class="copy-code-btn" onclick="copyCode(this)">複製代碼</button></pre>`;
+            });
+
+            // Inline code
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            // Lists
+            html = html.replace(/^\s*-\s+(.*$)/gim, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>');
+            // Clean consecutive <ul> tags
+            html = html.replace(/<\/ul>\s*<ul>/g, '\n');
+
+            // Bold & Italic
+            html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+            // Image parsing (with path resolution for SPA nested URLs)
+            html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(match, alt, src) {
+                if (src.startsWith('http') || src.startsWith('data:')) {
+                    return `<img src="${src}" alt="${alt}">`;
+                }
+                
+                // If online, force absolute path to avoid SPA relative path nesting bugs
+                if (window.location.protocol.startsWith('http')) {
+                    const cleanSrc = src.replace(/^(\.\/|\.\.\/)+/, '').replace(/^\/+/, '');
+                    const absoluteUrl = folderPath ? `/${folderPath}/${cleanSrc}` : `/${cleanSrc}`;
+                    return `<img src="${absoluteUrl}" alt="${alt}">`;
+                }
+                
+                // Local file:// fallback
+                return `<img src="${src}" alt="${alt}">`;
+            });
+
+            // Clickable Links with file scheme conversion for windows (avoid matching images)
+            html = html.replace(/(^|[^!])\[([^\]]+)\]\(([^)]+)\)/g, function(match, prefix, label, href) {
+                let target = "_blank";
+                // If it's local file or relative path, keep target self
+                if (href.startsWith("file://") || href.startsWith("..") || href.indexOf("://") === -1) {
+                    target = "_self";
+                }
+                return `${prefix}<a href="${href}" target="${target}">${label}</a>`;
+            });
+
+            // Newlines to br (outside tags)
+            html = html.replace(/\n/g, '<br>');
+            
+            // Clean up list/pre structure broken by <br>
+            html = html.replace(/<\/pre><br>/g, '</pre>');
+            html = html.replace(/<\/ul><br>/g, '</ul>');
+            html = html.replace(/<\/li><br>/g, '</li>');
+            html = html.replace(/<h1>(.*)<\/h1><br>/g, '<h1>$1</h1>');
+            html = html.replace(/<h2>(.*)<\/h2><br>/g, '<h2>$1</h2>');
+            html = html.replace(/<h3>(.*)<\/h3><br>/g, '<h3>$1</h3>');
+            html = html.replace(/<blockquote>(.*)<\/blockquote><br>/g, '<blockquote>$1</blockquote>');
+
+            return html;
+        }
+
+        // 複製代碼
+        function copyCode(btn) {
+            const codeBlock = btn.previousElementSibling;
+            const text = codeBlock.innerText;
+
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btn.innerText;
+                btn.innerText = "已複製！";
+                setTimeout(() => {
+                    btn.innerText = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error("無法複製代碼: ", err);
+            });
+        }
+
+        // 初始化
+        renderPortal();
+        renderMenu(manualsData);
+    </script>
+</body>
+</html>
