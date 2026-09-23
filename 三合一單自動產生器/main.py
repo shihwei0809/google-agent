@@ -2745,6 +2745,24 @@ class App(tk.Tk):
                                         now_l = datetime.now()
                                         mmdd = f"{now_l.month:02d}{now_l.day:02d}"
 
+                                    # ===== 廠區防呆驗證 =====
+                                    # 讀取 Lorry 第 matched_r 列、第 2 欄 (B欄) 的廠區值
+                                    lorry_factory = str(src_ws_l.cell(row=matched_r, column=2).value or "").strip()
+                                    import re as _re
+                                    # 從介面長代號擷取廠區代號 (第2~5碼英數字，例如 "A18P30123..." -> "18P3")
+                                    fc_match = _re.search(r'[A-Za-z0-9]{2,5}', l_loc[1:] if len(l_loc) > 1 else l_loc)
+                                    expected_fc = fc_match.group(0).upper() if fc_match else ""
+
+                                    if not lorry_factory:
+                                        error_msgs.append(f"⚠️ 批號 {b_no}：廠區空白 (應含 {expected_fc}...)，已略過產生 Lorry 檔案")
+                                        wb_l.close()
+                                        continue
+                                    elif expected_fc and expected_fc not in lorry_factory.upper():
+                                        error_msgs.append(f"⚠️ 批號 {b_no}：廠區錯誤 ({lorry_factory})，未對齊長代號 ({l_loc})，已略過產生 Lorry 檔案")
+                                        wb_l.close()
+                                        continue
+                                    # ===== 廠區防呆驗證結束 =====
+
                                     t_part = f"{t_no} " if t_no else ""
                                     lorry_out_name = f"{base_lorry_name}-{mmdd} {t_part}{l_loc}{orig_ext}"
                                     out_l_path = os.path.join(current_loc_folder, lorry_out_name)
@@ -2752,6 +2770,13 @@ class App(tk.Tk):
                                     wb_l.close()
                                     success_lorry += 1
                             src_wb_l.close()
+                        except PermissionError as le:
+                            import os as _os2
+                            locked_file = _os2.path.basename(str(le).split("'")[-2]) if "'" in str(le) else "Chemical_Lorry 檔案"
+                            error_msgs.append(
+                                f"🔒 {locked_file} 正在被 Excel 開啟中，無法寫入！\n"
+                                f"   → 請先關閉 Excel 後，重新執行產生，即可解決此問題。"
+                            )
                         except Exception as le:
                             error_msgs.append(f"產生 Chemical_Lorry 失敗: {le}")
 
@@ -2786,7 +2811,7 @@ class App(tk.Tk):
         msg = "\n".join(msg_parts) + f"\n\n檔案已儲存於資料夾：\n{dirs_str}"
 
         if total_error_msgs:
-            msg += "\n\n部分錯誤:\n" + "\n".join(total_error_msgs[:5])
+            msg += "\n\n部分錯誤 / 警告:\n" + "\n".join(total_error_msgs)
             messagebox.showwarning("完成 (但有部分錯誤)", msg)
         else:
             messagebox.showinfo("成功", msg)

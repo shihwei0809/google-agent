@@ -530,6 +530,10 @@
         <button type="button" onclick="resetForm()" style="padding:9px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap;">
           清空重選
         </button>
+        <!-- 獨立的列印設定按鈕，無須管理權限即可重設記憶出單設定 -->
+        <button type="button" onclick="openPrintSettingsGlobal()" style="padding:9px 14px; background:#0ea5e9; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap; margin-left:auto;" title="修改或清除標籤機的記憶出單設定">
+          🖨️ 列印設定
+        </button>
       </div>
 
       <!-- 已送樣提示通知條 (當選擇已送樣車次時動態顯示) -->
@@ -1053,8 +1057,11 @@
     </div>
 
     <div style="display:flex; gap:8px;">
-      <button type="button" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:2; padding:11px; font-size:0.95rem;">
+      <button type="button" id="btnPrintLabels" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:2; padding:11px; font-size:0.95rem;">
         🖨️ 送出列印
+      </button>
+      <button type="button" id="btnSavePrintSettingsOnly" onclick="savePrintSettingsOnly()" class="btn-submit" style="background:#10b981; flex:2; padding:11px; font-size:0.95rem; display:none;">
+        💾 儲存設定
       </button>
       <button type="button" onclick="resetPrintSettingsToDefault()" style="padding:11px 12px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold; font-size:0.82rem; cursor:pointer;" title="清除記憶並恢復預設 (90x100, 水分1, Metal 2)">
         🔄 恢復預設
@@ -2404,7 +2411,39 @@
     document.getElementById('rememberPrintSettings').checked = (localStorage.getItem('HS_QC_REMEMBER_PRINT') === 'true');
 
     updateTotalLabelCount();
+    
+    // 切換按鈕顯示狀態：如果是純設定模式 (dummy)，則顯示「儲存設定」，隱藏「送出列印」
+    if (data.id === "dummy") {
+      document.getElementById('btnPrintLabels').style.display = 'none';
+      document.getElementById('btnSavePrintSettingsOnly').style.display = 'block';
+    } else {
+      document.getElementById('btnPrintLabels').style.display = 'block';
+      document.getElementById('btnSavePrintSettingsOnly').style.display = 'none';
+    }
+
     document.getElementById('printModal').style.display = 'flex';
+  }
+
+  function savePrintSettingsOnly() {
+    const wQty = document.getElementById('printQtyWaterGC').value;
+    const mQty = document.getElementById('printQtyMetal').value;
+    const width = document.getElementById('printLabelWidth').value;
+    const height = document.getElementById('printLabelHeight').value;
+    const rotateMode = document.getElementById('printRotateMode') ? document.getElementById('printRotateMode').value : 'none';
+    
+    localStorage.setItem('HS_QC_PRINT_WATER', wQty);
+    localStorage.setItem('HS_QC_PRINT_METAL', mQty);
+    localStorage.setItem('HS_QC_PRINT_WIDTH', width);
+    localStorage.setItem('HS_QC_PRINT_HEIGHT', height);
+    localStorage.setItem('HS_QC_PRINT_ROTATE', rotateMode);
+
+    if(document.getElementById('rememberPrintSettings').checked) {
+      localStorage.setItem('HS_QC_REMEMBER_PRINT', 'true');
+    } else {
+      localStorage.removeItem('HS_QC_REMEMBER_PRINT');
+    }
+    closePrintModal();
+    showToast("✅ 列印設定已更新");
   }
 
   function closePrintModal() {
