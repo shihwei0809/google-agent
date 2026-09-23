@@ -38,11 +38,18 @@ def get_api_keys():
     raw = os.getenv("GEMINI_API_KEY", "")
     return [k.strip() for k in raw.split(",") if k.strip()]
 
-# 優先使用官方最新支援的模型
+# 使用官方最新釋出之模型作為首選 (2026/09 更新，Flash 優先)
 MODEL_FALLBACKS = [
-    'gemini-2.5-flash',
+    'gemini-3.8-flash',
+    'gemini-3.7-flash',
+    'gemini-3.6-flash',
     'gemini-3.5-flash',
+    'gemini-3.8-pro',
+    'gemini-3.7-pro',
+    'gemini-3.6-pro',
+    'gemini-3.5-pro',
     'gemini-3-flash-preview',
+    'gemini-2.5-flash',
     'gemini-2.5-pro'
 ]
 

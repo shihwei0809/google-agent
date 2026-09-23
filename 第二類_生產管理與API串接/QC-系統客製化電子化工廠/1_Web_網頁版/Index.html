@@ -2462,40 +2462,44 @@
     let labelPagesHtml = '';
     let currentIdx = 1;
 
+    const isCompact = labelHeight <= 60;
+    const compactClass = isCompact ? ' compact' : '';
+
     // 1. 水分 & GC 檢驗標籤 (共 waterCount 張)
     for(let i = 1; i <= waterCount; i++) {
       labelPagesHtml += `
-        <div class="label-page">
+        <div class="label-page${compactClass}">
           <div class="label-border">
             <div class="label-header">
               <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
-              <div class="badge-cat water">💧【水分 & GC 氣相層析】檢驗樣品 (第 ${currentIdx}/${totalLabels} 張)</div>
+              <div class="badge-cat water">💧【水分 & GC】檢驗樣品 (${currentIdx}/${totalLabels})</div>
             </div>
             
             <div class="barcode-banner">
               <div class="barcode-num">${data.barcode}</div>
             </div>
 
-            <table class="info-table">
-              <tr><td class="f-name">品名規格：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
-              <tr><td class="f-name">儲位槽號：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
-              <tr><td class="f-name">車牌/櫃號：</td><td class="f-val">${data.customer || '-'}</td></tr>
-              <tr><td class="f-name">動向/數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
-              <tr><td class="f-name">送樣單位：</td><td class="f-val">${data.dept} (送樣人: <b>${data.requester}</b>)</td></tr>
-              <tr><td class="f-name">送樣時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
-            </table>
+            <div class="content-wrapper">
+              <table class="info-table">
+                <tr><td class="f-name">品名：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
+                <tr><td class="f-name">儲位：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
+                <tr><td class="f-name">車牌：</td><td class="f-val">${data.customer || '-'}</td></tr>
+                <tr><td class="f-name">數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
+                <tr><td class="f-name">送樣：</td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
+                <tr><td class="f-name">時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
+              </table>
 
-            <div class="lab-record-box">
-              <div class="lab-title">🧪 實驗室化驗手寫記錄：</div>
-              <div class="lab-row"><span>• 水分 (Karl Fischer)：</span><span class="fill-line">________________ ppm</span></div>
-              <div class="lab-row"><span>• GC 純度 (Purity)：</span><span class="fill-line">________________ %</span></div>
-              <div class="lab-row"><span>• 化驗員簽章：________</span><span>分析日期：____________</span></div>
+              <div class="lab-record-box">
+                <div class="lab-title">🧪 實驗室記錄：</div>
+                <div class="lab-row"><span>• 水分：</span><span class="fill-line">________ ppm</span></div>
+                <div class="lab-row"><span>• GC：</span><span class="fill-line">________ %</span></div>
+                <div class="lab-row sign-row"><span>簽章：____</span><span>日期：______</span></div>
+              </div>
             </div>
 
             <div class="label-footer">
-              <span>貼紙規格: ${labelWidth}mm×${labelHeight}mm</span>
-              <span>TSC / 標籤機適用</span>
-              <span>頁次: ${currentIdx} / ${totalLabels}</span>
+              <span>貼紙: ${labelWidth}x${labelHeight}mm</span>
+              <span>頁次: ${currentIdx}/${totalLabels}</span>
             </div>
           </div>
         </div>
@@ -2506,41 +2510,42 @@
     // 2. Metal 金屬離子 ICP-MS 標籤 (共 metalCount 張)
     for(let i = 1; i <= metalCount; i++) {
       const isSecondSample = (i >= 2);
-      const bottleTitle = isSecondSample ? "瓶 2 (留樣存查 / 複檢)" : "瓶 1 (分析正樣)";
+      const bottleTitle = isSecondSample ? "瓶 2 (留樣)" : "瓶 1 (正樣)";
       const bottleBadgeClass = isSecondSample ? "metal-retention" : "metal-main";
 
       labelPagesHtml += `
-        <div class="label-page">
+        <div class="label-page${compactClass}">
           <div class="label-border">
             <div class="label-header">
               <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
-              <div class="badge-cat ${bottleBadgeClass}">🔬【Metal 金屬離子 ICP-MS】${bottleTitle} (第 ${currentIdx}/${totalLabels} 張)</div>
+              <div class="badge-cat ${bottleBadgeClass}">🔬【Metal ICP-MS】${bottleTitle} (${currentIdx}/${totalLabels})</div>
             </div>
             
             <div class="barcode-banner">
               <div class="barcode-num">${data.barcode}</div>
             </div>
 
-            <table class="info-table">
-              <tr><td class="f-name">品名規格：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
-              <tr><td class="f-name">儲位槽號：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
-              <tr><td class="f-name">車牌/櫃號：</td><td class="f-val">${data.customer || '-'}</td></tr>
-              <tr><td class="f-name">動向/數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
-              <tr><td class="f-name">送樣單位：</td><td class="f-val">${data.dept} (送樣人: <b>${data.requester}</b>)</td></tr>
-              <tr><td class="f-name">送樣時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
-            </table>
+            <div class="content-wrapper">
+              <table class="info-table">
+                <tr><td class="f-name">品名：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
+                <tr><td class="f-name">儲位：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
+                <tr><td class="f-name">車牌：</td><td class="f-val">${data.customer || '-'}</td></tr>
+                <tr><td class="f-name">數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
+                <tr><td class="f-name">送樣：</td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
+                <tr><td class="f-name">時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
+              </table>
 
-            <div class="lab-record-box">
-              <div class="lab-title">🔬 ICP-MS 痕量分析與留樣管控：</div>
-              <div class="lab-row"><span>• ICP-MS 檢驗案號：</span><span class="fill-line">__________________________</span></div>
-              <div class="lab-row"><span>• 樣品屬性：</span><span>${isSecondSample ? '☑ 48H 留樣存查   □ 複測備用' : '☑ 產線首驗正樣   □ 急件加測'}</span></div>
-              <div class="lab-row"><span>• 化驗員簽章：________</span><span>分析日期：____________</span></div>
+              <div class="lab-record-box">
+                <div class="lab-title">🔬 ICP-MS 記錄：</div>
+                <div class="lab-row"><span>• 案號：</span><span class="fill-line">____________</span></div>
+                <div class="lab-row type-row"><span>${isSecondSample ? '☑留樣 □複測' : '☑正樣 □急件'}</span></div>
+                <div class="lab-row sign-row"><span>簽章：____</span><span>日期：______</span></div>
+              </div>
             </div>
 
             <div class="label-footer">
-              <span>貼紙規格: ${labelWidth}mm×${labelHeight}mm</span>
-              <span>TSC / 標籤機適用</span>
-              <span>頁次: ${currentIdx} / ${totalLabels}</span>
+              <span>貼紙: ${labelWidth}x${labelHeight}mm</span>
+              <span>頁次: ${currentIdx}/${totalLabels}</span>
             </div>
           </div>
         </div>
@@ -2576,7 +2581,7 @@
             height: ${labelHeight}mm;
             max-width: ${labelWidth}mm;
             max-height: ${labelHeight}mm;
-            padding: 3mm 3.5mm;
+            padding: 2mm;
             page-break-after: always;
             page-break-inside: avoid;
             display: flex;
@@ -2585,6 +2590,72 @@
           }
           .label-page:last-child {
             page-break-after: auto;
+          }
+          
+          /* 緊湊模式 (高度 <= 60mm) 專用排版 */
+          .label-page.compact {
+            padding: 1mm;
+          }
+          .label-page.compact .label-border {
+            padding: 1mm 1.5mm;
+          }
+          .label-page.compact .corp-title {
+            display: none; /* 隱藏公司抬頭 */
+          }
+          .label-page.compact .badge-cat {
+            margin-top: 0;
+            padding: 0.5mm;
+            font-size: 11px;
+          }
+          .label-page.compact .barcode-banner {
+            margin: 0.5mm 0;
+            padding: 0.5mm;
+          }
+          .label-page.compact .barcode-num {
+            font-size: 12px;
+          }
+          .label-page.compact .content-wrapper {
+            display: flex;
+            gap: 1.5mm;
+            align-items: stretch;
+            height: 100%;
+            overflow: hidden;
+          }
+          .label-page.compact .info-table {
+            width: 55%;
+            margin: 0;
+            font-size: 9.5px;
+          }
+          .label-page.compact .info-table td {
+            padding: 0.5mm 0;
+          }
+          .label-page.compact .f-name {
+            width: 9mm; /* 縮短標題寬度 */
+          }
+          .label-page.compact .lab-record-box {
+            width: 45%;
+            margin: 0;
+            padding: 1mm;
+            font-size: 9.5px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-evenly;
+          }
+          .label-page.compact .lab-title {
+            margin-bottom: 0;
+          }
+          .label-page.compact .lab-row {
+            margin-bottom: 0;
+            flex-direction: column; /* 簽章和線條排上下 */
+          }
+          .label-page.compact .sign-row {
+            flex-direction: row; /* 簽章日期排左右 */
+            font-size: 8px;
+          }
+          .label-page.compact .label-footer {
+            margin-top: 0.5mm;
+            padding-top: 0.5mm;
+            font-size: 8px;
           }
           .label-border {
             border: 2.5px solid #000;

@@ -1,4 +1,4 @@
-ï»¿const CACHE_NAME = 'qc-kanban-v2.1.12';
+const CACHE_NAME = 'qc-kanban-v2.1.12';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -11,7 +11,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker v2.1.3] å¿«ï¿½??ï¿½ï¿½??ï¿½ï¿½?è³‡ç”¢');
+      console.log('[Service Worker v2.1.3] §Ö??????????¸ê²£');
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
@@ -23,7 +23,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[Service Worker] æ¸…é™¤?ï¿½ï¿½??ï¿½å¿«??', key);
+            console.log('[Service Worker] ²M°£??????§Ö??', key);
             return caches.delete(key);
           }
         })
@@ -33,12 +33,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // å°æ–¼ API è«‹ï¿½??ï¿½è·¨?ï¿½ï¿½?æ±‚ï¿½??ï¿½ç”¨ Network Only (ä¸å¿«??
+  // ¹ï©ó API ½Ð????¸ó????¨D????¥Î Network Only (¤£§Ö??
   if (event.request.url.includes('script.google.com') || event.request.method !== 'GET') {
     return;
   }
 
-  // å°æ–¼ HTML ?ï¿½é¢å°Žèˆªï¼Œå¼·?ï¿½ä½¿??Network First (ç¶²è·¯?ï¿½ï¿½?ï¼Œï¿½?è­‰ï¿½?æ¬¡ï¿½??ï¿½æ•´?ï¿½éƒ½?ï¿½ï¿½??ï¿½ï¿½??ï¿½ï¿½?å¼ç¢¼)
+  // ¹ï©ó HTML ??­±¾É¯è¡A±j??¨Ï??Network First (ºô¸ô????¡A??ÃÒ??¦¸????¾ã??³£????????????¦¡½X)
   if (event.request.mode === 'navigate' || (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
     event.respondWith(
       fetch(event.request).then((response) => {
@@ -54,7 +54,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // å°æ–¼?ï¿½ï¿½??ï¿½ï¿½?ç¤ºï¿½??ï¿½ï¿½?è³‡ï¿½?ï¼ŒæŽ¡??Cache First with Network Fallback
+  // ¹ï©ó????????¥Ü??????¸ê??¡A±Ä??Cache First with Network Fallback
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
