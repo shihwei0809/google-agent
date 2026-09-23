@@ -835,62 +835,64 @@ async def generate_all_zip(request: Request):
                 print(f"[Session JSON Error] {se}")
 
             # 3. 產生單列生產履歷 Excel (Chemical_Lorry)，依短地點歸入對應子資料夾
-            extra_file = EXTRA_FILE_CACHE.get("latest_file")
-            if do_lorry and extra_file and extra_file["ext"].lower() in [".xlsx", ".xls"]:
-                try:
-                    src_wb = openpyxl.load_workbook(BytesIO(extra_file["content"]), data_only=False)
-                    src_ws = src_wb.active
+            lorry_files = EXTRA_FILE_CACHE.get("files", [])
+            if do_lorry and lorry_files:
+                for extra_file in lorry_files:
+                    if extra_file["ext"].lower() not in [".xlsx", ".xls"]: continue
+                    try:
+                        src_wb = openpyxl.load_workbook(BytesIO(extra_file["content"]), data_only=False)
+                        src_ws = src_wb.active
                     
-                    # 建立批號到列號的快速索引字典
-                    batch_row_map = {}
-                    for r in range(7, src_ws.max_row + 1):
-                        val = str(src_ws.cell(row=r, column=1).value or "").strip().upper()
-                        if val and val not in batch_row_map:
-                            batch_row_map[val] = r
+                        # 建立批號到列號的快速索引字典
+                        batch_row_map = {}
+                        for r in range(7, src_ws.max_row + 1):
+                            val = str(src_ws.cell(row=r, column=1).value or "").strip().upper()
+                            if val and val not in batch_row_map:
+                                batch_row_map[val] = r
 
-                    orig_name = extra_file["filename"]
-                    base_name = orig_name.rsplit('-', 1)[0] if '-' in orig_name else orig_name
+                        orig_name = extra_file["filename"]
+                        base_name = orig_name.rsplit('-', 1)[0] if '-' in orig_name else orig_name
 
-                    for item in records:
-                        batch = item.get("batch", "").strip().upper()
-                        loc = item.get("loc", "").strip().upper()
-                        if not batch or not loc or len(batch) not in (10, 11) or loc not in mapping:
-                            continue
+                        for item in records:
+                            batch = item.get("batch", "").strip().upper()
+                            loc = item.get("loc", "").strip().upper()
+                            if not batch or not loc or len(batch) not in (10, 11) or loc not in mapping:
+                                continue
                         
-                        matched_row_idx = batch_row_map.get(batch)
-                        if matched_row_idx:
-                            # 建立只包含表頭 1~6 列與目標單列的極速輕量化 Workbook
-                            new_wb = build_single_row_lorry_workbook(src_ws, matched_row_idx)
+                            matched_row_idx = batch_row_map.get(batch)
+                            if matched_row_idx:
+                                # 建立只包含表頭 1~6 列與目標單列的極速輕量化 Workbook
+                                new_wb = build_single_row_lorry_workbook(src_ws, matched_row_idx)
                             
-                            # 組合新檔名：[原檔名前半部]-[MMDD] [槽號] [Loc].[Ext]
-                            date_raw = item.get("date", "").strip()
-                            mmdd = "0000"
-                            if date_raw:
-                                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
-                                    try:
-                                        dt = datetime.strptime(date_raw, fmt)
-                                        mmdd = f"{dt.month:02d}{dt.day:02d}"
-                                        break
-                                    except ValueError:
-                                        pass
-                            custom_tank = item.get("tank", "").strip()
-                            if custom_tank and custom_tank != "自動槽號":
-                                tank_no = custom_tank
-                            else:
-                                tank_no = extract_tank_from_batch(batch)
-                            tank_part = f"{tank_no} " if tank_no else ""
-                            new_filename = f"{base_name}-{mmdd} {tank_part}{loc}{extra_file['ext']}"
-                            tank_str = tank_no if tank_no else ""
-                            sub_folder = f"{mmdd} {loc} {tank_str}".strip()
+                                # 組合新檔名：[原檔名前半部]-[MMDD] [槽號] [Loc].[Ext]
+                                date_raw = item.get("date", "").strip()
+                                mmdd = "0000"
+                                if date_raw:
+                                    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                        try:
+                                            dt = datetime.strptime(date_raw, fmt)
+                                            mmdd = f"{dt.month:02d}{dt.day:02d}"
+                                            break
+                                        except ValueError:
+                                            pass
+                                custom_tank = item.get("tank", "").strip()
+                                if custom_tank and custom_tank != "自動槽號":
+                                    tank_no = custom_tank
+                                else:
+                                    tank_no = extract_tank_from_batch(batch)
+                                tank_part = f"{tank_no} " if tank_no else ""
+                                new_filename = f"{base_name}-{mmdd} {tank_part}{loc}{extra_file['ext']}"
+                                tank_str = tank_no if tank_no else ""
+                                sub_folder = f"{mmdd} {loc} {tank_str}".strip()
                             
-                            # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
-                            out_buf = BytesIO()
-                            new_wb.save(out_buf)
-                            # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
-                            zip_file.writestr(f"{folder_name}/{sub_folder}/{new_filename}", out_buf.getvalue())
-                    src_wb.close()
-                except Exception as ex:
-                    print(f"[Lorry Error] {ex}")
+                                # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
+                                out_buf = BytesIO()
+                                new_wb.save(out_buf)
+                                # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
+                                zip_file.writestr(f"{folder_name}/{sub_folder}/{new_filename}", out_buf.getvalue())
+                        src_wb.close()
+                    except Exception as ex:
+                        print(f"[Lorry Error] {ex}")
 
             # 4. 處理 COA 表單 (如果使用者有上傳)
             if COA_FILE_CACHE:
@@ -902,33 +904,35 @@ async def generate_all_zip(request: Request):
                             valid_records[batch] = r
 
                     lorry_data_map = {}
-                    extra_file = EXTRA_FILE_CACHE.get("latest_file")
-                    if extra_file and extra_file["ext"].lower() in [".xlsx", ".xls"]:
-                        try:
-                            src_wb_l = openpyxl.load_workbook(BytesIO(extra_file["content"]), data_only=True)
-                            src_ws_l = src_wb_l.active
-                            for r_idx in range(7, src_ws_l.max_row + 1):
-                                val = str(src_ws_l.cell(row=r_idx, column=1).value or "").strip().upper()
-                                if val:
-                                    col_b = str(src_ws_l.cell(row=r_idx, column=2).value or "").strip()
-                                    
-                                    raw_c = src_ws_l.cell(row=r_idx, column=3).value
-                                    col_c = ""
-                                    if isinstance(raw_c, datetime):
-                                        col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
-                                    elif raw_c:
-                                        col_c = str(raw_c).strip().split()[0]
+                    lorry_files = EXTRA_FILE_CACHE.get("files", [])
+                    if lorry_files:
+                        for extra_file in lorry_files:
+                            if extra_file["ext"].lower() not in [".xlsx", ".xls"]: continue
+                            try:
+                                src_wb_l = openpyxl.load_workbook(BytesIO(extra_file["content"]), data_only=True)
+                                src_ws_l = src_wb_l.active
+                                for r_idx in range(7, src_ws_l.max_row + 1):
+                                    val = str(src_ws_l.cell(row=r_idx, column=1).value or "").strip().upper()
+                                    if val:
+                                        col_b = str(src_ws_l.cell(row=r_idx, column=2).value or "").strip()
                                         
-                                    col_g = str(src_ws_l.cell(row=r_idx, column=7).value or "").strip()
-                                    
-                                    lorry_data_map[val] = {
-                                        "b": col_b,
-                                        "c": col_c,
-                                        "g": col_g
-                                    }
-                            src_wb_l.close()
-                        except Exception as e:
-                            print(f"[COA Lorry Extraction Error] {e}")
+                                        raw_c = src_ws_l.cell(row=r_idx, column=3).value
+                                        col_c = ""
+                                        if isinstance(raw_c, datetime):
+                                            col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
+                                        elif raw_c:
+                                            col_c = str(raw_c).strip().split()[0]
+                                            
+                                        col_g = str(src_ws_l.cell(row=r_idx, column=7).value or "").strip()
+                                        
+                                        lorry_data_map[val] = {
+                                            "b": col_b,
+                                            "c": col_c,
+                                            "g": col_g
+                                        }
+                                src_wb_l.close()
+                            except Exception as e:
+                                print(f"[COA Lorry Extraction Error] {e}")
 
                     for coa_file in COA_FILE_CACHE:
                         base_name = coa_file["filename"]
@@ -952,7 +956,9 @@ async def generate_all_zip(request: Request):
                         loc = r.get("loc", "").strip().upper()
                         date_raw = r.get("date", "").strip()
                         po_no = r.get("po", "").strip()[:10]
-                        factory_code = loc[1:5] if len(loc) >= 5 else loc
+                        import re
+                        match = re.search(r'[A-Za-z0-9]+', loc)
+                        factory_code = match.group(0) if match else loc
                         
                         lorry_info = lorry_data_map.get(matched_batch, {})
                         val_b = lorry_info.get("b") or factory_code
@@ -1011,8 +1017,9 @@ async def generate_all_zip(request: Request):
                                 text_content = coa_file["content"].decode('utf-8-sig', errors='ignore')
                                 reader = list(csv.reader(text_content.splitlines()))
                                 while len(reader) <= 17: reader.append([])
-                                for row in reader:
-                                    while len(row) <= 11: row.append("")
+                                for r_idx in [5, 6, 10, 11]:
+                                    if r_idx < len(reader):
+                                        while len(reader[r_idx]) < 12: reader[r_idx].append("")
                                 reader[5][1] = val_b
                                 if val_g: reader[6][1] = val_g
                                 reader[10][1] = val_c
@@ -1022,7 +1029,7 @@ async def generate_all_zip(request: Request):
                                 str_io = io.StringIO()
                                 writer = csv.writer(str_io)
                                 writer.writerows(reader)
-                                zip_file.writestr(f"{folder_name}/{sub_folder}/{new_base}", str_io.getvalue().encode('utf-8-sig'))
+                                zip_file.writestr(f"{folder_name}/{sub_folder}/{new_base}", str_io.getvalue().encode('big5'))
                             except Exception as e:
                                 print(f"[COA CSV Error] {e}")
 
@@ -1095,34 +1102,40 @@ COA_CACHE = {}
 EXTRA_FILE_CACHE = {}
 
 @app.post("/api/upload_extra_file")
-async def upload_extra_file(file: UploadFile = File(...)):
+async def upload_extra_file(files: List[UploadFile] = File(...)):
     try:
-        content = await file.read()
         import os
-        filename, ext = os.path.splitext(file.filename)
+        import openpyxl, io
         
-        EXTRA_FILE_CACHE["latest_file"] = {
-            "content": content,
-            "filename": filename,
-            "ext": ext
-        }
-
-        # 解析生產履歷裡的批號清單（第 1 欄，第 7 列起）
         lorry_batches = []
-        try:
-            import openpyxl, io
-            wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
-            ws = wb.active
-            for r in range(7, ws.max_row + 1):
-                val = str(ws.cell(row=r, column=1).value or "").strip().upper()
-                if val and val not in lorry_batches:
-                    lorry_batches.append(val)
-        except:
-            pass
+        
+        if "files" not in EXTRA_FILE_CACHE:
+            EXTRA_FILE_CACHE["files"] = []
+            
+        for file in files:
+            content = await file.read()
+            filename, ext = os.path.splitext(file.filename)
+            
+            EXTRA_FILE_CACHE["files"].append({
+                "content": content,
+                "filename": filename,
+                "ext": ext
+            })
+
+            try:
+                wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+                ws = wb.active
+                for r in range(7, ws.max_row + 1):
+                    val = str(ws.cell(row=r, column=1).value or "").strip().upper()
+                    if val and val not in lorry_batches:
+                        lorry_batches.append(val)
+                wb.close()
+            except:
+                pass
 
         return JSONResponse({
             "status": "success",
-            "message": f"附加檔案 {file.filename} 上傳成功！產生報表時將自動依排程複製與命名。",
+            "message": f"成功上傳 {len(files)} 份附加檔案！產生報表時將自動依排程複製與命名。",
             "lorry_batches": lorry_batches
         })
     except Exception as e:
