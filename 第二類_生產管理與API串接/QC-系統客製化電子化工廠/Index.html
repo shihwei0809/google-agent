@@ -995,10 +995,21 @@
         <div style="display:flex; align-items:center; gap:5px;">
           <span>寬</span>
           <input type="number" id="printLabelWidth" value="90" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
-          <span>mm × 高</span>
+          <span>mm</span>
+          <span style="color:#94a3b8; margin:0 2px;">×</span>
+          <span>高</span>
           <input type="number" id="printLabelHeight" value="100" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
           <span>mm</span>
         </div>
+      </div>
+      
+      <div style="background:#fff7ed; padding:8px 12px; border-radius:8px; border:1px solid #fed7aa; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; font-size:0.85rem;">
+        <span style="font-weight:bold; color:#c2410c;">🔄 轉向設定 (若橫向印出被切斷請選)：</span>
+        <select id="printRotateMode" style="padding:5px; border-radius:4px; border:1px solid #fed7aa; color:#c2410c; font-weight:bold;">
+          <option value="none">預設方向</option>
+          <option value="90">向右旋轉 90 度 (橫切貼紙專用)</option>
+          <option value="-90">向左旋轉 90 度</option>
+        </select>
       </div>
 
       <label style="font-size:0.92rem; color:#1e293b; margin-bottom:8px;">請設定各檢驗項目列印張數：</label>
@@ -2439,10 +2450,12 @@
       return;
     }
 
+    const rotateMode = document.getElementById('printRotateMode') ? document.getElementById('printRotateMode').value : 'none';
     localStorage.setItem('HS_QC_PRINT_WATER', String(wQty));
     localStorage.setItem('HS_QC_PRINT_METAL', String(mQty));
     localStorage.setItem('HS_QC_PRINT_WIDTH', String(width));
     localStorage.setItem('HS_QC_PRINT_HEIGHT', String(height));
+    localStorage.setItem('HS_QC_PRINT_ROTATE', rotateMode);
 
     if(document.getElementById('rememberPrintSettings').checked) {
       localStorage.setItem('HS_QC_REMEMBER_PRINT', 'true');
@@ -2451,11 +2464,11 @@
     }
 
     closePrintModal();
-    doPrintLabels(targetData, wQty, mQty);
+    doPrintLabels(targetData, wQty, mQty, rotateMode);
   }
 
   // 標籤機專用連續列印輸出核心 (支援動態貼紙寬度與高度)
-  function doPrintLabels(data, waterCount, metalCount) {
+  function doPrintLabels(data, waterCount, metalCount, rotateMode = 'none') {
     const totalLabels = waterCount + metalCount;
     const labelWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '90', 10);
     const labelHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100', 10);
@@ -2464,42 +2477,52 @@
 
     const isCompact = labelHeight <= 60;
     const compactClass = isCompact ? ' compact' : '';
+    const rotationTransform = rotateMode === '90' 
+      ? `transform: rotate(90deg) translateY(-100%); transform-origin: top left;` 
+      : rotateMode === '-90'
+      ? `transform: rotate(-90deg) translateX(-100%); transform-origin: top left;`
+      : '';
+    const needsRotate = rotateMode !== 'none';
+    const pageWidth = needsRotate ? labelHeight : labelWidth;
+    const pageHeight = needsRotate ? labelWidth : labelHeight;
 
     // 1. 水分 & GC 檢驗標籤 (共 waterCount 張)
     for(let i = 1; i <= waterCount; i++) {
       labelPagesHtml += `
         <div class="label-page${compactClass}">
-          <div class="label-border">
-            <div class="label-header">
-              <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
-              <div class="badge-cat water">💧【水分 & GC】檢驗樣品 (${currentIdx}/${totalLabels})</div>
-            </div>
-            
-            <div class="barcode-banner">
-              <div class="barcode-num">${data.barcode}</div>
-            </div>
-
-            <div class="content-wrapper">
-              <table class="info-table">
-                <tr><td class="f-name">品名：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
-                <tr><td class="f-name">儲位：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
-                <tr><td class="f-name">車牌：</td><td class="f-val">${data.customer || '-'}</td></tr>
-                <tr><td class="f-name">數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
-                <tr><td class="f-name">送樣：</td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
-                <tr><td class="f-name">時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
-              </table>
-
-              <div class="lab-record-box">
-                <div class="lab-title">🧪 實驗室記錄：</div>
-                <div class="lab-row"><span>• 水分：</span><span class="fill-line">________ ppm</span></div>
-                <div class="lab-row"><span>• GC：</span><span class="fill-line">________ %</span></div>
-                <div class="lab-row sign-row"><span>簽章：____</span><span>日期：______</span></div>
+          <div class="rotatable-container" style="${rotationTransform}">
+            <div class="label-border">
+              <div class="label-header">
+                <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
+                <div class="badge-cat water">💧【水分 & GC】檢驗樣品 (${currentIdx}/${totalLabels})</div>
               </div>
-            </div>
+              
+              <div class="barcode-banner">
+                <div class="barcode-num">${data.barcode}</div>
+              </div>
 
-            <div class="label-footer">
-              <span>貼紙: ${labelWidth}x${labelHeight}mm</span>
-              <span>頁次: ${currentIdx}/${totalLabels}</span>
+              <div class="content-wrapper">
+                <table class="info-table">
+                  <tr><td class="f-name">品名：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
+                  <tr><td class="f-name">儲位：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
+                  <tr><td class="f-name">車牌：</td><td class="f-val">${data.customer || '-'}</td></tr>
+                  <tr><td class="f-name">數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
+                  <tr><td class="f-name">送樣：</td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
+                  <tr><td class="f-name">時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
+                </table>
+
+                <div class="lab-record-box">
+                  <div class="lab-title">🧪 實驗室記錄：</div>
+                  <div class="lab-row"><span>• 水分：</span><span class="fill-line">________ ppm</span></div>
+                  <div class="lab-row"><span>• GC：</span><span class="fill-line">________ %</span></div>
+                  <div class="lab-row sign-row"><span>簽章：____</span><span>日期：______</span></div>
+                </div>
+              </div>
+
+              <div class="label-footer">
+                <span>貼紙: ${labelWidth}x${labelHeight}mm</span>
+                <span>頁次: ${currentIdx}/${totalLabels}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -2515,37 +2538,39 @@
 
       labelPagesHtml += `
         <div class="label-page${compactClass}">
-          <div class="label-border">
-            <div class="label-header">
-              <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
-              <div class="badge-cat ${bottleBadgeClass}">🔬【Metal ICP-MS】${bottleTitle} (${currentIdx}/${totalLabels})</div>
-            </div>
-            
-            <div class="barcode-banner">
-              <div class="barcode-num">${data.barcode}</div>
-            </div>
-
-            <div class="content-wrapper">
-              <table class="info-table">
-                <tr><td class="f-name">品名：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
-                <tr><td class="f-name">儲位：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
-                <tr><td class="f-name">車牌：</td><td class="f-val">${data.customer || '-'}</td></tr>
-                <tr><td class="f-name">數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
-                <tr><td class="f-name">送樣：</td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
-                <tr><td class="f-name">時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
-              </table>
-
-              <div class="lab-record-box">
-                <div class="lab-title">🔬 ICP-MS 記錄：</div>
-                <div class="lab-row"><span>• 案號：</span><span class="fill-line">____________</span></div>
-                <div class="lab-row type-row"><span>${isSecondSample ? '☑留樣 □複測' : '☑正樣 □急件'}</span></div>
-                <div class="lab-row sign-row"><span>簽章：____</span><span>日期：______</span></div>
+          <div class="rotatable-container" style="${rotationTransform}">
+            <div class="label-border">
+              <div class="label-header">
+                <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
+                <div class="badge-cat ${bottleBadgeClass}">🔬【Metal ICP-MS】${bottleTitle} (${currentIdx}/${totalLabels})</div>
               </div>
-            </div>
+              
+              <div class="barcode-banner">
+                <div class="barcode-num">${data.barcode}</div>
+              </div>
 
-            <div class="label-footer">
-              <span>貼紙: ${labelWidth}x${labelHeight}mm</span>
-              <span>頁次: ${currentIdx}/${totalLabels}</span>
+              <div class="content-wrapper">
+                <table class="info-table">
+                  <tr><td class="f-name">品名：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
+                  <tr><td class="f-name">儲位：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
+                  <tr><td class="f-name">車牌：</td><td class="f-val">${data.customer || '-'}</td></tr>
+                  <tr><td class="f-name">數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
+                  <tr><td class="f-name">送樣：</td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
+                  <tr><td class="f-name">時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
+                </table>
+
+                <div class="lab-record-box">
+                  <div class="lab-title">🔬 ICP-MS 記錄：</div>
+                  <div class="lab-row"><span>• 案號：</span><span class="fill-line">____________</span></div>
+                  <div class="lab-row type-row"><span>${isSecondSample ? '☑留樣 □複測' : '☑正樣 □急件'}</span></div>
+                  <div class="lab-row sign-row"><span>簽章：____</span><span>日期：______</span></div>
+                </div>
+              </div>
+
+              <div class="label-footer">
+                <span>貼紙: ${labelWidth}x${labelHeight}mm</span>
+                <span>頁次: ${currentIdx}/${totalLabels}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -2562,12 +2587,13 @@
         <title>檢驗送樣標籤 - ${data.barcode}</title>
         <style>
           @page {
-            size: ${labelWidth}mm ${labelHeight}mm;
+            size: ${pageWidth}mm ${pageHeight}mm;
             margin: 0;
           }
           * { box-sizing: border-box; }
           html, body {
-            width: ${labelWidth}mm;
+            width: ${pageWidth}mm;
+            height: ${pageHeight}mm;
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
@@ -2576,24 +2602,30 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
-          .label-page {
+          .rotatable-container {
             width: ${labelWidth}mm;
             height: ${labelHeight}mm;
-            max-width: ${labelWidth}mm;
-            max-height: ${labelHeight}mm;
+            position: absolute;
+            left: 0;
+            top: 0;
             padding: 2mm;
-            page-break-after: always;
-            page-break-inside: avoid;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+          }
+          .label-page {
+            width: ${pageWidth}mm;
+            height: ${pageHeight}mm;
+            position: relative;
+            page-break-after: always;
+            page-break-inside: avoid;
           }
           .label-page:last-child {
             page-break-after: auto;
           }
           
           /* 緊湊模式 (高度 <= 60mm) 專用排版 */
-          .label-page.compact {
+          .label-page.compact .rotatable-container {
             padding: 1mm;
           }
           .label-page.compact .label-border {
