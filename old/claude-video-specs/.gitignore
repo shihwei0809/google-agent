@@ -1,0 +1,19 @@
+# Build artifacts
+**/tmp_audio/
+**/concat.txt
+**/node_modules/
+**/package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs
+*.log
