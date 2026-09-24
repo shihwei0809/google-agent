@@ -1322,27 +1322,18 @@ class App(tk.Tk):
 
     def load_mapping(self):
         self.mapping_dict = {}
-        self.part_mapping_dict = {}
         if os.path.exists(self.mapping_path):
             try:
                 map_wb = openpyxl.load_workbook(self.mapping_path, data_only=True)
                 map_ws = map_wb.active
-                rows = list(map_ws.iter_rows(values_only=True))
-                if rows:
-                    headers = [str(h).strip() if h else "" for h in rows[0]]
-                    for row in rows[1:]:
-                        if row and len(row) >= 2 and row[0] and row[1]:
-                            loc_key = str(row[0]).strip().upper()
-                            loc_val = str(row[1]).strip()
-                            if any(kw in loc_key for kw in ("廠", "地點", "代號", "SHORT", "LOCATION", "KEY", "HEADER")):
-                                continue
-                            self.mapping_dict[loc_key] = loc_val
-                            info = {"default": str(row[2]).strip() if len(row) > 2 and row[2] else "", "origins": {}}
-                            for i in range(3, len(headers)):
-                                if i < len(row) and row[i] is not None:
-                                    h_name = headers[i]
-                                    if h_name: info["origins"][h_name] = str(row[i]).strip()
-                            self.part_mapping_dict[loc_key] = info
+                for row in map_ws.iter_rows(values_only=True):
+                    if row and len(row) >= 2 and row[0] and row[1]:
+                        loc_key = str(row[0]).strip().upper()
+                        loc_val = str(row[1]).strip()
+                        # 過濾標題列 (例如 短地點, 長代號, 地點)
+                        if any(kw in loc_key for kw in ("地點", "代號", "SHORT", "LOCATION", "KEY", "HEADER")):
+                            continue
+                        self.mapping_dict[loc_key] = loc_val
                 map_wb.close()
             except Exception as e:
                 pass
@@ -1356,7 +1347,7 @@ class App(tk.Tk):
             for entry in self.entries:
                 loc_val = entry["loc_var"].get().strip().upper()
                 if loc_val:
-                    self.on_loc_change(entry)
+                    self.on_loc_change(entry["loc_var"], entry["long_code_var"])
 
     def update_lorry_status(self):
         if not hasattr(self, "imported_lorry_files"):
@@ -1604,13 +1595,12 @@ class App(tk.Tk):
             (1, "項次"),
             (2, "批號 (請輸入10~11碼)"),
             (3, "槽號 (自動)"),
-            (4, "品名 (貼上)"),
+            (4, "品名 (產品)"),
             (5, "地點 (如 15P5)"),
             (6, "長代號 (自動)"),
-            (7, "料號 (自動)"),
-            (8, "出貨日期 (必填)"),
-            (9, "採購單號"),
-            (10, "單列清除")
+            (7, "出貨日期 📅"),
+            (8, "採購單號"),
+            (9, "單列清空")
         ]
         
         for col_idx, title in headers:
@@ -1680,15 +1670,10 @@ class App(tk.Tk):
             long_code_var = tk.StringVar()
             long_code_entry = tk.Entry(self.scrollable_frame, textvariable=long_code_var, state="readonly", width=16, font=("Arial", 10), fg="purple")
             long_code_entry.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
-
-            # Col 7: 料號
-            part_var = tk.StringVar()
-            part_entry = tk.Entry(self.scrollable_frame, textvariable=part_var, state="readonly", width=12, font=("Arial", 10, "bold"), fg="#D32F2F")
-            part_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
             
-            # Col 8: 出貨日期
+            # Col 7: 出貨日期 (Entry + 📅 日曆按鈕)
             date_frame = tk.Frame(self.scrollable_frame)
-            date_frame.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+            date_frame.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
             
             date_var = tk.StringVar(value="")
             date_entry = tk.Entry(date_frame, textvariable=date_var, width=11, font=("Arial", 10))
@@ -1700,13 +1685,13 @@ class App(tk.Tk):
             # Col 8: 採購單號
             po_var = tk.StringVar(value="")
             po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=15, font=("Arial", 10))
-            po_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
+            po_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
             
-            # Col 10: 單列清除
-            btn_clear = tk.Button(self.scrollable_frame, text="清除", 
+            # Col 9: 單列清空
+            btn_clear = tk.Button(self.scrollable_frame, text="清空", 
                                   command=lambda r=row_idx: self.clear_single_row(r),
                                   bg="#FCE4EC", font=("Arial", 9))
-            btn_clear.grid(row=row_grid_idx, column=10, padx=2, pady=2)
+            btn_clear.grid(row=row_grid_idx, column=9, padx=2, pady=2)
             
             row_dict = {
                 "chk_var": chk_var,
@@ -1722,8 +1707,6 @@ class App(tk.Tk):
                 "loc_entry": loc_entry,
                 "long_code_var": long_code_var,
                 "long_code_entry": long_code_entry,
-                "part_var": part_var,
-                "part_entry": part_entry,
                 "date_var": date_var,
                 "date_entry": date_entry,
                 "btn_cal": btn_cal,
