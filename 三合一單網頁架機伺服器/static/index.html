@@ -362,6 +362,7 @@
             .then(res => {
                 if (res.status === "success" && res.data) {
                     SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, res.data);
+                    if (res.parts) SERVER_PART_MAPPING = res.parts;
                     document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${res.count} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
                     renderLocationTable();
                 }
@@ -660,6 +661,7 @@
             let locVal = "";
             let dateVal = "";
             let timeVal = "";
+            let originVal = "";
 
             items.forEach(item => {
                 const upper = item.toUpperCase().trim();
@@ -686,13 +688,16 @@
                 }
             });
 
-            if (batchVal || locVal || dateVal || timeVal) {
+            if (batchVal || locVal || dateVal || timeVal || originVal) {
                 if (currentIdx > document.getElementById("tableBody").children.length) {
                     addMoreRows(5);
                 }
                 if (batchVal) {
                     document.getElementById(`batch_${currentIdx}`).value = batchVal;
                     onBatchChange(currentIdx);
+                }
+                if (originVal) {
+                    if (document.getElementById(`origin_${currentIdx}`)) document.getElementById(`origin_${currentIdx}`).value = originVal;
                 }
                 if (locVal) {
                     document.getElementById(`loc_${currentIdx}`).value = locVal;
