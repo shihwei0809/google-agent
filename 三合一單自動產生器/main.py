@@ -2221,7 +2221,7 @@ class App(tk.Tk):
                             })
                     else:
                         # Standard horizontal CSV
-                        batch_col, loc_col, date_col, tank_col, time_col, mod_time_col, po_col = -1, -1, -1, -1, -1, -1, -1
+                        batch_col, loc_col, date_col, tank_col, time_col, mod_time_col, po_col, origin_col = -1, -1, -1, -1, -1, -1, -1, -1
                         start_row = 0
                         for r_idx in range(min(15, len(rows))):
                             row = rows[r_idx]
@@ -2235,7 +2235,9 @@ class App(tk.Tk):
                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                             if batch_col != -1 and (loc_col != -1 or date_col != -1):
                                 start_row = r_idx + 1
                                 break
@@ -2250,12 +2252,7 @@ class App(tk.Tk):
                             l_val = str(get_c(loc_col) or "").strip().upper()
                             d_val = get_c(date_col)
                             t_val = str(get_c(tank_col) or "").strip()
-                            origin_val = ""
-                            for cell in row:
-                                cs = str(cell or "").strip().upper()
-                                if not origin_val and any(k in cs for k in ["崙尾", "彰濱", "L1", "L2"]):
-                                    origin_val = cs
-                                    break
+                            origin_val = str(get_c(origin_col) or "").strip()
                             tm_val = normalize_time_str(get_c(time_col))
                             mt_val = normalize_time_str(get_c(mod_time_col))
                             po_val = str(get_c(po_col) or "").strip()
@@ -2314,6 +2311,7 @@ class App(tk.Tk):
                         mod_time_col = -1
                         cust_col = -1
                         po_col = -1
+                        origin_col = -1
                         start_row = 0
 
                         for r_idx in range(min(15, len(rows))):
@@ -2329,8 +2327,11 @@ class App(tk.Tk):
                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if cust_col == -1 and any(k in v for k in ["對象", "客戶", "廠商", "CUSTOMER"]): cust_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
 
                             if batch_col != -1 and (loc_col != -1 or date_col != -1):
                                 start_row = r_idx + 1
@@ -2355,12 +2356,7 @@ class App(tk.Tk):
                             d_val = get_cell_val(date_col)
                             t_val = str(get_cell_val(tank_col) or "").strip()
                             time_val = normalize_time_str(get_cell_val(time_col))
-                            origin_val = ""
-                            for cell in row:
-                                cs = str(cell or "").strip().upper()
-                                if not origin_val and any(k in cs for k in ["崙尾", "彰濱", "L1", "L2"]):
-                                    origin_val = cs
-                                    break
+                            origin_val = str(get_cell_val(origin_col) or "").strip()
                             mt_val = normalize_time_str(get_cell_val(mod_time_col))
                             po_val = str(get_cell_val(po_col) or "").strip()
                             cust_val = str(get_cell_val(cust_col) or "").strip()
