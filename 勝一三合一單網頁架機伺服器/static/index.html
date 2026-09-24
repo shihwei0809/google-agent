@@ -114,6 +114,7 @@
                     <th style="width: 150px;">品名 (產品)</th>
                     <th style="width: 120px;">地點 (如 18P3B)</th>
                     <th style="width: 220px;">長代號 (自動)</th>
+                    <th style="width: 120px;">料號 (自動)</th>
                     <th style="width: 130px;">出貨日期 📅</th>
                     <th style="width: 150px;">採購單號</th>
                     <th style="width: 60px;">操作</th>
@@ -370,6 +371,7 @@
             .then(res => {
                 if (res.status === "success" && res.data) {
                     SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, res.data);
+                    if (res.parts) SERVER_PART_MAPPING = res.parts;
                     document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${res.count} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
                     renderLocationTable();
                 }
@@ -396,6 +398,7 @@
                 <td><input type="text" id="prod_${rowIdx}" placeholder="產品名稱"></td>
                 <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
                 <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照" onclick="handleLongCodeClick(${rowIdx})"></td>
+            <td><input type="text" class="read-only part-no" id="part_${rowIdx}" readonly placeholder="自動料號" style="color:#D32F2F; font-weight:bold;"></td>
                 <td><input type="date" id="date_${rowIdx}"></td>
                 <td><input type="text" id="po_${rowIdx}" placeholder="採購單號" style="color:#004D40; font-weight:bold;"></td>
                 <td><button class="btn btn-red" style="padding: 2px 6px; font-size:11px;" onclick="clearRow(${rowIdx})">清空</button></td>

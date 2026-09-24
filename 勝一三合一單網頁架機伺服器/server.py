@@ -122,21 +122,31 @@ def load_location_mapping():
         "18P3B": "EF180183B",
         "12P7": "E00700001"
     }
+    part_mapping = {}
     if os.path.exists(MAPPING_PATH):
         try:
             wb = openpyxl.load_workbook(MAPPING_PATH, data_only=True)
             ws = wb.active
-            for row in ws.iter_rows(values_only=True):
-                if row and len(row) >= 2 and row[0] and row[1]:
-                    k = str(row[0]).strip().upper()
-                    v = str(row[1]).strip()
-                    if any(kw in k for kw in ("地點", "代號", "SHORT", "LOCATION", "KEY", "簡稱")):
-                        continue
-                    mapping[k] = v
+            rows = list(ws.iter_rows(values_only=True))
+            if rows:
+                headers = [str(h).strip() if h else "" for h in rows[0]]
+                for row in rows[1:]:
+                    if row and len(row) >= 2 and row[0] and row[1]:
+                        k = str(row[0]).strip().upper()
+                        v = str(row[1]).strip()
+                        if any(kw in k for kw in ("地點", "代號", "SHORT", "LOCATION", "KEY", "簡稱")):
+                            continue
+                        mapping[k] = v
+                        info = {"default": str(row[2]).strip() if len(row) > 2 and row[2] else "", "origins": {}}
+                        for i in range(3, len(headers)):
+                            if i < len(row) and row[i] is not None:
+                                h_name = headers[i]
+                                if h_name: info["origins"][h_name] = str(row[i]).strip()
+                        part_mapping[k] = info
             wb.close()
         except Exception as e:
-            print(f"警告: 讀取地點對照表失敗: {e}")
-    return mapping
+            print(f"警告: 讀取地點代號失敗: {e}")
+    return {"basic": mapping, "parts": part_mapping}
 
 def save_location_mapping_to_excel(loc: str, code: str):
     loc = loc.strip().upper()
@@ -364,8 +374,8 @@ app = FastAPI(title="台積電槽車 Barcode 三合一單專用架機伺服器")
 
 @app.get("/api/mapping")
 def get_mapping():
-    mapping = load_location_mapping()
-    return JSONResponse({"status": "success", "count": len(mapping), "data": mapping})
+    mapping_data = load_location_mapping()
+    return JSONResponse({"status": "success", "count": len(mapping_data["basic"]), "data": mapping_data["basic"], "parts": mapping_data["parts"]})
 
 @app.post("/api/save_location")
 async def api_save_location(request: Request):
@@ -377,7 +387,9 @@ async def api_save_location(request: Request):
             raise HTTPException(status_code=400, detail="地點簡稱與長代號均不得為空！")
         
         save_location_mapping_to_excel(loc, code)
-        mapping = load_location_mapping()
+        mapping_data = load_location_mapping()
+        mapping = mapping_data["basic"]
+        part_mapping = mapping_data["parts"]
         return JSONResponse({
             "status": "success",
             "message": f"地點「{loc}」對應代碼「{code}」已成功回寫儲存至主機端對照表！",
@@ -400,7 +412,9 @@ async def api_delete_location(request: Request):
             raise HTTPException(status_code=400, detail="請指定欲刪除的地點簡稱！")
         
         delete_location_from_excel(loc)
-        mapping = load_location_mapping()
+        mapping_data = load_location_mapping()
+        mapping = mapping_data["basic"]
+        part_mapping = mapping_data["parts"]
         return JSONResponse({
             "status": "success",
             "message": f"地點「{loc}」已成功自電腦端對照表移除！",
@@ -633,7 +647,9 @@ async def generate_all_zip(request: Request):
         if not records:
             raise HTTPException(status_code=400, detail="請至少提供一筆有效的排程資料。")
 
-        mapping = load_location_mapping()
+        mapping_data = load_location_mapping()
+        mapping = mapping_data["basic"]
+        part_mapping = mapping_data["parts"]
         zip_buffer = BytesIO()
 
         output_date_str = datetime.now().strftime('%Y%m%d')
@@ -679,7 +695,19 @@ async def generate_all_zip(request: Request):
                     ws['C7'] = batch_with_prefix
                     ws['C11'] = loc_code
 
-                    mat_no = str(ws['C3'].value or "4L12C53161").strip()
+                    # Update C3 part no dynamically based on product
+                    prod = item.get("prod", "").strip().upper()
+                    info = part_mapping.get(loc, {})
+                    part_no = ""
+                    for key, val in info.get("origins", {}).items():
+                        if prod and key.upper() in prod:
+                            part_no = val
+                            break
+                    if not part_no: part_no = info.get("default", "")
+                    if not part_no:
+                        part_no = str(ws['C3'].value or "L12C53161").strip().lstrip("4")
+                    ws['C3'] = "4" + part_no
+                    mat_no = "4" + part_no
                     sup_no = str(ws['C9'].value or "375970680").strip()
                     qr_str = f"||{mat_no}||{tank_with_prefix}||{batch_with_prefix}||{sup_no}||{loc_code}"
                     ws['B20'] = qr_str
@@ -890,7 +918,7 @@ async def generate_all_zip(request: Request):
                                 new_wb.save(out_buf)
                                 # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
                                 zip_file.writestr(f"{folder_name}/{sub_folder}/{new_filename}", out_buf.getvalue())
-                        src_wb.close()
+                            src_wb.close()
                     except Exception as ex:
                         print(f"[Lorry Error] {ex}")
 
@@ -1072,7 +1100,9 @@ async def ocr_parse(file: UploadFile = File(...)):
         import re
         # 尋找 10 碼批號模式與地點
         batches = re.findall(r'\b[0-9A-Z]{10}\b', text.upper())
-        mapping = load_location_mapping()
+        mapping_data = load_location_mapping()
+        mapping = mapping_data["basic"]
+        part_mapping = mapping_data["parts"]
 
         found_locs = []
         for word in text.upper().split():
