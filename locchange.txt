@@ -1,0 +1,40 @@
+    function onLocChange(idx) {
+        const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
+        document.getElementById(`loc_${idx}`).value = locVal;
+        const longEl = document.getElementById(`long_${idx}`);
+
+        if (SERVER_MAPPING[locVal]) {
+            longEl.value = SERVER_MAPPING[locVal];
+            longEl.style.color = "#7B1FA2";
+            longEl.style.cursor = "default";
+            longEl.title = "";
+        } else if (locVal) {
+            longEl.value = "❌ 未知代號 (點此回寫新增)";
+            longEl.style.color = "#D32F2F";
+            longEl.style.cursor = "pointer";
+            longEl.title = "點擊開啟新增視窗，並將此地點回寫至電腦端 Excel";
+        } else {
+            longEl.value = "";
+            longEl.style.color = "#7B1FA2";
+            longEl.style.cursor = "default";
+            longEl.title = "";
+        }
+    }
+
+    function handleLongCodeClick(idx) {
+        const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
+        if (locVal && !SERVER_MAPPING[locVal]) {
+            openLocationModal(locVal);
+        }
+    }
+
+    // ================= 地點代號管理與電腦端回寫 =================
+    function openLocationModal(prefillLoc = "") {
+        const modal = document.getElementById("locationModal");
+        if (!modal) return;
+        modal.style.display = "flex";
+        
+        const shortInput = document.getElementById("inputLocShort");
+        const codeInput = document.getElementById("inputLocCode");
+        const msgBox = document.getElementById("locationMsgBox");
+        msgBox.style.display = "none";

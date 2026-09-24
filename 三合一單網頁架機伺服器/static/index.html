@@ -431,6 +431,10 @@
         }
     }
 
+    function onOriginChange(idx) {
+        onLocChange(idx);
+    }
+
     function onLocChange(idx) {
         const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
         document.getElementById(`loc_${idx}`).value = locVal;
@@ -451,6 +455,26 @@
             longEl.style.color = "#7B1FA2";
             longEl.style.cursor = "default";
             longEl.title = "";
+        }
+        
+        let partField = document.getElementById(`part_${idx}`);
+        let originVal = (document.getElementById(`origin_${idx}`) ? document.getElementById(`origin_${idx}`).value.trim().toUpperCase() : "");
+        if (locVal && partField) {
+            let info = SERVER_PART_MAPPING[locVal] || {};
+            let origins = info.origins || {};
+            let defaultPart = info.default || "";
+            let finalPart = "";
+            for (let key in origins) {
+                if (originVal && originVal.includes(key.toUpperCase())) {
+                    finalPart = origins[key];
+                    break;
+                }
+            }
+            if (!finalPart) finalPart = defaultPart;
+            if (!finalPart) finalPart = "L12C53161";
+            partField.value = "4" + finalPart;
+        } else if (partField) {
+            partField.value = "";
         }
     }
 

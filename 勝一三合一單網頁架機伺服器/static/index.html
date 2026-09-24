@@ -461,6 +461,26 @@
             longEl.style.cursor = "default";
             longEl.title = "";
         }
+        
+        let partField = document.getElementById(`part_${idx}`);
+        let prodVal = (document.getElementById(`prod_${idx}`) ? document.getElementById(`prod_${idx}`).value.trim().toUpperCase() : "");
+        if (locVal && partField) {
+            let info = SERVER_PART_MAPPING[locVal] || {};
+            let origins = info.origins || {};
+            let defaultPart = info.default || "";
+            let finalPart = "";
+            for (let key in origins) {
+                if (prodVal && prodVal.includes(key.toUpperCase())) {
+                    finalPart = origins[key];
+                    break;
+                }
+            }
+            if (!finalPart) finalPart = defaultPart;
+            if (!finalPart) finalPart = "L12C53161";
+            partField.value = "4" + finalPart;
+        } else if (partField) {
+            partField.value = "";
+        }
     }
 
     function handleLongCodeClick(idx) {
