@@ -1521,22 +1521,6 @@ class App(tk.Tk):
         tk.Button(right_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#00897B", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(right_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(4, 0))
 
-        # 3. 一鍵批次設定列 (純淨獨立，日期與時間欄位寬裕舒適)
-        batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (出貨日期 / 預計到廠時間 / 修正到廠時間)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
-        batch_setting_frame.pack(fill="x", pady=(0, 6))
-        
-        # 全選
-        self.select_all_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(batch_setting_frame, text="全選所有列", variable=self.select_all_var, command=self.toggle_select_all, font=("Microsoft JhengHei", 9, "bold")).pack(side="left", padx=(0, 15))
-        
-        # 日期
-        tk.Label(batch_setting_frame, text="批次出貨日期:").pack(side="left")
-        self.default_date_var = tk.StringVar(value="")
-        date_batch_entry = tk.Entry(batch_setting_frame, textvariable=self.default_date_var, width=12)
-        date_batch_entry.pack(side="left", padx=2)
-        tk.Button(batch_setting_frame, text="📅", command=lambda: self.open_calendar_dialog(self.default_date_var), font=("Arial", 8), width=3).pack(side="left", padx=(0, 2))
-        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_date, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 16))
-        
         # 預計時間
         report_opt_frame = tk.LabelFrame(self, text="📦 欲產生的報表勾選 (可多選，點擊開始產生時將自動產出所勾選項目)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
         report_opt_frame.pack(fill="x", pady=(0, 8))
@@ -1605,31 +1589,6 @@ class App(tk.Tk):
         btn_frame = tk.Frame(self)
         btn_frame.pack(fill="x", pady=10)
         tk.Button(btn_frame, text="🚀 開始批次產生 Excel 報表", command=self.generate_files, bg="#4CAF50", fg="white", font=("Arial", 12, "bold"), pady=8).pack(fill="x")
-
-    def toggle_select_all(self):
-        state = self.select_all_var.get()
-        for entry in self.entries:
-            entry["chk_var"].set(state)
-
-    def apply_default_date(self):
-        val = self.default_date_var.get().strip()
-        for entry in self.entries:
-            if entry["batch_var"].get().strip():
-                pass
-                entry["date_var"].set(val)
-
-    def apply_default_time(self):
-        val = self.default_time_var.get().strip()
-        for entry in self.entries:
-            if entry["batch_var"].get().strip():
-                pass
-
-    def apply_default_mod_time(self):
-        val = self.default_mod_time_var.get().strip()
-        for entry in self.entries:
-            if entry["batch_var"].get().strip():
-                pass
-
     def add_input_rows(self, count):
         for i in range(count):
             row_idx = len(self.entries) + 1
