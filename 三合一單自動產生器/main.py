@@ -2250,6 +2250,12 @@ class App(tk.Tk):
                             l_val = str(get_c(loc_col) or "").strip().upper()
                             d_val = get_c(date_col)
                             t_val = str(get_c(tank_col) or "").strip()
+                            origin_val = ""
+                            for cell in row:
+                                cs = str(cell or "").strip().upper()
+                                if not origin_val and any(k in cs for k in ["崙尾", "彰濱", "L1", "L2"]):
+                                    origin_val = cs
+                                    break
                             tm_val = normalize_time_str(get_c(time_col))
                             mt_val = normalize_time_str(get_c(mod_time_col))
                             po_val = str(get_c(po_col) or "").strip()
@@ -2278,7 +2284,7 @@ class App(tk.Tk):
                                     "time": tm_val,
                                     "mod_time": mt_val,
                                 "po": po_val,
-                                "part_no": row["part_var"].get().strip() if "part_var" in row else ""
+                                "origin": origin_val
                             })
                 else:
                     # 遍歷 Excel 所有分頁 (跨分頁抓取所有有效排程)
@@ -2349,6 +2355,12 @@ class App(tk.Tk):
                             d_val = get_cell_val(date_col)
                             t_val = str(get_cell_val(tank_col) or "").strip()
                             time_val = normalize_time_str(get_cell_val(time_col))
+                            origin_val = ""
+                            for cell in row:
+                                cs = str(cell or "").strip().upper()
+                                if not origin_val and any(k in cs for k in ["崙尾", "彰濱", "L1", "L2"]):
+                                    origin_val = cs
+                                    break
                             mt_val = normalize_time_str(get_cell_val(mod_time_col))
                             po_val = str(get_cell_val(po_col) or "").strip()
                             cust_val = str(get_cell_val(cust_col) or "").strip()
@@ -2403,7 +2415,7 @@ class App(tk.Tk):
                                 "time": t_final,
                                 "mod_time": mt_val,
                                 "po": po_val,
-                                "part_no": row["part_var"].get().strip() if "part_var" in row else ""
+                                "origin": origin_val
                             })
                     wb.close()
 
@@ -2437,6 +2449,8 @@ class App(tk.Tk):
                     if "tank_var" in row_e and rec.get("tank"):
                         row_e["tank_var"].set(rec["tank"])
                     row_e["loc_var"].set(rec.get("loc", ""))
+                    if rec.get("origin"):
+                        row_e["origin_var"].set(rec["origin"])
                     if rec.get("date"): row_e["date_var"].set(rec["date"])
                     if rec.get("po"): row_e.get("po_var", tk.StringVar()).set(rec["po"])
                     
