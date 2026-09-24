@@ -1527,7 +1527,7 @@ class App(tk.Tk):
         
         # 全選
         self.select_all_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(batch_setting_frame, text="☑ 全選所有列", variable=self.select_all_var, command=self.toggle_select_all, font=("Microsoft JhengHei", 9, "bold")).pack(side="left", padx=(0, 15))
+        tk.Checkbutton(batch_setting_frame, text="全選所有列", variable=self.select_all_var, command=self.toggle_select_all, font=("Microsoft JhengHei", 9, "bold")).pack(side="left", padx=(0, 15))
         
         # 日期
         tk.Label(batch_setting_frame, text="批次出貨日期:").pack(side="left")
