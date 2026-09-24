@@ -1707,6 +1707,8 @@ class App(tk.Tk):
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
+            origin_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
+            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
             
             for widget in (batch_entry, loc_entry, date_entry):
                 widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
@@ -1735,7 +1737,8 @@ class App(tk.Tk):
                 entry["tank_var"].set("")
                 entry["date_var"].set("")
                 if "po_var" in entry: entry["po_var"].set("")
-                if "po_var" in entry: entry["po_var"].set("")
+                if "origin_var" in entry: entry["origin_var"].set("")
+                if "part_var" in entry: entry["part_var"].set("")
 
     def set_today_all_dates(self):
         from datetime import datetime
@@ -1754,7 +1757,8 @@ class App(tk.Tk):
             entry["tank_var"].set("")
             entry["date_var"].set("")
             if "po_var" in entry: entry["po_var"].set("")
-            if "po_var" in entry: entry["po_var"].set("")
+            if "origin_var" in entry: entry["origin_var"].set("")
+            if "part_var" in entry: entry["part_var"].set("")
 
     def on_batch_change(self, batch_var, tank_var):
         batch = batch_var.get().upper().strip()
@@ -1872,6 +1876,8 @@ class App(tk.Tk):
                         self.entries[curr_row]["batch_var"].set(parsed["batch"])
                     if parsed["loc"]:
                         self.entries[curr_row]["loc_var"].set(parsed["loc"])
+                    if parsed.get("origin"):
+                        self.entries[curr_row]["origin_var"].set(parsed["origin"])
                     if parsed["date"]:
                         self.entries[curr_row]["date_var"].set(parsed["date"])
                     
@@ -1884,8 +1890,7 @@ class App(tk.Tk):
                         if parsed["batch"]:
                             self.entries[curr_row]["batch_var"].set(parsed["batch"])
                         elif parsed["loc"]:
-                                self.entries[curr_row]["loc_var"].set(parsed["loc"])
-                            
+                            self.entries[curr_row]["loc_var"].set(parsed["loc"])
                             if parsed.get("origin"):
                                 self.entries[curr_row]["origin_var"].set(parsed["origin"])
                         elif parsed["date"]:
@@ -2654,7 +2659,6 @@ class App(tk.Tk):
                         loc_row = find_row_by_label(ws, ['送達地點', '地點']) or 11
                         mat_row = find_row_by_label(ws, ['料號']) or 3
                         sup_row = find_row_by_label(ws, ['供應商']) or 9
-                        
                         if data.get("part_no"):
                             ws.cell(row=mat_row, column=3).value = data["part_no"]
                     
