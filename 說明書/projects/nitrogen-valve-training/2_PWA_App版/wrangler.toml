@@ -1,0 +1,8 @@
+﻿name = "nitrogen-valve-training"
+pages_build_output_dir = "."
+compatibility_date = "2024-03-20"
+
+[[d1_databases]]
+binding = "DB" # 霈?Pages Function ?臭誑?? context.env.DB 摮?
+database_name = "nitrogen_valve_records"
+database_id = "98e21150-d553-4b94-adea-db9866015519" # 蝔???Cloudflare 撱箇? D1 ?‵??
