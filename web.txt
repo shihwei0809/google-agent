@@ -1,0 +1,20 @@
+    <div id="coaStatusBox" style="display:none; margin: 6px 0 10px 0; padding: 10px 14px; border-radius: 6px; font-size:13px; border-left: 4px solid #388E3C; background:#E8F5E9; color:#1B5E20; white-space: pre-line;"></div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 40px;">項次</th>
+                    <th style="width: 170px;">批號 (請輸入 10 碼)</th>
+                    <th style="width: 90px;">槽號 (自動)</th>
+                    <th style="width: 120px;">地點 (如 18P3B)</th>
+                    <th style="width: 220px;">長代號 (自動)</th>
+                    <th style="width: 130px;">出貨日期 📅</th>
+                    <th style="width: 150px;">採購單號</th>
+                    <th style="width: 60px;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+                <!-- 動態生成列 -->
+            </tbody>
+        </table>

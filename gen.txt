@@ -1,0 +1,300 @@
+async def generate_all_zip(request: Request):
+    try:
+        data_json = await request.json()
+        records = data_json.get("records", [])
+        do_3in1 = data_json.get("do3in1", True)
+        do_transport = data_json.get("doTransport", True)
+        do_lorry = data_json.get("doLorry", True)
+
+        if not records:
+            raise HTTPException(status_code=400, detail="請至少提供一筆有效的排程資料。")
+
+        mapping = load_location_mapping()
+        zip_buffer = BytesIO()
+
+        output_date_str = datetime.now().strftime('%Y%m%d')
+        for item in records:
+            d_raw = str(item.get("date", "")).strip()
+            if d_raw:
+                d_part = d_raw.split()[0]
+                dt_found = None
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                    try:
+                        dt_found = datetime.strptime(d_part, fmt)
+                        break
+                    except ValueError:
+                        pass
+                if dt_found:
+                    output_date_str = dt_found.strftime('%Y%m%d')
+                    break
+        folder_name = f"三合一單輸出_{output_date_str}" 
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            # 1. 產生三合一單 Excel 報表 (依具體短地點各自獨立資料夾，如 15P5/, 15P6/, 18P3B/)
+            if do_3in1 and os.path.exists(TEMPLATE_PATH):
+                used_filenames = set()
+                for item_idx, item in enumerate(records):
+                    batch = item.get("batch", "").strip().upper()
+                    loc = item.get("loc", "").strip().upper()
+                    if not batch or not loc or len(batch) != 10 or loc not in mapping:
+                        continue
+
+                    loc_code = mapping[loc]
+                    custom_tank = item.get("tank", "").strip()
+                    if custom_tank and custom_tank != "自動槽號":
+                        tank_no = custom_tank
+                    else:
+                        tank_no = extract_tank_from_batch(batch)
+                    tank_with_prefix = "5" + tank_no
+                    batch_with_prefix = "6" + batch
+
+                    wb = openpyxl.load_workbook(TEMPLATE_PATH)
+                    ws = wb["barcode"] if "barcode" in wb.sheetnames else wb.worksheets[0]
+
+                    ws['C5'] = tank_with_prefix
+                    ws['C7'] = batch_with_prefix
+                    ws['C11'] = loc_code
+
+                    mat_no = str(ws['C3'].value or "4L12C53161").strip()
+                    sup_no = str(ws['C9'].value or "375970680").strip()
+                    qr_str = f"||{mat_no}||{tank_with_prefix}||{batch_with_prefix}||{sup_no}||{loc_code}"
+                    ws['B20'] = qr_str
+
+                    # 清除舊圖片
+                    images_to_keep = [img for img in ws._images if not (0.8 < (img.width/img.height if img.height>0 else 1) < 1.2 and img.width < 300)]
+                    ws._images = images_to_keep
+
+                    # 生成 QR Code PNG
+                    qr = qrcode.QRCode(box_size=4, border=2)
+                    qr.add_data(qr_str)
+                    qr.make(fit=True)
+                    raw_img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+
+                    offset_x, offset_y = 35, 45
+                    img_qr = Image.new('RGBA', (raw_img.width + offset_x, raw_img.height + offset_y), (255, 255, 255, 0))
+                    img_qr.paste(raw_img, (offset_x, offset_y))
+
+                    img_io = BytesIO()
+                    img_qr.save(img_io, format='PNG')
+                    img_io.seek(0)
+
+                    new_qr = OpenpyxlImage(img_io)
+                    new_qr.anchor = 'F2'
+                    ws.add_image(new_qr)
+
+                    # COA 截圖自動裁切 - 三層降級策略：
+                    # 1.後端Tesseract(有安裝才用) -> 2.前端tesseract.js -> 3.幾何排程順序
+                    if "latest_coa" in COA_CACHE and COA_CACHE["latest_coa"]:
+                         try:
+                             coa_raw = Image.open(BytesIO(COA_CACHE["latest_coa"])).convert("RGB")
+                             w, h = coa_raw.size
+                             cropped_coa = None
+                             hb_struct, rows_struct = parse_tsmc_query_table_accurate(coa_raw)
+                             if hb_struct and rows_struct:
+                                 img_top = coa_raw.crop((0, 0, w, hb_struct))
+                                 target_row = None
+                                 target_digits = "".join(c for c in batch if c.isdigit())
+                                 # === Layer 1: Local Tesseract (if installed) ===
+                                 if TESSERACT_AVAILABLE:
+                                     for box in backend_ocr_batch(coa_raw):
+                                         box_text = box.get("text", "").upper()
+                                         box_digits = "".join(c for c in box_text if c.isdigit())
+                                         if box_text == batch or (len(box_digits) >= 6 and (box_digits in target_digits or target_digits in box_digits)):
+                                             text_y = int((box.get("top", 0) + box.get("bottom", 0)) / 2)
+                                             for row in rows_struct:
+                                                 if row[0] - 20 <= text_y <= row[1] + 20:
+                                                     target_row = row
+                                                     print(f"[COA] Tesseract hit: {batch}")
+                                                     break
+                                             if target_row:
+                                                 break
+                                 # === Layer 2: Frontend tesseract.js OCR result ===
+                                 if not target_row:
+                                     ocr_data = COA_CACHE.get("ocr_data")
+                                     if ocr_data and "boxes" in ocr_data and ocr_data["boxes"]:
+                                         for box in ocr_data["boxes"]:
+                                             box_text = box.get("text", "").upper()
+                                             box_digits = "".join(c for c in box_text if c.isdigit())
+                                             if box_text == batch or (len(box_digits) >= 6 and (box_digits in target_digits or target_digits in box_digits)):
+                                                 text_y = int((box.get("top", 0) + box.get("bottom", 0)) / 2)
+                                                 for row in rows_struct:
+                                                     if row[0] - 15 <= text_y <= row[1] + 15:
+                                                         target_row = row
+                                                         print(f"[COA] Frontend OCR hit: {batch}")
+                                                         break
+                                                 if target_row:
+                                                     break
+                                 # === Layer 3: Geometric order fallback (no OCR needed) ===
+                                 if not target_row:
+                                     idx3 = min(item_idx, len(rows_struct) - 1)
+                                     if idx3 >= 0:
+                                         target_row = rows_struct[idx3]
+                                         print(f"[COA] Geometric fallback idx={idx3} for {batch}")
+                                 if target_row:
+                                     img_row = coa_raw.crop((0, target_row[0], w, target_row[1]))
+                                     cropped_coa = Image.new("RGB", (w, img_top.height + img_row.height), "white")
+                                     cropped_coa.paste(img_top, (0, 0))
+                                     cropped_coa.paste(img_row, (0, img_top.height))
+                             if not cropped_coa:
+                                 cropped_coa = coa_raw.crop((0, 0, w, int(h * 0.98)))
+                             # 提高解析度：將圖片放大2倍 (使用高品質 Lanczos 重新取樣)，這樣印出來會更清晰
+                             try:
+ 
+                                 resample_filter = getattr(Image, 'Resampling', Image).LANCZOS
+                                 cropped_coa = cropped_coa.resize((cropped_coa.width * 2, cropped_coa.height * 2), resample_filter)
+                             except Exception as e:
+                                 print(f'Upscaling failed: {e}')
+                             coa_io = BytesIO()
+                             cropped_coa.save(coa_io, format="PNG", dpi=(300, 300))
+                             coa_io.seek(0)
+                             coa_img = OpenpyxlImage(coa_io)
+                             coa_img.width = int(round(27.1 * 96 / 2.54))
+                             coa_img.height = int(round(11.51 * 96 / 2.54))
+                             _from = AnchorMarker(col=5, colOff=pixels_to_EMU(15), row=4, rowOff=0)
+                             size = XDRPositiveSize2D(pixels_to_EMU(coa_img.width), pixels_to_EMU(coa_img.height))
+                             coa_img.anchor = OneCellAnchor(_from=_from, ext=size)
+                             ws.add_image(coa_img)
+                             print(f"[COA] Image inserted (w={coa_img.width}, h={coa_img.height})")
+                         except Exception as coa_e:
+                             traceback.print_exc()
+                             print(f"[COA Error] {batch}: {coa_e}")
+
+                    excel_io = BytesIO()
+                    wb.save(excel_io)
+                    wb.close()
+                    excel_io.seek(0)
+
+                    # 檔名公式：[出貨日期]. [槽號] [廠別]台積電槽車barcode三合一單.xlsx (例如: 2026.8.18. E44 18P3B台積電槽車barcode三合一單.xlsx)
+                    date_raw = str(item.get("date", "")).strip()
+                    dt_file = None
+                    if date_raw:
+                        date_part = date_raw.split()[0]
+                        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                            try:
+                                dt_file = datetime.strptime(date_part, fmt)
+                                break
+                            except ValueError:
+                                pass
+                    if not dt_file:
+                        dt_file = datetime.now()
+
+                    mmdd_3in1 = f"{dt_file.month:02d}{dt_file.day:02d}"
+                    date_prefix = f"{dt_file.year}.{dt_file.month}.{dt_file.day}. "
+                    tank_part = f"{tank_no} " if tank_no else ""
+                    tank_str = tank_no if tank_no else ""
+                    sub_folder = f"{mmdd_3in1} {loc} {tank_str}".strip()
+                    base_name = f"{date_prefix}{tank_part}{loc}台積電槽車barcode三合一單.xlsx"
+                    test_name = base_name
+                    counter = 1
+                    while f"{folder_name}/{sub_folder}/{test_name}" in used_filenames:
+                        test_name = f"{date_prefix}{tank_part}{loc}_{counter}台積電槽車barcode三合一單.xlsx"
+                        counter += 1
+                    file_name = test_name
+                    used_filenames.add(f"{folder_name}/{sub_folder}/{file_name}")
+                    zip_file.writestr(f"{folder_name}/{sub_folder}/{file_name}", excel_io.getvalue())
+
+            # 2. 寫入 session.json 至 ZIP 根目錄，供本機 BAT 或網頁版載入時 100% 精準還原原始完整 10 碼批號
+            try:
+                session_payload = []
+                for r in records:
+                    session_payload.append({
+                        "batch": r.get("batch", ""),
+                        "tank": r.get("tank", ""),
+                        "loc": r.get("loc", ""),
+                        "date": r.get("date", ""),
+                        "time": r.get("time", ""),
+                        "mod_time": r.get("modTime", r.get("mod_time", "")),
+                        "po": r.get("po", "")
+                    })
+            # zip_file.writestr(f"{folder_name}/session.json", json.dumps(session_payload, ensure_ascii=False, indent=2).encode('utf-8'))
+            except Exception as se:
+                print(f"[Session JSON Error] {se}")
+
+            # 3. 產生單列生產履歷 Excel (Chemical_Lorry)，依短地點歸入對應子資料夾
+            lorry_files = EXTRA_FILE_CACHE.get("files", [])
+            if do_lorry and lorry_files:
+                for extra_file in lorry_files:
+                    if extra_file["ext"].lower() not in [".xlsx", ".xls"]: continue
+                    try:
+                        src_wb = openpyxl.load_workbook(BytesIO(extra_file["content"]), data_only=False)
+                        src_ws = src_wb.active
+                    
+                        # 建立批號到列號的快速索引字典
+                        batch_row_map = {}
+                        for r in range(7, src_ws.max_row + 1):
+                            val = str(src_ws.cell(row=r, column=1).value or "").strip().upper()
+                            if val and val not in batch_row_map:
+                                batch_row_map[val] = r
+
+                        orig_name = extra_file["filename"]
+                        base_name = orig_name.rsplit('-', 1)[0] if '-' in orig_name else orig_name
+
+                        for item in records:
+                            batch = item.get("batch", "").strip().upper()
+                            loc = item.get("loc", "").strip().upper()
+                            if not batch or not loc or len(batch) != 10 or loc not in mapping:
+                                continue
+                        
+                            matched_row_idx = batch_row_map.get(batch)
+                            if matched_row_idx:
+                                # 建立只包含表頭 1~6 列與目標單列的極速輕量化 Workbook
+                                new_wb = build_single_row_lorry_workbook(src_ws, matched_row_idx)
+                            
+                                # 組合新檔名：[原檔名前半部]-[MMDD] [槽號] [Loc].[Ext]
+                                date_raw = item.get("date", "").strip()
+                                mmdd = "0000"
+                                if date_raw:
+                                    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                        try:
+                                            dt = datetime.strptime(date_raw, fmt)
+                                            mmdd = f"{dt.month:02d}{dt.day:02d}"
+                                            break
+                                        except ValueError:
+                                            pass
+                                custom_tank = item.get("tank", "").strip()
+                                if custom_tank and custom_tank != "自動槽號":
+                                    tank_no = custom_tank
+                                else:
+                                    tank_no = extract_tank_from_batch(batch)
+                                tank_part = f"{tank_no} " if tank_no else ""
+                                new_filename = f"{base_name}-{mmdd} {tank_part}{loc}{extra_file['ext']}"
+                                tank_str = tank_no if tank_no else ""
+                                sub_folder = f"{mmdd} {loc} {tank_str}".strip()
+                            
+                                # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
+                                out_buf = BytesIO()
+                                new_wb.save(out_buf)
+                                # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
+                                zip_file.writestr(f"{folder_name}/{sub_folder}/{new_filename}", out_buf.getvalue())
+                    src_wb.close()
+                except Exception as ex:
+                    print(f"[Lorry Error] {ex}")
+
+            # 4. 處理 COA 表單 (如果使用者有上傳)
+            if COA_FILE_CACHE:
+                try:
+                    valid_records = {}
+                    for r in records:
+                        batch = r.get("batch", "").strip().upper()
+                        if batch:
+                            valid_records[batch] = r
+
+                    lorry_data_map = {}
+                    lorry_files = EXTRA_FILE_CACHE.get("files", [])
+                    if lorry_files:
+                        for extra_file in lorry_files:
+                            if extra_file["ext"].lower() not in [".xlsx", ".xls"]: continue
+                            try:
+                                src_wb_l = openpyxl.load_workbook(BytesIO(extra_file["content"]), data_only=True)
+                                src_ws_l = src_wb_l.active
+                                for r_idx in range(7, src_ws_l.max_row + 1):
+                                    val = str(src_ws_l.cell(row=r_idx, column=1).value or "").strip().upper()
+                                    if val:
+                                        col_b = str(src_ws_l.cell(row=r_idx, column=2).value or "").strip()
+                                    
+                                        raw_c = src_ws_l.cell(row=r_idx, column=3).value
+                                        col_c = ""
+                                        if isinstance(raw_c, datetime):
+                                            col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
+                                        elif raw_c:
+                                            col_c = str(raw_c).strip().split()[0]

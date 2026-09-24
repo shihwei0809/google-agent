@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -81,7 +81,7 @@
             </label>
             <label class="btn btn-orange" style="cursor:pointer; background:#E65100;">
                 📋 載入生產履歷 (Chemical_Lorry)
-                <input type="file" id="extraFileInput" accept=".xlsx, .xls" style="display:none;" onchange="uploadExtraFile(event)">
+                <input type="file" id="extraFileInput" accept=".xlsx, .xls" style="display:none;" multiple onchange="uploadExtraFile(event)">
             </label>
             <label class="btn btn-purple" style="cursor:pointer; background:#8E24AA;">
                 📄 載入 COA 表單
@@ -108,7 +108,9 @@
                     <th style="width: 40px;">項次</th>
                     <th style="width: 170px;">批號 (請輸入 10 碼)</th>
                     <th style="width: 90px;">槽號 (自動)</th>
+                    <th style="width: 100px;">出貨區 (貼上)</th>
                     <th style="width: 120px;">地點 (如 18P3B)</th>
+                    <th style="width: 120px;">料號 (自動)</th>
                     <th style="width: 220px;">長代號 (自動)</th>
                     <th style="width: 130px;">出貨日期 📅</th>
                     <th style="width: 150px;">採購單號</th>
@@ -362,6 +364,7 @@
             .then(res => {
                 if (res.status === "success" && res.data) {
                     SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, res.data);
+                    if (res.parts) SERVER_PART_MAPPING = res.parts;
                     document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${res.count} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
                     renderLocationTable();
                 }
@@ -385,8 +388,10 @@
                 <td>${rowIdx}</td>
                 <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="10" placeholder="26814E3191" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
                 <td><input type="text" class="read-only" id="tank_${rowIdx}" readonly placeholder="自動槽號"></td>
-                <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
-                <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照" onclick="handleLongCodeClick(${rowIdx})"></td>
+            <td><input type="text" id="origin_${rowIdx}" placeholder="崙尾/彰濱" oninput="onOriginChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
+            <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
+            <td><input type="text" class="read-only part-no" id="part_${rowIdx}" readonly placeholder="自動料號" style="color:#D32F2F; font-weight:bold;"></td>
+            <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照" onclick="handleLongCodeClick(${rowIdx})"></td>
                 <td><input type="date" id="date_${rowIdx}"></td>
                 <td><input type="text" id="po_${rowIdx}" placeholder="採購單號" style="color:#004D40; font-weight:bold;"></td>
                 <td><button class="btn btn-red" style="padding: 2px 6px; font-size:11px;" onclick="clearRow(${rowIdx})">清空</button></td>
@@ -426,6 +431,10 @@
         }
     }
 
+    function onOriginChange(idx) {
+        onLocChange(idx);
+    }
+
     function onLocChange(idx) {
         const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
         document.getElementById(`loc_${idx}`).value = locVal;
@@ -446,6 +455,26 @@
             longEl.style.color = "#7B1FA2";
             longEl.style.cursor = "default";
             longEl.title = "";
+        }
+        
+        let partField = document.getElementById(`part_${idx}`);
+        let originVal = (document.getElementById(`origin_${idx}`) ? document.getElementById(`origin_${idx}`).value.trim().toUpperCase() : "");
+        if (locVal && partField) {
+            let info = SERVER_PART_MAPPING[locVal] || {};
+            let origins = info.origins || {};
+            let defaultPart = info.default || "";
+            let finalPart = "";
+            for (let key in origins) {
+                if (originVal && originVal.includes(key.toUpperCase())) {
+                    finalPart = origins[key];
+                    break;
+                }
+            }
+            if (!finalPart) finalPart = defaultPart;
+            if (!finalPart) finalPart = "L12C53161";
+            partField.value = "4" + finalPart;
+        } else if (partField) {
+            partField.value = "";
         }
     }
 
@@ -660,6 +689,7 @@
             let locVal = "";
             let dateVal = "";
             let timeVal = "";
+            let originVal = "";
 
             items.forEach(item => {
                 const upper = item.toUpperCase().trim();
@@ -686,13 +716,19 @@
                 }
             });
 
-            if (batchVal || locVal || dateVal || timeVal) {
+            if (batchVal || locVal || dateVal || timeVal || originVal) {
                 if (currentIdx > document.getElementById("tableBody").children.length) {
                     addMoreRows(5);
                 }
                 if (batchVal) {
                     document.getElementById(`batch_${currentIdx}`).value = batchVal;
                     onBatchChange(currentIdx);
+                }
+                if (originVal) {
+                    if (document.getElementById(`origin_${currentIdx}`)) document.getElementById(`origin_${currentIdx}`).value = originVal;
+                }
+                if (originVal) {
+                    if (document.getElementById(`origin_${currentIdx}`)) document.getElementById(`origin_${currentIdx}`).value = originVal;
                 }
                 if (locVal) {
                     document.getElementById(`loc_${currentIdx}`).value = locVal;
@@ -933,21 +969,23 @@
         e.target.value = "";
     }
 
-    // 📁 上傳額外附加檔案 (產生ZIP時將自動複製並依據排程重命名)
+    // 📁 上傳額外附加檔案 (支援多份生產履歷)
     async function uploadExtraFile(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
         const coaBox = document.getElementById("coaStatusBox");
         coaBox.style.display = "block";
         coaBox.style.borderLeftColor = "#F57C00";
         coaBox.style.background = "#FFF8E1";
         coaBox.style.color = "#E65100";
-        coaBox.textContent = "⏳ 正在上傳生產履歷...";
+        coaBox.textContent = `⏳ 正在上傳 ${files.length} 份生產履歷...`;
 
-        showLoading("⏳ 正在上傳生產履歷...");
+        showLoading(`⏳ 正在上傳 ${files.length} 份生產履歷...`);
         const formData = new FormData();
-        formData.append("file", file);
+        for (let i = 0; i < files.length; i++) {
+            formData.append("files", files[i]); // 後端以 List[UploadFile] 接收
+        }
 
         try {
             const res = await fetch("/api/upload_extra_file", {

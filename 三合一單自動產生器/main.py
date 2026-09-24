@@ -801,7 +801,7 @@ class ImportRangeDialog(tk.Toplevel):
         preview_frame.pack(fill="both", expand=True, pady=(0, 10))
 
         # 定義 Treeview 欄位
-        columns = ("chk", "idx", "sheet", "date", "time", "batch", "tank", "loc", "long_code")
+        columns = ("chk", "idx", "sheet", "date", "time", "batch", "tank", "origin", "loc", "long_code")
         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
 
         col_defs = [
@@ -812,6 +812,7 @@ class ImportRangeDialog(tk.Toplevel):
             ("time", "到廠時間", 85, "center"),
             ("batch", "批號 (10碼)", 125, "center"),
             ("tank", "槽號", 75, "center"),
+            ("origin", "出貨區", 85, "center"),
             ("loc", "指送地點", 95, "center"),
             ("long_code", "地點長代號 (全稱)", 250, "w")
         ]
@@ -934,6 +935,7 @@ class ImportRangeDialog(tk.Toplevel):
             b_str = rec.get("batch") or ""
             tank_str = rec.get("tank") or ""
             loc_str = rec.get("loc") or ""
+            origin_str = rec.get("origin") or ""
             long_code_str = rec.get("long_code") or getattr(self.parent_app, "mapping_dict", {}).get(loc_str, "")
 
             tag = "evenrow" if idx % 2 == 0 else "oddrow"
@@ -948,6 +950,7 @@ class ImportRangeDialog(tk.Toplevel):
                     t_str,
                     b_str,
                     tank_str,
+                    origin_str,
                     loc_str,
                     long_code_str
                 ),
@@ -1298,18 +1301,27 @@ class App(tk.Tk):
 
     def load_mapping(self):
         self.mapping_dict = {}
+        self.part_mapping_dict = {}
         if os.path.exists(self.mapping_path):
             try:
                 map_wb = openpyxl.load_workbook(self.mapping_path, data_only=True)
                 map_ws = map_wb.active
-                for row in map_ws.iter_rows(values_only=True):
-                    if row and len(row) >= 2 and row[0] and row[1]:
-                        loc_key = str(row[0]).strip().upper()
-                        loc_val = str(row[1]).strip()
-                        # 過濾標題列 (例如 短地點, 長代號, 地點)
-                        if any(kw in loc_key for kw in ("地點", "代號", "SHORT", "LOCATION", "KEY", "HEADER")):
-                            continue
-                        self.mapping_dict[loc_key] = loc_val
+                rows = list(map_ws.iter_rows(values_only=True))
+                if rows:
+                    headers = [str(h).strip() if h else "" for h in rows[0]]
+                    for row in rows[1:]:
+                        if row and len(row) >= 2 and row[0] and row[1]:
+                            loc_key = str(row[0]).strip().upper()
+                            loc_val = str(row[1]).strip()
+                            if any(kw in loc_key for kw in ("到貨", "地點", "SHORT", "LOCATION", "KEY", "HEADER")):
+                                continue
+                            self.mapping_dict[loc_key] = loc_val
+                            info = {"default": str(row[2]).strip() if len(row) > 2 and row[2] else "", "origins": {}}
+                            for i in range(3, len(headers)):
+                                if i < len(row) and row[i] is not None:
+                                    h_name = headers[i]
+                                    if h_name: info["origins"][h_name] = str(row[i]).strip()
+                            self.part_mapping_dict[loc_key] = info
                 map_wb.close()
             except Exception as e:
                 pass
@@ -1335,7 +1347,10 @@ class App(tk.Tk):
         
         if hasattr(self, "lbl_lorry_status"):
             if self.imported_lorry_files:
-                fname = os.path.basename(self.imported_lorry_files[0])
+                if len(self.imported_lorry_files) > 1:
+                    fname = f"已選 {len(self.imported_lorry_files)} 份檔案"
+                else:
+                    fname = os.path.basename(self.imported_lorry_files[0])
                 self.lbl_lorry_status.config(
                     text=f"生產履歷檔案 (Chemical_Lorry*.xlsx): ✅ 已就緒 ({fname})",
                     fg="#2E7D32"
@@ -1347,19 +1362,18 @@ class App(tk.Tk):
                 )
 
     def load_chemical_lorry_file(self):
-        filepath = filedialog.askopenfilename(
-            title="選擇生產履歷檔案 (Chemical_Lorry)",
+        filepaths = filedialog.askopenfilenames(
+            title="選擇生產履歷檔案 (Chemical_Lorry, 可多選)",
             filetypes=[("Excel 活頁簿", "*.xlsx *.xls"), ("所有檔案", "*.*")]
         )
-        if not filepath:
+        if not filepaths:
             return
             
         try:
             self.show_loading("⏳ 正在處理生產履歷，請稍候...")
-            self.imported_lorry_files = [filepath]
+            self.imported_lorry_files = list(filepaths)
             self.update_lorry_status()
             self.gen_lorry_var.set(True)
-            fname = os.path.basename(filepath)
             
             # 因為這步驟僅是讀取路徑非常快，故意加上 0.5 秒延遲讓畫面顯示給人員看，避免覺得沒反應
             import time
@@ -1371,31 +1385,62 @@ class App(tk.Tk):
         # 比對排程批號 vs 生產履歷批號
         try:
             import openpyxl as _opxl
-            _wb = _opxl.load_workbook(filepath, data_only=True)
-            _ws = _wb.active
             lorry_batches = set()
-            for _r in range(7, _ws.max_row + 1):
-                _val = str(_ws.cell(row=_r, column=1).value or "").strip().upper()
-                if _val:
-                    lorry_batches.add(_val)
+            lorry_factory_info = {}
+            if hasattr(self, "imported_lorry_files"):
+                for l_file in self.imported_lorry_files:
+                    try:
+                        _wb = _opxl.load_workbook(l_file, data_only=True)
+                        _ws = _wb.active
+                        for _r in range(7, _ws.max_row + 1):
+                            _val = str(_ws.cell(row=_r, column=1).value or "").strip().upper()
+                            if _val:
+                                lorry_batches.add(_val)
+                                f_code = str(_ws.cell(row=_r, column=2).value or "").strip().upper()
+                                lorry_factory_info[_val] = f_code
+                        _wb.close()
+                    except:
+                        pass
             
-            table_batches = [row["batch_var"].get().strip().upper() for row in self.entries if row["batch_var"].get().strip()]
+            table_entries = []
+            for row in self.entries:
+                b = row["batch_var"].get().strip().upper()
+                if b:
+                    table_entries.append((b, row["long_code_var"].get().strip().upper()))
+
+            table_batches = [b for b, lc in table_entries]
+            
+            wrong_factory_msgs = []
+            for b, lc in table_entries:
+                if b in lorry_batches:
+                    l_fac = lorry_factory_info.get(b, "")
+                    expected_substr = lc[1:5] if len(lc) >= 5 else lc
+                    if not l_fac:
+                        wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區空白 (應含 {expected_substr})")
+                    elif l_fac not in lc:
+                        wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區錯誤 ({l_fac})，未對齊長代號 ({lc})")
             
             missing = [b for b in table_batches if b not in lorry_batches]
             found   = [b for b in table_batches if b in lorry_batches]
             
+            fname = f"已選 {len(self.imported_lorry_files)} 份檔案" if len(self.imported_lorry_files) > 1 else os.path.basename(self.imported_lorry_files[0]) if self.imported_lorry_files else ""
             lines = [f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n"]
             if not table_batches:
                 lines.append("ℹ️ 排程表格尚未輸入批號，無法比對。")
             else:
                 for b in found:
                     lines.append(f"✅ {b} ─ 生產履歷已找到")
+                if wrong_factory_msgs:
+                    lines.append("\n--- 廠區異常提醒 ---")
+                    lines.extend(wrong_factory_msgs)
+                    lines.append("--------------------\n")
                 for b in missing:
                     lines.append(f"❌ {b} ─ 生產履歷中找不到！")
             
-            title = "生產履歷已載入" if not missing else "⚠️ 生產履歷載入 (有批號不符)"
+            title = "生產履歷已載入" if not (missing or wrong_factory_msgs) else "⚠️ 生產履歷載入 (有異常)"
             messagebox.showinfo(title, "\n".join(lines))
         except Exception as _e:
+            fname = f"已選 {len(self.imported_lorry_files)} 份檔案" if len(self.imported_lorry_files) > 1 else os.path.basename(self.imported_lorry_files[0]) if self.imported_lorry_files else ""
             messagebox.showinfo(
                 "生產履歷已載入", 
                 f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n稍後點擊【開始批次產生】時，系統會自動比對每筆排程批號並單列輸出。"
@@ -1479,22 +1524,6 @@ class App(tk.Tk):
         tk.Button(right_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#00897B", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(right_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(4, 0))
 
-        # 3. 一鍵批次設定列 (純淨獨立，日期與時間欄位寬裕舒適)
-        batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (出貨日期 / 預計到廠時間 / 修正到廠時間)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
-        batch_setting_frame.pack(fill="x", pady=(0, 6))
-        
-        # 全選
-        self.select_all_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(batch_setting_frame, text="☑ 全選所有列", variable=self.select_all_var, command=self.toggle_select_all, font=("Microsoft JhengHei", 9, "bold")).pack(side="left", padx=(0, 15))
-        
-        # 日期
-        tk.Label(batch_setting_frame, text="批次出貨日期:").pack(side="left")
-        self.default_date_var = tk.StringVar(value="")
-        date_batch_entry = tk.Entry(batch_setting_frame, textvariable=self.default_date_var, width=12)
-        date_batch_entry.pack(side="left", padx=2)
-        tk.Button(batch_setting_frame, text="📅", command=lambda: self.open_calendar_dialog(self.default_date_var), font=("Arial", 8), width=3).pack(side="left", padx=(0, 2))
-        tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_date, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 16))
-        
         # 預計時間
         report_opt_frame = tk.LabelFrame(self, text="📦 欲產生的報表勾選 (可多選，點擊開始產生時將自動產出所勾選項目)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
         report_opt_frame.pack(fill="x", pady=(0, 8))
@@ -1541,7 +1570,9 @@ class App(tk.Tk):
             (5, "長代號 (自動)"),
             (6, "出貨日期 📅"),
             (7, "採購單號"),
-            (8, "單列清空")
+            (8, "出貨區 (貼上)"),
+            (9, "料號 (自動)"),
+            (10, "清空單列")
         ]
         
         for col_idx, title in headers:
@@ -1561,31 +1592,6 @@ class App(tk.Tk):
         btn_frame = tk.Frame(self)
         btn_frame.pack(fill="x", pady=10)
         tk.Button(btn_frame, text="🚀 開始批次產生 Excel 報表", command=self.generate_files, bg="#4CAF50", fg="white", font=("Arial", 12, "bold"), pady=8).pack(fill="x")
-
-    def toggle_select_all(self):
-        state = self.select_all_var.get()
-        for entry in self.entries:
-            entry["chk_var"].set(state)
-
-    def apply_default_date(self):
-        val = self.default_date_var.get().strip()
-        for entry in self.entries:
-            if entry["batch_var"].get().strip():
-                pass
-                entry["date_var"].set(val)
-
-    def apply_default_time(self):
-        val = self.default_time_var.get().strip()
-        for entry in self.entries:
-            if entry["batch_var"].get().strip():
-                pass
-
-    def apply_default_mod_time(self):
-        val = self.default_mod_time_var.get().strip()
-        for entry in self.entries:
-            if entry["batch_var"].get().strip():
-                pass
-
     def add_input_rows(self, count):
         for i in range(count):
             row_idx = len(self.entries) + 1
@@ -1636,6 +1642,16 @@ class App(tk.Tk):
             po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=18, font=("Arial", 10), fg="#333")
             po_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
 
+            # Col 8: 出貨區
+            origin_var = tk.StringVar()
+            origin_entry = tk.Entry(self.scrollable_frame, textvariable=origin_var, width=12, font=("Arial", 10), fg="orange")
+            origin_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+
+            # Col 9: 料號
+            part_var = tk.StringVar()
+            part_entry = tk.Entry(self.scrollable_frame, textvariable=part_var, width=12, font=("Arial", 10), fg="purple")
+            part_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
+
             # Col 8: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
@@ -1648,11 +1664,13 @@ class App(tk.Tk):
                 width=6,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=8, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=10, padx=4, pady=2)
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
+            origin_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
+            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
             
             for widget in (batch_entry, loc_entry, date_entry):
                 widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
@@ -1666,7 +1684,9 @@ class App(tk.Tk):
                 "loc_var": loc_var,
                 "long_code_var": long_code_var,
                 "date_var": date_var,
-                "po_var": po_var
+                "po_var": po_var,
+                "origin_var": origin_var,
+                "part_var": part_var
             })
 
     def clear_all_rows(self):
@@ -1679,7 +1699,8 @@ class App(tk.Tk):
                 entry["tank_var"].set("")
                 entry["date_var"].set("")
                 if "po_var" in entry: entry["po_var"].set("")
-                if "po_var" in entry: entry["po_var"].set("")
+                if "origin_var" in entry: entry["origin_var"].set("")
+                if "part_var" in entry: entry["part_var"].set("")
 
     def set_today_all_dates(self):
         from datetime import datetime
@@ -1698,12 +1719,28 @@ class App(tk.Tk):
             entry["tank_var"].set("")
             entry["date_var"].set("")
             if "po_var" in entry: entry["po_var"].set("")
-            if "po_var" in entry: entry["po_var"].set("")
+            if "origin_var" in entry: entry["origin_var"].set("")
+            if "part_var" in entry: entry["part_var"].set("")
 
     def on_batch_change(self, batch_var, tank_var):
         batch = batch_var.get().upper().strip()
         tank = get_tank_from_batch(batch)
         tank_var.set(tank)
+
+    def update_part_no(self, loc_var, origin_var, part_var):
+        if not hasattr(self, 'part_mapping_dict'): return
+        loc = loc_var.get().strip().upper()
+        origin = origin_var.get().strip()
+        if loc in self.part_mapping_dict:
+            info = self.part_mapping_dict[loc]
+            part_no = info["default"]
+            for k, v in info["origins"].items():
+                if k in origin:
+                    part_no = v
+                    break
+            part_var.set(part_no)
+        else:
+            part_var.set("")
 
     def on_loc_change(self, loc_var, long_code_var):
         loc = loc_var.get().strip().upper()
@@ -1721,7 +1758,7 @@ class App(tk.Tk):
         智慧解析貼上行中的元素，自動辨識：出貨日期、批號、槽號、地點、時間。
         支援 Image 1 範例（到貨 + 批號 + 槽號 + 地點）及各式自訂順序！
         """
-        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": ""}
+        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": "", "origin": ""}
         clean_parts = [p.strip() for p in parts if p.strip()]
         if not clean_parts:
             return res
@@ -1766,6 +1803,11 @@ class App(tk.Tk):
             elif not res["mod_time"]:
                 res["mod_time"] = item
 
+        for p in clean_parts:
+            p_upper = p.upper()
+            if not res.get("origin") and any(k in p_upper for k in ["崙尾", "彰濱", "L1", "L2"]):
+                res["origin"] = p
+                
         return res
 
     def on_paste(self, event, start_row_idx, widget=None):
@@ -1796,6 +1838,8 @@ class App(tk.Tk):
                         self.entries[curr_row]["batch_var"].set(parsed["batch"])
                     if parsed["loc"]:
                         self.entries[curr_row]["loc_var"].set(parsed["loc"])
+                    if parsed.get("origin"):
+                        self.entries[curr_row]["origin_var"].set(parsed["origin"])
                     if parsed["date"]:
                         self.entries[curr_row]["date_var"].set(parsed["date"])
                     
@@ -1809,6 +1853,8 @@ class App(tk.Tk):
                             self.entries[curr_row]["batch_var"].set(parsed["batch"])
                         elif parsed["loc"]:
                             self.entries[curr_row]["loc_var"].set(parsed["loc"])
+                            if parsed.get("origin"):
+                                self.entries[curr_row]["origin_var"].set(parsed["origin"])
                         elif parsed["date"]:
                             self.entries[curr_row]["date_var"].set(parsed["date"])
                         else:
@@ -1871,6 +1917,30 @@ class App(tk.Tk):
         if not valid_batches:
             messagebox.showwarning("提示", "請先在列表中填寫並勾選包含批號的資料！")
             return
+            
+        lorry_data_map = {}
+        if hasattr(self, "imported_lorry_files") and self.imported_lorry_files:
+            try:
+                for l_file in self.imported_lorry_files:
+                    try:
+                        src_wb_l = openpyxl.load_workbook(l_file, data_only=True)
+                        src_ws_l = src_wb_l.active
+                        for r in range(7, src_ws_l.max_row + 1):
+                            val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
+                            if val and val not in lorry_data_map:
+                                col_b = str(src_ws_l.cell(row=r, column=2).value or "").strip()
+                                raw_c = src_ws_l.cell(row=r, column=3).value
+                                if isinstance(raw_c, datetime):
+                                    col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
+                                else:
+                                    col_c = str(raw_c or "").strip().split()[0] if raw_c else ""
+                                col_g = str(src_ws_l.cell(row=r, column=7).value or "").strip()
+                                lorry_data_map[val] = {"b": col_b, "c": col_c, "g": col_g}
+                        src_wb_l.close()
+                    except Exception as e:
+                        print(f"Error reading lorry file {l_file}: {e}")
+            except Exception as e:
+                print(f"Lorry outer error: {e}")
 
         try:
             self.show_loading("⏳ 正在處理 COA 表單，請稍候...")
@@ -1933,37 +2003,19 @@ class App(tk.Tk):
                     new_file_path = os.path.join(loc_folder, new_base + ext)
                 
                     col_b, col_g, col_c = "", "", ""
-                    # 提取生產履歷的對應欄位
-                    if hasattr(self, "imported_lorry_files") and self.imported_lorry_files:
-                        try:
-                            src_wb_l = openpyxl.load_workbook(self.imported_lorry_files[0], data_only=True)
-                            src_ws_l = src_wb_l.active
-                            batch_row_map = {}
-                            for r in range(7, src_ws_l.max_row + 1):
-                                val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
-                                if val and val not in batch_row_map:
-                                    batch_row_map[val] = r
+                    if matched_batch in lorry_data_map:
+                        l_info = lorry_data_map[matched_batch]
+                        col_b = l_info.get("b", "")
+                        col_c = l_info.get("c", "")
+                        col_g = l_info.get("g", "")
                         
-                            matched_r = batch_row_map.get(matched_batch)
-                            if matched_r:
-                                col_b = str(src_ws_l.cell(row=matched_r, column=2).value or "").strip()
-                                raw_c = src_ws_l.cell(row=matched_r, column=3).value
-                                if isinstance(raw_c, datetime):
-                                    col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
-                                else:
-                                    col_c = str(raw_c or "").strip().split()[0] if raw_c else ""
-                                
-                                col_g = str(src_ws_l.cell(row=matched_r, column=7).value or "").strip()
-                            
-                                # 找出排程中的採購單號前 10 碼
-                                po_no = ""
-                                matched_row = valid_batches.get(matched_batch)
-                                if matched_row and "po_var" in matched_row:
-                                    full_po = matched_row["po_var"].get().strip()
-                                    po_no = full_po[:10] if len(full_po) >= 10 else full_po
-                            src_wb_l.close()
-                        except Exception as le:
-                            error_msgs.append(f"讀取生產履歷失敗: {le}")
+                    # 找出排程中的採購單號前 10 碼
+                    po_no = ""
+                    matched_row = valid_batches.get(matched_batch)
+                    if matched_row and "po_var" in matched_row:
+                        full_po = matched_row["po_var"].get().strip()
+                        po_no = full_po[:10] if len(full_po) >= 10 else full_po
+
                     # 處理 COA 本身
                     if ext.lower() in ['.xlsx', '.xls']:
                         wb = openpyxl.load_workbook(file_path)
@@ -2131,7 +2183,7 @@ class App(tk.Tk):
                             })
                     else:
                         # Standard horizontal CSV
-                        batch_col, loc_col, date_col, tank_col, time_col, mod_time_col, po_col = -1, -1, -1, -1, -1, -1, -1
+                        batch_col, loc_col, date_col, tank_col, time_col, mod_time_col, po_col, origin_col = -1, -1, -1, -1, -1, -1, -1, -1
                         start_row = 0
                         for r_idx in range(min(15, len(rows))):
                             row = rows[r_idx]
@@ -2145,7 +2197,9 @@ class App(tk.Tk):
                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                             if batch_col != -1 and (loc_col != -1 or date_col != -1):
                                 start_row = r_idx + 1
                                 break
@@ -2160,6 +2214,7 @@ class App(tk.Tk):
                             l_val = str(get_c(loc_col) or "").strip().upper()
                             d_val = get_c(date_col)
                             t_val = str(get_c(tank_col) or "").strip()
+                            origin_val = str(get_c(origin_col) or "").strip()
                             tm_val = normalize_time_str(get_c(time_col))
                             mt_val = normalize_time_str(get_c(mod_time_col))
                             po_val = str(get_c(po_col) or "").strip()
@@ -2187,7 +2242,8 @@ class App(tk.Tk):
                                     "date": normalize_date_str(d_val),
                                     "time": tm_val,
                                     "mod_time": mt_val,
-                                "po": po_val
+                                "po": po_val,
+                                "origin": origin_val
                             })
                 else:
                     # 遍歷 Excel 所有分頁 (跨分頁抓取所有有效排程)
@@ -2217,6 +2273,7 @@ class App(tk.Tk):
                         mod_time_col = -1
                         cust_col = -1
                         po_col = -1
+                        origin_col = -1
                         start_row = 0
 
                         for r_idx in range(min(15, len(rows))):
@@ -2232,8 +2289,11 @@ class App(tk.Tk):
                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if cust_col == -1 and any(k in v for k in ["對象", "客戶", "廠商", "CUSTOMER"]): cust_col = c_idx
+                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
 
                             if batch_col != -1 and (loc_col != -1 or date_col != -1):
                                 start_row = r_idx + 1
@@ -2258,6 +2318,7 @@ class App(tk.Tk):
                             d_val = get_cell_val(date_col)
                             t_val = str(get_cell_val(tank_col) or "").strip()
                             time_val = normalize_time_str(get_cell_val(time_col))
+                            origin_val = str(get_cell_val(origin_col) or "").strip()
                             mt_val = normalize_time_str(get_cell_val(mod_time_col))
                             po_val = str(get_cell_val(po_col) or "").strip()
                             cust_val = str(get_cell_val(cust_col) or "").strip()
@@ -2311,7 +2372,8 @@ class App(tk.Tk):
                                 "date": norm_date,
                                 "time": t_final,
                                 "mod_time": mt_val,
-                                "po": po_val
+                                "po": po_val,
+                                "origin": origin_val
                             })
                     wb.close()
 
@@ -2345,6 +2407,8 @@ class App(tk.Tk):
                     if "tank_var" in row_e and rec.get("tank"):
                         row_e["tank_var"].set(rec["tank"])
                     row_e["loc_var"].set(rec.get("loc", ""))
+                    if rec.get("origin"):
+                        row_e["origin_var"].set(rec["origin"])
                     if rec.get("date"): row_e["date_var"].set(rec["date"])
                     if rec.get("po"): row_e.get("po_var", tk.StringVar()).set(rec["po"])
                     
@@ -2567,6 +2631,8 @@ class App(tk.Tk):
                         loc_row = find_row_by_label(ws, ['送達地點', '地點']) or 11
                         mat_row = find_row_by_label(ws, ['料號']) or 3
                         sup_row = find_row_by_label(ws, ['供應商']) or 9
+                        if data.get("part_no"):
+                            ws.cell(row=mat_row, column=3).value = data["part_no"]
                     
                         raw_mat = str(ws.cell(row=mat_row, column=3).value or "").strip()
                         if raw_mat.startswith("4"):

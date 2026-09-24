@@ -1,0 +1,22 @@
+def load_location_mapping():
+    mapping = {
+        "15P5": "E1550155A",
+        "15P6": "E1550156A",
+        "18P3B": "EF180183B",
+        "12P7": "E00700001"
+    }
+    if os.path.exists(MAPPING_PATH):
+        try:
+            wb = openpyxl.load_workbook(MAPPING_PATH, data_only=True)
+            ws = wb.active
+            for row in ws.iter_rows(values_only=True):
+                if row and len(row) >= 2 and row[0] and row[1]:
+                    k = str(row[0]).strip().upper()
+                    v = str(row[1]).strip()
+                    if any(kw in k for kw in ("地點", "代號", "SHORT", "LOCATION", "KEY", "簡稱")):
+                        continue
+                    mapping[k] = v
+            wb.close()
+        except Exception as e:
+            print(f"警告: 讀取地點對照表失敗: {e}")
+    return mapping

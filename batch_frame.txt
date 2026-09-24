@@ -1,0 +1,25 @@
+1521:         tk.Button(right_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#00897B", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+1522:         tk.Button(right_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(4, 0))
+1523: 
+1524:         # 3. 一鍵批次設定列 (純淨獨立，日期與時間欄位寬裕舒適)
+1525:         batch_setting_frame = tk.LabelFrame(self, text="一鍵批次設定 (出貨日期 / 預計到廠時間 / 修正到廠時間)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+1526:         batch_setting_frame.pack(fill="x", pady=(0, 6))
+1527:         
+1528:         # 全選
+1529:         self.select_all_var = tk.BooleanVar(value=True)
+1530:         tk.Checkbutton(batch_setting_frame, text="全選所有列", variable=self.select_all_var, command=self.toggle_select_all, font=("Microsoft JhengHei", 9, "bold")).pack(side="left", padx=(0, 15))
+1531:         
+1532:         # 日期
+1533:         tk.Label(batch_setting_frame, text="批次出貨日期:").pack(side="left")
+1534:         self.default_date_var = tk.StringVar(value="")
+1535:         date_batch_entry = tk.Entry(batch_setting_frame, textvariable=self.default_date_var, width=12)
+1536:         date_batch_entry.pack(side="left", padx=2)
+1537:         tk.Button(batch_setting_frame, text="📅", command=lambda: self.open_calendar_dialog(self.default_date_var), font=("Arial", 8), width=3).pack(side="left", padx=(0, 2))
+1538:         tk.Button(batch_setting_frame, text="套用至全列", command=self.apply_default_date, bg="#607D8B", fg="white", font=("Microsoft JhengHei", 8)).pack(side="left", padx=(2, 16))
+1539:         
+1540:         # 預計時間
+1541:         report_opt_frame = tk.LabelFrame(self, text="📦 欲產生的報表勾選 (可多選，點擊開始產生時將自動產出所勾選項目)", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+1542:         report_opt_frame.pack(fill="x", pady=(0, 8))
+1543: 
+1544:         self.gen_3in1_var = tk.BooleanVar(value=True)
+1545:         self.gen_lorry_var = tk.BooleanVar(value=True)

@@ -1,0 +1,1860 @@
+0000 <!DOCTYPE html>
+0001 <html lang="zh-TW">
+0002 <head>
+0003     <meta charset="UTF-8">
+0004     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+0005     <title>台積電槽車 Barcode 三合一單與運輸通知表 - 架機專用線上產生器</title>
+0006     <!-- 引入 SheetJS -->
+0007     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+0008     <style>
+0009         * { box-sizing: border-box; font-family: "Microsoft JhengHei", "Segoe UI", Arial, sans-serif; }
+0010         body { background-color: #F0F2F5; margin: 0; padding: 20px; color: #333; }
+0011         .container { max-width: 1150px; margin: 0 auto; background: #FFF; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+0012         h1 { color: #002060; margin-top: 0; font-size: 24px; border-bottom: 3px solid #002060; padding-bottom: 10px; }
+0013         .subtitle { color: #555; font-size: 14px; margin-bottom: 20px; }
+0014         
+0015         .status-box { background: #E8F5E9; border-left: 5px solid #2E7D32; padding: 10px 18px; margin-bottom: 20px; border-radius: 6px; font-size: 14px; color: #1B5E20; font-weight: bold; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+0016         .toolbar { display: flex; justify-content: space-between; align-items: center; background: #F8F9FA; padding: 12px 15px; border-radius: 8px; border: 1px solid #E0E0E0; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+0017         
+0018         .btn { padding: 8px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
+0019         .btn-green { background: #2E7D32; color: white; }
+0020         .btn-green:hover { background: #1B5E20; }
+0021         .btn-blue { background: #1565C0; color: white; }
+0022         .btn-blue:hover { background: #0D47A1; }
+0023         .btn-red { background: #D32F2F; color: white; }
+0024         .btn-red:hover { background: #B71C1C; }
+0025         .btn-purple { background: #7B1FA2; color: white; }
+0026         .btn-purple:hover { background: #4A148C; }
+0027         .btn-orange { background: #FF9800; color: white; }
+0028         .btn-orange:hover { background: #F57C00; }
+0029 
+0030         .table-responsive { overflow-x: auto; margin-bottom: 20px; }
+0031         table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 950px; }
+0032         th { background: #002060; color: white; padding: 10px; text-align: center; font-weight: bold; }
+0033         td { padding: 6px; border: 1px solid #DDD; text-align: center; }
+0034         input[type="text"], input[type="date"] { width: 95%; padding: 5px 6px; border: 1px solid #CCC; border-radius: 4px; font-size: 13px; text-transform: uppercase; }
+0035         input.batch-input { font-family: Consolas, monospace; font-weight: bold; color: #002060; }
+0036         input.read-only { background-color: #F5F5F5; color: #1565C0; font-weight: bold; }
+0037         input.long-code { color: #7B1FA2; font-weight: bold; }
+0038         
+0039         .footer-action { text-align: center; margin-top: 25px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; }
+0040         .btn-large { padding: 12px 30px; font-size: 16px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+0041     </style>
+0042 </head>
+0043 <body>
+0044 
+0045 <!-- 全域載入遮罩 -->
+0046 <div id="loadingOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.6); z-index:9999; cursor:wait; justify-content:center; align-items:center; flex-direction:column;">
+0047     <div id="loadingOverlayText" style="font-size:20px; font-weight:bold; color:#002060; background:#FFF; padding:20px 40px; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+0048         ⏳ 系統處理中，請稍候...
+0049     </div>
+0050 </div>
+0051 
+0052 <script>
+0053     function showLoading(msg) {
+0054         const overlay = document.getElementById("loadingOverlay");
+0055         if (overlay) {
+0056             overlay.style.display = "flex";
+0057             const textDiv = document.getElementById("loadingOverlayText");
+0058             if (msg && textDiv) textDiv.innerText = msg;
+0059         }
+0060     }
+0061     function hideLoading() {
+0062         const overlay = document.getElementById("loadingOverlay");
+0063         if (overlay) overlay.style.display = "none";
+0064     }
+0065 </script>
+0066 
+0067 <div class="container">
+0068     <h1>🌐 台積電槽車 Barcode 三合一單與運輸通知表 (架機專用伺服器)</h1>
+0069     <div class="subtitle">同仁免安裝 Python！開啟此網頁即可貼上資料或上傳 COA 截圖，由架機主機 Python 一鍵產生完美三合一單與運輸通知表 Excel！</div>
+0070 
+0071     <div class="status-box" id="statusBox">
+0072         🔄 正在連線伺服器對照表...
+0073     </div>
+0074 
+0075     <div class="toolbar">
+0076         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+0077             <label class="btn btn-purple" style="cursor:pointer; background:#1976D2;">
+0078                 📥 從 Excel 匯入排程
+0079                 <input type="file" id="excelInput" accept=".xlsx, .xls" style="display:none;" onchange="importExcelFile(event)">
+0080             </label>
+0081             <label class="btn btn-orange" style="cursor:pointer; background:#E65100;">
+0082                 📋 載入生產履歷 (Chemical_Lorry)
+0083                 <input type="file" id="extraFileInput" accept=".xlsx, .xls" style="display:none;" multiple onchange="uploadExtraFile(event)">
+0084             </label>
+0085             <label class="btn btn-purple" style="cursor:pointer; background:#8E24AA;">
+0086                 📄 載入 COA 表單
+0087                 <input type="file" id="coaFormsInput" accept=".xlsx, .xls, .csv" multiple style="display:none;" onchange="uploadCoaForms(event)">
+0088             </label>
+0089             <label class="btn btn-orange" style="cursor:pointer; background:#FF9800;">
+0090                 🖼️ 上傳 COA 截圖 (OCR 辨識)
+0091                 <input type="file" id="coaInput" accept="image/*, .png, .jpg, .jpeg" style="display:none;" onchange="uploadCoaScreenshot(event)">
+0092             </label>
+0093             <button class="btn btn-blue" style="background:#546E7A;" onclick="setTodayAllDates()">📅 帶入今天日期</button>
+0094         </div>
+0095         <div style="display:flex; gap:8px;">
+0096             <button class="btn btn-blue" style="background:#00897B;" onclick="addMoreRows(10)">➕ 新增 10 列</button>
+0097             <button class="btn btn-red" onclick="clearAllRows()">🗑️ 清除全部</button>
+0098         </div>
+0099     </div>
+0100 
+0101     <div id="coaStatusBox" style="display:none; margin: 6px 0 10px 0; padding: 10px 14px; border-radius: 6px; font-size:13px; border-left: 4px solid #388E3C; background:#E8F5E9; color:#1B5E20; white-space: pre-line;"></div>
+0102 
+0103     <div class="table-responsive">
+0104         <table>
+0105             <thead>
+0106                 <tr>
+0107                     <th style="width: 40px;">項次</th>
+0108                     <th style="width: 170px;">批號 (請輸入 10 碼)</th>
+0109                     <th style="width: 90px;">槽號 (自動)</th>
+0110                     <th style="width: 120px;">地點 (如 18P3B)</th>
+0111                     <th style="width: 220px;">長代號 (自動)</th>
+0112                     <th style="width: 130px;">出貨日期 📅</th>
+0113                     <th style="width: 150px;">採購單號</th>
+0114                     <th style="width: 60px;">操作</th>
+0115                 </tr>
+0116             </thead>
+0117             <tbody id="tableBody">
+0118                 <!-- 動態生成列 -->
+0119             </tbody>
+0120         </table>
+0121     </div>
+0122 
+0123     <div style="background:#FFF; padding:12px 20px; border-radius:8px; margin: 15px 0 10px 0; border: 1px solid #DDD; display:flex; align-items:center; gap:25px; flex-wrap:wrap; font-weight:bold; font-size:14px;">
+0124         <span style="color:#002060;">📦 欲產生的報表勾選（自動依短地點建獨立資料夾）：</span>
+0125         <label style="cursor:pointer; color:#1B5E20; display:flex; align-items:center; gap:6px;">
+0126             <input type="checkbox" id="chkWeb3in1" checked style="width:18px; height:18px;">
+0127             ✅ 產生三合一單 Excel (含 Barcode 與 COA)
+0128         </label>
+0129         <label style="cursor:pointer; color:#E65100; display:flex; align-items:center; gap:6px;">
+0130             <input type="checkbox" id="chkWebLorry" checked style="width:18px; height:18px;">
+0131             ✅ 產生單列生產履歷 Excel (Chemical_Lorry)
+0132         </label>
+0133     </div>
+0134 
+0135     <div class="footer-action">
+0136         <button id="btnAll" class="btn btn-green btn-large" onclick="generateAllZip()">🚀 一鍵打包產生所有報表 (依地點分夾 ZIP)</button>
+0137         <button id="btnSingle3in1" class="btn btn-blue btn-large" onclick="generate3in1Single()">📄 單獨產生三合一單 Excel (依地點分夾)</button>
+0138     </div>
+0139 </div>
+0140 
+0141 <!-- ================= EXCEL 匯入預覽 Modal ================= -->
+0142 <style>
+0143     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; z-index: 1000; }
+0144     .modal-box { background: #FFF; width: 750px; max-width: 95%; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); padding: 20px; display: flex; flex-direction: column; }
+0145     .modal-header { font-size: 18px; font-weight: bold; color: #002060; border-bottom: 2px solid #EEE; padding-bottom: 10px; margin-bottom: 15px; }
+0146     .modal-info { font-size: 14px; color: #333; margin-bottom: 10px; }
+0147     .modal-controls { background: #F9F9F9; padding: 12px; border-radius: 6px; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+0148     .modal-controls input[type="number"] { width: 80px; padding: 5px; font-size: 14px; border: 1px solid #CCC; border-radius: 4px; }
+0149     .preview-box { border: 1px solid #CCC; border-radius: 6px; padding: 10px; height: 250px; overflow-y: auto; background: #FAFAFA; font-family: Consolas, monospace; font-size: 13px; line-height: 1.5; }
+0150     .modal-footer { margin-top: 15px; display: flex; justify-content: space-between; border-top: 1px solid #EEE; padding-top: 15px; }
+0151 </style>
+0152 
+0153 <div class="modal-overlay" id="importModal">
+0154     <div class="modal-box">
+0155         <div class="modal-header">📥 Excel 匯入筆數與範圍選擇 (最後一筆往上抓)</div>
+0156         <div class="modal-info">
+0157             <span style="color: #2E7D32; font-weight: bold;">📊 總計偵測到：<span id="importModalTotal"></span> 筆有效出貨資料 (最舊 ➔ 最新)</span>
+0158         </div>
+0159         
+0160         <div class="modal-controls">
+0161             <strong>篩選日期：</strong>
+0162             <button class="btn btn-orange" onclick="filterByDateMode('d0_d2')">📅 優先抓今天~後天 (3天)</button>
+0163             <button class="btn btn-blue" onclick="filterByDateMode('d0')">今天</button>
+0164             <button class="btn btn-blue" onclick="filterByDateMode('d1')">明天</button>
+0165             <button class="btn btn-blue" onclick="filterByDateMode('d2')">後天</button>
+0166             <button class="btn btn-purple" onclick="filterByDateMode('all')">全部日期</button>
+0167             
+0168             <span style="margin-left: 15px; border-left: 1px solid #CCC; padding-left: 15px;"><strong>筆數：</strong></span>
+0169             <button class="btn btn-blue" onclick="setImportCount(5)">5 筆</button>
+0170             <button class="btn btn-blue" onclick="setImportCount(10)">10 筆</button>
+0171             <button class="btn btn-blue" onclick="setImportCount(20)">20 筆</button>
+0172             <button class="btn btn-blue" onclick="setImportCount('all')">全部</button>
+0173             
+0174             <span style="margin-left: 10px;">自訂筆數：</span>
+0175             <input type="number" id="importModalCount" min="1" oninput="updateImportPreview()">
+0176         </div>
+0177         
+0178         <strong>📋 即將匯入資料即時預覽</strong>
+0179         <div class="preview-box" id="importPreviewList">
+0180             <!-- 預覽項目將動態生成 -->
+0181         </div>
+0182         
+0183         <div class="modal-footer">
+0184             <button class="btn btn-green btn-large" style="flex: 1; margin-right: 15px;" onclick="confirmImport()">🚀 確認匯入資料</button>
+0185             <button class="btn btn-red btn-large" onclick="hideImportModal()">❌ 取消</button>
+0186         </div>
+0187     </div>
+0188 </div>
+0189 
+0190 <!-- ================= 地點代號維護 Modal ================= -->
+0191 <div class="modal-overlay" id="locationModal">
+0192     <div class="modal-box" style="width: 780px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+0193         <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+0194             <span>📍 地點代號對照表維護 (即時回寫電腦端 Excel)</span>
+0195             <button onclick="closeLocationModal()" style="background: none; border: none; font-size: 22px; cursor: pointer; color: #666; font-weight: bold;">✕</button>
+0196         </div>
+0197         <div style="font-size: 13px; color: #1B5E20; margin-bottom: 12px; line-height: 1.5; background: #E8F5E9; padding: 10px 14px; border-radius: 6px; border-left: 4px solid #2E7D32;">
+0198             💡 <strong>線上回寫說明：</strong>在此新增或修改的地點，將會<strong>即時回寫儲存至主機電腦端「地點代號對照表.xlsx」</strong>！電腦端與所有線上使用者皆立即同步生效，無需前往主機手動開 Excel。
+0199         </div>
+0200 
+0201         <!-- 輸入區域 -->
+0202         <div style="background: #F8F9FA; border: 1px solid #DDD; padding: 12px 15px; border-radius: 8px; margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+0203             <div style="flex: 1; min-width: 140px;">
+0204                 <label style="font-weight: bold; font-size: 13px; color: #002060; display: block; margin-bottom: 4px;">廠區地點 (短代號)：</label>
+0205                 <input type="text" id="inputLocShort" placeholder="例如: 18P4" style="width: 100%; padding: 7px; font-weight: bold; text-transform: uppercase;">
+0206             </div>
+0207             <div style="flex: 1.5; min-width: 180px;">
+0208                 <label style="font-weight: bold; font-size: 13px; color: #002060; display: block; margin-bottom: 4px;">條碼長代號 (Full Code)：</label>
+0209                 <input type="text" id="inputLocCode" placeholder="例如: EF180184A" style="width: 100%; padding: 7px; font-weight: bold; text-transform: uppercase; color: #7B1FA2;">
+0210             </div>
+0211             <div>
+0212                 <button class="btn btn-green" style="padding: 7px 18px;" onclick="saveLocationToServer()">💾 立即新增/更新並回寫</button>
+0213             </div>
+0214         </div>
+0215 
+0216         <div id="locationMsgBox" style="display: none; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; font-size: 13px; font-weight: bold;"></div>
+0217 
+0218         <!-- 搜尋與清單 -->
+0219         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+0220             <span style="font-weight: bold; font-size: 14px; color: #002060;">📋 目前主機對照清單 (共 <span id="locCountBadge">0</span> 筆)：</span>
+0221             <input type="text" id="locSearchInput" placeholder="🔍 快速搜尋地點或代號..." oninput="onLocSearchInput()" style="width: 220px; padding: 5px 8px; font-size: 13px; border: 1px solid #CCC; border-radius: 4px;">
+0222         </div>
+0223 
+0224         <div style="flex: 1; overflow-y: auto; max-height: 320px; border: 1px solid #DDD; border-radius: 6px;">
+0225             <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+0226                 <thead style="position: sticky; top: 0; background: #002060; color: white;">
+0227                     <tr>
+0228                         <th style="width: 50px; padding: 6px;">項次</th>
+0229                         <th style="padding: 6px;">廠區地點 (短代號)</th>
+0230                         <th style="padding: 6px;">條碼長代號 (Full Code)</th>
+0231                         <th style="width: 140px; padding: 6px;">操作</th>
+0232                     </tr>
+0233                 </thead>
+0234                 <tbody id="locationListBody">
+0235                     <!-- 動態生成地點項目 -->
+0236                 </tbody>
+0237             </table>
+0238         </div>
+0239 
+0240         <div class="modal-footer" style="margin-top: 15px; display: flex; justify-content: flex-end; padding-top: 10px; border-top: 1px solid #EEE;">
+0241             <button class="btn btn-blue" onclick="closeLocationModal()">關閉視窗</button>
+0242         </div>
+0243     </div>
+0244 </div>
+0245 
+0246 
+0247 <script>
+0248     const DEFAULT_FALLBACK_MAPPING = {
+0249         "15P5": "E1550155A",
+0250         "15P6": "E1550156A",
+0251         "18P3B": "EF180183B",
+0252         "12P7": "E00700001",
+0253         "15P4": "EF150L154",
+0254         "12P4": "E00400001",
+0255         "14P": "E01400001",
+0256         "AP8": "E08800001",
+0257         "AP7": "E08700001",
+0258         "AP6": "E08600001",
+0259         "AP5": "E08500001"
+0260     };
+0261     let SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING);
+0262 
+0263     window.onload = function() {
+0264         fetchMapping();
+0265         addMoreRows(15);
+0266         setupKeyboardNavigation();
+0267     };
+0268 
+0269     // ⌨️ 全局鍵盤 Excel 式上下左右與 Enter 導航
+0270     function setupKeyboardNavigation() {
+0271         const tableBody = document.getElementById("tableBody");
+0272         if (!tableBody) return;
+0273 
+0274         tableBody.addEventListener("keydown", (e) => {
+0275             const target = e.target;
+0276             if (target.tagName !== "INPUT") return;
+0277 
+0278             const id = target.id;
+0279             if (!id || !id.includes("_")) return;
+0280 
+0281             const parts = id.split("_");
+0282             const colType = parts[0];
+0283             const rowIdx = parseInt(parts[1]);
+0284             const totalRows = tableBody.children.length;
+0285 
+0286             const colOrder = ["batch", "loc", "date", "time", "mod"];
+0287             const colIndex = colOrder.indexOf(colType);
+0288 
+0289             // 1. ⬇️ 下鍵 或 ↵ Enter 鍵
+0290             if (e.key === "ArrowDown" || e.key === "Enter") {
+0291                 e.preventDefault();
+0292                 let nextRow = rowIdx + 1;
+0293                 if (nextRow > totalRows) {
+0294                     addMoreRows(5);
+0295                 }
+0296                 const nextInput = document.getElementById(`${colType}_${nextRow}`);
+0297                 if (nextInput) {
+0298                     nextInput.focus();
+0299                     if (nextInput.select && nextInput.type !== "date") nextInput.select();
+0300                 }
+0301             }
+0302             // 2. ⬆️ 上鍵
+0303             else if (e.key === "ArrowUp") {
+0304                 e.preventDefault();
+0305                 if (rowIdx > 1) {
+0306                     const prevInput = document.getElementById(`${colType}_${rowIdx - 1}`);
+0307                     if (prevInput) {
+0308                         prevInput.focus();
+0309                         if (prevInput.select && prevInput.type !== "date") prevInput.select();
+0310                     }
+0311                 }
+0312             }
+0313             // 3. ⬅️ 左鍵
+0314             else if (e.key === "ArrowLeft") {
+0315                 const isStart = target.type === "date" || (target.selectionStart === 0 && target.selectionEnd === 0);
+0316                 if (isStart) {
+0317                     if (colIndex > 0) {
+0318                         e.preventDefault();
+0319                         const leftInput = document.getElementById(`${colOrder[colIndex - 1]}_${rowIdx}`);
+0320                         if (leftInput) {
+0321                             leftInput.focus();
+0322                             if (leftInput.select && leftInput.type !== "date") leftInput.select();
+0323                         }
+0324                     } else if (rowIdx > 1) {
+0325                         e.preventDefault();
+0326                         const leftInput = document.getElementById(`${colOrder[colOrder.length - 1]}_${rowIdx - 1}`);
+0327                         if (leftInput) {
+0328                             leftInput.focus();
+0329                             if (leftInput.select && leftInput.type !== "date") leftInput.select();
+0330                         }
+0331                     }
+0332                 }
+0333             }
+0334             // 4. ➡️ 右鍵
+0335             else if (e.key === "ArrowRight") {
+0336                 const isEnd = target.type === "date" || (target.selectionEnd === target.value.length);
+0337                 if (isEnd) {
+0338                     if (colIndex < colOrder.length - 1 && colIndex !== -1) {
+0339                         e.preventDefault();
+0340                         const rightInput = document.getElementById(`${colOrder[colIndex + 1]}_${rowIdx}`);
+0341                         if (rightInput) {
+0342                             rightInput.focus();
+0343                             if (rightInput.select && rightInput.type !== "date") rightInput.select();
+0344                         }
+0345                     } else if (rowIdx < totalRows) {
+0346                         e.preventDefault();
+0347                         const rightInput = document.getElementById(`${colOrder[0]}_${rowIdx + 1}`);
+0348                         if (rightInput) {
+0349                             rightInput.focus();
+0350                             if (rightInput.select && rightInput.type !== "date") rightInput.select();
+0351                         }
+0352                     }
+0353                 }
+0354             }
+0355         });
+0356     }
+0357 
+0358     function fetchMapping() {
+0359         fetch("/api/mapping")
+0360             .then(res => res.json())
+0361             .then(res => {
+0362                 if (res.status === "success" && res.data) {
+0363                     SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, res.data);
+0364                     if (res.parts) SERVER_PART_MAPPING = res.parts;
+0365                     document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${res.count} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
+0366                     renderLocationTable();
+0367                 }
+0368             })
+0369             .catch(err => {
+0370                 SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING);
+0371                 document.getElementById("statusBox").innerHTML = `<span>ℹ️ 雲端/離線展示模式：已啟用內建常用地點代號對照表。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護</button>`;
+0372                 renderLocationTable();
+0373             });
+0374     }
+0375 
+0376     function addMoreRows(count) {
+0377         const tbody = document.getElementById("tableBody");
+0378         const currentCount = tbody.children.length;
+0379 
+0380         for (let i = 0; i < count; i++) {
+0381             const rowIdx = currentCount + i + 1;
+0382             const tr = document.createElement("tr");
+0383 
+0384             tr.innerHTML = `
+0385                 <td>${rowIdx}</td>
+0386                 <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="10" placeholder="26814E3191" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
+0387                 <td><input type="text" class="read-only" id="tank_${rowIdx}" readonly placeholder="自動槽號"></td>
+0388                 <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
+0389                 <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照" onclick="handleLongCodeClick(${rowIdx})"></td>
+0390                 <td><input type="date" id="date_${rowIdx}"></td>
+0391                 <td><input type="text" id="po_${rowIdx}" placeholder="採購單號" style="color:#004D40; font-weight:bold;"></td>
+0392                 <td><button class="btn btn-red" style="padding: 2px 6px; font-size:11px;" onclick="clearRow(${rowIdx})">清空</button></td>
+0393             `;
+0394             tbody.appendChild(tr);
+0395         }
+0396     }
+0397 
+0398     function setTodayAllDates() {
+0399         const today = new Date().toISOString().split('T')[0];
+0400         const total = document.getElementById("tableBody").children.length;
+0401         for (let i = 1; i <= total; i++) {
+0402             if (document.getElementById(`batch_${i}`).value || document.getElementById(`loc_${i}`).value) {
+0403                 document.getElementById(`date_${i}`).value = today;
+0404             }
+0405         }
+0406     }
+0407 
+0408     function getTankFromBatch(batch) {
+0409         batch = batch.trim().toUpperCase();
+0410         if (batch.length !== 10) return "";
+0411         if (batch.endsWith("J1")) {
+0412             return batch.substring(5, 8);
+0413         }
+0414         return batch.substring(5, 9);
+0415     }
+0416 
+0417     function onBatchChange(idx) {
+0418         const batchVal = document.getElementById(`batch_${idx}`).value.trim().toUpperCase();
+0419         document.getElementById(`batch_${idx}`).value = batchVal;
+0420         
+0421         if (batchVal.length === 10) {
+0422             const tank = getTankFromBatch(batchVal);
+0423             document.getElementById(`tank_${idx}`).value = tank;
+0424         } else {
+0425             document.getElementById(`tank_${idx}`).value = "";
+0426         }
+0427     }
+0428 
+0429     function onLocChange(idx) {
+0430         const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
+0431         document.getElementById(`loc_${idx}`).value = locVal;
+0432         const longEl = document.getElementById(`long_${idx}`);
+0433 
+0434         if (SERVER_MAPPING[locVal]) {
+0435             longEl.value = SERVER_MAPPING[locVal];
+0436             longEl.style.color = "#7B1FA2";
+0437             longEl.style.cursor = "default";
+0438             longEl.title = "";
+0439         } else if (locVal) {
+0440             longEl.value = "❌ 未知代號 (點此回寫新增)";
+0441             longEl.style.color = "#D32F2F";
+0442             longEl.style.cursor = "pointer";
+0443             longEl.title = "點擊開啟新增視窗，並將此地點回寫至電腦端 Excel";
+0444         } else {
+0445             longEl.value = "";
+0446             longEl.style.color = "#7B1FA2";
+0447             longEl.style.cursor = "default";
+0448             longEl.title = "";
+0449         }
+0450     }
+0451 
+0452     function handleLongCodeClick(idx) {
+0453         const locVal = document.getElementById(`loc_${idx}`).value.trim().toUpperCase();
+0454         if (locVal && !SERVER_MAPPING[locVal]) {
+0455             openLocationModal(locVal);
+0456         }
+0457     }
+0458 
+0459     // ================= 地點代號管理與電腦端回寫 =================
+0460     function openLocationModal(prefillLoc = "") {
+0461         const modal = document.getElementById("locationModal");
+0462         if (!modal) return;
+0463         modal.style.display = "flex";
+0464         
+0465         const shortInput = document.getElementById("inputLocShort");
+0466         const codeInput = document.getElementById("inputLocCode");
+0467         const msgBox = document.getElementById("locationMsgBox");
+0468         msgBox.style.display = "none";
+0469 
+0470         if (prefillLoc) {
+0471             shortInput.value = prefillLoc.trim().toUpperCase();
+0472             codeInput.value = SERVER_MAPPING[shortInput.value] || "";
+0473             codeInput.focus();
+0474         } else {
+0475             shortInput.value = "";
+0476             codeInput.value = "";
+0477             shortInput.focus();
+0478         }
+0479 
+0480         renderLocationTable();
+0481     }
+0482 
+0483     function closeLocationModal() {
+0484         const modal = document.getElementById("locationModal");
+0485         if (modal) modal.style.display = "none";
+0486     }
+0487 
+0488     function onLocSearchInput() {
+0489         const q = document.getElementById("locSearchInput").value.trim().toUpperCase();
+0490         renderLocationTable(q);
+0491     }
+0492 
+0493     function renderLocationTable(filter = "") {
+0494         const tbody = document.getElementById("locationListBody");
+0495         const badge = document.getElementById("locCountBadge");
+0496         if (!tbody) return;
+0497 
+0498         const keys = Object.keys(SERVER_MAPPING).sort();
+0499         if (badge) badge.innerText = keys.length;
+0500 
+0501         let filteredKeys = keys;
+0502         if (filter) {
+0503             filteredKeys = keys.filter(k => k.includes(filter) || (SERVER_MAPPING[k] && SERVER_MAPPING[k].toUpperCase().includes(filter)));
+0504         }
+0505 
+0506         if (filteredKeys.length === 0) {
+0507             tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#999;">查無符合的地點或代號</td></tr>`;
+0508             return;
+0509         }
+0510 
+0511         let html = "";
+0512         filteredKeys.forEach((k, idx) => {
+0513             const v = SERVER_MAPPING[k] || "";
+0514             html += `
+0515                 <tr style="border-bottom: 1px solid #EEE;">
+0516                     <td style="text-align:center; padding:6px; color:#888;">${idx + 1}</td>
+0517                     <td style="text-align:center; padding:6px; font-weight:bold; color:#002060;">${k}</td>
+0518                     <td style="text-align:center; padding:6px; font-family:Consolas, monospace; font-weight:bold; color:#7B1FA2;">${v}</td>
+0519                     <td style="text-align:center; padding:6px;">
+0520                         <button class="btn btn-blue" style="padding:2px 8px; font-size:11px; margin-right:4px;" onclick="editLocInModal('${k}', '${v}')">帶入</button>
+0521                         <button class="btn btn-red" style="padding:2px 8px; font-size:11px;" onclick="deleteLocationFromServer('${k}')">刪除</button>
+0522                     </td>
+0523                 </tr>
+0524             `;
+0525         });
+0526         tbody.innerHTML = html;
+0527     }
+0528 
+0529     function editLocInModal(loc, code) {
+0530         document.getElementById("inputLocShort").value = loc;
+0531         document.getElementById("inputLocCode").value = code;
+0532         document.getElementById("inputLocCode").focus();
+0533     }
+0534 
+0535     async function saveLocationToServer() {
+0536         const loc = document.getElementById("inputLocShort").value.trim().toUpperCase();
+0537         const code = document.getElementById("inputLocCode").value.trim().toUpperCase();
+0538         const msgBox = document.getElementById("locationMsgBox");
+0539 
+0540         if (!loc) {
+0541             alert("請輸入廠區地點簡稱（例如：18P4）！");
+0542             document.getElementById("inputLocShort").focus();
+0543             return;
+0544         }
+0545         if (!code) {
+0546             alert("請輸入條碼長代號（例如：EF180184A）！");
+0547             document.getElementById("inputLocCode").focus();
+0548             return;
+0549         }
+0550 
+0551         msgBox.style.display = "block";
+0552         msgBox.style.background = "#E3F2FD";
+0553         msgBox.style.color = "#0D47A1";
+0554         msgBox.innerHTML = "⏳ 正在回寫儲存至主機電腦端 Excel...";
+0555 
+0556         try {
+0557             const res = await fetch("/api/save_location", {
+0558                 method: "POST",
+0559                 headers: { "Content-Type": "application/json" },
+0560                 body: JSON.stringify({ loc, code })
+0561             });
+0562 
+0563             if (!res.ok) {
+0564                 const err = await res.json();
+0565                 throw new Error(err.detail || `HTTP ${res.status}`);
+0566             }
+0567 
+0568             const data = await res.json();
+0569             SERVER_MAPPING[loc] = code;
+0570             if (data.data) {
+0571                 SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, data.data);
+0572             }
+0573 
+0574             // 即時更新畫面上所有包含此地點的列
+0575             const total = document.getElementById("tableBody").children.length;
+0576             for (let i = 1; i <= total; i++) {
+0577                 const locInput = document.getElementById(`loc_${i}`);
+0578                 if (locInput && locInput.value.trim().toUpperCase() === loc) {
+0579                     onLocChange(i);
+0580                 }
+0581             }
+0582 
+0583             msgBox.style.background = "#E8F5E9";
+0584             msgBox.style.color = "#1B5E20";
+0585             msgBox.innerHTML = `✅ 成功！地點「${loc}」(${code}) 已成功回寫並永久儲存至電腦端 Excel！`;
+0586 
+0587             document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${Object.keys(SERVER_MAPPING).length} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
+0588 
+0589             renderLocationTable();
+0590         } catch (e) {
+0591             msgBox.style.background = "#FFEBEE";
+0592             msgBox.style.color = "#C62828";
+0593             msgBox.innerHTML = `❌ 回寫電腦端失敗：${e.message}`;
+0594         }
+0595     }
+0596 
+0597     async function deleteLocationFromServer(loc) {
+0598         if (!confirm(`確定要將地點「${loc}」自電腦端 Excel 永久刪除嗎？`)) return;
+0599 
+0600         const msgBox = document.getElementById("locationMsgBox");
+0601         msgBox.style.display = "block";
+0602         msgBox.style.background = "#E3F2FD";
+0603         msgBox.style.color = "#0D47A1";
+0604         msgBox.innerHTML = `⏳ 正在自主機 Excel 刪除地點「${loc}」...`;
+0605 
+0606         try {
+0607             const res = await fetch("/api/delete_location", {
+0608                 method: "POST",
+0609                 headers: { "Content-Type": "application/json" },
+0610                 body: JSON.stringify({ loc })
+0611             });
+0612 
+0613             if (!res.ok) {
+0614                 const err = await res.json();
+0615                 throw new Error(err.detail || `HTTP ${res.status}`);
+0616             }
+0617 
+0618             const data = await res.json();
+0619             delete SERVER_MAPPING[loc];
+0620             if (data.data) {
+0621                 SERVER_MAPPING = Object.assign({}, DEFAULT_FALLBACK_MAPPING, data.data);
+0622             }
+0623 
+0624             const total = document.getElementById("tableBody").children.length;
+0625             for (let i = 1; i <= total; i++) {
+0626                 const locInput = document.getElementById(`loc_${i}`);
+0627                 if (locInput && locInput.value.trim().toUpperCase() === loc) {
+0628                     onLocChange(i);
+0629                 }
+0630             }
+0631 
+0632             msgBox.style.background = "#FFF3E0";
+0633             msgBox.style.color = "#E65100";
+0634             msgBox.innerHTML = `🗑️ 已將地點「${loc}」自電腦端 Excel 刪除。`;
+0635 
+0636             document.getElementById("statusBox").innerHTML = `<span>✅ 已成功連線伺服器對照表！共載入 ${Object.keys(SERVER_MAPPING).length} 筆地點對照碼。</span><button class="btn btn-purple" style="padding:4px 14px; font-size:13px;" onclick="openLocationModal()">📍 地點代號維護 (回寫電腦端)</button>`;
+0637 
+0638             renderLocationTable();
+0639         } catch (e) {
+0640             msgBox.style.background = "#FFEBEE";
+0641             msgBox.style.color = "#C62828";
+0642             msgBox.innerHTML = `❌ 刪除失敗：${e.message}`;
+0643         }
+0644     }
+0645 
+0646     function onPasteHandler(e, startIdx) {
+0647         e.preventDefault();
+0648         const clipboardData = e.clipboardData || window.clipboardData;
+0649         const pastedData = clipboardData.getData('Text');
+0650         if (!pastedData) return;
+0651 
+0652         const lines = pastedData.split(/\r\n|\n|\r/);
+0653         let currentIdx = startIdx;
+0654 
+0655         lines.forEach(line => {
+0656             if (!line.trim()) return;
+0657             const items = line.split('\t').map(x => x.trim());
+0658 
+0659             let batchVal = "";
+0660             let locVal = "";
+0661             let dateVal = "";
+0662             let timeVal = "";
+0663             let originVal = "";
+0664 
+0665             items.forEach(item => {
+0666                 const upper = item.toUpperCase().trim();
+0667                 // 如果是槽號 (如 E309, T305) 則略過，因為批號輸入時會自動計算
+0668                 if (upper.length <= 5 && (upper.startsWith('E') || upper.startsWith('T') || upper.startsWith('P')) && /\d/.test(upper)) {
+0669                     return;
+0670                 }
+0671 
+0672                 // 檢查是否為時間 (如 09:00, 0900, 1400, 16:30)
+0673                 if ((upper.includes(':') || (/^\d{4}$/.test(upper) && (upper.startsWith('0') || upper.startsWith('1') || upper.startsWith('2')))) && !dateVal.includes(upper) && upper !== batchVal && !timeVal) {
+0674                     let normTime = normalizeTimeStr(item);
+0675                     if (normTime) {
+0676                         timeVal = normTime;
+0677                     }
+0678                 }
+0679                 
+0680                 // 檢查是否為日期 (包含 / 或 - 且有數字)
+0681                 if ((upper.includes('/') || upper.includes('-')) && /\d/.test(upper) && !dateVal) {
+0682                     dateVal = upper;
+0683                 } else if (upper.length === 10 && !batchVal && /[A-Z]/.test(upper) && /\d/.test(upper)) {
+0684                     batchVal = upper;
+0685                 } else if ((SERVER_MAPPING[upper] || upper.includes('18P') || upper.includes('15P') || upper.includes('P3') || upper.length <= 6) && !locVal && upper !== batchVal && !upper.includes('/')) {
+0686                     locVal = upper;
+0687                 }
+0688             });
+0689 
+0690             if (batchVal || locVal || dateVal || timeVal || originVal) {
+0691                 if (currentIdx > document.getElementById("tableBody").children.length) {
+0692                     addMoreRows(5);
+0693                 }
+0694                 if (batchVal) {
+0695                     document.getElementById(`batch_${currentIdx}`).value = batchVal;
+0696                     onBatchChange(currentIdx);
+0697                 }
+0698                 if (originVal) {
+0699                     if (document.getElementById(`origin_${currentIdx}`)) document.getElementById(`origin_${currentIdx}`).value = originVal;
+0700                 }
+0701                 if (locVal) {
+0702                     document.getElementById(`loc_${currentIdx}`).value = locVal;
+0703                     onLocChange(currentIdx);
+0704                 }
+0705                 if (timeVal) {
+0706                     document.getElementById(`time_${currentIdx}`).value = timeVal;
+0707                 }
+0708                 if (dateVal) {
+0709                     // 嘗試轉換日期為 YYYY-MM-DD
+0710                     let dStr = dateVal.trim();
+0711                     let y = new Date().getFullYear();
+0712                     let m = "", d = "";
+0713                     let match4 = dStr.match(/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/);
+0714                     let match2 = dStr.match(/^(\d{1,2})[-\/](\d{1,2})$/);
+0715                     if (match4) {
+0716                         y = match4[1]; m = match4[2]; d = match4[3];
+0717                     } else if (match2) {
+0718                         m = match2[1]; d = match2[2];
+0719                     }
+0720                     if (m && d) {
+0721                         m = String(m).padStart(2, '0');
+0722                         d = String(d).padStart(2, '0');
+0723                         document.getElementById(`date_${currentIdx}`).value = `${y}-${m}-${d}`;
+0724                     }
+0725                 }
+0726                 currentIdx++;
+0727             }
+0728         });
+0729     }
+0730 
+0731     // 🖼️ 上傳 COA 截圖 (圖片自動預處理與前端 AI OCR 辨識)
+0732     async function uploadCoaScreenshot(e) {
+0733         const file = e.target.files[0];
+0734         if (!file) return;
+0735 
+0736         showLoading("⏳ 正在處理 COA 截圖 (包含 OCR 辨識)...");
+0737         const formData = new FormData();
+0738         formData.append("file", file);
+0739 
+0740         document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = "🖼️ 正在透過瀏覽器 AI 分析 COA 圖片文字座標 (免安裝本地 OCR)... 這可能需要幾秒鐘";
+0741         
+0742         try {
+0743             // 載入 Tesseract.js
+0744             if (typeof Tesseract === 'undefined') {
+0745                 const script = document.createElement('script');
+0746                 script.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+0747                 document.head.appendChild(script);
+0748                 await new Promise(resolve => script.onload = resolve);
+0749             }
+0750 
+0751             const worker = await Tesseract.createWorker('eng');
+0752             const ret = await worker.recognize(file);
+0753             await worker.terminate();
+0754 
+0755             const imgHeight = ret.data.image_height || (ret.data.lines && ret.data.lines.length > 0 ? ret.data.lines[ret.data.lines.length-1].bbox.y1 + 50 : 1000);
+0756             
+0757             // 0. 抓取目前畫面上已輸入的所有批號，優先作為精確比對標的
+0758             const enteredBatches = [];
+0759             const totalRows = document.getElementById("tableBody") ? document.getElementById("tableBody").children.length : 0;
+0760             for (let i = 1; i <= totalRows; i++) {
+0761                 const bEl = document.getElementById(`batch_${i}`);
+0762                 if (bEl && bEl.value.trim().length >= 6) {
+0763                     enteredBatches.push(bEl.value.trim().toUpperCase());
+0764                 }
+0765             }
+0766 
+0767             // 1. 抓取所有辨識行與字詞
+0768             let rawBoxes = [];
+0769             let tableHeaderCandidates = [];
+0770 
+0771             // 尋找各行中的批號或表格特徵
+0772             if (ret.data.lines && ret.data.lines.length > 0) {
+0773                 ret.data.lines.forEach(line => {
+0774                     const lText = line.text.trim();
+0775                     const cleanLine = lText.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+0776                     
+0777                     // 表頭行識別 (包含 Batch, Lot, Item, Spec, Test, Result, No, 批號, 規格, 檢驗, Query Result)
+0778                     if (/batch|lot|item|spec|result|test|date|tank|query\s*result|certificate/i.test(lText) && !/\d{8,}/.test(cleanLine)) {
+0779                         tableHeaderCandidates.push(line.bbox.y1);
+0780                     }
+0781 
+0782                     // 策略 A: 比對表格中已填寫之批號 (整行去除空白後比對)
+0783                     enteredBatches.forEach(eb => {
+0784                         if (cleanLine.includes(eb)) {
+0785                             rawBoxes.push({
+0786                                 text: eb,
+0787                                 top: line.bbox.y0,
+0788                                 bottom: line.bbox.y1
+0789                             });
+0790                         }
+0791                     });
+0792 
+0793                     // 策略 B: 正規表達式自動搜尋批號 (例如: 26906E3181 或 8~14 碼包含英文數字)
+0794                     const matches = cleanLine.match(/[0-9]{4,6}[A-Z0-9]{3,8}/g);
+0795                     if (matches) {
+0796                         matches.forEach(m => {
+0797                             const digits = m.replace(/\D/g, '');
+0798                             if (m.length >= 8 && digits.length >= 5) {
+0799                                 rawBoxes.push({
+0800                                     text: m,
+0801                                     top: line.bbox.y0,
+0802                                     bottom: line.bbox.y1
+0803                                 });
+0804                             }
+0805                         });
+0806                     }
+0807 
+0808                     // 策略 C: 逐字檢驗 line.words
+0809                     if (line.words && line.words.length > 0) {
+0810                         line.words.forEach(w => {
+0811                             const wText = w.text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+0812                             const digits = wText.replace(/\D/g, '');
+0813                             enteredBatches.forEach(eb => {
+0814                                 if (wText === eb || (wText.length >= 8 && eb.includes(wText))) {
+0815                                     rawBoxes.push({
+0816                                         text: eb,
+0817                                         top: line.bbox.y0,
+0818                                         bottom: line.bbox.y1
+0819                                     });
+0820                                 }
+0821                             });
+0822                             if (wText.length >= 8 && digits.length >= 5) {
+0823                                 rawBoxes.push({
+0824                                     text: wText,
+0825                                     top: line.bbox.y0,
+0826                                     bottom: line.bbox.y1
+0827                                 });
+0828                             }
+0829                         });
+0830                     }
+0831                 });
+0832             }
+0833 
+0834             // 策略 D: 補充掃描 ret.data.words
+0835             if (ret.data.words && ret.data.words.length > 0) {
+0836                 ret.data.words.forEach(w => {
+0837                     const wText = w.text.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+0838                     const digits = wText.replace(/\D/g, '');
+0839                     enteredBatches.forEach(eb => {
+0840                         if (wText === eb || (wText.length >= 8 && eb.includes(wText))) {
+0841                             rawBoxes.push({
+0842                                 text: eb,
+0843                                 top: w.bbox.y0,
+0844                                 bottom: w.bbox.y1
+0845                             });
+0846                         }
+0847                     });
+0848                     if (wText.length >= 8 && digits.length >= 5) {
+0849                         rawBoxes.push({
+0850                             text: wText,
+0851                             top: w.bbox.y0,
+0852                             bottom: w.bbox.y1
+0853                         });
+0854                     }
+0855                     if (/batch|lot|item|spec|result|test|date|tank|query/i.test(w.text)) {
+0856                         tableHeaderCandidates.push(w.bbox.y1);
+0857                     }
+0858                 });
+0859             }
+0860 
+0861             // 依照垂直 Y 座標由上至下排序
+0862             rawBoxes.sort((a, b) => a.top - b.top);
+0863 
+0864             // 去除垂直重疊過近的重複框 (同一個批號可能有前後多個單詞)
+0865             let uniqueBoxes = [];
+0866             rawBoxes.forEach(b => {
+0867                 const existing = uniqueBoxes.find(ub => Math.abs(ub.top - b.top) < 15);
+0868                 if (!existing) {
+0869                     uniqueBoxes.push(b);
+0870                 } else if (b.text.length > existing.text.length) {
+0871                     existing.text = b.text;
+0872                 }
+0873             });
+0874 
+0875             // 計算表頭底線 (header_bottom)
+0876             let headerBottom = 0;
+0877             if (uniqueBoxes.length > 0) {
+0878                 // 表頭永遠在第一筆批號上方！
+0879                 const firstBatchTop = uniqueBoxes[0].top;
+0880                 const headersAbove = tableHeaderCandidates.filter(y => y <= firstBatchTop + 5);
+0881                 if (headersAbove.length > 0) {
+0882                     headerBottom = Math.max(...headersAbove) + 4;
+0883                 } else {
+0884                     headerBottom = Math.max(0, firstBatchTop - 4);
+0885                 }
+0886             } else if (tableHeaderCandidates.length > 0) {
+0887                 headerBottom = Math.max(...tableHeaderCandidates) + 8;
+0888             } else {
+0889                 headerBottom = Math.floor(imgHeight * 0.35);
+0890             }
+0891 
+0892             // 為每一筆批號分配清晰的 row_top 與 row_bottom 邊界
+0893             let finalBoxes = uniqueBoxes.map((b, idx) => {
+0894                 let rowTop = (idx === 0) 
+0895                     ? Math.max(headerBottom, b.top - 8) 
+0896                     : Math.max(headerBottom, Math.floor((uniqueBoxes[idx-1].bottom + b.top) / 2));
+0897                 
+0898                 let rowBottom = (idx === uniqueBoxes.length - 1)
+0899                     ? b.bottom + 10
+0900                     : Math.floor((b.bottom + uniqueBoxes[idx+1].top) / 2) - 4;
+0901 
+0902                 return {
+0903                     text: b.text,
+0904                     top: b.top,
+0905                     bottom: b.bottom,
+0906                     row_top: rowTop,
+0907                     row_bottom: rowBottom
+0908                 };
+0909             });
+0910 
+0911             formData.append("ocr_data", JSON.stringify({boxes: finalBoxes, header_bottom: headerBottom}));
+0912 
+0913             const res = await fetch("/api/upload_coa_image", {
+0914                 method: "POST",
+0915                 body: formData
+0916             });
+0917 
+0918             if (!res.ok) {
+0919                 alert("COA 截圖上傳失敗！");
+0920                 return;
+0921             }
+0922 
+0923             const data = await res.json();
+0924             if (finalBoxes.length > 0) {
+0925                 document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = `✅ 截圖上傳成功！已成功精準定位 ${finalBoxes.length} 個批號數據列。`;
+0926                 alert(`🎉 COA 截圖上傳與 AI 辨識成功！\n系統已抓到圖片中 ${finalBoxes.length} 筆批號：\n${finalBoxes.map(b=>'• ' + b.text).join('\n')}\n\n產生 Excel 時會自動為每張單子裁切【表頭 + 該批號專屬數據列】！`);
+0927             } else {
+0928                 document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = "✅ 截圖上傳成功！將由後端 Python 自動分析 TSMC 表格邊界與數據列。";
+0929                 alert(`🎉 COA 截圖上傳成功！\n前端文字辨識無直接命中，後端 Python 已啟動【表格幾何邊界識別】，自動為每張單子精確裁切【表頭 + 各筆數據列】！`);
+0930             }
+0931         } catch(err) {
+0932             alert(`COA 截圖處理出錯: ${err}`);
+0933             document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = "⚠️ 截圖上傳失敗。";
+0934         } finally {
+0935             hideLoading();
+0936         }
+0937         e.target.value = "";
+0938     }
+0939 
+0940     // 📁 上傳額外附加檔案 (支援多份生產履歷)
+0941     async function uploadExtraFile(e) {
+0942         const files = e.target.files;
+0943         if (!files || files.length === 0) return;
+0944 
+0945         const coaBox = document.getElementById("coaStatusBox");
+0946         coaBox.style.display = "block";
+0947         coaBox.style.borderLeftColor = "#F57C00";
+0948         coaBox.style.background = "#FFF8E1";
+0949         coaBox.style.color = "#E65100";
+0950         coaBox.textContent = `⏳ 正在上傳 ${files.length} 份生產履歷...`;
+0951 
+0952         showLoading(`⏳ 正在上傳 ${files.length} 份生產履歷...`);
+0953         const formData = new FormData();
+0954         for (let i = 0; i < files.length; i++) {
+0955             formData.append("files", files[i]); // 後端以 List[UploadFile] 接收
+0956         }
+0957 
+0958         try {
+0959             const res = await fetch("/api/upload_extra_file", {
+0960                 method: "POST",
+0961                 body: formData
+0962             });
+0963 
+0964             if (!res.ok) {
+0965                 coaBox.style.borderLeftColor = "#D32F2F";
+0966                 coaBox.style.background = "#FFEBEE";
+0967                 coaBox.style.color = "#B71C1C";
+0968                 coaBox.textContent = "❌ 附加檔案上傳失敗。";
+0969                 alert("附加檔案上傳失敗！");
+0970                 return;
+0971             }
+0972 
+0973             const data = await res.json();
+0974             const lorryBatches = data.lorry_batches || [];
+0975 
+0976             // 取得目前表格裡所有批號
+0977             const tableBatches = [];
+0978             document.querySelectorAll("input[id^='batch_']").forEach(el => {
+0979                 const v = el.value.trim().toUpperCase();
+0980                 if (v) tableBatches.push(v);
+0981             });
+0982 
+0983             // 比對：找表格中有哪些批號「不在」生產履歷裡
+0984             let lines = [`✅ 生產履歷上傳成功（共 ${lorryBatches.length} 筆批號），排程比對結果：\n`];
+0985             let hasError = false;
+0986 
+0987             if (tableBatches.length === 0) {
+0988                 lines.push("ℹ️ 排程表格尚未輸入批號，無法比對。");
+0989             } else {
+0990                 tableBatches.forEach(b => {
+0991                     if (!lorryBatches.includes(b)) {
+0992                         lines.push(`❌ 排程批號 ${b} ─ 生產履歷中找不到！`);
+0993                         hasError = true;
+0994                     } else {
+0995                         lines.push(`✅ 排程批號 ${b} ─ 生產履歷已找到`);
+0996                     }
+0997                 });
+0998             }
+0999 
+1000             coaBox.style.borderLeftColor = hasError ? "#D32F2F" : "#388E3C";
+1001             coaBox.style.background = hasError ? "#FFEBEE" : "#E8F5E9";
+1002             coaBox.style.color = hasError ? "#B71C1C" : "#1B5E20";
+1003             coaBox.textContent = lines.join("\n");
+1004 
+1005         } catch(err) {
+1006             coaBox.style.borderLeftColor = "#D32F2F";
+1007             coaBox.style.background = "#FFEBEE";
+1008             coaBox.style.color = "#B71C1C";
+1009             coaBox.textContent = `❌ 載入生產履歷出錯: ${err}`;
+1010             alert(`載入生產履歷出錯: ${err}\n\n若您是在本地網頁操作，請確認「架設伺服器_一鍵啟動.bat」是否仍在運行中。`);
+1011         } finally {
+1012             hideLoading();
+1013         }
+1014         e.target.value = "";
+1015     }
+1016 
+1017     // ================= EXCEL 匯入與預覽 Modal =================
+1018     let allExtractedRecords = [];
+1019     let currentFilteredRecords = [];
+1020     let currentSheetCount = 0;
+1021 
+1022     function normalizeDateStr(raw) {
+1023         if (!raw) return "";
+1024         if (raw instanceof Date) {
+1025             let y = raw.getFullYear();
+1026             let m = String(raw.getMonth() + 1).padStart(2, '0');
+1027             let d = String(raw.getDate()).padStart(2, '0');
+1028             return `${y}-${m}-${d}`;
+1029         }
+1030         let str = String(raw).trim();
+1031         if (!str) return "";
+1032 
+1033         // Excel 序列號 (如 45532)
+1034         let num = Number(str);
+1035         if (!isNaN(num) && num > 20000 && num < 60000) {
+1036             let dateObj = new Date(Math.round((num - 25569) * 86400 * 1000));
+1037             let y = dateObj.getFullYear();
+1038             let m = String(dateObj.getMonth() + 1).padStart(2, '0');
+1039             let d = String(dateObj.getDate()).padStart(2, '0');
+1040             return `${y}-${m}-${d}`;
+1041         }
+1042 
+1043         // YYYY/MM/DD, YYYY-MM-DD, YYYY.MM.DD
+1044         let m4 = str.match(/^(\d{4})[-\/\.](\d{1,2})[-\/\.](\d{1,2})/);
+1045         if (m4) {
+1046             return `${m4[1]}-${m4[2].padStart(2, '0')}-${m4[3].padStart(2, '0')}`;
+1047         }
+1048 
+1049         // ROC 115/08/28
+1050         let mTW = str.match(/^(\d{2,3})[-\/\.](\d{1,2})[-\/\.](\d{1,2})/);
+1051         if (mTW && parseInt(mTW[1]) < 1900) {
+1052             let y = parseInt(mTW[1]) + 1911;
+1053             return `${y}-${mTW[2].padStart(2, '0')}-${mTW[3].padStart(2, '0')}`;
+1054         }
+1055 
+1056         // MM/DD or M/D (e.g. 8/28)
+1057         let m2 = str.match(/^(\d{1,2})[-\/\.](\d{1,2})$/);
+1058         if (m2) {
+1059             let y = new Date().getFullYear();
+1060             return `${y}-${m2[1].padStart(2, '0')}-${m2[2].padStart(2, '0')}`;
+1061         }
+1062 
+1063         // MM/DD/YYYY
+1064         let mMDY = str.match(/^(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{4})/);
+1065         if (mMDY) {
+1066             return `${mMDY[3]}-${mMDY[1].padStart(2, '0')}-${mMDY[2].padStart(2, '0')}`;
+1067         }
+1068 
+1069         let jsDate = new Date(str);
+1070         if (!isNaN(jsDate.getTime()) && jsDate.getFullYear() > 2000) {
+1071             let y = jsDate.getFullYear();
+1072             let m = String(jsDate.getMonth() + 1).padStart(2, '0');
+1073             let d = String(jsDate.getDate()).padStart(2, '0');
+1074             return `${y}-${m}-${d}`;
+1075         }
+1076 
+1077         return str;
+1078     }
+1079 
+1080     function normalizeTimeStr(raw) {
+1081         if (!raw && raw !== 0) return "";
+1082 
+1083         // 1. JS Date 物件 (SheetJS cellDates: true 產生的 Date，包含 1899-12-30)
+1084         if (raw instanceof Date) {
+1085             let h = raw.getHours();
+1086             let m = raw.getMinutes();
+1087             return `${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}`;
+1088         }
+1089 
+1090         let str = String(raw).trim();
+1091         if (!str) return "";
+1092 
+1093         // 2. Excel 小數時間序列 (如 0.375 -> 0900)
+1094         let num = Number(str);
+1095         if (!isNaN(num) && num > 0 && num < 1) {
+1096             let totalMinutes = Math.round(num * 24 * 60);
+1097             let h = Math.floor(totalMinutes / 60) % 24;
+1098             let m = totalMinutes % 60;
+1099             return `${String(h).padStart(2, '0')}${String(m).padStart(2, '0')}`;
+1100         }
+1101 
+1102         // 3. 符合 HH:MM 或 HH:MM:SS (包含 Sat Dec 30 1899 09:00:00)
+1103         let mTime = str.match(/(\d{1,2}):(\d{2})/);
+1104         if (mTime) {
+1105             let h = String(mTime[1]).padStart(2, '0');
+1106             let m = String(mTime[2]).padStart(2, '0');
+1107             return `${h}${m}`;
+1108         }
+1109 
+1110         // 4. 純 4 碼數字 (如 "0900", "1400")
+1111         if (/^\d{4}$/.test(str)) {
+1112             return str;
+1113         }
+1114 
+1115         // 5. 3 碼數字 (如 "900" -> "0900")
+1116         if (/^\d{3}$/.test(str)) {
+1117             return "0" + str;
+1118         }
+1119 
+1120         return "";
+1121     }
+1122 
+1123     function cleanLocationStr(loc) {
+1124         if (!loc) return "";
+1125         let s = String(loc).trim().toUpperCase();
+1126         let cleaned = s.replace(/台積電?/g, '').replace(/新竹/g, '').replace(/台中/g, '').replace(/台南/g, '').replace(/廠/g, '').replace(/[-_\s]/g, '');
+1127         if (SERVER_MAPPING[cleaned]) return cleaned;
+1128         if (SERVER_MAPPING[s]) return s;
+1129         let mAp = s.match(/(AP\d+[A-Z0-9]*)/);
+1130         if (mAp) return mAp[1];
+1131         let mLoc = s.match(/(\d+[A-Z]\d+[A-Z0-9]*|\d+[A-Z0-9]+)/);
+1132         if (mLoc && (SERVER_MAPPING[mLoc[1]] || mLoc[1].includes("18P") || mLoc[1].includes("15P") || mLoc[1].includes("12P") || mLoc[1].includes("14P"))) return mLoc[1];
+1133         return cleaned || s;
+1134     }
+1135 
+1136     function importExcelFile(e) {
+1137         const file = e.target.files[0];
+1138         if (!file) return;
+1139 
+1140         const reader = new FileReader();
+1141         reader.onload = function(evt) {
+1142             try {
+1143                 const data = new Uint8Array(evt.target.result);
+1144                 const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+1145                 const extractedRecords = [];
+1146                 currentSheetCount = workbook.SheetNames.length;
+1147 
+1148                 // 遍歷 Excel 所有分頁
+1149                 workbook.SheetNames.forEach(sheetName => {
+1150                     const worksheet = workbook.Sheets[sheetName];
+1151                     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "", blankrows: false, raw: false });
+1152                     if (!rows || rows.length === 0) return;
+1153 
+1154                     let batchCol = -1, locCol = -1, dateCol = -1, tankCol = -1, custCol = -1, prodCol = -1, poCol = -1;
+1155                     let startRow = 0;
+1156 
+1157                     // 檢查分頁全域文字是否標記為台積電 (例如 TSMC IPA料號:L12C53161)
+1158                     let sheetHasTsmc = false;
+1159                     for (let r = 0; r < Math.min(5, rows.length); r++) {
+1160                         const rowStr = (rows[r] || []).join(" ").toUpperCase();
+1161                         if (rowStr.includes("TSMC") || rowStr.includes("台積")) {
+1162                             sheetHasTsmc = true;
+1163                             break;
+1164                         }
+1165                     }
+1166 
+1167                     // 動態掃描前 15 列尋找欄位標題 (支援「到貨」、「到貨地」、「槽號」、「批號」等)
+1168                     for (let r = 0; r < Math.min(15, rows.length); r++) {
+1169                         const row = rows[r];
+1170                         if (!row) continue;
+1171                         for (let c = 0; c < row.length; c++) {
+1172                             const v = String(row[c] || "").trim();
+1173                             if (batchCol === -1 && (v.includes("批號") || v.toUpperCase().includes("BATCH") || v.toUpperCase().includes("LOT"))) batchCol = c;
+1174                             if (locCol === -1 && (v.includes("地點") || v.includes("指送") || v.includes("交貨") || v.includes("到貨地") || v.includes("送達") || v.includes("廠區") || v.toUpperCase().includes("LOCATION") || v.toUpperCase().includes("DEST"))) locCol = c;
+1175                             if (dateCol === -1 && (v === "到貨" || v === "到貨日" || v === "日期" || v === "出車" || v.includes("到貨日") || v.includes("出貨日") || v.includes("出車日") || v.includes("日期") || v.toUpperCase().includes("DATE")) && !v.includes("地") && !v.includes("點")) dateCol = c;
+1176                             if (tankCol === -1 && (v.includes("槽號") || v.includes("槽車") || v.toUpperCase().includes("TANK"))) tankCol = c;
+1177                             if (poCol === -1 && (v.includes("採購單") || v.toUpperCase().includes("PO"))) poCol = c;
+1178                             if (custCol === -1 && (v.includes("對象") || v.includes("客戶") || v.includes("廠商") || v.toUpperCase().includes("CUSTOMER"))) custCol = c;
+1179                             if (prodCol === -1 && (v.includes("品名") || v.includes("產品") || v.toUpperCase().includes("PRODUCT"))) prodCol = c;
+1180                         }
+1181                         if (batchCol !== -1 && (locCol !== -1 || dateCol !== -1)) {
+1182                             startRow = r + 1;
+1183                             break;
+1184                         }
+1185                     }
+1186 
+1187                     // 鴻勝 / 勝一標準欄位備援 (B:到貨=1, C:批號=2, D:槽號=3, E:到貨地=4)
+1188                     if (batchCol === -1 || locCol === -1) {
+1189                         batchCol = 2;
+1190                         dateCol = 1;
+1191                         tankCol = 3;
+1192                         locCol = 4;
+1193                         startRow = 2; // 資料通常從第 3 列 (index 2) 開始
+1194                     }
+1195 
+1196                     for (let r = startRow; r < rows.length; r++) {
+1197                         const row = rows[r];
+1198                         if (!row || row.length === 0) continue;
+1199 
+1200                         let batchVal = String(row[batchCol] || "").trim().toUpperCase();
+1201                         let locVal = String(row[locCol] || "").trim().toUpperCase();
+1202                         let dateVal = dateCol !== -1 ? row[dateCol] : "";
+1203                         let tankVal = tankCol !== -1 ? String(row[tankCol] || "").trim() : "";
+1204                         let poVal = poCol !== -1 ? String(row[poCol] || "").trim() : "";
+1205                         let custVal = custCol !== -1 ? String(row[custCol] || "").trim() : "";
+1206 
+1207                         // 如果指定欄位不是有效 10 碼批號，在整列搜尋符合 10 碼英數混合字串 (如 26817E3051, 26731E44J1)
+1208                         if (batchVal.length !== 10 || !/[0-9]/.test(batchVal)) {
+1209                             for (let c = 0; c < row.length; c++) {
+1210                                 let cellStr = String(row[c] || "").trim().toUpperCase();
+1211                                 if (cellStr.length === 10 && /[0-9]/.test(cellStr) && /[A-Z]/.test(cellStr) && !cellStr.includes("/") && !cellStr.includes("-")) {
+1212                                     batchVal = cellStr;
+1213                                     break;
+1214                                 }
+1215                             }
+1216                         }
+1217 
+1218                         // 鴻勝批號嚴格必須剛好為 10 碼
+1219                         if (batchVal.length !== 10 || !/[0-9]/.test(batchVal)) continue;
+1220 
+1221                         // 排除明確非台積電客戶 (例如 南亞、長春、聯電、日月光等)
+1222                         if (custVal && (custVal.includes("南亞") || custVal.includes("長春") || custVal.includes("聯電") || custVal.includes("日月光")) && !custVal.includes("台積")) {
+1223                             continue;
+1224                         }
+1225 
+1226                         let cleanLoc = cleanLocationStr(locVal);
+1227                         let isTsmc = sheetHasTsmc || 
+1228                                      (custVal && custVal.includes("台積")) || 
+1229                                      (locVal && (locVal.includes("台積") || locVal.includes("18P") || locVal.includes("15P") || locVal.includes("12P") || locVal.includes("14P") || locVal.includes("AP") || locVal.includes("F"))) ||
+1230                                      SERVER_MAPPING[cleanLoc];
+1231                         if (!isTsmc && custVal && !custVal.includes("台積")) continue;
+1232 
+1233                         let normDate = normalizeDateStr(dateVal);
+1234                         if (!tankVal) {
+1235                             tankVal = getTankFromBatch(batchVal);
+1236                         }
+1237 
+1238                         extractedRecords.push({
+1239                             sheet: sheetName,
+1240                             batch: batchVal,
+1241                             tank: tankVal,
+1242                             loc: cleanLoc,
+1243                             date: normDate,
+1244                             po: poVal
+1245                         });
+1246                     }
+1247                 });
+1248 
+1249                 if (extractedRecords.length === 0) {
+1250                     alert(`⚠️ 在所選檔案的所有 ${currentSheetCount} 個分頁中，未找到任何有效的台積電批號排程資料！`);
+1251                     return;
+1252                 }
+1253 
+1254                 allExtractedRecords = extractedRecords;
+1255                 
+1256                 // 核心修正：跨分頁收集資料後，必須依日期進行排序，確保由下往上抓取的最新筆數包含所有分頁
+1257                 allExtractedRecords.sort((a, b) => {
+1258                     let d1 = a.date || "";
+1259                     let d2 = b.date || "";
+1260                     return d1.localeCompare(d2);
+1261                 });
+1262                 
+1263                 // 預設嘗試啟用「今天~後天」優先過濾
+1264                 const today = new Date();
+1265                 const getFmt = (d) => {
+1266                     let y = d.getFullYear();
+1267                     let m = String(d.getMonth() + 1).padStart(2, '0');
+1268                     let day = String(d.getDate()).padStart(2, '0');
+1269                     return `${y}-${m}-${day}`;
+1270                 };
+1271 
+1272                 const d0 = getFmt(today);
+1273                 let d1Obj = new Date(today); d1Obj.setDate(today.getDate() + 1); const d1 = getFmt(d1Obj);
+1274                 let d2Obj = new Date(today); d2Obj.setDate(today.getDate() + 2); const d2 = getFmt(d2Obj);
+1275                 const d0_d2 = [d0, d1, d2];
+1276 
+1277                 const windowMatches = allExtractedRecords.filter(r => d0_d2.includes(r.date));
+1278                 if (windowMatches.length > 0) {
+1279                     currentFilteredRecords = windowMatches;
+1280                     showImportModal(`已優先過濾「今天~後天 (${d0} ~ ${d2})」共 ${windowMatches.length} 筆 (全 ${currentSheetCount} 個分頁總計 ${allExtractedRecords.length} 筆)`);
+1281                 } else {
+1282                     currentFilteredRecords = [...allExtractedRecords];
+1283                     showImportModal(`全 ${currentSheetCount} 個分頁總計 ${allExtractedRecords.length} 筆排程 (無今天~後天資料，顯示全部)`);
+1284                 }
+1285 
+1286             } catch (err) {
+1287                 alert("❌ 讀取 Excel 失敗：" + err.message);
+1288             }
+1289             e.target.value = ""; // 重置 input file
+1290         };
+1291         reader.readAsArrayBuffer(file);
+1292     }
+1293 
+1294     function filterByDateMode(mode) {
+1295         const today = new Date();
+1296         const getFmt = (d) => {
+1297             let y = d.getFullYear();
+1298             let m = String(d.getMonth() + 1).padStart(2, '0');
+1299             let day = String(d.getDate()).padStart(2, '0');
+1300             return `${y}-${m}-${day}`;
+1301         };
+1302 
+1303         const d0 = getFmt(today);
+1304         let d1Obj = new Date(today); d1Obj.setDate(today.getDate() + 1); const d1 = getFmt(d1Obj);
+1305         let d2Obj = new Date(today); d2Obj.setDate(today.getDate() + 2); const d2 = getFmt(d2Obj);
+1306 
+1307         let filtered = [];
+1308         let label = "";
+1309 
+1310         if (mode === 'd0_d2') {
+1311             const targets = [d0, d1, d2];
+1312             filtered = allExtractedRecords.filter(r => targets.includes(r.date));
+1313             label = `「今天~後天 (${d0} ~ ${d2})」`;
+1314         } else if (mode === 'd0') {
+1315             filtered = allExtractedRecords.filter(r => r.date === d0);
+1316             label = `「今天 (${d0})」`;
+1317         } else if (mode === 'd1') {
+1318             filtered = allExtractedRecords.filter(r => r.date === d1);
+1319             label = `「明天 (${d1})」`;
+1320         } else if (mode === 'd2') {
+1321             filtered = allExtractedRecords.filter(r => r.date === d2);
+1322             label = `「後天 (${d2})」`;
+1323         } else {
+1324             filtered = [...allExtractedRecords];
+1325             label = `「全部日期」`;
+1326         }
+1327 
+1328         if (filtered.length === 0) {
+1329             alert(`在所有 ${currentSheetCount} 個分頁中，找不到符合 ${label} 的出貨排程！`);
+1330             return;
+1331         }
+1332 
+1333         currentFilteredRecords = filtered;
+1334         document.getElementById("importModalTotal").innerText = `${label} 共 ${filtered.length} 筆 (全 ${currentSheetCount} 分頁總計 ${allExtractedRecords.length} 筆)`;
+1335         setImportCount('all');
+1336     }
+1337 
+1338     function filterTodayPlus2() {
+1339         filterByDateMode('d0_d2');
+1340     }
+1341 
+1342     function showImportModal(infoText) {
+1343         document.getElementById("importModalTotal").innerText = infoText;
+1344         document.getElementById("importModalCount").value = currentFilteredRecords.length;
+1345         updateImportPreview();
+1346         document.getElementById("importModal").style.display = "flex";
+1347     }
+1348 
+1349     function hideImportModal() {
+1350         document.getElementById("importModal").style.display = "none";
+1351     }
+1352 
+1353     function setImportCount(num) {
+1354         const total = currentFilteredRecords.length;
+1355         if (num === 'all') num = total;
+1356         document.getElementById("importModalCount").value = Math.min(num, total);
+1357         updateImportPreview();
+1358     }
+1359 
+1360     function updateConfirmButtonText() {
+1361         const checkboxes = document.querySelectorAll('.import-checkbox');
+1362         let checkedCount = 0;
+1363         checkboxes.forEach(cb => { if (cb.checked) checkedCount++; });
+1364         const btnConfirm = document.querySelector("#importModal .btn-green");
+1365         if (btnConfirm) {
+1366             btnConfirm.innerText = `🚀 確認將這 ${checkedCount} 筆匯入系統`;
+1367         }
+1368     }
+1369 
+1370     function updateImportPreview() {
+1371         const countVal = document.getElementById("importModalCount").value;
+1372         let count = parseInt(countVal) || currentFilteredRecords.length;
+1373         const total = currentFilteredRecords.length;
+1374         count = Math.max(1, Math.min(count, total));
+1375 
+1376         const targetRecords = currentFilteredRecords.slice(-count);
+1377         const list = document.getElementById("importPreviewList");
+1378         list.innerHTML = "";
+1379 
+1380         if (targetRecords.length === 0) {
+1381             list.innerHTML = `<div style="color:#999; padding:10px; text-align:center;">無符合條件之排程資料</div>`;
+1382             updateConfirmButtonText();
+1383             return;
+1384         }
+1385 
+1386         targetRecords.forEach((rec, idx) => {
+1387             const li = document.createElement("div");
+1388             li.style.padding = "8px 5px";
+1389             li.style.borderBottom = "1px solid #EEE";
+1390             li.style.display = "flex";
+1391             li.style.alignItems = "center";
+1392             li.style.gap = "10px";
+1393             
+1394             const dateStr = rec.date ? `日期: ${rec.date}` : `無日期`;
+1395             const sheetTag = rec.sheet ? `[${rec.sheet}] ` : ``;
+1396             const timeStr = rec.time ? ` | 時間: ${rec.time}` : ``;
+1397             
+1398             const checkbox = document.createElement("input");
+1399             checkbox.type = "checkbox";
+1400             checkbox.checked = true;
+1401             checkbox.className = "import-checkbox";
+1402             checkbox.dataset.idx = idx;
+1403             checkbox.style.width = "18px";
+1404             checkbox.style.height = "18px";
+1405             checkbox.style.cursor = "pointer";
+1406             checkbox.onchange = updateConfirmButtonText;
+1407 
+1408             const label = document.createElement("label");
+1409             label.style.cursor = "pointer";
+1410             label.innerText = `[${(idx+1).toString().padStart(2, '0')}] ${sheetTag}${dateStr}${timeStr} | 批號: ${rec.batch.padEnd(11, ' ')} | 槽號: ${(rec.tank || '無').padEnd(5, ' ')} | 地點: ${rec.loc || '無'}`;
+1411             label.style.flex = "1";
+1412             label.onclick = (e) => { e.preventDefault(); checkbox.checked = !checkbox.checked; updateConfirmButtonText(); };
+1413 
+1414             li.appendChild(checkbox);
+1415             li.appendChild(label);
+1416             list.appendChild(li);
+1417         });
+1418 
+1419         updateConfirmButtonText();
+1420     }
+1421 
+1422     function confirmImport() {
+1423         let count = parseInt(document.getElementById("importModalCount").value) || currentFilteredRecords.length;
+1424         count = Math.max(1, Math.min(count, currentFilteredRecords.length));
+1425 
+1426         const targetRecords = currentFilteredRecords.slice(-count);
+1427         const checkboxes = document.querySelectorAll('.import-checkbox');
+1428         
+1429         const selectedRecords = [];
+1430         checkboxes.forEach(cb => {
+1431             if (cb.checked) {
+1432                 const idx = parseInt(cb.dataset.idx);
+1433                 if (idx >= 0 && idx < targetRecords.length) {
+1434                     selectedRecords.push(targetRecords[idx]);
+1435                 }
+1436             }
+1437         });
+1438 
+1439         if (selectedRecords.length === 0) {
+1440             alert("請至少勾選一筆排程！");
+1441             return;
+1442         }
+1443 
+1444         clearAllRows();
+1445         if (selectedRecords.length > document.getElementById("tableBody").children.length) {
+1446             addMoreRows(selectedRecords.length - document.getElementById("tableBody").children.length);
+1447         }
+1448 
+1449         selectedRecords.forEach((rec, idx) => {
+1450             const rowIdx = idx + 1;
+1451             document.getElementById(`batch_${rowIdx}`).value = rec.batch;
+1452             onBatchChange(rowIdx);
+1453             document.getElementById(`loc_${rowIdx}`).value = rec.loc;
+1454             onLocChange(rowIdx);
+1455             if (rec.date) {
+1456                 document.getElementById(`date_${rowIdx}`).value = rec.date;
+1457             }
+1458             if (rec.po) {
+1459                 document.getElementById(`po_${rowIdx}`).value = rec.po;
+1460             }
+1461         });
+1462 
+1463         document.getElementById("coaStatusBox").style.display="block"; document.getElementById("coaStatusBox").innerText = `✅ 成功從 Excel 匯入 ${selectedRecords.length} 筆排程！`;
+1464         hideImportModal();
+1465     }
+1466 
+1467     function clearRow(idx) {
+1468         document.getElementById(`batch_${idx}`).value = "";
+1469         document.getElementById(`tank_${idx}`).value = "";
+1470         document.getElementById(`loc_${idx}`).value = "";
+1471         document.getElementById(`long_${idx}`).value = "";
+1472         document.getElementById(`date_${idx}`).value = "";
+1473         if (document.getElementById(`po_${idx}`)) document.getElementById(`po_${idx}`).value = "";
+1474     }
+1475 
+1476     function clearAllRows() {
+1477         const total = document.getElementById("tableBody").children.length;
+1478         for (let i = 1; i <= total; i++) {
+1479             clearRow(i);
+1480         }
+1481     }
+1482 
+1483     // 🚀 一鍵一次全產生打包 ZIP
+1484     async function generateAllZip() {
+1485         const total = document.getElementById("tableBody").children.length;
+1486         const records = [];
+1487 
+1488         for (let i = 1; i <= total; i++) {
+1489             const batch = document.getElementById(`batch_${i}`).value.trim().toUpperCase();
+1490             const tank = document.getElementById(`tank_${i}`).value.trim();
+1491             const loc = document.getElementById(`loc_${i}`).value.trim().toUpperCase();
+1492             const dateVal = document.getElementById(`date_${i}`).value.trim();
+1493             const poVal = document.getElementById(`po_${i}`) ? document.getElementById(`po_${i}`).value.trim() : "";
+1494 
+1495             if (batch || loc) {
+1496                 if (batch.length !== 10) {
+1497                     alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10 碼。`);
+1498                     return;
+1499                 }
+1500                 if (!SERVER_MAPPING[loc]) {
+1501                     alert(`第 ${i} 項的地點「${loc}」不存在於地點對照表中！`);
+1502                     return;
+1503                 }
+1504                 records.push({
+1505                     batch: batch,
+1506                     tank: tank,
+1507                     loc: loc,
+1508                     date: dateVal,
+1509                     po: poVal
+1510                 });
+1511             }
+1512         }
+1513 
+1514         if (records.length === 0) {
+1515             alert("請至少輸入一筆有效的排程資料！");
+1516             return;
+1517         }
+1518 
+1519         const btn = document.getElementById("btnAll");
+1520         const origBtnText = btn ? btn.innerHTML : "🚀 一鍵打包產生所有報表 (依地點分夾 ZIP)";
+1521         const statusBox = document.getElementById("coaStatusBox");
+1522 
+1523         try {
+1524             showLoading("⏳ 正在與伺服器通訊並產生所有 Excel 報表，請稍候...");
+1525             if (btn) {
+1526                 btn.disabled = true;
+1527                 btn.innerHTML = "⏳ 正在產生所有報表，請稍候...";
+1528             }
+1529             if (statusBox) { statusBox.style.display="block";
+1530                 statusBox.innerText = "⏳ 正在與伺服器通訊並產生所有 Excel 報表，請稍候...";
+1531             }
+1532 
+1533             const do3in1 = document.getElementById("chkWeb3in1") ? document.getElementById("chkWeb3in1").checked : true;
+1534             const doLorry = document.getElementById("chkWebLorry") ? document.getElementById("chkWebLorry").checked : true;
+1535 
+1536             const res = await fetch("/api/generate_all_zip", {
+1537                 method: "POST",
+1538                 headers: { "Content-Type": "application/json" },
+1539                 body: JSON.stringify({
+1540                     records: records,
+1541                     do3in1: do3in1,
+1542                     doTransport: false,
+1543                     doLorry: doLorry
+1544                 })
+1545             });
+1546 
+1547             if (!res.ok) {
+1548                 let msg = "伺服器處理失敗";
+1549                 try {
+1550                     const err = await res.json();
+1551                     msg = err.detail || msg;
+1552                 } catch(e) {
+1553                     if (res.status === 404) {
+1554                         msg = "⚠️ 偵測到目前網頁位於純靜態雲端環境（Cloudflare Pages）。\n\n因三合一單與 Barcode 生成需調用 Python 核心，請在本地電腦執行「架設伺服器_一鍵啟動.bat」或開啟「三合一單自動產生器」進行完整報表下載！";
+1555                     } else {
+1556                         msg = `HTTP 錯誤碼: ${res.status}`;
+1557                     }
+1558                 }
+1559                 alert(msg);
+1560                 return;
+1561             }
+1562 
+1563             const blob = await res.blob();
+1564             const url = window.URL.createObjectURL(blob);
+1565             const a = document.createElement("a");
+1566             a.href = url;
+1567             const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+1568             a.download = `三合一單輸出_${todayStr}.zip`;
+1569             document.body.appendChild(a);
+1570             a.click();
+1571             a.remove();
+1572 
+1573             if (statusBox) { statusBox.style.display="block";
+1574                 statusBox.innerText = "🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！";
+1575             }
+1576             alert("🎉 一鍵全產生成功！已為您下載包含所有三合一單與運輸通知表之 ZIP 資料夾！");
+1577         } catch(e) {
+1578             alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
+1579             if (statusBox) { statusBox.style.display="block";
+1580                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
+1581             }
+1582         } finally {
+1583             hideLoading();
+1584             if (btn) {
+1585                 btn.disabled = false;
+1586                 btn.innerHTML = origBtnText;
+1587             }
+1588         }
+1589     }
+1590 
+1591     async function generate3in1Single() {
+1592         const total = document.getElementById("tableBody").children.length;
+1593         const records = [];
+1594 
+1595         for (let i = 1; i <= total; i++) {
+1596             const batch = document.getElementById(`batch_${i}`).value.trim().toUpperCase();
+1597             const tank = document.getElementById(`tank_${i}`).value.trim();
+1598             const loc = document.getElementById(`loc_${i}`).value.trim().toUpperCase();
+1599             const dateVal = document.getElementById(`date_${i}`).value.trim();
+1600             const poVal = document.getElementById(`po_${i}`) ? document.getElementById(`po_${i}`).value.trim() : "";
+1601 
+1602             if (batch || loc) {
+1603                 if (batch.length !== 10) {
+1604                     alert(`第 ${i} 項的批號長度錯誤！必須剛好為 10 碼。`);
+1605                     return;
+1606                 }
+1607                 if (!SERVER_MAPPING[loc]) {
+1608                     alert(`第 ${i} 項的地點「${loc}」不存在於地點對照表中！`);
+1609                     return;
+1610                 }
+1611                 records.push({
+1612                     batch: batch,
+1613                     tank: tank,
+1614                     loc: loc,
+1615                     date: dateVal,
+1616                     po: poVal
+1617                 });
+1618             }
+1619         }
+1620 
+1621         if (records.length === 0) {
+1622             alert("請至少輸入一筆有效的排程資料！");
+1623             return;
+1624         }
+1625 
+1626         const btn = document.getElementById("btnSingle3in1");
+1627         const origBtnText = btn ? btn.innerHTML : "📄 單獨產生三合一單 Excel";
+1628         const statusBox = document.getElementById("coaStatusBox");
+1629 
+1630         try {
+1631             if (btn) {
+1632                 btn.disabled = true;
+1633                 btn.innerHTML = "⏳ 正在產生三合一單，請稍候...";
+1634             }
+1635             if (statusBox) { statusBox.style.display="block";
+1636                 statusBox.innerText = "⏳ 正在產生三合一單 Excel，請稍候...";
+1637             }
+1638 
+1639             const res = await fetch("/api/generate_all_zip", {
+1640                 method: "POST",
+1641                 headers: { "Content-Type": "application/json" },
+1642                 body: JSON.stringify({
+1643                     records: records,
+1644                     do3in1: true,
+1645                     doTransport: false
+1646                 })
+1647             });
+1648 
+1649             if (!res.ok) {
+1650                 let msg = "伺服器處理失敗";
+1651                 try {
+1652                     const err = await res.json();
+1653                     msg = err.detail || msg;
+1654                 } catch(e) {
+1655                     if (res.status === 404) {
+1656                         msg = "⚠️ 偵測到目前網頁位於純靜態雲端環境（Cloudflare Pages）。\n\n因三合一單需 Python 條碼核心，請在本地電腦執行「架設伺服器_一鍵啟動.bat」或開啟「三合一單自動產生器」！";
+1657                     } else {
+1658                         msg = `HTTP 錯誤碼: ${res.status}`;
+1659                     }
+1660                 }
+1661                 alert(msg);
+1662                 return;
+1663             }
+1664 
+1665             const blob = await res.blob();
+1666             const url = window.URL.createObjectURL(blob);
+1667             const a = document.createElement("a");
+1668             a.href = url;
+1669             const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+1670             a.download = `三合一單輸出_${todayStr}.zip`;
+1671             document.body.appendChild(a);
+1672             a.click();
+1673             a.remove();
+1674 
+1675             if (statusBox) { statusBox.style.display="block";
+1676                 statusBox.innerText = "🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！";
+1677             }
+1678             alert("🎉 單獨產生三合一單成功！已為您下載包含三合一單 Excel 之 ZIP 資料夾！");
+1679         } catch(e) {
+1680             alert(`連線產生失敗: ${e}\n\n若您是在本地操作，請確認「架設伺服器_一鍵啟動.bat」是否已正常運行！`);
+1681             if (statusBox) { statusBox.style.display="block";
+1682                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
+1683             }
+1684         } finally {
+1685             hideLoading();
+1686             if (btn) {
+1687                 btn.disabled = false;
+1688                 btn.innerHTML = origBtnText;
+1689             }
+1690             hideLoading();
+1691         }
+1692     }
+1693 
+1694     async function uploadCoaForms(e) {
+1695         const files = e.target.files;
+1696         if (!files || files.length === 0) return;
+1697 
+1698         const coaBox = document.getElementById("coaStatusBox");
+1699         coaBox.style.display = "block";
+1700         coaBox.style.borderLeftColor = "#F57C00";
+1701         coaBox.style.background = "#FFF8E1";
+1702         coaBox.style.color = "#E65100";
+1703         coaBox.textContent = `⏳ 正在上傳 ${files.length} 份 COA 表單...`;
+1704 
+1705         showLoading(`⏳ 正在上傳 ${files.length} 份 COA 表單...`);
+1706         const formData = new FormData();
+1707         for (let i = 0; i < files.length; i++) {
+1708             formData.append("files", files[i]);
+1709         }
+1710 
+1711         try {
+1712             const res = await fetch("/api/upload_coa_files", {
+1713                 method: "POST",
+1714                 body: formData
+1715             });
+1716 
+1717             if (res.ok) {
+1718                 const data = await res.json();
+1719                 const coaBatches = data.coa_batches || [];
+1720 
+1721                 // 取得目前表格裡所有批號
+1722                 const tableBatches = [];
+1723                 document.querySelectorAll("input[id^='batch_']").forEach(el => {
+1724                     const v = el.value.trim();
+1725                     if (v) tableBatches.push(v.toUpperCase());
+1726                 });
+1727 
+1728                 // 比對
+1729                 let matchLines = [`✅ 成功上傳 ${files.length} 份 COA 表單，批號比對結果：\n`];
+1730                 let hasError = false;
+1731                 coaBatches.forEach(item => {
+1732                     const b = item.batch ? item.batch.toUpperCase() : "";
+1733                     const fname = item.filename;
+1734                     if (!b) {
+1735                         matchLines.push(`⚠️ ${fname}：無法解析批號`);
+1736                         hasError = true;
+1737                     } else if (tableBatches.length > 0 && !tableBatches.includes(b)) {
+1738                         matchLines.push(`❌ ${fname}：批號 ${b} ─ 表格中無此批號！`);
+1739                         hasError = true;
+1740                     } else {
+1741                         matchLines.push(`✅ ${fname}：批號 ${b} ─ 比對成功`);
+1742                     }
+1743                 });
+1744 
+1745                 coaBox.style.borderLeftColor = hasError ? "#D32F2F" : "#388E3C";
+1746                 coaBox.style.background = hasError ? "#FFEBEE" : "#E8F5E9";
+1747                 coaBox.style.color = hasError ? "#B71C1C" : "#1B5E20";
+1748                 coaBox.textContent = matchLines.join("\n");
+1749             } else {
+1750                 const err = await res.json();
+1751                 coaBox.style.borderLeftColor = "#D32F2F";
+1752                 coaBox.style.background = "#FFEBEE";
+1753                 coaBox.style.color = "#B71C1C";
+1754                 coaBox.textContent = `❌ COA 表單上傳失敗: ${err.detail}`;
+1755                 alert(`上傳失敗: ${err.detail}`);
+1756             }
+1757         } catch (error) {
+1758             coaBox.style.borderLeftColor = "#D32F2F";
+1759             coaBox.style.background = "#FFEBEE";
+1760             coaBox.style.color = "#B71C1C";
+1761             coaBox.textContent = `❌ 連線失敗: ${error}`;
+1762             alert(`連線失敗: ${error}`);
+1763         } finally {
+1764             hideLoading();
+1765         }
+1766         e.target.value = "";
+1767     }
+1768 
+1769     async function generateTransportExcel() {
+1770         const total = document.getElementById("tableBody").children.length;
+1771         const records = [];
+1772 
+1773         for (let i = 1; i <= total; i++) {
+1774             const batch = document.getElementById(`batch_${i}`).value.trim();
+1775             const tank = document.getElementById(`tank_${i}`).value.trim();
+1776             const loc = document.getElementById(`loc_${i}`).value.trim();
+1777             const dateVal = document.getElementById(`date_${i}`).value.trim();
+1778             const timeVal = document.getElementById(`time_${i}`).value.trim();
+1779             const modVal = document.getElementById(`mod_${i}`).value.trim();
+1780             const poVal = document.getElementById(`po_${i}`) ? document.getElementById(`po_${i}`).value.trim() : "";
+1781 
+1782             if (batch || loc || tank || dateVal || modVal) {
+1783                 records.push({
+1784                     batch: batch,
+1785                     tank: tank,
+1786                     loc: loc,
+1787                     date: dateVal,
+1788                     time: timeVal,
+1789                     modTime: modVal,
+1790                     po: poVal
+1791                 });
+1792             }
+1793         }
+1794 
+1795         if (records.length === 0) {
+1796             alert("請至少輸入一筆有效的排程資料！");
+1797             return;
+1798         }
+1799 
+1800         const btn = document.getElementById("btnSingleTransport");
+1801         const origBtnText = btn ? btn.innerHTML : "📄 單獨產生運輸通知表 Excel";
+1802         const statusBox = document.getElementById("coaStatusBox");
+1803 
+1804         try {
+1805             if (btn) {
+1806                 btn.disabled = true;
+1807                 btn.innerHTML = "⏳ 正在產生運輸通知表，請稍候...";
+1808             }
+1809             if (statusBox) { statusBox.style.display="block";
+1810                 statusBox.innerText = "⏳ 正在產生運輸通知表 Excel，請稍候...";
+1811             }
+1812 
+1813             const res = await fetch("/api/generate_all_zip", {
+1814                 method: "POST",
+1815                 headers: { "Content-Type": "application/json" },
+1816                 body: JSON.stringify({
+1817                     records: records,
+1818                     do3in1: false,
+1819                     doTransport: true
+1820                 })
+1821             });
+1822 
+1823             if (!res.ok) {
+1824                 const err = await res.json();
+1825                 alert(`產生失敗: ${err.detail}`);
+1826                 return;
+1827             }
+1828 
+1829             const blob = await res.blob();
+1830             const url = window.URL.createObjectURL(blob);
+1831             const a = document.createElement("a");
+1832             a.href = url;
+1833             const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+1834             a.download = `運輸通知表_${todayStr}.zip`;
+1835             document.body.appendChild(a);
+1836             a.click();
+1837             a.remove();
+1838 
+1839             if (statusBox) { statusBox.style.display="block";
+1840                 statusBox.innerText = "🎉 單獨產生運輸通知表成功！已為您下載運輸通知表 Excel！";
+1841             }
+1842             alert("🎉 單獨產生運輸通知表成功！已為您下載運輸通知表 Excel！");
+1843         } catch(e) {
+1844             alert(`產生失敗: ${e}`);
+1845             if (statusBox) { statusBox.style.display="block";
+1846                 statusBox.innerText = `⚠️ 產生失敗: ${e}`;
+1847             }
+1848         } finally {
+1849             hideLoading();
+1850             if (btn) {
+1851                 btn.disabled = false;
+1852                 btn.innerHTML = origBtnText;
+1853             }
+1854         }
+1855     }
+1856 </script>
+1857 
+1858 </body>
+1859 </html>

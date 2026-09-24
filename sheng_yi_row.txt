@@ -1,0 +1,150 @@
+    def add_input_rows(self, count):
+        for i in range(count):
+            row_idx = len(self.entries) + 1
+            row_grid_idx = row_idx
+            
+            # Col 0: 勾選
+            chk_var = tk.BooleanVar(value=True)
+            chk = tk.Checkbutton(self.scrollable_frame, variable=chk_var)
+            chk.grid(row=row_grid_idx, column=0, padx=2, pady=2)
+
+            # Col 1: 項次
+            lbl_num = tk.Label(self.scrollable_frame, text=str(row_idx), font=("Arial", 10))
+            lbl_num.grid(row=row_grid_idx, column=1, padx=2, pady=2)
+            
+            # Col 2: 批號
+            batch_var = tk.StringVar()
+            batch_entry = tk.Entry(self.scrollable_frame, textvariable=batch_var, width=16, font=("Arial", 10))
+            batch_entry.grid(row=row_grid_idx, column=2, padx=2, pady=2, sticky="ew")
+            
+            # Col 3: 槽號
+            tank_var = tk.StringVar()
+            tank_entry = tk.Entry(self.scrollable_frame, textvariable=tank_var, state="readonly", width=25, font=("Arial", 10), fg="blue")
+            tank_entry.grid(row=row_grid_idx, column=3, padx=2, pady=2, sticky="ew")
+
+            # Col 4: 品名
+            prod_var = tk.StringVar()
+            prod_entry = tk.Entry(self.scrollable_frame, textvariable=prod_var, width=12, font=("Arial", 10))
+            prod_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
+            
+            # Col 5: 地點
+            loc_var = tk.StringVar()
+            loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=12, font=("Arial", 10))
+            loc_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
+            
+            # Col 6: 長代號
+            long_code_var = tk.StringVar()
+            long_code_entry = tk.Entry(self.scrollable_frame, textvariable=long_code_var, state="readonly", width=16, font=("Arial", 10), fg="purple")
+            long_code_entry.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
+            
+            # Col 7: 出貨日期 (Entry + 📅 日曆按鈕)
+            date_frame = tk.Frame(self.scrollable_frame)
+            date_frame.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
+            
+            date_var = tk.StringVar(value="")
+            date_entry = tk.Entry(date_frame, textvariable=date_var, width=11, font=("Arial", 10))
+            date_entry.pack(side="left", fill="x", expand=True)
+            
+            btn_cal = tk.Button(date_frame, text="📅", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
+            btn_cal.pack(side="right", padx=(2, 0))
+            
+            # Col 8: 採購單號
+            po_var = tk.StringVar(value="")
+            po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=15, font=("Arial", 10))
+            po_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+            
+            # Col 9: 單列清空
+            btn_clear = tk.Button(self.scrollable_frame, text="清空", 
+                                  command=lambda r=row_idx: self.clear_single_row(r),
+                                  bg="#FCE4EC", font=("Arial", 9))
+            btn_clear.grid(row=row_grid_idx, column=9, padx=2, pady=2)
+            
+            row_dict = {
+                "chk_var": chk_var,
+                "chk_btn": chk,
+                "lbl_num": lbl_num,
+                "batch_var": batch_var,
+                "batch_entry": batch_entry,
+                "tank_var": tank_var,
+                "tank_entry": tank_entry,
+                "prod_var": prod_var,
+                "prod_entry": prod_entry,
+                "loc_var": loc_var,
+                "loc_entry": loc_entry,
+                "long_code_var": long_code_var,
+                "long_code_entry": long_code_entry,
+                "date_var": date_var,
+                "date_entry": date_entry,
+                "btn_cal": btn_cal,
+                "date_frame": date_frame,
+                "po_var": po_var,
+                "po_entry": po_entry,
+                "btn_clear": btn_clear
+            }
+            
+            self.entries.append(row_dict)
+            
+            # Event bindings
+            batch_entry.bind("<FocusOut>", lambda e, r=row_idx: self.on_batch_change(r))
+            loc_entry.bind("<FocusOut>", lambda e, r=row_idx: self.on_loc_change(r))
+
+    def clear_all_rows(self):
+        """一鍵清除全部輸入欄位 (全清)"""
+        if messagebox.askyesno("確認清空", "確定要清空所有已填寫的批號、地點與時間資料嗎？"):
+            for entry in self.entries:
+                entry["batch_var"].set("")
+                entry["loc_var"].set("")
+                entry["long_code_var"].set("")
+                entry["tank_var"].set("")
+                entry["date_var"].set("")
+                if "prod_var" in entry: entry["prod_var"].set("")
+                
+                if "po_var" in entry: entry["po_var"].set("")
+
+    def set_today_all_dates(self):
+        from datetime import datetime
+        today_str = datetime.now().strftime("%Y/%m/%d")
+        for entry in self.entries:
+            if not entry["date_var"].get().strip():
+                entry["date_var"].set(today_str)
+
+    def clear_single_row(self, r_idx):
+        """清空單一列的資料 (單個清)"""
+        if 0 <= r_idx < len(self.entries):
+            entry = self.entries[r_idx]
+            entry["batch_var"].set("")
+            entry["loc_var"].set("")
+            entry["long_code_var"].set("")
+            entry["tank_var"].set("")
+            entry["date_var"].set("")
+            if "prod_var" in entry: entry["prod_var"].set("")
+            
+            if "po_var" in entry: entry["po_var"].set("")
+
+    def on_batch_change(self, r_idx):
+        if r_idx < 1 or r_idx > len(self.entries): return
+        entry = self.entries[r_idx - 1]
+        batch = entry["batch_var"].get().upper().strip()
+        tank = get_tank_from_batch(batch)
+        entry["tank_var"].set(tank)
+
+    def on_loc_change(self, r_idx):
+        if r_idx < 1 or r_idx > len(self.entries): return
+        entry = self.entries[r_idx - 1]
+        loc = entry["loc_var"].get().strip().upper()
+        if not loc:
+            entry["long_code_var"].set("")
+            return
+            
+        if loc in self.mapping_dict:
+            entry["long_code_var"].set(self.mapping_dict[loc])
+        else:
+            entry["long_code_var"].set("❌ 未知代號")
+
+    def parse_pasted_row_items(self, parts):
+        """
+        智慧解析貼上行中的元素，自動辨識：出貨日期、批號、槽號、地點、時間。
+        支援 Image 1 範例（到貨 + 批號 + 槽號 + 地點）及各式自訂順序！
+        """
+        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": ""}
+        clean_parts = [p.strip() for p in parts if p.strip()]
