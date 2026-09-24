@@ -1359,7 +1359,10 @@ class App(tk.Tk):
         
         if hasattr(self, "lbl_lorry_status"):
             if self.imported_lorry_files:
-                fname = os.path.basename(self.imported_lorry_files[0])
+                if len(self.imported_lorry_files) > 1:
+                    fname = f"已選 {len(self.imported_lorry_files)} 份檔案"
+                else:
+                    fname = os.path.basename(self.imported_lorry_files[0])
                 self.lbl_lorry_status.config(
                     text=f"生產履歷檔案 (Chemical_Lorry*.xlsx): ✅ 已就緒 ({fname})",
                     fg="#2E7D32"
@@ -1371,19 +1374,18 @@ class App(tk.Tk):
                 )
 
     def load_chemical_lorry_file(self):
-        filepath = filedialog.askopenfilename(
-            title="選擇生產履歷檔案 (Chemical_Lorry)",
+        filepaths = filedialog.askopenfilenames(
+            title="選擇生產履歷檔案 (Chemical_Lorry, 可多選)",
             filetypes=[("Excel 活頁簿", "*.xlsx *.xls"), ("所有檔案", "*.*")]
         )
-        if not filepath:
+        if not filepaths:
             return
             
         try:
             self.show_loading("⏳ 正在處理生產履歷，請稍候...")
-            self.imported_lorry_files = [filepath]
+            self.imported_lorry_files = list(filepaths)
             self.update_lorry_status()
             self.gen_lorry_var.set(True)
-            fname = os.path.basename(filepath)
             
             # 因為這步驟僅是讀取路徑非常快，故意加上 0.5 秒延遲讓畫面顯示給人員看，避免覺得沒反應
             import time
@@ -1395,29 +1397,61 @@ class App(tk.Tk):
         # 比對排程批號 vs 生產履歷批號
         try:
             import openpyxl as _opxl
-            _wb = _opxl.load_workbook(filepath, data_only=True)
-            _ws = _wb.active
             lorry_batches = set()
-            for _r in range(7, _ws.max_row + 1):
-                _val = str(_ws.cell(row=_r, column=1).value or "").strip().upper()
-                if _val:
-                    lorry_batches.add(_val)
+            lorry_factory_info = {}
+            lorry_factory_info = {}
+            if hasattr(self, "imported_lorry_files"):
+                for l_file in self.imported_lorry_files:
+                    try:
+                        _wb = _opxl.load_workbook(l_file, data_only=True)
+                        _ws = _wb.active
+                        for _r in range(7, _ws.max_row + 1):
+                            _val = str(_ws.cell(row=_r, column=1).value or "").strip().upper()
+                            if _val:
+                                lorry_batches.add(_val)
+                                f_code = str(_ws.cell(row=_r, column=2).value or "").strip().upper()
+                                lorry_factory_info[_val] = f_code
+                                f_code = str(_ws.cell(row=_r, column=2).value or "").strip().upper()
+                                lorry_factory_info[_val] = f_code
+                        _wb.close()
+                    except:
+                        pass
 
-            table_batches = [row["batch_var"].get().strip().upper() for row in self.entries if row["batch_var"].get().strip()]
+            table_entries = []
+            for row in self.entries:
+                b = row["batch_var"].get().strip().upper()
+                if b:
+                    table_entries.append((b, row["long_code_var"].get().strip().upper()))
 
+            table_batches = [b for b, lc in table_entries]
             missing = [b for b in table_batches if b not in lorry_batches]
             found   = [b for b in table_batches if b in lorry_batches]
+            
+            wrong_factory_msgs = []
+            for b, lc in table_entries:
+                if b in lorry_batches:
+                    l_fac = lorry_factory_info.get(b, "")
+                    expected_substr = lc[1:5] if len(lc) >= 5 else lc
+                    if not l_fac:
+                        wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區空白 (應含 {expected_substr})")
+                    elif l_fac not in lc:
+                        wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區錯誤 ({l_fac})，未對齊長代號 ({lc})")
 
+            fname = f"已選 {len(self.imported_lorry_files)} 份檔案" if len(self.imported_lorry_files) > 1 else os.path.basename(self.imported_lorry_files[0]) if self.imported_lorry_files else ""
             lines = [f"已成功載入生產履歷檔案：\n{fname}\n\n已為您自動勾選【產生單列生產履歷】！\n"]
             if not table_batches:
                 lines.append("ℹ️ 排程表格尚未輸入批號，無法比對。")
             else:
                 for b in found:
                     lines.append(f"✅ {b} ─ 生產履歷已找到")
+                if wrong_factory_msgs:
+                    lines.append("\n--- 廠區異常提醒 ---")
+                    lines.extend(wrong_factory_msgs)
+                    lines.append("--------------------\n")
                 for b in missing:
                     lines.append(f"❌ {b} ─ 生產履歷中找不到！")
 
-            title = "生產履歷已載入" if not missing else "⚠️ 生產履歷載入 (有批號不符)"
+            title = "生產履歷已載入" if not (missing or wrong_factory_msgs) else "⚠️ 生產履歷載入 (有異常)"
             messagebox.showinfo(title, "\n".join(lines))
         except Exception as _e:
             messagebox.showinfo(
@@ -1895,6 +1929,30 @@ class App(tk.Tk):
         if not valid_batches:
             messagebox.showwarning("提示", "請先在列表中填寫並勾選包含批號的資料！")
             return
+            
+        lorry_data_map = {}
+        if hasattr(self, "imported_lorry_files") and self.imported_lorry_files:
+            try:
+                for l_file in self.imported_lorry_files:
+                    try:
+                        src_wb_l = openpyxl.load_workbook(l_file, data_only=True)
+                        src_ws_l = src_wb_l.active
+                        for r in range(7, src_ws_l.max_row + 1):
+                            val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
+                            if val and val not in lorry_data_map:
+                                col_b = str(src_ws_l.cell(row=r, column=2).value or "").strip()
+                                raw_c = src_ws_l.cell(row=r, column=3).value
+                                if isinstance(raw_c, datetime):
+                                    col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
+                                else:
+                                    col_c = str(raw_c or "").strip().split()[0] if raw_c else ""
+                                col_g = str(src_ws_l.cell(row=r, column=7).value or "").strip()
+                                lorry_data_map[val] = {"b": col_b, "c": col_c, "g": col_g}
+                        src_wb_l.close()
+                    except Exception as e:
+                        print(f"Error reading lorry file {l_file}: {e}")
+            except Exception as e:
+                print(f"Lorry outer error: {e}")
 
         try:
             self.show_loading("⏳ 正在處理 COA 表單，請稍候...")
@@ -1925,7 +1983,9 @@ class App(tk.Tk):
                 
                     row = valid_batches[matched_batch]
                     loc_str = row["loc_var"].get().strip()
-                    factory_code = loc_str[1:5] if len(loc_str) >= 5 else loc_str
+                    import re
+                    match = re.search(r'[A-Za-z0-9]+', loc_str)
+                    factory_code = match.group(0) if match else loc_str
                 
                     date_str = row["date_var"].get().strip()
                     formatted_date = date_str.replace("/", "").replace("-", "")
@@ -1956,37 +2016,18 @@ class App(tk.Tk):
                     new_file_path = os.path.join(loc_folder, new_base + ext)
                 
                     col_b, col_g, col_c = "", "", ""
-                    # 提取生產履歷的對應欄位
-                    if hasattr(self, "imported_lorry_files") and self.imported_lorry_files:
-                        try:
-                            src_wb_l = openpyxl.load_workbook(self.imported_lorry_files[0], data_only=True)
-                            src_ws_l = src_wb_l.active
-                            batch_row_map = {}
-                            for r in range(7, src_ws_l.max_row + 1):
-                                val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()
-                                if val and val not in batch_row_map:
-                                    batch_row_map[val] = r
+                    if matched_batch in lorry_data_map:
+                        l_info = lorry_data_map[matched_batch]
+                        col_b = l_info.get("b", "")
+                        col_c = l_info.get("c", "")
+                        col_g = l_info.get("g", "")
                         
-                            matched_r = batch_row_map.get(matched_batch)
-                            if matched_r:
-                                col_b = str(src_ws_l.cell(row=matched_r, column=2).value or "").strip()
-                                raw_c = src_ws_l.cell(row=matched_r, column=3).value
-                                if isinstance(raw_c, datetime):
-                                    col_c = f"{raw_c.year}/{raw_c.month}/{raw_c.day}"
-                                else:
-                                    col_c = str(raw_c or "").strip().split()[0] if raw_c else ""
-                                
-                                col_g = str(src_ws_l.cell(row=matched_r, column=7).value or "").strip()
-                            
-                                # 找出排程中的採購單號前 10 碼
-                                po_no = ""
-                                matched_row = valid_batches.get(matched_batch)
-                                if matched_row and "po_var" in matched_row:
-                                    full_po = matched_row["po_var"].get().strip()
-                                    po_no = full_po[:10] if len(full_po) >= 10 else full_po
-                            src_wb_l.close()
-                        except Exception as le:
-                            error_msgs.append(f"讀取生產履歷失敗: {le}")
+                    # 找出排程中的採購單號前 10 碼
+                    po_no = ""
+                    matched_row = valid_batches.get(matched_batch)
+                    if matched_row and "po_var" in matched_row:
+                        full_po = matched_row["po_var"].get().strip()
+                        po_no = full_po[:10] if len(full_po) >= 10 else full_po
                     # 處理 COA 本身
                     if ext.lower() in ['.xlsx', '.xls']:
                         wb = openpyxl.load_workbook(file_path)
@@ -2008,8 +2049,7 @@ class App(tk.Tk):
                         with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
                             reader = list(csv.reader(f))
                         while len(reader) <= 17: reader.append([])
-                        for r in reader: 
-                            while len(r) <= 11: r.append("")
+                        
                         if col_b or col_g or col_c:
                             if col_b: reader[5][1] = col_b
                             if col_g: reader[6][1] = col_g
@@ -2017,8 +2057,13 @@ class App(tk.Tk):
                             if 'po_no' in locals() and po_no: reader[11][1] = po_no
                         else:
                             reader[5][1] = factory_code
-                        with open(new_file_path, 'w', encoding='utf-8-sig', newline='') as f:
+                        with open(new_file_path, 'w', encoding='big5', newline='') as f:
                             writer = csv.writer(f)
+                            # 僅針對會修改的行補齊欄位，避免產生多餘逗號破壞 TSMC 系統解析
+                            for r_idx in [5, 6, 10, 11]:
+                                if r_idx < len(reader):
+                                    while len(reader[r_idx]) < 12:
+                                        reader[r_idx].append("")
                             writer.writerows(reader)
                     success_count += 1
                 except Exception as e:

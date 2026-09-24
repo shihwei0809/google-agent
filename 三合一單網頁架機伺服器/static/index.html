@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -81,7 +81,7 @@
             </label>
             <label class="btn btn-orange" style="cursor:pointer; background:#E65100;">
                 📋 載入生產履歷 (Chemical_Lorry)
-                <input type="file" id="extraFileInput" accept=".xlsx, .xls" style="display:none;" onchange="uploadExtraFile(event)">
+                <input type="file" id="extraFileInput" accept=".xlsx, .xls" style="display:none;" multiple onchange="uploadExtraFile(event)">
             </label>
             <label class="btn btn-purple" style="cursor:pointer; background:#8E24AA;">
                 📄 載入 COA 表單
@@ -933,21 +933,23 @@
         e.target.value = "";
     }
 
-    // 📁 上傳額外附加檔案 (產生ZIP時將自動複製並依據排程重命名)
+    // 📁 上傳額外附加檔案 (支援多份生產履歷)
     async function uploadExtraFile(e) {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = e.target.files;
+        if (!files || files.length === 0) return;
 
         const coaBox = document.getElementById("coaStatusBox");
         coaBox.style.display = "block";
         coaBox.style.borderLeftColor = "#F57C00";
         coaBox.style.background = "#FFF8E1";
         coaBox.style.color = "#E65100";
-        coaBox.textContent = "⏳ 正在上傳生產履歷...";
+        coaBox.textContent = `⏳ 正在上傳 ${files.length} 份生產履歷...`;
 
-        showLoading("⏳ 正在上傳生產履歷...");
+        showLoading(`⏳ 正在上傳 ${files.length} 份生產履歷...`);
         const formData = new FormData();
-        formData.append("file", file);
+        for (let i = 0; i < files.length; i++) {
+            formData.append("files", files[i]); // 後端以 List[UploadFile] 接收
+        }
 
         try {
             const res = await fetch("/api/upload_extra_file", {
