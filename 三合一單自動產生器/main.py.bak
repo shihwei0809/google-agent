@@ -1298,27 +1298,18 @@ class App(tk.Tk):
 
     def load_mapping(self):
         self.mapping_dict = {}
-        self.part_mapping_dict = {}
         if os.path.exists(self.mapping_path):
             try:
                 map_wb = openpyxl.load_workbook(self.mapping_path, data_only=True)
                 map_ws = map_wb.active
-                rows = list(map_ws.iter_rows(values_only=True))
-                if rows:
-                    headers = [str(h).strip() if h else "" for h in rows[0]]
-                    for row in rows[1:]:
-                        if row and len(row) >= 2 and row[0] and row[1]:
-                            loc_key = str(row[0]).strip().upper()
-                            loc_val = str(row[1]).strip()
-                            if any(kw in loc_key for kw in ("到貨", "地點", "SHORT", "LOCATION", "KEY", "HEADER")):
-                                continue
-                            self.mapping_dict[loc_key] = loc_val
-                            info = {"default": str(row[2]).strip() if len(row) > 2 and row[2] else "", "origins": {}}
-                            for i in range(3, len(headers)):
-                                if i < len(row) and row[i] is not None:
-                                    h_name = headers[i]
-                                    if h_name: info["origins"][h_name] = str(row[i]).strip()
-                            self.part_mapping_dict[loc_key] = info
+                for row in map_ws.iter_rows(values_only=True):
+                    if row and len(row) >= 2 and row[0] and row[1]:
+                        loc_key = str(row[0]).strip().upper()
+                        loc_val = str(row[1]).strip()
+                        # 過濾標題列 (例如 短地點, 長代號, 地點)
+                        if any(kw in loc_key for kw in ("地點", "代號", "SHORT", "LOCATION", "KEY", "HEADER")):
+                            continue
+                        self.mapping_dict[loc_key] = loc_val
                 map_wb.close()
             except Exception as e:
                 pass
@@ -1583,9 +1574,7 @@ class App(tk.Tk):
             (5, "長代號 (自動)"),
             (6, "出貨日期 📅"),
             (7, "採購單號"),
-            (8, "出貨區 (貼上)"),
-            (9, "料號 (自動)"),
-            (10, "清空單列")
+            (8, "單列清空")
         ]
         
         for col_idx, title in headers:
@@ -1680,16 +1669,6 @@ class App(tk.Tk):
             po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=18, font=("Arial", 10), fg="#333")
             po_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
 
-            # Col 8: 出貨區
-            origin_var = tk.StringVar()
-            origin_entry = tk.Entry(self.scrollable_frame, textvariable=origin_var, width=12, font=("Arial", 10), fg="orange")
-            origin_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
-
-            # Col 9: 料號
-            part_var = tk.StringVar()
-            part_entry = tk.Entry(self.scrollable_frame, textvariable=part_var, width=12, font=("Arial", 10), fg="purple")
-            part_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
-
             # Col 8: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
@@ -1702,7 +1681,7 @@ class App(tk.Tk):
                 width=6,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=10, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=8, padx=4, pady=2)
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
@@ -1720,9 +1699,7 @@ class App(tk.Tk):
                 "loc_var": loc_var,
                 "long_code_var": long_code_var,
                 "date_var": date_var,
-                "po_var": po_var,
-                "origin_var": origin_var,
-                "part_var": part_var
+                "po_var": po_var
             })
 
     def clear_all_rows(self):
@@ -1761,21 +1738,6 @@ class App(tk.Tk):
         tank = get_tank_from_batch(batch)
         tank_var.set(tank)
 
-    def update_part_no(self, loc_var, origin_var, part_var):
-        if not hasattr(self, 'part_mapping_dict'): return
-        loc = loc_var.get().strip().upper()
-        origin = origin_var.get().strip()
-        if loc in self.part_mapping_dict:
-            info = self.part_mapping_dict[loc]
-            part_no = info["default"]
-            for k, v in info["origins"].items():
-                if k in origin:
-                    part_no = v
-                    break
-            part_var.set(part_no)
-        else:
-            part_var.set("")
-
     def on_loc_change(self, loc_var, long_code_var):
         loc = loc_var.get().strip().upper()
         if not loc:
@@ -1792,7 +1754,7 @@ class App(tk.Tk):
         智慧解析貼上行中的元素，自動辨識：出貨日期、批號、槽號、地點、時間。
         支援 Image 1 範例（到貨 + 批號 + 槽號 + 地點）及各式自訂順序！
         """
-        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": "", "origin": ""}
+        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": ""}
         clean_parts = [p.strip() for p in parts if p.strip()]
         if not clean_parts:
             return res
@@ -1837,11 +1799,6 @@ class App(tk.Tk):
             elif not res["mod_time"]:
                 res["mod_time"] = item
 
-        for p in clean_parts:
-            p_upper = p.upper()
-            if not res.get("origin") and any(k in p_upper for k in ["崙尾", "彰濱", "L1", "L2"]):
-                res["origin"] = p
-                
         return res
 
     def on_paste(self, event, start_row_idx, widget=None):
@@ -1884,10 +1841,7 @@ class App(tk.Tk):
                         if parsed["batch"]:
                             self.entries[curr_row]["batch_var"].set(parsed["batch"])
                         elif parsed["loc"]:
-                                self.entries[curr_row]["loc_var"].set(parsed["loc"])
-                            
-                            if parsed.get("origin"):
-                                self.entries[curr_row]["origin_var"].set(parsed["origin"])
+                            self.entries[curr_row]["loc_var"].set(parsed["loc"])
                         elif parsed["date"]:
                             self.entries[curr_row]["date_var"].set(parsed["date"])
                         else:
@@ -2272,8 +2226,7 @@ class App(tk.Tk):
                                     "date": normalize_date_str(d_val),
                                     "time": tm_val,
                                     "mod_time": mt_val,
-                                "po": po_val,
-                                "part_no": row["part_var"].get().strip() if "part_var" in row else ""
+                                "po": po_val
                             })
                 else:
                     # 遍歷 Excel 所有分頁 (跨分頁抓取所有有效排程)
@@ -2397,8 +2350,7 @@ class App(tk.Tk):
                                 "date": norm_date,
                                 "time": t_final,
                                 "mod_time": mt_val,
-                                "po": po_val,
-                                "part_no": row["part_var"].get().strip() if "part_var" in row else ""
+                                "po": po_val
                             })
                     wb.close()
 
@@ -2654,9 +2606,6 @@ class App(tk.Tk):
                         loc_row = find_row_by_label(ws, ['送達地點', '地點']) or 11
                         mat_row = find_row_by_label(ws, ['料號']) or 3
                         sup_row = find_row_by_label(ws, ['供應商']) or 9
-                        
-                        if data.get("part_no"):
-                            ws.cell(row=mat_row, column=3).value = data["part_no"]
                     
                         raw_mat = str(ws.cell(row=mat_row, column=3).value or "").strip()
                         if raw_mat.startswith("4"):
