@@ -1032,7 +1032,7 @@ def find_row_by_label(ws, labels):
                     return r
     return None
 
-def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
+def generate_transport_notice_file(output_path, items, mat_no=""):
     is_append = os.path.exists(output_path)
     if is_append:
         wb = openpyxl.load_workbook(output_path)
@@ -2480,13 +2480,17 @@ class App(tk.Tk):
                 messagebox.showerror("錯誤", f"第 {idx+1} 項的批號長度錯誤！\n批號必須為 10~11 碼，目前輸入: {batch} (長度 {len(batch)})")
                 return
                 
+            part_no_str = row.get("part_var", tk.StringVar()).get().strip() if "part_var" in row else ""
+            po_str = row.get("po_var", tk.StringVar()).get().strip() if "po_var" in row else ""
             valid_data.append({
                 "batch": batch,
                 "tank": tank,
                 "loc": loc,
                 "date": date_str,
                 "time": time_str,
-                "mod_time": mod_time_str
+                "mod_time": mod_time_str,
+                "part_no": "4" + part_no_str if part_no_str and not part_no_str.startswith("4") else part_no_str,
+                "po": po_str
             })
             
         if not valid_data:
@@ -2522,7 +2526,7 @@ class App(tk.Tk):
         total_success_transport = False
         total_success_lorry = 0
         total_error_msgs = []
-        mat_no = "L12C53161"
+        mat_no = ""
 
         for _g_date_str, _g_data in groups.items():
             valid_data = _g_data
@@ -2655,11 +2659,17 @@ class App(tk.Tk):
                         mat_row = find_row_by_label(ws, ['料號']) or 3
                         sup_row = find_row_by_label(ws, ['供應商']) or 9
                     
+                        # 優先用 UI 已顯示的料號，確保「顯示什麼就寫什麼」
+                        if data.get("part_no"):
+                            ws.cell(row=mat_row, column=3).value = data["part_no"]
+
                         raw_mat = str(ws.cell(row=mat_row, column=3).value or "").strip()
                         if raw_mat.startswith("4"):
                             mat_no = raw_mat[1:]
                         elif raw_mat:
                             mat_no = raw_mat
+                        else:
+                            mat_no = ""
                     
                         final_tank_no = "5" + tank_no
                         final_batch_no = "6" + batch_no

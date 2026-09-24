@@ -9,7 +9,7 @@
     <style>
         * { box-sizing: border-box; font-family: "Microsoft JhengHei", "Segoe UI", Arial, sans-serif; }
         body { background-color: #F0F2F5; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1150px; margin: 0 auto; background: #FFF; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .container { max-width: 1240px; margin: 0 auto; background: #FFF; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { color: #002060; margin-top: 0; font-size: 24px; border-bottom: 3px solid #002060; padding-bottom: 10px; }
         .subtitle { color: #555; font-size: 14px; margin-bottom: 20px; }
         
@@ -108,16 +108,16 @@
         <table>
             <thead>
                 <tr>
-                    <th style="width: 40px;">項次</th>
-                    <th style="width: 170px;">批號 (請輸入10~11碼)</th>
-                    <th style="width: 170px;">槽號 (自動)</th>
-                    <th style="width: 150px;">品名 (產品)</th>
-                    <th style="width: 120px;">地點 (如 18P3B)</th>
-                    <th style="width: 220px;">長代號 (自動)</th>
-                    <th style="width: 120px;">料號 (自動)</th>
-                    <th style="width: 130px;">出貨日期 📅</th>
-                    <th style="width: 150px;">採購單號</th>
-                    <th style="width: 60px;">操作</th>
+                    <th style="width: 38px;">項次</th>
+                    <th style="width: 155px;">批號<br>(請輸入10~11碼)</th>
+                    <th style="width: 90px;">槽號<br>(自動)</th>
+                    <th style="width: 135px;">品名<br>(產品)</th>
+                    <th style="width: 95px;">地點<br>(如 18P3B)</th>
+                    <th style="width: 155px;">長代號<br>(自動)</th>
+                    <th style="width: 115px;">料號<br>(自動)</th>
+                    <th style="width: 128px;">出貨日期 📅</th>
+                    <th style="width: 200px;">採購單號</th>
+                    <th style="width: 58px;">操作</th>
                 </tr>
             </thead>
             <tbody id="tableBody">
@@ -461,10 +461,18 @@
             longEl.style.cursor = "default";
             longEl.title = "";
         }
-        
+
         let partField = document.getElementById(`part_${idx}`);
         let prodVal = (document.getElementById(`prod_${idx}`) ? document.getElementById(`prod_${idx}`).value.trim().toUpperCase() : "");
-        if (locVal && partField) {
+        if (partField) {
+            // 地點不在對照表 → 料號空白
+            if (!locVal || !SERVER_MAPPING[locVal]) {
+                partField.value = "";
+                partField.placeholder = locVal ? "❌ 無此地點資料" : "自動料號";
+                partField.style.color = "#D32F2F";
+                return;
+            }
+            // 地點在對照表，查料號
             let info = SERVER_PART_MAPPING[locVal] || {};
             let origins = info.origins || {};
             let defaultPart = info.default || "";
@@ -475,11 +483,18 @@
                     break;
                 }
             }
+            // 品名無比對或空白 → 用預設料號
             if (!finalPart) finalPart = defaultPart;
-            if (!finalPart) finalPart = "L12C53161";
-            partField.value = "4" + finalPart;
-        } else if (partField) {
-            partField.value = "";
+            // 對照表有此地點但無設定料號 → 空白
+            if (finalPart) {
+                partField.value = finalPart;
+                partField.style.color = "#D32F2F";
+                partField.placeholder = "自動料號";
+            } else {
+                partField.value = "";
+                partField.placeholder = "（未設定料號）";
+                partField.style.color = "#999";
+            }
         }
     }
 
@@ -1538,13 +1553,16 @@
                     alert(`第 ${i} 項的地點「${loc}」不存在於地點對照表中！`);
                     return;
                 }
+                const partEl = document.getElementById(`part_${i}`);
+                const partNoVal = partEl ? partEl.value.trim() : "";
                 records.push({
                     batch: batch,
                     tank: tank,
                     loc: loc,
                     date: dateVal,
                     po: poVal,
-                    prod: prodVal
+                    prod: prodVal,
+                    partNo: partNoVal
                 });
             }
         }

@@ -253,6 +253,7 @@ function processFormAndVerify_V10(formObject) {
     var targetBatch = rawQrBatch.length >= 11 ? rawQrBatch.substring(1, 11) : rawQrBatch;
     var targetTank  = rawTank; 
     var targetPlace = rawPlace; 
+    var targetMaterial = formObject.materialNo ? formObject.materialNo.toString().trim() : "";
 
     var check1 = advancedFuzzyCheck(ocrTextBatch, targetBatch);
     var check2 = smartLocationCheck(ocrTextLoc, targetPlace); 
@@ -263,8 +264,9 @@ function processFormAndVerify_V10(formObject) {
     }
     var check3 = advancedFuzzyCheck(tempOcrForTank, targetTank);
     var check4 = advancedFuzzyCheck(ocrTextLoc, targetBatch);
+    var check5 = advancedFuzzyCheck(ocrTextLoc, targetMaterial);
 
-    var isSuccess = check1.pass && check2.pass && check3.pass && check4.pass;
+    var isSuccess = check1.pass && check2.pass && check3.pass && check4.pass && check5.pass;
     var msg = "";
 
     if (isSuccess) {
@@ -291,7 +293,7 @@ function processFormAndVerify_V10(formObject) {
       msg = "✅ 完美！全數核對成功\n--------------------\n";
       if(extractedSourceOrder) msg += "📄 來源單號：" + extractedSourceOrder + "\n";
       if(extractedDocOrder)    msg += "🎫 磅單編號：" + extractedDocOrder + "\n"; 
-      msg += "\n1. COA 批號：OK\n2. 地磅 地點：OK\n3. 地磅 槽號：OK\n4. 地磅 批號：OK";
+      msg += "\n1. COA 批號：OK\n2. 地磅 地點：OK\n3. 地磅 槽號：OK\n4. 地磅 批號：OK\n5. 地磅 料號：OK";
       return { success: true, message: msg };
 
     } else {
@@ -300,6 +302,7 @@ function processFormAndVerify_V10(formObject) {
       if (!check2.pass) msg += "⚠️ 地磅照片：地點不符 (" + targetPlace + ")\n";
       if (!check3.pass) msg += "⚠️ 地磅照片：找不到槽號 (" + targetTank + ")\n";
       if (!check4.pass) msg += "⚠️ 地磅照片：畫面批號錯誤 (" + targetBatch + ")\n";
+      if (!check5.pass) msg += "⚠️ 地磅照片：找不到料號 (" + targetMaterial + ")\n";
       return { success: false, message: msg };
     }
   } catch (e) { return { success: false, message: "錯誤: " + e.toString() }; }

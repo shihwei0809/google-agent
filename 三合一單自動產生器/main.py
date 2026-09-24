@@ -1008,7 +1008,7 @@ def find_row_by_label(ws, labels):
                     return r
     return None
 
-def generate_transport_notice_file(output_path, items, mat_no="L12C53161"):
+def generate_transport_notice_file(output_path, items, mat_no=""):
     is_append = os.path.exists(output_path)
     if is_append:
         wb = openpyxl.load_workbook(output_path)
@@ -1738,8 +1738,10 @@ class App(tk.Tk):
                 if k in origin:
                     part_no = v
                     break
+            # 對照表有此地點，但無設定料號 → 空白
             part_var.set(part_no)
         else:
+            # 地點不在對照表 → 空白（不用硬碼兜底）
             part_var.set("")
 
     def on_loc_change(self, loc_var, long_code_var):
@@ -2457,13 +2459,19 @@ class App(tk.Tk):
                 messagebox.showerror("錯誤", f"第 {idx+1} 項的批號長度錯誤！\n批號必須剛好 10 碼，目前輸入: {batch} (長度 {len(batch)})")
                 return
                 
+            origin_str = row.get("origin_var", tk.StringVar()).get().strip() if "origin_var" in row else ""
+            part_no_str = row.get("part_var", tk.StringVar()).get().strip() if "part_var" in row else ""
+            po_str = row.get("po_var", tk.StringVar()).get().strip() if "po_var" in row else ""
             valid_data.append({
                 "batch": batch,
                 "tank": tank,
                 "loc": loc,
                 "date": date_str,
                 "time": time_str,
-                "mod_time": mod_time_str
+                "mod_time": mod_time_str,
+                "origin": origin_str,
+                "part_no": "4" + part_no_str if part_no_str and not part_no_str.startswith("4") else part_no_str,
+                "po": po_str
             })
             
         if not valid_data:
@@ -2499,7 +2507,7 @@ class App(tk.Tk):
         total_success_transport = False
         total_success_lorry = 0
         total_error_msgs = []
-        mat_no = "L12C53161"
+        mat_no = ""
 
         for _g_date_str, _g_data in groups.items():
             valid_data = _g_data
@@ -2639,6 +2647,8 @@ class App(tk.Tk):
                             mat_no = raw_mat[1:]
                         elif raw_mat:
                             mat_no = raw_mat
+                        else:
+                            mat_no = ""
                     
                         final_tank_no = "5" + tank_no
                         final_batch_no = "6" + batch_no

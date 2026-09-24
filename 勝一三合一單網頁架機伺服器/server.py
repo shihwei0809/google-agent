@@ -426,7 +426,7 @@ async def api_delete_location(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"刪除地點失敗: {e}")
 
-def generate_transport_workbook(items, mat_no="L12C53161"):
+def generate_transport_workbook(items, mat_no=""):
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "運輸通知表"
@@ -696,18 +696,31 @@ async def generate_all_zip(request: Request):
                     ws['C11'] = loc_code
 
                     # Update C3 part no dynamically based on product
-                    prod = item.get("prod", "").strip().upper()
-                    info = part_mapping.get(loc, {})
-                    part_no = ""
-                    for key, val in info.get("origins", {}).items():
-                        if prod and key.upper() in prod:
-                            part_no = val
-                            break
-                    if not part_no: part_no = info.get("default", "")
-                    if not part_no:
-                        part_no = str(ws['C3'].value or "L12C53161").strip().lstrip("4")
-                    ws['C3'] = "4" + part_no
-                    mat_no = "4" + part_no
+                    # 優先採用前端 UI 已顯示的料號 (partNo)，確保「UI 顯示什麼就寫什麼」
+                    frontend_part_no = str(item.get("partNo", "")).strip()
+                    if frontend_part_no and frontend_part_no.startswith("4"):
+                        ws['C3'] = frontend_part_no
+                        mat_no = frontend_part_no
+                    elif frontend_part_no:
+                        ws['C3'] = "4" + frontend_part_no
+                        mat_no = "4" + frontend_part_no
+                    else:
+                        # 前端沒送料號，fallback 到後端 mapping
+                        prod = item.get("prod", "").strip().upper()
+                        info = part_mapping.get(loc, {})
+                        part_no = ""
+                        for key, val in info.get("origins", {}).items():
+                            if prod and key.upper() in prod:
+                                part_no = val
+                                break
+                        if not part_no: part_no = info.get("default", "")
+                        if part_no:
+                            ws['C3'] = "4" + part_no
+                            mat_no = "4" + part_no
+                        else:
+                            # 不在對照表且無預設料號，將料號設為空白 (不使用硬碼兜底)
+                            ws['C3'] = ""
+                            mat_no = ""
                     sup_no = str(ws['C9'].value or "375970680").strip()
                     qr_str = f"||{mat_no}||{tank_with_prefix}||{batch_with_prefix}||{sup_no}||{loc_code}"
                     ws['B20'] = qr_str
