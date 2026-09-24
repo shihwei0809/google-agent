@@ -1,0 +1,3 @@
+# HANDOVER.md 使用 union 合併策略
+# 兩台電腦各自的收工日誌會自動追加合併，不產生衝突
+HANDOVER.md merge=union
