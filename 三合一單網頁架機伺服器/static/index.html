@@ -108,7 +108,9 @@
                     <th style="width: 40px;">項次</th>
                     <th style="width: 170px;">批號 (請輸入 10 碼)</th>
                     <th style="width: 90px;">槽號 (自動)</th>
+                    <th style="width: 100px;">出貨區 (貼上)</th>
                     <th style="width: 120px;">地點 (如 18P3B)</th>
+                    <th style="width: 120px;">料號 (自動)</th>
                     <th style="width: 220px;">長代號 (自動)</th>
                     <th style="width: 130px;">出貨日期 📅</th>
                     <th style="width: 150px;">採購單號</th>
@@ -386,8 +388,10 @@
                 <td>${rowIdx}</td>
                 <td><input type="text" class="batch-input" id="batch_${rowIdx}" maxlength="10" placeholder="26814E3191" oninput="onBatchChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
                 <td><input type="text" class="read-only" id="tank_${rowIdx}" readonly placeholder="自動槽號"></td>
-                <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
-                <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照" onclick="handleLongCodeClick(${rowIdx})"></td>
+            <td><input type="text" id="origin_${rowIdx}" placeholder="崙尾/彰濱" oninput="onOriginChange(${rowIdx})" onpaste="onPasteHandler(event, ${rowIdx})"></td>
+            <td><input type="text" id="loc_${rowIdx}" placeholder="18P3B" oninput="onLocChange(${rowIdx})"></td>
+            <td><input type="text" class="read-only part-no" id="part_${rowIdx}" readonly placeholder="自動料號" style="color:#D32F2F; font-weight:bold;"></td>
+            <td><input type="text" class="read-only long-code" id="long_${rowIdx}" readonly placeholder="自動對照" onclick="handleLongCodeClick(${rowIdx})"></td>
                 <td><input type="date" id="date_${rowIdx}"></td>
                 <td><input type="text" id="po_${rowIdx}" placeholder="採購單號" style="color:#004D40; font-weight:bold;"></td>
                 <td><button class="btn btn-red" style="padding: 2px 6px; font-size:11px;" onclick="clearRow(${rowIdx})">清空</button></td>
@@ -695,6 +699,9 @@
                 if (batchVal) {
                     document.getElementById(`batch_${currentIdx}`).value = batchVal;
                     onBatchChange(currentIdx);
+                }
+                if (originVal) {
+                    if (document.getElementById(`origin_${currentIdx}`)) document.getElementById(`origin_${currentIdx}`).value = originVal;
                 }
                 if (originVal) {
                     if (document.getElementById(`origin_${currentIdx}`)) document.getElementById(`origin_${currentIdx}`).value = originVal;
