@@ -910,9 +910,9 @@ async def generate_all_zip(request: Request):
                                 new_wb.save(out_buf)
                                 # 儲存到 ZIP 中對應的短地點資料夾 (例如: folder_name/15P5/Chemical_Lorry_...xlsx)
                                 zip_file.writestr(f"{folder_name}/{sub_folder}/{new_filename}", out_buf.getvalue())
-                    src_wb.close()
-                except Exception as ex:
-                    print(f"[Lorry Error] {ex}")
+                        src_wb.close()
+                    except Exception as ex:
+                        print(f"[Lorry Error] {ex}")
 
             # 4. 處理 COA 表單 (如果使用者有上傳)
             if COA_FILE_CACHE:
@@ -950,9 +950,9 @@ async def generate_all_zip(request: Request):
                                             "c": col_c,
                                             "g": col_g
                                         }
-                            src_wb_l.close()
-                        except Exception as e:
-                            print(f"[COA Lorry Extraction Error] {e}")
+                                src_wb_l.close()
+                            except Exception as e:
+                                print(f"[COA Lorry Extraction Error] {e}")
 
                     for coa_file in COA_FILE_CACHE:
                         base_name = coa_file["filename"]
