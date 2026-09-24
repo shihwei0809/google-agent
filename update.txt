@@ -1,0 +1,30 @@
+        for idx, rec in enumerate(slice_records):
+            sheet_name = rec.get("sheet", "分頁")
+            d_str = rec.get("date") or ""
+            t_str = rec.get("time") or ""
+            b_str = rec.get("batch") or ""
+            tank_str = rec.get("tank") or ""
+            loc_str = rec.get("loc") or ""
+            long_code_str = rec.get("long_code") or getattr(self.parent_app, "mapping_dict", {}).get(loc_str, "")
+
+            tag = "evenrow" if idx % 2 == 0 else "oddrow"
+            self.tree.insert(
+                "",
+                "end",
+                values=(
+                    "☑",
+                    f"[{idx+1:02d}]",
+                    sheet_name,
+                    d_str,
+                    t_str,
+                    b_str,
+                    tank_str,
+                    loc_str,
+                    long_code_str
+                ),
+                tags=(tag,)
+            )
+
+        self.btn_confirm.config(text=f"🚀 確認由下往上擷取最新的 {cnt} 筆匯入系統")
+
+    def on_tree_click(self, event):

@@ -801,7 +801,7 @@ class ImportRangeDialog(tk.Toplevel):
         preview_frame.pack(fill="both", expand=True, pady=(0, 10))
 
         # 定義 Treeview 欄位
-        columns = ("chk", "idx", "sheet", "date", "time", "batch", "tank", "loc", "long_code")
+        columns = ("chk", "idx", "sheet", "date", "time", "batch", "tank", "origin", "loc", "long_code")
         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
 
         col_defs = [
@@ -812,6 +812,7 @@ class ImportRangeDialog(tk.Toplevel):
             ("time", "到廠時間", 85, "center"),
             ("batch", "批號 (10碼)", 125, "center"),
             ("tank", "槽號", 75, "center"),
+            ("origin", "出貨區", 85, "center"),
             ("loc", "指送地點", 95, "center"),
             ("long_code", "地點長代號 (全稱)", 250, "w")
         ]
@@ -934,6 +935,7 @@ class ImportRangeDialog(tk.Toplevel):
             b_str = rec.get("batch") or ""
             tank_str = rec.get("tank") or ""
             loc_str = rec.get("loc") or ""
+            origin_str = rec.get("origin") or ""
             long_code_str = rec.get("long_code") or getattr(self.parent_app, "mapping_dict", {}).get(loc_str, "")
 
             tag = "evenrow" if idx % 2 == 0 else "oddrow"
@@ -948,6 +950,7 @@ class ImportRangeDialog(tk.Toplevel):
                     t_str,
                     b_str,
                     tank_str,
+                    origin_str,
                     loc_str,
                     long_code_str
                 ),
