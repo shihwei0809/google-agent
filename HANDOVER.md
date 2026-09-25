@@ -137,3 +137,4 @@
   - 員工教育訓練測驗系統/sop_generator/SOP操作說明書.md
   - 員工教育訓練測驗系統/sop_generator/SOP操作說明書.txt
   - 員工教育訓練測驗系統/sop_generator/index.html
+- **修復與更新**: 剛剛已針對 教育訓練教材 專案目錄，重新改寫了 README.md 與 uild_manual_doc.py，加入了 PWA 系統安裝、QC 提案改善書，以及 Cloudflare 雲端部署的教學章節，並重新生成了 AI教育訓練平台_操作手冊.docx。
