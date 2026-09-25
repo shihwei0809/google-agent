@@ -1,0 +1,13 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/save",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/save.js:onRequestPost"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}

@@ -1,0 +1,37 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/archive",
+      "mountPath": "/api",
+      "method": "GET",
+      "module": [
+        "api/archive.js:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/archive",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/archive.js:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/data",
+      "mountPath": "/api",
+      "method": "GET",
+      "module": [
+        "api/data.js:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/data",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/data.js:onRequestPost"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}

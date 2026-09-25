@@ -1617,8 +1617,21 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-            a.download = `三合一單輸出_${todayStr}.zip`;
+            let outputDateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            for (let r of records) {
+                if (r.date) {
+                    let d = r.date.split(' ')[0];
+                    let parts = d.split(/[-/.]/);
+                    if (parts.length === 3) {
+                        let y = parts[0].length === 4 ? parts[0] : parts[2];
+                        let m = parts[1].padStart(2, '0');
+                        let day = (parts[0].length === 4 ? parts[2] : parts[0]).padStart(2, '0');
+                        outputDateStr = `${y}${m}${day}`;
+                        break;
+                    }
+                }
+            }
+            a.download = `三合一單輸出_${outputDateStr}.zip`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -1719,8 +1732,21 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-            a.download = `三合一單輸出_${todayStr}.zip`;
+            let outputDateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            for (let r of records) {
+                if (r.date) {
+                    let d = r.date.split(' ')[0];
+                    let parts = d.split(/[-/.]/);
+                    if (parts.length === 3) {
+                        let y = parts[0].length === 4 ? parts[0] : parts[2];
+                        let m = parts[1].padStart(2, '0');
+                        let day = (parts[0].length === 4 ? parts[2] : parts[0]).padStart(2, '0');
+                        outputDateStr = `${y}${m}${day}`;
+                        break;
+                    }
+                }
+            }
+            a.download = `三合一單輸出_${outputDateStr}.zip`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -1883,8 +1909,21 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-            a.download = `運輸通知表_${todayStr}.zip`;
+            let outputDateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            for (let r of records) {
+                if (r.date) {
+                    let d = r.date.split(' ')[0];
+                    let parts = d.split(/[-/.]/);
+                    if (parts.length === 3) {
+                        let y = parts[0].length === 4 ? parts[0] : parts[2];
+                        let m = parts[1].padStart(2, '0');
+                        let day = (parts[0].length === 4 ? parts[2] : parts[0]).padStart(2, '0');
+                        outputDateStr = `${y}${m}${day}`;
+                        break;
+                    }
+                }
+            }
+            a.download = `運輸通知表_${outputDateStr}.zip`;
             document.body.appendChild(a);
             a.click();
             a.remove();

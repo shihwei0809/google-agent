@@ -1,0 +1,91 @@
+{"kind":"deck","id":"pr/rw10dz","name":"Deck"}
+{"kind":"layout","layoutId":"845d3db3-1981-4200-afe0-37da9d3cc412","name":"Master","type":"master"}
+{"kind":"layout","layoutId":"e74f4abc-eaf3-47ea-a5c5-b9b907364acc","name":"Title Slide","type":"title"}
+{"kind":"slide","id":"sl/np1spj","slide":1,"title":"教育訓練平台導入評估","textShapes":4}
+{"kind":"textbox","id":"sh/axw7mp47","slide":1,"text":"教育訓練平台導入評估","textPreview":"教育訓練平台導入評估","textChars":10,"textLines":1,"bbox":[84,100,1050,32]}
+{"kind":"textbox","id":"sh/x0n6x4ny","slide":1,"text":"導入 AI 教育訓練平台\n前後差異與管理重點","textPreview":"導入 AI 教育訓練平台 | 前後差異與管理重點","textChars":22,"textLines":2,"bbox":[84,170,1080,145]}
+{"kind":"textbox","id":"sh/wzepozmd","slide":1,"text":"以教材閱覽、AI 助教與教材管理功能為基礎","textPreview":"以教材閱覽、AI 助教與教材管理功能為基礎","textChars":21,"textLines":1,"bbox":[88,365,970,62]}
+{"kind":"textbox","id":"sh/nu5oru5g","slide":1,"text":"系統現況分析｜未包含量化成效數據","textPreview":"系統現況分析｜未包含量化成效數據","textChars":16,"textLines":1,"bbox":[88,592,990,45]}
+{"kind":"notes","id":"nt/np1spj","slide":1,"text":""}
+{"kind":"slide","id":"sl/166ork","slide":2,"title":"01｜導入前","textShapes":9}
+{"kind":"textbox","id":"sh/z69ozmt8","slide":2,"text":"01｜導入前","textPreview":"01｜導入前","textChars":6,"textLines":1,"bbox":[64,35,1130,24]}
+{"kind":"textbox","id":"sh/07ipsrut","slide":2,"text":"導入前：訓練內容分散於教材與人工說明","textPreview":"導入前：訓練內容分散於教材與人工說明","textChars":18,"textLines":1,"bbox":[64,70,1140,64]}
+{"kind":"textbox","id":"sh/l8b61wbe","slide":2,"text":"以下描述為依既有教材情境所作的流程推估，實際作法依各單位而異。","textPreview":"以下描述為依既有教材情境所作的流程推估，實際作法依各單位而異。","textChars":31,"textLines":1,"bbox":[66,139,1140,42]}
+{"kind":"textbox","id":"sh/q10nmhcr","slide":2,"text":"AI 教育訓練平台｜導入前後比較","textPreview":"AI 教育訓練平台｜導入前後比較","textChars":16,"textLines":1,"bbox":[64,677,1110,20]}
+{"kind":"textbox","id":"sh/b29ovmtc","slide":2,"text":"學習者常見流程","textPreview":"學習者常見流程","textChars":7,"textLines":1,"bbox":[78,220,510,50]}
+{"kind":"textbox","id":"sh/c3i5orux","slide":2,"text":"• 找到正確教材與版本\n• 自行閱讀檔案或簡報\n• 遇到疑問時詢問講師或同事\n• 依既有方式記錄學習與追蹤","textPreview":"• 找到正確教材與版本 | • 自行閱讀檔案或簡報 | • 遇到疑問時詢問講師或同事 | • 依既有方式記錄學習與追蹤","textChars":53,"textLines":4,"bbox":[100,285,490,240]}
+{"kind":"textbox","id":"sh/d4r6xwb2","slide":2,"text":"可能的管理負擔","textPreview":"可能的管理負擔","textChars":7,"textLines":1,"bbox":[680,220,510,50]}
+{"kind":"textbox","id":"sh/uxk7y1sv","slide":2,"text":"教材入口與版本較分散\n重複問題仰賴人員逐一回覆\n教材更新後需同步通知與維護\n學習紀錄仍由既有流程管理","textPreview":"教材入口與版本較分散 | 重複問題仰賴人員逐一回覆 | 教材更新後需同步通知與維護 | 學習紀錄仍由既有流程管理","textChars":50,"textLines":4,"bbox":[700,285,480,250]}
+{"kind":"textbox","id":"sh/vyto76tg","slide":2,"text":"優勢：原有教材與管理流程熟悉，可沿用既定制度。","textPreview":"優勢：原有教材與管理流程熟悉，可沿用既定制度。","textChars":23,"textLines":1,"bbox":[78,570,1110,48]}
+{"kind":"notes","id":"nt/166ork","slide":2,"text":""}
+{"kind":"slide","id":"sl/1uj6yu","slide":3,"title":"02｜導入後","textShapes":9}
+{"kind":"textbox","id":"sh/m5obi1on","slide":3,"text":"02｜導入後","textPreview":"02｜導入後","textChars":6,"textLines":1,"bbox":[64,35,1130,24]}
+{"kind":"textbox","id":"sh/9sfutgny","slide":3,"text":"導入後：同一介面串起教材閱讀與即時提問","textPreview":"導入後：同一介面串起教材閱讀與即時提問","textChars":19,"textLines":1,"bbox":[64,70,1140,64]}
+{"kind":"textbox","id":"sh/8r6tkb6t","slide":3,"text":"目前程式可確認的功能：教材列表、閱讀、AI 對話、管理者教材維護。","textPreview":"目前程式可確認的功能：教材列表、閱讀、AI 對話、管理者教材維護。","textChars":33,"textLines":1,"bbox":[66,139,1140,42]}
+{"kind":"textbox","id":"sh/z2xcn65w","slide":3,"text":"AI 教育訓練平台｜導入前後比較","textPreview":"AI 教育訓練平台｜導入前後比較","textChars":16,"textLines":1,"bbox":[64,677,1110,20]}
+{"kind":"textbox","id":"sh/y14be1ob","slide":3,"text":"學習者使用流程","textPreview":"學習者使用流程","textChars":7,"textLines":1,"bbox":[82,220,495,48]}
+{"kind":"textbox","id":"sh/l4fupgn2","slide":3,"text":"選取教材並在線閱讀\n針對內容輸入問題\n查看 AI 回答並回到原教材核對","textPreview":"選取教材並在線閱讀 | 針對內容輸入問題 | 查看 AI 回答並回到原教材核對","textChars":35,"textLines":3,"bbox":[105,280,500,235]}
+{"kind":"textbox","id":"sh/k36tgb6h","slide":3,"text":"管理者維護流程","textPreview":"管理者維護流程","textChars":7,"textLines":1,"bbox":[680,220,495,48]}
+{"kind":"textbox","id":"sh/bydcjm50","slide":3,"text":"登入管理模式\n上傳或編修教材並儲存\n抽查轉換結果與圖片顯示","textPreview":"登入管理模式 | 上傳或編修教材並儲存 | 抽查轉換結果與圖片顯示","textChars":29,"textLines":3,"bbox":[700,280,490,235]}
+{"kind":"textbox","id":"sh/ax4bahof","slide":3,"text":"預期價值：降低找教材與重複解說的摩擦；效果需透過實際使用數據驗證。","textPreview":"預期價值：降低找教材與重複解說的摩擦；效果需透過實際使用數據驗證。","textChars":33,"textLines":1,"bbox":[82,565,1110,60]}
+{"kind":"notes","id":"nt/1uj6yu","slide":3,"text":""}
+{"kind":"slide","id":"sl/m4bssk","slide":4,"title":"03｜差異比較","textShapes":21}
+{"kind":"textbox","id":"sh/upojq9cb","slide":4,"text":"03｜差異比較","textPreview":"03｜差異比較","textChars":7,"textLines":1,"bbox":[64,35,1130,24]}
+{"kind":"textbox","id":"sh/hcz21obm","slide":4,"text":"前後差異聚焦在教材取得與答疑方式","textPreview":"前後差異聚焦在教材取得與答疑方式","textChars":16,"textLines":1,"bbox":[64,70,1140,64]}
+{"kind":"textbox","id":"sh/gbq1sju1","slide":4,"text":"AI 教育訓練平台｜導入前後比較","textPreview":"AI 教育訓練平台｜導入前後比較","textChars":16,"textLines":1,"bbox":[64,677,1110,20]}
+{"kind":"textbox","id":"sh/7mxkvetk","slide":4,"text":"面向","textPreview":"面向","textChars":2,"textLines":1,"bbox":[82,210,355,45]}
+{"kind":"textbox","id":"sh/6lojm9cz","slide":4,"text":"使用平台前","textPreview":"使用平台前","textChars":5,"textLines":1,"bbox":[445,210,350,45]}
+{"kind":"textbox","id":"sh/tof2x4bq","slide":4,"text":"使用平台後","textPreview":"使用平台後","textChars":5,"textLines":1,"bbox":[840,210,355,45]}
+{"kind":"textbox","id":"sh/sn61oju5","slide":4,"text":"教材入口","textPreview":"教材入口","textChars":4,"textLines":1,"bbox":[82,260,355,56]}
+{"kind":"textbox","id":"sh/jix0ruto","slide":4,"text":"依原有檔案或流程尋找","textPreview":"依原有檔案或流程尋找","textChars":10,"textLines":1,"bbox":[445,260,350,56]}
+{"kind":"textbox","id":"sh/ih4jipc3","slide":4,"text":"教材集中列於平台清單","textPreview":"教材集中列於平台清單","textChars":10,"textLines":1,"bbox":[840,260,355,56]}
+{"kind":"textbox","id":"sh/czih43u9","slide":4,"text":"內容閱讀","textPreview":"內容閱讀","textChars":4,"textLines":1,"bbox":[82,328,355,56]}
+{"kind":"textbox","id":"sh/d0rix8vu","slide":4,"text":"依檔案格式開啟閱讀","textPreview":"依檔案格式開啟閱讀","textChars":9,"textLines":1,"bbox":[445,328,350,56]}
+{"kind":"textbox","id":"sh/qx0z2tc3","slide":4,"text":"可於介面直接閱讀教材","textPreview":"可於介面直接閱讀教材","textChars":10,"textLines":1,"bbox":[840,328,355,56]}
+{"kind":"textbox","id":"sh/ry90vydo","slide":4,"text":"即時答疑","textPreview":"即時答疑","textChars":4,"textLines":1,"bbox":[82,396,355,56]}
+{"kind":"textbox","id":"sh/4byh0jux","slide":4,"text":"詢問講師、同事或查文件","textPreview":"詢問講師、同事或查文件","textChars":11,"textLines":1,"bbox":[445,396,350,56]}
+{"kind":"textbox","id":"sh/pc7ytovi","slide":4,"text":"可在教材旁向 AI 助教提問","textPreview":"可在教材旁向 AI 助教提問","textChars":14,"textLines":1,"bbox":[840,396,355,56]}
+{"kind":"textbox","id":"sh/i9gzytc7","slide":4,"text":"教材更新","textPreview":"教材更新","textChars":4,"textLines":1,"bbox":[82,464,355,56]}
+{"kind":"textbox","id":"sh/3apgreds","slide":4,"text":"依原有管理方式通知與更版","textPreview":"依原有管理方式通知與更版","textChars":12,"textLines":1,"bbox":[445,464,350,56]}
+{"kind":"textbox","id":"sh/o72hcnuh","slide":4,"text":"管理者可上傳、編修與儲存","textPreview":"管理者可上傳、編修與儲存","textChars":12,"textLines":1,"bbox":[840,464,355,56]}
+{"kind":"textbox","id":"sh/9sbi5sb2","slide":4,"text":"訓練紀錄","textPreview":"訓練紀錄","textChars":4,"textLines":1,"bbox":[82,532,355,56]}
+{"kind":"textbox","id":"sh/xcnq9ozu","slide":4,"text":"依正式制度與工具保存","textPreview":"依正式制度與工具保存","textChars":10,"textLines":1,"bbox":[445,532,350,56]}
+{"kind":"textbox","id":"sh/wbe90ji9","slide":4,"text":"平台未見簽到、時數或資格管理","textPreview":"平台未見簽到、時數或資格管理","textChars":14,"textLines":1,"bbox":[840,532,355,56]}
+{"kind":"notes","id":"nt/m4bssk","slide":4,"text":""}
+{"kind":"slide","id":"sl/dsn4ba","slide":5,"title":"04｜優勢與限制","textShapes":7}
+{"kind":"textbox","id":"sh/4nm1of69","slide":5,"text":"04｜優勢與限制","textPreview":"04｜優勢與限制","textChars":8,"textLines":1,"bbox":[64,35,1130,24]}
+{"kind":"textbox","id":"sh/3md0fapo","slide":5,"text":"便利性提升，治理責任仍由組織承接","textPreview":"便利性提升，治理責任仍由組織承接","textChars":16,"textLines":1,"bbox":[64,70,1140,64]}
+{"kind":"textbox","id":"sh/il4jm5o3","slide":5,"text":"AI 教育訓練平台｜導入前後比較","textPreview":"AI 教育訓練平台｜導入前後比較","textChars":16,"textLines":1,"bbox":[64,677,1110,20]}
+{"kind":"textbox","id":"sh/hkvid07i","slide":5,"text":"可期待的優勢","textPreview":"可期待的優勢","textChars":6,"textLines":1,"bbox":[95,210,495,45]}
+{"kind":"textbox","id":"sh/wj2hkv6x","slide":5,"text":"教材集中瀏覽，減少切換檔案\n問答可在學習當下進行\n常見教材可由管理者集中更新\nPDF、Office 文件及影片可進入解析流程","textPreview":"教材集中瀏覽，減少切換檔案 | 問答可在學習當下進行 | 常見教材可由管理者集中更新 | PDF、Office 文件及影片可進入解析流程","textChars":62,"textLines":4,"bbox":[105,274,505,300]}
+{"kind":"textbox","id":"sh/vit0bqps","slide":5,"text":"導入後仍須管理的風險","textPreview":"導入後仍須管理的風險","textChars":10,"textLines":1,"bbox":[680,210,510,45]}
+{"kind":"textbox","id":"sh/uhkzilo7","slide":5,"text":"AI 回答可能不完整，需回核正式教材\n需維護 API 金鑰、網路與本機服務\n固定預設管理密碼需評估存取控制\n平台未取代簽到、測驗、時數與資格紀錄","textPreview":"AI 回答可能不完整，需回核正式教材 | 需維護 API 金鑰、網路與本機服務 | 固定預設管理密碼需評估存取控制 | 平台未取代簽到、測驗、時數與資格紀錄","textChars":72,"textLines":4,"bbox":[690,274,500,305]}
+{"kind":"notes","id":"nt/dsn4ba","slide":5,"text":""}
+{"kind":"slide","id":"sl/yluaxg","slide":6,"title":"05｜操作概覽","textShapes":8}
+{"kind":"textbox","id":"sh/47a9sbih","slide":6,"text":"05｜操作概覽","textPreview":"05｜操作概覽","textChars":7,"textLines":1,"bbox":[64,35,1130,24]}
+{"kind":"textbox","id":"sh/j61sz6hw","slide":6,"text":"兩種角色，共用同一套教材內容","textPreview":"兩種角色，共用同一套教材內容","textChars":14,"textLines":1,"bbox":[64,70,1140,64]}
+{"kind":"textbox","id":"sh/i5srq10b","slide":6,"text":"AI 教育訓練平台｜導入前後比較","textPreview":"AI 教育訓練平台｜導入前後比較","textChars":16,"textLines":1,"bbox":[64,677,1110,20]}
+{"kind":"textbox","id":"sh/h4jqxwjq","slide":6,"text":"學習者","textPreview":"學習者","textChars":3,"textLines":1,"bbox":[90,215,1080,45]}
+{"kind":"textbox","id":"sh/w3a9obi5","slide":6,"text":"開啟平台      選取教材      閱讀內容      提出問題      核對答案","textPreview":"開啟平台      選取教材      閱讀內容      提出問題      核對答案","textChars":44,"textLines":1,"bbox":[100,278,1080,85]}
+{"kind":"textbox","id":"sh/v2h8v610","slide":6,"text":"教材管理者","textPreview":"教材管理者","textChars":5,"textLines":1,"bbox":[90,420,1080,45]}
+{"kind":"textbox","id":"sh/u18rm10f","slide":6,"text":"登入管理模式      上傳或編修      儲存教材      抽查內容與圖片","textPreview":"登入管理模式      上傳或編修      儲存教材      抽查內容與圖片","textChars":40,"textLines":1,"bbox":[100,483,1080,90]}
+{"kind":"textbox","id":"sh/103a90za","slide":6,"text":"管理員模式目前使用程式內固定密碼；正式部署前宜完成權限控管評估。","textPreview":"管理員模式目前使用程式內固定密碼；正式部署前宜完成權限控管評估。","textChars":32,"textLines":1,"bbox":[93,602,1100,40]}
+{"kind":"notes","id":"nt/yluaxg","slide":6,"text":""}
+{"kind":"slide","id":"sl/ahopak","slide":7,"title":"06｜操作重點","textShapes":8}
+{"kind":"textbox","id":"sh/0vmloba1","slide":7,"text":"06｜操作重點","textPreview":"06｜操作重點","textChars":7,"textLines":1,"bbox":[64,35,1130,24]}
+{"kind":"textbox","id":"sh/zudkvq9g","slide":7,"text":"上線前先完成環境設定，再建立可用教材","textPreview":"上線前先完成環境設定，再建立可用教材","textChars":18,"textLines":1,"bbox":[64,70,1140,64]}
+{"kind":"textbox","id":"sh/et43mlsv","slide":7,"text":"AI 教育訓練平台｜導入前後比較","textPreview":"AI 教育訓練平台｜導入前後比較","textChars":16,"textLines":1,"bbox":[64,677,1110,20]}
+{"kind":"textbox","id":"sh/d8b2tgra","slide":7,"text":"啟動條件","textPreview":"啟動條件","textChars":4,"textLines":1,"bbox":[88,212,535,42]}
+{"kind":"textbox","id":"sh/c72lkba5","slide":7,"text":"Windows 啟動腳本\n後端與前端服務\n有效的 Gemini API 金鑰與網路","textPreview":"Windows 啟動腳本 | 後端與前端服務 | 有效的 Gemini API 金鑰與網路","textChars":41,"textLines":3,"bbox":[100,268,520,150]}
+{"kind":"textbox","id":"sh/r6tkr69k","slide":7,"text":"教材管理要點","textPreview":"教材管理要點","textChars":6,"textLines":1,"bbox":[670,212,535,42]}
+{"kind":"textbox","id":"sh/q5k3i1sz","slide":7,"text":"上傳後抽查轉換內容\n編修後確認儲存成功\n刪除前核對檔名並依規範備份","textPreview":"上傳後抽查轉換內容 | 編修後確認儲存成功 | 刪除前核對檔名並依規範備份","textChars":33,"textLines":3,"bbox":[680,268,520,180]}
+{"kind":"textbox","id":"sh/x4fm50ru","slide":7,"text":"支援格式包含 MD、TXT、PDF、DOCX、XLSX、PPTX 與 MP4/MOV/AVI/WEBM。舊版 DOC 需先轉為 DOCX。","textPreview":"支援格式包含 MD、TXT、PDF、DOCX、XLSX、PPTX 與 MP4/MOV/AVI/WEBM。舊版 DOC 需先轉為 DOCX。","textChars":69,"textLines":1,"bbox":[90,520,1090,70]}
+{"kind":"notes","id":"nt/ahopak","slide":7,"text":""}
+{"kind":"slide","id":"sl/limmtq","slide":8,"title":"07｜成效驗證","textShapes":6}
+{"kind":"textbox","id":"sh/orq1kbix","slide":8,"text":"07｜成效驗證","textPreview":"07｜成效驗證","textChars":7,"textLines":1,"bbox":[64,35,1130,24]}
+{"kind":"textbox","id":"sh/3qhkr61s","slide":8,"text":"先建立基準，再用資料判斷改善幅度","textPreview":"先建立基準，再用資料判斷改善幅度","textChars":16,"textLines":1,"bbox":[64,70,1140,64]}
+{"kind":"textbox","id":"sh/2p8ji107","slide":8,"text":"AI 教育訓練平台｜導入前後比較","textPreview":"AI 教育訓練平台｜導入前後比較","textChars":16,"textLines":1,"bbox":[64,677,1110,20]}
+{"kind":"textbox","id":"sh/1oz2pwjm","slide":8,"text":"目前沒有可核實的導入前後量測結果。建議試行期間追蹤：","textPreview":"目前沒有可核實的導入前後量測結果。建議試行期間追蹤：","textChars":26,"textLines":1,"bbox":[92,218,1065,54]}
+{"kind":"textbox","id":"sh/gnq1gri1","slide":8,"text":"教材查找與答疑所需時間\n教材使用次數與常見問題\nAI 回答需修正的比例\n學習者回饋與教材更新週期","textPreview":"教材查找與答疑所需時間 | 教材使用次數與常見問題 | AI 回答需修正的比例 | 學習者回饋與教材更新週期","textChars":48,"textLines":4,"bbox":[112,300,1020,200]}
+{"kind":"textbox","id":"sh/fmhkn61g","slide":8,"text":"判讀原則：比較同一課程、相近人員與相同期間，避免把推估效益當成實績。","textPreview":"判讀原則：比較同一課程、相近人員與相同期間，避免把推估效益當成實績。","textChars":34,"textLines":1,"bbox":[95,560,1080,54]}
+{"kind":"notes","id":"nt/limmtq","slide":8,"text":""}

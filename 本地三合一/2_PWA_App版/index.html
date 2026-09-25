@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+      body { font-family: 'Inter', 'Noto Sans TC', sans-serif; padding: 20px; background-color: #f8fafc; color: #1e293b; padding-bottom: 80px; }
+      input[type="text"], input[type="date"] { width: 100%; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; transition: all 0.2s; background-color: #fff; }
+      input[type="text"]:focus, input[type="date"]:focus { border-color: #3b82f6; outline: none; ring: 3px solid rgba(59, 130, 246, 0.1); }
+      input[readonly] { background-color: #f1f5f9; color: #475569; cursor: default; }
+      
+      .btn { padding: 12px; border-radius: 8px; font-weight: 600; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; font-size: 0.95rem; }
+      .btn:active { transform: scale(0.98); }
+      .btn-scan { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); }
+      .btn-ai { background: linear-gradient(135deg, #8b5cf6, #6d28d9); color: white; box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.2); }
+      .btn-submit { background: linear-gradient(135deg, #10b981, #059669); color: white; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2); font-size: 1.05rem; }
+      .btn-disabled { background: #94a3b8; cursor: not-allowed; transform: none !important; }
+      .btn-action { padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; background: white; border: 1px solid #e2e8f0; color: #475569; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+      /* 匯出按鈕專用樣式 */
+      .btn-export { background: #10b981; color: white; border: none; }
+      .btn-export:hover { background: #059669; }
+      
+      #reader, #camera-container { width: 100%; border-radius: 12px; overflow: hidden; background: #000; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); display: none; }
+      #live-video { width: 100%; height: auto; display: block; }
+      .camera-controls { position: absolute; bottom: 20px; left: 0; width: 100%; display: flex; justify-content: center; gap: 20px; z-index: 10; }
+      .btn-shutter { width: 60px; height: 60px; border-radius: 50%; background: white; border: 4px solid rgba(255,255,255,0.5); cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+      
+      .photo-box { border: 2px dashed #cbd5e1; padding: 16px; text-align: center; border-radius: 12px; background: #f8fafc; margin-bottom: 16px; cursor: pointer; transition: all 0.2s; }
+      .preview-img { width: 100%; border-radius: 8px; margin-top: 10px; display: none; filter: grayscale(100%) contrast(120%); }
+      .hidden-section { display: none !important; }
+      
+      .header-icon { width: 40px; height: 40px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; }
+      
+      /* 表格 */
+      .custom-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+      .custom-table thead th { background: #f8fafc; color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+      .custom-table thead th:last-child { text-align: right; }
+      .custom-table tbody td { padding: 14px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.875rem; vertical-align: middle; }
+      .custom-table tbody td:last-child { text-align: right; }
+      .badge-success { background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+      .badge-fail { background: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+      .btn-photo { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; background: #eff6ff; color: #2563eb; border: 1px solid #bfdbfe; text-decoration: none; display: inline-flex; margin-left: 6px; }
+      /* 日期快捷晶片 */
+      .date-chip { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; border: 1.5px solid #e2e8f0; color: #64748b; background: #f8fafc; white-space: nowrap; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+      .date-chip.active { background: #2563eb; color: white; border-color: #2563eb; }
+      /* 紀錄卡片 */
+      .record-card { background: white; border-radius: 14px; padding: 14px 16px; border: 1px solid #e2e8f0; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+      .record-card-batch { font-size: 1.05rem; font-weight: 700; color: #1d4ed8; font-family: monospace; word-break: break-all; }
+      .record-card-time { font-size: 0.7rem; color: #94a3b8; font-family: monospace; }
+      .record-card-label { font-size: 0.68rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 1px; }
+      .record-card-field { font-size: 0.8rem; color: #475569; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      /* 查詢頁頂部 sticky */
+      #query-header { position: sticky; top: 0; z-index: 20; background: white; border-bottom: 1px solid #e2e8f0; padding: 12px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+      /* ── 響應式雙軌：桌機表格 / 手機卡片 ── */
+      @media (min-width: 769px) {
+        #view-query { max-width: 1280px !important; }
+        #cardContainer { display: none !important; }
+        #tableWrapper { display: block !important; }
+        #query-header { position: relative; }   /* 桌機不需黏頂 */
+      }
+      @media (max-width: 768px) {
+        #cardContainer { display: flex !important; flex-direction: column; gap: 10px; }
+        #tableWrapper { display: none !important; }
+      }
+      /* 桌機表格樣式 */
+      .dt-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+      .dt-table thead th { background: #f8fafc; color: #64748b; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; padding: 11px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+      .dt-table tbody td { padding: 13px 14px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; vertical-align: middle; }
+      .dt-table tbody tr:hover { background: #f8fafc; }
+    </style>
+  
+    <!-- PWA Setup -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js').then(reg => {
+            console.log('SW registered!', reg);
+          }).catch(err => console.log('SW registration failed', err));
+        });
+      }
+    </script>
+</head>
+  <body>
+    <div id="pwa-install-banner" class="hidden" style="background-color: #3b82f6; color: white; padding: 10px; text-align: center; position: sticky; top: 0; z-index: 9999; display: flex; justify-content: space-between; align-items: center;">
+        <span>📲 將此系統安裝為 App，體驗更好！</span>
+        <button id="pwa-install-btn" style="background: white; color: #3b82f6; border: none; padding: 5px 15px; border-radius: 5px; font-weight: bold;">立即安裝</button>
+    </div>
+
+
+    <div id="view-scan" class="max-w-md mx-auto">
+      <div class="bg-white rounded-2xl shadow-xl border border-white/60 overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-white">
+            <div class="flex items-center gap-3">
+                <div class="header-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /></svg></div>
+                <div><h1 class="text-lg font-bold text-slate-800">三合一單核對系統</h1><p class="text-xs text-slate-500 font-medium">COA與T100交叉核對</p></div>
+            </div>
+            <button onclick="showQuery()" class="btn-action">查詢紀錄</button>
+        </div>
+
+        <div class="p-6 pt-4">
+            <div class="grid grid-cols-2 gap-3 mb-4">
+                <button type="button" onclick="openQrScanner()" class="btn btn-scan"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" /></svg>掃描 QR</button>
+                <button type="button" onclick="openAiCamera()" id="btnAi" class="btn btn-ai"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /></svg>AI 讀單</button>
+            </div>
+
+            <div id="reader"></div>
+            <div id="camera-container">
+                <video id="live-video" autoplay playsinline></video>
+                <div class="camera-controls">
+                    <button style="background:rgba(0,0,0,0.5);color:white;padding:8px;border-radius:20px;" onclick="closeAiCamera()">取消</button>
+                    <button class="btn-shutter" onclick="captureAiPhoto()"></button>
+                    <div style="width:50px;"></div>
+                </div>
+            </div>
+            
+            <img id="imgLabel" class="preview-img mb-4">
+            <div id="msgLabel" class="text-center text-xs text-slate-400 mt-2 hidden"></div>
+
+            <form id="myForm" onsubmit="handleFormSubmit(event)">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6">
+                    <div class="mb-3">
+                        <label class="text-xs font-bold text-slate-400 uppercase mb-1 block">QR 內容 / AI 寫入</label>
+                        <input type="text" name="rawQr" id="rawQr" placeholder="請操作上方按鈕" required oninput="parseInputData(this.value)" class="font-mono text-sm text-slate-600">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-xs font-bold text-slate-500 mb-1 block">料號</label><input type="text" name="materialNo" id="materialNo"></div>
+                        <div><label class="text-xs font-bold text-slate-500 mb-1 block">槽號</label><input type="text" name="tankNo" id="tankNo"></div>
+                        <div><label class="text-xs font-bold text-red-500 mb-1 block">批號 (目標)</label><input type="text" name="batchNo" id="batchNo" class="font-bold text-red-600 bg-red-50 border-red-100"></div>
+                        <div><label class="text-xs font-bold text-blue-500 mb-1 block">送達地點</label><input type="text" name="deliveryPlace" id="deliveryPlace" class="font-bold text-blue-600 bg-blue-50 border-blue-100"></div>
+                    </div>
+                    <div class="mt-3"><label class="text-xs font-bold text-slate-500 mb-1 block">供應商</label><input type="text" name="supplier" id="supplier"></div>
+                </div>
+
+                <div class="photo-box" onclick="document.getElementById('inputBatch').click()">
+                    <label class="text-blue-600 font-bold block mb-1">📦 2. 拍攝 COA (批號)</label>
+                    <input type="file" id="inputBatch" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event, 'Batch')" required>
+                    <div id="statusBatch" class="text-orange-500 text-xs font-bold mt-2 hidden">⚡ 處理中...</div>
+                    <img id="previewBatch" class="preview-img">
+                    <input type="hidden" name="photoDataBatch" id="photoDataBatch">
+                </div>
+
+                <div class="photo-box" onclick="document.getElementById('inputLoc').click()">
+                    <label class="text-blue-600 font-bold block mb-1">🏭 3. 拍攝 T100 地磅畫面</label>
+                    <input type="file" id="inputLoc" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event, 'Loc')" required>
+                    <div id="statusLoc" class="text-orange-500 text-xs font-bold mt-2 hidden">⚡ 處理中...</div>
+                    <img id="previewLoc" class="preview-img">
+                    <input type="hidden" name="photoDataLoc" id="photoDataLoc">
+                </div>
+
+                <button type="submit" id="submitBtn" class="btn btn-submit mt-2">🚀 4. 智能驗證並上傳</button>
+            </form>
+        </div>
+      </div>
+    </div>
+
+
+    <div id="view-query" class="w-full max-w-2xl mx-auto hidden-section" style="padding-bottom:80px;">
+
+      <!-- 黏頂 header -->
+      <div id="query-header">
+        <!-- 標題列 -->
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <div class="header-icon" style="width:36px;height:36px;background:linear-gradient(135deg,#1e293b,#334155);">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+            </div>
+            <div>
+              <h1 class="text-base font-bold text-slate-800">歷史紀錄</h1>
+              <p class="text-xs text-slate-400">共 <span id="total-badge">0</span> 筆</p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="exportExcel()" class="btn-action btn-export" style="font-size:0.78rem;padding:6px 10px;">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" style="width:14px;height:14px;display:inline;margin-right:3px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>匯出
+            </button>
+            <button onclick="showScan()" class="btn-action" style="font-size:0.78rem;padding:6px 10px;">← 返回</button>
+          </div>
+        </div>
+
+        <!-- 日期快捷晶片 -->
+        <div class="flex gap-2 mb-2 overflow-x-auto no-scrollbar pb-1">
+          <button onclick="setQuickDate('3')" id="chip-3d" class="date-chip active">近3天</button>
+          <button onclick="setQuickDate('0')" id="chip-today" class="date-chip">今天</button>
+          <button onclick="setQuickDate('1')" id="chip-yday" class="date-chip">昨天</button>
+          <button onclick="setQuickDate('2')" id="chip-d2ago" class="date-chip">大昨天</button>
+          <button onclick="setQuickDate('custom')" id="chip-custom" class="date-chip">🗓 自訂</button>
+        </div>
+
+        <!-- 自訂日期列（預設隱藏） -->
+        <div id="customDateRow" class="hidden mb-2" style="display:none;">
+          <div class="flex gap-2 items-center">
+            <input type="date" id="startDate" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm flex-1">
+            <span class="text-slate-400 text-sm">~</span>
+            <input type="date" id="endDate" class="bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm flex-1">
+            <button onclick="searchData()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold">GO</button>
+          </div>
+        </div>
+
+        <!-- 搜尋列 -->
+        <div class="flex gap-2">
+          <input type="text" id="searchInput" placeholder="批號 / 料號 / 供應商..." style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:9px 12px;font-size:0.875rem;flex:1;width:auto;">
+          <button onclick="searchData()" style="background:#2563eb;color:white;border-radius:8px;padding:9px 16px;font-size:0.875rem;font-weight:700;white-space:nowrap;">搜尋</button>
+        </div>
+      </div>
+
+      <!-- 讀取中 -->
+      <div id="loadingOverlay" class="hidden-section p-10 text-center text-slate-400 text-sm">⏳ 讀取資料中...</div>
+
+      <!-- 桌機表格（手機隱藏） -->
+      <div id="tableWrapper" style="display:none;">
+        <div class="overflow-x-auto">
+          <table class="dt-table">
+            <thead>
+              <tr>
+                <th style="width:130px;">時間 / 狀態</th>
+                <th>單號資訊</th>
+                <th style="color:#1d4ed8;">批號 (BATCH)</th>
+                <th>供應商</th>
+                <th>料號</th>
+                <th>槽號</th>
+                <th>地點</th>
+                <th style="text-align:right;">照片</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 手機卡片容器（桌機隱藏） -->
+      <div id="cardContainer" class="p-3"></div>
+
+      <!-- 分頁 -->
+      <div id="pagination" class="hidden-section" style="background:white;border-top:1px solid #e2e8f0;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;">
+        <button id="prevBtn" onclick="changePage(-1)" class="btn-action">« 上一頁</button>
+        <span id="pageInfo" class="text-sm font-bold text-slate-600">1 / 1</span>
+        <button id="nextBtn" onclick="changePage(1)" class="btn-action">下一頁 »</button>
+      </div>
+
+
+    </div>
+
+
+    <script>
+      // ─── 頁面切換 ───────────────────────────────────────────
+      function showQuery() {
+        document.getElementById('view-scan').classList.add('hidden-section');
+        document.getElementById('view-query').classList.remove('hidden-section');
+        setQuickDate('3'); // 預設近3天
+      }
+      function showScan() {
+        document.getElementById('view-query').classList.add('hidden-section');
+        document.getElementById('view-scan').classList.remove('hidden-section');
+      }
+
+      // ─── 日期快捷邏輯 ────────────────────────────────────────
+      let activeChip = '3';
+      function getDateStr(offset) {
+        const d = new Date(); d.setDate(d.getDate() - offset);
+        return d.toISOString().slice(0, 10);
+      }
+      function setQuickDate(mode) {
+        activeChip = mode;
+        const chipMap = { '3':'chip-3d', '0':'chip-today', '1':'chip-yday', '2':'chip-d2ago', 'custom':'chip-custom' };
+        document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
+        document.getElementById(chipMap[mode]).classList.add('active');
+        const row = document.getElementById('customDateRow');
+        if (mode === 'custom') { row.style.display = 'block'; return; }
+        row.style.display = 'none';
+        currentPage = 1; fetchData();
+      }
+      function getQueryDates() {
+        if (activeChip === 'custom') {
+          return { start: document.getElementById('startDate').value, end: document.getElementById('endDate').value };
+        }
+        const map = { '3': [2, 0], '0': [0, 0], '1': [1, 1], '2': [2, 2] };
+        const [s, e] = map[activeChip] || [0, 0];
+        return { start: getDateStr(s), end: getDateStr(e) };
+      }
+
+      // ★ V36 新增：匯出 Excel 功能
+      function exportExcel() {
+          const btn = document.querySelector('.btn-export');
+          const originalText = btn.innerHTML;
+          btn.innerHTML = '處理中...'; btn.disabled = true;
+
+          const search = document.getElementById('searchInput').value;
+          const { start, end } = getQueryDates();
+
+
+          google.script.run.withSuccessHandler(function(data) {
+              if(!data || data.length === 0) { alert("沒有資料可匯出"); btn.innerHTML = originalText; btn.disabled = false; return; }
+              
+              // 製作 CSV 內容 (加入 BOM 以支援中文)
+              let csvContent = "\uFEFF";
+              csvContent += "時間,狀態,批號,來源單號,磅單編號,供應商,料號,槽號,地點,照片連結1,照片連結2\n";
+              
+              data.forEach(function(row) {
+                  let rowStr = [
+                      row.time,
+                      row.status,
+                      row.batch,
+                      row.sourceOrder,
+                      row.docOrder,
+                      row.supplier,
+                      row.material,
+                      row.tank,
+                      row.location,
+                      row.photoBatch,
+                      row.photoLoc
+                  ].map(e => `"${String(e).replace(/"/g, '""')}"`).join(","); // 處理逗號與引號
+                  csvContent += rowStr + "\n";
+              });
+
+              // 下載檔案
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.setAttribute("href", url);
+              link.setAttribute("download", `核對紀錄_${new Date().toISOString().slice(0,10)}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+
+              btn.innerHTML = originalText; btn.disabled = false;
+          }).withFailureHandler(function(err) {
+              alert("匯出失敗: " + err);
+              btn.innerHTML = originalText; btn.disabled = false;
+          }).getExportData(search, start, end); // 呼叫後端新的匯出函式
+      }
+
+      // 以下為原有函式 (掃描/拍照/查詢)
+      let html5QrcodeScanner;
+      let videoStream;
+
+      function openQrScanner() {
+        closeAiCamera(); document.getElementById('reader').style.display = 'block'; document.getElementById('imgLabel').style.display = 'none';
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        html5QrcodeScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, (decodedText) => {
+           document.getElementById('rawQr').value = decodedText; parseInputData(decodedText); 
+           html5QrcodeScanner.stop().then(() => { document.getElementById('reader').style.display = 'none'; });
+        }).catch(err => alert("相機啟動失敗，請確認權限"));
+      }
+
+      async function openAiCamera() {
+        if(html5QrcodeScanner) { try{ await html5QrcodeScanner.stop(); }catch(e){} document.getElementById('reader').style.display = 'none'; }
+        document.getElementById('imgLabel').style.display = 'none'; document.getElementById('camera-container').style.display = 'block';
+        const video = document.getElementById('live-video');
+        try { videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 4096 }, height: { ideal: 2160 } } }); video.srcObject = videoStream; } catch (err) { alert("無法啟動相機"); closeAiCamera(); }
+      }
+
+      function closeAiCamera() {
+        document.getElementById('camera-container').style.display = 'none';
+        if (videoStream) { videoStream.getTracks().forEach(track => track.stop()); videoStream = null; }
+      }
+
+      function captureAiPhoto() {
+        const video = document.getElementById('live-video'); const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d'); ctx.filter = "grayscale(100%) contrast(150%)"; ctx.drawImage(video, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const img = document.getElementById('imgLabel'); img.src = dataUrl; img.style.display = 'block';
+        closeAiCamera(); analyzeCapturedImage(dataUrl);
+      }
+
+      function analyzeCapturedImage(base64Data) {
+        const btn = document.getElementById('btnAi'); const msg = document.getElementById('msgLabel'); const originalText = btn.innerHTML;
+        btn.innerHTML = `AI 讀取中...`; btn.classList.add('opacity-75', 'pointer-events-none'); msg.classList.remove('hidden'); msg.innerText = '正在雲端分析...';
+        google.script.run.withSuccessHandler(function(res) {
+              btn.innerHTML = originalText; btn.classList.remove('opacity-75', 'pointer-events-none');
+              if(res.success) {
+                  const d = res.data;
+                  if(d.material) document.getElementById('materialNo').value = d.material;
+                  if(d.tank) document.getElementById('tankNo').value = d.tank;
+                  if(d.batch) document.getElementById('batchNo').value = d.batch;
+                  if(d.place) document.getElementById('deliveryPlace').value = d.place;
+                  if(d.supplier) document.getElementById('supplier').value = d.supplier;
+                  document.getElementById('rawQr').value = "AI_CAMERA_CAPTURE";
+                  msg.innerHTML = `<span class="text-green-600 font-bold">✅ 讀取成功！請檢查資料</span>`;
+              } else { msg.innerText = "❌ 讀取失敗"; alert("AI 讀取失敗: " + res.message); }
+          }).withFailureHandler(function(err){ btn.innerHTML = originalText; alert("系統錯誤: "+err); }).analyzeLabelPhoto(base64Data);
+      }
+
+      function parseInputData(text) {
+        if (!text || !text.includes("||")) return;
+        const parts = text.trim().split("||");
+        document.getElementById('materialNo').value = parts[1] || ""; document.getElementById('tankNo').value = parts[2] || "";
+        document.getElementById('batchNo').value = parts[3] || ""; document.getElementById('supplier').value = parts[4] || ""; document.getElementById('deliveryPlace').value = parts[5] || "";
+      }
+
+      function handleImageUpload(event, type) {
+        const file = event.target.files[0]; if (!file) return;
+        const statusEl = document.getElementById('status' + type); const previewEl = document.getElementById('preview' + type); const hiddenEl = document.getElementById('photoData' + type);
+        statusEl.style.display = 'block'; statusEl.classList.remove('hidden');
+        const reader = new FileReader(); reader.readAsDataURL(file);
+        reader.onload = function(e) {
+            const img = new Image(); img.src = e.target.result;
+            img.onload = function() {
+                const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
+                const MAX = 1600; let w = img.width; let h = img.height; if (w > MAX) { h *= MAX / w; w = MAX; } canvas.width = w; canvas.height = h;
+                ctx.filter = "grayscale(100%) contrast(150%) brightness(110%)"; ctx.drawImage(img, 0, 0, w, h);
+                const data = canvas.toDataURL('image/jpeg', 0.85); previewEl.src = data; previewEl.style.display = 'block'; hiddenEl.value = data;
+                statusEl.innerText = '✅ 優化完成'; statusEl.classList.replace('text-orange-500','text-green-600');
+            }
+        }
+      }
+
+      function handleFormSubmit(event) {
+        event.preventDefault();
+        const batchNo = document.getElementById('batchNo').value; const photoBatch = document.getElementById('photoDataBatch').value; const photoLoc = document.getElementById('photoDataLoc').value;
+        if(!batchNo || !photoBatch || !photoLoc) { alert("⚠️ 資料不完整"); return; }
+        const btn = document.getElementById('submitBtn'); const txt = btn.innerText; btn.disabled = true; btn.innerText = "⏳ 驗證中..."; btn.classList.add('btn-disabled');
+        google.script.run.withSuccessHandler(function(res) {
+            if(res.success) { alert(res.message); document.getElementById("myForm").reset(); document.getElementById('previewBatch').style.display='none'; document.getElementById('previewLoc').style.display='none'; document.getElementById('imgLabel').style.display='none'; document.getElementById('statusBatch').classList.add('hidden'); document.getElementById('statusLoc').classList.add('hidden'); document.getElementById('msgLabel').classList.add('hidden'); } 
+            else { alert(res.message + "\n\n❌ 未存檔。"); }
+            btn.disabled = false; btn.innerText = txt; btn.classList.remove('btn-disabled');
+        }).processFormAndVerify_V10({
+             batchNo: batchNo, deliveryPlace: document.getElementById('deliveryPlace').value, supplier: document.getElementById('supplier').value, tankNo: document.getElementById('tankNo').value, materialNo: document.getElementById('materialNo').value, rawQr: document.getElementById('rawQr').value, photoDataBatch: photoBatch, photoDataLoc: photoLoc
+        });
+      }
+
+      let currentPage = 1;
+      function searchData() { currentPage = 1; fetchData(); }
+      function changePage(d) { currentPage += d; fetchData(); }
+
+      function fetchData() {
+        document.getElementById('loadingOverlay').classList.remove('hidden-section');
+        document.getElementById('cardContainer').innerHTML = '';
+        document.getElementById('tableBody').innerHTML = '';
+        const { start, end } = getQueryDates();
+        google.script.run
+          .withSuccessHandler(renderData)
+          .withFailureHandler(function(e){ document.getElementById('loadingOverlay').classList.add('hidden-section'); alert('載入失敗: ' + e); })
+          .getLogData(currentPage, document.getElementById('searchInput').value, start, end);
+      }
+
+      function renderData(data) {
+        document.getElementById('loadingOverlay').classList.add('hidden-section');
+        document.getElementById('total-badge').innerText = data.total;
+
+        const container  = document.getElementById('cardContainer');
+        const tbody      = document.getElementById('tableBody');
+
+        if (data.records.length === 0) {
+          container.innerHTML = '<div style="text-align:center;padding:60px 0;color:#94a3b8;font-size:0.9rem;">📭 查無資料</div>';
+          tbody.innerHTML = '<tr><td colspan="8" style="padding:60px;text-align:center;color:#94a3b8;">📭 查無資料</td></tr>';
+          document.getElementById('pagination').classList.add('hidden-section');
+          return;
+        }
+
+        let cardHtml  = '';
+        let tableHtml = '';
+
+        data.records.forEach(r => {
+          const success = r.status && (r.status.includes('成功') || r.status.includes('放行'));
+          const badge = success
+            ? '<span class="badge badge-success">✅ 核對成功</span>'
+            : '<span class="badge badge-fail">❌ 核對失敗</span>';
+
+          let photoBtns = '';
+          if (r.photoBatch && r.photoBatch.startsWith('http'))
+            photoBtns += `<a href="${r.photoBatch}" target="_blank" class="btn-photo">📦 COA</a>`;
+          if (r.photoLoc && r.photoLoc.startsWith('http'))
+            photoBtns += `<a href="${r.photoLoc}" target="_blank" class="btn-photo">🏭 地磅</a>`;
+
+          // ── 手機卡片 ──
+          const orderRows = [
+            r.sourceOrder ? `<div><div class="record-card-label">來源單號</div><div class="record-card-field" style="font-family:monospace;color:#475569;">${r.sourceOrder}</div></div>` : '',
+            r.docOrder    ? `<div><div class="record-card-label">磅單編號</div><div class="record-card-field" style="font-family:monospace;color:#2563eb;">${r.docOrder}</div></div>` : ''
+          ].join('');
+
+          cardHtml += `
+          <div class="record-card">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+              <div>
+                <div class="record-card-batch">${r.batch}</div>
+                <div class="record-card-time" style="margin-top:2px;">${r.time}</div>
+              </div>
+              ${badge}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:10px;">
+              <div><div class="record-card-label">料號</div><div class="record-card-field" style="font-family:monospace;">${r.material || '-'}</div></div>
+              <div><div class="record-card-label">槽號</div><div class="record-card-field" style="font-family:monospace;">${r.tank || '-'}</div></div>
+              <div><div class="record-card-label">供應商</div><div class="record-card-field">${r.supplier || '-'}</div></div>
+              <div><div class="record-card-label">地點</div><div class="record-card-field">${r.location || '-'}</div></div>
+              ${orderRows}
+            </div>
+            ${photoBtns ? `<div style="display:flex;gap:6px;padding-top:8px;border-top:1px solid #f1f5f9;">${photoBtns}</div>` : ''}
+          </div>`;
+
+          // ── 桌機表格列 ──
+          let orderCell = '-';
+          if (r.sourceOrder || r.docOrder) {
+            orderCell = '';
+            if (r.sourceOrder) orderCell += `<div style="font-size:0.75rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;font-family:monospace;margin-bottom:2px;">來源: ${r.sourceOrder}</div>`;
+            if (r.docOrder)    orderCell += `<div style="font-size:0.75rem;background:#eff6ff;color:#2563eb;padding:2px 6px;border-radius:4px;font-family:monospace;">磅單: ${r.docOrder}</div>`;
+          }
+          tableHtml += `<tr>
+            <td><div style="font-size:0.72rem;color:#94a3b8;font-family:monospace;margin-bottom:4px;">${r.time}</div>${badge}</td>
+            <td>${orderCell}</td>
+            <td style="font-weight:700;color:#1d4ed8;font-family:monospace;">${r.batch}</td>
+            <td style="color:#475569;font-size:0.82rem;">${r.supplier || '-'}</td>
+            <td style="font-family:monospace;font-size:0.82rem;color:#475569;">${r.material || '-'}</td>
+            <td style="font-family:monospace;font-size:0.82rem;color:#475569;">${r.tank || '-'}</td>
+            <td style="font-size:0.82rem;color:#475569;">${r.location || '-'}</td>
+            <td style="text-align:right;">${photoBtns || '-'}</td>
+          </tr>`;
+        });
+
+        container.innerHTML = cardHtml;
+        tbody.innerHTML     = tableHtml;
+
+        const pagination = document.getElementById('pagination');
+        pagination.classList.remove('hidden-section');
+        document.getElementById('pageInfo').innerText = currentPage + ' / ' + data.totalPages;
+        document.getElementById('prevBtn').disabled = currentPage <= 1;
+        document.getElementById('nextBtn').disabled = currentPage >= data.totalPages;
+      }
+    </script>
+  
+    <script>
+      let deferredPrompt;
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        document.getElementById('pwa-install-banner').classList.remove('hidden');
+      });
+      document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+          if (outcome === 'accepted') {
+            document.getElementById('pwa-install-banner').classList.add('hidden');
+          }
+          deferredPrompt = null;
+        }
+      });
+
+      const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyJNqo25ny2IiwajeltMlSi1M8PnVonczlLA2UoEoxZYGSE72tiWTEJ61Y_wQhPU0H5/exec";
+
+      // Mock google.script.run for PWA backend decoupling
+      const google = {
+        script: {
+          run: {
+            withSuccessHandler: function(onSuccess) { this._onSuccess = onSuccess; return this; },
+            withFailureHandler: function(onFailure) { this._onFailure = onFailure; return this; },
+            _callBackend: function(action, ...args) {
+              const successCb = this._onSuccess; const failureCb = this._onFailure;
+              this._onSuccess = null; this._onFailure = null;
+              
+              let payload = { action: action };
+              if (action === "analyzeLabelPhoto") payload.base64Data = args[0];
+              else if (action === "processFormAndVerify") payload.formObject = args[0];
+              else if (action === "getLogData") { payload.page = args[0]; payload.searchText = args[1]; payload.startDate = args[2]; payload.endDate = args[3]; }
+              else if (action === "getExportData") { payload.searchText = args[0]; payload.startDate = args[1]; payload.endDate = args[2]; }
+
+              fetch(GAS_API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+              })
+              .then(res => res.json())
+              .then(data => { if(successCb) successCb(data); })
+              .catch(err => { if(failureCb) failureCb(err); });
+            },
+            analyzeLabelPhoto: function(base64Data) { this._callBackend("analyzeLabelPhoto", base64Data); },
+            processFormAndVerify_V10: function(formObject) { this._callBackend("processFormAndVerify", formObject); },
+            getLogData: function(page, search, start, end) { this._callBackend("getLogData", page, search, start, end); },
+            getExportData: function(search, start, end) { this._callBackend("getExportData", search, start, end); }
+          }
+        }
+      };
+    </script>
+</body>
+</html>

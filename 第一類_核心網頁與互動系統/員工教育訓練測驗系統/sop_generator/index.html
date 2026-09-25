@@ -3125,7 +3125,16 @@ function doPost(e) {
 4. **填入測驗系統**：
    - 開啟您的 \`index.html\`，點選右上角的 **⚙️ 系統設定**（管理員密碼預設為 \`admin888\`）。
    - 在「雲端同步網址」欄位中貼入您剛才複製的 Google Web App URL，然後儲存。
-   - 同仁提交時，成績就會自動非同步備份到雲端的 Google 試算表中！`;
+   - 同仁提交時，成績就會自動非同步備份到雲端的 Google 試算表中！`
+---
+
+## 🌟 方案 D：Cloudflare 雙軌架構 (一鍵自動部署上雲端)
+當您解壓縮教材包後，會看到 一鍵自動部署上雲端.bat：
+1. 雙擊執行 一鍵自動部署上雲端.bat。
+2. 系統會詢問「請輸入要建立的專案英文名稱」。
+3. 接下來系統會**全自動執行**：創建 D1 雲端資料庫、自動擷取並寫入 database_id、將題庫 schema.sql 結構寫入雲端，並將整個網站打包發布到 Cloudflare Pages！
+4. 完成後，您將獲得一個永久的公開專屬網址，員工考題紀錄也會自動寫入 Cloudflare D1 資料庫中，無須管理伺服器。
+;
 
         // Cloudflare D1 整合檔案
         const schemaSqlCode = `DROP TABLE IF EXISTS exam_records;
