@@ -61,6 +61,15 @@
       const [manualInputs, setManualInputs] = useState({});
       const [scheduleInputs, setScheduleInputs] = useState({});
       const [manualCarOverrides, setManualCarOverrides] = useState({});
+      const [manualTimeOverrides, setManualTimeOverrides] = useState({});
+      const [sequenceShiftOverrides, setSequenceShiftOverrides] = useState({});
+
+      const formatLocalForInput = (ms) => {
+          if (!ms) return '';
+          const d = new Date(ms);
+          const pad = (n) => String(n).padStart(2, '0');
+          return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
 
       const formatDateTimeForInput = (rawVal) => {
         if (!rawVal) return '';
@@ -72,7 +81,8 @@
 
       const getCurrentPayload = () => ({
         startDateTime, scheduleStartDateTime, totalTonnage, flowRate, carCapacity, yieldRate, safetyStock, initialStockDay0,
-        stockTK623, stockTK689, stockTK692, stockOther, otherCapacity, manualInputs, carSequence, scheduleInputs, manualCarOverrides 
+        stockTK623, stockTK689, stockTK692, stockOther, otherCapacity, manualInputs, carSequence, scheduleInputs, manualCarOverrides,
+        manualTimeOverrides, sequenceShiftOverrides
       });
 
       // 幫助函數：產生深度排序的 JSON 字串，避免任何嵌套層級的屬性順序不同導致比對失敗
@@ -151,6 +161,8 @@
         if (data.manualInputs) setManualInputs(data.manualInputs); else setManualInputs({});
         if (data.scheduleInputs) setScheduleInputs(data.scheduleInputs); else setScheduleInputs({});
         if (data.manualCarOverrides) setManualCarOverrides(data.manualCarOverrides); else setManualCarOverrides({});
+        if (data.manualTimeOverrides) setManualTimeOverrides(data.manualTimeOverrides); else setManualTimeOverrides({});
+        if (data.sequenceShiftOverrides) setSequenceShiftOverrides(data.sequenceShiftOverrides); else setSequenceShiftOverrides({});
         
         if (data.carSequence && Array.isArray(data.carSequence)) { 
           setCarSequence(data.carSequence); 
@@ -199,7 +211,7 @@
         if (!isDataLoaded || isRestoring) return;
         const timer = setTimeout(handleSave, 2000);
         return () => clearTimeout(timer);
-      }, [startDateTime, scheduleStartDateTime, totalTonnage, flowRate, carCapacity, yieldRate, safetyStock, initialStockDay0, stockTK623, stockTK689, stockTK692, manualInputs, carSequence, scheduleInputs]); 
+      }, [startDateTime, scheduleStartDateTime, totalTonnage, flowRate, carCapacity, yieldRate, safetyStock, initialStockDay0, stockTK623, stockTK689, stockTK692, manualInputs, carSequence, scheduleInputs, manualCarOverrides, manualTimeOverrides, sequenceShiftOverrides]); 
 
       const handleArchiveOnly = async () => {
         const archiveName = window.prompt("請為這次的紀錄命名 (例如：2026-05專案)，以利未來讀取：\n\n系統將自動備份，且【不會】清空您目前的畫面。");
@@ -239,6 +251,9 @@
           setTotalTonnage('');
           setManualInputs({});
           setScheduleInputs({});
+          setManualCarOverrides({});
+          setManualTimeOverrides({});
+          setSequenceShiftOverrides({});
         }
       };
 
@@ -309,11 +324,27 @@
           let schStartMs = scheduleStartDateTime ? new Date(scheduleStartDateTime).getTime() : new Date(startDateTime).getTime();
           let schCur = schStartMs; 
           let schRem = tonnage; let count = 0;
+          let currentSeqIndex = 0;
           while (schRem > 0.001) {
-            count++; const load = Math.min(schRem, capacity); const dur = (load / flow) * 3600000;
+            count++; 
+            const load = Math.min(schRem, capacity); 
+            const dur = (load / flow) * 3600000;
+            
+            if (manualTimeOverrides[count]) {
+              schCur = new Date(manualTimeOverrides[count]).getTime();
+            }
+
             const end = schCur + dur;
             
-            const baseCar = carSequence[(count-1) % carSequence.length];
+            if (sequenceShiftOverrides[count]) {
+               const shiftCar = sequenceShiftOverrides[count];
+               const foundIdx = carSequence.indexOf(shiftCar);
+               if (foundIdx !== -1) {
+                   currentSeqIndex = foundIdx;
+               }
+            }
+            
+            const baseCar = carSequence[currentSeqIndex % carSequence.length];
             const manualCar = manualCarOverrides[count];
             
             list.push({ 
@@ -324,12 +355,15 @@
               end: end, 
               load 
             });
-            schCur = end; schRem -= load;
+            
+            currentSeqIndex++;
+            schCur = end; 
+            schRem -= load;
           }
         }
         
         return { dailyUsageMap: usageMap, dailyProductionMap: prodMap, scheduleList: list };
-      }, [startDateTime, scheduleStartDateTime, flowRate, totalTonnage, carCapacity, yieldRate, carSequence, manualCarOverrides]);
+      }, [startDateTime, scheduleStartDateTime, flowRate, totalTonnage, carCapacity, yieldRate, carSequence, manualCarOverrides, manualTimeOverrides, sequenceShiftOverrides]);
 
       // 進耗存與成品估算合併表邏輯
       const inventoryData = useMemo(() => {
@@ -720,50 +754,124 @@
                   </button>
                 </div>
               </div>
-              <div className="max-h-[350px] overflow-y-auto">
-                <table className="w-full text-center text-xs border-collapse">
+              <div className="overflow-x-auto pb-4">
+                <table className="w-full text-center text-sm border-collapse">
                   <thead className="bg-slate-100 sticky top-0 shadow-sm z-10">
                     <tr>
                       <th className="p-3 border-b border-slate-200 text-slate-600">序號</th>
                       <th className="p-3 border-b border-slate-200 text-slate-800 font-bold">車號</th>
                       <th className="p-3 border-b border-slate-200 text-slate-600">排程開始時間</th>
                       <th className="p-3 border-b border-slate-200 text-slate-600">預計完成</th>
-                      <th className="p-3 border-b border-slate-200 text-blue-600 font-bold">重車回鴻勝<br/><span className="text-[10px] text-blue-400 font-normal">填寫日期/時間</span></th>
-                      <th className="p-3 border-b border-slate-200 text-teal-600 font-bold">空車回一廠<br/><span className="text-[10px] text-teal-400 font-normal">填寫日期/時間</span></th>
+                      <th className="p-3 border-b border-slate-200 text-blue-600 font-bold">重車回鴻勝<br/><span className="text-xs text-blue-400 font-normal">填寫日期/時間</span></th>
+                      <th className="p-3 border-b border-slate-200 text-teal-600 font-bold">空車回一廠<br/><span className="text-xs text-teal-400 font-normal">填寫日期/時間</span></th>
                       <th className="p-3 border-b border-slate-200 text-slate-600">備註 / 狀態</th>
                     </tr>
                   </thead>
                   <tbody>
                     {scheduleList.map((s, idx) => {
                       const isLast = idx === scheduleList.length - 1;
-                      const isOverridden = manualCarOverrides[s.id] !== undefined && manualCarOverrides[s.id] !== s.baseCar;
+                      const hasManualCar = manualCarOverrides[s.id] !== undefined;
+                      const isShifted = sequenceShiftOverrides[s.id] !== undefined;
+                      const isModified = hasManualCar || isShifted;
+                      const isTimeOverridden = manualTimeOverrides[s.id] !== undefined;
                       return (
                         <tr key={s.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
                           <td className="p-2 text-slate-500">{s.id}</td>
-                          <td className="p-1">
-                            <input type="text"
-                              value={s.car}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setManualCarOverrides(prev => ({...prev, [s.id]: val}));
-                              }}
-                              className={`w-20 p-1.5 text-center font-bold rounded focus:outline-none focus:ring-1 focus:ring-blue-400 transition-all ${isOverridden ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-transparent text-slate-800 hover:bg-slate-200'}`}
-                              title={isOverridden ? `原本為: ${s.baseCar}` : '點擊修改車號'}
-                            />
-                            {isOverridden && (
-                              <div className="text-[9px] text-amber-600">
-                                ✎ 手動 ({s.baseCar})
+                          <td className="p-1 min-w-[120px]">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center">
+                                <input type="text"
+                                  value={hasManualCar ? manualCarOverrides[s.id] : s.baseCar}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === s.baseCar && !isShifted) {
+                                       setManualCarOverrides(prev => { const c = {...prev}; delete c[s.id]; return c; });
+                                    } else {
+                                       setManualCarOverrides(prev => ({...prev, [s.id]: val}));
+                                    }
+                                  }}
+                                  className={`w-20 p-1 text-center font-bold rounded focus:outline-none focus:ring-1 focus:ring-blue-400 transition-all ${isModified ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-transparent text-slate-800 hover:bg-slate-200'}`}
+                                  title={(isModified) ? `原本為: ${s.baseCar}` : '點擊修改車號'}
+                                />
                               </div>
-                            )}
+                              {isModified && (
+                                <div className="flex items-center justify-center space-x-1 text-[10px]">
+                                  <button 
+                                     onClick={() => {
+                                        if (isShifted) {
+                                            setSequenceShiftOverrides(prev => { const c = {...prev}; delete c[s.id]; return c; });
+                                        } else {
+                                            const carToShift = hasManualCar ? manualCarOverrides[s.id] : s.baseCar;
+                                            if (carSequence.includes(carToShift)) {
+                                               // Clear subsequent overrides so sequence can flow freely
+                                               setManualCarOverrides(prev => {
+                                                   const c = {...prev};
+                                                   Object.keys(c).forEach(k => { if (Number(k) > s.id) delete c[k]; });
+                                                   return c;
+                                               });
+                                               setSequenceShiftOverrides(prev => {
+                                                   const c = {...prev};
+                                                   Object.keys(c).forEach(k => { if (Number(k) > s.id) delete c[k]; });
+                                                   c[s.id] = carToShift;
+                                                   return c;
+                                               });
+                                            } else {
+                                               alert(`"${carToShift}" 不在原始名單內，無法接續排序。請確認原始名單。`);
+                                            }
+                                        }
+                                     }}
+                                     className={`px-1.5 py-0.5 rounded border ${isShifted ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}`}
+                                     title="從此車開始，後續排程依起始名單接續排序"
+                                  >
+                                     {isShifted ? '已接續排序' : '接續排序'}
+                                  </button>
+                                  <button 
+                                     onClick={() => {
+                                         setManualCarOverrides(prev => { const c = {...prev}; delete c[s.id]; return c; });
+                                         setSequenceShiftOverrides(prev => { const c = {...prev}; delete c[s.id]; return c; });
+                                     }}
+                                     className="px-1 py-0.5 rounded bg-slate-200 text-slate-600 hover:bg-slate-300"
+                                     title="還原為原始車號"
+                                  >
+                                     ✖
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </td>
-                          <td className="p-2 text-slate-600">{new Date(s.start).toLocaleString()}</td>
+                          <td className="p-1 min-w-[195px]">
+                            <div className="flex flex-col items-center justify-center gap-1">
+                              <input type="datetime-local" 
+                                value={formatLocalForInput(s.start)}
+                                onChange={e => {
+                                   const val = e.target.value;
+                                   if (!val) {
+                                       setManualTimeOverrides(prev => { const copy = {...prev}; delete copy[s.id]; return copy; });
+                                   } else {
+                                       setManualTimeOverrides(prev => ({...prev, [s.id]: val}));
+                                   }
+                                }}
+                                className={`w-[190px] p-1 text-sm text-center border rounded focus:outline-none focus:ring-1 focus:ring-purple-400 transition-all ${isTimeOverridden ? 'bg-purple-100 border-purple-300 font-bold text-purple-900' : 'bg-transparent text-slate-600 border-transparent hover:border-slate-200'}`}
+                              />
+                              {isTimeOverridden && (
+                                <button 
+                                   onClick={() => {
+                                       setManualTimeOverrides(prev => { const copy = {...prev}; delete copy[s.id]; return copy; });
+                                   }}
+                                   className="text-[10px] text-purple-600 hover:text-purple-800 underline"
+                                >
+                                   還原自動時間
+                                </button>
+                              )}
+                            </div>
+                          </td>
                           <td className="p-2 text-slate-600">{new Date(s.end).toLocaleString()}</td>
                           
                           <td className="p-1">
                             <input type="text" 
                               value={scheduleInputs[s.id]?.heavyReturn || ''}
                               onChange={e => setScheduleInputs(prev => ({...prev, [s.id]: {...(prev[s.id]||{}), heavyReturn: e.target.value}}))}
-                              className="w-28 p-1.5 text-center text-blue-700 bg-white border border-slate-200 rounded focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none transition-all placeholder:text-slate-300"
+                              className="w-32 p-1.5 text-center text-sm text-blue-700 bg-white border border-slate-200 rounded focus:border-blue-400 focus:ring-1 focus:ring-blue-400 focus:outline-none transition-all placeholder:text-slate-300"
                               placeholder="例如: 5/8 14:00"
                             />
                           </td>
@@ -772,15 +880,15 @@
                             <input type="text" 
                               value={scheduleInputs[s.id]?.emptyReturn || ''}
                               onChange={e => setScheduleInputs(prev => ({...prev, [s.id]: {...(prev[s.id]||{}), emptyReturn: e.target.value}}))}
-                              className="w-28 p-1.5 text-center text-teal-700 bg-white border border-slate-200 rounded focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all placeholder:text-slate-300"
+                              className="w-32 p-1.5 text-center text-sm text-teal-700 bg-white border border-slate-200 rounded focus:border-teal-400 focus:ring-1 focus:ring-teal-400 focus:outline-none transition-all placeholder:text-slate-300"
                               placeholder="例如: 5/8 16:30"
                             />
                           </td>
                           
                           <td className="p-2">
                             {isLast ? 
-                              <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-[10px] font-bold">全案完工 (尾數 {Math.round(s.load)}T)</span> 
-                              : <span className="text-slate-400 text-[11px]">滿載</span>}
+                              <span className="bg-amber-100 text-amber-800 px-2 py-1 rounded text-sm font-bold">全案完工 (尾數 {Math.round(s.load)}T)</span> 
+                              : <span className="text-slate-400 text-sm">滿載</span>}
                           </td>
                         </tr>
                       );
