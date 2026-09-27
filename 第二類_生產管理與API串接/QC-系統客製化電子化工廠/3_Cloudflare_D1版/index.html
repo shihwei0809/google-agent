@@ -7,7 +7,8 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
   <!-- 引入 SheetJS 用於客戶端即時解析 T100 排程 Excel -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script>
   // 動態提示字跑馬燈
   function startPlaceholderMarquee(elementId, originalText) {
     const el = document.getElementById(elementId);
@@ -3145,8 +3146,8 @@
           </div>
           <div style="font-size:0.82rem; color:#374151;"><b>送樣時間：</b>${formatSimpleDate(s.createdAt)}</div>
           ${s.completedAt ? `<div style="font-size:0.82rem; color:#374151;"><b>完成時間：</b>${formatSimpleDate(s.completedAt)}</div>` : ''}
-          ${s.remark ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px;"><b>送樣備註：</b>${s.remark}</div>` : \'\'}
-          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>判定備註：</b>${s.qcNote}</div>` : \'\'}
+          ${s.remark ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px;"><b>送樣備註：</b>${s.remark}</div>` : ''}
+          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>判定備註：</b>${s.qcNote}</div>` : ''}
         </div>
       `).join('')
       : '<div style="text-align:center; color:#94a3b8; padding:20px;">找不到送樣歷史記錄</div>';
