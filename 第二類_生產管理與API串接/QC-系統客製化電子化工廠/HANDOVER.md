@@ -1,15 +1,14 @@
-﻿# 交接日誌 (HANDOVER)
+﻿# 跨機交接日誌 (HANDOVER)
 
-## 前次進度與交接事項
-- 完成了 D1 資料庫遷移與帳號管理後台實作。
-- 遭遇 Windows PowerShell 編碼問題導致 D1 資料庫欄位被寫入 Big5 亂碼，已撰寫專屬修復腳本清空並重設 \System_Config\。
-- 發現並解決了因瀏覽器快取舊版 \dmin.html\ 導致設定被覆蓋的問題。
-- 操作手冊已更新，說明 QC 實名制登入與後台解鎖雙軌 PIN 碼（預設 8888）之不同。
+## 前次進度與交接事項 (2026/09/27)
+1. **修復 D1 時區問題**：API 寫入時間強制加上 +8 hours，解決了 Cloudflare Worker 預設 UTC 時區導致樣品送出即判定「逾期 8 小時」的 Bug。
+2. **新增排程自動化邏輯**：
+   - 實作了「品名自動對應等級」功能，並在 D1 後台 (dmin.html) 新增專屬的「🧪 品名等級設定」雙欄位 UI。
+   - 將該邏輯同步推播至舊版 GAS (1_Web_網頁版, 2_PWA_App版)，並修改 Code.gs 支援直接讀取 OPTIONS_PRODUCT_GRADES_MAP 獨立工作表。
+3. **修復同槽不同車誤判 Bug**：修正了 getOrderSubmissionInfo 在判斷「無單號排程」時，因使用 OR 條件導致同槽但不同車次的樣品被誤標為「已送樣」的問題。現在若有填寫車牌，必須槽號與車牌皆吻合才會合併。
+4. **新增超時背景巡邏 API**：於 Cloudflare API 實作了 ?action=checkOverdue，支援每 10 分鐘透過外部 (如 GAS) 呼叫，進行 2 小時與 4 小時的分段式 Teams 警報推播 (具備 isAlerted 狀態追蹤防洗版機制)。
+5. **修復員工字典陣列格式錯誤**：將 D1 getEmployees 回傳的陣列格式在前端轉換為字典 (Phonebook) 格式，解決了輸入工號顯示「查無人員」的問題。
 
-- **【重要坑點】Cloudflare 部署機制**：qc-samples 目前在 Cloudflare 上是「直接上傳 (Direct Upload)」專案，沒有連結 Git。推送到 GitHub main 分支**不會**自動更新 qc-samples，只會更新 eshine-package 等其他專案。因此，任何針對 QC 系統的修改，除了推送到 GitHub 備份外，**必須強制在本機執行 
-px wrangler pages deploy ./ --project-name qc-samples** 才能真正上線。
-
-## 下一步待辦清單
-- 觀察上線後，使用者是否能在 PWA 環境中順利使用帳號密碼登入並完成檢驗判定。
-- 確保 Teams Webhook 推播功能正常執行。
+## 今日未完成 / 待確認事項
+- 等待測試環境跑個幾天，確認 2/4 小時的超時警報以及同車次自動合併送樣功能在現場運作一切正常。
 
