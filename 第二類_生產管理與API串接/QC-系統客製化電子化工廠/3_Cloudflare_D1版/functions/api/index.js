@@ -81,7 +81,7 @@ export async function onRequest(context) {
       const data = payload.payload || payload;
       const { id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark } = data;
       await env.DB.prepare("ALTER TABLE QC_Samples ADD COLUMN remark TEXT").run().catch(e=>{});
-      await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now', 'localtime'))")
+      await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now', '+8 hours'))")
         .bind(id||null, barcode||null, productName||null, tankNo||null, customer||null, quantity||null, flowType||null, dept||null, requester||null, grade||null, remark||null).run();
       return new Response(JSON.stringify({ success: true }), { headers: h });
     }
@@ -93,7 +93,7 @@ export async function onRequest(context) {
       let status = "completed";
       if (result === "退件" || result === "重取樣") status = "failed";
       
-      await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = datetime('now', 'localtime') WHERE id = ?")
+      await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = datetime('now', '+8 hours') WHERE id = ?")
         .bind(status||null, result||null, note||null, approver||null, id||null).run();
       return new Response(JSON.stringify({ success: true }), { headers: h });
     }
