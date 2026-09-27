@@ -38,7 +38,29 @@
       <input type="text" id="loginUser" placeholder="帳號 (預設 admin)">
       <input type="password" id="loginPass" placeholder="密碼 (預設 admin123)" onkeypress="if(event.key === 'Enter') login()">
       <button onclick="login()">登入</button>
+      <!-- 品名等級設定分頁 -->
+    <div id="tab-grades" class="tab-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="margin: 0;">品名與預設等級對應</h2>
+        <div>
+          <button onclick="addGradeRow()" style="background: #3b82f6;">+ 新增品名</button>
+          <button onclick="saveGrades()" style="background: #10b981;">儲存對應表</button>
+        </div>
+      </div>
+      
+      <table id="gradesTable">
+        <thead>
+          <tr>
+            <th>品名 (Product)</th>
+            <th>預設等級 (Grade)</th>
+            <th style="width: 80px; text-align: center;">操作</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
+
+  </div>
   </div>
 
   <!-- 新增帳號視窗 -->
@@ -82,6 +104,7 @@
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('tab-accounts')">👥 帳號管理</button>
       <button class="tab-btn" onclick="switchTab('tab-settings')">📝 系統參數設定</button>
+      <button class="tab-btn" onclick="switchTab('tab-grades')">🧪 品名等級設定</button>
     </div>
 
     <!-- 帳號管理分頁 -->
@@ -139,6 +162,52 @@
       document.getElementById('changePasswordModal').style.display = 'flex';
     }
 
+
+    function renderGradesTable(mapStr) {
+      const tbody = document.querySelector('#gradesTable tbody');
+      tbody.innerHTML = '';
+      if (!mapStr) return;
+      const pairs = mapStr.split(',').map(s => s.trim()).filter(Boolean);
+      pairs.forEach(p => {
+        const parts = p.split(':');
+        if(parts.length >= 2) addGradeRow(parts[0].trim(), parts[1].trim());
+      });
+    }
+
+    function addGradeRow(prod = '', grade = '') {
+      const tbody = document.querySelector('#gradesTable tbody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="g-prod" value="${prod.replace(/"/g, '&quot;')}" placeholder="例如: EBR-P1R"></td>
+        <td><input type="text" class="g-grade" value="${grade.replace(/"/g, '&quot;')}" placeholder="例如: 電子級"></td>
+        <td style="text-align: center;"><button style="background: #ef4444; padding: 5px 10px;" onclick="this.closest('tr').remove()">刪除</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    async function saveGrades() {
+      const rows = document.querySelectorAll('#gradesTable tbody tr');
+      const pairs = [];
+      rows.forEach(tr => {
+        const p = tr.querySelector('.g-prod').value.trim();
+        const g = tr.querySelector('.g-grade').value.trim();
+        if (p && g) pairs.push(`${p}:${g}`);
+      });
+      const finalStr = pairs.join(', ');
+      
+      try {
+        await fetch(API, { 
+          method: 'POST', 
+          headers: {'Content-Type':'application/json'}, 
+          body: JSON.stringify({ action: 'updateConfig', configs: { 'OPTIONS_PRODUCT_GRADES_MAP': finalStr } }) 
+        });
+        alert('品名等級對應表已成功儲存！');
+        loadConfig();
+      } catch (err) {
+        alert('儲存失敗：' + err);
+      }
+    }
+
     async function login() {
       const u = document.getElementById('loginUser').value;
       const p = document.getElementById('loginPass').value;
@@ -172,7 +241,10 @@
         t.innerHTML = '';
         if (data['OPTIONS_PRODUCT_GRADES_MAP'] === undefined) data['OPTIONS_PRODUCT_GRADES_MAP'] = 'EBR-P1R:電子級, IPAUPS:UPS';
         
+        renderGradesTable(data['OPTIONS_PRODUCT_GRADES_MAP']);
+
         for(const k in data) {
+          if (k === 'OPTIONS_PRODUCT_GRADES_MAP') continue; // Hide it from settings tab
           t.innerHTML += `<tr><td><strong>${k}</strong></td><td><input type="text" id="cfg_${k}" value="${data[k].replace(/"/g, '&quot;')}"></td></tr>`;
         }
       } catch (err) { }
