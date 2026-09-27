@@ -124,7 +124,7 @@ export async function onRequest(context) {
       // 確保資料表存在以防尚未初始化
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
       const { results } = await env.DB.prepare("SELECT * FROM T100_Orders ORDER BY targetDate DESC, createdAt DESC LIMIT 200").all();
-      return new Response(JSON.stringify(results), { headers: h });
+      return new Response(JSON.stringify({ success: true, count: results.length, orders: results }), { headers: h });
     }
 
     if (action === "getEmployees") {

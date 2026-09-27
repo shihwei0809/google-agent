@@ -1847,7 +1847,7 @@
     try {
       const resp = await fetch(`${GAS_API_URL}?action=getOrders`);
       const result = await resp.json();
-      if (result.success && Array.isArray(result.orders) && result.orders.length > 0) {
+      if (result.success && Array.isArray(result.orders)) {
         // 合併：以雲端為主（覆蓋 localStorage），但保留 localStorage 若雲端為空
         t100Orders = result.orders;
         localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
