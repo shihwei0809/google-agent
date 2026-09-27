@@ -646,7 +646,7 @@
           <label class="required">送樣人員</label>
           <div style="display:flex; gap:6px; align-items:center;">
             <input type="text" id="empIdInput" placeholder="掃描或輸入工號" style="width:110px; flex-shrink:0;"
-              oninput="lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
+              oninput="this.value = this.value.toUpperCase(); lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
             <input type="text" id="requester" placeholder="姓名（工號查到後自動填入）" required style="flex:1;">
           </div>
           <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
