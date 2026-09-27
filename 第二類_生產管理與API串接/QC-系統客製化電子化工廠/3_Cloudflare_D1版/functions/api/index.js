@@ -78,9 +78,10 @@ export async function onRequest(context) {
     if ((action === "submitSample" || action === "createSample") && request.method === "POST") {
       // payload expects: id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade
       const data = payload.payload || payload;
-      const { id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade } = data;
-      await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '待檢驗', datetime('now', 'localtime'))")
-        .bind(id||null, barcode||null, productName||null, tankNo||null, customer||null, quantity||null, flowType||null, dept||null, requester||null, grade||null).run();
+      const { id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark } = data;
+      await env.DB.prepare("ALTER TABLE QC_Samples ADD COLUMN remark TEXT").run().catch(e=>{});
+      await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '待檢驗', datetime('now', 'localtime'))")
+        .bind(id||null, barcode||null, productName||null, tankNo||null, customer||null, quantity||null, flowType||null, dept||null, requester||null, grade||null, remark||null).run();
       return new Response(JSON.stringify({ success: true }), { headers: h });
     }
 

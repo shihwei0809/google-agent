@@ -49,18 +49,22 @@ CREATE TABLE QC_Samples (
     qcApprover TEXT,
     isAlerted INTEGER DEFAULT 0,
     parentId TEXT,
-    round INTEGER DEFAULT 1
+    round INTEGER DEFAULT 1,
+    remark TEXT
 );
 
-DROP TABLE IF EXISTS Orders;
-CREATE TABLE Orders (
+DROP TABLE IF EXISTS T100_Orders;
+CREATE TABLE T100_Orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_date TEXT,
+    doc_no TEXT,
     flowType TEXT,
     productName TEXT,
     tankNo TEXT,
-    customer TEXT,
+    container TEXT,
     quantity TEXT,
+    customer TEXT,
+    grade TEXT,
+    targetDate TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

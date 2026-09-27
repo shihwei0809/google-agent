@@ -650,6 +650,10 @@
             <input type="text" id="requester" placeholder="姓名（工號查到後自動填入）" required style="flex:1;">
           </div>
           <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
+                </div>
+        <div>
+          <label>備註 (選填)</label>
+          <input type="text" id="remark" placeholder="如果有特殊狀況請填寫...">
         </div>
       </div>
       <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
@@ -2318,6 +2322,7 @@
     const customer = document.getElementById('customer').value.trim();
     const requester = document.getElementById('requester').value.trim();
     const dept = document.getElementById('dept').value;
+    const remark = document.getElementById('remark')?.value?.trim() || '';
 
     if (!productName || !tankNo || !customer || !requester) {
       alert("⚠️ 提交失敗！\n\n「品名、進出貨槽號、車牌/櫃號、送樣人員」皆為必填項目，請確認填妥後再送出。");
@@ -2344,6 +2349,7 @@
       quantity: document.getElementById('quantity').value, 
       dept: dept, 
       requester: requester,
+      remark: remark,
       status: 'pending',
       createdAt: new Date().toISOString()
     };
@@ -3139,7 +3145,8 @@
           </div>
           <div style="font-size:0.82rem; color:#374151;"><b>送樣時間：</b>${formatSimpleDate(s.createdAt)}</div>
           ${s.completedAt ? `<div style="font-size:0.82rem; color:#374151;"><b>完成時間：</b>${formatSimpleDate(s.completedAt)}</div>` : ''}
-          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>備註：</b>${s.qcNote}</div>` : ''}
+          ${s.remark ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px;"><b>送樣備註：</b>${s.remark}</div>` : \'\'}
+          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>判定備註：</b>${s.qcNote}</div>` : \'\'}
         </div>
       `).join('')
       : '<div style="text-align:center; color:#94a3b8; padding:20px;">找不到送樣歷史記錄</div>';
