@@ -39,7 +39,8 @@ export async function onRequest(context) {
         ['OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託'],
         ['OPTIONS_GRADES', '工業級, 電子級, IF'],
         ['OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課'],
-        ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR']
+        ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR'],
+        ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:電子級, IPAUPS:UPS']
       ];
       await env.DB.batch(defaults.map(d => stmt.bind(d[0], d[1])));
       return new Response(JSON.stringify({ success: true }), { headers: h });

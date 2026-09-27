@@ -8,23 +8,6 @@
   <meta name="theme-color" content="#2563eb">
   <!-- 引入 SheetJS 用於客戶端即時解析 T100 排程 Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<script>
-  // 動態提示字跑馬燈
-  function startPlaceholderMarquee(elementId, originalText) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    let text = originalText + '   '; 
-    setInterval(() => {
-      text = text.substring(1) + text[0];
-      el.setAttribute('placeholder', text);
-    }, 400); 
-  }
-  document.addEventListener('DOMContentLoaded', () => {
-    startPlaceholderMarquee('empIdInput', '掃描或輸入工號... ');
-    startPlaceholderMarquee('requester', '姓名（工號查到後會自動填入）... ');
-  });
-
-</script>
   <style>
     :root {
       --bg: #f8fafc;
@@ -229,7 +212,6 @@
     /* 表單格線排版 */
     .form-grid {
       display: grid;
-      align-items: end;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 16px;
       margin-bottom: 18px;
@@ -542,7 +524,7 @@
             <option value="">-- 點此直接選擇 T100 槽車排程 (包含出貨與進料) --</option>
           </select>
         </div>
-        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onclick="this.value=null;" onchange="handleExcelUpload(event)">
+        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
         <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
           📂 匯入最新 T100 排程 Excel
         </button>
@@ -610,7 +592,7 @@
         </div>
         <div>
           <label class="required">品名</label>
-          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required onchange="autoSelectGrade(this.value)">
+          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required>
           <datalist id="productList">
             <option value="IPA"></option><option value="IPAUPS"></option><option value="IPAHQ"></option>
             <option value="CPNE3(T)"></option><option value="CPNE4"></option><option value="CPN-P1R"></option>
@@ -647,14 +629,10 @@
           <label class="required">送樣人員</label>
           <div style="display:flex; gap:6px; align-items:center;">
             <input type="text" id="empIdInput" placeholder="掃描或輸入工號" style="width:110px; flex-shrink:0;"
-              oninput="this.value = this.value.toUpperCase(); lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
+              oninput="lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
             <input type="text" id="requester" placeholder="姓名（工號查到後自動填入）" required style="flex:1;">
           </div>
           <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
-                </div>
-        <div>
-          <label>備註 (選填)</label>
-          <input type="text" id="remark" placeholder="如果有特殊狀況請填寫...">
         </div>
       </div>
       <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
@@ -1359,7 +1337,7 @@
     // 1. 單號精準比對 (最優先且最精確)
     if (order.doc_no && String(order.doc_no).trim()) {
       const targetDoc = String(order.doc_no).trim().toLowerCase();
-      const matchDoc = allData.find(s => s.barcode && String(s.barcode).toLowerCase().includes(targetDoc));
+      const matchDoc = allData.find(s => s.barcode && String(s.barcode).trim().toLowerCase() === targetDoc);
       if (matchDoc) return matchDoc;
     }
     
@@ -1535,28 +1513,10 @@
     const item = t100Orders[parseInt(val)];
     if (!item) return;
 
-    
-    // 自動尋找同車次的進出貨單 (同車牌/同動向)
-    let combinedDocs = item.doc_no || '';
-    if (item.container && item.container.trim() !== '') {
-        const sameTruckItems = t100Orders.filter(o => o !== item && o.container === item.container && o.flowType === item.flowType);
-        if (sameTruckItems.length > 0) {
-            const extraDocs = sameTruckItems.map(o => o.doc_no).filter(Boolean);
-            if (extraDocs.length > 0) {
-                const combined = [item.doc_no, ...extraDocs].join(', ');
-                if (confirm(`發現此車次 (${item.container}) 共有 ${extraDocs.length + 1} 筆排程單號：\n${combined}\n\n是否要自動合併成同一張檢驗單？`)) {
-                    combinedDocs = combined;
-                }
-            }
-        }
-    }
-
-    document.getElementById('barcode').value = combinedDocs;
-
+    document.getElementById('barcode').value = item.doc_no || '';
     document.getElementById('flowType').value = item.flowType || '出貨';
     document.getElementById('grade').value = item.grade || '工業級';
     document.getElementById('productName').value = item.productName || '';
-    autoSelectGrade(item.productName);
     document.getElementById('tankNo').value = item.tankNo || '';
     document.getElementById('customer').value = item.container || item.customer || '';
     document.getElementById('quantity').value = item.quantity || '';
@@ -1848,7 +1808,7 @@
     try {
       const resp = await fetch(`${GAS_API_URL}?action=getOrders`);
       const result = await resp.json();
-      if (result.success && Array.isArray(result.orders)) {
+      if (result.success && Array.isArray(result.orders) && result.orders.length > 0) {
         // 合併：以雲端為主（覆蓋 localStorage），但保留 localStorage 若雲端為空
         t100Orders = result.orders;
         localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
@@ -1915,16 +1875,20 @@
     if(flowTypes.length) {
       const selFlow = document.getElementById('flowType');
       if(selFlow) {
+        const cur = selFlow.value;
         selFlow.innerHTML = flowTypes.map(f => `<option value="${f}">${f}</option>`).join('');
-        }
+        if(flowTypes.includes(cur)) selFlow.value = cur;
+      }
     }
 
     // 2. 動態填充「等級」
     if(grades.length) {
       const selGrade = document.getElementById('grade');
       if(selGrade) {
+        const cur = selGrade.value;
         selGrade.innerHTML = grades.map(g => `<option value="${g}">${g}</option>`).join('');
-        }
+        if(grades.includes(cur)) selGrade.value = cur;
+      }
     }
 
     // 3. 動態填充「品名」datalist
@@ -1939,8 +1903,10 @@
     if(depts.length) {
       const selDept = document.getElementById('dept');
       if(selDept) {
+        const cur = selDept.value;
         selDept.innerHTML = depts.map(d => `<option value="${d}">${d}</option>`).join('');
-        }
+        if(depts.includes(cur)) selDept.value = cur;
+      }
     }
   }
 
@@ -1986,12 +1952,6 @@
       fetch(`${GAS_API_URL}?action=getSamples`)
         .then(res => res.json())
         .then(data => {
-          // 相容舊版中文狀態
-          data.forEach(s => {
-            if (s.status === "待檢驗") s.status = "pending";
-            else if (s.status === "已檢驗") s.status = "completed";
-            else if (s.status === "退件" || s.status === "重取樣") s.status = "failed";
-          });
           allData = data;
           localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
           render();
@@ -2330,7 +2290,6 @@
     const customer = document.getElementById('customer').value.trim();
     const requester = document.getElementById('requester').value.trim();
     const dept = document.getElementById('dept').value;
-    const remark = document.getElementById('remark')?.value?.trim() || '';
 
     if (!productName || !tankNo || !customer || !requester) {
       alert("⚠️ 提交失敗！\n\n「品名、進出貨槽號、車牌/櫃號、送樣人員」皆為必填項目，請確認填妥後再送出。");
@@ -2357,7 +2316,6 @@
       quantity: document.getElementById('quantity').value, 
       dept: dept, 
       requester: requester,
-      remark: remark,
       status: 'pending',
       createdAt: new Date().toISOString()
     };
@@ -3153,8 +3111,7 @@
           </div>
           <div style="font-size:0.82rem; color:#374151;"><b>送樣時間：</b>${formatSimpleDate(s.createdAt)}</div>
           ${s.completedAt ? `<div style="font-size:0.82rem; color:#374151;"><b>完成時間：</b>${formatSimpleDate(s.completedAt)}</div>` : ''}
-          ${s.remark ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px;"><b>送樣備註：</b>${s.remark}</div>` : ''}
-          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>判定備註：</b>${s.qcNote}</div>` : ''}
+          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>備註：</b>${s.qcNote}</div>` : ''}
         </div>
       `).join('')
       : '<div style="text-align:center; color:#94a3b8; padding:20px;">找不到送樣歷史記錄</div>';
@@ -3454,6 +3411,7 @@
         btn.disabled = false;
       }
     }
+  }
 
   function unlockAdminFeatures(showNotification = true) {
     isAdminUnlocked = true;
@@ -3513,22 +3471,6 @@
       }).catch(err => console.log('SW register failed:', err));
     }
   };
-
-  // 動態提示字跑馬燈
-  function startPlaceholderMarquee(elementId, originalText) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    let text = originalText + '   '; 
-    setInterval(() => {
-      text = text.substring(1) + text[0];
-      el.setAttribute('placeholder', text);
-    }, 400); 
-  }
-  document.addEventListener('DOMContentLoaded', () => {
-    startPlaceholderMarquee('empIdInput', '掃描或輸入工號... ');
-    startPlaceholderMarquee('requester', '姓名（工號查到後會自動填入）... ');
-  });
-
 </script>
 </body>
 </html>
