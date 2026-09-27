@@ -75,7 +75,7 @@ export async function onRequest(context) {
       return new Response(JSON.stringify(results), { headers: h });
     }
     
-    if (action === "submitSample" && request.method === "POST") {
+    if ((action === "submitSample" || action === "createSample") && request.method === "POST") {
       // payload expects: id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade
       const { id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade } = payload;
       await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '待檢驗', datetime('now', 'localtime'))")
@@ -116,4 +116,5 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ error: err.message }), { headers: h, status: 500 }); 
   }
 }
-
+
+
