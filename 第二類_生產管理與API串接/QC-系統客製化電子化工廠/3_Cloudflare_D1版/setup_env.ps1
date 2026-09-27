@@ -26,7 +26,8 @@ $toml_content = $toml_content -replace 'database_id\s*=\s*".*"', ('database_id =
 Set-Content $toml_path -Value $toml_content -Encoding UTF8
 
 # npx wrangler d1 execute qc-db --remote --file=schema.sql
-npx wrangler pages deploy ./ --project-name="qc-samples"
+npx wrangler pages deploy ./ --project-name="qc-samples" --branch="main"
 Write-Host "Deployment completed successfully!" -ForegroundColor Cyan
+
 
 
