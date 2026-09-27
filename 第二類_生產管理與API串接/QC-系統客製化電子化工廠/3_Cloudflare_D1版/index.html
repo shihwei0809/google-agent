@@ -7,7 +7,23 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
   <!-- 引入 SheetJS 用於客戶端即時解析 T100 排程 Excel -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
+  // 動態提示字跑馬燈
+  function startPlaceholderMarquee(elementId, originalText) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    let text = originalText + '   '; 
+    setInterval(() => {
+      text = text.substring(1) + text[0];
+      el.setAttribute('placeholder', text);
+    }, 400); 
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    startPlaceholderMarquee('empIdInput', '掃描或輸入工號... ');
+    startPlaceholderMarquee('requester', '姓名（工號查到後會自動填入）... ');
+  });
+
+</script>
   <style>
     :root {
       --bg: #f8fafc;
@@ -3464,6 +3480,22 @@
       }).catch(err => console.log('SW register failed:', err));
     }
   };
+
+  // 動態提示字跑馬燈
+  function startPlaceholderMarquee(elementId, originalText) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    let text = originalText + '   '; 
+    setInterval(() => {
+      text = text.substring(1) + text[0];
+      el.setAttribute('placeholder', text);
+    }, 400); 
+  }
+  document.addEventListener('DOMContentLoaded', () => {
+    startPlaceholderMarquee('empIdInput', '掃描或輸入工號... ');
+    startPlaceholderMarquee('requester', '姓名（工號查到後會自動填入）... ');
+  });
+
 </script>
 </body>
 </html>
