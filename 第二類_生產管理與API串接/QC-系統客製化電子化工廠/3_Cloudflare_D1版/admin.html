@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <title>QC 系統管理後台</title>
+  <style>
+    body { font-family: sans-serif; background: #f8fafc; padding: 20px; margin: 0; }
+    .container { max-width: 800px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; display: none; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f1f5f9; }
+    input[type="text"], input[type="password"] { padding: 8px; width: 90%; }
+    button { background: #2563eb; color: #fff; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
+    button:hover { background: #1d4ed8; }
+    
+    .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 350px; }
+    .modal-box h2 { margin-top: 0; }
+    .modal-box input, .modal-box select { width: 100%; margin-bottom: 15px; box-sizing: border-box; padding: 10px; }
+    .modal-box button { width: 100%; margin-bottom: 10px; }
+    .btn-cancel { background: #94a3b8 !important; }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; margin-top: 20px; }
+    .tab-btn { padding: 12px 25px; cursor: pointer; border: none; background: none; font-size: 1.1rem; font-weight: bold; color: #64748b; outline: none; }
+    .tab-btn:hover { color: #3b82f6; }
+    .tab-btn.active { color: #2563eb; border-bottom: 3px solid #2563eb; }
+    .tab-content { display: none; animation: fadeIn 0.3s; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+  <!-- 登入視窗 -->
+  <div id="loginOverlay" class="overlay">
+    <div class="modal-box" style="text-align: center;">
+      <h2>🔒 請登入系統後台</h2>
+      <input type="text" id="loginUser" placeholder="帳號 (預設 admin)">
+      <input type="password" id="loginPass" placeholder="密碼 (預設 admin123)" onkeypress="if(event.key === 'Enter') login()">
+      <button onclick="login()">登入</button>
+    </div>
+  </div>
+
+  <!-- 新增帳號視窗 -->
+  <div id="addAccountModal" class="overlay" style="display: none;">
+    <div class="modal-box">
+      <h2>👤 新增帳號</h2>
+      <label>帳號：</label>
+      <input type="text" id="newUsername" placeholder="請輸入新帳號">
+      <label>密碼：</label>
+      <input type="password" id="newPassword" placeholder="請輸入密碼">
+      <label>權限角色：</label>
+      <select id="newRole">
+        <option value="admin">管理員 (admin)</option>
+        <option value="qc_staff">檢驗員 (qc)</option>
+      </select>
+      <button onclick="createAccount()">確定新增</button>
+      <button onclick="closeModal('addAccountModal')" class="btn-cancel">取消</button>
+    </div>
+  </div>
+
+  <!-- 修改密碼視窗 -->
+  <div id="changePasswordModal" class="overlay" style="display: none;">
+    <div class="modal-box">
+      <h2>🔑 修改密碼</h2>
+      <p id="changePasswordTarget" style="font-weight:bold; color:#1e40af;"></p>
+      <input type="hidden" id="changePasswordId">
+      <label>新密碼：</label>
+      <input type="password" id="changePasswordInput" placeholder="請輸入新密碼">
+      <button onclick="submitChangePassword()">確定修改</button>
+      <button onclick="closeModal('changePasswordModal')" class="btn-cancel">取消</button>
+    </div>
+  </div>
+
+  <div class="container" id="mainContainer">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+      <h1 style="margin: 0;">⚙️ QC 系統管理後台</h1>
+      <button onclick="window.open('index.html', '_blank')" style="background: #64748b;">返回首頁</button>
+    </div>
+    
+    <!-- 頁籤按鈕 -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-accounts')">👥 帳號管理</button>
+      <button class="tab-btn" onclick="switchTab('tab-settings')">📝 系統參數設定</button>
+    </div>
+
+    <!-- 帳號管理分頁 -->
+    <div id="tab-accounts" class="tab-content active">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="margin: 0;">帳號列表</h2>
+        <button onclick="openAddAccountModal()" style="background: #7c3aed;">+ 新增帳號</button>
+      </div>
+      
+      <table id="accTable">
+        <thead><tr><th>帳號</th><th>角色</th><th>操作</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- 系統參數設定分頁 -->
+    <div id="tab-settings" class="tab-content">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+        <h2 style="margin: 0;">系統參數設定</h2>
+        <button onclick="saveConfig()" style="background: #10b981;">儲存參數設定</button>
+      </div>
+      
+      <table id="configTable">
+        <thead><tr><th style="width: 40%;">參數名稱</th><th>設定值</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <script>
+    const API = '/api';
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    function openAddAccountModal() {
+      document.getElementById('newUsername').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('addAccountModal').style.display = 'flex';
+    }
+
+    function openChangePasswordModal(id, username) {
+      document.getElementById('changePasswordId').value = id;
+      document.getElementById('changePasswordTarget').innerText = `正在修改「${username}」的密碼`;
+      document.getElementById('changePasswordInput').value = '';
+      document.getElementById('changePasswordModal').style.display = 'flex';
+    }
+
+    async function login() {
+      const u = document.getElementById('loginUser').value;
+      const p = document.getElementById('loginPass').value;
+      if(!u || !p) return alert("請輸入帳號密碼");
+      
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ action: 'verifyLogin', username: u, password: p })
+        });
+        const data = await res.json();
+        if(data.success) {
+          document.getElementById('loginOverlay').style.display = 'none';
+          document.getElementById('mainContainer').style.display = 'block';
+          loadConfig();
+          loadAccounts();
+        } else {
+          alert("登入失敗：" + (data.error || "帳號或密碼錯誤"));
+        }
+      } catch (err) {
+        alert("登入發生錯誤");
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const res = await fetch(API + '?action=getConfig', { cache: 'no-store' });
+        const data = await res.json();
+        const t = document.querySelector('#configTable tbody');
+        t.innerHTML = '';
+        for(const k in data) {
+          t.innerHTML += `<tr><td><strong>${k}</strong></td><td><input type="text" id="cfg_${k}" value="${data[k].replace(/"/g, '&quot;')}"></td></tr>`;
+        }
+      } catch (err) { }
+    }
+    
+    async function saveConfig() {
+      const inputs = document.querySelectorAll('input[id^="cfg_"]');
+      const configs = {};
+      inputs.forEach(i => configs[i.id.replace('cfg_','')] = i.value);
+      await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'updateConfig', configs }) });
+      alert('已儲存！');
+    }
+    
+    async function loadAccounts() {
+      try {
+        const res = await fetch(API + '?action=getAccounts', { cache: 'no-store' });
+        const data = await res.json();
+        const t = document.querySelector('#accTable tbody');
+        t.innerHTML = '';
+        data.forEach(a => {
+          let r = a.role === 'admin' ? '管理員' : '檢驗員';
+          t.innerHTML += `<tr>
+            <td>${a.username}</td>
+            <td>${r}</td>
+            <td style="width: 180px;">
+              <button style="background: #f59e0b; padding: 5px 10px;" onclick="openChangePasswordModal(${a.id}, '${a.username}')">修改密碼</button>
+              <button style="background: #ef4444; padding: 5px 10px;" onclick="del(${a.id}, '${a.username}')">刪除</button>
+            </td>
+          </tr>`;
+        });
+      } catch (err) { }
+    }
+    
+    async function createAccount() {
+      const u = document.getElementById('newUsername').value.trim();
+      const p = document.getElementById('newPassword').value;
+      const r = document.getElementById('newRole').value;
+      if (!u || !p) return alert("請輸入帳號與密碼");
+      if (p.length < 8) return alert("基於資安考量，密碼請至少輸入8碼");
+      
+      try {
+        const resp = await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'createAccount', username: u, password: p, role: r }) });
+        const data = await resp.json();
+        
+        if (data.success) {
+          closeModal('addAccountModal');
+          loadAccounts();
+          alert("帳號新增成功！");
+        } else {
+          if (data.error && data.error.includes("UNIQUE constraint failed")) {
+            alert("已有此帳號，請重新輸入不同的帳號名稱！");
+          } else {
+            alert("新增失敗：" + data.error);
+          }
+        }
+      } catch(e) {
+        alert("新增發生錯誤，請檢查網路連線");
+      }
+    }
+    
+    async function submitChangePassword() {
+      const id = document.getElementById('changePasswordId').value;
+      const np = document.getElementById('changePasswordInput').value;
+      if (!np) return alert("請輸入新密碼");
+      if (np.length < 8) return alert("密碼請至少輸入8碼");
+      
+      await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'changePassword', id: parseInt(id), newPassword: np }) });
+      alert("密碼修改成功！");
+      closeModal('changePasswordModal');
+    }
+
+    async function del(id, username) {
+      if(!confirm(`確定要刪除帳號「${username}」嗎？`)) return;
+      await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'deleteAccount', id }) });
+      loadAccounts();
+    }
+  </script>
+</body>
+</html>
