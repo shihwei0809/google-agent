@@ -157,6 +157,21 @@ function getSystemConfigFromSheet_() {
         config.productGradesMap = val;
       }
     }
+
+    // 支援從獨立工作表讀取品名等級對應 (讓人員更好填寫)
+    const mapSheet = ss.getSheetByName('OPTIONS_PRODUCT_GRADES_MAP');
+    if (mapSheet) {
+      const mapData = mapSheet.getDataRange().getValues();
+      const pairs = [];
+      for (let i = 1; i < mapData.length; i++) {
+        const p = String(mapData[i][0] || '').trim();
+        const g = String(mapData[i][1] || '').trim();
+        if (p && g) pairs.push(`${p}:${g}`);
+      }
+      if (pairs.length > 0) {
+        config.productGradesMap = pairs.join(', ');
+      }
+    }
   } catch(e) {
     console.warn("讀取 System_Config 失敗，使用預設值", e);
   }
