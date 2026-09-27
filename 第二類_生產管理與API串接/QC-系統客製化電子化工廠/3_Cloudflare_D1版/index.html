@@ -1365,13 +1365,26 @@
     
     // 2. 槽號 + 品名 + 客戶/車號/櫃號比對 (針對無單號或預先充填送樣)
     const matchDetails = allData.find(s => {
-      const sameTank = order.tankNo && s.tankNo && (String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase());
       const sameProd = order.productName && s.productName && (String(s.productName).trim().toLowerCase() === String(order.productName).trim().toLowerCase());
-      const sameCont = order.container && s.customer && (
-        String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
-        String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase())
-      );
-      return (sameTank && sameProd) || (sameCont && sameProd);
+      if (!sameProd) return false;
+
+      let tankMatch = false;
+      let contMatch = false;
+      let hasTankData = order.tankNo && s.tankNo;
+      let hasContData = order.container && s.customer;
+
+      if (hasTankData) {
+        tankMatch = String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase();
+      }
+      if (hasContData) {
+        contMatch = String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
+                    String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase());
+      }
+
+      if (hasTankData && hasContData) return tankMatch && contMatch;
+      if (hasTankData) return tankMatch;
+      if (hasContData) return contMatch;
+      return false;
     });
     return matchDetails || null;
   }
