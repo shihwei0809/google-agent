@@ -541,7 +541,7 @@
             <option value="">-- 點此直接選擇 T100 槽車排程 (包含出貨與進料) --</option>
           </select>
         </div>
-        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
+        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onclick="this.value=null;" onchange="handleExcelUpload(event)">
         <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
           📂 匯入最新 T100 排程 Excel
         </button>
