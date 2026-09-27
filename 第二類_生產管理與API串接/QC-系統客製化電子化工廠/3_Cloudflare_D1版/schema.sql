@@ -65,6 +65,9 @@ CREATE TABLE T100_Orders (
     customer TEXT,
     grade TEXT,
     targetDate TEXT,
+    date TEXT,
+    time TEXT,
+    note TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
