@@ -54,7 +54,7 @@ export async function onRequest(context) {
     // --- Accounts Management ---
     if (action === "getAccounts") {
       const { results } = await env.DB.prepare("SELECT id, username, role, created_at FROM Accounts").all();
-      return new Response(JSON.stringify(results), { headers: h });
+      return new Response(JSON.stringify({ success: true, count: results.length, data: results }), { headers: h });
     }
     if (action === "createAccount" && request.method === "POST") {
       await env.DB.prepare("INSERT INTO Accounts (username, password_hash, role) VALUES (?, ?, ?)").bind(payload.username, payload.password, payload.role || 'user').run();
@@ -80,7 +80,7 @@ export async function onRequest(context) {
       const data = payload.payload || payload;
       const { id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark } = data;
       await env.DB.prepare("ALTER TABLE QC_Samples ADD COLUMN remark TEXT").run().catch(e=>{});
-      await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '待檢驗', datetime('now', 'localtime'))")
+      await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now', 'localtime'))")
         .bind(id||null, barcode||null, productName||null, tankNo||null, customer||null, quantity||null, flowType||null, dept||null, requester||null, grade||null, remark||null).run();
       return new Response(JSON.stringify({ success: true }), { headers: h });
     }
@@ -89,9 +89,8 @@ export async function onRequest(context) {
       // QC Approvals and Judgements
       // payload expects: id, result, note, approver
       const { id, result, note, approver } = payload;
-      let status = "已檢驗";
-      if (result === "退件") status = "退件";
-      if (result === "重取樣") status = "重取樣";
+      let status = "completed";
+      if (result === "退件" || result === "重取樣") status = "failed";
       
       await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = datetime('now', 'localtime') WHERE id = ?")
         .bind(status||null, result||null, note||null, approver||null, id||null).run();
@@ -129,7 +128,7 @@ export async function onRequest(context) {
 
     if (action === "getEmployees") {
       const { results } = await env.DB.prepare("SELECT * FROM Employees").all();
-      return new Response(JSON.stringify(results), { headers: h });
+      return new Response(JSON.stringify({ success: true, data: results }), { headers: h });
     }
 
     return new Response(JSON.stringify({ error: "Unknown action" }), { headers: h, status: 400 });

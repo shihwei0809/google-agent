@@ -1985,6 +1985,12 @@
       fetch(`${GAS_API_URL}?action=getSamples`)
         .then(res => res.json())
         .then(data => {
+          // 相容舊版中文狀態
+          data.forEach(s => {
+            if (s.status === "待檢驗") s.status = "pending";
+            else if (s.status === "已檢驗") s.status = "completed";
+            else if (s.status === "退件" || s.status === "重取樣") s.status = "failed";
+          });
           allData = data;
           localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
           render();
