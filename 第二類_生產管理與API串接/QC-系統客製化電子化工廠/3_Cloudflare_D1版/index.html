@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
@@ -1861,41 +1861,51 @@
   function applyDynamicDropdownOptions(cfg) {
     if(!cfg) return;
 
+    function parseCommaSeparated(str) {
+      if (!str) return [];
+      return str.split(',').map(s => s.trim()).filter(s => s);
+    }
+
+    const flowTypes = parseCommaSeparated(cfg.OPTIONS_FLOW_TYPES || cfg.flowTypes);
+    const grades = parseCommaSeparated(cfg.OPTIONS_GRADES || cfg.grades);
+    const products = parseCommaSeparated(cfg.OPTIONS_PRODUCTS || cfg.products);
+    const depts = parseCommaSeparated(cfg.OPTIONS_DEPTS || cfg.depts);
+
     // 1. 動態填充「動向」
-    if(cfg.flowTypes && cfg.flowTypes.length) {
+    if(flowTypes.length) {
       const selFlow = document.getElementById('flowType');
       if(selFlow) {
         const cur = selFlow.value;
-        selFlow.innerHTML = cfg.flowTypes.map(f => `<option value="${f}">${f}</option>`).join('');
-        if(cfg.flowTypes.includes(cur)) selFlow.value = cur;
+        selFlow.innerHTML = flowTypes.map(f => `<option value="${f}">${f}</option>`).join('');
+        if(flowTypes.includes(cur)) selFlow.value = cur;
       }
     }
 
     // 2. 動態填充「等級」
-    if(cfg.grades && cfg.grades.length) {
+    if(grades.length) {
       const selGrade = document.getElementById('grade');
       if(selGrade) {
         const cur = selGrade.value;
-        selGrade.innerHTML = cfg.grades.map(g => `<option value="${g}">${g}</option>`).join('');
-        if(cfg.grades.includes(cur)) selGrade.value = cur;
+        selGrade.innerHTML = grades.map(g => `<option value="${g}">${g}</option>`).join('');
+        if(grades.includes(cur)) selGrade.value = cur;
       }
     }
 
     // 3. 動態填充「品名」datalist
-    if(cfg.products && cfg.products.length) {
+    if(products.length) {
       const dl = document.getElementById('productList');
       if(dl) {
-        dl.innerHTML = cfg.products.map(p => `<option value="${p}">`).join('');
+        dl.innerHTML = products.map(p => `<option value="${p}">`).join('');
       }
     }
 
     // 4. 動態填充「送樣單位」
-    if(cfg.depts && cfg.depts.length) {
+    if(depts.length) {
       const selDept = document.getElementById('dept');
       if(selDept) {
         const cur = selDept.value;
-        selDept.innerHTML = cfg.depts.map(d => `<option value="${d}">${d}</option>`).join('');
-        if(cfg.depts.includes(cur)) selDept.value = cur;
+        selDept.innerHTML = depts.map(d => `<option value="${d}">${d}</option>`).join('');
+        if(depts.includes(cur)) selDept.value = cur;
       }
     }
   }
@@ -2367,7 +2377,8 @@
     const remember = localStorage.getItem('HS_QC_REMEMBER_PRINT');
     if(remember === 'true') {
       const wQty = parseInt(localStorage.getItem('HS_QC_PRINT_WATER') || '1', 10);
-      const mQty = parseInt(localStorage.getItem('HS_QC_PRINT_METAL') || '2', 10);
+      let mQty = parseInt(localStorage.getItem('HS_QC_PRINT_METAL') || '2', 10);
+      if (targetData.grade === '回收液') mQty = 0;
       doPrintLabels(targetData, wQty, mQty);
       return;
     }
@@ -2403,9 +2414,11 @@
     document.getElementById('printPreviewRequester').innerText = data.requester;
 
     const savedW = localStorage.getItem('HS_QC_PRINT_WATER') || '1';
-    const savedM = localStorage.getItem('HS_QC_PRINT_METAL') || '2';
+    let savedM = localStorage.getItem('HS_QC_PRINT_METAL') || '2';
     const savedWidth = localStorage.getItem('HS_QC_PRINT_WIDTH') || '90';
     const savedHeight = localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100';
+
+    if (data.grade === '回收液') savedM = '0';
 
     document.getElementById('printQtyWaterGC').value = savedW;
     document.getElementById('printQtyMetal').value = savedM;
