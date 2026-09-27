@@ -1,0 +1,20 @@
+
+      // 3. 從 Google Sheets 載入排程（供所有設備共享下拉選單）
+      loadOrdersFromCloud();
+
+      // 4. 抓取雲端員工名單
+      fetch(`${GAS_API_URL}?action=getEmployees`)
+        .then(res => res.json())
+        .then(res => {
+          if (res && res.success && res.data) {
+            localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(res.data));
+          }
+        })
+        .catch(err => console.warn("API 取得員工名單失敗", err));
+
+    } else {
+      document.getElementById('envBadge').innerText = "💻 獨立 PWA 運作模式";
+      applyDynamicDropdownOptions(getLocalDynamicOptions());
+      const stored = localStorage.getItem('HS_QC_SAMPLES');
+      if(stored) {
+        try { allData = JSON.parse(stored); } catch(e) { allData = []; }
