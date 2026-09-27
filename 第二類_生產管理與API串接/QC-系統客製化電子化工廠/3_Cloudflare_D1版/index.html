@@ -228,6 +228,7 @@
     /* 表單格線排版 */
     .form-grid {
       display: grid;
+      align-items: end;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 16px;
       margin-bottom: 18px;
@@ -1529,7 +1530,24 @@
     const item = t100Orders[parseInt(val)];
     if (!item) return;
 
-    document.getElementById('barcode').value = item.doc_no || '';
+    
+    // 自動尋找同車次的進出貨單 (同車牌/同動向)
+    let combinedDocs = item.doc_no || '';
+    if (item.container && item.container.trim() !== '') {
+        const sameTruckItems = t100Orders.filter(o => o !== item && o.container === item.container && o.flowType === item.flowType);
+        if (sameTruckItems.length > 0) {
+            const extraDocs = sameTruckItems.map(o => o.doc_no).filter(Boolean);
+            if (extraDocs.length > 0) {
+                const combined = [item.doc_no, ...extraDocs].join(', ');
+                if (confirm(`發現此車次 (${item.container}) 共有 ${extraDocs.length + 1} 筆排程單號：\n${combined}\n\n是否要自動合併成同一張檢驗單？`)) {
+                    combinedDocs = combined;
+                }
+            }
+        }
+    }
+
+    document.getElementById('barcode').value = combinedDocs;
+
     document.getElementById('flowType').value = item.flowType || '出貨';
     document.getElementById('grade').value = item.grade || '工業級';
     document.getElementById('productName').value = item.productName || '';
