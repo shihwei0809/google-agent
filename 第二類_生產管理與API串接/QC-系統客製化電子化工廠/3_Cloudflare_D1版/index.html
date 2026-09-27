@@ -2063,7 +2063,13 @@
         .then(res => res.json())
         .then(res => {
           if (res && res.success && res.data) {
-            localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(res.data));
+            let empDict = {};
+            if (Array.isArray(res.data)) {
+              res.data.forEach(r => { if (r.emp_id) empDict[r.emp_id] = r.name; });
+            } else {
+              empDict = res.data;
+            }
+            localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(empDict));
           }
         })
         .catch(err => console.warn("API 取得員工名單失敗", err));
