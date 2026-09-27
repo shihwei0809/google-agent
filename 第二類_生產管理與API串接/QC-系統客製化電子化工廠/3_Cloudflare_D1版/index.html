@@ -1359,7 +1359,7 @@
     // 1. 單號精準比對 (最優先且最精確)
     if (order.doc_no && String(order.doc_no).trim()) {
       const targetDoc = String(order.doc_no).trim().toLowerCase();
-      const matchDoc = allData.find(s => s.barcode && String(s.barcode).trim().toLowerCase() === targetDoc);
+      const matchDoc = allData.find(s => s.barcode && String(s.barcode).toLowerCase().includes(targetDoc));
       if (matchDoc) return matchDoc;
     }
     
