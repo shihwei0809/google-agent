@@ -591,7 +591,7 @@
         </div>
         <div>
           <label class="required">品名</label>
-          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required>
+          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required onchange="autoSelectGrade(this.value)">
           <datalist id="productList">
             <option value="IPA"></option><option value="IPAUPS"></option><option value="IPAHQ"></option>
             <option value="CPNE3(T)"></option><option value="CPNE4"></option><option value="CPN-P1R"></option>
@@ -1111,6 +1111,29 @@
     return `${y}-${m}-${day}`;
   }
 
+  
+  // 自動套用產品等級
+  function autoSelectGrade(prodName) {
+    if(!prodName) return;
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    if(!cfgStr) return;
+    try {
+      const cfg = JSON.parse(cfgStr);
+      const mapStr = cfg.OPTIONS_PRODUCT_GRADES_MAP || cfg.productGradesMap || '';
+      if(!mapStr) return;
+      const pairs = mapStr.split(',').map(s => s.trim()).filter(Boolean);
+      const mapping = {};
+      pairs.forEach(p => {
+        const parts = p.split(':').map(s => s.trim());
+        if(parts.length >= 2) mapping[parts[0]] = parts[1];
+      });
+      if(mapping[prodName]) {
+        const gradeSelect = document.getElementById('grade');
+        if (gradeSelect) gradeSelect.value = mapping[prodName];
+      }
+    } catch(e) { console.warn(e); }
+  }
+
   let allData = [];
   const IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
   const DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxRK8do1QBaYC8cDgfXDgWt-l9R4Dt6Ig1OQ_-8T1eJT50NiqGfSYWYGGh9hY0HWaPy/exec';
@@ -1340,13 +1363,26 @@
     
     // 2. 槽號 + 品名 + 客戶/車號/櫃號比對 (針對無單號或預先充填送樣)
     const matchDetails = allData.find(s => {
-      const sameTank = order.tankNo && s.tankNo && (String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase());
       const sameProd = order.productName && s.productName && (String(s.productName).trim().toLowerCase() === String(order.productName).trim().toLowerCase());
-      const sameCont = order.container && s.customer && (
-        String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
-        String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase())
-      );
-      return (sameTank && sameProd) || (sameCont && sameProd);
+      if (!sameProd) return false;
+
+      let tankMatch = false;
+      let contMatch = false;
+      let hasTankData = order.tankNo && s.tankNo;
+      let hasContData = order.container && s.customer;
+
+      if (hasTankData) {
+        tankMatch = String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase();
+      }
+      if (hasContData) {
+        contMatch = String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
+                    String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase());
+      }
+
+      if (hasTankData && hasContData) return tankMatch && contMatch;
+      if (hasTankData) return tankMatch;
+      if (hasContData) return contMatch;
+      return false;
     });
     return matchDetails || null;
   }

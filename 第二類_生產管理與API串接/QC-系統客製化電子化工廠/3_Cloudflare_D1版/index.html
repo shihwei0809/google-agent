@@ -1136,6 +1136,29 @@
     return `${y}-${m}-${day}`;
   }
 
+  
+  // 自動套用產品等級
+  function autoSelectGrade(prodName) {
+    if(!prodName) return;
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    if(!cfgStr) return;
+    try {
+      const cfg = JSON.parse(cfgStr);
+      const mapStr = cfg.OPTIONS_PRODUCT_GRADES_MAP || cfg.productGradesMap || '';
+      if(!mapStr) return;
+      const pairs = mapStr.split(',').map(s => s.trim()).filter(Boolean);
+      const mapping = {};
+      pairs.forEach(p => {
+        const parts = p.split(':').map(s => s.trim());
+        if(parts.length >= 2) mapping[parts[0]] = parts[1];
+      });
+      if(mapping[prodName]) {
+        const gradeSelect = document.getElementById('grade');
+        if (gradeSelect) gradeSelect.value = mapping[prodName];
+      }
+    } catch(e) { console.warn(e); }
+  }
+
   let allData = [];
   const IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
   const DEFAULT_GAS_API_URL = '/api';

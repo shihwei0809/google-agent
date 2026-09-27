@@ -153,6 +153,9 @@ function getSystemConfigFromSheet_() {
       if (key === 'OPTIONS_PRODUCTS' && val) {
         config.products = val.split(/[,，]/).map(s => s.trim()).filter(Boolean);
       }
+      if (key === 'OPTIONS_PRODUCT_GRADES_MAP' && val) {
+        config.productGradesMap = val;
+      }
     }
   } catch(e) {
     console.warn("讀取 System_Config 失敗，使用預設值", e);
@@ -198,7 +201,8 @@ function initSystemConfigSheet() {
       ['OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託', '動向選單項目 (以逗號隔開)'],
       ['OPTIONS_GRADES', '工業級, UPS, IF', '等級選單項目 (以逗號隔開)'],
       ['OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課', '送樣單位選單 (以逗號隔開)'],
-      ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR', '品名建議選單 (以逗號隔開)']
+      ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR', '品名建議選單 (以逗號隔開)'],
+      ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:電子級, IPAUPS:UPS', '品名對應等級 (格式：品名:等級，多組用逗號隔開)']
     ];
     
     defaults.forEach(item => {
