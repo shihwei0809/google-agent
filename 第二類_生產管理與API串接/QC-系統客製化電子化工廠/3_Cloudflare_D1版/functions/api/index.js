@@ -30,18 +30,18 @@
       const defaults = [
         ['QC_PIN', '8888'],
         ['TEAMS_MANAGER_WEBHOOK', ''],
-        ['TEAMS_WEBHOOK_鞈?隤?, ''],
-        ['TEAMS_WEBHOOK_鈭銝隤?, ''],
-        ['TEAMS_WEBHOOK_鈭鈭玨', ''],
-        ['TEAMS_WEBHOOK_銝?其?隤?, ''],
-        ['TEAMS_WEBHOOK_銝?其?隤?, ''],
+        ['TEAMS_WEBHOOK_資材課', ''],
+        ['TEAMS_WEBHOOK_二部一課', ''],
+        ['TEAMS_WEBHOOK_二部二課', ''],
+        ['TEAMS_WEBHOOK_一部一課', ''],
+        ['TEAMS_WEBHOOK_一部二課', ''],
         ['PWA_URL', 'https://google-agent.pages.dev/qc-system'],
-        ['OPTIONS_FLOW_TYPES', '?箄疏, ?脫?, 鋆?, 憪?'],
-        ['OPTIONS_GRADES', '撌交平蝝? ?餃?蝝? IF'],
-        ['OPTIONS_DEPTS', '鞈?隤? 鈭銝隤? 鈭鈭玨, 銝?其?隤? 銝?其?隤?],
+        ['OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託'],
+        ['OPTIONS_GRADES', '工業級, 電子級, IF'],
+        ['OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課'],
         ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR'],
-        ['OPTIONS_JUDGE_RESULTS', 'PASS:??曇?, FAIL:銝??潮??],
-        ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:?餃?蝝? IPAUPS:UPS']
+        ['OPTIONS_JUDGE_RESULTS', 'PASS:合格放行, FAIL:不合格退回, 需特採:不符合內控需特採'],
+        ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:電子級, IPAUPS:UPS']
       ];
       await env.DB.batch(defaults.map(d => stmt.bind(d[0], d[1])));
       return new Response(JSON.stringify({ success: true }), { headers: h });
@@ -109,11 +109,11 @@
       }
 
       let status = "completed";
-      if (result === "FAIL" || result === "??寞") status = "failed";
+      if (result === "FAIL" || result === "需特採") status = "failed";
       
       let finalNote = note;
       if (result === '?寞' && sample.qcResult === '??寞') {
-        finalNote = `[??:${sample.qcApprover}] ${sample.qcNote || ''}\n[?寞:${approver}] ${note}`;
+        finalNote = `[初驗:${sample.qcApprover}] ${sample.qcNote || ''}\n[特採:${approver}] ${note}`;
       }
       
       // ?亙歇????銝???靘? completedAt
