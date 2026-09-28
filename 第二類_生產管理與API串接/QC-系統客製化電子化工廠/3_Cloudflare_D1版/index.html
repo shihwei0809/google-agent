@@ -1486,12 +1486,13 @@
     const submittedInView = filteredOrders.filter(o => getOrderSubmissionInfo(o)).length;
     const pendingInView = filteredOrders.length - submittedInView;
 
+    const pendingInTotal = totalCount - submittedInTotal;
     const statsBadge = document.getElementById('t100StatsBadge');
     if (statsBadge) {
       if (t100FilterMode === 'today') {
-        statsBadge.innerHTML = `今日排程: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView}) · 總排程: ${totalCount}`;
+        statsBadge.innerHTML = `今日排程: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView}) · 系統尚有 ${pendingInTotal} 車未送樣`;
       } else if (t100FilterMode === 'pending') {
-        statsBadge.innerHTML = `📦 待送樣放櫃: <b>${filteredOrders.length}</b> 車未送樣 (已送 ${submittedInTotal} / 總排程 ${totalCount})`;
+        statsBadge.innerHTML = `📦 待送樣放櫃: <b>${filteredOrders.length}</b> 車未送樣 (已完成 ${submittedInTotal} 車)`;
       } else {
         statsBadge.innerHTML = `${filterDescription}: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView})`;
       }
@@ -1503,14 +1504,13 @@
 
     if (filteredOrders.length === 0) {
       if (t100FilterMode === 'today') {
-        const availableDates = [...new Set(t100Orders.map(o => o.date).filter(Boolean))].sort();
-        const latestDate = availableDates.length ? availableDates[availableDates.length - 1] : '';
-        const hintText = latestDate ? `排程日為 ${latestDate}，可點擊上方日期切換` : '可匯入最新排程或點擊「待送樣放櫃」';
-        html += `<option value="">-- 📅 今日 (${todayStr}) 尚無排程 (共 ${totalCount} 筆放櫃/預約車次，${hintText}) --</option>`;
+        const hintText = pendingInTotal > 0 ? `系統內還有 ${pendingInTotal} 筆待送樣車次，可點擊「待送樣放櫃」查詢` : '所有排程皆已完成送樣';
+        html += `<option value="">-- 📅 今日 (${todayStr}) 尚無排程 (${hintText}) --</option>`;
       } else if (t100FilterMode === 'pending') {
-        html += `<option value="">-- 🎉 太棒了！所有放櫃與排程車次 (共 ${totalCount} 筆) 皆已完成送樣 --</option>`;
+        html += `<option value="">-- 🎉 太棒了！所有放櫃與排程車次皆已完成送樣 --</option>`;
       } else {
-        html += `<option value="">-- 📅 日期 [${selectedDate}] 無排程 (共 ${totalCount} 筆其他日期排程，可切換日期查詢) --</option>`;
+        const hintText = pendingInTotal > 0 ? `尚有 ${pendingInTotal} 筆待送樣，可點擊「待送樣放櫃」查詢` : '所有排程皆已完成送樣';
+        html += `<option value="">-- 📅 日期 [${selectedDate}] 無排程 (${hintText}) --</option>`;
       }
     } else {
       html += `<option value="">-- 點此選擇 ${filterDescription} (共 ${filteredOrders.length} 車次：${outOrders.length} 出貨 + ${inOrders.length} 進料) --</option>`;
