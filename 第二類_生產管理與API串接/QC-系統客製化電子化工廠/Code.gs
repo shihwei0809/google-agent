@@ -156,6 +156,9 @@ function getSystemConfigFromSheet_() {
       if (key === 'OPTIONS_PRODUCT_GRADES_MAP' && val) {
         config.productGradesMap = val;
       }
+      if (key === 'OPTIONS_JUDGE_RESULTS' && val) {
+        config.judgeResults = val;
+      }
     }
 
     // 支援從獨立工作表讀取品名等級對應 (讓人員更好填寫)
@@ -217,7 +220,8 @@ function initSystemConfigSheet() {
       ['OPTIONS_GRADES', '工業級, UPS, IF', '等級選單項目 (以逗號隔開)'],
       ['OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課', '送樣單位選單 (以逗號隔開)'],
       ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR', '品名建議選單 (以逗號隔開)'],
-      ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:電子級, IPAUPS:UPS', '品名對應等級 (格式：品名:等級，多組用逗號隔開)']
+      ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:電子級, IPAUPS:UPS', '品名對應等級 (格式：品名:等級，多組用逗號隔開)'],
+      ['OPTIONS_JUDGE_RESULTS', 'PASS:合格放行, FAIL:不合格退回', '判定結果選項 (格式：值:顯示名稱，多組用逗號隔開)']
     ];
     
     defaults.forEach(item => {
