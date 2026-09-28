@@ -2040,6 +2040,7 @@
   }
 
   function render() {
+    const loggedInUser = sessionStorage.getItem('QC_LOGGED_IN_USER');
     const kw = (document.getElementById('kwInput').value || '').toLowerCase();
     const start = document.getElementById('dateStart').value;
     const end = document.getElementById('dateEnd').value;
