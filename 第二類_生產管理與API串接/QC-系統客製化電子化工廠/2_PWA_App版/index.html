@@ -2114,7 +2114,7 @@
       }
 
       // 自適應 4 欄內容（零水平捲軸）
-      try { pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
+      pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
         <td>
           <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:2px;">
             <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
@@ -2143,9 +2143,9 @@
             <button class="btn-action btn-judge" onclick="openJudge('${s.id}')" style="width:100%; padding:4px 0; font-size:0.75rem; margin:0;">判定</button>
           </div>
         </td>
-      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`; } catch(e) { pBody.innerHTML = `<tr><td colspan="4" style="color:red;">${e.toString()}</td></tr>`; }
+      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
 
-      try { cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
+      cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
         <td>
           <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:2px;">
             <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
@@ -2175,7 +2175,7 @@
           ${s.qcResult === 'FAIL' ? `<button onclick="openReturnResample('${s.id}')" style="font-size:0.7rem; background:#f97316; color:white; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%;">↩️ 退回重新送樣</button>` : ''}
           ${(s.parentId || s.round > 1) ? `<button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%; margin-top:3px;">📋 查看送樣歷史</button>` : ''}
         </td>
-      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`; } catch(e) { cBody.innerHTML = `<tr><td colspan="4" style="color:red;">${e.toString()}</td></tr>`; }
+      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
     } else {
       // 傳統完整九欄展開模式
       if (pHead) {
@@ -2206,7 +2206,7 @@
         </tr>`;
       }
 
-      try { pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
+      pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
         <td><b>${s.barcode}</b>${(parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem;font-weight:bold;color:#ea580c;background:#fed7aa;padding:1px 5px;border-radius:8px;">第${s.round}次</span>` : ''}</td>
         <td>${getFlowTag(s.flowType)}</td>
         <td><span style="font-weight:bold; color:#1e40af;">${s.grade || '-'}</span></td>
@@ -2222,9 +2222,9 @@
           <button class="btn-action btn-print" onclick="printLabelById('${s.id}')">列印</button>
           <button class="btn-action btn-judge" onclick="openJudge('${s.id}')">判定</button>
         </td>
-      </tr>`).join('') : `<tr><td colspan="9" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`; } catch(e) { pBody.innerHTML = `<tr><td colspan="9" style="color:red;">${e.toString()}</td></tr>`; }
+      </tr>`).join('') : `<tr><td colspan="9" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
       
-      try { cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
+      cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
         <td><b>${s.barcode}</b>${(parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem;font-weight:bold;color:#ea580c;background:#fed7aa;padding:1px 5px;border-radius:8px;">第${s.round}次</span>` : ''}</td>
         <td>${getFlowTag(s.flowType)}</td>
         <td><b>${s.grade || '-'}</b></td>
