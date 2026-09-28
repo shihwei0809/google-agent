@@ -54,6 +54,8 @@ function doPost(e) {
       result = saveOrders(postData.orders);
     } else if (action === 'returnForResample') {
       result = returnForResample(postData.id, postData.note, postData.pin);
+    } else if (action === 'initAllSheets') {
+      result = initAllSheets();
     }
 
     return ContentService.createTextOutput(JSON.stringify(result))
@@ -234,6 +236,79 @@ function initSystemConfigSheet() {
     return { success: false, error: err.message };
   }
 }
+
+// =========================================================================
+// 🔧 一鍵補齊所有必要工作表 (分頁)
+// 在 GAS 編輯器裡直接執行 initAllSheets() 即可，或從前端後台觸發
+// =========================================================================
+function initAllSheets() {
+  try {
+    const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
+    const results = [];
+
+    // ① QC_Samples - 主要 QC 資料
+    let qcSheet = ss.getSheetByName(CONFIG.sheetName);
+    if (!qcSheet) {
+      qcSheet = ss.insertSheet(CONFIG.sheetName);
+      qcSheet.appendRow(CONFIG.headers);
+      qcSheet.setFrozenRows(1);
+      results.push('✅ 新建 QC_Samples');
+    } else {
+      results.push('☑️ QC_Samples 已存在');
+    }
+
+    // ② System_Config - 系統設定
+    const cfgResult = initSystemConfigSheet();
+    results.push(cfgResult.success ? '✅ System_Config 已補齊' : '❌ System_Config: ' + cfgResult.error);
+
+    // ③ Orders - T100 排程
+    let ordersSheet = ss.getSheetByName(CONFIG.ordersSheetName);
+    if (!ordersSheet) {
+      ordersSheet = ss.insertSheet(CONFIG.ordersSheetName);
+      const ORDERS_HEADERS_LOCAL = ['importedAt','doc_no','date','time','flowType','productName','tankNo','customer','container','quantity','grade','note'];
+      ordersSheet.appendRow(ORDERS_HEADERS_LOCAL.map(h => ({
+        importedAt:'匯入時間', doc_no:'單號', date:'排程日期', time:'排程時間',
+        flowType:'類型', productName:'品名', tankNo:'槽號/櫃號', customer:'客戶/車號',
+        container:'容器/艙別', quantity:'數量', grade:'等級', note:'備註'
+      }[h] || h)));
+      ordersSheet.setFrozenRows(1);
+      results.push('✅ 新建 Orders');
+    } else {
+      results.push('☑️ Orders 已存在');
+    }
+
+    // ④ 員工資料
+    let empSheet = ss.getSheetByName('員工資料');
+    if (!empSheet) {
+      empSheet = ss.insertSheet('員工資料');
+      empSheet.appendRow(['工號', '姓名', '部門']);
+      empSheet.setFrozenRows(1);
+      results.push('✅ 新建 員工資料');
+    } else {
+      results.push('☑️ 員工資料 已存在');
+    }
+
+    // ⑤ OPTIONS_PRODUCT_GRADES_MAP
+    let mapSheet = ss.getSheetByName('OPTIONS_PRODUCT_GRADES_MAP');
+    if (!mapSheet) {
+      mapSheet = ss.insertSheet('OPTIONS_PRODUCT_GRADES_MAP');
+      mapSheet.appendRow(['品名 (productName)', '等級 (grade)', '備註']);
+      mapSheet.appendRow(['EBR-P1R', '電子級', '台積電客戶']);
+      mapSheet.appendRow(['IPAUPS', 'UPS', 'UPS等級IPA']);
+      mapSheet.setFrozenRows(1);
+      results.push('✅ 新建 OPTIONS_PRODUCT_GRADES_MAP');
+    } else {
+      results.push('☑️ OPTIONS_PRODUCT_GRADES_MAP 已存在');
+    }
+
+    const msg = '【分頁補齊結果】\n' + results.join('\n');
+    Logger.log(msg);
+    return { success: true, message: msg, results };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
+}
+
 
 // =========================================================================
 // 排程雲端同步模組：saveOrders / getOrders
