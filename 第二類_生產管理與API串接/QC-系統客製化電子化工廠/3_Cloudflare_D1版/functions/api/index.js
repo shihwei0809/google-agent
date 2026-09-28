@@ -109,31 +109,53 @@ export async function onRequest(context) {
       }
 
       let status = "completed";
-      if (result === "FAIL" || result === "退件" || result === "重取樣") status = "failed";
+      if (result === "FAIL" || result === "需特採") status = "failed";
+      
+      let finalNote = note;
+      if (result === '特採' && sample.qcResult === '需特採') {
+        finalNote = `[初驗:${sample.qcApprover}] ${sample.qcNote || ''}\n[特採:${approver}] ${note}`;
+      }
       
       // 若已有紀錄，不覆蓋原來的 completedAt
       let completedAt = sample.completedAt || new Date(new Date().getTime() + 8*60*60*1000).toISOString().replace('T', ' ').substring(0, 19);
 
       await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = ? WHERE id = ?")
-        .bind(status, result, note, approver || 'QC', completedAt, id).run();
+        .bind(status, result, finalNote, approver || 'QC', completedAt, id).run();
+
+      // 如果是不合格(FAIL)，自動產生下一輪重送排程
+      if (result === 'FAIL') {
+        const newId = crypto.randomUUID();
+        const parentId = sample.parentId || sample.id;
+        const round = parseInt(sample.round || 1) + 1;
+        await env.DB.prepare(`
+          INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, parentId, round, status, isAlerted)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0)
+        `).bind(newId, sample.barcode, sample.productName, sample.tankNo, sample.customer, sample.quantity, sample.flowType, sample.dept, sample.requester, sample.grade, parentId, round).run();
+      }
+
 
       // 通知 Teams
       const deptWebhook = configMap['TEAMS_WEBHOOK_' + sample.dept];
       const managerWebhook = configMap['TEAMS_MANAGER_WEBHOOK'];
 
       const isPass = (status === 'completed' || result === 'PASS' || result.includes('合格'));
+      let resultTitle = result;
+      if (result === 'FAIL') resultTitle = '⛔ FAIL (已自動產生下一次重送排程)';
+      else if (result === '需特採') resultTitle = '⚠️ 不符合內控 (等待主管審核特採)';
+      else if (result === '特採') resultTitle = '🚨 經主管特採放行';
+      
       const title = isPass
-        ? `✅【品管檢驗通過通知】${sample.product}` 
-        : `❌【品管檢驗退回通知】${sample.product}`;
+        ? `✅【檢驗完成】${sample.productName}` 
+        : `❌【檢驗未通過】${sample.productName}`;
       const color = isPass ? '28a745' : 'dc3545';
       const actualApprover = approver || 'QC';
 
       const facts = [
-        { name: '檢驗結果', value: `**${result}**` },
-        { name: '放行核准人', value: actualApprover },
-        { name: '單號', value: sample.t100_no },
-        { name: '槽號/車牌', value: `${sample.tank} / ${sample.container}` },
-        { name: '檢驗備註', value: note || '無' }
+        { name: '檢驗結果', value: `**${resultTitle}**` },
+        { name: '審核人員', value: actualApprover },
+        { name: '單號', value: sample.barcode || '-' },
+        { name: '槽號/車牌', value: `${sample.tankNo || '-'} / ${sample.customer || '-'}` },
+        { name: '檢驗備註', value: finalNote || '無' }
       ];
 
       const msg = {
