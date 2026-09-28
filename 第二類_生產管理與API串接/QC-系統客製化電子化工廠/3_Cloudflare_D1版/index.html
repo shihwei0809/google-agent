@@ -1460,6 +1460,10 @@
     if (btnToday) btnToday.className = 'btn-t100-filter' + (mode === 'today' ? ' active' : '');
     if (btnPending) btnPending.className = 'btn-t100-filter' + (mode === 'pending' ? ' active' : '');
     if (btnAll) btnAll.className = 'btn-t100-filter' + (mode === 'all' ? ' active' : '');
+    const btnYesterday = document.getElementById('btnFilterYesterday');
+    if (btnYesterday) btnYesterday.className = 'btn-t100-filter' + (mode === 'yesterday' ? ' active' : '');
+    const btnResample = document.getElementById('btnFilterResample');
+    if (btnResample) btnResample.className = 'btn-t100-filter' + (mode === 'resample' ? ' active' : '');
     
     renderT100Dropdown();
   }
@@ -1473,6 +1477,13 @@
     const todayCount = t100Orders.filter(o => o.date === todayStr).length;
     const btnToday = document.getElementById('btnFilterToday');
     if (btnToday) btnToday.innerHTML = `📅 今日排程 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${todayCount}</span>`;
+
+    // 昨天排程數量
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayCount = t100Orders.filter(o => o.date === yesterdayStr).length;
+    const btnYest = document.getElementById('btnFilterYesterday');
+    if (btnYest) btnYest.innerHTML = `📆 昨天排程 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${yesterdayCount}</span>`;
 
     // 待送樣放櫃數量（未送或退回件）
     const pendingCount = t100Orders.filter(o => {
@@ -1531,6 +1542,11 @@
     if (t100FilterMode === 'today') {
       filteredOrders = t100Orders.filter(o => o.date === todayStr);
       filterDescription = `今日 (${todayStr})`;
+    } else if (t100FilterMode === 'yesterday') {
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+      const yStr = yesterday.toISOString().split('T')[0];
+      filteredOrders = t100Orders.filter(o => o.date === yStr);
+      filterDescription = `昨日 (${yStr})`;
     } else if (t100FilterMode === 'date') {
       filteredOrders = t100Orders.filter(o => o.date === selectedDate);
       filterDescription = `${selectedDate}`;
@@ -1544,18 +1560,11 @@
       });
       filterDescription = `待送樣放櫃/排程`;
     } else if (t100FilterMode === 'resample') {
-      // 品質不合格重取 / 需特採待審
-      const failedSubs = cData.filter(c => c.status === 'failed');
-      const pendingResample = allData.filter(c => c.status === 'pending' && parseInt(c.round || 1) > 1);
-      filteredOrders = [...failedSubs, ...pendingResample].map(c => ({
-        ...c,
-        isResampleItem: true,
-        displayTitle: (c.status === 'failed' && c.qcResult === '需特採') 
-          ? `⚠️[不符內控需特採] ${c.barcode} - ${c.productName} (${c.tankNo || c.customer || '-'})`
-          : (c.status === 'failed')
-          ? `⛔[品質不合格重取] ${c.barcode} - ${c.productName} (${c.tankNo || c.customer || '-'}) (第${c.round}次)`
-          : `🔄[已自動重送待驗] ${c.barcode} - ${c.productName} (${c.tankNo || c.customer || '-'}) (第${c.round}次)`
-      }));
+      // 品質不合格重取 / 需特採 - 從 t100Orders 的送樣狀態計算（不依賴 render() 局部變數）
+      filteredOrders = t100Orders.filter(o => {
+        const sub = getOrderSubmissionInfo(o);
+        return sub && (sub.status === 'failed' || (sub.status === 'pending' && (parseInt(sub.round || 1) > 1 || sub.parentId)));
+      });
       filterDescription = '品質不合格重取 / 需特採';
     } else if (t100FilterMode === 'all') {
       filteredOrders = [...t100Orders];
