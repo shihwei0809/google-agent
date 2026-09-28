@@ -1,30 +1,13 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
   <meta charset="utf-8">
-  <title>暾餃??飛 QC 瑼ａ??單??蝟餌絞</title>
+  <title>鴻勝化學 QC 檢驗即時看板系統</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
-  <!-- 撘 SheetJS ?冽摰Ｘ蝡臬?圾??T100 ?? Excel -->
+  <!-- 引入 SheetJS 用於客戶端即時解析 T100 排程 Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<script>
-  // ???內摮?擐祉?
-  function startPlaceholderMarquee(elementId, originalText) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    let text = originalText + '   '; 
-    setInterval(() => {
-      text = text.substring(1) + text[0];
-      el.setAttribute('placeholder', text);
-    }, 400); 
-  }
-  document.addEventListener('DOMContentLoaded', () => {
-    startPlaceholderMarquee('empIdInput', '???撓?亙極??.. ');
-    startPlaceholderMarquee('requester', '憪?嚗極??啣???‵?伐?... ');
-  });
-
-</script>
   <style>
     :root {
       --bg: #f8fafc;
@@ -44,7 +27,7 @@
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif; background: var(--bg); margin: 0; padding: 15px; color: var(--ink); }
     .container { max-width: 1600px; margin: 0 auto; }
     
-    /* PWA 摰?璇?*/
+    /* PWA 安裝條 */
     #pwa-install-banner {
       display: none;
       background: linear-gradient(90deg, #1e40af, #3b82f6);
@@ -69,7 +52,7 @@
     .card { background: var(--card-bg); padding: 22px; border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 20px; border: 1px solid var(--border); }
     .card-title { margin: 0 0 16px; border-left: 5px solid var(--blue); padding-left: 12px; font-size: 1.25rem; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
     
-    /* T100 瑽質?敹恍?蝔??憛?*/
+    /* T100 槽車快速排程選擇區塊 */
     .t100-banner {
       background: #f0fdf4;
       border: 1.5px solid #86efac;
@@ -166,7 +149,7 @@
       gap: 8px;
     }
 
-    /* 璅⊥皜祈岫?批??(?身?梯?嚗圾??隞?flex 憿舐內) */
+    /* 模擬測試控制列 (預設隱藏，解鎖後以 flex 顯示) */
     .sim-toolbar {
       background: #f8fafc;
       border: 1.5px dashed #cbd5e1;
@@ -196,7 +179,7 @@
     .btn-sim-teams { background: #5b5fc7; color: white; border: none; }
     .btn-sim-teams:hover { background: #4f52b2; }
 
-    /* 蝞∠??∟圾???見撘?*/
+    /* 管理員解鎖按鈕樣式 */
     .btn-admin-unlock {
       display: inline-flex;
       align-items: center;
@@ -226,10 +209,9 @@
       background: #d1fae5;
     }
 
-    /* 銵典?潛??? */
+    /* 表單格線排版 */
     .form-grid {
       display: grid;
-      align-items: end;
       grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 16px;
       margin-bottom: 18px;
@@ -262,14 +244,14 @@
     }
     .btn-submit:hover { background: #1d4ed8; }
 
-    /* ??璅惜璅?? */
+    /* 動向標籤樣式 */
     .tag-flow { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
     .tag-in { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
     .tag-out { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
     .tag-replenish { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
     .tag-commission { background: #f5f3ff; color: #5b21b6; border: 1px solid #ddd6fe; }
 
-    /* ?暹??????瑕??急?蝐?*/
+    /* 逾期與等候時長動畫標籤 */
     @keyframes pulse-red {
       0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
       70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
@@ -305,19 +287,19 @@
     .kpi-value { font-size: 1.8rem; font-weight: bold; }
     .kpi-label { font-size: 0.85rem; color: var(--muted); }
 
-    /* ?踵?撘?撅嚗??餉撟?(??1450px) ?芸????典祝銝???嚗椰?喲?脰遘 */
+    /* 響應式佈局：筆電螢幕 (≤ 1450px) 自動切換全寬上下排列，左右零捲軸 */
     .kanban-container { display: grid; grid-template-columns: 1.25fr 1fr; gap: 20px; transition: all 0.3s ease; }
     @media (max-width: 1450px) {
       .kanban-container { grid-template-columns: 1fr; gap: 24px; }
     }
 
-    /* ??????璅∪? */
+    /* 手動切換排版模式 */
     .kanban-container.view-stacked { grid-template-columns: 1fr !important; gap: 24px !important; }
     .kanban-container.view-sidebyside { grid-template-columns: 1.25fr 1fr !important; gap: 18px !important; }
     .kanban-container.view-tabs .kanban-column { display: none !important; }
     .kanban-container.view-tabs .kanban-column.active-tab { display: block !important; }
 
-    /* 閬????冽見撘?*/
+    /* 視角切換器樣式 */
     .layout-switcher {
       display: flex;
       align-items: center;
@@ -393,7 +375,7 @@
     th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
     th { background: #f8fafc; color: var(--muted); font-weight: 700; white-space: nowrap; }
 
-    /* ?芷?”?澆捆?剁?敺孵??寥璈怠?皛曉?頠賂?蝑???Ｗ? 100% 皛輻??⊥頠?*/
+    /* 自適應表格容器：徹底根除橫向滾動軸，筆電或小螢幕 100% 滿版無捲軸 */
     .table-responsive {
       width: 100%;
       box-sizing: border-box;
@@ -433,7 +415,7 @@
       white-space: nowrap;
     }
     
-    /* ?賊??箏???甈?嚗雿踹蝮桀??撟??脣?嚗?雿?銋偶?摰?喳嚗?銝◤蝘餃閬?憭? */
+    /* 吸附固定操作欄位：即使在縮小的螢幕上捲動，操作欄也永遠固定在右側，絕不被移出視窗外！ */
     .col-action {
       position: sticky;
       right: 0;
@@ -452,11 +434,11 @@
     .btn-print { background: #3b82f6; margin-right: 4px; } 
     .btn-judge { background: #10b981; } 
     
-    /* 敶歲閬??璅?? */
+    /* 彈跳視窗通用樣式 */
     .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center; }
     .modal-content { background:white; padding:25px; border-radius:12px; width:420px; max-width:92vw; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.25); max-height:90vh; overflow-y:auto; }
 
-    /* Teams 閮?∠??汗璅?? (隞輻 Microsoft Teams 隞) */
+    /* Teams 訊息卡片預覽樣式 (仿照 Microsoft Teams 介面) */
     .teams-card-preview {
       border: 1px solid #d1d5db;
       border-radius: 8px;
@@ -519,121 +501,120 @@
 <body>
 <div class="container">
 
-  <!-- PWA 摰??內璈怠? -->
+  <!-- PWA 安裝提示橫幅 -->
   <div id="pwa-install-banner">
-    <div><b>? 摰??箇蝡?App</b>嚗??祉頂蝯勗?鋆??銝餌?Ｘ??餉獢嚗?雿?撽瘚嚗?/div>
-    <button id="pwa-install-btn" onclick="installPWA()">蝡摰?</button>
+    <div><b>📱 安裝為獨立 App</b>：將本系統安裝至手機主畫面或電腦桌面，操作體驗更流暢！</div>
+    <button id="pwa-install-btn" onclick="installPWA()">立即安裝</button>
   </div>
 
   <div class="card">
     <div class="card-title">
-      <span>?脣鞎冽見???/span>
+      <span>進出貨樣品登錄</span>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-        <button id="btnAdminUnlock" type="button" class="btn-admin-unlock" onclick="handleAdminUnlockClick()" title="暺?頛詨蝞∠???PIN 蝣潔誑撅?皜祈岫蝞梯??脤?閮剖?">
-          ?? ?餃閫?? (QC?曇?)
+        <button id="btnAdminUnlock" type="button" class="btn-admin-unlock" onclick="handleAdminUnlockClick()" title="點擊輸入管理員 PIN 碼以展開測試箱與進階設定">
+          🔒 解鎖管理功能
         </button>
-                  <button type="button" onclick="window.open('admin.html', '_blank')" style="background:#1e40af; color:white; border:none; padding:4px 8px; border-radius:4px; font-weight:bold; cursor:pointer;">?? 蝟餌絞敺</button>
-          <span id="teamsStatusBadge" class="mode-badge" style="background:#f3e8ff; color:#6b21a8; cursor:pointer;" onclick="handleTeamsBadgeClick()">?? Teams ?嚗停蝺?/span>
-        <span id="envBadge" class="mode-badge">??蝟餌絞??銝?/span>
+        <span id="teamsStatusBadge" class="mode-badge" style="background:#f3e8ff; color:#6b21a8; cursor:pointer;" onclick="handleTeamsBadgeClick()">🔔 Teams 通知：就緒</span>
+        <span id="envBadge" class="mode-badge">⚡ 系統運作中</span>
       </div>
     </div>
 
-    <!-- T100 瑽質???敹恍?? (?舀?箄疏?脫???憛?祟?貉?撌脤見閮?) -->
+    <!-- T100 槽車排程快速選擇列 (支援出貨與進料雙區塊、日期篩選與已送樣記號) -->
     <div class="t100-banner">
       <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; width:100%;">
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <span class="t100-badge">?? T100 瑽質???</span>
+          <span class="t100-badge">🚛 T100 槽車排程</span>
           
-          <!-- ?交??豢??芋撘祟??-->
+          <!-- 日期選擇與模式篩選 -->
           <div style="display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;">
-            <label for="t100DateFilter" style="font-size:0.82rem; margin:0; color:#166534; font-weight:bold;">?? ?交?嚗?/label>
-            <input type="date" id="t100DateFilter" class="t100-date-picker" onchange="onT100DateFilterChange(this.value)" title="?????交??亥岷??">
-            <button type="button" class="btn-t100-filter active" id="btnFilterToday" onclick="setT100FilterMode('today')" title="?芰?隞??">?? 隞??</button>
-            <button type="button" class="btn-t100-filter" id="btnFilterPending" onclick="setT100FilterMode('pending')" title="?亥岷??瑹??芷見頠活">? 敺見?暹?</button>
-            <button type="button" class="btn-t100-filter" id="btnFilterAll" onclick="setT100FilterMode('all')" title="瑼Ｚ????交?蝔?>?? 憿舐內?券</button>
+            <label for="t100DateFilter" style="font-size:0.82rem; margin:0; color:#166534; font-weight:bold;">📅 日期：</label>
+            <input type="date" id="t100DateFilter" class="t100-date-picker" onchange="onT100DateFilterChange(this.value)" title="切換指定日期查詢排程">
+            <button type="button" class="btn-t100-filter active" id="btnFilterToday" onclick="setT100FilterMode('today')" title="只看今日排程">📅 今日排程</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterPending" onclick="setT100FilterMode('pending')" title="查詢所有放櫃或未送樣車次">📦 待送樣放櫃</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterAll" onclick="setT100FilterMode('all')" title="檢視所有匯入排程">🔍 顯示全部</button>
           </div>
         </div>
 
         <span id="t100StatsBadge" style="background:#dcfce7; color:#15803d; padding:4px 10px; border-radius:12px; font-size:0.82rem; font-weight:bold; border:1px solid #86efac;">
-          頛銝?..
+          載入中...
         </span>
       </div>
 
       <div style="display:flex; gap:10px; width:100%; align-items:center; flex-wrap:wrap;">
         <div class="t100-select-wrapper">
           <select id="t100Select" class="t100-select" onchange="onT100SelectChange(this.value)">
-            <option value="">-- 暺迨?湔?豢? T100 瑽質??? (??箄疏?脫?) --</option>
+            <option value="">-- 點此直接選擇 T100 槽車排程 (包含出貨與進料) --</option>
           </select>
         </div>
-        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onclick="this.value=null;" onchange="handleExcelUpload(event)">
+        <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onchange="handleExcelUpload(event)">
         <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
-          ?? ?臬???T100 ?? Excel
+          📂 匯入最新 T100 排程 Excel
         </button>
         <button type="button" onclick="resetForm()" style="padding:9px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap;">
-          皜征?
+          清空重選
         </button>
-        <!-- ?函????啗身摰????⊿?蝞∠?甈??喳?身閮?箏閮剖? -->
-        <button type="button" onclick="openPrintSettingsGlobal()" style="padding:9px 14px; background:#0ea5e9; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap; margin-left:auto;" title="靽格???斗?蝐斗????嗅?株身摰?>
-          ?儭??閮剖?
+        <!-- 獨立的列印設定按鈕，無須管理權限即可重設記憶出單設定 -->
+        <button type="button" onclick="openPrintSettingsGlobal()" style="padding:9px 14px; background:#0ea5e9; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap; margin-left:auto;" title="修改或清除標籤機的記憶出單設定">
+          🖨️ 列印設定
         </button>
       </div>
 
-      <!-- 撌脤見?內?璇?(?園?歇?見頠活???＊蝷? -->
+      <!-- 已送樣提示通知條 (當選擇已送樣車次時動態顯示) -->
       <div id="t100AlreadySubmittedAlert" class="t100-alert-box">
-        <span style="font-size:1.15rem;">??</span>
-        <span id="t100AlertText" style="flex:1;">甇方?甈∪?歇?見??</span>
+        <span style="font-size:1.15rem;">⚠️</span>
+        <span id="t100AlertText" style="flex:1;">此車次單號已送樣過！</span>
       </div>
     </div>
 
-    <!-- ?祆? PWA 撠璅⊥皜祈岫?批蝞?(?身?梯?嚗?蝞∠???PIN 蝣潸圾?? -->
+    <!-- 本機 PWA 專用模擬測試控制箱 (預設隱藏，需管理員 PIN 碼解鎖) -->
     <div id="simToolbar" class="sim-toolbar" style="display:none;">
-      <span style="font-weight:bold; color:#475569;">?妒 ?祆?璅⊥皜祈岫蝞梧?</span>
+      <span style="font-weight:bold; color:#475569;">🧪 本機模擬測試箱：</span>
       <button type="button" class="btn-sim" onclick="injectOverdueTestSample()">
-        ?梧? 瘜典?暹?璅?? (>2撠?)
+        ⏱️ 注入逾期樣品 (>2小時)
       </button>
       <button type="button" class="btn-sim" onclick="triggerOverdueCheckLocal()">
-        ? ?瑁??暹?撌⊥炎 (閫貊Teams霅血)
+        🚨 執行逾期巡檢 (觸發Teams警報)
       </button>
       <button type="button" class="btn-sim btn-sim-teams" onclick="openTeamsConfigModal()">
-        ?? Teams Webhook 閮剖???葫閰?
+        ⚙️ Teams Webhook 設定與卡片測試
       </button>
       <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none;" onclick="openPrintSettingsGlobal()">
-        ?儭?璅惜璈身摰?(?寧?/?孵撐??
+        🖨️ 標籤機設定 (改紙/改張數)
       </button>
       <button type="button" class="btn-sim" style="background:#7c3aed; color:white; border:none;" onclick="openEmpMapModal()">
-        ? ?∪極撌亥?撠銵函恣??
+        👤 員工工號對照表管理
       </button>
-      <button type="button" class="btn-sim" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; margin-left:auto;" onclick="lockAdminFeatures(true)" title="?銝?銝阡?芋?祆葫閰衣拳">
-        ?? ???梯?
+      <button type="button" class="btn-sim" style="background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; margin-left:auto;" onclick="lockAdminFeatures(true)" title="重新上鎖並隱藏模擬測試箱">
+        🔒 鎖定隱藏
       </button>
     </div>
 
     <form id="qcForm">
       <div class="form-grid">
         <div>
-          <label>?粹??亙澈?株?<span class="label-hint">(?詨‵嚗???憛怠澈摮?蝛箄?葆??</span></label>
-          <input type="text" id="barcode" placeholder="?詨‵嚗?蝛箄?身?箸??摨怠?">
+          <label>出通/入庫單號<span class="label-hint">(選填，提前充填庫存留空自動帶入)</span></label>
+          <input type="text" id="barcode" placeholder="選填，留空自動設為日期-庫存">
         </div>
         <div>
-          <label>??</label>
+          <label>動向</label>
           <select id="flowType">
-            <option value="?箄疏">?箄疏</option>
-            <option value="?脫?">?脫?</option>
-            <option value="鋆?">鋆?</option>
-            <option value="憪?">憪?</option>
+            <option value="出貨">出貨</option>
+            <option value="進料">進料</option>
+            <option value="補料">補料</option>
+            <option value="委託">委託</option>
           </select>
         </div>
         <div>
-          <label>蝑?</label>
+          <label>等級</label>
           <select id="grade">
-            <option value="撌交平蝝?>撌交平蝝?/option>
+            <option value="工業級">工業級</option>
             <option value="UPS">UPS</option>
             <option value="IF">IF</option>
           </select>
         </div>
         <div>
-          <label class="required">??</label>
-          <input type="text" id="productName" list="productList" placeholder="暺?撓?? required onchange="autoSelectGrade(this.value)">
+          <label class="required">品名</label>
+          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required onchange="autoSelectGrade(this.value)">
           <datalist id="productList">
             <option value="IPA"></option><option value="IPAUPS"></option><option value="IPAHQ"></option>
             <option value="CPNE3(T)"></option><option value="CPNE4"></option><option value="CPN-P1R"></option>
@@ -646,96 +627,89 @@
           </datalist>
         </div>
         <div>
-          <label class="required">?脣鞎冽局??/label>
-          <input type="text" id="tankNo" placeholder="靘? TK605 ??TKC05" required>
+          <label class="required">進出貨槽號</label>
+          <input type="text" id="tankNo" placeholder="例: TK605 或 TKC05" required>
         </div>
         <div>
-          <label class="required">頠?/瑹?</label>
-          <input type="text" id="customer" placeholder="靘? PPCU7019228 ??KEQ-3506" required>
+          <label class="required">車牌/櫃號</label>
+          <input type="text" id="customer" placeholder="例: PPCU7019228 或 KEQ-3506" required>
         </div>
         <div>
-          <label>?賊?</label>
-          <input type="text" id="quantity" placeholder="靘? 5000 KG">
+          <label>數量</label>
+          <input type="text" id="quantity" placeholder="例: 5000 KG">
         </div>
         <div>
-          <label>?見?桐? (Teams ???靘?)</label>
+          <label>送樣單位 (Teams 分流通報依據)</label>
           <select id="dept">
-            <option value="鞈?隤?>鞈?隤?/option>
-            <option value="?曉銝隤?>?曉銝隤?/option>
-            <option value="?曉鈭玨">?曉鈭玨</option>
-            <option value="???隤?>???隤?/option>
+            <option value="資材課">資材課</option>
+            <option value="現場一課">現場一課</option>
+            <option value="現場二課">現場二課</option>
+            <option value="回收處理課">回收處理課</option>
           </select>
         </div>
         <div>
-          <label class="required">?見鈭箏</label>
+          <label class="required">送樣人員</label>
           <div style="display:flex; gap:6px; align-items:center;">
-            <input type="text" id="empIdInput" placeholder="???撓?亙極?? style="width:110px; flex-shrink:0;"
-              oninput="this.value = this.value.toUpperCase(); lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
-            <input type="text" id="requester" placeholder="憪?嚗極??啣??芸?憛怠嚗? required style="flex:1;">
+            <input type="text" id="empIdInput" placeholder="掃描或輸入工號" style="width:110px; flex-shrink:0;"
+              oninput="lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
+            <input type="text" id="requester" placeholder="姓名（工號查到後自動填入）" required style="flex:1;">
           </div>
           <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
-                </div>
-        <div>
-          <label>?酉 (?詨‵)</label>
-          <input type="text" id="remark" placeholder="憒??畾?瘜?憛怠神...">
         </div>
       </div>
-            <div style="display:flex; gap:10px;">
-        <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()" style="flex:1;">蝣箄??漱?見 ??</button>
-        
-      </div>
+      <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
     </form>
   </div>
 
   <div class="filter-bar">
     <div style="flex:1; min-width: 220px;">
-      <label>?單??? (?株? / ?? / 頠? / 瑽質? / ?桐?)</label>
-      <input type="text" id="kwInput" oninput="render()" placeholder="頛詨?批捆?單??蕪...">
+      <label>即時搜尋 (單號 / 品名 / 車牌 / 槽號 / 單位)</label>
+      <input type="text" id="kwInput" oninput="render()" placeholder="輸入內容即時過濾...">
     </div>
-    <div><label>?交?(韏?</label><input type="date" id="dateStart" onchange="render()"></div>
-    <div><label>?交?(餈?</label><input type="date" id="dateEnd" onchange="render()"></div>
+    <div><label>日期(起)</label><input type="date" id="dateStart" onchange="render()"></div>
+    <div><label>日期(迄)</label><input type="date" id="dateEnd" onchange="render()"></div>
     <div style="display:flex; gap:8px; align-items:flex-end;">
-      <button onclick="resetFilters()" style="padding:10px 16px; cursor:pointer; height:40px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">?券憿舐內 (皜)</button>
-      <button type="button" onclick="openGlobalHistoryModal()" style="padding:10px 16px; cursor:pointer; height:40px; background:#4f46e5; color:white; border:none; border-radius:6px; font-weight:bold;">?? ?函??閰?/button>
+      <button onclick="resetFilters()" style="padding:10px 16px; cursor:pointer; height:40px; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold;">全部顯示 (清除)</button>
+      <button type="button" onclick="openGlobalHistoryModal()" style="padding:10px 16px; cursor:pointer; height:40px; background:#4f46e5; color:white; border:none; border-radius:6px; font-weight:bold;">🔍 全紀錄查詢</button>
     </div>
   </div>
 
   <div class="kpi-grid">
-    <div class="kpi-card" style="border-left-color: var(--amber);"><div class="kpi-value" id="kpi-pending">0</div><div class="kpi-label">敺?銝?/div></div>
-    <div class="kpi-card" style="border-left-color: var(--red);"><div class="kpi-value" id="kpi-overdue" style="color:var(--red);">0</div><div class="kpi-label">撌脤暹? (>2撠?)</div></div>
-    <div class="kpi-card" style="border-left-color: var(--green);"><div class="kpi-value" id="kpi-completed">0</div><div class="kpi-label">撌脫炎撽???/div></div>
-    <div class="kpi-card" style="border-left-color: var(--blue);"><div class="kpi-value" id="kpi-today">0</div><div class="kpi-label">隞?見蝮賣</div></div>
+    <div class="kpi-card" style="border-left-color: var(--amber);"><div class="kpi-value" id="kpi-pending">0</div><div class="kpi-label">待驗中</div></div>
+    <div class="kpi-card" style="border-left-color: var(--red);"><div class="kpi-value" id="kpi-overdue" style="color:var(--red);">0</div><div class="kpi-label">已逾期 (>2小時)</div></div>
+    <div class="kpi-card" style="border-left-color: var(--green);"><div class="kpi-value" id="kpi-completed">0</div><div class="kpi-label">已檢驗完成</div></div>
+    <div class="kpi-card" style="border-left-color: var(--blue);"><div class="kpi-value" id="kpi-today">0</div><div class="kpi-label">今日送樣總數</div></div>
   </div>
 
-  <!-- ?閬???????(蝑?椰?單??圾瘙箸獢? -->
+  <!-- 看板視角排版切換器 (筆電免左右滑動解決方案) -->
   <div class="layout-switcher">
     <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
       <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:0.85rem; font-weight:bold; color:#475569;">?? ???嚗?/span>
+        <span style="font-size:0.85rem; font-weight:bold; color:#475569;">📐 看板排版：</span>
         <div class="btn-layout-group">
-          <button type="button" class="btn-layout-toggle active" id="btnLayoutAuto" onclick="setLayoutView('auto')" title="靘撟?捱摰?蝑?芸??典祝嚗之?Ｗ???">???芸??拇?</button>
-          <button type="button" class="btn-layout-toggle" id="btnLayoutStacked" onclick="setLayoutView('stacked')" title="敺??其????銝??抵? 100% 皛輻?嚗器摨?皛帖?頠?>?? 銝??典祝 (?帖蝘?</button>
-          <button type="button" class="btn-layout-toggle" id="btnLayoutTabs" onclick="setLayoutView('tabs')" title="蝑擐嚗誑璅惜????敺??????恍?銋暹楊撖祆?">?? ???? (蝑擐)</button>
-          <button type="button" class="btn-layout-toggle" id="btnLayoutSide" onclick="setLayoutView('side')" title="撘瑕撌血??銝行? (?拙?憭扯撟?憭憿舐內??">?? ??銝行?</button>
+          <button type="button" class="btn-layout-toggle active" id="btnLayoutAuto" onclick="setLayoutView('auto')" title="依螢幕自動決定：筆電自動全寬，大螢幕雙欄">⚡ 自動適應</button>
+          <button type="button" class="btn-layout-toggle" id="btnLayoutStacked" onclick="setLayoutView('stacked')" title="待驗在上、完成在下，兩者皆 100% 滿版，徹底消滅橫向捲軸">↕️ 上下全寬 (免橫移)</button>
+          <button type="button" class="btn-layout-toggle" id="btnLayoutTabs" onclick="setLayoutView('tabs')" title="筆電首選：以標籤分頁切換待驗與完成，畫面最乾淨寬敞">📑 分頁切換 (筆電首選)</button>
+          <button type="button" class="btn-layout-toggle" id="btnLayoutSide" onclick="setLayoutView('side')" title="強制左右雙欄並排 (適合大螢幕或外接顯示器)">📊 雙欄並排</button>
         </div>
       </div>
 
       <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:0.85rem; font-weight:bold; color:#475569;">?? 銵冽?芷??</span>
+        <span style="font-size:0.85rem; font-weight:bold; color:#475569;">📊 表格自適應：</span>
         <div class="btn-layout-group">
-          <button type="button" class="btn-layout-toggle active" id="btnTableModeAdaptive" onclick="setTableMode('adaptive')" title="???芷????嚗??餃?撌血皛?嚗?00% 皛輻??⊥頠?>???芷??(?椰?喟宏)</button>
-          <button type="button" class="btn-layout-toggle" id="btnTableModeFull" onclick="setTableMode('full')" title="?喟絞 9~10 甈?蝝啣??游???>?? ?喟絞銋?撅?</button>
+          <button type="button" class="btn-layout-toggle active" id="btnTableModeAdaptive" onclick="setTableMode('adaptive')" title="四欄自適應複合欄，筆電免左右滑動，100% 滿版無捲軸">⚡ 自適應 (免左右移)</button>
+          <button type="button" class="btn-layout-toggle" id="btnTableModeFull" onclick="setTableMode('full')" title="傳統 9~10 欄明細完整展開">📋 傳統九欄展開</button>
         </div>
       </div>
     </div>
 
-    <!-- ??璅惜????(?????璅∪?銝＊蝷? -->
+    <!-- 分頁標籤切換列 (僅在分頁切換模式下顯示) -->
     <div id="tabsHeaderBar" class="tabs-bar" style="display:none;">
       <button type="button" class="tab-btn active tab-pending" id="tabBtnPending" onclick="switchKanbanTab('pending')">
-        ??敺炎撽見??(<span id="tabCountPending">0</span>)
+        ⏳ 待檢驗樣品 (<span id="tabCountPending">0</span>)
       </button>
       <button type="button" class="tab-btn tab-completed" id="tabBtnCompleted" onclick="switchKanbanTab('completed')">
-        ??撌脫炎撽???(<span id="tabCountCompleted">0</span>)
+        ✅ 已檢驗完成 (<span id="tabCountCompleted">0</span>)
       </button>
     </div>
   </div>
@@ -744,23 +718,23 @@
     <div class="kanban-column active-tab" id="col-pending">
       <div class="kanban-header header-pending">
         <span style="display:flex; align-items:center; gap:6px;">
-          ??敺炎撽見??(?舀頞??芸??郎)
+          ⏳ 待檢驗樣品 (支援超時自動預警)
         </span>
         <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" onclick="toggleTableMode()" title="暺???銵冽甈???璅∪?" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1.5px solid #d97706; background:#fff; color:#b45309; cursor:pointer; font-weight:bold;">
-            <span class="table-mode-icon">??/span> <span class="table-mode-label">?芷??(?椰?喟宏)</span>
+          <button type="button" onclick="toggleTableMode()" title="點擊切換表格欄位排版模式" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1.5px solid #d97706; background:#fff; color:#b45309; cursor:pointer; font-weight:bold;">
+            <span class="table-mode-icon">⚡</span> <span class="table-mode-label">自適應 (免左右移)</span>
           </button>
-          <span id="pendingCountBadge" style="font-size:0.85rem; font-weight:normal; background:white; padding:2px 8px; border-radius:12px; border:1px solid #fcd34d;">0 隞?/span>
+          <span id="pendingCountBadge" style="font-size:0.85rem; font-weight:normal; background:white; padding:2px 8px; border-radius:12px; border:1px solid #fcd34d;">0 件</span>
         </div>
       </div>
       <div id="tableWrapPending" class="table-responsive adaptive-mode">
         <table id="table-pending">
           <thead>
             <tr>
-              <th style="width: 30%;">?? / ?株?</th>
-              <th style="width: 23%;">瑽質? / 頠?</th>
-              <th style="width: 28%;">?見?桐? / 蝑???/th>
-              <th style="width: 19%; text-align:center;">??</th>
+              <th style="width: 30%;">品項 / 單號</th>
+              <th style="width: 23%;">槽號 / 車牌</th>
+              <th style="width: 28%;">送樣單位 / 等候時長</th>
+              <th style="width: 19%; text-align:center;">操作</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -771,23 +745,23 @@
     <div class="kanban-column" id="col-completed">
       <div class="kanban-header header-completed">
         <span style="display:flex; align-items:center; gap:6px;">
-          ??撌脫炎撽???
+          ✅ 已檢驗完成
         </span>
         <div style="display:flex; align-items:center; gap:8px;">
-          <button type="button" onclick="toggleTableMode()" title="暺???銵冽甈???璅∪?" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1.5px solid #059669; background:#fff; color:#047857; cursor:pointer; font-weight:bold;">
-            <span class="table-mode-icon">??/span> <span class="table-mode-label">?芷??(?椰?喟宏)</span>
+          <button type="button" onclick="toggleTableMode()" title="點擊切換表格欄位排版模式" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1.5px solid #059669; background:#fff; color:#047857; cursor:pointer; font-weight:bold;">
+            <span class="table-mode-icon">⚡</span> <span class="table-mode-label">自適應 (免左右移)</span>
           </button>
-          <span id="completedCountBadge" style="font-size:0.85rem; font-weight:normal; background:white; padding:2px 8px; border-radius:12px; border:1px solid #a7f3d0;">0 隞?/span>
+          <span id="completedCountBadge" style="font-size:0.85rem; font-weight:normal; background:white; padding:2px 8px; border-radius:12px; border:1px solid #a7f3d0;">0 件</span>
         </div>
       </div>
       <div id="tableWrapCompleted" class="table-responsive adaptive-mode">
         <table id="table-completed">
           <thead>
             <tr>
-              <th style="width: 30%;">?? / ?株?</th>
-              <th style="width: 23%;">瑽質? / 頠?</th>
-              <th style="width: 26%;">?見?桐? / ?文?</th>
-              <th style="width: 21%;">?文??酉</th>
+              <th style="width: 30%;">品項 / 單號</th>
+              <th style="width: 23%;">槽號 / 車牌</th>
+              <th style="width: 26%;">送樣單位 / 判定</th>
+              <th style="width: 21%;">判定備註</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -797,229 +771,226 @@
   </div>
 </div>
 
-<!-- 蝞∠???PIN 蝣潸圾??蝒?Modal -->
+<!-- 管理員 PIN 碼解鎖視窗 Modal -->
 <div id="adminUnlockModal" class="modal">
-    <div class="modal-content" style="width: 420px; text-align: center;">
-      <div style="font-size: 2.2rem; margin-bottom: 6px;">??</div>
-      <h3 style="margin-top: 0; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-        QC 撣唾??餃
-      </h3>
-      <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 16px; line-height: 1.4; text-align: left;">
-        ?箄撖?QC ?曇?撖血??塚?隢?交?董??蝣潦?亙??喳?脰?璅???曇?嚗頂蝯勗?閮??函?頨怠???
-      </p>
-      <div style="background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 16px; border: 1.5px solid #cbd5e1; text-align: left;">
-        <label style="color: #334155; font-weight: bold; margin-bottom: 6px; display: block;">? 撣唾?</label>
-        <input type="text" id="loginUsernameInput" placeholder="隢撓?亙董?? style="width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; font-size: 1rem;">
-        
-        <label style="color: #334155; font-weight: bold; margin-bottom: 6px; display: block;">?? 撖Ⅳ</label>
-        <input type="password" id="loginPasswordInput" placeholder="隢撓?亙?蝣? style="width: 100%; padding: 10px; border: 1px solid #94a3b8; border-radius: 6px; margin-bottom: 10px; box-sizing: border-box; font-size: 1rem;" onkeypress="if(event.key === 'Enter') confirmAdminUnlock()">
-        
-        <div id="adminUnlockError" style="color: #ef4444; font-size: 0.85rem; font-weight: bold; margin-bottom: 10px; display: none;"></div>
-      </div>
-      <div style="display: flex; gap: 10px;">
-        <button type="button" onclick="confirmAdminUnlock()" class="btn-action btn-judge" style="flex: 1; padding: 11px; font-size: 0.95rem; background: #2563eb;" id="btnLoginConfirm">
-          ?餃閫?? ??
-        </button>
-        <button type="button" onclick="closeAdminUnlockModal()" style="flex: 1; background: #94a3b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
-          ??
-        </button>
-      </div>
+  <div class="modal-content" style="width: 420px; text-align: center;">
+    <div style="font-size: 2.2rem; margin-bottom: 6px;">🔐</div>
+    <h3 style="margin-top: 0; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+      管理員權限驗證
+    </h3>
+    <p style="font-size: 0.86rem; color: #64748b; margin-bottom: 16px; line-height: 1.4; text-align: left;">
+      「本機模擬測試箱」包含逾期樣品注入、Teams 廣播巡檢與標籤機配置。為防現場人員誤觸，請輸入品管管理員 PIN 碼以解鎖：
+    </p>
+    <div style="background: #f8fafc; padding: 14px; border-radius: 8px; margin-bottom: 16px; border: 1.5px solid #cbd5e1; text-align: left;">
+      <label style="color: #334155; font-weight: bold; margin-bottom: 6px; display: block;">🔑 管理員 PIN 碼 (預設 8888 或後台自訂)</label>
+      <input type="password" id="adminUnlockPinInput" placeholder="請輸入 4 碼 PIN 碼" maxlength="20"
+             style="letter-spacing: 5px; font-size: 1.3rem; font-weight: bold; text-align: center; width: 100%; box-sizing: border-box; padding: 8px 12px; border: 1.5px solid #94a3b8; border-radius: 6px;"
+             onkeydown="if(event.key==='Enter') confirmAdminUnlock()">
+      <div id="adminUnlockError" style="color: #dc2626; font-size: 0.82rem; font-weight: bold; margin-top: 6px; display: none;"></div>
+    </div>
+    <div style="display: flex; gap: 10px;">
+      <button type="button" onclick="confirmAdminUnlock()" class="btn-action btn-judge" style="flex: 1; padding: 11px; font-size: 0.95rem; background: #2563eb;">
+        驗證並解鎖 🔓
+      </button>
+      <button type="button" onclick="closeAdminUnlockModal()" style="flex: 1; background: #94a3b8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">
+        取消
+      </button>
     </div>
   </div>
+</div>
 
-<!-- ?∪極撌亥?撠銵?Modal -->
+<!-- 員工工號對照表 Modal -->
 <div id="empMapModal" class="modal" style="display:none;">
   <div class="modal-content" style="max-width:400px;">
-    <h3 style="margin-top:0; border-left:4px solid #7c3aed; padding-left:10px; color:#7c3aed;">? ?∪極撌亥?撠銵?/h3>
+    <h3 style="margin-top:0; border-left:4px solid #7c3aed; padding-left:10px; color:#7c3aed;">👤 員工工號對照表</h3>
     <div style="font-size:0.85rem; color:#64748b; margin-bottom:10px;">
-      ? 蝟餌絞撌脰?? Google Sheets ??**?撌亥???* ?????典????br>
-      ?仿蝡臬??芸遣蝡府??嚗銋隞亙?ㄐ?急???頛詨嚗撘?撌亥?:憪?嚗?銵?蝑???
+      💡 系統已自動從 Google Sheets 的 **「員工資料」** 分頁抓取全廠名單。<br>
+      若雲端尚未建立該分頁，您也可以在這裡暫時手動輸入（格式：工號:姓名，每行一筆）。
     </div>
-    <textarea id="empMapTextarea" rows="8" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-family:monospace; font-size:0.9rem;" placeholder="C0606:?之??#10;C0607:?喳???></textarea>
+    <textarea id="empMapTextarea" rows="8" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; font-family:monospace; font-size:0.9rem;" placeholder="C0606:王大明&#10;C0607:陳小華"></textarea>
     <div style="display:flex; gap:10px; margin-top:14px;">
-      <button onclick="saveEmpMap()" style="flex:1; padding:10px; background:#7c3aed; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">? ?脣??祆?閮剖?</button>
-      <button onclick="closeEmpMapModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:6px; cursor:pointer;">??</button>
+      <button onclick="saveEmpMap()" style="flex:1; padding:10px; background:#7c3aed; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 儲存本機設定</button>
+      <button onclick="closeEmpMapModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:6px; cursor:pointer;">取消</button>
     </div>
   </div>
 </div>
 
-<!-- ????圈見 Modal -->
+<!-- 退回重新送樣 Modal -->
 <div id="returnResampleModal" class="modal" style="display:none;">
   <div class="modal-content" style="max-width:420px;">
-    <h3 style="margin-top:0; border-left:4px solid #f97316; padding-left:10px; color:#c2410c;">?抬? ????圈見</h3>
+    <h3 style="margin-top:0; border-left:4px solid #f97316; padding-left:10px; color:#c2410c;">↩️ 退回重新送樣</h3>
     <input type="hidden" id="returnResampleId">
     <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:12px; margin-bottom:14px; font-size:0.85rem; color:#92400e;">
-      ?? 蝣箄????嚗蝑???璅??箝????蝟餌絞撠?遣蝡?蝑??瑼ａ??見閮?嚗蒂??見隤脣恕??見??
+      ⚠️ 確認退回後，本筆紀錄將標記為「不合格」，系統將自動建立一筆新的待檢驗送樣記錄，並通知送樣課室重新送樣。
     </div>
     <div style="margin-bottom:12px;">
-      <label style="font-weight:600; color:#374151; font-size:0.9rem;">?? ?????/ 銝??潸牧??/label>
+      <label style="font-weight:600; color:#374151; font-size:0.9rem;">📝 退回原因 / 不合格說明</label>
       <div id="returnResamplePhraseContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; margin-top:4px;"></div>
-    <textarea id="returnResampleNote" rows="3" placeholder="隢撓?乩????嚗?憒?憿銝泵閬?H ?潸?璅?.." style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem; resize:vertical;"></textarea>
+    <textarea id="returnResampleNote" rows="3" placeholder="請輸入不合格原因，例如：顏色不符規格、pH 值超標..." style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem; resize:vertical;"></textarea>
     </div>
     <div style="margin-bottom:16px;">
-      <label style="font-weight:600; color:#374151; font-size:0.9rem;">?? ?恣?? PIN 蝣?/label>
-      <input type="password" id="returnResamplePin" maxlength="8" placeholder="隢撓?亙?蝞∪?撅?PIN 蝣? style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem;">
+      <label style="font-weight:600; color:#374151; font-size:0.9rem;">🔑 品管授權 PIN 碼</label>
+      <input type="password" id="returnResamplePin" maxlength="8" placeholder="請輸入品管專屬 PIN 碼" style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem;">
     </div>
     <div style="display:flex; gap:10px;">
-      <button onclick="closeReturnResampleModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem;">??</button>
-      <button id="returnResampleBtn" onclick="submitReturnResample()" style="flex:2; padding:10px; background:#f97316; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:bold;">蝣箄???蒂撱箇?????/button>
+      <button onclick="closeReturnResampleModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem;">取消</button>
+      <button id="returnResampleBtn" onclick="submitReturnResample()" style="flex:2; padding:10px; background:#f97316; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:bold;">確認退回並建立重送記錄</button>
     </div>
   </div>
 </div>
 
-<!-- ?見甇瑕閮? Modal -->
+<!-- 送樣歷史記錄 Modal -->
 <div id="sampleHistoryModal" class="modal" style="display:none;">
   <div class="modal-content" style="max-width:520px;">
-    <h3 style="margin-top:0; border-left:4px solid #3b82f6; padding-left:10px;">?? ?見甇瑕閮?</h3>
+    <h3 style="margin-top:0; border-left:4px solid #3b82f6; padding-left:10px;">📋 送樣歷史記錄</h3>
     <div id="sampleHistoryContent" style="max-height:400px; overflow-y:auto;"></div>
     <div style="margin-top:14px; text-align:right;">
-      <button onclick="closeSampleHistoryModal()" style="padding:8px 20px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer;">??</button>
+      <button onclick="closeSampleHistoryModal()" style="padding:8px 20px; background:#e2e8f0; color:#374151; border:none; border-radius:8px; cursor:pointer;">關閉</button>
     </div>
   </div>
 </div>
 
-<!-- ?典?蝝?閰?Modal -->
+<!-- 全廠紀錄查詢 Modal -->
 <div id="globalHistoryModal" class="modal" style="display:none; z-index:9999;">
   <div class="modal-content" style="max-width:900px; width:95%;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-      <h3 style="margin:0; border-left:4px solid #4f46e5; padding-left:10px; color:#4f46e5;">?? ?典??見蝝?蜇銵?/h3>
-      <button onclick="closeGlobalHistoryModal()" style="padding:6px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer;">????</button>
+      <h3 style="margin:0; border-left:4px solid #4f46e5; padding-left:10px; color:#4f46e5;">🔍 全廠送樣紀錄總表</h3>
+      <button onclick="closeGlobalHistoryModal()" style="padding:6px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer;">✖ 關閉</button>
     </div>
     <div style="display:flex; gap:10px; margin-bottom:14px; align-items:center;">
-      <input type="text" id="ghSearchKw" placeholder="???株? / ?? / 瑽質? / 頠?..." style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px;" oninput="renderGlobalHistory()">
+      <input type="text" id="ghSearchKw" placeholder="搜尋單號 / 品名 / 槽號 / 車牌..." style="flex:1; padding:8px; border:1px solid #cbd5e1; border-radius:6px;" oninput="renderGlobalHistory()">
       <select id="ghStatusFilter" onchange="renderGlobalHistory()" style="padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
-        <option value="">?????/option>
-        <option value="pending">敺炎撽?(pending)</option>
-        <option value="completed">撌脣???(completed)</option>
-        <option value="failed">?????(failed)</option>
+        <option value="">所有狀態</option>
+        <option value="pending">待檢驗 (pending)</option>
+        <option value="completed">已完成 (completed)</option>
+        <option value="failed">退回重送 (failed)</option>
       </select>
     </div>
     <div class="table-container" style="max-height:60vh; overflow-y:auto; border:1px solid #cbd5e1; border-radius:8px;">
       <table class="data-table" id="ghTable" style="margin:0;">
         <thead>
           <tr>
-            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">??</th>
-            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">?株?(頛芣活)</th>
-            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">??/蝑?</th>
-            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">瑽質?/頠?</th>
-            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">?桐?/鈭箏</th>
-            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">????文?</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">時間</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">單號(輪次)</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">品名/等級</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">槽號/車牌</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">單位/人員</th>
+            <th style="position:sticky; top:0; background:#f8fafc; z-index:2;">狀態/判定</th>
           </tr>
         </thead>
         <tbody id="ghTableBody"></tbody>
       </table>
     </div>
     <div style="text-align:right; font-size:0.8rem; color:#64748b; margin-top:8px;">
-      * 憿舐內???200 蝑泵??隞嗥?甇瑕蝝??
+      * 顯示最新 200 筆符合條件的歷史紀錄
     </div>
   </div>
 </div>
 
-<!-- ?文?撠店獢?Modal -->
+<!-- 判定對話框 Modal -->
 <div id="judgeModal" class="modal">
   <div class="modal-content">
-    <h3 style="margin-top:0; border-left:4px solid var(--green); padding-left:10px;">?恣?曇??文?</h3>
+    <h3 style="margin-top:0; border-left:4px solid var(--green); padding-left:10px;">品管放行判定</h3>
     <input type="hidden" id="currentId">
-    <div id="judgeApproverText" style="font-weight:bold; color:#2563eb; margin-bottom:15px; background:#eff6ff; padding:8px; border-radius:6px;"></div>
-    <label>?文?蝯?</label>
+    <label>判定結果</label>
     <select id="modalResult" onchange="handleResultChange()" style="margin-bottom:15px; font-size:1.1rem; color:#059669; font-weight:bold;">
-      <option value="PASS">PASS (??曇?)</option>
-      <option value="?寞">PASS (?寞?曇?)</option>
-      <option value="FAIL">FAIL (銝??潮??</option>
+      <option value="PASS">PASS (合格放行)</option>
+      <option value="特採">PASS (特採放行)</option>
+      <option value="FAIL">FAIL (不合格退回)</option>
     </select>
-    <label>?文??酉</label>
+    <label>判定備註</label>
     <div id="modalPhraseContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;"></div>
-    <textarea id="modalNote" style="height:60px; margin-bottom:15px;" placeholder="隢撓?交炎撽???酉鈭?..."></textarea>
+    <textarea id="modalNote" style="height:60px; margin-bottom:15px;" placeholder="請輸入檢驗數據或備註事項..."></textarea>
     <div style="background:#fef2f2; padding:12px; border-radius:6px; margin-bottom:20px; border-left:4px solid var(--red);">
-      <label style="color:#b91c1c;">?? ??撖Ⅳ (?身??8888 ???啗身摰?</label>
-      <input type="password" id="modalPin" placeholder="隢撓??4 蝣?PIN 蝣? style="letter-spacing:3px; font-weight:bold; text-align:center; margin-top:4px;">
+      <label style="color:#b91c1c;">🔐 授權密碼 (預設為 8888 或後台設定)</label>
+      <input type="password" id="modalPin" placeholder="請輸入 4 碼 PIN 碼" style="letter-spacing:3px; font-weight:bold; text-align:center; margin-top:4px;">
     </div>
     <div style="display:flex; gap:10px;">
-      <button onclick="submitJudge()" id="modalBtn" class="btn-action btn-judge" style="flex:1; padding:12px; font-size:0.95rem;">蝣箄??文?銝阡 Teams</button>
-      <button onclick="closeModal()" style="flex:1; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">??</button>
+      <button onclick="submitJudge()" id="modalBtn" class="btn-action btn-judge" style="flex:1; padding:12px; font-size:0.95rem;">確認判定並通知 Teams</button>
+      <button onclick="closeModal()" style="flex:1; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">取消</button>
     </div>
   </div>
 </div>
 
-<!-- Microsoft Teams Webhook 閮剖???葫閰?Modal -->
+<!-- Microsoft Teams Webhook 設定與卡片測試 Modal -->
 <div id="teamsConfigModal" class="modal">
   <div class="modal-content" style="width:520px;">
     <h3 style="margin-top:0; border-left:4px solid var(--teams-purple); padding-left:10px; color:#3b4096;">
-      ?? Microsoft Teams ???閮剖?
+      🔔 Microsoft Teams 分流通報設定
     </h3>
     <p style="font-size:0.83rem; color:#64748b; margin-top:-6px;">
-      閮剖????撅?Webhook嚗炎撽???頞? 2 撠???strong>蝎暹??券?蜓蝞⊿??+ 閰脤見隤脣恕?駁???/strong>嚗隞玨摰文??其??僕?橘?
+      設定各頻道專屬 Webhook，檢驗完成或超時 2 小時會<strong>精準推送至「主管頻道 + 該送樣課室頻道」</strong>，其他課室完全不受干擾！
     </p>
 
     <div style="margin-bottom:12px;">
-      <label>?? ?恣 / 鋆賡蜓蝞⊿??Webhook (?????摰?敹)</label>
+      <label>👔 品管 / 製造主管頻道 Webhook (所有超時與完成必收)</label>
       <input type="text" id="teamsManagerWebhook" placeholder="https://xxx.webhook.office.com/...">
     </div>
     <div style="margin-bottom:12px;">
-      <label>? 鞈?隤脤??Webhook</label>
-      <input type="text" id="teamsWebhook_鞈?隤? placeholder="https://xxx.webhook.office.com/...">
+      <label>📦 資材課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_資材課" placeholder="https://xxx.webhook.office.com/...">
     </div>
     <div style="margin-bottom:12px;">
-      <label>? ?曉銝隤脤??Webhook</label>
-      <input type="text" id="teamsWebhook_?曉銝隤? placeholder="https://xxx.webhook.office.com/...">
+      <label>🏭 現場一課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_現場一課" placeholder="https://xxx.webhook.office.com/...">
     </div>
     <div style="margin-bottom:12px;">
-      <label>? ?曉鈭玨?駁? Webhook</label>
-      <input type="text" id="teamsWebhook_?曉鈭玨" placeholder="https://xxx.webhook.office.com/...">
+      <label>🏭 現場二課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_現場二課" placeholder="https://xxx.webhook.office.com/...">
     </div>
     <div style="margin-bottom:14px;">
-      <label>?鳴? ???隤脤??Webhook</label>
-      <input type="text" id="teamsWebhook_???隤? placeholder="https://xxx.webhook.office.com/...">
+      <label>♻️ 回收處理課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_回收處理課" placeholder="https://xxx.webhook.office.com/...">
     </div>
 
     <div style="background:#f1f5f9; padding:10px 12px; border-radius:6px; margin-bottom:16px; font-size:0.82rem; color:#475569;">
       <label style="cursor:pointer; display:flex; align-items:center; gap:8px;">
         <input type="checkbox" id="teamsEnableRealSend" style="width:auto;">
-        <span>??祆??祕?潮?(?撌脣‵?? Webhook URL嚗???蝙?其???閬質?蝒?</span>
+        <span>啟用本機真實發送 (需已填有效 Webhook URL；未打勾則自動使用互動預覽視窗)</span>
       </label>
     </div>
 
     <div style="display:flex; gap:8px;">
       <button type="button" onclick="saveTeamsConfig()" class="btn-submit" style="background:#16a34a; flex:1; padding:10px; font-size:0.9rem;">
-        ? ?脣?閮剖?
+        💾 儲存設定
       </button>
       <button type="button" onclick="testTeamsPreviewCard()" class="btn-submit" style="background:#5b5fc7; flex:1; padding:10px; font-size:0.9rem;">
-        ?妒 璅⊥?∠??汗
+        🧪 模擬卡片預覽
       </button>
       <button type="button" onclick="closeTeamsConfigModal()" style="padding:10px 16px; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">
-        ??
+        關閉
       </button>
     </div>
   </div>
 </div>
 
-<!-- Teams 閮?∠??汗敶? (撅內??蝯????? -->
+<!-- Teams 訊息卡片預覽彈窗 (展示分流結果與排版) -->
 <div id="teamsCardModal" class="modal">
   <div class="modal-content" style="width:480px;">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
       <div style="font-weight:bold; font-size:1.05rem; color:#5b5fc7; display:flex; align-items:center; gap:6px;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.5 4h-15A2.5 2.5 0 002 6.5v11A2.5 2.5 0 004.5 20h15a2.5 2.5 0 002.5-2.5v-11A2.5 2.5 0 0019.5 4zm-9 13H8v-6H6.5V9.5h4.5V11H9.5v6zm7.5 0h-1.6l-2-4.2V17h-1.4V9.5h1.6l2 4.2V9.5h1.4V17z"/></svg>
-        Microsoft Teams ?∠??單???汗
+        Microsoft Teams 卡片即時通報預覽
       </div>
-      <button onclick="closeTeamsCardModal()" style="border:none; background:transparent; font-size:1.3rem; cursor:pointer; color:#64748b;">??/button>
+      <button onclick="closeTeamsCardModal()" style="border:none; background:transparent; font-size:1.3rem; cursor:pointer; color:#64748b;">✕</button>
     </div>
 
     <div id="teamsPreviewChannelTag" class="teams-channel-tag">
-      ? ?潮璅???蝞∩蜓蝞⊿??+ ???其?隤脤??
+      📢 發送目標：【品管主管頻道】 + 【一部一課頻道】
     </div>
 
-    <!-- 隞?Teams 撖阡? MessageCard ?∠? -->
+    <!-- 仿 Teams 實體 MessageCard 卡片 -->
     <div class="teams-card-preview">
       <div id="teamsPreviewBar" class="teams-card-bar green"></div>
       <div class="teams-card-body">
-        <div id="teamsPreviewTitle" class="teams-card-title">?C 瑼ａ?摰? - ?文???曇???/div>
-        <div id="teamsPreviewSubtitle" class="teams-card-subtitle">瑼ａ?蝯?撌脣摰?隢?湧脰?敺?雿平</div>
+        <div id="teamsPreviewTitle" class="teams-card-title">✅【QC 檢驗完成 - 判定合格放行】</div>
+        <div id="teamsPreviewSubtitle" class="teams-card-subtitle">檢驗結果已判定，請現場進行後續作業</div>
         
         <div id="teamsPreviewFacts"></div>
 
         <div style="margin-top:16px; padding-top:12px; border-top:1px solid #f1f5f9;">
           <button style="background:#5b5fc7; color:white; border:none; padding:6px 14px; border-radius:4px; font-weight:bold; font-size:0.85rem; cursor:pointer;">
-            ? ?? PWA ??亦?
+            📱 開啟 PWA 看板查看
           </button>
         </div>
       </div>
@@ -1027,102 +998,102 @@
 
     <div style="margin-top:16px; text-align:right;">
       <button onclick="closeTeamsCardModal()" class="btn-submit" style="background:#475569; padding:8px 18px; font-size:0.9rem; width:auto;">
-        鈭圾 (??閬?)
+        了解 (關閉視窗)
       </button>
     </div>
   </div>
 </div>
 
-<!-- 璅惜璈??典??啗身摰?閰望? (UniPrinter / Zebra / TSC) -->
+<!-- 9x10 標籤機專用列印設定對話框 (UniPrinter / Zebra / TSC) -->
 <div id="printModal" class="modal">
   <div class="modal-content" style="width:470px;">
     <h3 style="margin-top:0; border-left:4px solid #0284c7; padding-left:10px; color:#0369a1;">
-      ?儭?璅惜璈??典??啗身摰?(瘞游??C?etal)
+      🖨️ 9×10 標籤機專用列印設定 (水分、GC、Metal)
     </h3>
     <input type="hidden" id="printTargetId">
     
     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:10px 12px; margin-bottom:14px; font-size:0.88rem;">
-      <div>?? 瑼ａ??株?嚗?b id="printPreviewBarcode" style="color:#1e40af;">-</b></div>
-      <div style="margin-top:4px;">?妒 ??瑽質?嚗?b id="printPreviewProduct">-</b> (<span id="printPreviewTank">-</span> / <span id="printPreviewTruck">-</span>)</div>
-      <div style="margin-top:4px; color:#64748b; font-size:0.82rem;">? ?見?桐?嚗?span id="printPreviewDept">-</span>嚗見鈭綽?<span id="printPreviewRequester">-</span>嚗?/div>
+      <div>📋 檢驗單號：<b id="printPreviewBarcode" style="color:#1e40af;">-</b></div>
+      <div style="margin-top:4px;">🧪 品名槽號：<b id="printPreviewProduct">-</b> (<span id="printPreviewTank">-</span> / <span id="printPreviewTruck">-</span>)</div>
+      <div style="margin-top:4px; color:#64748b; font-size:0.82rem;">🏢 送樣單位：<span id="printPreviewDept">-</span>（送樣人：<span id="printPreviewRequester">-</span>）</div>
     </div>
 
     <div style="margin-bottom:14px;">
-      <!-- 鞎潛?撖阡?撠箏站閮剖? (?舀?芾??湔?鞎潛?) -->
+      <!-- 貼紙實體尺寸設定 (支援自訂更換貼紙) -->
       <div style="background:#f1f5f9; padding:10px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; font-size:0.85rem;">
-        <span style="font-weight:bold; color:#334155;">?? 鞎潛?閬 (?航閮耨??嚗?/span>
+        <span style="font-weight:bold; color:#334155;">📐 貼紙規格 (可自訂修改)：</span>
         <div style="display:flex; align-items:center; gap:5px;">
-          <span>撖?/span>
+          <span>寬</span>
           <input type="number" id="printLabelWidth" value="90" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
           <span>mm</span>
-          <span style="color:#94a3b8; margin:0 2px;">?</span>
-          <span>擃?/span>
+          <span style="color:#94a3b8; margin:0 2px;">×</span>
+          <span>高</span>
           <input type="number" id="printLabelHeight" value="100" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
           <span>mm</span>
         </div>
       </div>
       
       <div style="background:#fff7ed; padding:8px 12px; border-radius:8px; border:1px solid #fed7aa; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; font-size:0.85rem;">
-        <span style="font-weight:bold; color:#c2410c;">?? 頧?閮剖? (?交帖??箄◤?隢)嚗?/span>
+        <span style="font-weight:bold; color:#c2410c;">🔄 轉向設定 (若橫向印出被切斷請選)：</span>
         <select id="printRotateMode" style="padding:5px; border-radius:4px; border:1px solid #fed7aa; color:#c2410c; font-weight:bold;">
-          <option value="none">?身?孵?</option>
-          <option value="90">??? 90 摨?(璈怠?鞎潛?撠)</option>
-          <option value="-90">?椰?? 90 摨?/option>
+          <option value="none">預設方向</option>
+          <option value="90">向右旋轉 90 度 (橫切貼紙專用)</option>
+          <option value="-90">向左旋轉 90 度</option>
         </select>
       </div>
 
-      <label style="font-size:0.92rem; color:#1e293b; margin-bottom:8px;">隢身摰?瑼ａ???撘菜嚗?/label>
+      <label style="font-size:0.92rem; color:#1e293b; margin-bottom:8px;">請設定各檢驗項目列印張數：</label>
 
-      <!-- 瘞游? & GC 閮剖? -->
+      <!-- 水分 & GC 設定 -->
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:8px; margin-bottom:9px;">
         <div>
-          <div style="font-weight:bold; color:#1e40af; font-size:0.95rem;">? 瘞游? & 瘞?撅斗? (GC) 璅惜</div>
-          <div style="font-size:0.78rem; color:#3b82f6;">?急偌??ppm?C 蝝漲% ?神?豢?閮?甈?/div>
+          <div style="font-weight:bold; color:#1e40af; font-size:0.95rem;">💧 水分 & 氣相層析 (GC) 標籤</div>
+          <div style="font-size:0.78rem; color:#3b82f6;">含水分 ppm、GC 純度% 手寫數據記錄欄</div>
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
           <input type="number" id="printQtyWaterGC" min="0" max="10" value="1" style="width:65px; text-align:center; font-weight:bold; font-size:1.05rem;" onchange="updateTotalLabelCount()">
-          <span style="font-size:0.88rem; font-weight:bold;">撘?/span>
+          <span style="font-size:0.88rem; font-weight:bold;">張</span>
         </div>
       </div>
 
-      <!-- Metal ?惇?Ｗ?閮剖? -->
+      <!-- Metal 金屬離子設定 -->
       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; margin-bottom:10px;">
         <div>
-          <div style="font-weight:bold; color:#0f172a; font-size:0.95rem;">? Metal (?惇?Ｗ? ICP-MS) 璅惜</div>
-          <div style="font-size:0.78rem; color:#64748b;">?芸???璅酉? 1 (??甇?見)??? 2 (?見摮)??/div>
+          <div style="font-weight:bold; color:#0f172a; font-size:0.95rem;">🔬 Metal (金屬離子 ICP-MS) 標籤</div>
+          <div style="font-size:0.78rem; color:#64748b;">自動分流標註「瓶 1 (分析正樣)」與「瓶 2 (留樣存查)」</div>
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
           <input type="number" id="printQtyMetal" min="0" max="10" value="2" style="width:65px; text-align:center; font-weight:bold; font-size:1.05rem;" onchange="updateTotalLabelCount()">
-          <span style="font-size:0.88rem; font-weight:bold;">撘?/span>
+          <span style="font-size:0.88rem; font-weight:bold;">張</span>
         </div>
       </div>
 
-      <!-- 蝮賢撐?貊絞閮?-->
+      <!-- 總張數統計 -->
       <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1px solid #a7f3d0; padding:8px 12px; border-radius:6px; font-size:0.88rem; color:#065f46;">
-        <span>?? ??????箇?蝮賢撐?賂?</span>
-        <span style="font-size:1.1rem; font-weight:bold;" id="printTotalLabelCount">3 撘?(90mm ? 100mm)</span>
+        <span>📄 預計連續出紙總張數：</span>
+        <span style="font-size:1.1rem; font-weight:bold;" id="printTotalLabelCount">3 張 (90mm × 100mm)</span>
       </div>
     </div>
 
     <div style="margin-bottom:16px;">
       <label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.83rem; color:#475569;">
         <input type="checkbox" id="rememberPrintSettings" style="width:auto;">
-        <span>閮?甇方身摰?銝活暺????啜?亙翰???(??敶蝣箄?閬?)</span>
+        <span>記住此設定，下次點擊「列印」直接快速出單 (免再彈出確認視窗)</span>
       </label>
     </div>
 
     <div style="display:flex; gap:8px;">
       <button type="button" id="btnPrintLabels" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:2; padding:11px; font-size:0.95rem;">
-        ?儭???
+        🖨️ 送出列印
       </button>
       <button type="button" id="btnSavePrintSettingsOnly" onclick="savePrintSettingsOnly()" class="btn-submit" style="background:#10b981; flex:2; padding:11px; font-size:0.95rem; display:none;">
-        ? ?脣?閮剖?
+        💾 儲存設定
       </button>
-      <button type="button" onclick="resetPrintSettingsToDefault()" style="padding:11px 12px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold; font-size:0.82rem; cursor:pointer;" title="皜閮銝行敺拚?閮?(90x100, 瘞游?1, Metal 2)">
-        ?? ?Ｗ儔?身
+      <button type="button" onclick="resetPrintSettingsToDefault()" style="padding:11px 12px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold; font-size:0.82rem; cursor:pointer;" title="清除記憶並恢復預設 (90x100, 水分1, Metal 2)">
+        🔄 恢復預設
       </button>
       <button type="button" onclick="closePrintModal()" style="padding:11px 16px; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">
-        ??
+        取消
       </button>
     </div>
   </div>
@@ -1131,30 +1102,30 @@
 <div id="toast" class="toast"></div>
 
 <script>
-  // 1. 摰???予瑽質???嚗 20 蝑?10 蝑鞎?+ 10 蝑脫?嚗?閮剜??梯”??2026-09-06嚗?
+  // 1. 完整預載明天槽車排程（共 20 筆：10 筆出貨 + 10 筆進料，預設日期為報表日 2026-09-06）
   let t100Orders = [
-    // --- ?鞎冽局頠?(10 蝑???---
-    { "doc_no": "ESXM101-20260901013", "date": "2026-09-06", "time": "08:00", "flowType": "?箄疏", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK624", "customer": "??急?", "container": "PPCU7019228", "quantity": "5000 KG", "note": "L2 08:00 瑽質?:PPCU7019228 ?刻疏?見" },
-    { "doc_no": "ESXM101-20260901020", "date": "2026-09-06", "time": "08:00", "flowType": "?箄疏", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "??急?", "container": "PPCU7020018", "quantity": "5000 KG", "note": "L3撏偏 08:00 瑽質?:PPCU7020018 ?刻疏?見" },
-    { "doc_no": "ESXM101-20260901021", "date": "2026-09-06", "time": "08:00", "flowType": "?箄疏", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "??急?", "container": "PPCU7019193", "quantity": "5000 KG", "note": "L3撏偏 08:00 瑽質?:PPCU7019193 ?刻疏?見" },
-    { "doc_no": "ESXM101-20260902005", "date": "2026-09-06", "time": "09:00", "flowType": "?箄疏", "grade": "撌交平蝝?, "productName": "CPNE3(T)", "tankNo": "S223", "customer": "???極", "container": "S223", "quantity": "15000 KG", "note": "?摭K-683,?疏瑽質?S223 (FOR TSMC),?嗅予??瘞詨?鈭?" },
-    { "doc_no": "ESXM101-20260901022", "date": "2026-09-06", "time": "13:00", "flowType": "?箄疏", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "??急?", "container": "PPCU7019212", "quantity": "5000 KG", "note": "L3撏偏 13:00 瑽質?:PPCU7019212 ?刻疏?見" },
-    { "doc_no": "ESXM109-20260902011", "date": "2026-09-06", "time": "13:00", "flowType": "?箄疏", "grade": "撌交平蝝?, "productName": "CPNE4", "tankNo": "S224", "customer": "???極", "container": "S224", "quantity": "15000 KG", "note": "PM13:00 瑽質?嚗224嚗?15?? },
-    { "doc_no": "ESXM101-20260831012", "date": "2026-09-06", "time": "??", "flowType": "?箄疏", "grade": "撌交平蝝?, "productName": "IPAHQ", "tankNo": "", "customer": "???極", "container": "??瑽質?", "quantity": "4300 KG", "note": "??瘣暹????每OA+銝?銝?? },
-    { "doc_no": "ESXM101-20260831027", "date": "2026-09-06", "time": "??", "flowType": "?箄疏", "grade": "撌交平蝝?, "productName": "IPAHQ", "tankNo": "", "customer": "???極", "container": "??瑽質?", "quantity": "4300 KG", "note": "??瘣暹??? },
-    { "doc_no": "ESXM101-20260831028", "date": "2026-09-06", "time": "??", "flowType": "?箄疏", "grade": "撌交平蝝?, "productName": "IPAHQ", "tankNo": "", "customer": "???極", "container": "??瑽質?", "quantity": "4300 KG", "note": "??瘣暹??? },
-    { "doc_no": "ESXM101-20260903004", "date": "2026-09-06", "time": "??", "flowType": "?箄疏", "grade": "撌交平蝝?, "productName": "IPAHQ", "tankNo": "", "customer": "???極", "container": "??瑽質?", "quantity": "4300 KG", "note": "??瘣暹??? },
-    // --- ?脫?瑽質? (10 蝑???---
-    { "doc_no": "ESPM411-20260906001", "date": "2026-09-06", "time": "09:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "EBR-P1R", "tankNo": "TKC05", "customer": "?啁???(??18撱5)", "container": "KEQ-3506 (瑹?6108)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906002", "date": "2026-09-06", "time": "09:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "EBR-P1R", "tankNo": "TKC01", "customer": "?啁???(??18撱7)", "container": "KEQ-3506 (瑹?6108)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906003", "date": "2026-09-06", "time": "18:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "?啁???(??18撱4)", "container": "AAG-678 (瑹?2597)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906004", "date": "2026-09-06", "time": "18:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "?啁???(??18撱6)", "container": "AAG-678 (瑹?2597)", "quantity": "8000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906005", "date": "2026-09-06", "time": "18:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "?啁???(??18撱4)", "container": "KEQ-3510 (瑹?3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906006", "date": "2026-09-06", "time": "18:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "?啁???(擃?撱22P1)", "container": "KEQ-3510 (瑹?3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906007", "date": "2026-09-06", "time": "18:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "?啁???(擃?撱22P2)", "container": "KEQ-3510 (瑹?3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906008", "date": "2026-09-06", "time": "18:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "?啁???(擃?撱22P3)", "container": "KEQ-3510 (瑹?3977)", "quantity": "2000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906010", "date": "2026-09-06", "time": "10:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "CPN-P1R", "tankNo": "TK643", "customer": "?啁???(?脣?皜?撱?", "container": "AAG-775 (瑹?38)", "quantity": "5000 KG", "note": "" },
-    { "doc_no": "ESPM411-20260906011", "date": "2026-09-06", "time": "10:00", "flowType": "?脫?", "grade": "撌交平蝝?, "productName": "CPN-P1R", "tankNo": "TK643", "customer": "?啁???(?脣?皜?撱?", "container": "AAG-775 (瑹?38)", "quantity": "5000 KG", "note": "" }
+    // --- 【出貨槽車 (10 筆)】 ---
+    { "doc_no": "ESXM101-20260901013", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK624", "customer": "關東鑫林", "container": "PPCU7019228", "quantity": "5000 KG", "note": "L2 08:00 槽號:PPCU7019228 隨貨附樣" },
+    { "doc_no": "ESXM101-20260901020", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7020018", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7020018 隨貨附樣" },
+    { "doc_no": "ESXM101-20260901021", "date": "2026-09-06", "time": "08:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019193", "quantity": "5000 KG", "note": "L3崙尾 08:00 槽號:PPCU7019193 隨貨附樣" },
+    { "doc_no": "ESXM101-20260902005", "date": "2026-09-06", "time": "09:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE3(T)", "tankNo": "S223", "customer": "勝一化工", "container": "S223", "quantity": "15000 KG", "note": "出TK-683,提貨槽車S223 (FOR TSMC),當天拉回永安二廠" },
+    { "doc_no": "ESXM101-20260901022", "date": "2026-09-06", "time": "13:00", "flowType": "出貨", "grade": "UPS", "productName": "IPAUPS", "tankNo": "TK605", "customer": "關東鑫林", "container": "PPCU7019212", "quantity": "5000 KG", "note": "L3崙尾 13:00 槽號:PPCU7019212 隨貨附樣" },
+    { "doc_no": "ESXM109-20260902011", "date": "2026-09-06", "time": "13:00", "flowType": "出貨", "grade": "工業級", "productName": "CPNE4", "tankNo": "S224", "customer": "勝一化工", "container": "S224", "quantity": "15000 KG", "note": "PM13:00 槽號：S224，充15噸" },
+    { "doc_no": "ESXM101-20260831012", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服，隨COA+三合一單" },
+    { "doc_no": "ESXM101-20260831027", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260831028", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    { "doc_no": "ESXM101-20260903004", "date": "2026-09-06", "time": "排程", "flowType": "出貨", "grade": "工業級", "productName": "IPAHQ", "tankNo": "", "customer": "勝一化工", "container": "勝一槽車", "quantity": "4300 KG", "note": "勝一派技服" },
+    // --- 【進料槽車 (10 筆)】 ---
+    { "doc_no": "ESPM411-20260906001", "date": "2026-09-06", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC05", "customer": "台積電 (南科18廠P5)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906002", "date": "2026-09-06", "time": "09:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC01", "customer": "台積電 (南科18廠P7)", "container": "KEQ-3506 (櫃:6108)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906003", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P4)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906004", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "EBR-P1R", "tankNo": "TKC04", "customer": "台積電 (南科18廠P6)", "container": "AAG-678 (櫃:2597)", "quantity": "8000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906005", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (南科18廠P4)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906006", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P1)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906007", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P2)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906008", "date": "2026-09-06", "time": "18:00", "flowType": "進料", "grade": "工業級", "productName": "NBAC-P1R", "tankNo": "TK659", "customer": "台積電 (高雄廠F22P3)", "container": "KEQ-3510 (櫃:3977)", "quantity": "2000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906010", "date": "2026-09-06", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測7廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" },
+    { "doc_no": "ESPM411-20260906011", "date": "2026-09-06", "time": "10:00", "flowType": "進料", "grade": "工業級", "productName": "CPN-P1R", "tankNo": "TK643", "customer": "台積電 (先進封測8廠)", "container": "AAG-775 (櫃:38)", "quantity": "5000 KG", "note": "" }
   ];
 
   let t100FilterMode = 'today'; // 'today' | 'date' | 'pending' | 'all'
@@ -1167,7 +1138,7 @@
   }
 
   
-  // ?芸?憟?Ｗ?蝑?
+  // 自動套用產品等級
   function autoSelectGrade(prodName) {
     if(!prodName) return;
     const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
@@ -1191,23 +1162,23 @@
 
   let allData = [];
   const IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
-  const DEFAULT_GAS_API_URL = '/api';
+  const DEFAULT_GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxRK8do1QBaYC8cDgfXDgWt-l9R4Dt6Ig1OQ_-8T1eJT50NiqGfSYWYGGh9hY0HWaPy/exec';
   let GAS_API_URL = localStorage.getItem('HS_QC_GAS_API_URL') || DEFAULT_GAS_API_URL;
 
-  // ?芸?霈??臬????敹怠?
+  // 優先讀取曾匯入過的排程快取
   const cachedOrders = localStorage.getItem('HS_QC_T100_ORDERS');
   if (cachedOrders) {
     try { t100Orders = JSON.parse(cachedOrders); } catch(e){}
   }
 
-  // Teams ?駁? Webhook ?祆?敹怠?閮剖?
+  // Teams 頻道 Webhook 本機快取設定
   let localTeamsConfig = {
     managerWebhook: '',
     depts: {
-      '鞈?隤?: '',
-      '?曉銝隤?: '',
-      '?曉鈭玨': '',
-      '???隤?: ''
+      '資材課': '',
+      '現場一課': '',
+      '現場二課': '',
+      '回收處理課': ''
     },
     enableRealSend: false
   };
@@ -1218,7 +1189,7 @@
       try { 
         const parsed = JSON.parse(saved);
         localTeamsConfig = { ...localTeamsConfig, ...parsed };
-        if (!localTeamsConfig.depts) localTeamsConfig.depts = {}; // ?脣?嚗???????depts ??瘜?
+        if (!localTeamsConfig.depts) localTeamsConfig.depts = {}; // 防呆：舊版紀錄沒有 depts 的情況
       } catch(e) {}
     }
   }
@@ -1226,24 +1197,24 @@
   function saveTeamsConfig() {
     if (!localTeamsConfig.depts) localTeamsConfig.depts = {};
     localTeamsConfig.managerWebhook = document.getElementById('teamsManagerWebhook').value.trim();
-    localTeamsConfig.depts['鞈?隤?] = document.getElementById('teamsWebhook_鞈?隤?).value.trim();
-    localTeamsConfig.depts['?曉銝隤?] = document.getElementById('teamsWebhook_?曉銝隤?).value.trim();
-    localTeamsConfig.depts['?曉鈭玨'] = document.getElementById('teamsWebhook_?曉鈭玨').value.trim();
-    localTeamsConfig.depts['???隤?] = document.getElementById('teamsWebhook_???隤?).value.trim();
+    localTeamsConfig.depts['資材課'] = document.getElementById('teamsWebhook_資材課').value.trim();
+    localTeamsConfig.depts['現場一課'] = document.getElementById('teamsWebhook_現場一課').value.trim();
+    localTeamsConfig.depts['現場二課'] = document.getElementById('teamsWebhook_現場二課').value.trim();
+    localTeamsConfig.depts['回收處理課'] = document.getElementById('teamsWebhook_回收處理課').value.trim();
     localTeamsConfig.enableRealSend = document.getElementById('teamsEnableRealSend').checked;
 
     localStorage.setItem('HS_QC_TEAMS_CONFIG', JSON.stringify(localTeamsConfig));
     closeTeamsConfigModal();
-    showToast("? Teams Webhook 閮剖?撌脫???摮?");
+    showToast("💾 Teams Webhook 設定已成功保存！");
   }
 
   function openTeamsConfigModal() {
     loadTeamsConfig();
     document.getElementById('teamsManagerWebhook').value = localTeamsConfig.managerWebhook || '';
-    document.getElementById('teamsWebhook_鞈?隤?).value = localTeamsConfig.depts['鞈?隤?] || '';
-    document.getElementById('teamsWebhook_?曉銝隤?).value = localTeamsConfig.depts['?曉銝隤?] || '';
-    document.getElementById('teamsWebhook_?曉鈭玨').value = localTeamsConfig.depts['?曉鈭玨'] || '';
-    document.getElementById('teamsWebhook_???隤?).value = localTeamsConfig.depts['???隤?] || '';
+    document.getElementById('teamsWebhook_資材課').value = localTeamsConfig.depts['資材課'] || '';
+    document.getElementById('teamsWebhook_現場一課').value = localTeamsConfig.depts['現場一課'] || '';
+    document.getElementById('teamsWebhook_現場二課').value = localTeamsConfig.depts['現場二課'] || '';
+    document.getElementById('teamsWebhook_回收處理課').value = localTeamsConfig.depts['回收處理課'] || '';
     document.getElementById('teamsEnableRealSend').checked = !!localTeamsConfig.enableRealSend;
     document.getElementById('teamsConfigModal').style.display = 'flex';
   }
@@ -1256,10 +1227,10 @@
     document.getElementById('teamsCardModal').style.display = 'none';
   }
 
-  // 憿舐內 Teams 閮?∠??汗
+  // 顯示 Teams 訊息卡片預覽
   function showTeamsPreviewModal(targetDept, cardData) {
     const channelTag = document.getElementById('teamsPreviewChannelTag');
-    channelTag.innerHTML = `? 閮???格?嚗?b>??蝞∩蜓蝞⊿??/b> + <b>??{targetDept}?駁???/b> <span style="margin-left:auto; font-size:0.75rem; color:#6b7280;">(?嗡?隤脣恕摰銝?撟脫)</span>`;
+    channelTag.innerHTML = `📢 訊息分流目標：<b>【品管主管頻道】</b> + <b>【${targetDept}頻道】</b> <span style="margin-left:auto; font-size:0.75rem; color:#6b7280;">(其他課室完全不受干擾)</span>`;
 
     const bar = document.getElementById('teamsPreviewBar');
     bar.className = 'teams-card-bar ' + (cardData.color || 'green');
@@ -1278,11 +1249,11 @@
     document.getElementById('teamsCardModal').style.display = 'flex';
   }
 
-  // ?祆??瑁? Teams ?潮?敶?∠??汗
+  // 本機執行 Teams 發送或彈出卡片預覽
   function dispatchTeamsCard(targetDept, cardPayload, previewData) {
     loadTeamsConfig();
     
-    // 憒??身摰?撖?Webhook 銝????
+    // 如果有設定真實 Webhook 且開啟發送
     if (localTeamsConfig.enableRealSend) {
       const urls = [];
       if (localTeamsConfig.managerWebhook) urls.push(localTeamsConfig.managerWebhook);
@@ -1300,47 +1271,47 @@
           console.warn('Teams fetch error:', e);
         }
       });
-      showToast(`? Teams ?∠?撌脫?剛?蜓蝞⊿????{targetDept}?駁???`);
+      showToast(`📢 Teams 卡片已推播至【主管頻道】+【${targetDept}頻道】！`);
     }
 
-    // ?∟??臬?祕?潮??賢?祆?頝喳?∠??汗嚗?皜祈岫鈭箏銝?桐??塚?
+    // 無論是否真實發送，都在本機跳出卡片預覽，讓測試人員一目了然！
     showTeamsPreviewModal(targetDept, previewData);
   }
 
-  // 皜祈岫璅⊥?∠?
+  // 測試模擬卡片
   function testTeamsPreviewCard() {
     const dummyData = {
-      title: "?C 瑼ａ?摰? - ?文???曇???,
-      subtitle: "瑼ａ?蝯?撌脣摰?隢??其?隤脤脰?敺?雿平",
+      title: "✅【QC 檢驗完成 - 判定合格放行】",
+      subtitle: "檢驗結果已判定，請一部一課進行後續作業",
       color: "green",
       facts: [
-        { name: "? ?見?桐?", value: "銝?其?隤莎??見鈭綽??單??莎?" },
-        { name: "?妒 瑼ａ???", value: "IPAUPS" },
-        { name: "?儭?瑽質? / 頠?", value: "TK624 / PPCU7019228" },
-        { name: "?? 瑼ａ??株?", value: "ESXM101-20260901013" },
-        { name: "? ?文?蝯?", value: "PASS (??曇?)" },
-        { name: "?? ?文??酉", value: "瘞游???撅祇摮炎撽?閬? },
-        { name: "?梧? 摰???", value: new Date().toLocaleString() }
+        { name: "🏢 送樣單位", value: "一部一課（送樣人：陳明哲）" },
+        { name: "🧪 檢驗品名", value: "IPAUPS" },
+        { name: "🛢️ 槽號 / 車牌", value: "TK624 / PPCU7019228" },
+        { name: "📋 檢驗單號", value: "ESXM101-20260901013" },
+        { name: "🎯 判定結果", value: "PASS (合格放行)" },
+        { name: "📝 判定備註", value: "水分與金屬離子檢驗合規" },
+        { name: "⏱️ 完成時間", value: new Date().toLocaleString() }
       ]
     };
     closeTeamsConfigModal();
-    showTeamsPreviewModal("銝?其?隤?, dummyData);
+    showTeamsPreviewModal("一部一課", dummyData);
   }
 
-  // ?祆?皜祈岫嚗??菜釣?乩?蝑?2.5 撠???頞?璅??
+  // 本機測試：一鍵注入一筆 2.5 小時前的超時樣品
   function injectOverdueTestSample() {
     const twoAndHalfHoursAgo = new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString();
     const testSample = {
       id: "sample-overdue-" + Date.now(),
-      barcode: "ESXM101-頞?皜祈岫??,
-      flowType: "?箄疏",
+      barcode: "ESXM101-超時測試單",
+      flowType: "出貨",
       grade: "UPS",
       productName: "IPAUPS",
       tankNo: "TK605",
       customer: "PPCU7020018",
       quantity: "5000 KG",
-      dept: "銝?其?隤?,
-      requester: "?之??,
+      dept: "一部一課",
+      requester: "王大同",
       status: "pending",
       createdAt: twoAndHalfHoursAgo,
       isAlerted: false
@@ -1351,10 +1322,10 @@
       localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
     }
     render();
-    showToast("?? 撌脫釣?亦???2.5 撠??葫閰行見???撌脣??曄?摮郎?晞?);
+    showToast("⚠️ 已注入等候 2.5 小時的測試樣品！看板已呈現紅字警報。");
   }
 
-  // ?祆?皜祈岫嚗??孛??2 撠?撌⊥炎霅血
+  // 本機測試：手動觸發 2 小時巡檢警報
   function triggerOverdueCheckLocal() {
     const overdueList = allData.filter(s => {
       if (s.status !== 'pending' || !s.createdAt) return false;
@@ -1363,7 +1334,7 @@
     });
 
     if (overdueList.length === 0) {
-      alert("?桀?瘝?蝑???2 撠???撽見??\n\n?典隞亙?暺??儭?瘜典?暹?璅?? (>2撠?)?脰?璅⊥??);
+      alert("目前沒有等候超過 2 小時的待驗樣品！\n\n您可以先點擊「⏱️ 注入逾期樣品 (>2小時)」進行模擬。");
       return;
     }
 
@@ -1374,49 +1345,49 @@
       "@type": "MessageCard",
       "@context": "http://schema.org/extensions",
       "themeColor": "D9381E",
-      "summary": `??C 瑼ａ?頞?霅血??{target.productName} 蝑歇??${diffHours} 撠?`,
+      "summary": `🚨【QC 檢驗超時警報】${target.productName} 等候已達 ${diffHours} 小時`,
       "sections": [{
-        "activityTitle": `??C 瑼ａ?頞?霅血???歇??${diffHours} 撠?`,
-        "activitySubtitle": `璅??瑼ａ?撌脤?2 撠??芸摰?隢?蝞∟? ${target.dept} ???,
+        "activityTitle": `🚨【QC 檢驗超時警報】等候已達 ${diffHours} 小時`,
+        "activitySubtitle": `樣品檢驗已逾 2 小時未判定，請品管與 ${target.dept} 儘速處理`,
         "facts": [
-          { "name": "? ?見?桐?", "value": `${target.dept}嚗見鈭綽?${target.requester || '??}嚗 },
-          { "name": "?妒 瑼ａ???", "value": target.productName },
-          { "name": "?儭?瑽質? / 頠?", "value": `${target.tankNo || '-'} / ${target.customer || '-'}` },
-          { "name": "?? ?株?蝺刻?", "value": target.barcode },
-          { "name": "???見??", "value": formatSimpleDate(target.createdAt) }
+          { "name": "🏢 送樣單位", "value": `${target.dept}（送樣人：${target.requester || '無'}）` },
+          { "name": "🧪 檢驗品名", "value": target.productName },
+          { "name": "🛢️ 槽號 / 車牌", "value": `${target.tankNo || '-'} / ${target.customer || '-'}` },
+          { "name": "📋 單號編號", "value": target.barcode },
+          { "name": "⏰ 送樣時間", "value": formatSimpleDate(target.createdAt) }
         ],
         "markdown": true
       }]
     };
 
     const previewData = {
-      title: `??C 瑼ａ?頞?霅血???歇??${diffHours} 撠?`,
-      subtitle: `璅??瑼ａ?撌脤?2 撠??芸摰?隢?蝞∟? ${target.dept} ???,
+      title: `🚨【QC 檢驗超時警報】等候已達 ${diffHours} 小時`,
+      subtitle: `樣品檢驗已逾 2 小時未判定，請品管與 ${target.dept} 儘速處理`,
       color: "red",
       facts: [
-        { name: "? ?見?桐?", value: `${target.dept}嚗見鈭綽?${target.requester || '??}嚗 },
-        { name: "?妒 瑼ａ???", value: target.productName },
-        { name: "?儭?瑽質? / 頠?", value: `${target.tankNo || '-'} / ${target.customer || '-'}` },
-        { name: "?? ?株?蝺刻?", value: target.barcode },
-        { name: "???見??", value: formatSimpleDate(target.createdAt) }
+        { name: "🏢 送樣單位", value: `${target.dept}（送樣人：${target.requester || '無'}）` },
+        { name: "🧪 檢驗品名", value: target.productName },
+        { name: "🛢️ 槽號 / 車牌", value: `${target.tankNo || '-'} / ${target.customer || '-'}` },
+        { name: "📋 單號編號", value: target.barcode },
+        { name: "⏰ 送樣時間", value: formatSimpleDate(target.createdAt) }
       ]
     };
 
     dispatchTeamsCard(target.dept, overdueCardPayload, previewData);
   }
 
-  // 瑼Ｘ?????臬撌脣?/蝟餌絞銝剝見??(?舀?株?瘥??局??頠?瘥?)
+  // 檢查某筆排程是否已在看板/系統中送樣過 (支援單號比對與槽號+車櫃比對)
   function getOrderSubmissionInfo(order) {
     if (!allData || allData.length === 0 || !order) return null;
     
-    // 1. ?株?蝎暹?瘥? (??芸?銝?蝎曄Ⅱ)
+    // 1. 單號精準比對 (最優先且最精確)
     if (order.doc_no && String(order.doc_no).trim()) {
       const targetDoc = String(order.doc_no).trim().toLowerCase();
-      const matchDoc = allData.find(s => s.barcode && String(s.barcode).toLowerCase().includes(targetDoc));
+      const matchDoc = allData.find(s => s.barcode && String(s.barcode).trim().toLowerCase() === targetDoc);
       if (matchDoc) return matchDoc;
     }
     
-    // 2. 瑽質? + ?? + 摰Ｘ/頠?/瑹?瘥? (???∪?????‵?見)
+    // 2. 槽號 + 品名 + 客戶/車號/櫃號比對 (針對無單號或預先充填送樣)
     const matchDetails = allData.find(s => {
       const sameProd = order.productName && s.productName && (String(s.productName).trim().toLowerCase() === String(order.productName).trim().toLowerCase());
       if (!sameProd) return false;
@@ -1442,7 +1413,7 @@
     return matchDetails || null;
   }
 
-  // ?? T100 蝭拚璅∪? ('today': 隞??, 'date': ???交?, 'pending': 敺見?暹?, 'all': ?券)
+  // 切換 T100 篩選模式 ('today': 今日排程, 'date': 指定日期, 'pending': 待送樣放櫃, 'all': 全部)
   function setT100FilterMode(mode) {
     t100FilterMode = mode;
     const todayStr = getLocalDateString();
@@ -1452,7 +1423,7 @@
       dateInput.value = todayStr;
     }
     
-    // ?湔?? active ???
+    // 更新按鈕 active 狀態
     const btnToday = document.getElementById('btnFilterToday');
     const btnPending = document.getElementById('btnFilterPending');
     const btnAll = document.getElementById('btnFilterAll');
@@ -1463,7 +1434,7 @@
     renderT100Dropdown();
   }
 
-  // ?交??詨??刻??港?隞?
+  // 日期選取器變更事件
   function onT100DateFilterChange(val) {
     if (!val) return;
     t100FilterMode = 'date';
@@ -1476,7 +1447,7 @@
     renderT100Dropdown();
   }
 
-  // ??????皜脫? T100 銝??詨嚗??交??蕪??閮歇?見/敺見嚗?
+  // 初始化與動態渲染 T100 下拉選單（依日期過濾、標記已送樣/待送樣）
   function renderT100Dropdown() {
     const sel = document.getElementById('t100Select');
     if (!sel) return;
@@ -1488,13 +1459,13 @@
     }
     const selectedDate = (dateInput && dateInput.value) ? dateInput.value : todayStr;
 
-    // 靘芋撘?瞈曉蝚血?璇辣??蝔?
+    // 依模式過濾出符合條件的排程
     let filteredOrders = [];
     let filterDescription = '';
 
     if (t100FilterMode === 'today') {
       filteredOrders = t100Orders.filter(o => o.date === todayStr);
-      filterDescription = `隞 (${todayStr})`;
+      filterDescription = `今日 (${todayStr})`;
     } else if (t100FilterMode === 'date') {
       filteredOrders = t100Orders.filter(o => o.date === selectedDate);
       filterDescription = `${selectedDate}`;
@@ -1506,13 +1477,13 @@
         if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) return true;
         return false;
       });
-      filterDescription = `敺見?暹?/??`;
+      filterDescription = `待送樣放櫃/排程`;
     } else if (t100FilterMode === 'all') {
       filteredOrders = [...t100Orders];
-      filterDescription = `?券?臬??`;
+      filterDescription = `全部匯入排程`;
     }
 
-    // 閮???絞閮?
+    // 計算狀態統計
     const totalCount = t100Orders.length;
     const submittedInTotal = t100Orders.filter(o => getOrderSubmissionInfo(o)).length;
     const submittedInView = filteredOrders.filter(o => getOrderSubmissionInfo(o)).length;
@@ -1522,120 +1493,94 @@
     const statsBadge = document.getElementById('t100StatsBadge');
     if (statsBadge) {
       if (t100FilterMode === 'today') {
-        statsBadge.innerHTML = `隞??: <b>${filteredOrders.length}</b> 頠?(?歇?? ${submittedInView} | ?喳??? ${pendingInView}) 繚 蝟餌絞撠? ${pendingInTotal} 頠?見`;
+        statsBadge.innerHTML = `今日排程: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView}) · 系統尚有 ${pendingInTotal} 車未送樣`;
       } else if (t100FilterMode === 'pending') {
-        statsBadge.innerHTML = `? 敺見?暹?: <b>${filteredOrders.length}</b> 頠?見 (撌脣???${submittedInTotal} 頠?`;
+        statsBadge.innerHTML = `📦 待送樣放櫃: <b>${filteredOrders.length}</b> 車未送樣 (已完成 ${submittedInTotal} 車)`;
       } else {
-        statsBadge.innerHTML = `${filterDescription}: <b>${filteredOrders.length}</b> 頠?(?歇?? ${submittedInView} | ?喳??? ${pendingInView})`;
+        statsBadge.innerHTML = `${filterDescription}: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView})`;
       }
     }
 
     let html = '';
-    const outOrders = filteredOrders.filter(o => o.flowType === '?箄疏');
-    const inOrders = filteredOrders.filter(o => o.flowType === '?脫?');
+    const outOrders = filteredOrders.filter(o => o.flowType === '出貨');
+    const inOrders = filteredOrders.filter(o => o.flowType === '進料');
 
     if (filteredOrders.length === 0) {
       if (t100FilterMode === 'today') {
-        const hintText = pendingInTotal > 0 ? `蝟餌絞?折???${pendingInTotal} 蝑??見頠活嚗暺????見?暹??閰瓩 : '???蝔?撌脣??見';
-        html += `<option value="">-- ?? 隞 (${todayStr}) 撠?? (${hintText}) --</option>`;
+        const hintText = pendingInTotal > 0 ? `系統內還有 ${pendingInTotal} 筆待送樣車次，可點擊「待送樣放櫃」查詢` : '所有排程皆已完成送樣';
+        html += `<option value="">-- 📅 今日 (${todayStr}) 尚無排程 (${hintText}) --</option>`;
       } else if (t100FilterMode === 'pending') {
-        html += `<option value="">-- ?? 憭芣?鈭???瑹???頠活?歇摰??見 --</option>`;
+        html += `<option value="">-- 🎉 太棒了！所有放櫃與排程車次皆已完成送樣 --</option>`;
       } else {
-        const hintText = pendingInTotal > 0 ? `撠? ${pendingInTotal} 蝑??見嚗暺????見?暹??閰瓩 : '???蝔?撌脣??見';
-        html += `<option value="">-- ?? ?交? [${selectedDate}] ?⊥?蝔?(${hintText}) --</option>`;
+        const hintText = pendingInTotal > 0 ? `尚有 ${pendingInTotal} 筆待送樣，可點擊「待送樣放櫃」查詢` : '所有排程皆已完成送樣';
+        html += `<option value="">-- 📅 日期 [${selectedDate}] 無排程 (${hintText}) --</option>`;
       }
     } else {
-      html += `<option value="">-- 暺迨?豢? ${filterDescription} (??${filteredOrders.length} 頠活嚗?{outOrders.length} ?箄疏 + ${inOrders.length} ?脫?) --</option>`;
+      html += `<option value="">-- 點此選擇 ${filterDescription} (共 ${filteredOrders.length} 車次：${outOrders.length} 出貨 + ${inOrders.length} 進料) --</option>`;
 
       if (outOrders.length > 0) {
-        html += `<optgroup label="?? ?鞎冽局頠?蝔?${outOrders.length} 頠活)">`;
+        html += `<optgroup label="🚚 【出貨槽車排程】(${outOrders.length} 車次)">`;
         outOrders.forEach(o => {
           const globalIdx = t100Orders.indexOf(o);
           const sub = getOrderSubmissionInfo(o);
-          let mark = '?訥敺見] ';
+          let mark = '⏳[待送樣] ';
           if (sub) {
-            if (sub.status === 'completed') mark = '?撌脤??] ';
-            else if (sub.status === 'failed') mark = '?鋡恍隞園?? ';
-            else mark = '?撌脤見敺?] ';
+            if (sub.status === 'completed') mark = '✅[已驗合格] ';
+            else if (sub.status === 'failed' && sub.qcResult === '需特採') mark = '⚠️[不符內控需特採] ';
+            else if (sub.status === 'failed') mark = '⛔[被退件需重送] ';
+            else if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) mark = '🔄[已自動重送待驗] ';
+            else mark = '✅[已送樣待驗] ';
           }
           
           let dtStr = o.date || '';
-          if (o.time && o.time !== '??') {
+          if (o.time && o.time !== '排程') {
             dtStr = dtStr ? `${dtStr} ${o.time}` : o.time;
-          } else if (o.time === '??') {
-            dtStr = dtStr ? `${dtStr} ??` : '??';
+          } else if (o.time === '排程') {
+            dtStr = dtStr ? `${dtStr} 排程` : '排程';
           }
           const dtBadge = dtStr ? `[${dtStr}] ` : '';
 
-          const tankBadge = o.tankNo ? ` [瑽?${o.tankNo}]` : '';
-          const boxBadge = o.container ? ` [頠?瑹?${o.container}]` : '';
+          const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
+          const boxBadge = o.container ? ` [車/櫃:${o.container}]` : '';
           html += `<option value="${globalIdx}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
         });
         html += `</optgroup>`;
       }
 
       if (inOrders.length > 0) {
-        html += `<optgroup label="? ?脫?/?亙澈瑽質?????${inOrders.length} 頠活)">`;
+        html += `<optgroup label="📥 【進料/入庫槽車排程】(${inOrders.length} 車次)">`;
         inOrders.forEach(o => {
           const globalIdx = t100Orders.indexOf(o);
           const sub = getOrderSubmissionInfo(o);
-          let mark = '?訥敺見] ';
+          let mark = '⏳[待送樣] ';
           if (sub) {
-            if (sub.status === 'completed') mark = '?撌脤??] ';
-            else if (sub.status === 'failed') mark = '?鋡恍隞園?? ';
-            else mark = '?撌脤見敺?] ';
+            if (sub.status === 'completed') mark = '✅[已驗合格] ';
+            else if (sub.status === 'failed' && sub.qcResult === '需特採') mark = '⚠️[不符內控需特採] ';
+            else if (sub.status === 'failed') mark = '⛔[被退件需重送] ';
+            else if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) mark = '🔄[已自動重送待驗] ';
+            else mark = '✅[已送樣待驗] ';
           }
           
           let dtStr = o.date || '';
-          if (o.time && o.time !== '??') {
+          if (o.time && o.time !== '排程') {
             dtStr = dtStr ? `${dtStr} ${o.time}` : o.time;
-          } else if (o.time === '??') {
-            dtStr = dtStr ? `${dtStr} ??` : '??';
+          } else if (o.time === '排程') {
+            dtStr = dtStr ? `${dtStr} 排程` : '排程';
           }
           const dtBadge = dtStr ? `[${dtStr}] ` : '';
 
-          const tankBadge = o.tankNo ? ` [瑽?${o.tankNo}]` : '';
-          const boxBadge = o.container ? ` [頠?${o.container}]` : '';
+          const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
+          const boxBadge = o.container ? ` [車:${o.container}]` : '';
           html += `<option value="${globalIdx}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
         });
         html += `</optgroup>`;
       }
-      }
+    }
 
-      // 新增：將 QC_Samples (allData) 中已存在的 pending 狀態（如：退回重送單）也塞進排程選單
-      const pendingResamples = allData.filter(d => d.status === 'pending');
-      if (pendingResamples.length > 0) {
-        html += <optgroup label="⏳ 【手動待送樣 / 退回重送】 ( + "$" + {pendingResamples.length} 筆)">;
-        pendingResamples.forEach(o => {
-          let mark = '⏳[待送樣] ';
-          if ((parseInt(o.round) || 1) >= 2) {
-            mark = ↩️[第 + "$" + {o.round}次重送] ;
-          }
-          const tankBadge = o.tankNo ?  [槽: + "$" + {o.tankNo}] : '';
-          const boxBadge = o.customer ?  [車/櫃: + "$" + {o.customer}] : '';
-          html += <option value="pending_ + "$" + {o.id}"> + "$" + {mark} + "$" + {o.barcode} |  + "$" + {o.productName} + "$" + {tankBadge} + "$" + {boxBadge} ( + "$" + {o.dept}  + "$" + {o.quantity})</option>;
-        });
-        html += </optgroup>;
-      }
-      
-      const pendingResamples = allData.filter(d => d.status === 'pending');
-      if (pendingResamples.length > 0) {
-        html += <optgroup label="⏳ 【手動待送樣 / 退回重送】 ( + "$" + {pendingResamples.length} 筆)">;
-        pendingResamples.forEach(o => {
-          let mark = '⏳[待送樣] ';
-          if ((parseInt(o.round) || 1) >= 2) {
-            mark = ↩️[第 + "$" + {o.round}次重送] ;
-          }
-          const tankBadge = o.tankNo ?  [槽: + "$" + {o.tankNo}] : '';
-          const boxBadge = o.customer ?  [車/櫃: + "$" + {o.customer}] : '';
-          html += <option value="pending_ + "$" + {o.id}"> + "$" + {mark} + "$" + {o.barcode} |  + "$" + {o.productName} + "$" + {tankBadge} + "$" + {boxBadge} ( + "$" + {o.dept}  + "$" + {o.quantity})</option>;
-        });
-        html += </optgroup>;
-      }
-      sel.innerHTML = html;
+    sel.innerHTML = html;
   }
 
-  // ?嗡蝙?刻銝??詨?詨???甈⊥?嚗?葆?亥”?桐蒂?菜葫???見
+  // 當使用者在下拉選單選取某車次時，自動帶入表單並偵測重複送樣
   function onT100SelectChange(val) {
     const alertBox = document.getElementById('t100AlreadySubmittedAlert');
     const alertText = document.getElementById('t100AlertText');
@@ -1647,61 +1592,43 @@
     const item = t100Orders[parseInt(val)];
     if (!item) return;
 
-    
-    // ?芸?撠??甈∠??脣鞎典 (????????
-    let combinedDocs = item.doc_no || '';
-    if (item.container && item.container.trim() !== '' && item.flowType === '?脫?') {
-        const sameTruckItems = t100Orders.filter(o => o !== item && o.container === item.container && o.flowType === item.flowType);
-        if (sameTruckItems.length > 0) {
-            const extraDocs = sameTruckItems.map(o => o.doc_no).filter(Boolean);
-            if (extraDocs.length > 0) {
-                const combined = [item.doc_no, ...extraDocs].join(', ');
-                if (confirm(`?潛甇方?甈?(${item.container}) ?望? ${extraDocs.length + 1} 蝑?蝔??\n${combined}\n\n?臬閬??雿菜???撘菜炎撽嚗)) {
-                    combinedDocs = combined;
-                }
-            }
-        }
-    }
-
-    document.getElementById('barcode').value = combinedDocs;
-
-    document.getElementById('flowType').value = item.flowType || '?箄疏';
-    document.getElementById('grade').value = item.grade || '撌交平蝝?;
+    document.getElementById('barcode').value = item.doc_no || '';
+    document.getElementById('flowType').value = item.flowType || '出貨';
+    document.getElementById('grade').value = item.grade || '工業級';
     document.getElementById('productName').value = item.productName || '';
-    autoSelectGrade(item.productName);
     document.getElementById('tankNo').value = item.tankNo || '';
     document.getElementById('customer').value = item.container || item.customer || '';
     document.getElementById('quantity').value = item.quantity || '';
 
-    // 瑼Ｘ閰脰??格?血歇??璅?
+    // 檢查該訂單是否已送過樣
     const sub = getOrderSubmissionInfo(item);
     if (sub && alertBox && alertText) {
       alertBox.style.display = 'flex';
       const timeStr = formatSimpleDate(sub.createdAt);
-      const statusDesc = (sub.status === 'completed') ? '撌脣??炎撽?(?曇?)' : '瑼ａ?銝?(蝑???';
-      alertText.innerHTML = `<strong>?? ???見霅衣內嚗?/strong>甇方?甈∪??<code>${item.doc_no}</code> 撌脫 <strong>${timeStr}</strong> ?漱?見嚗??? <strong>??{statusDesc}??/strong>??br>?交迨頠活???賣見?脰?鈭活銴?嚗?蝣箄?敺??漱?;
-      showToast(`?? 瘜冽?嚗迨頠活撌脫 ${timeStr} ?見??(${statusDesc})嚗, 4500);
+      const statusDesc = (sub.status === 'completed') ? '已完成檢驗 (放行)' : '檢驗中 (等候結果)';
+      alertText.innerHTML = `<strong>⚠️ 重複送樣警示：</strong>此車次單號 <code>${item.doc_no}</code> 已於 <strong>${timeStr}</strong> 提交送樣！目前狀態為 <strong>【${statusDesc}】</strong>。<br>若此車次需重新抽樣或進行二次複驗，請確認後再提交。`;
+      showToast(`⚠️ 注意：此車次已於 ${timeStr} 送樣過 (${statusDesc})！`, 4500);
     } else if (alertBox) {
       alertBox.style.display = 'none';
-      showToast(`??撌脰?葆??[${item.flowType}] ??嚗?{item.productName} (${item.container || item.tankNo})`);
+      showToast(`✅ 已自動帶入 [${item.flowType}] 排程：${item.productName} (${item.container || item.tankNo})`);
     }
 
     document.getElementById('requester').focus();
   }
 
-  // ?垢?單?閫??銝??Excel嚗?扯??撠局頠???銝行?游????游??????
+  // 前端即時解析上傳的 Excel（智慧自動搜尋「槽車」分頁，並支援多重備援分頁自動掃描）
   function handleExcelUpload(e) {
     const file = e.target.files[0];
     if(!file) return;
 
-    showToast("甇?閫?? Excel 瑽質???(?箄疏?脫?)...");
+    showToast("正在解析 Excel 槽車分頁(出貨與進料)...");
     const reader = new FileReader();
     reader.onload = function(evt) {
       try {
         const data = new Uint8Array(evt.target.result);
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
-        // ?詨??桐?撌乩?銵刻圾?
+        // 核心單一工作表解析器
         function parseSheet(sheetName) {
           const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
           const ignoredConfig = cfgStr ? JSON.parse(cfgStr)['T100_IGNORE_PRODUCTS'] : 'IPAHQ';
@@ -1739,16 +1666,16 @@
             if(!row || row.length === 0) continue;
 
             const rowStr = row.map(v => String(v || '')).join(' ');
-            if(rowStr.includes('?箄疏???) || rowStr.includes('?粹')) {
-              currentMode = '?箄疏';
+            if(rowStr.includes('出貨通知單') || rowStr.includes('出通單')) {
+              currentMode = '出貨';
               colMap = {};
               for(let c = 0; c < row.length; c++) {
                 const h = String(row[c] || '').trim();
                 if(h) colMap[h] = c;
               }
               continue;
-            } else if(rowStr.includes('?亙澈??) || rowStr.includes('?脰疏??)) {
-              currentMode = '?脫?';
+            } else if(rowStr.includes('入庫單') || rowStr.includes('進貨單')) {
+              currentMode = '進料';
               colMap = {};
               for(let c = 0; c < row.length; c++) {
                 const h = String(row[c] || '').trim();
@@ -1769,38 +1696,38 @@
               return '';
             };
 
-            if(currentMode === '?箄疏') {
-              const docNo = gv(['?箄疏???, '?粹', '?箄疏??]);
-              const prod = gv(['??', '?拇??迂']);
+            if(currentMode === '出貨') {
+              const docNo = gv(['出貨通知單', '出通單', '出貨單']);
+              const prod = gv(['品名', '物料名稱']);
               if(!docNo || !prod) continue;
               if(ignoredList.includes(String(prod).trim().toUpperCase())) continue;
 
-              // ?湔?芸???閮鞎冽??雿????亦?蔥?脣??澆?銝匱?選?
-              const rawDate = gv(['???箄疏?交?', '???箄疏??, '?箄疏?交?', '?箄疏??, '???啗疏?交?']);
+              // 嚴格只從「預計出貨日期」欄位抓取，若為合併儲存格向下繼承！
+              const rawDate = gv(['預計出貨日期', '預計出貨日', '出貨日期', '出貨日', '預計到貨日期']);
               const cellDate = parseCellDate(rawDate);
               if(cellDate) {
                 lastOutDate = cellDate;
               }
 
-              const timeStr = gv(['???箄疏??', '?箄疏??']);
-              const tank = gv(['?脖??迂', '?箄疏瑽質?', '瑽質?', '?脖?', '瑽賢', '瑽賢']);
-              const cust = gv(['鈭斗?撠情蝪∠迂', '摰Ｘ?迂', '摰Ｘ', '?疏?啣?蝪∠迂']);
-              const truck = gv(['?粹?桅.頠??Ⅳ', '頠??Ⅳ', '頠??Ⅳ(蝤?', '頠?', '頠?']);
-              const qty = gv(['???賊?', '???箄疏?賊?(KG)', '?箄疏?賊?(KG)', '?賊?']);
-              const spec = gv(['閬隤芣?', '閬']);
-              const note = gv(['瘜冽?鈭?', '?酉']);
+              const timeStr = gv(['預計出貨時間', '出貨時間']);
+              const tank = gv(['儲位名稱', '出貨槽號', '槽號', '儲位', '槽別', '槽别']);
+              const cust = gv(['交易對象簡稱', '客戶名稱', '客戶', '送貨地址簡稱']);
+              const truck = gv(['出通單單頭.車牌號碼', '車牌號碼', '車牌號碼(磅)', '車牌', '車號']);
+              const qty = gv(['換算數量', '預計出貨數量(KG)', '出貨數量(KG)', '數量']);
+              const spec = gv(['規格說明', '規格']);
+              const note = gv(['注意事項', '備註']);
 
               let container = String(truck || '').trim();
               if(!container && note) {
-                const m = String(note).match(/瑽質?[:嚗?\s*([A-Za-z0-9\-]+)/);
+                const m = String(note).match(/槽號[:：]?\s*([A-Za-z0-9\-]+)/);
                 if(m) container = m[1];
                 else {
-                  const m2 = String(note).match(/?疏瑽質?\s*([A-Za-z0-9\-]+)/);
+                  const m2 = String(note).match(/提貨槽車\s*([A-Za-z0-9\-]+)/);
                   if(m2) container = m2[1];
                 }
               }
 
-              let grade = '撌交平蝝?;
+              let grade = '工業級';
               if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
               else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
 
@@ -1814,7 +1741,7 @@
                 doc_no: String(docNo).trim(),
                 date: orderDate || getLocalDateString(),
                 time: String(timeStr || '').trim(),
-                flowType: '?箄疏',
+                flowType: '出貨',
                 grade: grade,
                 productName: String(prod).trim(),
                 tankNo: String(tank || '').trim(),
@@ -1823,37 +1750,37 @@
                 quantity: qty ? `${qty} KG` : String(spec || '').trim(),
                 note: String(note || '').trim()
               });
-            } else if(currentMode === '?脫?') {
-              const docNo = gv(['?亙澈??, '?脰疏??, '?亙澈?株?', '?脰疏?株?']);
-              const prod = gv(['??', '?拇??迂']);
+            } else if(currentMode === '進料') {
+              const docNo = gv(['入庫單', '進貨單', '入庫單號', '進貨單號']);
+              const prod = gv(['品名', '物料名稱']);
               if(!docNo || !prod) continue;
               if(ignoredList.includes(String(prod).trim().toUpperCase())) continue;
 
-              // ?湔?芸???閮脰疏?乓?雿????亦?蔥?脣??澆?銝匱?選?蝯?銝??????鞈澆??
-              const rawDate = gv(['???脰疏??, '???脰疏?交?', '???啗疏?交?', '?脰疏??, '?脰疏?交?']);
+              // 嚴格只從「預計進貨日」欄位抓取，若為合併儲存格向下繼承！絕對不讀取「單據日期」與「採購單號」！
+              const rawDate = gv(['預計進貨日', '預計進貨日期', '預計到貨日期', '進貨日', '進貨日期']);
               const cellDate = parseCellDate(rawDate);
               if(cellDate) {
                 lastInDate = cellDate;
               }
 
-              const timeStr = gv(['???脰疏??', '?脰疏??', '???啗疏??']);
-              const tank = gv(['瑽賢', '瑽賢', '?脖?', '?脖??迂', '瑽質?']);
-              const spec = gv(['閬', '閬隤芣?']);
-              const vendor = gv(['靘??陛蝔?, '撱?蝪∠迂', '靘???, '鈭斗?撠情蝪∠迂', '撱?']);
-              const origin = gv(['?箄疏撱(撱?)', '?箄疏撱(?)', '撱', '靘?撱', '?箄疏撱']);
-              const truck = gv(['頠??Ⅳ', '頠?', '頠?/瑹?', '頠?/瑹?', '頠?', '?粹?桅.頠??Ⅳ']);
-              const box = gv(['瑹?', '鞎冽??Ⅳ', '鞎冽?蝺刻?']);
-              const qty = gv(['???脰疏?賊?(KG)', '?脰疏?賊?(KG)', '???脰疏?賊?', '???賊?', '?賊?']);
-              const note = gv(['?酉', '瘜冽?鈭?']);
+              const timeStr = gv(['預計進貨時間', '進貨時間', '預計到貨時間']);
+              const tank = gv(['槽别', '槽別', '儲位', '儲位名稱', '槽號']);
+              const spec = gv(['規格', '規格說明']);
+              const vendor = gv(['供應商簡稱', '廠商簡稱', '供應商', '交易對象簡稱', '廠商']);
+              const origin = gv(['出貨廠別(廠商)', '出貨廠別(備用)', '廠別', '來源廠別', '出貨廠別']);
+              const truck = gv(['車牌號碼', '車號', '車號/櫃號', '車牌/櫃號', '車牌', '出通單單頭.車牌號碼']);
+              const box = gv(['櫃號', '貨櫃號碼', '貨櫃編號']);
+              const qty = gv(['預計進貨數量(KG)', '進貨數量(KG)', '預計進貨數量', '換算數量', '數量']);
+              const note = gv(['備註', '注意事項']);
 
               let container = String(truck || '').trim();
               if(box && String(box).trim()) {
-                container = container ? `${container} (瑹?${box})` : String(box).trim();
+                container = container ? `${container} (櫃:${box})` : String(box).trim();
               }
 
               const custStr = (vendor && origin) ? `${vendor} (${origin})` : (origin || vendor || '');
 
-              let grade = '撌交平蝝?;
+              let grade = '工業級';
               if(String(prod).toUpperCase().includes('UPS')) grade = 'UPS';
               else if(String(prod).toUpperCase().includes('IF')) grade = 'IF';
 
@@ -1867,7 +1794,7 @@
                 doc_no: String(docNo).trim(),
                 date: orderDate || getLocalDateString(),
                 time: String(timeStr || '').trim(),
-                flowType: '?脫?',
+                flowType: '進料',
                 grade: grade,
                 productName: String(prod).trim(),
                 tankNo: String(tank || '').trim(),
@@ -1881,8 +1808,8 @@
           return parsedOrders;
         }
 
-        // 1. ?芸????怒局頠???
-        let targetSheetName = workbook.SheetNames.find(n => n.includes('瑽質?'));
+        // 1. 優先鎖定含「槽車」之分頁
+        let targetSheetName = workbook.SheetNames.find(n => n.includes('槽車'));
         let finalOrders = [];
         let actualSheetUsed = '';
 
@@ -1891,7 +1818,7 @@
           if (finalOrders.length > 0) actualSheetUsed = targetSheetName;
         }
 
-        // 2. ?乓局頠???曉?圾? 0 蝑??芸??風?園?????脰??閫??
+        // 2. 若「槽車」分頁未找到或解析出 0 筆，自動遍歷其餘所有分頁進行備援解析
         if (finalOrders.length === 0) {
           for(const sName of workbook.SheetNames) {
             if(sName === targetSheetName) continue;
@@ -1905,14 +1832,14 @@
         }
 
         if(finalOrders.length === 0) {
-          alert(`?? ?芾?芣迨閰衣?銵刻圾?隞颱????局頠?蝔?\n\n撌脫炎?亦?瘣駁?蝪踹???\n${workbook.SheetNames.map((s, idx) => `  [${idx+1}] ${s}`).join('\n')}\n\n隢Ⅱ隤???臬?急??鞎券?柴??摨怠??鞈??);
+          alert(`⚠️ 未能自此試算表解析出任何有效的槽車排程！\n\n已檢查的活頁簿分頁：\n${workbook.SheetNames.map((s, idx) => `  [${idx+1}] ${s}`).join('\n')}\n\n請確認分頁內是否含有「出貨通知單」或「入庫單」之資料列。`);
           return;
         }
 
         t100Orders = finalOrders;
         localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
 
-        // ?芸??郊?交??蕪??
+        // 自動同步日期過濾器
         const todayStr = getLocalDateString();
         const hasToday = finalOrders.some(o => o.date === todayStr);
         const dateInput = document.getElementById('t100DateFilter');
@@ -1925,23 +1852,23 @@
           setT100FilterMode('date');
         }
 
-        const outCount = finalOrders.filter(o => o.flowType === '?箄疏').length;
-        const inCount = finalOrders.filter(o => o.flowType === '?脫?').length;
-        showToast(`?? ??????{actualSheetUsed}?????臬 ${finalOrders.length} 蝑局頠?蝔?(${outCount} ?箄疏 + ${inCount} ?脫?)嚗, 5000);
+        const outCount = finalOrders.filter(o => o.flowType === '出貨').length;
+        const inCount = finalOrders.filter(o => o.flowType === '進料').length;
+        showToast(`🎉 成功鎖定「${actualSheetUsed}」分頁，匯入 ${finalOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`, 5000);
 
-        // ?? ?脩垢?郊嚗???銝??Google Sheets嚗撌脰身摰?GAS API嚗?
+        // ☁️ 雲端同步：將排程上傳至 Google Sheets（若已設定 GAS API）
         uploadOrdersToCloud(finalOrders);
       } catch(err) {
         console.error(err);
-        alert("閫?? Excel 憭望?嚗? + err.message);
+        alert("解析 Excel 失敗：" + err.message);
       }
     };
     reader.readAsArrayBuffer(file);
   }
-  // ?? ??銝嚗??Excel 敺??甇亥 Google Sheets嚗??芋撘?
+  // ☁️ 排程上傳：匯入 Excel 後自動同步至 Google Sheets（覆蓋模式）
   async function uploadOrdersToCloud(orders) {
-    if (!GAS_API_URL) return; // ?芾身摰?GAS ???
-    showToast('漎? 甇?撠?蝔?甇亥?脩垢...', 3000);
+    if (!GAS_API_URL) return; // 未設定 GAS 則略過
+    showToast('⬆️ 正在將排程同步至雲端...', 3000);
     try {
       const resp = await fetch(GAS_API_URL, {
         method: 'POST',
@@ -1950,45 +1877,45 @@
       });
       const result = await resp.json();
       if (result.success) {
-        showToast(`?? ?脩垢?郊摰?嚗 ${result.count} 蝑?蝔歇銝 (${result.importedAt})`, 6000);
+        showToast(`☁️ 雲端同步完成！共 ${result.count} 筆排程已上傳 (${result.importedAt})`, 6000);
       } else {
-        showToast(`?? ?脩垢?郊憭望?嚗?{result.error || '?芰?航炊'}嚗??歇靽??潭璈?`, 6000);
+        showToast(`⚠️ 雲端同步失敗：${result.error || '未知錯誤'}（資料已保存於本機）`, 6000);
       }
     } catch(err) {
-      console.warn('?脩垢??銝憭望?嚗?敶梢頝刻?蝵桀?甇伐?嚗?, err);
-      showToast('?? ?脩垢????暹?嚗?蝔?靽??潭璈?, 4000);
+      console.warn('雲端排程上傳失敗（僅影響跨裝置同步）：', err);
+      showToast('⚠️ 雲端連線逾時，排程僅保存於本機', 4000);
     }
   }
 
-  // ?? ??銝?嚗??Ｚ??交?敺?Google Sheets ????嚗???身??剁?
+  // ☁️ 排程下載：頁面載入時從 Google Sheets 拉取排程（供所有設備共用）
   async function loadOrdersFromCloud() {
-    if (!GAS_API_URL) return; // ?芾身摰?GAS ???
+    if (!GAS_API_URL) return; // 未設定 GAS 則略過
     try {
       const resp = await fetch(`${GAS_API_URL}?action=getOrders`);
       const result = await resp.json();
-      if (result.success && Array.isArray(result.orders)) {
-        // ?蔥嚗誑?脩垢?箔蜓嚗???localStorage嚗?雿???localStorage ?仿蝡舐蝛?
+      if (result.success && Array.isArray(result.orders) && result.orders.length > 0) {
+        // 合併：以雲端為主（覆蓋 localStorage），但保留 localStorage 若雲端為空
         t100Orders = result.orders;
         localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
         renderT100Dropdown();
-        const outCount = result.orders.filter(o => o.flowType === '?箄疏').length;
-        const inCount = result.orders.filter(o => o.flowType === '?脫?').length;
-        showToast(`?? 撌脣??脩垢頛 ${result.count} 蝑?蝔?(${outCount} ?箄疏 + ${inCount} ?脫?)`, 5000);
-        // ?芸??蕪隞予
+        const outCount = result.orders.filter(o => o.flowType === '出貨').length;
+        const inCount = result.orders.filter(o => o.flowType === '進料').length;
+        showToast(`☁️ 已從雲端載入 ${result.count} 筆排程 (${outCount} 出貨 + ${inCount} 進料)`, 5000);
+        // 自動過濾今天
         const todayStr = getLocalDateString();
         const hasToday = t100Orders.some(o => o.date === todayStr);
         if (hasToday) setT100FilterMode('today');
       }
     } catch(err) {
-      console.info('?脩垢??霈?仃??雿輻?祆?敹怠?嚗?', err);
+      console.info('雲端排程讀取失敗（使用本機快取）：', err);
     }
   }
 
   function getFlowTag(type) {
-    if(type === '?脫?') return `<span class="tag-flow tag-in">?脫?</span>`;
-    if(type === '?箄疏') return `<span class="tag-flow tag-out">?箄疏</span>`;
-    if(type === '鋆?') return `<span class="tag-flow tag-replenish">鋆?</span>`;
-    if(type === '憪?') return `<span class="tag-flow tag-commission">憪?</span>`;
+    if(type === '進料') return `<span class="tag-flow tag-in">進料</span>`;
+    if(type === '出貨') return `<span class="tag-flow tag-out">出貨</span>`;
+    if(type === '補料') return `<span class="tag-flow tag-replenish">補料</span>`;
+    if(type === '委託') return `<span class="tag-flow tag-commission">委託</span>`;
     return `<span class="tag-flow tag-in">${type || '-'}</span>`;
   }
 
@@ -2000,77 +1927,7 @@
     return `${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  // 閮?蝑??蒂?Ｙ?蝝????噬蝡?
-
-  function skipSample() {
-    let barcode = document.getElementById('barcode').value.trim();
-    const productName = document.getElementById('productName').value.trim();
-    const tankNo = document.getElementById('tankNo').value.trim();
-    const customer = document.getElementById('customer').value.trim();
-    const requester = document.getElementById('requester').value.trim();
-    const dept = document.getElementById('dept').value;
-    const remark = document.getElementById('remark')?.value?.trim() || '';
-
-    if (!productName || !tankNo || !customer || !requester) {
-      alert("?? 隢?撠??寧??箸鞈?憛怠戎嚗?);
-      return; 
-    }
-
-    if (!barcode) {
-      const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-      barcode = `${todayStr}-摨怠?`;
-    }
-
-    if(!confirm("蝣箏?閬?甇斤???璅??箝??見??亦?獢?嚗n(蝯?敺?銝??箇?典?瑼ａ?皜)")) return;
-
-    const btn = document.getElementById('skipBtn'); 
-    btn.disabled = true; 
-    btn.innerText = "撖怠蝯?蝝?葉...";
-    
-    const payload = { 
-      id: 'ID-' + Date.now(),
-      barcode: barcode, 
-      flowType: document.getElementById('flowType').value, 
-      grade: document.getElementById('grade').value,
-      productName: productName, 
-      tankNo: tankNo, 
-      customer: customer, 
-      quantity: document.getElementById('quantity').value, 
-      dept: dept, 
-      requester: requester,
-      remark: remark,
-      status: 'completed',
-      qcResult: '?見',
-      qcNote: '???‵?箄疏嚗??見蝯?',
-      qcApprover: '蝟餌絞?芸?',
-      createdAt: new Date().toISOString(),
-      completedAt: new Date(new Date().getTime() + 8*60*60*1000).toISOString().replace('T', ' ').substring(0, 19)
-    };
-
-    fetch(GAS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'createSample', payload: payload })
-    })
-    .then(res => res.json())
-    .then(res => {
-      resetForm();
-      btn.disabled = false;
-      btn.innerText = "?湔蝯? (?見)";
-      if(res.success) {
-        showToast("???見蝯???嚗歇敺?蝔葉蝘駁??);
-        load();
-      } else {
-        alert("憭望?嚗? + res.error);
-      }
-    })
-    .catch(err => {
-      btn.disabled = false;
-      btn.innerText = "?湔蝯? (?見)";
-      alert("?脩垢???憭望?嚗? + err.message);
-    });
-  }
-
+  // 計算等候時間並產生紅/藍狀態徽章
   function getWaitTimeBadge(createdAt) {
     if(!createdAt) return '-';
     const createdTime = new Date(createdAt).getTime();
@@ -2080,55 +1937,51 @@
     const diffHours = (diffMs / (1000 * 60 * 60)).toFixed(1);
 
     if (diffMs >= (2 * 60 * 60 * 1000)) {
-      return `<div class="badge-overdue">?? 蝑?${diffHours} 撠? (?暹?)</div>`;
+      return `<div class="badge-overdue">⚠️ 等候 ${diffHours} 小時 (逾期)</div>`;
     }
-    return `<div class="badge-ontime">?梧? 蝑?${diffHours} 撠?</div>`;
+    return `<div class="badge-ontime">⏱️ 等候 ${diffHours} 小時</div>`;
   }
 
-  // ??憟?脩垢/?祆??芾?銝??詨?賊? (????蝝???
+  // 動態套用雲端/本機自訂下拉選單選項 (動向、等級、品名)
   function applyDynamicDropdownOptions(cfg) {
     if(!cfg) return;
 
-    function parseCommaSeparated(str) {
-      if (!str) return [];
-      return str.split(',').map(s => s.trim()).filter(s => s);
-    }
-
-    const flowTypes = parseCommaSeparated(cfg.OPTIONS_FLOW_TYPES || cfg.flowTypes);
-    const grades = parseCommaSeparated(cfg.OPTIONS_GRADES || cfg.grades);
-    const products = parseCommaSeparated(cfg.OPTIONS_PRODUCTS || cfg.products);
-    const depts = parseCommaSeparated(cfg.OPTIONS_DEPTS || cfg.depts);
-
-    // 1. ??憛怠?????
-    if(flowTypes.length) {
+    // 1. 動態填充「動向」
+    if(cfg.flowTypes && cfg.flowTypes.length) {
       const selFlow = document.getElementById('flowType');
       if(selFlow) {
-        selFlow.innerHTML = flowTypes.map(f => `<option value="${f}">${f}</option>`).join('');
-        }
-    }
-
-    // 2. ??憛怠???蝝?
-    if(grades.length) {
-      const selGrade = document.getElementById('grade');
-      if(selGrade) {
-        selGrade.innerHTML = grades.map(g => `<option value="${g}">${g}</option>`).join('');
-        }
-    }
-
-    // 3. ??憛怠????atalist
-    if(products.length) {
-      const dl = document.getElementById('productList');
-      if(dl) {
-        dl.innerHTML = products.map(p => `<option value="${p}">`).join('');
+        const cur = selFlow.value;
+        selFlow.innerHTML = cfg.flowTypes.map(f => `<option value="${f}">${f}</option>`).join('');
+        if(cfg.flowTypes.includes(cur)) selFlow.value = cur;
       }
     }
 
-    // 4. ??憛怠??見?桐???
-    if(depts.length) {
+    // 2. 動態填充「等級」
+    if(cfg.grades && cfg.grades.length) {
+      const selGrade = document.getElementById('grade');
+      if(selGrade) {
+        const cur = selGrade.value;
+        selGrade.innerHTML = cfg.grades.map(g => `<option value="${g}">${g}</option>`).join('');
+        if(cfg.grades.includes(cur)) selGrade.value = cur;
+      }
+    }
+
+    // 3. 動態填充「品名」datalist
+    if(cfg.products && cfg.products.length) {
+      const dl = document.getElementById('productList');
+      if(dl) {
+        dl.innerHTML = cfg.products.map(p => `<option value="${p}">`).join('');
+      }
+    }
+
+    // 4. 動態填充「送樣單位」
+    if(cfg.depts && cfg.depts.length) {
       const selDept = document.getElementById('dept');
       if(selDept) {
-        selDept.innerHTML = depts.map(d => `<option value="${d}">${d}</option>`).join('');
-        }
+        const cur = selDept.value;
+        selDept.innerHTML = cfg.depts.map(d => `<option value="${d}">${d}</option>`).join('');
+        if(cfg.depts.includes(cur)) selDept.value = cur;
+      }
     }
   }
 
@@ -2138,9 +1991,9 @@
       try { return JSON.parse(raw); } catch(e){}
     }
     return {
-      flowTypes: ['?箄疏', '?脫?', '鋆?', '憪?'],
-      grades: ['撌交平蝝?, 'UPS', 'IF'],
-      depts: ['鞈?隤?, '鈭銝隤?, '鈭鈭玨', '銝?其?隤?, '銝?其?隤?],
+      flowTypes: ['出貨', '進料', '補料', '委託'],
+      grades: ['工業級', 'UPS', 'IF'],
+      depts: ['資材課', '二部一課', '二部二課', '一部一課', '一部二課'],
       products: [
         'IPA', 'IPAUPS', 'IPAHQ', 'CPNE3(T)', 'CPNE4', 'CPN-P1R',
         'EBR', 'EBR-P1R', 'NBAC', 'NBAC-P1R', 'CPN', 'EG',
@@ -2150,17 +2003,16 @@
     };
   }
 
-  // ?芋?豢?頛嚗AS 璅∪? / Cloudflare Pages PWA API ??? / ?Ｙ?敹怠?璅∪?嚗?
+  // 雙模數據載入（GAS 模式 / Cloudflare Pages PWA API 連線 / 離線快取模式）
   function load() {
     loadTeamsConfig();
     if(IS_GAS) {
-      document.getElementById('envBadge').innerText = "?? GAS ?脩垢???銝?;
+      document.getElementById('envBadge').innerText = "☁️ GAS 雲端連線中";
       google.script.run.withSuccessHandler(data => { allData = data; render(); }).getSamples();
       google.script.run.withSuccessHandler(cfg => {
         if(cfg) {
           applyDynamicDropdownOptions(cfg);
           localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
-            if(cfg.QC_PIN) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.QC_PIN);
           if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
         }
       }).getSystemConfig();
@@ -2170,75 +2022,62 @@
         }
       }).getEmployeesFromSheet();
     } else if (GAS_API_URL) {
-      document.getElementById('envBadge').innerText = "?? ?脩垢 API ?郊銝?;
-      // 1. ??閰衣?銵冽見??
+      document.getElementById('envBadge').innerText = "☁️ 雲端 API 同步中";
+      // 1. 抓取試算表樣品
       fetch(`${GAS_API_URL}?action=getSamples&_t=${Date.now()}`, { cache: "no-store" })
         .then(res => res.json())
         .then(data => {
-          // ?詨捆??銝剜????
-          data.forEach(s => {
-            if (s.status === "敺炎撽?) s.status = "pending";
-            else if (s.status === "撌脫炎撽?) s.status = "completed";
-            else if (s.status === "?隞? || s.status === "??璅?) s.status = "failed";
-          });
           allData = data;
           localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
           render();
         })
         .catch(err => {
-          console.warn("API ??璅??憭望?嚗蝙?券蝺???, err);
-          document.getElementById('envBadge').innerText = "? ?Ｙ?璅∪?";
+          console.warn("API 取得樣品失敗，使用離線資料", err);
+          document.getElementById('envBadge').innerText = "💻 離線模式";
           const stored = localStorage.getItem('HS_QC_SAMPLES');
           if(stored) { try { allData = JSON.parse(stored); } catch(e){} }
           render();
         });
 
-      // 2. ??閰衣?銵函頂蝯梢?蝵?(?詨??PIN 蝣?
+      // 2. 抓取試算表系統配置 (選單與 PIN 碼)
       fetch(`${GAS_API_URL}?action=getConfig&_t=${Date.now()}`, { cache: "no-store" })
         .then(res => res.json())
         .then(cfg => {
           if(cfg) {
             applyDynamicDropdownOptions(cfg);
             localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
-            if(cfg.QC_PIN) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.QC_PIN);
             if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
           }
         })
         .catch(err => {
-          console.warn("API ???詨憭望?嚗蝙?典翰??, err);
+          console.warn("API 取得選單失敗，使用快取", err);
           applyDynamicDropdownOptions(getLocalDynamicOptions());
         });
 
-      // 3. 敺?Google Sheets 頛??嚗???身?鈭思???殷?
+      // 3. 從 Google Sheets 載入排程（供所有設備共享下拉選單）
       loadOrdersFromCloud();
 
-      // 4. ???脩垢?∪極?
+      // 4. 抓取雲端員工名單
       fetch(`${GAS_API_URL}?action=getEmployees&_t=${Date.now()}`, { cache: "no-store" })
         .then(res => res.json())
         .then(res => {
           if (res && res.success && res.data) {
-            let empDict = {};
-            if (Array.isArray(res.data)) {
-              res.data.forEach(r => { if (r.emp_id) empDict[r.emp_id] = r.name; });
-            } else {
-              empDict = res.data;
-            }
-            localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(empDict));
+            localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(res.data));
           }
         })
-        .catch(err => console.warn("API ???∪極?憭望?", err));
+        .catch(err => console.warn("API 取得員工名單失敗", err));
 
     } else {
-      document.getElementById('envBadge').innerText = "? ?函? PWA ??璅∪?";
+      document.getElementById('envBadge').innerText = "💻 獨立 PWA 運作模式";
       applyDynamicDropdownOptions(getLocalDynamicOptions());
       const stored = localStorage.getItem('HS_QC_SAMPLES');
       if(stored) {
         try { allData = JSON.parse(stored); } catch(e) { allData = []; }
       } else {
         allData = [
-          { id: "sample-1", barcode: "ESXM101-20260901013", flowType: "?箄疏", grade: "UPS", productName: "IPAUPS", tankNo: "TK624", customer: "PPCU7019228", quantity: "5000 KG", dept: "鞈?隤?, requester: "?單???, status: "pending", createdAt: new Date(Date.now() - 2.5 * 3600 * 1000).toISOString() },
-          { id: "sample-2", barcode: "ESPM411-20260906001", flowType: "?脫?", grade: "撌交平蝝?, productName: "EBR-P1R", tankNo: "TKC05", customer: "KEQ-3506 (瑹?6108)", quantity: "8000 KG", dept: "???隤?, requester: "撘萄遣??, status: "pending", createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
-          { id: "sample-3", barcode: "ESXM101-20260901020", flowType: "?箄疏", grade: "UPS", productName: "IPAUPS", tankNo: "TK605", customer: "PPCU7020018", quantity: "5000 KG", dept: "銝?其?隤?, requester: "?之??, status: "completed", qcResult: "PASS", qcNote: "?釭??曇?", createdAt: new Date(Date.now()-3600000).toISOString(), completedAt: new Date().toISOString() }
+          { id: "sample-1", barcode: "ESXM101-20260901013", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK624", customer: "PPCU7019228", quantity: "5000 KG", dept: "資材課", requester: "陳明哲", status: "pending", createdAt: new Date(Date.now() - 2.5 * 3600 * 1000).toISOString() },
+          { id: "sample-2", barcode: "ESPM411-20260906001", flowType: "進料", grade: "工業級", productName: "EBR-P1R", tankNo: "TKC05", customer: "KEQ-3506 (櫃:6108)", quantity: "8000 KG", dept: "回收處理課", requester: "張建國", status: "pending", createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
+          { id: "sample-3", barcode: "ESXM101-20260901020", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK605", customer: "PPCU7020018", quantity: "5000 KG", dept: "一部一課", requester: "林大為", status: "completed", qcResult: "PASS", qcNote: "品質合格放行", createdAt: new Date(Date.now()-3600000).toISOString(), completedAt: new Date().toISOString() }
         ];
         localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
       }
@@ -2271,19 +2110,19 @@
     const pData = filtered.filter(s => s.status === 'pending');
     let cData = filtered.filter(s => s.status === 'completed' || s.status === 'failed');
 
-    // 憒?雿輻???撓?交?蝣箇?韏瑁??交?嚗??歇瑼ａ?摰???閮剖憿舐內餈?憭?(隞予?憭押?憭?
+    // 如果使用者沒有輸入明確的起迄日期，則「已檢驗完成」預設只顯示近3天 (今天、昨天、前天)
     if (!start && !end) {
       const d = new Date();
-      d.setDate(d.getDate() - 2); // 敺?2憭?= ?隞予??憭?
+      d.setDate(d.getDate() - 2); // 往前推2天 = 包含今天共3天
       const minDateStr = d.toISOString().split('T')[0];
       cData = cData.filter(s => {
-        if (s.qcResult === 'FAIL') return true; // FAIL 獢辣銝??靽?隞乩??寞閰摯
+        if (s.qcResult === 'FAIL') return true; // FAIL 案件不隱藏，保留以供特採評估
         const sDate = s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : '';
         return sDate >= minDateStr;
       });
     }
 
-    // 閮??暹?隞嗆
+    // 計算逾期件數
     const overdueCount = pData.filter(s => {
       if (!s.createdAt) return false;
       return (Date.now() - new Date(s.createdAt).getTime()) >= (2 * 60 * 60 * 1000);
@@ -2292,51 +2131,51 @@
     document.getElementById('kpi-pending').innerText = pData.length;
     document.getElementById('kpi-overdue').innerText = overdueCount;
     document.getElementById('kpi-completed').innerText = cData.length;
-    document.getElementById('pendingCountBadge').innerText = `${pData.length} 隞?(?暹? ${overdueCount})`;
-    document.getElementById('completedCountBadge').innerText = `${cData.length} 隞跆;
+    document.getElementById('pendingCountBadge').innerText = `${pData.length} 件 (逾期 ${overdueCount})`;
+    document.getElementById('completedCountBadge').innerText = `${cData.length} 件`;
     const tabP = document.getElementById('tabCountPending');
-    if(tabP) tabP.innerText = `${pData.length} (?暹? ${overdueCount})`;
+    if(tabP) tabP.innerText = `${pData.length} (逾期 ${overdueCount})`;
     const tabC = document.getElementById('tabCountCompleted');
     if(tabC) tabC.innerText = `${cData.length}`;
 
     const todayStr = new Date().toISOString().split('T')[0];
     document.getElementById('kpi-today').innerText = allData.filter(s => s.createdAt && s.createdAt.startsWith(todayStr)).length;
 
-    // ????銵券 Thead
+    // 動態切換表頭 Thead
     if (isAdaptive) {
       if (pHead) {
         pHead.innerHTML = `<tr>
-          <th style="width: 30%;">?? / ?株?</th>
-          <th style="width: 23%;">瑽質? / 頠?</th>
-          <th style="width: 28%;">?見?桐? / 蝑???/th>
-          <th style="width: 19%; text-align:center;">??</th>
+          <th style="width: 30%;">品項 / 單號</th>
+          <th style="width: 23%;">槽號 / 車牌</th>
+          <th style="width: 28%;">送樣單位 / 等候時長</th>
+          <th style="width: 19%; text-align:center;">操作</th>
         </tr>`;
       }
       if (cHead) {
         cHead.innerHTML = `<tr>
-          <th style="width: 30%;">?? / ?株?</th>
-          <th style="width: 23%;">瑽質? / 頠?</th>
-          <th style="width: 26%;">?見?桐? / ?文?</th>
-          <th style="width: 21%;">?文??酉</th>
+          <th style="width: 30%;">品項 / 單號</th>
+          <th style="width: 23%;">槽號 / 車牌</th>
+          <th style="width: 26%;">送樣單位 / 判定</th>
+          <th style="width: 21%;">判定備註</th>
         </tr>`;
       }
 
-      // ?芷??4 甈摰對??嗆偌撟單頠賂?
+      // 自適應 4 欄內容（零水平捲軸）
       pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
         <td>
           <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:2px;">
             <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
             ${getFlowTag(s.flowType)}
             <span style="font-size:0.72rem; font-weight:bold; color:#1e40af; background:#eff6ff; padding:1px 4px; border-radius:3px;">${s.grade || '-'}</span>
-            ${(parseInt(s.round)||1) >= 2 ? `<span style="font-size:0.72rem; font-weight:bold; color:#ea580c; background:#fed7aa; padding:1px 6px; border-radius:10px;">?? 蝚?{s.round}甈⊿見</span>` : ''}
+            ${(parseInt(s.round)||1) >= 2 ? `<span style="font-size:0.72rem; font-weight:bold; color:#ea580c; background:#fed7aa; padding:1px 6px; border-radius:10px;">⚠️ 第${s.round}次送樣</span>` : ''}
           </div>
-          <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">?? <b>${s.barcode}</b></div>
+          <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">單: <b>${s.barcode}</b></div>
         </td>
         <td>
           <div style="margin-bottom:2px;">
             <span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.78rem;">${s.tankNo || '-'}</span>
           </div>
-          <div style="font-size:0.76rem; color:#334155; word-break:break-all;">頠? <b>${s.customer || '-'}</b></div>
+          <div style="font-size:0.76rem; color:#334155; word-break:break-all;">車: <b>${s.customer || '-'}</b></div>
         </td>
         <td>
           <div style="font-weight:600; color:#1e293b; font-size:0.8rem; margin-bottom:2px;">
@@ -2347,11 +2186,11 @@
         </td>
         <td style="text-align:center;">
           <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
-            <button class="btn-action btn-print" onclick="printLabelById('${s.id}')" style="width:100%; padding:4px 0; font-size:0.75rem; margin:0;">?</button>
-            <button class="btn-action btn-judge" onclick="openJudge('${s.id}')" style="width:100%; padding:4px 0; font-size:0.75rem; margin:0;">?文?</button>
+            <button class="btn-action btn-print" onclick="printLabelById('${s.id}')" style="width:100%; padding:4px 0; font-size:0.75rem; margin:0;">列印</button>
+            <button class="btn-action btn-judge" onclick="openJudge('${s.id}')" style="width:100%; padding:4px 0; font-size:0.75rem; margin:0;">判定</button>
           </div>
         </td>
-      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">?桀??∪?瑼ａ?璅??</td></tr>`;
+      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
       console.log('pData:', pData);
       console.log('pBody.innerHTML length:', pBody.innerHTML.length);
       console.log('pData:', pData);
@@ -2363,64 +2202,64 @@
             <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
             ${getFlowTag(s.flowType)}
             <span style="font-size:0.72rem; font-weight:bold; color:#1e40af; background:#eff6ff; padding:1px 4px; border-radius:3px;">${s.grade || '-'}</span>
-            ${(parseInt(s.round)||1) >= 2 ? `<span style="font-size:0.72rem; font-weight:bold; color:#ea580c; background:#fed7aa; padding:1px 6px; border-radius:10px;">蝚?{s.round}甈?/span>` : ''}
+            ${(parseInt(s.round)||1) >= 2 ? `<span style="font-size:0.72rem; font-weight:bold; color:#ea580c; background:#fed7aa; padding:1px 6px; border-radius:10px;">第${s.round}次</span>` : ''}
           </div>
-          <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">?? <b>${s.barcode}</b></div>
+          <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">單: <b>${s.barcode}</b></div>
         </td>
         <td>
           <div style="margin-bottom:2px;">
             <span style="background:#f1f5f9; color:#475569; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.78rem;">${s.tankNo || '-'}</span>
           </div>
-          <div style="font-size:0.76rem; color:#334155; word-break:break-all;">頠? <b>${s.customer || '-'}</b></div>
+          <div style="font-size:0.76rem; color:#334155; word-break:break-all;">車: <b>${s.customer || '-'}</b></div>
         </td>
         <td>
           <div style="display:flex; align-items:center; gap:4px; margin-bottom:2px; flex-wrap:wrap;">
             <span style="font-weight:600; color:#1e293b; font-size:0.8rem;">${s.dept || '-'}</span>
-            <b style="color:${s.qcResult==='PASS'?'#059669':(s.qcResult==='?寞'?'#7c3aed':(s.qcResult==='??寞'?'#d97706':'#dc2626'))}; background:${s.qcResult==='PASS'?'#d1fae5':(s.qcResult==='?寞'?'#ede9fe':(s.qcResult==='??寞'?'#fef3c7':'#fee2e2'))}; padding:1px 5px; border-radius:4px; font-size:0.74rem;">${s.qcResult}</b>
+            <b style="color:${s.qcResult==='PASS'?'#059669':(s.qcResult==='特採'?'#7c3aed':(s.qcResult==='需特採'?'#d97706':'#dc2626'))}; background:${s.qcResult==='PASS'?'#d1fae5':(s.qcResult==='特採'?'#ede9fe':(s.qcResult==='需特採'?'#fef3c7':'#fee2e2'))}; padding:1px 5px; border-radius:4px; font-size:0.74rem;">${s.qcResult}</b>
           </div>
-          <div style="font-size:0.72rem; color:#64748b;">摰?: ${formatSimpleDate(s.completedAt)}</div>
+          <div style="font-size:0.72rem; color:#64748b;">完成: ${formatSimpleDate(s.completedAt)}</div>
         </td>
         <td>
           <div style="font-size:0.76rem; color:#475569; line-height:1.3; max-height:36px; overflow-y:auto; word-break:break-word; margin-bottom:4px;">
-            ${s.qcNote || '<span style="color:#94a3b8;">?∪?閮?/span>'}
+            ${s.qcNote || '<span style="color:#94a3b8;">無備註</span>'}
           </div>
-          ${s.qcResult === '??寞' ? `<button onclick="openJudge('${s.id}')" style="font-size:0.7rem; background:#8b5cf6; color:white; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%; margin-top:3px; animation: pulse 2s infinite;">? 銝餌恣撖拇?寞</button>` : ''}
-          ${s.qcResult === 'FAIL' ? `<div style="font-size:0.7rem; color:#b91c1c; font-weight:bold; background:#fee2e2; padding:3px; border-radius:4px; text-align:center;">撌脰????</div>` : ''}
-          ${(s.parentId || s.round > 1) ? `<button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%; margin-top:3px;">?? ?亦??見甇瑕</button>` : ''}
+          ${s.qcResult === '需特採' ? `<button onclick="openJudge('${s.id}')" style="font-size:0.7rem; background:#8b5cf6; color:white; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%; margin-top:3px; animation: pulse 2s infinite;">🚨 主管審核特採</button>` : ''}
+          ${s.qcResult === 'FAIL' ? `<div style="font-size:0.7rem; color:#b91c1c; font-weight:bold; background:#fee2e2; padding:3px; border-radius:4px; text-align:center;">已自動產生重送單</div>` : ''}
+          ${(s.parentId || s.round > 1) ? `<button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%; margin-top:3px;">📋 查看送樣歷史</button>` : ''}
         </td>
-      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">撠瑼ａ?摰?蝝??/td></tr>`;
+      </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
     } else {
-      // ?喟絞摰銋?撅?璅∪?
+      // 傳統完整九欄展開模式
       if (pHead) {
         pHead.innerHTML = `<tr>
-          <th>?株?</th>
-          <th>??</th>
-          <th>蝑?</th>
-          <th>??</th>
-          <th>瑽質?</th>
-          <th>頠?/瑹?</th>
-          <th>?見?桐?</th>
-          <th>?見?? / 蝑???/th>
-          <th class="col-action">??</th>
+          <th>單號</th>
+          <th>動向</th>
+          <th>等級</th>
+          <th>品名</th>
+          <th>槽號</th>
+          <th>車牌/櫃號</th>
+          <th>送樣單位</th>
+          <th>送樣時間 / 等候時長</th>
+          <th class="col-action">操作</th>
         </tr>`;
       }
       if (cHead) {
         cHead.innerHTML = `<tr>
-          <th>?株?</th>
-          <th>??</th>
-          <th>蝑?</th>
-          <th>??</th>
-          <th>瑽質?</th>
-          <th>頠?/瑹?</th>
-          <th>?見?桐?</th>
-          <th>?文?蝯?</th>
-          <th>摰???</th>
-          <th>?文??酉</th>
+          <th>單號</th>
+          <th>動向</th>
+          <th>等級</th>
+          <th>品名</th>
+          <th>槽號</th>
+          <th>車牌/櫃號</th>
+          <th>送樣單位</th>
+          <th>判定結果</th>
+          <th>完成時間</th>
+          <th>判定備註</th>
         </tr>`;
       }
 
       pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
-        <td><b>${s.barcode}</b>${(parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem;font-weight:bold;color:#ea580c;background:#fed7aa;padding:1px 5px;border-radius:8px;">蝚?{s.round}甈?/span>` : ''}</td>
+        <td><b>${s.barcode}</b>${(parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem;font-weight:bold;color:#ea580c;background:#fed7aa;padding:1px 5px;border-radius:8px;">第${s.round}次</span>` : ''}</td>
         <td>${getFlowTag(s.flowType)}</td>
         <td><span style="font-weight:bold; color:#1e40af;">${s.grade || '-'}</span></td>
         <td><b>${s.productName}</b></td>
@@ -2432,13 +2271,13 @@
           <div style="margin-top:3px;">${getWaitTimeBadge(s.createdAt)}</div>
         </td>
         <td class="col-action" style="white-space: nowrap; text-align:center;">
-          <button class="btn-action btn-print" onclick="printLabelById('${s.id}')">?</button>
-          <button class="btn-action btn-judge" onclick="openJudge('${s.id}')">?文?</button>
+          <button class="btn-action btn-print" onclick="printLabelById('${s.id}')">列印</button>
+          <button class="btn-action btn-judge" onclick="openJudge('${s.id}')">判定</button>
         </td>
-      </tr>`).join('') : `<tr><td colspan="9" style="text-align:center; color:#94a3b8; padding:30px;">?桀??∪?瑼ａ?璅??</td></tr>`;
+      </tr>`).join('') : `<tr><td colspan="9" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
       
       cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
-        <td><b>${s.barcode}</b>${(parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem;font-weight:bold;color:#ea580c;background:#fed7aa;padding:1px 5px;border-radius:8px;">蝚?{s.round}甈?/span>` : ''}</td>
+        <td><b>${s.barcode}</b>${(parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem;font-weight:bold;color:#ea580c;background:#fed7aa;padding:1px 5px;border-radius:8px;">第${s.round}次</span>` : ''}</td>
         <td>${getFlowTag(s.flowType)}</td>
         <td><b>${s.grade || '-'}</b></td>
         <td><b>${s.productName}</b></td>
@@ -2449,14 +2288,14 @@
         <td style="color:#4b5563;">${formatSimpleDate(s.completedAt)}</td>
         <td style="font-size:0.8rem; color:#64748b;">
           ${s.qcNote || '-'}
-          ${s.qcResult === '??寞' ? `<br><button onclick="openJudge('${s.id}')" style="font-size:0.7rem; background:#8b5cf6; color:white; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:3px;">? 撖拇?寞</button>` : ''}
-            ${s.qcResult === 'FAIL' ? `<br><div style="font-size:0.7rem; color:#b91c1c; font-weight:bold;">撌脰????/div>` : ''}
-          ${(s.parentId || s.round > 1) ? `<br><button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:2px;">?? ?見甇瑕</button>` : ''}
+          ${s.qcResult === '需特採' ? `<br><button onclick="openJudge('${s.id}')" style="font-size:0.7rem; background:#8b5cf6; color:white; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:3px;">🚨 審核特採</button>` : ''}
+            ${s.qcResult === 'FAIL' ? `<br><div style="font-size:0.7rem; color:#b91c1c; font-weight:bold;">已自動重送</div>` : ''}
+          ${(s.parentId || s.round > 1) ? `<br><button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:2px;">📋 送樣歷史</button>` : ''}
         </td>
-      </tr>`).join('') : `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:30px;">撠瑼ａ?摰?蝝??/td></tr>`;
+      </tr>`).join('') : `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
     }
 
-    // ?嗆見??銵冽?唳?嚗?甇亙??T100 ???詨?見?????
+    // 當樣品列表更新時，同步刷新 T100 排程選單的送樣狀態記號
     renderT100Dropdown();
   }
 
@@ -2480,7 +2319,7 @@
   }
 
   // =========================================================
-  // 撌亥??亥岷璅∠?嚗???頛詨撌亥??芸?撣嗅憪?
+  // 工號查詢模組：掃描或輸入工號自動帶出姓名
   // =========================================================
 
   function getEmployeeMap() {
@@ -2497,9 +2336,9 @@
     const map = getEmployeeMap();
     if (map[id]) {
       nameInput.value = map[id];
-      if (msg) { msg.innerText = `??${id} ??${map[id]}`; msg.style.color = '#059669'; }
+      if (msg) { msg.innerText = `✅ ${id} → ${map[id]}`; msg.style.color = '#059669'; }
     } else {
-      if (msg) { msg.innerText = `?? ?芣?啣極??${id}嚗??湔?典???頛詨`; msg.style.color = '#d97706'; }
+      if (msg) { msg.innerText = `⚠️ 未找到工號 ${id}，請直接在姓名欄輸入`; msg.style.color = '#d97706'; }
     }
   }
 
@@ -2523,7 +2362,7 @@
     });
     localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(map));
     closeEmpMapModal();
-    showToast(`??撌脣摮?${Object.keys(map).length} 蝑撌亥???`);
+    showToast(`✅ 已儲存 ${Object.keys(map).length} 筆員工資料！`);
   }
 
   function submitForm() {
@@ -2533,21 +2372,20 @@
     const customer = document.getElementById('customer').value.trim();
     const requester = document.getElementById('requester').value.trim();
     const dept = document.getElementById('dept').value;
-    const remark = document.getElementById('remark')?.value?.trim() || '';
 
     if (!productName || !tankNo || !customer || !requester) {
-      alert("?? ?漱憭望?嚗n\n???脣鞎冽局????瑹??見鈭箏???箏?憛恍??殷?隢Ⅱ隤‵憒亙????);
+      alert("⚠️ 提交失敗！\n\n「品名、進出貨槽號、車牌/櫃號、送樣人員」皆為必填項目，請確認填妥後再送出。");
       return; 
     }
 
     if (!barcode) {
       const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-      barcode = `${todayStr}-摨怠?`;
+      barcode = `${todayStr}-庫存`;
     }
 
     const btn = document.getElementById('submitBtn'); 
     btn.disabled = true; 
-    btn.innerText = "撖怠?見蝝?葉...";
+    btn.innerText = "寫入送樣紀錄中...";
     
     const payload = { 
       id: 'ID-' + Date.now(),
@@ -2560,19 +2398,16 @@
       quantity: document.getElementById('quantity').value, 
       dept: dept, 
       requester: requester,
-      remark: remark,
       status: 'pending',
       createdAt: new Date().toISOString()
     };
 
     if(IS_GAS) {
-
-
       google.script.run.withSuccessHandler(() => { 
         resetForm();
         btn.disabled = false; 
-        btn.innerText = "蝣箄??漱?見 ??"; 
-        showToast("???見??撌脣神??Google 閰衣?銵剁?");
+        btn.innerText = "確認提交送樣 🚀"; 
+        showToast("✅ 送樣成功已寫入 Google 試算表！");
         load(); 
       }).createSample(payload);
     } else if(GAS_API_URL) {
@@ -2585,22 +2420,22 @@
       .then(res => {
         resetForm();
         btn.disabled = false;
-        btn.innerText = "蝣箄??漱?見 ??";
+        btn.innerText = "確認提交送樣 🚀";
         if(res.success) {
-          showToast("???見??撌脣?神??Google 閰衣?銵剁?");
+          showToast("✅ 送樣成功已即時寫入 Google 試算表！");
           load();
         } else {
-          alert("?見憭望?嚗? + (res.error || "?芰?航炊"));
+          alert("送樣失敗：" + (res.error || "未知錯誤"));
         }
       })
       .catch(err => {
-        console.warn("API ?見?啣虜嚗摮璈?, err);
+        console.warn("API 送樣異常，暫存本機", err);
         allData.unshift(payload);
         localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
         resetForm();
         btn.disabled = false;
-        btn.innerText = "蝣箄??漱?見 ??";
-        showToast("?? ?脩垢???憭望?嚗歇?摮?祆?嚗?);
+        btn.innerText = "確認提交送樣 🚀";
+        showToast("⚠️ 雲端連線失敗，已先暫存於本機！");
         render();
       });
     } else {
@@ -2609,8 +2444,8 @@
         localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
         resetForm();
         btn.disabled = false; 
-        btn.innerText = "蝣箄??漱?見 ??"; 
-        showToast("???見??嚗璈??Ｙ?蝝?歇?湔嚗?");
+        btn.innerText = "確認提交送樣 🚀"; 
+        showToast("✅ 送樣成功（本機/離線紀錄已更新）！");
         render();
       }, 300);
     }
@@ -2620,12 +2455,11 @@
     const targetData = allData.find(d => d.id === id); 
     if(!targetData) return;
 
-    // ?交閮??末閮剖?嚗?亙翰????(瘞游?/GC 1撘?+ Metal 2撘?
+    // 若曾記住偏好設定，直接快速列印 (水分/GC 1張 + Metal 2張)
     const remember = localStorage.getItem('HS_QC_REMEMBER_PRINT');
     if(remember === 'true') {
       const wQty = parseInt(localStorage.getItem('HS_QC_PRINT_WATER') || '1', 10);
-      let mQty = parseInt(localStorage.getItem('HS_QC_PRINT_METAL') || '2', 10);
-      if (targetData.grade === '?瘨?) mQty = 0;
+      const mQty = parseInt(localStorage.getItem('HS_QC_PRINT_METAL') || '2', 10);
       doPrintLabels(targetData, wQty, mQty);
       return;
     }
@@ -2633,19 +2467,19 @@
     openPrintModal(targetData);
   }
 
-  // 撌亙蝞梢????冽???閮剖?靽格鞎潛?閬?撐??
+  // 工具箱點擊：隨時開啟設定修改貼紙規格或張數
   function openPrintSettingsGlobal() {
     const dummy = allData[0] || {
       id: "dummy",
-      barcode: "ESXM101-閮剖??汗??,
+      barcode: "ESXM101-設定預覽單",
       productName: "IPAUPS",
       grade: "UPS",
       tankNo: "TK624",
       customer: "PPCU7019228",
-      flowType: "?箄疏",
+      flowType: "出貨",
       quantity: "5000 KG",
-      dept: "鞈?隤?,
-      requester: "?恣皜祈岫??,
+      dept: "資材課",
+      requester: "品管測試員",
       createdAt: new Date().toISOString()
     };
     openPrintModal(dummy);
@@ -2661,11 +2495,9 @@
     document.getElementById('printPreviewRequester').innerText = data.requester;
 
     const savedW = localStorage.getItem('HS_QC_PRINT_WATER') || '1';
-    let savedM = localStorage.getItem('HS_QC_PRINT_METAL') || '2';
+    const savedM = localStorage.getItem('HS_QC_PRINT_METAL') || '2';
     const savedWidth = localStorage.getItem('HS_QC_PRINT_WIDTH') || '90';
     const savedHeight = localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100';
-
-    if (data.grade === '?瘨?) savedM = '0';
 
     document.getElementById('printQtyWaterGC').value = savedW;
     document.getElementById('printQtyMetal').value = savedM;
@@ -2675,7 +2507,7 @@
 
     updateTotalLabelCount();
     
-    // ????憿舐內???憒??舐?閮剖?璅∪? (dummy)嚗?憿舐內?摮身摰??梯?????
+    // 切換按鈕顯示狀態：如果是純設定模式 (dummy)，則顯示「儲存設定」，隱藏「送出列印」
     if (data.id === "dummy") {
       document.getElementById('btnPrintLabels').style.display = 'none';
       document.getElementById('btnSavePrintSettingsOnly').style.display = 'block';
@@ -2706,7 +2538,7 @@
       localStorage.removeItem('HS_QC_REMEMBER_PRINT');
     }
     closePrintModal();
-    showToast("???閮剖?撌脫??);
+    showToast("✅ 列印設定已更新");
   }
 
   function closePrintModal() {
@@ -2719,7 +2551,7 @@
     const width = parseInt(document.getElementById('printLabelWidth').value || '90', 10);
     const height = parseInt(document.getElementById('printLabelHeight').value || '100', 10);
     const total = w + m;
-    document.getElementById('printTotalLabelCount').innerText = `${total} 撘?(${width}mm ? ${height}mm)`;
+    document.getElementById('printTotalLabelCount').innerText = `${total} 張 (${width}mm × ${height}mm)`;
   }
 
   function resetPrintSettingsToDefault() {
@@ -2734,7 +2566,7 @@
     document.getElementById('printLabelHeight').value = '100';
     document.getElementById('rememberPrintSettings').checked = false;
     updateTotalLabelCount();
-    showToast("?? 撌脫敺拚?閮剛??潘?90mm ? 100mm嚗偌??GC 1撘?+ Metal 2撘蛛?");
+    showToast("🔄 已恢復預設規格：90mm × 100mm，水分/GC 1張 + Metal 2張！");
   }
 
   function confirmPrintLabels() {
@@ -2748,7 +2580,7 @@
     const height = parseInt(document.getElementById('printLabelHeight').value || '100', 10);
 
     if(wQty + mQty <= 0) {
-      alert("隢撠????1 撘菜?蝐歹?");
+      alert("請至少選擇列印 1 張標籤！");
       return;
     }
 
@@ -2769,7 +2601,7 @@
     doPrintLabels(targetData, wQty, mQty, rotateMode);
   }
 
-  // 璅惜璈??券???頛詨?詨? (?舀??鞎潛?撖砍漲??摨?
+  // 標籤機專用連續列印輸出核心 (支援動態貼紙寬度與高度)
   function doPrintLabels(data, waterCount, metalCount, rotateMode = 'none') {
     const totalLabels = waterCount + metalCount;
     const labelWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '90', 10);
@@ -2788,15 +2620,15 @@
     const pageWidth = needsRotate ? labelHeight : labelWidth;
     const pageHeight = needsRotate ? labelWidth : labelHeight;
 
-    // 1. 瘞游? & GC 瑼ａ?璅惜 (??waterCount 撘?
+    // 1. 水分 & GC 檢驗標籤 (共 waterCount 張)
     for(let i = 1; i <= waterCount; i++) {
       labelPagesHtml += `
         <div class="label-page${compactClass}">
           <div class="rotatable-container" style="${rotationTransform}">
             <div class="label-border">
               <div class="label-header">
-                <div class="corp-title">暾餃??飛?恣瑼ａ?銝剖? (QC LAB)</div>
-                <div class="badge-cat water">??偌??& GC?炎撽見??(${currentIdx}/${totalLabels})</div>
+                <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
+                <div class="badge-cat water">💧【水分 & GC】檢驗樣品 (${currentIdx}/${totalLabels})</div>
               </div>
               
               <div class="barcode-banner">
@@ -2805,25 +2637,25 @@
 
               <div class="content-wrapper">
                 <table class="info-table">
-                  <tr><td class="f-name">??嚗?/td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
-                  <tr><td class="f-name">?脖?嚗?/td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
-                  <tr><td class="f-name">頠?嚗?/td><td class="f-val">${data.customer || '-'}</td></tr>
-                  <tr><td class="f-name">?賊?嚗?/td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
-                  <tr><td class="f-name">?見嚗?/td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
-                  <tr><td class="f-name">??嚗?/td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
+                  <tr><td class="f-name">品名：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
+                  <tr><td class="f-name">儲位：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
+                  <tr><td class="f-name">車牌：</td><td class="f-val">${data.customer || '-'}</td></tr>
+                  <tr><td class="f-name">數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
+                  <tr><td class="f-name">送樣：</td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
+                  <tr><td class="f-name">時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
                 </table>
 
                 <div class="lab-record-box">
-                  <div class="lab-title">?妒 撖阡?摰方???</div>
-                  <div class="lab-row"><span>??瘞游?嚗?/span><span class="fill-line">________ ppm</span></div>
-                  <div class="lab-row"><span>??GC嚗?/span><span class="fill-line">________ %</span></div>
-                  <div class="lab-row sign-row"><span>蝪賜?嚗___</span><span>?交?嚗_____</span></div>
+                  <div class="lab-title">🧪 實驗室記錄：</div>
+                  <div class="lab-row"><span>• 水分：</span><span class="fill-line">________ ppm</span></div>
+                  <div class="lab-row"><span>• GC：</span><span class="fill-line">________ %</span></div>
+                  <div class="lab-row sign-row"><span>簽章：____</span><span>日期：______</span></div>
                 </div>
               </div>
 
               <div class="label-footer">
-                <span>鞎潛?: ${labelWidth}x${labelHeight}mm</span>
-                <span>?活: ${currentIdx}/${totalLabels}</span>
+                <span>貼紙: ${labelWidth}x${labelHeight}mm</span>
+                <span>頁次: ${currentIdx}/${totalLabels}</span>
               </div>
             </div>
           </div>
@@ -2832,10 +2664,10 @@
       currentIdx++;
     }
 
-    // 2. Metal ?惇?Ｗ? ICP-MS 璅惜 (??metalCount 撘?
+    // 2. Metal 金屬離子 ICP-MS 標籤 (共 metalCount 張)
     for(let i = 1; i <= metalCount; i++) {
       const isSecondSample = (i >= 2);
-      const bottleTitle = isSecondSample ? "??2 (?見)" : "??1 (甇?見)";
+      const bottleTitle = isSecondSample ? "瓶 2 (留樣)" : "瓶 1 (正樣)";
       const bottleBadgeClass = isSecondSample ? "metal-retention" : "metal-main";
 
       labelPagesHtml += `
@@ -2843,8 +2675,8 @@
           <div class="rotatable-container" style="${rotationTransform}">
             <div class="label-border">
               <div class="label-header">
-                <div class="corp-title">暾餃??飛?恣瑼ａ?銝剖? (QC LAB)</div>
-                <div class="badge-cat ${bottleBadgeClass}">??etal ICP-MS??{bottleTitle} (${currentIdx}/${totalLabels})</div>
+                <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
+                <div class="badge-cat ${bottleBadgeClass}">🔬【Metal ICP-MS】${bottleTitle} (${currentIdx}/${totalLabels})</div>
               </div>
               
               <div class="barcode-banner">
@@ -2853,25 +2685,25 @@
 
               <div class="content-wrapper">
                 <table class="info-table">
-                  <tr><td class="f-name">??嚗?/td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
-                  <tr><td class="f-name">?脖?嚗?/td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
-                  <tr><td class="f-name">頠?嚗?/td><td class="f-val">${data.customer || '-'}</td></tr>
-                  <tr><td class="f-name">?賊?嚗?/td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
-                  <tr><td class="f-name">?見嚗?/td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
-                  <tr><td class="f-name">??嚗?/td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
+                  <tr><td class="f-name">品名：</td><td class="f-val"><b>${data.productName}</b> <span class="tag-grade">${data.grade || '-'}</span></td></tr>
+                  <tr><td class="f-name">儲位：</td><td class="f-val"><span class="tag-tank">${data.tankNo || '-'}</span></td></tr>
+                  <tr><td class="f-name">車牌：</td><td class="f-val">${data.customer || '-'}</td></tr>
+                  <tr><td class="f-name">數量：</td><td class="f-val">${data.flowType} / ${data.quantity || '-'}</td></tr>
+                  <tr><td class="f-name">送樣：</td><td class="f-val">${data.dept} (<b>${data.requester}</b>)</td></tr>
+                  <tr><td class="f-name">時間：</td><td class="f-val">${formatSimpleDate(data.createdAt)}</td></tr>
                 </table>
 
                 <div class="lab-record-box">
-                  <div class="lab-title">? ICP-MS 閮?嚗?/div>
-                  <div class="lab-row"><span>??獢?嚗?/span><span class="fill-line">____________</span></div>
-                  <div class="lab-row type-row"><span>${isSecondSample ? '??璅??∟?皜? : '?迤璅??⊥乩辣'}</span></div>
-                  <div class="lab-row sign-row"><span>蝪賜?嚗___</span><span>?交?嚗_____</span></div>
+                  <div class="lab-title">🔬 ICP-MS 記錄：</div>
+                  <div class="lab-row"><span>• 案號：</span><span class="fill-line">____________</span></div>
+                  <div class="lab-row type-row"><span>${isSecondSample ? '☑留樣 □複測' : '☑正樣 □急件'}</span></div>
+                  <div class="lab-row sign-row"><span>簽章：____</span><span>日期：______</span></div>
                 </div>
               </div>
 
               <div class="label-footer">
-                <span>鞎潛?: ${labelWidth}x${labelHeight}mm</span>
-                <span>?活: ${currentIdx}/${totalLabels}</span>
+                <span>貼紙: ${labelWidth}x${labelHeight}mm</span>
+                <span>頁次: ${currentIdx}/${totalLabels}</span>
               </div>
             </div>
           </div>
@@ -2886,7 +2718,7 @@
       <html>
       <head>
         <meta charset="utf-8">
-        <title>瑼ａ??見璅惜 - ${data.barcode}</title>
+        <title>檢驗送樣標籤 - ${data.barcode}</title>
         <style>
           @page {
             size: ${pageWidth}mm ${pageHeight}mm;
@@ -2926,7 +2758,7 @@
             page-break-after: auto;
           }
           
-          /* 蝺?璅∪? (擃漲 <= 60mm) 撠?? */
+          /* 緊湊模式 (高度 <= 60mm) 專用排版 */
           .label-page.compact .rotatable-container {
             padding: 1mm;
           }
@@ -2934,7 +2766,7 @@
             padding: 1mm 1.5mm;
           }
           .label-page.compact .corp-title {
-            display: none; /* ?梯??砍?祇 */
+            display: none; /* 隱藏公司抬頭 */
           }
           .label-page.compact .badge-cat {
             margin-top: 0;
@@ -2964,7 +2796,7 @@
             padding: 0.5mm 0;
           }
           .label-page.compact .f-name {
-            width: 9mm; /* 蝮桃璅?撖砍漲 */
+            width: 9mm; /* 縮短標題寬度 */
           }
           .label-page.compact .lab-record-box {
             width: 45%;
@@ -2980,10 +2812,10 @@
           }
           .label-page.compact .lab-row {
             margin-bottom: 0;
-            flex-direction: column; /* 蝪賜???璇?銝? */
+            flex-direction: column; /* 簽章和線條排上下 */
           }
           .label-page.compact .sign-row {
-            flex-direction: row; /* 蝪賜??交??椰??*/
+            flex-direction: row; /* 簽章日期排左右 */
             font-size: 8px;
           }
           .label-page.compact .label-footer {
@@ -3168,28 +3000,28 @@
     }
     const sample = allData.find(s => s.id === id);
     const sel = document.getElementById('modalResult');
-    if (sample && sample.qcResult === '??寞') {
+    if (sample && sample.qcResult === '需特採') {
       sel.innerHTML = `
-        <option value="?寞">PASS (?寞?曇?)</option>
-        <option value="FAIL">FAIL (擏??寞銝西????</option>
+        <option value="特採">PASS (特採放行)</option>
+        <option value="FAIL">FAIL (駁回特採並自動重送)</option>
       `;
-      sel.value = '?寞';
+      sel.value = '特採';
     } else {
       sel.innerHTML = `
-        <option value="PASS">PASS (??曇?)</option>
-        <option value="FAIL">FAIL (銝??潸????</option>
-        <option value="??寞">銝泵???(??寞)</option>
+        <option value="PASS">PASS (合格放行)</option>
+        <option value="FAIL">FAIL (不合格自動重送)</option>
+        <option value="需特採">不符合內控 (需特採)</option>
       `;
       sel.value = 'PASS';
     }
     document.getElementById('currentId').value = id; 
-    document.getElementById('modalNote').value = '??曇?'; 
+    document.getElementById('modalNote').value = '合格放行'; 
     document.getElementById('modalResult').value = 'PASS';
     handleResultChange(); 
     
     const approverText = document.getElementById('judgeApproverText');
     if (approverText) {
-      approverText.innerText = '? ?曇??詨?鈭綽?' + sessionStorage.getItem('QC_LOGGED_IN_USER');
+      approverText.innerText = '👤 放行核准人：' + sessionStorage.getItem('QC_LOGGED_IN_USER');
     }
     
     const pinBox = document.getElementById('modalPin');
@@ -3200,7 +3032,7 @@
 
     
     const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
-    const phrasesStr = cfgStr ? (JSON.parse(cfgStr)['OPTIONS_PHRASES'] || '??曇?, 瘞游???, ?惇?啣虜, 敺桃?頞?, 憭??啣虜, ?嗡?') : '??曇?, 瘞游???, ?惇?啣虜, 敺桃?頞?, 憭??啣虜, ?嗡?';
+    const phrasesStr = cfgStr ? (JSON.parse(cfgStr)['OPTIONS_PHRASES'] || '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他') : '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他';
     const phrases = phrasesStr.split(',').map(s=>s.trim()).filter(Boolean);
     const container = document.getElementById('modalPhraseContainer');
     if (container) {
@@ -3217,25 +3049,24 @@
     const note = document.getElementById('modalNote');
     if (sel.value === 'FAIL') {
       sel.style.color = '#dc2626'; // Red
-      if (note.value === '??曇?' || note.value === '?寞?曇?') note.value = '';
-    } else if (sel.value === '??寞') {
+      if (note.value === '合格放行' || note.value === '特採放行') note.value = '';
+    } else if (sel.value === '需特採') {
       sel.style.color = '#d97706'; // Orange
-      if (note.value === '??曇?' || note.value === '?寞?曇?') note.value = '';
-    } else if (sel.value === '?寞') {
+      if (note.value === '合格放行' || note.value === '特採放行') note.value = '';
+    } else if (sel.value === '特採') {
       sel.style.color = '#7c3aed'; // Purple
-      if (note.value === '??曇?' || note.value === '') note.value = '?寞?曇?';
+      if (note.value === '合格放行' || note.value === '') note.value = '特採放行';
     } else {
       sel.style.color = '#059669'; // Green
-      if (note.value === '' || note.value === '?寞?曇?') note.value = '??曇?';
+      if (note.value === '' || note.value === '特採放行') note.value = '合格放行';
     }
   }
   function submitJudge() {
-    const approver = sessionStorage.getItem('QC_LOGGED_IN_USER');
     const pin = document.getElementById('modalPin').value;
     
     const btn = document.getElementById('modalBtn'); 
     btn.disabled = true; 
-    btn.innerText = "撽???銝?..";
+    btn.innerText = "驗證授權中...";
     
     const id = document.getElementById('currentId').value;
     const result = document.getElementById('modalResult').value;
@@ -3244,14 +3075,14 @@
 
     if(IS_GAS) {
       google.script.run.withSuccessHandler((res) => { 
-        btn.disabled = false; btn.innerText = "蝣箄??文?銝阡 Teams";
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
         if(res.success) { 
           closeModal(); 
-          showToast("???文??曇?摰?嚗eams ?∠?撌脩移皞銝餌恣?府?桐???);
+          showToast("✅ 判定放行完成！Teams 卡片已精準通報主管與該單位。");
           load(); 
         } else { 
           alert(res.error); 
-          document.getElementById('judgeApproverText').innerText = '? ?曇??詨?鈭綽?' + (sessionStorage.getItem('QC_LOGGED_IN_USER') || '?芰??); 
+          document.getElementById('modalPin').value = ''; 
         }
       }).completeSample(id, result, note, pin);
     } else if(GAS_API_URL) {
@@ -3263,32 +3094,31 @@
           id: id,
           result: result,
           note: note,
-          pin: pin,
-          approver: approver
+          pin: pin
         })
       })
       .then(res => res.json())
       .then(res => {
-        btn.disabled = false; btn.innerText = "蝣箄??文?銝阡 Teams";
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
         if(res.success) {
           closeModal();
-          showToast("???文??曇?摰?嚗岫蝞”撌脫?堆?Teams ?∠?撌脩??);
+          showToast("✅ 判定放行完成！試算表已更新，Teams 卡片已發送。");
           load();
         } else {
-          alert(res.error || "?文?憭望?");
-          document.getElementById('judgeApproverText').innerText = '? ?曇??詨?鈭綽?' + (sessionStorage.getItem('QC_LOGGED_IN_USER') || '?芰??);
+          alert(res.error || "判定失敗");
+          document.getElementById('modalPin').value = '';
         }
       })
       .catch(err => {
-        btn.disabled = false; btn.innerText = "蝣箄??文?銝阡 Teams";
-        alert("?脩垢 API ????啣虜嚗? + err.message);
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
+        alert("雲端 API 連線異常：" + err.message);
       });
     } else {
       setTimeout(() => {
-        btn.disabled = false; btn.innerText = "蝣箄??文?銝阡 Teams";
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
         if(pin !== '8888') {
-          alert("????憭望?嚗?蝞∪?撅砍?蝣潮隤歹?(?身??8888)");
-          document.getElementById('judgeApproverText').innerText = '? ?曇??詨?鈭綽?' + (sessionStorage.getItem('QC_LOGGED_IN_USER') || '?芰??);
+          alert("⛔ 授權失敗：品管專屬密碼錯誤！(預設為 8888)");
+          document.getElementById('modalPin').value = '';
           return;
         }
         if(targetItem) {
@@ -3298,10 +3128,10 @@
           targetItem.completedAt = new Date().toISOString();
           localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
 
-          // ?祆?璅⊥ Teams ?文?摰??潮?敶??汗
+          // 本機模擬 Teams 判定完成發送與彈窗預覽
           const isPass = (result === 'PASS');
           const themeColor = isPass ? "107C41" : "D9381E";
-          const statusTitle = isPass ? "?C 瑼ａ?摰? - ?文???曇??? : "?C 瑼ａ?摰? - ?文?銝??潦?;
+          const statusTitle = isPass ? "✅【QC 檢驗完成 - 判定合格放行】" : "❌【QC 檢驗完成 - 判定不合格】";
 
           const teamsPayload = {
             "@type": "MessageCard",
@@ -3310,15 +3140,15 @@
             "summary": statusTitle,
             "sections": [{
               "activityTitle": statusTitle,
-              "activitySubtitle": `瑼ａ?蝯?撌脣摰?隢?${targetItem.dept} ?脰?敺?雿平`,
+              "activitySubtitle": `檢驗結果已判定，請 ${targetItem.dept} 進行後續作業`,
               "facts": [
-                { "name": "? ?見?桐?", "value": `${targetItem.dept}嚗見鈭綽?${targetItem.requester || '??}嚗 },
-                { "name": "?妒 瑼ａ???", "value": targetItem.productName },
-                { "name": "?儭?瑽質? / 頠?", "value": `${targetItem.tankNo || '-'} / ${targetItem.customer || '-'}` },
-                { "name": "?? 瑼ａ??株?", "value": targetItem.barcode },
-                { "name": "? ?文?蝯?", "value": result },
-                { "name": "?? ?文??酉", "value": note || "?? },
-                { "name": "?梧? 摰???", "value": new Date().toLocaleString() }
+                { "name": "🏢 送樣單位", "value": `${targetItem.dept}（送樣人：${targetItem.requester || '無'}）` },
+                { "name": "🧪 檢驗品名", "value": targetItem.productName },
+                { "name": "🛢️ 槽號 / 車牌", "value": `${targetItem.tankNo || '-'} / ${targetItem.customer || '-'}` },
+                { "name": "📋 檢驗單號", "value": targetItem.barcode },
+                { "name": "🎯 判定結果", "value": result },
+                { "name": "📝 判定備註", "value": note || "無" },
+                { "name": "⏱️ 完成時間", "value": new Date().toLocaleString() }
               ],
               "markdown": true
             }]
@@ -3326,30 +3156,30 @@
 
           const previewData = {
             title: statusTitle,
-            subtitle: `瑼ａ?蝯?撌脣摰?隢?${targetItem.dept} ?脰?敺?雿平`,
+            subtitle: `檢驗結果已判定，請 ${targetItem.dept} 進行後續作業`,
             color: isPass ? "green" : "red",
             facts: [
-              { name: "? ?見?桐?", value: `${targetItem.dept}嚗見鈭綽?${targetItem.requester || '??}嚗 },
-              { name: "?妒 瑼ａ???", value: targetItem.productName },
-              { name: "?儭?瑽質? / 頠?", value: `${targetItem.tankNo || '-'} / ${targetItem.customer || '-'}` },
-              { name: "?? 瑼ａ??株?", value: targetItem.barcode },
-              { name: "? ?文?蝯?", value: result },
-              { name: "?? ?文??酉", value: note || "?? },
-              { name: "?梧? 摰???", value: new Date().toLocaleString() }
+              { name: "🏢 送樣單位", value: `${targetItem.dept}（送樣人：${targetItem.requester || '無'}）` },
+              { name: "🧪 檢驗品名", value: targetItem.productName },
+              { name: "🛢️ 槽號 / 車牌", value: `${targetItem.tankNo || '-'} / ${targetItem.customer || '-'}` },
+              { name: "📋 檢驗單號", value: targetItem.barcode },
+              { name: "🎯 判定結果", value: result },
+              { name: "📝 判定備註", value: note || "無" },
+              { name: "⏱️ 完成時間", value: new Date().toLocaleString() }
             ]
           };
 
           dispatchTeamsCard(targetItem.dept, teamsPayload, previewData);
         }
         closeModal();
-        showToast("???文???嚗璈??歇?湔嚗?Teams ?∠?撌脩??);
+        showToast("✅ 判定成功（本機紀錄已更新）！Teams 卡片已產生。");
         render();
       }, 300);
     }
   }
 
   // =========================================================
-  // ????圈見璅∠?
+  // 退回重新送樣模組
   // =========================================================
 
   
@@ -3363,7 +3193,7 @@
     openJudge(id);
     setTimeout(() => {
       const sel = document.getElementById('modalResult');
-      if(sel) { sel.value = '?寞'; handleResultChange(); }
+      if(sel) { sel.value = '特採'; handleResultChange(); }
     }, 50);
   }
 
@@ -3383,8 +3213,8 @@
     }
     
     const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
-    const phrasesStr = cfgStr ? (JSON.parse(cfgStr)['OPTIONS_PHRASES'] || '??曇?, 瘞游???, ?惇?啣虜, 敺桃?頞?, 憭??啣虜, ?嗡?') : '??曇?, 瘞游???, ?惇?啣虜, 敺桃?頞?, 憭??啣虜, ?嗡?';
-    const phrases = phrasesStr.split(',').map(s=>s.trim()).filter(Boolean).filter(p => p !== '??曇?');
+    const phrasesStr = cfgStr ? (JSON.parse(cfgStr)['OPTIONS_PHRASES'] || '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他') : '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他';
+    const phrases = phrasesStr.split(',').map(s=>s.trim()).filter(Boolean).filter(p => p !== '合格放行');
     const container = document.getElementById('returnResamplePhraseContainer');
     if (container) {
       container.innerHTML = phrases.map(p => `<span class="phrase-tag" onclick="document.getElementById('returnResampleNote').value = this.innerText">${p}</span>`).join('');
@@ -3400,20 +3230,20 @@
     const id = document.getElementById('returnResampleId').value;
     const note = document.getElementById('returnResampleNote').value.trim();
     const pin = document.getElementById('returnResamplePin').value.trim();
-    if (!note) { alert('隢撓?仿????'); return; }
+    if (!note) { alert('請輸入退回原因！'); return; }
     
 
     const btn = document.getElementById('returnResampleBtn');
     btn.disabled = true;
-    btn.innerText = '??銝?..';
+    btn.innerText = '處理中...';
 
     const handleSuccess = (res) => {
       btn.disabled = false;
-      btn.innerText = '蝣箄???蒂撱箇?????;
+      btn.innerText = '確認退回並建立重送記錄';
       if (res && res.success) {
         closeReturnResampleModal();
-        showToast(`?抬? 撌脤??蝟餌絞撌脰?遣蝡洵 ${res.round} 甈⊿見閮?嚗??隤脣恕??見?);
-        // ?湔?祆?鞈?
+        showToast(`↩️ 已退回！系統已自動建立第 ${res.round} 次送樣記錄，請通知課室重新送樣。`);
+        // 更新本機資料
         const item = allData.find(d => d.id === id);
         if (item) { item.status = 'failed'; item.qcResult = 'FAIL'; item.qcNote = note; }
         if (res.newId) {
@@ -3423,7 +3253,7 @@
         localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
         load();
       } else {
-        alert((res && res.error) || '??仃??隢?閰虫?甈?);
+        alert((res && res.error) || '退回失敗，請再試一次');
         document.getElementById('returnResamplePin').value = '';
       }
     };
@@ -3440,13 +3270,13 @@
         handleSuccess(await resp.json());
       } catch(err) {
         btn.disabled = false;
-        btn.innerText = '蝣箄???蒂撱箇?????;
-        alert('API ????啣虜嚗? + err.message);
+        btn.innerText = '確認退回並建立重送記錄';
+        alert('API 連線異常：' + err.message);
       }
     } else {
-      // ?祆??Ｙ?璅∪?
+      // 本機離線模式
       const sysPin = localStorage.getItem('HS_QC_ADMIN_PIN') || '8888';
-      if (pin !== sysPin) { btn.disabled = false; btn.innerText = '蝣箄???蒂撱箇?????; alert('????憭望?嚗IN 蝣潮隤歹?'); document.getElementById('returnResamplePin').value = ''; return; }
+      if (pin !== sysPin) { btn.disabled = false; btn.innerText = '確認退回並建立重送記錄'; alert('⛔ 授權失敗：PIN 碼錯誤！'); document.getElementById('returnResamplePin').value = ''; return; }
       const item = allData.find(d => d.id === id);
       const oldRound = parseInt(item?.round) || 1;
       const rootId = item?.parentId || id;
@@ -3459,32 +3289,31 @@
   }
 
   // =========================================================
-  // ?見甇瑕閮?瑼Ｚ?
+  // 送樣歷史記錄檢視
   // =========================================================
 
   function showSampleHistory(rootId) {
-    // ?曉???寞活???????芸楛?舀??parentId 蝑?對?
+    // 找出同一批次的所有紀錄（自己是根或 parentId 等於根）
     const history = allData.filter(d => d.id === rootId || d.parentId === rootId)
       .sort((a, b) => (parseInt(a.round)||1) - (parseInt(b.round)||1));
 
-    const statusLabel = { pending: '??敺炎撽?, completed: '??摰?', failed: '??銝??潮?? };
+    const statusLabel = { pending: '⏳ 待檢驗', completed: '✅ 完成', failed: '❌ 不合格退回' };
     const statusColor = { pending: '#0369a1', completed: '#059669', failed: '#dc2626' };
 
     document.getElementById('sampleHistoryContent').innerHTML = history.length
       ? history.map(s => `
         <div style="border:1px solid #e2e8f0; border-radius:8px; padding:12px; margin-bottom:10px; background:${s.status==='completed'?'#f0fdf4':s.status==='failed'?'#fff1f2':'#f8fafc'};">
           <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-            <span style="font-weight:bold; font-size:1rem; background:#fed7aa; color:#c2410c; padding:2px 8px; border-radius:10px;">蝚?${s.round||1} 甈?/span>
+            <span style="font-weight:bold; font-size:1rem; background:#fed7aa; color:#c2410c; padding:2px 8px; border-radius:10px;">第 ${s.round||1} 次</span>
             <span style="font-weight:600; color:${statusColor[s.status]||'#475569'};">${statusLabel[s.status]||s.status}</span>
             ${s.qcResult ? `<b style="color:${s.qcResult==='PASS'?'#059669':'#dc2626'}; background:${s.qcResult==='PASS'?'#d1fae5':'#fee2e2'}; padding:1px 8px; border-radius:4px;">${s.qcResult}</b>` : ''}
           </div>
-          <div style="font-size:0.82rem; color:#374151;"><b>?見??嚗?/b>${formatSimpleDate(s.createdAt)}</div>
-          ${s.completedAt ? `<div style="font-size:0.82rem; color:#374151;"><b>摰???嚗?/b>${formatSimpleDate(s.completedAt)}</div>` : ''}
-          ${s.remark ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px;"><b>?見?酉嚗?/b>${s.remark}</div>` : ''}
-          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>?文??酉嚗?/b>${s.qcNote}</div>` : ''}
+          <div style="font-size:0.82rem; color:#374151;"><b>送樣時間：</b>${formatSimpleDate(s.createdAt)}</div>
+          ${s.completedAt ? `<div style="font-size:0.82rem; color:#374151;"><b>完成時間：</b>${formatSimpleDate(s.completedAt)}</div>` : ''}
+          ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>備註：</b>${s.qcNote}</div>` : ''}
         </div>
       `).join('')
-      : '<div style="text-align:center; color:#94a3b8; padding:20px;">?曆??圈見甇瑕閮?</div>';
+      : '<div style="text-align:center; color:#94a3b8; padding:20px;">找不到送樣歷史記錄</div>';
 
     document.getElementById('sampleHistoryModal').style.display = 'flex';
   }
@@ -3494,7 +3323,7 @@
   }
 
   // ==========================================
-  // ?典?蝝?閰?(Global History)
+  // 全廠紀錄查詢 (Global History)
   // ==========================================
   function openGlobalHistoryModal() {
     document.getElementById('ghSearchKw').value = '';
@@ -3512,7 +3341,7 @@
     const status = document.getElementById('ghStatusFilter').value;
     const tbody = document.getElementById('ghTableBody');
     
-    // 蝭拚
+    // 篩選
     const filtered = allData.filter(s => {
       const matchKw = !kw || 
         String(s.barcode||'').toLowerCase().includes(kw) ||
@@ -3523,24 +3352,24 @@
       return matchKw && matchStatus;
     });
 
-    // ?憿舐內蝑?踹??⊿?
+    // 限制顯示筆數避免卡頓
     const maxRows = 200;
     const toShow = filtered.slice(0, maxRows);
 
     if (toShow.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#94a3b8;">?亦蝚血??風?脩???/td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#94a3b8;">查無符合的歷史紀錄</td></tr>`;
       return;
     }
 
     tbody.innerHTML = toShow.map(s => {
       let statusBadge = '';
-      if (s.status === 'pending') statusBadge = `<span style="background:#fef08a; color:#854d0e; padding:2px 6px; border-radius:4px; font-size:0.8rem;">敺炎撽?/span>`;
-      else if ((s.status === 'completed' || s.status === 'failed') && (s.qcResult === 'PASS' || s.qcResult === 'FAIL' || s.qcResult === '?寞')) statusBadge = `<span style="background:${s.qcResult==='PASS'?'#d1fae5':(s.qcResult==='?寞'?'#ede9fe':(s.qcResult==='??寞'?'#fef3c7':'#fee2e2'))}; color:${s.qcResult==='PASS'?'#065f46':(s.qcResult==='?寞'?'#7c3aed':(s.qcResult==='??寞'?'#d97706':'#b91c1c'))}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${s.qcResult==='PASS'?'?(PASS)':(s.qcResult==='?寞'?'?寞(PASS)':'???FAIL)')}</span>`;
-      else if (s.status === 'completed' && s.qcResult === 'FAIL') statusBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:0.8rem;">銝???FAIL)</span>`;
-      else if (s.status === 'failed') statusBadge = `<span style="background:#fed7aa; color:#9a3412; padding:2px 6px; border-radius:4px; font-size:0.8rem;">???failed)</span>`;
+      if (s.status === 'pending') statusBadge = `<span style="background:#fef08a; color:#854d0e; padding:2px 6px; border-radius:4px; font-size:0.8rem;">待檢驗</span>`;
+      else if ((s.status === 'completed' || s.status === 'failed') && (s.qcResult === 'PASS' || s.qcResult === 'FAIL' || s.qcResult === '特採')) statusBadge = `<span style="background:${s.qcResult==='PASS'?'#d1fae5':(s.qcResult==='特採'?'#ede9fe':(s.qcResult==='需特採'?'#fef3c7':'#fee2e2'))}; color:${s.qcResult==='PASS'?'#065f46':(s.qcResult==='特採'?'#7c3aed':(s.qcResult==='需特採'?'#d97706':'#b91c1c'))}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${s.qcResult==='PASS'?'合格(PASS)':(s.qcResult==='特採'?'特採(PASS)':'退回(FAIL)')}</span>`;
+      else if (s.status === 'completed' && s.qcResult === 'FAIL') statusBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:0.8rem;">不合格(FAIL)</span>`;
+      else if (s.status === 'failed') statusBadge = `<span style="background:#fed7aa; color:#9a3412; padding:2px 6px; border-radius:4px; font-size:0.8rem;">退回(failed)</span>`;
       else statusBadge = s.status;
 
-      const roundHtml = (parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem; color:#ea580c; background:#ffedd5; padding:1px 4px; border-radius:4px;">蝚?{s.round}甈?/span>` : '';
+      const roundHtml = (parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem; color:#ea580c; background:#ffedd5; padding:1px 4px; border-radius:4px;">第${s.round}次</span>` : '';
 
       return `<tr>
         <td style="font-size:0.85rem; color:#475569;">${s.createdAt ? s.createdAt.substring(0,16).replace('T',' ') : '-'}</td>
@@ -3556,7 +3385,7 @@
 
   function setBarcodePlaceholder() {
     const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    document.getElementById('barcode').placeholder = "靘? " + todayStr;
+    document.getElementById('barcode').placeholder = "例: " + todayStr;
   }
 
   function showToast(msg) {
@@ -3576,7 +3405,7 @@
 
   function installPWA() {
     if(!deferredPrompt) {
-      alert("?內嚗雿輻?汗?券?桐葉??鋆?蝔??????唬蜓?恍?脰?摰?嚗?);
+      alert("提示：可使用瀏覽器選單中的「安裝為應用程式」或「加到主畫面」進行安裝！");
       return;
     }
     deferredPrompt.prompt();
@@ -3673,25 +3502,25 @@
     if(btnFull) btnFull.classList.toggle('active', !isAdaptive);
 
     document.querySelectorAll('.table-mode-label').forEach(el => {
-      el.innerText = isAdaptive ? '?芷??(?椰?喟宏)' : '?喟絞銋?撅?';
+      el.innerText = isAdaptive ? '自適應 (免左右移)' : '傳統九欄展開';
     });
     document.querySelectorAll('.table-mode-icon').forEach(el => {
-      el.innerText = isAdaptive ? '?? : '??';
+      el.innerText = isAdaptive ? '⚡' : '📋';
     });
   }
 
   // =========================================================================
-  // ?? 蝞∠??⊥???霅?璅⊥皜祈岫蝞勗?折?頛?
+  // 🔐 管理員權限驗證與模擬測試箱卡控邏輯
   // =========================================================================
   let isAdminUnlocked = false;
 
   function getEffectiveAdminPin() {
-    // ?芸???嚗岫蝞” System_Config 銝剔? QC_PIN -> localStorage 敹怠? -> ?身 8888
+    // 優先順序：試算表 System_Config 中的 QC_PIN -> localStorage 快取 -> 預設 8888
     return localStorage.getItem('HS_QC_ADMIN_PIN') || '8888';
   }
 
   function checkAdminUnlockOnStartup() {
-    // 1. 瑼Ｘ蝬脣?? (?admin=1 ???debug=1 ???pin=8888)
+    // 1. 檢查網址參數 (?admin=1 或 ?debug=1 或 ?pin=8888)
     const urlParams = new URLSearchParams(window.location.search);
     const pinParam = urlParams.get('pin');
     const validPin = getEffectiveAdminPin();
@@ -3701,7 +3530,7 @@
       return;
     }
     
-    // 2. 瑼Ｘ?桀? Session ?臬撌脰圾?? (?????汗?典憭望?)
+    // 2. 檢查目前 Session 是否已解鎖過 (關閉分頁或瀏覽器即失效)
     const isSessionUnlocked = sessionStorage.getItem('HS_QC_ADMIN_UNLOCKED');
     if (isSessionUnlocked === 'true') {
       unlockAdminFeatures(false);
@@ -3712,7 +3541,7 @@
 
   function handleAdminUnlockClick() {
     if (isAdminUnlocked) {
-      // ?亙歇閫??嚗???蝡銝?
+      // 若已解鎖，點擊則立即上鎖
       lockAdminFeatures(true);
     } else {
       openAdminUnlockModal();
@@ -3729,11 +3558,10 @@
 
   function openAdminUnlockModal() {
     const modal = document.getElementById('adminUnlockModal');
-    const input = document.getElementById('loginUsernameInput');
-      const pass = document.getElementById('loginPasswordInput');
+    const input = document.getElementById('adminUnlockPinInput');
     const err = document.getElementById('adminUnlockError');
     if (modal && input) {
-      input.value = ''; if(pass) pass.value = '';
+      input.value = '';
       if (err) { err.innerText = ''; err.style.display = 'none'; }
       modal.style.display = 'flex';
       setTimeout(() => input.focus(), 150);
@@ -3745,32 +3573,21 @@
     if (modal) modal.style.display = 'none';
   }
 
-  async function confirmAdminUnlock() {
-      const u = document.getElementById('loginUsernameInput').value.trim();
-      const p = document.getElementById('loginPasswordInput').value;
-      const err = document.getElementById('adminUnlockError');
-      const btn = document.getElementById('btnLoginConfirm');
-      
-      if (!u || !p) {
-        if (err) { err.innerText = '??隢撓?亙董??撖Ⅳ嚗?; err.style.display = 'block'; }
-        return;
-      }
-      
-      btn.innerText = '撽?銝?..';
-      btn.disabled = true;
+  function confirmAdminUnlock() {
+    const input = document.getElementById('adminUnlockPinInput');
+    const err = document.getElementById('adminUnlockError');
+    const pin = input ? input.value.trim() : '';
+    const validPin = getEffectiveAdminPin();
 
-      try {
-        const res = await fetch(GAS_API_URL, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ action: 'verifyLogin', username: u, password: p })
-        });
-        const data = await res.json();
-        if (data.success) {
-          sessionStorage.setItem('QC_LOGGED_IN_USER', data.username);
-          sessionStorage.setItem('QC_LOGGED_IN_ROLE', data.role);
-          closeAdminUnlockModal();
-          unlockAdminFeatures(true);
+    if (!pin) {
+      if (err) { err.innerText = '⚠️ 請輸入 PIN 碼！'; err.style.display = 'block'; }
+      if (input) input.focus();
+      return;
+    }
+
+    if (pin === validPin) {
+      closeAdminUnlockModal();
+      unlockAdminFeatures(true);
           if (typeof pendingActionId !== 'undefined' && pendingActionId) {
              if (pendingActionType === 'judge') openJudge(pendingActionId);
              if (pendingActionType === 'resample') openReturnResample(pendingActionId);
@@ -3778,16 +3595,17 @@
              pendingActionId = null;
              pendingActionType = null;
           }
-        } else {
-          if (err) { err.innerText = '???餃憭望?嚗? + (data.error || '撣唾???蝣潮隤?); err.style.display = 'block'; }
-        }
-      } catch (e) {
-        if (err) { err.innerText = '??蝟餌絞?航炊嚗瘜????; err.style.display = 'block'; }
-      } finally {
-        btn.innerText = '?餃閫?? ??';
-        btn.disabled = false;
+    } else {
+      if (err) {
+        err.innerText = '⛔ PIN 碼錯誤，請重新輸入！(預設為 8888)';
+        err.style.display = 'block';
+      }
+      if (input) {
+        input.value = '';
+        input.focus();
       }
     }
+  }
 
   function unlockAdminFeatures(showNotification = true) {
     isAdminUnlocked = true;
@@ -3799,12 +3617,12 @@
     const btn = document.getElementById('btnAdminUnlock');
     if (btn) {
       btn.className = 'btn-admin-unlock unlocked';
-      btn.innerHTML = '?? 蝞∠??撌脰圾??(暺?銝?)';
-      btn.title = '暺??喳???銝阡?璈葫閰衣拳';
+      btn.innerHTML = '🔓 管理功能已解鎖 (點擊上鎖)';
+      btn.title = '點擊即可重新鎖定並隱藏本機測試箱';
     }
     
     if (showNotification) {
-      showToast('??蝞∠??⊥??歇閫??嚗璈芋?祆葫閰衣拳撌脣???);
+      showToast('✅ 管理員權限已解鎖！本機模擬測試箱已展開。');
     }
   }
 
@@ -3818,12 +3636,12 @@
     const btn = document.getElementById('btnAdminUnlock');
     if (btn) {
       btn.className = 'btn-admin-unlock';
-      btn.innerHTML = '?? ?餃閫?? (QC?曇?)';
-      btn.title = '暺?頛詨蝞∠???PIN 蝣潸圾?葫閰衣拳';
+      btn.innerHTML = '🔒 解鎖管理功能';
+      btn.title = '點擊輸入管理員 PIN 碼解鎖測試箱';
     }
     
     if (showNotification) {
-      showToast('?? 蝞∠??撌脖???璅⊥皜祈岫蝞勗歇?梯???);
+      showToast('🔒 管理功能已上鎖，模擬測試箱已隱藏。');
     }
   }
 
@@ -3837,40 +3655,17 @@
     load();
     if(IS_GAS) setInterval(load, 30000);
     
-    // 摰??瑟蝑??瑕??怨? KPI
+    // 定時刷新等候時長動畫與 KPI
     setInterval(render, 60000);
 
-    // 閮餃? Service Worker (撘瑕瑼Ｘ?湔嚗?霅?甈∟??交??啁???
+    // 註冊 Service Worker (強制檢查更新，保證每次載入最新版本)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').then((reg) => {
         reg.update();
       }).catch(err => console.log('SW register failed:', err));
     }
   };
-
-  // ???內摮?擐祉?
-  function startPlaceholderMarquee(elementId, originalText) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    let text = originalText + '   '; 
-    setInterval(() => {
-      text = text.substring(1) + text[0];
-      el.setAttribute('placeholder', text);
-    }, 400); 
-  }
-  document.addEventListener('DOMContentLoaded', () => {
-    startPlaceholderMarquee('empIdInput', '???撓?亙極??.. ');
-    startPlaceholderMarquee('requester', '憪?嚗極??啣???‵?伐?... ');
-  });
-
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
 
