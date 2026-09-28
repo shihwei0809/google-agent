@@ -179,7 +179,7 @@
       // payload expects: id, result, note, approver
       const { id, result, note, approver } = payload;
       let status = "completed";
-      if (result === "?隞? || result === "??璅?) status = "failed";
+      if (result === "退件" || result === "重取樣") status = "failed";
       
       await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = datetime('now', '+8 hours') WHERE id = ?")
         .bind(status||null, result||null, note||null, approver||null, id||null).run();
@@ -192,16 +192,16 @@
     }
 
     if (action === "saveOrders" && request.method === "POST") {
-      // 蝣箔?鞈?銵典??其蒂?芸??湔蝯?
+    // 匯入 T100 排程並自動建立新單據
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN date TEXT").run().catch(e=>{});
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN time TEXT").run().catch(e=>{});
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN note TEXT").run().catch(e=>{});
       
-      // 皜征??蝔?
+      // 檢查重複排程
       await env.DB.prepare("DELETE FROM T100_Orders").run();
       
-      // ?寞活撖怠?唳?蝔?
+      // 批次插入新排程
       const orders = payload.orders || [];
       if (orders.length > 0) {
         const stmt = env.DB.prepare("INSERT INTO T100_Orders (doc_no, flowType, productName, tankNo, container, quantity, customer, grade, targetDate, date, time, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -212,7 +212,7 @@
     }
 
     if (action === "getOrders") {
-      // 蝣箔?鞈?銵典??其誑?脣??芸?憪?
+    // 匯入 T100 排程以同步資料庫
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
       const { results } = await env.DB.prepare("SELECT * FROM T100_Orders ORDER BY targetDate DESC, createdAt DESC LIMIT 200").all();
       return new Response(JSON.stringify({ success: true, count: results.length, orders: results }), { headers: h });
@@ -220,14 +220,14 @@
 
     
     if (action === "checkOverdue") {
-      // ?? Teams Webhook 閮剖?
+      // 取得 Teams Webhook 設定
       const { results: cfgResults } = await env.DB.prepare("SELECT * FROM System_Config").all();
       let configMap = {}; cfgResults.forEach(r => { configMap[r.config_key] = r.config_value; });
       
       const managerWebhook = configMap['TEAMS_MANAGER_WEBHOOK'];
       // deptsWebhooks dynamically resolved via TEAMS_WEBHOOK_ + dept
 
-      // 閮??典?????嚗???撠???
+      // 計算是否超過檢驗時效，發送警告通知
       const { results: samples } = await env.DB.prepare(`
         SELECT *, (julianday('now', '+8 hours') - julianday(createdAt)) * 24 as diffHours
         FROM QC_Samples 
@@ -243,10 +243,10 @@
         
         if (s.diffHours >= 4 && (s.isAlerted || 0) < 2) {
           alertLevel = 2;
-          alertTitle = `??C ?湧?頞?霅血???歇??${s.diffHours.toFixed(1)} 撠? (頞?4撠?)`;
+          alertTitle = `🔴【QC 嚴重超時警告】等待檢驗已達 ${s.diffHours.toFixed(1)} 小時 (超過4小時)`;
         } else if (s.diffHours >= 2 && s.diffHours < 4 && (s.isAlerted || 0) < 1) {
           alertLevel = 1;
-          alertTitle = `???C 瑼ａ?頞?霅血???歇??${s.diffHours.toFixed(1)} 撠? (頞?2撠?)`;
+          alertTitle = `⚠️【QC 檢驗超時警告】等待檢驗已達 ${s.diffHours.toFixed(1)} 小時 (超過2小時)`;
         }
 
         if (alertLevel > 0) {
@@ -257,13 +257,13 @@
             "summary": alertTitle,
             "sections": [{
               "activityTitle": alertTitle,
-              "activitySubtitle": `璅??瑼ａ?撌脤?${alertLevel === 2 ? '4' : '2'} 撠??芸摰?隢?蝞∟? ${s.dept} ???,
+            "activitySubtitle": `樣品待檢驗已超過 ${alertLevel === 2 ? '4' : '2'} 小時未判定，請盡速處理！`,
               "facts": [
-                { "name": "? ?見?桐?", "value": `${s.dept}嚗見鈭綽?${s.requester || '??}嚗 },
-                { "name": "?妒 瑼ａ???", "value": s.productName },
-                { "name": "?儭?瑽質? / 頠?", "value": `${s.tankNo || '-'} / ${s.customer || '-'}` },
+            "facts": [{ "name": "🏢 樣品單位", "value": `${s.dept} (送樣人: ${s.requester || '無'})` },
+            { "name": "🧪 檢驗品名", "value": s.productName },
+            { "name": "🚚 槽號 / 車牌", "value": `${s.tankNo || '-'} / ${s.customer || '-'}` },
                 { "name": "?? ?株?蝺刻?", "value": s.barcode },
-                { "name": "???見??", "value": s.createdAt }
+            { "name": "⏰ 送樣時間", "value": s.createdAt }
               ],
               "markdown": true
             }]
@@ -284,7 +284,7 @@
             } catch(e) { logs.push(`Failed to send to ${s.dept}: ${e.message}`); }
           }
 
-          // ?湔霅血????
+        // 更新警告狀態
           await env.DB.prepare("UPDATE QC_Samples SET isAlerted = ? WHERE id = ?").bind(alertLevel, s.id).run();
           alertedCount++;
           logs.push(`Alerted level ${alertLevel} for ${s.barcode}`);
@@ -297,28 +297,28 @@
     if (action === "returnForResample" && request.method === "POST") {
       const { id, note, pin } = payload;
       
-      // 1. 撽? PIN
+      // 1. 檢查 PIN
       const pinCfg = await env.DB.prepare("SELECT config_value FROM System_Config WHERE config_key = 'QC_PIN'").first();
       const sysPin = pinCfg ? pinCfg.config_value : '8888';
       if (pin !== sysPin) {
-        return new Response(JSON.stringify({ success: false, error: '蝟餌絞甈?撖Ⅳ?航炊嚗??頛詨嚗? }), { headers: h });
+        return new Response(JSON.stringify({ success: false, error: '系統預設密碼錯誤，請重新輸入' }), { headers: h });
       }
 
-      // 2. ?脣?????
+      // 2. 取得原記錄
       const sample = await env.DB.prepare("SELECT * FROM QC_Samples WHERE id = ?").bind(id).first();
       if (!sample) {
-        return new Response(JSON.stringify({ success: false, error: '?曆??啗府蝑見蝝??' }), { headers: h });
+        return new Response(JSON.stringify({ success: false, error: '找不到該筆樣品紀錄' }), { headers: h });
       }
 
-      // 3. ?湔????(failed)
+      // 3. 更新原記錄 (failed)
       const nowStr = new Date(new Date().getTime() + 8*60*60*1000).toISOString().replace('T', ' ').substring(0, 19);
       await env.DB.prepare(`
         UPDATE QC_Samples 
         SET status = 'failed', qcResult = 'FAIL', qcNote = ?, completedAt = ? 
         WHERE id = ?
-      `).bind(note || '???文?銝??潘?????圈見', nowStr, id).run();
+      `).bind(note || '檢驗判定不合格，退回重新送樣', nowStr, id).run();
 
-      // 4. ?啣????????
+      // 4. 新增退回重新送樣記錄
       const newId = crypto.randomUUID();
       const parentId = sample.parentId || sample.id;
       const round = parseInt(sample.round || 1) + 1;
