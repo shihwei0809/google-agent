@@ -550,6 +550,7 @@
             <input type="date" id="t100DateFilter" class="t100-date-picker" onchange="onT100DateFilterChange(this.value)" title="切換指定日期查詢排程">
             <button type="button" class="btn-t100-filter active" id="btnFilterToday" onclick="setT100FilterMode('today')" title="只看今日排程">📅 今日排程</button>
             <button type="button" class="btn-t100-filter" id="btnFilterPending" onclick="setT100FilterMode('pending')" title="查詢所有放櫃或未送樣車次">📦 待送樣放櫃</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterResample" onclick="setT100FilterMode('resample')" title="顯示品質不合格需重取或待特採的單據">🔄 取樣重送</button>
             <button type="button" class="btn-t100-filter" id="btnFilterAll" onclick="setT100FilterMode('all')" title="檢視所有匯入排程">🔍 顯示全部</button>
           </div>
         </div>
@@ -1507,6 +1508,20 @@
         return false;
       });
       filterDescription = `待送樣放櫃/排程`;
+    } else if (t100FilterMode === 'resample') {
+      // 品質不合格重取 / 需特採待審
+      const failedSubs = cData.filter(c => c.status === 'failed');
+      const pendingResample = allData.filter(c => c.status === 'pending' && parseInt(c.round || 1) > 1);
+      filteredOrders = [...failedSubs, ...pendingResample].map(c => ({
+        ...c,
+        isResampleItem: true,
+        displayTitle: (c.status === 'failed' && c.qcResult === '需特採') 
+          ? `⚠️[不符內控需特採] ${c.barcode} - ${c.productName} (${c.tankNo || c.customer || '-'})`
+          : (c.status === 'failed')
+          ? `⛔[品質不合格重取] ${c.barcode} - ${c.productName} (${c.tankNo || c.customer || '-'}) (第${c.round}次)`
+          : `🔄[已自動重送待驗] ${c.barcode} - ${c.productName} (${c.tankNo || c.customer || '-'}) (第${c.round}次)`
+      }));
+      filterDescription = '品質不合格重取 / 需特採';
     } else if (t100FilterMode === 'all') {
       filteredOrders = [...t100Orders];
       filterDescription = `全部匯入排程`;
@@ -1556,7 +1571,7 @@
           if (sub) {
             if (sub.status === 'completed') mark = '✅[已驗合格] ';
             else if (sub.status === 'failed' && sub.qcResult === '需特採') mark = '⚠️[不符內控需特採] ';
-            else if (sub.status === 'failed') mark = '⛔[被退件需重送] ';
+            else if (sub.status === 'failed') mark = '⛔[品質不合格重取] ';
             else if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) mark = '🔄[已自動重送待驗] ';
             else mark = '✅[已送樣待驗] ';
           }
@@ -1584,7 +1599,7 @@
           let mark = '⏳[待送樣] ';
           if (sub) {
             if (sub.status === 'completed') mark = '✅[已驗合格] ';
-            else if (sub.status === 'failed') mark = '⛔[被退件需重送] ';
+            else if (sub.status === 'failed') mark = '⛔[品質不合格重取] ';
             else mark = '✅[已送樣待驗] ';
           }
           
