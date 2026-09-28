@@ -1,4 +1,4 @@
-export async function onRequest(context) {
+﻿export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return new Response(null, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } });
@@ -30,18 +30,18 @@ export async function onRequest(context) {
       const defaults = [
         ['QC_PIN', '8888'],
         ['TEAMS_MANAGER_WEBHOOK', ''],
-        ['TEAMS_WEBHOOK_資材課', ''],
-        ['TEAMS_WEBHOOK_二部一課', ''],
-        ['TEAMS_WEBHOOK_二部二課', ''],
-        ['TEAMS_WEBHOOK_一部一課', ''],
-        ['TEAMS_WEBHOOK_一部二課', ''],
+        ['TEAMS_WEBHOOK_鞈?隤?, ''],
+        ['TEAMS_WEBHOOK_鈭銝隤?, ''],
+        ['TEAMS_WEBHOOK_鈭鈭玨', ''],
+        ['TEAMS_WEBHOOK_銝?其?隤?, ''],
+        ['TEAMS_WEBHOOK_銝?其?隤?, ''],
         ['PWA_URL', 'https://google-agent.pages.dev/qc-system'],
-        ['OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託'],
-        ['OPTIONS_GRADES', '工業級, 電子級, IF'],
-        ['OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課'],
+        ['OPTIONS_FLOW_TYPES', '?箄疏, ?脫?, 鋆?, 憪?'],
+        ['OPTIONS_GRADES', '撌交平蝝? ?餃?蝝? IF'],
+        ['OPTIONS_DEPTS', '鞈?隤? 鈭銝隤? 鈭鈭玨, 銝?其?隤? 銝?其?隤?],
         ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR'],
-        ['OPTIONS_JUDGE_RESULTS', 'PASS:合格放行, FAIL:不合格退回'],
-        ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:電子級, IPAUPS:UPS']
+        ['OPTIONS_JUDGE_RESULTS', 'PASS:??曇?, FAIL:銝??潮??],
+        ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:?餃?蝝? IPAUPS:UPS']
       ];
       await env.DB.batch(defaults.map(d => stmt.bind(d[0], d[1])));
       return new Response(JSON.stringify({ success: true }), { headers: h });
@@ -102,27 +102,27 @@ export async function onRequest(context) {
       
       
 
-      // 取得原本樣品資訊，為了發送 Teams
+      // ???璅??鞈?嚗鈭??Teams
       const sample = await env.DB.prepare("SELECT * FROM QC_Samples WHERE id = ?").bind(id).first();
       if (!sample) {
-        return new Response(JSON.stringify({ success: false, error: "找不到該樣品" }), { headers: h });
+        return new Response(JSON.stringify({ success: false, error: "?曆??啗府璅??" }), { headers: h });
       }
 
       let status = "completed";
-      if (result === "FAIL" || result === "需特採") status = "failed";
+      if (result === "FAIL" || result === "??寞") status = "failed";
       
       let finalNote = note;
-      if (result === '特採' && sample.qcResult === '需特採') {
-        finalNote = `[初驗:${sample.qcApprover}] ${sample.qcNote || ''}\n[特採:${approver}] ${note}`;
+      if (result === '?寞' && sample.qcResult === '??寞') {
+        finalNote = `[??:${sample.qcApprover}] ${sample.qcNote || ''}\n[?寞:${approver}] ${note}`;
       }
       
-      // 若已有紀錄，不覆蓋原來的 completedAt
+      // ?亙歇????銝???靘? completedAt
       let completedAt = sample.completedAt || new Date(new Date().getTime() + 8*60*60*1000).toISOString().replace('T', ' ').substring(0, 19);
 
       await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = ? WHERE id = ?")
         .bind(status, result, finalNote, approver || 'QC', completedAt, id).run();
 
-      // 如果是不合格(FAIL)，自動產生下一輪重送排程
+      // 憒??臭??(FAIL)嚗???銝頛芷???蝔?
       if (result === 'FAIL') {
         const newId = crypto.randomUUID();
         const parentId = sample.parentId || sample.id;
@@ -134,28 +134,28 @@ export async function onRequest(context) {
       }
 
 
-      // 通知 Teams
+      // ? Teams
       const deptWebhook = configMap['TEAMS_WEBHOOK_' + sample.dept];
       const managerWebhook = configMap['TEAMS_MANAGER_WEBHOOK'];
 
-      const isPass = (status === 'completed' || result === 'PASS' || result.includes('合格'));
+      const isPass = (status === 'completed' || result === 'PASS' || result.includes('?'));
       let resultTitle = result;
-      if (result === 'FAIL') resultTitle = '⛔ FAIL (已自動產生下一次重送排程)';
-      else if (result === '需特採') resultTitle = '⚠️ 不符合內控 (等待主管審核特採)';
-      else if (result === '特採') resultTitle = '🚨 經主管特採放行';
+      if (result === 'FAIL') resultTitle = '??FAIL (撌脰???銝甈⊿???蝔?';
+      else if (result === '??寞') resultTitle = '?? 銝泵???(蝑?銝餌恣撖拇?寞)';
+      else if (result === '?寞') resultTitle = '? 蝬蜓蝞∠?⊥銵?;
       
       const title = isPass
-        ? `✅【檢驗完成】${sample.productName}` 
-        : `❌【檢驗未通過】${sample.productName}`;
+        ? `?炎撽???{sample.productName}` 
+        : `?炎撽????{sample.productName}`;
       const color = isPass ? '28a745' : 'dc3545';
       const actualApprover = approver || 'QC';
 
       const facts = [
-        { name: '檢驗結果', value: `**${resultTitle}**` },
-        { name: '審核人員', value: actualApprover },
-        { name: '單號', value: sample.barcode || '-' },
-        { name: '槽號/車牌', value: `${sample.tankNo || '-'} / ${sample.customer || '-'}` },
-        { name: '檢驗備註', value: finalNote || '無' }
+        { name: '瑼ａ?蝯?', value: `**${resultTitle}**` },
+        { name: '撖拇鈭箏', value: actualApprover },
+        { name: '?株?', value: sample.barcode || '-' },
+        { name: '瑽質?/頠?', value: `${sample.tankNo || '-'} / ${sample.customer || '-'}` },
+        { name: '瑼ａ??酉', value: finalNote || '?? }
       ];
 
       const msg = {
@@ -163,7 +163,7 @@ export async function onRequest(context) {
         "@context": "http://schema.org/extensions",
         "themeColor": color,
         "summary": title,
-        "sections": [{ "activityTitle": title, "activitySubtitle": "系統自動通報", "facts": facts }]
+        "sections": [{ "activityTitle": title, "activitySubtitle": "蝟餌絞?芸??", "facts": facts }]
       };
 
       const sendWebhook = async (url) => {
@@ -181,7 +181,7 @@ export async function onRequest(context) {
       // payload expects: id, result, note, approver
       const { id, result, note, approver } = payload;
       let status = "completed";
-      if (result === "退件" || result === "重取樣") status = "failed";
+      if (result === "?隞? || result === "??璅?) status = "failed";
       
       await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = datetime('now', '+8 hours') WHERE id = ?")
         .bind(status||null, result||null, note||null, approver||null, id||null).run();
@@ -194,16 +194,16 @@ export async function onRequest(context) {
     }
 
     if (action === "saveOrders" && request.method === "POST") {
-      // 確保資料表存在並自動更新結構
+      // 蝣箔?鞈?銵典??其蒂?芸??湔蝯?
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN date TEXT").run().catch(e=>{});
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN time TEXT").run().catch(e=>{});
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN note TEXT").run().catch(e=>{});
       
-      // 清空舊排程
+      // 皜征??蝔?
       await env.DB.prepare("DELETE FROM T100_Orders").run();
       
-      // 批次寫入新排程
+      // ?寞活撖怠?唳?蝔?
       const orders = payload.orders || [];
       if (orders.length > 0) {
         const stmt = env.DB.prepare("INSERT INTO T100_Orders (doc_no, flowType, productName, tankNo, container, quantity, customer, grade, targetDate, date, time, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
@@ -214,7 +214,7 @@ export async function onRequest(context) {
     }
 
     if (action === "getOrders") {
-      // 確保資料表存在以防尚未初始化
+      // 蝣箔?鞈?銵典??其誑?脣??芸?憪?
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
       const { results } = await env.DB.prepare("SELECT * FROM T100_Orders ORDER BY targetDate DESC, createdAt DESC LIMIT 200").all();
       return new Response(JSON.stringify({ success: true, count: results.length, orders: results }), { headers: h });
@@ -222,14 +222,14 @@ export async function onRequest(context) {
 
     
     if (action === "checkOverdue") {
-      // 取得 Teams Webhook 設定
+      // ?? Teams Webhook 閮剖?
       const { results: cfgResults } = await env.DB.prepare("SELECT * FROM System_Config").all();
       let configMap = {}; cfgResults.forEach(r => { configMap[r.config_key] = r.config_value; });
       
       const managerWebhook = configMap['TEAMS_MANAGER_WEBHOOK'];
       // deptsWebhooks dynamically resolved via TEAMS_WEBHOOK_ + dept
 
-      // 計算在台灣時間下，等候多少小時
+      // 閮??典?????嚗???撠???
       const { results: samples } = await env.DB.prepare(`
         SELECT *, (julianday('now', '+8 hours') - julianday(createdAt)) * 24 as diffHours
         FROM QC_Samples 
@@ -245,10 +245,10 @@ export async function onRequest(context) {
         
         if (s.diffHours >= 4 && (s.isAlerted || 0) < 2) {
           alertLevel = 2;
-          alertTitle = `🚨【QC 嚴重超時警報】等候已達 ${s.diffHours.toFixed(1)} 小時 (超過4小時)`;
+          alertTitle = `??C ?湧?頞?霅血???歇??${s.diffHours.toFixed(1)} 撠? (頞?4撠?)`;
         } else if (s.diffHours >= 2 && s.diffHours < 4 && (s.isAlerted || 0) < 1) {
           alertLevel = 1;
-          alertTitle = `⚠️【QC 檢驗超時警報】等候已達 ${s.diffHours.toFixed(1)} 小時 (超過2小時)`;
+          alertTitle = `???C 瑼ａ?頞?霅血???歇??${s.diffHours.toFixed(1)} 撠? (頞?2撠?)`;
         }
 
         if (alertLevel > 0) {
@@ -259,13 +259,13 @@ export async function onRequest(context) {
             "summary": alertTitle,
             "sections": [{
               "activityTitle": alertTitle,
-              "activitySubtitle": `樣品檢驗已逾 ${alertLevel === 2 ? '4' : '2'} 小時未判定，請品管與 ${s.dept} 儘速處理`,
+              "activitySubtitle": `璅??瑼ａ?撌脤?${alertLevel === 2 ? '4' : '2'} 撠??芸摰?隢?蝞∟? ${s.dept} ???,
               "facts": [
-                { "name": "🏢 送樣單位", "value": `${s.dept}（送樣人：${s.requester || '無'}）` },
-                { "name": "🧪 檢驗品名", "value": s.productName },
-                { "name": "🛢️ 槽號 / 車牌", "value": `${s.tankNo || '-'} / ${s.customer || '-'}` },
-                { "name": "📋 單號編號", "value": s.barcode },
-                { "name": "⏰ 送樣時間", "value": s.createdAt }
+                { "name": "? ?見?桐?", "value": `${s.dept}嚗見鈭綽?${s.requester || '??}嚗 },
+                { "name": "?妒 瑼ａ???", "value": s.productName },
+                { "name": "?儭?瑽質? / 頠?", "value": `${s.tankNo || '-'} / ${s.customer || '-'}` },
+                { "name": "?? ?株?蝺刻?", "value": s.barcode },
+                { "name": "???見??", "value": s.createdAt }
               ],
               "markdown": true
             }]
@@ -286,7 +286,7 @@ export async function onRequest(context) {
             } catch(e) { logs.push(`Failed to send to ${s.dept}: ${e.message}`); }
           }
 
-          // 更新警告狀態
+          // ?湔霅血????
           await env.DB.prepare("UPDATE QC_Samples SET isAlerted = ? WHERE id = ?").bind(alertLevel, s.id).run();
           alertedCount++;
           logs.push(`Alerted level ${alertLevel} for ${s.barcode}`);
@@ -294,6 +294,42 @@ export async function onRequest(context) {
       }
       
       return new Response(JSON.stringify({ success: true, alertedCount, logs }), { headers: h });
+    }
+
+    if (action === "returnForResample" && request.method === "POST") {
+      const { id, note, pin } = payload;
+      
+      // 1. 撽? PIN
+      const pinCfg = await env.DB.prepare("SELECT config_value FROM System_Config WHERE config_key = 'QC_PIN'").first();
+      const sysPin = pinCfg ? pinCfg.config_value : '8888';
+      if (pin !== sysPin) {
+        return new Response(JSON.stringify({ success: false, error: '蝟餌絞甈?撖Ⅳ?航炊嚗??頛詨嚗? }), { headers: h });
+      }
+
+      // 2. ?脣?????
+      const sample = await env.DB.prepare("SELECT * FROM QC_Samples WHERE id = ?").bind(id).first();
+      if (!sample) {
+        return new Response(JSON.stringify({ success: false, error: '?曆??啗府蝑見蝝??' }), { headers: h });
+      }
+
+      // 3. ?湔????(failed)
+      const nowStr = new Date(new Date().getTime() + 8*60*60*1000).toISOString().replace('T', ' ').substring(0, 19);
+      await env.DB.prepare(`
+        UPDATE QC_Samples 
+        SET status = 'failed', qcResult = 'FAIL', qcNote = ?, completedAt = ? 
+        WHERE id = ?
+      `).bind(note || '???文?銝??潘?????圈見', nowStr, id).run();
+
+      // 4. ?啣????????
+      const newId = crypto.randomUUID();
+      const parentId = sample.parentId || sample.id;
+      const round = parseInt(sample.round || 1) + 1;
+      await env.DB.prepare(`
+        INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, parentId, round, status, isAlerted, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 0, datetime('now', '+8 hours'))
+      `).bind(newId, sample.barcode, sample.productName, sample.tankNo, sample.customer, sample.quantity, sample.flowType, sample.dept, sample.requester, sample.grade, parentId, round).run();
+
+      return new Response(JSON.stringify({ success: true, round: round, newId: newId }), { headers: h });
     }
 
     if (action === "getEmployees") {
@@ -306,5 +342,6 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ error: err.message }), { headers: h, status: 500 }); 
   }
 }
+
 
 

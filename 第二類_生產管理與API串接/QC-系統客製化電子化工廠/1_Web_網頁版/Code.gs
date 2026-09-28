@@ -1,17 +1,17 @@
-const CONFIG = {
+﻿const CONFIG = {
   sheetName: 'QC_Samples',
-  configSheetName: 'System_Config', // 存放密碼與 Webhook 的工作表 (QC_PIN, TEAMS_WEBHOOK)
-  ordersSheetName: 'Orders',        // 存放每日進出貨排程 (從 Excel 匯入後同步至此)
+  configSheetName: 'System_Config', // 摮撖Ⅳ??Webhook ?極雿” (QC_PIN, TEAMS_WEBHOOK)
+  ordersSheetName: 'Orders',        // 摮瘥?脣鞎冽?蝔?(敺?Excel ?臬敺?甇亥甇?
   spreadsheetId: '1_4zrITMtrKCC9x_DmazqxYz63366ro-OpZOkNRTFhqo',
   
-  // Teams 頻道 Webhook 預設設定 (亦可於 System_Config 工作表動態填寫)
+  // Teams ?駁? Webhook ?身閮剖? (鈭血??System_Config 撌乩?銵典??‵撖?
   teamsRouting: {
-    MANAGER_WEBHOOK: '', // 品管/製造主管頻道 Webhook (必收所有逾時警報與檢驗完成)
+    MANAGER_WEBHOOK: '', // ?恣/鋆賡蜓蝞⊿??Webhook (敹??暹?霅血?炎撽???
     DEPTS: {
-      '資材課': '',
-      '現場一課': '',
-      '現場二課': '',
-      '回收處理課': ''
+      '鞈?隤?: '',
+      '?曉銝隤?: '',
+      '?曉鈭玨': '',
+      '???隤?: ''
     },
     PWA_URL: 'https://google-agent.pages.dev/qc-system'
   },
@@ -24,22 +24,22 @@ const CONFIG = {
   ]
 };
 
-// 支援純網頁開啟或 API 呼叫
+// ?舀蝝雯???? API ?澆
 function doGet(e) {
   if (e && e.parameter && e.parameter.action) {
     return handleApiGet(e.parameter);
   }
   return HtmlService.createHtmlOutputFromFile('Index')
-    .setTitle('鴻勝化學 QC 檢驗即時看板系統')
+    .setTitle('暾餃??飛 QC 瑼ａ??單??蝟餌絞')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// 支援外部 POST API (Cloudflare Pages 或本機 PWA 呼叫)
+// ?舀憭 POST API (Cloudflare Pages ?璈?PWA ?澆)
 function doPost(e) {
   try {
     const postData = JSON.parse(e.postData.contents);
     const action = postData.action;
-    let result = { success: false, error: '未知操作' };
+    let result = { success: false, error: '?芰??' };
 
     if (action === 'createSample') {
       result = createSample(postData.payload);
@@ -78,16 +78,16 @@ function handleApiGet(params) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// 從試算表動態讀取系統設定 (QC_PIN, Teams Webhooks 與 動態下拉選單)
+// 敺岫蝞”??霈?頂蝯梯身摰?(QC_PIN, Teams Webhooks ????銝??詨)
 function getSystemConfigFromSheet_() {
   const config = {
     pin: '8888',
     managerWebhook: CONFIG.teamsRouting.MANAGER_WEBHOOK,
     deptWebhooks: Object.assign({}, CONFIG.teamsRouting.DEPTS),
     pwaUrl: CONFIG.teamsRouting.PWA_URL,
-    flowTypes: ['出貨', '進料', '補料', '委託'],
-    grades: ['工業級', 'UPS', 'IF'],
-    depts: ['資材課', '現場一課', '現場二課', '回收處理課'],
+    flowTypes: ['?箄疏', '?脫?', '鋆?', '憪?'],
+    grades: ['撌交平蝝?, 'UPS', 'IF'],
+    depts: ['鞈?隤?, '?曉銝隤?, '?曉鈭玨', '???隤?],
     products: [
       'IPA', 'IPAUPS', 'IPAHQ', 'CPNE3(T)', 'CPNE4', 'CPN-P1R',
       'EBR', 'EBR-P1R', 'NBAC', 'NBAC-P1R', 'CPN', 'EG',
@@ -116,25 +116,25 @@ function getSystemConfigFromSheet_() {
       }
       if (key === 'PWA_URL' && val) config.pwaUrl = val;
       if (key === 'OPTIONS_FLOW_TYPES' && val) {
-        config.flowTypes = val.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        config.flowTypes = val.split(/[,嚗/).map(s => s.trim()).filter(Boolean);
       }
       if (key === 'OPTIONS_GRADES' && val) {
-        config.grades = val.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        config.grades = val.split(/[,嚗/).map(s => s.trim()).filter(Boolean);
       }
       if (key === 'OPTIONS_DEPTS' && val) {
-        config.depts = val.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        config.depts = val.split(/[,嚗/).map(s => s.trim()).filter(Boolean);
       }
       if (key === 'OPTIONS_PRODUCTS' && val) {
-        config.products = val.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        config.products = val.split(/[,嚗/).map(s => s.trim()).filter(Boolean);
       }
     }
   } catch(e) {
-    console.warn("讀取 System_Config 失敗，使用預設值", e);
+    console.warn("霈??System_Config 憭望?嚗蝙?券?閮剖?, e);
   }
   return config;
 }
 
-// 提供前端呼叫以取得全套系統配置 (含密碼、Teams 狀態與選單項目)
+// ???垢?澆隞亙?敺憟頂蝯梢?蝵?(?怠?蝣潦eams ????詨?)
 function getSystemConfig() {
   const cfg = getSystemConfigFromSheet_();
   return {
@@ -149,29 +149,29 @@ function getSystemConfig() {
   };
 }
 
-// 輔助工具：一鍵在 Google 試算表補齊 System_Config 工作表預設列
+// 頛撌亙嚗??萄 Google 閰衣?銵刻?朣?System_Config 撌乩?銵券?閮剖?
 function initSystemConfigSheet() {
   try {
     const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
     let sheet = ss.getSheetByName(CONFIG.configSheetName);
     if (!sheet) {
       sheet = ss.insertSheet(CONFIG.configSheetName);
-      sheet.appendRow(['設定項目 (Key)', '設定值 (Value)', '說明與範例']);
+      sheet.appendRow(['閮剖?? (Key)', '閮剖???(Value)', '隤芣???靘?]);
     }
     
     const existingKeys = sheet.getDataRange().getValues().slice(1).map(r => String(r[0]).trim());
     const defaults = [
-      ['QC_PIN', '8888', '品管放行授權 4 碼 PIN 碼'],
-      ['TEAMS_MANAGER_WEBHOOK', '', '品管/製造主管頻道 Webhook (必收逾時警報與完成)'],
-      ['TEAMS_WEBHOOK_資材課', '', '資材課專屬 Webhook'],
-      ['TEAMS_WEBHOOK_現場一課', '', '現場一課專屬 Webhook'],
-      ['TEAMS_WEBHOOK_現場二課', '', '現場二課專屬 Webhook'],
-      ['TEAMS_WEBHOOK_回收處理課', '', '回收處理課專屬 Webhook'],
-      ['PWA_URL', 'https://google-agent.pages.dev/qc-system', 'PWA 系統網址'],
-      ['OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託', '動向選單項目 (以逗號隔開)'],
-      ['OPTIONS_GRADES', '工業級, UPS, IF', '等級選單項目 (以逗號隔開)'],
-      ['OPTIONS_DEPTS', '資材課, 現場一課, 現場二課, 回收處理課', '送樣單位選單 (以逗號隔開)'],
-      ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR', '品名建議選單 (以逗號隔開)']
+      ['QC_PIN', '8888', '?恣?曇??? 4 蝣?PIN 蝣?],
+      ['TEAMS_MANAGER_WEBHOOK', '', '?恣/鋆賡蜓蝞⊿??Webhook (敹?暹?霅血????'],
+      ['TEAMS_WEBHOOK_鞈?隤?, '', '鞈?隤脣?撅?Webhook'],
+      ['TEAMS_WEBHOOK_?曉銝隤?, '', '?曉銝隤脣?撅?Webhook'],
+      ['TEAMS_WEBHOOK_?曉鈭玨', '', '?曉鈭玨撠惇 Webhook'],
+      ['TEAMS_WEBHOOK_???隤?, '', '???隤脣?撅?Webhook'],
+      ['PWA_URL', 'https://google-agent.pages.dev/qc-system', 'PWA 蝟餌絞蝬脣?'],
+      ['OPTIONS_FLOW_TYPES', '?箄疏, ?脫?, 鋆?, 憪?', '???詨? (隞仿???)'],
+      ['OPTIONS_GRADES', '撌交平蝝? UPS, IF', '蝑??詨? (隞仿???)'],
+      ['OPTIONS_DEPTS', '鞈?隤? ?曉銝隤? ?曉鈭玨, ???隤?, '?見?桐??詨 (隞仿???)'],
+      ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR', '??撱箄降?詨 (隞仿???)']
     ];
     
     defaults.forEach(item => {
@@ -179,14 +179,14 @@ function initSystemConfigSheet() {
         sheet.appendRow(item);
       }
     });
-    return { success: true, message: "System_Config 設定項已自動補齊！" };
+    return { success: true, message: "System_Config 閮剖??歇?芸?鋆?嚗? };
   } catch(err) {
     return { success: false, error: err.message };
   }
 }
 
 // =========================================================================
-// 排程雲端同步模組：saveOrders / getOrders
+// ???脩垢?郊璅∠?嚗aveOrders / getOrders
 // =========================================================================
 
 const ORDERS_HEADERS = [
@@ -194,11 +194,11 @@ const ORDERS_HEADERS = [
   'productName', 'tankNo', 'customer', 'container', 'quantity', 'grade', 'note'
 ];
 
-// 前端匯入 Excel 後呼叫：完全覆蓋 Orders 工作表（以最新匯入資料為準）
+// ?垢?臬 Excel 敺?恬?摰閬? Orders 撌乩?銵剁?隞交??啣?亥??皞?
 function saveOrders(orders) {
   try {
     if (!Array.isArray(orders) || orders.length === 0) {
-      return { success: false, error: '無有效排程資料' };
+      return { success: false, error: '?⊥???蝔??? };
     }
     const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
     let sheet = ss.getSheetByName(CONFIG.ordersSheetName);
@@ -207,16 +207,16 @@ function saveOrders(orders) {
     } else {
       sheet.clearContents();
     }
-    // 寫入標題列
+    // 撖怠璅???
     sheet.appendRow(ORDERS_HEADERS.map(h => {
       const labels = {
-        importedAt: '匯入時間', doc_no: '單號', date: '排程日期', time: '排程時間',
-        flowType: '類型', productName: '品名', tankNo: '槽號/櫃號', customer: '客戶/車號',
-        container: '容器/艙別', quantity: '數量', grade: '等級', note: '備註'
+        importedAt: '?臬??', doc_no: '?株?', date: '???交?', time: '????',
+        flowType: '憿?', productName: '??', tankNo: '瑽質?/瑹?', customer: '摰Ｘ/頠?',
+        container: '摰孵/?', quantity: '?賊?', grade: '蝑?', note: '?酉'
       };
       return labels[h] || h;
     }));
-    // 批次寫入所有訂單
+    // ?寞活撖怠?????
     const nowStr = Utilities.formatDate(new Date(), 'GMT+8', 'yyyy-MM-dd HH:mm:ss');
     const rows = orders.map(o => ORDERS_HEADERS.map(h => {
       if (h === 'importedAt') return nowStr;
@@ -231,7 +231,7 @@ function saveOrders(orders) {
   }
 }
 
-// 前端頁面載入時呼叫：讀取 Orders 工作表，回傳排程陣列
+// ?垢?頛??恬?霈??Orders 撌乩?銵剁???????
 function getOrders() {
   try {
     const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
@@ -239,7 +239,7 @@ function getOrders() {
     if (!sheet) return { success: true, orders: [], count: 0 };
     const data = sheet.getDataRange().getValues();
     if (data.length <= 1) return { success: true, orders: [], count: 0 };
-    const headers = data[0]; // 中文標題列，改用固定 ORDERS_HEADERS 索引對應
+    const headers = data[0]; // 銝剜?璅????寧?箏? ORDERS_HEADERS 蝝Ｗ?撠?
     const orders = data.slice(1).filter(row => row[1]).map(row => {
       const obj = {};
       ORDERS_HEADERS.forEach((h, i) => { obj[h] = String(row[i] || ''); });
@@ -272,7 +272,7 @@ function getSamples() {
 function createSample(payload) {
   const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
   const sheet = ss.getSheetByName(CONFIG.sheetName);
-  const defaultBarcode = Utilities.formatDate(new Date(), "GMT+8", "yyyyMMdd") + '-庫存';
+  const defaultBarcode = Utilities.formatDate(new Date(), "GMT+8", "yyyyMMdd") + '-摨怠?';
   const rowData = CONFIG.headers.map(h => {
     if (h === 'id') return payload.id || Utilities.getUuid();
     if (h === 'status') return 'pending';
@@ -288,7 +288,7 @@ function createSample(payload) {
 function completeSample(id, result, note, pin) {
   const sysConfig = getSystemConfigFromSheet_();
   if (pin !== sysConfig.pin) {
-    return { success: false, error: '⛔ 授權失敗：品管專屬密碼錯誤！' };
+    return { success: false, error: '????憭望?嚗?蝞∪?撅砍?蝣潮隤歹?' };
   }
 
   const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
@@ -312,24 +312,24 @@ function completeSample(id, result, note, pin) {
       const dept = data[i][h.indexOf('dept')];
       const requester = data[i][h.indexOf('requester')];
 
-      // Microsoft Teams 精準分流通知 (只送主管 + 該送樣課室)
+      // Microsoft Teams 蝎暹???? (?芷蜓蝞?+ 閰脤見隤脣恕)
       sendTeamsCompletionNotify(dept, requester, barcode, productName, tankNo, customer, result, note, sysConfig);
       
       return { success: true };
     }
   }
-  return { success: false, error: '找不到該筆資料' };
+  return { success: false, error: '?曆??啗府蝑??? };
 }
 
 // =========================================================================
-// 退回重新送樣模組：returnForResample
+// ????圈見璅∠?嚗eturnForResample
 // =========================================================================
 
-// 品管判定 FAIL 後退回：將舊記錄標記為 'failed'，自動建立 round+1 的新記錄
+// ?恣?文? FAIL 敺??撠?閮?璅???'failed'嚗?遣蝡?round+1 ?閮?
 function returnForResample(id, note, pin) {
   const sysConfig = getSystemConfigFromSheet_();
   if (pin !== sysConfig.pin) {
-    return { success: false, error: '⛔ 授權失敗：品管專屬密碼錯誤！' };
+    return { success: false, error: '????憭望?嚗?蝞∪?撅砍?蝣潮隤歹?' };
   }
 
   const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
@@ -341,7 +341,7 @@ function returnForResample(id, note, pin) {
     if (data[i][h.indexOf('id')] === id) {
       const row = i + 1;
 
-      // 1. 讀取原記錄所有欄位
+      // 1. 霈??閮????雿?
       const oldBarcode   = data[i][h.indexOf('barcode')];
       const oldProduct   = data[i][h.indexOf('productName')];
       const oldTankNo    = data[i][h.indexOf('tankNo')];
@@ -354,17 +354,17 @@ function returnForResample(id, note, pin) {
       const oldParentId  = h.indexOf('parentId') >= 0 ? data[i][h.indexOf('parentId')] : '';
       const oldRound     = h.indexOf('round') >= 0 ? (parseInt(data[i][h.indexOf('round')]) || 1) : 1;
 
-      // 2. 計算根記錄 ID（parentId 若已有就繼承，否則自己就是根）
+      // 2. 閮??寡???ID嚗arentId ?亙歇?停蝜潭嚗?撌勗停?舀嚗?
       const rootId = oldParentId || id;
       const newRound = oldRound + 1;
 
-      // 3. 標記舊記錄為 'failed'（保留，可查詢）
+      // 3. 璅???? 'failed'嚗????舀閰ｇ?
       sheet.getRange(row, h.indexOf('status') + 1).setValue('failed');
       sheet.getRange(row, h.indexOf('completedAt') + 1).setValue(new Date().toISOString());
       sheet.getRange(row, h.indexOf('qcResult') + 1).setValue('FAIL');
-      sheet.getRange(row, h.indexOf('qcNote') + 1).setValue(note || '判定不合格，退回重新送樣');
+      sheet.getRange(row, h.indexOf('qcNote') + 1).setValue(note || '?文?銝??潘?????圈見');
 
-      // 4. 建立新的 pending 記錄（相同品名/槽號，round+1）
+      // 4. 撱箇??啁? pending 閮?嚗????瑽質?嚗ound+1嚗?
       const newId = Utilities.getUuid();
       const newRowData = CONFIG.headers.map(field => {
         if (field === 'id')          return newId;
@@ -381,40 +381,40 @@ function returnForResample(id, note, pin) {
         if (field === 'grade')       return oldGrade;
         if (field === 'parentId')    return rootId;
         if (field === 'round')       return newRound;
-        return '';  // qcResult, completedAt, qcNote, isAlerted 等留空
+        return '';  // qcResult, completedAt, qcNote, isAlerted 蝑?蝛?
       });
       sheet.appendRow(newRowData);
 
-      // 5. Teams 通知：退回重新送樣
+      // 5. Teams ?嚗???圈見
       sendTeamsReturnNotify(oldDept, oldRequester, oldBarcode, oldProduct, oldTankNo, oldCustomer, newRound, note, sysConfig);
 
       return { success: true, newId: newId, round: newRound };
     }
   }
-  return { success: false, error: '找不到該筆資料' };
+  return { success: false, error: '?曆??啗府蝑??? };
 }
 
 // =========================================================================
-// Microsoft Teams 核心模組：精準分流與 2 小時超時預警
+// Microsoft Teams ?詨?璅∠?嚗移皞?瘚? 2 撠?頞??郎
 // =========================================================================
 
-// Teams MessageCard 發送核心 (支援指定課室 + 主管雙發送)
+// Teams MessageCard ?潮敹?(?舀??隤脣恕 + 銝餌恣???
 function sendTeamsCard(targetDept, cardPayload, sysConfig) {
   const cfg = sysConfig || getSystemConfigFromSheet_();
   const targetWebhooks = [];
 
-  // 1. 加入主管頻道 Webhook
+  // 1. ?銝餌恣?駁? Webhook
   if (cfg.managerWebhook && cfg.managerWebhook.startsWith('http')) {
     targetWebhooks.push(cfg.managerWebhook);
   }
 
-  // 2. 加入送樣課室專屬 Webhook
+  // 2. ??見隤脣恕撠惇 Webhook
   if (targetDept && cfg.deptWebhooks && cfg.deptWebhooks[targetDept] && cfg.deptWebhooks[targetDept].startsWith('http')) {
     targetWebhooks.push(cfg.deptWebhooks[targetDept]);
   }
 
   if (targetWebhooks.length === 0) {
-    console.log("未配置有效 Teams Webhook，跳過發送。");
+    console.log("?芷?蝵格???Teams Webhook嚗歲???);
     return;
   }
 
@@ -429,17 +429,17 @@ function sendTeamsCard(targetDept, cardPayload, sysConfig) {
     try {
       UrlFetchApp.fetch(url, options);
     } catch(err) {
-      console.error("Teams 發送至 " + url + " 失敗", err);
+      console.error("Teams ?潮 " + url + " 憭望?", err);
     }
   });
 }
 
-// 檢驗完成：發送 Teams 放行/不合格卡片
+// 瑼ａ?摰?嚗??Teams ?曇?/銝??澆??
 function sendTeamsCompletionNotify(dept, requester, barcode, productName, tankNo, truck, result, note, sysConfig) {
   const cfg = sysConfig || getSystemConfigFromSheet_();
   const isPass = (result === 'PASS');
-  const themeColor = isPass ? "107C41" : "D9381E"; // 綠色合格 / 紅色不合格
-  const statusTitle = isPass ? "✅【QC 檢驗完成 - 判定合格放行】" : "❌【QC 檢驗完成 - 判定不合格】";
+  const themeColor = isPass ? "107C41" : "D9381E"; // 蝬? / 蝝銝???
+  const statusTitle = isPass ? "?C 瑼ａ?摰? - ?文???曇??? : "?C 瑼ａ?摰? - ?文?銝??潦?;
 
   const completionCard = {
     "@type": "MessageCard",
@@ -448,21 +448,21 @@ function sendTeamsCompletionNotify(dept, requester, barcode, productName, tankNo
     "summary": statusTitle,
     "sections": [{
       "activityTitle": statusTitle,
-      "activitySubtitle": `檢驗結果已判定，請 ${dept} 進行後續作業`,
+      "activitySubtitle": `瑼ａ?蝯?撌脣摰?隢?${dept} ?脰?敺?雿平`,
       "facts": [
-        { "name": "🏢 送樣單位", "value": `${dept}（送樣人：${requester || '無'}）` },
-        { "name": "🧪 檢驗品名", "value": productName },
-        { "name": "🛢️ 槽號 / 車牌", "value": `${tankNo || '-'} / ${truck || '-'}` },
-        { "name": "📋 檢驗單號", "value": barcode },
-        { "name": "🎯 判定結果", "value": `**${result}**` },
-        { "name": "📝 判定備註", "value": note || "無" },
-        { "name": "⏱️ 完成時間", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
+        { "name": "? ?見?桐?", "value": `${dept}嚗見鈭綽?${requester || '??}嚗 },
+        { "name": "?妒 瑼ａ???", "value": productName },
+        { "name": "?儭?瑽質? / 頠?", "value": `${tankNo || '-'} / ${truck || '-'}` },
+        { "name": "?? 瑼ａ??株?", "value": barcode },
+        { "name": "? ?文?蝯?", "value": `**${result}**` },
+        { "name": "?? ?文??酉", "value": note || "?? },
+        { "name": "?梧? 摰???", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
       ],
       "markdown": true
     }],
     "potentialAction": [{
       "@type": "OpenUri",
-      "name": "📱 開啟 PWA 看板查看",
+      "name": "? ?? PWA ??亦?",
       "targets": [{ "os": "default", "uri": cfg.pwaUrl }]
     }]
   };
@@ -470,38 +470,38 @@ function sendTeamsCompletionNotify(dept, requester, barcode, productName, tankNo
   sendTeamsCard(dept, completionCard, cfg);
 }
 
-// 退回重新送樣：發送 Teams 通知給送樣課室
+// ????圈見嚗??Teams ?蝯阡見隤脣恕
 function sendTeamsReturnNotify(dept, requester, barcode, productName, tankNo, truck, newRound, note, sysConfig) {
   const cfg = sysConfig || getSystemConfigFromSheet_();
   const returnCard = {
     "@type": "MessageCard",
     "@context": "http://schema.org/extensions",
-    "themeColor": "F97316", // 橘色警示
-    "summary": `↩️【QC 退回重新送樣】${productName} 需進行第 ${newRound} 次送樣`,
+    "themeColor": "F97316", // 璈霅衣內
+    "summary": `?抬??C ????圈見??{productName} ??脰?蝚?${newRound} 甈⊿見`,
     "sections": [{
-      "activityTitle": `↩️【QC 退回重新送樣 - 第 ${newRound} 次】`,
-      "activitySubtitle": `品管已判定不合格，請 ${dept} 重新送樣`,
+      "activityTitle": `?抬??C ????圈見 - 蝚?${newRound} 甈～,
+      "activitySubtitle": `?恣撌脣摰??嚗? ${dept} ??見`,
       "facts": [
-        { "name": "🏢 送樣單位", "value": `${dept}（送樣人：${requester || '無'}）` },
-        { "name": "🧪 檢驗品名", "value": productName },
-        { "name": "🛢️ 槽號 / 車牌", "value": `${tankNo || '-'} / ${truck || '-'}` },
-        { "name": "📋 檢驗單號", "value": barcode },
-        { "name": "🔄 送樣輪次", "value": `**第 ${newRound} 次送樣**` },
-        { "name": "📝 退回原因", "value": note || "判定不合格，請重新送樣" },
-        { "name": "⏱️ 退回時間", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
+        { "name": "? ?見?桐?", "value": `${dept}嚗見鈭綽?${requester || '??}嚗 },
+        { "name": "?妒 瑼ａ???", "value": productName },
+        { "name": "?儭?瑽質? / 頠?", "value": `${tankNo || '-'} / ${truck || '-'}` },
+        { "name": "?? 瑼ａ??株?", "value": barcode },
+        { "name": "?? ?見頛芣活", "value": `**蝚?${newRound} 甈⊿見**` },
+        { "name": "?? ?????, "value": note || "?文?銝??潘?隢??圈見" },
+        { "name": "?梧? ?????, "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm") }
       ],
       "markdown": true
     }],
     "potentialAction": [{
       "@type": "OpenUri",
-      "name": "📱 開啟 PWA 看板確認",
+      "name": "? ?? PWA ?蝣箄?",
       "targets": [{ "os": "default", "uri": cfg.pwaUrl }]
     }]
   };
   sendTeamsCard(dept, returnCard, cfg);
 }
 
-// 逾時 2 小時巡檢 (GAS 時間驅動觸發器：建議設定每 10 分鐘執行一次)
+// ?暹? 2 撠?撌⊥炎 (GAS ??撽?閫貊?剁?撱箄降閮剖?瘥?10 ???瑁?銝甈?
 function checkOverdueSamples() {
   const sysConfig = getSystemConfigFromSheet_();
   const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
@@ -524,7 +524,7 @@ function checkOverdueSamples() {
       const createdTime = new Date(createdAtStr).getTime();
       const diffMs = now - createdTime;
 
-      // 判定超過 2 小時 (2 * 60 * 60 * 1000 ms)
+      // ?文?頞? 2 撠? (2 * 60 * 60 * 1000 ms)
       if (diffMs >= TWO_HOURS_MS) {
         const diffHours = (diffMs / (1000 * 60 * 60)).toFixed(1);
         const barcode = row[h.indexOf('barcode')];
@@ -537,31 +537,31 @@ function checkOverdueSamples() {
         const overdueCard = {
           "@type": "MessageCard",
           "@context": "http://schema.org/extensions",
-          "themeColor": "D9381E", // 鮮紅警示色
-          "summary": `🚨【QC 檢驗超時警報】${prod} 等候已達 ${diffHours} 小時`,
+          "themeColor": "D9381E", // 擙桃?霅衣內??
+          "summary": `??C 瑼ａ?頞?霅血??{prod} 蝑歇??${diffHours} 撠?`,
           "sections": [{
-            "activityTitle": `🚨【QC 檢驗超時警報】等候已達 ${diffHours} 小時`,
-            "activitySubtitle": `樣品檢驗已逾 2 小時未判定，請品管與 ${dept} 儘速處理`,
+            "activityTitle": `??C 瑼ａ?頞?霅血???歇??${diffHours} 撠?`,
+            "activitySubtitle": `璅??瑼ａ?撌脤?2 撠??芸摰?隢?蝞∟? ${dept} ???,
             "facts": [
-              { "name": "🏢 送樣單位", "value": `${dept}（送樣人：${requester || '無'}）` },
-              { "name": "🧪 檢驗品名", "value": prod },
-              { "name": "🛢️ 槽號 / 車牌", "value": `${tank || '-'} / ${truck || '-'}` },
-              { "name": "📋 單號編號", "value": barcode },
-              { "name": "⏰ 送樣時間", "value": Utilities.formatDate(new Date(createdTime), "GMT+8", "yyyy-MM-dd HH:mm") }
+              { "name": "? ?見?桐?", "value": `${dept}嚗見鈭綽?${requester || '??}嚗 },
+              { "name": "?妒 瑼ａ???", "value": prod },
+              { "name": "?儭?瑽質? / 頠?", "value": `${tank || '-'} / ${truck || '-'}` },
+              { "name": "?? ?株?蝺刻?", "value": barcode },
+              { "name": "???見??", "value": Utilities.formatDate(new Date(createdTime), "GMT+8", "yyyy-MM-dd HH:mm") }
             ],
             "markdown": true
           }],
           "potentialAction": [{
             "@type": "OpenUri",
-            "name": "📱 開啟 PWA 看板立即判定",
+            "name": "? ?? PWA ?蝡?文?",
             "targets": [{ "os": "default", "uri": sysConfig.pwaUrl }]
           }]
         };
 
-        // 精準推送給主管 + 該送樣課室頻道
+        // 蝎暹??券策銝餌恣 + 閰脤見隤脣恕?駁?
         sendTeamsCard(dept, overdueCard, sysConfig);
 
-        // 標記 YES，避免下次觸發時重複發送洗版
+        // 璅? YES嚗??甈∟孛?潭????潮???
         sheet.getRange(i + 1, h.indexOf('isAlerted') + 1).setValue('YES');
         alertedCount++;
       }
@@ -570,22 +570,22 @@ function checkOverdueSamples() {
   return { success: true, checked: data.length - 1, alerted: alertedCount };
 }
 
-// 測試 Teams Webhook 功能
+// 皜祈岫 Teams Webhook ?
 function testTeamsNotification(dept) {
-  const targetDept = dept || '現場一課';
+  const targetDept = dept || '?曉銝隤?;
   const sysConfig = getSystemConfigFromSheet_();
   const testCard = {
     "@type": "MessageCard",
     "@context": "http://schema.org/extensions",
     "themeColor": "0078D4",
-    "summary": "🧪 Teams Webhook 連線測試成功",
+    "summary": "?妒 Teams Webhook ???皜祈岫??",
     "sections": [{
-      "activityTitle": "🧪【QC 系統 - Teams Webhook 測試連線】",
-      "activitySubtitle": `此訊息由 Google Apps Script 測試發送至 ${targetDept} 與主管頻道`,
+      "activityTitle": "?妒?C 蝟餌絞 - Teams Webhook 皜祈岫?????,
+      "activitySubtitle": `甇方??舐 Google Apps Script 皜祈岫?潮 ${targetDept} ?蜓蝞⊿?,
       "facts": [
-        { "name": "測試單位", "value": targetDept },
-        { "name": "發送時間", "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss") },
-        { "name": "連線狀態", "value": "🟢 正常運作" }
+        { "name": "皜祈岫?桐?", "value": targetDept },
+        { "name": "?潮???, "value": Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss") },
+        { "name": "??????, "value": "? 甇?虜??" }
       ],
       "markdown": true
     }]
@@ -593,3 +593,4 @@ function testTeamsNotification(dept) {
   sendTeamsCard(targetDept, testCard, sysConfig);
   return { success: true, dept: targetDept };
 }
+
