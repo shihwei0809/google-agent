@@ -491,7 +491,24 @@
 
     .mode-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; background: #e0e7ff; color: #3730a3; font-weight: bold; }
     .toast { position: fixed; bottom: 25px; right: 25px; background: #1e293b; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); z-index: 2000; display: none; font-size: 0.9rem; }
-  </style>
+  
+    .phrase-tag {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .phrase-tag:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+</style>
 </head>
 <body>
 <div class="container">
@@ -830,7 +847,8 @@
     </div>
     <div style="margin-bottom:12px;">
       <label style="font-weight:600; color:#374151; font-size:0.9rem;">📝 退回原因 / 不合格說明</label>
-      <textarea id="returnResampleNote" rows="3" placeholder="請輸入不合格原因，例如：顏色不符規格、pH 值超標..." style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem; resize:vertical;"></textarea>
+      <div id="returnResamplePhraseContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; margin-top:4px;"></div>
+    <textarea id="returnResampleNote" rows="3" placeholder="請輸入不合格原因，例如：顏色不符規格、pH 值超標..." style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem; resize:vertical;"></textarea>
     </div>
     <div style="margin-bottom:16px;">
       <label style="font-weight:600; color:#374151; font-size:0.9rem;">🔑 品管授權 PIN 碼</label>
@@ -903,6 +921,7 @@
       <option value="FAIL">FAIL (不合格退回)</option>
     </select>
     <label>判定備註</label>
+    <div id="modalPhraseContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;"></div>
     <textarea id="modalNote" style="height:60px; margin-bottom:15px;" placeholder="請輸入檢驗數據或備註事項..."></textarea>
     <div style="background:#fef2f2; padding:12px; border-radius:6px; margin-bottom:20px; border-left:4px solid var(--red);">
       <label style="color:#b91c1c;">🔐 授權密碼 (預設為 8888 或後台設定)</label>
@@ -3041,7 +3060,24 @@
             padding-top: 1mm;
             margin-top: 0.5mm;
           }
-        </style>
+        
+    .phrase-tag {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .phrase-tag:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+</style>
       </head>
       <body>
         ${labelPagesHtml}
@@ -3085,6 +3121,15 @@
       pinBox.value = '8888'; // fallback
     }
 
+    
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    const phrasesStr = cfgStr ? (JSON.parse(cfgStr)['OPTIONS_PHRASES'] || '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他') : '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他';
+    const phrases = phrasesStr.split(',').map(s=>s.trim()).filter(Boolean);
+    const container = document.getElementById('modalPhraseContainer');
+    if (container) {
+      container.innerHTML = phrases.map(p => `<span class="phrase-tag" onclick="document.getElementById('modalNote').value = this.innerText">${p}</span>`).join('');
+    }
+    
     document.getElementById('judgeModal').style.display = 'flex'; 
   }
   function closeModal() { document.getElementById('judgeModal').style.display = 'none'; }
@@ -3239,6 +3284,15 @@
       pinBox.parentElement.style.display = 'none';
       pinBox.value = '8888'; // fallback
     }
+    
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    const phrasesStr = cfgStr ? (JSON.parse(cfgStr)['OPTIONS_PHRASES'] || '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他') : '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他';
+    const phrases = phrasesStr.split(',').map(s=>s.trim()).filter(Boolean).filter(p => p !== '合格放行');
+    const container = document.getElementById('returnResamplePhraseContainer');
+    if (container) {
+      container.innerHTML = phrases.map(p => `<span class="phrase-tag" onclick="document.getElementById('returnResampleNote').value = this.innerText">${p}</span>`).join('');
+    }
+    
     document.getElementById('returnResampleModal').style.display = 'flex';
   }
   function closeReturnResampleModal() {

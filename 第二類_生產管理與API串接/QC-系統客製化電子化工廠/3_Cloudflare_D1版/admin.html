@@ -288,6 +288,7 @@
         if (data['OPTIONS_JUDGE_RESULTS'] === undefined) data['OPTIONS_JUDGE_RESULTS'] = 'PASS:合格放行, FAIL:不合格退回';
         if (data['T100_IGNORE_PRODUCTS'] === undefined) data['T100_IGNORE_PRODUCTS'] = 'IPAHQ';
         if (data['OPTIONS_PRODUCTS'] === undefined) data['OPTIONS_PRODUCTS'] = 'IPA,IPAUPS,IPAHQ,CPNE3(T),CPNE4,CPN-P1R,EBR,EBR-P1R,NBAC,NBAC-P1R,CPN,EG,NMP,GAA,ACT,PM,PMA98,heavy-R,DPM,DPM-B1,SEP73,Anone,GBL,PG,EBRR';
+        if (data['OPTIONS_PHRASES'] === undefined) data['OPTIONS_PHRASES'] = '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他';
         if (data['OPTIONS_GRADES'] === undefined) data['OPTIONS_GRADES'] = '工業級, UPS, IF, 電子級, 回收液';
 
         window.CURRENT_GRADE_OPTIONS = data['OPTIONS_GRADES'].split(',').map(s=>s.trim()).filter(Boolean);
