@@ -898,7 +898,7 @@
     <input type="hidden" id="currentId">
     <div id="judgeApproverText" style="font-weight:bold; color:#2563eb; margin-bottom:15px; background:#eff6ff; padding:8px; border-radius:6px;"></div>
     <label>判定結果</label>
-    <select id="modalResult" style="margin-bottom:15px; font-size:1.1rem; color:#059669; font-weight:bold;">
+    <select id="modalResult" onchange="handleResultChange()" style="margin-bottom:15px; font-size:1.1rem; color:#059669; font-weight:bold;">
       <option value="PASS">PASS (合格放行)</option>
       <option value="FAIL">FAIL (不合格退回)</option>
     </select>
@@ -3071,6 +3071,8 @@
     }
     document.getElementById('currentId').value = id; 
     document.getElementById('modalNote').value = '合格放行'; 
+    document.getElementById('modalResult').value = 'PASS';
+    handleResultChange(); 
     
     const approverText = document.getElementById('judgeApproverText');
     if (approverText) {
@@ -3086,6 +3088,19 @@
     document.getElementById('judgeModal').style.display = 'flex'; 
   }
   function closeModal() { document.getElementById('judgeModal').style.display = 'none'; }
+
+  
+  function handleResultChange() {
+    const sel = document.getElementById('modalResult');
+    const note = document.getElementById('modalNote');
+    if (sel.value === 'FAIL') {
+      sel.style.color = '#dc2626'; // Red
+      if (note.value === '合格放行') note.value = '';
+    } else {
+      sel.style.color = '#059669'; // Green
+      if (note.value === '') note.value = '合格放行';
+    }
+  }
 
   function submitJudge() {
     const approver = sessionStorage.getItem('QC_LOGGED_IN_USER');
