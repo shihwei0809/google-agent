@@ -82,8 +82,14 @@ export async function onRequest(context) {
       const data = payload.payload || payload;
       const { id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark } = data;
       await env.DB.prepare("ALTER TABLE QC_Samples ADD COLUMN remark TEXT").run().catch(e=>{});
-      await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now', '+8 hours'))")
-        .bind(id||null, barcode||null, productName||null, tankNo||null, customer||null, quantity||null, flowType||null, dept||null, requester||null, grade||null, remark||null).run();
+      const s_status = data.status || 'pending';
+      const s_result = data.qcResult || null;
+      const s_note = data.qcNote || null;
+      const s_approver = data.qcApprover || null;
+      const s_compAt = (s_status === 'completed') ? (data.completedAt || new Date().toISOString().replace('T', ' ').substring(0, 19)) : null;
+
+      await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark, status, qcResult, qcNote, qcApprover, completedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'))")
+        .bind(id||null, barcode||null, productName||null, tankNo||null, customer||null, quantity||null, flowType||null, dept||null, requester||null, grade||null, remark||null, s_status, s_result, s_note, s_approver, s_compAt).run();
       return new Response(JSON.stringify({ success: true }), { headers: h });
     }
 
