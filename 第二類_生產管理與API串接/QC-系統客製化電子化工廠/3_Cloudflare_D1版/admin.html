@@ -278,7 +278,7 @@
 
     async function loadConfig() {
       try {
-        const res = await fetch(API + '?action=getConfig', { cache: 'no-store' });
+        const res = await fetch(API + '?action=getConfig&_t=' + Date.now(), { cache: 'no-store' });
         const data = await res.json();
         const t = document.querySelector('#configTable tbody');
         t.innerHTML = '';
@@ -311,7 +311,7 @@
     
     async function loadAccounts() {
       try {
-        const res = await fetch(API + '?action=getAccounts', { cache: 'no-store' });
+        const res = await fetch(API + '?action=getAccounts&_t=' + Date.now(), { cache: 'no-store' });
         const data = await res.json();
         const t = document.querySelector('#accTable tbody');
         t.innerHTML = '';
