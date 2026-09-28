@@ -2279,6 +2279,10 @@
           </div>
         </td>
       </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
+      console.log('pData:', pData);
+      console.log('pBody.innerHTML length:', pBody.innerHTML.length);
+      console.log('pData:', pData);
+      console.log('pBody.innerHTML length:', pBody.innerHTML.length);
 
       cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
         <td>
