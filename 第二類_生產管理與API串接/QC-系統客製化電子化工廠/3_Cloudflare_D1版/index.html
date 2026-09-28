@@ -1578,7 +1578,7 @@
     
     // 自動尋找同車次的進出貨單 (同車牌/同動向)
     let combinedDocs = item.doc_no || '';
-    if (item.container && item.container.trim() !== '') {
+    if (item.container && item.container.trim() !== '' && item.flowType === '進料') {
         const sameTruckItems = t100Orders.filter(o => o !== item && o.container === item.container && o.flowType === item.flowType);
         if (sameTruckItems.length > 0) {
             const extraDocs = sameTruckItems.map(o => o.doc_no).filter(Boolean);
