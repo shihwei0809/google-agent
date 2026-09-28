@@ -2909,9 +2909,27 @@
   function openJudge(id) { 
     document.getElementById('currentId').value = id; 
     document.getElementById('modalNote').value = '合格放行'; 
-    document.getElementById('modalPin').value = ''; 
+    
+    const loggedInUser = sessionStorage.getItem('QC_LOGGED_IN_USER');
+    const approverText = document.getElementById('judgeApproverText');
+    if (approverText) {
+      approverText.innerText = '👤 放行核准人：' + (loggedInUser || '未登入');
+    }
+    
+    const pinBox = document.getElementById('modalPin').parentElement;
+    if (loggedInUser) {
+      // 已經登入，隱藏密碼輸入框，並自動帶入密碼
+      pinBox.style.display = 'none';
+      const storedPin = localStorage.getItem('HS_QC_ADMIN_PIN') || '8888';
+      document.getElementById('modalPin').value = storedPin;
+    } else {
+      // 未登入，顯示密碼輸入框
+      pinBox.style.display = 'block';
+      document.getElementById('modalPin').value = '';
+    }
+
     document.getElementById('judgeModal').style.display = 'flex'; 
-    document.getElementById('modalPin').focus();
+    if (!loggedInUser) document.getElementById('modalPin').focus();
   }
   function closeModal() { document.getElementById('judgeModal').style.display = 'none'; }
 
