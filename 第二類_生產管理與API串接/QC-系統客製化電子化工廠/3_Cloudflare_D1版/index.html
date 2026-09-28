@@ -1631,6 +1631,10 @@
 
         // 核心單一工作表解析器
         function parseSheet(sheetName) {
+          const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+          const ignoredConfig = cfgStr ? JSON.parse(cfgStr)['T100_IGNORE_PRODUCTS'] : 'IPAHQ';
+          const ignoredList = (ignoredConfig || 'IPAHQ').split(',').map(s => s.trim().toUpperCase());
+
           const worksheet = workbook.Sheets[sheetName];
           if (!worksheet) return [];
           const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -1697,6 +1701,7 @@
               const docNo = gv(['出貨通知單', '出通單', '出貨單']);
               const prod = gv(['品名', '物料名稱']);
               if(!docNo || !prod) continue;
+              if(ignoredList.includes(String(prod).trim().toUpperCase())) continue;
 
               // 嚴格只從「預計出貨日期」欄位抓取，若為合併儲存格向下繼承！
               const rawDate = gv(['預計出貨日期', '預計出貨日', '出貨日期', '出貨日', '預計到貨日期']);
@@ -1750,6 +1755,7 @@
               const docNo = gv(['入庫單', '進貨單', '入庫單號', '進貨單號']);
               const prod = gv(['品名', '物料名稱']);
               if(!docNo || !prod) continue;
+              if(ignoredList.includes(String(prod).trim().toUpperCase())) continue;
 
               // 嚴格只從「預計進貨日」欄位抓取，若為合併儲存格向下繼承！絕對不讀取「單據日期」與「採購單號」！
               const rawDate = gv(['預計進貨日', '預計進貨日期', '預計到貨日期', '進貨日', '進貨日期']);
