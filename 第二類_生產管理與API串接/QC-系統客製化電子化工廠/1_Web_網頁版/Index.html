@@ -3724,6 +3724,32 @@
         reg.update();
       }).catch(err => console.log('SW register failed:', err));
     }
+
+  // ===== 暴露函數到全域 window（GAS iframe 閉包需要此設定）=====
+  window.setT100FilterMode = setT100FilterMode;
+  window.renderT100Dropdown = renderT100Dropdown;
+  window.openSubmitModal = openSubmitModal;
+  window.closeSubmitModal = closeSubmitModal;
+  window.submitSample = submitSample;
+  window.openJudge = openJudge;
+  window.closeJudge = closeJudge;
+  window.submitJudge = submitJudge;
+  window.openHistory = typeof openHistory !== 'undefined' ? openHistory : null;
+  window.closeHistory = typeof closeHistory !== 'undefined' ? closeHistory : null;
+  window.openGlobalHistory = typeof openGlobalHistory !== 'undefined' ? openGlobalHistory : null;
+  window.closeGlobalHistory = typeof closeGlobalHistory !== 'undefined' ? closeGlobalHistory : null;
+  window.triggerT100File = typeof triggerT100File !== 'undefined' ? triggerT100File : null;
+  window.clearT100 = typeof clearT100 !== 'undefined' ? clearT100 : null;
+  window.printLabel = typeof printLabel !== 'undefined' ? printLabel : null;
+  window.openAdminPanel = typeof openAdminPanel !== 'undefined' ? openAdminPanel : null;
+  window.closeAdminPanel = typeof closeAdminPanel !== 'undefined' ? closeAdminPanel : null;
+  window.saveAdminSettings = typeof saveAdminSettings !== 'undefined' ? saveAdminSettings : null;
+  window.loginUser = typeof loginUser !== 'undefined' ? loginUser : null;
+  window.logoutUser = typeof logoutUser !== 'undefined' ? logoutUser : null;
+  window.openLoginModal = typeof openLoginModal !== 'undefined' ? openLoginModal : null;
+  window.closeLoginModal = typeof closeLoginModal !== 'undefined' ? closeLoginModal : null;
+  window.render = render;
+
   };
 </script>
 </body>
