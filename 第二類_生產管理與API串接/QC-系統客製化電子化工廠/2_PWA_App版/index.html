@@ -3068,7 +3068,13 @@
   function openReturnResample(id) {
     document.getElementById('returnResampleId').value = id;
     document.getElementById('returnResampleNote').value = '';
-    document.getElementById('returnResamplePin').value = '';
+    const loggedInUser = sessionStorage.getItem('QC_LOGGED_IN_USER');
+    if (loggedInUser) {
+      const storedPin = localStorage.getItem('HS_QC_ADMIN_PIN') || '8888';
+      document.getElementById('returnResamplePin').value = storedPin;
+    } else {
+      document.getElementById('returnResamplePin').value = '';
+    }
     document.getElementById('returnResampleModal').style.display = 'flex';
   }
 
