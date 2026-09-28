@@ -1456,11 +1456,11 @@
     const btnPending = document.getElementById('btnFilterPending');
     if (btnPending) btnPending.innerHTML = `📦 待送樣放櫃 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${pendingCount}</span>`;
 
-    // 取樣重送數量（品質不合格 + 需特採 + 自動重送待驗）
-    const resampleCount = [
-      ...((typeof cData !== 'undefined' ? cData : []).filter(c => c.status === 'failed')),
-      ...((typeof allData !== 'undefined' ? allData : []).filter(c => c.status === 'pending' && parseInt(c.round || 1) > 1))
-    ].length;
+    // 取樣重送數量 - 直接從 t100Orders 的送樣狀態計算（不依賴 render() 的局部變數）
+    const resampleCount = (!t100Orders || !Array.isArray(t100Orders)) ? 0 : t100Orders.filter(o => {
+      const sub = getOrderSubmissionInfo(o);
+      return sub && (sub.status === 'failed' || (sub.status === 'pending' && (parseInt(sub.round || 1) > 1 || sub.parentId)));
+    }).length;
     const btnResample = document.getElementById('btnFilterResample');
     if (btnResample) {
       const badge = resampleCount > 0
