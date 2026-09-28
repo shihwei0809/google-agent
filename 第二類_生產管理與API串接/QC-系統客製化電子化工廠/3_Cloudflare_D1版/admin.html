@@ -242,6 +242,8 @@
         const t = document.querySelector('#configTable tbody');
         t.innerHTML = '';
         if (data['OPTIONS_PRODUCT_GRADES_MAP'] === undefined) data['OPTIONS_PRODUCT_GRADES_MAP'] = 'EBR-P1R:電子級, IPAUPS:UPS';
+        if (data['OPTIONS_JUDGE_RESULTS'] === undefined) data['OPTIONS_JUDGE_RESULTS'] = 'PASS:合格放行, FAIL:不合格退回';
+        if (data['T100_IGNORE_PRODUCTS'] === undefined) data['T100_IGNORE_PRODUCTS'] = 'IPAHQ';
         
         renderGradesTable(data['OPTIONS_PRODUCT_GRADES_MAP']);
 
