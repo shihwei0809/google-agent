@@ -100,10 +100,7 @@ export async function onRequest(context) {
       const { results: cfgResults } = await env.DB.prepare("SELECT * FROM System_Config").all();
       let configMap = {}; cfgResults.forEach(r => { configMap[r.config_key] = r.config_value; });
       
-      const validPin = configMap['QC_PIN'] || '8888';
-      if (pin !== validPin) {
-        return new Response(JSON.stringify({ success: false, error: "⛔ 授權失敗：品管專屬密碼錯誤！" }), { headers: h });
-      }
+      
 
       // 取得原本樣品資訊，為了發送 Teams
       const sample = await env.DB.prepare("SELECT * FROM QC_Samples WHERE id = ?").bind(id).first();

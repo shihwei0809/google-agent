@@ -2917,36 +2917,37 @@
     printWindow.document.close();
   }
 
-  function openJudge(id) { 
+  let pendingActionId = null;
+  let pendingActionType = null;
+
+  function openJudge(id) {
+    if (!sessionStorage.getItem('QC_LOGGED_IN_USER')) {
+      pendingActionId = id;
+      pendingActionType = 'judge';
+      openAdminUnlockModal();
+      return;
+    }
     document.getElementById('currentId').value = id; 
     document.getElementById('modalNote').value = '合格放行'; 
     
-    const loggedInUser = sessionStorage.getItem('QC_LOGGED_IN_USER');
     const approverText = document.getElementById('judgeApproverText');
     if (approverText) {
-      approverText.innerText = '👤 放行核准人：' + (loggedInUser || '未登入');
+      approverText.innerText = '👤 放行核准人：' + sessionStorage.getItem('QC_LOGGED_IN_USER');
     }
     
-    const pinBox = document.getElementById('modalPin').parentElement;
-    if (loggedInUser) {
-      // 已經登入，隱藏密碼輸入框，並自動帶入密碼
-      pinBox.style.display = 'none';
-      const storedPin = localStorage.getItem('HS_QC_ADMIN_PIN') || '8888';
-      document.getElementById('modalPin').value = storedPin;
-    } else {
-      // 未登入，顯示密碼輸入框
-      pinBox.style.display = 'block';
-      document.getElementById('modalPin').value = '';
+    const pinBox = document.getElementById('modalPin');
+    if(pinBox && pinBox.parentElement) {
+      pinBox.parentElement.style.display = 'none';
+      pinBox.value = '8888'; // fallback
     }
 
     document.getElementById('judgeModal').style.display = 'flex'; 
-    if (!loggedInUser) document.getElementById('modalPin').focus();
   }
   function closeModal() { document.getElementById('judgeModal').style.display = 'none'; }
 
   function submitJudge() {
     const pin = document.getElementById('modalPin').value;
-    if(!pin) { alert("請輸入授權密碼！"); return; }
+    
     const btn = document.getElementById('modalBtn'); 
     btn.disabled = true; 
     btn.innerText = "驗證授權中...";
@@ -3066,18 +3067,21 @@
   // =========================================================
 
   function openReturnResample(id) {
+    if (!sessionStorage.getItem('QC_LOGGED_IN_USER')) {
+      pendingActionId = id;
+      pendingActionType = 'resample';
+      openAdminUnlockModal();
+      return;
+    }
     document.getElementById('returnResampleId').value = id;
     document.getElementById('returnResampleNote').value = '';
-    const loggedInUser = sessionStorage.getItem('QC_LOGGED_IN_USER');
-    if (loggedInUser) {
-      const storedPin = localStorage.getItem('HS_QC_ADMIN_PIN') || '8888';
-      document.getElementById('returnResamplePin').value = storedPin;
-    } else {
-      document.getElementById('returnResamplePin').value = '';
+    const pinBox = document.getElementById('returnResamplePin');
+    if(pinBox && pinBox.parentElement) {
+      pinBox.parentElement.style.display = 'none';
+      pinBox.value = '8888'; // fallback
     }
     document.getElementById('returnResampleModal').style.display = 'flex';
   }
-
   function closeReturnResampleModal() {
     document.getElementById('returnResampleModal').style.display = 'none';
   }
@@ -3087,7 +3091,7 @@
     const note = document.getElementById('returnResampleNote').value.trim();
     const pin = document.getElementById('returnResamplePin').value.trim();
     if (!note) { alert('請輸入退回原因！'); return; }
-    if (!pin) { alert('請輸入品管授權 PIN 碼！'); return; }
+    
 
     const btn = document.getElementById('returnResampleBtn');
     btn.disabled = true;
@@ -3444,6 +3448,12 @@
     if (pin === validPin) {
       closeAdminUnlockModal();
       unlockAdminFeatures(true);
+          if (typeof pendingActionId !== 'undefined' && pendingActionId) {
+             if (pendingActionType === 'judge') openJudge(pendingActionId);
+             if (pendingActionType === 'resample') openReturnResample(pendingActionId);
+             pendingActionId = null;
+             pendingActionType = null;
+          }
     } else {
       if (err) {
         err.innerText = '⛔ PIN 碼錯誤，請重新輸入！(預設為 8888)';
