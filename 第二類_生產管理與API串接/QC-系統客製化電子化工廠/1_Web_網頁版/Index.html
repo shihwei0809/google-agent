@@ -1435,6 +1435,41 @@
     renderT100Dropdown();
   }
 
+  // 更新 T100 篩選按鈕上的數量徽章
+  function updateT100ButtonCounts() {
+    if (!t100Orders || !Array.isArray(t100Orders)) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // 今日排程數量
+    const todayCount = t100Orders.filter(o => o.date === todayStr).length;
+    const btnToday = document.getElementById('btnFilterToday');
+    if (btnToday) btnToday.innerHTML = `📅 今日排程 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${todayCount}</span>`;
+
+    // 待送樣放櫃數量（未送或退回件）
+    const pendingCount = t100Orders.filter(o => {
+      const sub = getOrderSubmissionInfo(o);
+      if (!sub) return true;
+      if (sub.status === 'failed') return true;
+      if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) return true;
+      return false;
+    }).length;
+    const btnPending = document.getElementById('btnFilterPending');
+    if (btnPending) btnPending.innerHTML = `📦 待送樣放櫃 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${pendingCount}</span>`;
+
+    // 取樣重送數量（品質不合格 + 需特採 + 自動重送待驗）
+    const resampleCount = [
+      ...((typeof cData !== 'undefined' ? cData : []).filter(c => c.status === 'failed')),
+      ...((typeof allData !== 'undefined' ? allData : []).filter(c => c.status === 'pending' && parseInt(c.round || 1) > 1))
+    ].length;
+    const btnResample = document.getElementById('btnFilterResample');
+    if (btnResample) {
+      const badge = resampleCount > 0
+        ? `<span style="background:#dc2626;color:white;border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${resampleCount}</span>`
+        : `<span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">0</span>`;
+      btnResample.innerHTML = `🔄 取樣重送 ${badge}`;
+    }
+  }
+
   // 日期選取器變更事件
   function onT100DateFilterChange(val) {
     if (!val) return;
@@ -2124,6 +2159,7 @@
 
     const pData = filtered.filter(s => s.status === 'pending');
     let cData = filtered.filter(s => s.status === 'completed' || s.status === 'failed');
+    updateT100ButtonCounts();
 
     // 如果使用者沒有輸入明確的起迄日期，則「已檢驗完成」預設只顯示近3天 (今天、昨天、前天)
     if (!start && !end) {
