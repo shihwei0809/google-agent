@@ -257,13 +257,13 @@
             "summary": alertTitle,
             "sections": [{
               "activityTitle": alertTitle,
-            "activitySubtitle": `樣品待檢驗已超過 ${alertLevel === 2 ? '4' : '2'} 小時未判定，請盡速處理！`,
+              "activitySubtitle": `樣品待檢驗已超過 ${alertLevel === 2 ? '4' : '2'} 小時未判定，請盡速處理！`,
               "facts": [
-            "facts": [{ "name": "🏢 樣品單位", "value": `${s.dept} (送樣人: ${s.requester || '無'})` },
-            { "name": "🧪 檢驗品名", "value": s.productName },
-            { "name": "🚚 槽號 / 車牌", "value": `${s.tankNo || '-'} / ${s.customer || '-'}` },
-                { "name": "?? ?株?蝺刻?", "value": s.barcode },
-            { "name": "⏰ 送樣時間", "value": s.createdAt }
+                { "name": "🏢 樣品單位", "value": `${s.dept} (送樣人: ${s.requester || '無'})` },
+                { "name": "🧪 檢驗品名", "value": s.productName },
+                { "name": "🚚 槽號 / 車牌", "value": `${s.tankNo || '-'} / ${s.customer || '-'}` },
+                { "name": "🏷️ 條碼資訊", "value": s.barcode || '-' },
+                { "name": "⏰ 送樣時間", "value": s.createdAt }
               ],
               "markdown": true
             }]
