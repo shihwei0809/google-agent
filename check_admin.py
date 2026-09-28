@@ -3,6 +3,7 @@ with open(path, 'r', encoding='utf-8') as f:
     text = f.read()
 lines = text.split('\n')
 for i, l in enumerate(lines):
-    if 'class="tabs"' in l:
-        print("\n".join(lines[i-2:i+20]))
+    if 'function loadConfig' in l:
+        with open('dump_loadconfig.txt', 'w', encoding='utf-8') as fw:
+            fw.write("\n".join(lines[i:i+40]))
         break

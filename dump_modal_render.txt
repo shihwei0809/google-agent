@@ -1,0 +1,60 @@
+  function openGlobalHistoryModal() {
+    document.getElementById('ghSearchKw').value = '';
+    document.getElementById('ghStatusFilter').value = '';
+    renderGlobalHistory();
+    document.getElementById('globalHistoryModal').style.display = 'flex';
+  }
+
+  function closeGlobalHistoryModal() {
+    document.getElementById('globalHistoryModal').style.display = 'none';
+  }
+
+  function renderGlobalHistory() {
+    const kw = document.getElementById('ghSearchKw').value.toLowerCase();
+    const status = document.getElementById('ghStatusFilter').value;
+    const tbody = document.getElementById('ghTableBody');
+    
+    // 篩選
+    const filtered = allData.filter(s => {
+      const matchKw = !kw || 
+        String(s.barcode||'').toLowerCase().includes(kw) ||
+        String(s.productName||'').toLowerCase().includes(kw) ||
+        String(s.tankNo||'').toLowerCase().includes(kw) ||
+        String(s.customer||'').toLowerCase().includes(kw);
+      const matchStatus = !status || s.status === status;
+      return matchKw && matchStatus;
+    });
+
+    // 限制顯示筆數避免卡頓
+    const maxRows = 200;
+    const toShow = filtered.slice(0, maxRows);
+
+    if (toShow.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:30px; color:#94a3b8;">查無符合的歷史紀錄</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = toShow.map(s => {
+      let statusBadge = '';
+      if (s.status === 'pending') statusBadge = `<span style="background:#fef08a; color:#854d0e; padding:2px 6px; border-radius:4px; font-size:0.8rem;">待檢驗</span>`;
+      else if (s.status === 'completed' && s.qcResult === 'PASS') statusBadge = `<span style="background:#d1fae5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:0.8rem;">合格(PASS)</span>`;
+      else if (s.status === 'completed' && s.qcResult === 'FAIL') statusBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:0.8rem;">不合格(FAIL)</span>`;
+      else if (s.status === 'failed') statusBadge = `<span style="background:#fed7aa; color:#9a3412; padding:2px 6px; border-radius:4px; font-size:0.8rem;">退回(failed)</span>`;
+      else statusBadge = s.status;
+
+      const roundHtml = (parseInt(s.round)||1) >= 2 ? ` <span style="font-size:0.7rem; color:#ea580c; background:#ffedd5; padding:1px 4px; border-radius:4px;">第${s.round}次</span>` : '';
+
+      return `<tr>
+        <td style="font-size:0.85rem; color:#475569;">${s.createdAt ? s.createdAt.substring(0,16).replace('T',' ') : '-'}</td>
+        <td><b>${s.barcode}</b>${roundHtml}</td>
+        <td><b>${s.productName}</b> <span style="color:#64748b; font-size:0.8rem;">(${s.grade||'-'})</span></td>
+        <td>${s.tankNo||'-'} / <span style="font-size:0.8rem;">${s.customer||'-'}</span></td>
+        <td style="font-size:0.85rem;">${s.dept} <br><span style="color:#64748b;">(${s.requester})</span></td>
+        <td>${statusBadge} <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">${s.qcNote||''}</div></td>
+      </tr>`;
+    }).join('');
+  }
+
+
+  function setBarcodePlaceholder() {
+    const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');

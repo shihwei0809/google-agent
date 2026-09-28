@@ -1,0 +1,40 @@
+      dept: dept, 
+      requester: requester,
+      remark: remark,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    if(IS_GAS) {
+
+
+      google.script.run.withSuccessHandler(() => { 
+        resetForm();
+        btn.disabled = false; 
+        btn.innerText = "蝣箄??漱?見 ??"; 
+        showToast("???見??撌脣神??Google 閰衣?銵剁?");
+        load(); 
+      }).createSample(payload);
+    } else if(GAS_API_URL) {
+      fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'createSample', payload: payload })
+      })
+      .then(res => res.json())
+      .then(res => {
+        resetForm();
+        btn.disabled = false;
+        btn.innerText = "蝣箄??漱?見 ??";
+        if(res.success) {
+          showToast("???見??撌脣?神??Google 閰衣?銵剁?");
+          load();
+        } else {
+          alert("?見憭望?嚗? + (res.error || "?芰?航炊"));
+        }
+      })
+      .catch(err => {
+        console.warn("API ?見?啣虜嚗摮璈?, err);
+        allData.unshift(payload);
+        localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        resetForm();

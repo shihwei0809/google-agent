@@ -1,4 +1,8 @@
-      <button onclick="login()">登入</button>
+        <thead><tr><th style="width: 40%;">參數名稱</th><th>設定值</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
       <!-- 品名等級設定分頁 -->
     <div id="tab-grades" class="tab-content">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -20,3 +24,12 @@
         <tbody></tbody>
       </table>
     </div>
+
+  </div>
+
+  <script>
+    const API = '/api';
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));

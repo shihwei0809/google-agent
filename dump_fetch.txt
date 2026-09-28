@@ -1,0 +1,12 @@
+      document.getElementById('envBadge').innerText = "☁️ 雲端 API 同步中";
+      // 1. 抓取試算表樣品
+      fetch(`${GAS_API_URL}?action=getSamples`)
+        .then(res => res.json())
+        .then(data => {
+          // 相容舊版中文狀態
+          data.forEach(s => {
+            if (s.status === "待檢驗") s.status = "pending";
+            else if (s.status === "已檢驗") s.status = "completed";
+            else if (s.status === "退件" || s.status === "重取樣") s.status = "failed";
+          });
+          allData = data;

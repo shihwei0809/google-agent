@@ -1,0 +1,40 @@
+    if (isAdaptive) {
+      if (pHead) {
+        pHead.innerHTML = `<tr>
+          <th style="width: 30%;">品項 / 單號</th>
+          <th style="width: 23%;">槽號 / 車牌</th>
+          <th style="width: 28%;">送樣單位 / 等候時長</th>
+          <th style="width: 19%; text-align:center;">操作</th>
+        </tr>`;
+      }
+      if (cHead) {
+        cHead.innerHTML = `<tr>
+          <th style="width: 30%;">品項 / 單號</th>
+          <th style="width: 23%;">槽號 / 車牌</th>
+          <th style="width: 26%;">送樣單位 / 判定</th>
+          <th style="width: 21%;">判定備註</th>
+        </tr>`;
+      }
+
+      // 自適應 4 欄內容（零水平捲軸）
+      pBody.innerHTML = pData.length ? pData.map(s => `<tr style="${(parseInt(s.round)||1) >= 2 ? 'background:#fff7ed;' : ''}">
+        <td>
+          <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:2px;">
+            <b style="font-size:0.88rem; color:#0f172a;">${s.productName}</b>
+            ${getFlowTag(s.flowType)}
+            <span style="font-size:0.72rem; font-weight:bold; color:#1e40af; background:#eff6ff; padding:1px 4px; border-radius:3px;">${s.grade || '-'}</span>
+            ${(parseInt(s.round)||1) >= 2 ? `<span style="font-size:0.72rem; font-weight:bold; color:#ea580c; background:#fed7aa; padding:1px 6px; border-radius:10px;">⚠️ 第${s.round}次送樣</span>` : ''}
+          </div>
+          <div style="font-size:0.75rem; color:#64748b; font-family:monospace; word-break:break-all;">單: <b>${s.barcode}</b></div>
+        </td>
+        <td>
+          <div style="margin-bottom:2px;">
+            <span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:0.78rem;">${s.tankNo || '-'}</span>
+          </div>
+          <div style="font-size:0.76rem; color:#334155; word-break:break-all;">車: <b>${s.customer || '-'}</b></div>
+        </td>
+        <td>
+          <div style="font-weight:600; color:#1e293b; font-size:0.8rem; margin-bottom:2px;">
+            ${s.dept} ${s.requester ? `<span style="font-size:0.72rem; color:#64748b;">(${s.requester})</span>` : ''}
+          </div>
+          <div style="font-size:0.72rem; color:#64748b;">${formatSimpleDate(s.createdAt)}</div>

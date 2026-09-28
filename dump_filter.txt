@@ -1,0 +1,10 @@
+    } else if (t100FilterMode === 'pending') {
+      filteredOrders = t100Orders.filter(o => !getOrderSubmissionInfo(o));
+      filterDescription = `敺見?暹?/??`;
+    } else if (t100FilterMode === 'all') {
+      filteredOrders = [...t100Orders];
+      filterDescription = `?券?臬??`;
+    }
+
+    // 閮???絞閮?
+    const totalCount = t100Orders.length;

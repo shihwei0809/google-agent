@@ -1,0 +1,8 @@
+Line 2278: ${loggedInUser ? `<button class="btn-action btn-judge" onclick="openJudge('${s.id}')" style="width:100%; padding:4px 0; font-size:0.75rem; margin:0;">判定</button>` : `<div style="text-align:center; color:#94a3b8; font-size:0.75rem; margin-top:8px; border: 1px dashed #cbd5e1; border-radius: 4px; padding: 2px;">登入後判定</div>`}
+Line 2314: ${s.qcResult === 'FAIL' && loggedInUser ? `<button onclick="openReturnResample('${s.id}')" style="font-size:0.7rem; background:#f97316; color:white; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%;">↩️ 退回重新送樣</button>` : ''}
+Line 2362: ${loggedInUser ? `<button class="btn-action btn-judge" onclick="openJudge('${s.id}')">判定</button>` : `<div style="text-align:center; color:#94a3b8; font-size:0.8rem; margin-top:5px; border: 1px dashed #cbd5e1; border-radius: 4px; padding: 2px;">登入後判定</div>`}
+Line 2378: ${s.qcResult === 'FAIL' && loggedInUser ? `<br><button onclick="openReturnResample('${s.id}')" style="font-size:0.7rem; background:#f97316; color:white; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:3px;">↩️ 退回重新送樣</button>` : ''}
+Line 3065: const loggedInUser = sessionStorage.getItem('QC_LOGGED_IN_USER');
+Line 3068: approverText.innerText = '👤 放行核准人：' + (loggedInUser || '未登入');
+Line 3072: if (loggedInUser) {
+Line 3084: if (!loggedInUser) document.getElementById('modalPin').focus();

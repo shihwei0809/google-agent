@@ -1,0 +1,60 @@
+    <form id="qcForm">
+      <div class="form-grid">
+        <div>
+          <label>出通/入庫單號<span class="label-hint">(選填，提前充填庫存留空自動帶入)</span></label>
+          <input type="text" id="barcode" placeholder="選填，留空自動設為日期-庫存">
+        </div>
+        <div>
+          <label>動向</label>
+          <select id="flowType">
+            <option value="出貨">出貨</option>
+            <option value="進料">進料</option>
+            <option value="補料">補料</option>
+            <option value="委託">委託</option>
+          </select>
+        </div>
+        <div>
+          <label>等級</label>
+          <select id="grade">
+            <option value="工業級">工業級</option>
+            <option value="UPS">UPS</option>
+            <option value="IF">IF</option>
+          </select>
+        </div>
+        <div>
+          <label class="required">品名</label>
+          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required onchange="autoSelectGrade(this.value)">
+          <datalist id="productList">
+            <option value="IPA"></option><option value="IPAUPS"></option><option value="IPAHQ"></option>
+            <option value="CPNE3(T)"></option><option value="CPNE4"></option><option value="CPN-P1R"></option>
+            <option value="EBR"></option><option value="EBR-P1R"></option><option value="NBAC"></option>
+            <option value="NBAC-P1R"></option><option value="CPN"></option><option value="EG"></option>
+            <option value="NMP"></option><option value="GAA"></option><option value="ACT"></option>
+            <option value="PM"></option><option value="PMA98"></option><option value="heavy-R"></option>
+            <option value="DPM"></option><option value="DPM-B1"></option><option value="SEP73"></option>
+            <option value="Anone"></option><option value="GBL"></option><option value="PG"></option><option value="EBRR"></option>
+          </datalist>
+        </div>
+        <div>
+          <label class="required">進出貨槽號</label>
+          <input type="text" id="tankNo" placeholder="例: TK605 或 TKC05" required>
+        </div>
+        <div>
+          <label class="required">車牌/櫃號</label>
+          <input type="text" id="customer" placeholder="例: PPCU7019228 或 KEQ-3506" required>
+        </div>
+        <div>
+          <label>數量</label>
+          <input type="text" id="quantity" placeholder="例: 5000 KG">
+        </div>
+        <div>
+          <label>送樣單位 (Teams 分流通報依據)</label>
+          <select id="dept">
+            <option value="資材課">資材課</option>
+            <option value="現場一課">現場一課</option>
+            <option value="現場二課">現場二課</option>
+            <option value="回收處理課">回收處理課</option>
+          </select>
+        </div>
+        <div>
+          <label class="required">送樣人員</label>

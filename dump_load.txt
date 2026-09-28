@@ -1,30 +1,30 @@
-    async function loadConfig() {
-      try {
-        const res = await fetch(API + '?action=getConfig', { cache: 'no-store' });
-        const data = await res.json();
-        const t = document.querySelector('#configTable tbody');
-        t.innerHTML = '';
-        if (data['OPTIONS_PRODUCT_GRADES_MAP'] === undefined) data['OPTIONS_PRODUCT_GRADES_MAP'] = 'EBR-P1R:電子級, IPAUPS:UPS';
-        
-        renderGradesTable(data['OPTIONS_PRODUCT_GRADES_MAP']);
-
-        for(const k in data) {
-          if (k === 'OPTIONS_PRODUCT_GRADES_MAP') continue; // Hide it from settings tab
-          t.innerHTML += `<tr><td><strong>${k}</strong></td><td><input type="text" id="cfg_${k}" value="${data[k].replace(/"/g, '&quot;')}"></td></tr>`;
+  function load() {
+    loadTeamsConfig();
+    if(IS_GAS) {
+      document.getElementById('envBadge').innerText = "☁️ GAS 雲端連線中";
+      google.script.run.withSuccessHandler(data => { allData = data; render(); }).getSamples();
+      google.script.run.withSuccessHandler(cfg => {
+        if(cfg) {
+          applyDynamicDropdownOptions(cfg);
+          localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
+            if(cfg.QC_PIN) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.QC_PIN);
+          if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
         }
-      } catch (err) { }
-    }
-    
-    async function saveConfig() {
-      const inputs = document.querySelectorAll('input[id^="cfg_"]');
-      const configs = {};
-      inputs.forEach(i => configs[i.id.replace('cfg_','')] = i.value);
-      await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'updateConfig', configs }) });
-      alert('已儲存！');
-    }
-    
-    async function loadAccounts() {
-      try {
-        const res = await fetch(API + '?action=getAccounts', { cache: 'no-store' });
-        const data = await res.json();
-        const t = document.querySelector('#accTable tbody');
+      }).getSystemConfig();
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.success && res.data) {
+          localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(res.data));
+        }
+      }).getEmployeesFromSheet();
+    } else if (GAS_API_URL) {
+      document.getElementById('envBadge').innerText = "☁️ 雲端 API 同步中";
+      // 1. 抓取試算表樣品
+      fetch(`${GAS_API_URL}?action=getSamples&_t=${Date.now()}`, { cache: "no-store" })
+        .then(res => res.json())
+        .then(data => {
+          // 相容舊版中文狀態
+          data.forEach(s => {
+            if (s.status === "待檢驗") s.status = "pending";
+            else if (s.status === "已檢驗") s.status = "completed";
+            else if (s.status === "退件" || s.status === "重取樣") s.status = "failed";
+          });

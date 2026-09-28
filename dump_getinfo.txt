@@ -1,0 +1,30 @@
+  function getOrderSubmissionInfo(order) {
+    if (!allData || allData.length === 0 || !order) return null;
+    
+    // 1. 單號精準比對 (最優先且最精確)
+    if (order.doc_no && String(order.doc_no).trim()) {
+      const targetDoc = String(order.doc_no).trim().toLowerCase();
+      const matchDoc = allData.find(s => s.barcode && String(s.barcode).toLowerCase().includes(targetDoc));
+      if (matchDoc) return matchDoc;
+    }
+    
+    // 2. 槽號 + 品名 + 客戶/車號/櫃號比對 (針對無單號或預先充填送樣)
+    const matchDetails = allData.find(s => {
+      const sameProd = order.productName && s.productName && (String(s.productName).trim().toLowerCase() === String(order.productName).trim().toLowerCase());
+      if (!sameProd) return false;
+
+      let tankMatch = false;
+      let contMatch = false;
+      let hasTankData = order.tankNo && s.tankNo;
+      let hasContData = order.container && s.customer;
+
+      if (hasTankData) {
+        tankMatch = String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase();
+      }
+      if (hasContData) {
+        contMatch = String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
+                    String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase());
+      }
+
+      if (hasTankData && hasContData) return tankMatch && contMatch;
+      if (hasTankData) return tankMatch;

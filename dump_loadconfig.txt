@@ -1,0 +1,40 @@
+    async function loadConfig() {
+      try {
+        const res = await fetch(API + '?action=getConfig&_t=' + Date.now(), { cache: 'no-store' });
+        const data = await res.json();
+        const t = document.querySelector('#configTable tbody');
+        t.innerHTML = '';
+        
+        // Defaults
+        if (data['OPTIONS_PRODUCT_GRADES_MAP'] === undefined) data['OPTIONS_PRODUCT_GRADES_MAP'] = 'EBR-P1R:電子級, IPAUPS:UPS';
+        if (data['OPTIONS_JUDGE_RESULTS'] === undefined) data['OPTIONS_JUDGE_RESULTS'] = 'PASS:合格放行, FAIL:不合格退回';
+        if (data['T100_IGNORE_PRODUCTS'] === undefined) data['T100_IGNORE_PRODUCTS'] = 'IPAHQ';
+        if (data['OPTIONS_PRODUCTS'] === undefined) data['OPTIONS_PRODUCTS'] = 'IPA,IPAUPS,IPAHQ,CPNE3(T),CPNE4,CPN-P1R,EBR,EBR-P1R,NBAC,NBAC-P1R,CPN,EG,NMP,GAA,ACT,PM,PMA98,heavy-R,DPM,DPM-B1,SEP73,Anone,GBL,PG,EBRR';
+        if (data['OPTIONS_GRADES'] === undefined) data['OPTIONS_GRADES'] = '工業級, UPS, IF, 電子級, 回收液';
+
+        window.CURRENT_GRADE_OPTIONS = data['OPTIONS_GRADES'].split(',').map(s=>s.trim()).filter(Boolean);
+        
+        renderGradesTable(data);
+
+        for(const k in data) {
+          if (['OPTIONS_PRODUCT_GRADES_MAP', 'OPTIONS_PRODUCTS', 'T100_IGNORE_PRODUCTS'].includes(k)) continue;
+          t.innerHTML += `<tr><td><strong>${k}</strong></td><td><input type="text" id="cfg_${k}" value="${String(data[k] || '').replace(/"/g, '&quot;')}"></td></tr>`;
+        }
+      } catch (err) { console.error(err); }
+    }
+    
+    async function saveConfig() {
+      const inputs = document.querySelectorAll('input[id^="cfg_"]');
+      const configs = {};
+      inputs.forEach(i => configs[i.id.replace('cfg_','')] = i.value);
+      await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'updateConfig', configs }) });
+      alert('已儲存！');
+    }
+    
+    async function loadAccounts() {
+      try {
+        const res = await fetch(API + '?action=getAccounts&_t=' + Date.now(), { cache: 'no-store' });
+        const data = await res.json();
+        const t = document.querySelector('#accTable tbody');
+        t.innerHTML = '';
+        const accList = data.data || data;

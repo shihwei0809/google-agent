@@ -1,0 +1,29 @@
+    if (action === "checkOverdue") {
+      // 取得 Teams Webhook 設定
+      const { results: cfgResults } = await env.DB.prepare("SELECT * FROM System_Config").all();
+      let configMap = {}; cfgResults.forEach(r => { configMap[r.config_key] = r.config_value; });
+      
+      const managerWebhook = configMap['TEAMS_MANAGER_WEBHOOK'];
+      // deptsWebhooks dynamically resolved via TEAMS_WEBHOOK_ + dept
+
+      // 計算在台灣時間下，等候多少小時
+      const { results: samples } = await env.DB.prepare(`
+        SELECT *, (julianday('now', '+8 hours') - julianday(createdAt)) * 24 as diffHours
+        FROM QC_Samples 
+        WHERE status = 'pending'
+      `).all();
+
+      let alertedCount = 0;
+      let logs = [];
+
+      for (const s of samples) {
+        let alertLevel = 0;
+        let alertTitle = "";
+        
+        if (s.diffHours >= 4 && (s.isAlerted || 0) < 2) {
+          alertLevel = 2;
+          alertTitle = `🚨【QC 嚴重超時警報】等候已達 ${s.diffHours.toFixed(1)} 小時 (超過4小時)`;
+        } else if (s.diffHours >= 2 && s.diffHours < 4 && (s.isAlerted || 0) < 1) {
+          alertLevel = 1;
+          alertTitle = `⚠️【QC 檢驗超時警報】等候已達 ${s.diffHours.toFixed(1)} 小時 (超過2小時)`;
+        }

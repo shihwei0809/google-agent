@@ -1,0 +1,20 @@
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="text" id="empIdInput" placeholder="掃描或輸入工號" style="width:110px; flex-shrink:0;"
+              oninput="this.value = this.value.toUpperCase(); lookupEmployeeId(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault(); document.getElementById('requester').focus();}">
+            <input type="text" id="requester" placeholder="姓名（工號查到後自動填入）" required style="flex:1;">
+          </div>
+          <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
+                </div>
+        <div>
+          <label>備註 (選填)</label>
+          <input type="text" id="remark" placeholder="如果有特殊狀況請填寫...">
+        </div>
+      </div>
+      <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
+    </form>
+  </div>
+
+  <div class="filter-bar">
+    <div style="flex:1; min-width: 220px;">
+      <label>即時搜尋 (單號 / 品名 / 車牌 / 槽號 / 單位)</label>
+      <input type="text" id="kwInput" oninput="render()" placeholder="輸入內容即時過濾...">

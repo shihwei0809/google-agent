@@ -1,0 +1,30 @@
+  function onT100SelectChange(val) {
+    const alertBox = document.getElementById('t100AlreadySubmittedAlert');
+    const alertText = document.getElementById('t100AlertText');
+
+    if (val === "") {
+      if (alertBox) alertBox.style.display = 'none';
+      return;
+    }
+    const item = t100Orders[parseInt(val)];
+    if (!item) return;
+
+    
+    // ?芸?撠??甈∠??脣鞎典 (????????
+    let combinedDocs = item.doc_no || '';
+    if (item.container && item.container.trim() !== '' && item.flowType === '?脫?') {
+        const sameTruckItems = t100Orders.filter(o => o !== item && o.container === item.container && o.flowType === item.flowType);
+        if (sameTruckItems.length > 0) {
+            const extraDocs = sameTruckItems.map(o => o.doc_no).filter(Boolean);
+            if (extraDocs.length > 0) {
+                const combined = [item.doc_no, ...extraDocs].join(', ');
+                if (confirm(`?潛甇方?甈?(${item.container}) ?望? ${extraDocs.length + 1} 蝑?蝔??\n${combined}\n\n?臬閬??雿菜???撘菜炎撽嚗)) {
+                    combinedDocs = combined;
+                }
+            }
+        }
+    }
+
+    document.getElementById('barcode').value = combinedDocs;
+
+    document.getElementById('flowType').value = item.flowType || '?箄疏';

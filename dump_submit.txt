@@ -1,0 +1,40 @@
+  function submitForm() {
+    let barcode = document.getElementById('barcode').value.trim();
+    const productName = document.getElementById('productName').value.trim();
+    const tankNo = document.getElementById('tankNo').value.trim();
+    const customer = document.getElementById('customer').value.trim();
+    const requester = document.getElementById('requester').value.trim();
+    const dept = document.getElementById('dept').value;
+    const remark = document.getElementById('remark')?.value?.trim() || '';
+
+    if (!productName || !tankNo || !customer || !requester) {
+      alert("?? ?漱憭望?嚗n\n???脣鞎冽局????瑹??見鈭箏???箏?憛恍??殷?隢Ⅱ隤‵憒亙????);
+      return; 
+    }
+
+    if (!barcode) {
+      const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      barcode = `${todayStr}-摨怠?`;
+    }
+
+    const btn = document.getElementById('submitBtn'); 
+    btn.disabled = true; 
+    btn.innerText = "撖怠?見蝝?葉...";
+    
+    const payload = { 
+      id: 'ID-' + Date.now(),
+      barcode: barcode, 
+      flowType: document.getElementById('flowType').value, 
+      grade: document.getElementById('grade').value,
+      productName: productName, 
+      tankNo: tankNo, 
+      customer: customer, 
+      quantity: document.getElementById('quantity').value, 
+      dept: dept, 
+      requester: requester,
+      remark: remark,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    if(IS_GAS) {

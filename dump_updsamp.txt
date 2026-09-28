@@ -1,0 +1,30 @@
+    if (action === "updateSample" && request.method === "POST") {
+      // QC Approvals and Judgements
+      // payload expects: id, result, note, approver
+      const { id, result, note, approver } = payload;
+      let status = "completed";
+      if (result === "退件" || result === "重取樣") status = "failed";
+      
+      await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = datetime('now', '+8 hours') WHERE id = ?")
+        .bind(status||null, result||null, note||null, approver||null, id||null).run();
+      return new Response(JSON.stringify({ success: true }), { headers: h });
+    }
+    
+    if (action === "deleteSample" && request.method === "POST") {
+      await env.DB.prepare("DELETE FROM QC_Samples WHERE id = ?").bind(payload.id).run();
+      return new Response(JSON.stringify({ success: true }), { headers: h });
+    }
+
+    if (action === "saveOrders" && request.method === "POST") {
+      // 確保資料表存在並自動更新結構
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
+      await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN date TEXT").run().catch(e=>{});
+      await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN time TEXT").run().catch(e=>{});
+      await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN note TEXT").run().catch(e=>{});
+      
+      // 清空舊排程
+      await env.DB.prepare("DELETE FROM T100_Orders").run();
+      
+      // 批次寫入新排程
+      const orders = payload.orders || [];
+      if (orders.length > 0) {

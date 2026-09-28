@@ -1,0 +1,15 @@
+    <div class="kanban-column active-tab" id="col-pending">
+      <div class="kanban-header header-pending">
+        <span style="display:flex; align-items:center; gap:6px;">
+          ⏳ 待檢驗樣品 (支援超時自動預警)
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button type="button" onclick="toggleTableMode()" title="點擊切換表格欄位排版模式" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1.5px solid #d97706; background:#fff; color:#b45309; cursor:pointer; font-weight:bold;">
+            <span class="table-mode-icon">⚡</span> <span class="table-mode-label">自適應 (免左右移)</span>
+          </button>
+          <span id="pendingCountBadge" style="font-size:0.85rem; font-weight:normal; background:white; padding:2px 8px; border-radius:12px; border:1px solid #fcd34d;">0 件</span>
+        </div>
+      </div>
+      <div id="tableWrapPending" class="table-responsive adaptive-mode">
+        <table id="table-pending">
+          <thead>

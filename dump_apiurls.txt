@@ -1,0 +1,25 @@
+        const gradeSelect = document.getElementById('grade');
+        if (gradeSelect) gradeSelect.value = mapping[prodName];
+      }
+    } catch(e) { console.warn(e); }
+  }
+
+  let allData = [];
+  const IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
+  const DEFAULT_GAS_API_URL = '/api';
+  let GAS_API_URL = localStorage.getItem('HS_QC_GAS_API_URL') || DEFAULT_GAS_API_URL;
+
+  // ?芸?霈??臬????敹怠?
+  const cachedOrders = localStorage.getItem('HS_QC_T100_ORDERS');
+  if (cachedOrders) {
+    try { t100Orders = JSON.parse(cachedOrders); } catch(e){}
+  }
+
+  // Teams ?駁? Webhook ?祆?敹怠?閮剖?
+  let localTeamsConfig = {
+    managerWebhook: '',
+    depts: {
+      '鞈?隤?: '',
+      '?曉銝隤?: '',
+      '?曉鈭玨': '',
+      '???隤?: ''
