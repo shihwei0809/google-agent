@@ -1510,7 +1510,12 @@
         outOrders.forEach(o => {
           const globalIdx = t100Orders.indexOf(o);
           const sub = getOrderSubmissionInfo(o);
-          const mark = sub ? (sub.status === 'completed' ? '✅[已驗合格] ' : '✅[已送樣待驗] ') : '⏳[待送樣] ';
+          let mark = '⏳[待送樣] ';
+          if (sub) {
+            if (sub.status === 'completed') mark = '✅[已驗合格] ';
+            else if (sub.status === 'failed') mark = '⛔[被退件需重送] ';
+            else mark = '✅[已送樣待驗] ';
+          }
           
           let dtStr = o.date || '';
           if (o.time && o.time !== '排程') {
@@ -1532,7 +1537,12 @@
         inOrders.forEach(o => {
           const globalIdx = t100Orders.indexOf(o);
           const sub = getOrderSubmissionInfo(o);
-          const mark = sub ? (sub.status === 'completed' ? '✅[已驗合格] ' : '✅[已送樣待驗] ') : '⏳[待送樣] ';
+          let mark = '⏳[待送樣] ';
+          if (sub) {
+            if (sub.status === 'completed') mark = '✅[已驗合格] ';
+            else if (sub.status === 'failed') mark = '⛔[被退件需重送] ';
+            else mark = '✅[已送樣待驗] ';
+          }
           
           let dtStr = o.date || '';
           if (o.time && o.time !== '排程') {
@@ -2081,7 +2091,7 @@
     });
 
     const pData = filtered.filter(s => s.status === 'pending');
-    let cData = filtered.filter(s => s.status === 'completed');
+    let cData = filtered.filter(s => s.status === 'completed' || s.status === 'failed');
 
     // 如果使用者沒有輸入明確的起迄日期，則「已檢驗完成」預設只顯示近3天 (今天、昨天、前天)
     if (!start && !end) {
@@ -3293,7 +3303,7 @@
     tbody.innerHTML = toShow.map(s => {
       let statusBadge = '';
       if (s.status === 'pending') statusBadge = `<span style="background:#fef08a; color:#854d0e; padding:2px 6px; border-radius:4px; font-size:0.8rem;">待檢驗</span>`;
-      else if (s.status === 'completed' && s.qcResult === 'PASS') statusBadge = `<span style="background:#d1fae5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:0.8rem;">合格(PASS)</span>`;
+      else if ((s.status === 'completed' || s.status === 'failed') && (s.qcResult === 'PASS' || s.qcResult === 'FAIL')) statusBadge = `<span style="background:${s.qcResult==='PASS'?'#d1fae5':'#fee2e2'}; color:${s.qcResult==='PASS'?'#065f46':'#b91c1c'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${s.qcResult==='PASS'?'合格(PASS)':'退回(FAIL)'}</span>`;
       else if (s.status === 'completed' && s.qcResult === 'FAIL') statusBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:0.8rem;">不合格(FAIL)</span>`;
       else if (s.status === 'failed') statusBadge = `<span style="background:#fed7aa; color:#9a3412; padding:2px 6px; border-radius:4px; font-size:0.8rem;">退回(failed)</span>`;
       else statusBadge = s.status;
