@@ -1,0 +1,32 @@
+
+
+    function renderGradesTable(mapStr) {
+      const tbody = document.querySelector('#gradesTable tbody');
+      tbody.innerHTML = '';
+      if (!mapStr) return;
+      const pairs = mapStr.split(',').map(s => s.trim()).filter(Boolean);
+      pairs.forEach(p => {
+        const parts = p.split(':');
+        if(parts.length >= 2) addGradeRow(parts[0].trim(), parts[1].trim());
+      });
+    }
+
+    function addGradeRow(prod = '', grade = '') {
+      const tbody = document.querySelector('#gradesTable tbody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input type="text" class="g-prod" value="${prod.replace(/"/g, '&quot;')}" placeholder="例如: EBR-P1R"></td>
+        <td><input type="text" class="g-grade" value="${grade.replace(/"/g, '&quot;')}" placeholder="例如: 電子級"></td>
+        <td style="text-align: center;"><button style="background: #ef4444; padding: 5px 10px;" onclick="this.closest('tr').remove()">刪除</button></td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    async function saveGrades() {
+      const rows = document.querySelectorAll('#gradesTable tbody tr');
+      const pairs = [];
+      rows.forEach(tr => {
+        const p = tr.querySelector('.g-prod').value.trim();
+        const g = tr.querySelector('.g-grade').value.trim();
+        if (p && g) pairs.push(`${p}:${g}`);
+      });

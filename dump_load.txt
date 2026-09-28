@@ -1,0 +1,30 @@
+    async function loadConfig() {
+      try {
+        const res = await fetch(API + '?action=getConfig', { cache: 'no-store' });
+        const data = await res.json();
+        const t = document.querySelector('#configTable tbody');
+        t.innerHTML = '';
+        if (data['OPTIONS_PRODUCT_GRADES_MAP'] === undefined) data['OPTIONS_PRODUCT_GRADES_MAP'] = 'EBR-P1R:電子級, IPAUPS:UPS';
+        
+        renderGradesTable(data['OPTIONS_PRODUCT_GRADES_MAP']);
+
+        for(const k in data) {
+          if (k === 'OPTIONS_PRODUCT_GRADES_MAP') continue; // Hide it from settings tab
+          t.innerHTML += `<tr><td><strong>${k}</strong></td><td><input type="text" id="cfg_${k}" value="${data[k].replace(/"/g, '&quot;')}"></td></tr>`;
+        }
+      } catch (err) { }
+    }
+    
+    async function saveConfig() {
+      const inputs = document.querySelectorAll('input[id^="cfg_"]');
+      const configs = {};
+      inputs.forEach(i => configs[i.id.replace('cfg_','')] = i.value);
+      await fetch(API, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'updateConfig', configs }) });
+      alert('已儲存！');
+    }
+    
+    async function loadAccounts() {
+      try {
+        const res = await fetch(API + '?action=getAccounts', { cache: 'no-store' });
+        const data = await res.json();
+        const t = document.querySelector('#accTable tbody');

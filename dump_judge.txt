@@ -1,0 +1,30 @@
+  function openJudge(id) { 
+    document.getElementById('currentId').value = id; 
+    document.getElementById('modalNote').value = '合格放行'; 
+    document.getElementById('judgeApproverText').innerText = '👤 放行核准人：' + (sessionStorage.getItem('QC_LOGGED_IN_USER') || '未登入'); 
+    document.getElementById('judgeModal').style.display = 'flex'; 
+    document.getElementById('modalPin').focus();
+  }
+  function closeModal() { document.getElementById('judgeModal').style.display = 'none'; }
+
+  function submitJudge() {
+    const approver = sessionStorage.getItem('QC_LOGGED_IN_USER');
+    if(!pin) { alert("請輸入授權密碼！"); return; }
+    const btn = document.getElementById('modalBtn'); 
+    btn.disabled = true; 
+    btn.innerText = "驗證授權中...";
+    
+    const id = document.getElementById('currentId').value;
+    const result = document.getElementById('modalResult').value;
+    const note = document.getElementById('modalNote').value;
+    const targetItem = allData.find(d => d.id === id);
+
+    if(IS_GAS) {
+      google.script.run.withSuccessHandler((res) => { 
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
+        if(res.success) { 
+          closeModal(); 
+          showToast("✅ 判定放行完成！Teams 卡片已精準通報主管與該單位。");
+          load(); 
+        } else { 
+          alert(res.error); 

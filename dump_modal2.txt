@@ -1,0 +1,20 @@
+<div id="judgeModal" class="modal">
+  <div class="modal-content">
+    <h3 style="margin-top:0; border-left:4px solid var(--green); padding-left:10px;">品管放行判定</h3>
+    <input type="hidden" id="currentId">
+    <label>判定結果</label>
+    <select id="modalResult" style="margin-bottom:15px; font-size:1.1rem; color:#059669; font-weight:bold;">
+      <option value="PASS">PASS (合格放行)</option>
+      <option value="FAIL">FAIL (不合格退回)</option>
+    </select>
+    <label>判定備註</label>
+    <textarea id="modalNote" style="height:60px; margin-bottom:15px;" placeholder="請輸入檢驗數據或備註事項..."></textarea>
+    <div style="background:#fef2f2; padding:12px; border-radius:6px; margin-bottom:20px; border-left:4px solid var(--red);">
+      <label style="color:#b91c1c;">🔐 授權密碼 (預設為 8888 或後台設定)</label>
+      <input type="password" id="modalPin" placeholder="請輸入 4 碼 PIN 碼" style="letter-spacing:3px; font-weight:bold; text-align:center; margin-top:4px;">
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button onclick="submitJudge()" id="modalBtn" class="btn-action btn-judge" style="flex:1; padding:12px; font-size:0.95rem;">確認判定並通知 Teams</button>
+      <button onclick="closeModal()" style="flex:1; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">取消</button>
+    </div>
+  </div>
