@@ -94,35 +94,34 @@
     }
 
 
+
     if (action === "completeSample" && request.method === "POST") {
       const { id, result, note, pin, approver } = payload;
       
       const { results: cfgResults } = await env.DB.prepare("SELECT * FROM System_Config").all();
       let configMap = {}; cfgResults.forEach(r => { configMap[r.config_key] = r.config_value; });
-      
-      
 
-      // ???璅??鞈?嚗鈭??Teams
+      // 取得原本樣品資訊，為了發送 Teams
       const sample = await env.DB.prepare("SELECT * FROM QC_Samples WHERE id = ?").bind(id).first();
       if (!sample) {
-        return new Response(JSON.stringify({ success: false, error: "?曆??啗府璅??" }), { headers: h });
+        return new Response(JSON.stringify({ success: false, error: "找不到該樣品" }), { headers: h });
       }
 
       let status = "completed";
       if (result === "FAIL" || result === "需特採") status = "failed";
       
       let finalNote = note;
-      if (result === '?寞' && sample.qcResult === '??寞') {
+      if (result === '特採' && sample.qcResult === '需特採') {
         finalNote = `[初驗:${sample.qcApprover}] ${sample.qcNote || ''}\n[特採:${approver}] ${note}`;
       }
       
-      // ?亙歇????銝???靘? completedAt
+      // 若已有紀錄，不覆蓋原來的 completedAt
       let completedAt = sample.completedAt || new Date(new Date().getTime() + 8*60*60*1000).toISOString().replace('T', ' ').substring(0, 19);
 
       await env.DB.prepare("UPDATE QC_Samples SET status = ?, qcResult = ?, qcNote = ?, qcApprover = ?, completedAt = ? WHERE id = ?")
         .bind(status, result, finalNote, approver || 'QC', completedAt, id).run();
 
-      // 憒??臭??(FAIL)嚗???銝頛芷???蝔?
+      // 如果是不合格(FAIL)，自動產生下一輪重送排程
       if (result === 'FAIL') {
         const newId = crypto.randomUUID();
         const parentId = sample.parentId || sample.id;
@@ -133,29 +132,28 @@
         `).bind(newId, sample.barcode, sample.productName, sample.tankNo, sample.customer, sample.quantity, sample.flowType, sample.dept, sample.requester, sample.grade, parentId, round).run();
       }
 
-
-      // ? Teams
+      // 通知 Teams
       const deptWebhook = configMap['TEAMS_WEBHOOK_' + sample.dept];
       const managerWebhook = configMap['TEAMS_MANAGER_WEBHOOK'];
 
-      const isPass = (status === 'completed' || result === 'PASS' || result.includes('?'));
+      const isPass = (status === 'completed' || result === 'PASS' || result === '特採');
       let resultTitle = result;
-      if (result === 'FAIL') resultTitle = '??FAIL (撌脰???銝甈⊿???蝔?';
-      else if (result === '??寞') resultTitle = '?? 銝泵???(蝑?銝餌恣撖拇?寞)';
-      else if (result === '?寞') resultTitle = '? 蝬蜓蝞∠?⊥銵?;
+      if (result === 'FAIL') resultTitle = '⛔ FAIL (已自動產生下一次重送排程)';
+      else if (result === '需特採') resultTitle = '⚠️ 不符合內控 (等待主管審核特採)';
+      else if (result === '特採') resultTitle = '🚨 經主管特採放行';
       
       const title = isPass
-        ? `?炎撽???{sample.productName}` 
-        : `?炎撽????{sample.productName}`;
+        ? `✅【檢驗完成】${sample.productName}` 
+        : `❌【檢驗未通過】${sample.productName}`;
       const color = isPass ? '28a745' : 'dc3545';
       const actualApprover = approver || 'QC';
 
       const facts = [
-        { name: '瑼ａ?蝯?', value: `**${resultTitle}**` },
-        { name: '撖拇鈭箏', value: actualApprover },
-        { name: '?株?', value: sample.barcode || '-' },
-        { name: '瑽質?/頠?', value: `${sample.tankNo || '-'} / ${sample.customer || '-'}` },
-        { name: '瑼ａ??酉', value: finalNote || '?? }
+        { name: '檢驗結果', value: `**${resultTitle}**` },
+        { name: '審核人員', value: actualApprover },
+        { name: '單號', value: sample.barcode || '-' },
+        { name: '槽號/車牌', value: `${sample.tankNo || '-'} / ${sample.customer || '-'}` },
+        { name: '檢驗備註', value: finalNote || '無' }
       ];
 
       const msg = {
@@ -163,7 +161,7 @@
         "@context": "http://schema.org/extensions",
         "themeColor": color,
         "summary": title,
-        "sections": [{ "activityTitle": title, "activitySubtitle": "蝟餌絞?芸??", "facts": facts }]
+        "sections": [{ "activityTitle": title, "activitySubtitle": "QC 品管系統", "facts": facts }]
       };
 
       const sendWebhook = async (url) => {
