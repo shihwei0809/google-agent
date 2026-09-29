@@ -1,0 +1,40 @@
+232: .btn-submit {
+244: .btn-submit:hover { background: #1d4ed8; }
+564: <div id="t100AlreadySubmittedAlert" class="t100-alert-box">
+661: <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
+765: <th style="width: 21%;">判定備註</th>
+838: <button id="returnResampleBtn" onclick="submitReturnResample()" style="flex:2; padding:10px; background:#f97316; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:bold;">確認退回並建立重送記錄</button>
+902: <label>判定備註</label>
+904: <textarea id="modalNote" style="height:60px; margin-bottom:15px;" placeholder="請輸入檢驗數據或備註事項..."></textarea>
+910: <button onclick="submitJudge()" id="modalBtn" class="btn-action btn-judge" style="flex:1; padding:12px; font-size:0.95rem;">確認判定並通知 Teams</button>
+955: <button type="button" onclick="saveTeamsConfig()" class="btn-submit" style="background:#16a34a; flex:1; padding:10px; font-size:0.9rem;">
+958: <button type="button" onclick="testTeamsPreviewCard()" class="btn-submit" style="background:#5b5fc7; flex:1; padding:10px; font-size:0.9rem;">
+1001: <button onclick="closeTeamsCardModal()" class="btn-submit" style="background:#475569; padding:8px 18px; font-size:0.9rem; width:auto;">
+1087: <button type="button" id="btnPrintLabels" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:2; padding:11px; font-size:0.95rem;">
+1090: <button type="button" id="btnSavePrintSettingsOnly" onclick="savePrintSettingsOnly()" class="btn-submit" style="background:#10b981; flex:2; padding:11px; font-size:0.95rem; display:none;">
+1294: { name: "📝 判定備註", value: "水分與金屬離子檢驗合規" },
+1547: const submittedInTotal = t100Orders.filter(o => getOrderSubmissionInfo(o)).length;
+1548: const submittedInView = filteredOrders.filter(o => getOrderSubmissionInfo(o)).length;
+1549: const pendingInView = filteredOrders.length - submittedInView;
+1551: const pendingInTotal = totalCount - submittedInTotal;
+1555: statsBadge.innerHTML = `今日排程: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView}) · 系統尚有 ${pendingInTotal} 車未送樣`;
+1557: statsBadge.innerHTML = `📦 待送樣放櫃: <b>${filteredOrders.length}</b> 車未送樣 (已完成 ${submittedInTotal} 車)`;
+1559: statsBadge.innerHTML = `${filterDescription}: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView})`;
+1644: const alertBox = document.getElementById('t100AlreadySubmittedAlert');
+1777: const note = gv(['注意事項', '備註']);
+1833: const note = gv(['備註', '注意事項']);
+2219: <th style="width: 21%;">判定備註</th>
+2284: ${s.qcNote || '<span style="color:#94a3b8;">無備註</span>'}
+2317: <th>判定備註</th>
+2372: const alertBox = document.getElementById('t100AlreadySubmittedAlert');
+2428: function submitForm() {
+2446: const btn = document.getElementById('submitBtn');
+3124: function submitJudge() {
+3210: { "name": "📝 判定備註", "value": note || "無" },
+3227: { name: "📝 判定備註", value: note || "無" },
+3289: async function submitReturnResample() {
+3373: ${s.qcNote ? `<div style="font-size:0.82rem; color:#475569; margin-top:4px; background:#f1f5f9; padding:4px 8px; border-radius:4px;"><b>備註：</b>${s.qcNote}</div>` : ''}
+3731: window.openSubmitModal = openSubmitModal;
+3732: window.closeSubmitModal = closeSubmitModal;
+3733: window.submitSample = submitSample;
+3736: window.submitJudge = submitJudge;

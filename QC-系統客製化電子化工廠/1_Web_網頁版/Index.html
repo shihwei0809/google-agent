@@ -1000,6 +1000,9 @@
           <span>mm</span>
         </div>
       </div>
+      <div style="background:#fef2f2; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; font-size:0.85rem; border: 1px solid #fecaca; color: #991b1b; font-weight:bold;">
+        <label style="cursor:pointer; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="printFixOrientation" style="width:16px;height:16px;"> ☑ 修正 TSC 標籤機方向錯亂 (印出跨兩張請勾我)</label>
+      </div>
 
       <label style="font-size:0.92rem; color:#1e293b; margin-bottom:8px;">請設定各檢驗項目列印張數：</label>
 
@@ -2373,11 +2376,13 @@
     const savedM = localStorage.getItem('HS_QC_PRINT_METAL') || '2';
     const savedWidth = localStorage.getItem('HS_QC_PRINT_WIDTH') || '90';
     const savedHeight = localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100';
+    const savedFix = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
 
     document.getElementById('printQtyWaterGC').value = savedW;
     document.getElementById('printQtyMetal').value = savedM;
     document.getElementById('printLabelWidth').value = savedWidth;
     document.getElementById('printLabelHeight').value = savedHeight;
+    if(document.getElementById('printFixOrientation')) document.getElementById('printFixOrientation').checked = savedFix;
     document.getElementById('rememberPrintSettings').checked = (localStorage.getItem('HS_QC_REMEMBER_PRINT') === 'true');
 
     updateTotalLabelCount();
@@ -2403,6 +2408,8 @@
     localStorage.removeItem('HS_QC_PRINT_METAL');
     localStorage.removeItem('HS_QC_PRINT_WIDTH');
     localStorage.removeItem('HS_QC_PRINT_HEIGHT');
+    localStorage.removeItem('HS_QC_PRINT_FIX');
+    if(document.getElementById('printFixOrientation')) document.getElementById('printFixOrientation').checked = false;
     document.getElementById('printQtyWaterGC').value = '1';
     document.getElementById('printQtyMetal').value = '2';
     document.getElementById('printLabelWidth').value = '90';
@@ -2447,13 +2454,17 @@
     const totalLabels = waterCount + metalCount;
     const labelWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '90', 10);
     const labelHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100', 10);
+    const fixOrientation = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
+    const finalWidth = fixOrientation ? labelHeight : labelWidth;
+    const finalHeight = fixOrientation ? labelWidth : labelHeight;
     let labelPagesHtml = '';
     let currentIdx = 1;
 
     // 1. 水分 & GC 檢驗標籤 (共 waterCount 張)
     for(let i = 1; i <= waterCount; i++) {
       labelPagesHtml += `
-        <div class="label-page">
+        <div class="page-wrapper">
+          <div class="label-page">
           <div class="label-border">
             <div class="label-header">
               <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
@@ -2487,6 +2498,7 @@
             </div>
           </div>
         </div>
+        </div>
       `;
       currentIdx++;
     }
@@ -2498,7 +2510,8 @@
       const bottleBadgeClass = isSecondSample ? "metal-retention" : "metal-main";
 
       labelPagesHtml += `
-        <div class="label-page">
+        <div class="page-wrapper">
+          <div class="label-page">
           <div class="label-border">
             <div class="label-header">
               <div class="corp-title">鴻勝化學品管檢驗中心 (QC LAB)</div>
@@ -2532,6 +2545,7 @@
             </div>
           </div>
         </div>
+        </div>
       `;
       currentIdx++;
     }
@@ -2545,12 +2559,12 @@
         <title>檢驗送樣標籤 - ${data.barcode}</title>
         <style>
           @page {
-            size: ${labelWidth}mm ${labelHeight}mm;
+            size: ${finalWidth}mm ${finalHeight}mm;
             margin: 0;
           }
           * { box-sizing: border-box; }
           html, body {
-            width: ${labelWidth}mm;
+            width: ${finalWidth}mm;
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Microsoft JhengHei", sans-serif;
@@ -2559,20 +2573,27 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
+          .page-wrapper {
+            width: ${finalWidth}mm;
+            height: ${finalHeight}mm;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            page-break-after: always;
+            page-break-inside: avoid;
+            overflow: hidden;
+          }
+          .page-wrapper:last-child {
+            page-break-after: auto;
+          }
           .label-page {
             width: ${labelWidth}mm;
             height: ${labelHeight}mm;
-            max-width: ${labelWidth}mm;
-            max-height: ${labelHeight}mm;
             padding: 3mm 3.5mm;
-            page-break-after: always;
-            page-break-inside: avoid;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-          }
-          .label-page:last-child {
-            page-break-after: auto;
+            ${fixOrientation ? 'transform: rotate(-90deg); transform-origin: center;' : ''}
           }
           .label-border {
             border: 2.5px solid #000;

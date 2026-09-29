@@ -658,6 +658,15 @@
           </div>
           <div id="empLookupMsg" style="font-size:0.72rem; color:#64748b; margin-top:2px;"></div>
         </div>
+        <div>
+          <label>備註 (選填)</label>
+          <input type="text" id="remark" placeholder="如果有特殊狀況請填寫...">
+        </div>
+        <div>
+          <label>附件上傳 (選填)</label>
+          <input type="file" id="attachmentFile" style="padding: 8px;">
+          <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">可上傳照片或 PDF (GAS 版存於 Google Drive)</div>
+        </div>
       </div>
       <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()">確認提交送樣 🚀</button>
     </form>
@@ -2448,6 +2457,7 @@
     btn.disabled = true; 
     btn.innerText = "寫入送樣紀錄中...";
     
+    const remarkField = document.getElementById('remark');
     const payload = { 
       id: 'ID-' + Date.now(),
       barcode: barcode, 
@@ -2459,10 +2469,32 @@
       quantity: document.getElementById('quantity').value, 
       dept: dept, 
       requester: requester,
+      remark: remarkField ? remarkField.value.trim() : '',
       status: 'pending',
       createdAt: new Date().toISOString()
     };
 
+    const fileInput = document.getElementById('attachmentFile');
+    if (fileInput && fileInput.files.length > 0) {
+      btn.innerText = "讀取附件中...";
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        payload.fileData = {
+          name: file.name,
+          mimeType: file.type,
+          data: e.target.result.split(',')[1]
+        };
+        btn.innerText = "上傳並寫入紀錄中...";
+        executeSubmitSample(payload, btn);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      executeSubmitSample(payload, btn);
+    }
+  }
+
+  function executeSubmitSample(payload, btn) {
     if(IS_GAS) {
       google.script.run.withSuccessHandler(() => { 
         resetForm();
@@ -2470,6 +2502,10 @@
         btn.innerText = "確認提交送樣 🚀"; 
         showToast("✅ 送樣成功已寫入 Google 試算表！");
         load(); 
+      }).withFailureHandler((err) => {
+        alert("提交失敗: " + err.message);
+        btn.disabled = false;
+        btn.innerText = "確認提交送樣 🚀"; 
       }).createSample(payload);
     } else if(GAS_API_URL) {
       fetch(GAS_API_URL, {
@@ -2489,6 +2525,12 @@
           alert("送樣失敗：" + (res.error || "未知錯誤"));
         }
       })
+      .catch(err => {
+        alert("網路錯誤或發生例外：" + err);
+        btn.disabled = false;
+        btn.innerText = "確認提交送樣 🚀";
+      });
+    }
       .catch(err => {
         console.warn("API 送樣異常，暫存本機", err);
         allData.unshift(payload);
