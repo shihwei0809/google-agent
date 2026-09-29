@@ -1064,6 +1064,9 @@
           <span>mm</span>
         </div>
       </div>
+      <div style="background:#fef2f2; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; font-size:0.85rem; border: 1px solid #fecaca; color: #991b1b; font-weight:bold;">
+        <label style="cursor:pointer; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="printFixOrientation" style="width:16px;height:16px;"> ☑ 修正 TSC 標籤機方向錯亂 (印出跨兩張請勾我)</label>
+      </div>
       
       <div style="background:#fff7ed; padding:8px 12px; border-radius:8px; border:1px solid #fed7aa; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; font-size:0.85rem;">
         <span style="font-weight:bold; color:#c2410c;">🔄 轉向設定 (若橫向印出被切斷請選)：</span>
@@ -2698,6 +2701,7 @@
     let savedM = localStorage.getItem('HS_QC_PRINT_METAL') || '2';
     const savedWidth = localStorage.getItem('HS_QC_PRINT_WIDTH') || '90';
     const savedHeight = localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100';
+    const savedFix = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
 
     if (data.grade === '回收液') savedM = '0';
 
@@ -2705,6 +2709,7 @@
     document.getElementById('printQtyMetal').value = savedM;
     document.getElementById('printLabelWidth').value = savedWidth;
     document.getElementById('printLabelHeight').value = savedHeight;
+    if(document.getElementById('printFixOrientation')) document.getElementById('printFixOrientation').checked = savedFix;
     document.getElementById('rememberPrintSettings').checked = (localStorage.getItem('HS_QC_REMEMBER_PRINT') === 'true');
 
     updateTotalLabelCount();
@@ -2732,6 +2737,7 @@
     localStorage.setItem('HS_QC_PRINT_METAL', mQty);
     localStorage.setItem('HS_QC_PRINT_WIDTH', width);
     localStorage.setItem('HS_QC_PRINT_HEIGHT', height);
+    if(document.getElementById('printFixOrientation')) localStorage.setItem('HS_QC_PRINT_FIX', document.getElementById('printFixOrientation').checked);
     localStorage.setItem('HS_QC_PRINT_ROTATE', rotateMode);
 
     if(document.getElementById('rememberPrintSettings').checked) {
@@ -2762,6 +2768,8 @@
     localStorage.removeItem('HS_QC_PRINT_METAL');
     localStorage.removeItem('HS_QC_PRINT_WIDTH');
     localStorage.removeItem('HS_QC_PRINT_HEIGHT');
+    localStorage.removeItem('HS_QC_PRINT_FIX');
+    if(document.getElementById('printFixOrientation')) document.getElementById('printFixOrientation').checked = false;
     document.getElementById('printQtyWaterGC').value = '1';
     document.getElementById('printQtyMetal').value = '2';
     document.getElementById('printLabelWidth').value = '90';
@@ -2808,6 +2816,9 @@
     const totalLabels = waterCount + metalCount;
     const labelWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '90', 10);
     const labelHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100', 10);
+    const fixOrientation = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
+    const finalWidth = fixOrientation ? labelHeight : labelWidth;
+    const finalHeight = fixOrientation ? labelWidth : labelHeight;
     let labelPagesHtml = '';
     let currentIdx = 1;
 
@@ -2862,6 +2873,7 @@
             </div>
           </div>
         </div>
+        </div>
       `;
       currentIdx++;
     }
@@ -2909,6 +2921,7 @@
               </div>
             </div>
           </div>
+        </div>
         </div>
       `;
       currentIdx++;
