@@ -1,0 +1,27 @@
+﻿name = "qc-samples"
+pages_build_output_dir = "./"
+compatibility_date = "2024-03-20"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qc-db"
+database_id = "a4cbfe74-f067-462b-b70a-be242f9fafb9"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
