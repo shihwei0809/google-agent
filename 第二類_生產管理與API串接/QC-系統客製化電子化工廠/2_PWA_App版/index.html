@@ -530,6 +530,7 @@
             <label for="t100DateFilter" style="font-size:0.82rem; margin:0; color:#166534; font-weight:bold;">📅 日期：</label>
             <input type="date" id="t100DateFilter" class="t100-date-picker" onchange="onT100DateFilterChange(this.value)" title="切換指定日期查詢排程">
             <button type="button" class="btn-t100-filter active" id="btnFilterToday" onclick="setT100FilterMode('today')" title="只看今日排程">📅 今日排程</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterYesterday" onclick="setT100FilterMode('yesterday')" title="只看昨日排程">📆 昨日排程</button>
             <button type="button" class="btn-t100-filter" id="btnFilterPending" onclick="setT100FilterMode('pending')" title="查詢所有放櫃或未送樣車次">📦 待送樣放櫃</button>
             <button type="button" class="btn-t100-filter" id="btnFilterResample" onclick="setT100FilterMode('resample')" title="顯示品質不合格需重取或待特採的單據">🔄 取樣重送</button>
             <button type="button" class="btn-t100-filter" id="btnFilterAll" onclick="setT100FilterMode('all')" title="檢視所有匯入排程">🔍 顯示全部</button>
