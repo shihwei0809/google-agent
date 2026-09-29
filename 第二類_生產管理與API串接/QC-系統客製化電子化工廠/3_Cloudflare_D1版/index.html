@@ -1074,6 +1074,7 @@
           <option value="none">預設方向</option>
           <option value="90">向右旋轉 90 度 (橫切貼紙專用)</option>
           <option value="-90">向左旋轉 90 度</option>
+          <option value="180">旋轉 180 度 (上下顛倒)</option>
         </select>
       </div>
 
@@ -2828,8 +2829,10 @@
       ? `transform: rotate(90deg) translateY(-100%); transform-origin: top left;` 
       : rotateMode === '-90'
       ? `transform: rotate(-90deg) translateX(-100%); transform-origin: top left;`
+      : rotateMode === '180'
+      ? `transform: rotate(180deg); transform-origin: center center;`
       : '';
-    const needsRotate = rotateMode !== 'none';
+    const needsRotate = rotateMode === '90' || rotateMode === '-90';
     const pageWidth = needsRotate ? labelHeight : labelWidth;
     const pageHeight = needsRotate ? labelWidth : labelHeight;
 
