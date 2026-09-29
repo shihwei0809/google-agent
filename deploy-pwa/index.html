@@ -473,6 +473,29 @@
 
     .mode-badge { font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; background: #e0e7ff; color: #3730a3; font-weight: bold; }
     .toast { position: fixed; bottom: 25px; right: 25px; background: #1e293b; color: white; padding: 12px 20px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); z-index: 2000; display: none; font-size: 0.9rem; }
+  
+    .phrase-tag {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .phrase-tag:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
+      70% { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+    }
   </style>
 </head>
 <body>
@@ -507,7 +530,9 @@
             <label for="t100DateFilter" style="font-size:0.82rem; margin:0; color:#166534; font-weight:bold;">📅 日期：</label>
             <input type="date" id="t100DateFilter" class="t100-date-picker" onchange="onT100DateFilterChange(this.value)" title="切換指定日期查詢排程">
             <button type="button" class="btn-t100-filter active" id="btnFilterToday" onclick="setT100FilterMode('today')" title="只看今日排程">📅 今日排程</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterYesterday" onclick="setT100FilterMode('yesterday')" title="只看昨日排程">📆 昨日排程</button>
             <button type="button" class="btn-t100-filter" id="btnFilterPending" onclick="setT100FilterMode('pending')" title="查詢所有放櫃或未送樣車次">📦 待送樣放櫃</button>
+            <button type="button" class="btn-t100-filter" id="btnFilterResample" onclick="setT100FilterMode('resample')" title="顯示品質不合格需重取或待特採的單據">🔄 取樣重送</button>
             <button type="button" class="btn-t100-filter" id="btnFilterAll" onclick="setT100FilterMode('all')" title="檢視所有匯入排程">🔍 顯示全部</button>
           </div>
         </div>
@@ -529,6 +554,10 @@
         </button>
         <button type="button" onclick="resetForm()" style="padding:9px 14px; background:#e2e8f0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap;">
           清空重選
+        </button>
+        <!-- 獨立的列印設定按鈕，無須管理權限即可重設記憶出單設定 -->
+        <button type="button" onclick="openPrintSettingsGlobal()" style="padding:9px 14px; background:#0ea5e9; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap; margin-left:auto;" title="修改或清除標籤機的記憶出單設定">
+          🖨️ 列印設定
         </button>
       </div>
 
@@ -587,7 +616,7 @@
         </div>
         <div>
           <label class="required">品名</label>
-          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required>
+          <input type="text" id="productName" list="productList" placeholder="點選或輸入" required onchange="autoSelectGrade(this.value)">
           <datalist id="productList">
             <option value="IPA"></option><option value="IPAUPS"></option><option value="IPAHQ"></option>
             <option value="CPNE3(T)"></option><option value="CPNE4"></option><option value="CPN-P1R"></option>
@@ -798,7 +827,8 @@
     </div>
     <div style="margin-bottom:12px;">
       <label style="font-weight:600; color:#374151; font-size:0.9rem;">📝 退回原因 / 不合格說明</label>
-      <textarea id="returnResampleNote" rows="3" placeholder="請輸入不合格原因，例如：顏色不符規格、pH 值超標..." style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem; resize:vertical;"></textarea>
+      <div id="returnResamplePhraseContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; margin-top:4px;"></div>
+    <textarea id="returnResampleNote" rows="3" placeholder="請輸入不合格原因，例如：顏色不符規格、pH 值超標..." style="width:100%; box-sizing:border-box; margin-top:6px; padding:8px; border:1px solid #d1d5db; border-radius:6px; font-size:0.88rem; resize:vertical;"></textarea>
     </div>
     <div style="margin-bottom:16px;">
       <label style="font-weight:600; color:#374151; font-size:0.9rem;">🔑 品管授權 PIN 碼</label>
@@ -865,11 +895,13 @@
     <h3 style="margin-top:0; border-left:4px solid var(--green); padding-left:10px;">品管放行判定</h3>
     <input type="hidden" id="currentId">
     <label>判定結果</label>
-    <select id="modalResult" style="margin-bottom:15px; font-size:1.1rem; color:#059669; font-weight:bold;">
+    <select id="modalResult" onchange="handleResultChange()" style="margin-bottom:15px; font-size:1.1rem; color:#059669; font-weight:bold;">
       <option value="PASS">PASS (合格放行)</option>
+      <option value="特採">PASS (特採放行)</option>
       <option value="FAIL">FAIL (不合格退回)</option>
     </select>
     <label>判定備註</label>
+    <div id="modalPhraseContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;"></div>
     <textarea id="modalNote" style="height:60px; margin-bottom:15px;" placeholder="請輸入檢驗數據或備註事項..."></textarea>
     <div style="background:#fef2f2; padding:12px; border-radius:6px; margin-bottom:20px; border-left:4px solid var(--red);">
       <label style="color:#b91c1c;">🔐 授權密碼 (預設為 8888 或後台設定)</label>
@@ -974,11 +1006,11 @@
   </div>
 </div>
 
-<!-- 9x10 標籤機專用列印設定對話框 (UniPrinter / Zebra / TSC) -->
+<!-- 標籤機專用列印設定對話框 (UniPrinter / Zebra / TSC) -->
 <div id="printModal" class="modal">
   <div class="modal-content" style="width:470px;">
     <h3 style="margin-top:0; border-left:4px solid #0284c7; padding-left:10px; color:#0369a1;">
-      🖨️ 9×10 標籤機專用列印設定 (水分、GC、Metal)
+      🖨️ 標籤機專用列印設定 (水分、GC、Metal)
     </h3>
     <input type="hidden" id="printTargetId">
     
@@ -1053,8 +1085,11 @@
     </div>
 
     <div style="display:flex; gap:8px;">
-      <button type="button" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:2; padding:11px; font-size:0.95rem;">
+      <button type="button" id="btnPrintLabels" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:2; padding:11px; font-size:0.95rem;">
         🖨️ 送出列印
+      </button>
+      <button type="button" id="btnSavePrintSettingsOnly" onclick="savePrintSettingsOnly()" class="btn-submit" style="background:#10b981; flex:2; padding:11px; font-size:0.95rem; display:none;">
+        💾 儲存設定
       </button>
       <button type="button" onclick="resetPrintSettingsToDefault()" style="padding:11px 12px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold; font-size:0.82rem; cursor:pointer;" title="清除記憶並恢復預設 (90x100, 水分1, Metal 2)">
         🔄 恢復預設
@@ -1102,6 +1137,29 @@
     const m = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
+  }
+
+  
+  // 自動套用產品等級
+  function autoSelectGrade(prodName) {
+    if(!prodName) return;
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    if(!cfgStr) return;
+    try {
+      const cfg = JSON.parse(cfgStr);
+      const mapStr = cfg.OPTIONS_PRODUCT_GRADES_MAP || cfg.productGradesMap || '';
+      if(!mapStr) return;
+      const pairs = mapStr.split(',').map(s => s.trim()).filter(Boolean);
+      const mapping = {};
+      pairs.forEach(p => {
+        const parts = p.split(':').map(s => s.trim());
+        if(parts.length >= 2) mapping[parts[0]] = parts[1];
+      });
+      if(mapping[prodName]) {
+        const gradeSelect = document.getElementById('grade');
+        if (gradeSelect) gradeSelect.value = mapping[prodName];
+      }
+    } catch(e) { console.warn(e); }
   }
 
   let allData = [];
@@ -1333,13 +1391,26 @@
     
     // 2. 槽號 + 品名 + 客戶/車號/櫃號比對 (針對無單號或預先充填送樣)
     const matchDetails = allData.find(s => {
-      const sameTank = order.tankNo && s.tankNo && (String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase());
       const sameProd = order.productName && s.productName && (String(s.productName).trim().toLowerCase() === String(order.productName).trim().toLowerCase());
-      const sameCont = order.container && s.customer && (
-        String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
-        String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase())
-      );
-      return (sameTank && sameProd) || (sameCont && sameProd);
+      if (!sameProd) return false;
+
+      let tankMatch = false;
+      let contMatch = false;
+      let hasTankData = order.tankNo && s.tankNo;
+      let hasContData = order.container && s.customer;
+
+      if (hasTankData) {
+        tankMatch = String(s.tankNo).trim().toLowerCase() === String(order.tankNo).trim().toLowerCase();
+      }
+      if (hasContData) {
+        contMatch = String(s.customer).trim().toLowerCase().includes(String(order.container).trim().toLowerCase()) ||
+                    String(order.container).trim().toLowerCase().includes(String(s.customer).trim().toLowerCase());
+      }
+
+      if (hasTankData && hasContData) return tankMatch && contMatch;
+      if (hasTankData) return tankMatch;
+      if (hasContData) return contMatch;
+      return false;
     });
     return matchDetails || null;
   }
@@ -1361,8 +1432,54 @@
     if (btnToday) btnToday.className = 'btn-t100-filter' + (mode === 'today' ? ' active' : '');
     if (btnPending) btnPending.className = 'btn-t100-filter' + (mode === 'pending' ? ' active' : '');
     if (btnAll) btnAll.className = 'btn-t100-filter' + (mode === 'all' ? ' active' : '');
+    const btnYesterday = document.getElementById('btnFilterYesterday');
+    if (btnYesterday) btnYesterday.className = 'btn-t100-filter' + (mode === 'yesterday' ? ' active' : '');
+    const btnResample = document.getElementById('btnFilterResample');
+    if (btnResample) btnResample.className = 'btn-t100-filter' + (mode === 'resample' ? ' active' : '');
     
     renderT100Dropdown();
+  }
+
+  // 更新 T100 篩選按鈕上的數量徽章
+  function updateT100ButtonCounts() {
+    if (!t100Orders || !Array.isArray(t100Orders)) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // 今日排程數量
+    const todayCount = t100Orders.filter(o => o.date === todayStr).length;
+    const btnToday = document.getElementById('btnFilterToday');
+    if (btnToday) btnToday.innerHTML = `📅 今日排程 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${todayCount}</span>`;
+
+    // 昨天排程數量
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayCount = t100Orders.filter(o => o.date === yesterdayStr).length;
+    const btnYest = document.getElementById('btnFilterYesterday');
+    if (btnYest) btnYest.innerHTML = `📆 昨天排程 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${yesterdayCount}</span>`;
+
+    // 待送樣放櫃數量（未送或退回件）
+    const pendingCount = t100Orders.filter(o => {
+      const sub = getOrderSubmissionInfo(o);
+      if (!sub) return true;
+      if (sub.status === 'failed') return true;
+      if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) return true;
+      return false;
+    }).length;
+    const btnPending = document.getElementById('btnFilterPending');
+    if (btnPending) btnPending.innerHTML = `📦 待送樣放櫃 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${pendingCount}</span>`;
+
+    // 取樣重送數量 - 直接從 t100Orders 的送樣狀態計算（不依賴 render() 的局部變數）
+    const resampleCount = (!t100Orders || !Array.isArray(t100Orders)) ? 0 : t100Orders.filter(o => {
+      const sub = getOrderSubmissionInfo(o);
+      return sub && (sub.status === 'failed' || (sub.status === 'pending' && (parseInt(sub.round || 1) > 1 || sub.parentId)));
+    }).length;
+    const btnResample = document.getElementById('btnFilterResample');
+    if (btnResample) {
+      const badge = resampleCount > 0
+        ? `<span style="background:#dc2626;color:white;border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${resampleCount}</span>`
+        : `<span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">0</span>`;
+      btnResample.innerHTML = `🔄 取樣重送 ${badge}`;
+    }
   }
 
   // 日期選取器變更事件
@@ -1397,12 +1514,30 @@
     if (t100FilterMode === 'today') {
       filteredOrders = t100Orders.filter(o => o.date === todayStr);
       filterDescription = `今日 (${todayStr})`;
+    } else if (t100FilterMode === 'yesterday') {
+      const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+      const yStr = yesterday.toISOString().split('T')[0];
+      filteredOrders = t100Orders.filter(o => o.date === yStr);
+      filterDescription = `昨日 (${yStr})`;
     } else if (t100FilterMode === 'date') {
       filteredOrders = t100Orders.filter(o => o.date === selectedDate);
       filterDescription = `${selectedDate}`;
     } else if (t100FilterMode === 'pending') {
-      filteredOrders = t100Orders.filter(o => !getOrderSubmissionInfo(o));
+      filteredOrders = t100Orders.filter(o => {
+        const sub = getOrderSubmissionInfo(o);
+        if (!sub) return true;
+        if (sub.status === 'failed') return true;
+        if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) return true;
+        return false;
+      });
       filterDescription = `待送樣放櫃/排程`;
+    } else if (t100FilterMode === 'resample') {
+      // 品質不合格重取 / 需特採 - 從 t100Orders 的送樣狀態計算（不依賴 render() 局部變數）
+      filteredOrders = t100Orders.filter(o => {
+        const sub = getOrderSubmissionInfo(o);
+        return sub && (sub.status === 'failed' || (sub.status === 'pending' && (parseInt(sub.round || 1) > 1 || sub.parentId)));
+      });
+      filterDescription = '品質不合格重取 / 需特採';
     } else if (t100FilterMode === 'all') {
       filteredOrders = [...t100Orders];
       filterDescription = `全部匯入排程`;
@@ -1414,12 +1549,13 @@
     const submittedInView = filteredOrders.filter(o => getOrderSubmissionInfo(o)).length;
     const pendingInView = filteredOrders.length - submittedInView;
 
+    const pendingInTotal = totalCount - submittedInTotal;
     const statsBadge = document.getElementById('t100StatsBadge');
     if (statsBadge) {
       if (t100FilterMode === 'today') {
-        statsBadge.innerHTML = `今日排程: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView}) · 總排程: ${totalCount}`;
+        statsBadge.innerHTML = `今日排程: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView}) · 系統尚有 ${pendingInTotal} 車未送樣`;
       } else if (t100FilterMode === 'pending') {
-        statsBadge.innerHTML = `📦 待送樣放櫃: <b>${filteredOrders.length}</b> 車未送樣 (已送 ${submittedInTotal} / 總排程 ${totalCount})`;
+        statsBadge.innerHTML = `📦 待送樣放櫃: <b>${filteredOrders.length}</b> 車未送樣 (已完成 ${submittedInTotal} 車)`;
       } else {
         statsBadge.innerHTML = `${filterDescription}: <b>${filteredOrders.length}</b> 車 (✅已送: ${submittedInView} | ⏳待送: ${pendingInView})`;
       }
@@ -1431,14 +1567,13 @@
 
     if (filteredOrders.length === 0) {
       if (t100FilterMode === 'today') {
-        const availableDates = [...new Set(t100Orders.map(o => o.date).filter(Boolean))].sort();
-        const latestDate = availableDates.length ? availableDates[availableDates.length - 1] : '';
-        const hintText = latestDate ? `排程日為 ${latestDate}，可點擊上方日期切換` : '可匯入最新排程或點擊「待送樣放櫃」';
-        html += `<option value="">-- 📅 今日 (${todayStr}) 尚無排程 (共 ${totalCount} 筆放櫃/預約車次，${hintText}) --</option>`;
+        const hintText = pendingInTotal > 0 ? `系統內還有 ${pendingInTotal} 筆待送樣車次，可點擊「待送樣放櫃」查詢` : '所有排程皆已完成送樣';
+        html += `<option value="">-- 📅 今日 (${todayStr}) 尚無排程 (${hintText}) --</option>`;
       } else if (t100FilterMode === 'pending') {
-        html += `<option value="">-- 🎉 太棒了！所有放櫃與排程車次 (共 ${totalCount} 筆) 皆已完成送樣 --</option>`;
+        html += `<option value="">-- 🎉 太棒了！所有放櫃與排程車次皆已完成送樣 --</option>`;
       } else {
-        html += `<option value="">-- 📅 日期 [${selectedDate}] 無排程 (共 ${totalCount} 筆其他日期排程，可切換日期查詢) --</option>`;
+        const hintText = pendingInTotal > 0 ? `尚有 ${pendingInTotal} 筆待送樣，可點擊「待送樣放櫃」查詢` : '所有排程皆已完成送樣';
+        html += `<option value="">-- 📅 日期 [${selectedDate}] 無排程 (${hintText}) --</option>`;
       }
     } else {
       html += `<option value="">-- 點此選擇 ${filterDescription} (共 ${filteredOrders.length} 車次：${outOrders.length} 出貨 + ${inOrders.length} 進料) --</option>`;
@@ -1448,7 +1583,14 @@
         outOrders.forEach(o => {
           const globalIdx = t100Orders.indexOf(o);
           const sub = getOrderSubmissionInfo(o);
-          const mark = sub ? (sub.status === 'completed' ? '✅[已驗合格] ' : '✅[已送樣待驗] ') : '⏳[待送樣] ';
+          let mark = '⏳[待送樣] ';
+          if (sub) {
+            if (sub.status === 'completed') mark = '✅[已驗合格] ';
+            else if (sub.status === 'failed' && sub.qcResult === '需特採') mark = '⚠️[不符內控需特採] ';
+            else if (sub.status === 'failed') mark = '⛔[品質不合格重取] ';
+            else if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) mark = '🔄[已自動重送待驗] ';
+            else mark = '✅[已送樣待驗] ';
+          }
           
           let dtStr = o.date || '';
           if (o.time && o.time !== '排程') {
@@ -1470,7 +1612,14 @@
         inOrders.forEach(o => {
           const globalIdx = t100Orders.indexOf(o);
           const sub = getOrderSubmissionInfo(o);
-          const mark = sub ? (sub.status === 'completed' ? '✅[已驗合格] ' : '✅[已送樣待驗] ') : '⏳[待送樣] ';
+          let mark = '⏳[待送樣] ';
+          if (sub) {
+            if (sub.status === 'completed') mark = '✅[已驗合格] ';
+            else if (sub.status === 'failed' && sub.qcResult === '需特採') mark = '⚠️[不符內控需特採] ';
+            else if (sub.status === 'failed') mark = '⛔[品質不合格重取] ';
+            else if (sub.status === 'pending' && (sub.round > 1 || sub.parentId)) mark = '🔄[已自動重送待驗] ';
+            else mark = '✅[已送樣待驗] ';
+          }
           
           let dtStr = o.date || '';
           if (o.time && o.time !== '排程') {
@@ -1541,6 +1690,10 @@
 
         // 核心單一工作表解析器
         function parseSheet(sheetName) {
+          const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+          const ignoredConfig = cfgStr ? JSON.parse(cfgStr)['T100_IGNORE_PRODUCTS'] : 'IPAHQ';
+          const ignoredList = (ignoredConfig || 'IPAHQ').split(',').map(s => s.trim().toUpperCase());
+
           const worksheet = workbook.Sheets[sheetName];
           if (!worksheet) return [];
           const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -1607,6 +1760,7 @@
               const docNo = gv(['出貨通知單', '出通單', '出貨單']);
               const prod = gv(['品名', '物料名稱']);
               if(!docNo || !prod) continue;
+              if(ignoredList.includes(String(prod).trim().toUpperCase())) continue;
 
               // 嚴格只從「預計出貨日期」欄位抓取，若為合併儲存格向下繼承！
               const rawDate = gv(['預計出貨日期', '預計出貨日', '出貨日期', '出貨日', '預計到貨日期']);
@@ -1660,6 +1814,7 @@
               const docNo = gv(['入庫單', '進貨單', '入庫單號', '進貨單號']);
               const prod = gv(['品名', '物料名稱']);
               if(!docNo || !prod) continue;
+              if(ignoredList.includes(String(prod).trim().toUpperCase())) continue;
 
               // 嚴格只從「預計進貨日」欄位抓取，若為合併儲存格向下繼承！絕對不讀取「單據日期」與「採購單號」！
               const rawDate = gv(['預計進貨日', '預計進貨日期', '預計到貨日期', '進貨日', '進貨日期']);
@@ -1929,7 +2084,7 @@
     } else if (GAS_API_URL) {
       document.getElementById('envBadge').innerText = "☁️ 雲端 API 同步中";
       // 1. 抓取試算表樣品
-      fetch(`${GAS_API_URL}?action=getSamples`)
+      fetch(`${GAS_API_URL}?action=getSamples&_t=${Date.now()}`, { cache: "no-store" })
         .then(res => res.json())
         .then(data => {
           allData = data;
@@ -1945,7 +2100,7 @@
         });
 
       // 2. 抓取試算表系統配置 (選單與 PIN 碼)
-      fetch(`${GAS_API_URL}?action=getConfig`)
+      fetch(`${GAS_API_URL}?action=getConfig&_t=${Date.now()}`, { cache: "no-store" })
         .then(res => res.json())
         .then(cfg => {
           if(cfg) {
@@ -1963,7 +2118,7 @@
       loadOrdersFromCloud();
 
       // 4. 抓取雲端員工名單
-      fetch(`${GAS_API_URL}?action=getEmployees`)
+      fetch(`${GAS_API_URL}?action=getEmployees&_t=${Date.now()}`, { cache: "no-store" })
         .then(res => res.json())
         .then(res => {
           if (res && res.success && res.data) {
@@ -1991,6 +2146,7 @@
   }
 
   function render() {
+    const loggedInUser = sessionStorage.getItem('QC_LOGGED_IN_USER');
     const kw = (document.getElementById('kwInput').value || '').toLowerCase();
     const start = document.getElementById('dateStart').value;
     const end = document.getElementById('dateEnd').value;
@@ -2012,7 +2168,8 @@
     });
 
     const pData = filtered.filter(s => s.status === 'pending');
-    let cData = filtered.filter(s => s.status === 'completed');
+    let cData = filtered.filter(s => s.status === 'completed' || s.status === 'failed');
+    updateT100ButtonCounts();
 
     // 如果使用者沒有輸入明確的起迄日期，則「已檢驗完成」預設只顯示近3天 (今天、昨天、前天)
     if (!start && !end) {
@@ -2095,6 +2252,10 @@
           </div>
         </td>
       </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">目前無待檢驗樣品</td></tr>`;
+      console.log('pData:', pData);
+      console.log('pBody.innerHTML length:', pBody.innerHTML.length);
+      console.log('pData:', pData);
+      console.log('pBody.innerHTML length:', pBody.innerHTML.length);
 
       cBody.innerHTML = cData.length ? cData.slice(0, 30).map(s => `<tr>
         <td>
@@ -2115,7 +2276,7 @@
         <td>
           <div style="display:flex; align-items:center; gap:4px; margin-bottom:2px; flex-wrap:wrap;">
             <span style="font-weight:600; color:#1e293b; font-size:0.8rem;">${s.dept || '-'}</span>
-            <b style="color:${s.qcResult==='PASS'?'#059669':'#dc2626'}; background:${s.qcResult==='PASS'?'#d1fae5':'#fee2e2'}; padding:1px 5px; border-radius:4px; font-size:0.74rem;">${s.qcResult}</b>
+            <b style="color:${s.qcResult==='PASS'?'#059669':(s.qcResult==='特採'?'#7c3aed':(s.qcResult==='需特採'?'#d97706':'#dc2626'))}; background:${s.qcResult==='PASS'?'#d1fae5':(s.qcResult==='特採'?'#ede9fe':(s.qcResult==='需特採'?'#fef3c7':'#fee2e2'))}; padding:1px 5px; border-radius:4px; font-size:0.74rem;">${s.qcResult}</b>
           </div>
           <div style="font-size:0.72rem; color:#64748b;">完成: ${formatSimpleDate(s.completedAt)}</div>
         </td>
@@ -2123,7 +2284,8 @@
           <div style="font-size:0.76rem; color:#475569; line-height:1.3; max-height:36px; overflow-y:auto; word-break:break-word; margin-bottom:4px;">
             ${s.qcNote || '<span style="color:#94a3b8;">無備註</span>'}
           </div>
-          ${s.qcResult === 'FAIL' ? `<button onclick="openReturnResample('${s.id}')" style="font-size:0.7rem; background:#f97316; color:white; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%;">↩️ 退回重新送樣</button>` : ''}
+          ${s.qcResult === '需特採' ? `<button onclick="openJudge('${s.id}')" style="font-size:0.7rem; background:#8b5cf6; color:white; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%; margin-top:3px; animation: pulse 2s infinite;">🚨 主管審核特採</button>` : ''}
+          ${s.qcResult === 'FAIL' ? `<div style="font-size:0.7rem; color:#b91c1c; font-weight:bold; background:#fee2e2; padding:3px; border-radius:4px; text-align:center;">已自動產生重送單</div>` : ''}
           ${(s.parentId || s.round > 1) ? `<button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:3px 8px; cursor:pointer; width:100%; margin-top:3px;">📋 查看送樣歷史</button>` : ''}
         </td>
       </tr>`).join('') : `<tr><td colspan="4" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
@@ -2187,7 +2349,8 @@
         <td style="color:#4b5563;">${formatSimpleDate(s.completedAt)}</td>
         <td style="font-size:0.8rem; color:#64748b;">
           ${s.qcNote || '-'}
-          ${s.qcResult === 'FAIL' ? `<br><button onclick="openReturnResample('${s.id}')" style="font-size:0.7rem; background:#f97316; color:white; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:3px;">↩️ 退回重新送樣</button>` : ''}
+          ${s.qcResult === '需特採' ? `<br><button onclick="openJudge('${s.id}')" style="font-size:0.7rem; background:#8b5cf6; color:white; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:3px;">🚨 審核特採</button>` : ''}
+            ${s.qcResult === 'FAIL' ? `<br><div style="font-size:0.7rem; color:#b91c1c; font-weight:bold;">已自動重送</div>` : ''}
           ${(s.parentId || s.round > 1) ? `<br><button onclick="showSampleHistory('${s.parentId || s.id}')" style="font-size:0.7rem; background:#e0f2fe; color:#0369a1; border:none; border-radius:6px; padding:2px 8px; cursor:pointer; margin-top:2px;">📋 送樣歷史</button>` : ''}
         </td>
       </tr>`).join('') : `<tr><td colspan="10" style="text-align:center; color:#94a3b8; padding:30px;">尚無檢驗完成紀錄</td></tr>`;
@@ -2404,7 +2567,39 @@
     document.getElementById('rememberPrintSettings').checked = (localStorage.getItem('HS_QC_REMEMBER_PRINT') === 'true');
 
     updateTotalLabelCount();
+    
+    // 切換按鈕顯示狀態：如果是純設定模式 (dummy)，則顯示「儲存設定」，隱藏「送出列印」
+    if (data.id === "dummy") {
+      document.getElementById('btnPrintLabels').style.display = 'none';
+      document.getElementById('btnSavePrintSettingsOnly').style.display = 'block';
+    } else {
+      document.getElementById('btnPrintLabels').style.display = 'block';
+      document.getElementById('btnSavePrintSettingsOnly').style.display = 'none';
+    }
+
     document.getElementById('printModal').style.display = 'flex';
+  }
+
+  function savePrintSettingsOnly() {
+    const wQty = document.getElementById('printQtyWaterGC').value;
+    const mQty = document.getElementById('printQtyMetal').value;
+    const width = document.getElementById('printLabelWidth').value;
+    const height = document.getElementById('printLabelHeight').value;
+    const rotateMode = document.getElementById('printRotateMode') ? document.getElementById('printRotateMode').value : 'none';
+    
+    localStorage.setItem('HS_QC_PRINT_WATER', wQty);
+    localStorage.setItem('HS_QC_PRINT_METAL', mQty);
+    localStorage.setItem('HS_QC_PRINT_WIDTH', width);
+    localStorage.setItem('HS_QC_PRINT_HEIGHT', height);
+    localStorage.setItem('HS_QC_PRINT_ROTATE', rotateMode);
+
+    if(document.getElementById('rememberPrintSettings').checked) {
+      localStorage.setItem('HS_QC_REMEMBER_PRINT', 'true');
+    } else {
+      localStorage.removeItem('HS_QC_REMEMBER_PRINT');
+    }
+    closePrintModal();
+    showToast("✅ 列印設定已更新");
   }
 
   function closePrintModal() {
@@ -2813,7 +3008,30 @@
             padding-top: 1mm;
             margin-top: 0.5mm;
           }
-        </style>
+        
+    .phrase-tag {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .phrase-tag:hover {
+      background: #e2e8f0;
+      color: #0f172a;
+      border-color: #94a3b8;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.7); }
+      70% { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+    }
+  </style>
       </head>
       <body>
         ${labelPagesHtml}
@@ -2831,18 +3049,82 @@
     printWindow.document.close();
   }
 
-  function openJudge(id) { 
+  let pendingActionId = null;
+  let pendingActionType = null;
+
+  function openJudge(id) {
+    if (!sessionStorage.getItem('QC_LOGGED_IN_USER')) {
+      pendingActionId = id;
+      pendingActionType = 'judge';
+      openAdminUnlockModal();
+      return;
+    }
+    const sample = allData.find(s => s.id === id);
+    const sel = document.getElementById('modalResult');
+    if (sample && sample.qcResult === '需特採') {
+      sel.innerHTML = `
+        <option value="特採">PASS (特採放行)</option>
+        <option value="FAIL">FAIL (駁回特採並自動重送)</option>
+      `;
+      sel.value = '特採';
+    } else {
+      sel.innerHTML = `
+        <option value="PASS">PASS (合格放行)</option>
+        <option value="FAIL">FAIL (不合格自動重送)</option>
+        <option value="需特採">不符合內控 (需特採)</option>
+      `;
+      sel.value = 'PASS';
+    }
     document.getElementById('currentId').value = id; 
     document.getElementById('modalNote').value = '合格放行'; 
-    document.getElementById('modalPin').value = ''; 
+    document.getElementById('modalResult').value = 'PASS';
+    handleResultChange(); 
+    
+    const approverText = document.getElementById('judgeApproverText');
+    if (approverText) {
+      approverText.innerText = '👤 放行核准人：' + sessionStorage.getItem('QC_LOGGED_IN_USER');
+    }
+    
+    const pinBox = document.getElementById('modalPin');
+    if(pinBox && pinBox.parentElement) {
+      pinBox.parentElement.style.display = 'none';
+      pinBox.value = '8888'; // fallback
+    }
+
+    
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    const phrasesStr = cfgStr ? (JSON.parse(cfgStr)['OPTIONS_PHRASES'] || '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他') : '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他';
+    const phrases = phrasesStr.split(',').map(s=>s.trim()).filter(Boolean);
+    const container = document.getElementById('modalPhraseContainer');
+    if (container) {
+      container.innerHTML = phrases.map(p => `<span class="phrase-tag" onclick="document.getElementById('modalNote').value = this.innerText">${p}</span>`).join('');
+    }
+    
     document.getElementById('judgeModal').style.display = 'flex'; 
-    document.getElementById('modalPin').focus();
   }
   function closeModal() { document.getElementById('judgeModal').style.display = 'none'; }
 
+  
+  function handleResultChange() {
+    const sel = document.getElementById('modalResult');
+    const note = document.getElementById('modalNote');
+    if (sel.value === 'FAIL') {
+      sel.style.color = '#dc2626'; // Red
+      if (note.value === '合格放行' || note.value === '特採放行') note.value = '';
+    } else if (sel.value === '需特採') {
+      sel.style.color = '#d97706'; // Orange
+      if (note.value === '合格放行' || note.value === '特採放行') note.value = '';
+    } else if (sel.value === '特採') {
+      sel.style.color = '#7c3aed'; // Purple
+      if (note.value === '合格放行' || note.value === '') note.value = '特採放行';
+    } else {
+      sel.style.color = '#059669'; // Green
+      if (note.value === '' || note.value === '特採放行') note.value = '合格放行';
+    }
+  }
   function submitJudge() {
     const pin = document.getElementById('modalPin').value;
-    if(!pin) { alert("請輸入授權密碼！"); return; }
+    
     const btn = document.getElementById('modalBtn'); 
     btn.disabled = true; 
     btn.innerText = "驗證授權中...";
@@ -2961,13 +3243,46 @@
   // 退回重新送樣模組
   // =========================================================
 
-  function openReturnResample(id) {
-    document.getElementById('returnResampleId').value = id;
-    document.getElementById('returnResampleNote').value = '';
-    document.getElementById('returnResamplePin').value = '';
-    document.getElementById('returnResampleModal').style.display = 'flex';
+  
+  function openConcession(id) {
+    if (!sessionStorage.getItem('QC_LOGGED_IN_USER')) {
+      pendingActionId = id;
+      pendingActionType = 'concession';
+      openAdminUnlockModal();
+      return;
+    }
+    openJudge(id);
+    setTimeout(() => {
+      const sel = document.getElementById('modalResult');
+      if(sel) { sel.value = '特採'; handleResultChange(); }
+    }, 50);
   }
 
+  function openReturnResample(id) {
+    if (!sessionStorage.getItem('QC_LOGGED_IN_USER')) {
+      pendingActionId = id;
+      pendingActionType = 'resample';
+      openAdminUnlockModal();
+      return;
+    }
+    document.getElementById('returnResampleId').value = id;
+    document.getElementById('returnResampleNote').value = '';
+    const pinBox = document.getElementById('returnResamplePin');
+    if(pinBox && pinBox.parentElement) {
+      pinBox.parentElement.style.display = 'none';
+      pinBox.value = '8888'; // fallback
+    }
+    
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    const phrasesStr = cfgStr ? (JSON.parse(cfgStr)['OPTIONS_PHRASES'] || '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他') : '合格放行, 水分偏高, 金屬異常, 微粒超標, 外觀異常, 其他';
+    const phrases = phrasesStr.split(',').map(s=>s.trim()).filter(Boolean).filter(p => p !== '合格放行');
+    const container = document.getElementById('returnResamplePhraseContainer');
+    if (container) {
+      container.innerHTML = phrases.map(p => `<span class="phrase-tag" onclick="document.getElementById('returnResampleNote').value = this.innerText">${p}</span>`).join('');
+    }
+    
+    document.getElementById('returnResampleModal').style.display = 'flex';
+  }
   function closeReturnResampleModal() {
     document.getElementById('returnResampleModal').style.display = 'none';
   }
@@ -2977,7 +3292,7 @@
     const note = document.getElementById('returnResampleNote').value.trim();
     const pin = document.getElementById('returnResamplePin').value.trim();
     if (!note) { alert('請輸入退回原因！'); return; }
-    if (!pin) { alert('請輸入品管授權 PIN 碼！'); return; }
+    
 
     const btn = document.getElementById('returnResampleBtn');
     btn.disabled = true;
@@ -3110,7 +3425,7 @@
     tbody.innerHTML = toShow.map(s => {
       let statusBadge = '';
       if (s.status === 'pending') statusBadge = `<span style="background:#fef08a; color:#854d0e; padding:2px 6px; border-radius:4px; font-size:0.8rem;">待檢驗</span>`;
-      else if (s.status === 'completed' && s.qcResult === 'PASS') statusBadge = `<span style="background:#d1fae5; color:#065f46; padding:2px 6px; border-radius:4px; font-size:0.8rem;">合格(PASS)</span>`;
+      else if ((s.status === 'completed' || s.status === 'failed') && (s.qcResult === 'PASS' || s.qcResult === 'FAIL' || s.qcResult === '特採')) statusBadge = `<span style="background:${s.qcResult==='PASS'?'#d1fae5':(s.qcResult==='特採'?'#ede9fe':(s.qcResult==='需特採'?'#fef3c7':'#fee2e2'))}; color:${s.qcResult==='PASS'?'#065f46':(s.qcResult==='特採'?'#7c3aed':(s.qcResult==='需特採'?'#d97706':'#b91c1c'))}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${s.qcResult==='PASS'?'合格(PASS)':(s.qcResult==='特採'?'特採(PASS)':'退回(FAIL)')}</span>`;
       else if (s.status === 'completed' && s.qcResult === 'FAIL') statusBadge = `<span style="background:#fee2e2; color:#991b1b; padding:2px 6px; border-radius:4px; font-size:0.8rem;">不合格(FAIL)</span>`;
       else if (s.status === 'failed') statusBadge = `<span style="background:#fed7aa; color:#9a3412; padding:2px 6px; border-radius:4px; font-size:0.8rem;">退回(failed)</span>`;
       else statusBadge = s.status;
@@ -3334,6 +3649,13 @@
     if (pin === validPin) {
       closeAdminUnlockModal();
       unlockAdminFeatures(true);
+          if (typeof pendingActionId !== 'undefined' && pendingActionId) {
+             if (pendingActionType === 'judge') openJudge(pendingActionId);
+             if (pendingActionType === 'resample') openReturnResample(pendingActionId);
+             if (pendingActionType === 'concession') openConcession(pendingActionId);
+             pendingActionId = null;
+             pendingActionType = null;
+          }
     } else {
       if (err) {
         err.innerText = '⛔ PIN 碼錯誤，請重新輸入！(預設為 8888)';
