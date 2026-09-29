@@ -1056,16 +1056,16 @@
         <span style="font-weight:bold; color:#334155;">📐 貼紙規格 (可自訂修改)：</span>
         <div style="display:flex; align-items:center; gap:5px;">
           <span>寬</span>
-          <input type="number" id="printLabelWidth" value="90" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
+          <input type="number" id="printLabelWidth" value="50" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
           <span>mm</span>
           <span style="color:#94a3b8; margin:0 2px;">×</span>
           <span>高</span>
-          <input type="number" id="printLabelHeight" value="100" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
+          <input type="number" id="printLabelHeight" value="90" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
           <span>mm</span>
         </div>
       </div>
       <div style="background:#fef2f2; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; font-size:0.85rem; border: 1px solid #fecaca; color: #991b1b; font-weight:bold;">
-        <label style="cursor:pointer; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="printFixOrientation" style="width:16px;height:16px;"> ☑ 修正 TSC 標籤機方向錯亂 (印出跨兩張請勾我)</label>
+        <label style="cursor:pointer; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="printFixOrientation" style="width:16px;height:16px;"> ☑ TSC 直式模式（高 > 寬時自動使用直向紙張）</label>
       </div>
       
       <div style="background:#fff7ed; padding:8px 12px; border-radius:8px; border:1px solid #fed7aa; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; font-size:0.85rem;">
@@ -1107,7 +1107,7 @@
       <!-- 總張數統計 -->
       <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1px solid #a7f3d0; padding:8px 12px; border-radius:6px; font-size:0.88rem; color:#065f46;">
         <span>📄 預計連續出紙總張數：</span>
-        <span style="font-size:1.1rem; font-weight:bold;" id="printTotalLabelCount">3 張 (90mm × 100mm)</span>
+        <span style="font-size:1.1rem; font-weight:bold;" id="printTotalLabelCount">3 張 (50mm × 90mm)</span>
       </div>
     </div>
 
@@ -1125,7 +1125,7 @@
       <button type="button" id="btnSavePrintSettingsOnly" onclick="savePrintSettingsOnly()" class="btn-submit" style="background:#10b981; flex:2; padding:11px; font-size:0.95rem; display:none;">
         💾 儲存設定
       </button>
-      <button type="button" onclick="resetPrintSettingsToDefault()" style="padding:11px 12px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold; font-size:0.82rem; cursor:pointer;" title="清除記憶並恢復預設 (90x100, 水分1, Metal 2)">
+      <button type="button" onclick="resetPrintSettingsToDefault()" style="padding:11px 12px; background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; font-weight:bold; font-size:0.82rem; cursor:pointer;" title="清除記憶並恢復預設 (50x90, 水分1, Metal 2)">
         🔄 恢復預設
       </button>
       <button type="button" onclick="closePrintModal()" style="padding:11px 16px; background:#94a3b8; color:white; border:none; border-radius:6px; cursor:pointer;">
@@ -2664,7 +2664,8 @@
       const wQty = parseInt(localStorage.getItem('HS_QC_PRINT_WATER') || '1', 10);
       let mQty = parseInt(localStorage.getItem('HS_QC_PRINT_METAL') || '2', 10);
       if (targetData.grade === '回收液') mQty = 0;
-      doPrintLabels(targetData, wQty, mQty);
+      const rotateMode = localStorage.getItem('HS_QC_PRINT_ROTATE') || 'none';
+      doPrintLabels(targetData, wQty, mQty, rotateMode);
       return;
     }
 
@@ -2700,9 +2701,13 @@
 
     const savedW = localStorage.getItem('HS_QC_PRINT_WATER') || '1';
     let savedM = localStorage.getItem('HS_QC_PRINT_METAL') || '2';
-    const savedWidth = localStorage.getItem('HS_QC_PRINT_WIDTH') || '90';
-    const savedHeight = localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100';
+    const savedWidthRaw = localStorage.getItem('HS_QC_PRINT_WIDTH') || '50';
+    const savedHeightRaw = localStorage.getItem('HS_QC_PRINT_HEIGHT') || '90';
+    const isLegacyTscLandscape = savedWidthRaw === '90' && savedHeightRaw === '50';
+    const savedWidth = isLegacyTscLandscape ? '50' : savedWidthRaw;
+    const savedHeight = isLegacyTscLandscape ? '90' : savedHeightRaw;
     const savedFix = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
+    const savedRotateMode = localStorage.getItem('HS_QC_PRINT_ROTATE') || 'none';
 
     if (data.grade === '回收液') savedM = '0';
 
@@ -2711,6 +2716,7 @@
     document.getElementById('printLabelWidth').value = savedWidth;
     document.getElementById('printLabelHeight').value = savedHeight;
     if(document.getElementById('printFixOrientation')) document.getElementById('printFixOrientation').checked = savedFix;
+    if(document.getElementById('printRotateMode')) document.getElementById('printRotateMode').value = savedRotateMode;
     document.getElementById('rememberPrintSettings').checked = (localStorage.getItem('HS_QC_REMEMBER_PRINT') === 'true');
 
     updateTotalLabelCount();
@@ -2757,8 +2763,8 @@
   function updateTotalLabelCount() {
     const w = parseInt(document.getElementById('printQtyWaterGC').value || '0', 10);
     const m = parseInt(document.getElementById('printQtyMetal').value || '0', 10);
-    const width = parseInt(document.getElementById('printLabelWidth').value || '90', 10);
-    const height = parseInt(document.getElementById('printLabelHeight').value || '100', 10);
+    const width = parseInt(document.getElementById('printLabelWidth').value || '50', 10);
+    const height = parseInt(document.getElementById('printLabelHeight').value || '90', 10);
     const total = w + m;
     document.getElementById('printTotalLabelCount').innerText = `${total} 張 (${width}mm × ${height}mm)`;
   }
@@ -2770,14 +2776,16 @@
     localStorage.removeItem('HS_QC_PRINT_WIDTH');
     localStorage.removeItem('HS_QC_PRINT_HEIGHT');
     localStorage.removeItem('HS_QC_PRINT_FIX');
+    localStorage.removeItem('HS_QC_PRINT_ROTATE');
     if(document.getElementById('printFixOrientation')) document.getElementById('printFixOrientation').checked = false;
+    if(document.getElementById('printRotateMode')) document.getElementById('printRotateMode').value = 'none';
     document.getElementById('printQtyWaterGC').value = '1';
     document.getElementById('printQtyMetal').value = '2';
-    document.getElementById('printLabelWidth').value = '90';
-    document.getElementById('printLabelHeight').value = '100';
+    document.getElementById('printLabelWidth').value = '50';
+    document.getElementById('printLabelHeight').value = '90';
     document.getElementById('rememberPrintSettings').checked = false;
     updateTotalLabelCount();
-    showToast("🔄 已恢復預設規格：90mm × 100mm，水分/GC 1張 + Metal 2張！");
+    showToast("🔄 已恢復 TSC 直式預設規格：50mm × 90mm，水分/GC 1張 + Metal 2張！");
   }
 
   function confirmPrintLabels() {
@@ -2787,8 +2795,8 @@
 
     const wQty = parseInt(document.getElementById('printQtyWaterGC').value || '0', 10);
     const mQty = parseInt(document.getElementById('printQtyMetal').value || '0', 10);
-    const width = parseInt(document.getElementById('printLabelWidth').value || '90', 10);
-    const height = parseInt(document.getElementById('printLabelHeight').value || '100', 10);
+    const width = parseInt(document.getElementById('printLabelWidth').value || '50', 10);
+    const height = parseInt(document.getElementById('printLabelHeight').value || '90', 10);
 
     if(wQty + mQty <= 0) {
       alert("請至少選擇列印 1 張標籤！");
@@ -2812,14 +2820,35 @@
     doPrintLabels(targetData, wQty, mQty, rotateMode);
   }
 
-  // 標籤機專用連續列印輸出核心 (支援動態貼紙寬度與高度)
+  // 讀取並正規化標籤尺寸。TSC 直式標籤以「窄寬 × 長高」送紙，避免只旋轉畫面而沒有同步旋轉紙張尺寸。
+  function getPrintDimensions(rotateMode = 'none') {
+    const configuredWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '50', 10);
+    const configuredHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '90', 10);
+    const isLegacyTscLandscape = configuredWidth === 90 && configuredHeight === 50;
+    const labelWidth = isLegacyTscLandscape ? 50 : (Number.isFinite(configuredWidth) && configuredWidth > 0 ? configuredWidth : 50);
+    const labelHeight = isLegacyTscLandscape ? 90 : (Number.isFinite(configuredHeight) && configuredHeight > 0 ? configuredHeight : 90);
+    if (isLegacyTscLandscape) {
+      localStorage.setItem('HS_QC_PRINT_WIDTH', '50');
+      localStorage.setItem('HS_QC_PRINT_HEIGHT', '90');
+    }
+    const fixOrientation = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
+    const needsRotate = rotateMode === '90' || rotateMode === '-90';
+    // 直式設定本身已是正確的 50x90；舊設定只有在「寬 > 高」時才需要補做交換。
+    const swapPageAxes = needsRotate || (fixOrientation && labelWidth > labelHeight);
+
+    return {
+      labelWidth,
+      labelHeight,
+      isTscPortrait: labelHeight > labelWidth,
+      pageWidth: swapPageAxes ? labelHeight : labelWidth,
+      pageHeight: swapPageAxes ? labelWidth : labelHeight
+    };
+  }
+
+  // 標籤機專用連續列印輸出核心 (支援 TSC 直式與自訂貼紙尺寸)
   function doPrintLabels(data, waterCount, metalCount, rotateMode = 'none') {
     const totalLabels = waterCount + metalCount;
-    const labelWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '90', 10);
-    const labelHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '100', 10);
-    const fixOrientation = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
-    const finalWidth = fixOrientation ? labelHeight : labelWidth;
-    const finalHeight = fixOrientation ? labelWidth : labelHeight;
+    const { labelWidth, labelHeight, isTscPortrait, pageWidth, pageHeight } = getPrintDimensions(rotateMode);
     let labelPagesHtml = '';
     let currentIdx = 1;
 
@@ -2832,14 +2861,12 @@
       : rotateMode === '180'
       ? `transform: rotate(180deg); transform-origin: center center;`
       : '';
-    const needsRotate = rotateMode === '90' || rotateMode === '-90';
-    const pageWidth = needsRotate ? labelHeight : labelWidth;
-    const pageHeight = needsRotate ? labelWidth : labelHeight;
+    const orientationClass = isTscPortrait ? ' tsc-portrait' : '';
 
     // 1. 水分 & GC 檢驗標籤 (共 waterCount 張)
     for(let i = 1; i <= waterCount; i++) {
       labelPagesHtml += `
-        <div class="label-page${compactClass}">
+        <div class="label-page${compactClass}${orientationClass}">
           <div class="rotatable-container" style="${rotationTransform}">
             <div class="label-border">
               <div class="label-header">
@@ -2888,7 +2915,7 @@
       const bottleBadgeClass = isSecondSample ? "metal-retention" : "metal-main";
 
       labelPagesHtml += `
-        <div class="label-page${compactClass}">
+        <div class="label-page${compactClass}${orientationClass}">
           <div class="rotatable-container" style="${rotationTransform}">
             <div class="label-border">
               <div class="label-header">
@@ -2974,6 +3001,12 @@
           }
           .label-page:last-child {
             page-break-after: auto;
+          }
+          /* TSC 直式模式：高大於寬時固定採上下堆疊，避免內容被當成橫式裁切。 */
+          .label-page.tsc-portrait .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
           }
           
           /* 緊湊模式 (高度 <= 60mm) 專用排版 */
