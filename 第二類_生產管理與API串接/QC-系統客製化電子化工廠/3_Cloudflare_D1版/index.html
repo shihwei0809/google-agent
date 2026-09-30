@@ -2825,15 +2825,23 @@
 
   // 讀取並正規化標籤尺寸。TSC 直式標籤以「窄寬 × 長高」送紙，避免只旋轉畫面而沒有同步旋轉紙張尺寸。
   function getPrintDimensions(rotateMode = 'none') {
-    const configuredWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '50', 10);
-    const configuredHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '90', 10);
-    const isLegacyTscLandscape = configuredWidth === 90 && configuredHeight === 50;
-    const labelWidth = isLegacyTscLandscape ? 50 : (Number.isFinite(configuredWidth) && configuredWidth > 0 ? configuredWidth : 50);
-    const labelHeight = isLegacyTscLandscape ? 90 : (Number.isFinite(configuredHeight) && configuredHeight > 0 ? configuredHeight : 90);
-    if (isLegacyTscLandscape) {
-      localStorage.setItem('HS_QC_PRINT_WIDTH', '50');
-      localStorage.setItem('HS_QC_PRINT_HEIGHT', '90');
-    }
+    const configuredWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '90', 10);
+    const configuredHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '50', 10);
+    const labelWidth = (Number.isFinite(configuredWidth) && configuredWidth > 0) ? configuredWidth : 90;
+    const labelHeight = (Number.isFinite(configuredHeight) && configuredHeight > 0) ? configuredHeight : 50;
+
+    const fixOrientation = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
+    const needsRotate = rotateMode === '90' || rotateMode === '-90';
+    const swapPageAxes = needsRotate || (fixOrientation && labelWidth > labelHeight);
+
+    return {
+      labelWidth,
+      labelHeight,
+      pageWidth: swapPageAxes ? labelHeight : labelWidth,
+      pageHeight: swapPageAxes ? labelWidth : labelHeight,
+      autoRotate: (fixOrientation && labelWidth > labelHeight && !needsRotate)
+    };
+  }
     const fixOrientation = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
     const needsRotate = rotateMode === '90' || rotateMode === '-90';
     // 直式設定本身已是正確的 50x90；舊設定只有在「寬 > 高」時才需要補做交換。
