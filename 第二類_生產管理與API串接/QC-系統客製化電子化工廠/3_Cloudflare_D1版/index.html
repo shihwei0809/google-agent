@@ -2857,14 +2857,14 @@
 
     const isCompact = labelHeight <= 60;
     const compactClass = isCompact ? ' compact' : '';
-    const rotationTransform = rotateMode === '90' 
-      ? 	ransform: rotate(90deg) translateY(-100%); transform-origin: top left; 
+                const rotationTransform = rotateMode === '90' 
+      ? `transform: rotate(90deg) translateY(-100%); transform-origin: top left;` 
       : rotateMode === '-90'
-      ? 	ransform: rotate(-90deg) translateX(-100%); transform-origin: top left;
+      ? `transform: rotate(-90deg) translateX(-100%); transform-origin: top left;`
       : rotateMode === '180'
-      ? 	ransform: rotate(180deg); transform-origin: center center;
+      ? `transform: rotate(180deg); transform-origin: center center;`
       : autoRotate
-      ? 	ransform: rotate(90deg) translateY(-100%); transform-origin: top left;
+      ? `transform: rotate(90deg) translateY(-100%); transform-origin: top left;`
       : '';
     const orientationClass = '';
 
