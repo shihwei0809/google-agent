@@ -1452,7 +1452,7 @@
   // 更新 T100 篩選按鈕上的數量徽章
   function updateT100ButtonCounts() {
     if (!t100Orders || !Array.isArray(t100Orders)) return;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     // 今日排程數量
     const todayCount = t100Orders.filter(o => o.date === todayStr).length;
@@ -2208,7 +2208,7 @@
     const tabC = document.getElementById('tabCountCompleted');
     if(tabC) tabC.innerText = `${cData.length}`;
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     document.getElementById('kpi-today').innerText = allData.filter(s => s.createdAt && s.createdAt.startsWith(todayStr)).length;
 
     // 動態切換表頭 Thead
@@ -2449,7 +2449,7 @@
     }
 
     if (!barcode) {
-      const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+      const todayStr = getLocalDateString().replace(/-/g, '');
       barcode = `${todayStr}-庫存`;
     }
 
@@ -2525,12 +2525,6 @@
           alert("送樣失敗：" + (res.error || "未知錯誤"));
         }
       })
-      .catch(err => {
-        alert("網路錯誤或發生例外：" + err);
-        btn.disabled = false;
-        btn.innerText = "確認提交送樣 🚀";
-      });
-    }
       .catch(err => {
         console.warn("API 送樣異常，暫存本機", err);
         allData.unshift(payload);
@@ -2719,9 +2713,7 @@
       : rotateMode === '-90'
       ? `transform: rotate(-90deg) translateX(-100%); transform-origin: top left;`
       : '';
-    const needsRotate = rotateMode !== 'none';
-    const pageWidth = needsRotate ? labelHeight : labelWidth;
-    const pageHeight = needsRotate ? labelWidth : labelHeight;
+
 
     // 1. 水分 & GC 檢驗標籤 (共 waterCount 張)
     for(let i = 1; i <= waterCount; i++) {
@@ -2735,7 +2727,7 @@
               </div>
               
               <div class="barcode-banner">
-                <div class="barcode-num">${data.barcode}</div>
+                <div class="barcode-num" style="${data.barcode && data.barcode.length > 25 ? 'font-size:10.5px; line-height:1.25; letter-spacing:0;' : ''}">${data.barcode}</div>
               </div>
 
               <div class="content-wrapper">
@@ -2783,7 +2775,7 @@
               </div>
               
               <div class="barcode-banner">
-                <div class="barcode-num">${data.barcode}</div>
+                <div class="barcode-num" style="${data.barcode && data.barcode.length > 25 ? 'font-size:10.5px; line-height:1.25; letter-spacing:0;' : ''}">${data.barcode}</div>
               </div>
 
               <div class="content-wrapper">
@@ -3487,7 +3479,7 @@
 
 
   function setBarcodePlaceholder() {
-    const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+    const todayStr = getLocalDateString().replace(/-/g, '');
     document.getElementById('barcode').placeholder = "例: " + todayStr;
   }
 
