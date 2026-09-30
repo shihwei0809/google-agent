@@ -1428,6 +1428,12 @@
       const sameProd = order.productName && s.productName && (String(s.productName).trim().toLowerCase() === String(order.productName).trim().toLowerCase());
       if (!sameProd) return false;
 
+      // 若同一台車每天都來，僅憑槽號或車號會重複判定為「已送樣」。因此必須比對「排程日期」是否與「送樣日期」吻合
+      if (order.date && s.createdAt) {
+        const sampleDateStr = getLocalDateString(new Date(s.createdAt));
+        if (sampleDateStr !== order.date) return false;
+      }
+
       let tankMatch = false;
       let contMatch = false;
       let hasTankData = order.tankNo && s.tankNo;
@@ -1477,7 +1483,7 @@
   // 更新 T100 篩選按鈕上的數量徽章
   function updateT100ButtonCounts() {
     if (!t100Orders || !Array.isArray(t100Orders)) return;
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
 
     // 今日排程數量
     const todayCount = t100Orders.filter(o => o.date === todayStr).length;
@@ -1486,7 +1492,7 @@
 
     // 昨天排程數量
     const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const yesterdayStr = getLocalDateString(yesterday);
     const yesterdayCount = t100Orders.filter(o => o.date === yesterdayStr).length;
     const btnYest = document.getElementById('btnFilterYesterday');
     if (btnYest) btnYest.innerHTML = `📆 昨天排程 <span style="background:rgba(255,255,255,0.35);border-radius:10px;padding:1px 7px;font-size:0.8em;margin-left:3px;">${yesterdayCount}</span>`;
@@ -1550,7 +1556,7 @@
       filterDescription = `今日 (${todayStr})`;
     } else if (t100FilterMode === 'yesterday') {
       const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-      const yStr = yesterday.toISOString().split('T')[0];
+      const yStr = getLocalDateString(yesterday);
       filteredOrders = t100Orders.filter(o => o.date === yStr);
       filterDescription = `昨日 (${yStr})`;
     } else if (t100FilterMode === 'date') {
