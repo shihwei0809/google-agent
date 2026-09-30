@@ -2842,19 +2842,6 @@
       autoRotate: (fixOrientation && labelWidth > labelHeight && !needsRotate)
     };
   }
-    const fixOrientation = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
-    const needsRotate = rotateMode === '90' || rotateMode === '-90';
-    // 直式設定本身已是正確的 50x90；舊設定只有在「寬 > 高」時才需要補做交換。
-    const swapPageAxes = needsRotate || (fixOrientation && labelWidth > labelHeight);
-
-    return {
-      labelWidth,
-      labelHeight,
-      isTscPortrait: labelHeight > labelWidth,
-      pageWidth: swapPageAxes ? labelHeight : labelWidth,
-      pageHeight: swapPageAxes ? labelWidth : labelHeight
-    };
-  }
 
   // 標籤機專用連續列印輸出核心 (支援 TSC 直式與自訂貼紙尺寸)
   function doPrintLabels(data, waterCount, metalCount, rotateMode = 'none') {
