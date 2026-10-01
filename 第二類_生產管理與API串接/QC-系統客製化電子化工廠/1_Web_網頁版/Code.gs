@@ -54,9 +54,7 @@ function doPost(e) {
       result = saveOrders(postData.orders);
     } else if (action === 'returnForResample') {
       result = returnForResample(postData.id, postData.note, postData.pin);
-    } else if (action === 'initAllSheets') {
-      result = initAllSheets();
-    }
+    } else if (action === \'initAllSheets\') { result = initAllSheets(); } else if (action === \'uploadPhoto\') { result = uploadPhoto(postData.id, postData.filename, postData.mimeType, postData.base64); }
 
     return ContentService.createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
@@ -802,4 +800,39 @@ function testTeamsNotification(dept) {
   };
   sendTeamsCard(targetDept, testCard, sysConfig, 'TEST');
   return { success: true, dept: targetDept };
+}
+
+
+// 接收並儲存照片至 Google Drive
+function uploadPhoto(sampleId, filename, mimeType, base64Data) {
+  try {
+    const ss = SpreadsheetApp.openById(CONFIG.spreadsheetId);
+    
+    // 尋找或建立 QC_Photos 資料夾
+    let folders = DriveApp.getFoldersByName('QC_Photos');
+    let folder;
+    if (folders.hasNext()) {
+      folder = folders.next();
+    } else {
+      // 建立在與 Spreadsheet 同一個資料夾下
+      const file = DriveApp.getFileById(CONFIG.spreadsheetId);
+      const parentFolder = file.getParents().next();
+      folder = parentFolder.createFolder('QC_Photos');
+    }
+    
+    // 解碼並建立檔案
+    const data = Utilities.base64Decode(base64Data);
+    const blob = Utilities.newBlob(data, mimeType, sampleId + '_' + filename);
+    const savedFile = folder.createFile(blob);
+    
+    // 開啟共用權限讓所有人都能檢視
+    savedFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    
+    const fileUrl = savedFile.getUrl();
+    
+    // (可選) 寫回 Spreadsheet，如果 Spreadsheet 有 photoUrl 欄位
+    return { success: true, url: fileUrl };
+  } catch(e) {
+    return { success: false, error: e.message };
+  }
 }
