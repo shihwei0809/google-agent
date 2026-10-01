@@ -685,7 +685,12 @@
           <input type="text" id="remark" placeholder="如果有特殊狀況請填寫...">
         </div>
       </div>
-            <div style="display:flex; gap:10px;">
+            <div style="margin-bottom:15px;">
+          <button type="button" onclick="triggerPhotoUpload('submit')" style="background:#f1f5f9; color:#475569; border:1px dashed #cbd5e1; padding:8px 12px; border-radius:6px; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <span style="font-size:1.2rem;">📷</span> <span id="submitPhotoText">附加現場照片 (選填)</span>
+          </button>
+        </div>
+        <div style="display:flex; gap:10px;">
         <button type="button" id="submitBtn" class="btn-submit" onclick="submitForm()" style="flex:1;">確認提交送樣 🚀</button>
         
       </div>
