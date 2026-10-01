@@ -1,3 +1,0 @@
-Line 934: <input type="password" id="modalPin" placeholder="隢撓??4 蝣?PIN 蝣? style="letter-spacing:3px; font-weight:bold; text-align:center; margin-top:4px;">
-Line 3180: const pinBox = document.getElementById('modalPin');
-Line 3219: const pin = document.getElementById('modalPin').value;
