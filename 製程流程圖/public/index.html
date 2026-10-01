@@ -138,16 +138,16 @@
       <button id="btn-ai-chat" class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1">
         <i class="fa-solid fa-robot text-purple-500"></i> AI 助手
       </button>
-      
+
 
       <button id="btn-export-png" class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1">
         <i class="fa-solid fa-image text-indigo-500"></i> 匯出高清圖
       </button>
       <button id="btn-export-json" class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1">
-        <i class="fa-solid fa-file-export text-sky-600"></i> 匯出存圖 (JSON)
+        <i class="fa-solid fa-file-export text-sky-600"></i> 匯出專案 JSON
       </button>
       <label class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1 cursor-pointer">
-        <i class="fa-solid fa-file-import text-amber-600"></i> 讀取 JSON
+        <i class="fa-solid fa-file-import text-amber-600"></i> 開啟 JSON
         <input type="file" id="file-input" accept=".json" class="hidden" />
       </label>
     </div>
@@ -240,9 +240,15 @@
                 <polygon points="34,6 20,14 34,22" stroke-width="1.5" />
               </svg>
               <span class="font-medium text-slate-700">控制閥 (Valve)</span>
-            </button>
+              </button>
+
+              <!-- 自訂設備 -->
+              <button class="add-node-btn p-2 rounded-lg border border-slate-200 hover:border-sky-500 hover:bg-sky-50/50 flex flex-col items-center gap-1 text-center transition col-span-2" data-type="custom_block">
+                <div class="px-2 py-1 bg-purple-50 border border-purple-300 rounded text-[11px] font-bold text-purple-900"><i class="fa-solid fa-image mr-1"></i>通用圖片設備</div>
+                <span class="font-medium text-slate-700">自訂設備 (支援圖片上傳)</span>
+              </button>
+            </div>
           </div>
-        </div>
 
         <!-- 標籤、備註與儀表元件庫 -->
         <div>
@@ -409,13 +415,26 @@
           </div>
         </div>
 
-        <div>
-          <label class="block font-bold text-slate-700 mb-1">設備尺寸縮放</label>
-          <div class="flex items-center gap-2">
-            <input type="range" id="node-prop-scale" min="0.6" max="2" step="0.1" value="1" class="w-full" />
-            <span id="node-scale-val" class="font-mono text-slate-500">1.0x</span>
+                  <div>
+            <label class="block font-bold text-slate-700 mb-1">設備尺寸縮放</label>
+            <div class="flex items-center gap-2">
+              <input type="range" id="node-prop-scale" min="0.6" max="2" step="0.1" value="1" class="w-full" />
+              <span id="node-scale-val" class="font-mono text-slate-500">1.0x</span>
+            </div>
           </div>
-        </div>
+
+          <!-- 自訂設備專用屬性 -->
+          <div id="prop-custom-block-fields" class="hidden space-y-4 pt-2 border-t border-slate-200">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">上傳專屬圖片/Icon (選填)</label>
+              <input type="file" id="node-prop-image" accept="image/*" class="w-full text-xs file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100" />
+              <p class="text-[10px] text-slate-500 mt-1">選取電腦中的圖片，作為此設備的外觀</p>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">設備底色</label>
+              <input type="color" id="node-prop-bgcolor" class="w-8 h-8 rounded border border-slate-300 cursor-pointer p-0.5" />
+            </div>
+          </div>
       </div>
 
       <!-- 標線備註卡片專用屬性表單 (含顏色自訂) -->
@@ -481,6 +500,7 @@
             <option value="steam">蒸汽加熱 (Steam) - 紅色動態熱流</option>
             <option value="cooling">冷卻循環水 (Cooling Water) - 藍色動態水流</option>
             <option value="custom">自訂流向管線 (Custom)</option>
+            <option value="solid">純線條無方向 (Solid Line)</option>
           </select>
         </div>
 
@@ -556,7 +576,38 @@
     const connHint = document.getElementById('conn-hint');
 
     // --- 設備與元件模板定義 ---
-    const NODE_TEMPLATES = {
+        const NODE_TEMPLATES = {
+      custom_block: {
+        width: 100, height: 100,
+        title: '自訂設備',
+        tag: 'EQ-001',
+        bgColor: '#ffffff',
+        ports: [
+          { x: 50, y: 0, name: 'Top' },
+          { x: 100, y: 50, name: 'Right' },
+          { x: 50, y: 100, name: 'Bottom' },
+          { x: 0, y: 50, name: 'Left' },
+          { x: 25, y: 0, name: 'Top-L' },
+          { x: 75, y: 0, name: 'Top-R' },
+          { x: 100, y: 25, name: 'Right-T' },
+          { x: 100, y: 75, name: 'Right-B' },
+          { x: 0, y: 25, name: 'Left-T' },
+          { x: 0, y: 75, name: 'Left-B' },
+          { x: 25, y: 100, name: 'Bottom-L' },
+          { x: 75, y: 100, name: 'Bottom-R' }
+        ],
+        render: (n) => {
+          const bg = n.bgColor || '#ffffff';
+          const img = n.imageUrl ? `<image href="${n.imageUrl}" x="5" y="5" width="90" height="90" preserveAspectRatio="xMidYMid meet" />` : '';
+          const textY = n.imageUrl ? 115 : 55;
+          return `<g>
+            <rect x="0" y="0" width="100" height="100" rx="8" fill="${bg}" stroke="#1e293b" stroke-width="2.5" />
+            ${img}
+            <text x="50" y="${textY}" font-size="12" font-weight="bold" fill="#1e293b" text-anchor="middle">${n.title}</text>
+            <text x="50" y="${textY + 16}" font-size="10" fill="#64748b" text-anchor="middle">${n.tag || ''}</text>
+          </g>`;
+        }
+      },
       distillation_tower: {
         width: 70, height: 210,
         title: 'Distillation Tower',
@@ -761,8 +812,10 @@
           const fsize = n.fontSize || '12';
           return `
             <g>
-              <rect x="0" y="0" width="130" height="50" rx="6" fill="${bg}" stroke="${bdr}" stroke-width="1.8" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))" />
-              <text x="10" y="28" font-size="${fsize}" font-weight="600" fill="${txt}">${n.title}</text>
+              <rect x="0" y="0" width="${Math.max(130, Math.max(...(n.title||'').split(/\r?\n/).map(l => (l.replace(/[\x00-\xff]/g, '').length * (parseInt(fsize)||12) + (l.length - l.replace(/[\x00-\xff]/g, '').length) * ((parseInt(fsize)||12)*0.6)))) + 20)}" height="${Math.max(50, (n.title||'').split(/\r?\n/).length * ((parseInt(fsize)||12)+6) + 16)}" rx="6" fill="${bg}" stroke="${bdr}" stroke-width="1.8" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))" />
+              <text font-size="${fsize}" font-weight="600" fill="${txt}">
+                ${(n.title||'').split(/\r?\n/).map((line, i) => `<tspan x="10" dy="${i===0 ? parseInt(fsize)+8 : parseInt(fsize)+6}">${line}</tspan>`).join('')}
+              </text>
             </g>
           `;
         }
@@ -980,6 +1033,12 @@
           if (state.globalAnim && wire.animated !== false) {
             flowClass = 'flow-cooling-pulse';
           }
+        } else if (wire.type === 'solid') {
+          strokeColor = wire.color || '#64748b';
+          labelColor = wire.labelColor || strokeColor;
+          marker = '';
+          flowClass = '';
+          strokeWidth = '2';
         } else {
           // 自訂顏色
           strokeColor = wire.color || '#334155';
@@ -1245,12 +1304,25 @@
         const isSelected = state.selectedNodeId === node.id;
         const g = document.createElementNS(SVG_NS, 'g');
         g.dataset.id = node.id;
-        const scale = node.scale || 1;
-        g.setAttribute('transform', `translate(${node.x}, ${node.y}) scale(${scale})`);
+        const scaleX = node.scaleX || node.scale || 1;
+        const scaleY = node.scaleY || node.scale || 1;
+        g.setAttribute('transform', `translate(${node.x}, ${node.y}) scale(${scaleX}, ${scaleY})`);
         g.className = 'cursor-move';
 
         // 渲染設備/標註卡片本體
         g.innerHTML = tpl.render(node);
+
+        // Make texts draggable and apply offset
+        const tx = node.textOffsetX || 0;
+        const ty = node.textOffsetY || 0;
+        g.querySelectorAll('text').forEach(textEl => {
+          textEl.classList.add('cursor-move');
+          textEl.setAttribute('transform', `translate(${tx}, ${ty})`);
+          textEl.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            startDragNodeText(node.id, e);
+          });
+        });
 
         // 選取高亮外框
         if (isSelected) {
@@ -1423,8 +1495,18 @@
         document.getElementById('node-prop-tag').value = node.tag || '';
         document.getElementById('node-prop-temp').value = node.temp || '';
         document.getElementById('node-prop-press').value = node.press || '';
-        document.getElementById('node-prop-scale').value = node.scale || 1;
-        document.getElementById('node-scale-val').textContent = (node.scale || 1) + 'x';
+        document.getElementById('node-prop-scale').value = node.scaleX || node.scale || 1;
+        document.getElementById('node-scale-val').textContent = (node.scaleX || node.scale || 1) + 'x';
+        
+        const customFields = document.getElementById('prop-custom-block-fields');
+        if (customFields) {
+          if (node.type === 'custom_block') {
+            customFields.classList.remove('hidden');
+            document.getElementById('node-prop-bgcolor').value = node.bgColor || '#ffffff';
+          } else {
+            customFields.classList.add('hidden');
+          }
+        }
       }
     }
 
@@ -1477,12 +1559,42 @@
       if (node) {
         const val = parseFloat(e.target.value);
         node.scale = val;
-        node.scaleX = val; // 滑桿操作時會將拉伸比例重置為等比例
+        node.scaleX = val;
         node.scaleY = val;
         document.getElementById('node-scale-val').textContent = val + 'x';
         renderAll();
       }
     });
+
+    const customImgInput = document.getElementById('node-prop-image');
+    if (customImgInput) {
+      customImgInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const node = state.nodes.find(n => n.id === state.selectedNodeId);
+          if (node && node.type === 'custom_block') {
+            node.imageUrl = event.target.result;
+            renderNodes();
+            saveHistory();
+          }
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    const customBgInput = document.getElementById('node-prop-bgcolor');
+    if (customBgInput) {
+      customBgInput.addEventListener('input', (e) => {
+        const node = state.nodes.find(n => n.id === state.selectedNodeId);
+        if (node && node.type === 'custom_block') {
+          node.bgColor = e.target.value;
+          renderNodes();
+        }
+      });
+      customBgInput.addEventListener('change', saveHistory);
+    }
 
     // 標註卡片自訂顏色監聽
     document.getElementById('note-prop-text').addEventListener('input', (e) => {
@@ -1599,6 +1711,48 @@
         node.textOffsetX = initialOffsetX + dx;
         node.textOffsetY = initialOffsetY + dy;
         renderNodes();
+      };
+      
+      const onMouseUp = () => {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+        saveHistory();
+      };
+      
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    }
+
+    function startResizeNode(nodeId, e) {
+      const node = state.nodes.find(n => n.id === nodeId);
+      if (!node) return;
+      const tpl = NODE_TEMPLATES[node.type];
+      
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startScaleX = node.scaleX || node.scale || 1;
+      const startScaleY = node.scaleY || node.scale || 1;
+      
+      const onMouseMove = (moveEvent) => {
+        const dx = (moveEvent.clientX - startX) / state.zoom;
+        const dy = (moveEvent.clientY - startY) / state.zoom;
+        
+        let newScaleX = startScaleX + dx / (tpl.width || 100);
+        let newScaleY = startScaleY + dy / (tpl.height || 100);
+        
+        node.scaleX = Math.max(0.2, Math.min(newScaleX, 5.0));
+        node.scaleY = Math.max(0.2, Math.min(newScaleY, 5.0));
+        
+        renderAll();
+        
+        // 更新右側面板
+        if (state.selectedNodeId === node.id) {
+          const scaleInput = document.getElementById('node-prop-scale');
+          if (scaleInput) {
+            // 取平均值或 X 軸作為滑桿顯示
+            scaleInput.value = (node.scaleX).toFixed(1);
+          }
+        }
       };
       
       const onMouseUp = () => {
@@ -1933,9 +2087,6 @@
     </div>
   </div>
 
-  <!-- AI 建圖 Modal -->
-  
-  </div>
 
   <script>
     // 雲端存取 API
@@ -2001,34 +2152,66 @@
       msgs.scrollTop = msgs.scrollHeight;
 
       try {
-        const res = await fetch('/api/ai_chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, customKey: localStorage.getItem('chemflow_gemini_key') })
-        });
-        const data = await res.json();
+        const apiKey = localStorage.getItem('chemflow_gemini_key') || '';
+        if (!apiKey) {
+          document.getElementById(loadingId).remove();
+          msgs.innerHTML += `<div class="bg-red-50 text-red-900 p-3 rounded-lg text-sm rounded-tl-none border border-red-100 self-start w-fit max-w-[85%]">請先設定 Gemini API Key（點右上角齒輪圖示）</div>`;
+          msgs.scrollTop = msgs.scrollHeight;
+          return;
+        }
+
+        // 動態抓取可用的文字模型
+        let chatModels = [];
+        try {
+          const listResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+          const listData = await listResp.json();
+          if (listData.models) {
+            chatModels = listData.models
+              .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+              .map(m => m.name.replace('models/', ''))
+              .filter(name => name.includes('gemini') && !name.includes('image') && !name.includes('banana') && !name.includes('tts') && !name.includes('embedding'))
+              .sort((a, b) => b.localeCompare(a));
+          }
+        } catch(e) {}
+
+        if (chatModels.length === 0) {
+          chatModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-pro'];
+        }
+
+        let reply = null;
+        let lastError = '找不到可用的模型';
+        for (const model of chatModels) {
+          try {
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ contents: [{ parts: [{ text: `你是一位化工廠設備專家，請用繁體中文回答：${text}` }] }] })
+            });
+            const data = await resp.json();
+            if (resp.ok && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+              reply = data.candidates[0].content.parts[0].text;
+              break;
+            } else {
+              lastError = data.error?.message || `模型 ${model} 失敗`;
+            }
+          } catch(e) {
+            lastError = e.message;
+          }
+        }
+
         document.getElementById(loadingId).remove();
-        msgs.innerHTML += `<div class="bg-purple-50 text-purple-900 p-3 rounded-lg text-sm rounded-tl-none border border-purple-100 self-start w-fit max-w-[85%]">${data.reply || '發生錯誤'}</div>`;
+        if (reply) {
+          msgs.innerHTML += `<div class="bg-purple-50 text-purple-900 p-3 rounded-lg text-sm rounded-tl-none border border-purple-100 self-start w-fit max-w-[85%] whitespace-pre-wrap">${reply}</div>`;
+        } else {
+          msgs.innerHTML += `<div class="bg-red-50 text-red-900 p-3 rounded-lg text-sm rounded-tl-none border border-red-100 self-start w-fit max-w-[85%]">❌ ${lastError}</div>`;
+        }
       } catch(e) {
         document.getElementById(loadingId).remove();
-        msgs.innerHTML += `<div class="bg-red-50 text-red-900 p-3 rounded-lg text-sm rounded-tl-none border border-red-100 self-start w-fit max-w-[85%]">連線失敗</div>`;
+        msgs.innerHTML += `<div class="bg-red-50 text-red-900 p-3 rounded-lg text-sm rounded-tl-none border border-red-100 self-start w-fit max-w-[85%]">連線失敗：${e.message}</div>`;
       }
       msgs.scrollTop = msgs.scrollHeight;
     });
 
-    // AI Image API
-    const aiImageModal = document.getElementById('ai-image-modal');
-    
-        const data = await res.json();
-        if(data.imageUrl) {
-          resContainer.innerHTML = `<img src="${data.imageUrl}" class="w-full h-full object-contain">`;
-        } else {
-          resContainer.innerHTML = `<span class="text-red-500">生成失敗</span>`;
-        }
-      } catch(e) {
-        resContainer.innerHTML = `<span class="text-red-500">連線錯誤</span>`;
-      }
-    });
 
     // PWA Install Logic
     let deferredPrompt;

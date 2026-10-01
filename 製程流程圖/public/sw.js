@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chemflow-pro-v2-' + new Date().getTime(); // 動態快取名稱強制更新
+const CACHE_NAME = 'chemflow-pro-v2';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -6,33 +6,25 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
-  // 強制立刻安裝新的 Service Worker，不要等待舊的關閉
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  // 啟動新的 Service Worker 時，刪除所有舊的快取
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
+        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
       );
-    }).then(() => self.clients.claim())
+    })
   );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', event => {
   event.respondWith(
-    // 網路優先策略 (Network First)
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
