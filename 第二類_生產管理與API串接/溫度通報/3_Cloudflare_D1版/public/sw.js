@@ -1,12 +1,15 @@
-const CACHE_NAME = 'weather-monitor-v1';
+﻿const CACHE_NAME = 'weather-monitor-v14';
 const ASSETS = [
   '/',
   '/index.html',
+  '/styles.css',
+  '/app.js',
   '/manifest.json',
   'https://cdn.jsdelivr.net/npm/chart.js'
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
   );
@@ -14,14 +17,28 @@ self.addEventListener('install', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.url.includes('/api/')) {
-    // API 請求不快取
+    // API ?ｇ????蝧??
     event.respondWith(fetch(event.request));
   } else {
-    // 靜態檔案優先從快取讀取，失敗則網路讀取
+    // ?謚??澗??????綜竣蝧?謘??謖??剜????恍????
     event.respondWith(
       caches.match(event.request).then(response => {
         return response || fetch(event.request);
       })
     );
   }
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cacheName => {
+          if (cacheName !== CACHE_NAME) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
 });

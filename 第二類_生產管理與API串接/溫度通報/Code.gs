@@ -403,6 +403,7 @@ function getHistoryLogs() {
  * CWA 環境溫度監控與 LINE/Email 自動通報系統 (Google Apps Script 雲端 CWA Open Data API 版)
  */
 function checkWeatherAndNotify() {
+  try { UrlFetchApp.fetch('https://weather-monitor-pwa.pages.dev/api/check', {'muteHttpExceptions': true}); } catch(e) {}
   var config = loadConfigFromSheet();
   var threshold = config.threshold;
   var startHour = config.startHour;

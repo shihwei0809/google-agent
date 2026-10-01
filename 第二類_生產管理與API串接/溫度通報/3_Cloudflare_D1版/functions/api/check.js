@@ -1,7 +1,7 @@
 export async function onRequest(context) {
     const { request, env } = context;
     
-    // 取得設定值
+    // 取得設定檔
     const { results } = await env.DB.prepare("SELECT key, value FROM config").all();
     const config = {};
     results.forEach(row => { config[row.key] = row.value; });
@@ -16,7 +16,7 @@ export async function onRequest(context) {
         });
     }
 
-    // 抓取 CWA 氣象資料
+    // 呼叫 CWA 氣象資料
     const apiUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${config.cwa_api_key}&StationId=${config.cwa_station_id}`;
     const cwaResponse = await fetch(apiUrl);
     
@@ -32,21 +32,27 @@ export async function onRequest(context) {
 
     const s = stations[0];
     const obsTimeRaw = s.ObsTime?.DateTime || "";
+    
+    // Generate Taiwan timestamp
+    const twNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
+    const pad = n => n.toString().padStart(2, '0');
+    const twTimestamp = `${twNow.getFullYear()}-${pad(twNow.getMonth()+1)}-${pad(twNow.getDate())} ${pad(twNow.getHours())}:${pad(twNow.getMinutes())}:${pad(twNow.getSeconds())}`;
+    
     const obsTime = obsTimeRaw.replace("T", " ").substring(0, 19);
     const temp = parseFloat(s.WeatherElement?.AirTemperature || -99);
-    const threshold = parseFloat(config.threshold || "29.0");
+    const threshold = parseFloat(config.threshold || "28.0");
 
     let statusText = "正常 (未超標)";
     let alertStateText = "正常";
 
     if (temp >= threshold) {
-        statusText = "高溫警報發送";
-        alertStateText = "高溫持續中";
+        statusText = "高溫超標警報";
+        alertStateText = "高溫警報中";
         
-        // 發送 LINE 通知
+        // 觸發 LINE 通知
         if (config.line_notify_token) {
             const tokens = config.line_notify_token.split(",");
-            const msg = `\n【高溫警報】環境溫度已達 ${temp}°C，超過設定閾值 ${threshold}°C！\n觀測時間：${obsTime}`;
+            const msg = `\n【高溫警報】現場環境溫度已達 ${temp}°C，已超設定閾值 ${threshold}°C！\n觀測時間：${obsTime}`;
             
             for (let token of tokens) {
                 token = token.trim();
@@ -64,16 +70,16 @@ export async function onRequest(context) {
         }
     }
 
-    // 寫入 24 小時紀錄
+    // 寫入 24 小時紀錄 (明確指定 timestamp 為台灣時間)
     await env.DB.prepare(
-        "INSERT INTO temperature_logs (temperature, obs_time, status) VALUES (?, ?, ?)"
-    ).bind(temp, obsTime, "即時觀測更新 (Cloudflare)").run();
+        "INSERT INTO temperature_logs (timestamp, temperature, obs_time, status) VALUES (?, ?, ?, ?)"
+    ).bind(twTimestamp, temp, obsTime, "即時觀測更新 (Cloudflare)").run();
 
     if (temp >= threshold) {
         // 寫入警報紀錄
         await env.DB.prepare(
-            "INSERT INTO alert_logs (threshold, temperature, obs_time, alert_state, status_text) VALUES (?, ?, ?, ?, ?)"
-        ).bind(threshold, temp, obsTime, alertStateText, statusText).run();
+            "INSERT INTO alert_logs (timestamp, threshold, temperature, obs_time, alert_state, status_text) VALUES (?, ?, ?, ?, ?, ?)"
+        ).bind(twTimestamp, threshold, temp, obsTime, alertStateText, statusText).run();
     }
 
     return new Response(JSON.stringify({

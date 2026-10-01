@@ -1,0 +1,21 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/check",
+      "mountPath": "/api",
+      "method": "",
+      "module": [
+        "api/check.js:onRequest"
+      ]
+    },
+    {
+      "routePath": "/api/data",
+      "mountPath": "/api",
+      "method": "",
+      "module": [
+        "api/data.js:onRequest"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}
