@@ -687,6 +687,13 @@ function checkWeatherAndNotify() {
     Logger.log("寫入通報紀錄分頁失敗: " + logErr.message);
   }
   
+  // 將雲端備援讀取到的即時溫度，同步寫入本月的「24小時紀錄」分頁
+  try {
+    logRealtimeReadingToSheet(currentTemp, displayTime, "即時觀測更新 (雲端備援)");
+  } catch (err) {
+    Logger.log("寫入 24 小時紀錄失敗: " + err.message);
+  }
+
   // 同步雲端備援資料至 Firebase realtime_data/status
   try {
     if (config.firebaseProjectId) {
