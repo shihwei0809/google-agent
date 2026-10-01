@@ -8,7 +8,77 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
   <!-- 引入 SheetJS 用於客戶端即時解析 T100 排程 Excel -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
+    
+    async function processPhotoUpload(sampleId, isNewSample=false) {
+      if(!currentPhotoBase64 || !GAS_API_URL) return null;
+      try {
+        const resp = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'uploadPhoto',
+            id: sampleId,
+            filename: 'photo.jpg',
+            mimeType: currentPhotoMime,
+            base64: currentPhotoBase64
+          })
+        });
+        const res = await resp.json();
+        if(res.success && res.url) {
+          // 如果有 D1 API，把 photoUrl 寫入
+          if (API_URL) {
+            await fetch(API_URL, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ action: 'updatePhotoUrl', payload: { id: sampleId, url: res.url } })
+            });
+          }
+          return res.url;
+        }
+      } catch(e) {
+        console.error('Photo upload failed:', e);
+      }
+      return null;
+    }
+
+    let currentPhotoBase64 = null;
+    let currentPhotoMime = null;
+    let currentPhotoTarget = null;
+
+    function triggerPhotoUpload(target) {
+      currentPhotoTarget = target;
+      document.getElementById('photoInput').click();
+    }
+
+    function handlePhotoSelect(event) {
+      const file = event.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        currentPhotoBase64 = e.target.result.split(',')[1];
+        currentPhotoMime = file.type;
+        if(currentPhotoTarget === 'submit') {
+          document.getElementById('submitPhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
+          document.getElementById('submitPhotoText').style.color = "#059669";
+        } else if (currentPhotoTarget === 'judge') {
+          document.getElementById('judgePhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
+          document.getElementById('judgePhotoText').style.color = "#059669";
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetPhotoUpload() {
+      currentPhotoBase64 = null;
+      currentPhotoMime = null;
+      document.getElementById('photoInput').value = '';
+      const st = document.getElementById('submitPhotoText');
+      if(st) { st.innerText = "附加樣品照片 (選填)"; st.style.color = "#475569"; }
+      const jt = document.getElementById('judgePhotoText');
+      if(jt) { jt.innerText = "附加佐證照片 (選填)"; jt.style.color = "#475569"; }
+    }
+</script>
 <script>
   // 動態提示字跑馬燈
   function startPlaceholderMarquee(elementId, originalText) {
@@ -25,6 +95,76 @@
     startPlaceholderMarquee('requester', '姓名（工號查到後會自動填入）... ');
   });
 
+
+    
+    async function processPhotoUpload(sampleId, isNewSample=false) {
+      if(!currentPhotoBase64 || !GAS_API_URL) return null;
+      try {
+        const resp = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'uploadPhoto',
+            id: sampleId,
+            filename: 'photo.jpg',
+            mimeType: currentPhotoMime,
+            base64: currentPhotoBase64
+          })
+        });
+        const res = await resp.json();
+        if(res.success && res.url) {
+          // 如果有 D1 API，把 photoUrl 寫入
+          if (API_URL) {
+            await fetch(API_URL, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ action: 'updatePhotoUrl', payload: { id: sampleId, url: res.url } })
+            });
+          }
+          return res.url;
+        }
+      } catch(e) {
+        console.error('Photo upload failed:', e);
+      }
+      return null;
+    }
+
+    let currentPhotoBase64 = null;
+    let currentPhotoMime = null;
+    let currentPhotoTarget = null;
+
+    function triggerPhotoUpload(target) {
+      currentPhotoTarget = target;
+      document.getElementById('photoInput').click();
+    }
+
+    function handlePhotoSelect(event) {
+      const file = event.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        currentPhotoBase64 = e.target.result.split(',')[1];
+        currentPhotoMime = file.type;
+        if(currentPhotoTarget === 'submit') {
+          document.getElementById('submitPhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
+          document.getElementById('submitPhotoText').style.color = "#059669";
+        } else if (currentPhotoTarget === 'judge') {
+          document.getElementById('judgePhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
+          document.getElementById('judgePhotoText').style.color = "#059669";
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetPhotoUpload() {
+      currentPhotoBase64 = null;
+      currentPhotoMime = null;
+      document.getElementById('photoInput').value = '';
+      const st = document.getElementById('submitPhotoText');
+      if(st) { st.innerText = "附加樣品照片 (選填)"; st.style.color = "#475569"; }
+      const jt = document.getElementById('judgePhotoText');
+      if(jt) { jt.innerText = "附加佐證照片 (選填)"; jt.style.color = "#475569"; }
+    }
 </script>
   <style>
     :root {
@@ -933,7 +1073,13 @@
     <label>判定備註</label>
     <div id="modalPhraseContainer" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px;"></div>
     <textarea id="modalNote" style="height:60px; margin-bottom:15px;" placeholder="請輸入檢驗數據或備註事項..."></textarea>
-    <div style="background:#fef2f2; padding:12px; border-radius:6px; margin-bottom:20px; border-left:4px solid var(--red);">
+    
+      <div style="margin-bottom:15px;">
+        <button type="button" onclick="triggerPhotoUpload('judge')" style="background:#f1f5f9; color:#475569; border:1px dashed #cbd5e1; padding:8px 12px; border-radius:6px; cursor:pointer; width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span style="font-size:1.2rem;">📷</span> <span id="judgePhotoText">附加佐證照片 (選填)</span>
+        </button>
+      </div>
+<div style="background:#fef2f2; padding:12px; border-radius:6px; margin-bottom:20px; border-left:4px solid var(--red);">
       <label style="color:#b91c1c;">🔐 授權密碼 (預設為 8888 或後台設定)</label>
       <input type="password" id="modalPin" placeholder="請輸入 4 碼 PIN 碼" style="letter-spacing:3px; font-weight:bold; text-align:center; margin-top:4px;">
     </div>
@@ -2570,7 +2716,7 @@
     showToast(`✅ 已儲存 ${Object.keys(map).length} 筆員工資料！`);
   }
 
-  function submitForm() {
+  async function submitForm() {
     let barcode = document.getElementById('barcode').value.trim();
     const productName = document.getElementById('productName').value.trim();
     const tankNo = document.getElementById('tankNo').value.trim();
@@ -3228,7 +3374,9 @@
             }, 250);
           };
         <\/script>
-      </body>
+      
+  <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handlePhotoSelect(event)">
+</body>
       </html>
     `);
     printWindow.document.close();
@@ -3941,7 +4089,79 @@
     startPlaceholderMarquee('requester', '姓名（工號查到後會自動填入）... ');
   });
 
+
+    
+    async function processPhotoUpload(sampleId, isNewSample=false) {
+      if(!currentPhotoBase64 || !GAS_API_URL) return null;
+      try {
+        const resp = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'uploadPhoto',
+            id: sampleId,
+            filename: 'photo.jpg',
+            mimeType: currentPhotoMime,
+            base64: currentPhotoBase64
+          })
+        });
+        const res = await resp.json();
+        if(res.success && res.url) {
+          // 如果有 D1 API，把 photoUrl 寫入
+          if (API_URL) {
+            await fetch(API_URL, {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ action: 'updatePhotoUrl', payload: { id: sampleId, url: res.url } })
+            });
+          }
+          return res.url;
+        }
+      } catch(e) {
+        console.error('Photo upload failed:', e);
+      }
+      return null;
+    }
+
+    let currentPhotoBase64 = null;
+    let currentPhotoMime = null;
+    let currentPhotoTarget = null;
+
+    function triggerPhotoUpload(target) {
+      currentPhotoTarget = target;
+      document.getElementById('photoInput').click();
+    }
+
+    function handlePhotoSelect(event) {
+      const file = event.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        currentPhotoBase64 = e.target.result.split(',')[1];
+        currentPhotoMime = file.type;
+        if(currentPhotoTarget === 'submit') {
+          document.getElementById('submitPhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
+          document.getElementById('submitPhotoText').style.color = "#059669";
+        } else if (currentPhotoTarget === 'judge') {
+          document.getElementById('judgePhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
+          document.getElementById('judgePhotoText').style.color = "#059669";
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function resetPhotoUpload() {
+      currentPhotoBase64 = null;
+      currentPhotoMime = null;
+      document.getElementById('photoInput').value = '';
+      const st = document.getElementById('submitPhotoText');
+      if(st) { st.innerText = "附加樣品照片 (選填)"; st.style.color = "#475569"; }
+      const jt = document.getElementById('judgePhotoText');
+      if(jt) { jt.innerText = "附加佐證照片 (選填)"; jt.style.color = "#475569"; }
+    }
 </script>
+
+  <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handlePhotoSelect(event)">
 </body>
 </html>
 

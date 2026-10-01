@@ -1,4 +1,4 @@
-﻿export async function onRequest(context) {
+export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return new Response(null, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Content-Type" } });
@@ -186,6 +186,11 @@
       return new Response(JSON.stringify({ success: true }), { headers: h });
     }
     
+    if (action === "updatePhotoUrl" && request.method === "POST") {
+      await env.DB.prepare("UPDATE QC_Samples SET photoUrl = ? WHERE id = ?").bind(payload.url, payload.id).run();
+      return new Response(JSON.stringify({ success: true }), { headers: h });
+    }
+
     if (action === "deleteSample" && request.method === "POST") {
       await env.DB.prepare("DELETE FROM QC_Samples WHERE id = ?").bind(payload.id).run();
       return new Response(JSON.stringify({ success: true }), { headers: h });
