@@ -9,76 +9,7 @@
   <meta name="theme-color" content="#2563eb">
   <!-- 引入 SheetJS 用於客戶端即時解析 T100 排程 Excel -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
-    
-    async function processPhotoUpload(sampleId, isNewSample=false) {
-      if(!currentPhotoBase64 || !GAS_API_URL) return null;
-      try {
-        const resp = await fetch(GAS_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'uploadPhoto',
-            id: sampleId,
-            filename: 'photo.jpg',
-            mimeType: currentPhotoMime,
-            base64: currentPhotoBase64
-          })
-        });
-        const res = await resp.json();
-        if(res.success && res.url) {
-          // 如果有 D1 API，把 photoUrl 寫入
-          if (API_URL) {
-            await fetch(API_URL, {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ action: 'updatePhotoUrl', payload: { id: sampleId, url: res.url } })
-            });
-          }
-          return res.url;
-        }
-      } catch(e) {
-        console.error('Photo upload failed:', e);
-      }
-      return null;
-    }
-
-    let currentPhotoBase64 = null;
-    let currentPhotoMime = null;
-    let currentPhotoTarget = null;
-
-    function triggerPhotoUpload(target) {
-      currentPhotoTarget = target;
-      document.getElementById('photoInput').click();
-    }
-
-    function handlePhotoSelect(event) {
-      const file = event.target.files[0];
-      if(!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        currentPhotoBase64 = e.target.result.split(',')[1];
-        currentPhotoMime = file.type;
-        if(currentPhotoTarget === 'submit') {
-          document.getElementById('submitPhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
-          document.getElementById('submitPhotoText').style.color = "#059669";
-        } else if (currentPhotoTarget === 'judge') {
-          document.getElementById('judgePhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
-          document.getElementById('judgePhotoText').style.color = "#059669";
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function resetPhotoUpload() {
-      currentPhotoBase64 = null;
-      currentPhotoMime = null;
-      document.getElementById('photoInput').value = '';
-      const st = document.getElementById('submitPhotoText');
-      if(st) { st.innerText = "附加樣品照片 (選填)"; st.style.color = "#475569"; }
-      const jt = document.getElementById('judgePhotoText');
-      if(jt) { jt.innerText = "附加佐證照片 (選填)"; jt.style.color = "#475569"; }
-    }
-</script>
+    </script>
 <script>
   // 動態提示字跑馬燈
   function startPlaceholderMarquee(elementId, originalText) {
@@ -96,76 +27,7 @@
   });
 
 
-    
-    async function processPhotoUpload(sampleId, isNewSample=false) {
-      if(!currentPhotoBase64 || !GAS_API_URL) return null;
-      try {
-        const resp = await fetch(GAS_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            action: 'uploadPhoto',
-            id: sampleId,
-            filename: 'photo.jpg',
-            mimeType: currentPhotoMime,
-            base64: currentPhotoBase64
-          })
-        });
-        const res = await resp.json();
-        if(res.success && res.url) {
-          // 如果有 D1 API，把 photoUrl 寫入
-          if (API_URL) {
-            await fetch(API_URL, {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ action: 'updatePhotoUrl', payload: { id: sampleId, url: res.url } })
-            });
-          }
-          return res.url;
-        }
-      } catch(e) {
-        console.error('Photo upload failed:', e);
-      }
-      return null;
-    }
-
-    let currentPhotoBase64 = null;
-    let currentPhotoMime = null;
-    let currentPhotoTarget = null;
-
-    function triggerPhotoUpload(target) {
-      currentPhotoTarget = target;
-      document.getElementById('photoInput').click();
-    }
-
-    function handlePhotoSelect(event) {
-      const file = event.target.files[0];
-      if(!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        currentPhotoBase64 = e.target.result.split(',')[1];
-        currentPhotoMime = file.type;
-        if(currentPhotoTarget === 'submit') {
-          document.getElementById('submitPhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
-          document.getElementById('submitPhotoText').style.color = "#059669";
-        } else if (currentPhotoTarget === 'judge') {
-          document.getElementById('judgePhotoText').innerText = "✅ 已附加照片 (" + file.name + ")";
-          document.getElementById('judgePhotoText').style.color = "#059669";
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function resetPhotoUpload() {
-      currentPhotoBase64 = null;
-      currentPhotoMime = null;
-      document.getElementById('photoInput').value = '';
-      const st = document.getElementById('submitPhotoText');
-      if(st) { st.innerText = "附加樣品照片 (選填)"; st.style.color = "#475569"; }
-      const jt = document.getElementById('judgePhotoText');
-      if(jt) { jt.innerText = "附加佐證照片 (選填)"; jt.style.color = "#475569"; }
-    }
-</script>
+    </script>
   <style>
     :root {
       --bg: #f8fafc;
@@ -2739,21 +2601,29 @@
     btn.disabled = true; 
     btn.innerText = "寫入送樣紀錄中...";
     
-    const payload = { 
-      id: 'ID-' + Date.now(),
-      barcode: barcode, 
-      flowType: document.getElementById('flowType').value, 
-      grade: document.getElementById('grade').value,
-      productName: productName, 
-      tankNo: tankNo, 
-      customer: customer, 
-      quantity: document.getElementById('quantity').value, 
-      dept: dept, 
-      requester: requester,
-      remark: remark,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
+    
+      const payload = { 
+        id: 'ID-' + Date.now(),
+        barcode: barcode, 
+        flowType: document.getElementById('flowType').value, 
+        grade: document.getElementById('grade').value,
+        productName: productName, 
+        tankNo: tankNo, 
+        customer: customer, 
+        quantity: document.getElementById('quantity').value, 
+        dept: dept, 
+        requester: requester,
+        remark: remark,
+        status: 'pending',
+        createdAt: new Date().toISOString()
+      };
+      
+      if(currentPhotoBase64) {
+         showToast("📷 正在上傳照片...");
+         await processPhotoUpload(payload.id);
+         resetPhotoUpload();
+      }
+
 
     if(IS_GAS) {
 
@@ -3455,18 +3325,26 @@
       if (note.value === '' || note.value === '特採放行') note.value = '合格放行';
     }
   }
-  function submitJudge() {
-    const approver = sessionStorage.getItem('QC_LOGGED_IN_USER');
-    const pin = document.getElementById('modalPin').value;
-    
-    const btn = document.getElementById('modalBtn'); 
-    btn.disabled = true; 
-    btn.innerText = "驗證授權中...";
-    
-    const id = document.getElementById('currentId').value;
-    const result = document.getElementById('modalResult').value;
-    const note = document.getElementById('modalNote').value;
-    const targetItem = allData.find(d => d.id === id);
+  
+    async function submitJudge() {
+      const approver = sessionStorage.getItem('QC_LOGGED_IN_USER');
+      const pin = document.getElementById('modalPin').value;
+      
+      const btn = document.getElementById('modalBtn'); 
+      btn.disabled = true; 
+      btn.innerText = "驗證權限中...";
+      
+      const id = document.getElementById('currentId').value;
+      const result = document.getElementById('modalResult').value;
+      const note = document.getElementById('modalNote').value;
+      const targetItem = allData.find(d => d.id === id);
+
+      if(currentPhotoBase64) {
+         showToast("📷 正在上傳佐證照片...");
+         await processPhotoUpload(id);
+         resetPhotoUpload();
+      }
+
 
     if(IS_GAS) {
       google.script.run.withSuccessHandler((res) => { 
