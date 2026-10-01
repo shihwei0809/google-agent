@@ -138,18 +138,16 @@
       <button id="btn-ai-chat" class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1">
         <i class="fa-solid fa-robot text-purple-500"></i> AI 助手
       </button>
-      <button id="btn-ai-image" class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1">
-        <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i> AI 建圖
-      </button>
+      
 
       <button id="btn-export-png" class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1">
         <i class="fa-solid fa-image text-indigo-500"></i> 匯出高清圖
       </button>
       <button id="btn-export-json" class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1">
-        <i class="fa-solid fa-file-export text-sky-600"></i> 匯出專案 JSON
+        <i class="fa-solid fa-file-export text-sky-600"></i> 匯出存圖 (JSON)
       </button>
       <label class="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 border border-slate-300 rounded flex items-center gap-1 cursor-pointer">
-        <i class="fa-solid fa-file-import text-amber-600"></i> 開啟 JSON
+        <i class="fa-solid fa-file-import text-amber-600"></i> 讀取 JSON
         <input type="file" id="file-input" accept=".json" class="hidden" />
       </label>
     </div>
@@ -1936,27 +1934,7 @@
   </div>
 
   <!-- AI 建圖 Modal -->
-  <div id="ai-image-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-center items-center backdrop-blur-sm">
-    <div class="bg-white w-[600px] rounded-xl shadow-2xl flex flex-col border border-slate-200">
-      <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-xl">
-        <h3 class="font-bold text-slate-700 flex items-center gap-2">
-          <i class="fa-solid fa-wand-magic-sparkles text-pink-500"></i> AI 設備建圖
-        </h3>
-        <button id="close-ai-image" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
-      </div>
-      <div class="p-4 space-y-4">
-        <div>
-          <label class="block font-bold text-slate-700 mb-1 text-sm">描述您想生成的化工設備或製程圖</label>
-          <textarea id="ai-image-prompt" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-pink-500 outline-none text-sm" placeholder="例如：一個具有未來科技感的高效能精餾塔..."></textarea>
-        </div>
-        <button id="generate-ai-image" class="w-full py-2.5 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition font-bold flex items-center justify-center gap-2">
-          <i class="fa-solid fa-image"></i> 開始生成圖片
-        </button>
-        <div id="ai-image-result" class="min-h-[300px] bg-slate-100 rounded-lg border border-slate-200 flex items-center justify-center overflow-hidden relative">
-          <span class="text-slate-400 text-sm">生成的圖片將顯示於此</span>
-        </div>
-      </div>
-    </div>
+  
   </div>
 
   <script>
@@ -2040,21 +2018,7 @@
 
     // AI Image API
     const aiImageModal = document.getElementById('ai-image-modal');
-    document.getElementById('btn-ai-image').addEventListener('click', () => aiImageModal.classList.remove('hidden'));
-    document.getElementById('close-ai-image').addEventListener('click', () => aiImageModal.classList.add('hidden'));
-
-    document.getElementById('generate-ai-image').addEventListener('click', async () => {
-      const prompt = document.getElementById('ai-image-prompt').value.trim();
-      if(!prompt) return;
-      const resContainer = document.getElementById('ai-image-result');
-      resContainer.innerHTML = '<div class="text-pink-600 flex flex-col items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles fa-bounce text-3xl"></i><span>AI 正在為您生成圖片，請稍候...</span></div>';
-      
-      try {
-        const res = await fetch('/api/ai_image', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, customKey: localStorage.getItem('chemflow_openai_key') })
-        });
+    
         const data = await res.json();
         if(data.imageUrl) {
           resContainer.innerHTML = `<img src="${data.imageUrl}" class="w-full h-full object-contain">`;
