@@ -1,7 +1,7 @@
-export async function onRequest(context) {
+﻿export async function onRequest(context) {
     const { request, env } = context;
     
-    // 取得設定檔
+    // ??閮剖?瑼?
     const { results } = await env.DB.prepare("SELECT key, value FROM config").all();
     const config = {};
     results.forEach(row => { config[row.key] = row.value; });
@@ -16,7 +16,7 @@ export async function onRequest(context) {
         });
     }
 
-    // 呼叫 CWA 氣象資料
+    // ?澆 CWA 瘞?情鞈?
     const apiUrl = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=${config.cwa_api_key}&StationId=${config.cwa_station_id}`;
     const cwaResponse = await fetch(apiUrl);
     
@@ -42,17 +42,17 @@ export async function onRequest(context) {
     const temp = parseFloat(s.WeatherElement?.AirTemperature || -99);
     const threshold = parseFloat(config.threshold || "28.0");
 
-    let statusText = "正常 (未超標)";
-    let alertStateText = "正常";
+    let statusText = "甇?虜 (?芾?璅?";
+    let alertStateText = "甇?虜";
 
     if (temp >= threshold) {
-        statusText = "高溫超標警報";
-        alertStateText = "高溫警報中";
+        statusText = "擃澈頞?霅血";
+        alertStateText = "擃澈霅血銝?;
         
-        // 觸發 LINE 通知
+        // 閫貊 LINE ?
         if (config.line_notify_token) {
             const tokens = config.line_notify_token.split(",");
-            const msg = `\n【高溫警報】現場環境溫度已達 ${temp}°C，已超設定閾值 ${threshold}°C！\n觀測時間：${obsTime}`;
+            const msg = `\n??皞怨郎?晞?渡憓澈摨血歇??${temp}簞C嚗歇頞身摰??${threshold}簞C嚗n閫皜祆???${obsTime}`;
             
             for (let token of tokens) {
                 token = token.trim();
@@ -70,13 +70,21 @@ export async function onRequest(context) {
         }
     }
 
-    // 寫入 24 小時紀錄 (明確指定 timestamp 為台灣時間)
+    // 撖怠 24 撠?蝝??(?Ⅱ?? timestamp ?箏?????
+    // 防止重複觸發 (防呆機制)
+    const existing = await env.DB.prepare("SELECT id FROM temperature_logs WHERE obs_time = ?").bind(obsTime).first();
+    if (existing) {
+        return new Response(JSON.stringify({status: "skipped", reason: "Data for this obs_time already exists"}), {
+            headers: { "content-type": "application/json" }
+        });
+    }
+
     await env.DB.prepare(
         "INSERT INTO temperature_logs (timestamp, temperature, obs_time, status) VALUES (?, ?, ?, ?)"
-    ).bind(twTimestamp, temp, obsTime, "即時觀測更新 (Cloudflare)").run();
+    ).bind(twTimestamp, temp, obsTime, "?單?閫皜祆??(Cloudflare)").run();
 
     if (temp >= threshold) {
-        // 寫入警報紀錄
+        // 撖怠霅血蝝??
         await env.DB.prepare(
             "INSERT INTO alert_logs (timestamp, threshold, temperature, obs_time, alert_state, status_text) VALUES (?, ?, ?, ?, ?, ?)"
         ).bind(twTimestamp, threshold, temp, obsTime, alertStateText, statusText).run();
@@ -91,3 +99,4 @@ export async function onRequest(context) {
         headers: { "content-type": "application/json" }
     });
 }
+
