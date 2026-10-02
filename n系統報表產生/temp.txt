@@ -1,0 +1,8 @@
+1021:         ws.title = "運輸通知表"
+1191:     new_ws.title = src_ws.title
+1419:             wrong_factory_msgs = []
+1425:                         wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區空白 (應含 {expected_substr})")
+1427:                         wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區錯誤 ({l_fac})，未對齊長代號 ({lc})")
+1439:                 if wrong_factory_msgs:
+1441:                     lines.extend(wrong_factory_msgs)
+1446:             title = "生產履歷已載入" if not (missing or wrong_factory_msgs) else "⚠️ 生產履歷載入 (有異常)"
