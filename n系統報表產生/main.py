@@ -801,7 +801,7 @@ class ImportRangeDialog(tk.Toplevel):
         preview_frame.pack(fill="both", expand=True, pady=(0, 10))
 
         # 定義 Treeview 欄位
-        columns = ("chk", "idx", "sheet", "date", "time", "batch", "tank", "origin", "loc", "long_code")
+        columns = ("chk", "idx", "sheet", "date", "batch", "loc", "long_code")
         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
 
         col_defs = [
@@ -809,10 +809,7 @@ class ImportRangeDialog(tk.Toplevel):
             ("idx", "項次", 50, "center"),
             ("sheet", "來源分頁", 150, "w"),
             ("date", "出貨日期 📅", 105, "center"),
-            ("time", "到廠時間", 85, "center"),
             ("batch", "批號 (10碼)", 125, "center"),
-            ("tank", "槽號", 75, "center"),
-            ("origin", "出貨區", 85, "center"),
             ("loc", "指送地點", 95, "center"),
             ("long_code", "地點長代號 (全稱)", 250, "w")
         ]
@@ -949,10 +946,7 @@ class ImportRangeDialog(tk.Toplevel):
                     f"[{idx+1:02d}]",
                     sheet_name,
                     d_str,
-                    t_str,
                     b_str,
-                    tank_str,
-                    origin_str,
                     loc_str,
                     long_code_str
                 ),
@@ -1576,12 +1570,11 @@ class App(tk.Tk):
             (6,  "出貨日期\n📅",               100),
             (7,  "採購單號",                   110),
             (8,  "料號\n(自動)",               80),
-            (9,  "品名",                       130),
+            (9,  "品名",                       220),
             (10, "製造日",                     80),
             (11, "保存期限",                   80),
             (12, "剩餘\n天數",                 48),
-            (13, "剩餘天數\n寫入COA",           62),
-            (14, "清空\n單列",                 48),
+            (13, "清空\n單列",                 48),
         ]
         
         for col_idx, title, min_w in headers:
@@ -1664,7 +1657,7 @@ class App(tk.Tk):
 
             # Col 9: 品名
             name_var = tk.StringVar()
-            name_entry = tk.Entry(self.scrollable_frame, textvariable=name_var, width=15, font=("Arial", 10), fg="purple")
+            name_entry = tk.Entry(self.scrollable_frame, textvariable=name_var, width=28, font=("Arial", 10), fg="purple")
             name_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
             # Col 10: 製造日
@@ -1682,12 +1675,7 @@ class App(tk.Tk):
             rem_entry = tk.Entry(self.scrollable_frame, textvariable=rem_var, width=6, font=("Arial", 10), fg="red", state="readonly")
             rem_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
 
-            # Col 13: 剩餘天數寫入COA
-            coa208_var = tk.BooleanVar(value=False)
-            coa208_chk = tk.Checkbutton(self.scrollable_frame, variable=coa208_var)
-            coa208_chk.grid(row=row_grid_idx, column=13, padx=2, pady=2)
-
-            # Col 14: 單列清空按鈕
+            # Col 13: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
                 text="清空", 
@@ -1699,7 +1687,7 @@ class App(tk.Tk):
                 width=6,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=14, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=13, padx=4, pady=2)
 
             def calc_rem(*args, ev=exp_var, rv=rem_var):
                 val = ev.get().strip()
@@ -1741,7 +1729,7 @@ class App(tk.Tk):
                 "mfg_var": mfg_var,
                 "exp_var": exp_var,
                 "rem_var": rem_var,
-                "coa208_var": coa208_var
+                
             })
 
     def clear_all_rows(self):
@@ -1759,7 +1747,7 @@ class App(tk.Tk):
                 if "mfg_var" in entry: entry["mfg_var"].set("")
                 if "exp_var" in entry: entry["exp_var"].set("")
                 if "rem_var" in entry: entry["rem_var"].set("")
-                if "coa208_var" in entry: entry["coa208_var"].set(False)
+                
 
     def set_today_all_dates(self):
         from datetime import datetime
@@ -1783,7 +1771,7 @@ class App(tk.Tk):
             if "mfg_var" in entry: entry["mfg_var"].set("")
             if "exp_var" in entry: entry["exp_var"].set("")
             if "rem_var" in entry: entry["rem_var"].set("")
-            if "coa208_var" in entry: entry["coa208_var"].set(False)
+            
 
     def on_batch_change(self, batch_var, qty_var):
         batch = batch_var.get().upper().strip()
@@ -1986,25 +1974,25 @@ class App(tk.Tk):
         for file_path in file_paths:
             base_name = os.path.basename(file_path)
             fn_upper = base_name.upper()
-            matched_batch = None
-            for b, row_entry in valid_batches.items():
+            
+            # 收集所有批號吻合的 key (支援同批號多廠區)
+            matched_keys = []
+            for b_key, row_entry in valid_batches.items():
+                b = b_key.split('|')[0]
                 if b in fn_upper:
-                    # 批號吻合後，再確認廠區也吻合
-                    entry_loc = row_entry["loc_var"].get().strip().upper() if "loc_var" in row_entry else ""
-                    if not entry_loc or entry_loc in fn_upper:
-                        matched_batch = b
-                        break
-            if not matched_batch:
+                    matched_keys.append(b_key)
+                    
+            if not matched_keys:
                 found_batch = self._extract_batch_from_coa(file_path)
                 if found_batch:
-                    for b, row_entry in valid_batches.items():
+                    for b_key, row_entry in valid_batches.items():
+                        b = b_key.split('|')[0]
                         if b == found_batch or b in found_batch or found_batch in b:
-                            entry_loc = row_entry["loc_var"].get().strip().upper() if "loc_var" in row_entry else ""
-                            if not entry_loc or entry_loc in fn_upper:
-                                matched_batch = b
-                                break
-            if matched_batch:
-                matched_results.append((base_name, matched_batch))
+                            matched_keys.append(b_key)
+                            
+            if matched_keys:
+                for mk in matched_keys:
+                    matched_results.append((base_name, mk))
             else:
                 unmatched_files.append(base_name)
 
@@ -2144,15 +2132,13 @@ class App(tk.Tk):
                                 v = str(val or "").strip().upper()
                                 if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
                                 if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
-                                if date_col == -1 and any(k in v for k in ["到貨日", "出貨日", "出車日", "日期", "DATE"]) and "地" not in v and "點" not in v: date_col = c_idx
+                                if date_col == -1 and (v in ["出貨", "到貨", "出貨日", "到貨日", "日期", "出車"] or any(k in v for k in ["出貨日", "到貨日", "出車日", "日期", "DATE"])) and "地" not in v and "點" not in v: date_col = c_idx
                                 if qty_col == -1 and any(k in v for k in ["數量", "QTY", "QUANTITY", "AMOUNT", "排程量", "需求量", "總重"]): qty_col = c_idx
-                                if mfg_col == -1 and any(k in v for k in ["製造", "MFG"]): mfg_col = c_idx
-                                if exp_col == -1 and any(k in v for k in ["到期", "保存", "EXP"]): exp_col = c_idx
+                                if mfg_col == -1 and any(k in v for k in ["製造", "MFG", "生產日", "製日"]): mfg_col = c_idx
+                                if exp_col == -1 and any(k in v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in v and "天數" not in v: exp_col = c_idx
                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
-                                if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
-                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
-                                if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if po_col == -1 and any(k in v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
                                 if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if name_col == -1 and any(k in v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
                             if batch_col != -1 and (loc_col != -1 or date_col != -1):
@@ -2161,8 +2147,7 @@ class App(tk.Tk):
                         if batch_col == -1 or loc_col == -1:
                             batch_col, date_col, qty_col, loc_col = 2, 1, 4, 5
                             start_row = 2
-                        if mfg_col == -1: mfg_col = 13
-                        if exp_col == -1: exp_col = 14
+                        # 找不到就留空（-1），不死寫固定欄號，以免抓到不相關欄位
                         for r_idx in range(start_row, len(rows)):
                             row = rows[r_idx]
                             if not row: continue
@@ -2254,18 +2239,16 @@ class App(tk.Tk):
                                 if not v: continue
                                 if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
                                 if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
-                                if date_col == -1 and (v in ["到貨", "到貨日", "日期", "出車"] or any(k in v for k in ["到貨日", "出貨日", "出車日", "日期", "DATE"])) and "地" not in v and "點" not in v: date_col = c_idx
+                                if date_col == -1 and (v in ["出貨", "到貨", "出貨日", "到貨日", "日期", "出車"] or any(k in v for k in ["出貨日", "到貨日", "出車日", "日期", "DATE"])) and "地" not in v and "點" not in v: date_col = c_idx
                                 if qty_col == -1 and any(k in v for k in ["數量", "QTY", "QUANTITY", "AMOUNT", "排程量", "需求量", "總重"]): qty_col = c_idx
                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
-                                if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
-                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
-                                if po_col == -1 and any(k in v for k in ["採購單", "PO"]): po_col = c_idx
+                                if po_col == -1 and any(k in v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
                                 if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if cust_col == -1 and any(k in v for k in ["對象", "客戶", "廠商", "CUSTOMER"]): cust_col = c_idx
                                 if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
-                                if mfg_col == -1 and any(k in v for k in ["製造", "MFG"]): mfg_col = c_idx
-                                if exp_col == -1 and any(k in v for k in ["到期", "保存", "EXP"]): exp_col = c_idx
+                                if mfg_col == -1 and any(k in v for k in ["製造", "MFG", "生產日", "製日"]): mfg_col = c_idx
+                                if exp_col == -1 and any(k in v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in v and "天數" not in v: exp_col = c_idx
                                 if name_col == -1 and any(k in v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
 
                             if batch_col != -1 and (loc_col != -1 or date_col != -1):
@@ -2278,8 +2261,7 @@ class App(tk.Tk):
                             qty_col = 4
                             loc_col = 5
                             start_row = 2
-                        if mfg_col == -1: mfg_col = 13
-                        if exp_col == -1: exp_col = 14
+                        # 找不到就留空（-1），不死寫固定欄號，以免抓到不相關欄位
 
                         for r_idx in range(start_row, len(rows)):
                             row = rows[r_idx]
@@ -2710,7 +2692,7 @@ class App(tk.Tk):
                         date_MMDD = f"{dt_file.month:02d}{dt_file.day:02d}"
                         safe_tank = str(tank_no).strip() if tank_no else ""
                         loc_sub_dir = f"{date_MMDD} {safe_loc} {safe_tank}".strip()
-                        loc_folder = os.path.join(output_dir, loc_sub_dir)
+                        loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
                     
                         if not os.path.exists(loc_folder):
                             os.makedirs(loc_folder)
@@ -2751,41 +2733,28 @@ class App(tk.Tk):
                     base_lorry_name = orig_filename.rsplit('-', 1)[0] if '-' in orig_filename else orig_filename
 
                     try:
-                        # Instead of complex mapping, just find its single batch from filename or A7
-                        wb_l = openpyxl.load_workbook(l_path, data_only=False)
-                        ws_l = wb_l.active
-                        
                         wb_data = openpyxl.load_workbook(l_path, data_only=True)
                         ws_data = wb_data.active
                         l_batch = str(ws_data.cell(row=7, column=1).value or "").strip().upper()
                         wb_data.close()
                         
-                        matched_item = None
-                        # 從檔名解析出廠區代碼（批號後最後一段，如 26806M5001 1002 12P8 → 12P8）
                         fn_upper = orig_filename.upper()
-                        l_loc_hint = ""
-                        # 嘗試從「-批號 MMDD 廠區」格式解析
-                        import re as _re
-                        _m = _re.search(r'[-\s]([A-Z0-9]{5,12})\s+(\d{4})\s+([A-Z0-9P]{3,8})(?:\s|$)', fn_upper)
-                        if _m:
-                            l_loc_hint = _m.group(3).strip()
                         
+                        # 找出所有批號吻合的項目 (同批號多廠區)
+                        matched_items = []
                         for item in valid_data:
                             b_no = str(item.get("batch", "")).strip().upper()
-                            item_loc = str(item.get("loc", "")).strip().upper()
-                            # 批號必須吻合
-                            batch_ok = b_no and (b_no in l_batch or b_no in fn_upper)
-                            # 廠區必須吻合（若能從檔名解析到廠區才強制比對）
-                            loc_ok = (not l_loc_hint) or (item_loc == l_loc_hint) or (item_loc in l_loc_hint) or (l_loc_hint in item_loc)
-                            if batch_ok and loc_ok:
-                                matched_item = item
-                                l_batch = b_no
-                                break
+                            # 批號必須吻合 (不強制檔名有廠區，因為原始檔名通常沒有廠區)
+                            if b_no and (b_no in l_batch or b_no in fn_upper):
+                                matched_items.append((item, b_no))
                                 
-                        if matched_item:
-                            item = matched_item
-                            l_loc = item["loc"]
-                            d_str = item["date"]
+                        for item, l_batch_found in matched_items:
+                            # 每次寫入都重新載入原始檔，避免多廠區時資料互相覆蓋
+                            wb_l = openpyxl.load_workbook(l_path, data_only=False)
+                            ws_l = wb_l.active
+                            
+                            l_loc = item.get("loc", "")
+                            d_str = item.get("date", "")
                             
                             # Convert d_str to YYYY/MM/DD format
                             try:
@@ -2816,9 +2785,34 @@ class App(tk.Tk):
                             except:
                                 mfg_str_fmt = str(item.get('mfg_date', ''))
 
-                            ws_l.cell(row=7, column=2).value = item.get('long_code', '')
-                            ws_l.cell(row=7, column=3).value = d_str_fmt
-                            ws_l.cell(row=7, column=6).value = mfg_str_fmt
+                            long_code_val = item.get('long_code', '')
+                            # 用文字搜尋表頭的位置後再寫入，寫入位置為「表頭的正下方一格」
+                            lorry_field_map = {
+                                "fabphase": (long_code_val, 7, 7), # 預設 G7
+                                "tsmcfab": (long_code_val, 7, 2),  # 預設 B7
+                                "deliverydate": (d_str_fmt, 7, 3), # 預設 C7
+                                "deliverdate": (d_str_fmt, 7, 3),  # 預防拼寫差異
+                                "manufacturedate": (mfg_str_fmt, 7, 6), # 預設 F7
+                                "manufacturingdate": (mfg_str_fmt, 7, 6),
+                            }
+                            
+                            lorry_found_keys = set()
+                            # 掃描前 15 列、前 20 欄尋找表頭
+                            for r_idx in range(1, min(ws_l.max_row + 5, 16)):
+                                for c_idx in range(1, min(ws_l.max_column + 5, 22)):
+                                    cell_val = ws_l.cell(row=r_idx, column=c_idx).value
+                                    if cell_val and isinstance(cell_val, str):
+                                        ck = cell_val.lower().replace(" ", "")
+                                        for sk, (sv, fb_row, fb_col) in lorry_field_map.items():
+                                            if sv and sk in ck and sk not in lorry_found_keys:
+                                                # 表頭的正下方一格 (r_idx + 1)
+                                                ws_l.cell(row=r_idx + 1, column=c_idx).value = sv
+                                                lorry_found_keys.add(sk)
+                                                
+                            # 沒找到的 fallback 到固定格子
+                            for sk, (sv, fb_row, fb_col) in lorry_field_map.items():
+                                if sv and sk not in lorry_found_keys:
+                                    ws_l.cell(row=fb_row, column=fb_col).value = sv
 
                             mmdd = "0000"
                             if d_str:
@@ -2834,19 +2828,17 @@ class App(tk.Tk):
                                 mmdd = f"{now_l.month:02d}{now_l.day:02d}"
                             
                             safe_loc = "".join(c for c in l_loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
-                            loc_sub_dir = f"{mmdd} {safe_loc} {l_batch}".strip()
-                            current_loc_folder = os.path.join(output_dir, loc_sub_dir)
+                            loc_sub_dir = f"{mmdd} {safe_loc} {l_batch_found}".strip()
+                            current_loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
                             os.makedirs(current_loc_folder, exist_ok=True)
 
-                            lorry_out_name = f"{base_lorry_name}-{l_batch} {mmdd} {l_loc}{orig_ext}"
+                            lorry_out_name = f"{base_lorry_name}-{l_batch_found} {mmdd} {l_loc}{orig_ext}"
                             out_l_path = os.path.join(current_loc_folder, lorry_out_name)
                             wb_l.save(out_l_path)
                             wb_l.close()
                             
                             success_lorry += 1
-                            lorry_generated_batches.add(l_batch)
-                        else:
-                            wb_l.close()
+                            lorry_generated_batches.add(l_batch_found)
                     except PermissionError as le:
                         import os as _os2
                         locked_file = _os2.path.basename(str(le).split("'")[-2]) if "'" in str(le) else "Chemical_Lorry 檔案"
@@ -2926,163 +2918,208 @@ class App(tk.Tk):
                 try:
                     base_name, ext = os.path.splitext(os.path.basename(file_path))
                     fn_upper = base_name.upper()
-                    matched_key = None
-                    # 同時比對批號 + 廠區（BATCH|LOC key）
+
+                    # 收集所有批號吻合的 vb_key（同批號不同廠會有多個）
+                    matched_keys = []
                     for vb_key, vb_row in valid_batches.items():
                         b_part = vb_key.split("|")[0]
-                        l_part = vb_key.split("|")[1] if "|" in vb_key else ""
                         if b_part in fn_upper:
-                            # 廠區也要在檔名裡（或無廠區限制）
-                            if not l_part or l_part in fn_upper:
-                                matched_key = vb_key
-                                break
-                    if not matched_key:
+                            matched_keys.append(vb_key)
+                    if not matched_keys:
                         found_batch = self._extract_batch_from_coa(file_path)
                         if found_batch:
                             for vb_key, vb_row in valid_batches.items():
                                 b_part = vb_key.split("|")[0]
-                                l_part = vb_key.split("|")[1] if "|" in vb_key else ""
                                 if b_part == found_batch or b_part in found_batch or found_batch in b_part:
-                                    if not l_part or l_part in fn_upper:
-                                        matched_key = vb_key
-                                        break
-                    if not matched_key:
-                        total_error_msgs.append(f"COA: 找不到對應批號+廠區: {os.path.basename(file_path)}")
+                                    matched_keys.append(vb_key)
+                    if not matched_keys:
+                        total_error_msgs.append(f"COA: 找不到對應批號: {os.path.basename(file_path)}")
                         continue
-                    matched_batch = matched_key.split("|")[0]
 
-                    row = valid_batches[matched_key]
-                    loc_str = row["loc_var"].get().strip()
-                    import re
-                    fc_match = re.search(r'[A-Za-z0-9]+', loc_str)
-                    factory_code = fc_match.group(0) if fc_match else loc_str
-                    date_str = row["date_var"].get().strip()
-                    formatted_date = date_str.replace("/", "").replace("-", "")
-
-                    import os as _os
-                    # 用原始檔名去除既有批號/日期後綴，再加上新格式
-                    name_no_ext, _ = _os.path.splitext(base_name)
-                    # 嘗試去掉原始檔名中已有的批號（如果有的話）
-                    clean_base = name_no_ext
-                    for b_candidate in list(valid_batches.keys()):
-                        clean_base = clean_base.replace(b_candidate, "").strip()
-                    clean_base = clean_base.rstrip("-_ ").strip()
-
-                    date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
-                    new_base = f"{clean_base} {matched_batch} {date_MMDD} {factory_code}"
-                    output_dir = os.path.join(self.base_dir, f"N系小包報表輸出_{formatted_date}")
-                    if output_dir not in all_output_dirs:
-                        all_output_dirs.append(output_dir)
-
-                    qty_str = row["qty_var"].get().strip()
-                    safe_loc = "".join(c for c in loc_str if c.isalnum() or c in (' ', '_', '-')).rstrip()
-                    if not safe_loc: safe_loc = "未命名地點"
-                    loc_sub_dir = f"{date_MMDD} {safe_loc} {matched_batch}".strip()
-
-                    loc_folder = os.path.join(output_dir, loc_sub_dir)
-                    os.makedirs(loc_folder, exist_ok=True)
-                    new_file_path = os.path.join(loc_folder, new_base + ext)
-
-                    col_b, col_g, col_c = "", "", ""
-                    if matched_batch in lorry_data_map:
-                        l_info = lorry_data_map[matched_batch]
-                        col_b = l_info.get("b", "")
-                        col_c = l_info.get("c", "")
-                        col_g = l_info.get("g", "")
-
-                    po_no = ""
-                    matched_row = valid_batches.get(matched_batch)
-                    if matched_row:
-                        if "po_var" in matched_row:
-                            full_po = matched_row["po_var"].get().strip()
-                            po_no = full_po[:10] if len(full_po) >= 10 else full_po
-                        if "mfg_var" in matched_row:
-                            col_c = matched_row["mfg_var"].get().strip() or col_c
-                        
-                        long_code = matched_row.get("long_code_var", type("X", (), {"get": lambda: ""})()).get().strip()
-                        loc_str_tmp = matched_row.get("loc_var", type("X", (), {"get": lambda: ""})()).get().strip()
-                        if long_code or loc_str_tmp:
-                            col_g = long_code or loc_str_tmp
-
-                    # Date formatting
-                    date_str_fmt = date_str
-                    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d"):
+                    for matched_key in matched_keys:
                         try:
-                            _dt = datetime.strptime(date_str.split()[0], fmt)
-                            date_str_fmt = f"{_dt.year}/{_dt.month:02d}/{_dt.day:02d}"
-                            break
-                        except:
-                            pass
+                            matched_batch = matched_key.split("|")[0]
+
+                            row = valid_batches[matched_key]
+                            loc_str = row["loc_var"].get().strip()
+                            import re
+                            fc_match = re.search(r'[A-Za-z0-9]+', loc_str)
+                            factory_code = fc_match.group(0) if fc_match else loc_str
+                            date_str = row["date_var"].get().strip()
+                            formatted_date = date_str.replace("/", "").replace("-", "")
+
+                            import os as _os
+                            import re
                             
-                    col_c_fmt = col_c
-                    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d"):
-                        try:
-                            _dt = datetime.strptime(str(col_c).split()[0], fmt)
-                            col_c_fmt = f"{_dt.year}/{_dt.month:02d}/{_dt.day:02d}"
-                            break
-                        except:
-                            pass
+                            # base_name 已經在前面去過副檔名了，直接處理
+                            # 移除 TSMC字樣 (不分大小寫)
+                            clean_base = re.sub(r'(?i)\s*TSMC\s*', ' ', base_name)
                             
-                    long_code_val = row.get("long_code_var", type("X", (), {"get": lambda: ""})()).get().strip()
+                            # 移除原有批號，避免後續重複加上
+                            for b_candidate in list(valid_batches.keys()):
+                                b_only = b_candidate.split('|')[0]
+                                clean_base = clean_base.replace(b_only, " ")
+                            clean_base = clean_base.rstrip("-_ ").strip()
 
-                    if ext.lower() in ['.xlsx', '.xls']:
-                        wb = openpyxl.load_workbook(file_path)
-                        ws = wb.active
-                        
-                        ws["B6"] = long_code_val
-                        if col_g: ws["B7"] = col_g
-                        if qty_str: ws["B8"] = qty_str
-                        if col_c_fmt: ws["B11"] = col_c_fmt
-                        if date_str_fmt: ws["B12"] = date_str_fmt
-                        if po_no: ws["B14"] = po_no
+                            date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
+                            new_base = f"{clean_base} {matched_batch} {date_MMDD} {factory_code}"
+                            # 合併多餘空白
+                            new_base = re.sub(r'\s+', ' ', new_base).strip()
+                            output_dir = os.path.join(self.base_dir, f"N系小包報表輸出_{formatted_date}")
+                            if output_dir not in all_output_dirs:
+                                all_output_dirs.append(output_dir)
 
-                        if matched_row and matched_row.get('coa208_var') and matched_row['coa208_var'].get():
-                            rem_days = matched_row.get('rem_var', tk.StringVar()).get().strip()
-                            if rem_days:
-                                ws['B208'] = rem_days
+                            qty_str = row["qty_var"].get().strip()
+                            safe_loc = "".join(c for c in loc_str if c.isalnum() or c in (' ', '_', '-')).rstrip()
+                            if not safe_loc: safe_loc = "未命名地點"
+                            loc_sub_dir = f"{date_MMDD} {safe_loc} {matched_batch}".strip()
 
-                        wb.save(new_file_path)
-                        try:
-                            wb.close()
-                        except:
-                            pass
-                    elif ext.lower() == '.csv':
-                        import csv
-                        try:
-                            with open(file_path, 'r', encoding='big5') as f:
-                                reader = list(csv.reader(f))
-                        except UnicodeDecodeError:
-                            with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-                                reader = list(csv.reader(f))
+                            loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
+                            os.makedirs(loc_folder, exist_ok=True)
+                            new_file_path = os.path.join(loc_folder, new_base + ext)
+
+                            col_b, col_g, col_c = "", "", ""
+                            if matched_batch in lorry_data_map:
+                                l_info = lorry_data_map[matched_batch]
+                                col_b = l_info.get("b", "")
+                                col_c = l_info.get("c", "")
+                                col_g = l_info.get("g", "")
+
+                            po_no = ""
+                            matched_row = row
+                            if matched_row:
+                                if "po_var" in matched_row:
+                                    full_po = matched_row["po_var"].get().strip()
+                                    po_no = full_po[:10] if len(full_po) >= 10 else full_po
+                                if "mfg_var" in matched_row:
+                                    col_c = matched_row["mfg_var"].get().strip() or col_c
                                 
-                        while len(reader) <= 17: reader.append([])
-                        for r_idx in [5, 6, 7, 10, 11, 13]:
-                            while len(reader[r_idx]) <= 1: reader[r_idx].append("")
-                            
-                        reader[5][1] = long_code_val
-                        if col_g: reader[6][1] = col_g
-                        if qty_str: reader[7][1] = qty_str
-                        if col_c_fmt: reader[10][1] = col_c_fmt
-                        if date_str_fmt: reader[11][1] = date_str_fmt
-                        if po_no: reader[13][1] = po_no
-                            
-                        if matched_row and matched_row.get('coa208_var') and matched_row['coa208_var'].get():
-                            rem_days = matched_row.get('rem_var', tk.StringVar()).get().strip()
-                            if rem_days:
-                                while len(reader) <= 207:
-                                    reader.append([''] * 8)
-                                while len(reader[207]) <= 1:
-                                    reader[207].append("")
-                                reader[207][1] = rem_days
+                                long_code = matched_row.get("long_code_var", type("X", (), {"get": lambda: ""})()).get().strip()
+                                loc_str_tmp = matched_row.get("loc_var", type("X", (), {"get": lambda: ""})()).get().strip()
+                                if long_code or loc_str_tmp:
+                                    col_g = long_code or loc_str_tmp
 
-                        with open(new_file_path, 'w', encoding='big5', errors='ignore', newline='') as f:
-                            writer = csv.writer(f)
-                            writer.writerows(reader)
-                    success_coa += 1
-                except PermissionError as e:
-                    import os as _os2
-                    locked_file = _os2.path.basename(new_file_path)
-                    total_error_msgs.append(f"🔒 COA 檔案被佔用: {locked_file} 正在被開啟中，無法寫入！")
+                            # Date formatting
+                            date_str_fmt = date_str
+                            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d"):
+                                try:
+                                    _dt = datetime.strptime(date_str.split()[0], fmt)
+                                    date_str_fmt = f"{_dt.year}/{_dt.month:02d}/{_dt.day:02d}"
+                                    break
+                                except:
+                                    pass
+                                    
+                            col_c_fmt = col_c
+                            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d"):
+                                try:
+                                    _dt = datetime.strptime(str(col_c).split()[0], fmt)
+                                    col_c_fmt = f"{_dt.year}/{_dt.month:02d}/{_dt.day:02d}"
+                                    break
+                                except:
+                                    pass
+                                    
+                            long_code_val = row.get("long_code_var", type("X", (), {"get": lambda: ""})()).get().strip()
+
+                            if ext.lower() in ['.xlsx', '.xls']:
+                                wb = openpyxl.load_workbook(file_path)
+                                ws = wb.active
+                                
+                                field_map = {
+                                    "tsmcfab": (long_code_val, 6),
+                                    "fabphase": (col_g, 7),
+                                    "shipqty": (qty_str, 8),
+                                    "manufacturingdate": (col_c_fmt, 11),
+                                    "deliverdate": (date_str_fmt, 12),
+                                    "pono": (po_no, 14),
+                                }
+                                found_keys = set()
+                                for r_idx in range(1, ws.max_row + 20):
+                                    cell_val = ws.cell(row=r_idx, column=1).value
+                                    if cell_val and isinstance(cell_val, str):
+                                        cell_key = cell_val.lower().replace(" ", "")
+                                        for search_key, (set_val, fallback_row) in field_map.items():
+                                            if set_val and search_key in cell_key:
+                                                ws.cell(row=r_idx, column=2).value = set_val
+                                                found_keys.add(search_key)
+                                
+                                for search_key, (set_val, fallback_row) in field_map.items():
+                                    if set_val and search_key not in found_keys:
+                                        ws.cell(row=fallback_row, column=2).value = set_val
+
+                                if matched_row:
+                                    rem_days = matched_row.get('rem_var', tk.StringVar()).get().strip()
+                                    if rem_days:
+                                        found = False
+                                        for r_idx in range(1, ws.max_row + 20):
+                                            cell_val = ws.cell(row=r_idx, column=1).value
+                                            if cell_val and isinstance(cell_val, str) and "remainlifetime" in cell_val.lower().replace(" ", ""):
+                                                ws.cell(row=r_idx, column=7).value = rem_days
+                                                found = True
+                                                break
+
+                                wb.save(new_file_path)
+                                try:
+                                    wb.close()
+                                except:
+                                    pass
+                            elif ext.lower() == '.csv':
+                                import csv
+                                try:
+                                    with open(file_path, 'r', encoding='big5') as f:
+                                        reader = list(csv.reader(f))
+                                except UnicodeDecodeError:
+                                    with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
+                                        reader = list(csv.reader(f))
+                                        
+                                field_map_csv = {
+                                    "tsmcfab": (long_code_val, 5),
+                                    "fabphase": (col_g, 6),
+                                    "shipqty": (qty_str, 7),
+                                    "manufacturingdate": (col_c_fmt, 10),
+                                    "deliverdate": (date_str_fmt, 11),
+                                    "pono": (po_no, 13),
+                                }
+                                found_keys_csv = set()
+                                for row_data in reader:
+                                    if row_data and len(row_data) > 0:
+                                        cell_key = str(row_data[0]).lower().replace(" ", "")
+                                        for search_key, (set_val, fallback_idx) in field_map_csv.items():
+                                            if set_val and search_key in cell_key:
+                                                while len(row_data) <= 1:
+                                                    row_data.append("")
+                                                row_data[1] = set_val
+                                                found_keys_csv.add(search_key)
+                                
+                                for search_key, (set_val, fallback_idx) in field_map_csv.items():
+                                    if set_val and search_key not in found_keys_csv:
+                                        while len(reader) <= fallback_idx:
+                                            reader.append([''] * 8)
+                                        while len(reader[fallback_idx]) <= 1:
+                                            reader[fallback_idx].append("")
+                                        reader[fallback_idx][1] = set_val
+                                    
+                                if matched_row:
+                                    rem_days = matched_row.get('rem_var', tk.StringVar()).get().strip()
+                                    if rem_days:
+                                        found = False
+                                        for row_data in reader:
+                                            if row_data and len(row_data) > 0 and "remainlifetime" in str(row_data[0]).lower().replace(" ", ""):
+                                                while len(row_data) <= 6:
+                                                    row_data.append("")
+                                                row_data[6] = rem_days
+                                                found = True
+                                                break
+
+                                with open(new_file_path, 'w', encoding='big5', errors='ignore', newline='') as f:
+                                    writer = csv.writer(f)
+                                    writer.writerows(reader)
+                            success_coa += 1
+                        except PermissionError as e:
+                            import os as _os2
+                            locked_file = _os2.path.basename(new_file_path)
+                            total_error_msgs.append(f"🔒 COA 檔案被佔用: {locked_file} 正在被開啟中，無法寫入！")
+                        except Exception as e:
+                            total_error_msgs.append(f"處理 COA {os.path.basename(file_path)} 失敗: {str(e)}")
                 except Exception as e:
                     total_error_msgs.append(f"處理 COA {os.path.basename(file_path)} 失敗: {str(e)}")
 
