@@ -1528,9 +1528,17 @@ class App(tk.Tk):
         tk.Button(right_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#00897B", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(right_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(4, 0))
 
-        # 預計時間
+        # 預計時間 (遺留變數)
         self.gen_3in1_var = tk.BooleanVar(value=False)
         self.gen_lorry_var = tk.BooleanVar(value=True)
+
+        # 輸出設定區域
+        export_opt_frame = tk.LabelFrame(self, text="⚙️ 輸出資料夾模式", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        export_opt_frame.pack(fill="x", pady=(0, 6))
+        
+        self.folder_mode_var = tk.IntVar(value=1)
+        tk.Radiobutton(export_opt_frame, text="模式 1：依批號分子資料夾 (出貨日 -> 廠區 -> 批號_廠區 -> 檔案)", variable=self.folder_mode_var, value=1, font=("Microsoft JhengHei", 9)).pack(side="left", padx=(0, 15))
+        tk.Radiobutton(export_opt_frame, text="模式 2：集中在廠區資料夾 (出貨日 -> 廠區 -> 檔案)", variable=self.folder_mode_var, value=2, font=("Microsoft JhengHei", 9)).pack(side="left")
 
         # 5. 表格滾動容器
         table_container = tk.Frame(self)
@@ -2692,7 +2700,11 @@ class App(tk.Tk):
                         date_MMDD = f"{dt_file.month:02d}{dt_file.day:02d}"
                         safe_tank = str(tank_no).strip() if tank_no else ""
                         loc_sub_dir = f"{date_MMDD} {safe_loc} {safe_tank}".strip()
-                        loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
+                        
+                        if self.folder_mode_var.get() == 2:
+                            loc_folder = os.path.join(output_dir, safe_loc)
+                        else:
+                            loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
                     
                         if not os.path.exists(loc_folder):
                             os.makedirs(loc_folder)
@@ -2829,7 +2841,12 @@ class App(tk.Tk):
                             
                             safe_loc = "".join(c for c in l_loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
                             loc_sub_dir = f"{mmdd} {safe_loc} {l_batch_found}".strip()
-                            current_loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
+                            
+                            if self.folder_mode_var.get() == 2:
+                                current_loc_folder = os.path.join(output_dir, safe_loc)
+                            else:
+                                current_loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
+                                
                             os.makedirs(current_loc_folder, exist_ok=True)
 
                             lorry_out_name = f"{base_lorry_name}-{l_batch_found} {mmdd} {l_loc}{orig_ext}"
@@ -2974,7 +2991,11 @@ class App(tk.Tk):
                             if not safe_loc: safe_loc = "未命名地點"
                             loc_sub_dir = f"{date_MMDD} {safe_loc} {matched_batch}".strip()
 
-                            loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
+                            if self.folder_mode_var.get() == 2:
+                                loc_folder = os.path.join(output_dir, safe_loc)
+                            else:
+                                loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
+                                
                             os.makedirs(loc_folder, exist_ok=True)
                             new_file_path = os.path.join(loc_folder, new_base + ext)
 
