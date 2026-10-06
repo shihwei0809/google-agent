@@ -1388,7 +1388,10 @@ class App(tk.Tk):
             
         try:
             self.show_loading("⏳ 正在處理生產履歷，請稍候...")
-            self.imported_lorry_files = list(filepaths)
+            # 累加模式：新檔案合併至既有清單，去重複後更新
+            existing = list(getattr(self, 'imported_lorry_files', []))
+            new_paths = [p for p in filepaths if p not in existing]
+            self.imported_lorry_files = existing + new_paths
             self.update_lorry_status()
             self.gen_lorry_var.set(True)
             
@@ -1437,8 +1440,10 @@ class App(tk.Tk):
                 else:
                     missing.append(b)
             
-            fname = f"已選 {len(self.imported_lorry_files)} 份檔案" if len(self.imported_lorry_files) > 1 else os.path.basename(self.imported_lorry_files[0]) if self.imported_lorry_files else ""
-            lines = [f"已成功載入生產履歷檔案：\n{fname}\n"]
+            total_lorry = len(self.imported_lorry_files)
+            new_lorry_count = len([p for p in filepaths if p in self.imported_lorry_files])
+            fname = f"累計已載入 {total_lorry} 份生產履歷（本次新增 {new_lorry_count} 份）"
+            lines = [f"✅ {fname}\n"]
             if not table_batches:
                 lines.append("ℹ️ 排程表格尚未輸入批號，無法比對。")
             else:
@@ -1452,6 +1457,13 @@ class App(tk.Tk):
         except Exception as e:
             messagebox.showerror("錯誤", f"檢查履歷資料夾失敗: {e}")
 
+
+    def clear_loaded_files(self):
+        """清除所有已載入的 COA 與生產履歷檔案清單"""
+        self.imported_lorry_files = []
+        self.imported_coa_files = []
+        self.update_lorry_status()
+        messagebox.showinfo("已清除", "已清除所有已載入的生產履歷與 COA 表單清單。\n下次載入將重新開始累積。")
 
     def reload_mapping_with_msg(self):
         """點擊『🔄 重新載入對照表』時執行"""
@@ -1519,6 +1531,7 @@ class App(tk.Tk):
         tk.Button(left_btn_frame, text="📥 從 Excel 匯入排程", command=self.import_from_excel, bg="#1976D2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(0, 4))
         tk.Button(left_btn_frame, text="📋 載入生產履歷 (Chemical_Lorry)", command=self.load_chemical_lorry_file, bg="#E65100", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="📄 載入 COA 表單", command=self.load_coa_forms, bg="#8E24AA", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(left_btn_frame, text="🗑 清除已載入檔案", command=self.clear_loaded_files, bg="#546E7A", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
 
         # 右側：表格操作與日期快捷按鈕群組
         right_btn_frame = tk.Frame(top_ctrl_frame)
@@ -2004,9 +2017,13 @@ class App(tk.Tk):
             else:
                 unmatched_files.append(base_name)
 
-        self.imported_coa_files = list(file_paths)
+        # 累加模式：新檔案合併至既有清單，去重複後更新
+        existing_coa = list(getattr(self, 'imported_coa_files', []))
+        new_coa = [p for p in file_paths if p not in existing_coa]
+        self.imported_coa_files = existing_coa + new_coa
         
-        msg = f"共載入 {len(file_paths)} 份 COA 表單\n\n"
+        total_count = len(self.imported_coa_files)
+        msg = f"本次新增 {len(new_coa)} 份，累計已載入 {total_count} 份 COA 表單\n\n"
         if matched_results:
             msg += f"✅ 成功對應 {len(matched_results)} 筆批號：\n"
             for fname, b in matched_results:
