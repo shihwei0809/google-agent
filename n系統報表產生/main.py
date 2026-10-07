@@ -769,6 +769,23 @@ class ImportRangeDialog(tk.Toplevel):
         )
         btn_all_date.pack(side="left", padx=3)
         self.date_btns["all"] = btn_all_date
+        
+        # 新增自訂日期輸入框與搜尋按鈕
+        tk.Label(date_bar, text="  指定日期 (連假/其他):", font=("Arial", 9)).pack(side="left")
+        self.custom_date_var = tk.StringVar()
+        self.custom_date_entry = tk.Entry(date_bar, textvariable=self.custom_date_var, width=12, font=("Arial", 10))
+        self.custom_date_entry.pack(side="left", padx=2)
+        
+        btn_custom_date = tk.Button(
+            date_bar,
+            text="🔍 查詢",
+            command=lambda: self.filter_by_date_mode(f"custom:{self.custom_date_var.get().strip()}"),
+            font=("Arial", 9),
+            padx=4,
+            cursor="hand2"
+        )
+        btn_custom_date.pack(side="left", padx=2)
+        self.date_btns["custom"] = btn_custom_date
 
         self.refresh_date_buttons()
 
@@ -801,7 +818,7 @@ class ImportRangeDialog(tk.Toplevel):
         preview_frame.pack(fill="both", expand=True, pady=(0, 10))
 
         # 定義 Treeview 欄位
-        columns = ("chk", "idx", "sheet", "date", "batch", "loc", "long_code")
+        columns = ("chk", "idx", "sheet", "date", "arr_date", "batch", "loc", "long_code")
         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
 
         col_defs = [
@@ -809,6 +826,7 @@ class ImportRangeDialog(tk.Toplevel):
             ("idx", "項次", 50, "center"),
             ("sheet", "來源分頁", 150, "w"),
             ("date", "出貨日期 📅", 105, "center"),
+            ("arr_date", "到貨日期 📅", 105, "center"),
             ("batch", "批號 (10碼)", 125, "center"),
             ("loc", "指送地點", 95, "center"),
             ("long_code", "地點長代號 (全稱)", 250, "w")
@@ -861,11 +879,14 @@ class ImportRangeDialog(tk.Toplevel):
 
     def refresh_date_buttons(self):
         for mode, btn in self.date_btns.items():
-            if mode == self.active_mode:
+            is_active = (mode == self.active_mode) or (mode == "custom" and getattr(self, "active_mode", "").startswith("custom:"))
+            if is_active:
                 if mode == "d0_d2":
                     btn.config(bg="#FF9800", fg="white")
                 elif mode == "all":
                     btn.config(bg="#7B1FA2", fg="white")
+                elif mode == "custom":
+                    btn.config(bg="#009688", fg="white")
                 else:
                     btn.config(bg="#1976D2", fg="white")
             else:
@@ -884,6 +905,14 @@ class ImportRangeDialog(tk.Toplevel):
         elif mode == "d2":
             filtered = [r for r in self.all_records if r.get("date") == self.d2]
             label = f"「後天 ({self.d2})」"
+        elif mode.startswith("custom:"):
+            target_date = mode.split(":", 1)[1].strip()
+            if not target_date:
+                messagebox.showwarning("錯誤", "請先輸入指定日期！(例如 2026/10/06)")
+                return
+            target_date_norm = normalize_date_str(target_date)
+            filtered = [r for r in self.all_records if r.get("date") == target_date_norm]
+            label = f"「指定日期 ({target_date_norm})」"
         else:
             filtered = list(self.all_records)
             label = "「全部日期」"
@@ -928,6 +957,7 @@ class ImportRangeDialog(tk.Toplevel):
         for idx, rec in enumerate(slice_records):
             sheet_name = rec.get("sheet", "分頁")
             d_str = rec.get("date") or ""
+            arr_d_str = rec.get("arr_date") or ""
             t_str = rec.get("time") or ""
             b_str = rec.get("batch") or ""
             tank_str = rec.get("tank") or ""
@@ -946,6 +976,7 @@ class ImportRangeDialog(tk.Toplevel):
                     f"[{idx+1:02d}]",
                     sheet_name,
                     d_str,
+                    arr_d_str,
                     b_str,
                     loc_str,
                     long_code_str
@@ -1569,7 +1600,19 @@ class App(tk.Tk):
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
 
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        def on_canvas_configure(event):
+            canvas_width = event.width
+            req_width = self.scrollable_frame.winfo_reqwidth()
+            # 讓內部 frame 寬度至少等於 Canvas 寬度，以消除右側大空白
+            if canvas_width > req_width:
+                self.canvas.itemconfig(self.canvas_window, width=canvas_width)
+            else:
+                self.canvas.itemconfig(self.canvas_window, width="") # 回復原本大小
+
+        self.canvas.bind("<Configure>", on_canvas_configure)
+
         self.canvas.configure(yscrollcommand=self.scrollbar.set, xscrollcommand=self.scrollbar_x.set)
 
         self.scrollbar.pack(side="right", fill="y")
@@ -1582,20 +1625,21 @@ class App(tk.Tk):
         # --- Row 0: 表格標題列 (置於滾動區最上方，共享 100% 同一 Grid 欄位規格) ---
         # col_idx, label_text, min_width(px)
         headers = [
-            (0,  "產\n生",                    28),
-            (1,  "項\n次",                    28),
-            (2,  "批號\n(10碼)",               100),
-            (3,  "數量\n(ShipQty)",            70),
-            (4,  "地點\n(如15P5)",             65),
-            (5,  "長代號\n(自動)",              80),
-            (6,  "出貨日期\n📅",               100),
-            (7,  "採購單號",                   110),
-            (8,  "料號\n(自動)",               80),
-            (9,  "品名",                       220),
-            (10, "製造日",                     80),
-            (11, "保存期限",                   80),
-            (12, "剩餘\n天數",                 48),
-            (13, "清空\n單列",                 48),
+            (0,  "產生",                     40),
+            (1,  "項次",                     40),
+            (2,  "批號 (10碼)",              110),
+            (3,  "數量 (ShipQty)",           100),
+            (4,  "地點 (如15P5)",            100),
+            (5,  "長代號 (自動)",             100),
+            (6,  "出貨日期 📅",              110),
+            (7,  "到貨日期 📅",              110),
+            (8,  "採購單號",                 110),
+            (9,  "料號 (自動)",               90),
+            (10, "品名",                     220),
+            (11, "製造日",                   80),
+            (12, "保存期限",                 80),
+            (13, "剩餘天數",                 80),
+            (14, "清空單列",                 80),
         ]
         
         for col_idx, title, min_w in headers:
@@ -1613,8 +1657,9 @@ class App(tk.Tk):
                 width=0,
             )
             lbl.grid(row=0, column=col_idx, sticky="ew", padx=1, pady=(0, 4), ipadx=2, ipady=2)
-            # 設定最小欄寬
-            self.scrollable_frame.columnconfigure(col_idx, minsize=min_w)
+            # 設定最小欄寬與動態延展權重 (採購單號、品名等欄位允許延展)
+            weight = 1 if col_idx in (8, 10) else 0
+            self.scrollable_frame.columnconfigure(col_idx, minsize=min_w, weight=weight)
 
         # 產生按鈕
         btn_frame = tk.Frame(self)
@@ -1666,37 +1711,48 @@ class App(tk.Tk):
             btn_cal = tk.Button(date_frame, text="📅", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal.pack(side="right", padx=(2, 0))
             
-            # Col 7: 採購單號
+            # Col 7: 到貨日期 (Entry + 📅 日曆按鈕)
+            arr_date_frame = tk.Frame(self.scrollable_frame)
+            arr_date_frame.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
+            
+            arr_date_var = tk.StringVar(value="")
+            arr_date_entry = tk.Entry(arr_date_frame, textvariable=arr_date_var, width=11, font=("Arial", 10))
+            arr_date_entry.pack(side="left", fill="x", expand=True)
+            
+            btn_cal_arr = tk.Button(arr_date_frame, text="📅", command=lambda dv=arr_date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
+            btn_cal_arr.pack(side="right", padx=(2, 0))
+            
+            # Col 8: 採購單號
             po_var = tk.StringVar(value="")
             po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=18, font=("Arial", 10), fg="#333")
-            po_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
+            po_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
-            # Col 8: 料號
+            # Col 9: 料號
             part_var = tk.StringVar()
             part_entry = tk.Entry(self.scrollable_frame, textvariable=part_var, width=9, font=("Arial", 10), fg="purple")
-            part_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+            part_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 9: 品名
+            # Col 10: 品名
             name_var = tk.StringVar()
             name_entry = tk.Entry(self.scrollable_frame, textvariable=name_var, width=28, font=("Arial", 10), fg="purple")
-            name_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
+            name_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
 
-            # Col 10: 製造日
+            # Col 11: 製造日
             mfg_var = tk.StringVar()
             mfg_entry = tk.Entry(self.scrollable_frame, textvariable=mfg_var, width=10, font=("Arial", 10), fg="black")
-            mfg_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
+            mfg_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
 
-            # Col 11: 保存期限
+            # Col 12: 保存期限
             exp_var = tk.StringVar()
             exp_entry = tk.Entry(self.scrollable_frame, textvariable=exp_var, width=10, font=("Arial", 10), fg="black")
-            exp_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
+            exp_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
 
-            # Col 12: 剩餘天數
+            # Col 13: 剩餘天數
             rem_var = tk.StringVar()
-            rem_entry = tk.Entry(self.scrollable_frame, textvariable=rem_var, width=6, font=("Arial", 10), fg="red", state="readonly")
-            rem_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
+            rem_entry = tk.Entry(self.scrollable_frame, textvariable=rem_var, width=6, font=("Arial", 10), fg="red")
+            rem_entry.grid(row=row_grid_idx, column=13, padx=2, pady=2, sticky="ew")
 
-            # Col 13: 單列清空按鈕
+            # Col 14: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
                 text="清空", 
@@ -1708,24 +1764,7 @@ class App(tk.Tk):
                 width=6,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=13, padx=4, pady=2)
-
-            def calc_rem(*args, ev=exp_var, rv=rem_var):
-                val = ev.get().strip()
-                if not val:
-                    rv.set("")
-                    return
-                for fmt in ("%Y/%m/%d", "%Y-%m-%d", "%Y/%M/%d", "%Y.%m.%d", "%Y%m%d"):
-                    try:
-                        dt = datetime.strptime(val.split()[0], fmt).date()
-                        rem_days = (dt - datetime.now().date()).days
-                        rv.set(str(rem_days))
-                        return
-                    except ValueError:
-                        pass
-                rv.set("")
-
-            exp_var.trace_add("write", calc_rem)
+            btn_clear_row.grid(row=row_grid_idx, column=14, padx=4, pady=2)
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=qty_var: self.on_batch_change(bv, tv))
@@ -1744,6 +1783,7 @@ class App(tk.Tk):
                 "loc_var": loc_var,
                 "long_code_var": long_code_var,
                 "date_var": date_var,
+                "arr_date_var": arr_date_var,
                 "po_var": po_var,
                 "part_var": part_var,
                 "name_var": name_var,
@@ -1762,6 +1802,7 @@ class App(tk.Tk):
                 entry["long_code_var"].set("")
                 entry["qty_var"].set("")
                 entry["date_var"].set("")
+                entry["arr_date_var"].set("")
                 if "po_var" in entry: entry["po_var"].set("")
                 if "part_var" in entry: entry["part_var"].set("")
                 if "name_var" in entry: entry["name_var"].set("")
@@ -1776,6 +1817,8 @@ class App(tk.Tk):
         for entry in self.entries:
             if not entry["date_var"].get().strip():
                 entry["date_var"].set(today_str)
+            if not entry["arr_date_var"].get().strip():
+                entry["arr_date_var"].set(today_str)
 
     def clear_single_row(self, r_idx):
         """清空單一列的資料 (單個清)"""
@@ -1786,6 +1829,7 @@ class App(tk.Tk):
             entry["long_code_var"].set("")
             entry["qty_var"].set("")
             entry["date_var"].set("")
+            entry["arr_date_var"].set("")
             if "po_var" in entry: entry["po_var"].set("")
             if "part_var" in entry: entry["part_var"].set("")
             if "name_var" in entry: entry["name_var"].set("")
@@ -2147,8 +2191,8 @@ class App(tk.Tk):
                             })
                     else:
                         # Standard horizontal CSV
-                        batch_col, loc_col, date_col, qty_col, time_col, mod_time_col, po_col, origin_col, mfg_col, exp_col = -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
-                        name_col = -1
+                        batch_col, loc_col, ship_date_col, arr_date_col, qty_col, time_col, mod_time_col, po_col, origin_col, mfg_col, exp_col = -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+                        name_col, rem_col = -1, -1
                         start_row = 0
                         for r_idx in range(min(15, len(rows))):
                             row = rows[r_idx]
@@ -2157,7 +2201,9 @@ class App(tk.Tk):
                                 v = str(val or "").strip().upper()
                                 if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
                                 if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
-                                if date_col == -1 and (v in ["出貨", "到貨", "出貨日", "到貨日", "日期", "出車"] or any(k in v for k in ["出貨日", "到貨日", "出車日", "日期", "DATE"])) and "地" not in v and "點" not in v: date_col = c_idx
+                                if ship_date_col == -1 and any(k in v for k in ["出貨日", "出車日", "出貨日期", "出車", "出貨"]) and "地" not in v and "點" not in v: ship_date_col = c_idx
+                                if arr_date_col == -1 and any(k in v for k in ["到貨日", "到貨日期", "到貨", "送達日"]) and "地" not in v and "點" not in v: arr_date_col = c_idx
+                                if rem_col == -1 and "剩餘天數" in v: rem_col = c_idx
                                 if qty_col == -1 and any(k in v for k in ["數量", "QTY", "QUANTITY", "AMOUNT", "排程量", "需求量", "總重"]): qty_col = c_idx
                                 if mfg_col == -1 and any(k in v for k in ["製造", "MFG", "生產日", "製日"]): mfg_col = c_idx
                                 if exp_col == -1 and any(k in v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in v and "天數" not in v: exp_col = c_idx
@@ -2166,11 +2212,11 @@ class App(tk.Tk):
                                 if po_col == -1 and any(k in v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
                                 if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if name_col == -1 and any(k in v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
-                            if batch_col != -1 and (loc_col != -1 or date_col != -1):
+                            if batch_col != -1 and (loc_col != -1 or ship_date_col != -1 or arr_date_col != -1):
                                 start_row = r_idx + 1
                                 break
                         if batch_col == -1 or loc_col == -1:
-                            batch_col, date_col, qty_col, loc_col = 2, 1, 4, 5
+                            batch_col, ship_date_col, qty_col, loc_col = 2, 1, 4, 5
                             start_row = 2
                         # 找不到就留空（-1），不死寫固定欄號，以免抓到不相關欄位
                         for r_idx in range(start_row, len(rows)):
@@ -2179,7 +2225,8 @@ class App(tk.Tk):
                             def get_c(c): return row[c] if c != -1 and c < len(row) else None
                             b_val = str(get_c(batch_col) or "").strip().upper()
                             l_val = str(get_c(loc_col) or "").strip().upper()
-                            d_val = get_c(date_col)
+                            d_val = get_c(ship_date_col)
+                            arr_d_val = get_c(arr_date_col)
                             qty_val = str(get_c(qty_col) or "").strip()
                             origin_val = str(get_c(origin_col) or "").strip()
                             tm_val = normalize_time_str(get_c(time_col))
@@ -2187,6 +2234,7 @@ class App(tk.Tk):
                             po_val = str(get_c(po_col) or "").strip()
                             mfg_val = str(get_c(mfg_col) or "").strip()
                             exp_val = str(get_c(exp_col) or "").strip()
+                            rem_val = str(get_c(rem_col) or "").strip()
                             name_val = str(get_c(name_col) or "").strip() if name_col != -1 else ""
                             if len(b_val) != 10 or not re.search(r'[0-9]', b_val):
                                 for cell in row:
@@ -2205,13 +2253,15 @@ class App(tk.Tk):
                                     "_vals": self.mapping_dict.get(clean_l, []),
                         "long_code": self.mapping_dict.get(clean_l, [""])[0] if isinstance(self.mapping_dict.get(clean_l), list) and self.mapping_dict.get(clean_l) else (self.mapping_dict.get(clean_l) if isinstance(self.mapping_dict.get(clean_l), str) else ""),
                                     "date": normalize_date_str(d_val),
+                                    "arr_date": normalize_date_str(arr_d_val),
                                     "time": tm_val,
                                     "mod_time": mt_val,
                                 "po": po_val,
                                 "origin": origin_val,
                                 "name": name_val,
                                 "mfg_date": normalize_date_str(mfg_val),
-                                "exp_date": normalize_date_str(exp_val)
+                                "exp_date": normalize_date_str(exp_val),
+                                "rem_days": rem_val
                             })
                 else:
                     # 遍歷 Excel 所有分頁 (跨分頁抓取所有有效排程)
@@ -2244,7 +2294,8 @@ class App(tk.Tk):
                         # 動態掃描前 15 列尋找標題欄位
                         batch_col = -1
                         loc_col = -1
-                        date_col = -1
+                        ship_date_col = -1
+                        arr_date_col = -1
                         qty_col = -1
                         time_col = -1
                         mod_time_col = -1
@@ -2254,6 +2305,7 @@ class App(tk.Tk):
                         mfg_col = -1
                         exp_col = -1
                         name_col = -1
+                        rem_col = -1
                         start_row = 0
 
                         for r_idx in range(min(15, len(rows))):
@@ -2264,25 +2316,26 @@ class App(tk.Tk):
                                 if not v: continue
                                 if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
                                 if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
-                                if date_col == -1 and (v in ["出貨", "到貨", "出貨日", "到貨日", "日期", "出車"] or any(k in v for k in ["出貨日", "到貨日", "出車日", "日期", "DATE"])) and "地" not in v and "點" not in v: date_col = c_idx
+                                if ship_date_col == -1 and any(k in v for k in ["出貨日", "出車日", "出貨日期", "出車", "出貨"]) and "地" not in v and "點" not in v: ship_date_col = c_idx
+                                if arr_date_col == -1 and any(k in v for k in ["到貨日", "到貨日期", "到貨", "送達日"]) and "地" not in v and "點" not in v: arr_date_col = c_idx
+                                if rem_col == -1 and "剩餘天數" in v: rem_col = c_idx
                                 if qty_col == -1 and any(k in v for k in ["數量", "QTY", "QUANTITY", "AMOUNT", "排程量", "需求量", "總重"]): qty_col = c_idx
                                 if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
                                 if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
                                 if po_col == -1 and any(k in v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
                                 if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if cust_col == -1 and any(k in v for k in ["對象", "客戶", "廠商", "CUSTOMER"]): cust_col = c_idx
-                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if mfg_col == -1 and any(k in v for k in ["製造", "MFG", "生產日", "製日"]): mfg_col = c_idx
                                 if exp_col == -1 and any(k in v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in v and "天數" not in v: exp_col = c_idx
                                 if name_col == -1 and any(k in v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
 
-                            if batch_col != -1 and (loc_col != -1 or date_col != -1):
+                            if batch_col != -1 and (loc_col != -1 or ship_date_col != -1 or arr_date_col != -1):
                                 start_row = r_idx + 1
                                 break
 
                         if batch_col == -1 or loc_col == -1:
                             batch_col = 2
-                            date_col = 1
+                            ship_date_col = 1
                             qty_col = 4
                             loc_col = 5
                             start_row = 2
@@ -2297,7 +2350,8 @@ class App(tk.Tk):
 
                             b_val = str(get_cell_val(batch_col) or "").strip().upper()
                             l_val = str(get_cell_val(loc_col) or "").strip().upper()
-                            d_val = get_cell_val(date_col)
+                            d_val = get_cell_val(ship_date_col)
+                            arr_d_val = get_cell_val(arr_date_col)
                             qty_val = str(get_cell_val(qty_col) or "").strip()
                             time_val = normalize_time_str(get_cell_val(time_col))
                             origin_val = str(get_cell_val(origin_col) or "").strip()
@@ -2306,6 +2360,7 @@ class App(tk.Tk):
                             cust_val = str(get_cell_val(cust_col) or "").strip()
                             mfg_val = str(get_cell_val(mfg_col) or "").strip()
                             exp_val = str(get_cell_val(exp_col) or "").strip()
+                            rem_val = str(get_cell_val(rem_col) or "").strip()
                             name_val = str(get_cell_val(name_col) or "").strip() if name_col != -1 else ""
 
                             # 若預設欄位非 10 碼批號，全列搜尋 10 碼英數混合批號
@@ -2347,13 +2402,15 @@ class App(tk.Tk):
                                 "_vals": self.mapping_dict.get(clean_loc, []),
                                 "long_code": self.mapping_dict.get(clean_loc, [""])[0] if isinstance(self.mapping_dict.get(clean_loc), list) and self.mapping_dict.get(clean_loc) else (self.mapping_dict.get(clean_loc) if isinstance(self.mapping_dict.get(clean_loc), str) else ""),
                                 "date": norm_date,
+                                "arr_date": normalize_date_str(arr_d_val),
                                 "time": t_final,
                                 "mod_time": mt_val,
                                 "po": po_val,
                                 "origin": origin_val,
                                 "name": name_val if name_val else sheet_product_name,
                                 "mfg_date": normalize_date_str(mfg_val),
-                                "exp_date": normalize_date_str(exp_val)
+                                "exp_date": normalize_date_str(exp_val),
+                                "rem_days": rem_val
                             })
                     wb.close()
 
@@ -2388,10 +2445,12 @@ class App(tk.Tk):
                         row_e["qty_var"].set(rec["qty"])
                     row_e["loc_var"].set(rec.get("loc", ""))
                     if rec.get("date"): row_e["date_var"].set(rec["date"])
+                    if rec.get("arr_date"): row_e["arr_date_var"].set(rec["arr_date"])
                     if rec.get("po"): row_e.get("po_var", tk.StringVar()).set(rec["po"])
                     if rec.get("name") and "name_var" in row_e: row_e["name_var"].set(rec["name"])
                     if rec.get("mfg_date") and "mfg_var" in row_e: row_e["mfg_var"].set(rec["mfg_date"])
                     if rec.get("exp_date") and "exp_var" in row_e: row_e["exp_var"].set(rec["exp_date"])
+                    if rec.get("rem_days") and "rem_var" in row_e: row_e["rem_var"].set(rec["rem_days"])
                     
                 total_imported += len(target_records)
                 
@@ -2437,19 +2496,23 @@ class App(tk.Tk):
             po_str = row.get("po_var", tk.StringVar()).get().strip() if "po_var" in row else ""
             mfg_date_str = row.get("mfg_var", tk.StringVar()).get().strip() if "mfg_var" in row else ""
             exp_date_str = row.get("exp_var", tk.StringVar()).get().strip() if "exp_var" in row else ""
+            arr_date_str = row.get("arr_date_var", tk.StringVar()).get().strip() if "arr_date_var" in row else ""
+            rem_days_str = row.get("rem_var", tk.StringVar()).get().strip() if "rem_var" in row else ""
             valid_data.append({
                 "batch": batch,
                 "qty": qty,
                 "loc": loc,
                 "long_code": row.get("long_code_var", type("X", (), {"get": lambda: ""})()).get().strip().upper() if "long_code_var" in row else "",
                 "date": date_str,
+                "arr_date": arr_date_str,
                 "time": time_str,
                 "mod_time": mod_time_str,
                 "origin": "",
                 "part_no": "4" + part_no_str if part_no_str and not part_no_str.startswith("4") else part_no_str,
                 "po": po_str,
                 "mfg_date": mfg_date_str,
-                "exp_date": exp_date_str
+                "exp_date": exp_date_str,
+                "rem_days": rem_days_str
             })
             
         if not valid_data:
@@ -2670,7 +2733,10 @@ class App(tk.Tk):
                             safe_loc = "未命名地點"
                     
                         # 產生檔名規格：[出貨日期]. [地點]台積電槽車barcode三合一單.xlsx (例如: 2026.8.18. 18P3B台積電槽車barcode三合一單.xlsx)
-                        date_raw = data.get("date", "").strip()
+                        date_raw = data.get("arr_date", "").strip()
+                        if not date_raw:
+                            date_raw = data.get("date", "").strip()
+                            
                         dt_file = None
                         if date_raw:
                             date_part = date_raw.split()[0]
@@ -2783,7 +2849,10 @@ class App(tk.Tk):
                             ws_l = wb_l.active
                             
                             l_loc = item.get("loc", "")
-                            d_str = item.get("date", "")
+                            # 優先使用到貨日期，若無才用出貨日期
+                            d_str = item.get("arr_date", "").strip()
+                            if not d_str:
+                                d_str = item.get("date", "").strip()
                             
                             # Convert d_str to YYYY/MM/DD format
                             try:
