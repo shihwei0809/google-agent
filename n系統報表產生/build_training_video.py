@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import subprocess
+import json
+import wave
+from array import array
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
@@ -11,6 +14,8 @@ VIDEO_DIR = ROOT / "操作影片"
 FRAME_DIR = ASSET_DIR / "video_frames"
 ASSET_DIR.mkdir(exist_ok=True)
 FRAME_DIR.mkdir(parents=True, exist_ok=True)
+NARRATION_DIR = ASSET_DIR / "narration_audio"
+NARRATION_DIR.mkdir(parents=True, exist_ok=True)
 
 W, H = 1920, 1080
 FONT_NORMAL = r"C:\Windows\Fonts\msjh.ttc"
@@ -300,10 +305,37 @@ def slide(path: Path, screen: Image.Image, chapter: str, title: str,
     im.save(path, optimize=True)
 
 
-def to_video(outfile: Path, frames: list[Path], seconds=4.4):
+def make_narration(texts: list[str], chapter: int) -> tuple[Path, list[float]]:
+    manifest = NARRATION_DIR / f"chapter{chapter:02d}_text.json"
+    manifest.write_text(json.dumps(texts, ensure_ascii=False), encoding="utf-8")
+    subprocess.run([
+        "powershell.exe", "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
+        "-File", str(ROOT / "build_voiceover.ps1"), str(manifest), str(NARRATION_DIR),
+    ], check=True)
+    wavs = [NARRATION_DIR / f"chapter{chapter:02d}_line{i:02d}.wav" for i in range(len(texts))]
+    durations = []
+    with wave.open(str(wavs[0]), "rb") as first:
+        params = first.getparams()
+    with wave.open(str(NARRATION_DIR / f"chapter{chapter:02d}_narration.wav"), "wb") as combined:
+        combined.setparams(params)
+        silence_frames = int(params.framerate * 0.25)
+        silence = array("h", [0] * silence_frames * params.nchannels).tobytes()
+        for i, path in enumerate(wavs):
+            with wave.open(str(path), "rb") as part:
+                if part.getparams()[:3] != params[:3]:
+                    raise ValueError(f"Narration audio format mismatch: {path.name}")
+                durations.append(part.getnframes() / part.getframerate())
+                combined.writeframes(part.readframes(part.getnframes()))
+            if i + 1 < len(wavs):
+                combined.writeframes(silence)
+    return NARRATION_DIR / f"chapter{chapter:02d}_narration.wav", durations
+
+
+def to_video(outfile: Path, frames: list[Path], durations: list[float], narration: Path):
     args = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
-    for frame in frames:
-        args += ["-loop", "1", "-t", str(seconds), "-i", str(frame)]
+    for frame, seconds in zip(frames, durations):
+        args += ["-loop", "1", "-t", f"{seconds:.3f}", "-i", str(frame)]
+    args += ["-i", str(narration)]
     filters = []
     for i in range(len(frames)):
         filters.append(f"[{i}:v]scale={W}:{H},fps=30,format=yuv420p,settb=AVTB,setpts=PTS-STARTPTS[v{i}]")
@@ -311,10 +343,12 @@ def to_video(outfile: Path, frames: list[Path], seconds=4.4):
     last = "v0"
     for i in range(1, len(frames)):
         nxt = "out" if i == len(frames) - 1 else f"x{i}"
-        offset = seconds * i - overlap * i
+        offset = sum(durations[:i]) - overlap * i
         filters.append(f"[{last}][v{i}]xfade=transition=fade:duration={overlap}:offset={offset:.2f}[{nxt}]")
         last = nxt
-    args += ["-filter_complex", ";".join(filters), "-map", f"[{last}]", "-an", "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-movflags", "+faststart", str(outfile)]
+    video_duration = sum(durations) - overlap * (len(frames) - 1)
+    filters.append(f"[{len(frames)}:a]apad=pad_dur=1,atrim=0:{video_duration:.3f},asetpts=PTS-STARTPTS[a]")
+    args += ["-filter_complex", ";".join(filters), "-map", f"[{last}]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-movflags", "+faststart", str(outfile)]
     subprocess.run(args, check=True)
 
 
@@ -351,6 +385,7 @@ def main():
     all_chapters = []
     for ix, (filename, chapter, title, scenes) in enumerate(scenarios, start=1):
         paths = []
+        narration_texts = [f"接下來示範{title}。資料畫面為範例，請依正式排程操作。"]
         title_frame = FRAME_DIR / f"chapter{ix:02d}-title.png"
         slide(title_frame, app_screen("initial"), chapter, title,
               ["依序跟著畫面完成操作", "影片數據均為示範值", "正式產生前請核對來源與輸出路徑"], 0,
@@ -360,8 +395,12 @@ def main():
             frame = FRAME_DIR / f"chapter{ix:02d}-step{jx:02d}.png"
             slide(frame, screen, chapter, title_text, instructions, active, takeaway)
             paths.append(frame)
+            narration_texts.append(title_text + "。" + "。".join(instructions) + "。")
+        narration, spoken_durations = make_narration(narration_texts, ix)
+        # Keep each instruction card visible for its narration, with a short tail for reading.
+        frame_durations = [duration + 0.60 for duration in spoken_durations]
         outfile = VIDEO_DIR / filename
-        to_video(outfile, paths)
+        to_video(outfile, paths, frame_durations, narration)
         all_chapters.append(outfile)
         print(f"created {outfile.name}: {outfile.stat().st_size:,} bytes")
 
@@ -372,13 +411,13 @@ def main():
     concat.unlink(missing_ok=True)
     (VIDEO_DIR / "README.md").write_text(
         "# N 系小包報表輸出系統操作影片\n\n"
-        "依據 2026-10-07 的 main.py 版本更新：匯入預覽包含跨分頁、出貨日期區間查詢、起始日單獨查單日、兩個日曆按鈕、筆數選擇、逐列勾選、出貨日／到貨日並列；剩餘天數由 Excel 欄位匯入。影片畫面由程式重製，使用合成批號、品名與範例檔案，是字幕式教學動畫，非正式環境螢幕錄影；未讀取或修改正式出貨資料，也未產生實際報表。\n\n"
+        "依據 2026-10-07 的 main.py 版本更新：匯入預覽包含跨分頁、出貨日期區間查詢、起始日單獨查單日、兩個日曆按鈕、筆數選擇、逐列勾選、出貨日／到貨日並列；剩餘天數由 Excel 欄位匯入。影片已加入繁體中文女聲旁白與操作字幕。畫面由程式重製，使用合成批號、品名與範例檔案，非正式環境螢幕錄影；未讀取或修改正式出貨資料，也未產生實際報表。\n\n"
         "- `N系報表輸出系統_多情境操作影片.mp4`：四段合輯\n"
         "- `01_排程匯入與核對.mp4`：日期區間、結束日留白查單日、日曆按鈕、筆數篩選與逐列選取；出貨日／到貨日分開檢查\n"
         "- `02_載入生產履歷與COA.mp4`：履歷及 COA 範本載入、批號比對、雙日期確認\n"
         "- `03_批次產生與輸出檢查.mp4`：剩餘天數來源核對、輸出模式、批次產生及結果確認\n"
         "- `04_常見狀況處理.mp4`：地點對照、批號比對、來源欄位及日期修正\n\n"
-        "影片右側逐步顯示操作提示，無旁白；所有說明字幕已燒錄在畫面中。\n",
+        "影片右側逐步顯示操作提示；旁白為 Windows 內建繁體中文（台灣）女聲。所有說明字幕已燒錄在畫面中。\n",
         encoding="utf-8",
     )
     print(f"created {combined.name}: {combined.stat().st_size:,} bytes")
