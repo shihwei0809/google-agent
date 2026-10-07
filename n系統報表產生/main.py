@@ -770,16 +770,35 @@ class ImportRangeDialog(tk.Toplevel):
         btn_all_date.pack(side="left", padx=3)
         self.date_btns["all"] = btn_all_date
         
-        # 新增自訂日期輸入框與搜尋按鈕
-        tk.Label(date_bar, text="  指定日期 (連假/其他):", font=("Arial", 9)).pack(side="left")
-        self.custom_date_var = tk.StringVar()
-        self.custom_date_entry = tk.Entry(date_bar, textvariable=self.custom_date_var, width=12, font=("Arial", 10))
-        self.custom_date_entry.pack(side="left", padx=2)
+        # 新增自訂日期區間輸入框與搜尋按鈕
+        tk.Label(date_bar, text="  指定區間:", font=("Arial", 9)).pack(side="left")
+        
+        self.start_date_var = tk.StringVar()
+        self.start_date_entry = tk.Entry(date_bar, textvariable=self.start_date_var, width=10, font=("Arial", 10))
+        self.start_date_entry.pack(side="left", padx=(2, 0))
+        
+        btn_start_cal = tk.Button(
+            date_bar, text="📅", command=lambda: CalendarDialog(self, self.start_date_var),
+            font=("Arial", 9), padx=2, cursor="hand2"
+        )
+        btn_start_cal.pack(side="left")
+        
+        tk.Label(date_bar, text="~", font=("Arial", 9)).pack(side="left", padx=1)
+        
+        self.end_date_var = tk.StringVar()
+        self.end_date_entry = tk.Entry(date_bar, textvariable=self.end_date_var, width=10, font=("Arial", 10))
+        self.end_date_entry.pack(side="left", padx=(0, 0))
+        
+        btn_end_cal = tk.Button(
+            date_bar, text="📅", command=lambda: CalendarDialog(self, self.end_date_var),
+            font=("Arial", 9), padx=2, cursor="hand2"
+        )
+        btn_end_cal.pack(side="left")
         
         btn_custom_date = tk.Button(
             date_bar,
             text="🔍 查詢",
-            command=lambda: self.filter_by_date_mode(f"custom:{self.custom_date_var.get().strip()}"),
+            command=lambda: self.filter_by_date_mode("range"),
             font=("Arial", 9),
             padx=4,
             cursor="hand2"
@@ -879,7 +898,7 @@ class ImportRangeDialog(tk.Toplevel):
 
     def refresh_date_buttons(self):
         for mode, btn in self.date_btns.items():
-            is_active = (mode == self.active_mode) or (mode == "custom" and getattr(self, "active_mode", "").startswith("custom:"))
+            is_active = (mode == self.active_mode) or (mode == "custom" and self.active_mode == "range")
             if is_active:
                 if mode == "d0_d2":
                     btn.config(bg="#FF9800", fg="white")
@@ -905,14 +924,30 @@ class ImportRangeDialog(tk.Toplevel):
         elif mode == "d2":
             filtered = [r for r in self.all_records if r.get("date") == self.d2]
             label = f"「後天 ({self.d2})」"
-        elif mode.startswith("custom:"):
-            target_date = mode.split(":", 1)[1].strip()
-            if not target_date:
-                messagebox.showwarning("錯誤", "請先輸入指定日期！(例如 2026/10/06)")
+        elif mode == "range":
+            start_val = self.start_date_var.get().strip()
+            end_val = self.end_date_var.get().strip()
+            
+            if not start_val and not end_val:
+                messagebox.showwarning("錯誤", "請先輸入起始或結束日期！(例如 2026/10/06)")
                 return
-            target_date_norm = normalize_date_str(target_date)
-            filtered = [r for r in self.all_records if r.get("date") == target_date_norm]
-            label = f"「指定日期 ({target_date_norm})」"
+                
+            if start_val and not end_val:
+                end_val = start_val
+            elif end_val and not start_val:
+                start_val = end_val
+                
+            start_norm = normalize_date_str(start_val)
+            end_norm = normalize_date_str(end_val)
+            
+            if start_norm > end_norm:
+                start_norm, end_norm = end_norm, start_norm
+                
+            filtered = [r for r in self.all_records if r.get("date") and start_norm <= r.get("date") <= end_norm]
+            if start_norm == end_norm:
+                label = f"「指定日期 ({start_norm})」"
+            else:
+                label = f"「指定區間 ({start_norm} ~ {end_norm})」"
         else:
             filtered = list(self.all_records)
             label = "「全部日期」"
@@ -3048,7 +3083,15 @@ class App(tk.Tk):
                             import re
                             fc_match = re.search(r'[A-Za-z0-9]+', loc_str)
                             factory_code = fc_match.group(0) if fc_match else loc_str
-                            date_str = row["date_var"].get().strip()
+                            
+                            # 出貨日期 (維持用來決定最外層的主資料夾，確保和三合一單、Lorry 放在同一個根目錄)
+                            ship_date_str = row["date_var"].get().strip()
+                            formatted_ship_date = ship_date_str.replace("/", "").replace("-", "")
+                            
+                            # 交貨日期/到貨日期 (用來寫入 COA 欄位與檔案命名)
+                            date_str = row.get("arr_date_var", type("X", (), {"get": lambda: ""})()).get().strip()
+                            if not date_str:
+                                date_str = ship_date_str
                             formatted_date = date_str.replace("/", "").replace("-", "")
 
                             import os as _os
@@ -3068,7 +3111,7 @@ class App(tk.Tk):
                             new_base = f"{clean_base} {matched_batch} {date_MMDD} {factory_code}"
                             # 合併多餘空白
                             new_base = re.sub(r'\s+', ' ', new_base).strip()
-                            output_dir = os.path.join(self.base_dir, f"N系小包報表輸出_{formatted_date}")
+                            output_dir = os.path.join(self.base_dir, f"N系小包報表輸出_{formatted_ship_date}")
                             if output_dir not in all_output_dirs:
                                 all_output_dirs.append(output_dir)
 

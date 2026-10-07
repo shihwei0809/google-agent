@@ -99,8 +99,9 @@ def add_illustration(doc, image_name, caption):
     image_path = os.path.join(os.path.dirname(__file__), "tutorial_assets", "manual_illustrations", image_name)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.paragraph_format.space_after = Pt(3)
-    p.add_run().add_picture(image_path, width=Inches(6.15))
+    p.paragraph_format.space_after = Pt(2)
+    p.paragraph_format.keep_with_next = True
+    p.add_run().add_picture(image_path, width=Inches(5.2))
     cp = doc.add_paragraph(caption)
     cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
     cp.paragraph_format.space_after = Pt(0)
@@ -170,7 +171,6 @@ def build_manual():
     # 封面
     # ══════════════════════════════════════
     doc.add_paragraph()
-    doc.add_paragraph()
 
     title = doc.add_paragraph(style='Title')
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -226,8 +226,6 @@ def build_manual():
     dpr.font.size = Pt(12)
     dpr.font.color.rgb = RGBColor(0x55, 0x55, 0x55)
 
-    doc.add_page_break()
-
     # ══════════════════════════════════════
     # 目錄
     # ══════════════════════════════════════
@@ -275,7 +273,6 @@ def build_manual():
 
     add_note(doc, "本系統支援同一批號對應多個不同廠區，並自動各自產生獨立的生產履歷與 COA 副本。", kind="提示")
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 2. 系統啟動
@@ -287,7 +284,6 @@ def build_manual():
     doc.add_paragraph()
     add_note(doc, "若對照表顯示未找到，請確認同目錄下存在「N系料小包-地點代號對照表.xlsx」，再按右側「重新載入對照表」按鈕。", kind="注意")
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 3. 主介面說明
@@ -311,11 +307,10 @@ def build_manual():
     if os.path.exists(mock_path):
         pic_p = doc.add_paragraph()
         pic_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        pic_p.add_run().add_picture(mock_path, width=Inches(6.2))
+        pic_p.add_run().add_picture(mock_path, width=Inches(5.4))
         cap = doc.add_paragraph("圖 1　主介面操作區總覽（紅框與編號標示操作重點；使用合成資料）")
         cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 4. 匯入出貨排程
@@ -325,11 +320,13 @@ def build_manual():
     add_heading(doc, "4.1 使用 Excel 或 CSV 匯入", level=2)
     add_step(doc, 1, "點選工具列「從 Excel 匯入排程」按鈕")
     add_step(doc, 2, "選取一個或多個出貨排程 Excel 或 CSV 檔案")
-    add_step(doc, 3, "在匯入視窗確認日期範圍、筆數與預覽資料；預設優先顯示今天至後天，可改選指定日期或全部日期")
-    add_step(doc, 4, "確認匯入後，檢查批號、數量、地點、出貨日等欄位，勾選本次要產生的資料列")
-    doc.add_page_break()
-    add_illustration(doc, "01_排程預覽標示.png", "圖 2　排程匯入預覽：先確認日期範圍與資料，再按確認匯入")
-    doc.add_page_break()
+    add_step(doc, 3, "使用日期快速篩選按鈕，或在「指定區間」輸入起始日與結束日；日期條件依出貨日期查詢")
+    add_step(doc, 4, "查多日：填入起始日與結束日，例如 2026/10/06 ～ 2026/10/10，再按「查詢」；查詢含起訖兩日")
+    add_step(doc, 5, "查單日：只填起始日，例如 2026/10/06，結束日保持空白，再按「查詢」")
+    add_step(doc, 6, "兩個日期欄位旁的日曆按鈕可用滑鼠選日期；也可直接輸入日期")
+    add_step(doc, 7, "設定顯示筆數並核對預覽；勾選本次要匯入的資料列，確認後檢查批號、數量、地點及出貨日／到貨日")
+    add_illustration(doc, "01_排程預覽標示.png", "圖 2　區間查詢：起始日、結束日皆可用日曆選取；查詢結果依出貨日期篩選")
+    add_illustration(doc, "07_單日查詢留白示範.png", "圖 3　單日查詢：填起始日、結束日留白，再按查詢")
 
     add_heading(doc, "4.2 系統自動辨識欄位對應", level=2)
     add_note(doc, "系統會自動掃描 Excel 的欄位標題，以下是對應規則：", kind="提示")
@@ -351,9 +348,7 @@ def build_manual():
     add_heading(doc, "4.3 手動輸入", level=2)
     add_step(doc, 1, "直接在表格欄位中點擊並輸入資料")
     add_step(doc, 2, "廠區欄輸入代號後，系統會自動對照表帶出長代號（如 12P8 → 1280）")
-    doc.add_page_break()
-    add_illustration(doc, "03_排程欄位核對標示.png", "圖 3　排程資料核對：紅框分別標示批號、地點代號及出貨/到貨日期")
-    doc.add_page_break()
+    add_illustration(doc, "03_排程欄位核對標示.png", "圖 4　排程資料核對：紅框分別標示批號、地點代號及出貨/到貨日期")
     add_heading(doc, "4.4 排程表格欄位說明", level=2)
     add_table(doc,
         ["欄位名稱", "必填", "說明"],
@@ -373,7 +368,6 @@ def build_manual():
         ]
     )
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 5. 載入生產履歷
@@ -389,9 +383,7 @@ def build_manual():
     add_step(doc, 4, "彈窗顯示「累計已載入 X 份生產履歷（本次新增 Y 份）」及比對結果")
     add_note(doc, "系統採用【累加載入】模式，115 資料夾和 1106 資料夾可分次選取，不用擔心先選的被後選的覆蓋掉。", kind="提示")
     add_note(doc, "若需要重新選擇，請先按「清除已載入檔案」按鈕清空後再重新載入。", kind="注意")
-    doc.add_page_break()
-    add_illustration(doc, "02_履歷與COA載入標示.png", "圖 4　來源範本載入：依序選擇生產履歷與 COA 表單")
-    doc.add_page_break()
+    add_illustration(doc, "02_履歷與COA載入標示.png", "圖 5　來源範本載入：依序選擇生產履歷與 COA 表單")
 
     add_heading(doc, "5.2 自動填入欄位說明", level=2)
     add_table(doc,
@@ -405,7 +397,6 @@ def build_manual():
         ]
     )
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 6. 載入 COA
@@ -446,7 +437,6 @@ def build_manual():
     add_bullet(doc, "產出檔名：NSE-DEMO COA DEMO000001 1007 15P5.csv")
     add_note(doc, "「TSMC」會自動被移除，替換為出貨月日（MMDD）與廠區代號。", kind="提示")
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 7. 輸出資料夾模式
@@ -465,7 +455,6 @@ def build_manual():
     doc.add_paragraph()
     add_note(doc, "兩種模式會影響本版本輸出的 COA 與單列生產履歷資料夾位置。", kind="提示")
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 8. 執行批次產生
@@ -481,11 +470,8 @@ def build_manual():
 
     add_note(doc, "輸出目錄預設在 main.py 同資料夾下的「N系小包報表輸出_YYYYMMDD」資料夾（以出貨日期命名）。", kind="提示")
     add_note(doc, "同一批號若有多個廠區，系統會各自複製生產履歷與 COA 並分別填入對應的廠區資訊。", kind="注意")
-    doc.add_page_break()
-    add_illustration(doc, "04_批次產生標示.png", "圖 5　批次產生前先選輸出模式，資料核對完成後再執行")
-    doc.add_page_break()
-    add_illustration(doc, "05_完成結果標示.png", "圖 6　完成後確認成功筆數與輸出路徑，並抽查檔案內容")
-    doc.add_page_break()
+    add_illustration(doc, "04_批次產生標示.png", "圖 6　批次產生前先選輸出模式，資料核對完成後再執行")
+    add_illustration(doc, "05_完成結果標示.png", "圖 7　完成後確認成功筆數與輸出路徑，並抽查檔案內容")
 
     # ══════════════════════════════════════
     # 9. 輸出檔案結構
@@ -506,7 +492,6 @@ def build_manual():
     add_para(doc, "        ├── Chemical_Lorry-示範履歷-DEMO000001 1007 15P5.xlsx", size=10, indent=0.5)
     add_para(doc, "        └── NSE DEMO COA DEMO000001 1007 15P5.csv", size=10, indent=0.5)
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 10. Q&A
@@ -550,7 +535,6 @@ def build_manual():
         ra.font.size = Pt(11)
         doc.add_paragraph()
 
-    doc.add_page_break()
 
     # ══════════════════════════════════════
     # 11. 欄位對照與資料規範

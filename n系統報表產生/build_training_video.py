@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent
 ASSET_DIR = ROOT / "tutorial_assets"
 VIDEO_DIR = ROOT / "操作影片"
-FRAME_DIR = VIDEO_DIR / "frames"
+FRAME_DIR = ASSET_DIR / "video_frames"
 ASSET_DIR.mkdir(exist_ok=True)
 FRAME_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -33,12 +33,22 @@ def rounded(draw, box, fill, outline=None, radius=12, width=2):
     draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
 
 
+def draw_calendar_icon(d, box, color="#1d4ed8"):
+    x1, y1, x2, y2 = box
+    d.rounded_rectangle((x1 + 8, y1 + 7, x2 - 8, y2 - 6), radius=3, outline=color, width=2)
+    d.line((x1 + 8, y1 + 13, x2 - 8, y1 + 13), fill=color, width=2)
+    d.line((x1 + 12, y1 + 4, x1 + 12, y1 + 10), fill=color, width=2)
+    d.line((x2 - 12, y1 + 4, x2 - 12, y1 + 10), fill=color, width=2)
+    for cx, cy in ((x1 + 13, y1 + 18), (x2 - 13, y1 + 18), (x1 + 13, y2 - 11), (x2 - 13, y2 - 11)):
+        d.ellipse((cx - 1, cy - 1, cx + 1, cy + 1), fill=color)
+
+
 def app_screen(state="initial"):
     im = Image.new("RGB", (1280, 820), "#f0f1f3")
     d = ImageDraw.Draw(im)
     # Window chrome and system status panel
     d.rectangle((0, 0, 1279, 42), fill="#e6e6e6")
-    d.text((18, 10), "生產履歷與 COA 自動產生器", font=F(17, True), fill="#202020")
+    d.text((18, 10), "生產履歷與 COA 自動產生器｜新版介面示意", font=F(17, True), fill="#202020")
     d.text((1205, 8), "—   □   ×", font=F(17), fill="#444")
     rounded(d, (16, 56, 1264, 204), "#ffffff", "#cfd8dc", 12)
     d.text((34, 67), "系統狀態", font=F(18, True), fill="#173b64")
@@ -84,9 +94,9 @@ def app_screen(state="initial"):
     # Schedule table with fictional values only
     d.rectangle((18, 347, 1262, 408), fill="#e8ebee", outline="#adb5bd", width=1)
     columns = [
-        ("產生", 30), ("項次", 38), ("批號\n(10碼)", 92), ("數量", 62), ("地點", 62),
-        ("長代號", 76), ("出貨日期", 91), ("採購單號", 104), ("料號", 86),
-        ("品名", 137), ("製造日", 88), ("保存期限", 88), ("剩餘\n天數", 58), ("清空", 49),
+        ("產生", 28), ("項次", 34), ("批號\n(10碼)", 90), ("數量", 58), ("地點", 58),
+        ("長代號", 68), ("出貨日期", 84), ("到貨日期", 84), ("採購單號", 88), ("料號", 72),
+        ("品名", 114), ("製造日", 75), ("保存期限", 75), ("剩餘\n天數", 56), ("清空", 45),
     ]
     x = 21
     starts = []
@@ -98,8 +108,8 @@ def app_screen(state="initial"):
             fit_text(d, (x + 3, 360 + idx * 20), line, width - 6, 12, "#333333", True)
         x += width
     rows = [
-        ["☑", "1", "DEMO000001", "800", "15P5", "1500", "2026/10/07", "DEMO-PO-01", "DEMO-PART", "NSE DEMO A", "2026/10/01", "2027/10/01", "359", "清空"],
-        ["☑", "2", "DEMO000002", "1200", "12P8", "1280", "2026/10/07", "DEMO-PO-02", "DEMO-PART", "NSE DEMO B", "2026/10/02", "2027/10/02", "360", "清空"],
+        ["☑", "1", "DEMO000001", "800", "15P5", "1500", "2026/10/07", "2026/10/08", "DEMO-PO-01", "DEMO-PART", "NSE DEMO A", "2026/10/01", "2027/10/01", "359", "清空"],
+        ["☑", "2", "DEMO000002", "1200", "12P8", "1280", "2026/10/07", "2026/10/09", "DEMO-PO-02", "DEMO-PART", "NSE DEMO B", "2026/10/02", "2027/10/02", "360", "清空"],
     ]
     for ri, row in enumerate(rows):
         y1, y2 = 409 + ri * 48, 457 + ri * 48
@@ -118,9 +128,9 @@ def app_screen(state="initial"):
 
     # Generate button and COA load indicator
     if state in ("coa", "review", "output", "mode2", "error"):
-        d.text((38, 666), "COA 表單：累計已載入 2 份（示範）", font=F(14, True), fill="#16803c")
+        d.text((38, 666), "COA：已載入 2 份（示範）　｜　剩餘天數：由匯入欄位帶入", font=F(14, True), fill="#16803c")
     else:
-        d.text((38, 666), "COA 表單：尚未載入", font=F(14, True), fill="#c05621")
+        d.text((38, 666), "COA：尚未載入　｜　剩餘天數：由 Excel 欄位直接匯入", font=F(14, True), fill="#c05621")
     rounded(d, (18, 711, 1262, 777), "#43a047", None, 10)
     d.text((425, 727), "開始批次產生 Excel 報表", font=F(21, True), fill="white")
     if state in ("review", "output", "mode2", "error"):
@@ -150,31 +160,46 @@ def overlay_dialog(im, kind):
         d.text((815, 594), "開啟", font=F(16, True), fill="white")
         rounded(d, (902, 582, 993, 628), "#e9ecef", "#b8c0c8", 6)
         d.text((926, 594), "取消", font=F(15), fill="#374151")
-    elif kind == "import_preview":
+    elif kind in ("import_preview", "import_single"):
         box = (165, 105, 1112, 707)
         rounded(d, box, "#ffffff", "#aeb8c1", 14, 2)
         d.text((197, 130), "排程匯入確認", font=F(23, True), fill="#173b64")
-        d.text((197, 180), "檔案：出貨排程_示範.xlsx　｜　偵測到 2 筆可用資料", font=F(15), fill="#4b5563")
-        rounded(d, (197, 221, 1066, 282), "#eef6ff", "#c7dff6", 8)
-        d.text((219, 236), "篩選日期：優先抓今天至後天（3天）", font=F(15, True), fill="#1e3a8a")
-        d.text((219, 258), "可改選：今天／明天／後天／全部日期；筆數可選或自訂", font=F(13), fill="#334155")
-        headers = [("批號", 205), ("數量", 120), ("地點", 122), ("出貨日", 170), ("品名", 220)]
+        d.text((197, 180), "檔案：出貨排程_示範.xlsx　｜　跨 2 個分頁偵測到 12 筆資料", font=F(15), fill="#4b5563")
+        rounded(d, (197, 218, 1066, 340), "#eef6ff", "#c7dff6", 8)
+        d.text((213, 224), "日期快速篩選： [近三日] [今天] [明天] [後天] [全部]", font=F(12, True), fill="#1e3a8a")
+        d.text((213, 254), "指定區間：", font=F(12, True), fill="#334155")
+        rounded(d, (304, 249, 450, 280), "#ffffff", "#93a4b5", 4)
+        d.text((315, 255), "2026/10/06", font=F(13), fill="#334155")
+        rounded(d, (453, 249, 485, 280), "#ffffff", "#93a4b5", 4)
+        draw_calendar_icon(d, (453, 249, 485, 280))
+        d.text((490, 254), "~", font=F(15, True), fill="#334155")
+        end_value = "" if kind == "import_single" else "2026/10/10"
+        rounded(d, (510, 249, 656, 280), "#ffffff", "#93a4b5", 4)
+        d.text((520, 255), end_value, font=F(13), fill="#334155")
+        rounded(d, (659, 249, 691, 280), "#ffffff", "#93a4b5", 4)
+        draw_calendar_icon(d, (659, 249, 691, 280))
+        rounded(d, (700, 249, 773, 280), "#009688", None, 5)
+        d.text((715, 256), "查詢", font=F(12, True), fill="white")
+        d.text((213, 289), "筆數：[5] [10] [20] [全部]　自訂 [10] 筆　｜　可逐列取消選取", font=F(12, True), fill="#334155")
+        date_note = "起始日填 2026/10/06；結束日空白，查詢單日排程。" if kind == "import_single" else "起始日與結束日都填寫，即可查詢整段日期。"
+        d.text((213, 316), date_note, font=F(12), fill="#334155")
+        headers = [("選取", 62), ("分頁", 98), ("批號", 137), ("數量", 86), ("地點", 95), ("出貨日", 128), ("到貨日", 128), ("長代號", 125)]
         x = 197
         for label, width in headers:
-            d.rectangle((x, 305, x + width, 351), fill="#e8edf3", outline="#c9d0d7")
-            fit_text(d, (x + 8, 318), label, width - 16, 14, "#24313d", True)
+            d.rectangle((x, 345, x + width, 391), fill="#e8edf3", outline="#c9d0d7")
+            fit_text(d, (x + 6, 358), label, width - 12, 14, "#24313d", True)
             x += width
         data_rows = [
-            ["DEMO000001", "800", "15P5", "2026/10/07", "NSE DEMO A"],
-            ["DEMO000002", "1200", "12P8", "2026/10/07", "NSE DEMO B"],
+            ["☑", "115A", "DEMO000001", "800", "15P5", "2026/10/07", "2026/10/08", "1500"],
+            ["☑", "1106A", "DEMO000002", "1200", "12P8", "2026/10/07", "2026/10/09", "1280"],
         ]
         for ri, row in enumerate(data_rows):
-            x, y = 197, 352 + ri * 45
+            x, y = 197, 392 + ri * 45
             for (label, width), value in zip(headers, row):
                 d.rectangle((x, y, x + width, y + 45), fill="#fff" if ri % 2 == 0 else "#f8fafc", outline="#d7dde3")
                 fit_text(d, (x + 7, y + 13), value, width - 14, 13, "#334155")
                 x += width
-        d.text((197, 471), "依畫面確認資料筆數與日期，再按確認匯入。", font=F(15, True), fill="#334155")
+        d.text((197, 515), "先檢查分頁、出貨日、到貨日、地點與長代號，逐列確認匯入勾選。", font=F(14, True), fill="#334155")
         rounded(d, (781, 623, 925, 671), "#1976d2", None, 8)
         d.text((806, 636), "確認匯入資料", font=F(14, True), fill="white")
         rounded(d, (941, 623, 1065, 671), "#eef0f2", "#c7cdd2", 8)
@@ -186,7 +211,8 @@ def overlay_dialog(im, kind):
         d.text((272, 315), "✓ 累計已載入 1 份生產履歷（本次新增 1 份）", font=F(16, True), fill="#16803c")
         d.text((272, 360), "✓ DEMO000001 — 已找到對應資料", font=F(15), fill="#334155")
         d.text((272, 399), "✓ DEMO000002 — 已找到對應資料", font=F(15), fill="#334155")
-        d.text((272, 451), "COA 表單：本次新增 2 份，累計 2 份", font=F(15, True), fill="#16803c")
+        d.text((272, 427), "✓ 出貨日期／到貨日期：已確認兩個欄位分開帶入", font=F(14), fill="#334155")
+        d.text((272, 466), "COA 表單：本次新增 2 份，累計 2 份", font=F(15, True), fill="#16803c")
         rounded(d, (859, 515, 1001, 562), "#1976d2", None, 8)
         d.text((895, 528), "確定", font=F(15, True), fill="white")
     elif kind == "working":
@@ -256,16 +282,16 @@ def slide(path: Path, screen: Image.Image, chapter: str, title: str,
     for i, item in enumerate(instructions):
         bg = "#eff6ff" if i == active else "#f8fafc"
         fg = "#1d4ed8" if i == active else "#475569"
-        rounded(d, (1379, y, 1846, y + 96), bg, None, 13)
-        d.ellipse((1401, y + 25, 1447, y + 71), fill="#2563eb" if i == active else "#cbd5e1")
+        rounded(d, (1379, y, 1846, y + 80), bg, None, 13)
+        d.ellipse((1401, y + 17, 1447, y + 63), fill="#2563eb" if i == active else "#cbd5e1")
         count = str(i + 1)
         bb = d.textbbox((0, 0), count, font=F(20, True))
-        d.text((1424 - (bb[2] - bb[0]) // 2, y + 36), count, font=F(20, True), fill="#ffffff")
+        d.text((1424 - (bb[2] - bb[0]) // 2, y + 28), count, font=F(20, True), fill="#ffffff")
         lines = wrap(d, item, 365, F(17, i == active))
-        text_y = y + (24 if len(lines) <= 2 else 13)
+        text_y = y + (20 if len(lines) <= 2 else 8)
         for li, line in enumerate(lines[:3]):
             d.text((1465, text_y + li * 25), line, font=F(17, i == active), fill=fg)
-        y += 110
+        y += 94
     rounded(d, (1379, 824, 1846, 958), "#f1f5f9", None, 12)
     d.text((1402, 842), "操作重點", font=F(17, True), fill="#475569")
     for li, line in enumerate(wrap(d, takeaway, 422, F(16))[:3]):
@@ -299,26 +325,27 @@ def main():
         ("01_排程匯入與核對.mp4", "01｜出貨排程", "匯入 Excel 排程並確認資料", [
             (app_screen("initial"), "啟動系統與確認狀態", ["雙擊「啟動本機視窗版.bat」", "確認地點對照表顯示已找到", "先核對今天要處理的排程"], 0, "對照表狀態應顯示已找到；若未找到，先確認對照表檔案在專案資料夾。"),
             (overlay_dialog(app_screen("initial"), "file_schedule"), "選擇排程檔案", ["按「從 Excel 匯入排程」", "選取排程 Excel 或 CSV 檔", "可一次選取多個檔案"], 1, "影片使用「出貨排程_示範」檔名，實際操作時請選擇當日正式排程。"),
-            (overlay_dialog(app_screen("initial"), "import_preview"), "設定日期與匯入筆數", ["檢查日期篩選與預覽筆數", "需要時切換今天、明天、後天或全部日期", "確認預覽後按「確認匯入資料」"], 1, "系統會先以今天至後天為優先範圍；匯入前先核對批號、數量、地點與日期。"),
-            (app_screen("review"), "檢查匯入列與必填欄位", ["確認批號為 10 碼", "確認地點與出貨日期", "勾選要產出的資料列"], 2, "長代號與料號依對照表或欄位規則帶入；產生前仍要人工核對資料。"),
+            (overlay_dialog(app_screen("initial"), "import_preview"), "區間查詢與指定筆數", ["起始日填 2026/10/06，結束日填 2026/10/10", "按「查詢」；兩個日曆按鈕可用滑鼠選日期", "選 5／10／20／全部或自訂筆數；可逐列取消勾選"], 1, "日期區間依出貨日期篩選，包含起始日與結束日；跨分頁預覽可核對出貨日、到貨日與地點長代號。"),
+            (overlay_dialog(app_screen("initial"), "import_single"), "只填起始日即可查單日", ["起始日填入日期，例如 2026/10/06", "結束日保持空白，不必重複輸入", "按「查詢」後確認預覽及勾選資料"], 1, "結束日留白時，系統以起始日作為查詢日期；日期篩選依出貨日期。"),
+            (app_screen("review"), "確認出貨日與到貨日", ["核對批號為 10 碼及地點代號", "分別檢查出貨日期與到貨日期", "確認剩餘天數為匯入的欄位值"], 2, "出貨日期與到貨日期分開保留；剩餘天數必須從 Excel 對應欄位匯入，請勿依保存期限推算代替。"),
         ]),
         ("02_載入生產履歷與COA.mp4", "02｜範本資料", "載入並比對履歷與 COA", [
             (app_screen("review"), "載入生產履歷檔", ["按「載入生產履歷」", "選擇相對應系列的 Chemical_Lorry 範本", "可多選並分次累加載入"], 0, "載入後注意批號比對結果；不同系列的履歷可分批選取。"),
-            (overlay_dialog(app_screen("lorry"), "match_status"), "確認履歷批號比對", ["查看每筆批號的找到／找不到結果", "若有缺漏，核對排程批號與履歷檔", "確認後再載入 COA"], 1, "清單會顯示本次新增與累計檔數；錯誤先排除再繼續產生。"),
+            (overlay_dialog(app_screen("lorry"), "match_status"), "確認履歷及雙日期資料", ["查看每筆批號的找到／找不到結果", "確認出貨日與到貨日分開帶入", "確認後再載入 COA"], 1, "清單顯示本次新增與累計檔數；輸出履歷採用到貨日期，若無到貨日期才使用出貨日期。"),
             (app_screen("lorry"), "載入 COA 表單", ["按「載入 COA 表單」", "選取相應產品系列的 CSV 或 XLSX 範本", "可多選、分批載入"], 1, "COA 以批號進行比對；此操作流程示範 CSV 與 XLSX 表單。"),
             (overlay_dialog(app_screen("coa"), "match_status"), "確認 COA 對應結果", ["檢查已載入檔案數量", "確認批號成功對應", "先處理找不到批號的檔案"], 2, "只有已勾選且可對應的排程資料會參與輸出。"),
         ]),
         ("03_批次產生與輸出檢查.mp4", "03｜批次輸出", "選擇資料夾結構並檢查結果", [
-            (app_screen("review"), "執行前最後核對", ["核對批號、地點、數量、出貨日", "確認履歷與 COA 已載入", "保留要產出的勾選列"], 0, "本版產生生產履歷及 COA；請依畫面核對資料，不要略過確認。"),
+            (app_screen("review"), "執行前最後核對", ["核對批號、地點、數量及兩種日期", "確認剩餘天數是來源欄位值", "確認履歷／COA 已載入並勾選資料列"], 0, "本版批次產生生產履歷及 COA；三合一與運輸通知表目前未啟用。"),
             (app_screen("mode2"), "選擇輸出資料夾模式", ["模式 1：依批號建立子資料夾", "模式 2：直接集中在廠區資料夾", "確認後再按批次產生"], 1, "模式會套用到本次輸出的生產履歷與 COA。"),
             (overlay_dialog(app_screen("output"), "working"), "等待產生完成", ["按「開始批次產生 Excel 報表」", "等待系統顯示完成結果", "產生期間不要關閉程式"], 1, "系統依出貨日期分組建立輸出資料夾。"),
-            (overlay_dialog(app_screen("output"), "results"), "檢查輸出結果", ["確認生產履歷與 COA 成功筆數", "按輸出路徑開啟當日資料夾", "抽查檔名及欄位內容"], 2, "先確認筆數與資料夾，再開啟檔案抽查批號、日期和地點。"),
+            (overlay_dialog(app_screen("output"), "results"), "檢查輸出結果", ["確認生產履歷與 COA 成功筆數", "按輸出路徑開啟出貨日資料夾", "抽查批號、出貨日、到貨日及剩餘天數"], 2, "履歷日期依到貨日優先、出貨日備援；COA 檢查剩餘天數是否與來源排程相符。"),
         ]),
         ("04_常見狀況處理.mp4", "04｜常見狀況", "排除匯入與輸出錯誤", [
             (app_screen("error"), "地點代號無法對應", ["查看錯誤訊息中的地點", "核對對照表是否包含該代號", "更新檔案後按「重新載入對照表」"], 0, "不建議為了繼續產生而猜填地點長代號。"),
             (overlay_dialog(app_screen("error"), "match_status"), "履歷或 COA 找不到批號", ["檢查排程批號是否完整且為 10 碼", "確認該列已勾選", "確認選到正確系列的來源檔"], 1, "從匯入結果找出未對應項目，再逐一比對來源範本。"),
             (app_screen("error"), "輸出檔案被 Excel 占用", ["關閉正在開啟的來源或輸出活頁簿", "重新確認輸出資料夾權限", "回到系統重新執行批次產生"], 1, "若檔案鎖定，系統會提示檔名；關閉 Excel 後再重新產生。"),
-            (app_screen("initial"), "整理完成後重做並核對", ["必要時重新載入修正後的範本", "檢查完成彈窗的成功與錯誤筆數", "開啟輸出資料夾抽查檔案"], 2, "清除已載入檔案只會清空來源檔案清單；清除全部資料會清空排程列，操作前先確認。"),
+            (app_screen("initial"), "日期與欄位修正後重匯", ["出貨日、到貨日分別核對", "剩餘天數檢查來源欄位名稱", "重新匯入後確認勾選列與筆數"], 2, "日期篩選可指定 YYYY/MM/DD；剩餘天數讀取名稱含「剩餘天數」的來源欄位。"),
         ]),
     ]
     all_chapters = []
@@ -345,12 +372,12 @@ def main():
     concat.unlink(missing_ok=True)
     (VIDEO_DIR / "README.md").write_text(
         "# N 系小包報表輸出系統操作影片\n\n"
-        "影片根據專案 main.py 現行桌面版控制項重製畫面，並使用合成批號、品名與範例檔案。這是字幕式介面教學動畫，非正式環境螢幕錄影；未讀取或修改正式出貨資料，也未產生實際報表。\n\n"
+        "依據 2026-10-07 的 main.py 版本更新：匯入預覽包含跨分頁、出貨日期區間查詢、起始日單獨查單日、兩個日曆按鈕、筆數選擇、逐列勾選、出貨日／到貨日並列；剩餘天數由 Excel 欄位匯入。影片畫面由程式重製，使用合成批號、品名與範例檔案，是字幕式教學動畫，非正式環境螢幕錄影；未讀取或修改正式出貨資料，也未產生實際報表。\n\n"
         "- `N系報表輸出系統_多情境操作影片.mp4`：四段合輯\n"
-        "- `01_排程匯入與核對.mp4`：排程檔案選取、日期篩選、匯入確認\n"
-        "- `02_載入生產履歷與COA.mp4`：履歷及 COA 範本載入、批號比對\n"
-        "- `03_批次產生與輸出檢查.mp4`：輸出模式、批次產生、檢查結果\n"
-        "- `04_常見狀況處理.mp4`：對照表、批號比對、檔案占用排除\n\n"
+        "- `01_排程匯入與核對.mp4`：日期區間、結束日留白查單日、日曆按鈕、筆數篩選與逐列選取；出貨日／到貨日分開檢查\n"
+        "- `02_載入生產履歷與COA.mp4`：履歷及 COA 範本載入、批號比對、雙日期確認\n"
+        "- `03_批次產生與輸出檢查.mp4`：剩餘天數來源核對、輸出模式、批次產生及結果確認\n"
+        "- `04_常見狀況處理.mp4`：地點對照、批號比對、來源欄位及日期修正\n\n"
         "影片右側逐步顯示操作提示，無旁白；所有說明字幕已燒錄在畫面中。\n",
         encoding="utf-8",
     )

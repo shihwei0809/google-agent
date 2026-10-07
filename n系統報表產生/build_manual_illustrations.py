@@ -34,7 +34,7 @@ def annotate(name, screen, targets, legend):
         d.text((cx - (bb[2]-bb[0])/2, cy - (bb[3]-bb[1])/2 - 2), txt, font=FONT, fill="white")
         tx = (x1 + x2) // 2
         ty = (y1 + y2) // 2
-        if abs(cx-tx) + abs(cy-ty) > 70:
+        if abs(cx-tx) + abs(cy-ty) > 180:
             draw_arrow(d, (cx, cy + (22 if cy < ty else -22)), (tx, ty))
     # A persistent footer makes the meaning of the coloured marks clear when images are reused.
     footer_h = 62
@@ -66,11 +66,24 @@ def main():
         "01_排程預覽標示.png",
         overlay_dialog(app_screen("initial"), "import_preview"),
         [
-            ((197, 221, 1066, 282), "日期與範圍", (1034, 211)),
-            ((197, 305, 1066, 441), "預覽資料", (173, 442)),
+            ((304, 249, 485, 280), "起始日", (293, 238)),
+            ((510, 249, 691, 280), "結束日", (500, 291)),
+            ((700, 249, 773, 280), "查詢", (790, 239)),
+            ((197, 345, 1066, 482), "預覽", (173, 492)),
             ((781, 623, 925, 671), "確認匯入", (946, 605)),
         ],
-        ["確認日期範圍", "核對批號／數量／地點／日期", "確認後載入排程"],
+        ["起始日／日曆", "結束日／日曆", "查詢日期區間", "核對資料後匯入"],
+    )
+    annotate(
+        "07_單日查詢留白示範.png",
+        overlay_dialog(app_screen("initial"), "import_single"),
+        [
+            ((304, 249, 485, 280), "起始日", (293, 238)),
+            ((510, 249, 691, 280), "結束日留白", (500, 291)),
+            ((700, 249, 773, 280), "查詢", (790, 239)),
+            ((197, 345, 1066, 482), "單日結果", (173, 492)),
+        ],
+        ["起始日／日曆", "結束日留白", "按查詢", "核對結果"],
     )
     annotate(
         "02_履歷與COA載入標示.png",
