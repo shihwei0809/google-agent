@@ -11,9 +11,12 @@ if errorlevel 1 goto MISSING_GIT
 git pull
 echo.
 echo ==================================================
-echo 更新完成！請關閉此視窗，並點擊原本的啟動檔開啟系統。
+echo 更新完成！正在自動為您開啟系統...
 echo ==================================================
-pause
+
+timeout /t 2 >nul
+cd /d "%~dp0"
+start 啟動本機視窗版.bat
 exit
 
 :MISSING_GIT
