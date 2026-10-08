@@ -1315,10 +1315,12 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 
 # ================= 介面與操作 =================
 
+APP_VERSION = "v1.0.19"
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("生產履歷與COA自動產生器")
+        self.title(f"生產履歷與COA自動產生器 - 版本: {APP_VERSION}")
         self.geometry("1260x820")
         self.minsize(1080, 620)
         self.configure(padx=15, pady=15)
