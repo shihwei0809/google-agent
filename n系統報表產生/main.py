@@ -1315,7 +1315,7 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 
 # ================= 介面與操作 =================
 
-APP_VERSION = "v1.0.19"
+APP_VERSION = "v1.0.19 (2026/10/08 更新)"
 
 class App(tk.Tk):
     def __init__(self):
