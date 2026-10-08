@@ -2830,7 +2830,14 @@ class App(tk.Tk):
                             os.makedirs(loc_folder)
                         output_path = os.path.join(loc_folder, base_filename)
                         
-                        output_filename = base_filename
+                        # 確保檔名不重複
+                        counter_3 = 1
+                        name_without_ext, ext3 = os.path.splitext(base_filename)
+                        while os.path.exists(output_path):
+                            output_path = os.path.join(loc_folder, f"{name_without_ext} ({counter_3}){ext3}")
+                            counter_3 += 1
+                        
+                        output_filename = os.path.basename(output_path)
                         wb.save(output_path)
                         wb.close()
                         success_3in1 += 1
@@ -2974,6 +2981,13 @@ class App(tk.Tk):
 
                             lorry_out_name = f"{base_lorry_name}-{l_batch_found} {mmdd} {l_loc}{orig_ext}"
                             out_l_path = os.path.join(current_loc_folder, lorry_out_name)
+                            
+                            # 確保檔名不重複，若重複則加上後綴 (1), (2) ...
+                            counter_l = 1
+                            while os.path.exists(out_l_path):
+                                out_l_path = os.path.join(current_loc_folder, f"{base_lorry_name}-{l_batch_found} {mmdd} {l_loc} ({counter_l}){orig_ext}")
+                                counter_l += 1
+                                
                             wb_l.save(out_l_path)
                             wb_l.close()
                             
@@ -3019,15 +3033,15 @@ class App(tk.Tk):
         if getattr(self, "imported_coa_files", None):
             self.show_loading("⏳ 正在產生 COA 表單，請稍候...")
             
-            # prepare valid_batches - key = "BATCH|LOC" to support same batch going to multiple fabs
+            # prepare valid_batches - key = "BATCH|LOC|IDX" to support multiple identical batches
             valid_batches = {}
-            for row in self.entries:
+            for idx, row in enumerate(self.entries):
                 if row["chk_var"].get():
                     b_val = row["batch_var"].get().strip().upper()
                     l_val = row["loc_var"].get().strip().upper() if "loc_var" in row else ""
                     if b_val:
-                        # key 用 批號|廠區 確保同批號不同廠區各自獨立
-                        vb_key = f"{b_val}|{l_val}" if l_val else b_val
+                        # key 用 批號|廠區|索引 確保每一列都是獨立的，即使完全重複也不會互相覆蓋
+                        vb_key = f"{b_val}|{l_val}|{idx}" if l_val else f"{b_val}||{idx}"
                         valid_batches[vb_key] = row
             
             lorry_data_map = {}
@@ -3129,6 +3143,12 @@ class App(tk.Tk):
                                 
                             os.makedirs(loc_folder, exist_ok=True)
                             new_file_path = os.path.join(loc_folder, new_base + ext)
+                            
+                            # 確保檔名不重複，若重複則加上後綴 (1), (2) ...
+                            counter = 1
+                            while _os.path.exists(new_file_path):
+                                new_file_path = os.path.join(loc_folder, f"{new_base} ({counter}){ext}")
+                                counter += 1
 
                             col_b, col_g, col_c = "", "", ""
                             if matched_batch in lorry_data_map:
