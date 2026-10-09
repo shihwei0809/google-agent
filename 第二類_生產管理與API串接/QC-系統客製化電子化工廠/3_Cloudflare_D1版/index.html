@@ -3944,7 +3944,7 @@
     renderT100Dropdown();
     checkAdminUnlockOnStartup();
     load();
-    if(IS_GAS) setInterval(load, 30000);
+    setInterval(load, 30000);
     
     // 定時刷新等候時長動畫與 KPI
     setInterval(render, 60000);
