@@ -1550,12 +1550,23 @@ class App(tk.Tk):
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
 
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        # 讓 scrollable_frame 自動根據 Canvas 寬度調整
+        self.canvas.bind('<Configure>', lambda e: self.canvas.itemconfig(self.canvas_window, width=e.width))
+
         self.canvas.configure(yscrollcommand=self.scrollbar.set, xscrollcommand=self.scrollbar_x.set)
 
         self.scrollbar.pack(side="right", fill="y")
         self.scrollbar_x.pack(side="bottom", fill="x")
         self.canvas.pack(side="left", fill="both", expand=True)
+
+        # 設定需要延伸的文字與輸入欄位 (排除: 0產生, 1項次, 10清空單列)
+        for i in range(11):
+            if i in (0, 1, 10):
+                self.scrollable_frame.grid_columnconfigure(i, weight=0)
+            else:
+                self.scrollable_frame.grid_columnconfigure(i, weight=1)
 
         # 支援滑鼠滾輪滾動
         self.bind_all("<MouseWheel>", lambda event: self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units"))
