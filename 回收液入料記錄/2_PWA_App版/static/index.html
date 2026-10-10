@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>回收液入料記錄 App</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background: #f0f2f5; }
+        .header { background: #007bff; color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; position: relative; }
+        #syncBtn { position: absolute; right: 15px; top: 12px; background: #ffc107; color: #333; border: none; padding: 5px 10px; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
+        .tabs { display: flex; background: white; margin-bottom: 10px; border-bottom: 1px solid #ddd; }
+        .tab { flex: 1; padding: 15px; text-align: center; cursor: pointer; font-size: 16px; color: #555; }
+        .tab.active { color: #007bff; border-bottom: 3px solid #007bff; font-weight: bold; }
+        .content { padding: 15px; display: none; }
+        .content.active { display: block; }
+        .form-group { margin-bottom: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+        input[type="text"], input[type="date"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
+        input[type="file"] { width: 100%; padding: 10px; border: 1px dashed #007bff; border-radius: 5px; box-sizing: border-box; background: #f9f9f9; }
+        button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button:active { background: #218838; }
+        .record-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #ffc107; }
+        .btn-select { background: #007bff; margin-top: 10px; }
+        #loading { display: none; text-align: center; margin-top: 20px; color: #666; }
+        #offlineBanner { background: #dc3545; color: white; text-align: center; padding: 5px; font-size: 14px; display: none; }
+    </style>
+</head>
+<body>
+
+<div id="offlineBanner">⚠ 目前離線模式，資料將暫存於手機中</div>
+<div class="header">
+    入料記錄 App
+    <button id="syncBtn" onclick="syncOfflineData()">🔄 雲端同步</button>
+</div>
+
+<div class="tabs">
+    <div class="tab active" onclick="switchTab('before')">入料前記錄</div>
+    <div class="tab" onclick="switchTab('after')">入料後記錄</div>
+</div>
+
+<div id="before" class="content active">
+    <form id="beforeForm">
+        <div class="form-group">
+            <label>日期 (自動帶入)</label>
+            <input type="date" id="dateInput" required>
+        </div>
+        <div class="form-group">
+            <label>車號</label>
+            <input type="text" id="licensePlate" placeholder="請輸入車牌號碼" required>
+        </div>
+        <div class="form-group">
+            <label>📸 入料前 - 儲槽液位照片</label>
+            <input type="file" id="tankLevelBefore" accept="image/*" capture="environment" required>
+        </div>
+        <div class="form-group">
+            <label>📸 入料前 - 車輛照片</label>
+            <input type="file" id="vehiclePhoto" accept="image/*" capture="environment" required>
+        </div>
+        <button type="submit">儲存入料前記錄</button>
+    </form>
+</div>
+
+<div id="after" class="content">
+    <div id="pendingList"></div>
+    <div id="afterFormContainer" style="display: none;">
+        <button type="button" style="background:#6c757d; margin-bottom:15px;" onclick="cancelAfter()">返回列表</button>
+        <div class="form-group">
+            <h3 id="selectedRecordInfo" style="margin-top:0;"></h3>
+            <form id="afterForm">
+                <input type="hidden" id="selectedRecordId">
+                <input type="hidden" id="selectedRecordOfflineId">
+                <label>📸 入料後 - 儲槽液位照片</label>
+                <input type="file" id="tankLevelAfter" accept="image/*" capture="environment" required>
+                <button type="submit">完成入料記錄</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="loading">處理中...請稍候</div>
+
+<script>
+    // 註冊 Service Worker 實現可安裝 App
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
+
+    // 網路狀態偵測
+    function updateOnlineStatus() {
+        if (navigator.onLine) {
+            document.getElementById('offlineBanner').style.display = 'none';
+            document.getElementById('syncBtn').style.display = 'block';
+        } else {
+            document.getElementById('offlineBanner').style.display = 'block';
+            document.getElementById('syncBtn').style.display = 'none';
+        }
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+
+    // IndexedDB 本地離線資料庫初始化
+    let db;
+    const request = indexedDB.open("RecycleFeedDB", 1);
+    request.onupgradeneeded = function(event) {
+        db = event.target.result;
+        const objectStore = db.createObjectStore("records", { keyPath: "localId", autoIncrement: true });
+        objectStore.createIndex("status", "status", { unique: false });
+    };
+    request.onsuccess = function(event) {
+        db = event.target.result;
+        checkUnsyncedData();
+    };
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+        if (tabId === 'before') {
+            document.querySelectorAll('.tab')[0].classList.add('active');
+        } else {
+            document.querySelectorAll('.tab')[1].classList.add('active');
+            loadPendingRecords();
+        }
+        document.getElementById(tabId).classList.add('active');
+    }
+
+    // 圖片轉 Blob 存 IndexedDB
+    function getFileBlob(fileInput) {
+        return new Promise((resolve) => {
+            const file = fileInput.files[0];
+            if (!file) resolve(null);
+            resolve({ blob: file, name: file.name });
+        });
+    }
+
+    // 提交入料前
+    document.getElementById('beforeForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const date = document.getElementById('dateInput').value;
+        const license_plate = document.getElementById('licensePlate').value;
+        const tBefore = await getFileBlob(document.getElementById('tankLevelBefore'));
+        const vPhoto = await getFileBlob(document.getElementById('vehiclePhoto'));
+
+        const record = {
+            date: date,
+            license_plate: license_plate,
+            tBefore: tBefore,
+            vPhoto: vPhoto,
+            status: "pending", // 手機本地 pending
+            syncStatus: "unsynced" // 尚未同步到伺服器
+        };
+
+        const tx = db.transaction(["records"], "readwrite");
+        tx.objectStore("records").add(record);
+        tx.oncomplete = () => {
+            alert('入料前資料已暫存在手機！(回到辦公室請點擊雲端同步)');
+            document.getElementById('beforeForm').reset();
+            document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+            checkUnsyncedData();
+        };
+    });
+
+    // 載入待入料列表 (結合本機尚未同步的 + 伺服器已有的)
+    async function loadPendingRecords() {
+        document.getElementById('pendingList').style.display = 'block';
+        document.getElementById('afterFormContainer').style.display = 'none';
+        const list = document.getElementById('pendingList');
+        list.innerHTML = '';
+
+        // 1. 先撈本機離線未完成入料的 (status === 'pending')
+        const tx = db.transaction(["records"], "readonly");
+        const store = tx.objectStore("records");
+        const request = store.getAll();
+        
+        request.onsuccess = async () => {
+            let localPending = request.result.filter(r => r.status === 'pending');
+            
+            // 2. 如果有網路，撈取伺服器上的 pending
+            let serverPending = [];
+            if (navigator.onLine) {
+                try {
+                    const res = await fetch('/api/pending_records');
+                    const data = await res.json();
+                    serverPending = data.records;
+                } catch (e) { console.log('無法取得伺服器清單'); }
+            }
+
+            if (localPending.length === 0 && serverPending.length === 0) {
+                list.innerHTML = '<p style="text-align:center;color:#777;">目前沒有等待入料的車輛</p>';
+                return;
+            }
+
+            // 渲染本機清單 (標示為離線資料)
+            localPending.forEach(r => {
+                list.innerHTML += `
+                    <div class="record-card" style="border-left-color: #17a2b8;">
+                        <p><strong>[手機離線] 車號：</strong>${r.license_plate}</p>
+                        <p><strong>日期：</strong>${r.date}</p>
+                        <button class="btn-select" style="background:#17a2b8;" onclick="selectRecord(null, '${r.localId}', '${r.license_plate}', '${r.date}')">選擇完成入料</button>
+                    </div>
+                `;
+            });
+
+            // 渲染伺服器清單
+            serverPending.forEach(r => {
+                list.innerHTML += `
+                    <div class="record-card">
+                        <p><strong>車號：</strong>${r.license_plate}</p>
+                        <p><strong>日期：</strong>${r.date}</p>
+                        <button class="btn-select" onclick="selectRecord('${r.id}', null, '${r.license_plate}', '${r.date}')">選擇完成入料</button>
+                    </div>
+                `;
+            });
+        };
+    }
+
+    function selectRecord(serverId, localId, plate, date) {
+        document.getElementById('pendingList').style.display = 'none';
+        document.getElementById('afterFormContainer').style.display = 'block';
+        document.getElementById('selectedRecordId').value = serverId || "";
+        document.getElementById('selectedRecordOfflineId').value = localId || "";
+        document.getElementById('selectedRecordInfo').innerText = `選擇車號：${plate} (${date})`;
+    }
+
+    function cancelAfter() {
+        document.getElementById('afterFormContainer').style.display = 'none';
+        document.getElementById('pendingList').style.display = 'block';
+    }
+
+    // 提交入料後
+    document.getElementById('afterForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const serverId = document.getElementById('selectedRecordId').value;
+        const localId = document.getElementById('selectedRecordOfflineId').value;
+        const tAfter = await getFileBlob(document.getElementById('tankLevelAfter'));
+
+        if (localId) {
+            // 本機離線資料更新為 completed
+            const tx = db.transaction(["records"], "readwrite");
+            const store = tx.objectStore("records");
+            const getReq = store.get(Number(localId));
+            getReq.onsuccess = () => {
+                let data = getReq.result;
+                data.status = "completed";
+                data.tAfter = tAfter;
+                store.put(data);
+                alert('入料完成！(儲存於手機，返回辦公室請點擊雲端同步)');
+                document.getElementById('afterForm').reset();
+                cancelAfter();
+                loadPendingRecords();
+                checkUnsyncedData();
+            };
+        } else if (serverId && navigator.onLine) {
+            // 直接打給伺服器 (原本邏輯)
+            const formData = new FormData();
+            formData.append('tank_level_after', tAfter.blob, tAfter.name);
+            document.getElementById('loading').style.display = 'block';
+            try {
+                const res = await fetch(`/api/after_feed/${serverId}`, { method: 'POST', body: formData });
+                if (res.ok) {
+                    alert('入料完成記錄已上傳伺服器！');
+                    document.getElementById('afterForm').reset();
+                    cancelAfter();
+                    loadPendingRecords();
+                }
+            } catch (err) { alert('伺服器連線錯誤'); }
+            finally { document.getElementById('loading').style.display = 'none'; }
+        } else {
+            alert("目前離線，無法處理伺服器上的紀錄。");
+        }
+    });
+
+    // 檢查是否有未同步資料，改變按鈕顏色
+    function checkUnsyncedData() {
+        const tx = db.transaction(["records"], "readonly");
+        const request = tx.objectStore("records").getAll();
+        request.onsuccess = () => {
+            const unsynced = request.result.filter(r => r.syncStatus === 'unsynced');
+            const btn = document.getElementById('syncBtn');
+            if(unsynced.length > 0) {
+                btn.innerText = `🔄 同步 (${unsynced.length}筆)`;
+                btn.style.background = "#ffc107";
+            } else {
+                btn.innerText = `✅ 已全部同步`;
+                btn.style.background = "#28a745";
+            }
+        };
+    }
+
+    // 執行同步上傳
+    async function syncOfflineData() {
+        if (!navigator.onLine) {
+            alert('目前沒有網路，請連上辦公室 Wi-Fi 後再試！');
+            return;
+        }
+
+        const tx = db.transaction(["records"], "readonly");
+        const request = tx.objectStore("records").getAll();
+        
+        request.onsuccess = async () => {
+            let records = request.result.filter(r => r.syncStatus === 'unsynced');
+            if (records.length === 0) {
+                alert('目前沒有需要同步的資料。');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            
+            for (let r of records) {
+                try {
+                    // 1. 同步入料前資料
+                    const formBefore = new FormData();
+                    formBefore.append('date', r.date);
+                    formBefore.append('license_plate', r.license_plate);
+                    formBefore.append('tank_level_before', r.tBefore.blob, r.tBefore.name);
+                    formBefore.append('vehicle_photo', r.vPhoto.blob, r.vPhoto.name);
+                    
+                    const res1 = await fetch('/api/before_feed', { method: 'POST', body: formBefore });
+                    if (!res1.ok && res1.status !== 400) throw new Error('上傳入料前失敗');
+                    
+                    // 如果有完成入料後，也要接著同步
+                    if (r.status === 'completed' && r.tAfter) {
+                        // 要先去要回這筆紀錄的 Server ID
+                        const getPending = await fetch('/api/pending_records');
+                        const dataPending = await getPending.json();
+                        const serverRec = dataPending.records.find(sr => sr.date === r.date && sr.license_plate === r.license_plate);
+                        
+                        if(serverRec) {
+                            const formAfter = new FormData();
+                            formAfter.append('tank_level_after', r.tAfter.blob, r.tAfter.name);
+                            await fetch(`/api/after_feed/${serverRec.id}`, { method: 'POST', body: formAfter });
+                        }
+                    }
+
+                    // 刪除已經成功同步的本機紀錄
+                    const delTx = db.transaction(["records"], "readwrite");
+                    delTx.objectStore("records").delete(r.localId);
+                    
+                } catch (e) {
+                    console.error("同步失敗", e);
+                }
+            }
+            
+            document.getElementById('loading').style.display = 'none';
+            alert('同步處理完畢！');
+            checkUnsyncedData();
+            loadPendingRecords();
+        };
+    }
+</script>
+</body>
+</html>
