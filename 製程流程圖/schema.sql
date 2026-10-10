@@ -1,5 +1,0 @@
-CREATE TABLE IF NOT EXISTS flow_data (
-    id TEXT PRIMARY KEY,
-    json_data TEXT,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);

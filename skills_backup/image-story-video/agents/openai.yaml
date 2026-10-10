@@ -1,3 +1,0 @@
-display_name: Image Story Video
-short_description: Photo or story to consistent image-to-video and Veo batches
-default_prompt: Use $image-story-video to turn my photo or story into a consistent image-to-video plan, and use Veo batch generation when I ask for true dynamic video.

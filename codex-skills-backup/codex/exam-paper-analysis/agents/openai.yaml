@@ -1,4 +1,0 @@
-interface:
-  display_name: "會考試題分析技能"
-  short_description: "下載歷屆試題並分析重點與備考策略"
-  default_prompt: "Use $exam-paper-analysis to download official past exam papers, analyze topic frequency, and generate infographic summaries."

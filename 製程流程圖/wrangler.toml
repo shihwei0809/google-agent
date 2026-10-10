@@ -1,8 +1,0 @@
-name = "chemflow-pro"
-pages_build_output_dir = "public"
-compatibility_date = "2024-01-01"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "chemflow_pro_db"
-database_id = "206d894f-c35b-4718-92a7-a93d25e6b952" # Will be filled by setup_env.ps1

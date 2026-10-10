@@ -1,4 +1,4 @@
-
+﻿
 /**
  * 當試算表開啟時，自動建立頂端自訂選單，方便人員點選測試與重置
  */
@@ -1400,6 +1400,7 @@ function buildFirestoreValue(val) {
  * 透過 REST API 將即時狀態寫入 Firebase Firestore realtime_data/status 文件
  */
 function syncToFirebaseFromAppsScript(projectId, fields) {
+  return; // 停用 Firebase 舊版同步以節省時間
   if (!projectId) {
     Logger.log("Firebase 專案 ID 未設定，跳過實時同步。");
     return;
@@ -1445,6 +1446,7 @@ function syncToFirebaseFromAppsScript(projectId, fields) {
  * 透過 REST API 將通報紀錄新增至 Firebase Firestore history_logs 集合
  */
 function addHistoryLogToFirebase(projectId, logData) {
+  return; // 停用 Firebase 舊版同步以節省時間
   if (!projectId) return;
   
   var url = "https://firestore.googleapis.com/v1/projects/" + projectId + "/databases/(default)/documents/history_logs";
@@ -1536,6 +1538,7 @@ function triggerFirebaseSyncManually() {
  * 輔助函式：透過 REST API 將聯絡人清單寫入 Firebase Firestore
  */
 function syncContactsToFirebase(projectId, contacts) {
+  return; // 停用 Firebase 舊版同步以節省時間
   if (!projectId) return;
   
   for (var i = 0; i < contacts.length; i++) {
@@ -1567,6 +1570,7 @@ function syncContactsToFirebase(projectId, contacts) {
 }
 
 function syncHistoryLogsToFirebase(projectId, logs) {
+  return; // 停用 Firebase 舊版同步以節省時間
   if (!projectId) return;
   if (!logs) logs = [];
 
@@ -1700,3 +1704,4 @@ function updateSheetChangeTrigger() {
       .create();
   }
 }
+
