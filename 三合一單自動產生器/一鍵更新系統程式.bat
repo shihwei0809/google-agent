@@ -1,6 +1,7 @@
 @echo off
+chcp 65001 >nul
 echo ==================================================
-echo ���b�q���ݧ�s�t�ε{��...
+echo 正在從雲端更新系統程式...
 echo ==================================================
 cd /d "%~dp0"
 cd ..
@@ -11,18 +12,18 @@ if errorlevel 1 goto MISSING_GIT
 git pull
 echo.
 echo ==================================================
-echo ��s�����I���b�۰ʬ��z�}�Ҩt��...
+echo 更新完成！正在自動為您開啟系統...
 echo ==================================================
 
 timeout /t 2 >nul
 cd /d "%~dp0"
-start �Ұ�_�T�X�@�沣�;�.bat
+start 啟動_三合一單產生器.bat
 exit
 
 :MISSING_GIT
-echo [���~] �z���q���|���w�� Git �{���I
-echo �t�αN�۰ʥ��}�����A�ФU���æw�ˡuGit for Windows�v�C
-echo �w�ˮɽФ@�����uNext�v�쩳�Y�i�C
+echo [錯誤] 您的電腦尚未安裝 Git 程式！
+echo 系統將自動打開網頁，請下載並安裝「Git for Windows」。
+echo 安裝時請一直按「Next」到底即可。
 echo.
 start https://git-scm.com/download/win
 pause
