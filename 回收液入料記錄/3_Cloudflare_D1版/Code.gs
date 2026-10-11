@@ -15,6 +15,14 @@ function setup() {
   }
 }
 
+function formatDateStr(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, "GMT+8", "yyyy-MM-dd");
+  }
+  return String(val).split("T")[0];
+}
+
 // 處理 GET 請求
 function doGet(e) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
@@ -27,14 +35,14 @@ function doGet(e) {
     let allRecords = [];
     for (let i = data.length - 1; i >= 1; i--) {
       allRecords.push({
-        id: data[i][0],
-        date: data[i][1],
-        license_plate: data[i][2],
-        status: data[i][3],
+        id: String(data[i][0]),
+        date: formatDateStr(data[i][1]),
+        license_plate: String(data[i][2]),
+        status: String(data[i][3]),
         tBeforeUrl: data[i][4],
         vPhotoUrl: data[i][5],
         tAfterUrl: data[i][6],
-        created_at: data[i][7]
+        created_at: String(data[i][7])
       });
     }
     return ContentService.createTextOutput(JSON.stringify({ records: allRecords }))
@@ -46,10 +54,10 @@ function doGet(e) {
     for (let i = 1; i < data.length; i++) {
       if (data[i][3] === "pending") {
         pendingRecords.push({
-          id: data[i][0],
-          date: data[i][1],
-          license_plate: data[i][2],
-          created_at: data[i][7]
+          id: String(data[i][0]),
+          date: formatDateStr(data[i][1]),
+          license_plate: String(data[i][2]),
+          created_at: String(data[i][7])
         });
       }
     }
@@ -60,7 +68,10 @@ function doGet(e) {
 
 // 處理 POST 請求 (新增或更新)
 function doPost(e) {
+  // 加入全域腳本鎖，防止手機並行送出兩次請求產生競態寫入重複列
+  const lock = LockService.getScriptLock();
   try {
+    lock.waitLock(30000); // 最多等待 30 秒排隊處理
     const params = JSON.parse(e.postData.contents);
     const action = params.action;
     
@@ -68,11 +79,15 @@ function doPost(e) {
       return handleBeforeFeed(params);
     } else if (action === "after_feed") {
       return handleAfterFeed(params);
+    } else if (action === "complete_feed") {
+      return handleCompleteFeed(params);
     }
     
     return jsonResponse({ success: false, detail: "未知的 action" }, 400);
   } catch (err) {
     return jsonResponse({ success: false, detail: err.toString() }, 500);
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -80,14 +95,17 @@ function handleBeforeFeed(params) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
   const { id, date, license_plate, tank_level_before_b64, vehicle_photo_b64, t_name, v_name } = params;
   
-  // 檢查是否重複
+  // 檢查是否重複 ID 或重複日期車號
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
-    if (data[i][1] === date && data[i][2] === license_plate) {
-      // 容許同一個 ID 重複發送 (避免網路不穩時前端重試導致報錯)
-      if (data[i][0] === id) {
-          return jsonResponse({ success: true, message: "資料已存在" });
-      }
+    const rowId = String(data[i][0]).trim();
+    const rowDate = String(data[i][1]).trim();
+    const rowPlate = String(data[i][2]).trim();
+
+    if (rowId === String(id).trim()) {
+      return jsonResponse({ success: true, message: "ID 已存在，略過新增" });
+    }
+    if (rowDate === String(date).trim() && rowPlate === String(license_plate).trim()) {
       return jsonResponse({ success: false, detail: "此日期與車號已登錄過！" }, 400);
     }
   }
@@ -98,10 +116,33 @@ function handleBeforeFeed(params) {
   
   // 寫入 Sheets
   const timestamp = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  
-  sheet.appendRow([id, date, license_plate, "pending", t_url, v_url, "", timestamp]);
+  sheet.appendRow([String(id), date, license_plate, "pending", t_url, v_url, "", timestamp]);
   
   return jsonResponse({ success: true, message: "入料前資料已儲存至 Google 雲端" });
+}
+
+// 一次性寫入（針對離線時前、後都在手機完成的情況）
+function handleCompleteFeed(params) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const { id, date, license_plate, tank_level_before_b64, vehicle_photo_b64, tank_level_after_b64, t_name, v_name, a_name } = params;
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    const rowId = String(data[i][0]).trim();
+    if (rowId === String(id).trim()) {
+      // 若已經存在且已 completed，直接回傳成功
+      return jsonResponse({ success: true, message: "紀錄已存在且完成" });
+    }
+  }
+
+  const t_url = saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`);
+  const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`);
+  const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`);
+
+  const timestamp = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
+  sheet.appendRow([String(id), date, license_plate, "completed", t_url, v_url, a_url, timestamp]);
+
+  return jsonResponse({ success: true, message: "完整入料記錄已直接存入 Google 雲端" });
 }
 
 function handleAfterFeed(params) {
@@ -114,11 +155,16 @@ function handleAfterFeed(params) {
   let license_plate = "";
   
   for (let i = 1; i < data.length; i++) {
-    if (data[i][0] == id && data[i][3] === "pending") {
-      rowIndex = i + 1; // GAS 列號從 1 開始，陣列從 0 開始
-      date = data[i][1];
-      license_plate = data[i][2];
-      break;
+    const rowId = String(data[i][0]).trim();
+    if (rowId === String(id).trim()) {
+      if (data[i][3] === "pending") {
+        rowIndex = i + 1;
+        date = data[i][1];
+        license_plate = data[i][2];
+        break;
+      } else if (data[i][3] === "completed") {
+        return jsonResponse({ success: true, message: "已經是完成狀態" });
+      }
     }
   }
   

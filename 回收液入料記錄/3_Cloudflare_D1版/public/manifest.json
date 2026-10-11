@@ -1,7 +1,8 @@
 {
   "name": "雲端入料記錄 App",
   "short_name": "入料記錄",
-  "start_url": "./index.html",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#007bff",
