@@ -1,4 +1,10 @@
-﻿# 跨電腦交接日誌 (HANDOVER.md)
+# 跨電腦交接日誌 (HANDOVER.md)
+
+## 前次進度與交接事項 (2026-10-11)
+* **功能修復 (QC-系統客製化電子化工廠 / 本地三合一單核對系統):**
+  - **Error_Log 與 Teams 通知遺失修復**：排查人員核對失敗時未寫入試算表的問題，發現為 `processFormAndVerify_V10` 中核對失敗未呼叫日誌寫入所致。
+  - **加入 Power Automate Teams 通知模組**：整合 `sendTeamsNotification`，當現場作業員核對失敗時，同步寫入試算表 `Error_Log` 分頁，並透過 Power Automate Webhook 推播警報至 Teams 頻道（包含人員、位置、槽號、時間、失敗詳細原因）。
+  - **完整備份建立**：將原始版本與整合後版本分別備份至 `C:\GOOGLE ANGET\本地三合一\` (`code_original_backup.js` 及 `code_with_teams_errorlog.js`)。
 
 ## 前次進度與交接事項 (2026-10-10 追加更新)
 * **功能新增 (鴻勝 三合一單自動產生器):** 
