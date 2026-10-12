@@ -530,7 +530,12 @@
 
   <div class="card">
     <div class="card-title">
-      <span>進出貨樣品登錄</span>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <span>進出貨樣品登錄</span>
+        <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
+          🚀 v3.0.4 (2ed39b2)
+        </span>
+      </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <button id="btnAdminUnlock" type="button" class="btn-admin-unlock" onclick="handleAdminUnlockClick()" title="點擊輸入管理員 PIN 碼以展開測試箱與進階設定">
           🔓 登入解鎖 (QC放行)
@@ -804,6 +809,12 @@
         </table>
       </div>
     </div>
+  </div>
+
+  <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
+  <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.0.4 (2ed39b2)</strong><br>
+    <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：T100 排程增量去重防呆 · 陸續補單自動合併 · Cloudflare D1 即時同步</span>
   </div>
 </div>
 
@@ -4076,6 +4087,21 @@
       if(st) { st.innerText = "附加樣品照片 (選填)"; st.style.color = "#475569"; }
       const jt = document.getElementById('judgePhotoText');
       if(jt) { jt.innerText = "附加佐證照片 (選填)"; jt.style.color = "#475569"; }
+    }
+
+    // 檢查並強制套用雲端最新版本 (清除 Service Worker 快取並重載)
+    function forceCheckAppUpdate() {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          for (let r of regs) r.update();
+        });
+      }
+      if (typeof showToast === 'function') {
+        showToast('🔄 正在檢查雲端最新版本 (v3.0.4) 並強制重新載入...', 2000);
+      }
+      setTimeout(() => {
+        location.reload(true);
+      }, 500);
     }
 </script>
 
