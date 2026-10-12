@@ -1256,7 +1256,7 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("三合一單自動產生器 (v2.2.1 - 2026/10/10更新)")
+        self.title("三合一單自動產生器 (v2.2.2 - 2026/10/12更新)")
         self.geometry("1260x820")
         self.minsize(1080, 620)
         self.configure(padx=15, pady=15)
@@ -1402,23 +1402,7 @@ class App(tk.Tk):
                     except:
                         pass
             
-            table_entries = []
-            for row in self.entries:
-                b = row["batch_var"].get().strip().upper()
-                if b:
-                    table_entries.append((b, row["long_code_var"].get().strip().upper()))
-
-            table_batches = [b for b, lc in table_entries]
-            
-            wrong_factory_msgs = []
-            for b, lc in table_entries:
-                if b in lorry_batches:
-                    l_fac = lorry_factory_info.get(b, "")
-                    expected_substr = lc[1:5] if len(lc) >= 5 else lc
-                    if not l_fac:
-                        wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區空白 (應含 {expected_substr})")
-                    elif l_fac not in lc:
-                        wrong_factory_msgs.append(f"⚠️ 批號 {b}：廠區錯誤 ({l_fac})，未對齊長代號 ({lc})")
+            table_batches = [row["batch_var"].get().strip().upper() for row in self.entries if row["batch_var"].get().strip()]
             
             missing = [b for b in table_batches if b not in lorry_batches]
             found   = [b for b in table_batches if b in lorry_batches]
@@ -1430,14 +1414,10 @@ class App(tk.Tk):
             else:
                 for b in found:
                     lines.append(f"✅ {b} ─ 生產履歷已找到")
-                if wrong_factory_msgs:
-                    lines.append("\n--- 廠區異常提醒 ---")
-                    lines.extend(wrong_factory_msgs)
-                    lines.append("--------------------\n")
                 for b in missing:
                     lines.append(f"❌ {b} ─ 生產履歷中找不到！")
             
-            title = "生產履歷已載入" if not (missing or wrong_factory_msgs) else "⚠️ 生產履歷載入 (有異常)"
+            title = "生產履歷已載入" if not missing else "⚠️ 生產履歷載入 (有缺漏)"
             messagebox.showinfo(title, "\n".join(lines))
         except Exception as _e:
             fname = f"已選 {len(self.imported_lorry_files)} 份檔案" if len(self.imported_lorry_files) > 1 else os.path.basename(self.imported_lorry_files[0]) if self.imported_lorry_files else ""
@@ -2832,23 +2812,7 @@ class App(tk.Tk):
                                         now_l = datetime.now()
                                         mmdd = f"{now_l.month:02d}{now_l.day:02d}"
 
-                                    # ===== 廠區防呆驗證 =====
-                                    # 讀取 Lorry 第 matched_r 列、第 2 欄 (B欄) 的廠區值
-                                    lorry_factory = str(src_ws_l.cell(row=matched_r, column=2).value or "").strip()
-                                    import re as _re
-                                    # 從介面長代號擷取廠區代號 (第2~5碼英數字，例如 "A18P30123..." -> "18P3")
-                                    fc_match = _re.search(r'[A-Za-z0-9]{2,5}', l_loc[1:] if len(l_loc) > 1 else l_loc)
-                                    expected_fc = fc_match.group(0).upper() if fc_match else ""
 
-                                    if not lorry_factory:
-                                        error_msgs.append(f"⚠️ 批號 {b_no}：廠區空白 (應含 {expected_fc}...)，已略過產生 Lorry 檔案")
-                                        wb_l.close()
-                                        continue
-                                    elif expected_fc and expected_fc not in lorry_factory.upper():
-                                        error_msgs.append(f"⚠️ 批號 {b_no}：廠區錯誤 ({lorry_factory})，未對齊長代號 ({l_loc})，已略過產生 Lorry 檔案")
-                                        wb_l.close()
-                                        continue
-                                    # ===== 廠區防呆驗證結束 =====
 
                                     t_part = f"{t_no} " if t_no else ""
                                     lorry_out_name = f"{base_lorry_name}-{mmdd} {t_part}{l_loc}{orig_ext}"
