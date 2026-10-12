@@ -414,12 +414,13 @@
         return PLANTS.find(p => p.id === activePlantId) || PLANTS[0];
       }, [activePlantId]);
 
-      // 自動偵測「產銷計畫模式 (SALES)」下的首個有排產目標之日期索引 (0-indexed)
-      const firstSalesDayIndex = useMemo(() => {
+      // 自動偵測「產銷計畫模式 (SALES)」下最後一個（最新填寫）有排產目標之日期索引 (0-indexed)
+      // 使用者若連續填寫多個日期（例如原本填 10/5，後續直接在 10/12 填寫），系統自動以「最後/最新填寫之日期」為起算點，無需手動清空歷史舊日期
+      const latestSalesDayIndex = useMemo(() => {
         if (calcMode !== 'SALES') return 0;
         const currentMonthSales = (salesPlanData[activeMonthKey] && salesPlanData[activeMonthKey][activePlantId]) || {};
         
-        for (let i = 0; i < activeMonthObj.daysCount; i++) {
+        for (let i = activeMonthObj.daysCount - 1; i >= 0; i--) {
           if (currentMonthSales[i] !== undefined && currentMonthSales[i] !== '' && parseFloat(currentMonthSales[i]) > 0) {
             return i;
           }
@@ -427,12 +428,12 @@
         return 0;
       }, [calcMode, salesPlanData, activeMonthKey, activePlantId, activeMonthObj]);
 
-      // 計算要呈現的日期索引陣列
+      // 計算要呈現的日期索引陣列 (依最新起算日向後裁切至月底)
       const displayDaysArr = useMemo(() => {
-        const startIdx = firstSalesDayIndex;
+        const startIdx = latestSalesDayIndex;
         const total = activeMonthObj.daysCount - startIdx;
         return Array.from({ length: total }, (_, i) => startIdx + i);
-      }, [firstSalesDayIndex, activeMonthObj]);
+      }, [latestSalesDayIndex, activeMonthObj]);
 
       /**
        * 🟢 雙核心計算引擎 (產銷模式由當日原料重量起算 + 機台日常實體扣扣 + 100% 跨月繼承)
@@ -456,16 +457,51 @@
             if (currentStock[t.id] === undefined) currentStock[t.id] = t.defaultInit || 100;
           });
 
-          for (let dayIdx = 0; dayIdx < daysCount; dayIdx++) {
-            // 🌟【產銷模式首日原料起算核心】：若該日有輸入「產銷當日原料重量 (T)」，則當日共用池與原料槽直接以此原料重量為基準起算！
-            const p1SalesRawWeight = parseFloat((salesPlanData[mKey] && salesPlanData[mKey]['plant1'] && salesPlanData[mKey]['plant1'][dayIdx])) || 0;
-            const p2SalesRawWeight = parseFloat((salesPlanData[mKey] && salesPlanData[mKey]['plant2'] && salesPlanData[mKey]['plant2'][dayIdx])) || 0;
+          // 偵測當月一廠與二廠最後一個（最新）輸入之產銷日期索引
+          const p1LatestSalesDay = (() => {
+            if (calcMode !== 'SALES') return -1;
+            const pData = (salesPlanData[mKey] && salesPlanData[mKey]['plant1']) || {};
+            for (let i = daysCount - 1; i >= 0; i--) {
+              if (pData[i] !== undefined && pData[i] !== '' && parseFloat(pData[i]) > 0) return i;
+            }
+            return -1;
+          })();
 
-            if (calcMode === 'SALES' && p1SalesRawWeight > 0) {
+          const p2LatestSalesDay = (() => {
+            if (calcMode !== 'SALES') return -1;
+            const pData = (salesPlanData[mKey] && salesPlanData[mKey]['plant2']) || {};
+            for (let i = daysCount - 1; i >= 0; i--) {
+              if (pData[i] !== undefined && pData[i] !== '' && parseFloat(pData[i]) > 0) return i;
+            }
+            return -1;
+          })();
+
+          for (let dayIdx = 0; dayIdx < daysCount; dayIdx++) {
+            // 🌟【產銷模式最新日原料起算核心】：
+            // 若為產銷排產模式，以「最後/最新填寫之日期」當天為起算基準，前面舊輸入不干擾
+            const p1SalesRawWeight = (calcMode === 'SALES' && dayIdx === p1LatestSalesDay)
+              ? (parseFloat((salesPlanData[mKey] && salesPlanData[mKey]['plant1'] && salesPlanData[mKey]['plant1'][dayIdx])) || 0)
+              : 0;
+
+            const p2SalesRawWeight = (calcMode === 'SALES' && dayIdx === p2LatestSalesDay)
+              ? (parseFloat((salesPlanData[mKey] && salesPlanData[mKey]['plant2'] && salesPlanData[mKey]['plant2'][dayIdx])) || 0)
+              : 0;
+
+            if (p1SalesRawWeight > 0) {
               const sharedTanks = plant1SharedPoolTanks;
               if (sharedTanks.length > 0) {
                 const perTankWeight = p1SalesRawWeight / sharedTanks.length;
                 sharedTanks.forEach(st => {
+                  currentStock[st.id] = perTankWeight;
+                });
+              }
+            }
+
+            if (p2SalesRawWeight > 0) {
+              const p2SupplyTanks = tanksList.filter(t => (t.plantId || 'plant1') === 'plant2' && t.type === 'SUPPLY');
+              if (p2SupplyTanks.length > 0) {
+                const perTankWeight = p2SalesRawWeight / p2SupplyTanks.length;
+                p2SupplyTanks.forEach(st => {
                   currentStock[st.id] = perTankWeight;
                 });
               }
@@ -476,11 +512,19 @@
             let dailyScrapGen = {};
 
             tanksList.filter(t => t.type === 'SUPPLY').forEach(st => dailyDedicatedDemand[st.id] = 0);
-            tanksList.filter(t => t.type === 'SCRAP').forEach(st => dailyScrapGen[st.id] = 0);
+            tanksList.filter(t => t.type === 'SCRAP').forEach(sc => dailyScrapGen[sc.id] = 0);
+
+            // 產銷排產模式下，在起算日之前機台不扣料與產生下腳料，確保起算日庫存精準純淨
+            const isP1Active = calcMode !== 'SALES' || p1LatestSalesDay === -1 || dayIdx >= p1LatestSalesDay;
+            const isP2Active = calcMode !== 'SALES' || p2LatestSalesDay === -1 || dayIdx >= p2LatestSalesDay;
 
             // 每天實際機台製程運作耗用的原料量 (Flow * 24 / Yield%)
             lines.forEach(line => {
               if (line.enabled) {
+                const linePlant = line.plantId || 'plant1';
+                const isActive = (linePlant === 'plant1') ? isP1Active : isP2Active;
+                if (!isActive) return;
+
                 const flow = parseFloat(line.flow) || 0;
                 const lineYieldPct = (parseFloat(line.yieldRate) || 93.4) / 100;
                 
@@ -596,7 +640,7 @@
         const plantObj = activePlantObj;
         if (!currentMonthObj) return;
 
-        let rows = [[`IPA 生產排程與進耗存報表 (${plantObj.name} - ${currentMonthObj.label} - ${calcMode === 'SALES' ? `產銷排產首日(${firstSalesDayIndex+1}號起)模式` : '流速滿載模式'})`]];
+        let rows = [[`IPA 生產排程與進耗存報表 (${plantObj.name} - ${currentMonthObj.label} - ${calcMode === 'SALES' ? `產銷排產首日(${latestSalesDayIndex+1}號起)模式` : '流速滿載模式'})`]];
         rows.push(["日期", ...displayDaysArr.map(i => `${currentMonthObj.month}/${i + 1}`)]);
 
         if (activePlantId === 'plant1' && calculatedData.poolSummary[activeMonthKey]) {
@@ -1031,21 +1075,27 @@
                             <span className="font-bold text-purple-700">{activeMonthObj.label} - {activePlantObj.name}</span>
                           </div>
 
-                          <p className="text-[11px] text-slate-500">輸入當日產銷提供的實體原料重量（例如在 8 日輸入 500 噸，下方表格會<b>直接以 500 噸作為 8 日起算原料</b>）。</p>
+                          <p className="text-[11px] text-slate-500">輸入當日產銷提供的實體原料重量。<b>系統自動以最後（最新）填寫之日期起算</b>（例如原本填 5 號，直接在 12 號填 438.5 噸，系統會自動直接由 12 號起算，無需清空 5 號）。</p>
                           
                           <div className="max-h-[160px] overflow-y-auto border rounded bg-slate-50 p-1">
                             <div className="grid grid-cols-5 gap-1 text-center">
                               {Array.from({ length: activeMonthObj.daysCount }, (_, i) => {
                                 const val = (salesPlanData[activeMonthKey] && salesPlanData[activeMonthKey][activePlantId] && salesPlanData[activeMonthKey][activePlantId][i]) || '';
+                                const isCurrentAnchor = calcMode === 'SALES' && i === latestSalesDayIndex && parseFloat(val) > 0;
+                                const isOldDate = calcMode === 'SALES' && i < latestSalesDayIndex && parseFloat(val) > 0;
                                 return (
-                                  <div key={i} className="p-1 bg-white border rounded">
-                                    <span className="block text-[9px] font-bold text-purple-800">{activeMonthObj.month}/{i+1}</span>
+                                  <div key={i} className={`p-1 border rounded transition-all ${isCurrentAnchor ? 'bg-purple-50 border-purple-500 ring-2 ring-purple-300 shadow-sm' : 'bg-white border-slate-200'}`}>
+                                    <div className="flex items-center justify-center space-x-1">
+                                      <span className={`block text-[9px] font-bold ${isCurrentAnchor ? 'text-purple-900' : 'text-purple-800'}`}>{activeMonthObj.month}/{i+1}</span>
+                                      {isCurrentAnchor && <span className="text-[8px] bg-purple-600 text-white px-1 rounded font-normal leading-tight">起算</span>}
+                                      {isOldDate && <span className="text-[8px] text-slate-400 font-normal leading-tight">(舊)</span>}
+                                    </div>
                                     <input 
                                       type="number" 
                                       value={val}
                                       onChange={e => handleSalesPlanChange(activeMonthKey, activePlantId, i, e.target.value)}
                                       placeholder="0"
-                                      className="w-full text-center text-xs font-bold text-purple-900 border-0 border-b border-purple-200"
+                                      className={`w-full text-center text-xs font-bold border-0 border-b ${isCurrentAnchor ? 'text-purple-900 border-purple-500 bg-transparent' : 'text-purple-900 border-purple-200'}`}
                                     />
                                   </div>
                                 );
@@ -1069,7 +1119,7 @@
                           onClick={() => setCalcMode("SALES")}
                           className={`px-2.5 py-1 rounded font-bold text-[11px] transition-all ${calcMode === 'SALES' ? 'bg-purple-600 text-white shadow' : 'bg-white text-purple-700 border border-purple-200'}`}
                         >
-                          📦 產銷排產首日動態模式
+                          📦 產銷排產動態最新日模式
                         </button>
                       </div>
                     </div>
@@ -1094,7 +1144,7 @@
                     <div className="flex items-center space-x-2">
                       <span className={`px-2.5 py-1 rounded text-xs font-bold ${calcMode === 'SALES' ? 'bg-purple-100 text-purple-800 border border-purple-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}`}>
                         {calcMode === 'SALES' 
-                          ? `📦 產銷排產模式 (產銷原料重量起算，動態從 ${activeMonthObj.month}/${firstSalesDayIndex + 1} 日起裁切)` 
+                          ? `📦 產銷排產模式 (產銷原料重量起算，動態從 ${activeMonthObj.month}/${latestSalesDayIndex + 1} 日起裁切)` 
                           : '🏭 全月流速滿載模式 (1日~月底)'}
                       </span>
                       <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 shadow transition-colors flex items-center">
@@ -1115,7 +1165,7 @@
                           </span>
                           <span className="text-[11px] font-normal text-indigo-200">
                             {calcMode === 'SALES' 
-                              ? `★ 產銷排產模式：從 ${activeMonthObj.month}/${firstSalesDayIndex + 1} 日產銷原料重量起算，機台每日實體扣耗，連續精確`
+                              ? `★ 產銷排產模式：從 ${activeMonthObj.month}/${latestSalesDayIndex + 1} 日產銷原料重量起算，機台每日實體扣耗，連續精確`
                               : '★ 滿載模式：呈現全月 1 日至月底之機台極限滿載預估'}
                           </span>
                         </div>
