@@ -9,51 +9,91 @@ echo.
 
 cd /d "%~dp0"
 
-:: 檢查上一層或當前目錄是否為 Git 版本庫
-if exist "%~dp0..\.git" goto GIT_MODE
+:: ------------------------------------------------------------
+:: 1. 判斷是否為本機 Git 開發儲存庫 (開發者模式)
+:: ------------------------------------------------------------
+if exist "%~dp0..\.git" goto GIT_DEV_MODE
 git rev-parse --is-inside-work-tree >nul 2>&1
-if "%ERRORLEVEL%"=="0" goto GIT_MODE
+if "%ERRORLEVEL%"=="0" goto GIT_DEV_MODE
 
 :: ------------------------------------------------------------
-:: 模式 B：當前執行目錄 (非 Git 本機庫，例如 NAS 共享區或隨身碟)
+:: 2. 非 Git 目錄：判斷是在 NAS 上，還是在同仁本機電腦 (C 槽/D 槽/桌面等)
 :: ------------------------------------------------------------
-:NAS_MODE
-echo [目前執行目錄] %~dp0
-echo.
+:LOCAL_OR_NAS_MODE
 
-set LOCAL_DEV_DIR=D:\GOOGLE ANGET\三合一單自動產生器
-if not exist "%LOCAL_DEV_DIR%\main.py" goto NOT_DEV
+:: 尋找公司 NAS 共享區來源路徑 (依序檢查 O: 槽、Z 槽與 UNC 網路路徑)
+set NAS_SRC=
+if exist "O:\各單位對外\資材部對外\三合一單自動產生器\main.py" set "NAS_SRC=O:\各單位對外\資材部對外\三合一單自動產生器"
+if not defined NAS_SRC if exist "Z:\各單位對外\資材部對外\三合一單自動產生器\main.py" set "NAS_SRC=Z:\各單位對外\資材部對外\三合一單自動產生器"
+if not defined NAS_SRC if exist "\\192.168.3.224\eshine\各單位對外\資材部對外\三合一單自動產生器\main.py" set "NAS_SRC=\\192.168.3.224\eshine\各單位對外\資材部對外\三合一單自動產生器"
 
-echo [偵測] 本機 D 槽存在最新開發程式庫:
-echo        %LOCAL_DEV_DIR%
-echo.
-set SYNC_CHOICE=Y
-set /p SYNC_CHOICE=是否立即從本機 D 槽同步最新檔案至此目前目錄 [Y/N, 預設 Y]: 
-if /i not "%SYNC_CHOICE%"=="Y" goto SKIP_LOCAL_SYNC
+:: 檢查「當前執行目錄 %~dp0」是否就是 NAS 本身
+set CURRENT_DIR=%~dp0
+if "%CURRENT_DIR:~-1%"=="\" set "CURRENT_DIR=%CURRENT_DIR:~0,-1%"
 
+if /i "%CURRENT_DIR%"=="O:\各單位對外\資材部對外\三合一單自動產生器" goto RUNNING_ON_NAS
+if /i "%CURRENT_DIR%"=="\\192.168.3.224\eshine\各單位對外\資材部對外\三合一單自動產生器" goto RUNNING_ON_NAS
+
+:: 若執行電腦剛好有 D 槽開發庫 (開發者在 NAS 目錄被執行的情況)
+if exist "D:\GOOGLE ANGET\三合一單自動產生器\main.py" goto DEV_ON_NAS
+
+:: ------------------------------------------------------------
+:: 情況 A：同仁在自己本機電腦 (C 槽、D 槽、桌面等任意位置)
+:: ------------------------------------------------------------
+:COLLEAGUE_LOCAL_UPDATE
+echo [目前位置] %~dp0
 echo.
-echo 正在同步最新檔案至此目錄...
-copy /y "%LOCAL_DEV_DIR%\main.py" "%~dp0main.py" >nul
-copy /y "%LOCAL_DEV_DIR%\啟動_三合一單產生器.bat" "%~dp0啟動_三合一單產生器.bat" >nul
-if exist "%LOCAL_DEV_DIR%\地點代號對照表.xlsx" copy /y "%LOCAL_DEV_DIR%\地點代號對照表.xlsx" "%~dp0地點代號對照表.xlsx" >nul
-echo [成功] 最新程式碼已成功發布更新至此目錄！
+if not defined NAS_SRC goto NAS_NOT_FOUND
+
+echo [偵測] 成功連線公司 NAS 最新發布區:
+echo        %NAS_SRC%
+echo.
+echo 正在為您從 NAS 同步最新程式至目前本機目錄...
+copy /y "%NAS_SRC%\main.py" "%~dp0main.py" >nul
+copy /y "%NAS_SRC%\啟動_三合一單產生器.bat" "%~dp0啟動_三合一單產生器.bat" >nul
+copy /y "%NAS_SRC%\一鍵更新系統程式.bat" "%~dp0一鍵更新系統程式.bat" >nul
+if exist "%NAS_SRC%\地點代號對照表.xlsx" copy /y "%NAS_SRC%\地點代號對照表.xlsx" "%~dp0地點代號對照表.xlsx" >nul
+echo [成功] 本機程式已更新至最新版本！
 echo.
 goto LAUNCH_APP
 
-:NOT_DEV
-echo [狀態] 目前使用的是共享區最新發布版本。
-echo.
-goto LAUNCH_APP
-
-:SKIP_LOCAL_SYNC
-echo 略過同步更新。
+:NAS_NOT_FOUND
+echo [提示] 目前無法連線至公司 NAS (請確認是否在廠內網路)。
+echo 將直接以本機現有版本為您啟動...
 echo.
 goto LAUNCH_APP
 
 :: ------------------------------------------------------------
-:: 模式 A：本機 Git 目錄 (D:\GOOGLE ANGET 等)
+:: 情況 B：開發者在 NAS 上點開執行 (提供一鍵從 D 槽發布至 NAS)
 :: ------------------------------------------------------------
-:GIT_MODE
+:DEV_ON_NAS
+echo [目前位置] %~dp0
+echo ★ 偵測到本機存在開發最新庫: D:\GOOGLE ANGET\三合一單自動產生器
+set SYNC_D2NAS=Y
+set /p SYNC_D2NAS=是否立即從本機 D 槽同步最新檔案覆蓋至此 NAS 目錄 [Y/N, 預設 Y]: 
+if /i not "%SYNC_D2NAS%"=="Y" goto LAUNCH_APP
+
+echo 正在將最新檔案發布至此 NAS 目錄...
+copy /y "D:\GOOGLE ANGET\三合一單自動產生器\main.py" "%~dp0main.py" >nul
+copy /y "D:\GOOGLE ANGET\三合一單自動產生器\啟動_三合一單產生器.bat" "%~dp0啟動_三合一單產生器.bat" >nul
+if exist "D:\GOOGLE ANGET\三合一單自動產生器\地點代號對照表.xlsx" copy /y "D:\GOOGLE ANGET\三合一單自動產生器\地點代號對照表.xlsx" "%~dp0地點代號對照表.xlsx" >nul
+echo [成功] 已成功將最新檔案同步至此 NAS 目錄！
+echo.
+goto LAUNCH_APP
+
+:: ------------------------------------------------------------
+:: 情況 C：同仁直接在 NAS 共享區上開啟執行 (免安裝模式)
+:: ------------------------------------------------------------
+:RUNNING_ON_NAS
+echo [目前位置] %~dp0
+echo [狀態] 目前直接於 NAS 共享區執行，此目錄已是最新版本！
+echo.
+goto LAUNCH_APP
+
+:: ------------------------------------------------------------
+:: 情況 D：開發者在 D 槽本機執行 (Git 模式)
+:: ------------------------------------------------------------
+:GIT_DEV_MODE
 echo [狀態] 偵測到本機 Git 開發儲存庫，正在從 GitHub 雲端拉取最新更新...
 echo.
 
@@ -70,11 +110,10 @@ echo  [成功] 雲端更新完成！本機已為最新版本。
 echo ============================================================
 echo.
 
-:: 自動巡查各磁碟機尋找 NAS 共享目錄
 set NAS_TARGET=
 if exist "O:\各單位對外\資材部對外\三合一單自動產生器" set "NAS_TARGET=O:\各單位對外\資材部對外\三合一單自動產生器"
 if not defined NAS_TARGET if exist "Z:\各單位對外\資材部對外\三合一單自動產生器" set "NAS_TARGET=Z:\各單位對外\資材部對外\三合一單自動產生器"
-if not defined NAS_TARGET if exist "Y:\各單位對外\資材部對外\三合一單自動產生器" set "NAS_TARGET=Y:\各單位對外\資材部對外\三合一單自動產生器"
+if not defined NAS_TARGET if exist "\\192.168.3.224\eshine\各單位對外\資材部對外\三合一單自動產生器" set "NAS_TARGET=\\192.168.3.224\eshine\各單位對外\資材部對外\三合一單自動產生器"
 
 if not defined NAS_TARGET goto LAUNCH_APP
 
@@ -89,7 +128,7 @@ copy /y "%~dp0main.py" "%NAS_TARGET%\main.py" >nul
 copy /y "%~dp0啟動_三合一單產生器.bat" "%NAS_TARGET%\啟動_三合一單產生器.bat" >nul
 copy /y "%~dp0一鍵更新系統程式.bat" "%NAS_TARGET%\一鍵更新系統程式.bat" >nul
 if exist "%~dp0地點代號對照表.xlsx" copy /y "%~dp0地點代號對照表.xlsx" "%NAS_TARGET%\地點代號對照表.xlsx" >nul
-echo [成功] 已成功將最新 main.py 與相關檔案發布至 NAS！
+echo [成功] 已成功將最新檔案同步發布至 NAS！
 echo.
 goto LAUNCH_APP
 
