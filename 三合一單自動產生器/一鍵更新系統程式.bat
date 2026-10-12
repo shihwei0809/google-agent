@@ -15,30 +15,30 @@ git rev-parse --is-inside-work-tree >nul 2>&1
 if "%ERRORLEVEL%"=="0" goto GIT_MODE
 
 :: ------------------------------------------------------------
-:: 模式 B：非 Git 目錄 (例如 NAS O: 槽或一般網路共享目錄)
+:: 模式 B：當前執行目錄 (非 Git 本機庫，例如 NAS 共享區或隨身碟)
 :: ------------------------------------------------------------
 :NAS_MODE
-echo [狀態] 偵測到目前位於「NAS 網路共享區」或一般資料夾 (非 Git 本機庫)。
-echo        路徑: %~dp0
-echo.
-echo 說明:
-echo  1. 此共享目錄無 Git 版本控制，無法直接執行雲端 git pull。
-echo  2. 若要更新此處，請於開發本機 (D 槽) 更新後，將檔案複製發布至此處。
+echo [目前執行目錄] %~dp0
 echo.
 
 set LOCAL_DEV_DIR=D:\GOOGLE ANGET\三合一單自動產生器
 if exist "%LOCAL_DEV_DIR%\main.py" (
-    echo ★ 偵測到本機 D 槽存在開發最新庫:
+    echo ★ 偵測到本機 D 槽存在最新開發程式庫:
     echo   %LOCAL_DEV_DIR%
     echo.
-    set /p SYNC_CHOICE="是否立即從本機 D 槽同步最新 main.py 與檔案至此 NAS 目錄？(Y/N) [預設 N]: "
+    echo 是否立即從本機 D 槽同步最新 main.py 與檔案至「目前此目錄」？
+    set /p SYNC_CHOICE="(Y/N) [預設 Y，按 Enter 直接同步更新]: "
+    if "%SYNC_CHOICE%"=="" set SYNC_CHOICE=Y
     if /i "%SYNC_CHOICE%"=="Y" (
-        echo 正在同步檔案中...
+        echo 正在同步最新檔案至此目錄...
         copy /y "%LOCAL_DEV_DIR%\main.py" "%~dp0main.py" >nul
+        copy /y "%LOCAL_DEV_DIR%\啟動_三合一單產生器.bat" "%~dp0啟動_三合一單產生器.bat" >nul
         if exist "%LOCAL_DEV_DIR%\地點代號對照表.xlsx" copy /y "%LOCAL_DEV_DIR%\地點代號對照表.xlsx" "%~dp0地點代號對照表.xlsx" >nul
-        echo [成功] 最新程式已成功同步至此共享目錄！
+        echo [成功] 最新程式碼已成功發布更新至此目錄！
         echo.
     )
+) else (
+    echo [狀態] 目前使用的是共享區最新發布版本。
 )
 
 echo 即將為您開啟系統...
@@ -71,16 +71,25 @@ echo  [成功] 雲端更新完成！本機已為最新版本。
 echo ============================================================
 echo.
 
-set NAS_DIR=O:\各單位對外\資材部對外\三合一單自動產生器
-if exist "%NAS_DIR%" (
-    echo ★ 偵測到公司 NAS (O 槽) 連線正常！
-    set /p PUSH_NAS="是否要順便將最新程式同步發布至 NAS 共享區？(Y/N) [預設 Y]: "
+:: 自動巡查各磁碟機尋找 NAS 共享目錄
+set NAS_TARGET=
+for %%d in (O Z Y X W) do (
+    if exist "%%d:\各單位對外\資材部對外\三合一單自動產生器" (
+        set "NAS_TARGET=%%d:\各單位對外\資材部對外\三合一單自動產生器"
+    )
+)
+
+if defined NAS_TARGET (
+    echo ★ 偵測到公司 NAS 共享區: %NAS_TARGET%
+    set /p PUSH_NAS="是否要順便將最新程式同步發布至該 NAS 共享區？(Y/N) [預設 Y]: "
     if "%PUSH_NAS%"=="" set PUSH_NAS=Y
     if /i "%PUSH_NAS%"=="Y" (
         echo 正在發布最新版本至 NAS...
-        copy /y "%~dp0main.py" "%NAS_DIR%\main.py" >nul
-        copy /y "%~dp0一鍵更新系統程式.bat" "%NAS_DIR%\一鍵更新系統程式.bat" >nul
-        echo [成功] 已成功將最新 main.py 發布至 NAS 共享區！
+        copy /y "%~dp0main.py" "%NAS_TARGET%\main.py" >nul
+        copy /y "%~dp0啟動_三合一單產生器.bat" "%NAS_TARGET%\啟動_三合一單產生器.bat" >nul
+        copy /y "%~dp0一鍵更新系統程式.bat" "%NAS_TARGET%\一鍵更新系統程式.bat" >nul
+        if exist "%~dp0地點代號對照表.xlsx" copy /y "%~dp0地點代號對照表.xlsx" "%NAS_TARGET%\地點代號對照表.xlsx" >nul
+        echo [成功] 已成功將最新 main.py 與相關檔案發布至 NAS！
         echo.
     )
 )
