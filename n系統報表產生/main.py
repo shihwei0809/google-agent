@@ -1642,11 +1642,8 @@ class App(tk.Tk):
         def on_canvas_configure(event):
             canvas_width = event.width
             req_width = self.scrollable_frame.winfo_reqwidth()
-            # 讓內部 frame 寬度至少等於 Canvas 寬度，以消除右側大空白
-            if canvas_width > req_width:
-                self.canvas.itemconfig(self.canvas_window, width=canvas_width)
-            else:
-                self.canvas.itemconfig(self.canvas_window, width="") # 回復原本大小
+            # 讓內部 frame 寬度至少等於 Canvas 寬度或內容所需寬度，消除右側大空白且防止 Tcl 報錯
+            self.canvas.itemconfig(self.canvas_window, width=max(canvas_width, req_width))
 
         self.canvas.bind("<Configure>", on_canvas_configure)
 
