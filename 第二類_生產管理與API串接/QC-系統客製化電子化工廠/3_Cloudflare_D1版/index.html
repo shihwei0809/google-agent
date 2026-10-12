@@ -1965,27 +1965,59 @@
           return;
         }
 
-        t100Orders = finalOrders;
+        // 增量去重比對 (如 IPAHQ 排程系統防呆機制)
+        function getOrderUniqueKey(o) {
+          const doc = String(o.doc_no || '').trim().toLowerCase();
+          const prod = String(o.productName || '').trim().toLowerCase();
+          const tank = String(o.tankNo || '').trim().toLowerCase();
+          const date = String(o.date || o.targetDate || '').trim();
+          const flow = String(o.flowType || '').trim();
+          const cont = String(o.container || o.customer || '').trim().toLowerCase();
+          if (doc) return `${doc}_${prod}_${tank}`;
+          return `${date}_${flow}_${cont}_${prod}_${tank}`;
+        }
+
+        const existingKeys = new Set((t100Orders || []).map(getOrderUniqueKey));
+        const newOrders = [];
+        let skippedCount = 0;
+
+        finalOrders.forEach(o => {
+          const k = getOrderUniqueKey(o);
+          if (existingKeys.has(k)) {
+            skippedCount++;
+          } else {
+            existingKeys.add(k);
+            newOrders.push(o);
+          }
+        });
+
+        // 合併至本機排程清單 (保留既有排程，追加新進排程)
+        t100Orders = [...(t100Orders || []), ...newOrders];
         localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
 
         // 自動同步日期過濾器
         const todayStr = getLocalDateString();
-        const hasToday = finalOrders.some(o => o.date === todayStr);
+        const hasToday = t100Orders.some(o => o.date === todayStr);
         const dateInput = document.getElementById('t100DateFilter');
         if(hasToday) {
           setT100FilterMode('today');
         } else {
-          const dates = [...new Set(finalOrders.map(o => o.date).filter(Boolean))].sort();
+          const dates = [...new Set(t100Orders.map(o => o.date).filter(Boolean))].sort();
           const targetDate = dates.length ? dates[dates.length - 1] : todayStr;
           if(dateInput) dateInput.value = targetDate;
           setT100FilterMode('date');
         }
 
-        const outCount = finalOrders.filter(o => o.flowType === '出貨').length;
-        const inCount = finalOrders.filter(o => o.flowType === '進料').length;
-        showToast(`🎉 成功鎖定「${actualSheetUsed}」分頁，匯入 ${finalOrders.length} 筆槽車排程 (${outCount} 出貨 + ${inCount} 進料)！`, 5000);
+        const newOutCount = newOrders.filter(o => o.flowType === '出貨').length;
+        const newInCount = newOrders.filter(o => o.flowType === '進料').length;
+        
+        if (newOrders.length === 0) {
+          showToast(`ℹ️ 讀取「${actualSheetUsed}」共 ${finalOrders.length} 筆：全數已匯入過（自動略過重複單號），無需重複新增！`, 5000);
+        } else {
+          showToast(`🎉 成功解析「${actualSheetUsed}」共 ${finalOrders.length} 筆！✅ 新增 ${newOrders.length} 筆新排程 (${newOutCount} 出貨 + ${newInCount} 進料)，⏭️ 自動略過 ${skippedCount} 筆已匯過單據`, 6000);
+        }
 
-        // ☁️ 雲端同步：將排程上傳至 Google Sheets（若已設定 GAS API）
+        // ☁️ 雲端同步：將排程上傳至雲端 D1 資料庫 (支援增量合併)
         uploadOrdersToCloud(finalOrders);
       } catch(err) {
         console.error(err);
@@ -1994,19 +2026,22 @@
     };
     reader.readAsArrayBuffer(file);
   }
-  // ☁️ 排程上傳：匯入 Excel 後自動同步至 Google Sheets（覆蓋模式）
+  // ☁️ 排程上傳：匯入 Excel 後自動增量同步至雲端 D1 (去重合併模式)
   async function uploadOrdersToCloud(orders) {
-    if (!GAS_API_URL) return; // 未設定 GAS 則略過
-    showToast('⬆️ 正在將排程同步至雲端...', 3000);
+    if (!GAS_API_URL) return; // 未設定 API 則略過
+    showToast('⬆️ 正在將排程同步至雲端資料庫...', 3000);
     try {
       const resp = await fetch(GAS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'saveOrders', orders: orders })
+        body: JSON.stringify({ action: 'saveOrders', orders: orders, mode: 'merge' })
       });
       const result = await resp.json();
       if (result.success) {
-        showToast(`☁️ 雲端同步完成！共 ${result.count} 筆排程已上傳 (${result.importedAt})`, 6000);
+        const addedDesc = result.added !== undefined ? `✅ 新增 ${result.added} 筆, ⏭️ 略過重複 ${result.skipped || 0} 筆` : `共 ${result.count} 筆`;
+        showToast(`☁️ 雲端同步完成！(${addedDesc}，資料庫累計 ${result.total || t100Orders.length} 筆)`, 6000);
+        // 自雲端同步拉取最新全域排程
+        loadOrdersFromCloud();
       } else {
         showToast(`⚠️ 雲端同步失敗：${result.error || '未知錯誤'}（資料已保存於本機）`, 6000);
       }

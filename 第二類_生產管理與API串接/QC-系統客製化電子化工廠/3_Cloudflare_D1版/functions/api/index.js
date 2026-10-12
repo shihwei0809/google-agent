@@ -197,29 +197,98 @@ export async function onRequest(context) {
     }
 
     if (action === "saveOrders" && request.method === "POST") {
-    // 匯入 T100 排程並自動建立新單據
+      // 匯入 T100 排程並自動增量去重 (如 IPAHQ 排程系統防呆機制)
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN date TEXT").run().catch(e=>{});
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN time TEXT").run().catch(e=>{});
       await env.DB.prepare("ALTER TABLE T100_Orders ADD COLUMN note TEXT").run().catch(e=>{});
-      
-      // 檢查重複排程
-      await env.DB.prepare("DELETE FROM T100_Orders").run();
-      
-      // 批次插入新排程
+      await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_t100_doc ON T100_Orders (doc_no)").run().catch(e=>{});
+      await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_t100_date ON T100_Orders (date)").run().catch(e=>{});
+
       const orders = payload.orders || [];
-      if (orders.length > 0) {
+      const mode = payload.mode || "merge"; // 預設 merge (增量去重)，亦支援 overwrite (手動全清)
+
+      if (mode === "overwrite") {
+        await env.DB.prepare("DELETE FROM T100_Orders").run();
+      }
+
+      if (orders.length === 0) {
+        return new Response(JSON.stringify({ success: true, added: 0, skipped: 0, total: 0 }), { headers: h });
+      }
+
+      // 取得資料庫中最近 60 天內排程，用於單號與特徵值重複檢查
+      const { results: existingRows } = await env.DB.prepare(`
+        SELECT doc_no, productName, tankNo, date, targetDate, flowType, container, customer 
+        FROM T100_Orders 
+        WHERE createdAt >= datetime('now', '-60 days') OR date >= date('now', '-60 days')
+      `).all();
+
+      const makeKey = (o) => {
+        const doc = String(o.doc_no || '').trim().toLowerCase();
+        const prod = String(o.productName || '').trim().toLowerCase();
+        const tank = String(o.tankNo || '').trim().toLowerCase();
+        const date = String(o.date || o.targetDate || '').trim();
+        const flow = String(o.flowType || '').trim();
+        const cont = String(o.container || o.customer || '').trim().toLowerCase();
+        if (doc) return `${doc}_${prod}_${tank}`;
+        return `${date}_${flow}_${cont}_${prod}_${tank}`;
+      };
+
+      const existingKeySet = new Set((existingRows || []).map(makeKey));
+      const newOrders = [];
+      let skippedCount = 0;
+
+      for (const o of orders) {
+        const k = makeKey(o);
+        if (existingKeySet.has(k)) {
+          skippedCount++;
+        } else {
+          existingKeySet.add(k); // 避免同一個 Excel 內部重複
+          newOrders.push(o);
+        }
+      }
+
+      // 批次寫入新進貨/出貨排程
+      if (newOrders.length > 0) {
         const stmt = env.DB.prepare("INSERT INTO T100_Orders (doc_no, flowType, productName, tankNo, container, quantity, customer, grade, targetDate, date, time, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        const batchStmts = orders.map(o => stmt.bind(o.doc_no||'', o.flowType||'', o.productName||'', o.tankNo||'', o.container||'', o.quantity||'', o.customer||'', o.grade||'', o.targetDate||'', o.date||'', o.time||'', o.note||''));
+        const batchStmts = newOrders.map(o => stmt.bind(
+          o.doc_no||'', 
+          o.flowType||'', 
+          o.productName||'', 
+          o.tankNo||'', 
+          o.container||'', 
+          o.quantity||'', 
+          o.customer||'', 
+          o.grade||'', 
+          o.targetDate||'', 
+          o.date||'', 
+          o.time||'', 
+          o.note||''
+        ));
         await env.DB.batch(batchStmts);
       }
-      return new Response(JSON.stringify({ success: true, count: orders.length, importedAt: new Date().toISOString() }), { headers: h });
+
+      const totalCountRow = await env.DB.prepare("SELECT COUNT(*) as c FROM T100_Orders").first();
+      const totalCount = totalCountRow ? totalCountRow.c : 0;
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        added: newOrders.length, 
+        skipped: skippedCount, 
+        total: totalCount, 
+        importedAt: new Date().toISOString() 
+      }), { headers: h });
     }
 
     if (action === "getOrders") {
-    // 匯入 T100 排程以同步資料庫
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
-      const { results } = await env.DB.prepare("SELECT * FROM T100_Orders ORDER BY targetDate DESC, createdAt DESC LIMIT 200").all();
+      // 取得近 45 天排程，並按日期降序、時間升序排列
+      const { results } = await env.DB.prepare(`
+        SELECT * FROM T100_Orders 
+        WHERE date >= date('now', '-45 days') OR createdAt >= datetime('now', '-45 days') 
+        ORDER BY date DESC, time ASC, id DESC 
+        LIMIT 800
+      `).all();
       return new Response(JSON.stringify({ success: true, count: results.length, orders: results }), { headers: h });
     }
 
