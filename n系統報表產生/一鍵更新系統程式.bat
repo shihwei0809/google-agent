@@ -1,57 +1,79 @@
 @echo off
+chcp 950 >nul
+title N系列報表輸出系統 - 一鍵系統更新精靈
+
+echo ============================================================
+echo         N系列報表輸出系統 - 一鍵系統更新精靈
+echo ============================================================
+echo.
+
 cd /d "%~dp0"
 
-:: 1. 檢查是否在網路磁碟機 (如 NAS) 或 UNC 網路路徑上執行
-if "%~d0"=="" goto ON_NAS
-net use %~d0 >nul 2>&1
-if %errorlevel% == 0 goto ON_NAS
+:: ------------------------------------------------------------
+:: 情況 1：若本資料夾屬於 Git 版本庫，直接執行正規 git pull
+:: ------------------------------------------------------------
+if exist "%~dp0..\.git" goto GIT_PULL_MODE
+git rev-parse --is-inside-work-tree >nul 2>&1
+if "%ERRORLEVEL%"=="0" goto GIT_PULL_MODE
 
-:: 2. 檢查本機電腦是否有安裝 Git
-git --version >nul 2>&1
-if errorlevel 1 goto MISSING_GIT
+:: ------------------------------------------------------------
+:: 情況 2：無 Git 版本庫 (一般人員電腦 / NAS / 隨身碟複製資料夾)
+:: 直接使用 Windows 內建工具自動從 GitHub 下載最新程式！
+:: ------------------------------------------------------------
+:CLOUD_DIRECT_DOWNLOAD
+echo [狀態] 偵測到目前為獨立資料夾 (非 Git 本機庫)。
+echo [動作] 正在自動連線 GitHub 雲端為您下載最新 N 系列主程式...
+echo.
 
-:: 3. 本機執行 Git 雲端更新
-echo ==================================================
-echo 正在從雲端更新系統程式...
-echo ==================================================
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/shihwei0809/google-agent/main/n%%E7%%B3%%BB%%E7%%B5%%B1%%E5%%A0%%B1%%E8%%A1%%A8%%E7%%94%%A2%%E7%%94%%9F/main.py', 'main.py'); exit 0 } catch { exit 1 }"
 
-if exist "%~dp0.git" (
-    git pull
-) else (
-    cd ..
-    git pull
+if errorlevel 1 (
+    echo [警告] 雲端直接下載失敗，請檢查網路連線是否正常。
+    echo 將為您嘗試啟動現有程式...
+    pause
+    goto LAUNCH_APP
+)
+
+echo ============================================================
+echo  [成功] 已自動從 GitHub 雲端下載最新 main.py 並完成更新！
+echo ============================================================
+echo.
+timeout /t 2 >nul
+goto LAUNCH_APP
+
+:: ------------------------------------------------------------
+:: 情況 1 的執行流程 (Git pull)
+:: ------------------------------------------------------------
+:GIT_PULL_MODE
+echo [狀態] 偵測到本機 Git 開發庫，正在從 GitHub 雲端執行 git pull...
+echo.
+
+cd /d "%~dp0.."
+git pull
+if errorlevel 1 (
+    echo.
+    echo [警告] git pull 更新失敗！請檢查網路連線或 Git 狀態。
+    echo 將嘗試直接啟動現有程式...
+    pause
+    goto LAUNCH_APP
 )
 
 echo.
-echo ==================================================
-echo 更新完成！正在自動為您開啟系統...
-echo ==================================================
-ping 127.0.0.1 -n 3 >nul
-goto START_APP
-
-:ON_NAS
-echo ==================================================
-echo 【提醒】此「一鍵更新系統程式」不適合在 NAS 上執行！
-echo 請在本機執行完後，再自行將最新檔案更新至 NAS。
-echo ==================================================
+echo ============================================================
+echo  [成功] 雲端更新完成！本機已為最新版本。
+echo ============================================================
 echo.
-echo 正在直接為您啟動主程式...
-ping 127.0.0.1 -n 3 >nul
-goto START_APP
+timeout /t 2 >nul
+goto LAUNCH_APP
 
-:START_APP
+:: ------------------------------------------------------------
+:: 啟動主程式
+:: ------------------------------------------------------------
+:LAUNCH_APP
 cd /d "%~dp0"
-start 啟動本機視窗版.bat
-exit
-
-:MISSING_GIT
-echo.
-echo ==================================================
-echo [錯誤] 您的電腦尚未安裝 Git 程式！
-echo ==================================================
-echo 系統將自動打開網頁，請下載並安裝「Git for Windows」。
-echo 安裝時請一直按「Next」到底即可完成。
-echo.
-start https://git-scm.com/download/win
-pause
+if exist "啟動本機視窗版.bat" (
+    start 啟動本機視窗版.bat
+) else (
+    start python main.py
+)
 exit
