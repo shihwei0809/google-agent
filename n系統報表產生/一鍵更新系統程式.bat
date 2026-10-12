@@ -22,27 +22,32 @@ echo [目前執行目錄] %~dp0
 echo.
 
 set LOCAL_DEV_DIR=D:\GOOGLE ANGET\n系統報表產生
-if exist "%LOCAL_DEV_DIR%\main.py" (
-    echo ★ 偵測到本機 D 槽存在最新開發程式庫:
-    echo   %LOCAL_DEV_DIR%
-    echo.
-    echo 是否立即從本機 D 槽同步最新 main.py 與檔案至「目前此目錄」？
-    set /p SYNC_CHOICE="(Y/N) [預設 Y，按 Enter 直接同步更新]: "
-    if "%SYNC_CHOICE%"=="" set SYNC_CHOICE=Y
-    if /i "%SYNC_CHOICE%"=="Y" (
-        echo 正在同步最新檔案至此目錄...
-        copy /y "%LOCAL_DEV_DIR%\main.py" "%~dp0main.py" >nul
-        copy /y "%LOCAL_DEV_DIR%\啟動本機視窗版.bat" "%~dp0啟動本機視窗版.bat" >nul
-        if exist "%LOCAL_DEV_DIR%\N系料小包-地點代號對照表.xlsx" copy /y "%LOCAL_DEV_DIR%\N系料小包-地點代號對照表.xlsx" "%~dp0N系料小包-地點代號對照表.xlsx" >nul
-        echo [成功] 最新程式碼已成功發布更新至此目錄！
-        echo.
-    )
-) else (
-    echo [狀態] 目前使用的是共享區最新發布版本。
-)
+if not exist "%LOCAL_DEV_DIR%\main.py" goto NOT_DEV
 
-echo 即將為您開啟系統...
-timeout /t 2 >nul
+echo [偵測] 本機 D 槽存在最新開發程式庫:
+echo        %LOCAL_DEV_DIR%
+echo.
+set SYNC_CHOICE=Y
+set /p SYNC_CHOICE=是否立即從本機 D 槽同步最新檔案至此目前目錄 [Y/N, 預設 Y]: 
+if /i not "%SYNC_CHOICE%"=="Y" goto SKIP_LOCAL_SYNC
+
+echo.
+echo 正在同步最新檔案至此目錄...
+copy /y "%LOCAL_DEV_DIR%\main.py" "%~dp0main.py" >nul
+copy /y "%LOCAL_DEV_DIR%\啟動本機視窗版.bat" "%~dp0啟動本機視窗版.bat" >nul
+if exist "%LOCAL_DEV_DIR%\N系料小包-地點代號對照表.xlsx" copy /y "%LOCAL_DEV_DIR%\N系料小包-地點代號對照表.xlsx" "%~dp0N系料小包-地點代號對照表.xlsx" >nul
+echo [成功] 最新程式碼已成功發布更新至此目錄！
+echo.
+goto LAUNCH_APP
+
+:NOT_DEV
+echo [狀態] 目前使用的是共享區最新發布版本。
+echo.
+goto LAUNCH_APP
+
+:SKIP_LOCAL_SYNC
+echo 略過同步更新。
+echo.
 goto LAUNCH_APP
 
 :: ------------------------------------------------------------
@@ -57,13 +62,7 @@ if errorlevel 1 goto MISSING_GIT
 
 cd /d "%~dp0.."
 git pull
-if errorlevel 1 (
-    echo.
-    echo [警告] 雲端更新失敗！請檢查網路連線或 Git 狀態。
-    echo 將嘗試直接啟動現有程式...
-    pause
-    goto LAUNCH_APP
-)
+if errorlevel 1 goto GIT_PULL_FAIL
 
 echo.
 echo ============================================================
@@ -73,37 +72,43 @@ echo.
 
 :: 自動巡查各磁碟機尋找 NAS 共享目錄
 set NAS_TARGET=
-for %%d in (O Z Y X W) do (
-    if exist "%%d:\各單位對外\資材部對外\n系統報表產生" (
-        set "NAS_TARGET=%%d:\各單位對外\資材部對外\n系統報表產生"
-    )
-)
+if exist "O:\各單位對外\資材部對外\n系統報表產生" set "NAS_TARGET=O:\各單位對外\資材部對外\n系統報表產生"
+if not defined NAS_TARGET if exist "Z:\各單位對外\資材部對外\n系統報表產生" set "NAS_TARGET=Z:\各單位對外\資材部對外\n系統報表產生"
+if not defined NAS_TARGET if exist "Y:\各單位對外\資材部對外\n系統報表產生" set "NAS_TARGET=Y:\各單位對外\資材部對外\n系統報表產生"
 
-if defined NAS_TARGET (
-    echo ★ 偵測到公司 NAS 共享區: %NAS_TARGET%
-    set /p PUSH_NAS="是否要順便將最新程式同步發布至該 NAS 共享區？(Y/N) [預設 Y]: "
-    if "%PUSH_NAS%"=="" set PUSH_NAS=Y
-    if /i "%PUSH_NAS%"=="Y" (
-        echo 正在發布最新版本至 NAS...
-        copy /y "%~dp0main.py" "%NAS_TARGET%\main.py" >nul
-        copy /y "%~dp0啟動本機視窗版.bat" "%NAS_TARGET%\啟動本機視窗版.bat" >nul
-        copy /y "%~dp0一鍵更新系統程式.bat" "%NAS_TARGET%\一鍵更新系統程式.bat" >nul
-        if exist "%~dp0N系料小包-地點代號對照表.xlsx" copy /y "%~dp0N系料小包-地點代號對照表.xlsx" "%NAS_TARGET%\N系料小包-地點代號對照表.xlsx" >nul
-        echo [成功] 已成功將最新 main.py 與相關檔案發布至 NAS！
-        echo.
-    )
-)
+if not defined NAS_TARGET goto LAUNCH_APP
 
-timeout /t 2 >nul
+echo [偵測] 發現公司 NAS 共享區: %NAS_TARGET%
+set PUSH_NAS=Y
+set /p PUSH_NAS=是否要順便將最新程式同步發布至該 NAS 共享區 [Y/N, 預設 Y]: 
+if /i not "%PUSH_NAS%"=="Y" goto LAUNCH_APP
+
+echo.
+echo 正在發布最新版本至 NAS...
+copy /y "%~dp0main.py" "%NAS_TARGET%\main.py" >nul
+copy /y "%~dp0啟動本機視窗版.bat" "%NAS_TARGET%\啟動本機視窗版.bat" >nul
+copy /y "%~dp0一鍵更新系統程式.bat" "%NAS_TARGET%\一鍵更新系統程式.bat" >nul
+if exist "%~dp0N系料小包-地點代號對照表.xlsx" copy /y "%~dp0N系料小包-地點代號對照表.xlsx" "%NAS_TARGET%\N系料小包-地點代號對照表.xlsx" >nul
+echo [成功] 已成功將最新 main.py 與相關檔案發布至 NAS！
+echo.
+goto LAUNCH_APP
+
+:GIT_PULL_FAIL
+echo.
+echo [警告] 雲端更新失敗！請檢查網路連線或 Git 狀態。
+echo 將嘗試直接啟動現有程式...
+pause
 goto LAUNCH_APP
 
 :: ------------------------------------------------------------
 :: 啟動主程式
 :: ------------------------------------------------------------
 :LAUNCH_APP
+echo 即將為您開啟系統...
+timeout /t 2 >nul
 cd /d "%~dp0"
 if exist "啟動本機視窗版.bat" (
-    start 啟動本機視窗版.bat
+    start "" "%~dp0啟動本機視窗版.bat"
 ) else (
     start python main.py
 )
