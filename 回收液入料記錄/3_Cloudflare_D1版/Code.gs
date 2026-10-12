@@ -11,7 +11,7 @@ const SHEET_NAME = "入料記錄總表"; // 請確認您的試算表分頁名稱
 function setup() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["ID", "日期", "車號", "狀態", "入料前照片URL", "車輛照片URL", "入料後照片URL", "建立時間"]);
+    sheet.appendRow(["ID", "日期", "車號", "狀態", "入料前照片URL", "車輛照片URL", "入料後照片URL", "入料前時間", "入料後時間", "歷時(分)"]);
   }
 }
 
@@ -20,7 +20,26 @@ function formatDateStr(val) {
   if (val instanceof Date) {
     return Utilities.formatDate(val, "GMT+8", "yyyy-MM-dd");
   }
-  return String(val).split("T")[0];
+  const s = String(val).trim();
+  // 如果是 Mon Oct 12 2026... 這種字串或帶 T 的字串
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return Utilities.formatDate(d, "GMT+8", "yyyy-MM-dd");
+  }
+  return s.split("T")[0];
+}
+
+function formatDateTimeStr(val) {
+  if (!val) return "";
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+  }
+  const s = String(val).trim();
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return Utilities.formatDate(d, "GMT+8", "yyyy-MM-dd HH:mm:ss");
+  }
+  return s;
 }
 
 // 處理 GET 請求
@@ -42,7 +61,9 @@ function doGet(e) {
         tBeforeUrl: data[i][4],
         vPhotoUrl: data[i][5],
         tAfterUrl: data[i][6],
-        created_at: String(data[i][7])
+        before_time: formatDateTimeStr(data[i][7]),
+        after_time: formatDateTimeStr(data[i][8]),
+        duration: data[i][9] !== undefined && data[i][9] !== "" ? data[i][9] : null
       });
     }
     return ContentService.createTextOutput(JSON.stringify({ records: allRecords }))
@@ -57,7 +78,7 @@ function doGet(e) {
           id: String(data[i][0]),
           date: formatDateStr(data[i][1]),
           license_plate: String(data[i][2]),
-          created_at: String(data[i][7])
+          before_time: formatDateTimeStr(data[i][7])
         });
       }
     }
@@ -93,7 +114,7 @@ function doPost(e) {
 
 function handleBeforeFeed(params) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-  const { id, date, license_plate, tank_level_before_b64, vehicle_photo_b64, t_name, v_name } = params;
+  const { id, date, license_plate, tank_level_before_b64, vehicle_photo_b64, t_name, v_name, client_before_time } = params;
   
   // 檢查是否重複 ID 或重複日期車號
   const data = sheet.getDataRange().getValues();
@@ -114,9 +135,9 @@ function handleBeforeFeed(params) {
   const t_url = saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`);
   const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`);
   
-  // 寫入 Sheets
-  const timestamp = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  sheet.appendRow([String(id), date, license_plate, "pending", t_url, v_url, "", timestamp]);
+  // 寫入 Sheets：優先採用手機拍照當下的實際時間 client_before_time，離線拍照也能精準記錄
+  const beforeTime = client_before_time || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
+  sheet.appendRow([String(id), "'" + String(date).split("T")[0], license_plate, "pending", t_url, v_url, "", beforeTime, "", ""]);
   
   return jsonResponse({ success: true, message: "入料前資料已儲存至 Google 雲端" });
 }
@@ -124,13 +145,12 @@ function handleBeforeFeed(params) {
 // 一次性寫入（針對離線時前、後都在手機完成的情況）
 function handleCompleteFeed(params) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-  const { id, date, license_plate, tank_level_before_b64, vehicle_photo_b64, tank_level_after_b64, t_name, v_name, a_name } = params;
+  const { id, date, license_plate, tank_level_before_b64, vehicle_photo_b64, tank_level_after_b64, t_name, v_name, a_name, client_before_time, client_after_time } = params;
 
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
     const rowId = String(data[i][0]).trim();
     if (rowId === String(id).trim()) {
-      // 若已經存在且已 completed，直接回傳成功
       return jsonResponse({ success: true, message: "紀錄已存在且完成" });
     }
   }
@@ -139,20 +159,34 @@ function handleCompleteFeed(params) {
   const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`);
   const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`);
 
-  const timestamp = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  sheet.appendRow([String(id), date, license_plate, "completed", t_url, v_url, a_url, timestamp]);
+  const nowStr = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
+  const beforeTime = client_before_time || nowStr;
+  const afterTime = client_after_time || nowStr;
+
+  // 計算入料歷時 (分鐘)
+  let durationMin = "";
+  try {
+    const t1 = new Date(beforeTime.replace(/-/g, "/")).getTime();
+    const t2 = new Date(afterTime.replace(/-/g, "/")).getTime();
+    if (!isNaN(t1) && !isNaN(t2) && t2 >= t1) {
+      durationMin = Math.round((t2 - t1) / (1000 * 60));
+    }
+  } catch (err) {}
+
+  sheet.appendRow([String(id), "'" + String(date).split("T")[0], license_plate, "completed", t_url, v_url, a_url, beforeTime, afterTime, durationMin]);
 
   return jsonResponse({ success: true, message: "完整入料記錄已直接存入 Google 雲端" });
 }
 
 function handleAfterFeed(params) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-  const { id, tank_level_after_b64, a_name } = params;
+  const { id, tank_level_after_b64, a_name, client_after_time } = params;
   
   const data = sheet.getDataRange().getValues();
   let rowIndex = -1;
   let date = "";
   let license_plate = "";
+  let beforeTime = "";
   
   for (let i = 1; i < data.length; i++) {
     const rowId = String(data[i][0]).trim();
@@ -161,6 +195,7 @@ function handleAfterFeed(params) {
         rowIndex = i + 1;
         date = data[i][1];
         license_plate = data[i][2];
+        beforeTime = data[i][7];
         break;
       } else if (data[i][3] === "completed") {
         return jsonResponse({ success: true, message: "已經是完成狀態" });
@@ -169,7 +204,6 @@ function handleAfterFeed(params) {
   }
   
   if (rowIndex === -1) {
-    // 檢查是否已經 completed
     for (let i = 1; i < data.length; i++) {
       if (data[i][0] == id && data[i][3] === "completed") {
         return jsonResponse({ success: true, message: "已經更新過了" });
@@ -181,9 +215,27 @@ function handleAfterFeed(params) {
   // 存檔到 Drive
   const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`);
   
-  // 更新 Sheets (狀態與第三張照片)
+  const afterTime = client_after_time || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
+
+  // 計算歷時
+  let durationMin = "";
+  try {
+    if (beforeTime) {
+      const t1 = new Date(String(beforeTime).replace(/-/g, "/")).getTime();
+      const t2 = new Date(String(afterTime).replace(/-/g, "/")).getTime();
+      if (!isNaN(t1) && !isNaN(t2) && t2 >= t1) {
+        durationMin = Math.round((t2 - t1) / (1000 * 60));
+      }
+    }
+  } catch (err) {}
+
+  // 更新 Sheets: 狀態(Col 4), 後照片(Col 7), 入料後時間(Col 9), 歷時(Col 10)
   sheet.getRange(rowIndex, 4).setValue("completed");
   sheet.getRange(rowIndex, 7).setValue(a_url);
+  sheet.getRange(rowIndex, 9).setValue(afterTime);
+  if (durationMin !== "") {
+    sheet.getRange(rowIndex, 10).setValue(durationMin);
+  }
   
   return jsonResponse({ success: true, message: "入料後記錄已更新至 Google 雲端" });
 }

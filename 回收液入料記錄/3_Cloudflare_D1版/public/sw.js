@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recycle-gas-v9';
+const CACHE_NAME = 'recycle-gas-v11';
 const urlsToCache = [
   './',
   './index.html',

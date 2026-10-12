@@ -197,17 +197,24 @@
             let count = 0;
             
             data.records.forEach(r => {
-                if (keyword && !r.license_plate.includes(keyword) && !r.date.includes(keyword)) return;
+                const searchStr = `${r.license_plate} ${r.date} ${r.before_time || ''} ${r.after_time || ''}`;
+                if (keyword && !searchStr.includes(keyword)) return;
                 count++;
                 
                 let statusBadge = r.status === "completed" 
                     ? '<span style="background:#28a745; color:white; padding:2px 5px; border-radius:3px; font-size:12px;">已完成</span>'
                     : '<span style="background:#ffc107; color:black; padding:2px 5px; border-radius:3px; font-size:12px;">待入料</span>';
                 
+                let durationBadge = '';
+                if (r.duration !== null && r.duration !== undefined && r.duration !== '') {
+                    durationBadge = `<span style="background:#17a2b8; color:white; padding:2px 6px; border-radius:3px; font-size:12px; margin-left:6px;">⏱ 歷時 ${r.duration} 分鐘</span>`;
+                }
+
                 html += `
                     <div class="record-card" style="border-left-color: ${r.status === 'completed' ? '#28a745' : '#ffc107'};">
-                        <p><strong>車號：</strong> ${r.license_plate} ${statusBadge}</p>
-                        <p><strong>日期：</strong> ${r.date}</p>
+                        <p><strong>車號：</strong> ${r.license_plate} ${statusBadge} ${durationBadge}</p>
+                        <p><strong>入料前時間：</strong> ${r.before_time || r.date || '無'}</p>
+                        ${r.after_time ? `<p><strong>入料後時間：</strong> ${r.after_time}</p>` : ''}
                         <div style="margin-top:10px; display:flex; gap:10px; font-size:14px;">
                             ${r.tBeforeUrl ? `<a href="${r.tBeforeUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">前液位照</a>` : ''}
                             ${r.vPhotoUrl ? `<a href="${r.vPhotoUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">車輛照</a>` : ''}
@@ -284,10 +291,13 @@
             compressImage(vFile)
         ]);
 
+        const nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
+
         const record = {
             id: Date.now().toString(),
             date: date,
             license_plate: plate,
+            client_before_time: nowStr,
             tBefore_b64: tBefore_b64,
             vPhoto_b64: vPhoto_b64,
             t_name: tFile ? tFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "tank_before.jpg",
@@ -344,11 +354,11 @@
             list.innerHTML = '';
             allPending.forEach(r => {
                 let badge = r.syncState === 'new' ? '<span style="color:red; font-size:12px;">(尚未上傳雲端)</span>' : '';
-                const displayDate = String(r.date).split("T")[0];
+                const timeText = r.before_time || r.client_before_time || r.created_at || String(r.date).split("T")[0];
                 list.innerHTML += `
                     <div class="record-card">
                         <p><strong>車號：</strong>${r.license_plate} ${badge}</p>
-                        <p><strong>日期：</strong>${displayDate}</p>
+                        <p><strong>入料前時間：</strong>${timeText}</p>
                         <button class="btn-select" onclick="selectRecord('${r.id}', '${r.license_plate}')">選擇完成入料</button>
                     </div>
                 `;
@@ -394,6 +404,7 @@
         const a_name = aFile ? aFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "tank_after.jpg";
 
         // 檢查 IndexedDB 中是否有此筆
+        const afterTimeStr = new Date().toLocaleString('zh-TW', { hour12: false });
         const tx = db.transaction(["records"], "readwrite");
         const store = tx.objectStore("records");
         const getReq = store.get(id);
@@ -405,6 +416,7 @@
                 record.status = 'completed';
                 record.tAfter_b64 = a_b64;
                 record.a_name = a_name;
+                record.client_after_time = afterTimeStr;
                 store.put(record);
             } else {
                 // 本機沒有（是從 GAS 拉下來的 pending），存入一筆專做 after_feed
@@ -413,7 +425,8 @@
                     status: 'completed',
                     syncState: 'pending_synced', // 表示 before_feed 已經在雲端了
                     tAfter_b64: a_b64,
-                    a_name: a_name
+                    a_name: a_name,
+                    client_after_time: afterTimeStr
                 });
             }
             alert('入料完成！');
@@ -468,6 +481,8 @@
                             id: r.id,
                             date: r.date,
                             license_plate: r.license_plate,
+                            client_before_time: r.client_before_time,
+                            client_after_time: r.client_after_time,
                             tank_level_before_b64: r.tBefore_b64,
                             vehicle_photo_b64: r.vPhoto_b64,
                             tank_level_after_b64: r.tAfter_b64,
@@ -490,6 +505,7 @@
                             id: r.id,
                             date: r.date,
                             license_plate: r.license_plate,
+                            client_before_time: r.client_before_time,
                             tank_level_before_b64: r.tBefore_b64,
                             vehicle_photo_b64: r.vPhoto_b64,
                             t_name: r.t_name,
@@ -510,6 +526,7 @@
                         const payload = {
                             action: "after_feed",
                             id: r.id,
+                            client_after_time: r.client_after_time,
                             tank_level_after_b64: r.tAfter_b64,
                             a_name: r.a_name
                         };
