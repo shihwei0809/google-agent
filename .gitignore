@@ -52,6 +52,13 @@ yarn-error.log*
 *.webm
 *.mp3
 *.wav
+*.avi
+*.mkv
+*.mov
+*.wmv
+
+# Wrangler
+.wrangler/
 
 # Jobs & Media Working Dirs
 jobs/

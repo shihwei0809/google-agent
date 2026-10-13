@@ -373,8 +373,41 @@
       function parseInputData(text) {
         if (!text || !text.includes("||")) return;
         const parts = text.trim().split("||");
-        document.getElementById('materialNo').value = parts[1] || ""; document.getElementById('tankNo').value = parts[2] || "";
-        document.getElementById('batchNo').value = parts[3] || ""; document.getElementById('supplier').value = parts[4] || ""; document.getElementById('deliveryPlace').value = parts[5] || "";
+        const rawMat = parts[1] || "";
+        const rawTank = parts[2] || "";
+        const rawBatch = parts[3] || "";
+        const rawSup = parts[4] || "";
+        const rawPlace = parts[5] || "";
+
+        // 畫面輸入框完整呈現 (維持 4/5/6 前綴字串)
+        document.getElementById('materialNo').value = rawMat;
+        document.getElementById('tankNo').value = rawTank;
+        document.getElementById('batchNo').value = rawBatch;
+        document.getElementById('supplier').value = rawSup;
+        document.getElementById('deliveryPlace').value = rawPlace;
+
+        // 掃描核對前綴規範 (料號 4, 槽號 5, 批號 6)
+        const msgEl = document.getElementById('msgLabel');
+        if (msgEl) {
+          const isMat4 = rawMat.startsWith("4");
+          const isTank5 = rawTank.startsWith("5");
+          const isBatch6 = rawBatch.startsWith("6");
+
+          if (isMat4 && isTank5 && isBatch6) {
+            msgEl.className = "text-center text-xs text-green-600 font-bold mt-2";
+            msgEl.innerText = "✅ QR 格式正確 (料號:4, 槽號:5, 批號:6 符合規範)";
+          } else {
+            let warn = [];
+            if (!isMat4 && rawMat) warn.push("料號未以4開頭");
+            if (!isTank5 && rawTank) warn.push("槽號未以5開頭");
+            if (!isBatch6 && rawBatch) warn.push("批號未以6開頭");
+            if (warn.length > 0) {
+              msgEl.className = "text-center text-xs text-amber-600 font-bold mt-2";
+              msgEl.innerText = "ℹ️ QR 前綴提示：" + warn.join("、") + " (畫面維持完整顯示，比對自動去除第一碼)";
+            }
+          }
+          msgEl.classList.remove('hidden');
+        }
       }
 
       function handleImageUpload(event, type) {

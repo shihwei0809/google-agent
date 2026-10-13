@@ -394,19 +394,44 @@ function processFormAndVerify_V10(formObject) {
         if (matchBackup) extractedDocOrder = matchBackup[1];
     }
 
-    var targetBatch = rawQrBatch.length >= 11 ? rawQrBatch.substring(1, 11) : rawQrBatch;
-    var targetTank  = rawTank; 
+    // 比對專用純淨值 (去除第一碼前綴: 批號6, 槽號5, 料號4，畫面與存檔仍保留完整值)
+    var targetBatch = rawQrBatch;
+    if (targetBatch.startsWith("6") && targetBatch.length > 1) {
+        targetBatch = targetBatch.substring(1);
+    } else if (targetBatch.length >= 11) {
+        targetBatch = targetBatch.substring(1, 11);
+    }
+
+    var targetTank = rawTank; 
+    if (targetTank.startsWith("5") && targetTank.length > 1) {
+        targetTank = targetTank.substring(1);
+    }
+
     var targetPlace = rawPlace; 
-    var targetMaterial = formObject.materialNo ? formObject.materialNo.toString().trim() : "";
+
+    var rawMaterial = formObject.materialNo ? formObject.materialNo.toString().trim() : "";
+    var targetMaterial = rawMaterial;
+    if (targetMaterial.startsWith("4") && targetMaterial.length > 1) {
+        targetMaterial = targetMaterial.substring(1);
+    }
 
     var check1 = advancedFuzzyCheck(ocrTextBatch, targetBatch);
     var check2 = smartLocationCheck(ocrTextLoc, targetPlace); 
     
+    // 槽號比對：先嘗試排除批號以避免誤判
     var tempOcrForTank = ocrTextLoc;
     if (targetBatch.length > 5) {
         tempOcrForTank = ocrTextLoc.toUpperCase().split(targetBatch.toUpperCase()).join(""); 
     }
     var check3 = advancedFuzzyCheck(tempOcrForTank, targetTank);
+    // 防呆備援：若批號本身內嵌槽號（如 26A11E3181 內含 E318）導致排除後找不到，且全文確實包含槽號，則視為通過
+    if (!check3.pass) {
+        var fallbackCheckTank = advancedFuzzyCheck(ocrTextLoc, targetTank);
+        if (fallbackCheckTank.pass) {
+            check3 = fallbackCheckTank;
+        }
+    }
+
     var check4 = advancedFuzzyCheck(ocrTextLoc, targetBatch);
     var check5 = advancedFuzzyCheck(ocrTextLoc, targetMaterial);
 
@@ -680,15 +705,38 @@ function smartLocationCheck(ocrText, target) {
 
 function advancedFuzzyCheck(ocrText, target) {
   if (!ocrText || !target) return { pass: false };
-  var cleanOCR = ocrText.toUpperCase().replace(/[\s-]/g, ""); var cleanTarget = target.toUpperCase().replace(/[\s-]/g, "");
+  var cleanOCR = ocrText.toUpperCase().replace(/[\s-]/g, ""); 
+  var cleanTarget = target.toUpperCase().replace(/[\s-]/g, "");
   if (cleanTarget.length === 0) return { pass: false };
-  if (cleanOCR.includes(cleanTarget)) return { pass: true };
-  if (cleanTarget.match(/^\d/)) { var noPrefix = cleanTarget.substring(1); if (noPrefix.length >= 3 && cleanOCR.includes(noPrefix)) { return { pass: true }; } }
-  var variant1 = cleanTarget.replace(/3/g, "5").replace(/8/g, "B"); if (cleanOCR.includes(variant1)) return { pass: true };
-  var variant2 = cleanTarget.replace(/5/g, "3").replace(/B/g, "8"); if (cleanOCR.includes(variant2)) return { pass: true };
-  var fO = cleanOCR.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]});
-  var fT = cleanTarget.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]});
-  if (fO.includes(fT)) return { pass: true };
+
+  function testMatch(t) {
+    if (!t || t.length === 0) return false;
+    if (cleanOCR.includes(t)) return true;
+    if (cleanOCR.includes(t.replace(/8/g, "B"))) return true;
+    if (cleanOCR.includes(t.replace(/B/g, "8"))) return true;
+    if (cleanOCR.includes(t.replace(/3/g, "5"))) return true;
+    if (cleanOCR.includes(t.replace(/5/g, "3"))) return true;
+    var variant1 = t.replace(/3/g, "5").replace(/8/g, "B");
+    if (cleanOCR.includes(variant1)) return true;
+    var variant2 = t.replace(/5/g, "3").replace(/B/g, "8");
+    if (cleanOCR.includes(variant2)) return true;
+    var fO = cleanOCR.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]});
+    var fT = t.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]});
+    if (fO.includes(fT)) return true;
+    return false;
+  }
+
+  // 1. 完全或容錯比對 cleanTarget
+  if (testMatch(cleanTarget)) return { pass: true };
+
+  // 2. 自動去除第一碼前綴比對 (若開頭為數字且長度 >= 3)
+  if (cleanTarget.match(/^\d/)) {
+    var noPrefix = cleanTarget.substring(1);
+    if (noPrefix.length >= 3 && testMatch(noPrefix)) {
+      return { pass: true };
+    }
+  }
+
   return { pass: false };
 }
 
