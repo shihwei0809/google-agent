@@ -1319,7 +1319,7 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 
 # ================= 介面與操作 =================
 
-APP_VERSION = "v1.0.20 (2026/10/13 更新)"
+APP_VERSION = "v1.0.21 (2026/10/13 更新)"
 
 class App(tk.Tk):
     def __init__(self):
@@ -1672,12 +1672,11 @@ class App(tk.Tk):
             (6,  "出貨日期 📅",              110),
             (7,  "到貨日期 📅",              110),
             (8,  "採購單號",                 110),
-            (9,  "料號 (自動)",               90),
-            (10, "品名",                     220),
-            (11, "製造日",                   80),
-            (12, "保存期限",                 80),
-            (13, "剩餘天數",                 80),
-            (14, "清空單列",                 80),
+            (9,  "品名",                     220),
+            (10, "製造日",                   80),
+            (11, "保存期限",                 80),
+            (12, "剩餘天數",                 80),
+            (13, "清空單列",                 80),
         ]
         
         for col_idx, title, min_w in headers:
@@ -1696,7 +1695,7 @@ class App(tk.Tk):
             )
             lbl.grid(row=0, column=col_idx, sticky="ew", padx=1, pady=(0, 4), ipadx=2, ipady=2)
             # 設定最小欄寬與動態延展權重 (採購單號、品名等欄位允許延展)
-            weight = 1 if col_idx in (8, 10) else 0
+            weight = 1 if col_idx in (8, 9) else 0
             self.scrollable_frame.columnconfigure(col_idx, minsize=min_w, weight=weight)
 
         # 產生按鈕
@@ -1732,11 +1731,10 @@ class App(tk.Tk):
             loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=12, font=("Arial", 10))
             loc_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
             
-            # Col 5: 長代號
+            # Col 5: 長代號 (改為純文字輸入框，不用下拉選單)
             long_code_var = tk.StringVar()
-            from tkinter import ttk
-            long_code_combo = ttk.Combobox(self.scrollable_frame, textvariable=long_code_var, state="readonly", width=12, font=("Arial", 10))
-            long_code_combo.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
+            long_code_entry = tk.Entry(self.scrollable_frame, textvariable=long_code_var, width=12, font=("Arial", 10))
+            long_code_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
             
             # Col 6: 出貨日期 (Entry + 📅 日曆按鈕)
             date_frame = tk.Frame(self.scrollable_frame)
@@ -1765,32 +1763,30 @@ class App(tk.Tk):
             po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=18, font=("Arial", 10), fg="#333")
             po_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
-            # Col 9: 料號
+            # 料號 (自動)：後台保留變數連動與報表產出，畫面不顯示
             part_var = tk.StringVar()
-            part_entry = tk.Entry(self.scrollable_frame, textvariable=part_var, width=9, font=("Arial", 10), fg="purple")
-            part_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 10: 品名
+            # Col 9: 品名
             name_var = tk.StringVar()
             name_entry = tk.Entry(self.scrollable_frame, textvariable=name_var, width=28, font=("Arial", 10), fg="purple")
-            name_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
+            name_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 11: 製造日
+            # Col 10: 製造日
             mfg_var = tk.StringVar()
             mfg_entry = tk.Entry(self.scrollable_frame, textvariable=mfg_var, width=10, font=("Arial", 10), fg="black")
-            mfg_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
+            mfg_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
 
-            # Col 12: 保存期限
+            # Col 11: 保存期限
             exp_var = tk.StringVar()
             exp_entry = tk.Entry(self.scrollable_frame, textvariable=exp_var, width=10, font=("Arial", 10), fg="black")
-            exp_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
+            exp_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
 
-            # Col 13: 剩餘天數
+            # Col 12: 剩餘天數
             rem_var = tk.StringVar()
             rem_entry = tk.Entry(self.scrollable_frame, textvariable=rem_var, width=6, font=("Arial", 10), fg="red")
-            rem_entry.grid(row=row_grid_idx, column=13, padx=2, pady=2, sticky="ew")
+            rem_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
 
-            # Col 14: 單列清空按鈕
+            # Col 13: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
                 text="清空", 
@@ -1802,11 +1798,11 @@ class App(tk.Tk):
                 width=6,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=14, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=13, padx=4, pady=2)
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=qty_var: self.on_batch_change(bv, tv))
-            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var, cb=long_code_combo: self.on_loc_change(lv, lcv, cb))
+            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, pv=part_var: self.update_part_no(lv, pv))
             
             for widget in (batch_entry, loc_entry, date_entry):
