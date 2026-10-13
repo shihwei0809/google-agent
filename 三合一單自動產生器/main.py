@@ -1,4 +1,4 @@
-import pytesseract
+﻿import pytesseract
 from pytesseract import Output
 from tkinter import filedialog
 from io import BytesIO
@@ -1299,9 +1299,51 @@ class App(tk.Tk):
             self.loading_win.destroy()
             self.loading_win = None
 
+    def find_mapping_file(self):
+        """
+        智慧尋找地點代號對照表：
+        1. 優先尋找檔名包含「地點代號對照」且帶日期的檔案（如 地點代號對照表-20261013.xlsx 或 地點代號對照表_1013.xlsx）
+           若有多個，依修改時間最新者排序，取最新的。
+        2. 次要尋找檔名包含「地點代號對照」的 .xlsx 檔案（如 地點代號對照表.xlsx），依修改時間取最新。
+        3. 排除以 ~$ 開頭之暫存檔。
+        """
+        candidates = []
+        try:
+            for f in os.listdir(self.base_dir):
+                if f.endswith('.xlsx') and not f.startswith('~$'):
+                    candidates.append(f)
+        except Exception:
+            pass
+
+        import re as _re
+        date_candidates = []
+        for f in candidates:
+            if '地點代號對照' in f and _re.search(r'[-_]?\d+', f):
+                full_p = os.path.join(self.base_dir, f)
+                date_candidates.append((os.path.getmtime(full_p), full_p))
+
+        if date_candidates:
+            date_candidates.sort(key=lambda x: x[0], reverse=True)
+            return date_candidates[0][1]
+
+        general_candidates = []
+        for f in candidates:
+            if '地點代號對照' in f:
+                full_p = os.path.join(self.base_dir, f)
+                general_candidates.append((os.path.getmtime(full_p), full_p))
+
+        if general_candidates:
+            general_candidates.sort(key=lambda x: x[0], reverse=True)
+            return general_candidates[0][1]
+
+        return os.path.join(self.base_dir, "地點代號對照表.xlsx")
+
     def load_mapping(self):
+        self.mapping_path = self.find_mapping_file()
         self.mapping_dict = {}
         self.part_mapping_dict = {}
+        self.origin_options = []
+
         if os.path.exists(self.mapping_path):
             try:
                 map_wb = openpyxl.load_workbook(self.mapping_path, data_only=True)
@@ -1309,33 +1351,61 @@ class App(tk.Tk):
                 rows = list(map_ws.iter_rows(values_only=True))
                 if rows:
                     headers = [str(h).strip() if h else "" for h in rows[0]]
+                    # C欄 (index 2) 以後的所有欄位標題皆為出貨區廠區選項 (例如 彰濱一廠、彰濱二廠、彰濱三廠...)
+                    self.origin_options = [h for h in headers[2:] if h]
+
                     for row in rows[1:]:
                         if row and len(row) >= 2 and row[0] and row[1]:
                             loc_key = str(row[0]).strip().upper()
                             loc_val = str(row[1]).strip()
                             if any(kw in loc_key for kw in ("到貨", "地點", "SHORT", "LOCATION", "KEY", "HEADER")):
                                 continue
-                            self.mapping_dict[loc_key] = loc_val
-                            info = {"default": str(row[2]).strip() if len(row) > 2 and row[2] else "", "origins": {}}
-                            for i in range(3, len(headers)):
+
+                            # 支援一對多長代號
+                            if loc_key not in self.mapping_dict:
+                                self.mapping_dict[loc_key] = []
+                            if loc_val not in self.mapping_dict[loc_key]:
+                                self.mapping_dict[loc_key].append(loc_val)
+
+                            # 解析出貨區各廠區對應料號
+                            origins = {}
+                            for i in range(2, len(headers)):
                                 if i < len(row) and row[i] is not None:
                                     h_name = headers[i]
-                                    if h_name: info["origins"][h_name] = str(row[i]).strip()
-                            self.part_mapping_dict[loc_key] = info
+                                    val = str(row[i]).strip()
+                                    if h_name and val:
+                                        origins[h_name] = val
+
+                            default_part = ""
+                            if "預設料號" in origins:
+                                default_part = origins["預設料號"]
+                            elif origins:
+                                default_part = list(origins.values())[0]
+
+                            self.part_mapping_dict[loc_key] = {
+                                "default": default_part,
+                                "origins": origins
+                            }
                 map_wb.close()
             except Exception as e:
                 pass
 
         if hasattr(self, "lbl_mapping_status"):
             m_color = "green" if os.path.exists(self.mapping_path) else "red"
-            m_text = f"對照表檔案 (地點代號對照表.xlsx): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "對照表檔案 (地點代號對照表.xlsx): ❌ 未找到"
+            cur_filename = os.path.basename(self.mapping_path)
+            m_text = f"對照表檔案 ({cur_filename}): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else f"對照表檔案 ({cur_filename}): ❌ 未找到"
             self.lbl_mapping_status.config(text=m_text, fg=m_color)
 
         if hasattr(self, "entries"):
             for entry in self.entries:
+                if "origin_combo" in entry and hasattr(self, "origin_options"):
+                    entry["origin_combo"]["values"] = self.origin_options
                 loc_val = entry["loc_var"].get().strip().upper()
                 if loc_val:
-                    self.on_loc_change(entry["loc_var"], entry["long_code_var"])
+                    cb = entry.get("long_code_combo")
+                    self.on_loc_change(entry["loc_var"], entry["long_code_var"], cb)
+                    if "origin_var" in entry and "part_var" in entry:
+                        self.update_part_no(entry["loc_var"], entry["origin_var"], entry["part_var"])
 
     def update_lorry_status(self):
         if not hasattr(self, "imported_lorry_files"):
@@ -1561,7 +1631,7 @@ class App(tk.Tk):
             (5, "長代號 (自動)"),
             (6, "出貨日期 📅"),
             (7, "採購單號"),
-            (8, "出貨區 (貼上)"),
+            (8, "出貨區 (選/貼)"),
             (9, "料號 (自動)"),
             (10, "清空單列")
         ]
@@ -1659,7 +1729,7 @@ class App(tk.Tk):
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
-            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
+            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var, cb=long_code_combo: self.on_loc_change(lv, lcv, cb))
             origin_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
             

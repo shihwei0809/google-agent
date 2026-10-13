@@ -49,6 +49,13 @@ echo [狀態] 偵測到本機 Git 開發庫，正在從 GitHub 雲端執行 git pull...
 echo.
 
 cd /d "%~dp0.."
+
+:: 自動防呆修復：若先前有未結案的 merge (MERGE_HEAD) 導致卡死，自動重設以確保可順暢更新
+if exist ".git\MERGE_HEAD" (
+    echo [防呆處理] 偵測到本機有未完成的合併狀態 (MERGE_HEAD)，正在自動重設修復...
+    git merge --abort >nul 2>&1
+)
+
 git pull
 if errorlevel 1 (
     echo.
