@@ -1256,23 +1256,42 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("三合一單自動產生器 (v2.2.2 - 2026/10/12更新)")
+        self.title("三合一單自動產生器 (v2.2.3 - 2026/10/13更新)")
         self.geometry("1260x820")
         self.minsize(1080, 620)
         self.configure(padx=15, pady=15)
-        
+
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.template_path = os.path.join(self.base_dir, "台積電槽車barcode三合一單-範本.xlsx")
-        self.mapping_path = os.path.join(self.base_dir, "地點代號對照表.xlsx")
-        
+        self.origin_options = []
         self.mapping_dict = {}
         self.imported_lorry_files = []
+
+        # 記憶上次開檔路徑機制 (對齊 N 系列)
+        self._last_dirs = {}  # key: "excel", "lorry", "coa"
+        self._dirs_file = os.path.join(self.base_dir, "last_dirs.json")
+        if os.path.exists(self._dirs_file):
+            try:
+                with open(self._dirs_file, "r", encoding="utf-8") as f:
+                    self._last_dirs = json.load(f)
+            except Exception:
+                pass
+
         self.load_mapping()
-        
+
         self.setup_ui()
         self.entries = []
         self.coa_paths = []
         self.add_input_rows(20)
+
+    def _save_last_dir(self, key, filepath):
+        if filepath:
+            self._last_dirs[key] = os.path.dirname(filepath)
+            try:
+                with open(self._dirs_file, "w", encoding="utf-8") as f:
+                    json.dump(self._last_dirs, f, ensure_ascii=False)
+            except Exception:
+                pass
 
     def show_loading(self, msg="⏳ 系統處理中，請稍候..."):
         self.config(cursor="wait")
