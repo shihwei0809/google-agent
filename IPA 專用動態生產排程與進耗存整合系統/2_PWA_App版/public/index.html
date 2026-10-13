@@ -611,6 +611,65 @@
         return PLANTS.find(p => p.id === activePlantId) || PLANTS[0];
       }, [activePlantId]);
 
+      // 國定假日與行事曆自動同步 (支援每年自動抓取與離線快取)
+      const [holidayMap, setHolidayMap] = useState({});
+
+      useEffect(() => {
+        const curYear = activeMonthObj.year;
+        if (!curYear) return;
+        const cacheKey = `tw_calendar_${curYear}`;
+
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            setHolidayMap(JSON.parse(cached));
+          } catch(e) {}
+        }
+
+        fetch(`https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${curYear}.json`)
+          .then(res => {
+            if (!res.ok) throw new Error('Calendar fetch status: ' + res.status);
+            return res.json();
+          })
+          .then(data => {
+            const map = {};
+            data.forEach(item => {
+              // 支援官方 isHoliday (包含補班日為 false、國定假日與放假日為 true)
+              map[item.date] = {
+                isHoliday: item.isHoliday,
+                description: item.description || ''
+              };
+            });
+            setHolidayMap(map);
+            localStorage.setItem(cacheKey, JSON.stringify(map));
+          })
+          .catch(err => {
+            console.warn('無法連線取得最新國定假日，採用系統預設六日與快取:', err);
+          });
+      }, [activeMonthObj.year]);
+
+      // 判斷某一天是否為休假/國定假日（變紅）
+      const checkIsRedDay = (year, month, day) => {
+        const yyyy = String(year);
+        const mm = String(month).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        const dateKey = `${yyyy}${mm}${dd}`;
+
+        if (holidayMap[dateKey] !== undefined) {
+          return {
+            isRed: !!holidayMap[dateKey].isHoliday,
+            holidayName: holidayMap[dateKey].description || ''
+          };
+        }
+
+        const dayDate = new Date(year, month - 1, day);
+        const isWeekend = [0, 6].includes(dayDate.getDay());
+        return {
+          isRed: isWeekend,
+          holidayName: ''
+        };
+      };
+
       // 當切換到二廠等獨立槽廠區時，確保 selectedSalesTankId 為該廠有效的原料槽
       useEffect(() => {
         if (activePlantId !== 'config') {
@@ -1964,11 +2023,16 @@
                               <tr className="bg-indigo-100 border-b border-indigo-200">
                                 <th className="sticky-col p-2.5 font-bold border-b-2 border-indigo-300 bg-indigo-100 text-indigo-900">共用池項目 / 日期</th>
                                 {displayDaysArr.map((i) => {
-                                  const dayDate = new Date(activeMonthObj.year, activeMonthObj.month - 1, i + 1);
-                                  const isWeekend = [0, 6].includes(dayDate.getDay());
+                                  const dayNum = i + 1;
+                                  const { isRed, holidayName } = checkIsRedDay(activeMonthObj.year, activeMonthObj.month, dayNum);
                                   return (
-                                    <th key={i} className={`min-w-[60px] px-1 py-2 font-bold border-b-2 border-indigo-300 ${isWeekend ? 'text-red-500 bg-red-50' : 'text-indigo-900'}`}>
-                                      {activeMonthObj.month}/{i + 1}
+                                    <th 
+                                      key={i} 
+                                      title={holidayName ? `${activeMonthObj.month}/${dayNum} ${holidayName}` : `${activeMonthObj.month}/${dayNum}`}
+                                      className={`min-w-[60px] px-1 py-2 font-bold border-b-2 border-indigo-300 ${isRed ? 'text-red-500 bg-red-50' : 'text-indigo-900'}`}
+                                    >
+                                      <div>{activeMonthObj.month}/{dayNum}</div>
+                                      {holidayName && <div className="text-[9px] font-normal text-red-500 truncate max-w-[55px] mx-auto leading-tight">{holidayName}</div>}
                                     </th>
                                   );
                                 })}
@@ -2068,11 +2132,16 @@
                                 <tr className="bg-slate-100 border-b border-slate-200">
                                   <th className="sticky-col p-2.5 font-bold border-b-2 border-slate-300">項目 / 日期</th>
                                   {displayDaysArr.map((i) => {
-                                    const dayDate = new Date(activeMonthObj.year, activeMonthObj.month - 1, i + 1);
-                                    const isWeekend = [0, 6].includes(dayDate.getDay());
+                                    const dayNum = i + 1;
+                                    const { isRed, holidayName } = checkIsRedDay(activeMonthObj.year, activeMonthObj.month, dayNum);
                                     return (
-                                      <th key={i} className={`min-w-[60px] px-1 py-2 font-bold border-b-2 border-slate-300 ${isWeekend ? 'text-red-500 bg-red-50' : 'text-slate-600'}`}>
-                                        {activeMonthObj.month}/{i + 1}
+                                      <th 
+                                        key={i} 
+                                        title={holidayName ? `${activeMonthObj.month}/${dayNum} ${holidayName}` : `${activeMonthObj.month}/${dayNum}`}
+                                        className={`min-w-[60px] px-1 py-2 font-bold border-b-2 border-slate-300 ${isRed ? 'text-red-500 bg-red-50' : 'text-slate-600'}`}
+                                      >
+                                        <div>{activeMonthObj.month}/{dayNum}</div>
+                                        {holidayName && <div className="text-[9px] font-normal text-red-500 truncate max-w-[55px] mx-auto leading-tight">{holidayName}</div>}
                                       </th>
                                     );
                                   })}

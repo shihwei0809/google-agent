@@ -1,4 +1,4 @@
-﻿export async function onRequest(context) {
+export async function onRequest(context) {
     const { request, env } = context;
     
     // 取得設定檔
@@ -17,7 +17,7 @@
     }
 
     // 呼叫 CWA 氣象資料
-    const apiUrl = https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization= + config.cwa_api_key + &StationId= + config.cwa_station_id;
+    const apiUrl = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/O-A0003-001?Authorization=" + config.cwa_api_key + "&StationId=" + config.cwa_station_id;
     const cwaResponse = await fetch(apiUrl);
     
     if (!cwaResponse.ok) {
@@ -36,7 +36,7 @@
     // Generate Taiwan timestamp
     const twNow = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Taipei"}));
     const pad = n => n.toString().padStart(2, '0');
-    const twTimestamp = ` + twNow.getFullYear() + - + pad(twNow.getMonth()+1) + - + pad(twNow.getDate()) +   + pad(twNow.getHours()) + : + pad(twNow.getMinutes()) + : + pad(twNow.getSeconds());
+    const twTimestamp = `${twNow.getFullYear()}-${pad(twNow.getMonth()+1)}-${pad(twNow.getDate())} ${pad(twNow.getHours())}:${pad(twNow.getMinutes())}:${pad(twNow.getSeconds())}`;
     
     const obsTime = obsTimeRaw.replace("T", " ").substring(0, 19);
     const temp = parseFloat(s.WeatherElement?.AirTemperature || -99);
@@ -52,7 +52,7 @@
         // 觸發 LINE 推播
         if (config.line_notify_token) {
             const tokens = config.line_notify_token.split(",");
-            const msg = \n【高溫警報】現場環境溫度已達  + temp + °C，已超設定閾值  + threshold + °C！\n觀測時間： + obsTime;
+            const msg = `\n【高溫警報】現場環境溫度已達 ${temp}°C，已超設定閾值 ${threshold}°C！\n觀測時間：${obsTime}`;
             
             for (let token of tokens) {
                 token = token.trim();

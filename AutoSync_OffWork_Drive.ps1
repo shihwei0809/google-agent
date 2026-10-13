@@ -1,8 +1,10 @@
-﻿# AutoSync_OffWork_Drive.ps1
+# AutoSync_OffWork_Drive.ps1
 # 自動將當天有修改的專案資料夾與檔案同步備份至 Google Drive
 
 $srcRoot = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
-$destRoot = "G:\我的雲端硬碟\GOOGLE ANGET\專案備份"
+$todayStr = (Get-Date).ToString("yyyyMMdd")
+$snapshotRoot = "G:\我的雲端硬碟\GOOGLE ANGET\專案備份\00_最近7天收工快照"
+$destRoot = Join-Path $snapshotRoot "${todayStr}_收工備份"
 
 if (!(Test-Path -Path $destRoot)) {
     New-Item -ItemType Directory -Force -Path $destRoot | Out-Null

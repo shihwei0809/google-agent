@@ -1,3 +1,13 @@
+let activeChartLogs = [];
+let currentChartMode = "realtime";
+
+function formatDateToYYYYMMDD(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+}
+
 // Cloudflare D1 版 app.js
 
 let tempChart = null;
@@ -96,7 +106,9 @@ async function fetchData() {
             if(lastHb) lastHb.innerText = `最後心跳時間：${current.timestamp}`;
 
             // Update Chart
-            updateChart(data.logs, data.config.threshold || 28.0);
+            if (currentChartMode === "realtime") {
+                updateChart(data.logs, data.config.threshold || 28.0, "realtime");
+            }
             
             // Update Logs Table
             updateLogsTable(data.logs, data.config.threshold || 28.0);
@@ -127,43 +139,85 @@ async function fetchData() {
     }
 }
 
-function updateChart(logs, threshold) {
-    const canvas = document.getElementById('tempTrendChart');
+function updateChart(logs, threshold, mode = "realtime") {
+    const canvas = document.getElementById("tempTrendChart");
     if(!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     
-    // Sort logs by time ascending for chart
-    const chartLogs = [...logs].reverse();
-    const labels = chartLogs.map(log => log.obs_time.substring(11, 16));
+    // 確保由舊到新排序 (遞增)
+    const chartLogs = [...logs].sort((a,b) => new Date(a.obs_time) - new Date(b.obs_time));
+    activeChartLogs = chartLogs;
+    
+    let labels;
+    if (mode === "realtime") {
+        // 24小時即時趨勢：X軸顯示時間 (HH:mm)
+        labels = chartLogs.map(log => log.obs_time ? log.obs_time.substring(11, 16) : "");
+    } else {
+        // 歷史查詢區間：X軸顯示日期
+        const firstDate = chartLogs[0]?.obs_time ? chartLogs[0].obs_time.substring(0, 10) : "";
+        const lastDate = chartLogs[chartLogs.length - 1]?.obs_time ? chartLogs[chartLogs.length - 1].obs_time.substring(0, 10) : "";
+        const isSingleDay = (firstDate === lastDate);
+        
+        if (isSingleDay) {
+            // 同一天：顯示時間 (HH:mm)
+            labels = chartLogs.map(log => log.obs_time ? log.obs_time.substring(11, 16) : "");
+        } else {
+            // 跨多天：顯示日期 MM/DD (若跨年份則顯示 YYYY/MM/DD)
+            const firstYear = firstDate.substring(0, 4);
+            const lastYear = lastDate.substring(0, 4);
+            const crossYear = (firstYear && lastYear && firstYear !== lastYear);
+            
+            labels = chartLogs.map(log => {
+                if (!log.obs_time) return "";
+                const datePart = log.obs_time.split(" ")[0];
+                const parts = datePart.split("-");
+                if (crossYear) {
+                    return parts[0] + "/" + parts[1] + "/" + parts[2];
+                } else {
+                    return parts[1] + "/" + parts[2]; // MM/DD 如 05/01, 10/13
+                }
+            });
+        }
+    }
+    
     const temps = chartLogs.map(log => log.temperature);
     const thresholds = chartLogs.map(() => parseFloat(threshold));
+    const pointRadius = chartLogs.length > 50 ? (chartLogs.length > 200 ? 0 : 1.5) : 3;
+
+    const yMin = temps.length ? Math.floor(Math.min(...temps, parseFloat(threshold)) - 2) : 20;
+    const yMax = temps.length ? Math.ceil(Math.max(...temps, parseFloat(threshold)) + 2) : 35;
 
     if (tempChart) {
+        tempChart.currentLogs = chartLogs;
         tempChart.data.labels = labels;
         tempChart.data.datasets[0].data = temps;
+        tempChart.data.datasets[0].pointRadius = pointRadius;
         tempChart.data.datasets[1].data = thresholds;
+        tempChart.data.datasets[1].label = "警報閾值 (" + threshold + "°C)";
+        tempChart.options.scales.y.min = yMin;
+        tempChart.options.scales.y.max = yMax;
         tempChart.update();
     } else {
         tempChart = new Chart(ctx, {
-            type: 'line',
+            type: "line",
             data: {
                 labels: labels,
                 datasets: [
                     {
-                        label: '觀測溫度 (°C)',
+                        label: "觀測溫度 (°C)",
                         data: temps,
-                        borderColor: '#00e5ff',
-                        backgroundColor: 'rgba(0, 229, 255, 0.1)',
+                        borderColor: "#00e5ff",
+                        backgroundColor: "rgba(0, 229, 255, 0.1)",
                         borderWidth: 2,
-                        tension: 0.4,
+                        tension: 0.3,
                         fill: true,
-                        pointRadius: 3,
-                        pointBackgroundColor: '#fff'
+                        pointRadius: pointRadius,
+                        pointBackgroundColor: "#fff"
                     },
                     {
-                        label: `警報閾值 (${threshold}°C)`,
+                        label: "警報閾值 (" + threshold + "°C)",
                         data: thresholds,
-                        borderColor: '#ff4d4d',
+                        borderColor: "#ff4d4d",
                         borderWidth: 1.5,
                         borderDash: [5, 5],
                         pointRadius: 0,
@@ -177,18 +231,30 @@ function updateChart(logs, threshold) {
                 scales: {
                     y: {
                         beginAtZero: false,
-                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-                        ticks: { color: '#ccc' },
-                        min: Math.floor(Math.min(...temps, parseFloat(threshold)) - 3),
-                        max: Math.ceil(Math.max(...temps, parseFloat(threshold)) + 3)
+                        grid: { color: "rgba(255, 255, 255, 0.1)" },
+                        ticks: { color: "#ccc" },
+                        min: yMin,
+                        max: yMax
                     },
                     x: {
                         grid: { display: false },
-                        ticks: { color: '#ccc', maxTicksLimit: 12 }
+                        ticks: { color: "#ccc", maxTicksLimit: 12 }
                     }
                 },
                 plugins: {
-                    legend: { labels: { color: '#fff' } }
+                    legend: { labels: { color: "#fff" } },
+                    tooltip: {
+                        callbacks: {
+                            title: function(tooltipItems) {
+                                const idx = tooltipItems[0].dataIndex;
+                                const item = activeChartLogs[idx] || (tooltipItems[0].chart && tooltipItems[0].chart.currentLogs ? tooltipItems[0].chart.currentLogs[idx] : null);
+                                return item ? "觀測時間：" + item.obs_time : "";
+                            },
+                            label: function(context) {
+                                return context.dataset.label + ": " + context.parsed.y.toFixed(1) + "°C";
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -316,36 +382,49 @@ fetchData();
 setInterval(fetchData, 60000);
 
 function setChartMode(mode) {
-    document.getElementById('btnChartRealtime').classList.remove('active');
-    document.getElementById('btnChartHistory').classList.remove('active');
+    currentChartMode = mode;
+    document.getElementById("btnChartRealtime").classList.remove("active");
+    document.getElementById("btnChartHistory").classList.remove("active");
     
-    if (mode === 'realtime') {
-        document.getElementById('btnChartRealtime').classList.add('active');
-        document.getElementById('chartFilterRow').style.display = 'none';
-        document.getElementById('chartTitle').innerHTML = '📈 即時24小時溫度趨勢';
-        // Reset chart to currentLogs
+    if (mode === "realtime") {
+        document.getElementById("btnChartRealtime").classList.add("active");
+        document.getElementById("chartFilterRow").style.display = "none";
+        document.getElementById("chartTitle").innerHTML = "📈 即時24小時溫度趨勢";
         if(window.currentLogs && window.currentLogs.length > 0) {
-            updateChart(window.currentLogs, parseFloat(document.getElementById('dashThreshold').innerText) || 28.0);
+            updateChart(window.currentLogs, parseFloat(document.getElementById("dashThreshold").innerText) || 28.0, "realtime");
         }
     } else {
-        document.getElementById('btnChartHistory').classList.add('active');
-        document.getElementById('chartFilterRow').style.display = 'flex';
+        document.getElementById("btnChartHistory").classList.add("active");
+        document.getElementById("chartFilterRow").style.display = "flex";
+        
+        const startInput = document.getElementById("chartStartDate");
+        const endInput = document.getElementById("chartEndDate");
+        if(!startInput.value || !endInput.value) {
+            const today = new Date();
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(today.getDate() - 7);
+            
+            endInput.value = formatDateToYYYYMMDD(today);
+            startInput.value = formatDateToYYYYMMDD(sevenDaysAgo);
+        }
+        
+        queryHistoricalChartData();
     }
 }
 
 async function queryHistoricalChartData() {
-    const startDate = document.getElementById('chartStartDate').value;
-    const endDate = document.getElementById('chartEndDate').value;
+    const startDate = document.getElementById("chartStartDate").value;
+    const endDate = document.getElementById("chartEndDate").value;
     
-    if(!startDate || !endDate) { alert('請選擇開始與結束日期'); return; }
+    if(!startDate || !endDate) { alert("請選擇開始與結束日期"); return; }
     
-    const btn = document.getElementById('btnChartQuery');
-    const loader = document.getElementById('chartLoader');
-    if(btn) btn.style.display = 'none';
-    if(loader) loader.style.display = 'inline-block';
+    const btn = document.getElementById("btnChartQuery");
+    const loader = document.getElementById("chartLoader");
+    if(btn) btn.style.display = "none";
+    if(loader) loader.style.display = "inline-block";
     
     try {
-        const res = await fetch('/api/export');
+        const res = await fetch("/api/export");
         const allLogs = await res.json();
         
         const start = startDate + " 00:00:00";
@@ -354,22 +433,29 @@ async function queryHistoricalChartData() {
         const filtered = allLogs.filter(log => log.obs_time && log.obs_time >= start && log.obs_time <= end);
         
         if(filtered.length === 0) {
-            alert('該區間沒有資料');
+            alert("該區間沒有資料");
         } else {
-            // Chart expects descending order generally, or chronological?
-            // Actually updateChart reverses it, so we pass it in descending order (newest first)
-            filtered.sort((a,b) => new Date(b.obs_time) - new Date(a.obs_time));
-            updateChart(filtered, parseFloat(document.getElementById('dashThreshold').innerText) || 28.0);
+            // Sort ascending chronologically
+            filtered.sort((a,b) => new Date(a.obs_time) - new Date(b.obs_time));
             
-            document.getElementById('chartTitle').innerHTML = `📈 歷史溫度趨勢 (${startDate} ~ ${endDate})`;
+            // 降採樣：如果超過 300 點，等距抽樣確保繪製順暢
+            let displayLogs = filtered;
+            if (filtered.length > 300) {
+                const step = Math.ceil(filtered.length / 300);
+                displayLogs = filtered.filter((_, idx) => idx % step === 0);
+            }
+            
+            updateChart(displayLogs, parseFloat(document.getElementById("dashThreshold").innerText) || 28.0, "history");
+            
+            document.getElementById("chartTitle").innerHTML = "📈 歷史溫度趨勢 (" + startDate + " ~ " + endDate + ")";
         }
     } catch(err) {
         console.error(err);
-        alert('查詢失敗');
+        alert("查詢失敗");
     }
     
-    if(btn) btn.style.display = 'inline-block';
-    if(loader) loader.style.display = 'none';
+    if(btn) btn.style.display = "inline-block";
+    if(loader) loader.style.display = "none";
 }
 
 
