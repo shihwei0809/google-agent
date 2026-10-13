@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>IPA 生產排程與進耗存整合系統 v3.1 (二廠開俥日與下腳料滿槽警示版)</title>
+  <title>IPA 生產排程與進耗存整合系統 v3.3 (原採進貨智慧匯入與儲槽日報08:00自動帶入版)</title>
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
@@ -44,9 +44,27 @@
       font-weight: bold;
       cursor: pointer;
     }
+    #update-banner {
+      display: none;
+      background: #059669;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 1001;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans pt-8">
+  <div id="update-banner" onclick="window.location.reload(true)">
+    🎉 系統已發布新版本！點擊此處立即更新 🔄
+  </div>
+
   <div id="pwa-install-banner">
     📲 想要更順暢的體驗？安裝 PWA 桌面/手機版應用程式！
     <button id="pwa-install-btn">立即安裝</button>
@@ -55,15 +73,41 @@
   <div id="root"></div>
 
   <script>
-    // PWA Service Worker Registration
+    // PWA Service Worker Registration & Network-First Auto Update
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').then(reg => {
           console.log('SW registered:', reg);
+          reg.update(); // 開啟主動向雲端檢查更新
+          reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            if (installingWorker) {
+              installingWorker.onstatechange = () => {
+                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showUpdateBanner();
+                }
+              };
+            }
+          };
         }).catch(err => {
           console.log('SW registration failed:', err);
         });
       });
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        showUpdateBanner();
+      });
+
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'VERSION_UPDATED') {
+          showUpdateBanner();
+        }
+      });
+    }
+
+    function showUpdateBanner() {
+      const banner = document.getElementById('update-banner');
+      if (banner) banner.style.display = 'block';
     }
 
     // PWA Install Prompt Logic
@@ -91,7 +135,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // 系統最新版別標籤
-    const SYSTEM_VERSION = "v3.1 (二廠開俥日與下腳料滿槽警示版)";
+    const SYSTEM_VERSION = "v3.3 (支援原採進貨智慧匯入與日報08:00自動帶入)";
 
     // 數字格式化輔助函式：即時過濾前導 0
     const cleanNumStr = (val) => {
@@ -216,6 +260,16 @@
       const [newTankCanRecycle, setNewTankCanRecycle] = useState(false);
       const [newTankInit, setNewTankInit] = useState(150);
 
+      // 儲槽作業日報 08:00 重量歷史/當前資料庫
+      const [tankDailyData, setTankDailyData] = useState({});
+      const [selectedReportDate, setSelectedReportDate] = useState('');
+
+      // 原採進貨排程快速匯入 Modal 控制
+      const [showProcurementModal, setShowProcurementModal] = useState(false);
+      const [procurementRawText, setProcurementRawText] = useState('');
+      const [parsedProcurementList, setParsedProcurementList] = useState([]);
+      const [defaultImportTarget, setDefaultImportTarget] = useState('SHARED_POOL');
+
       // 從 API 雲端載入資料
       const fetchAllData = async () => {
         setIsDataLoaded(false);
@@ -234,6 +288,17 @@
           if (archRes.ok) {
             const list = await archRes.json();
             setArchiveList(list || []);
+          }
+
+          // 讀取儲槽作業日報 08:00 重量快照索引
+          try {
+            const dailyRes = await fetch('./tank_daily_0800.json');
+            if (dailyRes.ok) {
+              const dailyData = await dailyRes.json();
+              setTankDailyData(dailyData || {});
+            }
+          } catch (e) {
+            console.warn("未能載入儲槽日報快照", e);
           }
         } catch (err) {
           console.error("【連線失敗】", err);
@@ -569,6 +634,154 @@
         const total = activeMonthObj.daysCount - startIdx;
         return Array.from({ length: total }, (_, i) => startIdx + i);
       }, [latestSalesDayIndex, activeMonthObj]);
+
+      // 當月有日報資料的日期清單 (供下拉選單快速選取)
+      const availableReportDates = useMemo(() => {
+        if (!tankDailyData) return [];
+        return Object.keys(tankDailyData)
+          .filter(d => d.startsWith(activeMonthKey))
+          .sort()
+          .map(dateStr => {
+            const dData = tankDailyData[dateStr] || {};
+            const dayNum = parseInt(dateStr.split('-')[2], 10);
+            const summary = activePlantId === 'plant1'
+              ? (dData.plant1 ? `(一廠 ${dData.plant1}T)` : '')
+              : (dData.TK617 || dData.TK618 ? `(617:${dData.TK617 || 0}T / 618:${dData.TK618 || 0}T)` : '');
+            return {
+              date: dateStr,
+              dayIdx: dayNum - 1,
+              label: `${activeMonthObj.month}/${dayNum}日`,
+              summary
+            };
+          });
+      }, [tankDailyData, activeMonthKey, activePlantId, activeMonthObj]);
+
+      // 一鍵帶入儲槽日報 08:00 重量至產銷起算基準
+      const handleApplyDailyReport = () => {
+        if (!selectedReportDate) return alert("請先從下拉選單選擇要帶入的日報日期！");
+        const dData = tankDailyData[selectedReportDate];
+        if (!dData) return alert("查無該日期的儲槽日報重量資料！");
+
+        const dayIdx = parseInt(selectedReportDate.split('-')[2], 10) - 1;
+        const mKey = selectedReportDate.slice(0, 7);
+
+        if (activePlantId === 'plant1') {
+          const weight = dData.plant1;
+          if (weight === undefined || weight === 0) {
+            return alert(`日報中查無 ${selectedReportDate} 一廠 5 槽重量！`);
+          }
+          handleSalesPlanChange(mKey, 'plant1', dayIdx, String(weight));
+          setCalcMode('SALES');
+          alert(`✅ 已成功帶入 ${selectedReportDate} 08:00 儲槽日報重量！\n一廠 5 槽共用池合計：${weight} 噸\n系統已自動切換至【產銷排產模式】，並由 ${activeMonthObj.month}/${dayIdx + 1} 日起算。`);
+        } else {
+          // 二廠
+          const w617 = dData.TK617 || 0;
+          const w618 = dData.TK618 || 0;
+          if (w617 > 0) handleSalesPlanChange(mKey, 'TK617', dayIdx, String(w617));
+          if (w618 > 0) handleSalesPlanChange(mKey, 'TK618', dayIdx, String(w618));
+          setCalcMode('SALES');
+          alert(`✅ 已成功帶入 ${selectedReportDate} 08:00 儲槽日報重量！\nTK617: ${w617} 噸 / TK618: ${w618} 噸\n系統已自動切換至【產銷排產模式】，並由 ${activeMonthObj.month}/${dayIdx + 1} 日起算。`);
+        }
+      };
+
+      // 原採文字/表格貼上解析
+      const handleProcurementTextChange = (text) => {
+        setProcurementRawText(text);
+        if (!text.trim()) {
+          setParsedProcurementList([]);
+          return;
+        }
+
+        const lines = text.split('\n');
+        const items = [];
+
+        lines.forEach((line, idx) => {
+          const l = line.trim();
+          if (!l) return;
+          if (l.includes('數量') || l.includes('訂單') || l.includes('ETD') || l.includes('ETA')) return;
+
+          // 匹配數量 (如 175MT 或 175 MT 或 175)
+          const weightMatch = l.match(/(\d+(?:\.\d+)?)\s*(?:MT|噸|T)?/i);
+          // 匹配單號/批號 (如 CIF-5 2609-I05, CIF-6, FOB-10, 2609-I05 等)
+          const poMatch = l.match(/((?:CIF|FOB)[-\s\w]+)/i) || l.match(/(\d{4}-I\d+)/i);
+          // 匹配預計入廠日期 (如 10/14-15, 10/12-14, 10/28, 11/3-4)
+          const dateMatches = [...l.matchAll(/(\d{1,2})\/(\d{1,2})(?:-(\d{1,2}))?/g)];
+          const lastDateMatch = dateMatches.length > 0 ? dateMatches[dateMatches.length - 1] : null;
+          const isPending = l.includes('待定');
+
+          if (weightMatch && (lastDateMatch || isPending)) {
+            const weight = parseFloat(weightMatch[1]) || 0;
+            let m = activeMonthObj.month;
+            let d = 1;
+            let dateDisplay = '待定';
+
+            if (lastDateMatch) {
+              m = parseInt(lastDateMatch[1], 10);
+              d = parseInt(lastDateMatch[2], 10); // 取區間起始日
+              dateDisplay = lastDateMatch[0];
+            }
+
+            items.push({
+              id: idx,
+              po: poMatch ? poMatch[1].trim() : `進貨-${idx + 1}`,
+              weight: weight,
+              month: m,
+              day: d,
+              dateDisplay: dateDisplay,
+              targetTank: defaultImportTarget,
+              isPending: isPending
+            });
+          }
+        });
+
+        setParsedProcurementList(items);
+      };
+
+      // 確認批次寫入原採排程
+      const handleConfirmProcurementImport = () => {
+        const activeItems = parsedProcurementList.filter(it => !it.isPending && it.weight > 0 && it.month && it.day);
+        if (activeItems.length === 0) {
+          return alert("沒有可匯入的有效排程資料（請確認是否皆為待定或無數量）！");
+        }
+
+        setManualGridData(prev => {
+          const updated = JSON.parse(JSON.stringify(prev));
+
+          activeItems.forEach(item => {
+            const targetMonthObj = monthsList.find(m => m.month === item.month) || activeMonthObj;
+            const mKey = targetMonthObj.key;
+            const dayIdx = item.day - 1;
+
+            if (!updated[mKey]) updated[mKey] = {};
+
+            if (item.targetTank === 'SHARED_POOL') {
+              const sharedTanks = plant1SharedPoolTanks;
+              const count = sharedTanks.length > 0 ? sharedTanks.length : 1;
+              const perTank = Math.round((item.weight / count) * 10) / 10;
+              sharedTanks.forEach((st, idx) => {
+                if (!updated[mKey][st.id]) updated[mKey][st.id] = {};
+                if (!updated[mKey][st.id][dayIdx]) updated[mKey][st.id][dayIdx] = {};
+                const currentIn = parseFloat(updated[mKey][st.id][dayIdx].in) || 0;
+                const addVal = (idx === count - 1) ? (item.weight - perTank * (count - 1)) : perTank;
+                updated[mKey][st.id][dayIdx].in = String(Math.round((currentIn + addVal) * 10) / 10);
+              });
+            } else {
+              const tId = item.targetTank;
+              if (!updated[mKey][tId]) updated[mKey][tId] = {};
+              if (!updated[mKey][tId][dayIdx]) updated[mKey][tId][dayIdx] = {};
+              const currentIn = parseFloat(updated[mKey][tId][dayIdx].in) || 0;
+              updated[mKey][tId][dayIdx].in = String(Math.round((currentIn + item.weight) * 10) / 10);
+            }
+          });
+
+          return updated;
+        });
+
+        setShowProcurementModal(false);
+        setProcurementRawText('');
+        setParsedProcurementList([]);
+        alert(`🎉 成功匯入 ${activeItems.length} 筆原採排程至對應月份之【進貨量 (+)】！`);
+      };
 
       /**
        * 🟢 雙核心計算引擎 (一廠共用池 + 二廠獨立儲槽 產銷原料庫存獨立起算)
@@ -1388,6 +1601,42 @@
                             )}
                           </div>
 
+                          {/* ⚡ 快速帶入儲槽日報 08:00 重量 */}
+                          <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-300 space-y-1.5 shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-black text-amber-900 flex items-center">
+                                <span className="mr-1">⚡</span> 快速帶入儲槽作業日報 08:00 重量
+                              </span>
+                              <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-bold">
+                                當月共 {availableReportDates.length} 筆
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1.5">
+                              <select
+                                value={selectedReportDate}
+                                onChange={e => setSelectedReportDate(e.target.value)}
+                                className="flex-1 text-xs p-1 rounded border border-amber-400 bg-white text-slate-800 font-bold focus:ring-1 focus:ring-amber-500"
+                              >
+                                <option value="">-- 請選擇日報日期 --</option>
+                                {availableReportDates.map(d => (
+                                  <option key={d.date} value={d.date}>
+                                    {d.label} {d.summary}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={handleApplyDailyReport}
+                                disabled={!selectedReportDate}
+                                className={`px-2.5 py-1 rounded text-xs font-bold shrink-0 transition-all shadow ${selectedReportDate ? 'bg-amber-600 hover:bg-amber-500 text-white cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
+                              >
+                                ⚡ 帶入起算
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-amber-800 leading-tight">
+                              自動由日報抓取當日 08:00 槽重（一廠池：TK604A/B/696/697/693 合計；二廠：TK617/618），一鍵填入並由該日起算。
+                            </p>
+                          </div>
+
                           <p className="text-[11px] text-slate-500">
                             {activePlantId === 'plant1' 
                               ? '輸入一廠共用池產銷當日實體原料庫存重量。系統自動以最後（最新）填寫之日期起算（例如原本填 5 號，直接在 12 號填 438.5 噸，系統自動由 12 號起算，無需清空 5 號）。'
@@ -1461,9 +1710,16 @@
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <span className={`px-2.5 py-1 rounded text-xs font-bold ${calcMode === 'SALES' ? 'bg-purple-100 text-purple-800 border border-purple-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}`}>
+                      <button 
+                        onClick={() => setShowProcurementModal(true)} 
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 shadow transition-colors flex items-center cursor-pointer"
+                        title="貼上原採預計入廠表格文字，一鍵批次解析並填入進貨量(+)"
+                      >
+                        <span className="mr-1">📋</span> 快速匯入原採進貨
+                      </button>
+                      <span className={`px-2.5 py-1 rounded text-xs font-bold mb-2 ${calcMode === 'SALES' ? 'bg-purple-100 text-purple-800 border border-purple-300' : 'bg-blue-100 text-blue-800 border border-blue-300'}`}>
                         {calcMode === 'SALES' 
-                          ? `📦 產銷排產模式 (獨立槽位與共用池分槽起算，動態從 ${activeMonthObj.month}/${latestSalesDayIndex + 1} 日起裁切)` 
+                          ? `📦 產銷排產模式 (最新從 ${activeMonthObj.month}/${latestSalesDayIndex + 1} 日起算)` 
                           : '🏭 全月流速滿載模式 (1日~月底)'}
                       </span>
                       <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 shadow transition-colors flex items-center">
@@ -1967,6 +2223,168 @@
                   <button onClick={handleAddTank} className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs shadow">
                     確認新增儲槽
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 📋 原採進貨排程智慧匯入 Modal */}
+          {showProcurementModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full p-6 space-y-4 max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center pb-2 border-b">
+                  <h3 className="font-bold text-slate-800 text-base flex items-center">
+                    <span className="mr-2">📋</span> 快速匯入原採原料預計入廠時間 (批次排程)
+                  </h3>
+                  <button onClick={() => setShowProcurementModal(false)} className="text-slate-400 hover:text-slate-600 text-xl font-bold">
+                    ✕
+                  </button>
+                </div>
+
+                <div className="text-xs text-slate-600 space-y-1">
+                  <p>
+                    像三合一單匯入一樣便利：直接複製原採採購進貨通知、郵件表格或 Excel 貼上，系統自動識別 <strong>數量 (MT)</strong>、<strong>單號/批號</strong> 與 <strong>預計入廠日期</strong>，自動批次加總寫入對應日期的【進貨量 (+)】。
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-slate-700">預設指派儲槽：</span>
+                    <select
+                      value={defaultImportTarget}
+                      onChange={e => {
+                        const newT = e.target.value;
+                        setDefaultImportTarget(newT);
+                        setParsedProcurementList(prev => prev.map(item => ({ ...item, targetTank: newT })));
+                      }}
+                      className="text-xs p-1.5 rounded border border-indigo-300 font-bold bg-white text-indigo-900"
+                    >
+                      {activePlantId === 'plant1' && (
+                        <option value="SHARED_POOL">🔗 一廠 5 槽共用池 (自動平均分配 5 槽，總進貨一致)</option>
+                      )}
+                      {currentPlantSupplyTanks.map(st => (
+                        <option key={st.id} value={st.id}>入 {st.id} ({st.name})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sampleText = "數量\tETD\tETA\t預計入廠時間\nCIF-5 2609-I05 175MT\t9/26\t10/7\t10/14-15\nCIF-6 2609-I06 175MT\t10/1\t10/10\t10/12-14\nFOB-10 2609-I10 175MT\t10/15\t10/24\t10/28\nCIF-7 2610-I01 175MT\t10/10\t10/20\t待定";
+                      handleProcurementTextChange(sampleText);
+                    }}
+                    className="text-xs px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold transition-colors cursor-pointer"
+                  >
+                    📝 帶入郵件範例文字
+                  </button>
+                </div>
+
+                <div className="flex-1 flex flex-col min-h-0 space-y-2">
+                  <label className="text-xs font-bold text-slate-700">貼上原採表格內容 (或直接 Ctrl+V)：</label>
+                  <textarea
+                    rows="4"
+                    value={procurementRawText}
+                    onChange={e => handleProcurementTextChange(e.target.value)}
+                    placeholder="請在此貼上原採寄送的文字或表格（例如：CIF-5 2609-I05 175MT ... 10/14-15）..."
+                    className="w-full p-2.5 border rounded-lg text-xs font-mono bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                </div>
+
+                {parsedProcurementList.length > 0 && (
+                  <div className="space-y-1.5 flex-1 overflow-hidden flex flex-col">
+                    <div className="flex justify-between items-center text-xs font-bold text-slate-700">
+                      <span>🔍 解析結果預覽 ({parsedProcurementList.length} 筆，有效 {parsedProcurementList.filter(it => !it.isPending && it.weight > 0).length} 筆)：</span>
+                      <span className="text-[11px] text-indigo-700">
+                        有效總量：{parsedProcurementList.filter(it => !it.isPending).reduce((sum, it) => sum + it.weight, 0)} MT
+                      </span>
+                    </div>
+                    <div className="border rounded-lg overflow-y-auto max-h-[180px] bg-white">
+                      <table className="w-full text-xs text-center border-collapse">
+                        <thead className="bg-slate-100 border-b text-slate-700 font-bold sticky top-0">
+                          <tr>
+                            <th className="p-1.5">項次</th>
+                            <th className="p-1.5">單號 / 批號</th>
+                            <th className="p-1.5">數量 (MT)</th>
+                            <th className="p-1.5">預計入廠日</th>
+                            <th className="p-1.5">分配儲槽</th>
+                            <th className="p-1.5">狀態</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {parsedProcurementList.map((item, idx) => (
+                            <tr key={idx} className={item.isPending ? "bg-slate-50 text-slate-400" : "hover:bg-indigo-50/40 text-slate-800"}>
+                              <td className="p-1.5 font-bold">{idx + 1}</td>
+                              <td className="p-1.5 font-bold">{item.po}</td>
+                              <td className="p-1.5 font-bold text-blue-700">{item.weight} MT</td>
+                              <td className="p-1.5 font-bold">
+                                {item.isPending ? (
+                                  <span className="text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">待定</span>
+                                ) : (
+                                  <span className="text-indigo-800 bg-indigo-50 px-1.5 py-0.5 rounded font-bold">
+                                    {item.month}/{item.day} 日 ({item.dateDisplay})
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-1.5">
+                                <select
+                                  value={item.targetTank}
+                                  disabled={item.isPending}
+                                  onChange={e => {
+                                    const val = e.target.value;
+                                    setParsedProcurementList(prev => prev.map((it, i) => i === idx ? { ...it, targetTank: val } : it));
+                                  }}
+                                  className="text-[11px] p-1 border rounded font-bold bg-white"
+                                >
+                                  {activePlantId === 'plant1' && <option value="SHARED_POOL">🔗 一廠池</option>}
+                                  {currentPlantSupplyTanks.map(st => (
+                                    <option key={st.id} value={st.id}>{st.id}</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="p-1.5 font-bold">
+                                {item.isPending ? (
+                                  <span className="text-slate-400 text-[11px]">⏳ 待定(暫不寫入)</span>
+                                ) : (
+                                  <span className="text-emerald-600 text-[11px]">✓ 準備寫入進貨</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-3 border-t">
+                  <button
+                    onClick={() => {
+                      setProcurementRawText('');
+                      setParsedProcurementList([]);
+                    }}
+                    className="px-3 py-1.5 text-slate-500 hover:text-slate-700 font-bold text-xs cursor-pointer"
+                  >
+                    🗑️ 清空文字
+                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setShowProcurementModal(false)}
+                      className="px-4 py-1.5 bg-slate-200 text-slate-700 rounded-lg font-bold text-xs cursor-pointer"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={handleConfirmProcurementImport}
+                      disabled={parsedProcurementList.filter(it => !it.isPending && it.weight > 0).length === 0}
+                      className={`px-5 py-1.5 rounded-lg font-bold text-xs shadow text-white transition-all ${
+                        parsedProcurementList.filter(it => !it.isPending && it.weight > 0).length > 0
+                          ? 'bg-indigo-600 hover:bg-indigo-500 cursor-pointer'
+                          : 'bg-slate-300 cursor-not-allowed'
+                      }`}
+                    >
+                      確認匯入至進貨量 (+)
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
