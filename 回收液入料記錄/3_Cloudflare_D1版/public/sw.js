@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recycle-d1-v13';
+const CACHE_NAME = 'recycle-d1-v13-1014';
 const urlsToCache = [
   './',
   './index.html',
