@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recycle-gas-v12';
+const CACHE_NAME = 'recycle-d1-v13';
 const urlsToCache = [
   './',
   './index.html',
@@ -37,7 +37,7 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  if (event.request.url.includes('script.google.com')) return;
+  if (event.request.url.includes('script.google.com') || event.request.url.includes('/api/')) return;
   
   // 網路優先策略 (Network First)：連線時抓取雲端最新檔案並背景更新快取，斷網時無縫切換本機快取
   event.respondWith(

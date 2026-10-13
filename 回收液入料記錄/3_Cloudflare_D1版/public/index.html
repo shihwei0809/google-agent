@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>回收液入料記錄 App (雲端版)</title>
+    <title>回收液入料記錄 App (Cloudflare D1 雲端旗艦版)</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/jpeg" href="icon.jpg">
     <link rel="apple-touch-icon" href="icon.jpg">
@@ -21,7 +21,8 @@
         input[type="text"], input[type="date"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 16px; }
         input[type="file"] { width: 100%; padding: 10px; border: 1px dashed #007bff; border-radius: 5px; box-sizing: border-box; background: #f9f9f9; }
         button { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 5px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        button:active { background: #218838; }
+        button:disabled { background: #6c757d; cursor: not-allowed; opacity: 0.7; }
+        button:active:not(:disabled) { background: #218838; }
         .record-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #ffc107; }
         .btn-select { background: #007bff; margin-top: 10px; }
         #loading { display: none; text-align: center; margin-top: 20px; color: #666; font-weight: bold; }
@@ -39,7 +40,7 @@
 <div id="updateBanner" onclick="location.reload(true)">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
 <div class="header">
-    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v12 (點我手動檢查)</span>
+    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v13-D1 (點我手動檢查)</span>
     <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
@@ -67,7 +68,7 @@
             <label>📸 入料前 - 車輛照片</label>
             <input type="file" id="vehiclePhoto" accept="image/*" capture="environment" required>
         </div>
-        <button type="submit">儲存</button>
+        <button type="submit" id="beforeSubmitBtn">儲存</button>
     </form>
 </div>
 
@@ -81,7 +82,7 @@
                 <input type="hidden" id="selectedRecordId">
                 <label>📸 入料後 - 儲槽液位照片</label>
                 <input type="file" id="tankLevelAfter" accept="image/*" capture="environment" required>
-                <button type="submit">完成入料記錄</button>
+                <button type="submit" id="afterSubmitBtn">完成入料記錄</button>
             </form>
         </div>
     </div>
@@ -128,9 +129,14 @@
 <div id="loading">🚀 雲端傳輸中...請稍候</div>
 
 <script>
+    // 雙雲端端點配置：
+    // D1_API: Cloudflare D1 資料庫 (毫秒級狀態讀寫、零延遲、原子事務)
+    // GAS_URL: Google Apps Script (專門負責背景將 Base64 照片存入 Google Drive)
+    const D1_API = "/api/records";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxRnwQm3KmR3eZSGFK4-cm5chGdj5jc8DJiTTvU-OzIkAX9qtFdvPsn_UgTEcuhaRkU/exec";
+
     // 監聽 Service Worker 主動推播的更新訊息與控制器切換事件
     if ('serviceWorker' in navigator) {
-        // 1. 監聽背景 activate 推播
         navigator.serviceWorker.addEventListener('message', event => {
             if (event.data && event.data.type === 'VERSION_UPDATED') {
                 const banner = document.getElementById('updateBanner');
@@ -138,22 +144,17 @@
             }
         });
 
-        // 2. 監聽控制器更換事件 (新 SW 取代舊 SW 時 100% 觸發)
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             const banner = document.getElementById('updateBanner');
             if (banner) banner.style.display = 'block';
         });
 
         navigator.serviceWorker.register('sw.js').then(reg => {
-            // 每當開啟 App 時，主動向伺服器檢查是否有新版本
             reg.update();
-
-            // 若有等待啟用中的 worker，立即顯示橫幅
             if (reg.waiting) {
                 const banner = document.getElementById('updateBanner');
                 if (banner) banner.style.display = 'block';
             }
-
             reg.onupdatefound = () => {
                 const installingWorker = reg.installing;
                 if (installingWorker) {
@@ -168,7 +169,6 @@
         });
     }
 
-    // 點擊頂部版本標籤，強制手動向雲端伺服器檢查是否有新版本
     function forceCheckUpdate() {
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistration().then(reg => {
@@ -185,24 +185,21 @@
         }
     }
 
-    // 直接寫死 GAS 網址，人員開啟網頁就不需要再手動設定了
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxRnwQm3KmR3eZSGFK4-cm5chGdj5jc8DJiTTvU-OzIkAX9qtFdvPsn_UgTEcuhaRkU/exec";
-
     document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
 
-    // IndexedDB 初始化
+    // IndexedDB 本地離線暫存初始化
     let db;
     const request = indexedDB.open("RecycleGasDB", 1);
     request.onupgradeneeded = function(e) {
         db = e.target.result;
-        db.createObjectStore("records", { keyPath: "id" }); // ID 由前端生成
+        db.createObjectStore("records", { keyPath: "id" });
     };
     request.onsuccess = function(e) {
         db = e.target.result;
-        autoSync(); // 啟動自動同步
+        autoSync();
     };
 
-    // 網路偵測與自動同步 (連線時、切換回 App 時、每 30 秒自動觸發)
+    // 網路偵測與自動同步
     window.addEventListener('online', () => {
         document.getElementById('offlineBanner').style.display = 'none';
         autoSync();
@@ -212,18 +209,16 @@
     });
     if (!navigator.onLine) document.getElementById('offlineBanner').style.display = 'block';
 
-    // 當人員把手機解鎖或切換回本 App 時，自動檢查同步
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden && navigator.onLine) {
             autoSync();
         }
     });
-    // 背景定時器 (每 30 秒背景檢查一次)
     setInterval(() => {
         if (navigator.onLine) autoSync();
     }, 30000);
 
-    // 查詢功能授權密碼 (預設: 7588555)
+    // 查詢授權密碼
     const QUERY_PASSWORD = "7588555";
 
     function checkQueryAuth() {
@@ -271,7 +266,6 @@
         checkQueryAuth();
     }
 
-    // 監聽密碼輸入框 Enter 鍵
     document.addEventListener('DOMContentLoaded', () => {
         const pwdInput = document.getElementById('queryPasswordInput');
         if (pwdInput) {
@@ -296,6 +290,7 @@
         document.getElementById(tabId).classList.add('active');
     }
 
+    // 查詢歷史：優先向 D1 抓取，若 D1 失敗再以 GAS 兜底
     async function loadQueryRecords() {
         if (!navigator.onLine) {
             document.getElementById('queryList').innerHTML = '<p style="text-align:center; color:red;">⚠ 離線狀態無法查詢雲端歷史紀錄</p>';
@@ -306,50 +301,63 @@
         list.innerHTML = '<p style="text-align:center;">撈取雲端資料中...</p>';
         const keyword = document.getElementById('searchInput').value.trim();
         
+        let records = [];
         try {
-            const res = await fetch(GAS_URL + "?action=query");
-            const data = await res.json();
-            
-            let html = "";
-            let count = 0;
-            
-            data.records.forEach(r => {
-                const searchStr = `${r.license_plate} ${r.date} ${r.before_time || ''} ${r.after_time || ''}`;
-                if (keyword && !searchStr.includes(keyword)) return;
-                count++;
-                
-                let statusBadge = r.status === "completed" 
-                    ? '<span style="background:#28a745; color:white; padding:2px 5px; border-radius:3px; font-size:12px;">已完成</span>'
-                    : '<span style="background:#ffc107; color:black; padding:2px 5px; border-radius:3px; font-size:12px;">待入料</span>';
-                
-                let durationBadge = '';
-                if (r.duration !== null && r.duration !== undefined && r.duration !== '') {
-                    durationBadge = `<span style="background:#17a2b8; color:white; padding:2px 6px; border-radius:3px; font-size:12px; margin-left:6px;">⏱ 歷時 ${r.duration} 分鐘</span>`;
-                }
-
-                html += `
-                    <div class="record-card" style="border-left-color: ${r.status === 'completed' ? '#28a745' : '#ffc107'};">
-                        <p><strong>車號：</strong> ${r.license_plate} ${statusBadge} ${durationBadge}</p>
-                        <p><strong>入料前時間：</strong> ${r.before_time || r.date || '無'}</p>
-                        ${r.after_time ? `<p><strong>入料後時間：</strong> ${r.after_time}</p>` : ''}
-                        <div style="margin-top:10px; display:flex; gap:10px; font-size:14px;">
-                            ${r.tBeforeUrl ? `<a href="${r.tBeforeUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">前液位照</a>` : ''}
-                            ${r.vPhotoUrl ? `<a href="${r.vPhotoUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">車輛照</a>` : ''}
-                            ${r.tAfterUrl ? `<a href="${r.tAfterUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">後液位照</a>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-            
-            if (count === 0) html = '<p style="text-align:center;">找不到符合的紀錄</p>';
-            list.innerHTML = html;
-            
+            // 優先從 Cloudflare D1 取得
+            const res = await fetch(D1_API + "?action=query");
+            if (res.ok) {
+                const data = await res.json();
+                records = data.records || [];
+            } else {
+                throw new Error("D1 響應異常");
+            }
         } catch (err) {
-            list.innerHTML = '<p style="text-align:center; color:red;">查詢失敗，請檢查網路</p>';
+            // 若 D1 失敗，降級從 GAS 取得
+            try {
+                const gasRes = await fetch(GAS_URL + "?action=query");
+                const gasData = await gasRes.json();
+                records = gasData.records || [];
+            } catch (e) {
+                list.innerHTML = '<p style="text-align:center; color:red;">查詢失敗，請檢查網路連線</p>';
+                return;
+            }
         }
+        
+        let html = "";
+        let count = 0;
+        records.forEach(r => {
+            const searchStr = `${r.license_plate} ${r.date} ${r.before_time || ''} ${r.after_time || ''}`;
+            if (keyword && !searchStr.includes(keyword)) return;
+            count++;
+            
+            let statusBadge = r.status === "completed" 
+                ? '<span style="background:#28a745; color:white; padding:2px 5px; border-radius:3px; font-size:12px;">已完成</span>'
+                : '<span style="background:#ffc107; color:black; padding:2px 5px; border-radius:3px; font-size:12px;">待入料</span>';
+            
+            let durationBadge = '';
+            if (r.duration !== null && r.duration !== undefined && r.duration !== '') {
+                durationBadge = `<span style="background:#17a2b8; color:white; padding:2px 6px; border-radius:3px; font-size:12px; margin-left:6px;">⏱ 歷時 ${r.duration} 分鐘</span>`;
+            }
+
+            html += `
+                <div class="record-card" style="border-left-color: ${r.status === 'completed' ? '#28a745' : '#ffc107'};">
+                    <p><strong>車號：</strong> ${r.license_plate} ${statusBadge} ${durationBadge}</p>
+                    <p><strong>入料前時間：</strong> ${r.before_time || r.date || '無'}</p>
+                    ${r.after_time ? `<p><strong>入料後時間：</strong> ${r.after_time}</p>` : ''}
+                    <div style="margin-top:10px; display:flex; gap:10px; font-size:14px;">
+                        ${r.tBeforeUrl ? `<a href="${r.tBeforeUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">前液位照</a>` : ''}
+                        ${r.vPhotoUrl ? `<a href="${r.vPhotoUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">車輛照</a>` : ''}
+                        ${r.tAfterUrl ? `<a href="${r.tAfterUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">後液位照</a>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (count === 0) html = '<p style="text-align:center;">找不到符合的紀錄</p>';
+        list.innerHTML = html;
     }
 
-    // 前端即時圖片壓縮函式 (Canvas 等比縮放 + JPEG 75% 壓縮，徹底解決 iPhone 原圖過大造成卡頓)
+    // 前端即時圖片壓縮函式 (Canvas 等比縮放 + JPEG 75% 壓縮)
     function compressImage(file, maxWidth = 1280, quality = 0.75) {
         return new Promise((resolve) => {
             if (!file) return resolve(null);
@@ -379,68 +387,74 @@
         });
     }
 
-    // 提交入料前
+    // 提交入料前：防呆、壓縮、雙重解鎖保證 (解決按鈕卡死問題)
     document.getElementById('beforeForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const submitBtn = e.target.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerText = '處理與壓縮中...';
-        }
+        const submitBtn = document.getElementById('beforeSubmitBtn') || e.target.querySelector('button[type="submit"]');
+        
+        try {
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = '處理與壓縮中...';
+            }
 
-        const date = document.getElementById('dateInput').value;
-        const plate = document.getElementById('licensePlate').value.trim();
-        const tFile = document.getElementById('tankLevelBefore').files[0];
-        const vFile = document.getElementById('vehiclePhoto').files[0];
+            const date = document.getElementById('dateInput').value;
+            const plate = document.getElementById('licensePlate').value.trim();
+            const tFile = document.getElementById('tankLevelBefore').files[0];
+            const vFile = document.getElementById('vehiclePhoto').files[0];
 
-        // 嚴格防呆：入料前必須要有車號與兩張照片
-        if (!plate || !tFile || !vFile) {
-            alert('⚠️ 請確認完整填寫：車號、入料前液位照、車輛照片，三者皆為必填！');
+            if (!plate || !tFile || !vFile) {
+                alert('⚠️ 請確認完整填寫：車號、入料前液位照、車輛照片，三者皆為必填！');
+                return;
+            }
+
+            const [tBefore_b64, vPhoto_b64] = await Promise.all([
+                compressImage(tFile),
+                compressImage(vFile)
+            ]);
+
+            const nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
+            const record = {
+                id: Date.now().toString(),
+                date: date,
+                license_plate: plate,
+                client_before_time: nowStr,
+                tBefore_b64: tBefore_b64,
+                vPhoto_b64: vPhoto_b64,
+                t_name: tFile ? tFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "tank_before.jpg",
+                v_name: vFile ? vFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "vehicle.jpg",
+                status: "pending",
+                syncState: "new"
+            };
+
+            const tx = db.transaction(["records"], "readwrite");
+            tx.objectStore("records").add(record);
+            tx.oncomplete = () => {
+                alert('入料前資料已儲存！');
+                document.getElementById('beforeForm').reset();
+                document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
+                autoSync();
+            };
+        } catch (err) {
+            console.error("提交入料前發生錯誤", err);
+            alert("處理入料前記錄失敗：" + err.message);
+        } finally {
+            // 關鍵防呆保證：必定解除按鈕鎖定，絕不卡在「處理與壓縮中...」！
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerText = '儲存';
             }
-            return;
         }
-
-        const [tBefore_b64, vPhoto_b64] = await Promise.all([
-            compressImage(tFile),
-            compressImage(vFile)
-        ]);
-
-        const nowStr = new Date().toLocaleString('zh-TW', { hour12: false });
-
-        const record = {
-            id: Date.now().toString(),
-            date: date,
-            license_plate: plate,
-            client_before_time: nowStr,
-            tBefore_b64: tBefore_b64,
-            vPhoto_b64: vPhoto_b64,
-            t_name: tFile ? tFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "tank_before.jpg",
-            v_name: vFile ? vFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "vehicle.jpg",
-            status: "pending",
-            syncState: "new" // new -> pending_synced -> completed -> deleted
-        };
-
-        const tx = db.transaction(["records"], "readwrite");
-        tx.objectStore("records").add(record);
-        tx.oncomplete = () => {
-            alert('入料前資料已儲存！');
-            document.getElementById('beforeForm').reset();
-            document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
-            autoSync();
-        };
     });
 
-    // 渲染待入料清單 (支援即時本機優先顯示 + 背景雲端平滑同步)
+    // 渲染待入料清單
     function renderPendingList(records, isCloudFetching = false) {
         const list = document.getElementById('pendingList');
         if (!list) return;
 
         if (records.length === 0) {
             list.innerHTML = isCloudFetching 
-                ? '<p style="text-align:center; color:#888;">正在向雲端確認是否有待入料車輛...⏳</p>'
+                ? '<p style="text-align:center; color:#888;">正在向雲端 D1 確認是否有待入料車輛...⏳</p>'
                 : '<p style="text-align:center;">目前沒有等待入料的車輛</p>';
             return;
         }
@@ -464,43 +478,69 @@
         list.innerHTML = html;
     }
 
-    // 載入待入料清單：0 秒秒開本地 IndexedDB 紀錄，隨後背景平滑對齊雲端
+    // 載入待入料清單：雙向絕對對齊，後台刪除前端立即消除幽靈筆！
     async function loadPendingRecords() {
         document.getElementById('pendingList').style.display = 'block';
         document.getElementById('afterFormContainer').style.display = 'none';
         
         if (!db) return;
 
-        // 1. 秒速從本機 IndexedDB 讀取並瞬間顯示 (0秒延遲，操作員無感等待！)
         const tx = db.transaction(["records"], "readonly");
         const store = tx.objectStore("records");
         const req = store.getAll();
         
         req.onsuccess = async () => {
-            let allPending = (req.result || []).filter(r => r.status === 'pending');
+            let localRecords = req.result || [];
+            let allPending = localRecords.filter(r => r.status === 'pending');
             
-            // 立即渲染本機暫存資料
-            renderPendingList(allPending, navigator.onLine && !!GAS_URL);
+            // 立即顯示本地暫存
+            renderPendingList(allPending, navigator.onLine);
 
-            // 2. 背景非同步向 GAS 抓取雲端其他車輛，抓到後平滑合併
-            if (navigator.onLine && GAS_URL) {
+            // 背景向雲端 D1 取得真實 pending 清單
+            if (navigator.onLine) {
                 try {
-                    const res = await fetch(GAS_URL);
-                    const data = await res.json();
-                    if (data && data.records) {
-                        data.records.forEach(sr => {
-                            const existingIdx = allPending.findIndex(lr => lr.id === sr.id);
-                            if (existingIdx === -1) {
-                                allPending.push(sr);
-                            } else {
-                                allPending[existingIdx] = Object.assign({}, allPending[existingIdx], sr);
-                            }
-                        });
+                    let cloudPending = [];
+                    const res = await fetch(D1_API);
+                    if (res.ok) {
+                        const data = await res.json();
+                        cloudPending = data.records || [];
+                    } else {
+                        // 若 D1 臨時離線，以 GAS 兜底
+                        const gasRes = await fetch(GAS_URL);
+                        const gasData = await gasRes.json();
+                        cloudPending = gasData.records || [];
                     }
+
+                    const cloudIdSet = new Set(cloudPending.map(c => String(c.id).trim()));
+
+                    // 關鍵修正：若後台已刪除此筆（或已在其他手機完成），手機 IndexedDB 主動清除孤兒幽靈筆！
+                    const cleanupTx = db.transaction(["records"], "readwrite");
+                    const cleanupStore = cleanupTx.objectStore("records");
+                    
+                    localRecords.forEach(lr => {
+                        // 如果這筆是已經同步過雲端的 (syncState !== 'new')，但雲端目前 pending 已無此筆，代表後台已刪除或已完成
+                        if (lr.status === 'pending' && lr.syncState !== 'new' && !cloudIdSet.has(String(lr.id).trim())) {
+                            cleanupStore.delete(lr.id);
+                        }
+                    });
+
+                    // 合併雲端與本地新填寫的資料
+                    cloudPending.forEach(sr => {
+                        const existingIdx = allPending.findIndex(lr => lr.id === sr.id);
+                        if (existingIdx === -1) {
+                            allPending.push(sr);
+                        } else {
+                            allPending[existingIdx] = Object.assign({}, allPending[existingIdx], sr);
+                        }
+                    });
+
+                    // 濾除非雲端又非新寫入的孤兒筆
+                    allPending = allPending.filter(r => r.syncState === 'new' || cloudIdSet.has(String(r.id).trim()));
+
                 } catch(e) { 
-                    console.log('Fetch GAS error', e); 
+                    console.log('Sync D1/GAS error', e); 
                 }
-                // 雲端完成，更新畫面（移除同步中提示）
+                
                 renderPendingList(allPending, false);
             }
         };
@@ -518,69 +558,72 @@
         document.getElementById('pendingList').style.display = 'block';
     }
 
-    // 提交入料後
+    // 提交入料後：即時更新、清單秒清、按鈕絕不卡死
     document.getElementById('afterForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const submitBtn = e.target.querySelector('button[type="submit"]');
-        if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.innerText = '處理與壓縮中...';
-        }
+        const submitBtn = document.getElementById('afterSubmitBtn') || e.target.querySelector('button[type="submit"]');
 
-        const id = document.getElementById('selectedRecordId').value;
-        const aFile = document.getElementById('tankLevelAfter').files[0];
-        
-        // 嚴格防呆：入料後必須要有入料後液位照
-        if (!aFile) {
-            alert('⚠️ 請務必拍攝「入料後 - 儲槽液位照片」方可完成入料！');
+        try {
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerText = '處理與壓縮中...';
+            }
+
+            const id = document.getElementById('selectedRecordId').value;
+            const aFile = document.getElementById('tankLevelAfter').files[0];
+            
+            if (!aFile) {
+                alert('⚠️ 請務必拍攝「入料後 - 儲槽液位照片」方可完成入料！');
+                return;
+            }
+
+            const a_b64 = await compressImage(aFile);
+            const a_name = aFile ? aFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "tank_after.jpg";
+            const afterTimeStr = new Date().toLocaleString('zh-TW', { hour12: false });
+
+            const tx = db.transaction(["records"], "readwrite");
+            const store = tx.objectStore("records");
+            const getReq = store.get(id);
+            
+            getReq.onsuccess = () => {
+                let record = getReq.result;
+                if (record) {
+                    record.status = 'completed';
+                    record.tAfter_b64 = a_b64;
+                    record.a_name = a_name;
+                    record.client_after_time = afterTimeStr;
+                    store.put(record);
+                } else {
+                    store.add({
+                        id: id,
+                        status: 'completed',
+                        syncState: 'pending_synced',
+                        tAfter_b64: a_b64,
+                        a_name: a_name,
+                        client_after_time: afterTimeStr
+                    });
+                }
+                alert('入料完成！');
+                document.getElementById('afterForm').reset();
+                cancelAfter();
+                loadPendingRecords();
+                autoSync(); // 觸發背景快速上傳
+            };
+        } catch (err) {
+            console.error("入料完成記錄失敗", err);
+            alert("處理入料完成發生錯誤：" + err.message);
+        } finally {
             if (submitBtn) {
                 submitBtn.disabled = false;
                 submitBtn.innerText = '完成入料記錄';
             }
-            return;
         }
-
-        const a_b64 = await compressImage(aFile);
-        const a_name = aFile ? aFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "tank_after.jpg";
-
-        // 檢查 IndexedDB 中是否有此筆
-        const afterTimeStr = new Date().toLocaleString('zh-TW', { hour12: false });
-        const tx = db.transaction(["records"], "readwrite");
-        const store = tx.objectStore("records");
-        const getReq = store.get(id);
-        
-        getReq.onsuccess = () => {
-            let record = getReq.result;
-            if (record) {
-                // 本機有的紀錄，更新為 completed
-                record.status = 'completed';
-                record.tAfter_b64 = a_b64;
-                record.a_name = a_name;
-                record.client_after_time = afterTimeStr;
-                store.put(record);
-            } else {
-                // 本機沒有（是從 GAS 拉下來的 pending），存入一筆專做 after_feed
-                store.add({
-                    id: id,
-                    status: 'completed',
-                    syncState: 'pending_synced', // 表示 before_feed 已經在雲端了
-                    tAfter_b64: a_b64,
-                    a_name: a_name,
-                    client_after_time: afterTimeStr
-                });
-            }
-            alert('入料完成！');
-            document.getElementById('afterForm').reset();
-            cancelAfter();
-            loadPendingRecords();
-            autoSync(); // 觸發同步
-        };
     });
 
-    // 背景自動同步
+    // 背景雙軌同步核心 (D1 毫秒寫入 + GAS 轉存 Drive 照片)
     let isSyncing = false;
     async function autoSync() {
-        if (!navigator.onLine || !GAS_URL || !db || isSyncing) return;
+        if (!navigator.onLine || !db || isSyncing) return;
         isSyncing = true;
         
         const btn = document.getElementById('syncBtn');
@@ -597,25 +640,33 @@
 
             for (let r of records) {
                 try {
-                    // 若此筆正在上傳中，略過避免重複
                     if (r.isProcessing) continue;
-
-                    // 檢查入料前資料是否齊全：必須有車號與兩張照片
-                    if (!r.license_plate || !r.tBefore_b64 || !r.vPhoto_b64) {
-                        console.warn('資料不齊全，略過同步', r);
-                        continue;
-                    }
-
                     r.isProcessing = true;
 
-                    // 情境 A：離線時，入料前與入料後都已經在手機上完成 (r.status === 'completed' 且尚未同步過)
+                    // 情境 A：入料前與入料後都已在本機完成 (離線作業後連線)
                     if (r.status === 'completed' && r.syncState === 'new') {
-                        // 檢查入料後照片是否具備
-                        if (!r.tAfter_b64) {
-                            continue;
+                        if (!r.license_plate || !r.tBefore_b64 || !r.vPhoto_b64 || !r.tAfter_b64) continue;
+
+                        // 1. 先將結構化資料極速寫入 Cloudflare D1
+                        try {
+                            await fetch(D1_API, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: "complete_feed",
+                                    id: r.id,
+                                    date: r.date,
+                                    license_plate: r.license_plate,
+                                    client_before_time: r.client_before_time,
+                                    client_after_time: r.client_after_time
+                                })
+                            });
+                        } catch (e) {
+                            console.warn("寫入 D1 失敗，將由 GAS 兜底", e);
                         }
 
-                        const payload = {
+                        // 2. 將照片上傳到 Google Drive (GAS)
+                        const gasPayload = {
                             action: "complete_feed",
                             id: r.id,
                             date: r.date,
@@ -629,21 +680,39 @@
                             v_name: r.v_name,
                             a_name: r.a_name
                         };
-                        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
-                        const resData = await res.json();
-                        if (resData.success) {
-                            const delTx = db.transaction(["records"], "readwrite");
-                            delTx.objectStore("records").delete(r.id);
-                            successCount++;
-                        } else if (resData.message && (resData.message.includes('已') || resData.message.includes('重複'))) {
+                        const gasRes = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(gasPayload) });
+                        const gasData = await gasRes.json();
+                        
+                        if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複')))) {
+                            // 同步完成，自手機 IndexedDB 移除
                             const delTx = db.transaction(["records"], "readwrite");
                             delTx.objectStore("records").delete(r.id);
                             successCount++;
                         }
                     }
-                    // 情境 B：只完成了入料前，需要先上傳到雲端待入料
+                    // 情境 B：只完成入料前，上傳至雲端 pending
                     else if (r.status === 'pending' && r.syncState === 'new') {
-                        const payload = {
+                        if (!r.license_plate || !r.tBefore_b64 || !r.vPhoto_b64) continue;
+
+                        // 1. 先將狀態極速寫入 Cloudflare D1
+                        try {
+                            await fetch(D1_API, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: "before_feed",
+                                    id: r.id,
+                                    date: r.date,
+                                    license_plate: r.license_plate,
+                                    client_before_time: r.client_before_time
+                                })
+                            });
+                        } catch (e) {
+                            console.warn("寫入 D1 失敗", e);
+                        }
+
+                        // 2. 將入料前照片上傳到 Google Drive (GAS)
+                        const gasPayload = {
                             action: "before_feed",
                             id: r.id,
                             date: r.date,
@@ -654,15 +723,10 @@
                             t_name: r.t_name,
                             v_name: r.v_name
                         };
-                        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
-                        const resData = await res.json();
-                        if (resData.success) {
-                            r.syncState = 'pending_synced';
-                            delete r.isProcessing;
-                            const updateTx = db.transaction(["records"], "readwrite");
-                            updateTx.objectStore("records").put(r);
-                            successCount++;
-                        } else if (resData.message && (resData.message.includes('已') || resData.message.includes('重複'))) {
+                        const gasRes = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(gasPayload) });
+                        const gasData = await gasRes.json();
+
+                        if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複')))) {
                             r.syncState = 'pending_synced';
                             delete r.isProcessing;
                             const updateTx = db.transaction(["records"], "readwrite");
@@ -672,16 +736,43 @@
                     }
                     // 情境 C：入料前已在雲端，現在手機完成入料後
                     else if (r.status === 'completed' && r.syncState === 'pending_synced') {
-                        const payload = {
+                        // 1. 立即更新 Cloudflare D1 完成狀態 (毫秒級，解決卡在前端清單不移除之痛點)
+                        let d1Res = null;
+                        try {
+                            d1Res = await fetch(D1_API, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    action: "after_feed",
+                                    id: r.id,
+                                    client_after_time: r.client_after_time
+                                })
+                            });
+                            
+                            // 若後台回傳 404 (紀錄已被刪除)，直接清掉本地快取
+                            if (d1Res.status === 404) {
+                                const delTx = db.transaction(["records"], "readwrite");
+                                delTx.objectStore("records").delete(r.id);
+                                successCount++;
+                                continue;
+                            }
+                        } catch (e) {
+                            console.warn("更新 D1 失敗", e);
+                        }
+
+                        // 2. 將入料後照片上傳到 Google Drive (GAS)
+                        const gasPayload = {
                             action: "after_feed",
                             id: r.id,
                             client_after_time: r.client_after_time,
                             tank_level_after_b64: r.tAfter_b64,
                             a_name: r.a_name
                         };
-                        const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
-                        const resData = await res.json();
-                        if (resData.success || (resData.message && (resData.message.includes('已') || resData.message.includes('重複')))) {
+                        const gasRes = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(gasPayload) });
+                        const gasData = await gasRes.json();
+
+                        // 關鍵防呆：若 GAS 成功、或者回報重複、或者回報 404「找不到該筆待入料紀錄」（表示後台已刪除）
+                        if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複'))) || (gasData.detail && gasData.detail.includes('找不到'))) {
                             const delTx = db.transaction(["records"], "readwrite");
                             delTx.objectStore("records").delete(r.id);
                             successCount++;
@@ -694,7 +785,7 @@
                 }
             }
 
-            // 檢查是否還有本機尚未送至雲端的資料 (只看 syncState === 'new' 或是 已完成但尚未同步 after 的)
+            // 檢查是否還有未同步項
             const checkTx = db.transaction(["records"], "readonly");
             const allReq = checkTx.objectStore("records").getAll();
             allReq.onsuccess = (e) => {
@@ -708,12 +799,12 @@
                     btn.style.background = '#ffc107';
                 }
                 isSyncing = false;
-                if(successCount > 0) loadPendingRecords(); // 更新畫面
+                if(successCount > 0) loadPendingRecords();
             };
         };
     }
 
-    // 未同步資料管理彈窗邏輯
+    // 未同步管理彈窗
     function handleSyncBtnClick() {
         if (!db) return;
         const tx = db.transaction(["records"], "readonly");
