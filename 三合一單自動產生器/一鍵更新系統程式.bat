@@ -22,10 +22,10 @@ if "%ERRORLEVEL%"=="0" goto GIT_PULL_MODE
 :: ------------------------------------------------------------
 :CLOUD_DIRECT_DOWNLOAD
 echo [狀態] 偵測到目前為獨立資料夾 (非 Git 本機庫)。
-echo [動作] 正在自動連線 GitHub 雲端為您下載最新程式...
+echo [動作] 正在自動連線 GitHub 雲端為您下載最新三合一單主程式...
 echo.
 
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/shihwei0809/google-agent/main/%%E4%%B8%%89%%E5%%90%%88%%E4%%B8%%80%%E5%%96%%AE%%E8%%87%%AA%%E5%%8B%%95%%E7%%94%%A2%%E7%%94%%9F%%E5%%99%%A8/main.py', 'main.py'); exit 0 } catch { exit 1 }"
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/shihwei0809/google-agent/main/n%%E7%%B3%%BB%%E7%%B5%%B1%%E5%%A0%%B1%%E8%%A1%%A8%%E7%%94%%A2%%E7%%94%%9F/main.py', 'main.py'); exit 0 } catch { exit 1 }"
 
 if errorlevel 1 (
     echo [警告] 雲端直接下載失敗，請檢查網路連線是否正常。
@@ -49,10 +49,6 @@ echo [狀態] 偵測到本機 Git 開發庫，正在從 GitHub 雲端執行 git pull...
 echo.
 
 cd /d "%~dp0.."
-
-:: 自動防呆修復：若先前有未結案的 merge 導致卡死，自動重設以確保可順暢更新
-if exist ".git\MERGE_HEAD" git merge --abort >nul 2>&1
-
 git pull
 if errorlevel 1 (
     echo.
@@ -67,7 +63,6 @@ echo ============================================================
 echo  [成功] 雲端更新完成！本機已為最新版本。
 echo ============================================================
 echo.
-
 timeout /t 2 >nul
 goto LAUNCH_APP
 
