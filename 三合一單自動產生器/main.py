@@ -1682,46 +1682,46 @@ class App(tk.Tk):
             loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=12, font=("Arial", 10))
             loc_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
             
-            # Col 5: 長代號
+            # Col 5: 長代號 (下拉選單)
             long_code_var = tk.StringVar()
-            long_code_entry = tk.Entry(self.scrollable_frame, textvariable=long_code_var, state="readonly", width=16, font=("Arial", 10), fg="purple")
-            long_code_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
-            
+            long_code_combo = ttk.Combobox(self.scrollable_frame, textvariable=long_code_var, state="normal", width=16, font=("Arial", 10))
+            long_code_combo.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
+
             # Col 6: 出貨日期 (Entry + 📅 日曆按鈕)
             date_frame = tk.Frame(self.scrollable_frame)
             date_frame.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
-            
+
             date_var = tk.StringVar(value="")
             date_entry = tk.Entry(date_frame, textvariable=date_var, width=11, font=("Arial", 10))
             date_entry.pack(side="left", fill="x", expand=True)
-            
+
             btn_cal = tk.Button(date_frame, text="📅", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal.pack(side="right", padx=(2, 0))
-            
+
             # Col 7: 採購單號
             po_var = tk.StringVar(value="")
             po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=18, font=("Arial", 10), fg="#333")
             po_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
 
-            # Col 8: 出貨區
+            # Col 8: 出貨區 (下拉選單)
             origin_var = tk.StringVar()
-            origin_entry = tk.Entry(self.scrollable_frame, textvariable=origin_var, width=12, font=("Arial", 10), fg="orange")
-            origin_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+            origin_combo = ttk.Combobox(self.scrollable_frame, textvariable=origin_var, values=getattr(self, "origin_options", []), width=12, font=("Arial", 10))
+            origin_combo.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
             # Col 9: 料號
             part_var = tk.StringVar()
             part_entry = tk.Entry(self.scrollable_frame, textvariable=part_var, width=12, font=("Arial", 10), fg="purple")
             part_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 8: 單列清空按鈕
+            # Col 10: 單列清空按鈕
             btn_clear_row = tk.Button(
-                self.scrollable_frame, 
-                text="清空", 
-                command=lambda r=row_idx-1: self.clear_single_row(r), 
-                font=("Microsoft JhengHei", 9, "bold"), 
-                bg="#FFEBEE", 
-                fg="#C62828", 
-                cursor="hand2", 
+                self.scrollable_frame,
+                text="清空",
+                command=lambda r=row_idx-1: self.clear_single_row(r),
+                font=("Microsoft JhengHei", 9, "bold"),
+                bg="#FFEBEE",
+                fg="#C62828",
+                cursor="hand2",
                 width=6,
                 pady=1
             )
@@ -1732,24 +1732,25 @@ class App(tk.Tk):
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var, cb=long_code_combo: self.on_loc_change(lv, lcv, cb))
             origin_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
-            
+
             for widget in (batch_entry, loc_entry, date_entry):
                 widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
-            
+
             self.entries.append({
                 "chk_var": chk_var,
                 "batch_var": batch_var,
                 "tank_var": tank_var,
                 "loc_var": loc_var,
                 "long_code_var": long_code_var,
+                "long_code_combo": long_code_combo,
                 "date_var": date_var,
                 "po_var": po_var,
                 "origin_var": origin_var,
+                "origin_combo": origin_combo,
                 "part_var": part_var
             })
-
     def clear_all_rows(self):
         """一鍵清除全部輸入欄位 (全清)"""
         if messagebox.askyesno("確認清空", "確定要清空所有已填寫的批號、地點與時間資料嗎？"):
