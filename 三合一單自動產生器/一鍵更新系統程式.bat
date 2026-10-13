@@ -50,11 +50,8 @@ echo.
 
 cd /d "%~dp0.."
 
-:: 自動防呆修復：若先前有未結案的 merge (MERGE_HEAD) 導致卡死，自動重設以確保可順暢更新
-if exist ".git\MERGE_HEAD" (
-    echo [防呆處理] 偵測到本機有未完成的合併狀態 (MERGE_HEAD)，正在自動重設修復...
-    git merge --abort >nul 2>&1
-)
+:: 自動防呆修復：若先前有未結案的 merge 導致卡死，自動重設以確保可順暢更新
+if exist ".git\MERGE_HEAD" git merge --abort >nul 2>&1
 
 git pull
 if errorlevel 1 (
@@ -73,7 +70,7 @@ echo.
 
 set NAS_DIR=O:\各單位對外\資材部對外\三合一單自動產生器
 if exist "%NAS_DIR%" (
-    echo ★ 偵測到公司 NAS (O 槽) 連線正常！
+    echo ★ 偵測到公司 NAS O 槽連線正常！
     set /p PUSH_NAS="是否要順便將最新程式同步發布至 NAS 共享區？(Y/N) [預設 Y]: "
     if "%PUSH_NAS%"=="" set PUSH_NAS=Y
     if /i "%PUSH_NAS%"=="Y" (
