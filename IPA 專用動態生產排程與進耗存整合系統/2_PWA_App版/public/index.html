@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>IPA 生產排程與進耗存整合系統 v3.3 (原採進貨智慧匯入與儲槽日報08:00自動帶入版)</title>
+  <title>IPA 生產排程與進耗存整合系統 v3.4 (共用原料池負庫存赤字精確遞延累積版)</title>
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
@@ -135,7 +135,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // 系統最新版別標籤
-    const SYSTEM_VERSION = "v3.3 (支援原採進貨智慧匯入與日報08:00自動帶入)";
+    const SYSTEM_VERSION = "v3.4 (共用原料池負庫存赤字精確遞延累積版)";
 
     // 數字格式化輔助函式：即時過濾前導 0
     const cleanNumStr = (val) => {
@@ -946,6 +946,26 @@
               result[mKey][sId].push({ start: currentStock[sId], in: inVal, trans: trVal, use: totalUse, end: endVal });
               currentStock[sId] = endVal;
             });
+
+            // 🌟 核心防呆修正：當共用原料池庫存耗盡且仍有未滿足之製程耗用 (赤字/缺料) 時，
+            // 必須將剩餘缺料累扣入共用儲槽，使當日負結存精確遞延累積至次日期初，避免每日歸零未累加！
+            if (remPoolDemand > 0 && sharedTanks.length > 0) {
+              const deficitPerTank = remPoolDemand / sharedTanks.length;
+              sharedTanks.forEach((st, idx) => {
+                const sId = st.id;
+                const curDeficit = (idx === sharedTanks.length - 1)
+                  ? (remPoolDemand - deficitPerTank * (sharedTanks.length - 1))
+                  : deficitPerTank;
+                const tankRecords = result[mKey][sId];
+                const lastRec = tankRecords[tankRecords.length - 1];
+                if (lastRec) {
+                  lastRec.use += curDeficit;
+                  lastRec.end -= curDeficit;
+                }
+                currentStock[sId] -= curDeficit;
+              });
+              remPoolDemand = 0;
+            }
 
             let poolEndSum = poolStartSum + poolInSum + poolTransSum - dailyPlant1PoolDemand;
             poolSummary[mKey].push({
@@ -1765,9 +1785,14 @@
                               {/* 1. 共用池總期初量 (在 9/8 當天為输入的產銷原料庫存 500 噸；9/9 遞延為 467 噸) */}
                               <tr className="bg-white">
                                 <td className="sticky-col p-2 pl-4 text-left font-bold border-b text-indigo-900">共用池總期初量</td>
-                                {displayDaysArr.map((i) => (
-                                  <td key={i} className="p-1 border-b font-bold text-indigo-800">{Math.round(calculatedData.poolSummary[activeMonthKey][i].start)}</td>
-                                ))}
+                                {displayDaysArr.map((i) => {
+                                  const startVal = Math.round(calculatedData.poolSummary[activeMonthKey][i].start);
+                                  return (
+                                    <td key={i} className={`p-1 border-b font-bold ${startVal < 0 ? 'text-red-600 bg-red-50/60 font-black' : 'text-indigo-800'}`}>
+                                      {startVal}
+                                    </td>
+                                  );
+                                })}
                               </tr>
 
                               {/* 2. ⚙️ 製程耗用原料總量 (-) (機台實體耗用量，例如 33 噸 / 36 噸) */}
