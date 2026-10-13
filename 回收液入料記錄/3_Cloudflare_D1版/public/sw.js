@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recycle-gas-v11';
+const CACHE_NAME = 'recycle-gas-v12';
 const urlsToCache = [
   './',
   './index.html',
@@ -39,13 +39,19 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (event.request.url.includes('script.google.com')) return;
   
+  // 網路優先策略 (Network First)：連線時抓取雲端最新檔案並背景更新快取，斷網時無縫切換本機快取
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      if (cachedResponse) {
-        return cachedResponse;
+    fetch(event.request).then(response => {
+      if (response && response.status === 200 && event.request.url.startsWith('http')) {
+        const responseClone = response.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, responseClone);
+        });
       }
-      return fetch(event.request).catch(() => {
-        // 離線且網址是頁面導向時，回傳首頁快取
+      return response;
+    }).catch(() => {
+      return caches.match(event.request).then(cachedResponse => {
+        if (cachedResponse) return cachedResponse;
         if (event.request.mode === 'navigate') {
           return caches.match('./index.html') || caches.match('./');
         }

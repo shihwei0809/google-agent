@@ -27,6 +27,11 @@
         #loading { display: none; text-align: center; margin-top: 20px; color: #666; font-weight: bold; }
         #offlineBanner { background: #dc3545; color: white; text-align: center; padding: 5px; font-size: 14px; display: none; }
         #updateBanner { background: #28a745; color: white; text-align: center; padding: 8px 12px; font-size: 14px; display: none; font-weight: bold; cursor: pointer; }
+        .lock-box { background: white; padding: 25px 20px; border-radius: 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-top: 15px; }
+        .lock-box input { width: 100%; max-width: 280px; padding: 12px; font-size: 18px; text-align: center; letter-spacing: 4px; border: 1px solid #ccc; border-radius: 5px; margin: 15px auto; box-sizing: border-box; }
+        .lock-box button { width: 100%; max-width: 280px; margin: 0 auto; }
+        .sync-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
+        .sync-modal-content { background: white; border-radius: 8px; padding: 20px; max-width: 90%; width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
@@ -34,13 +39,13 @@
 <div id="updateBanner" onclick="location.reload(true)">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
 <div class="header">
-    入料記錄 App
-    <button id="syncBtn" style="display:none;">雲端同步中...</button>
+    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v12 (點我手動檢查)</span>
+    <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
 <div class="tabs">
     <div class="tab active" onclick="switchTab('before')">入料前</div>
-    <div class="tab" onclick="switchTab('after')">入料後</div>
+    <div class="tab" onclick="switchTab('after')">入料完成！</div>
     <div class="tab" onclick="switchTab('query')">查詢歷史</div>
 </div>
 
@@ -83,23 +88,60 @@
 </div>
 
 <div id="query" class="content">
-    <div class="form-group" style="display:flex; gap:10px;">
-        <input type="text" id="searchInput" placeholder="輸入車號或日期搜尋..." style="flex:1;">
-        <button type="button" onclick="loadQueryRecords()" style="margin-top:0; width:auto; padding:10px 15px;">搜尋</button>
+    <!-- 密碼鎖定區域 -->
+    <div id="queryLockContainer" class="lock-box">
+        <h3 style="margin-top:0;">🔒 查詢功能已鎖定</h3>
+        <p style="color:#666; font-size:14px; margin-bottom:10px;">請輸入授權密碼方可查閱歷史紀錄</p>
+        <input type="password" id="queryPasswordInput" placeholder="請輸入密碼..." autocomplete="off">
+        <p id="pwdErrorMsg" style="color:red; font-size:13px; display:none; margin: 0 0 10px 0;">密碼錯誤，請重新輸入</p>
+        <button type="button" onclick="unlockQuery()">解鎖進入</button>
     </div>
-    <div id="queryList"></div>
+
+    <!-- 解鎖後查詢內容區域 -->
+    <div id="queryContentContainer" style="display:none;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:13px; color:#28a745;">🔓 已授權查閱</span>
+            <button type="button" onclick="lockQuery()" style="width:auto; padding:5px 12px; margin:0; font-size:13px; background:#6c757d;">🔒 重新上鎖</button>
+        </div>
+        <div class="form-group" style="display:flex; gap:10px;">
+            <input type="text" id="searchInput" placeholder="輸入車號或日期搜尋..." style="flex:1;">
+            <button type="button" onclick="loadQueryRecords()" style="margin-top:0; width:auto; padding:10px 15px;">搜尋</button>
+        </div>
+        <div id="queryList"></div>
+    </div>
+</div>
+
+<!-- 未同步資料管理彈窗 -->
+<div id="syncModal" class="sync-modal">
+    <div class="sync-modal-content">
+        <h3 style="margin-top:0; color:#333;">📦 手機未同步資料管理</h3>
+        <div id="syncModalList" style="max-height:180px; overflow-y:auto; margin-bottom:15px; font-size:14px; color:#555;"></div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            <button type="button" onclick="forceRetrySync()" style="margin-top:0; background:#007bff; font-size:15px; padding:10px;">🔄 立即手動重試同步</button>
+            <button type="button" onclick="clearInvalidOfflineCache()" style="margin-top:0; background:#dc3545; font-size:15px; padding:10px;">🗑️ 放棄並清除本機未同步暫存</button>
+            <button type="button" onclick="closeSyncModal()" style="margin-top:0; background:#6c757d; font-size:15px; padding:8px;">關閉</button>
+        </div>
+        <p style="font-size:12px; color:#888; margin:10px 0 0 0; text-align:center;">※ 若後台已手動刪除此筆，請點「清除」即可解除警示</p>
+    </div>
 </div>
 
 <div id="loading">🚀 雲端傳輸中...請稍候</div>
 
 <script>
-    // 監聽 Service Worker 主動推播的更新訊息
+    // 監聽 Service Worker 主動推播的更新訊息與控制器切換事件
     if ('serviceWorker' in navigator) {
+        // 1. 監聽背景 activate 推播
         navigator.serviceWorker.addEventListener('message', event => {
             if (event.data && event.data.type === 'VERSION_UPDATED') {
                 const banner = document.getElementById('updateBanner');
                 if (banner) banner.style.display = 'block';
             }
+        });
+
+        // 2. 監聽控制器更換事件 (新 SW 取代舊 SW 時 100% 觸發)
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            const banner = document.getElementById('updateBanner');
+            if (banner) banner.style.display = 'block';
         });
 
         navigator.serviceWorker.register('sw.js').then(reg => {
@@ -116,7 +158,7 @@
                 const installingWorker = reg.installing;
                 if (installingWorker) {
                     installingWorker.onstatechange = () => {
-                        if (installingWorker.state === 'installed') {
+                        if (installingWorker.state === 'installed' || installingWorker.state === 'activated') {
                             const banner = document.getElementById('updateBanner');
                             if (banner) banner.style.display = 'block';
                         }
@@ -124,6 +166,23 @@
                 }
             };
         });
+    }
+
+    // 點擊頂部版本標籤，強制手動向雲端伺服器檢查是否有新版本
+    function forceCheckUpdate() {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistration().then(reg => {
+                if (reg) {
+                    reg.update().then(() => {
+                        alert('已向雲端伺服器檢查更新！\n若有新版本發布，將於頂部顯示更新條。');
+                    });
+                } else {
+                    location.reload(true);
+                }
+            });
+        } else {
+            location.reload(true);
+        }
     }
 
     // 直接寫死 GAS 網址，人員開啟網頁就不需要再手動設定了
@@ -164,6 +223,64 @@
         if (navigator.onLine) autoSync();
     }, 30000);
 
+    // 查詢功能授權密碼 (預設: 7588555)
+    const QUERY_PASSWORD = "7588555";
+
+    function checkQueryAuth() {
+        const isAuth = sessionStorage.getItem('queryUnlocked') === 'true';
+        const lockBox = document.getElementById('queryLockContainer');
+        const contentBox = document.getElementById('queryContentContainer');
+        const pwdInput = document.getElementById('queryPasswordInput');
+        const pwdErr = document.getElementById('pwdErrorMsg');
+        if (isAuth) {
+            if (lockBox) lockBox.style.display = 'none';
+            if (contentBox) contentBox.style.display = 'block';
+            if (pwdErr) pwdErr.style.display = 'none';
+            if (pwdInput) pwdInput.value = '';
+            loadQueryRecords();
+        } else {
+            if (lockBox) lockBox.style.display = 'block';
+            if (contentBox) contentBox.style.display = 'none';
+            if (pwdErr) pwdErr.style.display = 'none';
+            if (pwdInput) {
+                pwdInput.value = '';
+                setTimeout(() => pwdInput.focus(), 100);
+            }
+        }
+    }
+
+    function unlockQuery() {
+        const pwdInput = document.getElementById('queryPasswordInput');
+        const pwdErr = document.getElementById('pwdErrorMsg');
+        const val = pwdInput ? pwdInput.value.trim() : '';
+        if (val === QUERY_PASSWORD) {
+            sessionStorage.setItem('queryUnlocked', 'true');
+            if (pwdErr) pwdErr.style.display = 'none';
+            checkQueryAuth();
+        } else {
+            if (pwdErr) pwdErr.style.display = 'block';
+            if (pwdInput) {
+                pwdInput.value = '';
+                pwdInput.focus();
+            }
+        }
+    }
+
+    function lockQuery() {
+        sessionStorage.removeItem('queryUnlocked');
+        checkQueryAuth();
+    }
+
+    // 監聽密碼輸入框 Enter 鍵
+    document.addEventListener('DOMContentLoaded', () => {
+        const pwdInput = document.getElementById('queryPasswordInput');
+        if (pwdInput) {
+            pwdInput.addEventListener('keyup', (e) => {
+                if (e.key === 'Enter') unlockQuery();
+            });
+        }
+    });
+
     function switchTab(tabId) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
@@ -174,7 +291,7 @@
             loadPendingRecords();
         } else if (tabId === 'query') {
             document.querySelectorAll('.tab')[2].classList.add('active');
-            loadQueryRecords();
+            checkQueryAuth();
         }
         document.getElementById(tabId).classList.add('active');
     }
@@ -316,53 +433,76 @@
         };
     });
 
-    // 載入清單
+    // 渲染待入料清單 (支援即時本機優先顯示 + 背景雲端平滑同步)
+    function renderPendingList(records, isCloudFetching = false) {
+        const list = document.getElementById('pendingList');
+        if (!list) return;
+
+        if (records.length === 0) {
+            list.innerHTML = isCloudFetching 
+                ? '<p style="text-align:center; color:#888;">正在向雲端確認是否有待入料車輛...⏳</p>'
+                : '<p style="text-align:center;">目前沒有等待入料的車輛</p>';
+            return;
+        }
+
+        let html = '';
+        if (isCloudFetching) {
+            html += '<div style="font-size:12px; color:#666; text-align:center; margin-bottom:8px;">⏳ 本機即時清單已就緒，正在同步最新雲端狀態...</div>';
+        }
+
+        records.forEach(r => {
+            let badge = r.syncState === 'new' ? '<span style="color:#d9534f; font-weight:bold; font-size:12px;"> (本機剛存/同步中)</span>' : '';
+            const timeText = r.before_time || r.client_before_time || r.created_at || String(r.date).split("T")[0];
+            html += `
+                <div class="record-card">
+                    <p><strong>車號：</strong>${r.license_plate} ${badge}</p>
+                    <p><strong>入料前時間：</strong>${timeText}</p>
+                    <button class="btn-select" onclick="selectRecord('${r.id}', '${r.license_plate}')">選擇完成入料</button>
+                </div>
+            `;
+        });
+        list.innerHTML = html;
+    }
+
+    // 載入待入料清單：0 秒秒開本地 IndexedDB 紀錄，隨後背景平滑對齊雲端
     async function loadPendingRecords() {
         document.getElementById('pendingList').style.display = 'block';
         document.getElementById('afterFormContainer').style.display = 'none';
-        const list = document.getElementById('pendingList');
-        list.innerHTML = '<p style="text-align:center;">載入中...</p>';
         
-        let allPending = [];
+        if (!db) return;
 
-        // 1. 先撈本機的 pending
+        // 1. 秒速從本機 IndexedDB 讀取並瞬間顯示 (0秒延遲，操作員無感等待！)
         const tx = db.transaction(["records"], "readonly");
         const store = tx.objectStore("records");
         const req = store.getAll();
+        
         req.onsuccess = async () => {
-            allPending = req.result.filter(r => r.status === 'pending');
+            let allPending = (req.result || []).filter(r => r.status === 'pending');
             
-            // 2. 有網路時，撈 GAS 上的
+            // 立即渲染本機暫存資料
+            renderPendingList(allPending, navigator.onLine && !!GAS_URL);
+
+            // 2. 背景非同步向 GAS 抓取雲端其他車輛，抓到後平滑合併
             if (navigator.onLine && GAS_URL) {
                 try {
                     const res = await fetch(GAS_URL);
                     const data = await res.json();
-                    // 合併，避免重複
-                    data.records.forEach(sr => {
-                        if (!allPending.find(lr => lr.id === sr.id)) {
-                            allPending.push(sr);
-                        }
-                    });
-                } catch(e) { console.log('Fetch GAS error', e); }
+                    if (data && data.records) {
+                        data.records.forEach(sr => {
+                            const existingIdx = allPending.findIndex(lr => lr.id === sr.id);
+                            if (existingIdx === -1) {
+                                allPending.push(sr);
+                            } else {
+                                allPending[existingIdx] = Object.assign({}, allPending[existingIdx], sr);
+                            }
+                        });
+                    }
+                } catch(e) { 
+                    console.log('Fetch GAS error', e); 
+                }
+                // 雲端完成，更新畫面（移除同步中提示）
+                renderPendingList(allPending, false);
             }
-
-            if (allPending.length === 0) {
-                list.innerHTML = '<p style="text-align:center;">目前沒有等待入料的車輛</p>';
-                return;
-            }
-
-            list.innerHTML = '';
-            allPending.forEach(r => {
-                let badge = r.syncState === 'new' ? '<span style="color:red; font-size:12px;">(尚未上傳雲端)</span>' : '';
-                const timeText = r.before_time || r.client_before_time || r.created_at || String(r.date).split("T")[0];
-                list.innerHTML += `
-                    <div class="record-card">
-                        <p><strong>車號：</strong>${r.license_plate} ${badge}</p>
-                        <p><strong>入料前時間：</strong>${timeText}</p>
-                        <button class="btn-select" onclick="selectRecord('${r.id}', '${r.license_plate}')">選擇完成入料</button>
-                    </div>
-                `;
-            });
         };
     }
 
@@ -452,7 +592,7 @@
         const req = tx.objectStore("records").getAll();
         
         req.onsuccess = async () => {
-            let records = req.result;
+            let records = req.result || [];
             let successCount = 0;
 
             for (let r of records) {
@@ -472,7 +612,6 @@
                     if (r.status === 'completed' && r.syncState === 'new') {
                         // 檢查入料後照片是否具備
                         if (!r.tAfter_b64) {
-                            r.isProcessing = false;
                             continue;
                         }
 
@@ -493,6 +632,10 @@
                         const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
                         const resData = await res.json();
                         if (resData.success) {
+                            const delTx = db.transaction(["records"], "readwrite");
+                            delTx.objectStore("records").delete(r.id);
+                            successCount++;
+                        } else if (resData.message && (resData.message.includes('已') || resData.message.includes('重複'))) {
                             const delTx = db.transaction(["records"], "readwrite");
                             delTx.objectStore("records").delete(r.id);
                             successCount++;
@@ -519,6 +662,12 @@
                             const updateTx = db.transaction(["records"], "readwrite");
                             updateTx.objectStore("records").put(r);
                             successCount++;
+                        } else if (resData.message && (resData.message.includes('已') || resData.message.includes('重複'))) {
+                            r.syncState = 'pending_synced';
+                            delete r.isProcessing;
+                            const updateTx = db.transaction(["records"], "readwrite");
+                            updateTx.objectStore("records").put(r);
+                            successCount++;
                         }
                     }
                     // 情境 C：入料前已在雲端，現在手機完成入料後
@@ -532,20 +681,24 @@
                         };
                         const res = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) });
                         const resData = await res.json();
-                        if (resData.success) {
+                        if (resData.success || (resData.message && (resData.message.includes('已') || resData.message.includes('重複')))) {
                             const delTx = db.transaction(["records"], "readwrite");
                             delTx.objectStore("records").delete(r.id);
                             successCount++;
                         }
                     }
-                } catch (e) { console.error("同步單筆失敗", e); }
+                } catch (e) {
+                    console.error("同步單筆失敗", e);
+                } finally {
+                    delete r.isProcessing;
+                }
             }
 
             // 檢查是否還有本機尚未送至雲端的資料 (只看 syncState === 'new' 或是 已完成但尚未同步 after 的)
             const checkTx = db.transaction(["records"], "readonly");
             const allReq = checkTx.objectStore("records").getAll();
             allReq.onsuccess = (e) => {
-                const unSynced = e.target.result.filter(r => r.syncState === 'new' || (r.status === 'completed' && r.syncState === 'pending_synced'));
+                const unSynced = (e.target.result || []).filter(r => r.syncState === 'new' || (r.status === 'completed' && r.syncState === 'pending_synced'));
                 if (unSynced.length === 0) {
                     btn.innerText = '✅ 全部已同步雲端';
                     btn.style.background = '#28a745';
@@ -556,6 +709,81 @@
                 }
                 isSyncing = false;
                 if(successCount > 0) loadPendingRecords(); // 更新畫面
+            };
+        };
+    }
+
+    // 未同步資料管理彈窗邏輯
+    function handleSyncBtnClick() {
+        if (!db) return;
+        const tx = db.transaction(["records"], "readonly");
+        const req = tx.objectStore("records").getAll();
+        req.onsuccess = (e) => {
+            const unSynced = (e.target.result || []).filter(r => r.syncState === 'new' || (r.status === 'completed' && r.syncState === 'pending_synced'));
+            const modalList = document.getElementById('syncModalList');
+            if (unSynced.length === 0) {
+                modalList.innerHTML = '<p style="color:#28a745; text-align:center;">目前本機無任何待同步暫存！</p>';
+            } else {
+                let html = '<ul style="padding-left:20px; margin:0;">';
+                unSynced.forEach(r => {
+                    const typeText = r.status === 'completed' ? '已完成(待傳入料後)' : '待入料(待傳入料前)';
+                    const timeText = r.client_before_time || r.before_time || r.date || '未知時間';
+                    html += `<li style="margin-bottom:8px;"><strong>[${typeText}]</strong> 車號：${r.license_plate || '未填'} <br><span style="font-size:12px; color:#888;">時間：${timeText}</span></li>`;
+                });
+                html += '</ul>';
+                modalList.innerHTML = html;
+            }
+            document.getElementById('syncModal').style.display = 'flex';
+        };
+    }
+
+    function closeSyncModal() {
+        document.getElementById('syncModal').style.display = 'none';
+    }
+
+    function forceRetrySync() {
+        if (!db) return;
+        const tx = db.transaction(["records"], "readwrite");
+        const store = tx.objectStore("records");
+        const req = store.getAll();
+        req.onsuccess = () => {
+            const records = req.result || [];
+            records.forEach(r => {
+                if (r.isProcessing) {
+                    delete r.isProcessing;
+                    store.put(r);
+                }
+            });
+            tx.oncomplete = () => {
+                closeSyncModal();
+                autoSync();
+            };
+        };
+    }
+
+    function clearInvalidOfflineCache() {
+        if (!confirm('確定要清除手機端所有未同步暫存嗎？\n（若後台已手動刪除此筆，清除即可解除警示）')) return;
+        if (!db) return;
+        const tx = db.transaction(["records"], "readwrite");
+        const store = tx.objectStore("records");
+        const req = store.getAll();
+        req.onsuccess = () => {
+            const records = req.result || [];
+            records.forEach(r => {
+                if (r.syncState === 'new' || (r.status === 'completed' && r.syncState === 'pending_synced')) {
+                    store.delete(r.id);
+                }
+            });
+            tx.oncomplete = () => {
+                alert('已成功清除本機未同步暫存！');
+                closeSyncModal();
+                const btn = document.getElementById('syncBtn');
+                if (btn) {
+                    btn.innerText = '✅ 全部已同步雲端';
+                    btn.style.background = '#28a745';
+                    setTimeout(() => { btn.style.display = 'none'; }, 2500);
+                }
+                loadPendingRecords();
             };
         };
     }
