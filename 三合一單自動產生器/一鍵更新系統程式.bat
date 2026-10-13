@@ -68,20 +68,6 @@ echo  [成功] 雲端更新完成！本機已為最新版本。
 echo ============================================================
 echo.
 
-set NAS_DIR=O:\各單位對外\資材部對外\三合一單自動產生器
-if exist "%NAS_DIR%" (
-    echo ★ 偵測到公司 NAS O 槽連線正常！
-    set /p PUSH_NAS="是否要順便將最新程式同步發布至 NAS 共享區？(Y/N) [預設 Y]: "
-    if "%PUSH_NAS%"=="" set PUSH_NAS=Y
-    if /i "%PUSH_NAS%"=="Y" (
-        echo 正在發布最新版本至 NAS...
-        copy /y "%~dp0main.py" "%NAS_DIR%\main.py" >nul
-        copy /y "%~dp0一鍵更新系統程式.bat" "%NAS_DIR%\一鍵更新系統程式.bat" >nul
-        echo [成功] 已成功將最新檔案發布至 NAS 共享區！
-        echo.
-    )
-)
-
 timeout /t 2 >nul
 goto LAUNCH_APP
 
