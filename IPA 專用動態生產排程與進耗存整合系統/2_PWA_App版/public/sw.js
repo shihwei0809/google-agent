@@ -1,8 +1,9 @@
-const CACHE_NAME = 'ipa-pwa-v3.4';
+const CACHE_NAME = 'ipa-pwa-v3.5';
 const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
+  './xlsx.full.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   'https://unpkg.com/react@18/umd/react.production.min.js',

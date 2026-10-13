@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>IPA 生產排程與進耗存整合系統 v3.4 (共用原料池負庫存赤字精確遞延累積版)</title>
+  <title>IPA 生產排程與進耗存整合系統 v3.5 (日報 Excel 多分頁智慧匯入與負庫存遞延版)</title>
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
@@ -13,6 +13,7 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="./xlsx.full.min.js"></script>
   
   <style>
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -135,7 +136,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // 系統最新版別標籤
-    const SYSTEM_VERSION = "v3.4 (共用原料池負庫存赤字精確遞延累積版)";
+    const SYSTEM_VERSION = "v3.5 (支援儲槽日報 Excel 直接匯入分頁與08:00起算)";
 
     // 數字格式化輔助函式：即時過濾前導 0
     const cleanNumStr = (val) => {
@@ -263,6 +264,10 @@
       // 儲槽作業日報 08:00 重量歷史/當前資料庫
       const [tankDailyData, setTankDailyData] = useState({});
       const [selectedReportDate, setSelectedReportDate] = useState('');
+      const [showDailyExcelModal, setShowDailyExcelModal] = useState(false);
+      const [uploadedExcelFileName, setUploadedExcelFileName] = useState('');
+      const [parsedExcelSheetsList, setParsedExcelSheetsList] = useState([]);
+      const excelFileInputRef = useRef(null);
 
       // 原採進貨排程快速匯入 Modal 控制
       const [showProcurementModal, setShowProcurementModal] = useState(false);
@@ -293,10 +298,19 @@
           // 讀取儲槽作業日報 08:00 重量快照索引
           try {
             const dailyRes = await fetch('./tank_daily_0800.json');
+            let mergedDaily = {};
             if (dailyRes.ok) {
-              const dailyData = await dailyRes.json();
-              setTankDailyData(dailyData || {});
+              mergedDaily = await dailyRes.json();
             }
+            // 合併本機 localStorage 歷史上傳之日報 Excel 快照
+            try {
+              const cachedStr = localStorage.getItem('ipa_custom_tank_daily');
+              if (cachedStr) {
+                const cachedDaily = JSON.parse(cachedStr);
+                mergedDaily = { ...mergedDaily, ...cachedDaily };
+              }
+            } catch (e) {}
+            setTankDailyData(mergedDaily || {});
           } catch (e) {
             console.warn("未能載入儲槽日報快照", e);
           }
@@ -635,12 +649,13 @@
         return Array.from({ length: total }, (_, i) => startIdx + i);
       }, [latestSalesDayIndex, activeMonthObj]);
 
-      // 當月有日報資料的日期清單 (供下拉選單快速選取)
+      // 當月有日報資料的日期清單 (供下拉選單快速選取，由新至舊排序)
       const availableReportDates = useMemo(() => {
         if (!tankDailyData) return [];
         return Object.keys(tankDailyData)
           .filter(d => d.startsWith(activeMonthKey))
           .sort()
+          .reverse()
           .map(dateStr => {
             const dData = tankDailyData[dateStr] || {};
             const dayNum = parseInt(dateStr.split('-')[2], 10);
@@ -656,23 +671,151 @@
           });
       }, [tankDailyData, activeMonthKey, activePlantId, activeMonthObj]);
 
+      // 解析儲槽作業日報 Excel (.xlsm / .xlsx) 檔案
+      const parseDailyReportExcelBuffer = (arrayBuffer, fileName) => {
+        try {
+          if (!window.XLSX) {
+            return alert("XLSX 解析引擎尚未載入完成，請稍候重試！");
+          }
+          const wb = window.XLSX.read(arrayBuffer, { type: 'array' });
+          const yearMatch = fileName.match(/(\d{4})/);
+          const fileYear = yearMatch ? parseInt(yearMatch[1], 10) : activeMonthObj.year;
+
+          const detectedEntries = [];
+          const updatedDaily = { ...tankDailyData };
+
+          wb.SheetNames.forEach(sheetName => {
+            const cleanSheetName = sheetName.trim();
+            const match = cleanSheetName.match(/^(\d{1,2})\.(\d{1,2})$/);
+            if (!match) return;
+
+            const m = parseInt(match[1], 10);
+            const d = parseInt(match[2], 10);
+            const dateKey = `${fileYear}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+            const sheet = wb.Sheets[sheetName];
+            const rows = window.XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (!rows || rows.length === 0) return;
+
+            const tanksMap = {
+              'TK604A': 'TK604A', 'TK604B': 'TK604B', 
+              'TK696': 'TK696', 'TK697': 'TK697', 'TK693': 'TK693',
+              'TK652': 'TK652', 'TK611': 'TK611', 'TK613': 'TK613',
+              'TK617': 'TK617', 'TK618': 'TK618'
+            };
+
+            const dayTanks = {};
+            const maxRows = Math.min(40, rows.length);
+
+            for (let r = 0; r < maxRows; r++) {
+              const row = rows[r] || [];
+              for (let c = 0; c < row.length; c++) {
+                const valNorm = String(row[c] || '').trim().toUpperCase().replace(/[- ]/g, '');
+                if (tanksMap[valNorm]) {
+                  const tKey = tanksMap[valNorm];
+                  for (let sr = r + 1; sr < Math.min(r + 8, rows.length); sr++) {
+                    const rowSr = rows[sr] || [];
+                    const label = String(rowSr[2] || '') + String(rowSr[1] || '') + String(rowSr[0] || '');
+                    if (label.includes('重量') || label.toLowerCase().includes('kg')) {
+                      const kg = parseFloat(rowSr[c]);
+                      if (!isNaN(kg) && kg > 0) {
+                        dayTanks[tKey] = Math.round(kg / 10) / 100;
+                        break;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            const p1Tanks = ['TK604A', 'TK604B', 'TK696', 'TK697', 'TK693'];
+            let p1Sum = 0;
+            let hasP1 = false;
+            p1Tanks.forEach(tk => {
+              if (dayTanks[tk] !== undefined) {
+                p1Sum += dayTanks[tk];
+                hasP1 = true;
+              }
+            });
+            if (hasP1 && p1Sum > 0) {
+              dayTanks.plant1 = Math.round(p1Sum * 100) / 100;
+            }
+
+            if (Object.keys(dayTanks).length > 0) {
+              updatedDaily[dateKey] = { ...(updatedDaily[dateKey] || {}), ...dayTanks };
+              const summary = activePlantId === 'plant1'
+                ? (dayTanks.plant1 ? `(一廠 ${dayTanks.plant1}T)` : '')
+                : (dayTanks.TK617 || dayTanks.TK618 ? `(617:${dayTanks.TK617 || 0}T / 618:${dayTanks.TK618 || 0}T)` : '');
+
+              detectedEntries.push({
+                dateStr: dateKey,
+                month: m,
+                day: d,
+                sheetName: cleanSheetName,
+                tanks: dayTanks,
+                plant1: dayTanks.plant1,
+                TK617: dayTanks.TK617,
+                TK618: dayTanks.TK618,
+                summary
+              });
+            }
+          });
+
+          if (detectedEntries.length === 0) {
+            return alert(`⚠️ 檔案 [${fileName}] 中未讀取到符合「M.D (如 10.1, 10.8, 10.12)」命名之日報分頁！`);
+          }
+
+          // 依日期由新至舊排序
+          detectedEntries.sort((a, b) => b.dateStr.localeCompare(a.dateStr));
+
+          setTankDailyData(updatedDaily);
+          try {
+            localStorage.setItem('ipa_custom_tank_daily', JSON.stringify(updatedDaily));
+          } catch(e) {}
+
+          setUploadedExcelFileName(fileName);
+          setParsedExcelSheetsList(detectedEntries);
+          setSelectedReportDate(detectedEntries[0].dateStr);
+          setShowDailyExcelModal(true);
+        } catch (err) {
+          console.error("解析 Excel 失敗", err);
+          alert("解析 Excel 失敗：" + err.message);
+        }
+      };
+
+      // 觸發日報 Excel 上傳
+      const handleDailyReportExcelUpload = (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const arrayBuffer = event.target.result;
+          parseDailyReportExcelBuffer(arrayBuffer, file.name);
+          if (excelFileInputRef.current) excelFileInputRef.current.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+      };
+
       // 一鍵帶入儲槽日報 08:00 重量至產銷起算基準
-      const handleApplyDailyReport = () => {
-        if (!selectedReportDate) return alert("請先從下拉選單選擇要帶入的日報日期！");
-        const dData = tankDailyData[selectedReportDate];
+      const handleApplyDailyReport = (targetDateStr) => {
+        const dateToUse = targetDateStr || selectedReportDate;
+        if (!dateToUse) return alert("請先從下拉選單選擇要帶入的日報日期！");
+        const dData = tankDailyData[dateToUse];
         if (!dData) return alert("查無該日期的儲槽日報重量資料！");
 
-        const dayIdx = parseInt(selectedReportDate.split('-')[2], 10) - 1;
-        const mKey = selectedReportDate.slice(0, 7);
+        const dayIdx = parseInt(dateToUse.split('-')[2], 10) - 1;
+        const mKey = dateToUse.slice(0, 7);
 
         if (activePlantId === 'plant1') {
           const weight = dData.plant1;
           if (weight === undefined || weight === 0) {
-            return alert(`日報中查無 ${selectedReportDate} 一廠 5 槽重量！`);
+            return alert(`日報中查無 ${dateToUse} 一廠 5 槽重量！`);
           }
           handleSalesPlanChange(mKey, 'plant1', dayIdx, String(weight));
           setCalcMode('SALES');
-          alert(`✅ 已成功帶入 ${selectedReportDate} 08:00 儲槽日報重量！\n一廠 5 槽共用池合計：${weight} 噸\n系統已自動切換至【產銷排產模式】，並由 ${activeMonthObj.month}/${dayIdx + 1} 日起算。`);
+          setShowDailyExcelModal(false);
+          alert(`✅ 已成功帶入 ${dateToUse} 08:00 儲槽日報重量！\n一廠 5 槽共用池合計：${weight} 噸\n系統已自動填入產銷 ${parseInt(dateToUse.split('-')[2], 10)} 日並切換至【產銷排產模式】起算。`);
         } else {
           // 二廠
           const w617 = dData.TK617 || 0;
@@ -680,7 +823,8 @@
           if (w617 > 0) handleSalesPlanChange(mKey, 'TK617', dayIdx, String(w617));
           if (w618 > 0) handleSalesPlanChange(mKey, 'TK618', dayIdx, String(w618));
           setCalcMode('SALES');
-          alert(`✅ 已成功帶入 ${selectedReportDate} 08:00 儲槽日報重量！\nTK617: ${w617} 噸 / TK618: ${w618} 噸\n系統已自動切換至【產銷排產模式】，並由 ${activeMonthObj.month}/${dayIdx + 1} 日起算。`);
+          setShowDailyExcelModal(false);
+          alert(`✅ 已成功帶入 ${dateToUse} 08:00 儲槽日報重量！\nTK617: ${w617} 噸 / TK618: ${w618} 噸\n系統已自動填入產銷 ${parseInt(dateToUse.split('-')[2], 10)} 日並切換至【產銷排產模式】起算。`);
         }
       };
 
@@ -1622,22 +1766,42 @@
                           </div>
 
                           {/* ⚡ 快速帶入儲槽日報 08:00 重量 */}
-                          <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-300 space-y-1.5 shadow-sm">
+                          <div className="bg-amber-50 p-2.5 rounded-lg border border-amber-300 space-y-2 shadow-sm">
                             <div className="flex items-center justify-between">
                               <span className="text-[11px] font-black text-amber-900 flex items-center">
                                 <span className="mr-1">⚡</span> 快速帶入儲槽作業日報 08:00 重量
                               </span>
-                              <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-bold">
-                                當月共 {availableReportDates.length} 筆
-                              </span>
+                              <div className="flex items-center space-x-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => excelFileInputRef.current && excelFileInputRef.current.click()}
+                                  className="text-[10px] bg-amber-600 hover:bg-amber-500 text-white px-2 py-0.5 rounded font-bold transition-all shadow-sm flex items-center cursor-pointer"
+                                  title="點擊選取儲槽作業日報 Excel (.xlsm/.xlsx)，系統將秒讀解析所有分頁"
+                                >
+                                  <span className="mr-0.5">📂</span> 匯入日報 Excel
+                                </button>
+                                <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded font-bold">
+                                  共 {availableReportDates.length} 筆
+                                </span>
+                              </div>
                             </div>
+
+                            {/* 隱藏的 File Input */}
+                            <input
+                              type="file"
+                              ref={excelFileInputRef}
+                              onChange={handleDailyReportExcelUpload}
+                              accept=".xlsm,.xlsx,.xls"
+                              className="hidden"
+                            />
+
                             <div className="flex items-center space-x-1.5">
                               <select
                                 value={selectedReportDate}
                                 onChange={e => setSelectedReportDate(e.target.value)}
                                 className="flex-1 text-xs p-1 rounded border border-amber-400 bg-white text-slate-800 font-bold focus:ring-1 focus:ring-amber-500"
                               >
-                                <option value="">-- 請選擇日報日期 --</option>
+                                <option value="">-- 請選擇分頁日期 --</option>
                                 {availableReportDates.map(d => (
                                   <option key={d.date} value={d.date}>
                                     {d.label} {d.summary}
@@ -1645,16 +1809,25 @@
                                 ))}
                               </select>
                               <button
-                                onClick={handleApplyDailyReport}
+                                onClick={() => handleApplyDailyReport(selectedReportDate)}
                                 disabled={!selectedReportDate}
                                 className={`px-2.5 py-1 rounded text-xs font-bold shrink-0 transition-all shadow ${selectedReportDate ? 'bg-amber-600 hover:bg-amber-500 text-white cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`}
                               >
                                 ⚡ 帶入起算
                               </button>
                             </div>
-                            <p className="text-[10px] text-amber-800 leading-tight">
-                              自動由日報抓取當日 08:00 槽重（一廠池：TK604A/B/696/697/693 合計；二廠：TK617/618），一鍵填入並由該日起算。
-                            </p>
+                            <div className="flex items-center justify-between text-[10px] text-amber-800 leading-tight">
+                              <span>💡 支援直接匯入 Excel，自動讀取各日期分頁（如 10.12），選取即可自動填入產銷起算。</span>
+                              {parsedExcelSheetsList.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowDailyExcelModal(true)}
+                                  className="text-amber-900 underline font-bold shrink-0 ml-1 hover:text-amber-700 cursor-pointer"
+                                >
+                                  查看分頁清單
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           <p className="text-[11px] text-slate-500">
@@ -2410,6 +2583,82 @@
                       確認匯入至進貨量 (+)
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 📅 儲槽作業日報 Excel 分頁解析與一鍵填入 Modal */}
+          {showDailyExcelModal && (
+            <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full p-5 space-y-3.5 max-h-[85vh] flex flex-col">
+                <div className="flex justify-between items-center pb-2 border-b">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xl">📂</span>
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-sm">
+                        儲槽作業日報 Excel 分頁解析結果
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        檔案：<span className="font-mono font-bold text-slate-700">{uploadedExcelFileName || '日報 Excel'}</span>（共讀取到 {parsedExcelSheetsList.length} 個有效日期分頁）
+                      </p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowDailyExcelModal(false)} className="text-slate-400 hover:text-slate-600 text-lg font-bold cursor-pointer">
+                    ✕
+                  </button>
+                </div>
+
+                <p className="text-xs text-slate-600 bg-amber-50 p-2 rounded border border-amber-200">
+                  系統已自動秒讀各分頁 08:00 槽重。請點選您要起算的日期（例如 12 日），系統將<strong>自動將重量填入產銷對應日</strong>，並立即切換至【產銷排產模式】自動起算！
+                </p>
+
+                <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[380px]">
+                  {parsedExcelSheetsList.map((item) => {
+                    const isPlant1 = activePlantId === 'plant1';
+                    return (
+                      <div key={item.dateStr} className="p-3 border rounded-lg bg-slate-50 hover:bg-amber-50/50 transition-all flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-slate-900 text-sm">
+                              📅 分頁 [{item.sheetName}] ({item.month}/{item.day} 日)
+                            </span>
+                            <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                              {isPlant1 ? `一廠 5 槽共用池合計: ${item.plant1 || 0} 噸` : `TK617: ${item.TK617 || 0}T / TK618: ${item.TK618 || 0}T`}
+                            </span>
+                          </div>
+                          {isPlant1 && item.tanks && (
+                            <div className="text-[10px] text-slate-500 font-mono flex flex-wrap gap-x-2">
+                              <span>TK604A: {item.tanks.TK604A || 0}T</span>
+                              <span>TK604B: {item.tanks.TK604B || 0}T</span>
+                              <span>TK693: {item.tanks.TK693 || 0}T</span>
+                              <span>TK696: {item.tanks.TK696 || 0}T</span>
+                              <span>TK697: {item.tanks.TK697 || 0}T</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={() => handleApplyDailyReport(item.dateStr)}
+                          className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded font-bold text-xs shadow transition-all shrink-0 cursor-pointer"
+                        >
+                          ⚡ 自動填入產銷 {item.day} 日起算
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="text-[11px] text-slate-500">
+                    💡 提示：點擊按鈕後，系統會在產銷對應日填入重量並設定為最新起算日，不影響其他設定。
+                  </span>
+                  <button
+                    onClick={() => setShowDailyExcelModal(false)}
+                    className="px-4 py-1.5 bg-slate-200 text-slate-700 rounded font-bold text-xs cursor-pointer"
+                  >
+                    關閉
+                  </button>
                 </div>
               </div>
             </div>
