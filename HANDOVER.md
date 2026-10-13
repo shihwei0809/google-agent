@@ -1,5 +1,22 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 前次進度與交接事項 (2026-10-14 晨間更新)
+* **功能重大升級與架構轉換 (回收液入料記錄系統 - v13-D1 旗艦版):**
+  - **資料庫全面轉移至 Cloudflare D1 (共用 `egups-db`)**:
+    1. 解決免費資料庫配額問題，直接共用 `egups-db` (Database ID: `b87a145c-937d-430b-94f0-1962255abd04`)，並已在遠端完成 `recycle_records` 資料表結構初始化與雙向索引。
+    2. 開闢 Cloudflare Pages Functions REST API (`/api/records`)，提供毫秒級原子事務操作（`before_feed`、`after_feed`、`complete_feed`、`query`、`delete_record`）。
+  - **徹底修復按鈕「處理與壓縮中...」卡死 Bug**:
+    1. 在 `beforeForm` 與 `afterForm` 提交流程加入 `try...finally` 保證結構。
+    2. 無論 Canvas 壓縮照片或網路拋出何種例外，`finally` 區塊強制執行 `submitBtn.disabled = false` 並將文字恢復為「儲存」或「完成入料記錄」，絕不再卡死停滯。
+  - **徹底消除後台刪除後的「孤兒幽靈筆」殘留**:
+    1. 改寫 `loadPendingRecords`：當手機連線向雲端 D1 拉取真實 `pending` 清單時，主動以雲端現有單據為準。若後台已經刪除或已由其他同仁完成入料，手機端 IndexedDB 自動清除該筆孤兒資料，切換分頁立即清空消失。
+    2. 在 `autoSync` 中加入 404 / `isDeleted` 自動清理機制：當上傳 `after_feed` 遇後台回傳 404（後台已被刪除），直接自主機端 IndexedDB 移除暫存，不再無窮重試。
+  - **照片保留於 Google Drive**:
+    - 照片 Base64 依然無縫非同步送往 Google Apps Script 歸檔於 Google Drive「回收液照片歸檔」資料夾，維持原有照片儲存方式，完全不需 R2。
+  - **線上正式版發布**:
+    - Cloudflare Pages 正式網址：`https://recycle-feed-records.pages.dev` (Service Worker 快取版本：`recycle-d1-v13`)。
+    - 經本機 Node.js 與遠端 REST API 實測：`before_feed` 寫入、`after_feed` 更新、歷時計算（22 分鐘）與清單同頻 100% 驗證通過。
+
 ## 前次進度與交接事項 (2026-10-13 晚間收工更新)
 * **功能重大升級與修復 (IPA 生產排程與進耗存整合系統 - v3.3 ~ v3.6):**
   - **日報 08:00 重量一鍵帶入 & 多分頁 Excel 直接匯入 (v3.5)**:
