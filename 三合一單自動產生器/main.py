@@ -1380,11 +1380,8 @@ class App(tk.Tk):
                             if any(kw in loc_key for kw in ("到貨", "地點", "SHORT", "LOCATION", "KEY", "HEADER")):
                                 continue
 
-                            # 支援一對多長代號
-                            if loc_key not in self.mapping_dict:
-                                self.mapping_dict[loc_key] = []
-                            if loc_val not in self.mapping_dict[loc_key]:
-                                self.mapping_dict[loc_key].append(loc_val)
+                            # 一對一純字串對應
+                            self.mapping_dict[loc_key] = loc_val
 
                             # 解析出貨區各廠區對應料號
                             origins = {}
@@ -1421,8 +1418,7 @@ class App(tk.Tk):
                     entry["origin_combo"]["values"] = self.origin_options
                 loc_val = entry["loc_var"].get().strip().upper()
                 if loc_val:
-                    cb = entry.get("long_code_combo")
-                    self.on_loc_change(entry["loc_var"], entry["long_code_var"], cb)
+                    self.on_loc_change(entry["loc_var"], entry["long_code_var"])
                     if "origin_var" in entry and "part_var" in entry:
                         self.update_part_no(entry["loc_var"], entry["origin_var"], entry["part_var"])
 
@@ -1701,10 +1697,10 @@ class App(tk.Tk):
             loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=12, font=("Arial", 10))
             loc_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
             
-            # Col 5: 長代號 (下拉選單)
+            # Col 5: 長代號 (唯讀顯示，一對一自動帶出)
             long_code_var = tk.StringVar()
-            long_code_combo = ttk.Combobox(self.scrollable_frame, textvariable=long_code_var, state="normal", width=16, font=("Arial", 10))
-            long_code_combo.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
+            long_code_entry = tk.Entry(self.scrollable_frame, textvariable=long_code_var, state="readonly", width=16, font=("Arial", 10), fg="purple")
+            long_code_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
 
             # Col 6: 出貨日期 (Entry + 📅 日曆按鈕)
             date_frame = tk.Frame(self.scrollable_frame)
@@ -1748,7 +1744,7 @@ class App(tk.Tk):
 
             # 綁定事件
             batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=tank_var: self.on_batch_change(bv, tv))
-            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var, cb=long_code_combo: self.on_loc_change(lv, lcv, cb))
+            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
             origin_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, ov=origin_var, pv=part_var: self.update_part_no(lv, ov, pv))
 
@@ -1763,7 +1759,6 @@ class App(tk.Tk):
                 "tank_var": tank_var,
                 "loc_var": loc_var,
                 "long_code_var": long_code_var,
-                "long_code_combo": long_code_combo,
                 "date_var": date_var,
                 "po_var": po_var,
                 "origin_var": origin_var,
