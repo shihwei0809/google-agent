@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>IPA 生產排程與進耗存整合系統 v3.5 (日報 Excel 多分頁智慧匯入與負庫存遞延版)</title>
+  <title>IPA 生產排程與進耗存整合系統 v3.6 (原採重量精確解析與跨廠儲槽選定版)</title>
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
@@ -136,7 +136,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // 系統最新版別標籤
-    const SYSTEM_VERSION = "v3.5 (支援儲槽日報 Excel 直接匯入分頁與08:00起算)";
+    const SYSTEM_VERSION = "v3.6 (修正原採重量精準解析與支援跨廠儲槽分配)";
 
     // 數字格式化輔助函式：即時過濾前導 0
     const cleanNumStr = (val) => {
@@ -844,38 +844,58 @@
           if (!l) return;
           if (l.includes('數量') || l.includes('訂單') || l.includes('ETD') || l.includes('ETA')) return;
 
-          // 匹配數量 (如 175MT 或 175 MT 或 175)
-          const weightMatch = l.match(/(\d+(?:\.\d+)?)\s*(?:MT|噸|T)?/i);
-          // 匹配單號/批號 (如 CIF-5 2609-I05, CIF-6, FOB-10, 2609-I05 等)
-          const poMatch = l.match(/((?:CIF|FOB)[-\s\w]+)/i) || l.match(/(\d{4}-I\d+)/i);
-          // 匹配預計入廠日期 (如 10/14-15, 10/12-14, 10/28, 11/3-4)
+          // 1. 匹配預計入廠日期 (取最後出現的日期，如 10/14-15, 11/3-4, 10/28)
           const dateMatches = [...l.matchAll(/(\d{1,2})\/(\d{1,2})(?:-(\d{1,2}))?/g)];
           const lastDateMatch = dateMatches.length > 0 ? dateMatches[dateMatches.length - 1] : null;
           const isPending = l.includes('待定');
 
-          if (weightMatch && (lastDateMatch || isPending)) {
-            const weight = parseFloat(weightMatch[1]) || 0;
-            let m = activeMonthObj.month;
-            let d = 1;
-            let dateDisplay = '待定';
+          // 若完全沒有日期也沒有待定，跳過此行
+          if (!lastDateMatch && !isPending) return;
 
-            if (lastDateMatch) {
-              m = parseInt(lastDateMatch[1], 10);
-              d = parseInt(lastDateMatch[2], 10); // 取區間起始日
-              dateDisplay = lastDateMatch[0];
+          // 2. 精確匹配重量：優先匹配帶有 MT / 噸 / T 的數字 (例如 175MT, 175 MT, 175.5噸)
+          // 嚴防誤將 CIF-5 或 FOB-6 中的「5」或「6」誤判為重量！
+          let weight = 0;
+          const weightWithUnit = l.match(/(\d+(?:\.\d+)?)\s*(?:MT|噸|T)\b/i);
+          if (weightWithUnit) {
+            weight = parseFloat(weightWithUnit[1]) || 0;
+          } else {
+            // 若未帶單位，匹配位於單號/批號之後、日期或待定之前的獨立純數字 (如 175)
+            const fallbackWeight = l.match(/(?:(?:CIF|FOB|EXW)[-\s\w]+|\d{4}-I\d+)\s+(\d+(?:\.\d+)?)\b/i);
+            if (fallbackWeight) {
+              weight = parseFloat(fallbackWeight[1]) || 0;
             }
-
-            items.push({
-              id: idx,
-              po: poMatch ? poMatch[1].trim() : `進貨-${idx + 1}`,
-              weight: weight,
-              month: m,
-              day: d,
-              dateDisplay: dateDisplay,
-              targetTank: defaultImportTarget,
-              isPending: isPending
-            });
           }
+
+          if (weight <= 0) return;
+
+          // 3. 精確匹配單號與批號 (例如 CIF-5 2609-I05, FOB-10 2610-I10, 或獨立單號)
+          // 嚴格限制在單號/批號格式，不向後貪婪吞入重量與日期
+          let poStr = `進貨-${idx + 1}`;
+          const fullPoMatch = l.match(/((?:CIF|FOB|EXW)[-\s]?\w+(?:\s+\d{4}-I\d+)?)/i) || l.match(/(\d{4}-I\d+)/i);
+          if (fullPoMatch) {
+            poStr = fullPoMatch[1].trim();
+          }
+
+          let m = activeMonthObj.month;
+          let d = 1;
+          let dateDisplay = '待定';
+
+          if (lastDateMatch) {
+            m = parseInt(lastDateMatch[1], 10);
+            d = parseInt(lastDateMatch[2], 10); // 取區間起始日
+            dateDisplay = lastDateMatch[0];
+          }
+
+          items.push({
+            id: idx,
+            po: poStr,
+            weight: weight,
+            month: m,
+            day: d,
+            dateDisplay: dateDisplay,
+            targetTank: defaultImportTarget,
+            isPending: isPending
+          });
         });
 
         setParsedProcurementList(items);
@@ -2455,14 +2475,19 @@
                         setDefaultImportTarget(newT);
                         setParsedProcurementList(prev => prev.map(item => ({ ...item, targetTank: newT })));
                       }}
-                      className="text-xs p-1.5 rounded border border-indigo-300 font-bold bg-white text-indigo-900"
+                      className="text-xs p-1.5 rounded border border-indigo-300 font-bold bg-white text-indigo-900 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     >
-                      {activePlantId === 'plant1' && (
+                      <optgroup label="── 彰濱一廠 ──">
                         <option value="SHARED_POOL">🔗 一廠 5 槽共用池 (自動平均分配 5 槽，總進貨一致)</option>
-                      )}
-                      {currentPlantSupplyTanks.map(st => (
-                        <option key={st.id} value={st.id}>入 {st.id} ({st.name})</option>
-                      ))}
+                        {tanksList.filter(t => t.plantId === 'plant1' && t.type === 'SUPPLY').map(st => (
+                          <option key={st.id} value={st.id}>一廠 - {st.id} ({st.name})</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="── 崙尾二廠 ──">
+                        {tanksList.filter(t => t.plantId === 'plant2' && t.type === 'SUPPLY').map(st => (
+                          <option key={st.id} value={st.id}>二廠 - {st.id} ({st.name})</option>
+                        ))}
+                      </optgroup>
                     </select>
                   </div>
                   <button
@@ -2531,12 +2556,19 @@
                                     const val = e.target.value;
                                     setParsedProcurementList(prev => prev.map((it, i) => i === idx ? { ...it, targetTank: val } : it));
                                   }}
-                                  className="text-[11px] p-1 border rounded font-bold bg-white"
+                                  className="text-[11px] p-1 border rounded font-bold bg-white focus:outline-none"
                                 >
-                                  {activePlantId === 'plant1' && <option value="SHARED_POOL">🔗 一廠池</option>}
-                                  {currentPlantSupplyTanks.map(st => (
-                                    <option key={st.id} value={st.id}>{st.id}</option>
-                                  ))}
+                                  <optgroup label="── 彰濱一廠 ──">
+                                    <option value="SHARED_POOL">🔗 一廠池 (均分5槽)</option>
+                                    {tanksList.filter(t => t.plantId === 'plant1' && t.type === 'SUPPLY').map(st => (
+                                      <option key={st.id} value={st.id}>一廠 - {st.id}</option>
+                                    ))}
+                                  </optgroup>
+                                  <optgroup label="── 崙尾二廠 ──">
+                                    {tanksList.filter(t => t.plantId === 'plant2' && t.type === 'SUPPLY').map(st => (
+                                      <option key={st.id} value={st.id}>二廠 - {st.id}</option>
+                                    ))}
+                                  </optgroup>
                                 </select>
                               </td>
                               <td className="p-1.5 font-bold">
