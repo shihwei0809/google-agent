@@ -624,20 +624,24 @@ def clean_location_str(loc, mapping_dict=None):
     if not loc:
         return ""
     s = str(loc).strip().upper()
+    # 智慧移除常見多餘文字：台積、台積電、新竹、台中、台南、廠、空格、底線、破折號
+    # 例：18廠P2 -> 18P2, 18廠p2 -> 18P2, 15廠P5 -> 15P5, 15廠p5 -> 15P5, 18p2 -> 18P2
     cleaned = re.sub(r'台積電?|新竹|台中|台南|廠|[-_\s]', '', s)
     if mapping_dict and cleaned in mapping_dict:
         return cleaned
     if mapping_dict and s in mapping_dict:
         return s
-    m_ap = re.search(r'(AP\d+[A-Z0-9]*)', s)
+    m_ap = re.search(r'(AP\d+[A-Z0-9]*)', cleaned)
     if m_ap:
         return m_ap.group(1)
-    m_loc = re.search(r'(\d+[A-Z]\d+[A-Z0-9]*|\d+[A-Z0-9]+)', s)
+    m_loc = re.search(r'([A-Z]*\d+P\d+[A-Z0-9]*|\d+[A-Z]\d+[A-Z0-9]*|\d+[A-Z0-9]+)', cleaned)
     if m_loc:
         val = m_loc.group(1)
         if (mapping_dict and val in mapping_dict) or any(x in val for x in ["18P", "15P", "12P", "14P"]):
             return val
+        return val
     return cleaned or s
+
 
 class ImportRangeDialog(tk.Toplevel):
     """
@@ -1315,7 +1319,7 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 
 # ================= 介面與操作 =================
 
-APP_VERSION = "v1.0.19 (2026/10/08 更新)"
+APP_VERSION = "v1.0.20 (2026/10/13 更新)"
 
 class App(tk.Tk):
     def __init__(self):
@@ -1879,9 +1883,11 @@ class App(tk.Tk):
 
     def update_part_no(self, loc_var, part_var):
         if not hasattr(self, 'part_mapping_dict'): return
-        loc = loc_var.get().strip().upper()
-        if loc in self.part_mapping_dict:
-            info = self.part_mapping_dict[loc]
+        raw_loc = loc_var.get()
+        norm_loc = clean_location_str(raw_loc, self.mapping_dict)
+        lookup_key = norm_loc if (hasattr(self, 'part_mapping_dict') and norm_loc in self.part_mapping_dict) else raw_loc.strip().upper()
+        if lookup_key in self.part_mapping_dict:
+            info = self.part_mapping_dict[lookup_key]
             part_no = info["default"]
             # 對照表有此地點，但無設定料號 → 空白
             part_var.set(part_no)
@@ -1890,14 +1896,16 @@ class App(tk.Tk):
             part_var.set("")
 
     def on_loc_change(self, loc_var, long_code_var, long_code_combo=None):
-        loc = loc_var.get().strip().upper()
-        if not loc:
+        raw_loc = loc_var.get()
+        if not raw_loc.strip():
             long_code_var.set("")
             if long_code_combo: long_code_combo['values'] = []
             return
 
-        if loc in self.mapping_dict:
-            vals = self.mapping_dict[loc]
+        norm_loc = clean_location_str(raw_loc, self.mapping_dict)
+        lookup_key = norm_loc if (hasattr(self, 'mapping_dict') and norm_loc in self.mapping_dict) else raw_loc.strip().upper()
+        if lookup_key in self.mapping_dict:
+            vals = self.mapping_dict[lookup_key]
             if long_code_combo: long_code_combo['values'] = vals
             long_code_var.set(vals[0] if isinstance(vals, list) and vals else (vals if isinstance(vals, str) else ""))
         else:
@@ -1929,9 +1937,11 @@ class App(tk.Tk):
                 continue
 
             # 3. 地點 (在 mapping_dict 內或含 18P, 15P, P, 廠等)
-            if not res["loc"] and (p_upper in self.mapping_dict or "18P" in p_upper or "15P" in p_upper or "P" in p_upper or "廠" in p):
-                res["loc"] = p_upper
+            clean_p = clean_location_str(p, getattr(self, 'mapping_dict', {}))
+            if not res["loc"] and (clean_p in getattr(self, 'mapping_dict', {}) or "18P" in clean_p or "15P" in clean_p or "P" in clean_p or "廠" in p):
+                res["loc"] = clean_p if clean_p else p_upper
                 continue
+
 
             # 4. 槽號 (3~5 碼以 E/T/P 開頭，例如 E305) -> 可略過，因為寫入批號時微服務會自動算槽號！
             if len(p_upper) <= 5 and p_upper.startswith(("E", "T", "P")):
@@ -2234,24 +2244,27 @@ class App(tk.Tk):
                             for c_idx, val in enumerate(row):
                                 v = str(val or "").strip().upper()
                                 if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
-                                if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
-                                if ship_date_col == -1 and any(k in v for k in ["出貨日", "出車日", "出貨日期", "出車", "出貨"]) and "地" not in v and "點" not in v: ship_date_col = c_idx
-                                if arr_date_col == -1 and any(k in v for k in ["到貨日", "到貨日期", "到貨", "送達日"]) and "地" not in v and "點" not in v: arr_date_col = c_idx
-                                if rem_col == -1 and "剩餘天數" in v: rem_col = c_idx
-                                if qty_col == -1 and any(k in v for k in ["數量", "QTY", "QUANTITY", "AMOUNT", "排程量", "需求量", "總重"]): qty_col = c_idx
-                                if mfg_col == -1 and any(k in v for k in ["製造", "MFG", "生產日", "製日"]): mfg_col = c_idx
-                                if exp_col == -1 and any(k in v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in v and "天數" not in v: exp_col = c_idx
-                                if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
-                                if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
-                                if po_col == -1 and any(k in v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
-                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
-                                if name_col == -1 and any(k in v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
+                                clean_v = v.replace(" ", "").replace("\t", "").replace("\n", "")
+                                if loc_col == -1 and any(k in clean_v for k in ["地點", "指送", "交貨", "到貨地", "到貨廠", "到廠", "送達", "廠區", "廠別", "卸料", "卸貨", "LOCATION", "DEST"]): loc_col = c_idx
+                                if ship_date_col == -1 and any(k in clean_v for k in ["出貨日", "出車日", "出貨日期", "出車", "出貨"]) and "地" not in clean_v and "點" not in clean_v: ship_date_col = c_idx
+                                if arr_date_col == -1 and any(k in clean_v for k in ["到貨日", "到貨日期", "到貨", "送達日"]) and "地" not in clean_v and "點" not in clean_v: arr_date_col = c_idx
+                                if rem_col == -1 and "剩餘天數" in clean_v: rem_col = c_idx
+                                if qty_col == -1 and any(k in clean_v for k in ["數量", "QTY", "QUANTITY", "AMOUNT", "排程量", "需求量", "總重"]): qty_col = c_idx
+                                if mfg_col == -1 and any(k in clean_v for k in ["製造", "MFG", "生產日", "製日"]): mfg_col = c_idx
+                                if exp_col == -1 and any(k in clean_v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in clean_v and "天數" not in clean_v: exp_col = c_idx
+                                if time_col == -1 and any(k in clean_v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in clean_v: time_col = c_idx
+                                if mod_time_col == -1 and "修正" in clean_v and ("時間" in clean_v or "TIME" in clean_v): mod_time_col = c_idx
+                                if po_col == -1 and any(k in clean_v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
+                                if origin_col == -1 and any(k in clean_v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
+                                if name_col == -1 and any(k in clean_v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
                             if batch_col != -1 and (loc_col != -1 or ship_date_col != -1 or arr_date_col != -1):
                                 start_row = r_idx + 1
                                 break
-                        if batch_col == -1 or loc_col == -1:
-                            batch_col, ship_date_col, qty_col, loc_col = 2, 1, 4, 5
-                            start_row = 2
+                        if batch_col == -1: batch_col = 2
+                        if loc_col == -1: loc_col = 5
+                        if ship_date_col == -1: ship_date_col = 0
+                        if arr_date_col == -1: arr_date_col = 1
+                        if qty_col == -1: qty_col = 4
                         # 找不到就留空（-1），不死寫固定欄號，以免抓到不相關欄位
                         for r_idx in range(start_row, len(rows)):
                             row = rows[r_idx]
@@ -2279,6 +2292,16 @@ class App(tk.Tk):
                             if len(b_val) == 10 and re.search(r'[0-9]', b_val):
                                 tank_final = qty_val
                                 clean_l = clean_location_str(l_val, self.mapping_dict)
+                                if not clean_l or (clean_l not in self.mapping_dict and not re.search(r'\d+P\d+', clean_l)):
+                                    for cell in row:
+                                        if cell is None: continue
+                                        cs = str(cell).strip()
+                                        if not cs or cs == b_val or "/" in cs or "-" in cs: continue
+                                        candidate = clean_location_str(cs, self.mapping_dict)
+                                        if candidate in self.mapping_dict or re.search(r'^[A-Z]?\d+P\d+[A-Z0-9]*$', candidate) or 'AP' in candidate:
+                                            l_val = cs
+                                            clean_l = candidate
+                                            break
                                 records.append({
                                     "sheet": "CSV",
                                     "batch": b_val,
@@ -2349,30 +2372,30 @@ class App(tk.Tk):
                                 v = str(val or "").strip().upper()
                                 if not v: continue
                                 if batch_col == -1 and any(k in v for k in ["批號", "BATCH", "LOT"]): batch_col = c_idx
-                                if loc_col == -1 and any(k in v for k in ["地點", "指送", "交貨", "到貨地", "送達", "廠區", "LOCATION", "DEST"]): loc_col = c_idx
-                                if ship_date_col == -1 and any(k in v for k in ["出貨日", "出車日", "出貨日期", "出車", "出貨"]) and "地" not in v and "點" not in v: ship_date_col = c_idx
-                                if arr_date_col == -1 and any(k in v for k in ["到貨日", "到貨日期", "到貨", "送達日"]) and "地" not in v and "點" not in v: arr_date_col = c_idx
-                                if rem_col == -1 and "剩餘天數" in v: rem_col = c_idx
-                                if qty_col == -1 and any(k in v for k in ["數量", "QTY", "QUANTITY", "AMOUNT", "排程量", "需求量", "總重"]): qty_col = c_idx
-                                if time_col == -1 and any(k in v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in v: time_col = c_idx
-                                if mod_time_col == -1 and "修正" in v and ("時間" in v or "TIME" in v): mod_time_col = c_idx
-                                if po_col == -1 and any(k in v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
-                                if origin_col == -1 and any(k in v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
-                                if cust_col == -1 and any(k in v for k in ["對象", "客戶", "廠商", "CUSTOMER"]): cust_col = c_idx
-                                if mfg_col == -1 and any(k in v for k in ["製造", "MFG", "生產日", "製日"]): mfg_col = c_idx
-                                if exp_col == -1 and any(k in v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in v and "天數" not in v: exp_col = c_idx
-                                if name_col == -1 and any(k in v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
+                                clean_v = v.replace(" ", "").replace("\t", "").replace("\n", "")
+                                if loc_col == -1 and any(k in clean_v for k in ["地點", "指送", "交貨", "到貨地", "到貨廠", "到廠", "送達", "廠區", "廠別", "卸料", "卸貨", "LOCATION", "DEST"]): loc_col = c_idx
+                                if ship_date_col == -1 and any(k in clean_v for k in ["出貨日", "出車日", "出貨日期", "出車", "出貨"]) and "地" not in clean_v and "點" not in clean_v: ship_date_col = c_idx
+                                if arr_date_col == -1 and any(k in clean_v for k in ["到貨日", "到貨日期", "到貨", "送達日"]) and "地" not in clean_v and "點" not in clean_v: arr_date_col = c_idx
+                                if rem_col == -1 and "剩餘天數" in clean_v: rem_col = c_idx
+                                if qty_col == -1 and any(k in clean_v for k in ["數量", "QTY", "QUANTITY", "AMOUNT", "排程量", "需求量", "總重"]): qty_col = c_idx
+                                if time_col == -1 and any(k in clean_v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in clean_v: time_col = c_idx
+                                if mod_time_col == -1 and "修正" in clean_v and ("時間" in clean_v or "TIME" in clean_v): mod_time_col = c_idx
+                                if po_col == -1 and any(k in clean_v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
+                                if origin_col == -1 and any(k in clean_v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
+                                if cust_col == -1 and any(k in clean_v for k in ["對象", "客戶", "廠商", "CUSTOMER"]): cust_col = c_idx
+                                if mfg_col == -1 and any(k in clean_v for k in ["製造", "MFG", "生產日", "製日"]): mfg_col = c_idx
+                                if exp_col == -1 and any(k in clean_v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in clean_v and "天數" not in clean_v: exp_col = c_idx
+                                if name_col == -1 and any(k in clean_v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
 
                             if batch_col != -1 and (loc_col != -1 or ship_date_col != -1 or arr_date_col != -1):
                                 start_row = r_idx + 1
                                 break
 
-                        if batch_col == -1 or loc_col == -1:
-                            batch_col = 2
-                            ship_date_col = 1
-                            qty_col = 4
-                            loc_col = 5
-                            start_row = 2
+                        if batch_col == -1: batch_col = 2
+                        if loc_col == -1: loc_col = 5
+                        if ship_date_col == -1: ship_date_col = 0
+                        if arr_date_col == -1: arr_date_col = 1
+                        if qty_col == -1: qty_col = 4
                         # 找不到就留空（-1），不死寫固定欄號，以免抓到不相關欄位
 
                         for r_idx in range(start_row, len(rows)):
@@ -2408,16 +2431,30 @@ class App(tk.Tk):
                             if len(b_val) != 10 or not any(c.isdigit() for c in b_val):
                                 continue
 
+                            # 若預設欄位非有效地點或地點為空，全列搜尋包含地點特徵的儲存格
+                            clean_loc = clean_location_str(l_val, self.mapping_dict)
+                            if not clean_loc or (clean_loc not in self.mapping_dict and not re.search(r'\d+P\d+', clean_loc)):
+                                for cell in row:
+                                    if cell is None: continue
+                                    cs = str(cell).strip()
+                                    if not cs or cs == b_val or "/" in cs or "-" in cs: continue
+                                    candidate = clean_location_str(cs, self.mapping_dict)
+                                    if candidate in self.mapping_dict or re.search(r'^[A-Z]?\d+P\d+[A-Z0-9]*$', candidate) or 'AP' in candidate:
+                                        l_val = cs
+                                        clean_loc = candidate
+                                        break
+
                             # 排除非台積電客戶 (例如南亞、長春、聯電、日月光)
                             if cust_val and any(non in cust_val for non in ["南亞", "長春", "聯電", "日月光"]) and "台積" not in cust_val:
                                 continue
 
-                            clean_loc = clean_location_str(l_val, self.mapping_dict)
                             is_tsmc = sheet_has_tsmc or ("台積" in cust_val if cust_val else False) or \
-                                      any(k in l_val for k in ["台積", "18P", "15P", "12P", "14P", "AP", "F"]) or \
+                                      any(k in clean_loc for k in ["台積", "18P", "15P", "12P", "14P", "AP", "F"]) or \
+                                      any(k in l_val for k in ["台積", "18P", "15P", "12P", "14P", "AP", "F", "廠"]) or \
                                       (clean_loc in self.mapping_dict)
                             if not is_tsmc and cust_val and "台積" not in cust_val:
                                 continue
+
 
                             norm_date = normalize_date_str(d_val)
                             
@@ -2511,7 +2548,8 @@ class App(tk.Tk):
                 continue
                 
             batch = row["batch_var"].get().strip().upper()
-            loc = row["loc_var"].get().strip().upper()
+            raw_loc = row["loc_var"].get().strip()
+            loc = clean_location_str(raw_loc, self.mapping_dict) or raw_loc.strip().upper()
             qty = row["qty_var"].get().strip()
             date_str = row["date_var"].get().strip()
             time_str = ""
@@ -2527,16 +2565,22 @@ class App(tk.Tk):
                 return
                 
             part_no_str = row.get("part_var", tk.StringVar()).get().strip() if "part_var" in row else ""
+            if not part_no_str and hasattr(self, 'part_mapping_dict') and loc in self.part_mapping_dict:
+                part_no_str = self.part_mapping_dict[loc].get("default", "")
             po_str = row.get("po_var", tk.StringVar()).get().strip() if "po_var" in row else ""
             mfg_date_str = row.get("mfg_var", tk.StringVar()).get().strip() if "mfg_var" in row else ""
             exp_date_str = row.get("exp_var", tk.StringVar()).get().strip() if "exp_var" in row else ""
             arr_date_str = row.get("arr_date_var", tk.StringVar()).get().strip() if "arr_date_var" in row else ""
             rem_days_str = row.get("rem_var", tk.StringVar()).get().strip() if "rem_var" in row else ""
+            long_code_val = row.get("long_code_var", type("X", (), {"get": lambda: ""})()).get().strip().upper() if "long_code_var" in row else ""
+            if (not long_code_val or "未知" in long_code_val) and loc in self.mapping_dict:
+                vals = self.mapping_dict.get(loc, [])
+                long_code_val = vals[0] if isinstance(vals, list) and vals else (vals if isinstance(vals, str) else "")
             valid_data.append({
                 "batch": batch,
                 "qty": qty,
                 "loc": loc,
-                "long_code": row.get("long_code_var", type("X", (), {"get": lambda: ""})()).get().strip().upper() if "long_code_var" in row else "",
+                "long_code": long_code_val,
                 "date": date_str,
                 "arr_date": arr_date_str,
                 "time": time_str,
@@ -2554,6 +2598,7 @@ class App(tk.Tk):
             return
 
         missing_locs = [data["loc"] for data in valid_data if data["loc"] not in self.mapping_dict]
+
         if missing_locs:
             missing_str = ", ".join(set(missing_locs))
             messagebox.showerror("錯誤", f"地點代號對照表中找不到以下地點：\n{missing_str}\n\n請先更新對照表後再試！")
