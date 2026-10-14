@@ -69,6 +69,12 @@ function doGet(e) {
     return ContentService.createTextOutput(JSON.stringify({ records: allRecords }))
       .setMimeType(ContentService.MimeType.JSON);
       
+  } else if (action === "organize_folders") {
+    // 一鍵整理現有舊照片進各週資料夾
+    const result = organizeExistingPhotosToWeeklyFolders();
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+
   } else {
     // 預設模式：只回傳 pending 列表
     let pendingRecords = [];
@@ -132,8 +138,8 @@ function handleBeforeFeed(params) {
   }
 
   // 存檔到 Drive
-  const t_url = saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`);
-  const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`);
+  const t_url = saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`, date);
+  const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`, date);
   
   // 寫入 Sheets：優先採用手機拍照當下的實際時間 client_before_time，離線拍照也能精準記錄
   const beforeTime = client_before_time || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
@@ -160,9 +166,9 @@ function handleCompleteFeed(params) {
     }
   }
 
-  const t_url = saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`);
-  const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`);
-  const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`);
+  const t_url = saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`, date);
+  const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`, date);
+  const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`, date);
 
   const nowStr = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
   const beforeTime = client_before_time || nowStr;
@@ -224,7 +230,7 @@ function handleAfterFeed(params) {
   }
 
   // 存檔到 Drive
-  const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`);
+  const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`, date);
   
   const afterTime = client_after_time || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
 
@@ -255,28 +261,133 @@ function handleAfterFeed(params) {
   });
 }
 
-// 輔助函式：將 Base64 轉成檔案並存入 Drive 特定資料夾，回傳檔案網址
-function saveBase64ToDrive(base64Str, filename) {
+// 計算所屬週並取得/建立週資料夾 (例：2026年第42週 (10.12~10.18))
+function getWeeklyFolder(parentFolder, dateInput) {
+  var d;
+  if (!dateInput) {
+    d = new Date();
+  } else if (typeof dateInput === 'string') {
+    var m = dateInput.match(/(\d{4})[-_/](\d{1,2})[-_/](\d{1,2})/);
+    if (m) {
+      d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    } else {
+      d = new Date(dateInput);
+    }
+  } else if (dateInput instanceof Date) {
+    d = dateInput;
+  } else {
+    d = new Date();
+  }
+  if (isNaN(d.getTime())) d = new Date();
+
+  // 取得該週星期一 (以星期一為每週開始，星期日為結束)
+  var day = d.getDay(); // 0 是週日, 1 是週一...
+  var diffToMon = (day === 0 ? -6 : 1) - day;
+  var monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() + diffToMon);
+  var sunday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6);
+
+  // ISO 週數計算 (以週四決定所屬年與週次)
+  var target = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 3);
+  var jan4 = new Date(target.getFullYear(), 0, 4);
+  var diffDays = Math.round((target - jan4) / 86400000);
+  var weekNum = 1 + Math.round((diffDays - (3 - ((jan4.getDay() + 6) % 7))) / 7);
+  var weekStr = (weekNum < 10 ? "0" : "") + weekNum;
+
+  var pad = function(n) { return (n < 10 ? "0" : "") + n; };
+  var m1 = pad(monday.getMonth() + 1);
+  var d1 = pad(monday.getDate());
+  var m2 = pad(sunday.getMonth() + 1);
+  var d2 = pad(sunday.getDate());
+
+  var folderName = target.getFullYear() + "年第" + weekStr + "週 (" + m1 + "." + d1 + "~" + m2 + "." + d2 + ")";
+
+  var folders = parentFolder.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    return folders.next();
+  } else {
+    var newFolder = parentFolder.createFolder(folderName);
+    newFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return newFolder;
+  }
+}
+
+// 輔助函式：將 Base64 轉成檔案並存入 Drive 當週資料夾，回傳檔案網址
+function saveBase64ToDrive(base64Str, filename, dateInput) {
   if (!base64Str) return "";
   
-  // 1. 尋找或建立「回收液照片歸檔」資料夾
-  const folderName = "回收液照片歸檔";
-  let folder;
-  const folders = DriveApp.getFoldersByName(folderName);
+  // 1. 尋找或建立「回收液照片歸檔」根資料夾
+  var rootFolderName = "回收液照片歸檔";
+  var rootFolder;
+  var folders = DriveApp.getFoldersByName(rootFolderName);
   if (folders.hasNext()) {
-    folder = folders.next();
+    rootFolder = folders.next();
   } else {
-    folder = DriveApp.createFolder(folderName);
+    rootFolder = DriveApp.createFolder(rootFolderName);
   }
 
-  // 2. 轉換與存檔
-  const base64Data = base64Str.split(",")[1] || base64Str; 
-  const blob = Utilities.newBlob(Utilities.base64Decode(base64Data), MimeType.JPEG, filename);
-  const file = folder.createFile(blob);
+  // 2. 若未傳入 dateInput，從檔名自動萃取日期 (例如 before_2026-10-14_...)
+  var targetDate = dateInput;
+  if (!targetDate && filename) {
+    var m = filename.match(/(\d{4})[-_/](\d{1,2})[-_/](\d{1,2})/);
+    if (m) {
+      targetDate = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    }
+  }
+
+  // 3. 取得或自動建立當週子資料夾 (例如：2026年第42週 (10.12~10.18))
+  var weeklyFolder = getWeeklyFolder(rootFolder, targetDate);
+
+  // 4. 轉換與存檔至當週資料夾
+  var base64Data = base64Str.split(",")[1] || base64Str; 
+  var blob = Utilities.newBlob(Utilities.base64Decode(base64Data), MimeType.JPEG, filename);
+  var file = weeklyFolder.createFile(blob);
   
-  // 3. 設定權限為知道連結者可檢視
+  // 5. 設定權限為知道連結者可檢視
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return file.getUrl();
+}
+
+// 一鍵整理現有散落在「回收液照片歸檔」根目錄的舊照片進各週資料夾
+function organizeExistingPhotosToWeeklyFolders() {
+  var rootFolderName = "回收液照片歸檔";
+  var folders = DriveApp.getFoldersByName(rootFolderName);
+  if (!folders.hasNext()) return { success: false, message: "找不到資料夾" };
+  
+  var rootFolder = folders.next();
+  var files = rootFolder.getFiles();
+  var movedCount = 0;
+  var log = [];
+
+  while (files.hasNext()) {
+    var file = files.next();
+    var name = file.getName();
+    
+    // 解析照片日期
+    var d = null;
+    var m = name.match(/(\d{4})[-_/](\d{1,2})[-_/](\d{1,2})/);
+    if (m) {
+      d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+    } else {
+      var m2 = name.match(/([A-Za-z]{3}\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4})/);
+      if (m2) {
+        d = new Date(m2[1]);
+      } else {
+        d = file.getDateCreated();
+      }
+    }
+
+    var weeklyFolder = getWeeklyFolder(rootFolder, d);
+    if (file.moveTo) {
+      file.moveTo(weeklyFolder);
+    } else {
+      weeklyFolder.addFile(file);
+      rootFolder.removeFile(file);
+    }
+    movedCount++;
+    log.push(name + " -> " + weeklyFolder.getName());
+  }
+
+  return { success: true, movedCount: movedCount, log: log };
 }
 
 function jsonResponse(data, code=200) {
