@@ -491,48 +491,63 @@
 
       // 快速切換儲槽共用狀態（勾選納入/排除共用池）
       const toggleTankSharedPool = (tId) => {
-        setTanksList(prev => {
-          const nextTanks = prev.map(t => t.id === tId ? { ...t, isSharedPool: !t.isSharedPool } : t);
-          const nextShared = nextTanks.filter(t => t.plantId === 'plant1' && t.type === 'SUPPLY' && t.isSharedPool);
+        const targetTank = tanksList.find(t => t.id === tId);
+        if (!targetTank) return;
+        const willBeShared = !targetTank.isSharedPool; // 即將變為的狀態
 
-          // 🌟 若當前處於產銷排產模式 (SALES)，自動根據當前起算日與日報資料，動態扣除或加回該槽重量！
-          if (calcMode === 'SALES' && latestSalesDayIndex >= 0) {
-            const dayNum = latestSalesDayIndex + 1;
-            const targetDateStr = `${activeMonthObj.year}-${String(activeMonthObj.month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-            const dData = tankDailyData[targetDateStr];
+        // 1. 更新儲槽清單
+        setTanksList(prev => prev.map(t => t.id === tId ? { ...t, isSharedPool: willBeShared } : t));
 
+        // 2. 🌟 若當前處於產銷排產模式 (SALES)，動態扣除或加回該槽重量！
+        if (calcMode === 'SALES' && latestSalesDayIndex >= 0) {
+          const dayNum = latestSalesDayIndex + 1;
+          const targetDateStr = `${activeMonthObj.year}-${String(activeMonthObj.month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+          const dData = tankDailyData[targetDateStr];
+
+          let tankWeight = 0;
+          if (dData && dData[tId] !== undefined) {
+            tankWeight = Number(dData[tId]) || 0;
+          } else {
+            // 若無當日日報，嘗試從當前期初 tankInits 取值
+            tankWeight = parseFloat(tankInits[tId]) || 0;
+          }
+
+          setSalesPlanData(prevSales => {
+            const mData = prevSales[activeMonthKey] || {};
+            const p1Data = mData['plant1'] || {};
+            const curValStr = p1Data[latestSalesDayIndex];
+            const currentTotal = parseFloat(curValStr) || 0;
+
+            let nextTotal = 0;
             if (dData) {
-              // 重新計算當日僅屬於 nextShared 的合計重量
-              let newTotal = 0;
-              let includedCount = 0;
-              nextShared.forEach(st => {
-                if (dData[st.id] !== undefined) {
-                  newTotal += Number(dData[st.id]) || 0;
-                  includedCount++;
-                }
+              // 有日報時，直接依最新勾選集合加總所有被納入的槽位，最精確
+              const nextSharedList = tanksList.map(t => t.id === tId ? { ...t, isSharedPool: willBeShared } : t)
+                                              .filter(t => t.plantId === 'plant1' && t.type === 'SUPPLY' && t.isSharedPool);
+              nextSharedList.forEach(st => {
+                if (dData[st.id] !== undefined) nextTotal += Number(dData[st.id]) || 0;
               });
-
-              if (includedCount > 0) {
-                newTotal = Math.round(newTotal * 100) / 100;
-                setSalesPlanData(prevSales => {
-                  const mData = prevSales[activeMonthKey] || {};
-                  const p1Data = mData['plant1'] || {};
-                  return {
-                    ...prevSales,
-                    [activeMonthKey]: {
-                      ...mData,
-                      plant1: {
-                        ...p1Data,
-                        [latestSalesDayIndex]: String(newTotal)
-                      }
-                    }
-                  };
-                });
+            } else {
+              // 無日報時，直接依差額增減
+              if (willBeShared) {
+                nextTotal = currentTotal + tankWeight;
+              } else {
+                nextTotal = Math.max(0, currentTotal - tankWeight);
               }
             }
-          }
-          return nextTanks;
-        });
+
+            nextTotal = Math.round(nextTotal * 100) / 100;
+            return {
+              ...prevSales,
+              [activeMonthKey]: {
+                ...mData,
+                plant1: {
+                  ...p1Data,
+                  [latestSalesDayIndex]: String(nextTotal)
+                }
+              }
+            };
+          });
+        }
       };
 
       // 快速切換下腳料槽回吃狀態
