@@ -450,9 +450,50 @@
         }
       };
 
-      // 快速切換儲槽共用狀態
+      // 快速切換儲槽共用狀態（勾選納入/排除共用池）
       const toggleTankSharedPool = (tId) => {
-        setTanksList(prev => prev.map(t => t.id === tId ? { ...t, isSharedPool: !t.isSharedPool } : t));
+        setTanksList(prev => {
+          const nextTanks = prev.map(t => t.id === tId ? { ...t, isSharedPool: !t.isSharedPool } : t);
+          const nextShared = nextTanks.filter(t => t.plantId === 'plant1' && t.type === 'SUPPLY' && t.isSharedPool);
+
+          // 🌟 若當前處於產銷排產模式 (SALES)，自動根據當前起算日與日報資料，動態扣除或加回該槽重量！
+          if (calcMode === 'SALES' && latestSalesDayIndex >= 0) {
+            const dayNum = latestSalesDayIndex + 1;
+            const targetDateStr = `${activeMonthObj.year}-${String(activeMonthObj.month).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+            const dData = tankDailyData[targetDateStr];
+
+            if (dData) {
+              // 重新計算當日僅屬於 nextShared 的合計重量
+              let newTotal = 0;
+              let includedCount = 0;
+              nextShared.forEach(st => {
+                if (dData[st.id] !== undefined) {
+                  newTotal += Number(dData[st.id]) || 0;
+                  includedCount++;
+                }
+              });
+
+              if (includedCount > 0) {
+                newTotal = Math.round(newTotal * 100) / 100;
+                setSalesPlanData(prevSales => {
+                  const mData = prevSales[activeMonthKey] || {};
+                  const p1Data = mData['plant1'] || {};
+                  return {
+                    ...prevSales,
+                    [activeMonthKey]: {
+                      ...mData,
+                      plant1: {
+                        ...p1Data,
+                        [latestSalesDayIndex]: String(newTotal)
+                      }
+                    }
+                  };
+                });
+              }
+            }
+          }
+          return nextTanks;
+        });
       };
 
       // 快速切換下腳料槽回吃狀態
