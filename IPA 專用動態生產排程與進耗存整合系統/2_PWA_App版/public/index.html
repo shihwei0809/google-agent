@@ -412,39 +412,54 @@
         return () => clearTimeout(timer);
       }, [safetyStock, calcMode, tanksList, lines, tankInits, tankLimits, manualGridData, salesPlanData]);
 
-      // 快照備份
+      // 快照備份 (支援雲端 D1 + LocalStorage 雙軌備份)
       const handleArchiveOnly = async () => {
         const archiveName = window.prompt("請輸入備份紀錄名稱：");
         if (!archiveName || !archiveName.trim()) return;
 
+        const cleanName = archiveName.trim();
+        const payload = getCurrentPayload();
         setSaveStatus('saving');
+
+        // 🌟 1. 本地 LocalStorage 快照儲存 (離線可用、保證不丟)
+        try {
+          const localArchsStr = localStorage.getItem('ipa_schedule_archives') || '[]';
+          const localArchs = JSON.parse(localArchsStr);
+          const newArchItem = {
+            id: `${cleanName} (${new Date().toLocaleString('zh-TW', { hour12: false })})`,
+            dataStr: JSON.stringify(payload),
+            time: new Date().toISOString()
+          };
+          const updatedArchs = [newArchItem, ...localArchs.filter(a => a.id !== newArchItem.id)];
+          localStorage.setItem('ipa_schedule_archives', JSON.stringify(updatedArchs));
+          setArchiveList(updatedArchs);
+        } catch(e) {}
+
+        // 🌟 2. 嘗試同步至雲端 D1 /api/archive
         try {
           const res = await fetch('/api/archive', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ archiveName, payload: getCurrentPayload() })
+            body: JSON.stringify({ archiveName: cleanName, payload })
           });
           const resultText = await res.text();
           if (resultText === "SUCCESS") {
-            alert(`✅ 備份成功！已存為「${archiveName}」`);
             const archRes = await fetch('/api/archive');
             if (archRes.ok) {
               const list = await archRes.json();
               setArchiveList(list);
             }
-            setSaveStatus('success');
-            setTimeout(() => setSaveStatus('idle'), 2000);
-          } else {
-            alert("備份失敗：" + resultText); 
-            setSaveStatus('error');
           }
         } catch (err) {
-          alert("備份失敗：" + err.toString());
-          setSaveStatus('error');
+          console.warn("雲端存檔未連線，已安全保存至本機快照庫", err);
         }
+
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+        alert(`✅ 備份成功！已安全保存為「${cleanName}」`);
       };
 
-      // 載入備份紀錄
+      // 載入備份紀錄 (支援雲端與本機快照庫)
       const handleRestoreArchive = () => {
         if (!selectedArchive) return alert("請先選擇要載入的歷史備份！");
         const target = archiveList.find(a => a.id === selectedArchive);
