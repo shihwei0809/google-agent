@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>IPA 生產排程與進耗存整合系統 v3.6 (原採重量精確解析與跨廠儲槽選定版)</title>
+  <title>IPA 生產排程與進耗存整合系統 v3.8 (國定假日自動紅字與共用槽位勾選排除)</title>
   
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
@@ -136,7 +136,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // 系統最新版別標籤
-    const SYSTEM_VERSION = "v3.6 (修正原採重量精準解析與支援跨廠儲槽分配)";
+    const SYSTEM_VERSION = "v3.8 (國定假日自動紅字與一廠共用槽位自由勾選排除)";
 
     // 數字格式化輔助函式：即時過濾前導 0
     const cleanNumStr = (val) => {
