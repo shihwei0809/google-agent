@@ -867,14 +867,28 @@
         const mKey = dateToUse.slice(0, 7);
 
         if (activePlantId === 'plant1') {
-          const weight = dData.plant1;
+          // 動態依目前有勾選「納入共用池」的槽位加總（若 TK693 被取消勾選排除，則不計入共用池起算）
+          const currentShared = plant1SharedPoolTanks;
+          let weight = 0;
+          let includedTanks = [];
+          currentShared.forEach(st => {
+            const tw = dData[st.id] !== undefined ? dData[st.id] : 0;
+            weight += tw;
+            includedTanks.push(`${st.id}:${tw}T`);
+          });
+          weight = Math.round(weight * 100) / 100;
+
+          if (weight === 0 && dData.plant1) {
+            weight = dData.plant1; // 若無分槽資料則退回總計
+          }
+
           if (weight === undefined || weight === 0) {
-            return alert(`日報中查無 ${dateToUse} 一廠 5 槽重量！`);
+            return alert(`日報中查無 ${dateToUse} 一廠共用槽位重量！`);
           }
           handleSalesPlanChange(mKey, 'plant1', dayIdx, String(weight));
           setCalcMode('SALES');
           setShowDailyExcelModal(false);
-          alert(`✅ 已成功帶入 ${dateToUse} 08:00 儲槽日報重量！\n一廠 5 槽共用池合計：${weight} 噸\n系統已自動填入產銷 ${parseInt(dateToUse.split('-')[2], 10)} 日並切換至【產銷排產模式】起算。`);
+          alert(`✅ 已成功帶入 ${dateToUse} 08:00 儲槽日報重量！\n共用池合計：${weight} 噸 (${includedTanks.join(', ')})\n系統已自動填入產銷 ${parseInt(dateToUse.split('-')[2], 10)} 日並切換至【產銷排產模式】起算。`);
         } else {
           // 二廠
           const w617 = dData.TK617 || 0;
@@ -2006,10 +2020,35 @@
                     {/* 🔗 彰濱一廠專用：共用原料池合計庫存預估表 */}
                     {activePlantId === 'plant1' && calculatedData.poolSummary && calculatedData.poolSummary[activeMonthKey] && (
                       <div className="border-2 border-indigo-400 rounded-xl overflow-hidden shadow-md bg-indigo-50/20">
-                        <div className="p-2.5 font-bold text-white text-xs bg-indigo-900 flex justify-between items-center">
-                          <span className="flex items-center text-sm">
-                            <span className="mr-2">🔗</span> 彰濱一廠共用原料池合計總量預估表
-                          </span>
+                        <div className="p-2.5 font-bold text-white text-xs bg-indigo-900 flex flex-wrap gap-2 justify-between items-center">
+                          <div className="flex items-center space-x-2">
+                            <span className="flex items-center text-sm font-bold">
+                              <span className="mr-1.5">🔗</span> 彰濱一廠共用原料池合計總量預估表
+                            </span>
+                            {/* 快速勾選納入/排除共用池 (例如 TK693 品質異常排除) */}
+                            <div className="flex items-center space-x-1.5 bg-indigo-950/70 px-2 py-0.5 rounded-lg border border-indigo-700/60">
+                              <span className="text-[10px] text-indigo-200">槽位勾選：</span>
+                              {tanksList.filter(t => t.plantId === 'plant1' && t.type === 'SUPPLY').map(st => (
+                                <label 
+                                  key={st.id} 
+                                  title={st.isSharedPool ? `點擊可將 ${st.id} 排除於共用池 (獨立運作)` : `點擊可將 ${st.id} 納入共用池`}
+                                  className={`inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-all ${
+                                    st.isSharedPool 
+                                      ? 'bg-blue-500 text-white shadow-sm hover:bg-blue-400' 
+                                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600 line-through opacity-75'
+                                  }`}
+                                >
+                                  <input 
+                                    type="checkbox" 
+                                    checked={Boolean(st.isSharedPool)} 
+                                    onChange={() => toggleTankSharedPool(st.id)} 
+                                    className="h-3 w-3 text-blue-600 rounded cursor-pointer"
+                                  />
+                                  <span>{st.id}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
                           <span className="text-[11px] font-normal text-indigo-200">
                             {calcMode === 'SALES' 
                               ? `★ 產銷排產模式：從 ${activeMonthObj.month}/${latestSalesDayIndex + 1} 日產銷原料庫存起算，結合每日機台實體扣耗與進貨，推算原料是否足夠`
@@ -2110,10 +2149,19 @@
                           <div className={`p-2.5 font-bold text-white text-xs flex justify-between items-center ${tank.type === 'SUPPLY' ? 'bg-slate-700' : 'bg-emerald-800'}`}>
                             <div className="flex items-center space-x-2">
                               <span>{tank.name}</span>
-                              {tank.isSharedPool && (
-                                <span className="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-normal">
-                                  🔗 一廠共用池
-                                </span>
+                              {tank.plantId === 'plant1' && tank.type === 'SUPPLY' && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleTankSharedPool(tank.id)}
+                                  title={tank.isSharedPool ? "點擊將此槽排除於共用池 (獨立槽)" : "點擊將此槽納入一廠共用池"}
+                                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold transition-all flex items-center space-x-1 cursor-pointer ${
+                                    tank.isSharedPool 
+                                      ? 'bg-blue-500 hover:bg-blue-400 text-white shadow-sm' 
+                                      : 'bg-amber-600 hover:bg-amber-500 text-white'
+                                  }`}
+                                >
+                                  <span>{tank.isSharedPool ? '🔗 一廠共用池 (點擊排除)' : '⚠️ 獨立槽/品質排除 (點擊納入)'}</span>
+                                </button>
                               )}
                               {tank.type === 'SCRAP' && (
                                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${tank.canRecycle ? 'bg-emerald-600 text-white' : 'bg-slate-600 text-slate-200'}`}>
