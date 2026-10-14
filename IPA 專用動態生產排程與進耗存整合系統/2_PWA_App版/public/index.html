@@ -1420,7 +1420,25 @@
                     <option value="">-- 選擇備份紀錄 --</option>
                     {archiveList.map((a, idx) => {
                       const cleanLabel = (a.name || a.id || '').split(' (')[0];
-                      const timePart = a.time ? String(a.time).slice(5, 16).replace('T', ' ') : '';
+                      let timePart = '';
+                      if (a.time) {
+                        try {
+                          const dt = new Date(a.time);
+                          if (!isNaN(dt.getTime())) {
+                            // 轉成台灣本地時間 (UTC+8) MM-DD HH:mm
+                            const m = String(dt.getMonth() + 1).padStart(2, '0');
+                            const d = String(dt.getDate()).padStart(2, '0');
+                            const hh = String(dt.getHours()).padStart(2, '0');
+                            const mm = String(dt.getMinutes()).padStart(2, '0');
+                            timePart = `${m}-${d} ${hh}:${mm}`;
+                          }
+                        } catch(e) {}
+                      }
+                      if (!timePart && a.id && a.id.includes('(')) {
+                        // 從 id 中提取可能存在的本地時間
+                        const match = a.id.match(/\((.*?)\)/);
+                        if (match) timePart = match[1].slice(-8, -3);
+                      }
                       return (
                         <option key={a.id + '_' + idx} value={a.id}>
                           {cleanLabel} {timePart ? `[${timePart}]` : ''}
