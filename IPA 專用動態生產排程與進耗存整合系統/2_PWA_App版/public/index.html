@@ -1415,9 +1415,15 @@
                   onChange={(e) => setSelectedArchive(e.target.value)}
                 >
                   <option value="">-- 選擇歷史紀錄 --</option>
-                  {archiveList.map((a, idx) => (
-                    <option key={a.id + '_' + idx} value={a.id}>{a.id} ({String(a.time).split(' ')[0]})</option>
-                  ))}
+                  {archiveList.map((a, idx) => {
+                    const label = a.name || a.id.split(' (')[0] || a.id;
+                    const timePart = a.time ? String(a.time).slice(5, 16).replace('T', ' ') : '';
+                    return (
+                      <option key={a.id + '_' + idx} value={a.id}>
+                        {label} {timePart ? `[${timePart}]` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
                 <button onClick={handleRestoreArchive} className="bg-slate-500 hover:bg-slate-400 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
                   📂 讀取
