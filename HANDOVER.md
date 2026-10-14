@@ -1,5 +1,19 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 前次進度與交接事項 (2026-10-14 歷史照片連結修復與雙雲端回寫強化 - v14-D1)
+* **照片連結問題排查與徹底修復 (回收液入料記錄系統 - v14-D1):**
+  - **原因定位**:
+    1. 早上切換至 Cloudflare D1 後，`loadQueryRecords` 優先向 D1 抓取資料。
+    2. 新提交的紀錄照片先非同步傳往 GAS (Google Drive)，但 GAS 原本未回傳 Drive 網址給前端，導致 D1 的 `t_before_url`、`v_photo_url`、`t_after_url` 為空值。
+    3. 因 D1 回傳 200 OK，前端從未觸發 `catch` 區塊，因此覆蓋了 Google Drive 照片連結。
+    4. **照片資料 100% 安全**：所有今日拍攝之照片皆完整存放於 Google Drive「回收液照片歸檔」資料夾與 Google Sheets 中，毫無遺失。
+  - **修復步驟與架構強化**:
+    1. **歷史資料即時補全**: 撰寫背景同步腳本，將 Google Sheets / GAS 中的所有 17 筆照片網址（含 10/14 今日 `HAB-6108/CO9`、`HAC-0156/645` 等）完整回補至 Cloudflare D1 資料庫。
+    2. **GAS 回傳照片網址**: 修改 `Code.gs` 之 `handleBeforeFeed`、`handleCompleteFeed`、`handleAfterFeed`，在存檔至 Drive 後將網址包入 JSON 回傳。
+    3. **自動回寫 D1**: 修改 `public/index.html` 之 `autoSync`，當照片上傳 GAS 成功後，自動呼叫 D1 API 之 `action: "update_photos"`，即時補填相片網址至 D1。
+    4. **查詢歷史兜底防呆**: 改寫 `loadQueryRecords`，若 D1 回傳之完成紀錄中仍有缺少照片連結者，自動無縫向 GAS 權威資料庫回補。
+    5. **版本升級**: 前端升級至 `v14-D1 (相片修復 2026/10/14)`，Service Worker 快取版本推進至 `recycle-d1-v14-photo-fix`。
+
 ## 前次進度與交接事項 (2026-10-14 晨間更新)
 * **功能重大升級與架構轉換 (回收液入料記錄系統 - v13-D1 旗艦版):**
   - **資料庫全面轉移至 Cloudflare D1 (共用 `egups-db`)**:

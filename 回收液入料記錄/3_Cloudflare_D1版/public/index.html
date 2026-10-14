@@ -40,7 +40,7 @@
 <div id="updateBanner" onclick="location.reload(true)">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
 <div class="header">
-    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v13-D1 (2026/10/14 更新)</span>
+    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v14-D1 (相片修復 2026/10/14)</span>
     <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
@@ -290,7 +290,7 @@
         document.getElementById(tabId).classList.add('active');
     }
 
-    // 查詢歷史：優先向 D1 抓取，若 D1 失敗再以 GAS 兜底
+    // 查詢歷史：優先向 D1 抓取，若有紀錄缺少相片連結或 D1 異常，以 GAS 權威來源兜底補齊
     async function loadQueryRecords() {
         if (!navigator.onLine) {
             document.getElementById('queryList').innerHTML = '<p style="text-align:center; color:red;">⚠ 離線狀態無法查詢雲端歷史紀錄</p>';
@@ -308,6 +308,20 @@
             if (res.ok) {
                 const data = await res.json();
                 records = data.records || [];
+                
+                // 智慧防呆：若 D1 中的完成筆數有缺少照片連結者，以 GAS 權威資料回補
+                const missingPhotos = records.some(r => r.status === 'completed' && !r.tAfterUrl);
+                if (missingPhotos) {
+                    try {
+                        const gasRes = await fetch(GAS_URL + "?action=query");
+                        const gasData = await gasRes.json();
+                        if (gasData.records && gasData.records.length > 0) {
+                            records = gasData.records;
+                        }
+                    } catch (e) {
+                        console.warn("GAS 補回照片失敗", e);
+                    }
+                }
             } else {
                 throw new Error("D1 響應異常");
             }
@@ -684,6 +698,20 @@
                         const gasData = await gasRes.json();
                         
                         if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複')))) {
+                            // 同步將照片連結回寫 D1
+                            if (gasData.t_url || gasData.v_url || gasData.a_url) {
+                                fetch(D1_API, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        action: "update_photos",
+                                        id: r.id,
+                                        t_url: gasData.t_url,
+                                        v_url: gasData.v_url,
+                                        a_url: gasData.a_url
+                                    })
+                                }).catch(e => console.warn("回寫照片至 D1 失敗", e));
+                            }
                             // 同步完成，自手機 IndexedDB 移除
                             const delTx = db.transaction(["records"], "readwrite");
                             delTx.objectStore("records").delete(r.id);
@@ -727,6 +755,19 @@
                         const gasData = await gasRes.json();
 
                         if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複')))) {
+                            // 同步將照片連結回寫 D1
+                            if (gasData.t_url || gasData.v_url) {
+                                fetch(D1_API, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        action: "update_photos",
+                                        id: r.id,
+                                        t_url: gasData.t_url,
+                                        v_url: gasData.v_url
+                                    })
+                                }).catch(e => console.warn("回寫照片至 D1 失敗", e));
+                            }
                             r.syncState = 'pending_synced';
                             delete r.isProcessing;
                             const updateTx = db.transaction(["records"], "readwrite");
@@ -773,6 +814,18 @@
 
                         // 關鍵防呆：若 GAS 成功、或者回報重複、或者回報 404「找不到該筆待入料紀錄」（表示後台已刪除）
                         if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複'))) || (gasData.detail && gasData.detail.includes('找不到'))) {
+                            // 同步將照片連結回寫 D1
+                            if (gasData.a_url) {
+                                fetch(D1_API, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        action: "update_photos",
+                                        id: r.id,
+                                        a_url: gasData.a_url
+                                    })
+                                }).catch(e => console.warn("回寫照片至 D1 失敗", e));
+                            }
                             const delTx = db.transaction(["records"], "readwrite");
                             delTx.objectStore("records").delete(r.id);
                             successCount++;

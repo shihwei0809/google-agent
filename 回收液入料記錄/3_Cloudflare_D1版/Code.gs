@@ -139,7 +139,12 @@ function handleBeforeFeed(params) {
   const beforeTime = client_before_time || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
   sheet.appendRow([String(id), "'" + String(date).split("T")[0], license_plate, "pending", t_url, v_url, "", beforeTime, "", ""]);
   
-  return jsonResponse({ success: true, message: "入料前資料已儲存至 Google 雲端" });
+  return jsonResponse({ 
+    success: true, 
+    message: "入料前資料已儲存至 Google 雲端",
+    t_url: t_url,
+    v_url: v_url
+  });
 }
 
 // 一次性寫入（針對離線時前、後都在手機完成的情況）
@@ -175,7 +180,13 @@ function handleCompleteFeed(params) {
 
   sheet.appendRow([String(id), "'" + String(date).split("T")[0], license_plate, "completed", t_url, v_url, a_url, beforeTime, afterTime, durationMin]);
 
-  return jsonResponse({ success: true, message: "完整入料記錄已直接存入 Google 雲端" });
+  return jsonResponse({ 
+    success: true, 
+    message: "完整入料記錄已直接存入 Google 雲端",
+    t_url: t_url,
+    v_url: v_url,
+    a_url: a_url
+  });
 }
 
 function handleAfterFeed(params) {
@@ -237,7 +248,11 @@ function handleAfterFeed(params) {
     sheet.getRange(rowIndex, 10).setValue(durationMin);
   }
   
-  return jsonResponse({ success: true, message: "入料後記錄已更新至 Google 雲端" });
+  return jsonResponse({ 
+    success: true, 
+    message: "入料後記錄已更新至 Google 雲端",
+    a_url: a_url
+  });
 }
 
 // 輔助函式：將 Base64 轉成檔案並存入 Drive 特定資料夾，回傳檔案網址
