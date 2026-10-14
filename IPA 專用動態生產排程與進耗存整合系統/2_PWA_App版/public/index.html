@@ -1401,53 +1401,58 @@
           <div className="mx-auto max-w-[1600px] space-y-4">
             
             {/* 🌟 頂部深藍色控制面板 (Header，包含完整系統名稱與版別) */}
-            <div className="bg-slate-800 text-white p-4 rounded-xl shadow-lg flex flex-col md:flex-row justify-between items-center gap-4">
-              <h1 className="text-lg font-bold flex items-center">
+            <div className="bg-slate-800 text-white p-3.5 rounded-xl shadow-lg flex flex-wrap lg:flex-nowrap justify-between items-center gap-3">
+              <h1 className="text-base md:text-lg font-bold flex items-center shrink-0">
                 <span className="mr-2 text-xl">🛢️</span> 
                 IPA 生產排程與進耗存整合系統 <span className="ml-2 text-xs bg-blue-600 px-2 py-0.5 rounded-full font-bold text-blue-100">{SYSTEM_VERSION}</span>
               </h1>
               
-              <div className="flex flex-wrap items-center gap-3 bg-slate-700 p-2 rounded-lg border border-slate-600">
-                <span className="text-xs font-bold text-slate-300 ml-1">歷史存檔區：</span>
-                <select 
-                  className="bg-slate-600 text-white text-xs p-1.5 rounded border border-slate-500 focus:outline-none focus:border-blue-400 max-w-[170px]"
-                  value={selectedArchive}
-                  onChange={(e) => setSelectedArchive(e.target.value)}
-                >
-                  <option value="">-- 選擇歷史紀錄 --</option>
-                  {archiveList.map((a, idx) => {
-                    const label = a.name || a.id.split(' (')[0] || a.id;
-                    const timePart = a.time ? String(a.time).slice(5, 16).replace('T', ' ') : '';
-                    return (
-                      <option key={a.id + '_' + idx} value={a.id}>
-                        {label} {timePart ? `[${timePart}]` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-                <button onClick={handleRestoreArchive} className="bg-slate-500 hover:bg-slate-400 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
-                  📂 讀取
-                </button>
-                <div className="h-6 w-px bg-slate-600 mx-1"></div>
-                <button onClick={handleArchiveOnly} className="bg-indigo-500 hover:bg-indigo-400 px-3 py-1.5 rounded text-xs font-bold transition-all shadow flex items-center text-white">
-                  💾 備份存檔
-                </button>
-              </div>
+              {/* 中間/右側操作按鈕群 */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+                {/* 歷史存檔區：不自動折行，固定精巧外框 */}
+                <div className="flex items-center gap-1.5 bg-slate-700/90 px-2.5 py-1.5 rounded-lg border border-slate-600 shrink-0">
+                  <span className="text-xs font-bold text-slate-300 whitespace-nowrap">歷史存檔：</span>
+                  <select 
+                    className="bg-slate-600 text-white text-xs py-1 px-2 rounded border border-slate-500 focus:outline-none focus:border-blue-400 w-[160px] truncate cursor-pointer"
+                    value={selectedArchive}
+                    onChange={(e) => setSelectedArchive(e.target.value)}
+                  >
+                    <option value="">-- 選擇備份紀錄 --</option>
+                    {archiveList.map((a, idx) => {
+                      const cleanLabel = (a.name || a.id || '').split(' (')[0];
+                      const timePart = a.time ? String(a.time).slice(5, 16).replace('T', ' ') : '';
+                      return (
+                        <option key={a.id + '_' + idx} value={a.id}>
+                          {cleanLabel} {timePart ? `[${timePart}]` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <button onClick={handleRestoreArchive} className="bg-slate-500 hover:bg-slate-400 px-2.5 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap">
+                    📂 讀取
+                  </button>
+                  <div className="h-4 w-px bg-slate-500 mx-0.5"></div>
+                  <button onClick={handleArchiveOnly} className="bg-indigo-500 hover:bg-indigo-400 px-2.5 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap">
+                    💾 備份存檔
+                  </button>
+                </div>
 
-              <div className="flex items-center space-x-3">
-                <button 
-                  onClick={handleClearAll} 
-                  className="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md flex items-center space-x-1 border border-rose-400"
-                  title="重置為預設設定"
-                >
-                  <span>🗑️</span>
-                  <span>重置預設設定</span>
-                </button>
-                <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shadow-md flex items-center text-white border border-blue-400">
-                  ☁️ 強制儲存
-                </button>
-                <div className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-inner ${saveStatus === 'success' ? 'bg-emerald-500 text-white' : saveStatus === 'saving' ? 'bg-amber-500 text-white animate-pulse' : saveStatus === 'error' ? 'bg-red-500 text-white' : 'bg-slate-900 text-slate-300'}`}>
-                   {saveStatus === 'success' ? '● 雲端同步就緒' : saveStatus === 'saving' ? '○ 儲存中...' : saveStatus === 'error' ? '！寫入失敗' : '○ 多人連線中'}
+                {/* 動作按鈕 */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button 
+                    onClick={handleClearAll} 
+                    className="bg-rose-600/90 hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow flex items-center gap-1 border border-rose-500 whitespace-nowrap"
+                    title="重置為預設設定"
+                  >
+                    <span>🗑️</span>
+                    <span>重置設定</span>
+                  </button>
+                  <button onClick={handleSave} className="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow flex items-center text-white border border-blue-400 whitespace-nowrap">
+                    ☁️ 強制儲存
+                  </button>
+                  <div className={`px-3 py-1.5 rounded-full text-xs font-bold shadow-inner whitespace-nowrap ${saveStatus === 'success' ? 'bg-emerald-500 text-white' : saveStatus === 'saving' ? 'bg-amber-500 text-white animate-pulse' : saveStatus === 'error' ? 'bg-red-500 text-white' : 'bg-slate-900 text-slate-300'}`}>
+                     {saveStatus === 'success' ? '● 雲端就緒' : saveStatus === 'saving' ? '○ 儲存中...' : saveStatus === 'error' ? '！寫入失敗' : '○ 連線中'}
+                  </div>
                 </div>
               </div>
             </div>
