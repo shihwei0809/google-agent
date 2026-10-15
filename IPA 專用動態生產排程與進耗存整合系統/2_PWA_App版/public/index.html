@@ -294,16 +294,21 @@
         // 🌟 2. 非同步向雲端 D1 /api/data 對齊
         try {
           const res = await fetch('/api/data');
-          if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (res.ok && contentType.includes('application/json')) {
             const data = await res.json();
-            if (!data._error && Object.keys(data).length > 0) {
+            if (data._error) {
+              console.warn("【連線警告】", data._error);
+            } else if (Object.keys(data).length > 0) {
               applyDataToState(data);
               localStorage.setItem('ipa_schedule_local_data', JSON.stringify(data));
+            }
             }
           }
           
           const archRes = await fetch('/api/archive');
-          if (archRes.ok) {
+          const archContentType = archRes.headers.get('content-type') || '';
+          if (archRes.ok && archContentType.includes('application/json')) {
             const list = await archRes.json();
             setArchiveList(list || []);
           }
