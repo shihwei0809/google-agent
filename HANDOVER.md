@@ -1,5 +1,25 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 前次進度與交接事項 (2026-10-15 IPA生產與採購 PWA 跨電腦 D1 同步與 _worker.js 架構修復 - v3.11)
+* **Cloudflare Pages D1 跨電腦即時同步全面打通 (`ipa-pwa-app`):**
+  - **問題根因定位**:
+    1. 使用者在不同電腦開啟 `https://ipa-pwa-app.pages.dev` 時，資料顯示為預設值或空白，且點擊儲存未寫入 D1 Studio。
+    2. Cloudflare Pages 專案的 Root Directory 設為子目錄 `IPA 專用動態生產排程與進耗存整合系統/2_PWA_App版`，在包含中文、空格且無 Build Command 的 Monorepo 架構下，Pages 預設不會將 `functions/` 掛載為 API 路由。
+    3. 發出 `/api/data` 請求時，伺服器退回到 SPA 前端靜態頁面 `index.html` (200 OK + `text/html`)，造成前端 `res.json()` 拋出語法解析例外，靜默退回空空的 `localStorage`。
+  - **解決與架構改造步驟**:
+    1. **引進 Advanced Mode (`public/_worker.js`)**:
+       - 於 `public/` 建立 `_worker.js`，無條件優先攔截 `/api/data` (GET/POST) 與 `/api/archive` (GET/POST)。
+       - 完美綁定 `env.DB` (`ipa-pwa-db` / ID: `4710dda9-0b73-46ca-a47c-ef55e19d7b6f`)，執行 SQL 讀寫；其餘靜態資源走 `env.ASSETS.fetch(request)`。
+    2. **建立 `public/_routes.json`**:
+       - 明確宣告 `{"version": 1, "include": ["/api/*"], "exclude": []}`，確保 `/api/*` 必定由 Worker 執行，絕不退回 SPA HTML。
+    3. **修復 Babel 白屏問題**:
+       - 修復在 git rebase 衝突解決時 `index.html` 內 `fetchAllData` 函式多出的一個閉合大括號 `}`，恢復畫面正常渲染。
+    4. **推進 Service Worker 快取**:
+       - 升級至 `ipa-pwa-v3.11`，確保所有電腦強制更新至最新前端與快取。
+  - **實測驗證通過**:
+    - 線上直接以 HTTP 探測 `https://ipa-pwa-app.pages.dev/api/data`，成功返回 `200 OK` 及完整排程槽位 JSON 資料（包含 `safetyStock`、`tanksList`、`lines`、`tankInits`、`tankLimits`、`manualGridData`、`salesPlanData`）。
+    - 跨電腦同步功能 100% 正式就緒。
+
 ## 前次進度與交接事項 (2026-10-14 歷史照片連結修復與雙雲端回寫強化 - v14-D1)
 * **照片連結問題排查與徹底修復 (回收液入料記錄系統 - v14-D1):**
   - **原因定位**:
