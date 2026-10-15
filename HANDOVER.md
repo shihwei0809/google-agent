@@ -1,7 +1,7 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 前次進度與交接事項 (2026-10-15 IPA生產與採購 PWA 跨電腦 D1 同步與 _worker.js 架構修復 - v3.11)
-* **Cloudflare Pages D1 跨電腦即時同步全面打通 (`ipa-pwa-app`):**
+## 今日進度與交接事項 (2026-10-15 專案維護、IPA 生產與採購跨電腦 D1 同步全面打通 & 鴻勝包材管理帳卡匯出 Excel)
+* **Cloudflare Pages D1 跨電腦即時同步全面打通 (`ipa-pwa-app` - v3.11):**
   - **問題根因定位**:
     1. 使用者在不同電腦開啟 `https://ipa-pwa-app.pages.dev` 時，資料顯示為預設值或空白，且點擊儲存未寫入 D1 Studio。
     2. Cloudflare Pages 專案的 Root Directory 設為子目錄 `IPA 專用動態生產排程與進耗存整合系統/2_PWA_App版`，在包含中文、空格且無 Build Command 的 Monorepo 架構下，Pages 預設不會將 `functions/` 掛載為 API 路由。
@@ -19,6 +19,24 @@
   - **實測驗證通過**:
     - 線上直接以 HTTP 探測 `https://ipa-pwa-app.pages.dev/api/data`，成功返回 `200 OK` 及完整排程槽位 JSON 資料（包含 `safetyStock`、`tanksList`、`lines`、`tankInits`、`tankLimits`、`manualGridData`、`salesPlanData`）。
     - 跨電腦同步功能 100% 正式就緒。
+* **鴻勝包材管理系統 (eshine-package - v13.6):**
+  - **歷史帳卡匯出 Excel 功能**:
+    - 在「🔍 帳卡」對帳查詢結果中，為各品項卡片加入 **`📥 匯出帳卡 Excel`** 綠色快捷按鈕。
+    - 引入 SheetJS (`xlsx.full.min.js`) 函式庫，自動產生包含品名、品號、規格、匯出時間及完整對帳明細（日期、摘要、收入量/批號、資材發、分一/分二/生產發、出庫批號、結存、備註）之 Excel 活頁簿，並自動美化欄寬。
+    - 升級 Service Worker 快取版本為 `package-pwa-v2`，確保使用者端強制獲取最新功能。
+    - 專案目錄確認位於 `C:\GOOGLE ANGET\倉庫常用包材管理\2_PWA_App版`，已設定 Cloudflare Pages 自動連動部署（`https://eshine-package.pages.dev`）。
+* **IPA 生產排程與進耗存整合系統 (PWA v3.8 ~ v3.9):**
+  - **歷史存檔區與頂部按鈕排版破圖修復**:
+    - 解決點擊「備份存檔」或特定螢幕解析度下，按鈕換行破圖（如「重置預設 \n 定」）問題，全面加入 `whitespace-nowrap`、`shrink-0` 與彈性響應式排版。
+    - 下拉選單寬度最佳化為 `w-[160px] truncate`，移除重複雜亂的時間戳記，改為精巧格式。
+  - **台灣時區 (UTC+8) 校正**:
+    - 將存檔紀錄的時間裁切改為以本地瀏覽器解析並轉換為台灣時間 `MM-DD HH:mm`，解決格林威治 UTC 0 導致少 8 小時之 Bug。
+  - **ershine 品牌 Favicon 與 PWA App Icons 補回**:
+    - 補齊 `public/favicon.png` 與 `public/icons/icon-192.png`、`icon-512.png`，並在 `index.html` 補上正式 `<link rel="icon">` 與 `<link rel="apple-touch-icon">`。
+  - **一廠共用原料池槽位排除/納入之動態重量增減防呆修復**:
+    - 排查當取消勾選 TK693 時原料起算未扣減之問題，重寫 `toggleTankSharedPool` 加入雙重回退計算保護（若無日報快照時直接由當前該槽期初動態增減，有日報時自動重算現存勾選集合），點選即時扣減/加回。
+  - **Cloudflare Pages 自動連動建置設定**:
+    - 完成 Cloudflare Pages 與 GitHub 倉庫（`shihwei0809/google-agent`）之連動：根目錄指定為 `IPA 專用動態生產排程與進耗存整合系統/2_PWA_App版`，輸出目錄為 `public`，分支為 `main`。
 
 ## 前次進度與交接事項 (2026-10-14 歷史照片連結修復與雙雲端回寫強化 - v14-D1)
 * **照片連結問題排查與徹底修復 (回收液入料記錄系統 - v14-D1):**
