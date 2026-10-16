@@ -206,8 +206,12 @@
           <div class="form-group">
             <label>新增類別：</label>
             <select id="addTypeSelect">
-              <option value="node">儲槽 (Node)</option>
-              <option value="group">製程群組 (Stage Group)</option>
+              <option value="node">標準儲槽卡片 (Node Card)</option>
+              <option value="node-25d-cyl">🛢️ 2.5D 立體圓柱槽 (Cylinder Tank)</option>
+              <option value="node-25d-box">📦 2.5D 立體原料箱 (Isometric Box)</option>
+              <option value="node-25d-drum">🪵 2.5D 棧板充填鋼桶 (Drum Pallet)</option>
+              <option value="node-25d-filter">🧪 2.5D 精密過濾心組 (Filters)</option>
+              <option value="group">製程群組外框 (Stage Group)</option>
             </select>
           </div>
           
@@ -435,12 +439,20 @@
           <input type="date" id="llDate" />
         </div>
         <div class="form-group">
+          <label for="llHeightMm">實測液位高度 (mm)：<span id="llHeightHint" style="font-size:11px; color:var(--color-accent); font-weight:normal;"></span></label>
+          <input type="number" id="llHeightMm" min="0" step="1" placeholder="輸入 mm 可自動換算 % 與 KL" />
+        </div>
+        <div class="form-group">
           <label for="llValue">液位 (%)：</label>
           <input type="number" id="llValue" min="0" max="100" step="0.1" placeholder="例：75.5" />
         </div>
         <div class="form-group">
-          <label for="llVolume">實際容量 (KL)：</label>
-          <input type="number" id="llVolume" min="0" step="0.01" placeholder="選填" />
+          <label for="llVolume">換算容積 (KL)：</label>
+          <input type="number" id="llVolume" min="0" step="0.01" placeholder="自動換算或自填" />
+        </div>
+        <div class="form-group">
+          <label for="llWeight">換算淨重 (KG)：</label>
+          <input type="number" id="llWeight" min="0" step="1" placeholder="自動換算 (比重 0.785)" />
         </div>
         <div class="form-group">
           <label for="llNote">備註：</label>

@@ -26,6 +26,123 @@ window.saveCapacity = function(tab, from, to, val) {
 };
 
 
+// --- 現場實體儲槽尺規換算表 (Strapping Table) ---
+// 包含底面積 (每 1mm 幾公升 L)、桶底死容量 (L)、滿槽最高液位 (mm)、以及密度預設值 (kg/L)
+const TANK_STRAPPING_TABLE = {
+  // 675 ~ 678 系列
+  "TK-675": { rate: 4.6, bottomVol: 1566, maxLevel: 5900, category: "675-678" },
+  "TK-676": { rate: 4.6, bottomVol: 1566, maxLevel: 5900, category: "675-678" },
+  "TK-677": { rate: 4.6, bottomVol: 1566, maxLevel: 5900, category: "675-678" },
+  "TK-678": { rate: 4.6, bottomVol: 1566, maxLevel: 5900, category: "675-678" },
+
+  // 681 ~ 689, 691 系列
+  "TK-681": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-682": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-683": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-684": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-685": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-686": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-687": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-688": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-689": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+  "TK-691": { rate: 18.322, bottomVol: 87, maxLevel: 5600, category: "681-689" },
+
+  // 680, 690 系列
+  "TK-680": { rate: 11.702, bottomVol: 87, maxLevel: 4100, category: "680,690" },
+  "TK-690": { rate: 11.702, bottomVol: 87, maxLevel: 4100, category: "680,690" },
+
+  // 692 ~ 695 系列
+  "TK-692": { rate: 35.891, bottomVol: 87, maxLevel: 7000, category: "692-695" },
+  "TK-693": { rate: 35.891, bottomVol: 87, maxLevel: 7000, category: "692-695" },
+  "TK-694": { rate: 35.891, bottomVol: 87, maxLevel: 7000, category: "692-695" },
+  "TK-695": { rate: 35.891, bottomVol: 87, maxLevel: 7000, category: "692-695" },
+
+  // 696 ~ 699 系列
+  "TK-696": { rate: 47.051, bottomVol: 87, maxLevel: 11590, category: "696-699" },
+  "TK-697": { rate: 47.051, bottomVol: 87, maxLevel: 11590, category: "696-699" },
+  "TK-698": { rate: 47.051, bottomVol: 87, maxLevel: 11590, category: "696-699" },
+  "TK-699": { rate: 47.051, bottomVol: 87, maxLevel: 11590, category: "696-699" },
+
+  // 500KL 系列
+  "TK-602": { rate: 51.53, bottomVol: 87, maxLevel: 9200, category: "500KL" },
+  "TK-604A": { rate: 51.53, bottomVol: 87, maxLevel: 9200, category: "500KL" },
+  "TK-604B": { rate: 51.53, bottomVol: 87, maxLevel: 9200, category: "500KL" },
+  "TK-624": { rate: 51.53, bottomVol: 87, maxLevel: 9200, category: "500KL" },
+  "TK-634": { rate: 51.53, bottomVol: 87, maxLevel: 9200, category: "500KL" },
+
+  // 250KL 系列
+  "TK-601": { rate: 33.183, bottomVol: 87, maxLevel: 6800, category: "250KL" },
+  "TK-603": { rate: 33.183, bottomVol: 87, maxLevel: 6800, category: "250KL" },
+  "TK-621": { rate: 33.183, bottomVol: 87, maxLevel: 6800, category: "250KL" },
+  "TK-622": { rate: 33.183, bottomVol: 87, maxLevel: 6800, category: "250KL" },
+  "TK-632": { rate: 33.183, bottomVol: 87, maxLevel: 6800, category: "250KL" },
+
+  // 125KL 系列
+  "TK-623": { rate: 20.428, bottomVol: 87, maxLevel: 5500, category: "125KL" },
+  "TK-633": { rate: 20.428, bottomVol: 87, maxLevel: 5500, category: "125KL" },
+
+  // 70KL 系列
+  "TK-671": { rate: 9.075, bottomVol: 87, maxLevel: 7100, category: "70KL" },
+  "TK-672": { rate: 9.075, bottomVol: 87, maxLevel: 7100, category: "70KL" },
+  "TK-657": { rate: 9.075, bottomVol: 87, maxLevel: 7100, category: "70KL" },
+  "TK-660": { rate: 9.075, bottomVol: 87, maxLevel: 7100, category: "70KL" },
+
+  // 50KL 系列
+  "TK-652": { rate: 9.075, bottomVol: 87, maxLevel: 5500, category: "50KL" },
+  "TK-655": { rate: 9.075, bottomVol: 87, maxLevel: 5500, category: "50KL" },
+  "TK-655_2": { rate: 9.075, bottomVol: 87, maxLevel: 5500, category: "50KL" },
+  "TK-656": { rate: 9.075, bottomVol: 87, maxLevel: 5500, category: "50KL" },
+
+  // 643, 645 系列
+  "TK-643": { rate: 6.6, bottomVol: 87, maxLevel: 6000, category: "643,645" },
+  "TK-645": { rate: 6.6, bottomVol: 87, maxLevel: 6000, category: "643,645" }
+};
+
+// 根據槽體 ID 取得尺規設定
+function getTankStrapping(tankId) {
+  if (!tankId) return null;
+  const cleanId = String(tankId).toUpperCase().trim();
+  if (TANK_STRAPPING_TABLE[cleanId]) return TANK_STRAPPING_TABLE[cleanId];
+  
+  // 模糊匹配
+  for (const k in TANK_STRAPPING_TABLE) {
+    if (k.replace(/[^A-Z0-9]/g, '') === cleanId.replace(/[^A-Z0-9]/g, '')) {
+      return TANK_STRAPPING_TABLE[k];
+    }
+  }
+  return null;
+}
+
+// 換算函式：依高度 (mm) 計算 容積 (L)、容量 (KL)、液位百分比 (%)、重量 (KG)
+function calculateFromTankHeight(tankId, heightMm, density = 0.785) {
+  const strap = getTankStrapping(tankId);
+  const mm = parseFloat(heightMm) || 0;
+  if (!strap) {
+    return { heightMm: mm, liters: 0, kl: 0, fillPercent: 0, weightKg: 0, maxLevel: 0 };
+  }
+  const maxLvl = strap.maxLevel || 6000;
+  const pct = Math.min(100, Math.max(0, Math.round((mm / maxLvl) * 1000) / 10));
+  const liters = Math.round(strap.bottomVol + (mm * strap.rate));
+  const kl = Math.round((liters / 1000) * 10) / 10;
+  const weightKg = Math.round(liters * density);
+  return { heightMm: mm, liters, kl, fillPercent: pct, weightKg, maxLevel: maxLvl };
+}
+
+// 換算函式：依百分比 (%) 反推 高度 (mm)、容積 (L)、容量 (KL)、重量 (KG)
+function calculateFromTankPercent(tankId, percent, density = 0.785) {
+  const strap = getTankStrapping(tankId);
+  const pct = Math.min(100, Math.max(0, parseFloat(percent) || 0));
+  if (!strap) {
+    return { heightMm: 0, liters: 0, kl: 0, fillPercent: pct, weightKg: 0, maxLevel: 0 };
+  }
+  const maxLvl = strap.maxLevel || 6000;
+  const mm = Math.round((pct / 100) * maxLvl);
+  const liters = Math.round(strap.bottomVol + (mm * strap.rate));
+  const kl = Math.round((liters / 1000) * 10) / 10;
+  const weightKg = Math.round(liters * density);
+  return { heightMm: mm, liters, kl, fillPercent: pct, weightKg, maxLevel: maxLvl };
+}
+
 // 9 Product Flowcharts Dataset with Process Groupings (Single-column layout to prevent overlaps)
 const flowchartData = {
   "ipa": {
@@ -346,6 +463,52 @@ const flowchartData = {
       { from: "check-group-s5", to: "finish-group-s5", label: "成品放行" }
     ],
     notes: []
+  },
+  "mixing": {
+    title: "10. 混合調合與充填流程圖 (PFD)",
+    totalCapacity: "進料 RM-A~E / 充填出貨 Drum",
+    groups: [
+      { id: "raw-solid-group", name: "固態/濃縮原料區", capacity: "RM-A (60 KL)", x: 90, y: 80, w: 160, h: 220, type: "raw" },
+      { id: "raw-liquid-group", name: "液態原料區", capacity: "RM-B~E (165 KL)", x: 90, y: 320, w: 260, h: 260, type: "raw" },
+      { id: "mixing-process-group", name: "調合/混合製程區", capacity: "Mixing Tank (250 KL)", x: 420, y: 150, w: 220, h: 360, type: "process" },
+      { id: "filter-check-group", name: "精密過濾與小循環區", capacity: "IPQC檢驗 / 3連濾心", x: 700, y: 180, w: 190, h: 300, type: "process" },
+      { id: "filling-finish-group", name: "成品充填區", capacity: "Drum 鋼桶充填 (前中後反壓)", x: 950, y: 180, w: 200, h: 300, type: "finish" }
+    ],
+    nodes: [
+      // Raw RM-A
+      { id: "RM-A", name: "固態/濃縮主原料", capacity: "60 KL", type: "raw", x: 105, y: 140, fill: 70, details: { temp: "24.5 °C", press: "1.02 atm", comp: "主配方原料 A (每月檢 Metal / 每批檢 水阻值)", status: "穩定供料" } },
+      
+      // Raw RM-E
+      { id: "RM-E", name: "微量輔料槽", capacity: "15 KL", type: "raw", x: 105, y: 360, fill: 60, details: { temp: "23.0 °C", press: "1.00 atm", comp: "活性輔料 E (IQC by batch: 1.Metal)", status: "待命供料" } },
+      
+      // Raw RM-B, C, D
+      { id: "RM-B", name: "輔料槽 B", capacity: "50 KL", type: "raw", x: 105, y: 460, fill: 80, details: { temp: "25.0 °C", press: "1.05 atm", comp: "輔料 B (IQC by batch: 1.Assay 2.Metal)", status: "正常供料" } },
+      { id: "RM-C", name: "輔料槽 C", capacity: "50 KL", type: "raw", x: 230, y: 360, fill: 65, details: { temp: "24.8 °C", press: "1.03 atm", comp: "輔料 C (IQC by batch: 1.Assay 2.Metal)", status: "正常供料" } },
+      { id: "RM-D", name: "輔料槽 D", capacity: "50 KL", type: "raw", x: 230, y: 460, fill: 75, details: { temp: "25.2 °C", press: "1.04 atm", comp: "輔料 D (IQC by batch: 1.Assay 2.Metal)", status: "正常供料" } },
+
+      // Central Mixing Tank
+      { id: "Mixing Tank", name: "高速均質調合主槽", capacity: "250 KL", type: "process", x: 440, y: 250, fill: 68, details: { temp: "28.5 °C", press: "1.15 atm", comp: "混合調合均質液 (配方全成分)", status: "高速攪拌均質中" } },
+
+      // Filter Node
+      { id: "精密濾心組", name: "3-Stage Filters (0.1um)", capacity: "35 KL/Hr", type: "process", x: 720, y: 280, fill: 90, details: { temp: "常溫", press: "壓差 0.2 bar", comp: "過濾微粒與金屬殘渣", status: "過濾中" } },
+
+      // Drum Filling station
+      { id: "Drum 充填站", name: "成品鋼桶充填(棧板)", capacity: "800 L / 棧板", type: "finish", x: 970, y: 280, fill: 85, details: { temp: "25.0 °C", press: "反壓 0.05 bar", comp: "超高純成品液 (前中後反壓監控)", status: "充填封裝中" } }
+    ],
+    groupConnections: [
+      { from: "raw-solid-group", to: "mixing-process-group", label: "進料(水阻/Metal)" },
+      { from: "raw-liquid-group", to: "mixing-process-group", label: "批次入料(IQC)" },
+      { from: "mixing-process-group", to: "filter-check-group", label: "IPQC小循環" },
+      { from: "filter-check-group", to: "mixing-process-group", label: "混勻回流" },
+      { from: "filter-check-group", to: "filling-finish-group", label: "充填大循環" },
+      { from: "filling-finish-group", to: "mixing-process-group", label: "充填口回流" }
+    ],
+    notes: [
+      { x: 120, y: 275, text: "▲ IQC: 每月檢 Metal / 每批檢 水阻值", color: "#f87171" },
+      { x: 120, y: 550, text: "▲ IQC:(by batch) 1.Assay 2.Metal", color: "#f87171" },
+      { x: 670, y: 170, text: "▲ IPQC(小循環) & 充填口(大循環)", color: "#f87171" },
+      { x: 960, y: 170, text: "▲ Drum 反壓:(前中後)", color: "#f87171" }
+    ]
   }
 };
 
@@ -690,6 +853,12 @@ function renderFlowchart() {
   const data = flowchartData[currentTab];
   const nodeW = 140;
   const nodeH = 70;
+
+  // --- 專屬渲染模式：第 10 分頁 (混合調合與充填 2.5D 立體流程圖) ---
+  if (currentTab === 'mixing') {
+    render25DMixingFlowchart();
+    return;
+  }
   
   let svgContent = `<svg class="flowchart-svg" viewBox="0 0 1180 650" xmlns="http://www.w3.org/2000/svg" style="${typeof isAddingConnPoint !== 'undefined' && isAddingConnPoint ? 'cursor: crosshair;' : ''}">`;
   
@@ -948,6 +1117,57 @@ function renderFlowchart() {
     
     const nw = node.w || 140;
     const nh = node.h || 70;
+
+    // 支援 2.5D 擬真形狀渲染
+    if (node.shape === '25d-cyl') {
+      const rx = nw / 2;
+      const ry = 18;
+      const ch = nh - ry * 2;
+      svgContent += `
+        <g class="svg-tank-card pfd-hover" data-id="${node.id}" data-type="node" onclick="if(!isEditingMode) openTankModal('${node.id}')" transform="translate(${node.x}, ${node.y})">
+          <path d="M 0 ${ry} v ${ch} a ${rx} ${ry} 0 0 0 ${nw} 0 v -${ch} Z" fill="url(#pfdTankBlueSide)" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
+          <ellipse cx="${rx}" cy="${ry}" rx="${rx}" ry="${ry}" fill="url(#pfdTankBlueTop)" stroke="${strokeColor}" stroke-width="${strokeWidth}" />
+          <rect x="${rx - 8}" y="0" width="16" height="15" fill="#475569" stroke="#94a3b8" rx="2" />
+          <text x="${rx}" y="${ry + ch/2 + 2}" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="'JetBrains Mono'">${node.id}</text>
+          <text x="${rx}" y="${ry + ch/2 + 18}" font-size="10.5" fill="#bae6fd" text-anchor="middle">${node.name} (${node.fill}%)</text>
+        </g>
+      `;
+      return;
+    } else if (node.shape === '25d-box') {
+      svgContent += `
+        <g class="svg-tank-card pfd-hover" data-id="${node.id}" data-type="node" onclick="if(!isEditingMode) openTankModal('${node.id}')" transform="translate(${node.x}, ${node.y})">
+          <polygon points="0,30 ${nw - 30},30 ${nw},0 30,0" fill="url(#pfdTankYellowTop)" stroke="#ca8a04" stroke-width="2"/>
+          <polygon points="${nw - 30},30 ${nw},0 ${nw},${nh - 30} ${nw - 30},${nh}" fill="#ca8a04" stroke="#a16207" stroke-width="2"/>
+          <rect x="0" y="30" width="${nw - 30}" height="${nh - 30}" fill="url(#pfdTankYellowSide)" stroke="${strokeColor}" stroke-width="${strokeWidth}" rx="4"/>
+          <text x="${(nw - 30)/2}" y="${30 + (nh - 30)/2}" font-size="16" font-weight="700" fill="#713f12" text-anchor="middle" font-family="'JetBrains Mono'">${node.id}</text>
+          <text x="${(nw - 30)/2}" y="${30 + (nh - 30)/2 + 16}" font-size="10.5" font-weight="700" fill="#854d0e" text-anchor="middle">${node.name}</text>
+        </g>
+      `;
+      return;
+    } else if (node.shape === '25d-drum') {
+      svgContent += `
+        <g class="svg-tank-card pfd-hover" data-id="${node.id}" data-type="node" onclick="if(!isEditingMode) openTankModal('${node.id}')" transform="translate(${node.x}, ${node.y})">
+          <polygon points="0,${nh-15} ${nw},${nh-15} ${nw+20},${nh-45} 20,${nh-45}" fill="#15803d" stroke="#166534" stroke-width="2"/>
+          <path d="M 15 ${nh-65} v 35 a 18 7 0 0 0 36 0 v -35 Z" fill="url(#pfdTankBlueSide)" stroke="#0369a1"/>
+          <ellipse cx="33" cy="${nh-65}" rx="18" ry="7" fill="url(#pfdTankBlueTop)" stroke="#38bdf8"/>
+          <path d="M 60 ${nh-65} v 35 a 18 7 0 0 0 36 0 v -35 Z" fill="url(#pfdTankBlueSide)" stroke="#0369a1"/>
+          <ellipse cx="78" cy="${nh-65}" rx="18" ry="7" fill="url(#pfdTankBlueTop)" stroke="#38bdf8"/>
+          <text x="${nw/2}" y="${nh}" font-size="11" font-weight="700" fill="#f43f5e" text-anchor="middle">${node.id}</text>
+        </g>
+      `;
+      return;
+    } else if (node.shape === '25d-filter') {
+      svgContent += `
+        <g class="svg-tank-card pfd-hover" data-id="${node.id}" data-type="node" onclick="if(!isEditingMode) openTankModal('${node.id}')" transform="translate(${node.x}, ${node.y})">
+          <rect x="0" y="0" width="18" height="32" rx="4" fill="url(#pfdFilterGrad)" stroke="#94a3b8" stroke-width="1.5"/>
+          <rect x="22" y="0" width="18" height="32" rx="4" fill="url(#pfdFilterGrad)" stroke="#94a3b8" stroke-width="1.5"/>
+          <rect x="44" y="0" width="18" height="32" rx="4" fill="url(#pfdFilterGrad)" stroke="#94a3b8" stroke-width="1.5"/>
+          <text x="31" y="46" font-size="10" font-weight="600" fill="#94a3b8" text-anchor="middle">${node.id}</text>
+        </g>
+      `;
+      return;
+    }
+
     svgContent += `
       <g class="svg-tank-card" data-id="${node.id}" data-type="node" onclick="if(!isEditingMode) openTankModal('${node.id}')" transform="translate(${node.x}, ${node.y})">
         <!-- Main Card Border & Glass Background -->
@@ -1040,6 +1260,248 @@ function renderFlowchart() {
 
 }
 
+// --- 專屬渲染器：混合調合與充填 2.5D 立體流程圖 ---
+function render25DMixingFlowchart() {
+  const data = flowchartData['mixing'];
+  const mixNode = data.nodes.find(n => n.id === "Mixing Tank") || { fill: 68 };
+  const rmaNode = data.nodes.find(n => n.id === "RM-A") || { fill: 70 };
+  const rmbNode = data.nodes.find(n => n.id === "RM-B") || { fill: 80 };
+  const rmcNode = data.nodes.find(n => n.id === "RM-C") || { fill: 65 };
+  const rmdNode = data.nodes.find(n => n.id === "RM-D") || { fill: 75 };
+  const rmeNode = data.nodes.find(n => n.id === "RM-E") || { fill: 60 };
+
+  const strokeAnim = isSimulating ? 'stroke-dasharray="10 14" class="anim-pipe-flow"' : '';
+
+  let svg = `
+  <svg class="flowchart-svg" viewBox="0 0 1280 640" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="pfdTankYellowSide" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#fef08a"/>
+        <stop offset="50%" stop-color="#fde047"/>
+        <stop offset="100%" stop-color="#eab308"/>
+      </linearGradient>
+      <linearGradient id="pfdTankYellowTop" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#fef9c3"/>
+        <stop offset="100%" stop-color="#fde047"/>
+      </linearGradient>
+      <linearGradient id="pfdTankBlueSide" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#38bdf8"/>
+        <stop offset="50%" stop-color="#0284c7"/>
+        <stop offset="100%" stop-color="#0369a1"/>
+      </linearGradient>
+      <linearGradient id="pfdTankBlueTop" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#7dd3fc"/>
+        <stop offset="100%" stop-color="#0284c7"/>
+      </linearGradient>
+      <linearGradient id="pfdMixingGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#64748b"/>
+        <stop offset="35%" stop-color="#475569"/>
+        <stop offset="70%" stop-color="#334155"/>
+        <stop offset="100%" stop-color="#1e293b"/>
+      </linearGradient>
+      <linearGradient id="pfdMixingTop" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#94a3b8"/>
+        <stop offset="100%" stop-color="#64748b"/>
+      </linearGradient>
+      <linearGradient id="pfdFilterGrad" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#475569"/>
+        <stop offset="50%" stop-color="#334155"/>
+        <stop offset="100%" stop-color="#1e293b"/>
+      </linearGradient>
+      <marker id="pfdArrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+        <polygon points="0 0, 7 3.5, 0 7" fill="#38bdf8" />
+      </marker>
+      <style>
+        .anim-pipe-flow { animation: pfdFlow 1.5s linear infinite; }
+        @keyframes pfdFlow { from { stroke-dashoffset: 48; } to { stroke-dashoffset: 0; } }
+        .pfd-hover:hover { filter: brightness(1.18) drop-shadow(0 0 10px rgba(56,189,248,0.5)); cursor: pointer; }
+        .pfd-cp { cursor: pointer; transition: transform 0.2s; }
+        .pfd-cp:hover { transform: scale(1.2); }
+      </style>
+    </defs>
+
+    <!-- ================= PIPELINES (Behind Equipment) ================= -->
+    <!-- RM-A Pipe -->
+    <path class="pipeline pipeline-active" d="M 390 145 L 445 145 L 445 200 L 520 200" stroke="var(--color-raw)" stroke-width="4" fill="none" marker-end="url(#pfdArrow)"/>
+
+    <!-- RM-E Pipe -->
+    <path class="pipeline pipeline-active" d="M 260 290 L 535 290" stroke="var(--color-raw)" stroke-width="3.5" fill="none" marker-end="url(#pfdArrow)"/>
+
+    <!-- RM-B/C/D Pipes into Mixing Tank -->
+    <path class="pipeline pipeline-active" d="M 250 370 L 250 330 L 535 330" stroke="var(--color-raw)" stroke-width="3.5" fill="none" marker-end="url(#pfdArrow)"/>
+    <path class="pipeline pipeline-active" d="M 350 370 L 350 345 L 535 345" stroke="var(--color-raw)" stroke-width="3.5" fill="none" marker-end="url(#pfdArrow)"/>
+    <path class="pipeline pipeline-active" d="M 450 370 L 450 360 L 535 360" stroke="var(--color-raw)" stroke-width="3.5" fill="none" marker-end="url(#pfdArrow)"/>
+
+    <!-- Outflow from Mixing Tank to Filling -->
+    <path class="pipeline pipeline-active" d="M 740 360 L 980 360" stroke="var(--color-process)" stroke-width="4" fill="none" marker-end="url(#pfdArrow)"/>
+
+    <!-- IPQC 小循環迴路 -->
+    <path class="pipeline pipeline-active" d="M 775 360 L 775 250 L 742 250" stroke="var(--color-process)" stroke-width="3.5" fill="none" marker-end="url(#pfdArrow)"/>
+
+    <!-- 充填口大循環回流 -->
+    <path class="pipeline pipeline-active" d="M 915 360 L 915 240 L 742 240" stroke="var(--color-finish)" stroke-width="3.5" fill="none" marker-end="url(#pfdArrow)"/>
+
+    <!-- ================= EQUIPMENT (2.5D Isometric SVG) ================= -->
+
+    <!-- 1. RM-A (Yellow 3D Isometric Box) -->
+    <g class="pfd-hover" onclick="openTankModal('RM-A')">
+      <polygon points="180,95 320,95 355,60 215,60" fill="url(#pfdTankYellowTop)" stroke="#ca8a04" stroke-width="2"/>
+      <polygon points="320,95 355,60 355,145 320,180" fill="#ca8a04" stroke="#a16207" stroke-width="2"/>
+      <rect x="180" y="95" width="140" height="85" fill="url(#pfdTankYellowSide)" stroke="#ca8a04" stroke-width="2" rx="4"/>
+      <text x="250" y="145" font-size="22" font-weight="700" fill="#713f12" text-anchor="middle" font-family="'JetBrains Mono', monospace">RM-A</text>
+      <text x="250" y="165" font-size="11" font-weight="700" fill="#854d0e" text-anchor="middle">固態/濃縮主原料 (${rmaNode.fill}%)</text>
+      <rect x="345" y="135" width="16" height="20" fill="#475569" stroke="#94a3b8" rx="2"/>
+    </g>
+
+    <!-- 2. RM-E (Small White Tank) -->
+    <g class="pfd-hover" onclick="openTankModal('RM-E')">
+      <ellipse cx="225" cy="285" rx="35" ry="12" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/>
+      <path d="M 190 285 v 25 a 35 12 0 0 0 70 0 v -25 Z" fill="#cbd5e1" stroke="#94a3b8" stroke-width="1.5"/>
+      <ellipse cx="225" cy="285" rx="35" ry="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="225" y="298" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle" font-family="'JetBrains Mono'">RM-E</text>
+    </g>
+
+    <!-- 3. RM-B, RM-C, RM-D (Blue Cylindrical Tanks) -->
+    <!-- RM-B -->
+    <g class="pfd-hover" onclick="openTankModal('RM-B')">
+      <path d="M 210 440 v 60 a 40 16 0 0 0 80 0 v -60 Z" fill="url(#pfdTankBlueSide)" stroke="#0284c7" stroke-width="1.5"/>
+      <ellipse cx="250" cy="440" rx="40" ry="16" fill="url(#pfdTankBlueTop)" stroke="#38bdf8" stroke-width="1.5"/>
+      <rect x="242" y="415" width="16" height="15" fill="#475569" stroke="#94a3b8" rx="2"/>
+      <text x="250" y="480" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="'JetBrains Mono'">RM-B</text>
+      <text x="250" y="525" font-size="11" fill="#bae6fd" text-anchor="middle">輔料 B (${rmbNode.fill}%)</text>
+    </g>
+
+    <!-- RM-C -->
+    <g class="pfd-hover" onclick="openTankModal('RM-C')">
+      <path d="M 310 440 v 60 a 40 16 0 0 0 80 0 v -60 Z" fill="url(#pfdTankBlueSide)" stroke="#0284c7" stroke-width="1.5"/>
+      <ellipse cx="350" cy="440" rx="40" ry="16" fill="url(#pfdTankBlueTop)" stroke="#38bdf8" stroke-width="1.5"/>
+      <rect x="342" y="415" width="16" height="15" fill="#475569" stroke="#94a3b8" rx="2"/>
+      <text x="350" y="480" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="'JetBrains Mono'">RM-C</text>
+      <text x="350" y="525" font-size="11" fill="#bae6fd" text-anchor="middle">輔料 C (${rmcNode.fill}%)</text>
+    </g>
+
+    <!-- RM-D -->
+    <g class="pfd-hover" onclick="openTankModal('RM-D')">
+      <path d="M 410 440 v 60 a 40 16 0 0 0 80 0 v -60 Z" fill="url(#pfdTankBlueSide)" stroke="#0284c7" stroke-width="1.5"/>
+      <ellipse cx="450" cy="440" rx="40" ry="16" fill="url(#pfdTankBlueTop)" stroke="#38bdf8" stroke-width="1.5"/>
+      <rect x="442" y="415" width="16" height="15" fill="#475569" stroke="#94a3b8" rx="2"/>
+      <text x="450" y="480" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="'JetBrains Mono'">RM-D</text>
+      <text x="450" y="525" font-size="11" fill="#bae6fd" text-anchor="middle">輔料 D (${rmdNode.fill}%)</text>
+    </g>
+
+    <!-- 4. Mixing Tank (Central Heavy Agitated Vessel) -->
+    <g class="pfd-hover" onclick="openTankModal('Mixing Tank')">
+      <path d="M 535 240 v 170 a 105 38 0 0 0 210 0 v -170 Z" fill="url(#pfdMixingGrad)" stroke="#475569" stroke-width="2.5"/>
+      <ellipse cx="640" cy="240" rx="105" ry="38" fill="url(#pfdMixingTop)" stroke="#64748b" stroke-width="2"/>
+      
+      <!-- Liquid Level Clip -->
+      <clipPath id="pfdMixClip">
+        <path d="M 535 240 v 170 a 105 38 0 0 0 210 0 v -170 Z"/>
+      </clipPath>
+      <rect x="535" y="${410 - (mixNode.fill / 100) * 170}" width="210" height="${(mixNode.fill / 100) * 170}" fill="rgba(6, 182, 212, 0.3)" clip-path="url(#pfdMixClip)"/>
+
+      <!-- Agitator Motor -->
+      <rect x="625" y="185" width="30" height="30" fill="#334155" stroke="#94a3b8" stroke-width="1.5" rx="3"/>
+      <line x1="640" y1="215" x2="640" y2="240" stroke="#cbd5e1" stroke-width="4"/>
+
+      <!-- Title & Live Level -->
+      <text x="640" y="325" font-size="22" font-weight="700" fill="#ffffff" text-anchor="middle" font-family="'JetBrains Mono', sans-serif">Mixing Tank</text>
+      <text x="640" y="350" font-size="14" font-weight="700" fill="#38bdf8" text-anchor="middle">液位: ${mixNode.fill}% (${Math.round((mixNode.fill/100)*250)} KL)</text>
+    </g>
+
+    <!-- 5. 3-Stage Filters -->
+    <g class="pfd-hover" onclick="openTankModal('精密濾心組')">
+      <g transform="translate(805, 335)">
+        <rect x="0" y="0" width="18" height="32" rx="4" fill="url(#pfdFilterGrad)" stroke="#94a3b8" stroke-width="1.5"/>
+        <rect x="22" y="0" width="18" height="32" rx="4" fill="url(#pfdFilterGrad)" stroke="#94a3b8" stroke-width="1.5"/>
+        <rect x="44" y="0" width="18" height="32" rx="4" fill="url(#pfdFilterGrad)" stroke="#94a3b8" stroke-width="1.5"/>
+        <text x="31" y="48" font-size="10" font-weight="600" fill="#94a3b8" text-anchor="middle">精密濾心組</text>
+      </g>
+    </g>
+
+    <!-- 6. Drums / Pallet Filling Station -->
+    <g class="pfd-hover" onclick="openTankModal('Drum 充填站')">
+      <polygon points="1030,380 1190,380 1220,330 1060,330" fill="#15803d" stroke="#166534" stroke-width="2"/>
+      <polygon points="1030,380 1030,395 1190,395 1190,380" fill="#14532d"/>
+
+      <path d="M 1070 260 v 40 a 20 8 0 0 0 40 0 v -40 Z" fill="#0284c7" opacity="0.85"/>
+      <ellipse cx="1090" cy="260" rx="20" ry="8" fill="#38bdf8" opacity="0.85"/>
+      <path d="M 1120 260 v 40 a 20 8 0 0 0 40 0 v -40 Z" fill="#0284c7" opacity="0.85"/>
+      <ellipse cx="1140" cy="260" rx="20" ry="8" fill="#38bdf8" opacity="0.85"/>
+
+      <path d="M 1055 285 v 45 a 22 9 0 0 0 44 0 v -45 Z" fill="url(#pfdTankBlueSide)" stroke="#0369a1"/>
+      <ellipse cx="1077" cy="285" rx="22" ry="9" fill="url(#pfdTankBlueTop)" stroke="#38bdf8"/>
+      <path d="M 1110 285 v 45 a 22 9 0 0 0 44 0 v -45 Z" fill="url(#pfdTankBlueSide)" stroke="#0369a1"/>
+      <ellipse cx="1132" cy="285" rx="22" ry="9" fill="url(#pfdTankBlueTop)" stroke="#38bdf8"/>
+
+      <text x="1115" y="420" font-size="15" font-weight="700" fill="#f43f5e" text-anchor="middle">Drum 反壓:(前中後)</text>
+      <text x="1005" y="335" font-size="15" font-weight="700" fill="#f8fafc">Filling</text>
+    </g>
+
+    <!-- ================= CHECK POINTS (Red Triangles + Clean Labels) ================= -->
+
+    <!-- CP-1: RM-A -->
+    <g class="pfd-cp" onclick="openTankModal('RM-A')">
+      <polygon points="295,200 310,225 280,225" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+      <text x="320" y="210" font-size="13" font-weight="700" fill="#38bdf8">每月檢: Metal</text>
+      <text x="320" y="228" font-size="13" font-weight="700" fill="#38bdf8">每批檢: 水阻值</text>
+    </g>
+
+    <!-- CP-2: RM-E -->
+    <g class="pfd-cp" onclick="openTankModal('RM-E')">
+      <polygon points="175,320 190,345 160,345" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+      <text x="145" y="270" font-size="12" font-weight="700" fill="#38bdf8" text-anchor="end">IQC: (by batch)</text>
+      <text x="145" y="288" font-size="12" font-weight="700" fill="#38bdf8" text-anchor="end">1. Metal</text>
+    </g>
+
+    <!-- CP-3: RM-B, C, D (IQC) -->
+    <g class="pfd-cp" onclick="openTankModal('RM-B')">
+      <polygon points="250,545 262,568 238,568" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+      <text x="250" y="582" font-size="11" font-weight="700" fill="#38bdf8" text-anchor="middle">IQC:(by batch)</text>
+      <text x="250" y="595" font-size="10.5" font-weight="600" fill="#bae6fd" text-anchor="middle">1. Assay  2. Metal</text>
+    </g>
+
+    <g class="pfd-cp" onclick="openTankModal('RM-C')">
+      <polygon points="350,545 362,568 338,568" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+      <text x="350" y="582" font-size="11" font-weight="700" fill="#38bdf8" text-anchor="middle">IQC:(by batch)</text>
+      <text x="350" y="595" font-size="10.5" font-weight="600" fill="#bae6fd" text-anchor="middle">1. Assay  2. Metal</text>
+    </g>
+
+    <g class="pfd-cp" onclick="openTankModal('RM-D')">
+      <polygon points="450,545 462,568 438,568" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+      <text x="450" y="582" font-size="11" font-weight="700" fill="#38bdf8" text-anchor="middle">IQC:(by batch)</text>
+      <text x="450" y="595" font-size="10.5" font-weight="600" fill="#bae6fd" text-anchor="middle">1. Assay  2. Metal</text>
+    </g>
+
+    <!-- CP-4: IPQC 小循環 -->
+    <g class="pfd-cp" onclick="openTankModal('Mixing Tank')">
+      <polygon points="695,385 710,410 680,410" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+      <text x="670" y="430" font-size="14" font-weight="700" fill="#f43f5e">IPQC(小循環):</text>
+    </g>
+
+    <!-- CP-5: 充填口大循環 -->
+    <g class="pfd-cp" onclick="openTankModal('精密濾心組')">
+      <text x="915" y="220" font-size="14" font-weight="700" fill="#f43f5e">充填口(大循環):</text>
+      <polygon points="825,385 840,410 810,410" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+    </g>
+
+    <!-- CP-6: Drum 反壓點 -->
+    <g class="pfd-cp" onclick="openTankModal('Drum 充填站')">
+      <polygon points="865,370 878,392 852,392" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+      <polygon points="1115,440 1128,462 1102,462" fill="#ef4444" stroke="#ffffff" stroke-width="1.5" />
+    </g>
+
+    <!-- Legend (Clean Bottom Placement) -->
+    <g transform="translate(30, 625)">
+      <polygon points="12,-5 20,8 4,8" fill="#ef4444" stroke="#ffffff" stroke-width="1"/>
+      <text x="28" y="5" font-size="12" font-weight="700" fill="#f43f5e">Check Point (檢驗控制點 - 點擊槽體或紅色三角圖示可查看詳細規格與歷史紀錄)</text>
+    </g>
+  </svg>
+  `;
+
+  canvasContainer.innerHTML = svg;
+}
+
 // Map tank type to design colors
 function getChemicalColor(type) {
   switch (type) {
@@ -1066,8 +1528,18 @@ function openTankModal(tankId) {
   detailTemp.textContent = node.details.temp;
   detailPress.textContent = node.details.press;
   detailComp.textContent = node.details.comp;
-  detailStatus.textContent = node.details.status;
-  detailCap.textContent = `${node.fill}% / ${node.capacity}`;
+  // Calculate strapping info if tank has strapping parameters
+  const strap = getTankStrapping(node.id);
+  let strapSubtext = "";
+  if (strap) {
+    let calc = calculateFromTankPercent(node.id, node.fill);
+    if (node.heightMm) {
+      calc = calculateFromTankHeight(node.id, node.heightMm);
+    }
+    const displayKg = node.weightKg || calc.weightKg;
+    strapSubtext = `<div style="font-size:11px; color:var(--text-secondary); margin-top:4px; font-weight:normal;">📏 換算實體高度: <strong style="color:var(--color-accent);">${calc.heightMm} mm</strong> / 滿槽 ${calc.maxLevel} mm<br>💧 換算容積: <strong style="color:var(--color-raw);">${calc.liters.toLocaleString()} L (${calc.kl} KL)</strong> | 淨重約: <strong style="color:var(--color-finish);">${displayKg.toLocaleString()} KG</strong></div>`;
+  }
+  detailCap.innerHTML = `${node.fill}% / ${node.capacity}${strapSubtext}`;
   
   modalOverlay.classList.add("active");
   
@@ -2043,13 +2515,24 @@ if (addNodeGroupBtn) {
       return;
     }
     
-    if (type === 'node') {
+    if (type.startsWith('node')) {
       const chemicalType = document.getElementById("nodeTypeSelect").value;
+      let shape = "card";
+      let nw = 140;
+      let nh = 70;
+      if (type === 'node-25d-cyl') { shape = "25d-cyl"; nw = 90; nh = 110; }
+      else if (type === 'node-25d-box') { shape = "25d-box"; nw = 140; nh = 90; }
+      else if (type === 'node-25d-drum') { shape = "25d-drum"; nw = 130; nh = 100; }
+      else if (type === 'node-25d-filter') { shape = "25d-filter"; nw = 80; nh = 50; }
+
       const newNode = {
         id: finalId,
-        name: name || "新儲槽",
+        name: name || "新設備",
         capacity: capacity || "100 KL",
         type: chemicalType,
+        shape: shape,
+        w: nw,
+        h: nh,
         x: 150,
         y: 150,
         fill: 50,
@@ -2061,7 +2544,7 @@ if (addNodeGroupBtn) {
         }
       };
       data.nodes.push(newNode);
-      alert(`🎉 儲槽 ${finalId} 新增成功！請在畫布上拖曳至正確位置。`);
+      alert(`🎉 設備 ${finalId} (${shape}) 新增成功！請在畫布上拖曳至正確位置。`);
     } else {
       const w = parseInt(document.getElementById("addGroupWidth").value) || 180;
       let h = parseInt(document.getElementById("addGroupHeight").value) || 240;
@@ -2624,6 +3107,65 @@ function populateLLTabSelect() {
   if (sel.options.length > 0) populateLLTankSelect(sel.value);
 }
 
+function setupStrappingInputSync() {
+  const heightInput = document.getElementById('llHeightMm');
+  const levelInput = document.getElementById('llValue');
+  const volInput = document.getElementById('llVolume');
+  const weightInput = document.getElementById('llWeight');
+  const tankSel = document.getElementById('llTankSelect');
+  const hintEl = document.getElementById('llHeightHint');
+
+  function updateHint() {
+    const tankId = tankSel ? tankSel.value : '';
+    const strap = getTankStrapping(tankId);
+    if (strap && hintEl) {
+      hintEl.textContent = `(最高液位 ${strap.maxLevel} mm | 底面積每mm ${strap.rate}L | 桶底 ${strap.bottomVol}L)`;
+    } else if (hintEl) {
+      hintEl.textContent = '';
+    }
+  }
+
+  if (tankSel) {
+    tankSel.addEventListener('change', () => {
+      updateHint();
+      if (heightInput && heightInput.value) {
+        heightInput.dispatchEvent(new Event('input'));
+      } else if (levelInput && levelInput.value) {
+        levelInput.dispatchEvent(new Event('input'));
+      }
+    });
+  }
+
+  if (heightInput) {
+    heightInput.addEventListener('input', () => {
+      const tankId = tankSel ? tankSel.value : '';
+      const mm = parseFloat(heightInput.value);
+      if (isNaN(mm) || mm < 0) return;
+      const calc = calculateFromTankHeight(tankId, mm);
+      if (calc.maxLevel > 0) {
+        if (levelInput) levelInput.value = calc.fillPercent;
+        if (volInput) volInput.value = calc.kl;
+        if (weightInput) weightInput.value = calc.weightKg;
+      }
+    });
+  }
+
+  if (levelInput) {
+    levelInput.addEventListener('input', () => {
+      const tankId = tankSel ? tankSel.value : '';
+      const pct = parseFloat(levelInput.value);
+      if (isNaN(pct) || pct < 0) return;
+      const calc = calculateFromTankPercent(tankId, pct);
+      if (calc.maxLevel > 0) {
+        if (heightInput) heightInput.value = calc.heightMm;
+        if (volInput) volInput.value = calc.kl;
+        if (weightInput) weightInput.value = calc.weightKg;
+      }
+    });
+  }
+}
+setupStrappingInputSync();
+
 function populateLLTankSelect(tabKey) {
   const sel = document.getElementById('llTankSelect');
   if (!sel) return;
@@ -2637,6 +3179,8 @@ function populateLLTankSelect(tabKey) {
     opt.textContent = n.id + (n.name ? ` (${n.name})` : '') + (n.capacity ? ` [${n.capacity}]` : '');
     sel.appendChild(opt);
   });
+  const hintEl = document.getElementById('llHeightHint');
+  if (hintEl) hintEl.textContent = '';
 }
 
 function renderLLRecords() {
@@ -2719,6 +3263,8 @@ if (document.getElementById('llDate')) {
   }
   if (saveBtn) {
     saveBtn.onclick = () => {
+      const heightEl = document.getElementById('llHeightMm');
+      const weightEl = document.getElementById('llWeight');
       const tabSelEl = document.getElementById('llTabSelect');
       const tankSel = document.getElementById('llTankSelect');
       const llDateEl = document.getElementById('llDate');
@@ -2731,23 +3277,39 @@ if (document.getElementById('llDate')) {
       const level = levelEl ? levelEl.value : '';
       if (!tankId) { alert('請選擇槽體'); return; }
       if (!date) { alert('請填寫日期'); return; }
-      if (level === '') { alert('請輸入液位 (%)'); return; }
+      if (level === '') { alert('請輸入液位 (%) 或高度 (mm)'); return; }
       const names = getTabOptions();
+      const numLevel = parseFloat(level);
       const record = {
         timestamp: Date.now(), date: date, tabKey: tabKey,
         tabName: (names[tabKey] || tabKey),
-        tankId: tankId, level: parseFloat(level),
+        tankId: tankId, level: numLevel,
+        heightMm: (heightEl && heightEl.value) ? parseFloat(heightEl.value) : '',
         volume: (volEl && volEl.value) ? parseFloat(volEl.value) : '',
+        weightKg: (weightEl && weightEl.value) ? parseFloat(weightEl.value) : '',
         note: noteEl ? noteEl.value.trim() : ''
       };
       const records = getLiquidRecords();
       records.push(record);
       saveLiquidRecords(records);
+
+      // 即時更新畫布上的該槽體液位 % 數
+      if (flowchartData[tabKey]) {
+        const node = (flowchartData[tabKey].nodes || []).find(n => n.id === tankId);
+        if (node) {
+          node.fill = numLevel;
+          saveCurrentLayoutToLocal();
+          renderFlowchart();
+        }
+      }
+
       if (tankSel) tankSel.value = '';
+      if (heightEl) heightEl.value = '';
       if (levelEl) levelEl.value = '';
       if (volEl) volEl.value = '';
+      if (weightEl) weightEl.value = '';
       if (noteEl) noteEl.value = '';
-      alert('✅ 已儲存 ' + tankId + ' 液位 ' + level + '%');
+      alert(`✅ 已儲存 ${tankId} 液位 ${level}% (${record.volume ? record.volume + ' KL' : ''})`);
       renderLLRecords();
     };
   }
@@ -2903,13 +3465,32 @@ async function importLiquidLevelExcel(file) {
               if (val !== undefined && val !== null && val !== '') {
                 const numValue = parseFloat(val);
                 if (!isNaN(numValue)) {
+                  // 依據日報數值判斷：若是 > 100 則為實測高度 (mm)，否則為百分比 (%)
+                  const strap = getTankStrapping(tank.id);
+                  let heightMm = 0;
                   let fillPercent = 0;
-                  if (numValue <= 100) {
-                    fillPercent = numValue; // 直接是百分比
+                  let volumeKL = 0;
+                  let weightKg = 0;
+
+                  if (numValue > 100) {
+                    heightMm = numValue;
+                    if (strap) {
+                      const calc = calculateFromTankHeight(tank.id, heightMm);
+                      fillPercent = calc.fillPercent;
+                      volumeKL = calc.kl;
+                      weightKg = calc.weightKg;
+                    } else {
+                      fillPercent = Math.min(100, Math.max(0, Math.round((numValue / 6000) * 1000) / 10));
+                    }
                   } else {
-                    fillPercent = (numValue / 6000) * 100; // 毫米 (mm) 轉百分比
+                    fillPercent = Math.min(100, Math.max(0, Math.round(numValue * 10) / 10));
+                    if (strap) {
+                      const calc = calculateFromTankPercent(tank.id, fillPercent);
+                      heightMm = calc.heightMm;
+                      volumeKL = calc.kl;
+                      weightKg = calc.weightKg;
+                    }
                   }
-                  fillPercent = Math.min(100, Math.max(0, Math.round(fillPercent * 10) / 10));
 
                   // 在 flowchartData 的所有分頁中尋找對應的儲槽節點
                   let matchedNode = null;
@@ -2924,9 +3505,11 @@ async function importLiquidLevelExcel(file) {
                   }
 
                   if (matchedNode) {
-                    let capacityKL = parseFloat(matchedNode.capacity);
-                    if (isNaN(capacityKL)) capacityKL = 100;
-                    const volumeKL = Math.round((fillPercent / 100) * capacityKL * 10) / 10;
+                    if (!volumeKL) {
+                      let capacityKL = parseFloat(matchedNode.capacity);
+                      if (isNaN(capacityKL)) capacityKL = 100;
+                      volumeKL = Math.round((fillPercent / 100) * capacityKL * 10) / 10;
+                    }
 
                     // 記錄至歷史液位紀錄
                     const record = {
@@ -2936,7 +3519,9 @@ async function importLiquidLevelExcel(file) {
                       tabName: flowchartData[matchedTabKey].title.split(" (")[0],
                       tankId: tank.id,
                       level: fillPercent,
+                      heightMm: heightMm || '',
                       volume: volumeKL,
+                      weightKg: weightKg || '',
                       note: `${timeStr} (日報表自動匯入)`
                     };
                     newRecords.push(record);
@@ -2947,6 +3532,9 @@ async function importLiquidLevelExcel(file) {
                     if (!existingUpdate || timeStr === "16:00" || (existingUpdate.timeLabel !== "16:00" && timeStr > existingUpdate.timeLabel)) {
                       latestTankLevels[tank.id] = {
                         fill: fillPercent,
+                        heightMm: heightMm,
+                        weightKg: weightKg,
+                        volumeKL: volumeKL,
                         timeLabel: timeStr,
                         nodeRef: matchedNode
                       };
@@ -2961,10 +3549,13 @@ async function importLiquidLevelExcel(file) {
     }
 
     if (importCount > 0) {
-      // 一次性更新所有匹配儲槽的 fill 屬性
+      // 一次性更新所有匹配儲槽的 fill, heightMm, weightKg, volume 屬性
       Object.keys(latestTankLevels).forEach(tankId => {
         const update = latestTankLevels[tankId];
         update.nodeRef.fill = update.fill;
+        if (update.heightMm) update.nodeRef.heightMm = update.heightMm;
+        if (update.weightKg) update.nodeRef.weightKg = update.weightKg;
+        if (update.volumeKL) update.nodeRef.volumeKL = update.volumeKL;
       });
 
       // 儲存至本地歷史紀錄
