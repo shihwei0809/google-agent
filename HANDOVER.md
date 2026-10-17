@@ -1,6 +1,21 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-16 流程圖系統 2.5D 立體混合調合充填流程圖上線、實體尺規表雙向換算與自訂 2.5D 元件)
+## 今日進度與交接事項 (2026-10-17 專案大廳大改版、三大旗艦PWA系統納管上線、溫度通報轉移至 Cloudflare Pages)
+* **專案大廳與說明書中心 (`agent-portal` & `說明書`):**
+  - **三大旗艦 PWA 系統正式納管進大廳**:
+    1. **IPA 專用動態生產排程與進耗存整合系統 (`ipa-pwa-app.pages.dev`)**: 採用 Advanced Mode (`_worker.js`) 直連 Cloudflare D1，支援多分頁 Excel 日報匯入、負庫存赤字遞延繼承與跨廠槽位分配。
+    2. **倉庫常用包材管理與盤點系統 (`eshine-package.pages.dev`)**: PWA 離線快取 (`package-pwa-v2`)、行動走動盤點，並新增「📥 歷史帳卡一鍵匯出 Excel」對帳明細匯出功能。
+    3. **回收液入料記錄系統 (`recycle-feed-records.pages.dev`)**: Cloudflare D1 毫秒級跨機秒同步、照片自動依 ISO 週分類歸檔至 Google Drive、Stale-While-Revalidate 秒開與密碼鎖防護。
+  - **說明書資料庫擴充與重構 (`manuals_db.js`)**:
+    - 新增上述三大系統之完整操作手冊，手冊總庫數量擴充至 40 份。
+  - **溫度通報系統網址全面遷移至 Cloudflare Pages**:
+    - 原 Firebase 網址 `https://hongsheng-temp-523.web.app` 全面遷移至最新雲端邊緣版：`https://weather-monitor-pwa.pages.dev/`。
+    - 同步更新大廳卡片與溫度通報操作手冊對應架構說明。
+  - **雙平台正式發布**:
+    - ☁️ Cloudflare Pages 線上大廳：`https://google-agent.pages.dev`（已同步推送到獨立展示庫 `agent-portal`）。
+    - 🟠 Netlify 正式線上大廳：`https://cerulean-praline-6b314d.netlify.app/`（已成功發布）。
+
+## 前次進度與交接事項 (2026-10-16 流程圖系統 2.5D 立體混合調合充填流程圖上線、實體尺規表雙向換算與自訂 2.5D 元件)
 * **儲槽製程流程圖系統 (`flowchart-web`):**
   - **現場實體儲槽尺規換算表 (Strapping Table) 深度整合**:
     - **問題根因**: 過去日報匯入時，針對大於 100 的實測數值一律寫死除以 6000mm 換算百分比，導致 500KL 級 (如 TK-624 實測 8447mm / 滿槽 9200mm) 被算成 140% 或溢出截斷，反推換算高度與重量 (KG) 出現偏差。
