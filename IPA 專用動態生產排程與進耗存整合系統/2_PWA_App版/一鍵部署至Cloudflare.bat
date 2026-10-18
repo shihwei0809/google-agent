@@ -5,7 +5,7 @@ echo ========================================================
 echo Deploying to Cloudflare Pages...
 echo ========================================================
 echo.
-call npx --yes wrangler pages deploy public --project-name ipa-pwa-app --commit-dirty=true
+call npx --yes wrangler pages deploy public --project-name ipa-pwa-app --no-bundle --commit-dirty=true
 echo.
 if %ERRORLEVEL% EQU 0 (
     echo ========================================================
