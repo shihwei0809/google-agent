@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 影音自動剪輯工作站 (IG Reels & Shorts)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+      background-color: #0b0d13;
+      color: #e2e8f0;
+    }
+    .reel-frame {
+      aspect-ratio: 9/16;
+      max-height: 640px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 122, 26, 0.15);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- Header -->
+  <header class="border-b border-gray-800 bg-[#11141d]/80 backdrop-blur sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
+          <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-wide">AI 影音自動剪輯工作站</h1>
+          <p class="text-xs text-gray-400">素材與文字 → 一鍵自動配音排版生成 9:16 IG Reels</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
+          本機區網: {{ local_ip }}:8050
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto w-full px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    
+    <!-- Left: Controls Form -->
+    <div class="lg:col-span-7 bg-[#141824] border border-gray-800/80 rounded-2xl p-6 shadow-xl">
+      <h2 class="text-base font-bold text-white mb-5 flex items-center">
+        <i class="fa-solid fa-sliders text-orange-400 mr-2"></i> 影片設定與素材
+      </h2>
+
+      <form id="renderForm" class="space-y-5">
+        <!-- 檔案上傳 -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+            1. 上傳初始素材 (可選：影片或圖片，作為第 1 鏡)
+          </label>
+          <div class="border-2 border-dashed border-gray-700 hover:border-orange-500/60 rounded-xl p-5 text-center cursor-pointer transition bg-gray-900/50" onclick="document.getElementById('fileInput').click()">
+            <input type="file" id="fileInput" name="file" accept="video/*,image/*" class="hidden" onchange="handleFileSelect(event)">
+            <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400 mb-2"></i>
+            <p id="filePrompt" class="text-sm text-gray-300">點擊上傳初始素材（若未上傳，AI 將全片自動生成科技圖卡）</p>
+            <p class="text-xs text-emerald-400 mt-1">✨ 後續鏡頭素材將由 AI 自動規劃與動態生成補齊！</p>
+          </div>
+        </div>
+
+        <!-- 影片標題卡 -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+            2. 影片主題 (膠囊標題)
+          </label>
+          <input type="text" id="titleInput" name="title" value="特斯拉 Roadster 倒掛之謎" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500" required>
+        </div>
+
+        <!-- 旁白文案腳本 -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">
+            3. 核心概念 / 想表達的大致內容 (AI 自動擴展為 4 幕分鏡並補素材)
+          </label>
+          <textarea id="textScript" name="text_script" rows="4" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-orange-500" required>用國中理化解釋為什麼特斯拉 Roadster 能倒掛、滯空、0.81秒加速突破輪胎極限。</textarea>
+        </div>
+
+        <!-- 語音與風格設定 -->
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">配音語音</label>
+            <select name="voice" class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
+              <option value="zh-TW-YunJheNeural" selected>台灣專業男聲 (雲哲)</option>
+              <option value="zh-TW-HsiaoChenNeural">台灣知性女聲 (曉臻)</option>
+              <option value="zh-TW-HsiaoYuNeural">台灣自然女聲 (曉雨)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2">重點強調色</label>
+            <div class="flex items-center space-x-2">
+              <input type="color" name="accent_color" value="#FF7A1A" class="h-9 w-12 bg-transparent cursor-pointer rounded border border-gray-700">
+              <span class="text-xs text-gray-400">Tesla 亮橘 (#FF7A1A)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 產生按鈕 -->
+        <button type="submit" id="submitBtn" class="w-full py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-xl shadow-lg shadow-orange-500/25 transition flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-film"></i>
+          <span>一鍵自動分鏡＋補素材＋剪成 25~30 秒短影音</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Right: Video Player & Output -->
+    <div class="lg:col-span-5 flex flex-col items-center justify-center bg-[#141824] border border-gray-800/80 rounded-2xl p-6 shadow-xl">
+      <h2 class="text-base font-bold text-white mb-4 self-start flex items-center">
+        <i class="fa-solid fa-mobile-screen text-orange-400 mr-2"></i> 9:16 實時預覽
+      </h2>
+
+      <!-- Reel Frame -->
+      <div class="reel-frame w-full max-w-[340px] bg-black rounded-3xl overflow-hidden relative border-4 border-gray-800 flex items-center justify-center">
+        <!-- 載入中動畫 -->
+        <div id="loadingOverlay" class="hidden absolute inset-0 bg-black/85 flex flex-col items-center justify-center z-20">
+          <div class="w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p class="text-sm font-semibold text-white">AI 正在合成語音與剪輯渲染中...</p>
+          <p class="text-xs text-gray-400 mt-1">通常約需 3~8 秒</p>
+        </div>
+
+        <!-- 影片播放器 -->
+        <video id="videoPlayer" class="w-full h-full object-cover hidden" controls autoplay loop playsinline></video>
+        
+        <!-- 空狀態 -->
+        <div id="emptyState" class="text-center p-6">
+          <div class="w-16 h-16 rounded-full bg-gray-900 border border-gray-800 flex items-center justify-center mx-auto mb-3 text-gray-600">
+            <i class="fa-solid fa-film text-2xl"></i>
+          </div>
+          <p class="text-sm text-gray-400 font-medium">尚未生成影片</p>
+          <p class="text-xs text-gray-600 mt-1">填妥左方設定並點擊按鈕即可預覽</p>
+        </div>
+      </div>
+
+      <!-- 下載按鈕 -->
+      <a id="downloadBtn" href="#" download class="hidden mt-5 px-6 py-2.5 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition flex items-center space-x-2">
+        <i class="fa-solid fa-download"></i>
+        <span>下載 MP4 成品</span>
+      </a>
+    </div>
+
+  </main>
+
+  <footer class="border-t border-gray-800/80 text-center py-4 text-xs text-gray-500">
+    AI 影音剪輯自動化工作站 &bull; Antigravity Agentic Video Pipeline
+  </footer>
+
+  <script>
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (file) {
+        document.getElementById('filePrompt').innerText = `已選取: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+        document.getElementById('filePrompt').className = "text-sm text-orange-400 font-semibold";
+      }
+    }
+
+    document.getElementById('renderForm').onsubmit = async function(e) {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('submitBtn');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const videoPlayer = document.getElementById('videoPlayer');
+      const emptyState = document.getElementById('emptyState');
+      const downloadBtn = document.getElementById('downloadBtn');
+
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-50');
+      loadingOverlay.classList.remove('hidden');
+
+      const formData = new FormData(this);
+
+      try {
+        const response = await fetch('/api/generate', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        if (data.status === 'success') {
+          emptyState.classList.add('hidden');
+          videoPlayer.classList.remove('hidden');
+          videoPlayer.src = data.video_url;
+          videoPlayer.load();
+          videoPlayer.play();
+
+          downloadBtn.href = data.video_url;
+          downloadBtn.setAttribute('download', data.filename);
+          downloadBtn.classList.remove('hidden');
+        } else {
+          alert("生成失敗: " + (data.message || "未知錯誤"));
+        }
+      } catch (err) {
+        alert("伺服器連線失敗: " + err.message);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-50');
+        loadingOverlay.classList.add('hidden');
+      }
+    };
+  </script>
+</body>
+</html>
