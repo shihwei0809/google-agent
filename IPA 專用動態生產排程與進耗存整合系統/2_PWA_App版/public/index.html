@@ -2147,18 +2147,64 @@
                 </div>
 
                 {/* 4 個月份頁籤導覽 (4 Months Tabs) */}
-                <div className="bg-white rounded-xl shadow-md border overflow-hidden">
-                  <div className="bg-slate-200 px-3 pt-3 flex justify-between items-center border-b border-slate-300">
-                    <div className="flex space-x-2">
-                      {monthsList.map((m) => (
-                        <button
-                          key={m.key}
-                          onClick={() => setActiveMonthKey(m.key)}
-                          className={`px-5 py-2.5 font-bold text-xs rounded-t-lg transition-all border-t-2 ${activeMonthKey === m.key ? 'bg-white text-blue-700 border-blue-600 shadow' : 'bg-slate-300 text-slate-600 hover:bg-slate-100 border-transparent'}`}
-                        >
-                          📅 {m.label} 預估表
-                        </button>
-                      ))}
+                <div id="month-tables-section" className="bg-white rounded-xl shadow-md border overflow-hidden">
+                  <div className="bg-slate-200 px-3 pt-3 flex flex-wrap justify-between items-center border-b border-slate-300 gap-2">
+                    <div className="flex items-center space-x-2">
+                      <div className="flex space-x-1">
+                        {monthsList.map((m) => (
+                          <button
+                            key={m.key}
+                            onClick={() => setActiveMonthKey(m.key)}
+                            className={`px-4 py-2 font-bold text-xs rounded-t-lg transition-all border-t-2 ${activeMonthKey === m.key ? 'bg-white text-blue-700 border-blue-600 shadow' : 'bg-slate-300 text-slate-600 hover:bg-slate-100 border-transparent'}`}
+                          >
+                            📅 {m.label} 預估表
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* ⚡ 快速跨廠區/總表跳頁按鈕 */}
+                      <div className="flex items-center space-x-1 bg-white/90 px-2 py-1 rounded-t-lg border border-slate-300 text-xs font-bold shadow-sm">
+                        <span className="text-[11px] text-slate-500 mr-1">⚡ 跳頁:</span>
+                        {activePlantId !== 'plant1' && (
+                          <button
+                            onClick={() => {
+                              setActivePlantId('plant1');
+                              const el = document.getElementById('month-tables-section');
+                              if (el) el.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="px-2 py-0.5 rounded bg-blue-100 hover:bg-blue-600 text-blue-800 hover:text-white transition-all text-[11px]"
+                            title="快速切換到彰濱一廠"
+                          >
+                            🏭 一廠
+                          </button>
+                        )}
+                        {activePlantId !== 'plant2' && (
+                          <button
+                            onClick={() => {
+                              setActivePlantId('plant2');
+                              const el = document.getElementById('month-tables-section');
+                              if (el) el.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="px-2 py-0.5 rounded bg-blue-100 hover:bg-blue-600 text-blue-800 hover:text-white transition-all text-[11px]"
+                            title="快速切換到彰濱二廠"
+                          >
+                            🏭 二廠
+                          </button>
+                        )}
+                        {activePlantId !== 'summary' && (
+                          <button
+                            onClick={() => {
+                              setActivePlantId('summary');
+                              const el = document.getElementById('month-tables-section');
+                              if (el) el.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="px-2 py-0.5 rounded bg-emerald-100 hover:bg-emerald-600 text-emerald-800 hover:text-white transition-all text-[11px]"
+                            title="快速切換到全廠總表"
+                          >
+                            📊 總表
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex items-center space-x-2">
@@ -2215,11 +2261,59 @@
                               ))}
                             </div>
                           </div>
-                          <span className="text-[11px] font-normal text-indigo-200">
-                            {calcMode === 'SALES' 
-                              ? `★ 產銷排產模式：從 ${activeMonthObj.month}/${latestSalesDayIndex + 1} 日產銷原料庫存起算，結合每日機台實體扣耗與進貨，推算原料是否足夠`
-                              : '★ 滿載模式：呈現全月 1 日至月底之機台極限滿載預估'}
-                          </span>
+                          <div className="flex items-center space-x-2">
+                            {/* ⚡ 快速跳頁捷徑按鈕 (不需往上滑動直接跳轉) */}
+                            <div className="flex items-center space-x-1.5 bg-indigo-950/90 px-2.5 py-1 rounded-lg border border-indigo-500 shadow-sm">
+                              <span className="text-[11px] font-bold text-yellow-300">⚡ 快速跳頁：</span>
+                              {activePlantId !== 'plant1' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActivePlantId('plant1');
+                                    const el = document.getElementById('month-tables-section');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-600 hover:bg-blue-500 text-white shadow transition-all cursor-pointer flex items-center"
+                                  title="快速切換至彰濱一廠"
+                                >
+                                  🏭 彰濱一廠
+                                </button>
+                              )}
+                              {activePlantId !== 'plant2' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActivePlantId('plant2');
+                                    const el = document.getElementById('month-tables-section');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-600 hover:bg-blue-500 text-white shadow transition-all cursor-pointer flex items-center"
+                                  title="快速切換至彰濱二廠"
+                                >
+                                  🏭 彰濱二廠
+                                </button>
+                              )}
+                              {activePlantId !== 'summary' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActivePlantId('summary');
+                                    const el = document.getElementById('month-tables-section');
+                                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                  }}
+                                  className="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow transition-all cursor-pointer flex items-center"
+                                  title="快速切換至全廠產線運作總表"
+                                >
+                                  📊 全廠總表
+                                </button>
+                              )}
+                            </div>
+                            <span className="text-[11px] font-normal text-indigo-200">
+                              {calcMode === 'SALES' 
+                                ? `★ 產銷排產模式：從 ${activeMonthObj.month}/${latestSalesDayIndex + 1} 日產銷原料庫存起算`
+                                : '★ 滿載模式：全月 1 日至月底極限滿載預估'}
+                            </span>
+                          </div>
                         </div>
 
                         <div className="overflow-x-auto">
@@ -2340,9 +2434,53 @@
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] font-normal opacity-80">
-                              {tank.type === 'SUPPLY' ? '原料供應明細' : '下腳料槽明細'}
-                            </span>
+                            <div className="flex items-center space-x-2">
+                              <div className="flex items-center space-x-1 bg-slate-900/60 px-2 py-0.5 rounded border border-slate-600 text-[10px]">
+                                <span className="text-yellow-300 font-bold">⚡ 跳頁:</span>
+                                {activePlantId !== 'plant1' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActivePlantId('plant1');
+                                      const el = document.getElementById('month-tables-section');
+                                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                    }}
+                                    className="px-1.5 py-0.5 rounded bg-blue-500 hover:bg-blue-400 text-white font-bold transition-all"
+                                  >
+                                    一廠
+                                  </button>
+                                )}
+                                {activePlantId !== 'plant2' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActivePlantId('plant2');
+                                      const el = document.getElementById('month-tables-section');
+                                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                    }}
+                                    className="px-1.5 py-0.5 rounded bg-blue-500 hover:bg-blue-400 text-white font-bold transition-all"
+                                  >
+                                    二廠
+                                  </button>
+                                )}
+                                {activePlantId !== 'summary' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setActivePlantId('summary');
+                                      const el = document.getElementById('month-tables-section');
+                                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                    }}
+                                    className="px-1.5 py-0.5 rounded bg-emerald-500 hover:bg-emerald-400 text-white font-bold transition-all"
+                                  >
+                                    總表
+                                  </button>
+                                )}
+                              </div>
+                              <span className="text-[11px] font-normal opacity-80">
+                                {tank.type === 'SUPPLY' ? '原料供應明細' : '下腳料槽明細'}
+                              </span>
+                            </div>
                           </div>
 
                           <div className="overflow-x-auto">
