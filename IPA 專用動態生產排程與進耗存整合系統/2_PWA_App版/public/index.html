@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>IPA 生產排程與進耗存整合系統 v3.8 (國定假日自動紅字與共用槽位勾選排除)</title>
+  <title>IPA 生產排程與進耗存整合系統 v3.9 (全廠運轉產線進耗存總表)</title>
   
   <!-- Favicon & PWA Icons -->
   <link rel="icon" type="image/png" href="./favicon.png">
@@ -138,7 +138,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // 系統最新版別標籤
-    const SYSTEM_VERSION = "v3.8 (國定假日自動紅字與一廠共用槽位自由勾選排除)";
+    const SYSTEM_VERSION = "v3.9 (新增全廠產線進耗存總表彙整分頁)";
 
     // 數字格式化輔助函式：即時過濾前導 0
     const cleanNumStr = (val) => {
@@ -674,8 +674,9 @@
         });
       };
 
-      // 篩選當前廠區的產線
+      // 篩選當前廠區的產線 (總表 summary 模式下顯示全廠產線)
       const activePlantLines = useMemo(() => {
+        if (activePlantId === 'summary') return lines;
         return lines.filter(l => (l.plantId || 'plant1') === activePlantId);
       }, [lines, activePlantId]);
 
@@ -684,14 +685,31 @@
         return tanksList.filter(t => (t.plantId || 'plant1') === activePlantId);
       }, [tanksList, activePlantId]);
 
+      // 🌟 總表專用：動態過濾「有被啟用中產線實際吃料(source)的原料槽清單」
+      // 一廠共用原料池會以合計總表單獨呈現；非共用池（如二廠 TK617/TK618 或一廠獨立槽）若有啟用產線吃它，則列入此清單
+      const operatingSupplyTanks = useMemo(() => {
+        const enabledLines = lines.filter(l => l.enabled);
+        const activeSources = new Set(enabledLines.map(l => l.source).filter(Boolean));
+        
+        if (activePlantId === 'summary') {
+          // 總表中：只列出非共用池且有被啟用產線吃料的原料儲槽（例如 TK617 有溶六在吃，TK618 無人吃則自動隱藏）
+          return tanksList.filter(t => t.type === 'SUPPLY' && !t.isSharedPool && activeSources.has(t.id));
+        } else {
+          // 一般廠區分頁：列出該廠所有專屬儲槽
+          return tanksList.filter(t => (t.plantId || 'plant1') === activePlantId);
+        }
+      }, [tanksList, lines, activePlantId]);
+
       // 當前廠區的原料槽選單 (SUPPLY)
       const currentPlantSupplyTanks = useMemo(() => {
+        if (activePlantId === 'summary') return tanksList.filter(t => t.type === 'SUPPLY');
         const targetP = activePlantId === 'config' ? newLinePlantId : activePlantId;
         return tanksList.filter(t => (t.plantId || 'plant1') === targetP && t.type === 'SUPPLY');
       }, [tanksList, activePlantId, newLinePlantId]);
 
       // 當前廠區的下腳料槽選單 (SCRAP)
       const currentPlantScrapTanks = useMemo(() => {
+        if (activePlantId === 'summary') return tanksList.filter(t => t.type === 'SCRAP');
         const targetP = activePlantId === 'config' ? newLinePlantId : activePlantId;
         return tanksList.filter(t => (t.plantId || 'plant1') === targetP && t.type === 'SCRAP');
       }, [tanksList, activePlantId, newLinePlantId]);
@@ -707,6 +725,9 @@
       }, [monthsList, activeMonthKey]);
 
       const activePlantObj = useMemo(() => {
+        if (activePlantId === 'summary') {
+          return { id: "summary", name: "📊 全廠產線運作進耗存總表", color: "emerald" };
+        }
         return PLANTS.find(p => p.id === activePlantId) || PLANTS[0];
       }, [activePlantId]);
 
@@ -785,10 +806,12 @@
         if (calcMode !== 'SALES') return 0;
         const monthSales = salesPlanData[activeMonthKey] || {};
         
-        // 依當前廠區鎖定目標 targetKeys (一廠為 'plant1'，二廠為該廠所屬原料槽)
-        const targetKeys = activePlantId === 'plant1'
-          ? ['plant1']
-          : tanksList.filter(t => (t.plantId || 'plant1') === activePlantId && t.type === 'SUPPLY').map(t => t.id);
+        // 依當前廠區鎖定目標 targetKeys (一廠為 'plant1'，二廠為該廠所屬原料槽，總表為全體)
+        const targetKeys = activePlantId === 'summary'
+          ? ['plant1', ...tanksList.filter(t => t.type === 'SUPPLY').map(t => t.id)]
+          : (activePlantId === 'plant1'
+              ? ['plant1']
+              : tanksList.filter(t => (t.plantId || 'plant1') === activePlantId && t.type === 'SUPPLY').map(t => t.id));
 
         for (let i = activeMonthObj.daysCount - 1; i >= 0; i--) {
           for (const key of targetKeys) {
@@ -1367,7 +1390,7 @@
         let rows = [[`IPA 生產排程與進耗存整合系統 ${SYSTEM_VERSION} (${plantObj.name} - ${currentMonthObj.label} - ${calcMode === 'SALES' ? `產銷排產首日(${latestSalesDayIndex+1}號起)模式` : '流速滿載模式'})`]];
         rows.push(["日期", ...displayDaysArr.map(i => `${currentMonthObj.month}/${i + 1}`)]);
 
-        if (activePlantId === 'plant1' && calculatedData.poolSummary[activeMonthKey]) {
+        if ((activePlantId === 'plant1' || activePlantId === 'summary') && calculatedData.poolSummary[activeMonthKey]) {
           rows.push([]);
           rows.push(["=== 🔗 彰濱一廠共用原料池 (合計) ==="]);
           const pSum = calculatedData.poolSummary[activeMonthKey];
@@ -1378,7 +1401,8 @@
           rows.push(["共用池當日剩餘結存", ...displayDaysArr.map(i => Math.round(pSum[i].end))]);
         }
 
-        activePlantTanks.forEach(t => {
+        const tanksToExport = activePlantId === 'summary' ? operatingSupplyTanks : activePlantTanks;
+        tanksToExport.forEach(t => {
           rows.push([]);
           rows.push([`--- ${t.name} ---`]);
           const daysData = (calculatedData.result[activeMonthKey] && calculatedData.result[activeMonthKey][t.id]) || [];
@@ -1511,6 +1535,17 @@
                     </span>
                   </button>
                 ))}
+
+                {/* 🌟 核心新增：全廠運作總表（免切換分頁，只顯示有產線在吃的原料儲槽表格） */}
+                <button
+                  onClick={() => setActivePlantId('summary')}
+                  className={`px-6 py-3 font-black text-sm rounded-t-xl transition-all flex items-center space-x-2 shadow-sm ${activePlantId === 'summary' ? 'bg-emerald-700 text-white shadow-md scale-105' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-300'}`}
+                >
+                  <span className="text-base">📊 全廠產線運作總表 (免切換)</span>
+                  <span className="text-[10px] bg-emerald-950 text-emerald-200 px-2 py-0.5 rounded-full font-bold">
+                    {lines.filter(l => l.enabled).length} 條產線運轉中
+                  </span>
+                </button>
               </div>
 
               <button
@@ -1928,7 +1963,7 @@
 
                           <label className="block text-[11px] font-bold text-slate-600 mb-1">{activePlantObj.name} 1號期初庫存 (T)</label>
                           <div className="grid grid-cols-3 gap-2 max-h-[140px] overflow-y-auto p-1 border rounded bg-slate-50">
-                            {activePlantTanks.map(t => {
+                            {(activePlantId === 'summary' ? tanksList : activePlantTanks).map(t => {
                               const rawVal = tankInits[t.id] !== undefined ? tankInits[t.id] : (t.defaultInit || 0);
                               const displayVal = cleanNumStr(rawVal) === '' ? '0' : cleanNumStr(rawVal);
                               return (
@@ -1963,19 +1998,22 @@
                               <span className="font-bold text-purple-700">{activeMonthObj.label}</span>
                             </div>
 
-                            {/* 🌟 核心增強：二廠或獨立原料槽廠區，提供按儲槽切換下拉選單！ */}
+                            {/* 🌟 核心增強：支援一廠共用池、二廠或全廠總表模式切換下拉選單！ */}
                             {activePlantId === 'plant1' ? (
                               <div className="text-[11px] font-bold text-blue-800 bg-blue-100/70 p-1.5 rounded border border-blue-200 flex items-center">
                                 <span className="mr-1">🔗</span> 一廠 5 槽共用原料池 (合併起算)
                               </div>
                             ) : (
                               <div className="flex items-center space-x-2 bg-purple-100 p-1.5 rounded border border-purple-300">
-                                <span className="font-bold text-purple-900 text-[11px] shrink-0">選擇原料槽：</span>
+                                <span className="font-bold text-purple-900 text-[11px] shrink-0">選擇原料目標：</span>
                                 <select
                                   value={selectedSalesTankId}
                                   onChange={e => setSelectedSalesTankId(e.target.value)}
                                   className="w-full font-bold text-xs p-1 rounded border border-purple-400 bg-white text-purple-900 focus:outline-none focus:ring-1 focus:ring-purple-600"
                                 >
+                                  {activePlantId === 'summary' && (
+                                    <option value="plant1">🔗 彰濱一廠共用原料池 (合計)</option>
+                                  )}
                                   {currentPlantSupplyTanks.map(st => (
                                     <option key={st.id} value={st.id}>
                                       {st.id} ({st.name})
@@ -2052,7 +2090,7 @@
                           </div>
 
                           <p className="text-[11px] text-slate-500">
-                            {activePlantId === 'plant1' 
+                            {(activePlantId === 'plant1' || (activePlantId === 'summary' && selectedSalesTankId === 'plant1'))
                               ? '輸入一廠共用池產銷當日實體原料庫存重量。系統自動以最後（最新）填寫之日期起算（例如原本填 5 號，直接在 12 號填 438.5 噸，系統自動由 12 號起算，無需清空 5 號）。'
                               : `輸入選擇儲槽 [ ${selectedSalesTankId} ] 產銷當日實體原料庫存重量。系統自動以最後（最新）填寫之日期起算，無需清空舊日期。`}
                           </p>
@@ -2145,8 +2183,8 @@
                   {/* 30日動態進耗存預估表 */}
                   <div className="p-4 space-y-6">
                     
-                    {/* 🔗 彰濱一廠專用：共用原料池合計庫存預估表 */}
-                    {activePlantId === 'plant1' && calculatedData.poolSummary && calculatedData.poolSummary[activeMonthKey] && (
+                    {/* 🔗 彰濱一廠專用或全廠總表：共用原料池合計庫存預估表 */}
+                    {(activePlantId === 'plant1' || activePlantId === 'summary') && calculatedData.poolSummary && calculatedData.poolSummary[activeMonthKey] && (
                       <div className="border-2 border-indigo-400 rounded-xl overflow-hidden shadow-md bg-indigo-50/20">
                         <div className="p-2.5 font-bold text-white text-xs bg-indigo-900 flex flex-wrap gap-2 justify-between items-center">
                           <div className="flex items-center space-x-2">
@@ -2268,8 +2306,8 @@
                       </div>
                     )}
 
-                    {/* 實體儲槽預估表 (包含二廠 TK617, TK618 獨立槽進耗存) */}
-                    {activePlantTanks.map(tank => {
+                    {/* 實體儲槽預估表 (包含二廠 TK617, TK618 獨立槽進耗存；在總表時自動只秀有產線吃的槽位) */}
+                    {(activePlantId === 'summary' ? operatingSupplyTanks : activePlantTanks).map(tank => {
                       const tankDaysData = (calculatedData.result[activeMonthKey] && calculatedData.result[activeMonthKey][tank.id]) || [];
 
                       return (
@@ -2277,7 +2315,12 @@
                           <div className={`p-2.5 font-bold text-white text-xs flex justify-between items-center ${tank.type === 'SUPPLY' ? 'bg-slate-700' : 'bg-emerald-800'}`}>
                             <div className="flex items-center space-x-2">
                               <span>{tank.name}</span>
-                              {tank.plantId === 'plant1' && tank.type === 'SUPPLY' && (
+                              {activePlantId === 'summary' && (
+                                <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold shadow-sm">
+                                  {tank.plantId === 'plant1' ? '🏭 彰濱一廠' : '🏭 彰濱二廠'} • 產線吃料運轉中
+                                </span>
+                              )}
+                              {tank.plantId === 'plant1' && tank.type === 'SUPPLY' && activePlantId !== 'summary' && (
                                 <button
                                   type="button"
                                   onClick={() => toggleTankSharedPool(tank.id)}
@@ -2479,7 +2522,13 @@
                       );
                     })}
 
-                    {activePlantTanks.length === 0 && (
+                    {activePlantId === 'summary' && operatingSupplyTanks.length === 0 && !calculatedData.poolSummary && (
+                      <div className="p-6 text-center text-slate-400 font-bold border border-dashed rounded-lg bg-white">
+                        目前全廠產線皆未開啟，請先於上方開啟產線以呈現運轉進耗存預估表。
+                      </div>
+                    )}
+
+                    {activePlantId !== 'summary' && activePlantTanks.length === 0 && (
                       <div className="p-6 text-center text-slate-400 font-bold border border-dashed rounded-lg bg-white">
                         目前 {activePlantObj.name} 尚未設定專屬儲槽。
                       </div>
