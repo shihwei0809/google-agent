@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ACT 動態生產排程與進耗存整合系統 (PWA 雲端版)</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" href="./favicon.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ACT排程">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    .sticky-col { 
+      position: sticky !important; 
+      left: 0 !important; 
+      z-index: 20 !important; 
+      background-color: #f8fafc !important; 
+      min-width: 140px !important; 
+      max-width: 140px !important;
+      width: 140px !important;
+      white-space: nowrap !important; 
+      border-right: 2px solid #cbd5e1 !important; 
+      padding: 6px 10px !important;
+      text-align: left !important;
+      font-size: 11px !important;
+    }
+
+    .date-col {
+      min-width: 62px !important;
+      max-width: 70px !important;
+      width: 65px !important;
+      white-space: nowrap !important;
+      padding: 4px 1px !important;
+      text-align: center !important;
+      font-size: 11px !important;
+    }
+
+    .table-cell-input { 
+      width: 100%; 
+      border: 1px solid transparent; 
+      background: transparent; 
+      text-align: center; 
+      font-weight: bold; 
+      border-radius: 3px; 
+      padding: 2px 0; 
+      font-size: 11px;
+    }
+    .table-cell-input:hover, .table-cell-input:focus { 
+      border-color: #3b82f6; 
+      background-color: #ffffff; 
+      outline: none; 
+    }
+
+    .manual-modified { 
+      background-color: #fef3c7 !important; 
+      color: #92400e !important; 
+      border: 1px solid #f59e0b !important; 
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 text-xs">
+
+  <!-- 1. 頂部導航列 -->
+  <header class="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between shadow-md gap-3">
+    <div class="flex items-center space-x-2">
+      <span class="text-xl">⚡</span>
+      <div>
+        <h1 class="text-base font-bold tracking-wide">ACT 動態生產排程與進耗存整合系統</h1>
+        <div class="text-[10px] text-slate-400">Cloudflare Pages 邊緣高速版 (資料庫同步 Google 試算表)</div>
+      </div>
+    </div>
+    
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex items-center space-x-1 bg-slate-800 px-2 py-1 rounded border border-slate-700">
+        <span class="text-slate-300">歷史存檔區:</span>
+        <select id="historySelect" class="bg-slate-900 text-white border border-slate-600 rounded px-1.5 py-0.5 text-xs outline-none">
+          <option value="">-- 選擇歷史紀錄 --</option>
+        </select>
+        <button onclick="loadHistoryRecord()" class="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white font-medium">讀取</button>
+      </div>
+
+      <button onclick="saveHistoryRecord()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded text-white font-semibold flex items-center gap-1 shadow-sm">
+        <span>💾</span> 備份存檔
+      </button>
+      <button onclick="resetAllData()" class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-white font-semibold shadow-sm">
+        全清空重來
+      </button>
+      <button onclick="saveToCloud()" id="btnSaveCloud" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white font-semibold shadow-sm flex items-center gap-1">
+        <span>☁️</span> 寫入試算表
+      </button>
+
+      <button id="pwaInstallBtn" onclick="installPWA()" class="hidden bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white font-semibold shadow-sm flex items-center gap-1 animate-pulse">
+        <span>📲</span> 安裝桌面 App
+      </button>
+      
+      <div id="cloudStatusBadge" class="flex items-center space-x-1 pl-2 text-emerald-400 font-medium">
+        <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="txtCloudStatus">已連線</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. 主要工作區 -->
+  <main class="p-3 max-w-[1920px] mx-auto space-y-3">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      
+      <!-- 產線排程設定 -->
+      <section class="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center space-x-1.5 text-slate-700 font-bold border-b pb-1.5">
+          <span class="text-blue-600">⚙️</span>
+          <span class="text-sm">產線排程設定</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-slate-500 text-[11px] mb-0.5">預計開機時間 (排程表起始日)</label>
+            <input type="datetime-local" id="startBootTime" class="w-full border rounded px-2 py-1 font-semibold text-slate-700 bg-slate-50 focus:bg-white" onchange="onParamChange()">
+          </div>
+          <div>
+            <label class="block text-slate-500 text-[11px] mb-0.5">製程出料時間 (耗用與生產起點)</label>
+            <input type="datetime-local" id="startProduceTime" class="w-full border rounded px-2 py-1 font-semibold text-purple-700 bg-purple-50 focus:bg-white" onchange="onParamChange()">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div>
+            <label class="block text-slate-500 text-[11px] mb-0.5">總目標產量(T)</label>
+            <input type="number" step="0.1" id="totalTarget" class="w-full border rounded px-2 py-1 font-bold text-slate-800" oninput="onParamChange()">
+          </div>
+          <div>
+            <label class="block text-slate-500 text-[11px] mb-0.5">流速(T/hr)</label>
+            <input type="number" step="0.1" id="flowRate" class="w-full border rounded px-2 py-1 font-bold text-slate-800" oninput="onParamChange()">
+          </div>
+          <div>
+            <label class="block text-slate-500 text-[11px] mb-0.5">單車容量(T)</label>
+            <input type="number" step="0.1" id="batchCap" class="w-full border rounded px-2 py-1 font-bold text-slate-800" oninput="onParamChange()">
+          </div>
+          <div>
+            <label class="block text-slate-500 text-[11px] mb-0.5">生產良率(%)</label>
+            <input type="number" step="0.1" id="yieldRate" class="w-full border rounded px-2 py-1 font-bold text-orange-600 bg-orange-50" oninput="onParamChange()">
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded border border-slate-200">
+          <div>
+            <span class="text-slate-500">預估原料總量(T): </span>
+            <span id="txtRawTotalNeeded" class="text-blue-700 font-extrabold text-sm ml-1">0.0</span>
+          </div>
+          <button onclick="recalculateAll(true)" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-0.5 rounded text-[11px] font-semibold" title="強制清除所有手動鎖定，全表自動重新推算">
+            全部還原自動計算
+          </button>
+        </div>
+
+        <div>
+          <label class="block text-slate-500 text-[11px] mb-0.5">槽車出車順序 (若有使用槽車送貨請填寫，逗號分隔；清空則不排槽車)</label>
+          <input type="text" id="truckOrderNote" placeholder="例如: E102, E103" class="w-full border rounded px-2 py-1 text-slate-700" oninput="onParamChange()">
+        </div>
+      </section>
+
+      <!-- 庫存助採設定 -->
+      <section class="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm space-y-3">
+        <div class="flex items-center space-x-1.5 text-slate-700 font-bold border-b pb-1.5">
+          <span class="text-indigo-600">⚙️</span>
+          <span class="text-sm">庫存助採設定 (ACT 專屬配置)</span>
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between items-center">
+            <span class="font-semibold text-slate-700 text-[11px]">期初原料區槽桶存量(T)</span>
+            <span class="text-blue-600 font-bold text-[11px]">原料合計: <span id="txtRawTanksTotal">0.0</span> T</span>
+          </div>
+          <div class="grid grid-cols-5 gap-1.5">
+            <div>
+              <span class="text-[10px] text-slate-400 block text-center">TK657</span>
+              <input type="number" step="0.1" id="tank_TK657" class="w-full border rounded px-1.5 py-1 text-center font-bold" oninput="onStockInitChange()">
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block text-center">E13</span>
+              <input type="number" step="0.1" id="tank_E13" class="w-full border rounded px-1.5 py-1 text-center font-bold" oninput="onStockInitChange()">
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block text-center">E36</span>
+              <input type="number" step="0.1" id="tank_E36" class="w-full border rounded px-1.5 py-1 text-center font-bold" oninput="onStockInitChange()">
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block text-center">S208</span>
+              <input type="number" step="0.1" id="tank_S208" class="w-full border rounded px-1.5 py-1 text-center font-bold" oninput="onStockInitChange()">
+            </div>
+            <div>
+              <span class="text-[10px] text-rose-500 block text-center font-semibold">安全庫存量(T)</span>
+              <input type="number" step="0.1" id="rawSafetyStock" class="w-full border rounded px-1.5 py-1 text-center font-bold text-rose-600 bg-rose-50" oninput="onParamChange()">
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-1 pt-1 border-t">
+          <div class="flex justify-between items-center">
+            <span class="font-semibold text-slate-700 text-[11px]">期初成品區儲槽存量(T) - 無槽車存放</span>
+            <span class="text-emerald-600 font-bold text-[11px]">成品合計: <span id="txtProdTanksTotal">0.0</span> T</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <span class="text-[10px] text-slate-400 block">TK622 (成品槽)</span>
+              <input type="number" step="0.1" id="tank_TK622" class="w-full border rounded px-2 py-1 font-bold text-emerald-700 bg-emerald-50" oninput="onStockInitChange()">
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">TK622 最大容量限制(T)</span>
+              <input type="number" step="0.1" id="tk622Limit" class="w-full border rounded px-2 py-1 font-bold text-slate-700" oninput="onParamChange()">
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded border border-slate-200">
+          <div>
+            <span class="text-slate-500">預計預售總計(T): </span>
+            <input type="number" step="0.1" id="preSaleTotal" class="w-20 border rounded px-1 py-0.5 font-bold text-indigo-700 text-center" oninput="onParamChange()">
+          </div>
+          <button onclick="recalculateAll(false)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-0.5 rounded text-[11px] font-semibold">
+            重新運算
+          </button>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- 未來 30 日動態進耗存表 -->
+    <section class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-4 py-2.5 border-b flex flex-wrap items-center justify-between bg-slate-50 gap-2">
+        <div class="flex items-center space-x-2 font-bold text-slate-700 text-sm">
+          <span>📅</span>
+          <span>未來 30 日動態進耗存與成品估算表</span>
+          <span class="text-xs text-slate-400 font-normal">（刪除內容會立刻恢復自動計算；黃底代表手動鎖定，點 ↺ 亦可恢復）</span>
+        </div>
+        <button onclick="exportToExcel()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1 rounded text-xs font-semibold flex items-center gap-1">
+          <span>📊</span> 匯出 Excel
+        </button>
+      </div>
+
+      <div class="overflow-x-auto w-full border-t border-slate-200">
+        <table id="mainTable" class="min-w-full border-collapse text-center"></table>
+      </div>
+    </section>
+
+    <!-- 槽車動態排程表 -->
+    <section class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-4 py-2.5 border-b flex flex-wrap items-center justify-between bg-slate-50 gap-2">
+        <div class="flex items-center space-x-2 font-bold text-slate-700 text-sm">
+          <span>🚛</span>
+          <span>槽車出車動態排程表</span>
+          <span class="text-xs text-slate-400 font-normal">（上方清空槽車順序時，此表自動清空）</span>
+        </div>
+        <div class="text-xs font-bold text-blue-700">
+          總目標產量: <span id="txtTruckTarget">200.0</span> T | 共需出車: <span id="txtTruckTotalCount">0</span> 車
+        </div>
+      </div>
+
+      <div class="overflow-x-auto w-full border-t border-slate-200">
+        <table id="truckTable" class="min-w-full border-collapse text-center text-xs"></table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // 🌟 Google Apps Script API 網址 (與現有 Google 試算表連線)
+    let GAS_API_URL = "https://script.google.com/macros/s/AKfycbwTJm7TaEHqeEFrpVjUJpjDY3t60RXtpXsYRuFnflyKxtjqdGnFHhrFvjeYnu710aiRVQ/exec";
+
+    const appState = {
+      startBootTime: "2026-10-16T08:00",
+      startProduceTime: "2026-10-16T16:09",
+      totalTarget: 200.0,
+      flowRate: 1.2,
+      batchCap: 18.0,
+      yieldRate: 95.0,
+      truckOrderNote: "",
+
+      rawTanks: { TK657: 40.0, E13: 16.1, E36: 16.61, S208: 12.8 },
+      rawSafetyStock: 50.0,
+      prodTanks: { TK622: 3.5 },
+      tk622Limit: 170.0,
+      preSaleTotal: 138.0,
+
+      daysCount: 30,
+      dates: [],
+      fullDateKeys: [],
+
+      rawTransferIn: {},
+      rawPurchaseIn: {
+        "2026-10-19": 46.0,
+        "2026-10-20": 23.0,
+        "2026-10-21": 23.0,
+        "2026-10-22": 23.0,
+        "2026-10-23": 23.0
+      },
+      rawPipeRecycle: {},
+      prodOutflow: {},
+
+      manualRawUsageOverrides: {},
+      manualProdGenOverrides: {}
+    };
+
+    function round1D(num) {
+      return Math.round((Number(num) || 0) * 10) / 10;
+    }
+
+    function fmt1D(num) {
+      if (num === null || num === undefined || num === "" || num === 0) return "-";
+      return (Math.round(num * 10) / 10).toFixed(1);
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+      // 優先從本地快取或 Google 試算表載入
+      const cached = localStorage.getItem("ACT_CURRENT_STATE");
+      if (cached) {
+        try {
+          Object.assign(appState, JSON.parse(cached));
+        } catch(e) {}
+      }
+
+      bindInputs();
+      buildCalendarDates();
+      recalculateAll(false);
+
+      // 自動連線 Google 試算表同步最新資料
+      await fetchFromGoogleSheet();
+      refreshHistoryDropdown();
+    });
+
+    function bindInputs() {
+      document.getElementById("startBootTime").value = appState.startBootTime;
+      document.getElementById("startProduceTime").value = appState.startProduceTime;
+      document.getElementById("totalTarget").value = appState.totalTarget;
+      document.getElementById("flowRate").value = appState.flowRate;
+      document.getElementById("batchCap").value = appState.batchCap;
+      document.getElementById("yieldRate").value = appState.yieldRate;
+      document.getElementById("truckOrderNote").value = appState.truckOrderNote;
+
+      document.getElementById("tank_TK657").value = appState.rawTanks.TK657;
+      document.getElementById("tank_E13").value = appState.rawTanks.E13;
+      document.getElementById("tank_E36").value = appState.rawTanks.E36;
+      document.getElementById("tank_S208").value = appState.rawTanks.S208;
+      document.getElementById("rawSafetyStock").value = appState.rawSafetyStock;
+
+      document.getElementById("tank_TK622").value = appState.prodTanks.TK622;
+      document.getElementById("tk622Limit").value = appState.tk622Limit;
+      document.getElementById("preSaleTotal").value = appState.preSaleTotal;
+    }
+
+    function buildCalendarDates() {
+      appState.dates = [];
+      appState.fullDateKeys = [];
+      const baseDate = new Date(appState.startBootTime);
+      for (let i = 0; i < appState.daysCount; i++) {
+        const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + i);
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        const dateKey = `${d.getFullYear()}-${mm}-${dd}`;
+        appState.dates.push(`${d.getMonth() + 1}/${d.getDate()}`);
+        appState.fullDateKeys.push(dateKey);
+      }
+    }
+
+    function onParamChange() {
+      appState.startBootTime = document.getElementById("startBootTime").value;
+      appState.startProduceTime = document.getElementById("startProduceTime").value;
+      appState.totalTarget = parseFloat(document.getElementById("totalTarget").value) || 0;
+      appState.flowRate = parseFloat(document.getElementById("flowRate").value) || 0;
+      appState.batchCap = parseFloat(document.getElementById("batchCap").value) || 0;
+      appState.yieldRate = parseFloat(document.getElementById("yieldRate").value) || 95;
+      appState.rawSafetyStock = parseFloat(document.getElementById("rawSafetyStock").value) || 0;
+      appState.tk622Limit = parseFloat(document.getElementById("tk622Limit").value) || 0;
+      appState.preSaleTotal = parseFloat(document.getElementById("preSaleTotal").value) || 0;
+      appState.truckOrderNote = document.getElementById("truckOrderNote").value;
+
+      saveLocalCache();
+      buildCalendarDates();
+      recalculateAll(false);
+    }
+
+    function onStockInitChange() {
+      appState.rawTanks.TK657 = parseFloat(document.getElementById("tank_TK657").value) || 0;
+      appState.rawTanks.E13 = parseFloat(document.getElementById("tank_E13").value) || 0;
+      appState.rawTanks.E36 = parseFloat(document.getElementById("tank_E36").value) || 0;
+      appState.rawTanks.S208 = parseFloat(document.getElementById("tank_S208").value) || 0;
+      appState.prodTanks.TK622 = parseFloat(document.getElementById("tank_TK622").value) || 0;
+      saveLocalCache();
+      recalculateAll(false);
+    }
+
+    function saveLocalCache() {
+      localStorage.setItem("ACT_CURRENT_STATE", JSON.stringify(appState));
+    }
+
+    function recalculateAll(forceClearManual = false) {
+      if (forceClearManual) {
+        appState.manualRawUsageOverrides = {};
+        appState.manualProdGenOverrides = {};
+        saveLocalCache();
+      }
+
+      const yieldPct = (Number(appState.yieldRate) || 95) / 100;
+      const totalRawNeeded = round1D((Number(appState.totalTarget) || 0) / yieldPct);
+      const totalProdTarget = round1D(Number(appState.totalTarget) || 0);
+
+      document.getElementById("txtRawTotalNeeded").innerText = totalRawNeeded.toFixed(1);
+
+      const rawSum = round1D(appState.rawTanks.TK657 + appState.rawTanks.E13 + appState.rawTanks.E36 + appState.rawTanks.S208);
+      document.getElementById("txtRawTanksTotal").innerText = rawSum.toFixed(1);
+
+      const prodSum = round1D(appState.prodTanks.TK622);
+      document.getElementById("txtProdTanksTotal").innerText = prodSum.toFixed(1);
+
+      const flow = Number(appState.flowRate) || 0;
+      const hourlyRaw = flow / yieldPct;
+      const fullDayRaw = round1D(24 * hourlyRaw);
+      const fullDayProd = round1D(24 * flow);
+
+      const bootDate = new Date(appState.startBootTime);
+      const prodDate = new Date(appState.startProduceTime);
+
+      let curRawStock = rawSum;
+      let curProdStock = prodSum;
+      let accumRawUsage = 0;
+      let accumProdGen = 0;
+
+      const calcGrid = {
+        rawStart: [],
+        rawTrans: [],
+        rawIn: [],
+        rawUse: [],
+        rawPipe: [],
+        rawEnd: [],
+        prodStart: [],
+        prodGen: [],
+        prodOut: [],
+        prodEnd: []
+      };
+
+      for (let i = 0; i < appState.daysCount; i++) {
+        const dKey = appState.fullDateKeys[i];
+        const curDate = new Date(dKey + "T00:00:00");
+        const nextDate = new Date(curDate.getTime() + 24 * 3600 * 1000);
+
+        const isBootDay = (bootDate.getTime() >= curDate.getTime() && bootDate.getTime() < nextDate.getTime());
+        const isProdDay = (prodDate.getTime() >= curDate.getTime() && prodDate.getTime() < nextDate.getTime());
+
+        let nominalRaw = 0;
+        let nominalProd = 0;
+
+        if (nextDate <= bootDate) {
+          nominalRaw = 0;
+          nominalProd = 0;
+        } else if (isBootDay || isProdDay) {
+          const prodStartMs = Math.max(curDate.getTime(), prodDate.getTime());
+          const prodHours = Math.max(0, (nextDate.getTime() - prodStartMs) / (3600 * 1000));
+          nominalProd = round1D(prodHours * flow);
+          const prodRawNeed = nominalProd / yieldPct;
+          const prepRawNeed = (prodDate.getTime() > bootDate.getTime()) ? 4.1 : 0;
+          nominalRaw = round1D(prodRawNeed + prepRawNeed);
+        } else {
+          nominalRaw = fullDayRaw;
+          nominalProd = fullDayProd;
+        }
+
+        let effectiveRawUsage = 0;
+        let isUsageManual = false;
+
+        if (appState.manualRawUsageOverrides[dKey] !== undefined && 
+            appState.manualRawUsageOverrides[dKey] !== null && 
+            appState.manualRawUsageOverrides[dKey] !== "") {
+          effectiveRawUsage = Number(appState.manualRawUsageOverrides[dKey]);
+          isUsageManual = true;
+        } else {
+          if (accumRawUsage >= totalRawNeeded) {
+            effectiveRawUsage = 0;
+          } else {
+            const rawRemain = round1D(totalRawNeeded - accumRawUsage);
+            effectiveRawUsage = Math.min(nominalRaw, rawRemain);
+          }
+        }
+        accumRawUsage = round1D(accumRawUsage + effectiveRawUsage);
+
+        let effectiveProdGen = 0;
+        let isProdManual = false;
+
+        if (appState.manualProdGenOverrides[dKey] !== undefined && 
+            appState.manualProdGenOverrides[dKey] !== null && 
+            appState.manualProdGenOverrides[dKey] !== "") {
+          effectiveProdGen = Number(appState.manualProdGenOverrides[dKey]);
+          isProdManual = true;
+        } else {
+          if (accumProdGen >= totalProdTarget) {
+            effectiveProdGen = 0;
+          } else {
+            const prodRemain = round1D(totalProdTarget - accumProdGen);
+            effectiveProdGen = Math.min(nominalProd, prodRemain);
+          }
+        }
+        accumProdGen = round1D(accumProdGen + effectiveProdGen);
+
+        const transVal = round1D(appState.rawTransferIn[dKey] || 0);
+        const inVal = round1D(appState.rawPurchaseIn[dKey] || 0);
+        const pipeVal = round1D(appState.rawPipeRecycle[dKey] || 0);
+        const prodOutVal = round1D(appState.prodOutflow[dKey] || 0);
+
+        const rawEndVal = round1D(curRawStock + transVal + inVal - effectiveRawUsage + pipeVal);
+        const prodEndVal = round1D(curProdStock + effectiveProdGen - prodOutVal);
+
+        calcGrid.rawStart.push(curRawStock);
+        calcGrid.rawTrans.push({ val: transVal, dKey });
+        calcGrid.rawIn.push({ val: inVal, dKey });
+        calcGrid.rawUse.push({ val: effectiveRawUsage, dKey, isManual: isUsageManual });
+        calcGrid.rawPipe.push({ val: pipeVal, dKey });
+        calcGrid.rawEnd.push(rawEndVal);
+
+        calcGrid.prodStart.push(curProdStock);
+        calcGrid.prodGen.push({ val: effectiveProdGen, dKey, isManual: isProdManual });
+        calcGrid.prodOut.push({ val: prodOutVal, dKey });
+        calcGrid.prodEnd.push(prodEndVal);
+
+        curRawStock = rawEndVal;
+        curProdStock = prodEndVal;
+      }
+
+      renderTableDOM(calcGrid);
+      renderTruckScheduleDOM();
+    }
+
+    function renderTableDOM(grid) {
+      const table = document.getElementById("mainTable");
+      let html = "";
+
+      html += `<thead><tr class="bg-slate-100 text-slate-700 font-bold border-b">
+        <th class="sticky-col font-bold">項目 / 日期</th>`;
+      appState.dates.forEach((dStr, idx) => {
+        const dObj = new Date(appState.fullDateKeys[idx]);
+        const isWeekend = (dObj.getDay() === 0 || dObj.getDay() === 6);
+        html += `<th class="date-col border-l ${isWeekend ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-700'}">${dStr}</th>`;
+      });
+      html += `</tr></thead><tbody class="divide-y divide-slate-200">`;
+
+      // 期初庫存量 (原料)
+      html += `<tr class="hover:bg-slate-50 font-semibold text-slate-600">
+        <td class="sticky-col text-blue-900 font-bold">期初庫存量 (原料)</td>`;
+      grid.rawStart.forEach(v => {
+        html += `<td class="date-col border-l font-bold text-slate-700">${fmt1D(v)}</td>`;
+      });
+      html += `</tr>`;
+
+      // 調撥 (+)
+      html += `<tr class="hover:bg-slate-50">
+        <td class="sticky-col text-blue-700 font-semibold">調撥 (+)</td>`;
+      grid.rawTrans.forEach(item => {
+        html += `<td class="date-col border-l">
+          <input type="number" step="0.1" class="table-cell-input text-blue-600 font-semibold" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+            oninput="onGridValChange('rawTransferIn', '${item.dKey}', this.value)" placeholder="-">
+        </td>`;
+      });
+      html += `</tr>`;
+
+      // 進貨量 (+)
+      html += `<tr class="hover:bg-slate-50">
+        <td class="sticky-col text-blue-700 font-bold">進貨量 (+)</td>`;
+      grid.rawIn.forEach(item => {
+        html += `<td class="date-col border-l">
+          <input type="number" step="0.1" class="table-cell-input text-blue-700 font-extrabold" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+            oninput="onGridValChange('rawPurchaseIn', '${item.dKey}', this.value)" placeholder="-">
+        </td>`;
+      });
+      html += `</tr>`;
+
+      // 預估使用量 (-)
+      html += `<tr class="bg-amber-50/60 hover:bg-amber-50">
+        <td class="sticky-col font-bold text-amber-800 bg-amber-50">預估使用量 (-)</td>`;
+      grid.rawUse.forEach(item => {
+        const isM = item.isManual;
+        const displayVal = (item.val > 0) ? item.val.toFixed(1) : "";
+        html += `<td class="date-col border-l ${item.val > 0 ? 'bg-amber-50/70' : ''}">
+          <div class="relative flex items-center justify-center">
+            <input type="number" step="0.1" 
+              class="table-cell-input text-amber-900 font-black ${isM ? 'manual-modified' : ''}" 
+              value="${displayVal}"
+              title="${isM ? '⚠️ 人員手動修改值 (清空或點擊 ↺ 立即恢復自動計算)' : '⚡ 系統自動推算 (首日 14.0，後續 30.3，完工補尾數)'}"
+              oninput="onManualOverrideInput('manualRawUsageOverrides', '${item.dKey}', this.value)" 
+              placeholder="-">
+            ${isM ? `<button onclick="resetOverride('manualRawUsageOverrides', '${item.dKey}')" 
+              class="absolute right-0 text-[10px] text-amber-800 hover:text-rose-600 font-bold px-0.5" title="立即還原系統自動算">↺</button>` : ''}
+          </div>
+        </td>`;
+      });
+      html += `</tr>`;
+
+      // 管線回吃 (+)
+      html += `<tr class="hover:bg-slate-50">
+        <td class="sticky-col text-teal-700 font-semibold">管線回吃 (+)</td>`;
+      grid.rawPipe.forEach(item => {
+        html += `<td class="date-col border-l">
+          <input type="number" step="0.1" class="table-cell-input font-bold text-teal-700" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+            oninput="onGridValChange('rawPipeRecycle', '${item.dKey}', this.value)" placeholder="-">
+        </td>`;
+      });
+      html += `</tr>`;
+
+      // 原料結存剩餘
+      html += `<tr class="font-extrabold">
+        <td class="sticky-col font-black text-white bg-slate-700">原料結存剩餘</td>`;
+      grid.rawEnd.forEach(v => {
+        const isBelowSafe = (v < appState.rawSafetyStock);
+        html += `<td class="date-col border-l ${isBelowSafe ? 'bg-red-600 text-white font-black' : 'bg-slate-100 text-slate-800 font-bold'}">
+          ${v.toFixed(1)}
+        </td>`;
+      });
+      html += `</tr>`;
+
+      // 分隔線
+      html += `<tr><td colspan="${appState.daysCount + 1}" class="h-2 bg-slate-200 border-y border-dashed border-slate-300"></td></tr>`;
+
+      // 期初庫存量 (成品)
+      html += `<tr class="hover:bg-slate-50 font-semibold text-slate-600">
+        <td class="sticky-col text-emerald-900 font-bold">期初庫存量 (成品)</td>`;
+      grid.prodStart.forEach(v => {
+        html += `<td class="date-col border-l font-bold text-slate-700">${v.toFixed(1)}</td>`;
+      });
+      html += `</tr>`;
+
+      // 預估生產量 (+)
+      html += `<tr class="bg-emerald-50/60 hover:bg-emerald-50">
+        <td class="sticky-col font-bold text-emerald-800 bg-emerald-50">預估生產量 (+)</td>`;
+      grid.prodGen.forEach(item => {
+        const isM = item.isManual;
+        const displayVal = (item.val > 0) ? item.val.toFixed(1) : "";
+        html += `<td class="date-col border-l ${item.val > 0 ? 'bg-emerald-50/70' : ''}">
+          <div class="relative flex items-center justify-center">
+            <input type="number" step="0.1" 
+              class="table-cell-input text-emerald-900 font-black ${isM ? 'manual-modified' : ''}" 
+              value="${displayVal}"
+              title="${isM ? '⚠️ 人員手動修改值 (清空或點擊 ↺ 立即恢復自動計算)' : '⚡ 系統自動推算 (首日 9.4，後續 28.8)'}"
+              oninput="onManualOverrideInput('manualProdGenOverrides', '${item.dKey}', this.value)" 
+              placeholder="-">
+            ${isM ? `<button onclick="resetOverride('manualProdGenOverrides', '${item.dKey}')" 
+              class="absolute right-0 text-[10px] text-amber-800 hover:text-rose-600 font-bold px-0.5" title="立即還原系統自動算">↺</button>` : ''}
+          </div>
+        </td>`;
+      });
+      html += `</tr>`;
+
+      // 成品出料 (-)
+      html += `<tr class="hover:bg-slate-50">
+        <td class="sticky-col text-rose-700 font-semibold">成品出料 (-)</td>`;
+      grid.prodOut.forEach(item => {
+        html += `<td class="date-col border-l">
+          <input type="number" step="0.1" class="table-cell-input font-bold text-rose-700" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+            oninput="onGridValChange('prodOutflow', '${item.dKey}', this.value)" placeholder="-">
+        </td>`;
+      });
+      html += `</tr>`;
+
+      // 成品結存估算
+      html += `<tr class="font-extrabold">
+        <td class="sticky-col font-black text-white bg-slate-700">成品結存估算</td>`;
+      grid.prodEnd.forEach(v => {
+        const isOverLimit = (v > appState.tk622Limit && appState.tk622Limit > 0);
+        html += `<td class="date-col border-l ${isOverLimit ? 'bg-rose-500 text-white font-black' : 'bg-emerald-50 text-emerald-950 font-bold'}">
+          ${v.toFixed(1)}
+        </td>`;
+      });
+      html += `</tr>`;
+
+      html += `</tbody>`;
+      table.innerHTML = html;
+    }
+
+    // ==================== 槽車排程 DOM 渲染 ====================
+    function renderTruckScheduleDOM() {
+      const truckTable = document.getElementById("truckTable");
+      const target = Number(appState.totalTarget) || 0;
+      const batchCap = Number(appState.batchCap) || 18.0;
+      const flow = Number(appState.flowRate) || 1.2;
+      const prodStart = new Date(appState.startProduceTime);
+
+      document.getElementById("txtTruckTarget").innerText = target.toFixed(1);
+
+      const orderList = (appState.truckOrderNote || "")
+        .split(/[,，]/)
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      // 槽車順序欄位清空時，槽車排程 100% 自動清空
+      if (orderList.length === 0 || target <= 0) {
+        document.getElementById("txtTruckTotalCount").innerText = "0";
+        truckTable.innerHTML = `<tbody><tr><td colspan="7" class="p-5 text-center text-slate-400 font-medium bg-slate-50">
+          ⚡ 目前未指定槽車出車順序，槽車排程已自動清空。（若需出車請於上方欄位填寫，例如：E102, E103）
+        </td></tr></tbody>`;
+        return;
+      }
+
+      const totalTrucks = Math.ceil(target / batchCap);
+      document.getElementById("txtTruckTotalCount").innerText = totalTrucks;
+
+      let html = `<thead><tr class="bg-slate-100 text-slate-700 font-bold border-b text-[11px]">
+        <th class="p-2 border-r">車次</th>
+        <th class="p-2 border-r">指定槽車車號 / 標籤</th>
+        <th class="p-2 border-r">預計開始灌裝時間</th>
+        <th class="p-2 border-r">預計出車時間 (完成)</th>
+        <th class="p-2 border-r">本車預計載重 (T)</th>
+        <th class="p-2 border-r">累計出車噸數 (T)</th>
+        <th class="p-2">出車備註</th>
+      </tr></thead><tbody class="divide-y divide-slate-200">`;
+
+      let curTruckStartMs = prodStart.getTime();
+      let accumWeight = 0;
+
+      for (let i = 1; i <= totalTrucks; i++) {
+        const truckLoad = (i === totalTrucks) ? round1D(target - accumWeight) : batchCap;
+        accumWeight = round1D(accumWeight + truckLoad);
+
+        const truckName = orderList[(i - 1) % orderList.length];
+        const startD = new Date(curTruckStartMs);
+        const endD = new Date(curTruckStartMs + (truckLoad / flow) * 3600 * 1000);
+
+        const fmtDate = (d) => `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+        html += `<tr class="hover:bg-blue-50/50">
+          <td class="p-2 border-r font-bold text-slate-700">第 ${i} 車</td>
+          <td class="p-2 border-r font-bold text-indigo-700 bg-indigo-50/40">${truckName}</td>
+          <td class="p-2 border-r text-slate-600">${fmtDate(startD)}</td>
+          <td class="p-2 border-r font-bold text-emerald-700 bg-emerald-50/40">${fmtDate(endD)}</td>
+          <td class="p-2 border-r font-extrabold text-slate-800">${truckLoad.toFixed(1)}</td>
+          <td class="p-2 border-r font-black text-blue-700">${accumWeight.toFixed(1)}</td>
+          <td class="p-2 text-slate-400">${i === totalTrucks ? '★ 目標批次末車' : '正常出車'}</td>
+        </tr>`;
+
+        curTruckStartMs = endD.getTime();
+      }
+
+      html += `</tbody>`;
+      truckTable.innerHTML = html;
+    }
+
+    function onManualOverrideInput(overrideMapName, dKey, val) {
+      const clean = val.trim();
+      if (clean === "" || isNaN(clean)) {
+        delete appState[overrideMapName][dKey];
+      } else {
+        appState[overrideMapName][dKey] = round1D(parseFloat(clean));
+      }
+      saveLocalCache();
+      recalculateAll(false);
+    }
+
+    function resetOverride(overrideMapName, dKey) {
+      delete appState[overrideMapName][dKey];
+      saveLocalCache();
+      recalculateAll(false);
+    }
+
+    function onGridValChange(category, dKey, val) {
+      const clean = val.trim();
+      if (clean === "" || isNaN(clean)) {
+        delete appState[category][dKey];
+      } else {
+        appState[category][dKey] = round1D(parseFloat(clean));
+      }
+      saveLocalCache();
+      recalculateAll(false);
+    }
+
+    // ==================== 雲端 Google 試算表 API 串接 ====================
+    async function fetchFromGoogleSheet() {
+      const statusEl = document.getElementById("txtCloudStatus");
+      try {
+        statusEl.innerText = "同步中...";
+        const res = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "load" })
+        });
+        const json = await res.json();
+        if (json.status === "SUCCESS" && json.data && Object.keys(json.data).length > 0) {
+          Object.assign(appState, json.data);
+          bindInputs();
+          buildCalendarDates();
+          recalculateAll(false);
+          saveLocalCache();
+          statusEl.innerText = "已連線 (試算表同步)";
+        } else {
+          statusEl.innerText = "已就緒 (本地快取)";
+        }
+      } catch (err) {
+        console.warn("GAS 連線提示:", err);
+        statusEl.innerText = "離線模式 (本地可用)";
+      }
+    }
+
+    async function saveToCloud() {
+      const btn = document.getElementById("btnSaveCloud");
+      const originalText = btn.innerHTML;
+      btn.innerHTML = "<span>⏳</span> 寫入中...";
+      btn.disabled = true;
+
+      try {
+        saveLocalCache();
+        const res = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "save", payload: appState })
+        });
+        const json = await res.json();
+        if (json.status === "SUCCESS") {
+          alert("✅ 成功寫入 Google 試算表！跨電腦開啟均會自動同步最新數據。");
+        } else {
+          alert("⚠️ 寫入完成但後端回傳: " + JSON.stringify(json));
+        }
+      } catch (err) {
+        alert("⚠️ 雲端寫入提示：已儲存至本機快取！(若試算表 API 未設定 CORS，請確認 GAS 網址)");
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // ==================== 歷史存檔與 Excel 匯出 ====================
+    async function saveHistoryRecord() {
+      const timeStr = new Date().toLocaleString();
+      const recordName = prompt("請輸入備份存檔名稱:", `ACT排程_${timeStr}`);
+      if (!recordName) return;
+
+      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+      archives[recordName] = JSON.parse(JSON.stringify(appState));
+      localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(archives));
+
+      refreshHistoryDropdown();
+      alert(`✅ 本地存檔成功: [${recordName}]`);
+
+      // 背景同步備份至 Google 試算表 ArchiveStore
+      try {
+        await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "archive", payload: appState, archiveName: recordName })
+        });
+      } catch(e) {}
+    }
+
+    function refreshHistoryDropdown() {
+      const select = document.getElementById("historySelect");
+      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+      select.innerHTML = '<option value="">-- 選擇歷史紀錄 --</option>';
+      Object.keys(archives).forEach(name => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+    }
+
+    function loadHistoryRecord() {
+      const select = document.getElementById("historySelect");
+      const chosen = select.value;
+      if (!chosen) {
+        alert("請先選擇要讀取的歷史紀錄！");
+        return;
+      }
+      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+      if (archives[chosen]) {
+        Object.assign(appState, archives[chosen]);
+        saveLocalCache();
+        window.location.reload();
+      }
+    }
+
+    function resetAllData() {
+      if (confirm("確定要重設全表資料回到預設狀態嗎？")) {
+        localStorage.removeItem("ACT_CURRENT_STATE");
+        localStorage.removeItem("ACT_PLANNER_ARCHIVES");
+        window.location.reload();
+      }
+    }
+
+    function exportToExcel() {
+      const table1 = document.getElementById("mainTable");
+      const wb = XLSX.utils.table_to_book(table1, { sheet: "動態進耗存表" });
+      
+      const table2 = document.getElementById("truckTable");
+      const ws2 = XLSX.utils.table_to_sheet(table2);
+      XLSX.utils.book_append_sheet(wb, ws2, "槽車出車動態排程");
+
+      const fileName = `ACT動態生產排程與槽車排程_${appState.fullDateKeys[0]}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    }
+
+    // ----------------------------------------------------
+    // PWA Service Worker 註冊與桌面/手機安裝支援
+    // ----------------------------------------------------
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('pwaInstallBtn');
+      if (btn) btn.classList.remove('hidden');
+    });
+
+    function installPWA() {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult.outcome === 'accepted') {
+            console.log('使用者接受安裝 PWA');
+          }
+          deferredPrompt = null;
+          const btn = document.getElementById('pwaInstallBtn');
+          if (btn) btn.classList.add('hidden');
+        });
+      }
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then((reg) => console.log('PWA ServiceWorker 註冊成功，範圍:', reg.scope))
+          .catch((err) => console.warn('PWA ServiceWorker 註冊失敗:', err));
+      });
+    }
+  </script>
+</body>
+</html>
