@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>資材課【槽車洩料與包材出貨】外勞工作適配與工時派工統計系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+    }
+    .glass-card {
+      background: rgba(30, 41, 59, 0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 px-6 py-4">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-cyan-500/25">
+          <i class="fa-solid fa-users-gear text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-wide">資材課外籍移工派工與適配性統計中心</h1>
+          <p class="text-xs text-slate-400">槽車洩料（高危險控制）與包材出貨（條碼對刷與貼單）作業權責劃分</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <i class="fa-solid fa-barcode mr-1.5"></i> 免貼出貨標籤 • 條碼對刷防呆
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto w-full px-6 py-8 space-y-8">
+
+    <!-- KPI Summary Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+      <div class="glass-card rounded-2xl p-5 border-l-4 border-l-cyan-500 shadow-xl">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+          <span>每日現場總工時</span>
+          <i class="fa-regular fa-clock text-cyan-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-white" id="totalTimeDisplay">800 分鐘</div>
+        <div class="text-xs text-slate-500 mt-1">約 13.3 小時（包材 8 批 + 槽車 3 車）</div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 border-l-4 border-l-emerald-500 shadow-xl">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+          <span>外勞可承擔工時</span>
+          <i class="fa-solid fa-person-digging text-emerald-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-emerald-400" id="foreignTimeDisplay">480 分鐘</div>
+        <div class="text-xs text-slate-500 mt-1">約 8.0 小時（體力/對刷/現場5S）</div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 border-l-4 border-l-blue-500 shadow-xl">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+          <span>本籍資材專注工時</span>
+          <i class="fa-solid fa-user-shield text-blue-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-blue-400" id="localTimeDisplay">320 分鐘</div>
+        <div class="text-xs text-slate-500 mt-1">約 5.3 小時（帳務/品檢/開閥指差）</div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 border-l-4 border-l-amber-500 shadow-xl">
+        <div class="flex items-center justify-between text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">
+          <span>外勞人力釋放率</span>
+          <i class="fa-solid fa-chart-pie text-amber-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-amber-400" id="ratioDisplay">60.0%</div>
+        <div class="text-xs text-slate-500 mt-1">包材高達 74% • 槽車雙人覆核 38%</div>
+      </div>
+    </div>
+
+    <!-- Interactive Tabs -->
+    <div class="glass-card rounded-2xl p-6 shadow-xl space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-700/60 pb-4">
+        <div class="flex space-x-2">
+          <button onclick="switchTab('matrix')" id="tabMatrix" class="px-4 py-2 rounded-xl text-sm font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition">
+            <i class="fa-solid fa-list-check mr-2"></i> 作業項目權責與適配矩陣
+          </button>
+          <button onclick="switchTab('simulator')" id="tabSim" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition">
+            <i class="fa-solid fa-calculator mr-2"></i> 每日批次工時動態試算器
+          </button>
+          <button onclick="switchTab('poster')" id="tabPoster" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition">
+            <i class="fa-solid fa-image mr-2"></i> 現場中越雙語 SOP 圖卡
+          </button>
+        </div>
+        <div class="text-xs text-slate-400">
+          <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 mr-1.5"></span> 即時資料庫連動就緒
+        </div>
+      </div>
+
+      <!-- Tab 1: Matrix View -->
+      <div id="viewMatrix" class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="text-xs text-slate-400 uppercase bg-slate-950/60 border-b border-slate-800">
+            <tr>
+              <th class="py-3 px-4">作業大類</th>
+              <th class="py-3 px-4">子作業項目</th>
+              <th class="py-3 px-4 text-center">適配等級</th>
+              <th class="py-3 px-4 text-center">外勞適配度</th>
+              <th class="py-3 px-4">外籍移工角色</th>
+              <th class="py-3 px-4">本籍資材角色</th>
+              <th class="py-3 px-4">現場防呆與 SOP 配套</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/60">
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-cyan-400">包材出貨</td>
+              <td class="py-3 px-4">空桶/鋼桶/IBC 搬運與木棧板堆疊</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">可獨立</span></td>
+              <td class="py-3 px-4 text-center font-bold text-emerald-400">95%</td>
+              <td class="py-3 px-4">主要體力搬運、排列、木棧板底座定位</td>
+              <td class="py-3 px-4">抽驗棧板完整度與堆疊安全</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">地面棧板角位線、堆疊限高目視標籤</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-cyan-400">包材出貨</td>
+              <td class="py-3 px-4">打包帶捆紮、PE 伸縮膜纏繞固棧</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">可獨立</span></td>
+              <td class="py-3 px-4 text-center font-bold text-emerald-400">90%</td>
+              <td class="py-3 px-4">操作半自動打包機、轉盤裹膜機</td>
+              <td class="py-3 px-4">抽查拉力與固定牢固度</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">目視卡標準：底部固定至少纏繞 4 圈以上</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-cyan-400">包材出貨</td>
+              <td class="py-3 px-4">出貨前外觀檢查 (刮痕/凹陷/破孔)</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">需指導</span></td>
+              <td class="py-3 px-4 text-center font-bold text-yellow-400">75%</td>
+              <td class="py-3 px-4">初步篩檢嚴重凹陷、漏水破孔與髒污</td>
+              <td class="py-3 px-4">不良品判定、開立報廢單</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">中越雙語對照之良品/不良品標準照片圖卡</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition bg-cyan-950/20">
+              <td class="py-3 px-4 font-semibold text-cyan-400">包材出貨</td>
+              <td class="py-3 px-4 font-bold text-white flex items-center">
+                <span>貼繳庫單與條碼對刷</span>
+                <span class="ml-2 text-[10px] px-1.5 py-0.5 bg-cyan-500/20 text-cyan-300 rounded border border-cyan-500/30">免貼出貨標籤</span>
+              </td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">需指導/對刷</span></td>
+              <td class="py-3 px-4 text-center font-bold text-yellow-400">65%</td>
+              <td class="py-3 px-4 text-cyan-300 font-medium">持條碼槍對刷桶身/棧板條碼、張貼繳庫單</td>
+              <td class="py-3 px-4">複核條碼比對結果、簽核繳庫單、異常處置</td>
+              <td class="py-3 px-4 text-slate-300 text-xs font-medium">條碼槍聲光防呆（嗶一聲綠燈OK / 長鳴紅燈立即停機呼叫）</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-cyan-400">包材出貨</td>
+              <td class="py-3 px-4">系統帳務過帳 (ERP扣帳/單據簽收)</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">嚴禁</span></td>
+              <td class="py-3 px-4 text-center font-bold text-red-400">0%</td>
+              <td class="py-3 px-4 text-red-400">不得接觸系統操作與單據簽核</td>
+              <td class="py-3 px-4">登入 ERP 扣帳、核對司機提單與簽單</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">ERP 與出貨單嚴禁非本籍權限人員登入代刷</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-amber-400">槽車洩料</td>
+              <td class="py-3 px-4">洩料前現場引導、輪擋放置、拉警戒線</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">可獨立</span></td>
+              <td class="py-3 px-4 text-center font-bold text-emerald-400">90%</td>
+              <td class="py-3 px-4">放置前後雙輪擋、拉起防護三角錐警戒線</td>
+              <td class="py-3 px-4">確認車輛完全熄火並拉上手煞車</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">地面輪擋專屬定位擺放點噴漆標示</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-amber-400">槽車洩料</td>
+              <td class="py-3 px-4">靜電接地夾夾持、集液盤鋪設</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">可獨立</span></td>
+              <td class="py-3 px-4 text-center font-bold text-emerald-400">85%</td>
+              <td class="py-3 px-4">夾持靜電夾、鋪設吸液棉/集液盒</td>
+              <td class="py-3 px-4">確認接地檢測儀綠燈導通</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">接地儀聲光蜂鳴警示（綠燈合格方可進行下步）</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-amber-400">槽車洩料</td>
+              <td class="py-3 px-4">卸料管線連接與安全插銷鎖定</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">需覆核</span></td>
+              <td class="py-3 px-4 text-center font-bold text-yellow-400">60%</td>
+              <td class="py-3 px-4">協助搬抬重油管、鎖定安全插銷</td>
+              <td class="py-3 px-4">接管前指差確認、確認墊片完整無破損</td>
+              <td class="py-3 px-4 text-slate-400 text-xs font-medium">雙人確認制：本籍指差＋鎖定插銷二次鎖緊</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-amber-400">槽車洩料</td>
+              <td class="py-3 px-4">槽體入料閥開關、洩料泵浦啟閉操作</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">嚴禁獨立</span></td>
+              <td class="py-3 px-4 text-center font-bold text-red-400">35%</td>
+              <td class="py-3 px-4 text-red-400">僅在安全警戒線外目視監看有無漏液</td>
+              <td class="py-3 px-4">核對入料槽號 (如TK-624) 並親自開閥啟泵</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">閥門上鎖掛牌 (LOTO)，外勞無開鎖鑰匙</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-amber-400">槽車洩料</td>
+              <td class="py-3 px-4">取樣分析、品檢合格判定 (水阻/比重)</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">嚴禁</span></td>
+              <td class="py-3 px-4 text-center font-bold text-red-400">0%</td>
+              <td class="py-3 px-4 text-red-400">嚴禁代替取樣與判讀檢驗數據</td>
+              <td class="py-3 px-4">親自抽取樣品送驗、簽署合格報告單</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">進錯料整槽報廢風險，100% 本籍資材把關</td>
+            </tr>
+            <tr class="hover:bg-slate-800/30 transition">
+              <td class="py-3 px-4 font-semibold text-amber-400">槽車洩料</td>
+              <td class="py-3 px-4">拆管、殘液回抽與管具 5S 清潔</td>
+              <td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">可獨立</span></td>
+              <td class="py-3 px-4 text-center font-bold text-emerald-400">80%</td>
+              <td class="py-3 px-4">殘液收集桶排空、管具吊掛、清水沖洗</td>
+              <td class="py-3 px-4">檢查防滴漏盲蓋是否鎖死</td>
+              <td class="py-3 px-4 text-slate-400 text-xs">專屬重力回抽接頭，洩料完成自動排空</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tab 2: Dynamic Simulator View -->
+      <div id="viewSimulator" class="hidden space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-900/60 p-6 rounded-2xl border border-slate-800">
+          <div>
+            <label class="block text-sm font-semibold text-slate-300 mb-2">每日包材出貨批次 (預設: 8 批)</label>
+            <input type="range" id="batchSlider" min="1" max="20" value="8" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-cyan-500" oninput="updateSim()">
+            <div class="flex justify-between text-xs text-slate-400 mt-2">
+              <span>1 批</span>
+              <span class="text-cyan-400 font-bold text-base" id="batchVal">8 批</span>
+              <span>20 批</span>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-slate-300 mb-2">每日槽車洩料車次 (預設: 3 車)</label>
+            <input type="range" id="tankerSlider" min="1" max="10" value="3" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500" oninput="updateSim()">
+            <div class="flex justify-between text-xs text-slate-400 mt-2">
+              <span>1 車</span>
+              <span class="text-amber-400 font-bold text-base" id="tankerVal">3 車</span>
+              <span>10 車</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="p-5 rounded-2xl bg-slate-950/40 border border-slate-800">
+            <h3 class="text-base font-bold text-cyan-400 mb-4 flex items-center">
+              <i class="fa-solid fa-boxes-packing mr-2"></i> 包材出貨工作分配預估
+            </h3>
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between pb-2 border-b border-slate-800">
+                <span class="text-slate-400">總耗時：</span>
+                <span class="font-bold text-white" id="pkgTotal">480 分鐘 (8.0 小時)</span>
+              </div>
+              <div class="flex justify-between pb-2 border-b border-slate-800">
+                <span class="text-emerald-400">外勞可負擔工時 (76%)：</span>
+                <span class="font-bold text-emerald-400" id="pkgForeign">365 分鐘 (6.1 小時)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-blue-400">本籍資材工時 (24%)：</span>
+                <span class="font-bold text-blue-400" id="pkgLocal">115 分鐘 (1.9 小時)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-5 rounded-2xl bg-slate-950/40 border border-slate-800">
+            <h3 class="text-base font-bold text-amber-400 mb-4 flex items-center">
+              <i class="fa-solid fa-truck-droplet mr-2"></i> 槽車洩料工作分配預估
+            </h3>
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between pb-2 border-b border-slate-800">
+                <span class="text-slate-400">總耗時：</span>
+                <span class="font-bold text-white" id="tankTotal">320 分鐘 (5.3 小時)</span>
+              </div>
+              <div class="flex justify-between pb-2 border-b border-slate-800">
+                <span class="text-emerald-400">外勞輔助工時 (36%)：</span>
+                <span class="font-bold text-emerald-400" id="tankForeign">115 分鐘 (1.9 小時)</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-blue-400">本籍主管工時 (64%)：</span>
+                <span class="font-bold text-blue-400" id="tankLocal">205 分鐘 (3.4 小時)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Visual Poster Preview -->
+      <div id="viewPoster" class="hidden space-y-4 text-center">
+        <p class="text-sm text-slate-300">現場已生成高解析中越雙語對照 SOP 圖卡（可直接下載印刷張貼於包材出貨區與條碼對刷站）：</p>
+        <div class="rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl inline-block max-w-4xl bg-black">
+          <img src="資材課_中越雙語_條碼對刷與貼單SOP圖卡.png" alt="SOP圖卡" class="w-full h-auto object-contain">
+        </div>
+        <div>
+          <a href="資材課_中越雙語_條碼對刷與貼單SOP圖卡.png" download class="inline-flex items-center px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-sm shadow-lg transition">
+            <i class="fa-solid fa-download mr-2"></i> 下載高清印刷圖檔 PNG (1920x1080)
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="border-t border-slate-800/80 text-center py-4 text-xs text-slate-500">
+    資材管理自動化與外籍移工派工標準化系統 &bull; 鴻勝化學科技
+  </footer>
+
+  <script>
+    function switchTab(tab) {
+      document.getElementById('viewMatrix').classList.add('hidden');
+      document.getElementById('viewSimulator').classList.add('hidden');
+      document.getElementById('viewPoster').classList.add('hidden');
+
+      document.getElementById('tabMatrix').className = "px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition";
+      document.getElementById('tabSim').className = "px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition";
+      document.getElementById('tabPoster').className = "px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition";
+
+      if (tab === 'matrix') {
+        document.getElementById('viewMatrix').classList.remove('hidden');
+        document.getElementById('tabMatrix').className = "px-4 py-2 rounded-xl text-sm font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition";
+      } else if (tab === 'simulator') {
+        document.getElementById('viewSimulator').classList.remove('hidden');
+        document.getElementById('tabSim').className = "px-4 py-2 rounded-xl text-sm font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition";
+      } else if (tab === 'poster') {
+        document.getElementById('viewPoster').classList.remove('hidden');
+        document.getElementById('tabPoster').className = "px-4 py-2 rounded-xl text-sm font-semibold bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition";
+      }
+    }
+
+    function updateSim() {
+      const b = parseInt(document.getElementById('batchSlider').value);
+      const t = parseInt(document.getElementById('tankerSlider').value);
+
+      document.getElementById('batchVal').innerText = b + ' 批';
+      document.getElementById('tankerVal').innerText = t + ' 車';
+
+      // 單批包材 60 分鐘: 外勞 45.6 分, 本籍 14.4 分 (外勞佔比約 76%)
+      const pkgT = b * 60;
+      const pkgF = Math.round(b * 45.6);
+      const pkgL = pkgT - pkgF;
+
+      // 單車槽車 106.6 分鐘: 外勞 38.3 分, 本籍 68.3 分 (外勞佔比約 36%)
+      const tankT = Math.round(t * 106.6);
+      const tankF = Math.round(t * 38.3);
+      const tankL = tankT - tankF;
+
+      const totalT = pkgT + tankT;
+      const totalF = pkgF + tankF;
+      const totalL = pkgL + tankL;
+      const ratio = ((totalF / totalT) * 100).toFixed(1);
+
+      document.getElementById('totalTimeDisplay').innerText = totalT + ' 分鐘';
+      document.getElementById('foreignTimeDisplay').innerText = totalF + ' 分鐘';
+      document.getElementById('localTimeDisplay').innerText = totalL + ' 分鐘';
+      document.getElementById('ratioDisplay').innerText = ratio + '%';
+
+      document.getElementById('pkgTotal').innerText = `${pkgT} 分鐘 (${(pkgT/60).toFixed(1)} 小時)`;
+      document.getElementById('pkgForeign').innerText = `${pkgF} 分鐘 (${(pkgF/60).toFixed(1)} 小時)`;
+      document.getElementById('pkgLocal').innerText = `${pkgL} 分鐘 (${(pkgL/60).toFixed(1)} 小時)`;
+
+      document.getElementById('tankTotal').innerText = `${tankT} 分鐘 (${(tankT/60).toFixed(1)} 小時)`;
+      document.getElementById('tankForeign').innerText = `${tankF} 分鐘 (${(tankF/60).toFixed(1)} 小時)`;
+      document.getElementById('tankLocal').innerText = `${tankL} 分鐘 (${(tankL/60).toFixed(1)} 小時)`;
+    }
+  </script>
+</body>
+</html>
