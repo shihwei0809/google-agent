@@ -89,3 +89,11 @@ test/kokoro-multi-lang-v1_1/
 *.pt
 *.pth
 *.safetensors
+
+# Massive Backup & Archive folders (Prevent Git from freezing Windows NTFS)
+old/
+專案備份/
+category_folders_backup/
+教育訓練教材/
+cross-device-agent-skills/
+my-ai-brain/
