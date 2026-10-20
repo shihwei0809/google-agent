@@ -405,7 +405,7 @@
       }
     }
 
-    function switchProductProfile(profileKey) {
+    async function switchProductProfile(profileKey) {
       if (!productProfiles[profileKey]) return;
       currentProfileKey = profileKey;
       appState.currentProduct = profileKey;
@@ -425,6 +425,10 @@
       renderTankInputs();
       saveLocalCache();
       recalculateAll(false);
+
+      // 切換產品時，主動向 Google 試算表拉取該產品分頁 (DataStore_[產品名]) 的最新數據
+      await fetchFromGoogleSheet(profileKey);
+      refreshHistoryDropdown();
     }
 
     function openNewProfileModal() {
@@ -1058,14 +1062,15 @@
     }
 
     // ==================== 雲端 Google 試算表 API 串接 ====================
-    async function fetchFromGoogleSheet() {
+    async function fetchFromGoogleSheet(targetProduct = null) {
       const statusEl = document.getElementById("txtCloudStatus");
+      const prodName = targetProduct || currentProfileKey || appState.currentProduct || "ACT";
       try {
-        statusEl.innerText = "同步中...";
+        statusEl.innerText = `同步中 (${prodName})...`;
         const res = await fetch(GAS_API_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "load" })
+          body: JSON.stringify({ action: "load", product: prodName })
         });
         const json = await res.json();
         if (json.status === "SUCCESS" && json.data && Object.keys(json.data).length > 0) {
@@ -1086,9 +1091,8 @@
           }
 
           Object.assign(appState, cloudData);
-          if (appState.currentProduct && productProfiles[appState.currentProduct]) {
-            currentProfileKey = appState.currentProduct;
-          }
+          appState.currentProduct = prodName;
+          currentProfileKey = prodName;
 
           renderProfileDropdown();
           bindInputs();
@@ -1096,9 +1100,9 @@
           buildCalendarDates();
           recalculateAll(false);
           saveLocalCache();
-          statusEl.innerText = "已連線 (試算表同步)";
+          statusEl.innerText = `已連線 (分頁: DataStore_${prodName})`;
         } else {
-          statusEl.innerText = "已就緒 (本地快取)";
+          statusEl.innerText = `已就緒 (本地快取: ${prodName})`;
         }
       } catch (err) {
         console.warn("GAS 連線提示:", err);
@@ -1108,8 +1112,9 @@
 
     async function saveToCloud() {
       const btn = document.getElementById("btnSaveCloud");
+      const prodName = currentProfileKey || appState.currentProduct || "ACT";
       const originalText = btn.innerHTML;
-      btn.innerHTML = "<span>⏳</span> 寫入中...";
+      btn.innerHTML = `<span>⏳</span> 寫入中 (${prodName})...`;
       btn.disabled = true;
 
       try {
@@ -1117,16 +1122,16 @@
         const res = await fetch(GAS_API_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "save", payload: appState })
+          body: JSON.stringify({ action: "save", product: prodName, payload: appState })
         });
         const json = await res.json();
         if (json.status === "SUCCESS") {
-          alert("✅ 成功寫入 Google 試算表！跨電腦開啟均會自動同步最新數據。");
+          alert(`✅ 成功寫入 Google 試算表專屬分頁 [DataStore_${prodName}]！跨電腦開啟均會自動同步最新數據。`);
         } else {
           alert("⚠️ 寫入完成但後端回傳: " + JSON.stringify(json));
         }
       } catch (err) {
-        alert("⚠️ 雲端寫入提示：已儲存至本機快取！(若試算表 API 未設定 CORS，請確認 GAS 網址)");
+        alert(`⚠️ 雲端寫入提示：已儲存至本機快取！(若試算表 API 未設定 CORS，請確認 GAS 網址)`);
       } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -1135,23 +1140,34 @@
 
     // ==================== 歷史存檔與 Excel 匯出 ====================
     async function saveHistoryRecord() {
-      const timeStr = new Date().toLocaleString();
-      const recordName = prompt("請輸入備份存檔名稱:", `ACT排程_${timeStr}`);
+      const prodName = currentProfileKey || appState.currentProduct || "ACT";
+      const now = new Date();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      const hh = String(now.getHours()).padStart(2, "0");
+      const min = String(now.getMinutes()).padStart(2, "0");
+      const defaultName = `[${prodName}] ${prodName}排程_${mm}${dd}_${hh}${min}`;
+      
+      const recordName = prompt("請輸入備份存檔名稱 (系統已自動以產品名開頭):", defaultName);
       if (!recordName) return;
 
+      // 確保開頭具備產品名
+      const prodTag = `[${prodName}]`;
+      const finalRecordName = recordName.trim().startsWith(prodTag) ? recordName.trim() : `${prodTag} ${recordName.trim()}`;
+
       const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
-      archives[recordName] = JSON.parse(JSON.stringify(appState));
+      archives[finalRecordName] = JSON.parse(JSON.stringify(appState));
       localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(archives));
 
       refreshHistoryDropdown();
-      alert(`✅ 本地存檔成功: [${recordName}]`);
+      alert(`✅ 本地存檔成功: [${finalRecordName}]`);
 
       // 背景同步備份至 Google 試算表 ArchiveStore
       try {
         await fetch(GAS_API_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "archive", payload: appState, archiveName: recordName })
+          body: JSON.stringify({ action: "archive", product: prodName, payload: appState, archiveName: finalRecordName })
         });
       } catch(e) {}
     }
@@ -1159,11 +1175,28 @@
     function refreshHistoryDropdown() {
       const select = document.getElementById("historySelect");
       const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+      const curProd = currentProfileKey || appState.currentProduct || "ACT";
+      const prodTag = `[${curProd}]`;
+
       select.innerHTML = '<option value="">-- 選擇歷史紀錄 --</option>';
-      Object.keys(archives).forEach(name => {
+      
+      // 優先排序：當前產品的紀錄置頂，其他產品紀錄置後
+      const keys = Object.keys(archives);
+      keys.sort((a, b) => {
+        const aMatches = a.startsWith(prodTag);
+        const bMatches = b.startsWith(prodTag);
+        if (aMatches && !bMatches) return -1;
+        if (!aMatches && bMatches) return 1;
+        return b.localeCompare(a);
+      });
+
+      keys.forEach(name => {
         const opt = document.createElement("option");
         opt.value = name;
         opt.textContent = name;
+        if (name.startsWith(prodTag)) {
+          opt.className = "text-indigo-600 font-bold";
+        }
         select.appendChild(opt);
       });
     }
@@ -1178,6 +1211,9 @@
       const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
       if (archives[chosen]) {
         Object.assign(appState, archives[chosen]);
+        if (appState.currentProduct) {
+          currentProfileKey = appState.currentProduct;
+        }
         saveLocalCache();
         window.location.reload();
       }

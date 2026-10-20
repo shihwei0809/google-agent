@@ -18,10 +18,11 @@ function getSheet(sheetName) {
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     sheet = ss.insertSheet(sheetName);
-    if (sheetName === MAIN_SHEET_NAME) {
+    if (sheetName.startsWith('ArchiveStore') || sheetName === ARCHIVE_SHEET_NAME) {
+      sheet.getRange(1, 1, 1, 4).setValues([['ArchiveID', 'Product', 'Timestamp', 'DataJSON']]);
+    } else {
+      // 包含 DataStore 或各產品工作表
       sheet.getRange(1, 1, 1, 2).setValues([['Key', 'Value']]);
-    } else if (sheetName === ARCHIVE_SHEET_NAME) {
-      sheet.getRange(1, 1, 1, 3).setValues([['ArchiveID', 'Timestamp', 'DataJSON']]);
     }
   }
   return sheet;
@@ -31,7 +32,7 @@ function getSheet(sheetName) {
 function doGet(e) {
   return ContentService.createTextOutput(JSON.stringify({
     status: "OK",
-    service: "ACT Dynamic Production Schedule & Inventory API",
+    service: "Dynamic Production Schedule & Inventory API",
     time: new Date().toISOString()
   })).setMimeType(ContentService.MimeType.JSON);
 }
@@ -45,29 +46,31 @@ function doPost(e) {
     }
 
     const action = contents.action || 'load';
+    const product = contents.product || contents.payload?.currentProduct || 'ACT';
+    const sheetName = 'DataStore_' + product.replace(/[/\\?*:[\]]/g, '_');
 
-    // 1. 讀取最新資料
+    // 1. 讀取特定產品最新資料
     if (action === 'load') {
-      const data = loadCloudData();
-      return buildJsonResponse({ status: "SUCCESS", data: data });
+      const data = loadCloudData(sheetName);
+      return buildJsonResponse({ status: "SUCCESS", product: product, data: data });
     }
 
-    // 2. 寫入最新資料
+    // 2. 寫入特定產品最新資料至獨立分頁
     if (action === 'save') {
-      const saveRes = saveCloudData(contents.payload || {});
-      return buildJsonResponse({ status: "SUCCESS", message: saveRes });
+      const saveRes = saveCloudData(sheetName, contents.payload || {});
+      return buildJsonResponse({ status: "SUCCESS", product: product, message: saveRes });
     }
 
-    // 3. 備份存檔
+    // 3. 備份存檔 (自動在開頭帶入產品名稱)
     if (action === 'archive') {
-      const archRes = archiveData(contents.payload || {}, contents.archiveName || '未命名存檔');
-      return buildJsonResponse({ status: "SUCCESS", message: archRes });
+      const archRes = archiveData(contents.payload || {}, contents.archiveName || '未命名存檔', product);
+      return buildJsonResponse({ status: "SUCCESS", product: product, message: archRes });
     }
 
     // 4. 讀取歷史備份清單
     if (action === 'get_archives') {
-      const list = getArchiveList();
-      return buildJsonResponse({ status: "SUCCESS", archives: list });
+      const list = getArchiveList(product);
+      return buildJsonResponse({ status: "SUCCESS", product: product, archives: list });
     }
 
     return buildJsonResponse({ status: "ERROR", message: "未知操作" });
@@ -83,12 +86,21 @@ function buildJsonResponse(obj) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-// --- 讀取主資料 ---
-function loadCloudData() {
-  const sheet = getSheet(MAIN_SHEET_NAME);
-  const data = sheet.getDataRange().getValues();
-  const result = {};
+// --- 讀取主資料 (支援分產品分頁，向下相容舊 ACT_DataStore) ---
+function loadCloudData(sheetName) {
+  let sheet = getSheet(sheetName);
+  let data = sheet.getDataRange().getValues();
 
+  // 若該產品專屬分頁為空且是 ACT，則嘗試回退讀取舊的 MAIN_SHEET_NAME
+  if (data.length <= 1 && sheetName.includes('ACT')) {
+    const oldSheet = getSheet(MAIN_SHEET_NAME);
+    const oldData = oldSheet.getDataRange().getValues();
+    if (oldData.length > 1) {
+      data = oldData;
+    }
+  }
+
+  const result = {};
   for (let i = 1; i < data.length; i++) {
     const key = String(data[i][0]).trim();
     if (!key) continue;
@@ -107,9 +119,9 @@ function loadCloudData() {
   return result;
 }
 
-// --- 寫入主資料 ---
-function saveCloudData(payload) {
-  const sheet = getSheet(MAIN_SHEET_NAME);
+// --- 寫入主資料 (寫入各產品專屬分頁，如 DataStore_ACT, DataStore_IPA) ---
+function saveCloudData(sheetName, payload) {
+  const sheet = getSheet(sheetName);
   const data = sheet.getDataRange().getValues();
 
   Object.keys(payload).forEach(key => {
@@ -141,29 +153,45 @@ function saveCloudData(payload) {
   return "SUCCESS";
 }
 
-// --- 備份歷史 ---
-function archiveData(payload, archiveName) {
+// --- 備份歷史 (自動前綴 [產品名] 開頭，以利後續讀取區分) ---
+function archiveData(payload, archiveName, product) {
   const sheet = getSheet(ARCHIVE_SHEET_NAME);
   const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss");
   const dataJSON = JSON.stringify(payload);
 
-  sheet.appendRow([String(archiveName), "'" + timestamp, dataJSON]);
+  // 防呆：若使用者輸入的名稱尚未包含產品名稱，自動在開頭補上 [產品名]
+  const prodTag = `[${product || 'ACT'}]`;
+  let finalName = String(archiveName).trim();
+  if (!finalName.startsWith(prodTag)) {
+    finalName = `${prodTag} ${finalName}`;
+  }
+
+  sheet.appendRow([finalName, product || 'ACT', "'" + timestamp, dataJSON]);
   SpreadsheetApp.flush();
   return "SUCCESS";
 }
 
-// --- 取得歷史清單 ---
-function getArchiveList() {
+// --- 取得歷史清單 (可依產品篩選或全列出) ---
+function getArchiveList(filterProduct) {
   const sheet = getSheet(ARCHIVE_SHEET_NAME);
   const data = sheet.getDataRange().getValues();
   const list = [];
 
   for (let i = 1; i < data.length; i++) {
     if (data[i][0]) {
+      const rowProd = String(data[i][1] || '');
+      const rowId = String(data[i][0]);
+      
+      // 若有指定產品過濾，且有填 product 欄位或開頭帶有 [產品名]
+      if (filterProduct && rowProd && rowProd !== filterProduct) {
+        continue;
+      }
+
       list.push({
-        id: String(data[i][0]),
-        time: String(data[i][1]),
-        dataStr: String(data[i][2])
+        id: rowId,
+        product: rowProd,
+        time: String(data[i][2] || ''),
+        dataStr: String(data[i][3] || data[i][2] || '')
       });
     }
   }
