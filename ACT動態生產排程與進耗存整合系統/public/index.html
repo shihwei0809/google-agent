@@ -73,7 +73,9 @@
     <div class="flex items-center space-x-2">
       <span class="text-xl">⚡</span>
       <div>
-        <h1 class="text-base font-bold tracking-wide">ACT 動態生產排程與進耗存整合系統</h1>
+        <h1 class="text-base font-bold tracking-wide">
+          <span id="txtHeaderProductBadge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded mr-1.5 font-extrabold shadow-sm">ACT</span>動態生產排程與進耗存整合系統
+        </h1>
         <div class="text-[10px] text-slate-400">Cloudflare Pages 邊緣高速版 (資料庫同步 Google 試算表)</div>
       </div>
     </div>
@@ -403,6 +405,11 @@
       if (titleEl) {
         titleEl.innerText = `${productProfiles[currentProfileKey]?.name || currentProfileKey} 專屬配置`;
       }
+      const badgeEl = document.getElementById("txtHeaderProductBadge");
+      if (badgeEl) {
+        badgeEl.innerText = productProfiles[currentProfileKey]?.name || currentProfileKey;
+      }
+      document.title = `[${productProfiles[currentProfileKey]?.name || currentProfileKey}] 動態生產排程與進耗存整合系統`;
     }
 
     async function switchProductProfile(profileKey) {
