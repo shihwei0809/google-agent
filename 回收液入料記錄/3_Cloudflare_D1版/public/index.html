@@ -33,6 +33,11 @@
         .lock-box button { width: 100%; max-width: 280px; margin: 0 auto; }
         .sync-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center; }
         .sync-modal-content { background: white; border-radius: 8px; padding: 20px; max-width: 90%; width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    .filter-chip-group { display: flex; gap: 8px; margin-bottom: 12px; overflow-x: auto; padding-bottom: 4px; }
+    .filter-chip { flex: 1; padding: 8px 10px; border-radius: 20px; border: 1px solid #ccc; background: white; color: #555; font-size: 14px; font-weight: bold; cursor: pointer; text-align: center; white-space: nowrap; transition: all 0.2s; }
+    .filter-chip.active { background: #007bff; color: white; border-color: #007bff; box-shadow: 0 2px 4px rgba(0,123,255,0.3); }
+    .filter-chip.pending-chip.active { background: #ffc107; color: #000; border-color: #ffc107; box-shadow: 0 2px 4px rgba(255,193,7,0.4); }
+    .filter-chip.completed-chip.active { background: #28a745; color: white; border-color: #28a745; box-shadow: 0 2px 4px rgba(40,167,69,0.3); }
     </style>
 </head>
 <body>
@@ -40,7 +45,7 @@
 <div id="updateBanner" onclick="location.reload(true)">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
 <div class="header">
-    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v14-D1 (相片修復 2026/10/14)</span>
+    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v15-D1 (待入料同步與快速篩選)</span>
     <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
@@ -104,9 +109,15 @@
             <span style="font-size:13px; color:#28a745;">🔓 已授權查閱</span>
             <button type="button" onclick="lockQuery()" style="width:auto; padding:5px 12px; margin:0; font-size:13px; background:#6c757d;">🔒 重新上鎖</button>
         </div>
+        <!-- 快速狀態篩選標籤 -->
+        <div class="filter-chip-group">
+            <button type="button" class="filter-chip active" id="chip-all" onclick="setQuickFilter('all')">全部</button>
+            <button type="button" class="filter-chip pending-chip" id="chip-pending" onclick="setQuickFilter('pending')">⏳ 待入料 (<span id="pendingBadgeCount">0</span>)</button>
+            <button type="button" class="filter-chip completed-chip" id="chip-completed" onclick="setQuickFilter('completed')">✅ 已完成</button>
+        </div>
         <div class="form-group" style="display:flex; gap:10px;">
-            <input type="text" id="searchInput" placeholder="輸入車號或日期搜尋..." style="flex:1;">
-            <button type="button" onclick="loadQueryRecords()" style="margin-top:0; width:auto; padding:10px 15px;">搜尋</button>
+            <input type="text" id="searchInput" placeholder="輸入車號或日期搜尋..." style="flex:1;" oninput="applyQueryFilters()">
+            <button type="button" onclick="loadQueryRecords(true)" style="margin-top:0; width:auto; padding:10px 15px;">重新整理</button>
         </div>
         <div id="queryList"></div>
     </div>
@@ -290,63 +301,51 @@
         document.getElementById(tabId).classList.add('active');
     }
 
-    // 查詢歷史：優先向 D1 抓取，若有紀錄缺少相片連結或 D1 異常，以 GAS 權威來源兜底補齊
-    async function loadQueryRecords() {
-        if (!navigator.onLine) {
-            document.getElementById('queryList').innerHTML = '<p style="text-align:center; color:red;">⚠ 離線狀態無法查詢雲端歷史紀錄</p>';
+    // 查詢歷史紀錄緩存與目前篩選狀態
+    let cachedQueryRecords = [];
+    let currentFilter = 'all';
+
+    function setQuickFilter(filterType) {
+        currentFilter = filterType;
+        document.querySelectorAll('.filter-chip').forEach(el => el.classList.remove('active'));
+        const activeChip = document.getElementById(`chip-${filterType}`);
+        if (activeChip) activeChip.classList.add('active');
+        applyQueryFilters();
+    }
+
+    function applyQueryFilters() {
+        const list = document.getElementById('queryList');
+        if (!list) return;
+        const keyword = (document.getElementById('searchInput')?.value || '').trim();
+
+        let filtered = cachedQueryRecords.filter(r => {
+            // 狀態過濾
+            if (currentFilter === 'pending' && r.status !== 'pending') return false;
+            if (currentFilter === 'completed' && r.status !== 'completed') return false;
+
+            // 關鍵字過濾 (車號、日期、時間)
+            if (keyword) {
+                const searchStr = `${r.license_plate || ''} ${r.date || ''} ${r.before_time || ''} ${r.after_time || ''}`;
+                if (!searchStr.includes(keyword)) return false;
+            }
+            return true;
+        });
+
+        // 更新待入料筆數 badge
+        const pendingCount = cachedQueryRecords.filter(r => r.status === 'pending').length;
+        const badgeEl = document.getElementById('pendingBadgeCount');
+        if (badgeEl) badgeEl.innerText = pendingCount;
+
+        if (filtered.length === 0) {
+            list.innerHTML = `<p style="text-align:center; color:#666; padding:20px 0;">找不到符合的紀錄${currentFilter === 'pending' ? '（目前無待入料項目）' : ''}</p>`;
             return;
         }
-        
-        const list = document.getElementById('queryList');
-        list.innerHTML = '<p style="text-align:center;">撈取雲端資料中...</p>';
-        const keyword = document.getElementById('searchInput').value.trim();
-        
-        let records = [];
-        try {
-            // 優先從 Cloudflare D1 取得
-            const res = await fetch(D1_API + "?action=query");
-            if (res.ok) {
-                const data = await res.json();
-                records = data.records || [];
-                
-                // 智慧防呆：若 D1 中的完成筆數有缺少照片連結者，以 GAS 權威資料回補
-                const missingPhotos = records.some(r => r.status === 'completed' && !r.tAfterUrl);
-                if (missingPhotos) {
-                    try {
-                        const gasRes = await fetch(GAS_URL + "?action=query");
-                        const gasData = await gasRes.json();
-                        if (gasData.records && gasData.records.length > 0) {
-                            records = gasData.records;
-                        }
-                    } catch (e) {
-                        console.warn("GAS 補回照片失敗", e);
-                    }
-                }
-            } else {
-                throw new Error("D1 響應異常");
-            }
-        } catch (err) {
-            // 若 D1 失敗，降級從 GAS 取得
-            try {
-                const gasRes = await fetch(GAS_URL + "?action=query");
-                const gasData = await gasRes.json();
-                records = gasData.records || [];
-            } catch (e) {
-                list.innerHTML = '<p style="text-align:center; color:red;">查詢失敗，請檢查網路連線</p>';
-                return;
-            }
-        }
-        
+
         let html = "";
-        let count = 0;
-        records.forEach(r => {
-            const searchStr = `${r.license_plate} ${r.date} ${r.before_time || ''} ${r.after_time || ''}`;
-            if (keyword && !searchStr.includes(keyword)) return;
-            count++;
-            
+        filtered.forEach(r => {
             let statusBadge = r.status === "completed" 
-                ? '<span style="background:#28a745; color:white; padding:2px 5px; border-radius:3px; font-size:12px;">已完成</span>'
-                : '<span style="background:#ffc107; color:black; padding:2px 5px; border-radius:3px; font-size:12px;">待入料</span>';
+                ? '<span style="background:#28a745; color:white; padding:2px 7px; border-radius:10px; font-size:12px; font-weight:bold;">已完成</span>'
+                : '<span style="background:#ffc107; color:black; padding:2px 7px; border-radius:10px; font-size:12px; font-weight:bold;">⏳ 待入料</span>';
             
             let durationBadge = '';
             if (r.duration !== null && r.duration !== undefined && r.duration !== '') {
@@ -355,7 +354,7 @@
 
             html += `
                 <div class="record-card" style="border-left-color: ${r.status === 'completed' ? '#28a745' : '#ffc107'};">
-                    <p><strong>車號：</strong> ${r.license_plate} ${statusBadge} ${durationBadge}</p>
+                    <p><strong>車號：</strong> <span style="font-size:16px; font-weight:bold;">${r.license_plate}</span> ${statusBadge} ${durationBadge}</p>
                     <p><strong>入料前時間：</strong> ${r.before_time || r.date || '無'}</p>
                     ${r.after_time ? `<p><strong>入料後時間：</strong> ${r.after_time}</p>` : ''}
                     <div style="margin-top:10px; display:flex; gap:10px; font-size:14px;">
@@ -366,9 +365,84 @@
                 </div>
             `;
         });
-        
-        if (count === 0) html = '<p style="text-align:center;">找不到符合的紀錄</p>';
         list.innerHTML = html;
+    }
+
+    // 查詢歷史：雙向智能聚合 D1 與 GAS（保證待入料與照片一筆不漏）
+    async function loadQueryRecords(forceRefresh = false) {
+        if (!navigator.onLine) {
+            document.getElementById('queryList').innerHTML = '<p style="text-align:center; color:red;">⚠ 離線狀態無法查詢雲端歷史紀錄</p>';
+            return;
+        }
+        
+        const list = document.getElementById('queryList');
+        if (cachedQueryRecords.length === 0 || forceRefresh) {
+            list.innerHTML = '<p style="text-align:center; padding:15px 0;">撈取雲端資料中...</p>';
+        }
+        
+        let recordsMap = new Map();
+
+        // 平行向 D1 與 GAS 發送請求，極速合併
+        try {
+            const [d1Result, gasResult] = await Promise.allSettled([
+                fetch(D1_API + "?action=query").then(r => r.ok ? r.json() : Promise.reject(r.statusText)),
+                fetch(GAS_URL + "?action=query").then(r => r.json())
+            ]);
+
+            // 先載入 D1 資料
+            if (d1Result.status === 'fulfilled' && d1Result.value && Array.isArray(d1Result.value.records)) {
+                d1Result.value.records.forEach(r => {
+                    if (r && r.id) recordsMap.set(String(r.id).trim(), r);
+                });
+            }
+
+            // 合併 GAS 權威資料（若有新增未同步之待入料，或補齊 Google Drive 照片網址）
+            if (gasResult.status === 'fulfilled' && gasResult.value && Array.isArray(gasResult.value.records)) {
+                gasResult.value.records.forEach(gr => {
+                    if (!gr || !gr.id) return;
+                    const key = String(gr.id).trim();
+                    if (!recordsMap.has(key)) {
+                        recordsMap.set(key, gr);
+                    } else {
+                        // 既有紀錄若缺少照片或 GAS 狀態更新，以 GAS 資訊融合補強
+                        const exist = recordsMap.get(key);
+                        recordsMap.set(key, {
+                            ...exist,
+                            ...gr,
+                            // 保持正確的狀態與照片
+                            tBeforeUrl: gr.tBeforeUrl || exist.tBeforeUrl,
+                            vPhotoUrl: gr.vPhotoUrl || exist.vPhotoUrl,
+                            tAfterUrl: gr.tAfterUrl || exist.tAfterUrl,
+                            duration: gr.duration !== undefined ? gr.duration : exist.duration
+                        });
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn("查詢合併異常", e);
+        }
+
+        // 若兩個都失敗且本地完全沒有快取
+        if (recordsMap.size === 0) {
+            // 單獨嘗試一次 GAS
+            try {
+                const gasRes = await fetch(GAS_URL + "?action=query");
+                const gasData = await gasRes.json();
+                (gasData.records || []).forEach(r => recordsMap.set(String(r.id).trim(), r));
+            } catch(e) {
+                list.innerHTML = '<p style="text-align:center; color:red;">查詢失敗，請檢查網路連線</p>';
+                return;
+            }
+        }
+
+        // 轉換為陣列並排序（依時間倒序，待入料若最新排在最前）
+        cachedQueryRecords = Array.from(recordsMap.values()).sort((a, b) => {
+            const tA = a.before_time || a.date || '';
+            const tB = b.before_time || b.date || '';
+            return tB.localeCompare(tA);
+        });
+
+        applyQueryFilters();
     }
 
     // 前端即時圖片壓縮函式 (Canvas 等比縮放 + JPEG 75% 壓縮)
@@ -510,21 +584,37 @@
             // 立即顯示本地暫存
             renderPendingList(allPending, navigator.onLine);
 
-            // 背景向雲端 D1 取得真實 pending 清單
+            // 背景向雲端 D1 與 GAS 取得真實 pending 清單
             if (navigator.onLine) {
                 try {
                     let cloudPending = [];
-                    const res = await fetch(D1_API);
-                    if (res.ok) {
-                        const data = await res.json();
-                        cloudPending = data.records || [];
-                    } else {
-                        // 若 D1 臨時離線，以 GAS 兜底
-                        const gasRes = await fetch(GAS_URL);
-                        const gasData = await gasRes.json();
-                        cloudPending = gasData.records || [];
+                    // 平行發送 D1 與 GAS 請求，確保待入料不遺漏
+                    const [d1Res, gasRes] = await Promise.allSettled([
+                        fetch(D1_API).then(r => r.ok ? r.json() : Promise.reject(r.statusText)),
+                        fetch(GAS_URL).then(r => r.json())
+                    ]);
+
+                    let pendingMap = new Map();
+                    if (d1Res.status === 'fulfilled' && d1Res.value && Array.isArray(d1Res.value.records)) {
+                        d1Res.value.records.forEach(r => {
+                            if (r && r.id) pendingMap.set(String(r.id).trim(), r);
+                        });
                     }
 
+                    if (gasRes.status === 'fulfilled' && gasRes.value && Array.isArray(gasRes.value.records)) {
+                        gasRes.value.records.forEach(gr => {
+                            if (gr && gr.id) {
+                                const key = String(gr.id).trim();
+                                if (!pendingMap.has(key)) {
+                                    pendingMap.set(key, gr);
+                                } else {
+                                    pendingMap.set(key, Object.assign({}, pendingMap.get(key), gr));
+                                }
+                            }
+                        });
+                    }
+
+                    cloudPending = Array.from(pendingMap.values());
                     const cloudIdSet = new Set(cloudPending.map(c => String(c.id).trim()));
 
                     // 關鍵修正：若後台已刪除此筆（或已在其他手機完成），手機 IndexedDB 主動清除孤兒幽靈筆！
@@ -540,7 +630,7 @@
 
                     // 合併雲端與本地新填寫的資料
                     cloudPending.forEach(sr => {
-                        const existingIdx = allPending.findIndex(lr => lr.id === sr.id);
+                        const existingIdx = allPending.findIndex(lr => String(lr.id).trim() === String(sr.id).trim());
                         if (existingIdx === -1) {
                             allPending.push(sr);
                         } else {
