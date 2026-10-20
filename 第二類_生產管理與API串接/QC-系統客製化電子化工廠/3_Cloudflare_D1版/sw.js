@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qc-kanban-v3.0.4';
+const CACHE_NAME = 'qc-kanban-v3.0.5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -34,7 +34,8 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   // 對於 API �????�????�??????Network Only (不快??
-  if (event.request.url.includes('script.google.com') || event.request.url.includes('/api/') || event.request.method !== 'GET') {
+  const reqUrl = new URL(event.request.url);
+  if (event.request.url.includes('script.google.com') || reqUrl.pathname.startsWith('/api') || event.request.url.includes('/api') || event.request.method !== 'GET') {
     return;
   }
 

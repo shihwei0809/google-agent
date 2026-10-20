@@ -1,5 +1,13 @@
-﻿$env:CLOUDFLARE_API_TOKEN = $null
+$env:CLOUDFLARE_API_TOKEN = $null
 $env:CLOUDFLARE_ACCOUNT_ID = $null
+$env:NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
+# Fix for Node 24 Windows libuv assertion crash: prefer stable Node v22 if available
+$node22Dir = "C:\Users\C606\AppData\Local\ms-playwright-go\1.50.1"
+if (Test-Path "$node22Dir\node.exe") {
+    $env:PATH = "$node22Dir;$env:PATH"
+}
+
 $ErrorActionPreference = "Stop"
 Write-Host "Deploying QC System to Cloudflare Pages + D1..." -ForegroundColor Cyan
 
@@ -26,8 +34,5 @@ $toml_content = $toml_content -replace 'database_id\s*=\s*".*"', ('database_id =
 Set-Content $toml_path -Value $toml_content -Encoding UTF8
 
 # npx wrangler d1 execute qc-db --remote --file=schema.sql
-npx wrangler pages deploy ./ --project-name="qc-samples" --branch="main"
+npx wrangler pages deploy ./ --project-name="qc-samples" --branch="main" --commit-dirty=true
 Write-Host "Deployment completed successfully!" -ForegroundColor Cyan
-
-
-

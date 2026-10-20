@@ -1,6 +1,34 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-19 資材課移工派工適配系統上線、ACT 動態生產排程與進耗存整合系統全面升級 Cloudflare PWA 邊緣版與 Google 試算表雲端同步)
+## 今日進度與交接事項 (2026-10-20 教育訓練教材全面升級 Cloudflare PWA 邊緣版、串接 R2 物件儲存與 D1 無伺服器資料庫)
+* **教育訓練教材全面升級 PWA 雲端邊緣版 (education-training-pwa.pages.dev):**
+  - **架構重大升級 (徹底脫離本機 Python 伺服器)**:
+    1. **告別本機伺服器**: 徹底解決先前桌機 FastAPI (Port 8000) 未啟動導致前端畫面顯示「尚無教材」之痛點，亦解決了 Windows cmd.exe 讀取 UTF-8/LF 批次檔時發生字節錯位噴錯（如 'nd'、'ho' 不是內部或外部命令）的問題。
+    2. **雲端邊緣架構**: 全面重構為 Cloudflare Pages + Functions (functions/api/)，搭配 **Cloudflare R2** 物件儲存（貯體：training-materials）存放 98 份教材 Markdown 與全解析操作步驟截圖，免主機費用且 0 流量費。
+    3. **D1 資料庫初始化**: 自動在 Cloudflare 建立 training-db（ID: d9ec0f4f-464a-4889-8494-10b34790e1aa），執行 schema.sql 建立教材目錄與 AI 提問歷史紀錄表。
+  - **進階功能與教材庫 100% 完整還原**:
+    1. **圖片標註與修改畫布 (ImageAnnotatorModal)**: 支援自由圈選紅框、步驟圓圈序號 ①②③、⚠️ 注意、❗ 重要 等醒目標籤、文字與指引箭頭，修改後一鍵直存雲端 R2。
+    2. **AI 智能助教串流問答 (/api/chat)**: 邊緣直連 Gemini 2.5/3.5/3.8 Flash，透過 SSE (Server-Sent Events) 提供毫秒級打字機串流回覆，並精準結合當前教材上下文 (RAG)。
+    3. **AI 生成圖片 (/api/generate_image)**: 邊緣調用 Imagen 3 模型生圖，產出後直寫 R2 並自動插入教材。
+    4. **Lightbox 燈箱放大**: 教材內任一圖片點擊即全螢幕清晰檢視。
+    5. **98 份完整教材就位**: 涵蓋一階調撥、地磅單維護、出貨單維護、雜項庫存收料、雜發、庫存異常變更、請購單、採購收貨、工單結案、批號維護、客戶建立等。
+  - **PWA 獨立 App 標準規範落地**:
+    1. 實作 manifest.json 與雙尺寸圖示（192x192、512x512）。
+    2. 整合 sw.js 離線快取服務，內建頂部智慧安裝橫幅，支援電腦與手機一鍵安裝為原生視窗 App。
+  - **避坑指南 (Cross-Device Pitfalls)**:
+    1. **Pages 嚴禁 account_id**: Pages 專案的 wrangler.toml 嚴禁寫入 account_id 欄位（Pages 會自動綁定），否則會觸發 Configuration file for Pages projects does not support 'account_id' 錯誤。
+    2. **R2 CLI 必須帶 --remote**: 使用 wrangler r2 object put 同步雲端檔案時必須帶 --remote 參數，否則預設只寫入本機模擬器。
+    3. **批次檔必須純 ASCII + CRLF**: Windows .bat 檔內若含中文字串且使用 LF 換行，cmd.exe 會發生字節位移並吃掉指令關鍵字，必須改用純 ASCII 配合標準 CRLF 換行。
+    4. **Pages 專案需先建立後部署**: 首次部署若尚未建立專案，應以 wrangler pages project create <name> --production-branch=main 建立後再執行 wrangler pages deploy。
+
+## 今日進度與交接事項 (2026-10-20 中央大腦納管大型 Git 倉庫雙機通用（桌機與筆電一律適用）防狂搜與 CPU 降載全域標準)
+* **中央大腦 (my-ai-brain) 規範升級:**
+  - 於 INSTRUCTIONS.md 新增 **第 12 條：大型 Git 倉庫跨機防死結與效能最佳化規範**。
+  - 明確規範桌機垃圾回收 (git prune + git gc --prune=now)、筆電端核心快取 (core.fscache) 與 IDE 背景盲目輪詢停用（解決多個 git.exe 堆疊卡死問題）。
+  - 明確規範筆電全新 Clone 需使用 Blobless 瘦身拉取 (git clone --filter=blob:none)，以及嚴格禁止巨型影音檔進庫。
+  - 已同步推送至遠端中央大腦庫：shihwei0809/my-ai-brain (Commit: 8878343)。
+
+## 前次進度與交接事項 (2026-10-19 資材課移工派工適配系統上線、ACT 動態生產排程與進耗存整合系統全面升級 Cloudflare PWA 邊緣版與 Google 試算表雲端同步)
 * **ACT 動態生產排程與進耗存整合系統全面升級 PWA 雲端邊緣版 (`act-planner-pwa.pages.dev`):**
   - **架構升級 (GAS 轉 Cloudflare Pages + Google 試算表雙向同步)**:
     1. 將原先受限於 Google Apps Script 執行效能與 iframe 限制的前端介面，全面遷移獨立至 **Cloudflare Pages** 邊緣網路 (`https://act-planner-pwa.pages.dev`)，後端資料庫繼續使用使用者 Google 試算表 (`AKfycbwTJm7TaEHqeEFrpVjUJpjDY3t60RXtpXsYRuFnflyKxtjqdGnFHhrFvjeYnu710aiRVQ/exec`)。

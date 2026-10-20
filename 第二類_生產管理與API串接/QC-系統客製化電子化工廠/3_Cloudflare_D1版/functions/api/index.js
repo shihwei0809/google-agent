@@ -280,6 +280,12 @@ export async function onRequest(context) {
       }), { headers: h });
     }
 
+    if (action === "clearOrders" || action === "deleteOrders") {
+      await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
+      await env.DB.prepare("DELETE FROM T100_Orders").run();
+      return new Response(JSON.stringify({ success: true, message: 'All T100 orders cleared' }), { headers: h });
+    }
+
     if (action === "getOrders") {
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
       // 取得近 45 天排程，並按日期降序、時間升序排列
