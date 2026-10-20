@@ -165,59 +165,63 @@
         </div>
       </section>
 
-      <!-- 庫存助採設定 -->
+      <!-- 庫存助採設定 (多產品動態配置) -->
       <section class="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm space-y-3">
-        <div class="flex items-center space-x-1.5 text-slate-700 font-bold border-b pb-1.5">
-          <span class="text-indigo-600">⚙️</span>
-          <span class="text-sm">庫存助採設定 (ACT 專屬配置)</span>
+        <div class="flex flex-wrap items-center justify-between border-b pb-2 gap-2">
+          <div class="flex items-center space-x-1.5 text-slate-700 font-bold">
+            <span class="text-indigo-600">⚙️</span>
+            <span class="text-sm">庫存助採設定 (<span id="txtCurrentProductTitle" class="text-indigo-600">ACT 專屬配置</span>)</span>
+          </div>
+
+          <!-- 產品設定檔切換器 -->
+          <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded">
+            <span class="text-[11px] text-slate-500 font-medium">產品配置:</span>
+            <select id="productProfileSelect" class="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-bold text-indigo-700 outline-none" onchange="switchProductProfile(this.value)">
+            </select>
+            <button onclick="openNewProfileModal()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded text-[11px] font-semibold" title="新增自訂產品型號">
+              ➕ 新增產品
+            </button>
+            <button onclick="deleteCurrentProfile()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded text-[11px] font-semibold" title="刪除當前產品配置">
+              🗑️
+            </button>
+          </div>
         </div>
 
-        <div class="space-y-1">
+        <!-- 原料區槽桶動態清單 -->
+        <div class="space-y-1.5">
           <div class="flex justify-between items-center">
-            <span class="font-semibold text-slate-700 text-[11px]">期初原料區槽桶存量(T)</span>
+            <div class="flex items-center space-x-2">
+              <span class="font-semibold text-slate-700 text-[11px]">期初原料區槽桶存量(T)</span>
+              <button onclick="addRawTankPrompt()" class="text-[10px] text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 font-bold">
+                ➕ 新增原料槽
+              </button>
+            </div>
             <span class="text-blue-600 font-bold text-[11px]">原料合計: <span id="txtRawTanksTotal">0.0</span> T</span>
           </div>
-          <div class="grid grid-cols-5 gap-1.5">
-            <div>
-              <span class="text-[10px] text-slate-400 block text-center">TK657</span>
-              <input type="number" step="0.1" id="tank_TK657" class="w-full border rounded px-1.5 py-1 text-center font-bold" oninput="onStockInitChange()">
-            </div>
-            <div>
-              <span class="text-[10px] text-slate-400 block text-center">E13</span>
-              <input type="number" step="0.1" id="tank_E13" class="w-full border rounded px-1.5 py-1 text-center font-bold" oninput="onStockInitChange()">
-            </div>
-            <div>
-              <span class="text-[10px] text-slate-400 block text-center">E36</span>
-              <input type="number" step="0.1" id="tank_E36" class="w-full border rounded px-1.5 py-1 text-center font-bold" oninput="onStockInitChange()">
-            </div>
-            <div>
-              <span class="text-[10px] text-slate-400 block text-center">S208</span>
-              <input type="number" step="0.1" id="tank_S208" class="w-full border rounded px-1.5 py-1 text-center font-bold" oninput="onStockInitChange()">
-            </div>
-            <div>
-              <span class="text-[10px] text-rose-500 block text-center font-semibold">安全庫存量(T)</span>
-              <input type="number" step="0.1" id="rawSafetyStock" class="w-full border rounded px-1.5 py-1 text-center font-bold text-rose-600 bg-rose-50" oninput="onParamChange()">
-            </div>
+          
+          <div id="rawTanksContainer" class="flex flex-wrap items-center gap-2">
+            <!-- 動態生成各原料槽輸入框 -->
           </div>
         </div>
 
-        <div class="space-y-1 pt-1 border-t">
+        <!-- 成品區儲槽動態清單 -->
+        <div class="space-y-1.5 pt-2 border-t">
           <div class="flex justify-between items-center">
-            <span class="font-semibold text-slate-700 text-[11px]">期初成品區儲槽存量(T) - 無槽車存放</span>
+            <div class="flex items-center space-x-2">
+              <span class="font-semibold text-slate-700 text-[11px]">期初成品區儲槽存量(T) - 無槽車存放</span>
+              <button onclick="addProdTankPrompt()" class="text-[10px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 font-bold">
+                ➕ 新增成品槽
+              </button>
+            </div>
             <span class="text-emerald-600 font-bold text-[11px]">成品合計: <span id="txtProdTanksTotal">0.0</span> T</span>
           </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <span class="text-[10px] text-slate-400 block">TK622 (成品槽)</span>
-              <input type="number" step="0.1" id="tank_TK622" class="w-full border rounded px-2 py-1 font-bold text-emerald-700 bg-emerald-50" oninput="onStockInitChange()">
-            </div>
-            <div>
-              <span class="text-[10px] text-slate-400 block">TK622 最大容量限制(T)</span>
-              <input type="number" step="0.1" id="tk622Limit" class="w-full border rounded px-2 py-1 font-bold text-slate-700" oninput="onParamChange()">
-            </div>
+
+          <div id="prodTanksContainer" class="flex flex-wrap items-center gap-2">
+            <!-- 動態生成各成品槽輸入框與容量限制 -->
           </div>
         </div>
 
+        <!-- 預售總計與重算列 -->
         <div class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded border border-slate-200">
           <div>
             <span class="text-slate-500">預計預售總計(T): </span>
@@ -273,7 +277,29 @@
     // 🌟 Google Apps Script API 網址 (與現有 Google 試算表連線)
     let GAS_API_URL = "https://script.google.com/macros/s/AKfycbwTJm7TaEHqeEFrpVjUJpjDY3t60RXtpXsYRuFnflyKxtjqdGnFHhrFvjeYnu710aiRVQ/exec";
 
+    // 預設產品設定檔集 (支援多產品與自訂槽桶配置)
+    const DEFAULT_PROFILES = {
+      "ACT": {
+        name: "ACT",
+        rawSafetyStock: 50.0,
+        preSaleTotal: 138.0,
+        rawTanks: [
+          { name: "TK657", amount: 40.0 },
+          { name: "E13",   amount: 16.1 },
+          { name: "E36",   amount: 16.61 },
+          { name: "S208",  amount: 12.8 }
+        ],
+        prodTanks: [
+          { name: "TK622", amount: 3.5, maxLimit: 170.0 }
+        ]
+      }
+    };
+
+    let productProfiles = JSON.parse(JSON.stringify(DEFAULT_PROFILES));
+    let currentProfileKey = "ACT";
+
     const appState = {
+      currentProduct: "ACT",
       startBootTime: "2026-10-16T08:00",
       startProduceTime: "2026-10-16T16:09",
       totalTarget: 200.0,
@@ -282,9 +308,16 @@
       yieldRate: 95.0,
       truckOrderNote: "",
 
-      rawTanks: { TK657: 40.0, E13: 16.1, E36: 16.61, S208: 12.8 },
+      rawTanks: [
+        { name: "TK657", amount: 40.0 },
+        { name: "E13",   amount: 16.1 },
+        { name: "E36",   amount: 16.61 },
+        { name: "S208",  amount: 12.8 }
+      ],
       rawSafetyStock: 50.0,
-      prodTanks: { TK622: 3.5 },
+      prodTanks: [
+        { name: "TK622", amount: 3.5, maxLimit: 170.0 }
+      ],
       tk622Limit: 170.0,
       preSaleTotal: 138.0,
 
@@ -317,15 +350,36 @@
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
-      // 優先從本地快取或 Google 試算表載入
-      const cached = localStorage.getItem("ACT_CURRENT_STATE");
-      if (cached) {
+      // 讀取本地產品配置集
+      const cachedProfiles = localStorage.getItem("ACT_PRODUCT_PROFILES");
+      if (cachedProfiles) {
         try {
-          Object.assign(appState, JSON.parse(cached));
+          productProfiles = JSON.parse(cachedProfiles);
         } catch(e) {}
       }
 
+      // 優先從本地快取或 Google 試算表載入狀態
+      const cached = localStorage.getItem("ACT_CURRENT_STATE");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          // 若舊快取的 rawTanks 是物件而非陣列，進行平滑相容轉換
+          if (parsed.rawTanks && !Array.isArray(parsed.rawTanks)) {
+            parsed.rawTanks = Object.entries(parsed.rawTanks).map(([name, amount]) => ({ name, amount: Number(amount) || 0 }));
+          }
+          if (parsed.prodTanks && !Array.isArray(parsed.prodTanks)) {
+            parsed.prodTanks = Object.entries(parsed.prodTanks).map(([name, amount]) => ({ name, amount: Number(amount) || 0, maxLimit: parsed.tk622Limit || 170.0 }));
+          }
+          Object.assign(appState, parsed);
+          if (appState.currentProduct && productProfiles[appState.currentProduct]) {
+            currentProfileKey = appState.currentProduct;
+          }
+        } catch(e) {}
+      }
+
+      renderProfileDropdown();
       bindInputs();
+      renderTankInputs();
       buildCalendarDates();
       recalculateAll(false);
 
@@ -333,6 +387,248 @@
       await fetchFromGoogleSheet();
       refreshHistoryDropdown();
     });
+
+    // ==================== 產品設定檔與槽桶動態管理 ====================
+    function renderProfileDropdown() {
+      const select = document.getElementById("productProfileSelect");
+      select.innerHTML = "";
+      Object.keys(productProfiles).forEach(key => {
+        const opt = document.createElement("option");
+        opt.value = key;
+        opt.textContent = productProfiles[key].name || key;
+        if (key === currentProfileKey) opt.selected = true;
+        select.appendChild(opt);
+      });
+      const titleEl = document.getElementById("txtCurrentProductTitle");
+      if (titleEl) {
+        titleEl.innerText = `${productProfiles[currentProfileKey]?.name || currentProfileKey} 專屬配置`;
+      }
+    }
+
+    function switchProductProfile(profileKey) {
+      if (!productProfiles[profileKey]) return;
+      currentProfileKey = profileKey;
+      appState.currentProduct = profileKey;
+
+      const prof = productProfiles[profileKey];
+      appState.rawSafetyStock = prof.rawSafetyStock ?? 50.0;
+      appState.preSaleTotal = prof.preSaleTotal ?? 138.0;
+      appState.rawTanks = JSON.parse(JSON.stringify(prof.rawTanks || []));
+      appState.prodTanks = JSON.parse(JSON.stringify(prof.prodTanks || []));
+
+      // 若有成品槽，以第一個成品槽容量作為整體上限 (或總和)
+      const totalLimit = appState.prodTanks.reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+      appState.tk622Limit = totalLimit > 0 ? totalLimit : (prof.tk622Limit || 170.0);
+
+      document.getElementById("preSaleTotal").value = appState.preSaleTotal;
+      renderProfileDropdown();
+      renderTankInputs();
+      saveLocalCache();
+      recalculateAll(false);
+    }
+
+    function openNewProfileModal() {
+      const newName = prompt("請輸入新產品名稱 / 型號 (例如: IPA, 新產品B):");
+      if (!newName || !newName.trim()) return;
+      const key = newName.trim();
+      if (productProfiles[key]) {
+        alert("此產品名稱已存在！已為您直接切換至該產品。");
+        switchProductProfile(key);
+        return;
+      }
+
+      // 以當前或標準模板複製
+      productProfiles[key] = {
+        name: key,
+        rawSafetyStock: 30.0,
+        preSaleTotal: 100.0,
+        rawTanks: [
+          { name: "TK01", amount: 20.0 },
+          { name: "TK02", amount: 20.0 }
+        ],
+        prodTanks: [
+          { name: "TK01(成品)", amount: 5.0, maxLimit: 150.0 }
+        ]
+      };
+
+      localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
+      switchProductProfile(key);
+      alert(`✅ 成功建立新產品配置：[${key}]！您可以直接在介面上修改槽桶名稱與存量。`);
+    }
+
+    function deleteCurrentProfile() {
+      if (Object.keys(productProfiles).length <= 1) {
+        alert("至少需保留一個產品設定檔，無法全部刪除！");
+        return;
+      }
+      if (confirm(`確定要刪除產品配置 [${currentProfileKey}] 嗎？此動作無法復原。`)) {
+        delete productProfiles[currentProfileKey];
+        localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
+        const nextKey = Object.keys(productProfiles)[0];
+        switchProductProfile(nextKey);
+      }
+    }
+
+    function renderTankInputs() {
+      // 1. 原料槽容器渲染
+      const rawContainer = document.getElementById("rawTanksContainer");
+      if (rawContainer) {
+        let rawHtml = "";
+        (appState.rawTanks || []).forEach((tank, idx) => {
+          rawHtml += `
+            <div class="bg-slate-50 border border-slate-300 rounded px-2 py-1 flex items-center gap-1.5 shadow-sm">
+              <input type="text" value="${tank.name}" title="點擊可修改槽桶名稱"
+                class="w-14 text-[10px] text-slate-700 font-bold bg-white border border-slate-200 rounded px-1 text-center"
+                onchange="updateRawTankName(${idx}, this.value)">
+              <input type="number" step="0.1" value="${tank.amount}"
+                class="w-16 border rounded px-1 py-0.5 text-center font-bold text-slate-800 bg-white"
+                oninput="updateRawTankAmount(${idx}, this.value)">
+              <span class="text-[10px] text-slate-400">T</span>
+              <button onclick="removeRawTank(${idx})" class="text-slate-300 hover:text-rose-600 font-bold text-xs px-1" title="刪除此槽">×</button>
+            </div>
+          `;
+        });
+
+        // 附加安全庫存量
+        rawHtml += `
+          <div class="bg-rose-50 border border-rose-200 rounded px-2 py-1 flex items-center gap-1.5 shadow-sm ml-auto">
+            <span class="text-[10px] text-rose-600 font-bold">安全庫存:</span>
+            <input type="number" step="0.1" id="rawSafetyStock" value="${appState.rawSafetyStock}"
+              class="w-16 border border-rose-300 rounded px-1 py-0.5 text-center font-bold text-rose-700 bg-white"
+              oninput="onParamChange()">
+            <span class="text-[10px] text-rose-500 font-bold">T</span>
+          </div>
+        `;
+        rawContainer.innerHTML = rawHtml;
+      }
+
+      // 2. 成品槽容器渲染
+      const prodContainer = document.getElementById("prodTanksContainer");
+      if (prodContainer) {
+        let prodHtml = "";
+        (appState.prodTanks || []).forEach((tank, idx) => {
+          prodHtml += `
+            <div class="bg-emerald-50/70 border border-emerald-200 rounded px-2.5 py-1.5 flex flex-wrap items-center gap-2 shadow-sm">
+              <div class="flex items-center gap-1">
+                <input type="text" value="${tank.name}" title="點擊可修改成品槽名稱"
+                  class="w-20 text-[11px] text-emerald-900 font-bold bg-white border border-emerald-300 rounded px-1.5 py-0.5 text-center"
+                  onchange="updateProdTankName(${idx}, this.value)">
+                <span class="text-[10px] text-emerald-700">存量:</span>
+                <input type="number" step="0.1" value="${tank.amount}"
+                  class="w-16 border border-emerald-300 rounded px-1 py-0.5 text-center font-bold text-emerald-800 bg-white"
+                  oninput="updateProdTankAmount(${idx}, this.value)">
+                <span class="text-[10px] text-emerald-600">T</span>
+              </div>
+              <div class="flex items-center gap-1 pl-2 border-l border-emerald-200">
+                <span class="text-[10px] text-slate-500">容量上限:</span>
+                <input type="number" step="0.1" value="${tank.maxLimit ?? 170.0}"
+                  class="w-16 border rounded px-1 py-0.5 text-center font-bold text-slate-700 bg-white"
+                  oninput="updateProdTankLimit(${idx}, this.value)">
+                <span class="text-[10px] text-slate-400">T</span>
+              </div>
+              <button onclick="removeProdTank(${idx})" class="text-slate-300 hover:text-rose-600 font-bold text-xs px-1" title="刪除此成品槽">×</button>
+            </div>
+          `;
+        });
+        prodContainer.innerHTML = prodHtml;
+      }
+    }
+
+    function addRawTankPrompt() {
+      const name = prompt("請輸入新增原料槽桶編號 (例如: TK658, E14):", `TK${Math.floor(100 + Math.random() * 900)}`);
+      if (!name || !name.trim()) return;
+      appState.rawTanks.push({ name: name.trim(), amount: 0.0 });
+      saveCurrentProfileToMemory();
+      renderTankInputs();
+      recalculateAll(false);
+    }
+
+    function removeRawTank(idx) {
+      if (appState.rawTanks.length <= 1) {
+        alert("至少需保留一個原料槽桶！");
+        return;
+      }
+      appState.rawTanks.splice(idx, 1);
+      saveCurrentProfileToMemory();
+      renderTankInputs();
+      recalculateAll(false);
+    }
+
+    function updateRawTankName(idx, val) {
+      if (appState.rawTanks[idx]) {
+        appState.rawTanks[idx].name = val.trim() || `TK_${idx + 1}`;
+        saveCurrentProfileToMemory();
+      }
+    }
+
+    function updateRawTankAmount(idx, val) {
+      if (appState.rawTanks[idx]) {
+        appState.rawTanks[idx].amount = parseFloat(val) || 0;
+        saveCurrentProfileToMemory();
+        recalculateAll(false);
+      }
+    }
+
+    function addProdTankPrompt() {
+      const name = prompt("請輸入新增成品槽編號 (例如: TK623, 成品槽B):", `TK623`);
+      if (!name || !name.trim()) return;
+      appState.prodTanks.push({ name: name.trim(), amount: 0.0, maxLimit: 170.0 });
+      saveCurrentProfileToMemory();
+      renderTankInputs();
+      recalculateAll(false);
+    }
+
+    function removeProdTank(idx) {
+      if (appState.prodTanks.length <= 1) {
+        alert("至少需保留一個成品槽！");
+        return;
+      }
+      appState.prodTanks.splice(idx, 1);
+      saveCurrentProfileToMemory();
+      renderTankInputs();
+      recalculateAll(false);
+    }
+
+    function updateProdTankName(idx, val) {
+      if (appState.prodTanks[idx]) {
+        appState.prodTanks[idx].name = val.trim() || `TK_PROD_${idx + 1}`;
+        saveCurrentProfileToMemory();
+      }
+    }
+
+    function updateProdTankAmount(idx, val) {
+      if (appState.prodTanks[idx]) {
+        appState.prodTanks[idx].amount = parseFloat(val) || 0;
+        saveCurrentProfileToMemory();
+        recalculateAll(false);
+      }
+    }
+
+    function updateProdTankLimit(idx, val) {
+      if (appState.prodTanks[idx]) {
+        appState.prodTanks[idx].maxLimit = parseFloat(val) || 0;
+        const totalLimit = appState.prodTanks.reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+        appState.tk622Limit = totalLimit;
+        saveCurrentProfileToMemory();
+        recalculateAll(false);
+      }
+    }
+
+    function saveCurrentProfileToMemory() {
+      if (!productProfiles[currentProfileKey]) {
+        productProfiles[currentProfileKey] = { name: currentProfileKey };
+      }
+      productProfiles[currentProfileKey].rawTanks = JSON.parse(JSON.stringify(appState.rawTanks));
+      productProfiles[currentProfileKey].prodTanks = JSON.parse(JSON.stringify(appState.prodTanks));
+      productProfiles[currentProfileKey].rawSafetyStock = appState.rawSafetyStock;
+      productProfiles[currentProfileKey].preSaleTotal = appState.preSaleTotal;
+      const totalLimit = appState.prodTanks.reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+      productProfiles[currentProfileKey].tk622Limit = totalLimit;
+      appState.tk622Limit = totalLimit;
+
+      localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
+      saveLocalCache();
+    }
 
     function bindInputs() {
       document.getElementById("startBootTime").value = appState.startBootTime;
@@ -342,15 +638,6 @@
       document.getElementById("batchCap").value = appState.batchCap;
       document.getElementById("yieldRate").value = appState.yieldRate;
       document.getElementById("truckOrderNote").value = appState.truckOrderNote;
-
-      document.getElementById("tank_TK657").value = appState.rawTanks.TK657;
-      document.getElementById("tank_E13").value = appState.rawTanks.E13;
-      document.getElementById("tank_E36").value = appState.rawTanks.E36;
-      document.getElementById("tank_S208").value = appState.rawTanks.S208;
-      document.getElementById("rawSafetyStock").value = appState.rawSafetyStock;
-
-      document.getElementById("tank_TK622").value = appState.prodTanks.TK622;
-      document.getElementById("tk622Limit").value = appState.tk622Limit;
       document.getElementById("preSaleTotal").value = appState.preSaleTotal;
     }
 
@@ -375,23 +662,15 @@
       appState.flowRate = parseFloat(document.getElementById("flowRate").value) || 0;
       appState.batchCap = parseFloat(document.getElementById("batchCap").value) || 0;
       appState.yieldRate = parseFloat(document.getElementById("yieldRate").value) || 95;
-      appState.rawSafetyStock = parseFloat(document.getElementById("rawSafetyStock").value) || 0;
-      appState.tk622Limit = parseFloat(document.getElementById("tk622Limit").value) || 0;
+      
+      const safeEl = document.getElementById("rawSafetyStock");
+      if (safeEl) appState.rawSafetyStock = parseFloat(safeEl.value) || 0;
+      
       appState.preSaleTotal = parseFloat(document.getElementById("preSaleTotal").value) || 0;
       appState.truckOrderNote = document.getElementById("truckOrderNote").value;
 
-      saveLocalCache();
+      saveCurrentProfileToMemory();
       buildCalendarDates();
-      recalculateAll(false);
-    }
-
-    function onStockInitChange() {
-      appState.rawTanks.TK657 = parseFloat(document.getElementById("tank_TK657").value) || 0;
-      appState.rawTanks.E13 = parseFloat(document.getElementById("tank_E13").value) || 0;
-      appState.rawTanks.E36 = parseFloat(document.getElementById("tank_E36").value) || 0;
-      appState.rawTanks.S208 = parseFloat(document.getElementById("tank_S208").value) || 0;
-      appState.prodTanks.TK622 = parseFloat(document.getElementById("tank_TK622").value) || 0;
-      saveLocalCache();
       recalculateAll(false);
     }
 
@@ -412,10 +691,12 @@
 
       document.getElementById("txtRawTotalNeeded").innerText = totalRawNeeded.toFixed(1);
 
-      const rawSum = round1D(appState.rawTanks.TK657 + appState.rawTanks.E13 + appState.rawTanks.E36 + appState.rawTanks.S208);
+      // 動態加總所有原料槽桶
+      const rawSum = round1D((appState.rawTanks || []).reduce((acc, t) => acc + (Number(t.amount) || 0), 0));
       document.getElementById("txtRawTanksTotal").innerText = rawSum.toFixed(1);
 
-      const prodSum = round1D(appState.prodTanks.TK622);
+      // 動態加總所有成品槽桶
+      const prodSum = round1D((appState.prodTanks || []).reduce((acc, t) => acc + (Number(t.amount) || 0), 0));
       document.getElementById("txtProdTanksTotal").innerText = prodSum.toFixed(1);
 
       const flow = Number(appState.flowRate) || 0;
