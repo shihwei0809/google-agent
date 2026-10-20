@@ -681,8 +681,11 @@
       recalculateAll(false);
     }
 
-    function saveLocalCache() {
+    function saveLocalCache(skipAutoSync = false) {
       localStorage.setItem("ACT_CURRENT_STATE", JSON.stringify(appState));
+      if (!skipAutoSync) {
+        triggerAutoSync(3000); // 3 秒無操作後自動靜默推送到 Google 試算表
+      }
     }
 
     function recalculateAll(forceClearManual = false) {
@@ -1099,7 +1102,7 @@
           renderTankInputs();
           buildCalendarDates();
           recalculateAll(false);
-          saveLocalCache();
+          saveLocalCache(true); // 從雲端拉取下來的資料，不重複向雲端觸發回寫
           statusEl.innerText = `已連線 (分頁: DataStore_${prodName})`;
         } else {
           statusEl.innerText = `已就緒 (本地快取: ${prodName})`;
@@ -1110,12 +1113,46 @@
       }
     }
 
-    async function saveToCloud() {
+    // ==================== 自動寫入試算表 (防抖延遲自動同步) ====================
+    let autoSyncTimer = null;
+    let autoSyncCountdownTimer = null;
+    let autoSyncCountdownSeconds = 3;
+
+    function triggerAutoSync(delayMs = 3000) {
+      const statusEl = document.getElementById("txtCloudStatus");
+      if (autoSyncTimer) clearTimeout(autoSyncTimer);
+      if (autoSyncCountdownTimer) clearInterval(autoSyncCountdownTimer);
+
+      autoSyncCountdownSeconds = Math.round(delayMs / 1000);
+      if (statusEl) {
+        statusEl.innerText = `⏳ ${autoSyncCountdownSeconds} 秒後自動儲存...`;
+      }
+
+      autoSyncCountdownTimer = setInterval(() => {
+        autoSyncCountdownSeconds--;
+        if (autoSyncCountdownSeconds > 0 && statusEl) {
+          statusEl.innerText = `⏳ ${autoSyncCountdownSeconds} 秒後自動儲存...`;
+        }
+      }, 1000);
+
+      autoSyncTimer = setTimeout(async () => {
+        clearInterval(autoSyncCountdownTimer);
+        await saveToCloud(true); // true 代表靜默自動寫入，不彈出干擾視窗
+      }, delayMs);
+    }
+
+    async function saveToCloud(isSilent = false) {
+      if (autoSyncTimer) clearTimeout(autoSyncTimer);
+      if (autoSyncCountdownTimer) clearInterval(autoSyncCountdownTimer);
+
       const btn = document.getElementById("btnSaveCloud");
+      const statusEl = document.getElementById("txtCloudStatus");
       const prodName = currentProfileKey || appState.currentProduct || "ACT";
       const originalText = btn.innerHTML;
+
       btn.innerHTML = `<span>⏳</span> 寫入中 (${prodName})...`;
       btn.disabled = true;
+      if (statusEl) statusEl.innerText = `☁️ 正在自動寫入試算表 [${prodName}]...`;
 
       try {
         saveLocalCache();
@@ -1126,12 +1163,18 @@
         });
         const json = await res.json();
         if (json.status === "SUCCESS") {
-          alert(`✅ 成功寫入 Google 試算表專屬分頁 [DataStore_${prodName}]！跨電腦開啟均會自動同步最新數據。`);
+          const timeStr = new Date().toLocaleTimeString();
+          if (statusEl) statusEl.innerText = `✅ 已自動同步至 DataStore_${prodName} (${timeStr})`;
+          if (!isSilent) {
+            alert(`✅ 成功寫入 Google 試算表專屬分頁 [DataStore_${prodName}]！跨電腦開啟均會自動同步最新數據。`);
+          }
         } else {
-          alert("⚠️ 寫入完成但後端回傳: " + JSON.stringify(json));
+          if (statusEl) statusEl.innerText = `⚠️ 寫入伺服器回應異常`;
+          if (!isSilent) alert("⚠️ 寫入完成但後端回傳: " + JSON.stringify(json));
         }
       } catch (err) {
-        alert(`⚠️ 雲端寫入提示：已儲存至本機快取！(若試算表 API 未設定 CORS，請確認 GAS 網址)`);
+        if (statusEl) statusEl.innerText = `離線模式 (已存本地快取)`;
+        if (!isSilent) alert(`⚠️ 雲端寫入提示：已儲存至本機快取！`);
       } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
