@@ -626,6 +626,9 @@
       productProfiles[currentProfileKey].tk622Limit = totalLimit;
       appState.tk622Limit = totalLimit;
 
+      // 同步儲存至 appState，使寫入試算表或本機快取時全廠其他人員能同步取得所有自訂產品與槽桶
+      appState.productProfiles = JSON.parse(JSON.stringify(productProfiles));
+
       localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
       saveLocalCache();
     }
@@ -1066,8 +1069,30 @@
         });
         const json = await res.json();
         if (json.status === "SUCCESS" && json.data && Object.keys(json.data).length > 0) {
-          Object.assign(appState, json.data);
+          const cloudData = json.data;
+
+          // 若雲端存有所有產品的設定檔集合，同步更新
+          if (cloudData.productProfiles && typeof cloudData.productProfiles === "object") {
+            productProfiles = Object.assign({}, DEFAULT_PROFILES, cloudData.productProfiles);
+            localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
+          }
+
+          // 相容轉換 rawTanks 與 prodTanks
+          if (cloudData.rawTanks && !Array.isArray(cloudData.rawTanks)) {
+            cloudData.rawTanks = Object.entries(cloudData.rawTanks).map(([name, amount]) => ({ name, amount: Number(amount) || 0 }));
+          }
+          if (cloudData.prodTanks && !Array.isArray(cloudData.prodTanks)) {
+            cloudData.prodTanks = Object.entries(cloudData.prodTanks).map(([name, amount]) => ({ name, amount: Number(amount) || 0, maxLimit: cloudData.tk622Limit || 170.0 }));
+          }
+
+          Object.assign(appState, cloudData);
+          if (appState.currentProduct && productProfiles[appState.currentProduct]) {
+            currentProfileKey = appState.currentProduct;
+          }
+
+          renderProfileDropdown();
           bindInputs();
+          renderTankInputs();
           buildCalendarDates();
           recalculateAll(false);
           saveLocalCache();
