@@ -33,6 +33,7 @@ yarn-error.log*
 ~$*.xlsx
 
 # Local nested git folders (ignored to prevent broken git submodules)
+第一類_核心網頁與互動系統/flowchart-web/
 
 # Netlify
 .netlify/
@@ -79,6 +80,7 @@ firebase_key.json
 config.json.bak
 credentials.json
 token.json
+security_config.json
 
 
 test/kokoro-multi-lang-v1_1/
@@ -94,6 +96,7 @@ test/kokoro-multi-lang-v1_1/
 old/
 專案備份/
 category_folders_backup/
+skills_backup/
 教育訓練教材/
 cross-device-agent-skills/
 my-ai-brain/

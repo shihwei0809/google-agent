@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🌐 HTTPS 遠端網頁穿透中心 | Google Agent</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* 終端機滾動條 */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- 登入彈窗 (2FA 雙重身分驗證) -->
+  <div id="login-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 text-center">
+      <div class="w-16 h-16 bg-blue-600/20 text-blue-400 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/30">
+        <i data-lucide="shield-check" class="w-8 h-8"></i>
+      </div>
+      <h2 class="text-xl font-bold mb-1">2FA 雙重安全驗證</h2>
+      <p class="text-xs text-slate-400 mb-6">請輸入安全管理密碼與手機 Google Authenticator 6 位動態碼</p>
+      
+      <div class="space-y-3 text-left">
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">1. 管理存取密碼</label>
+          <input type="password" id="pwd-input" placeholder="預設密碼: c606admin" 
+                 class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-center text-sm focus:outline-none focus:border-blue-500 transition-colors">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">2. 手機 2FA 動態碼 (TOTP 6位數字)</label>
+          <input type="text" id="totp-input" maxlength="6" placeholder="例如: 123456" 
+                 class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-center text-lg font-mono tracking-widest text-emerald-400 font-bold focus:outline-none focus:border-emerald-500 transition-colors">
+        </div>
+
+        <button onclick="handleLogin()" id="login-btn"
+                class="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2">
+          <span>驗證身分並登入</span>
+          <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+        <p id="login-err" class="text-xs text-rose-400 text-center hidden font-medium"></p>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 頂部導航 -->
+  <header class="border-b border-slate-800/80 bg-slate-900/50 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <i data-lucide="zap" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-bold text-base tracking-wide">HTTPS 遠端網頁穿透中心</h1>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Cloudflare 在線
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 flex items-center gap-2">
+            <span>主機: <strong id="header-host" class="text-slate-300">C606-PC1</strong></span>
+            <span>•</span>
+            <span>區網 IP: <strong id="header-ip" class="text-slate-300">192.168.3.35</strong></span>
+          </p>
+        </div>
+      </div>
+
+      <!-- 切換分頁與安全關閉 -->
+      <div class="flex items-center gap-2">
+        <nav class="flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800">
+          <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-white bg-blue-600 shadow-sm transition-all">
+            <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+            <span>儀表板</span>
+          </button>
+          <button onclick="switchTab('terminal')" id="tab-terminal" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-slate-400 hover:text-slate-200 transition-all">
+            <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+            <span>線上終端機</span>
+          </button>
+          <button onclick="switchTab('files')" id="tab-files" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-slate-400 hover:text-slate-200 transition-all">
+            <i data-lucide="folder-tree" class="w-3.5 h-3.5"></i>
+            <span>專案檔案總管</span>
+          </button>
+          <button onclick="switchTab('rdp')" id="tab-rdp" class="tab-btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-slate-400 hover:text-slate-200 transition-all">
+            <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+            <span>RDP 穿透</span>
+          </button>
+        </nav>
+        <button onclick="handleEmergencyShutdown()" title="用完立即關閉外網穿透通道，確保安全" 
+                class="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-medium transition-all flex items-center gap-1">
+          <i data-lucide="power" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">切斷穿透</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容區 -->
+  <main class="flex-1 max-w-7xl mx-auto w-full p-4 lg:p-6">
+
+    <!-- 分頁 1: 儀表板 -->
+    <div id="view-dashboard" class="space-y-6">
+      <!-- 快速資訊卡片 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">公網穿透網址</span>
+            <i data-lucide="globe" class="w-4 h-4 text-blue-400"></i>
+          </div>
+          <div class="text-sm font-semibold truncate text-blue-400" id="card-url">載入中...</div>
+          <p class="text-xs text-slate-500 mt-2 flex items-center gap-1">
+            <i data-lucide="lock" class="w-3 h-3 text-emerald-400"></i>
+            純 443 HTTPS 安全通道
+          </p>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">實體記憶體 (RAM)</span>
+            <i data-lucide="cpu" class="w-4 h-4 text-purple-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-slate-100" id="card-ram">--%</div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-3 overflow-hidden">
+            <div id="bar-ram" class="bg-purple-500 h-full w-0 transition-all duration-500"></div>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">硬碟空間 (D槽)</span>
+            <i data-lucide="hard-drive" class="w-4 h-4 text-cyan-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-slate-100" id="card-disk">-- GB</div>
+          <p class="text-xs text-slate-500 mt-2" id="card-disk-sub">剩餘容量載入中...</p>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 relative overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Windows 遠端桌面</span>
+            <i data-lucide="screen-share" class="w-4 h-4 text-emerald-400"></i>
+          </div>
+          <div class="text-2xl font-bold text-emerald-400 flex items-center gap-2" id="card-rdp">
+            <span>Port 3389 正常</span>
+          </div>
+          <p class="text-xs text-slate-500 mt-2">已就緒可直接透過穿透連線</p>
+        </div>
+      </div>
+
+      <!-- 快速指令操作台 -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <h3 class="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
+          <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i>
+          一鍵遠端常用任務 (Quick Actions)
+        </h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <button onclick="runPreset('git status')" class="bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded-xl p-3 text-left transition-all group">
+            <div class="text-xs font-medium text-slate-300 group-hover:text-blue-400">1. 檢查 Git 狀態</div>
+            <div class="text-[11px] text-slate-500 mt-1 mono">git status</div>
+          </button>
+          <button onclick="runPreset('git pull origin main')" class="bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded-xl p-3 text-left transition-all group">
+            <div class="text-xs font-medium text-slate-300 group-hover:text-blue-400">2. 開工同步 (Git Pull)</div>
+            <div class="text-[11px] text-slate-500 mt-1 mono">git pull</div>
+          </button>
+          <button onclick="runPreset('netstat -ano | findstr LISTENING')" class="bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded-xl p-3 text-left transition-all group">
+            <div class="text-xs font-medium text-slate-300 group-hover:text-blue-400">3. 檢查監聽 Port</div>
+            <div class="text-[11px] text-slate-500 mt-1 mono">netstat -ano</div>
+          </button>
+          <button onclick="runPreset('Get-Process python, node | Select-Object Id, ProcessName, WorkingSet64')" class="bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded-xl p-3 text-left transition-all group">
+            <div class="text-xs font-medium text-slate-300 group-hover:text-blue-400">4. 檢查背景服務程序</div>
+            <div class="text-[11px] text-slate-500 mt-1 mono">Get-Process python</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分頁 2: 線上終端機 -->
+    <div id="view-terminal" class="hidden flex flex-col h-[calc(100vh-140px)] bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+      <!-- 終端頂部工具列 -->
+      <div class="bg-slate-950 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between text-xs">
+        <div class="flex items-center gap-2">
+          <span class="w-3 h-3 rounded-full bg-rose-500/80"></span>
+          <span class="w-3 h-3 rounded-full bg-amber-500/80"></span>
+          <span class="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+          <span class="text-slate-400 ml-2 font-mono">PowerShell (ExecutionPolicy Bypass)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="clearTerminal()" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded border border-slate-800 transition-colors">清空畫面</button>
+        </div>
+      </div>
+
+      <!-- 終端機輸出區 -->
+      <div id="term-output" class="flex-1 p-4 overflow-y-auto mono text-xs leading-relaxed text-slate-200 bg-slate-950 space-y-2 select-text">
+        <div class="text-slate-500">歡迎使用 HTTPS 遠端穿透互動終端。請於下方輸入任意 PowerShell / CMD 指令...</div>
+      </div>
+
+      <!-- 輸入框 -->
+      <div class="p-3 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+        <span class="text-blue-400 font-mono text-sm pl-2">PS &gt;</span>
+        <input type="text" id="term-input" placeholder="輸入指令後按 Enter (例如: ipconfig / dir / git status)..." 
+               class="flex-1 bg-slate-950 border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm mono text-slate-100 focus:outline-none focus:border-blue-500 transition-colors">
+        <button onclick="executeTerminal()" id="exec-btn" class="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-md flex items-center gap-1.5">
+          <span>執行</span>
+          <i data-lucide="send" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 分頁 3: 專案檔案總管 -->
+    <div id="view-files" class="hidden flex flex-col gap-4 h-[calc(100vh-140px)]">
+      <!-- 磁碟快速切換列 -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex items-center gap-2 overflow-x-auto text-xs shrink-0">
+        <span class="text-slate-400 font-bold shrink-0 px-2 flex items-center gap-1">
+          <i data-lucide="hard-drive" class="w-3.5 h-3.5 text-blue-400"></i>
+          全機磁碟:
+        </span>
+        <button onclick="loadFiles('')" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition-colors shrink-0">
+          🏠 全部磁碟與捷徑
+        </button>
+        <button onclick="loadFiles('C:/')" class="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-lg transition-colors shrink-0">
+          💽 C: 系統槽
+        </button>
+        <button onclick="loadFiles('D:/')" class="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-lg transition-colors shrink-0">
+          💽 D: 工作槽
+        </button>
+        <button onclick="loadFiles('D:/GOOGLE ANGET')" class="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-lg transition-colors shrink-0">
+          💻 D:\GOOGLE ANGET
+        </button>
+        <button onclick="loadFiles('E:/')" class="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-lg transition-colors shrink-0">
+          💽 E: 槽
+        </button>
+        <button onclick="loadFiles('G:/我的雲端硬碟')" class="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-emerald-400 border border-emerald-500/20 rounded-lg transition-colors shrink-0">
+          ☁️ G: Google 雲端
+        </button>
+        <button onclick="loadFiles('I:/')" class="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-lg transition-colors shrink-0">
+          🌐 I: 網碟 (17TB)
+        </button>
+        <button onclick="loadFiles('O:/')" class="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-lg transition-colors shrink-0">
+          🌐 O: 網碟 (28TB)
+        </button>
+      </div>
+
+      <!-- 檔案內容分割區 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 min-h-0">
+        <!-- 檔案清單 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden">
+          <div class="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+            <div class="text-xs font-bold text-slate-300 flex items-center gap-1.5 truncate">
+              <i data-lucide="folder" class="w-4 h-4 text-blue-400"></i>
+              <span id="file-cur-path" class="mono truncate">全電腦磁碟總覽</span>
+            </div>
+            <button onclick="loadFiles(parentPath)" id="btn-up-dir" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 shrink-0 ml-2">
+              <i data-lucide="arrow-up" class="w-3.5 h-3.5"></i>
+              上一層
+            </button>
+          </div>
+          <div id="file-list" class="flex-1 overflow-y-auto divide-y divide-slate-800/50 text-xs">
+            <!-- 動態載入檔案 -->
+          </div>
+        </div>
+
+      <!-- 檔案內容檢視/編輯器 -->
+      <div class="md:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col overflow-hidden">
+        <div class="p-3 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+          <div class="flex items-center gap-2">
+            <i data-lucide="file-text" class="w-4 h-4 text-cyan-400"></i>
+            <span id="editor-filename" class="text-xs font-mono text-slate-300">尚未選擇檔案</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="downloadCurrentFile()" id="btn-download" class="hidden px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg transition-colors flex items-center gap-1">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              下載
+            </button>
+            <button onclick="saveCurrentFile()" id="btn-save" class="hidden px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-all flex items-center gap-1 shadow-sm">
+              <i data-lucide="save" class="w-3.5 h-3.5"></i>
+              儲存變更
+            </button>
+          </div>
+        </div>
+        <textarea id="file-editor" class="flex-1 w-full bg-slate-950 p-4 mono text-xs text-slate-200 resize-none focus:outline-none" placeholder="選擇左側檔案以檢視或編輯內容..."></textarea>
+      </div>
+    </div>
+
+    <!-- 分頁 4: RDP 穿透說明 -->
+    <div id="view-rdp" class="hidden space-y-6">
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-12 h-12 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center border border-blue-500/30">
+            <i data-lucide="monitor" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold">Windows 原生遠端桌面 (RDP 3389) 穿透指南</h2>
+            <p class="text-xs text-slate-400">公司本機的 3389 埠目前已開啟並就緒，可透過 Cloudflare 穿透直連</p>
+          </div>
+        </div>
+
+        <div class="space-y-4 text-xs text-slate-300 leading-relaxed">
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+            <h4 class="font-bold text-slate-200 text-sm">步驟一：在您家中的電腦下載 Cloudflared</h4>
+            <p class="text-slate-400">家中電腦若為 Windows，可直接下載官方免安裝程式：</p>
+            <a href="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" target="_blank" class="text-blue-400 underline inline-flex items-center gap-1">
+              點我下載 cloudflared-windows-amd64.exe
+              <i data-lucide="external-link" class="w-3 h-3"></i>
+            </a>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+            <h4 class="font-bold text-slate-200 text-sm">步驟二：在家中終端機啟動本地轉發</h4>
+            <p class="text-slate-400">執行以下指令將公司遠端桌面映射到家中的本機 3389：</p>
+            <div class="bg-slate-900 p-3 rounded-lg mono text-blue-300 select-all border border-slate-800" id="rdp-client-cmd">
+              cloudflared access rdp --hostname [公司穿透網址] --url localhost:3389
+            </div>
+          </div>
+
+          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-2">
+            <h4 class="font-bold text-slate-200 text-sm">步驟三：開啟 Windows 遠端桌面連線 (mstsc)</h4>
+            <p class="text-slate-400">在電腦按 <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 font-mono">Win + R</kbd> 輸入 <code class="text-blue-400 font-mono">mstsc</code>，電腦名稱輸入 <code class="text-emerald-400 font-mono font-bold">localhost:3389</code>，即可順利開啟公司完整畫面！</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    let authToken = localStorage.getItem("remote_hub_token") || "";
+    let currentFilePath = "";
+    let parentPath = "";
+
+    window.addEventListener("DOMContentLoaded", () => {
+      lucide.createIcons();
+      if (authToken) {
+        verifySavedToken();
+      }
+      // Enter 鍵監聽
+      document.getElementById("pwd-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") document.getElementById("totp-input").focus();
+      });
+      document.getElementById("totp-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") handleLogin();
+      });
+      document.getElementById("term-input").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") executeTerminal();
+      });
+    });
+
+
+
+    async function handleLogin() {
+      const pwd = document.getElementById("pwd-input").value.trim();
+      const totp = document.getElementById("totp-input").value.trim();
+      const errEl = document.getElementById("login-err");
+      errEl.classList.add("hidden");
+
+      if (!pwd) {
+        errEl.textContent = "請輸入管理密碼";
+        errEl.classList.remove("hidden");
+        return;
+      }
+      if (!totp) {
+        errEl.textContent = "請輸入手機 6 位動態碼";
+        errEl.classList.remove("hidden");
+        return;
+      }
+
+      const btn = document.getElementById("login-btn");
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/auth", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: pwd, totp_code: totp })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          authToken = data.token;
+          localStorage.setItem("remote_hub_token", authToken);
+          document.getElementById("login-modal").classList.add("hidden");
+          initApp();
+        } else {
+          errEl.textContent = data.detail || "驗證失敗";
+          errEl.classList.remove("hidden");
+        }
+      } catch (err) {
+        errEl.textContent = "連線失敗: " + err.message;
+        errEl.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function handleEmergencyShutdown() {
+      if (!confirm("⚠️ 確定要立即「切斷外網穿透」並關閉伺服器嗎？\n\n切斷後，公網通道將立即失效，駭客與任何外網均無法再存取這台電腦。")) {
+        return;
+      }
+      try {
+        await fetch("/api/shutdown", {
+          method: "POST",
+          headers: { "x-auth-token": authToken }
+        });
+        alert("已成功關閉穿透通道！外網入口已即時切斷。");
+        window.location.reload();
+      } catch (e) {
+        alert("穿透伺服器已離線切斷！");
+        window.location.reload();
+      }
+    }
+
+    async function verifySavedToken() {
+      try {
+        const res = await fetch("/api/status", {
+          headers: { "x-auth-token": authToken }
+        });
+        if (res.ok) {
+          document.getElementById("login-modal").classList.add("hidden");
+          initApp();
+        } else {
+          localStorage.removeItem("remote_hub_token");
+        }
+      } catch (e) {}
+    }
+
+    function initApp() {
+      fetchStatus();
+      setInterval(fetchStatus, 10000);
+      loadFiles("");
+    }
+
+    async function fetchStatus() {
+      try {
+        const res = await fetch("/api/status", {
+          headers: { "x-auth-token": authToken }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById("header-host").textContent = data.computer_name;
+          document.getElementById("header-ip").textContent = data.local_ip;
+          document.getElementById("card-url").textContent = data.public_url || "生成中...";
+          document.getElementById("card-ram").textContent = data.memory.load_percent + "%";
+          document.getElementById("bar-ram").style.width = data.memory.load_percent + "%";
+          document.getElementById("card-disk").textContent = data.disk.free_gb + " GB 剩餘";
+          document.getElementById("card-disk-sub").textContent = `總計 ${data.disk.total_gb} GB (已用 ${data.disk.used_percent}%)`;
+          if (data.public_url) {
+            document.getElementById("rdp-client-cmd").textContent = `cloudflared access rdp --hostname ${data.public_url.replace('https://', '')} --url localhost:3389`;
+          }
+        }
+      } catch (e) {}
+    }
+
+    function switchTab(tab) {
+      ['dashboard', 'terminal', 'files', 'rdp'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add("hidden");
+        const btn = document.getElementById(`tab-${t}`);
+        btn.classList.remove("text-white", "bg-blue-600", "shadow-sm");
+        btn.classList.add("text-slate-400");
+      });
+      document.getElementById(`view-${tab}`).classList.remove("hidden");
+      const activeBtn = document.getElementById(`tab-${tab}`);
+      activeBtn.classList.remove("text-slate-400");
+      activeBtn.classList.add("text-white", "bg-blue-600", "shadow-sm");
+      lucide.createIcons();
+    }
+
+    // --- 終端機邏輯 ---
+    async function executeTerminal() {
+      const inputEl = document.getElementById("term-input");
+      const cmd = inputEl.value.trim();
+      if (!cmd) return;
+
+      appendTermOutput(`PS > ${cmd}`, 'cmd');
+      inputEl.value = "";
+
+      const btn = document.getElementById("exec-btn");
+      btn.disabled = true;
+
+      try {
+        const res = await fetch("/api/terminal/run", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-auth-token": authToken
+          },
+          body: JSON.stringify({ command: cmd })
+        });
+        const data = await res.json();
+        if (data.stdout) appendTermOutput(data.stdout, 'stdout');
+        if (data.stderr) appendTermOutput(data.stderr, 'stderr');
+        if (data.exit_code !== 0 && !data.stderr) {
+          appendTermOutput(`[Exit Code: ${data.exit_code}]`, 'stderr');
+        }
+      } catch (err) {
+        appendTermOutput("執行失敗: " + err.message, 'stderr');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function runPreset(cmd) {
+      switchTab('terminal');
+      document.getElementById("term-input").value = cmd;
+      executeTerminal();
+    }
+
+    function appendTermOutput(text, type) {
+      const out = document.getElementById("term-output");
+      const div = document.createElement("div");
+      div.className = "whitespace-pre-wrap break-all";
+      if (type === 'cmd') {
+        div.className += " text-blue-400 font-bold border-t border-slate-800/60 pt-2 mt-2";
+      } else if (type === 'stderr') {
+        div.className += " text-rose-400";
+      } else {
+        div.className += " text-slate-200";
+      }
+      div.textContent = text;
+      out.appendChild(div);
+      out.scrollTop = out.scrollHeight;
+    }
+
+    function clearTerminal() {
+      document.getElementById("term-output").innerHTML = '<div class="text-slate-500">畫面已清空。請輸入指令...</div>';
+    }
+
+    // --- 檔案總管邏輯 ---
+    async function loadFiles(path) {
+      try {
+        const res = await fetch(`/api/files/list?path=${encodeURIComponent(path)}`, {
+          headers: { "x-auth-token": authToken }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          const listEl = document.getElementById("file-list");
+          listEl.innerHTML = "";
+          document.getElementById("file-cur-path").textContent = data.is_root ? "🏠 全部磁碟與捷徑" : data.current_path;
+          
+          // 計算上一層
+          if (!data.is_root && data.parent_path !== undefined) {
+            parentPath = data.parent_path;
+            document.getElementById("btn-up-dir").classList.remove("hidden");
+          } else {
+            parentPath = "";
+            document.getElementById("btn-up-dir").classList.add("hidden");
+          }
+
+          data.items.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "p-2.5 px-3 hover:bg-slate-800/60 flex items-center justify-between cursor-pointer transition-colors";
+            let icon = 'file';
+            let iconColor = 'text-slate-400';
+            if (item.is_drive) {
+              icon = 'hard-drive';
+              iconColor = 'text-cyan-400';
+            } else if (item.is_shortcut) {
+              icon = 'external-link';
+              iconColor = 'text-emerald-400';
+            } else if (item.is_dir) {
+              icon = 'folder';
+              iconColor = 'text-amber-400';
+            }
+            div.innerHTML = `
+              <div class="flex items-center gap-2 truncate">
+                <i data-lucide="${icon}" class="w-4 h-4 ${iconColor} shrink-0"></i>
+                <span class="truncate ${item.is_dir ? 'font-medium text-slate-200' : 'text-slate-300'}">${item.name}</span>
+              </div>
+              <span class="text-[10px] text-slate-500 shrink-0 ml-2">${item.is_drive ? '磁碟槽' : (item.is_dir ? '資料夾' : (item.size/1024).toFixed(1)+' KB')}</span>
+            `;
+            div.onclick = () => {
+              const targetPath = item.path || (data.current_path ? `${data.current_path}/${item.name}` : item.name);
+              if (item.is_dir) {
+                loadFiles(targetPath);
+              } else {
+                openFile(targetPath, item.name);
+              }
+            };
+            listEl.appendChild(div);
+          });
+          lucide.createIcons();
+        }
+      } catch (e) {}
+    }
+
+    async function openFile(path, name) {
+      currentFilePath = path;
+      document.getElementById("editor-filename").textContent = name;
+      document.getElementById("btn-download").classList.remove("hidden");
+      document.getElementById("btn-save").classList.remove("hidden");
+
+      try {
+        const res = await fetch(`/api/files/read?path=${encodeURIComponent(path)}`, {
+          headers: { "x-auth-token": authToken }
+        });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById("file-editor").value = data.content;
+        } else {
+          document.getElementById("file-editor").value = "無法讀取檔案: " + (data.detail || "可能為二進位檔案");
+        }
+      } catch (err) {
+        document.getElementById("file-editor").value = "讀取失敗: " + err.message;
+      }
+    }
+
+    function downloadCurrentFile() {
+      if (!currentFilePath) return;
+      window.open(`/api/files/download?path=${encodeURIComponent(currentFilePath)}&x_auth_token=${encodeURIComponent(authToken)}`, "_blank");
+    }
+
+    async function saveCurrentFile() {
+      if (!currentFilePath) return;
+      const content = document.getElementById("file-editor").value;
+      try {
+        const res = await fetch("/api/files/save", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-auth-token": authToken
+          },
+          body: JSON.stringify({ path: currentFilePath, content })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert("檔案儲存成功！");
+        } else {
+          alert("儲存失敗: " + data.detail);
+        }
+      } catch (err) {
+        alert("儲存發生錯誤: " + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

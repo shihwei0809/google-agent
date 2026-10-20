@@ -1,6 +1,28 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-20 教育訓練教材全面升級 Cloudflare PWA 邊緣版、串接 R2 物件儲存與 D1 無伺服器資料庫)
+## 今日進度與交接事項 (2026-10-20 Chrome遠端離線診斷與HTTPS純網頁穿透中心建立、教育訓練教材PWA化、中央大腦全域規範)
+* **Chrome 遠端桌面 (Chrome Remote Desktop) 離線根因深度排查與診斷:**
+  - **診斷結果與根因分析**:
+    1. **UDP 19302 (STUN/ICE) 被公司防火牆封鎖**: Chrome Remote Desktop 依賴 WebRTC STUN 伺服器進行點對點穿透打洞。實際測試 `stun.l.google.com:19302` (UDP) 遭遇丟包超時。
+    2. **Windows Schannel 憑證清單吊銷阻擋**: 內網 Schannel 出現 `0x80092012` 錯誤，公司防火牆阻擋了外網 CRL/OCSP 驗證，造成離線下線後 ICE Renegotiation 逾時中斷，Google Directory 狀態凍結在下線時間 (17:33)。
+    3. **解決方針**: 在不需請假或申請變更網管防火牆政策的前提下，打造「純 TCP 443 (HTTPS) 單向出站網頁穿透中心」，確保任何家用瀏覽器皆可隨時直連公司主機。
+
+* **全新子專案：HTTPS遠端網頁穿透中心 (`d:\GOOGLE ANGET\HTTPS遠端網頁穿透中心\`):**
+  - **系統核心架構 (FastAPI + Cloudflare Quick Tunnel)**:
+    1. **單向出站 TLS 穿透**: 自動下載並調用 `cloudflared.exe`，強制設定 `--protocol http2` 走純 TCP 443，完美突破公司防火牆阻擋 UDP/QUIC 的限制，秒級生成全球專用 HTTPS 網址。
+    2. **動態 Port 搜尋綁定**: 預設 Port 8002，若被佔用自動切換至可用 Port（8003, 8004...），無崩潰中斷風險。
+    3. **本機狀態即時儀表板**: 整合 `psutil` 提供 CPU 使用率、記憶體負載、磁碟剩餘空間與主機運行時間。
+    4. **Web 互動式終端機 (Terminal)**: 支援即時執行 PowerShell 與 CMD 指令，遠端除錯與管理無延遲。
+    5. **全機全磁碟穿透檔案總管**: 突破單一目錄限制，自動動態枚舉全機可用實體/網路磁碟槽（`C:`, `D:`, `E:`, `G:`, `I:`, `O:`, `Z:` 等），具備資料夾即時瀏覽、檔案線上預覽（程式碼/文字編輯器）以及單鍵下載功能。
+    6. **緊急關機控制端點**: 實作 `/api/shutdown` API 與網頁紅燈關機鍵，可於需要時直接從遠端將本機安全關機或重開機。
+  - **企業級雙重安全防護 (2FA & 防暴力破解)**:
+    1. **TOTP 雙重驗證 (2FA)**: 整合 `pyotp`，使用者需輸入密碼與 Google Authenticator / 2FA App 的 6 位數一次性動態驗證碼才能登入。
+    2. **敏感金鑰嚴格隔離防呆**: 修正初始設計隱患，登入介面完全剔除任何 QR Code 或 TOTP Secret 明文，金鑰獨立保存在本機 `security_config.json`，杜絕任何公開外洩可能。
+    3. **防暴力破解保護 (Rate Limiter)**: 密碼或 TOTP 連續錯誤 5 次自動鎖定 IP 15 分鐘，日誌即時警報。
+    4. **短期安全 Session**: 登入成功簽發高熵值 Token，提供有效期限與登出清除機制。
+  - **標準三件套與一鍵啟動規範**:
+    - 具備完整 `README.md`（含架構圖與目錄樹）、`SKILL.md`、`setup_env.ps1`，以及 `啟動HTTPS遠端穿透.bat`。
+
 * **教育訓練教材全面升級 PWA 雲端邊緣版 (education-training-pwa.pages.dev):**
   - **架構重大升級 (徹底脫離本機 Python 伺服器)**:
     1. **告別本機伺服器**: 徹底解決先前桌機 FastAPI (Port 8000) 未啟動導致前端畫面顯示「尚無教材」之痛點，亦解決了 Windows cmd.exe 讀取 UTF-8/LF 批次檔時發生字節錯位噴錯（如 'nd'、'ho' 不是內部或外部命令）的問題。
@@ -15,13 +37,7 @@
   - **PWA 獨立 App 標準規範落地**:
     1. 實作 manifest.json 與雙尺寸圖示（192x192、512x512）。
     2. 整合 sw.js 離線快取服務，內建頂部智慧安裝橫幅，支援電腦與手機一鍵安裝為原生視窗 App。
-  - **避坑指南 (Cross-Device Pitfalls)**:
-    1. **Pages 嚴禁 account_id**: Pages 專案的 wrangler.toml 嚴禁寫入 account_id 欄位（Pages 會自動綁定），否則會觸發 Configuration file for Pages projects does not support 'account_id' 錯誤。
-    2. **R2 CLI 必須帶 --remote**: 使用 wrangler r2 object put 同步雲端檔案時必須帶 --remote 參數，否則預設只寫入本機模擬器。
-    3. **批次檔必須純 ASCII + CRLF**: Windows .bat 檔內若含中文字串且使用 LF 換行，cmd.exe 會發生字節位移並吃掉指令關鍵字，必須改用純 ASCII 配合標準 CRLF 換行。
-    4. **Pages 專案需先建立後部署**: 首次部署若尚未建立專案，應以 wrangler pages project create <name> --production-branch=main 建立後再執行 wrangler pages deploy。
 
-## 今日進度與交接事項 (2026-10-20 中央大腦納管大型 Git 倉庫雙機通用（桌機與筆電一律適用）防狂搜與 CPU 降載全域標準)
 * **中央大腦 (my-ai-brain) 規範升級:**
   - 於 INSTRUCTIONS.md 新增 **第 12 條：大型 Git 倉庫跨機防死結與效能最佳化規範**。
   - 明確規範桌機垃圾回收 (git prune + git gc --prune=now)、筆電端核心快取 (core.fscache) 與 IDE 背景盲目輪詢停用（解決多個 git.exe 堆疊卡死問題）。
