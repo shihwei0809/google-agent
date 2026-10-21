@@ -321,6 +321,26 @@
 
     // 預設產品設定檔集 (支援多產品與自訂槽桶配置)
     const DEFAULT_PROFILES = {
+      "EGUPS": {
+        name: "EGUPS",
+        rawSafetyStock: 30.0,
+        preSaleTotal: 129.0,
+        rawTanks: [
+          { name: "TK01", amount: 20.0 },
+          { name: "TK02", amount: 20.0 }
+        ],
+        prodTanks: [
+          { name: "TK623", amount: 10.0, maxLimit: 125.0 },
+          { name: "TK689", amount: 10.0, maxLimit: 110.0 },
+          { name: "TK692", amount: 20.0, maxLimit: 262.0 },
+          { name: "其他儲槽", amount: 0.0, maxLimit: 36.0 }
+        ],
+        otherProdStock: 0.0,
+        truckStock: 36.0,
+        truckMaxCapacity: 216.0,
+        tankTotalLimit: 533.0,
+        tk622Limit: 749.0
+      },
       "ACT": {
         name: "ACT",
         rawSafetyStock: 50.0,
@@ -336,57 +356,42 @@
         ],
         otherProdStock: 0.0,
         truckStock: 0.0,
-        truckMaxCapacity: 108.0
-      },
-      "多儲槽成品 (TK623/TK689/TK692)": {
-        name: "多儲槽成品 (TK623/TK689/TK692)",
-        rawSafetyStock: 30.0,
-        preSaleTotal: 100.0,
-        rawTanks: [
-          { name: "TK01", amount: 20.0 },
-          { name: "TK02", amount: 20.0 }
-        ],
-        prodTanks: [
-          { name: "TK623", amount: 10.0, maxLimit: 125.0 },
-          { name: "TK689", amount: 10.0, maxLimit: 110.0 },
-          { name: "TK692", amount: 20.0, maxLimit: 262.0 },
-          { name: "其他儲槽", amount: 0.0, maxLimit: 36.0 }
-        ],
-        otherProdStock: 0.0,
-        truckStock: 36.0,
-        truckMaxCapacity: 216.0
+        truckMaxCapacity: 108.0,
+        tankTotalLimit: 170.0,
+        tk622Limit: 278.0
       }
     };
 
     let productProfiles = JSON.parse(JSON.stringify(DEFAULT_PROFILES));
-    let currentProfileKey = "ACT";
+    let currentProfileKey = "EGUPS";
 
     const appState = {
-      currentProduct: "ACT",
+      currentProduct: "EGUPS",
       startBootTime: "2026-10-16T08:00",
       startProduceTime: "2026-10-16T16:09",
-      totalTarget: 200.0,
+      totalTarget: 190.0,
       flowRate: 1.2,
       batchCap: 18.0,
       yieldRate: 95.0,
       truckOrderNote: "",
 
       rawTanks: [
-        { name: "TK657", amount: 40.0 },
-        { name: "E13",   amount: 16.1 },
-        { name: "E36",   amount: 16.61 },
-        { name: "S208",  amount: 12.8 }
+        { name: "TK01", amount: 20.0 },
+        { name: "TK02", amount: 20.0 }
       ],
-      rawSafetyStock: 50.0,
+      rawSafetyStock: 30.0,
       prodTanks: [
-        { name: "TK622", amount: 3.5, maxLimit: 170.0 }
+        { name: "TK623", amount: 10.0, maxLimit: 125.0 },
+        { name: "TK689", amount: 10.0, maxLimit: 110.0 },
+        { name: "TK692", amount: 20.0, maxLimit: 262.0 },
+        { name: "其他儲槽", amount: 0.0, maxLimit: 36.0 }
       ],
       otherProdStock: 0.0,
-      truckStock: 0.0,
+      truckStock: 36.0,
       truckMaxCapacity: 216.0,
-      tankTotalLimit: 170.0,
-      tk622Limit: 386.0,
-      preSaleTotal: 138.0,
+      tankTotalLimit: 533.0,
+      tk622Limit: 749.0,
+      preSaleTotal: 129.0,
 
       daysCount: 30,
       dates: [],
@@ -417,13 +422,29 @@
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
+      // 讀取本地已刪除產品黑名單 (Tombstone)
+      let deletedList = [];
+      try {
+        deletedList = JSON.parse(localStorage.getItem("ACT_DELETED_PROFILES") || "[]");
+      } catch(e) {}
+      // 強制永久剔除先前誤增的「多儲槽成品 (TK623/TK689/TK692)」
+      if (!deletedList.includes("多儲槽成品 (TK623/TK689/TK692)")) {
+        deletedList.push("多儲槽成品 (TK623/TK689/TK692)");
+      }
+      localStorage.setItem("ACT_DELETED_PROFILES", JSON.stringify(deletedList));
+
       // 讀取本地產品配置集
       const cachedProfiles = localStorage.getItem("ACT_PRODUCT_PROFILES");
       if (cachedProfiles) {
         try {
           productProfiles = JSON.parse(cachedProfiles);
         } catch(e) {}
+      } else {
+        productProfiles = JSON.parse(JSON.stringify(DEFAULT_PROFILES));
       }
+      // 確保排除黑名單產品與「多儲槽成品」
+      deletedList.forEach(k => delete productProfiles[k]);
+      delete productProfiles["多儲槽成品 (TK623/TK689/TK692)"];
 
       // 優先從本地快取或 Google 試算表載入狀態
       const cached = localStorage.getItem("ACT_CURRENT_STATE");
@@ -441,10 +462,16 @@
           if (appState.otherProdStock === undefined) appState.otherProdStock = 0.0;
           if (appState.truckStock === undefined) appState.truckStock = 0.0;
           if (appState.truckMaxCapacity === undefined) appState.truckMaxCapacity = 216.0;
-          if (appState.currentProduct && productProfiles[appState.currentProduct]) {
-            currentProfileKey = appState.currentProduct;
+
+          // 若原本儲存的是已刪除產品或多儲槽成品，強制轉回 EGUPS
+          if (!appState.currentProduct || appState.currentProduct === "多儲槽成品 (TK623/TK689/TK692)" || deletedList.includes(appState.currentProduct)) {
+            appState.currentProduct = "EGUPS";
           }
+          currentProfileKey = appState.currentProduct;
         } catch(e) {}
+      } else {
+        currentProfileKey = "EGUPS";
+        appState.currentProduct = "EGUPS";
       }
 
       renderProfileDropdown();
@@ -454,7 +481,7 @@
       recalculateAll(false);
 
       // 自動連線 Google 試算表同步最新資料
-      await fetchFromGoogleSheet();
+      await fetchFromGoogleSheet(currentProfileKey);
       refreshHistoryDropdown();
     });
 
@@ -538,22 +565,57 @@
         truckMaxCapacity: 216.0
       };
 
+      // 若該名稱先前在黑名單中，從黑名單移除
+      let deletedList = [];
+      try {
+        deletedList = JSON.parse(localStorage.getItem("ACT_DELETED_PROFILES") || "[]");
+        deletedList = deletedList.filter(k => k !== key);
+        localStorage.setItem("ACT_DELETED_PROFILES", JSON.stringify(deletedList));
+      } catch(e) {}
+
       localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
       switchProductProfile(key);
       alert(`✅ 成功建立新產品配置：[${key}]！您可以直接在介面上修改槽桶名稱與存量。`);
     }
 
-    function deleteCurrentProfile() {
-      if (Object.keys(productProfiles).length <= 1) {
+    async function deleteCurrentProfile() {
+      const allKeys = Object.keys(productProfiles);
+      if (allKeys.length <= 1) {
         alert("至少需保留一個產品設定檔，無法全部刪除！");
         return;
       }
-      if (confirm(`確定要刪除產品配置 [${currentProfileKey}] 嗎？此動作無法復原。`)) {
-        delete productProfiles[currentProfileKey];
-        localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
-        const nextKey = Object.keys(productProfiles)[0];
-        switchProductProfile(nextKey);
+      const toDelete = currentProfileKey;
+      if (!confirm(`確定要刪除產品配置 [${toDelete}] 嗎？此動作將從本機與同步清單中永久移除。`)) {
+        return;
       }
+
+      // 1. 從 productProfiles 中刪除
+      delete productProfiles[toDelete];
+
+      // 2. 登記至黑名單 (Tombstone)，徹底防呆防止雲端拉取時死灰復燃
+      let deletedList = [];
+      try {
+        deletedList = JSON.parse(localStorage.getItem("ACT_DELETED_PROFILES") || "[]");
+      } catch(e) {}
+      if (!deletedList.includes(toDelete)) {
+        deletedList.push(toDelete);
+      }
+      localStorage.setItem("ACT_DELETED_PROFILES", JSON.stringify(deletedList));
+      localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
+
+      // 3. 切換至下一個可用的產品
+      const remainingKeys = Object.keys(productProfiles);
+      const nextKey = remainingKeys[0] || "EGUPS";
+
+      // 4. 更新狀態
+      currentProfileKey = nextKey;
+      appState.currentProduct = nextKey;
+      appState.productProfiles = JSON.parse(JSON.stringify(productProfiles));
+
+      // 5. 執行切換並立即同步雲端
+      await switchProductProfile(nextKey);
+      await saveToCloud(true);
+      alert(`✅ 已成功刪除產品配置 [${toDelete}]！目前已切換至 [${nextKey}]。`);
     }
 
     function renderTankInputs() {
@@ -1294,9 +1356,18 @@
         if (json.status === "SUCCESS" && json.data && Object.keys(json.data).length > 0) {
           const cloudData = json.data;
 
-          // 若雲端存有所有產品的設定檔集合，同步更新
+          // 若雲端存有所有產品的設定檔集合，同步更新 (嚴格過濾黑名單)
           if (cloudData.productProfiles && typeof cloudData.productProfiles === "object") {
-            productProfiles = Object.assign({}, DEFAULT_PROFILES, cloudData.productProfiles);
+            let deletedList = [];
+            try {
+              deletedList = JSON.parse(localStorage.getItem("ACT_DELETED_PROFILES") || "[]");
+            } catch(e) {}
+            deletedList.push("多儲槽成品 (TK623/TK689/TK692)");
+
+            const merged = Object.assign({}, DEFAULT_PROFILES, cloudData.productProfiles);
+            deletedList.forEach(k => delete merged[k]);
+
+            productProfiles = merged;
             localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
           }
 
