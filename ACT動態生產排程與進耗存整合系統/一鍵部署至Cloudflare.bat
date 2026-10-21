@@ -7,6 +7,14 @@ echo [ACT 動態生產排程與進耗存整合系統] 一鍵部署至 Cloudflare
 echo ========================================================
 echo.
 
+rem 優先載入本目錄 .env 或父級 .env，支援無人值守自動部署
+if exist ".env" (
+    for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
+        set "%%a=%%b"
+    )
+)
+if "%NODE_TLS_REJECT_UNAUTHORIZED%"=="" set NODE_TLS_REJECT_UNAUTHORIZED=0
+
 call npx --yes wrangler pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
 
 echo.
