@@ -209,28 +209,17 @@
         <!-- 成品區儲槽動態清單 -->
         <div class="space-y-2 pt-2 border-t">
           <div class="flex flex-wrap justify-between items-center gap-2">
-            <div class="flex items-center space-x-2">
-              <span class="font-bold text-slate-800 text-xs sm:text-[13px]">期初各儲槽庫存量 (T) - 成品</span>
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="font-bold text-slate-800 text-xs sm:text-[13px] mr-1">期初各儲槽庫存量 (T) - 成品</span>
               <button onclick="addProdTankPrompt()" class="text-[10px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 font-bold shadow-sm transition">
                 ➕ 新增成品槽
               </button>
+              <!-- 動態新增槽車與其他存量按鈕 (有需求才自行新增) -->
+              <span id="optionalStockActionButtons" class="flex items-center gap-1.5"></span>
             </div>
             
-            <!-- 總容量滿位資訊標籤 -->
-            <div class="text-[11px] text-emerald-900 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-sm flex items-center gap-1.5">
-              <span>總容量滿位:</span>
-              <span class="text-teal-700">儲槽 <span id="txtTankMaxLimitSum">0</span> T</span>
-              <span>+</span>
-              <span class="text-indigo-700 flex items-center gap-0.5">
-                槽車
-                <input type="number" step="1" id="truckMaxCapacityInput" value="216" 
-                  class="w-14 text-center border border-indigo-200 rounded px-1 py-0.5 bg-white font-bold text-indigo-700 shadow-inner" 
-                  title="點擊修改槽車總容量上限 (T)" 
-                  oninput="updateTruckMaxCapacity(this.value)">
-                T
-              </span>
-              <span class="text-slate-400">|</span>
-              <span class="text-slate-600 font-semibold">總滿位: <span id="txtGrandTotalCapacity" class="font-black text-emerald-700">0</span> T</span>
+            <!-- 總容量滿位資訊標籤 (動態渲染) -->
+            <div id="tankCapacityBadgeContainer" class="text-[11px] text-emerald-900 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-sm flex items-center gap-1.5">
             </div>
           </div>
 
@@ -239,14 +228,9 @@
             <!-- 動態生成各成品槽輸入框、其他庫存量與槽車存量 -->
           </div>
 
-          <!-- 底部即時加總列 (儲槽 + 其他 + 槽車 = 總計期初成品) -->
+          <!-- 底部即時加總列 (動態渲染) -->
           <div class="flex justify-between items-center bg-slate-50 px-3 py-1.5 rounded border border-slate-200 text-xs">
-            <div class="text-slate-500 font-medium flex items-center gap-2">
-              <span>🛢️ 儲槽存量: <b id="txtTankStockSum" class="text-emerald-700 font-bold">0.0</b> T</span>
-              <span>•</span>
-              <span>📦 其他存量: <b id="txtOtherStockVal" class="text-orange-700 font-bold">0.0</b> T</span>
-              <span>•</span>
-              <span>🚛 槽車存量: <b id="txtTruckStockVal" class="text-indigo-700 font-bold">0.0</b> T</span>
+            <div id="stockSummaryComponents" class="text-slate-500 font-medium flex items-center gap-2">
             </div>
             <div class="text-emerald-900 font-extrabold text-xs sm:text-sm">
               總計期初成品: <span id="txtGrandTotalStock" class="text-emerald-700 text-sm font-black underline">0.0</span> T
@@ -335,7 +319,9 @@
           { name: "TK692", amount: 20.0, maxLimit: 262.0 },
           { name: "其他儲槽", amount: 0.0, maxLimit: 36.0 }
         ],
+        hasOtherStock: false,
         otherProdStock: 0.0,
+        hasTruckStock: true,
         truckStock: 36.0,
         truckMaxCapacity: 216.0,
         tankTotalLimit: 533.0,
@@ -354,11 +340,13 @@
         prodTanks: [
           { name: "TK622", amount: 3.5, maxLimit: 170.0 }
         ],
+        hasOtherStock: false,
         otherProdStock: 0.0,
+        hasTruckStock: false,
         truckStock: 0.0,
-        truckMaxCapacity: 108.0,
+        truckMaxCapacity: 0.0,
         tankTotalLimit: 170.0,
-        tk622Limit: 278.0
+        tk622Limit: 170.0
       }
     };
 
@@ -386,7 +374,9 @@
         { name: "TK692", amount: 20.0, maxLimit: 262.0 },
         { name: "其他儲槽", amount: 0.0, maxLimit: 36.0 }
       ],
+      hasOtherStock: false,
       otherProdStock: 0.0,
+      hasTruckStock: true,
       truckStock: 36.0,
       truckMaxCapacity: 216.0,
       tankTotalLimit: 533.0,
@@ -462,6 +452,12 @@
           if (appState.otherProdStock === undefined) appState.otherProdStock = 0.0;
           if (appState.truckStock === undefined) appState.truckStock = 0.0;
           if (appState.truckMaxCapacity === undefined) appState.truckMaxCapacity = 216.0;
+          if (appState.hasOtherStock === undefined) {
+            appState.hasOtherStock = (Number(appState.otherProdStock) || 0) > 0;
+          }
+          if (appState.hasTruckStock === undefined) {
+            appState.hasTruckStock = (Number(appState.truckStock) || 0) > 0 || (Number(appState.truckMaxCapacity) || 0) > 0;
+          }
 
           // 若原本儲存的是已刪除產品或多儲槽成品，強制轉回 EGUPS
           if (!appState.currentProduct || appState.currentProduct === "多儲槽成品 (TK623/TK689/TK692)" || deletedList.includes(appState.currentProduct)) {
@@ -517,14 +513,16 @@
       appState.preSaleTotal = prof.preSaleTotal ?? 138.0;
       appState.rawTanks = JSON.parse(JSON.stringify(prof.rawTanks || []));
       appState.prodTanks = JSON.parse(JSON.stringify(prof.prodTanks || []));
-      appState.otherProdStock = prof.otherProdStock ?? 0.0;
-      appState.truckStock = prof.truckStock ?? 0.0;
-      appState.truckMaxCapacity = prof.truckMaxCapacity ?? 216.0;
+      appState.hasOtherStock = prof.hasOtherStock !== undefined ? !!prof.hasOtherStock : ((prof.otherProdStock || 0) > 0);
+      appState.hasTruckStock = prof.hasTruckStock !== undefined ? !!prof.hasTruckStock : ((prof.truckStock || 0) > 0 || (prof.truckMaxCapacity || 0) > 0);
+      appState.otherProdStock = appState.hasOtherStock ? (prof.otherProdStock ?? 0.0) : 0.0;
+      appState.truckStock = appState.hasTruckStock ? (prof.truckStock ?? 0.0) : 0.0;
+      appState.truckMaxCapacity = appState.hasTruckStock ? (prof.truckMaxCapacity ?? 216.0) : 0.0;
 
       // 儲槽容量總和與含槽車滿位總上限
       const totalLimit = appState.prodTanks.reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
       appState.tankTotalLimit = totalLimit;
-      appState.tk622Limit = totalLimit + appState.truckMaxCapacity;
+      appState.tk622Limit = totalLimit + (appState.hasTruckStock ? appState.truckMaxCapacity : 0);
 
       const preSaleEl = document.getElementById("preSaleTotal");
       if (preSaleEl) preSaleEl.value = appState.preSaleTotal;
@@ -651,7 +649,7 @@
         rawContainer.innerHTML = rawHtml;
       }
 
-      // 2. 成品槽容器渲染 (各儲槽、其他庫存量、槽車存量)
+      // 2. 成品槽容器渲染 (實體儲槽 + 可自選新增的其他庫存量、槽車存量)
       const prodContainer = document.getElementById("prodTanksContainer");
       if (prodContainer) {
         let prodHtml = "";
@@ -686,48 +684,110 @@
           `;
         });
 
-        // (2) 渲染其他庫存量 (橘色外觀)
-        prodHtml += `
-          <div class="flex flex-col items-center min-w-[105px] flex-1 bg-orange-50/50 p-2 rounded-lg border border-orange-300 shadow-sm">
-            <div class="font-extrabold text-orange-800 text-xs mb-1">其他庫存量</div>
-            <div class="text-[10px] text-orange-500 font-semibold mb-1">包裝/雜項存量</div>
-            <div class="w-full">
-              <input type="number" step="0.1" value="${appState.otherProdStock || 0}"
-                class="w-full border-2 border-orange-300 focus:border-orange-500 rounded-md py-1 text-center font-black text-orange-950 text-sm bg-white shadow-inner"
-                placeholder="0"
-                title="非儲槽其他成品庫存量 (例如桶裝、雜項存放，T)"
-                oninput="updateOtherProdStock(this.value)">
+        // (2) 渲染其他庫存量 (僅在使用者點擊「➕ 納入其他存量」時顯示，橘色外觀，可按 × 移除)
+        if (appState.hasOtherStock) {
+          prodHtml += `
+            <div class="flex flex-col items-center min-w-[105px] flex-1 bg-orange-50/50 p-2 rounded-lg border border-orange-300 shadow-sm relative group">
+              <div class="flex items-center justify-between w-full mb-1">
+                <span class="font-extrabold text-orange-800 text-xs">📦 其他庫存量</span>
+                <button onclick="removeOtherProdStock()" class="text-orange-400 hover:text-rose-600 font-bold text-xs px-0.5" title="移除其他庫存量">×</button>
+              </div>
+              <div class="text-[10px] text-orange-500 font-semibold mb-1">包裝/雜項存量</div>
+              <div class="w-full">
+                <input type="number" step="0.1" value="${appState.otherProdStock || 0}"
+                  class="w-full border-2 border-orange-300 focus:border-orange-500 rounded-md py-1 text-center font-black text-orange-950 text-sm bg-white shadow-inner"
+                  placeholder="0"
+                  title="非儲槽其他成品庫存量 (例如桶裝、雜項存放，T)"
+                  oninput="updateOtherProdStock(this.value)">
+              </div>
             </div>
-          </div>
-        `;
+          `;
+        }
 
-        // (3) 渲染槽車存量 (紫色/Indigo 外觀)
-        const truckCap = appState.truckMaxCapacity ?? 216.0;
-        prodHtml += `
-          <div class="flex flex-col items-center min-w-[105px] flex-1 bg-indigo-50/50 p-2 rounded-lg border border-indigo-300 shadow-sm">
-            <div class="font-extrabold text-indigo-800 text-xs mb-1 flex items-center gap-1">
-              <span>🚛 槽車存量</span>
+        // (3) 渲染槽車存量 (僅在使用者點擊「➕ 納入槽車存量」時顯示，紫色外觀，可按 × 移除)
+        if (appState.hasTruckStock) {
+          const truckCap = appState.truckMaxCapacity ?? 216.0;
+          prodHtml += `
+            <div class="flex flex-col items-center min-w-[105px] flex-1 bg-indigo-50/50 p-2 rounded-lg border border-indigo-300 shadow-sm relative group">
+              <div class="flex items-center justify-between w-full mb-1">
+                <span class="font-extrabold text-indigo-800 text-xs flex items-center gap-0.5">
+                  <span>🚛 槽車存量</span>
+                </span>
+                <button onclick="removeTruckStock()" class="text-indigo-400 hover:text-rose-600 font-bold text-xs px-0.5" title="移除槽車存量配置">×</button>
+              </div>
+              <div class="text-[10px] text-indigo-600 font-semibold mb-1 flex items-center justify-center gap-0.5">
+                <span>上限:</span>
+                <input type="number" step="1" value="${truckCap}"
+                  class="w-12 text-center border border-indigo-200 hover:border-indigo-400 rounded px-0.5 font-bold text-indigo-700 bg-white"
+                  title="點擊修改槽車容量上限 (T)"
+                  oninput="updateTruckMaxCapacity(this.value)">
+                <span>T</span>
+              </div>
+              <div class="w-full">
+                <input type="number" step="0.1" value="${appState.truckStock || 0}"
+                  class="w-full border-2 border-indigo-300 focus:border-indigo-500 rounded-md py-1 text-center font-black text-indigo-950 text-sm bg-white shadow-inner"
+                  placeholder="0"
+                  title="目前已打入/存於槽車之成品庫存量 (T，會100%算入期初成品總存量)"
+                  oninput="updateTruckStock(this.value)">
+              </div>
             </div>
-            <div class="text-[10px] text-indigo-600 font-semibold mb-1 flex items-center justify-center gap-0.5">
-              <span>上限:</span>
-              <span class="font-bold underline">${truckCap}</span>
-              <span>T</span>
-            </div>
-            <div class="w-full">
-              <input type="number" step="0.1" value="${appState.truckStock || 0}"
-                class="w-full border-2 border-indigo-300 focus:border-indigo-500 rounded-md py-1 text-center font-black text-indigo-950 text-sm bg-white shadow-inner"
-                placeholder="0"
-                title="目前已打入/存於槽車之成品庫存量 (T，會100%算入期初成品總存量！)"
-                oninput="updateTruckStock(this.value)">
-            </div>
-          </div>
-        `;
+          `;
+        }
 
         prodContainer.innerHTML = prodHtml;
 
-        // 同步上方槽車容量輸入框
-        const truckCapInput = document.getElementById("truckMaxCapacityInput");
-        if (truckCapInput) truckCapInput.value = truckCap;
+        // 動態渲染可選新增按鈕 (若未新增槽車或其他存量，按鈕提供「➕ 納入槽車存量」、「➕ 納入其他存量」供使用者按需點擊新增)
+        const optBtnContainer = document.getElementById("optionalStockActionButtons");
+        if (optBtnContainer) {
+          let btnHtml = "";
+          if (!appState.hasTruckStock) {
+            btnHtml += `
+              <button onclick="addTruckStockPrompt()" class="text-[10px] text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 font-bold shadow-sm transition" title="當有槽車作為成品緩衝庫存時點擊新增">
+                ➕ 納入槽車存量
+              </button>
+            `;
+          }
+          if (!appState.hasOtherStock) {
+            btnHtml += `
+              <button onclick="addOtherStockPrompt()" class="text-[10px] text-orange-700 hover:text-orange-900 bg-orange-50 hover:bg-orange-100 px-2 py-0.5 rounded border border-orange-200 font-bold shadow-sm transition" title="當有桶裝、雜項其他庫存時點擊新增">
+                ➕ 納入其他存量
+              </button>
+            `;
+          }
+          optBtnContainer.innerHTML = btnHtml;
+        }
+
+        // 動態渲染頂部總容量滿位標籤 (若無槽車則純顯示儲槽容量，不顯示多餘的 + 槽車 0 T)
+        const badgeContainer = document.getElementById("tankCapacityBadgeContainer");
+        if (badgeContainer) {
+          const tankTotalLimit = (appState.prodTanks || []).reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+          if (appState.hasTruckStock) {
+            const truckCap = Number(appState.truckMaxCapacity) || 0;
+            const grandTotalCap = tankTotalLimit + truckCap;
+            badgeContainer.innerHTML = `
+              <span>總容量滿位:</span>
+              <span class="text-teal-700">儲槽 ${tankTotalLimit} T</span>
+              <span>+</span>
+              <span class="text-indigo-700 flex items-center gap-0.5">
+                槽車
+                <input type="number" step="1" value="${truckCap}" 
+                  class="w-14 text-center border border-indigo-200 rounded px-1 py-0.5 bg-white font-bold text-indigo-700 shadow-inner" 
+                  title="點擊修改槽車總容量上限 (T)" 
+                  oninput="updateTruckMaxCapacity(this.value)">
+                T
+              </span>
+              <span class="text-slate-400">|</span>
+              <span class="text-slate-600 font-semibold">總滿位: <span class="font-black text-emerald-700">${grandTotalCap}</span> T</span>
+            `;
+          } else {
+            badgeContainer.innerHTML = `
+              <span>總容量滿位:</span>
+              <span class="text-teal-700 font-bold">儲槽 <span id="txtTankMaxLimitSum">${tankTotalLimit}</span> T</span>
+              <span class="text-slate-400">|</span>
+              <span class="text-slate-600 font-semibold">總滿位: <span class="font-black text-emerald-700">${tankTotalLimit}</span> T</span>
+            `;
+          }
+        }
       }
     }
 
@@ -812,6 +872,47 @@
       }
     }
 
+    function addTruckStockPrompt() {
+      const defaultCap = appState.truckMaxCapacity && appState.truckMaxCapacity > 0 ? appState.truckMaxCapacity : 216;
+      const cap = prompt("請輸入納入槽車的總容量上限 (T):", defaultCap);
+      if (cap === null) return;
+      appState.hasTruckStock = true;
+      appState.truckMaxCapacity = parseFloat(cap) || 216.0;
+      appState.truckStock = 0.0;
+      saveCurrentProfileToMemory();
+      renderTankInputs();
+      recalculateAll(false);
+    }
+
+    function removeTruckStock() {
+      if (confirm("確定要移除「槽車存量」配置嗎？\n移除後槽車存量將歸零並不計入總滿位，日後有需要可隨時點擊「➕ 納入槽車存量」重新加入。")) {
+        appState.hasTruckStock = false;
+        appState.truckStock = 0.0;
+        appState.truckMaxCapacity = 0.0;
+        saveCurrentProfileToMemory();
+        renderTankInputs();
+        recalculateAll(false);
+      }
+    }
+
+    function addOtherStockPrompt() {
+      appState.hasOtherStock = true;
+      appState.otherProdStock = 0.0;
+      saveCurrentProfileToMemory();
+      renderTankInputs();
+      recalculateAll(false);
+    }
+
+    function removeOtherProdStock() {
+      if (confirm("確定要移除「其他庫存量」配置嗎？\n移除後其他存量將歸零，日後有需要可隨時點擊「➕ 納入其他存量」重新加入。")) {
+        appState.hasOtherStock = false;
+        appState.otherProdStock = 0.0;
+        saveCurrentProfileToMemory();
+        renderTankInputs();
+        recalculateAll(false);
+      }
+    }
+
     function updateOtherProdStock(val) {
       appState.otherProdStock = parseFloat(val) || 0;
       saveCurrentProfileToMemory();
@@ -828,7 +929,7 @@
       appState.truckMaxCapacity = parseFloat(val) || 0;
       const totalLimit = (appState.prodTanks || []).reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
       appState.tankTotalLimit = totalLimit;
-      appState.tk622Limit = totalLimit + appState.truckMaxCapacity;
+      appState.tk622Limit = totalLimit + (appState.hasTruckStock ? appState.truckMaxCapacity : 0);
       saveCurrentProfileToMemory();
       renderTankInputs();
       recalculateAll(false);
@@ -840,14 +941,16 @@
       }
       productProfiles[currentProfileKey].rawTanks = JSON.parse(JSON.stringify(appState.rawTanks));
       productProfiles[currentProfileKey].prodTanks = JSON.parse(JSON.stringify(appState.prodTanks));
-      productProfiles[currentProfileKey].otherProdStock = appState.otherProdStock;
-      productProfiles[currentProfileKey].truckStock = appState.truckStock;
-      productProfiles[currentProfileKey].truckMaxCapacity = appState.truckMaxCapacity;
+      productProfiles[currentProfileKey].hasOtherStock = !!appState.hasOtherStock;
+      productProfiles[currentProfileKey].hasTruckStock = !!appState.hasTruckStock;
+      productProfiles[currentProfileKey].otherProdStock = appState.hasOtherStock ? appState.otherProdStock : 0.0;
+      productProfiles[currentProfileKey].truckStock = appState.hasTruckStock ? appState.truckStock : 0.0;
+      productProfiles[currentProfileKey].truckMaxCapacity = appState.hasTruckStock ? appState.truckMaxCapacity : 0.0;
       productProfiles[currentProfileKey].rawSafetyStock = appState.rawSafetyStock;
       productProfiles[currentProfileKey].preSaleTotal = appState.preSaleTotal;
 
       const tankTotalLimit = (appState.prodTanks || []).reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
-      const truckTotalLimit = Number(appState.truckMaxCapacity) || 0;
+      const truckTotalLimit = appState.hasTruckStock ? (Number(appState.truckMaxCapacity) || 0) : 0;
       const grandTotalCap = tankTotalLimit + truckTotalLimit;
 
       productProfiles[currentProfileKey].tankTotalLimit = tankTotalLimit;
@@ -932,37 +1035,34 @@
       const rawSum = round1D((appState.rawTanks || []).reduce((acc, t) => acc + (Number(t.amount) || 0), 0));
       document.getElementById("txtRawTanksTotal").innerText = rawSum.toFixed(1);
 
-      // 動態加總各成品儲槽、其他庫存、槽車存量 (打槽車進去 100% 算入期初成品總存量)
+      // 動態加總各成品儲槽、其他庫存、槽車存量 (僅在有需要且啟用時算入期初成品總存量)
       const tankProdSum = round1D((appState.prodTanks || []).reduce((acc, t) => acc + (Number(t.amount) || 0), 0));
-      const otherStock = round1D(Number(appState.otherProdStock) || 0);
-      const truckStock = round1D(Number(appState.truckStock) || 0);
+      const otherStock = appState.hasOtherStock ? round1D(Number(appState.otherProdStock) || 0) : 0;
+      const truckStock = appState.hasTruckStock ? round1D(Number(appState.truckStock) || 0) : 0;
       const grandTotalProdStock = round1D(tankProdSum + otherStock + truckStock);
 
       // 儲槽容量上限與含槽車滿位總上限
       const tankTotalLimit = round1D((appState.prodTanks || []).reduce((acc, t) => acc + (Number(t.maxLimit) || 0), 0));
-      const truckTotalLimit = round1D(Number(appState.truckMaxCapacity) || 0);
+      const truckTotalLimit = appState.hasTruckStock ? round1D(Number(appState.truckMaxCapacity) || 0) : 0;
       const grandTotalCapacity = round1D(tankTotalLimit + truckTotalLimit);
       appState.tankTotalLimit = tankTotalLimit;
       appState.tk622Limit = grandTotalCapacity;
 
-      // 更新介面各項統計指標
-      const elTankStockSum = document.getElementById("txtTankStockSum");
-      if (elTankStockSum) elTankStockSum.innerText = tankProdSum.toFixed(1);
-
-      const elOtherStockVal = document.getElementById("txtOtherStockVal");
-      if (elOtherStockVal) elOtherStockVal.innerText = otherStock.toFixed(1);
-
-      const elTruckStockVal = document.getElementById("txtTruckStockVal");
-      if (elTruckStockVal) elTruckStockVal.innerText = truckStock.toFixed(1);
+      // 更新底部加總即時標籤 (動態渲染，不顯示未啟用的其他或槽車)
+      const summaryContainer = document.getElementById("stockSummaryComponents");
+      if (summaryContainer) {
+        let sumHtml = `<span>🛢️ 儲槽存量: <b class="text-emerald-700 font-bold">${tankProdSum.toFixed(1)}</b> T</span>`;
+        if (appState.hasOtherStock) {
+          sumHtml += `<span>•</span><span>📦 其他存量: <b class="text-orange-700 font-bold">${otherStock.toFixed(1)}</b> T</span>`;
+        }
+        if (appState.hasTruckStock) {
+          sumHtml += `<span>•</span><span>🚛 槽車存量: <b class="text-indigo-700 font-bold">${truckStock.toFixed(1)}</b> T</span>`;
+        }
+        summaryContainer.innerHTML = sumHtml;
+      }
 
       const elGrandTotalStock = document.getElementById("txtGrandTotalStock");
       if (elGrandTotalStock) elGrandTotalStock.innerText = grandTotalProdStock.toFixed(1);
-
-      const elTankMaxLimitSum = document.getElementById("txtTankMaxLimitSum");
-      if (elTankMaxLimitSum) elTankMaxLimitSum.innerText = tankTotalLimit.toFixed(0);
-
-      const elGrandTotalCapacity = document.getElementById("txtGrandTotalCapacity");
-      if (elGrandTotalCapacity) elGrandTotalCapacity.innerText = grandTotalCapacity.toFixed(0);
 
       const elProdTanksTotal = document.getElementById("txtProdTanksTotal");
       if (elProdTanksTotal) elProdTanksTotal.innerText = grandTotalProdStock.toFixed(1);
@@ -1383,6 +1483,12 @@
           if (appState.otherProdStock === undefined) appState.otherProdStock = 0.0;
           if (appState.truckStock === undefined) appState.truckStock = 0.0;
           if (appState.truckMaxCapacity === undefined) appState.truckMaxCapacity = 216.0;
+          if (appState.hasOtherStock === undefined) {
+            appState.hasOtherStock = (Number(appState.otherProdStock) || 0) > 0;
+          }
+          if (appState.hasTruckStock === undefined) {
+            appState.hasTruckStock = (Number(appState.truckStock) || 0) > 0 || (Number(appState.truckMaxCapacity) || 0) > 0;
+          }
           appState.currentProduct = prodName;
           currentProfileKey = prodName;
 
