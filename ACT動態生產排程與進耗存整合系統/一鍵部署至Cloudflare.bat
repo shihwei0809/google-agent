@@ -18,8 +18,23 @@ if %ERRORLEVEL% EQU 0 (
     start https://act-planner-pwa.pages.dev
 ) else (
     echo ========================================================
-    echo [FAILED] 部署失敗，請檢查網路連線或 Wrangler 授權。
+    echo [提示] 偵測到 Cloudflare 授權憑證可能已過期，正在為您開啟瀏覽器登入...
     echo ========================================================
+    call npx --yes wrangler login
+    echo.
+    echo 正在使用新授權進行部署...
+    call npx --yes wrangler pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
+    if %ERRORLEVEL% EQU 0 (
+        echo ========================================================
+        echo [SUCCESS] 部署成功！
+        echo 線上網址: https://act-planner-pwa.pages.dev
+        echo ========================================================
+        start https://act-planner-pwa.pages.dev
+    ) else (
+        echo ========================================================
+        echo [FAILED] 部署仍未完成，請確認網路連線或登入狀態。
+        echo ========================================================
+    )
 )
 
 echo.
