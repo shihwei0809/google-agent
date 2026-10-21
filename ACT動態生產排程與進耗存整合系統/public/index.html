@@ -72,9 +72,10 @@
   <header class="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between shadow-md gap-3">
     <div class="flex items-center space-x-2">
       <span class="text-xl">⚡</span>
-      <div>
-        <h1 class="text-base font-bold tracking-wide">
-          <span id="txtHeaderProductBadge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded mr-1.5 font-extrabold shadow-sm">ACT</span>動態生產排程與進耗存整合系統
+        <h1 class="text-base font-bold tracking-wide flex items-center flex-wrap gap-1.5">
+          <span id="txtHeaderProductBadge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded font-extrabold shadow-sm">ACT</span>
+          <span>動態生產排程與進耗存整合系統</span>
+          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v1.6 (2026/10/21 修訂)</span>
         </h1>
         <div class="text-[10px] text-slate-400">Cloudflare Pages 邊緣高速版 (資料庫同步 Google 試算表)</div>
       </div>
@@ -135,19 +136,19 @@
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <div>
             <label class="block text-slate-500 text-[11px] mb-0.5">總目標產量(T)</label>
-            <input type="number" step="0.1" id="totalTarget" class="w-full border rounded px-2 py-1 font-bold text-slate-800" oninput="onParamChange()">
+            <input type="number" step="0.1" id="totalTarget" class="w-full border rounded px-2 py-1 font-bold text-slate-800" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
           </div>
           <div>
             <label class="block text-slate-500 text-[11px] mb-0.5">流速(T/hr)</label>
-            <input type="number" step="0.1" id="flowRate" class="w-full border rounded px-2 py-1 font-bold text-slate-800" oninput="onParamChange()">
+            <input type="number" step="0.1" id="flowRate" class="w-full border rounded px-2 py-1 font-bold text-slate-800" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
           </div>
           <div>
             <label class="block text-slate-500 text-[11px] mb-0.5">單車容量(T)</label>
-            <input type="number" step="0.1" id="batchCap" class="w-full border rounded px-2 py-1 font-bold text-slate-800" oninput="onParamChange()">
+            <input type="number" step="0.1" id="batchCap" class="w-full border rounded px-2 py-1 font-bold text-slate-800" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
           </div>
           <div>
             <label class="block text-slate-500 text-[11px] mb-0.5">生產良率(%)</label>
-            <input type="number" step="0.1" id="yieldRate" class="w-full border rounded px-2 py-1 font-bold text-orange-600 bg-orange-50" oninput="onParamChange()">
+            <input type="number" step="0.1" id="yieldRate" class="w-full border rounded px-2 py-1 font-bold text-orange-600 bg-orange-50" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
           </div>
         </div>
 
@@ -163,7 +164,7 @@
 
         <div>
           <label class="block text-slate-500 text-[11px] mb-0.5">槽車出車順序 (若有使用槽車送貨請填寫，逗號分隔；清空則不排槽車)</label>
-          <input type="text" id="truckOrderNote" placeholder="例如: E102, E103" class="w-full border rounded px-2 py-1 text-slate-700" oninput="onParamChange()">
+          <input type="text" id="truckOrderNote" placeholder="例如: E102, E103" class="w-full border rounded px-2 py-1 text-slate-700" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
         </div>
       </section>
 
@@ -687,7 +688,8 @@
                 onchange="updateRawTankName(${idx}, this.value)">
               <input type="number" step="0.1" value="${tank.amount}"
                 class="w-16 border rounded px-1 py-0.5 text-center font-bold text-slate-800 bg-white"
-                oninput="updateRawTankAmount(${idx}, this.value)">
+                onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+                onchange="updateRawTankAmount(${idx}, this.value)">
               <span class="text-[10px] text-slate-400">T</span>
               <button onclick="removeRawTank(${idx})" class="text-slate-300 hover:text-rose-600 font-bold text-xs px-1" title="刪除此槽">×</button>
             </div>
@@ -700,7 +702,8 @@
             <span class="text-[10px] text-rose-600 font-bold">安全庫存:</span>
             <input type="number" step="0.1" id="rawSafetyStock" value="${appState.rawSafetyStock}"
               class="w-16 border border-rose-300 rounded px-1 py-0.5 text-center font-bold text-rose-700 bg-white"
-              oninput="onParamChange()">
+              onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+              onchange="onParamChange()">
             <span class="text-[10px] text-rose-500 font-bold">T</span>
           </div>
         `;
@@ -728,7 +731,8 @@
                 <input type="number" step="1" value="${limitVal}"
                   class="w-12 text-center border border-slate-200 hover:border-slate-400 rounded px-0.5 font-bold text-slate-700 bg-slate-50"
                   title="點擊修改此儲槽容量上限 (T)"
-                  oninput="updateProdTankLimit(${idx}, this.value)">
+                  onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+                  onchange="updateProdTankLimit(${idx}, this.value)">
                 <span class="text-slate-400 font-semibold">T</span>
               </div>
               <div class="w-full">
@@ -736,7 +740,8 @@
                   class="w-full border-2 border-emerald-300 focus:border-emerald-500 rounded-md py-1 text-center font-black text-slate-800 text-sm bg-white shadow-inner"
                   placeholder="0"
                   title="此儲槽目前成品庫存量 (T)"
-                  oninput="updateProdTankAmount(${idx}, this.value)">
+                  onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+                  onchange="updateProdTankAmount(${idx}, this.value)">
               </div>
             </div>
           `;
@@ -756,7 +761,8 @@
                   class="w-full border-2 border-orange-300 focus:border-orange-500 rounded-md py-1 text-center font-black text-orange-950 text-sm bg-white shadow-inner"
                   placeholder="0"
                   title="非儲槽其他成品庫存量 (例如桶裝、雜項存放，T)"
-                  oninput="updateOtherProdStock(this.value)">
+                  onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+                  onchange="updateOtherProdStock(this.value)">
               </div>
             </div>
           `;
@@ -778,7 +784,8 @@
                 <input type="number" step="1" value="${truckCap}"
                   class="w-12 text-center border border-indigo-200 hover:border-indigo-400 rounded px-0.5 font-bold text-indigo-700 bg-white"
                   title="點擊修改槽車容量上限 (T)"
-                  oninput="updateTruckMaxCapacity(this.value)">
+                  onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+                  onchange="updateTruckMaxCapacity(this.value)">
                 <span>T</span>
               </div>
               <div class="w-full">
@@ -786,7 +793,8 @@
                   class="w-full border-2 border-indigo-300 focus:border-indigo-500 rounded-md py-1 text-center font-black text-indigo-950 text-sm bg-white shadow-inner"
                   placeholder="0"
                   title="目前已打入/存於槽車之成品庫存量 (T，會100%算入期初成品總存量)"
-                  oninput="updateTruckStock(this.value)">
+                  onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+                  onchange="updateTruckStock(this.value)">
               </div>
             </div>
           `;
@@ -831,7 +839,8 @@
                 <input type="number" step="1" value="${truckCap}" 
                   class="w-14 text-center border border-indigo-200 rounded px-1 py-0.5 bg-white font-bold text-indigo-700 shadow-inner" 
                   title="點擊修改槽車總容量上限 (T)" 
-                  oninput="updateTruckMaxCapacity(this.value)">
+                  onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+                  onchange="updateTruckMaxCapacity(this.value)">
                 T
               </span>
               <span class="text-slate-400">|</span>
@@ -1313,7 +1322,8 @@
       grid.rawTrans.forEach(item => {
         html += `<td class="date-col border-l">
           <input type="number" step="0.1" class="table-cell-input text-blue-600 font-semibold" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
-            oninput="onGridValChange('rawTransferIn', '${item.dKey}', this.value)" placeholder="-">
+            onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+            onchange="onGridValChange('rawTransferIn', '${item.dKey}', this.value)" placeholder="-">
         </td>`;
       });
       html += `</tr>`;
@@ -1324,7 +1334,8 @@
       grid.rawIn.forEach(item => {
         html += `<td class="date-col border-l">
           <input type="number" step="0.1" class="table-cell-input text-blue-700 font-extrabold" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
-            oninput="onGridValChange('rawPurchaseIn', '${item.dKey}', this.value)" placeholder="-">
+            onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+            onchange="onGridValChange('rawPurchaseIn', '${item.dKey}', this.value)" placeholder="-">
         </td>`;
       });
       html += `</tr>`;
@@ -1341,7 +1352,8 @@
               class="table-cell-input text-amber-900 font-black ${isM ? 'manual-modified' : ''}" 
               value="${displayVal}"
               title="${isM ? '⚠️ 人員手動修改值 (清空或點擊 ↺ 立即恢復自動計算)' : '⚡ 系統自動推算 (首日 14.0，後續 30.3，完工補尾數)'}"
-              oninput="onManualOverrideInput('manualRawUsageOverrides', '${item.dKey}', this.value)" 
+              onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+              onchange="onManualOverrideInput('manualRawUsageOverrides', '${item.dKey}', this.value)" 
               placeholder="-">
             ${isM ? `<button onclick="resetOverride('manualRawUsageOverrides', '${item.dKey}')" 
               class="absolute right-0 text-[10px] text-amber-800 hover:text-rose-600 font-bold px-0.5" title="立即還原系統自動算">↺</button>` : ''}
@@ -1356,7 +1368,8 @@
       grid.rawPipe.forEach(item => {
         html += `<td class="date-col border-l">
           <input type="number" step="0.1" class="table-cell-input font-bold text-teal-700" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
-            oninput="onGridValChange('rawPipeRecycle', '${item.dKey}', this.value)" placeholder="-">
+            onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+            onchange="onGridValChange('rawPipeRecycle', '${item.dKey}', this.value)" placeholder="-">
         </td>`;
       });
       html += `</tr>`;
@@ -1395,7 +1408,8 @@
               class="table-cell-input text-emerald-900 font-black ${isM ? 'manual-modified' : ''}" 
               value="${displayVal}"
               title="${isM ? '⚠️ 人員手動修改值 (清空或點擊 ↺ 立即恢復自動計算)' : '⚡ 系統自動推算 (首日 9.4，後續 28.8)'}"
-              oninput="onManualOverrideInput('manualProdGenOverrides', '${item.dKey}', this.value)" 
+              onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+              onchange="onManualOverrideInput('manualProdGenOverrides', '${item.dKey}', this.value)" 
               placeholder="-">
             ${isM ? `<button onclick="resetOverride('manualProdGenOverrides', '${item.dKey}')" 
               class="absolute right-0 text-[10px] text-amber-800 hover:text-rose-600 font-bold px-0.5" title="立即還原系統自動算">↺</button>` : ''}
@@ -1410,7 +1424,8 @@
       grid.prodOut.forEach(item => {
         html += `<td class="date-col border-l">
           <input type="number" step="0.1" class="table-cell-input font-bold text-rose-700" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
-            oninput="onGridValChange('prodOutflow', '${item.dKey}', this.value)" placeholder="-">
+            onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+            onchange="onGridValChange('prodOutflow', '${item.dKey}', this.value)" placeholder="-">
         </td>`;
       });
       html += `</tr>`;
