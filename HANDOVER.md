@@ -1,6 +1,21 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-20 Chrome遠端離線診斷與HTTPS純網頁穿透中心建立、教育訓練教材PWA化、中央大腦全域規範)
+## 今日進度與交接事項 (2026-10-21 ACT動態生產排程與進耗存整合系統：槽車出車動態排程表車號手動修正、接續排序與✕還原功能完整還原)
+* **ACT 動態生產排程與進耗存整合系統 (`act-planner-pwa.pages.dev`):**
+  - **槽車車號手動修正與接續排序功能 (100% 還原 GAS 圖二標準行為)**:
+    1. **點擊即可手動修正**: 在「槽車出車動態排程表」的「指定槽車車號 / 標籤」欄位，未修正時保持預設輪替車號（如 E52, E53, E54）；點擊或聚焦即可直接輸入新車號（支援 Enter 快速儲存）。
+    2. **黃色醒目覆寫外觀**: 手動修正後，該車次自動變換為溫暖黃底（`bg-amber-100 border-amber-400 font-black text-amber-950`），並於下方浮現兩枚操作按鈕：
+       - `[接續排序]`: 以此手動車號為基準點，在出車順序清單中找到該車號後，將後續所有車次依循環順序順延推算（點擊後顯示高亮 `✓ 已接續`）。
+       - `[✕]`: 立即清除該車次的手動覆寫與接續排序，瞬間回歸預設循環順序。
+    3. **雙向狀態持久化與雲端同步**:
+       - `appState.manualCarOverrides` 與 `appState.sequenceShiftOverrides` 雙向納入 localStorage 快取與 Google 試算表 DataStore 資料庫。
+       - 清空資料（`recalculateAll(true)`）或重設全表時一併乾淨清理。
+    4. **Excel 匯出自動淨化**: `exportToExcel()` 匯出前自動克隆 DOM 並純化車號欄位內容，排除按鈕文字，產出整潔乾淨的槽車排程 Excel。
+    5. **PWA 快取版本升級與即時部署**:
+       - Service Worker 快取版號升級為 `act-pwa-v1.4`。
+       - 已透過 Cloudflare Pages API Token 自動發布至邊緣節點 (`https://act-planner-pwa.pages.dev`)。
+
+## 前次進度與交接事項 (2026-10-20 Chrome遠端離線診斷與HTTPS純網頁穿透中心建立、教育訓練教材PWA化、中央大腦全域規範)
 * **Chrome 遠端桌面 (Chrome Remote Desktop) 離線根因深度排查與診斷:**
   - **診斷結果與根因分析**:
     1. **UDP 19302 (STUN/ICE) 被公司防火牆封鎖**: Chrome Remote Desktop 依賴 WebRTC STUN 伺服器進行點對點穿透打洞。實際測試 `stun.l.google.com:19302` (UDP) 遭遇丟包超時。

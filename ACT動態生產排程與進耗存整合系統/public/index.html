@@ -399,7 +399,9 @@
       prodOutflow: {},
 
       manualRawUsageOverrides: {},
-      manualProdGenOverrides: {}
+      manualProdGenOverrides: {},
+      manualCarOverrides: {},
+      sequenceShiftOverrides: {}
     };
 
     function round1D(num) {
@@ -458,6 +460,8 @@
           if (appState.hasTruckStock === undefined) {
             appState.hasTruckStock = (Number(appState.truckStock) || 0) > 0 || (Number(appState.truckMaxCapacity) || 0) > 0;
           }
+          if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
+          if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
 
           // 若原本儲存的是已刪除產品或多儲槽成品，強制轉回 EGUPS
           if (!appState.currentProduct || appState.currentProduct === "多儲槽成品 (TK623/TK689/TK692)" || deletedList.includes(appState.currentProduct)) {
@@ -1022,6 +1026,8 @@
       if (forceClearManual) {
         appState.manualRawUsageOverrides = {};
         appState.manualProdGenOverrides = {};
+        appState.manualCarOverrides = {};
+        appState.sequenceShiftOverrides = {};
         saveLocalCache();
       }
 
@@ -1356,6 +1362,9 @@
 
       document.getElementById("txtTruckTarget").innerText = target.toFixed(1);
 
+      if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
+      if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+
       const orderList = (appState.truckOrderNote || "")
         .split(/[,，]/)
         .map(s => s.trim())
@@ -1374,36 +1383,92 @@
       document.getElementById("txtTruckTotalCount").innerText = totalTrucks;
 
       let html = `<thead><tr class="bg-slate-100 text-slate-700 font-bold border-b text-[11px]">
-        <th class="p-2 border-r">車次</th>
-        <th class="p-2 border-r">指定槽車車號 / 標籤</th>
-        <th class="p-2 border-r">預計開始灌裝時間</th>
-        <th class="p-2 border-r">預計出車時間 (完成)</th>
-        <th class="p-2 border-r">本車預計載重 (T)</th>
-        <th class="p-2 border-r">累計出車噸數 (T)</th>
-        <th class="p-2">出車備註</th>
+        <th class="p-2 border-r text-center">車次</th>
+        <th class="p-2 border-r text-center">指定槽車車號 / 標籤</th>
+        <th class="p-2 border-r text-center">預計開始灌裝時間</th>
+        <th class="p-2 border-r text-center">預計出車時間 (完成)</th>
+        <th class="p-2 border-r text-right pr-4">本車預計載重 (T)</th>
+        <th class="p-2 border-r text-right pr-4">累計出車噸數 (T)</th>
+        <th class="p-2 text-center">出車備註</th>
       </tr></thead><tbody class="divide-y divide-slate-200">`;
 
       let curTruckStartMs = prodStart.getTime();
       let accumWeight = 0;
+      let currentCycleIdx = 0;
 
       for (let i = 1; i <= totalTrucks; i++) {
         const truckLoad = (i === totalTrucks) ? round1D(target - accumWeight) : batchCap;
         accumWeight = round1D(accumWeight + truckLoad);
 
-        const truckName = orderList[(i - 1) % orderList.length];
+        // 檢查前一車 (i - 1) 是否啟用「接續排序」
+        if (appState.sequenceShiftOverrides && appState.sequenceShiftOverrides[i - 1]) {
+          const prevCar = (appState.manualCarOverrides && appState.manualCarOverrides[i - 1]) || "";
+          const pIdx = orderList.indexOf(prevCar);
+          if (pIdx !== -1) {
+            currentCycleIdx = (pIdx + 1) % orderList.length;
+          } else {
+            currentCycleIdx = 0;
+          }
+        }
+
+        // 基本循環車號
+        const baseCar = orderList[currentCycleIdx % orderList.length];
+
+        // 是否有人員手動修正此車號
+        const hasOverride = Boolean(
+          appState.manualCarOverrides && 
+          appState.manualCarOverrides[i] !== undefined && 
+          appState.manualCarOverrides[i] !== null && 
+          String(appState.manualCarOverrides[i]).trim() !== ""
+        );
+
+        const displayCar = hasOverride ? String(appState.manualCarOverrides[i]).trim() : baseCar;
+        const isShiftActive = Boolean(appState.sequenceShiftOverrides && appState.sequenceShiftOverrides[i]);
+
+        // 循環指針往下推進
+        currentCycleIdx++;
+
         const startD = new Date(curTruckStartMs);
         const endD = new Date(curTruckStartMs + (truckLoad / flow) * 3600 * 1000);
-
         const fmtDate = (d) => `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
         html += `<tr class="hover:bg-blue-50/50">
-          <td class="p-2 border-r font-bold text-slate-700">第 ${i} 車</td>
-          <td class="p-2 border-r font-bold text-indigo-700 bg-indigo-50/40">${truckName}</td>
-          <td class="p-2 border-r text-slate-600">${fmtDate(startD)}</td>
-          <td class="p-2 border-r font-bold text-emerald-700 bg-emerald-50/40">${fmtDate(endD)}</td>
-          <td class="p-2 border-r font-extrabold text-slate-800">${truckLoad.toFixed(1)}</td>
-          <td class="p-2 border-r font-black text-blue-700">${accumWeight.toFixed(1)}</td>
-          <td class="p-2 text-slate-400">${i === totalTrucks ? '★ 目標批次末車' : '正常出車'}</td>
+          <td class="p-2 border-r font-bold text-slate-700 text-center">第 ${i} 車</td>
+          <td class="p-1.5 border-r text-center ${hasOverride ? 'bg-amber-50/70' : 'bg-indigo-50/20'}">
+            ${hasOverride ? `
+              <div class="inline-flex flex-col items-center gap-1 py-0.5">
+                <input type="text" value="${displayCar}" 
+                  class="w-24 text-center font-black text-amber-950 bg-amber-100 border border-amber-400 focus:border-blue-500 rounded px-2 py-1 shadow-xs focus:outline-none text-[13px]"
+                  title="人員手動指定槽車車號 (按 Enter 儲存)"
+                  onkeydown="if(event.key==='Enter') this.blur();"
+                  onchange="onTruckCarChange(${i}, this.value)">
+                <div class="inline-flex items-center gap-1">
+                  <button type="button" onclick="shiftCarSequenceFrom(${i})" 
+                    class="px-1.5 py-0.5 text-[11px] font-semibold ${isShiftActive ? 'bg-emerald-50 text-emerald-800 border-emerald-400 ring-1 ring-emerald-300' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'} border rounded shadow-xs active:scale-95 transition" 
+                    title="以此車號為基準，後續車次接續依順序輪替">
+                    ${isShiftActive ? '✓ 已接續' : '接續排序'}
+                  </button>
+                  <button type="button" onclick="clearTruckCarOverride(${i})" 
+                    class="px-1.5 py-0.5 text-[11px] font-bold bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 border border-slate-300 rounded shadow-xs active:scale-95 transition" 
+                    title="清除手動指定，恢復預設輪替">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ` : `
+              <input type="text" value="${displayCar}" 
+                class="w-24 text-center font-bold text-indigo-700 bg-transparent hover:bg-indigo-100/70 border border-transparent hover:border-indigo-300 focus:bg-white focus:border-blue-400 rounded px-2 py-1 transition cursor-pointer text-[13px] focus:outline-none"
+                title="點擊可手動修正此車號 (支援 接續排序 與 ✕ 還原)"
+                onfocus="this.select()"
+                onkeydown="if(event.key==='Enter') this.blur();"
+                onchange="onTruckCarChange(${i}, this.value)">
+            `}
+          </td>
+          <td class="p-2 border-r text-slate-600 text-center">${fmtDate(startD)}</td>
+          <td class="p-2 border-r font-bold text-emerald-700 bg-emerald-50/40 text-center">${fmtDate(endD)}</td>
+          <td class="p-2 border-r font-extrabold text-slate-800 text-right pr-4">${truckLoad.toFixed(1)}</td>
+          <td class="p-2 border-r font-black text-blue-700 text-right pr-4">${accumWeight.toFixed(1)}</td>
+          <td class="p-2 text-slate-500 text-center text-[11px]">${i === totalTrucks ? '★ 目標批次末車' : (hasOverride ? (isShiftActive ? '手動指定 (已接續順序)' : '手動指定車號') : '正常出車')}</td>
         </tr>`;
 
         curTruckStartMs = endD.getTime();
@@ -1411,6 +1476,32 @@
 
       html += `</tbody>`;
       truckTable.innerHTML = html;
+    }
+
+    function onTruckCarChange(truckIndex, val) {
+      const clean = (val || "").trim();
+      if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
+      if (clean === "") {
+        clearTruckCarOverride(truckIndex);
+        return;
+      }
+      appState.manualCarOverrides[truckIndex] = clean;
+      saveLocalCache();
+      renderTruckScheduleDOM();
+    }
+
+    function shiftCarSequenceFrom(truckIndex) {
+      if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+      appState.sequenceShiftOverrides[truckIndex] = !appState.sequenceShiftOverrides[truckIndex];
+      saveLocalCache();
+      renderTruckScheduleDOM();
+    }
+
+    function clearTruckCarOverride(truckIndex) {
+      if (appState.manualCarOverrides) delete appState.manualCarOverrides[truckIndex];
+      if (appState.sequenceShiftOverrides) delete appState.sequenceShiftOverrides[truckIndex];
+      saveLocalCache();
+      renderTruckScheduleDOM();
     }
 
     function onManualOverrideInput(overrideMapName, dKey, val) {
@@ -1659,8 +1750,15 @@
       const table1 = document.getElementById("mainTable");
       const wb = XLSX.utils.table_to_book(table1, { sheet: "動態進耗存表" });
       
-      const table2 = document.getElementById("truckTable");
-      const ws2 = XLSX.utils.table_to_sheet(table2);
+      const truckTableClone = document.getElementById("truckTable").cloneNode(true);
+      truckTableClone.querySelectorAll("tr").forEach(tr => {
+        const carInput = tr.querySelector("input");
+        if (carInput) {
+          const td = carInput.closest("td");
+          if (td) td.innerText = carInput.value;
+        }
+      });
+      const ws2 = XLSX.utils.table_to_sheet(truckTableClone);
       XLSX.utils.book_append_sheet(wb, ws2, "槽車出車動態排程");
 
       const fileName = `ACT動態生產排程與槽車排程_${appState.fullDateKeys[0]}.xlsx`;
