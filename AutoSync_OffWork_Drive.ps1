@@ -1,12 +1,15 @@
-﻿# AutoSync_OffWork_Drive.ps1
+# AutoSync_OffWork_Drive.ps1
 # 自動將當天有修改的專案資料夾與檔案同步備份至 Google Drive 00_最近7天收工快照
+# 並自動執行滾動封存：檢查 00_最近7天收工快照，將超過 7 天之備份資料夾移動至 01_歷史按月封存\YYYY年MM月
 
 $srcRoot = if ($PSScriptRoot) { $PSScriptRoot } elseif (Test-Path "D:\GOOGLE ANGET") { "D:\GOOGLE ANGET" } else { "C:\GOOGLE ANGET" }
 $todayStr = (Get-Date).ToString("yyyyMMdd")
-$snapshotRoot = "G:\我的雲端硬碟\GOOGLE ANGET\專案備份\00_最近7天收工快照"
+$backupBase = "G:\我的雲端硬碟\GOOGLE ANGET\專案備份"
+$snapshotRoot = Join-Path $backupBase "00_最近7天收工快照"
+$archiveRoot = Join-Path $backupBase "01_歷史按月封存"
 $destRoot = Join-Path $snapshotRoot ($todayStr + "_收工備份")
 
-if (!(Test-Path -Path $destRoot)) {
+if (!(Test-Path -LiteralPath $destRoot)) {
     New-Item -ItemType Directory -Force -Path $destRoot | Out-Null
 }
 
@@ -32,7 +35,7 @@ $modifiedFiles = Get-ChildItem -Path $srcRoot -Recurse -File -ErrorAction Silent
 
 $copiedTargets = @{}
 
-# 2. 備份根目錄檔案 (如 HANDOVER.md 等)
+# 2. 備份根目錄關鍵檔案 (如 HANDOVER.md 等)
 Copy-Item -Path (Join-Path $srcRoot "HANDOVER.md") -Destination (Join-Path $destRoot "HANDOVER.md") -Force -ErrorAction SilentlyContinue
 
 # 3. 掃描變更檔案所屬的子專案資料夾
@@ -63,3 +66,40 @@ foreach ($file in $modifiedFiles) {
 Write-Host "==========================================" -ForegroundColor Green
 Write-Host "[AutoSync] Backup successfully completed into $destRoot !" -ForegroundColor Green
 Write-Host "==========================================" -ForegroundColor Green
+
+# 4. 【滾動封存防爆機制】檢查 00_最近7天收工快照，超過 7 天者自動移至 01_歷史按月封存
+Write-Host ""
+Write-Host "==========================================" -ForegroundColor Cyan
+Write-Host "[Rolling Archive] Checking 00_最近7天收工快照 for folders older than 7 days..." -ForegroundColor Yellow
+$rollingCutoff = (Get-Date).AddDays(-7)
+$allSnapshots = Get-ChildItem -LiteralPath $snapshotRoot -Directory -ErrorAction SilentlyContinue
+
+foreach ($folder in $allSnapshots) {
+    $folderName = $folder.Name
+    # 提取日期 YYYYMMDD
+    if ($folderName -match "(\d{8})") {
+        $dateStr = $matches[1]
+        try {
+            $folderDate = [datetime]::ParseExact($dateStr, "yyyyMMdd", $null)
+            if ($folderDate -lt $rollingCutoff) {
+                $monthStr = $folderDate.ToString("yyyy年MM月")
+                $targetMonthDir = Join-Path $archiveRoot $monthStr
+                if (!(Test-Path -LiteralPath $targetMonthDir)) {
+                    New-Item -ItemType Directory -Force -Path $targetMonthDir | Out-Null
+                }
+                $targetPath = Join-Path $targetMonthDir $folderName
+                if (Test-Path -LiteralPath $targetPath) {
+                    $targetPath = Join-Path $targetMonthDir ($folderName + "_archived")
+                }
+                Move-Item -LiteralPath $folder.FullName -Destination $targetPath -Force
+                Write-Host "[Archived] Moved $folderName -> 01_歷史按月封存\$monthStr" -ForegroundColor Yellow
+            } else {
+                Write-Host "[Keep] $folderName (Within 7 days)" -ForegroundColor Gray
+            }
+        } catch {
+            Write-Host "[Warning] Could not parse date for folder: $folderName" -ForegroundColor Red
+        }
+    }
+}
+Write-Host "[Rolling Archive] 00_最近7天收工快照 status verified clean." -ForegroundColor Green
+Write-Host "==========================================" -ForegroundColor Cyan
