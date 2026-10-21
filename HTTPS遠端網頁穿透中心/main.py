@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import threading
 import time
+import datetime
 import re
 import json
 import ctypes
@@ -166,12 +167,90 @@ def start_cloudflared_tunnel(local_port: int):
                     print("="*60 + "\n")
                 except Exception:
                     pass
-                with open(PUBLIC_URL_FILE, "w", encoding="utf-8") as f:
-                    f.write(public_tunnel_url)
+                publish_tunnel_url(public_tunnel_url)
                 break
 
     t = threading.Thread(target=monitor_output, daemon=True)
     t.start()
+
+def publish_tunnel_url(url: str):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # 1. 寫入本地 public_url.txt
+    try:
+        with open(PUBLIC_URL_FILE, "w", encoding="utf-8") as f:
+            f.write(url)
+    except Exception as e:
+        print(f"[!] 寫入 {PUBLIC_URL_FILE} 失敗: {e}")
+
+    # 2. 產生 HTML 自動導向頁面
+    html_content = f"""<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="2; url={url}">
+<title>連線至 GOOGLE本機 (C606-PC1) 遠端穿透中心</title>
+<style>
+  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }}
+  .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); text-align: center; }}
+  .badge {{ display: inline-block; background: #059669; color: #ecfdf5; font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; margin-bottom: 16px; }}
+  h1 {{ font-size: 20px; margin: 0 0 12px; color: #ffffff; }}
+  p {{ font-size: 14px; color: #94a3b8; margin: 0 0 24px; line-height: 1.6; }}
+  .btn {{ display: block; background: #2563eb; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 20px; border-radius: 10px; transition: background 0.2s; word-break: break-all; }}
+  .btn:hover {{ background: #1d4ed8; }}
+  .info-box {{ margin-top: 24px; background: #0f172a; border-radius: 8px; padding: 16px; text-align: left; font-size: 13px; color: #cbd5e1; }}
+  .info-row {{ display: flex; justify-content: space-between; margin-bottom: 8px; }}
+  .info-row:last-child {{ margin-bottom: 0; }}
+  .label {{ color: #64748b; }}
+  .val {{ font-family: monospace; color: #38bdf8; font-weight: 600; }}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="badge">● 主機連線中 (在線)</div>
+  <h1>GOOGLE 本機 (C606-PC1) 遠端穿透中心</h1>
+  <p>系統將在 2 秒內自動為您導向至安全穿透入口，或直接點擊下方按鈕前往：</p>
+  <a class="btn" href="{url}" target="_blank">🚀 立即開啟遠端控制台</a>
+  <div class="info-box">
+    <div class="info-row"><span class="label">穿透網址:</span><span class="val" style="word-break: break-all;">{url}</span></div>
+    <div class="info-row"><span class="label">更新時間:</span><span class="val">{timestamp}</span></div>
+    <div class="info-row"><span class="label">本機名稱:</span><span class="val">C606-PC1 (Windows)</span></div>
+    <div class="info-row"><span class="label">登入密碼:</span><span class="val">c606admin</span></div>
+    <div class="info-row"><span class="label">動態雙重認證:</span><span class="val">Google Authenticator (6位數)</span></div>
+  </div>
+</div>
+</body>
+</html>"""
+
+    # 3. 寫入本機專案與根目錄
+    local_targets = [
+        os.path.join(PROJECTS_ROOT, "最新遠端穿透網址.html"),
+        os.path.join(PROJECTS_ROOT, "最新遠端穿透網址.txt"),
+    ]
+    for target in local_targets:
+        try:
+            with open(target, "w", encoding="utf-8") as f:
+                f.write(html_content if target.endswith(".html") else f"最新穿透網址: {url}\n更新時間: {timestamp}\n")
+        except Exception:
+            pass
+
+    # 4. 同步寫入 Google 雲端硬碟 (G:\我的雲端硬碟)
+    gdrive_root = r"G:\我的雲端硬碟"
+    if os.path.exists(gdrive_root):
+        gdrive_targets = [
+            os.path.join(gdrive_root, "最新遠端穿透網址.html"),
+            os.path.join(gdrive_root, "最新遠端穿透網址.txt"),
+            os.path.join(gdrive_root, "GOOGLE ANGET", "最新遠端穿透網址.html"),
+            os.path.join(gdrive_root, "GOOGLE ANGET", "最新遠端穿透網址.txt"),
+        ]
+        for target in gdrive_targets:
+            try:
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                with open(target, "w", encoding="utf-8") as f:
+                    f.write(html_content if target.endswith(".html") else f"最新穿透網址: {url}\n更新時間: {timestamp}\n")
+                print(f"[GDrive Sync] 已成功同步最新穿透網址至: {target}")
+            except Exception as ge:
+                print(f"[!] 同步至 Google 雲端硬碟失敗 ({target}): {ge}")
 
 def verify_token(x_auth_token: Optional[str] = Header(None)):
     if not x_auth_token:

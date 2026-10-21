@@ -29,6 +29,14 @@
     2. **標題旁醒目標記版本更新日期**: 於頂部標題旁新增高辨識度黃金版本徽章 `v1.6 (2026/10/21 修訂)`，一目了然系統發布進度。
     3. **PWA 版本升級**: 快取版號升級為 `act-pwa-v1.6`，已部署至 Cloudflare Pages。
 
+* **HTTPS 遠端網頁穿透中心動態發布與開機自動常駐升級:**
+  - **穿透網址全域雙向發布機制 (`publish_tunnel_url`)**:
+    1. 當 `cloudflared` 生成 Quick Tunnel 網址後，系統自動於本地根目錄與 Google 雲端硬碟 (`G:\我的雲端硬碟\`) 雙向同步生成現代化自動轉址頁面 `最新遠端穿透網址.html` 及純文字 `最新遠端穿透網址.txt`。
+    2. 無論身在何處，只要開啟手機 Google Drive 點擊 `最新遠端穿透網址.html` 即可 2 秒自動跳轉至主機 Web 控制台。
+  - **開機自動背景靜音常駐與守護工具**:
+    1. 提供 `註冊開機自動啟動穿透.bat` 與 `取消開機自動啟動穿透.bat`，透過 `run_silent.vbs` 實現開機無黑框背景靜默守護。
+    2. 提供 `kill_git.ps1` 與 `一鍵清除卡死git與釋放CPU.bat`，徹底解決 Windows NTFS 下 git 程序因背景鎖定佔用 CPU 之問題。
+
 * **避坑指南 (Cross-Device Pitfalls):**
   - **Google Drive 雲端同步虛擬盤延遲**: G 槽為 Google Drive 串流虛擬磁碟，執行大規模檔案搬移時，避免多個 robocopy 或 PowerShell 同時存取同一路徑，改以循序判載移動最為穩健。
   - **二進位評鑑與分析表管理**: 新生成的 `.xlsx` 檔案必須以 `git add -f` 強制納管，避免受 `.gitignore` 阻擋而遺失於跨機環境。

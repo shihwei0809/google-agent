@@ -23,6 +23,7 @@ yarn-error.log*
 .gemini/
 .copilot/
 .cursor/
+.vscode/
 
 # Temporary / OS files
 .DS_Store
