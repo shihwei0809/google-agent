@@ -307,6 +307,13 @@
     const DEFAULT_PROFILES = {
       "EGUPS": {
         name: "EGUPS",
+        startBootTime: "2026-10-16T08:00",
+        startProduceTime: "2026-10-16T16:09",
+        totalTarget: 190.0,
+        flowRate: 1.2,
+        batchCap: 18.0,
+        yieldRate: 95.0,
+        truckOrderNote: "E102,E103,E59,E60,E66,E67,E52,E53,E54,E55,E56,E99",
         rawSafetyStock: 30.0,
         preSaleTotal: 129.0,
         rawTanks: [
@@ -329,6 +336,13 @@
       },
       "ACT": {
         name: "ACT",
+        startBootTime: "2026-10-16T08:00",
+        startProduceTime: "2026-10-16T16:09",
+        totalTarget: 190.0,
+        flowRate: 1.2,
+        batchCap: 18.0,
+        yieldRate: 95.0,
+        truckOrderNote: "",
         rawSafetyStock: 50.0,
         preSaleTotal: 138.0,
         rawTanks: [
@@ -413,6 +427,20 @@
       return (Math.round(num * 10) / 10).toFixed(1);
     }
 
+    function formatDateTimeLocal(val) {
+      if (!val) return "";
+      if (typeof val === "string") {
+        const m = val.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+        if (!val.includes("Z") && !val.includes("+") && m) {
+          return m[1];
+        }
+      }
+      const d = new Date(val);
+      if (isNaN(d.getTime())) return "";
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+
     window.addEventListener("DOMContentLoaded", async () => {
       // 讀取本地已刪除產品黑名單 (Tombstone)
       let deletedList = [];
@@ -462,6 +490,8 @@
           }
           if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
           if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+          if (appState.startBootTime) appState.startBootTime = formatDateTimeLocal(appState.startBootTime);
+          if (appState.startProduceTime) appState.startProduceTime = formatDateTimeLocal(appState.startProduceTime);
 
           // 若原本儲存的是已刪除產品或多儲槽成品，強制轉回 EGUPS
           if (!appState.currentProduct || appState.currentProduct === "多儲槽成品 (TK623/TK689/TK692)" || deletedList.includes(appState.currentProduct)) {
@@ -509,10 +539,27 @@
 
     async function switchProductProfile(profileKey) {
       if (!productProfiles[profileKey]) return;
+
+      // 1. 先完整儲存切換前產品的參數（時間、目標量、順序、槽桶等）
+      saveCurrentProfileToMemory();
+
       currentProfileKey = profileKey;
       appState.currentProduct = profileKey;
 
       const prof = productProfiles[profileKey];
+      // 若目標產品已有專屬時間設定，載入該產品設定；若尚無，平滑繼承當前時間，絕不變空白！
+      if (prof.startBootTime) {
+        appState.startBootTime = formatDateTimeLocal(prof.startBootTime);
+      }
+      if (prof.startProduceTime) {
+        appState.startProduceTime = formatDateTimeLocal(prof.startProduceTime);
+      }
+      if (prof.totalTarget !== undefined) appState.totalTarget = prof.totalTarget;
+      if (prof.flowRate !== undefined) appState.flowRate = prof.flowRate;
+      if (prof.batchCap !== undefined) appState.batchCap = prof.batchCap;
+      if (prof.yieldRate !== undefined) appState.yieldRate = prof.yieldRate;
+      if (prof.truckOrderNote !== undefined) appState.truckOrderNote = prof.truckOrderNote;
+
       appState.rawSafetyStock = prof.rawSafetyStock ?? 50.0;
       appState.preSaleTotal = prof.preSaleTotal ?? 138.0;
       appState.rawTanks = JSON.parse(JSON.stringify(prof.rawTanks || []));
@@ -528,10 +575,10 @@
       appState.tankTotalLimit = totalLimit;
       appState.tk622Limit = totalLimit + (appState.hasTruckStock ? appState.truckMaxCapacity : 0);
 
-      const preSaleEl = document.getElementById("preSaleTotal");
-      if (preSaleEl) preSaleEl.value = appState.preSaleTotal;
       renderProfileDropdown();
+      bindInputs(); // 立即重新綁定所有輸入欄位（開機時間、出料時間等），確保不為空
       renderTankInputs();
+      buildCalendarDates();
       saveLocalCache();
       recalculateAll(false);
 
@@ -553,6 +600,13 @@
       // 以當前或標準模板複製
       productProfiles[key] = {
         name: key,
+        startBootTime: appState.startBootTime || "2026-10-16T08:00",
+        startProduceTime: appState.startProduceTime || "2026-10-16T16:09",
+        totalTarget: appState.totalTarget || 190.0,
+        flowRate: appState.flowRate || 1.2,
+        batchCap: appState.batchCap || 18.0,
+        yieldRate: appState.yieldRate || 95.0,
+        truckOrderNote: appState.truckOrderNote || "",
         rawSafetyStock: 30.0,
         preSaleTotal: 100.0,
         rawTanks: [
@@ -943,8 +997,16 @@
       if (!productProfiles[currentProfileKey]) {
         productProfiles[currentProfileKey] = { name: currentProfileKey };
       }
-      productProfiles[currentProfileKey].rawTanks = JSON.parse(JSON.stringify(appState.rawTanks));
-      productProfiles[currentProfileKey].prodTanks = JSON.parse(JSON.stringify(appState.prodTanks));
+      productProfiles[currentProfileKey].startBootTime = appState.startBootTime;
+      productProfiles[currentProfileKey].startProduceTime = appState.startProduceTime;
+      productProfiles[currentProfileKey].totalTarget = appState.totalTarget;
+      productProfiles[currentProfileKey].flowRate = appState.flowRate;
+      productProfiles[currentProfileKey].batchCap = appState.batchCap;
+      productProfiles[currentProfileKey].yieldRate = appState.yieldRate;
+      productProfiles[currentProfileKey].truckOrderNote = appState.truckOrderNote;
+
+      productProfiles[currentProfileKey].rawTanks = JSON.parse(JSON.stringify(appState.rawTanks || []));
+      productProfiles[currentProfileKey].prodTanks = JSON.parse(JSON.stringify(appState.prodTanks || []));
       productProfiles[currentProfileKey].hasOtherStock = !!appState.hasOtherStock;
       productProfiles[currentProfileKey].hasTruckStock = !!appState.hasTruckStock;
       productProfiles[currentProfileKey].otherProdStock = appState.hasOtherStock ? appState.otherProdStock : 0.0;
@@ -970,15 +1032,35 @@
     }
 
     function bindInputs() {
-      document.getElementById("startBootTime").value = appState.startBootTime;
-      document.getElementById("startProduceTime").value = appState.startProduceTime;
-      document.getElementById("totalTarget").value = appState.totalTarget;
-      document.getElementById("flowRate").value = appState.flowRate;
-      document.getElementById("batchCap").value = appState.batchCap;
-      document.getElementById("yieldRate").value = appState.yieldRate;
-      document.getElementById("truckOrderNote").value = appState.truckOrderNote;
+      // 確保 datetime-local 接收到的永遠是合法且符合本地時間的 YYYY-MM-DDTHH:mm 格式，絕不為空
+      const bootVal = formatDateTimeLocal(appState.startBootTime) || "2026-10-16T08:00";
+      const prodVal = formatDateTimeLocal(appState.startProduceTime) || "2026-10-16T16:09";
+      
+      appState.startBootTime = bootVal;
+      appState.startProduceTime = prodVal;
+
+      const bootEl = document.getElementById("startBootTime");
+      const prodEl = document.getElementById("startProduceTime");
+      if (bootEl) bootEl.value = bootVal;
+      if (prodEl) prodEl.value = prodVal;
+
+      const targetEl = document.getElementById("totalTarget");
+      if (targetEl) targetEl.value = appState.totalTarget !== undefined ? appState.totalTarget : 190.0;
+      
+      const flowEl = document.getElementById("flowRate");
+      if (flowEl) flowEl.value = appState.flowRate !== undefined ? appState.flowRate : 1.2;
+      
+      const batchEl = document.getElementById("batchCap");
+      if (batchEl) batchEl.value = appState.batchCap !== undefined ? appState.batchCap : 18.0;
+      
+      const yieldEl = document.getElementById("yieldRate");
+      if (yieldEl) yieldEl.value = appState.yieldRate !== undefined ? appState.yieldRate : 95.0;
+      
+      const orderEl = document.getElementById("truckOrderNote");
+      if (orderEl) orderEl.value = appState.truckOrderNote || "";
+      
       const preSaleEl = document.getElementById("preSaleTotal");
-      if (preSaleEl) preSaleEl.value = appState.preSaleTotal;
+      if (preSaleEl) preSaleEl.value = appState.preSaleTotal !== undefined ? appState.preSaleTotal : 129.0;
     }
 
     function buildCalendarDates() {
@@ -996,8 +1078,14 @@
     }
 
     function onParamChange() {
-      appState.startBootTime = document.getElementById("startBootTime").value;
-      appState.startProduceTime = document.getElementById("startProduceTime").value;
+      const bootEl = document.getElementById("startBootTime");
+      const prodEl = document.getElementById("startProduceTime");
+      if (bootEl && bootEl.value) {
+        appState.startBootTime = bootEl.value;
+      }
+      if (prodEl && prodEl.value) {
+        appState.startProduceTime = prodEl.value;
+      }
       appState.totalTarget = parseFloat(document.getElementById("totalTarget").value) || 0;
       appState.flowRate = parseFloat(document.getElementById("flowRate").value) || 0;
       appState.batchCap = parseFloat(document.getElementById("batchCap").value) || 0;
@@ -1571,6 +1659,14 @@
           }
 
           Object.assign(appState, cloudData);
+          if (cloudData.startBootTime) {
+            appState.startBootTime = formatDateTimeLocal(cloudData.startBootTime);
+          }
+          if (cloudData.startProduceTime) {
+            appState.startProduceTime = formatDateTimeLocal(cloudData.startProduceTime);
+          }
+          if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
+          if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
           if (appState.otherProdStock === undefined) appState.otherProdStock = 0.0;
           if (appState.truckStock === undefined) appState.truckStock = 0.0;
           if (appState.truckMaxCapacity === undefined) appState.truckMaxCapacity = 216.0;

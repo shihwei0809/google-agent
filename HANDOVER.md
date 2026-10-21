@@ -11,9 +11,13 @@
        - `appState.manualCarOverrides` 與 `appState.sequenceShiftOverrides` 雙向納入 localStorage 快取與 Google 試算表 DataStore 資料庫。
        - 清空資料（`recalculateAll(true)`）或重設全表時一併乾淨清理。
     4. **Excel 匯出自動淨化**: `exportToExcel()` 匯出前自動克隆 DOM 並純化車號欄位內容，排除按鈕文字，產出整潔乾淨的槽車排程 Excel。
-    5. **PWA 快取版本升級與即時部署**:
-       - Service Worker 快取版號升級為 `act-pwa-v1.4`。
-       - 已透過 Cloudflare Pages API Token 自動發布至邊緣節點 (`https://act-planner-pwa.pages.dev`)。
+  - **排程開機時間與出料時間切換產品持久化修復**:
+    1. **瀏覽器 datetime-local 拒絕 ISO 字串問題修復**: Google 試算表存入之日期字串自帶 `.000Z`（如 `2026-11-09T20:52:00.000Z`），瀏覽器的 `<input type="datetime-local">` 遇到含有時區 `Z` 的格式時會直接拒絕並重設為空。新增 `formatDateTimeLocal(val)` 自動標準化轉換為本機時間之 `YYYY-MM-DDTHH:mm`，徹底根絕時間欄位變成空值 `年/月/日 --:--:--` 的問題。
+    2. **切換產品參數雙向平滑繼承**:
+       - `switchProductProfile` 切換前自動調用 `saveCurrentProfileToMemory()`，將目前產品設定之開機時間、出料時間、目標量、順序完整封存。
+       - 切換目標產品時，若目標產品有專屬設定則讀取其專屬設定；若尚無專屬設定，則平滑繼承當前排程時間，絕不被覆寫為空白。
+       - 產品切換瞬間立即執行 `bindInputs()`，確保畫面上開機時間與出料時間即時顯示。
+    3. **PWA 版本升級**: 快取版號升級為 `act-pwa-v1.5`，已部署至 Cloudflare Pages。
 
 ## 前次進度與交接事項 (2026-10-20 Chrome遠端離線診斷與HTTPS純網頁穿透中心建立、教育訓練教材PWA化、中央大腦全域規範)
 * **Chrome 遠端桌面 (Chrome Remote Desktop) 離線根因深度排查與診斷:**
