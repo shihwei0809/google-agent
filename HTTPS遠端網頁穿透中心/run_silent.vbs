@@ -1,3 +1,3 @@
 Set WshShell = CreateObject("WScript.Shell")
-WshShell.CurrentDirectory = "D:\GOOGLE ANGET\HTTPSé ç«¯ç¶²é ç©¿é€ä¸­å¿ƒ"
-WshShell.Run "python main.py", 0, False
+WshShell.CurrentDirectory = "D:\GOOGLE ANGET\HTTPS»·ºİºô­¶¬ï³z¤¤¤ß"
+WshShell.Run "cmd /c python main.py", 0, False

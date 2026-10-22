@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 :: ============================================================
 :: HTTPS 遠端網頁穿透中心 啟動腳本
 :: ============================================================
@@ -14,10 +14,10 @@ set DEFAULT_PORT=8800
 set START_CMD=python main.py
 
 :: 套件清單格式: import名稱|pip安裝名稱
-set PKG[0]=fastapi|fastapi>=0.100.0
-set PKG[1]=uvicorn|uvicorn>=0.22.0
-set PKG[2]=pydantic|pydantic>=2.0.0
-set PKG[3]=multipart|python-multipart
+set "PKG[0]=fastapi|fastapi>=0.100.0"
+set "PKG[1]=uvicorn|uvicorn>=0.22.0"
+set "PKG[2]=pydantic|pydantic>=2.0.0"
+set "PKG[3]=multipart|python-multipart"
 set PKG_COUNT=4
 
 :: 必要資料夾
@@ -54,7 +54,10 @@ if not defined PYTHON_CMD (
     echo.
     echo  [!] 找不到 Python！
     echo      需要 Python 3.9 以上。正在開啟下載頁面...
+    echo      安裝時請勾選: [x] Add Python to PATH
+    echo.
     start https://www.python.org/downloads/
+    echo  安裝完成後請重新雙擊此程式。
     pause
     exit /b 1
 )
@@ -66,30 +69,38 @@ if %errorlevel% neq 0 (
     echo         修復 pip 中...
     %PYTHON_CMD% -m ensurepip --upgrade >nul 2>&1
 )
+echo         pip 正常
 
-:: ---- STEP 3: 檢查並安裝必要套件 ----
-echo  [3/4] 檢查必要套件...
-set MISSING_COUNT=0
-set MAX_IDX=%PKG_COUNT%
-set /a MAX_IDX-=1
-
-for /l %%i in (0,1,%MAX_IDX%) do (
-    for /f "tokens=1,2 delims=|" %%a in ("!PKG[%%i]!") do (
-        set "IMPORT_NAME=%%a"
-        set "PIP_NAME=%%b"
-        %PYTHON_CMD% -c "import !IMPORT_NAME!" >nul 2>&1
-        if !errorlevel! neq 0 (
-            echo         缺少套件: !PIP_NAME!，正在安裝...
-            %PYTHON_CMD% -m pip install "!PIP_NAME!" -q
-            set /a MISSING_COUNT+=1
-        ) else (
-            echo         [OK] !IMPORT_NAME!
-        )
-    )
+:: ---- STEP 3: 套件自動偵測與安裝 ----
+echo  [3/4] 套件環境檢查...
+echo.
+set /a idx=0
+:PKG_LOOP
+if %idx% GEQ %PKG_COUNT% goto :PKG_DONE
+set "PKG_ENTRY=!PKG[%idx%]!"
+for /f "tokens=1,2 delims=|" %%a in ("!PKG_ENTRY!") do (
+    set "IMPORT_NAME=%%a"
+    set "PIP_NAME=%%b"
 )
+%PYTHON_CMD% -c "import !IMPORT_NAME!" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo         [缺少] !PIP_NAME! - 安裝中...
+    %PYTHON_CMD% -m pip install "!PIP_NAME!" -q
+    if !errorlevel! == 0 (
+        echo         [完成] !PIP_NAME!
+    ) else (
+        echo         [失敗] 請手動執行: pip install !PIP_NAME!
+    )
+) else (
+    echo         [OK] !IMPORT_NAME!
+)
+set /a idx+=1
+goto :PKG_LOOP
+
+:PKG_DONE
+echo.
 
 :: ---- STEP 4: 啟動伺服器 ----
-echo.
 echo  ==================================================
 echo   正在啟動伺服器與 Cloudflare HTTPS 安全穿透...
 echo  ==================================================
