@@ -8,8 +8,7 @@
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
   <!-- 引入 SheetJS 用於客戶端即時解析 T100 排程 Excel -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js">
-    </script>
+  <script src="./xlsx.full.min.js"></script>
 <script>
   // 動態提示字跑馬燈
   function startPlaceholderMarquee(elementId, originalText) {
@@ -22,6 +21,7 @@
     }, 400); 
   }
   document.addEventListener('DOMContentLoaded', () => {
+    initOfflineDB();
     startPlaceholderMarquee('empIdInput', '掃描或輸入工號... ');
     startPlaceholderMarquee('requester', '姓名（工號查到後會自動填入）... ');
   });
@@ -522,6 +522,12 @@
 <body>
 <div class="container">
 
+  <!-- 離線模式提示橫幅 (比照回收液系統離線規格) -->
+  <div id="offlineBanner" style="display:none; background:linear-gradient(90deg, #dc2626, #b91c1c); color:white; padding:10px 18px; border-radius:var(--radius); margin-bottom:15px; font-weight:bold; font-size:0.9rem; text-align:center; box-shadow:var(--shadow); animation:pulse 2s infinite;">
+    ⚠️ 目前處於離線模式（無網路連線）！排程可照常查詢使用，送樣與判定將安全暫存於本機，恢復連線後將自動同步回雲端 D1。
+    <span id="offlinePendingCount" style="margin-left:8px; background:rgba(255,255,255,0.25); padding:2px 8px; border-radius:10px; font-size:0.8rem;">暫存: 0 筆</span>
+  </div>
+
   <!-- PWA 安裝提示橫幅 -->
   <div id="pwa-install-banner">
     <div><b>📱 安裝為獨立 App</b>：將本系統安裝至手機主畫面或電腦桌面，操作體驗更流暢！</div>
@@ -533,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.0.5 (2ed39b3)
+          🚀 v3.1.0 (離線支援版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -815,7 +821,7 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.0.5 (2ed39b3)</strong><br>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.1.0 (離線支援版)</strong><br>
     <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：T100 排程增量去重防呆 · 陸續補單自動合併 · Cloudflare D1 即時同步</span>
   </div>
 </div>
@@ -2275,6 +2281,187 @@
     };
   }
 
+  // =========================================================
+  // 🌟 PWA 離線支援與自動同步引擎 (比照回收液系統規格)
+  // =========================================================
+  let offlineDb = null;
+
+  function initOfflineDB() {
+    const req = indexedDB.open("QCOfflineDB", 1);
+    req.onupgradeneeded = function(e) {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("offlineQueue")) {
+        db.createObjectStore("offlineQueue", { keyPath: "queueId" });
+      }
+    };
+    req.onsuccess = function(e) {
+      offlineDb = e.target.result;
+      updateOfflineBannerCount();
+      if (navigator.onLine) {
+        autoSyncOfflineQueue();
+      }
+    };
+    req.onerror = function(e) {
+      console.warn("IndexedDB 初始化失敗，將使用 localStorage 兜底：", e);
+    };
+  }
+
+  function saveToOfflineQueue(action, payload) {
+    const queueItem = {
+      queueId: 'OFFLINE-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6),
+      action: action,
+      payload: payload,
+      createdAt: new Date().toISOString()
+    };
+    if (offlineDb) {
+      try {
+        const tx = offlineDb.transaction(["offlineQueue"], "readwrite");
+        const store = tx.objectStore("offlineQueue");
+        store.put(queueItem);
+        tx.oncomplete = () => {
+          updateOfflineBannerCount();
+        };
+      } catch(e) {
+        fallbackSaveOffline(queueItem);
+      }
+    } else {
+      fallbackSaveOffline(queueItem);
+    }
+  }
+
+  function fallbackSaveOffline(item) {
+    try {
+      const q = JSON.parse(localStorage.getItem('HS_QC_OFFLINE_QUEUE') || '[]');
+      q.push(item);
+      localStorage.setItem('HS_QC_OFFLINE_QUEUE', JSON.stringify(q));
+      updateOfflineBannerCount();
+    } catch(e){}
+  }
+
+  function updateOfflineBannerCount() {
+    const banner = document.getElementById('offlineBanner');
+    const countTag = document.getElementById('offlinePendingCount');
+    if (!banner) return;
+    
+    if (!navigator.onLine) {
+      banner.style.display = 'block';
+    } else {
+      banner.style.display = 'none';
+    }
+
+    if (offlineDb) {
+      try {
+        const tx = offlineDb.transaction(["offlineQueue"], "readonly");
+        const store = tx.objectStore("offlineQueue");
+        const countReq = store.count();
+        countReq.onsuccess = function() {
+          const count = countReq.result || 0;
+          if (countTag) countTag.innerText = `暫存: ${count} 筆`;
+          if (count > 0 && !navigator.onLine) {
+            banner.style.display = 'block';
+          }
+        };
+      } catch(e){}
+    } else {
+      const q = JSON.parse(localStorage.getItem('HS_QC_OFFLINE_QUEUE') || '[]');
+      if (countTag) countTag.innerText = `暫存: ${q.length} 筆`;
+    }
+  }
+
+  let isSyncingOffline = false;
+  async function autoSyncOfflineQueue() {
+    if (isSyncingOffline || !navigator.onLine || !GAS_API_URL) return;
+    
+    let items = [];
+    if (offlineDb) {
+      try {
+        items = await new Promise((resolve) => {
+          const tx = offlineDb.transaction(["offlineQueue"], "readonly");
+          const store = tx.objectStore("offlineQueue");
+          const req = store.getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => resolve([]);
+        });
+      } catch(e){ items = []; }
+    }
+    
+    const fallbackQ = JSON.parse(localStorage.getItem('HS_QC_OFFLINE_QUEUE') || '[]');
+    if (fallbackQ.length > 0) {
+      items = [...items, ...fallbackQ];
+      localStorage.removeItem('HS_QC_OFFLINE_QUEUE');
+    }
+
+    if (items.length === 0) return;
+
+    isSyncingOffline = true;
+    showToast(`☁️ 偵測到網路連線，正在自動上傳 ${items.length} 筆離線暫存紀錄...`, 4000);
+
+    let syncedCount = 0;
+    for (const item of items) {
+      try {
+        let bodyObj = { action: item.action };
+        if (item.action === 'createSample') {
+          bodyObj.payload = item.payload;
+        } else if (item.action === 'completeSample') {
+          Object.assign(bodyObj, item.payload);
+        } else if (item.action === 'returnForResample') {
+          Object.assign(bodyObj, item.payload);
+        } else {
+          bodyObj = { ...item.payload, action: item.action };
+        }
+
+        const resp = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(bodyObj)
+        });
+        const res = await resp.json();
+        if (res.success) {
+          syncedCount++;
+          if (offlineDb && item.queueId) {
+            try {
+              const tx = offlineDb.transaction(["offlineQueue"], "readwrite");
+              tx.objectStore("offlineQueue").delete(item.queueId);
+            } catch(e){}
+          }
+        }
+      } catch(err) {
+        console.warn('離線同步單筆失敗，稍後再試：', err);
+      }
+    }
+
+    isSyncingOffline = false;
+    updateOfflineBannerCount();
+    if (syncedCount > 0) {
+      showToast(`🎉 離線同步完成！共 ${syncedCount} 筆資料已成功寫入雲端 D1！`, 5000);
+      load();
+    }
+  }
+
+  // 監聽連線狀態事件
+  window.addEventListener('online', () => {
+    updateOfflineBannerCount();
+    showToast('🌐 網路已恢復連線！自動檢查並同步離線紀錄...', 3000);
+    autoSyncOfflineQueue();
+    loadOrdersFromCloud();
+    load();
+  });
+
+  window.addEventListener('offline', () => {
+    updateOfflineBannerCount();
+    showToast('⚠️ 網路中斷，已自動切換至【離線作業模式】', 4000);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && navigator.onLine) {
+      autoSyncOfflineQueue();
+    }
+  });
+
+  setInterval(() => {
+    if (navigator.onLine) autoSyncOfflineQueue();
+  }, 30000);
+
   // 雙模數據載入（GAS 模式 / Cloudflare Pages PWA API 連線 / 離線快取模式）
   function load() {
     loadTeamsConfig();
@@ -2710,6 +2897,17 @@
         load(); 
       }).createSample(payload);
     } else if(GAS_API_URL) {
+      if (!navigator.onLine) {
+        saveToOfflineQueue('createSample', payload);
+        allData.unshift(payload);
+        localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        resetForm();
+        btn.disabled = false;
+        btn.innerText = "確認提交送樣 🚀";
+        showToast("📦 [離線暫存] 樣品已記錄於本機！恢復連線時將自動同步至雲端", 5000);
+        render();
+        return;
+      }
       fetch(GAS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -2721,20 +2919,21 @@
         btn.disabled = false;
         btn.innerText = "確認提交送樣 🚀";
         if(res.success) {
-          showToast("✅ 送樣成功已即時寫入 Google 試算表！");
+          showToast("✅ 送樣成功已即時寫入雲端 D1！");
           load();
         } else {
           alert("送樣失敗：" + (res.error || "未知錯誤"));
         }
       })
       .catch(err => {
-        console.warn("API 送樣異常，暫存本機", err);
+        console.warn("API 送樣異常，轉為離線暫存", err);
+        saveToOfflineQueue('createSample', payload);
         allData.unshift(payload);
         localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
         resetForm();
         btn.disabled = false;
         btn.innerText = "確認提交送樣 🚀";
-        showToast("⚠️ 雲端連線失敗，已先暫存於本機！");
+        showToast("📦 [離線暫存] 雲端連線異常，樣品已記錄於本機！", 5000);
         render();
       });
     } else {
@@ -3433,6 +3632,22 @@
         }
       }).completeSample(id, result, note, pin);
     } else if(GAS_API_URL) {
+      if (!navigator.onLine) {
+        saveToOfflineQueue('completeSample', { id, result, note, pin, approver });
+        if(targetItem) {
+          targetItem.status = 'completed';
+          targetItem.qcResult = result;
+          targetItem.qcNote = note;
+          targetItem.qcApprover = approver;
+          targetItem.completedAt = new Date().toISOString();
+          localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        }
+        btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
+        closeModal();
+        showToast("📦 [離線暫存] 判定放行已記錄於本機！恢復連線時將自動同步至雲端", 5000);
+        render();
+        return;
+      }
       fetch(GAS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -3450,7 +3665,7 @@
         btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
         if(res.success) {
           closeModal();
-          showToast("✅ 判定放行完成！試算表已更新，Teams 卡片已發送。");
+          showToast("✅ 判定放行完成！雲端已更新，Teams 卡片已發送。");
           load();
         } else {
           alert(res.error || "判定失敗");
@@ -3458,8 +3673,20 @@
         }
       })
       .catch(err => {
+        console.warn("雲端 API 連線異常，轉為離線暫存", err);
+        saveToOfflineQueue('completeSample', { id, result, note, pin, approver });
+        if(targetItem) {
+          targetItem.status = 'completed';
+          targetItem.qcResult = result;
+          targetItem.qcNote = note;
+          targetItem.qcApprover = approver;
+          targetItem.completedAt = new Date().toISOString();
+          localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        }
         btn.disabled = false; btn.innerText = "確認判定並通知 Teams";
-        alert("雲端 API 連線異常：" + err.message);
+        closeModal();
+        showToast("📦 [離線暫存] 雲端斷線，判定放行已暫存本機！", 5000);
+        render();
       });
     } else {
       setTimeout(() => {
@@ -3609,6 +3836,20 @@
     if (IS_GAS) {
       google.script.run.withSuccessHandler(handleSuccess).returnForResample(id, note, pin);
     } else if (GAS_API_URL) {
+      if (!navigator.onLine) {
+        saveToOfflineQueue('returnForResample', { id, note, pin });
+        const item = allData.find(d => d.id === id);
+        const oldRound = parseInt(item?.round) || 1;
+        const rootId = item?.parentId || id;
+        const newId = 'RR-' + Date.now();
+        const newItem = { ...item, id: newId, status: 'pending', round: oldRound + 1, parentId: rootId, qcResult: '', qcNote: '', completedAt: '', isAlerted: '', createdAt: new Date().toISOString() };
+        if (item) { item.status = 'failed'; item.qcResult = 'FAIL'; item.qcNote = note; item.completedAt = new Date().toISOString(); }
+        allData.push(newItem);
+        localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        handleSuccess({ success: true, newId, round: oldRound + 1 });
+        showToast("📦 [離線暫存] 退回重取樣已暫存本機，恢復連線後同步雲端", 5000);
+        return;
+      }
       try {
         const resp = await fetch(GAS_API_URL, {
           method: 'POST',
@@ -3617,9 +3858,18 @@
         });
         handleSuccess(await resp.json());
       } catch(err) {
-        btn.disabled = false;
-        btn.innerText = '確認退回並建立重送記錄';
-        alert('API 連線異常：' + err.message);
+        console.warn("API 連線異常，轉為離線暫存", err);
+        saveToOfflineQueue('returnForResample', { id, note, pin });
+        const item = allData.find(d => d.id === id);
+        const oldRound = parseInt(item?.round) || 1;
+        const rootId = item?.parentId || id;
+        const newId = 'RR-' + Date.now();
+        const newItem = { ...item, id: newId, status: 'pending', round: oldRound + 1, parentId: rootId, qcResult: '', qcNote: '', completedAt: '', isAlerted: '', createdAt: new Date().toISOString() };
+        if (item) { item.status = 'failed'; item.qcResult = 'FAIL'; item.qcNote = note; item.completedAt = new Date().toISOString(); }
+        allData.push(newItem);
+        localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
+        handleSuccess({ success: true, newId, round: oldRound + 1 });
+        showToast("📦 [離線暫存] 退回重取樣已暫存本機，恢復連線後同步雲端", 5000);
       }
     } else {
       // 本機離線模式
@@ -4120,7 +4370,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.0.5) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.1.0) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);

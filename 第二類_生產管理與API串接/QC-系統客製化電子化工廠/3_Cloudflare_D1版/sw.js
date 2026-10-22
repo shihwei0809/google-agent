@@ -1,8 +1,9 @@
-const CACHE_NAME = 'qc-kanban-v3.0.5';
+﻿const CACHE_NAME = 'qc-kanban-v3.1.0-offline';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
+  './xlsx.full.min.js',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
@@ -71,5 +72,6 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
 
 
