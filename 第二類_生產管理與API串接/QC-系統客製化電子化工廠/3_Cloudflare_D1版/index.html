@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <!-- QC Samples v2.3.1 | 2026-09-29 | feat: yesterday filter button -->
 <html lang="zh-Hant">
 <head>
@@ -539,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.1.0 (離線支援版)
+          🚀 v3.1.1 (指定日期清理版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -617,7 +617,7 @@
       <button type="button" class="btn-sim" style="background:#0284c7; color:white; border:none;" onclick="openPrintSettingsGlobal()">
         🖨️ 標籤機設定 (改紙/改張數)
       </button>
-      <button type="button" class="btn-sim" style="background:#ef4444; color:white; border:none;" onclick="clearAllOrders()" title="一鍵清除所有 T100 槽車排程（雲端 D1 資料庫與本機快取歸零）">🗑️ 清空所有排程 (本機+雲端)</button>
+      <button type="button" class="btn-sim" style="background:#ef4444; color:white; border:none;" onclick="openClearOrdersModal()" title="清理 T100 槽車排程（可選擇指定特定日期，或全部清空）">🗑️ 清除排程 (選日期/全部)</button>
       <button type="button" class="btn-sim" style="background:#7c3aed; color:white; border:none;" onclick="openEmpMapModal()">
         👤 員工工號對照表管理
       </button>
@@ -821,7 +821,7 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.1.0 (離線支援版)</strong><br>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.1.1 (指定日期清理版)</strong><br>
     <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：T100 排程增量去重防呆 · 陸續補單自動合併 · Cloudflare D1 即時同步</span>
   </div>
 </div>
@@ -868,6 +868,49 @@
     <div style="display:flex; gap:10px; margin-top:14px;">
       <button onclick="saveEmpMap()" style="flex:1; padding:10px; background:#7c3aed; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">💾 儲存本機設定</button>
       <button onclick="closeEmpMapModal()" style="flex:1; padding:10px; background:#e2e8f0; color:#374151; border:none; border-radius:6px; cursor:pointer;">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 清除槽車排程 Modal -->
+<div id="clearOrdersModal" class="modal" style="display:none;">
+  <div class="modal-content" style="max-width:440px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:10px; margin-bottom:14px;">
+      <h3 style="margin:0; color:#dc2626; display:flex; align-items:center; gap:6px;">
+        <span>🗑️</span> 清除槽車排程
+      </h3>
+      <button type="button" onclick="closeClearOrdersModal()" style="background:none; border:none; font-size:1.3rem; color:#94a3b8; cursor:pointer;">✕</button>
+    </div>
+    
+    <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px; margin-bottom:16px; font-size:0.86rem; color:#991b1b; line-height:1.45;">
+      💡 <b>提示：</b>若只想移除某一天的排程（例如已過期、或欲重新匯入該日排程），請選擇該日期後點擊<b>「僅清除此日期」</b>，其他日期的排程將完整保留。
+    </div>
+
+    <!-- 方案一：選擇指定日期清除 -->
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:14px; margin-bottom:16px;">
+      <label style="font-weight:bold; color:#1e293b; font-size:0.9rem; display:block; margin-bottom:6px;">
+        📅 選擇欲清除的排程日期：
+      </label>
+      <select id="clearOrderDateSelect" style="width:100%; padding:9px 12px; border:1.5px solid #cbd5e1; border-radius:6px; font-size:0.95rem; margin-bottom:10px; background:white; font-weight:600; color:#334155;" onchange="onClearOrderDateSelectChange()">
+        <!-- 動態填入現有排程日期與筆數 -->
+      </select>
+      
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+        <span style="font-size:0.8rem; color:#64748b;">或自訂日期：</span>
+        <input type="date" id="clearOrderCustomDate" style="flex:1; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem;" onchange="onClearOrderCustomDateChange()">
+      </div>
+
+      <button type="button" onclick="confirmClearSpecificDate()" style="width:100%; padding:10px; background:#ef4444; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.95rem; transition:0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+        🗑️ 僅清除選定日期排程 (本機+雲端)
+      </button>
+    </div>
+
+    <!-- 方案二：徹底全清 -->
+    <div style="border-top:1px dashed #cbd5e1; padding-top:14px; text-align:center;">
+      <div style="font-size:0.8rem; color:#64748b; margin-bottom:8px;">⚠️ 如需將所有歷史排程徹底清空歸零：</div>
+      <button type="button" onclick="confirmClearAllOrders()" style="width:100%; padding:9px; background:#64748b; color:white; border:none; border-radius:6px; font-size:0.86rem; cursor:pointer; font-weight:600;">
+        ⚠️ 清空所有歷史排程 (全部歸零)
+      </button>
     </div>
   </div>
 </div>
@@ -2100,24 +2143,153 @@
     }
   }
 
-  // 🗑️ 清空所有排程（本機快取與雲端資料庫同步重設）
-  async function clearAllOrders() {
-    if (!confirm("⚠️ 確定要清空所有槽車排程（包含本機與雲端）嗎？\n此動作將使所有排程重設歸零。")) return;
+  // 🗑️ 開啟排程清除視窗
+  function openClearOrdersModal() {
+    const modal = document.getElementById('clearOrdersModal');
+    const select = document.getElementById('clearOrderDateSelect');
+    const customDate = document.getElementById('clearOrderCustomDate');
+    if (!modal || !select) return;
+
+    // 統計現存排程中的所有日期與筆數
+    const dateCounts = {};
+    (t100Orders || []).forEach(o => {
+      const d = o.date || o.targetDate;
+      if (d) {
+        dateCounts[d] = (dateCounts[d] || 0) + 1;
+      }
+    });
+
+    const dates = Object.keys(dateCounts).sort().reverse();
+    select.innerHTML = '';
+
+    const todayStr = getLocalDateString();
+    const curFilterDate = (document.getElementById('t100DateFilter')?.value) || todayStr;
+
+    if (dates.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = todayStr;
+      opt.textContent = `📅 ${todayStr} (目前無任何排程)`;
+      select.appendChild(opt);
+      if (customDate) customDate.value = todayStr;
+    } else {
+      dates.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        const isToday = (d === todayStr) ? ' [今日]' : '';
+        opt.textContent = `📅 ${d}${isToday} — 共 ${dateCounts[d]} 筆排程`;
+        if (d === curFilterDate) opt.selected = true;
+        select.appendChild(opt);
+      });
+      if (customDate) customDate.value = select.value;
+    }
+
+    modal.style.display = 'flex';
+  }
+
+  function closeClearOrdersModal() {
+    const modal = document.getElementById('clearOrdersModal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function onClearOrderDateSelectChange() {
+    const select = document.getElementById('clearOrderDateSelect');
+    const customDate = document.getElementById('clearOrderCustomDate');
+    if (select && customDate) {
+      customDate.value = select.value;
+    }
+  }
+
+  function onClearOrderCustomDateChange() {
+    const select = document.getElementById('clearOrderDateSelect');
+    const customDate = document.getElementById('clearOrderCustomDate');
+    if (!select || !customDate || !customDate.value) return;
+    let found = false;
+    for (let opt of select.options) {
+      if (opt.value === customDate.value) {
+        select.value = customDate.value;
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      const opt = document.createElement('option');
+      opt.value = customDate.value;
+      opt.textContent = `📅 ${customDate.value} (自訂日期)`;
+      select.insertBefore(opt, select.firstChild);
+      select.value = customDate.value;
+    }
+  }
+
+  // 🗑️ 執行指定日期清除（本機與雲端同步移除指定日期排程）
+  async function confirmClearSpecificDate() {
+    const customDate = document.getElementById('clearOrderCustomDate');
+    const select = document.getElementById('clearOrderDateSelect');
+    const targetDate = (customDate && customDate.value) || (select && select.value);
+    if (!targetDate) {
+      alert("請選擇欲清除的排程日期！");
+      return;
+    }
+
+    const matchedCount = (t100Orders || []).filter(o => o.date === targetDate || o.targetDate === targetDate).length;
+    const confirmMsg = `⚠️ 確定要清除 【${targetDate}】 的所有槽車排程嗎？\n\n- 本機符合筆數：${matchedCount} 筆\n- 該日期的雲端 D1 資料庫記錄也將一併移除\n- 其他日期的排程將完整保留！`;
+    if (!confirm(confirmMsg)) return;
+
+    // 1. 本機清理
+    t100Orders = (t100Orders || []).filter(o => o.date !== targetDate && o.targetDate !== targetDate);
+    localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
+    renderT100Dropdown();
+    updateT100ButtonCounts();
+    render();
+    closeClearOrdersModal();
+
+    // 2. 雲端同步清理
+    if (GAS_API_URL) {
+      try {
+        const resp = await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'clearOrders', date: targetDate })
+        });
+        const res = await resp.json();
+        showToast(`🗑️ 已成功清除 【${targetDate}】 排程 (本機+雲端共移除 ${res.changes !== undefined ? res.changes : matchedCount} 筆)！`, 4000);
+      } catch(e) {
+        console.warn('雲端清理失敗：', e);
+        showToast(`🗑️ 本機已清除 【${targetDate}】，但雲端清除失敗`, 4000);
+      }
+    } else {
+      showToast(`🗑️ 已清除 【${targetDate}】 本機排程！`, 3000);
+    }
+  }
+
+  // ⚠️ 執行全部歷史清空
+  async function confirmClearAllOrders() {
+    if (!confirm("⚠️ 警告：這將會清除「所有歷史日期」的所有槽車排程！\n確定要完全歸零重設嗎？")) return;
     t100Orders = [];
     localStorage.removeItem('HS_QC_T100_ORDERS');
     renderT100Dropdown();
     updateT100ButtonCounts();
     render();
+    closeClearOrdersModal();
+
     if (GAS_API_URL) {
       try {
-        await fetch(`${GAS_API_URL}?action=clearOrders&_t=${Date.now()}`, { method: 'POST', cache: 'no-store' });
-        showToast("🗑️ 雲端與本機排程已全數清空！");
+        await fetch(GAS_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'clearOrders', date: 'ALL' })
+        });
+        showToast("🗑️ 雲端與本機所有歷史排程已全數清空！", 4000);
       } catch(e) {
-        showToast("⚠️ 本機已清空，雲端通知失敗");
+        showToast("⚠️ 本機已清空，雲端通知失敗", 4000);
       }
     } else {
-      showToast("🗑️ 本機排程已清空！");
+      showToast("🗑️ 本機排程已清空！", 3000);
     }
+  }
+
+  // 向下相容
+  function clearAllOrders() {
+    openClearOrdersModal();
   }
 
   function getFlowTag(type) {
@@ -4375,7 +4547,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.1.0) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.1.1) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);

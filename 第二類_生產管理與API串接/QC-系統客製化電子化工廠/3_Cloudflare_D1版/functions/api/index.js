@@ -282,8 +282,20 @@ export async function onRequest(context) {
 
     if (action === "clearOrders" || action === "deleteOrders") {
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
-      await env.DB.prepare("DELETE FROM T100_Orders").run();
-      return new Response(JSON.stringify({ success: true, message: 'All T100 orders cleared' }), { headers: h });
+      const targetDate = (payload && payload.date) || url.searchParams.get("date");
+      if (targetDate && targetDate.trim() && targetDate.trim().toUpperCase() !== 'ALL') {
+        const d = targetDate.trim();
+        const res = await env.DB.prepare("DELETE FROM T100_Orders WHERE date = ? OR targetDate = ?").bind(d, d).run();
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: `Orders for date ${d} cleared`, 
+          deletedDate: d,
+          changes: res?.meta?.changes || 0
+        }), { headers: h });
+      } else {
+        await env.DB.prepare("DELETE FROM T100_Orders").run();
+        return new Response(JSON.stringify({ success: true, message: 'All T100 orders cleared' }), { headers: h });
+      }
     }
 
     if (action === "getOrders") {
