@@ -29,7 +29,7 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => self.clients.claim()).then(() => self.clients.matchAll().then(clients => clients.forEach(c => c.postMessage({ type: 'VERSION_UPDATED' }))))
   );
 });
 
@@ -72,6 +72,7 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
 
 
 
