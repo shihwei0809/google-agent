@@ -582,7 +582,7 @@
           </select>
         </div>
         <input type="file" id="excelFileInput" accept=".xlsx, .xls" style="display:none;" onclick="this.value=null;" onchange="handleExcelUpload(event)">
-        <button type="button" class="btn-t100-upload" onclick="loadOrdersFromCloud()" title="強制自雲端同步最新槽車排程" style="background:#f0fdf4; color:#15803d; border-color:#86efac;">🔄 重新整理排程</button>
+        <button type="button" class="btn-t100-upload" onclick="loadOrdersFromCloud(true)" title="強制自雲端同步最新槽車排程" style="background:#f0fdf4; color:#15803d; border-color:#86efac;">🔄 重新整理排程</button>
         <button type="button" class="btn-t100-upload" onclick="document.getElementById('excelFileInput').click()">
           📂 匯入最新 T100 排程 Excel
         </button>
@@ -2071,7 +2071,8 @@
   }
 
   // ☁️ 排程下載：頁面載入時從 Google Sheets 拉取排程（供所有設備共用）
-  async function loadOrdersFromCloud() {
+  // ☁️ 排程下載：預設 isManual = false (背景每 30 秒靜默更新，不跳彈窗干擾)，僅人員手動點擊按鈕時跳出通知
+  async function loadOrdersFromCloud(isManual = false) {
     if (!GAS_API_URL) return; // 未設定 GAS 則略過
     try {
       const resp = await fetch(`${GAS_API_URL}?action=getOrders&_t=${Date.now()}`, { cache: "no-store" });
@@ -2084,14 +2085,18 @@
         updateT100ButtonCounts();
         const outCount = result.orders.filter(o => o.flowType === '出貨').length;
         const inCount = result.orders.filter(o => o.flowType === '進料').length;
-        showToast(`☁️ 已從雲端載入 ${result.count} 筆排程 (${outCount} 出貨 + ${inCount} 進料)`, 5000);
-        // 自動過濾今天
-        const todayStr = getLocalDateString();
-        const hasToday = t100Orders.some(o => o.date === todayStr);
-        if (hasToday) setT100FilterMode('today');
+        if (isManual) {
+          showToast(`☁️ 已從雲端載入 ${result.count} 筆排程 (${outCount} 出貨 + ${inCount} 進料)`, 4000);
+          const todayStr = getLocalDateString();
+          const hasToday = t100Orders.some(o => o.date === todayStr);
+          if (hasToday) setT100FilterMode('today');
+        }
       }
     } catch(err) {
       console.info('雲端排程讀取失敗（使用本機快取）：', err);
+      if (isManual) {
+        showToast('⚠️ 雲端排程讀取失敗，已使用本機暫存排程', 4000);
+      }
     }
   }
 
@@ -4381,6 +4386,7 @@
   <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handlePhotoSelect(event)">
 </body>
 </html>
+
 
 
 
