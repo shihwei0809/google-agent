@@ -1,6 +1,27 @@
 ﻿# 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-22 QC 系統 PWA 離線作業模式實裝、指定日期清除排程功能、IndexedDB 本地暫存與自動連線同步、v3.0.5~v3.1.1 升級)
+## 今日進度與交接事項 (2026-10-23 Google Colab 影片工作流部署、原創角色「小偉」全套資產庫建立、工廠裝卸料員工教學分鏡試映、AI 克隆聲音網站串接 Colab 黃金克隆母帶、收工規則修正)
+* **GoogleColab影片 (`c:/GOOGLE ANGET/GoogleColab影片/`):**
+  - **三師爸 Colab + MiniMax H3 雲端影片工作流部署與 Windows 修補**:
+    1. 完整拉取並更新 `shanshiba-workflow-colab` 至最新提交，安裝 `google-colab-cli` (v0.7.4) 並執行 `cloud/colab_cli_windows_patch.py` 修復 Windows `termios` 相容性問題。
+    2. 從直播串流擷取並留存 8 張 1080p 高清關鍵架構圖與角色資產結構表至 `直播圖表與角色資產參考/`（含 `01_兩種雲端跑法比較_Colab_H3_vs_Kie_Seedance.jpg`、`02_角色資產資料夾結構表.jpg` 等）。
+  - **原創主角「小偉 (43歲、清爽旁分、無眼鏡、寫實風、沉穩男聲)」完整角色資產庫 (`pipeline/xiaowei_project/`)**:
+    1. **雙造型全套三表 (`角色資產/小偉_正式版/` 與 `角色資產/小偉_休閒版/`)**: 鎖定同一張五官與清爽旁分短黑髮（不戴眼鏡），生成 `01_定妝照.png`（全身＋正面近照＋3/4側臉）、`02_轉面圖.png`（正/側/背/3/4 四視圖）、`03_表情表.png`（6 格演技表情），並合成 `角色資產總覽_小偉_正式版.jpg` 與 `角色資產總覽_小偉_休閒版.jpg`。
+    2. **工廠現場裝卸料員工教學專案 (`pipeline/xiaowei_project/film.json`)**:
+       - 生成台灣現代工廠裝卸貨月台與棧板暫存區 16:9 空場景母版 (`scenes/scene_01_loading_dock.png`)。
+       - 合成 S01~S03 三鏡教學無字首幀 (`frames/s01.png`~`s03.png`) 與含字幕試映幀 (`s01_preview.png`~`s03_preview.png`)。
+       - 產出 43 歲沉穩台灣男聲參考音 (`voices/ref_xiaowei.wav`) 與三鏡教學配音，並合成 23 秒試映影片 `讀本試映_小偉_工廠裝卸料教學.mp4`。
+* **AI 克隆聲音網站串接 Colab 黃金克隆母帶 (`第三類_AI代理與指南企劃/AI 克隆聲音/app.py` & `教育訓練教材/ai-voice-cloner-guide/app.py`):**
+  - **自動裁切 11 秒黃金母帶 (`build_colab_master_wav` & `sync_voice_to_colab_projects`)**:
+    1. 網頁錄音儲存時，自動去除頭尾空白呼吸聲、正規化音量、裁切為 Colab (MiniMax H3 / BreezyVoice / VoxCPM2) 最佳的 11 秒黃金長度（含結尾 0.15 秒淡出防爆音）。
+    2. 自動同步至 `GoogleColab影片/voices_master/` 與 `pipeline/xiaowei_project/voices/` 角色資產庫。
+  - **網頁新增「☁️ Google Colab 黃金克隆母帶轉換 & 雲端 GPU 極速合成」面板**:
+    1. 支援將本機既有錄音一鍵轉為 Colab 黃金克隆母帶。
+    2. 支援直接選擇 `VoxCPM2 (48kHz)` 或 `BreezyVoice (台灣腔)` 引擎，透過 `colab_h3.py` 送上 Colab GPU 克隆新台詞並自動下載回本機。
+* **中央大腦 (`%USERPROFILE%/.ai/INSTRUCTIONS.md`) 收工規範修正**:
+  - 修正第 4 條收工規則：取消每次收工強制彈窗詢問主支/分支，**預設一律直接收工同步至 `main` 主支**；僅在使用者主動指定「有問題先存分支」時才推至開發分支。
+
+## 前次進度與交接事項 (2026-10-22 QC 系統 PWA 離線作業模式實裝、指定日期清除排程功能、IndexedDB 本地暫存與自動連線同步、v3.0.5~v3.1.1 升級)
 * **QC-系統客製化電子化工廠 (Cloudflare D1 版 / PWA):**
   - **T100 槽車排程「指定日期清除」精準管理 (v3.1.1)**:
     1. **可自選日期清除**: 點擊「🗑️ 清除排程 (選日期/全部)」開啟專用清理彈窗，系統自動統計並列出目前現存排程的所有日期與各日筆數（例如 2026-10-22 — 共 14 筆排程），並支援自訂日期。

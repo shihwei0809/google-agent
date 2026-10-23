@@ -203,14 +203,185 @@ body {
 
 
 def get_gdrive_root():
-    possible_roots = [
-        r"G:\我的雲端硬碟\GOOGLE ANGET",
-        r"G:\My Drive\GOOGLE ANGET"
-    ]
-    for root in possible_roots:
-        if os.path.exists(root):
-            return root
+    import string
+    for letter in string.ascii_uppercase:
+        for sub in ("我的雲端硬碟", "My Drive"):
+            candidate = f"{letter}:\\{sub}\\GOOGLE ANGET"
+            if os.path.exists(candidate):
+                return candidate
     return None
+
+
+COLAB_PIPELINE_ROOT = r"C:\GOOGLE ANGET\GoogleColab影片\pipeline"
+COLAB_REPO_ROOT = r"C:\GOOGLE ANGET\GoogleColab影片"
+
+
+def build_colab_master_wav(src_wav_path, target_sec=11.0):
+    """將錄音檔自動去除頭尾靜音、正規化音量，並裁切為 Colab (H3 / BreezyVoice / VoxCPM2) 最佳黃金秒數 (8~12秒) 母帶。"""
+    import soundfile as sf
+    audio, sr = sf.read(src_wav_path)
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
+    abs_a = np.abs(audio)
+    peak = abs_a.max()
+    if peak > 0:
+        thresh = peak * 0.035
+        idx = np.where(abs_a > thresh)[0]
+        if len(idx) > 0:
+            pad = int(sr * 0.15)
+            start = max(0, idx[0] - pad)
+            end = min(len(audio), idx[-1] + pad)
+            audio = audio[start:end]
+    max_samples = int(sr * target_sec)
+    if len(audio) > max_samples:
+        audio = audio[:max_samples]
+        fade_len = min(int(sr * 0.15), len(audio))
+        audio[-fade_len:] *= np.linspace(1.0, 0.0, fade_len)
+    peak = np.abs(audio).max()
+    if peak > 0:
+        audio = audio / peak * 0.95
+    return audio.astype(np.float32), sr
+
+
+def sync_voice_to_colab_projects(voice_name, local_ref_path, local_prompt_path=""):
+    """自動將錄製好的聲音轉為 Colab 黃金克隆母帶，並同步至 GoogleColab影片 角色資產庫。"""
+    if not os.path.exists(COLAB_PIPELINE_ROOT):
+        return []
+    synced_paths = []
+    try:
+        import soundfile as sf
+        import shutil
+        master_audio, sr = build_colab_master_wav(local_ref_path, target_sec=11.0)
+        vdir = os.path.dirname(local_ref_path)
+        colab_local_wav = os.path.join(vdir, "colab_voice_ref.wav")
+        sf.write(colab_local_wav, master_audio, sr, subtype="PCM_16")
+
+        shared_dir = os.path.join(COLAB_REPO_ROOT, "voices_master")
+        os.makedirs(shared_dir, exist_ok=True)
+        shared_wav = os.path.join(shared_dir, f"ref_{voice_name}.wav")
+        sf.write(shared_wav, master_audio, sr, subtype="PCM_16")
+        if local_prompt_path and os.path.exists(local_prompt_path):
+            shutil.copy2(local_prompt_path, os.path.join(shared_dir, f"ref_{voice_name}.txt"))
+        synced_paths.append(shared_wav)
+
+        for proj_name in os.listdir(COLAB_PIPELINE_ROOT):
+            proj_dir = os.path.join(COLAB_PIPELINE_ROOT, proj_name)
+            if not os.path.isdir(proj_dir) or proj_name == "template_local":
+                continue
+            p_voices = os.path.join(proj_dir, "voices")
+            os.makedirs(p_voices, exist_ok=True)
+            dst_v = os.path.join(p_voices, f"ref_{voice_name}.wav")
+            sf.write(dst_v, master_audio, sr, subtype="PCM_16")
+            synced_paths.append(dst_v)
+            if voice_name == "小偉":
+                dst_xw = os.path.join(p_voices, "ref_xiaowei.wav")
+                sf.write(dst_xw, master_audio, sr, subtype="PCM_16")
+                synced_paths.append(dst_xw)
+
+            char_asset_root = os.path.join(proj_dir, "角色資產")
+            if os.path.exists(char_asset_root):
+                for cfolder in os.listdir(char_asset_root):
+                    cpath = os.path.join(char_asset_root, cfolder)
+                    if os.path.isdir(cpath) and voice_name in cfolder:
+                        dst_c = os.path.join(cpath, "voice_ref.wav")
+                        sf.write(dst_c, master_audio, sr, subtype="PCM_16")
+                        synced_paths.append(dst_c)
+    except Exception as e:
+        print(f"同步至 Colab 角色母帶庫失敗: {e}")
+    return synced_paths
+
+
+def export_existing_voice_to_colab(voice_name):
+    """將已錄製的本機聲音一鍵轉為 11 秒 Colab 黃金克隆母帶並同步到 GoogleColab影片 角色庫。"""
+    if not voice_name or voice_name.startswith("[微軟內建]"):
+        return "⚠️ 請選擇一個本機錄製的真實聲音（非微軟內建語音）。", None
+    ref_wav, prompt_text = load_voice_details(voice_name)
+    if not ref_wav or not os.path.exists(ref_wav):
+        return f"⚠️ 找不到「{voice_name}」的參考錄音檔。", None
+    prompt_path = os.path.join(os.path.dirname(ref_wav), "prompt.txt")
+    synced = sync_voice_to_colab_projects(voice_name, ref_wav, prompt_path)
+    colab_ref = os.path.join(os.path.dirname(ref_wav), "colab_voice_ref.wav")
+    paths_str = "\n  - ".join(synced) if synced else colab_ref
+    return (
+        f"✅ 已成功將「{voice_name}」去頭尾靜音、裁切為 11 秒 Colab 黃金克隆母帶！\n\n"
+        f"📂 已自動同步至 GoogleColab影片 角色資產庫：\n  - {paths_str}"
+    ), (colab_ref if os.path.exists(colab_ref) else ref_wav)
+
+
+def run_colab_voice_clone(voice_name, synth_text, engine="voxcpm2"):
+    """將本機錄好的黃金母帶上傳至 Google Colab 雲端 GPU，執行 VoxCPM2 或 BreezyVoice 克隆後下載回本機。"""
+    if not voice_name or voice_name.startswith("[微軟內建]"):
+        return "⚠️ 請選擇一個你在網頁上錄製的真實聲音（非微軟內建語音）。", None
+    if not synth_text or not synth_text.strip():
+        return "⚠️ 請輸入要讓 Colab 克隆朗讀的台詞文字。", None
+
+    ref_wav, prompt_text = load_voice_details(voice_name)
+    if not ref_wav or not os.path.exists(ref_wav):
+        return f"⚠️ 找不到「{voice_name}」的參考錄音檔。", None
+
+    prompt_path = os.path.join(os.path.dirname(ref_wav), "prompt.txt")
+    synced = sync_voice_to_colab_projects(voice_name, ref_wav, prompt_path)
+    colab_ref = os.path.join(os.path.dirname(ref_wav), "colab_voice_ref.wav")
+    if not os.path.exists(colab_ref):
+        colab_ref = ref_wav
+
+    import sys
+    sys.path.insert(0, os.path.join(COLAB_REPO_ROOT, "cloud"))
+    try:
+        import colab_h3
+    except Exception as e:
+        return f"❌ 無法載入 GoogleColab影片/cloud/colab_h3.py：{e}", None
+
+    session_name = "h3"
+    if not colab_h3.alive(session_name):
+        paths_str = "\n  - ".join(synced) if synced else colab_ref
+        return (
+            f"✅ 已先將「{voice_name}」轉為 11 秒黃金克隆母帶並同步至：\n  - {paths_str}\n\n"
+            "⚠️ 偵測到目前尚未啟動 Colab 雲端 GPU 連線！若要立即在雲端合成新台詞，請先在終端機執行：\n"
+            "  cd \"c:\\GOOGLE ANGET\\GoogleColab影片\"\n"
+            "  python cloud/colab_h3.py start"
+        ), colab_ref
+
+    try:
+        import time
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        remote_ref = f"/content/ref_{ts}.wav"
+        remote_out = f"/content/out_{ts}.wav"
+        colab_h3.upload(session_name, colab_ref, remote_ref)
+
+        text_clean = synth_text.strip().replace('"', '\\"')
+        if engine == "breezyvoice":
+            p_clean = (prompt_text or "大家好，我是這個頻道的作者。今天我要跟大家分享一個非常實用的工具。")[:45].replace('"', '\\"')
+            job_json = json.dumps({
+                "out_dir": f"/content/bv_{ts}",
+                "seeds": 1,
+                "jobs": [{"name": "clone", "text": synth_text.strip(), "ref_audio": remote_ref, "ref_text": p_clean}]
+            }, ensure_ascii=False)
+            colab_h3.vm(session_name, f"open('/content/bv_{ts}.json','w',encoding='utf-8').write({job_json!r})")
+            cmd = (
+                f"AI_ROOT=/content/AI PYTHONPATH=/content/AI/BreezyVoice/winstub:/content/AI/BreezyVoice/code:/content/AI/BreezyVoice/code/third_party/Matcha-TTS "
+                f"/content/AI/BreezyVoice/venv/bin/python /content/repo/tools/breezyvoice_batch.py /content/bv_{ts}.json && "
+                f"cp /content/bv_{ts}/cand/clone_s1.wav {remote_out}"
+            )
+        else:
+            cmd = (
+                f"AI_ROOT=/content/AI /content/AI/Voice/venv/bin/python /content/repo/tools/gen_voice.py "
+                f"--engine voxcpm2 --ref {remote_ref} --text \"{text_clean}\" --out {remote_out}"
+            )
+
+        log_out = colab_h3.vm_sh(session_name, cmd, timeout=300)
+        local_out_dir = os.path.join(REPO_DIR, "output")
+        os.makedirs(local_out_dir, exist_ok=True)
+        local_out_wav = os.path.join(local_out_dir, f"Colab_{engine}_{voice_name}_{ts}.wav")
+        colab_h3.download(session_name, remote_out, local_out_wav)
+        return (
+            f"🎉 Colab 雲端克隆成功！（引擎：{engine}）\n"
+            f"已下載回本機：{local_out_wav}\n"
+            f"並已同步黃金母帶至：{synced[0] if synced else colab_ref}\n\n"
+            f"雲端日誌：\n{log_out[-400:]}"
+        ), local_out_wav
+    except Exception as e:
+        return f"❌ Colab 遠端克隆執行失敗：{e}", colab_ref
 
 
 def get_gdrive_output_dir():
@@ -1119,17 +1290,18 @@ def on_save(audio_mic, audio_upload, voice_name):
         with open(prompt_path, "w", encoding="utf-8") as f:
             f.write(load_sample_text())
 
-        # 同步錄製的聲音到雲端硬碟共用資料庫
+        # 同步錄製的聲音到雲端硬碟共用資料庫 + GoogleColab影片 黃金母帶庫
         sync_voice_to_gdrive(name, ref_path, prompt_path)
+        colab_synced = sync_voice_to_colab_projects(name, ref_path, prompt_path)
+        colab_info = f"\n☁️ 已自動裁切 11 秒黃金克隆母帶並同步至 GoogleColab影片 角色庫（共 {len(colab_synced)} 處）！" if colab_synced else ""
 
         duration = len(audio) / SAMPLE_RATE
         existing = list_voices()
         voice_list = "、".join(existing)
         return (
-            f"✅ 聲音「{name}」錄製成功！（{duration:.0f} 秒）\n\n"
+            f"✅ 聲音「{name}」錄製成功！（原始 {duration:.0f} 秒）{colab_info}\n\n"
             f"目前已錄製的聲音：{voice_list}\n\n"
-            f"👉 接下來，你可以對 AI 說：\n"
-            f"「 用 {name} 的聲音說一段話 」"
+            f"👉 接下來，你可以直接按下方「☁️ 轉換為 Colab 黃金克隆母帶」或在 Colab 雲端合成台詞！"
         )
     except Exception as e:
         return f"❌ 儲存失敗：{e}"
@@ -1209,6 +1381,38 @@ def build_ui():
                             scale=3,
                             lines=3
                         )
+
+                    gr.Markdown("### ☁️ Google Colab 黃金克隆母帶轉換 & 雲端 GPU 極速合成")
+                    with gr.Row():
+                        export_colab_btn = gr.Button("🚀 一鍵轉成 Colab 黃金克隆母帶 (同步至 GoogleColab影片 角色資產)", variant="primary", scale=2)
+                        colab_engine_radio = gr.Radio(
+                            choices=[("VoxCPM2 (48kHz 高音質克隆)", "voxcpm2"), ("BreezyVoice (聯發科台灣腔零樣本克隆)", "breezyvoice")],
+                            value="voxcpm2",
+                            label="Colab 雲端克隆引擎",
+                            scale=2
+                        )
+                    with gr.Row():
+                        colab_synth_text = gr.Textbox(
+                            label="輸入要讓 Colab 雲端 GPU 用此聲音念出的新台詞（選填）",
+                            placeholder="例如：各位同仁好，我是小偉。今天帶大家看工廠現場裝卸料的三個標準安全動作。",
+                            lines=2,
+                            scale=4
+                        )
+                        colab_synth_btn = gr.Button("⚡ 送上 Colab GPU 克隆台詞", variant="secondary", scale=1)
+                    with gr.Row():
+                        colab_status_box = gr.Textbox(label="Colab 母帶轉換 / 雲端克隆狀態", lines=4, interactive=False, scale=3)
+                        colab_audio_out = gr.Audio(label="Colab 黃金母帶 / 克隆成品預覽", type="filepath", interactive=False, scale=2)
+
+                export_colab_btn.click(
+                    fn=export_existing_voice_to_colab,
+                    inputs=[voice_dropdown],
+                    outputs=[colab_status_box, colab_audio_out]
+                )
+                colab_synth_btn.click(
+                    fn=run_colab_voice_clone,
+                    inputs=[voice_dropdown, colab_synth_text, colab_engine_radio],
+                    outputs=[colab_status_box, colab_audio_out]
+                )
 
                 def on_voice_change(name):
                     return load_voice_details(name)
