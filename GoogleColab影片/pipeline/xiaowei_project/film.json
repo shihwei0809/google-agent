@@ -1,0 +1,69 @@
+{
+  "_comment": "小偉專屬：工廠現場處理裝卸料員工教學（3鏡實戰教學劇本，支援本地讀本試映與 Colab H3 算繪）",
+  "title": "工廠現場裝卸料標準作業教學_小偉主講",
+  "aspect": "16:9",
+  "width": 1344,
+  "height": 768,
+  "fps": 24,
+
+  "characters": {
+    "小偉_休閒": {
+      "ref_image": "chars/xiaowei_casual.png",
+      "appearance": "43-year-old Taiwanese East Asian man, mature composed oval face with clean jawline, neat clean side-parted short black hair with a natural subtle sheen, no eyeglasses, clear bare eyes, wearing a smart-casual olive-grey lightweight bomber jacket over a clean fitted plain white crew-neck t-shirt, dark navy chinos, clean minimalist white-sole sneakers",
+      "voice_design": "A 43-year-old Taiwanese man with a calm, steady, warm low-baritone voice, natural Taiwanese Mandarin accent, composed and trustworthy supervisor tone, speaking at a measured and clear pace.",
+      "voice_sample": "各位同仁大家好，我是小偉。在工廠現場進行裝卸料作業時，安全跟標準流程永遠是第一優先。",
+      "voice_ref": "voices/ref_xiaowei.wav"
+    },
+    "小偉_正式": {
+      "ref_image": "chars/xiaowei_formal.png",
+      "appearance": "43-year-old Taiwanese East Asian man, mature composed oval face with clean jawline, neat clean side-parted short black hair with a natural subtle sheen, no eyeglasses, clear bare eyes, wearing a tailored charcoal navy business suit jacket over a crisp white button-down dress shirt (no tie), dark tailored trousers, black leather dress shoes",
+      "voice_design": "A 43-year-old Taiwanese man with a calm, steady, warm low-baritone voice, natural Taiwanese Mandarin accent, composed and trustworthy supervisor tone, speaking at a measured and clear pace.",
+      "voice_sample": "各位同仁大家好，我是小偉。在工廠現場進行裝卸料作業時，安全跟標準流程永遠是第一優先。",
+      "voice_ref": "voices/ref_xiaowei.wav"
+    }
+  },
+
+  "scenes": {
+    "裝卸貨月台與棧板區": {
+      "image": "scenes/scene_01_loading_dock.png",
+      "prompt": "Empty modern Taiwanese factory warehouse loading and unloading bay, clean grey epoxy floor with bright yellow safety boundary lines, stacked pallets of boxed raw materials, a parked electric forklift and hydraulic hand pallet jack on the side, roll-up loading bay door with natural daylight, bright industrial LED ceiling lights, photorealistic photography, no people, empty room"
+    },
+    "產線投料與卸料作業區": {
+      "image": "scenes/scene_02_material_hopper_station.png",
+      "prompt": "Empty modern Taiwanese factory production line material feeding and unloading station, stainless steel material hopper machine, organized material bins and barcode scanning stand, clear safety signage on the wall, clean bright industrial workshop lighting, photorealistic photography, no people, empty room"
+    }
+  },
+
+  "shots": [
+    {
+      "id": "s01",
+      "scene": "裝卸貨月台與棧板區",
+      "characters": ["小偉_休閒"],
+      "speaker": "小偉_休閒",
+      "dialogue": "各位同仁好，我是小偉。今天帶大家看工廠現場裝卸料的三個標準安全動作。",
+      "frame_prompt": "Medium waist-up shot inside the factory loading and unloading bay from <image2>. The 43-year-old Taiwanese man from <image1> (neat clean side-parted short black hair, no eyeglasses, olive-grey bomber jacket over white crew-neck t-shirt) stands in the foreground facing the camera with a calm, confident supervisor expression, one hand gesturing toward the loading bay behind him, photorealistic photography.",
+      "motion_prompt": "The 43-year-old Taiwanese man in the olive-grey jacket speaks calmly and steadily to the camera with natural lip sync, gesturing slightly toward the factory loading bay behind him, composed supervisor demeanor, camera holds steady.",
+      "duration": 7
+    },
+    {
+      "id": "s02",
+      "scene": "裝卸貨月台與棧板區",
+      "characters": ["小偉_休閒"],
+      "speaker": "小偉_休閒",
+      "dialogue": "第一，卸料前先確認地面黃色警戒線淨空，檢查棧板重心穩固、貨物無傾斜，再操作拖板車。",
+      "frame_prompt": "Medium-full shot inside the factory loading bay from <image2>. The 43-year-old Taiwanese man from <image1> (neat side-parted short black hair, no eyeglasses, olive-grey jacket over white tee, dark navy chinos) stands next to a stacked material pallet and hydraulic pallet jack, pointing down toward the pallet base and yellow floor safety line while looking at the camera with a serious focused explaining expression.",
+      "motion_prompt": "The man in the olive-grey jacket points clearly toward the material pallet and yellow floor safety line while explaining seriously to the camera with natural lip sync, steady instructional body language, camera holds steady.",
+      "duration": 8
+    },
+    {
+      "id": "s03",
+      "scene": "產線投料與卸料作業區",
+      "characters": ["小偉_休閒"],
+      "speaker": "小偉_休閒",
+      "dialogue": "第二，原料進站投料前，務必核對料號標籤與表單數量，確認無誤再簽名入庫，確保產線零失誤。",
+      "frame_prompt": "Medium chest-up shot inside the stainless steel material feeding station from <image2>. The 43-year-old Taiwanese man from <image1> (neat side-parted short black hair, no eyeglasses, olive-grey jacket over white tee) holds a checklist clipboard next to the stainless steel material hopper, smiling warmly and nodding to the camera as he summarizes the SOP.",
+      "motion_prompt": "Holding a clipboard next to the stainless steel hopper, the man speaks warmly and steadily to the camera with natural lip sync, giving an encouraging nod at the end, camera holds steady.",
+      "duration": 8
+    }
+  ]
+}
