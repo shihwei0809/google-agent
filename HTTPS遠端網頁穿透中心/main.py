@@ -975,20 +975,12 @@ def get_screen_frame(
     token = header_token or x_auth_token
     verify_token(token)
     try:
-        from PIL import ImageGrab, Image
+        from PIL import Image
         from io import BytesIO
         left, top, w, h = _get_screen_bounds(all_screens)
-        locked = _is_workstation_locked()
-        img = None
-        if not locked:
-            try:
-                _attach_to_input_desktop(force_default=False)
-                img = ImageGrab.grab(bbox=(left, top, left + w, top + h), all_screens=all_screens)
-            except Exception:
-                locked = True
-        if img is None:
-            img = _grab_desktop_composited(left, top, w, h)
-        _draw_cursor_on_image(img, left, top, use_virtual=locked)
+        _attach_to_input_desktop(force_default=True)
+        img = _grab_desktop_composited(left, top, w, h)
+        _draw_cursor_on_image(img, left, top)
         if 0.2 <= scale < 0.99:
             new_w = max(320, int(img.width * scale))
             new_h = max(200, int(img.height * scale))
@@ -1121,6 +1113,48 @@ def _combo_vk(mod_vk: int, key_vk: int):
     time.sleep(0.02)
     u32.keybd_event(mod_vk, 0, 2, 0)
 
+ULONG_PTR = ctypes.c_ulonglong
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [
+        ('dx', ctypes.c_long), ('dy', ctypes.c_long),
+        ('mouseData', ctypes.c_ulong), ('dwFlags', ctypes.c_ulong),
+        ('time', ctypes.c_ulong), ('dwExtraInfo', ULONG_PTR)
+    ]
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [
+        ('wVk', ctypes.c_ushort), ('wScan', ctypes.c_ushort),
+        ('dwFlags', ctypes.c_ulong), ('time', ctypes.c_ulong),
+        ('dwExtraInfo', ULONG_PTR)
+    ]
+
+class HARDWAREINPUT(ctypes.Structure):
+    _fields_ = [('uMsg', ctypes.c_ulong), ('wParamL', ctypes.c_short), ('wParamH', ctypes.c_ushort)]
+
+class INPUT_UNION(ctypes.Union):
+    _fields_ = [('mi', MOUSEINPUT), ('ki', KEYBDINPUT), ('hi', HARDWAREINPUT)]
+
+class INPUT(ctypes.Structure):
+    _fields_ = [('type', ctypes.c_ulong), ('u', INPUT_UNION)]
+
+def _send_unicode_text(text: str):
+    u32 = ctypes.windll.user32
+    KEYEVENTF_KEYUP = 0x0002
+    KEYEVENTF_UNICODE = 0x0004
+    for ch in text:
+        code = ord(ch)
+        if code in (10, 13):
+            d = INPUT(type=1, u=INPUT_UNION(ki=KEYBDINPUT(wVk=0x0D, wScan=0, dwFlags=0, time=0, dwExtraInfo=0)))
+            u = INPUT(type=1, u=INPUT_UNION(ki=KEYBDINPUT(wVk=0x0D, wScan=0, dwFlags=KEYEVENTF_KEYUP, time=0, dwExtraInfo=0)))
+        else:
+            d = INPUT(type=1, u=INPUT_UNION(ki=KEYBDINPUT(wVk=0, wScan=code, dwFlags=KEYEVENTF_UNICODE, time=0, dwExtraInfo=0)))
+            u = INPUT(type=1, u=INPUT_UNION(ki=KEYBDINPUT(wVk=0, wScan=code, dwFlags=KEYEVENTF_UNICODE | KEYEVENTF_KEYUP, time=0, dwExtraInfo=0)))
+        u32.SendInput(1, ctypes.byref(d), ctypes.sizeof(INPUT))
+        time.sleep(0.005)
+        u32.SendInput(1, ctypes.byref(u), ctypes.sizeof(INPUT))
+        time.sleep(0.005)
+
 @app.post("/api/screen/key")
 def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header(None)):
     global _promoted_hwnd
@@ -1131,13 +1165,8 @@ def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header
     _attach_to_input_desktop(force_default=False)
 
     if act == "text" and req.text:
-        try:
-            subprocess.run(["clip"], input=req.text.encode("utf-16le"), check=False)
-            time.sleep(0.05)
-            _combo_vk(0x11, 0x56)  # Ctrl + V
-            return {"status": "ok", "typed": req.text}
-        except Exception:
-            pass
+        _send_unicode_text(req.text)
+        return {"status": "ok", "typed": req.text}
 
     elif act == "combo":
         c = req.key.lower()
@@ -1157,21 +1186,7 @@ def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header
         if k in VK_MAP:
             _tap_vk(VK_MAP[k])
         elif len(k) == 1:
-            vk = u32.VkKeyScanW(ord(req.key))
-            if vk != -1:
-                base_vk = vk & 0xFF
-                shift = (vk >> 8) & 1
-                if shift:
-                    _combo_vk(0x10, base_vk)
-                else:
-                    _tap_vk(base_vk)
-            else:
-                try:
-                    subprocess.run(["clip"], input=req.key.encode("utf-16le"), check=False)
-                    time.sleep(0.02)
-                    _combo_vk(0x11, 0x56)
-                except Exception:
-                    pass
+            _send_unicode_text(req.key)
         return {"status": "ok", "key": req.key}
 
 def resolve_static_dir() -> str:
