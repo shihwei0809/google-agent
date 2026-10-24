@@ -754,7 +754,205 @@ class KeyEventRequest(BaseModel):
     key: str = ""
     text: str = ""
 
+_thread_desktop_local = threading.local()
+_virtual_cursor = [960, 540]
+_promoted_hwnd = 0
+_minimized_in_lock = set()
+
+def _attach_to_input_desktop(force_default: bool = False):
+    """確保當前執行緒已掛載至使用者互動桌面 (Default Desktop)，支援鎖定畫面下直通底層桌面"""
+    try:
+        u32 = ctypes.windll.user32
+        GENERIC_ALL = 0x10000000
+        hdesk = 0
+        if not force_default:
+            hdesk = u32.OpenInputDesktop(0, False, GENERIC_ALL)
+        if not hdesk:
+            hdesk = u32.OpenDesktopW("Default", 0, False, GENERIC_ALL)
+        if hdesk:
+            u32.SetThreadDesktop(hdesk)
+            old = getattr(_thread_desktop_local, "hdesk", None)
+            if old and old != hdesk:
+                u32.CloseDesktop(old)
+            _thread_desktop_local.hdesk = hdesk
+    except Exception:
+        pass
+
+class _POINT(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+class _RECT(ctypes.Structure):
+    _fields_ = [("left", ctypes.c_long), ("top", ctypes.c_long), ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
+
+def _is_workstation_locked() -> bool:
+    try:
+        u32 = ctypes.windll.user32
+        GENERIC_ALL = 0x10000000
+        hin = u32.OpenInputDesktop(0, False, GENERIC_ALL)
+        if not hin:
+            return True
+        buf = ctypes.create_unicode_buffer(64)
+        u32.GetUserObjectInformationW(hin, 2, buf, 128, None)
+        u32.CloseDesktop(hin)
+        if buf.value.lower() != "default":
+            return True
+        _attach_to_input_desktop(force_default=True)
+        fg = u32.GetForegroundWindow()
+        if fg:
+            cls = ctypes.create_unicode_buffer(128)
+            txt = ctypes.create_unicode_buffer(128)
+            u32.GetClassNameW(fg, cls, 128)
+            u32.GetWindowTextW(fg, txt, 128)
+            if "鎖定畫面" in txt.value or "Lock Screen" in txt.value or cls.value == "LockScreenBackstopFrame":
+                return True
+        hcenter = u32.WindowFromPoint(_POINT(500, 500))
+        if hcenter:
+            r = u32.GetAncestor(hcenter, 2) or hcenter
+            cls2 = ctypes.create_unicode_buffer(128)
+            u32.GetClassNameW(r, cls2, 128)
+            if cls2.value == "LockScreenBackstopFrame":
+                return True
+    except Exception:
+        return True
+    return False
+
+def _get_ordered_desktop_windows(screen_w: int = 1920, screen_h: int = 1080):
+    """列舉 Default 桌面所有可見視窗 (自動過濾 Windows 鎖定畫面遮罩，並支援鎖定下視窗切換排序)"""
+    global _promoted_hwnd
+    _attach_to_input_desktop(force_default=True)
+    u32 = ctypes.windll.user32
+    dwm = getattr(ctypes.windll, "dwmapi", None)
+
+    raw_hwnds = []
+    WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    def _cb(hwnd, _lparam):
+        if hwnd and u32.IsWindowVisible(hwnd) and not u32.IsIconic(hwnd):
+            raw_hwnds.append(int(hwnd))
+        return True
+    u32.EnumWindows(WNDENUMPROC(_cb), 0)
+
+    app_windows = []
+    taskbar_win = None
+    progman_win = None
+
+    SKIP_CLASSES = {
+        "LockScreenBackstopFrame", "Windows.UI.Core.CoreWindow",
+        "IME", "MSCTFIME UI", "DummyDWMListenerWindow",
+        "EdgeUiInputTopWndClass", "EdgeUiInputWndClass", " WorkerW"
+    }
+    SKIP_TITLES = {
+        "Windows 預設鎖定畫面", "Windows Default Lock Screen",
+        "Backstop Window", "Windows 輸入體驗", "Windows Input Experience"
+    }
+
+    for hwnd in raw_hwnds:
+        if hwnd in _minimized_in_lock:
+            continue
+        if dwm:
+            cloaked = ctypes.c_int(0)
+            if dwm.DwmGetWindowAttribute(hwnd, 14, ctypes.byref(cloaked), 4) == 0 and cloaked.value != 0:
+                continue
+        cls_buf = ctypes.create_unicode_buffer(128)
+        txt_buf = ctypes.create_unicode_buffer(256)
+        u32.GetClassNameW(hwnd, cls_buf, 128)
+        u32.GetWindowTextW(hwnd, txt_buf, 256)
+        cls = cls_buf.value
+        txt = txt_buf.value
+
+        if cls in SKIP_CLASSES or txt in SKIP_TITLES:
+            continue
+        if cls == "ApplicationFrameWindow" and ("鎖定畫面" in txt or "Lock Screen" in txt or not txt.strip()):
+            continue
+
+        rc = _RECT()
+        u32.GetWindowRect(hwnd, ctypes.byref(rc))
+        w = rc.right - rc.left
+        h = rc.bottom - rc.top
+        if w < 30 or h < 20 or rc.right <= 0 or rc.bottom <= 0 or rc.left >= screen_w or rc.top >= screen_h:
+            continue
+
+        info = {"hwnd": hwnd, "cls": cls, "title": txt, "rect": (rc.left, rc.top, rc.right, rc.bottom), "w": w, "h": h}
+        if cls == "Shell_TrayWnd":
+            taskbar_win = info
+        elif cls in ("Progman", "WorkerW"):
+            if not progman_win and w >= screen_w and h >= screen_h:
+                progman_win = info
+        else:
+            if not txt.strip() and cls not in ("Chrome_WidgetWin_1", "CabinetWClass"):
+                continue
+            app_windows.append(info)
+
+    if _promoted_hwnd:
+        for i, item in enumerate(app_windows):
+            if item["hwnd"] == _promoted_hwnd:
+                promoted = app_windows.pop(i)
+                app_windows.insert(0, promoted)
+                break
+
+    return app_windows, taskbar_win, progman_win
+
+def _print_window_to_image(hwnd: int, w: int, h: int):
+    from PIL import Image
+    u32 = ctypes.windll.user32
+    gdi = ctypes.windll.gdi32
+    hdc_screen = u32.GetDC(0)
+    hdc_mem = gdi.CreateCompatibleDC(hdc_screen)
+    bmi = ctypes.create_string_buffer(40)
+    struct.pack_into("IiiHHIIiiII", bmi, 0, 40, w, -h, 1, 32, 0, 0, 0, 0, 0, 0)
+    ppv = ctypes.c_void_p()
+    hbm = gdi.CreateDIBSection(hdc_screen, bmi, 0, ctypes.byref(ppv), None, 0)
+    old_bm = gdi.SelectObject(hdc_mem, hbm)
+    try:
+        ret = u32.PrintWindow(hwnd, hdc_mem, 2)
+        if not ret:
+            u32.PrintWindow(hwnd, hdc_mem, 0)
+        buf = (ctypes.c_ubyte * (w * h * 4)).from_address(ppv.value)
+        img = Image.frombuffer("RGBA", (w, h), buf, "raw", "BGRA", 0, 1).convert("RGB")
+        return img
+    finally:
+        gdi.SelectObject(hdc_mem, old_bm)
+        gdi.DeleteObject(hbm)
+        gdi.DeleteDC(hdc_mem)
+        u32.ReleaseDC(0, hdc_screen)
+
+def _grab_desktop_composited(left: int, top: int, w: int, h: int):
+    """當 Windows 處於鎖定畫面時，直接穿透鎖定遮罩並合成使用者底層桌面視窗與工作列"""
+    from PIL import Image
+    canvas = Image.new("RGB", (w, h), (15, 23, 42))
+    app_windows, taskbar_win, progman_win = _get_ordered_desktop_windows(w, h)
+
+    render_stack = []
+    covered_fullscreen = False
+    for item in app_windows:
+        render_stack.append(item)
+        l, t, r, b = item["rect"]
+        if l <= 0 and t <= 0 and r >= w and b >= h - 60:
+            covered_fullscreen = True
+            break
+
+    if not covered_fullscreen and progman_win:
+        render_stack.append(progman_win)
+
+    for item in reversed(render_stack):
+        try:
+            win_img = _print_window_to_image(item["hwnd"], item["w"], item["h"])
+            l, t, _, _ = item["rect"]
+            canvas.paste(win_img, (l - left, t - top))
+        except Exception:
+            pass
+
+    if taskbar_win:
+        try:
+            tb_img = _print_window_to_image(taskbar_win["hwnd"], taskbar_win["w"], taskbar_win["h"])
+            l, t, _, _ = taskbar_win["rect"]
+            canvas.paste(tb_img, (l - left, t - top))
+        except Exception:
+            pass
+
+    return canvas
+
 def _get_screen_bounds(all_screens: bool = False):
+    _attach_to_input_desktop(force_default=True)
     u32 = ctypes.windll.user32
     if all_screens:
         left = u32.GetSystemMetrics(76)   # SM_XVIRTUALSCREEN
@@ -767,18 +965,18 @@ def _get_screen_bounds(all_screens: bool = False):
         height = u32.GetSystemMetrics(1)  # SM_CYSCREEN
     return left, top, max(1, width), max(1, height)
 
-def _draw_cursor_on_image(img, offset_left=0, offset_top=0):
+def _draw_cursor_on_image(img, offset_left=0, offset_top=0, use_virtual=False):
     try:
         from PIL import ImageDraw
-        class POINT(ctypes.Structure):
-            _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
-        pt = POINT()
-        ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
-        cx = pt.x - offset_left
-        cy = pt.y - offset_top
+        if not use_virtual:
+            pt = _POINT()
+            if ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
+                _virtual_cursor[0] = pt.x
+                _virtual_cursor[1] = pt.y
+        cx = _virtual_cursor[0] - offset_left
+        cy = _virtual_cursor[1] - offset_top
         if 0 <= cx <= img.width and 0 <= cy <= img.height:
             draw = ImageDraw.Draw(img)
-            # 繪製高辨識度紅心白邊游標與箭頭
             r = 7
             draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline="#ffffff", width=2)
             draw.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), fill="#ef4444")
@@ -799,8 +997,17 @@ def get_screen_frame(
         from PIL import ImageGrab, Image
         from io import BytesIO
         left, top, w, h = _get_screen_bounds(all_screens)
-        img = ImageGrab.grab(bbox=(left, top, left + w, top + h), all_screens=all_screens)
-        _draw_cursor_on_image(img, left, top)
+        locked = _is_workstation_locked()
+        img = None
+        if not locked:
+            try:
+                _attach_to_input_desktop(force_default=False)
+                img = ImageGrab.grab(bbox=(left, top, left + w, top + h), all_screens=all_screens)
+            except Exception:
+                locked = True
+        if img is None:
+            img = _grab_desktop_composited(left, top, w, h)
+        _draw_cursor_on_image(img, left, top, use_virtual=locked)
         if 0.2 <= scale < 0.99:
             new_w = max(320, int(img.width * scale))
             new_h = max(200, int(img.height * scale))
@@ -816,13 +1023,105 @@ def get_screen_frame(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"擷取螢幕失敗: {e}")
 
+def _find_deepest_child_at(root_hwnd: int, sx: int, sy: int) -> int:
+    u32 = ctypes.windll.user32
+    best_hwnd = root_hwnd
+    best_area = 1 << 60
+    WNDENUMPROC = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_void_p, ctypes.c_void_p)
+    def _cb(hwnd, _lparam):
+        nonlocal best_hwnd, best_area
+        if hwnd and u32.IsWindowVisible(hwnd):
+            rc = _RECT()
+            if u32.GetWindowRect(hwnd, ctypes.byref(rc)):
+                if rc.left <= sx < rc.right and rc.top <= sy < rc.bottom:
+                    area = max(1, (rc.right - rc.left) * (rc.bottom - rc.top))
+                    if area <= best_area:
+                        best_area = area
+                        best_hwnd = int(hwnd)
+        return True
+    try:
+        u32.EnumChildWindows(root_hwnd, WNDENUMPROC(_cb), 0)
+    except Exception:
+        pass
+    return best_hwnd
+
 @app.post("/api/screen/mouse")
 def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = Header(None)):
+    global _promoted_hwnd
     verify_token(x_auth_token)
     u32 = ctypes.windll.user32
     left, top, w, h = _get_screen_bounds(req.all_screens)
     tx = int(left + max(0.0, min(1.0, req.x_ratio)) * w)
     ty = int(top + max(0.0, min(1.0, req.y_ratio)) * h)
+    _virtual_cursor[0] = tx
+    _virtual_cursor[1] = ty
+
+    act = req.action.lower()
+    if _is_workstation_locked():
+        app_windows, taskbar_win, progman_win = _get_ordered_desktop_windows(w, h)
+        target_info = None
+        if taskbar_win:
+            tl, tt, tr, tb = taskbar_win["rect"]
+            if tl <= tx < tr and tt <= ty < tb:
+                target_info = taskbar_win
+        if not target_info:
+            for item in app_windows:
+                il, it, ir, ib = item["rect"]
+                if il <= tx < ir and it <= ty < ib:
+                    target_info = item
+                    break
+        if not target_info and progman_win:
+            target_info = progman_win
+
+        if target_info:
+            root_hwnd = target_info["hwnd"]
+            if target_info is not taskbar_win and target_info is not progman_win:
+                _promoted_hwnd = root_hwnd
+                try:
+                    u32.BringWindowToTop(root_hwnd)
+                    u32.SetForegroundWindow(root_hwnd)
+                except Exception:
+                    pass
+            child_hwnd = _find_deepest_child_at(root_hwnd, tx, ty)
+            pt = _POINT(tx, ty)
+            u32.ScreenToClient(child_hwnd, ctypes.byref(pt))
+            lparam = ((pt.y & 0xFFFF) << 16) | (pt.x & 0xFFFF)
+
+            WM_MOUSEMOVE = 0x0200
+            WM_LBUTTONDOWN = 0x0201
+            WM_LBUTTONUP = 0x0202
+            WM_LBUTTONDBLCLK = 0x0203
+            WM_RBUTTONDOWN = 0x0204
+            WM_RBUTTONUP = 0x0205
+            WM_MOUSEWHEEL = 0x020A
+
+            u32.PostMessageW(child_hwnd, WM_MOUSEMOVE, 0, lparam)
+            if act == "click":
+                u32.PostMessageW(child_hwnd, WM_LBUTTONDOWN, 1, lparam)
+                time.sleep(0.02)
+                u32.PostMessageW(child_hwnd, WM_LBUTTONUP, 0, lparam)
+            elif act == "dblclick":
+                u32.PostMessageW(child_hwnd, WM_LBUTTONDOWN, 1, lparam)
+                u32.PostMessageW(child_hwnd, WM_LBUTTONUP, 0, lparam)
+                time.sleep(0.03)
+                u32.PostMessageW(child_hwnd, WM_LBUTTONDBLCLK, 1, lparam)
+                u32.PostMessageW(child_hwnd, WM_LBUTTONUP, 0, lparam)
+            elif act == "rightclick":
+                u32.PostMessageW(child_hwnd, WM_RBUTTONDOWN, 2, lparam)
+                time.sleep(0.02)
+                u32.PostMessageW(child_hwnd, WM_RBUTTONUP, 0, lparam)
+            elif act == "mousedown":
+                u32.PostMessageW(child_hwnd, WM_LBUTTONDOWN, 1, lparam)
+            elif act == "mouseup":
+                u32.PostMessageW(child_hwnd, WM_LBUTTONUP, 0, lparam)
+            elif act == "wheel":
+                wparam = ((int(req.delta) & 0xFFFF) << 16)
+                screen_lparam = ((ty & 0xFFFF) << 16) | (tx & 0xFFFF)
+                u32.PostMessageW(child_hwnd, WM_MOUSEWHEEL, wparam, screen_lparam)
+
+        return {"status": "ok", "x": tx, "y": ty, "mode": "locked_direct"}
+
+    _attach_to_input_desktop(force_default=False)
     u32.SetCursorPos(tx, ty)
 
     MOUSEEVENTF_LEFTDOWN = 0x0002
@@ -833,7 +1132,6 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
     MOUSEEVENTF_MIDDLEUP = 0x0040
     MOUSEEVENTF_WHEEL = 0x0800
 
-    act = req.action.lower()
     if act == "click":
         u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(0.02)
@@ -859,7 +1157,7 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
     elif act == "wheel":
         u32.mouse_event(MOUSEEVENTF_WHEEL, 0, 0, int(req.delta), 0)
 
-    return {"status": "ok", "x": tx, "y": ty}
+    return {"status": "ok", "x": tx, "y": ty, "mode": "unlocked"}
 
 VK_MAP = {
     "enter": 0x0D, "return": 0x0D, "backspace": 0x08, "tab": 0x09,
@@ -890,10 +1188,64 @@ def _combo_vk(mod_vk: int, key_vk: int):
 
 @app.post("/api/screen/key")
 def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header(None)):
+    global _promoted_hwnd
     verify_token(x_auth_token)
+    u32 = ctypes.windll.user32
     act = req.action.lower()
+
+    if _is_workstation_locked():
+        _, _, w, h = _get_screen_bounds(False)
+        app_windows, _, _ = _get_ordered_desktop_windows(w, h)
+        target_root = app_windows[0]["hwnd"] if app_windows else 0
+        target_hwnd = _find_deepest_child_at(target_root, _virtual_cursor[0], _virtual_cursor[1]) if target_root else 0
+
+        WM_KEYDOWN = 0x0100
+        WM_KEYUP = 0x0101
+        WM_CHAR = 0x0102
+        WM_CLOSE = 0x0010
+
+        if act == "text" and req.text:
+            subprocess.run(["clip"], input=req.text.encode("utf-16le"), check=False)
+            if target_hwnd:
+                for ch in req.text:
+                    u32.PostMessageW(target_hwnd, WM_CHAR, ord(ch), 0)
+            return {"status": "ok", "typed": req.text, "mode": "locked_direct"}
+        elif act == "combo":
+            c = req.key.lower()
+            if c == "alt+tab":
+                if len(app_windows) >= 2:
+                    _minimized_in_lock.clear()
+                    next_hwnd = app_windows[1]["hwnd"]
+                    _promoted_hwnd = next_hwnd
+                    try:
+                        u32.SetWindowPos(app_windows[0]["hwnd"], 1, 0, 0, 0, 0, 0x0003 | 0x0010)
+                        u32.BringWindowToTop(next_hwnd)
+                    except Exception:
+                        pass
+            elif c == "win+d":
+                if _minimized_in_lock:
+                    _minimized_in_lock.clear()
+                else:
+                    for item in app_windows:
+                        _minimized_in_lock.add(item["hwnd"])
+            elif c == "alt+f4" and target_root:
+                u32.PostMessageW(target_root, WM_CLOSE, 0, 0)
+            return {"status": "ok", "combo": c, "mode": "locked_direct"}
+        else:
+            k = req.key.lower()
+            if target_hwnd:
+                if k in VK_MAP:
+                    vk = VK_MAP[k]
+                    u32.PostMessageW(target_hwnd, WM_KEYDOWN, vk, 0)
+                    if vk in (0x0D, 0x08, 0x09, 0x20):
+                        u32.PostMessageW(target_hwnd, WM_CHAR, vk, 0)
+                    u32.PostMessageW(target_hwnd, WM_KEYUP, vk, 0)
+                elif len(req.key) == 1:
+                    u32.PostMessageW(target_hwnd, WM_CHAR, ord(req.key), 0)
+            return {"status": "ok", "key": req.key, "mode": "locked_direct"}
+
+    _attach_to_input_desktop(force_default=False)
     if act == "text" and req.text:
-        # 透過剪貼簿直接貼上中英文文字，100% 支援中文、符號與整段貼上
         subprocess.run(["clip"], input=req.text.encode("utf-16le"), check=False)
         time.sleep(0.05)
         _combo_vk(0x11, 0x56)  # Ctrl + V
