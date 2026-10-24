@@ -289,7 +289,9 @@
             <input type="text" id="remote-text-input" placeholder="輸入中英文字直接貼上遠端..." class="bg-transparent text-xs text-white focus:outline-none w-40 sm:w-52">
             <button onclick="sendRemoteText()" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium">發送文字</button>
           </div>
+          <button onclick="sendRemoteKey('key','space')" class="px-2 py-1.5 bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 rounded-lg border border-amber-500/40 font-medium">空白/喚醒</button>
           <button onclick="sendRemoteKey('key','enter')" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700">Enter</button>
+          <button onclick="sendRemoteKey('key','tab')" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700">Tab</button>
           <button onclick="sendRemoteKey('key','backspace')" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700">退格</button>
           <button onclick="sendRemoteKey('key','esc')" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg border border-slate-700">Esc</button>
           <button onclick="sendRemoteKey('combo','alt+tab')" class="px-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg border border-slate-700">Alt+Tab</button>
