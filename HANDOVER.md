@@ -9,6 +9,10 @@
     4. 支援 Gemini ⇄ Groq (`whisper-large-v3-turbo` / `llama-3.3-70b-versatile`) 雙引擎自動備援，當單一平台配額耗盡時自動無縫切換。
     5. 修復 `start.bat` 中文亂碼 (`chcp 65001`) 與舊背景程序搶佔 `Alt+Space` 快捷鍵問題，並打包產出零金鑰殘留之免安裝單一執行檔 `dist\NoType-Portable-1.0.0.exe`。
 * **HTTPS 遠端網頁穿透中心 (`C:\GOOGLE ANGET\HTTPS遠端網頁穿透中心\`):**
+  - **遠端畫面黑框消除與雙軌文字注入修復 (main.py, static/index.html)**:
+    1. **消除 Chrome/Edge/Terminal 畫面黑框**: 未鎖定狀態下全面使用原生 ImageGrab，徹底消除先前視窗被 PrintWindow 捕捉為黑方塊的問題，畫面清晰還原。
+    2. **雙軌文字注入 (64-bit 原生剪貼簿 + SendInput UNICODE)**: 支援 Win32 64-bit 原生剪貼簿注入搭配 Ctrl+V，100% 支援任意中英文長字串、標點符號與多行文字；並以 SendInput UNICODE 作為第二道防護。
+    3. **點擊強制奪取焦點 (Alt Key Trick)**: 點擊遠端視窗時自動透過 Win32 模擬 Alt 鍵繞過 Windows 前景鎖定限制，確保滑鼠點擊立即啟動該視窗並接受鍵盤文字輸入。
   - **支援個人 Google 帳號登入設定與單一免安裝 `.exe` 封裝 (`main.py`, `static/index.html`)**:
     1. 新增 `/api/account/info` 與 `/api/account/setup` 端點，並在前端登入畫面（本機直連時）與系統頂部導覽列新增「👤 帳號設定」彈窗 (`#account-modal`)。
     2. 任何使用者皆可自行輸入個人的 Google 帳號 (Email)、自訂專屬管理密碼，並一鍵重設專屬 2FA QR Code 綁定自己的手機 Google Authenticator，完全不共用開發者帳號。
@@ -94,6 +98,10 @@
     3. **PWA 版本升級**: 快取版號升級為 `act-pwa-v1.6`，已部署至 Cloudflare Pages。
 
 * **HTTPS 遠端網頁穿透中心動態發布與開機自動常駐升級:**
+  - **遠端畫面黑框消除與雙軌文字注入修復 (main.py, static/index.html)**:
+    1. **消除 Chrome/Edge/Terminal 畫面黑框**: 未鎖定狀態下全面使用原生 ImageGrab，徹底消除先前視窗被 PrintWindow 捕捉為黑方塊的問題，畫面清晰還原。
+    2. **雙軌文字注入 (64-bit 原生剪貼簿 + SendInput UNICODE)**: 支援 Win32 64-bit 原生剪貼簿注入搭配 Ctrl+V，100% 支援任意中英文長字串、標點符號與多行文字；並以 SendInput UNICODE 作為第二道防護。
+    3. **點擊強制奪取焦點 (Alt Key Trick)**: 點擊遠端視窗時自動透過 Win32 模擬 Alt 鍵繞過 Windows 前景鎖定限制，確保滑鼠點擊立即啟動該視窗並接受鍵盤文字輸入。
   - **穿透網址全域雙向發布機制 (`publish_tunnel_url`)**:
     1. 當 `cloudflared` 生成 Quick Tunnel 網址後，系統自動於本地根目錄與 Google 雲端硬碟 (`G:\我的雲端硬碟\`) 雙向同步生成現代化自動轉址頁面 `最新遠端穿透網址.html` 及純文字 `最新遠端穿透網址.txt`。
     2. 無論身在何處，只要開啟手機 Google Drive 點擊 `最新遠端穿透網址.html` 即可 2 秒自動跳轉至主機 Web 控制台。
