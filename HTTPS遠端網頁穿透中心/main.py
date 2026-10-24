@@ -17,7 +17,7 @@ import secrets
 import webbrowser
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Header, Query, Request
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, Response
 from pydantic import BaseModel
 import uvicorn
 
@@ -729,6 +729,201 @@ def save_file(req: FileSaveRequest, x_auth_token: Optional[str] = Header(None)):
         return {"status": "ok", "message": "檔案儲存成功"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# 即時遠端桌面畫面串流與滑鼠鍵盤操控 API (純 HTTPS 443)
+# ==========================================
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+    except Exception:
+        pass
+
+class MouseEventRequest(BaseModel):
+    action: str  # click, dblclick, rightclick, mousedown, mouseup, move, wheel
+    x_ratio: float = 0.5
+    y_ratio: float = 0.5
+    delta: int = 0
+    all_screens: bool = False
+
+class KeyEventRequest(BaseModel):
+    action: str  # key, text, combo
+    key: str = ""
+    text: str = ""
+
+def _get_screen_bounds(all_screens: bool = False):
+    u32 = ctypes.windll.user32
+    if all_screens:
+        left = u32.GetSystemMetrics(76)   # SM_XVIRTUALSCREEN
+        top = u32.GetSystemMetrics(77)    # SM_YVIRTUALSCREEN
+        width = u32.GetSystemMetrics(78)  # SM_CXVIRTUALSCREEN
+        height = u32.GetSystemMetrics(79) # SM_CYVIRTUALSCREEN
+    else:
+        left, top = 0, 0
+        width = u32.GetSystemMetrics(0)   # SM_CXSCREEN
+        height = u32.GetSystemMetrics(1)  # SM_CYSCREEN
+    return left, top, max(1, width), max(1, height)
+
+def _draw_cursor_on_image(img, offset_left=0, offset_top=0):
+    try:
+        from PIL import ImageDraw
+        class POINT(ctypes.Structure):
+            _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+        pt = POINT()
+        ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+        cx = pt.x - offset_left
+        cy = pt.y - offset_top
+        if 0 <= cx <= img.width and 0 <= cy <= img.height:
+            draw = ImageDraw.Draw(img)
+            # 繪製高辨識度紅心白邊游標與箭頭
+            r = 7
+            draw.ellipse((cx - r, cy - r, cx + r, cy + r), outline="#ffffff", width=2)
+            draw.ellipse((cx - 4, cy - 4, cx + 4, cy + 4), fill="#ef4444")
+    except Exception:
+        pass
+
+@app.get("/api/screen/frame")
+def get_screen_frame(
+    quality: int = 65,
+    scale: float = 0.75,
+    all_screens: bool = False,
+    x_auth_token: Optional[str] = Query(None),
+    header_token: Optional[str] = Header(None, alias="x-auth-token")
+):
+    token = header_token or x_auth_token
+    verify_token(token)
+    try:
+        from PIL import ImageGrab, Image
+        from io import BytesIO
+        left, top, w, h = _get_screen_bounds(all_screens)
+        img = ImageGrab.grab(bbox=(left, top, left + w, top + h), all_screens=all_screens)
+        _draw_cursor_on_image(img, left, top)
+        if 0.2 <= scale < 0.99:
+            new_w = max(320, int(img.width * scale))
+            new_h = max(200, int(img.height * scale))
+            img = img.resize((new_w, new_h), Image.Resampling.BILINEAR)
+        buf = BytesIO()
+        q = max(20, min(95, int(quality)))
+        img.convert("RGB").save(buf, format="JPEG", quality=q, optimize=False)
+        return Response(
+            content=buf.getvalue(),
+            media_type="image/jpeg",
+            headers={"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"擷取螢幕失敗: {e}")
+
+@app.post("/api/screen/mouse")
+def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = Header(None)):
+    verify_token(x_auth_token)
+    u32 = ctypes.windll.user32
+    left, top, w, h = _get_screen_bounds(req.all_screens)
+    tx = int(left + max(0.0, min(1.0, req.x_ratio)) * w)
+    ty = int(top + max(0.0, min(1.0, req.y_ratio)) * h)
+    u32.SetCursorPos(tx, ty)
+
+    MOUSEEVENTF_LEFTDOWN = 0x0002
+    MOUSEEVENTF_LEFTUP = 0x0004
+    MOUSEEVENTF_RIGHTDOWN = 0x0008
+    MOUSEEVENTF_RIGHTUP = 0x0010
+    MOUSEEVENTF_MIDDLEDOWN = 0x0020
+    MOUSEEVENTF_MIDDLEUP = 0x0040
+    MOUSEEVENTF_WHEEL = 0x0800
+
+    act = req.action.lower()
+    if act == "click":
+        u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        time.sleep(0.02)
+        u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+    elif act == "dblclick":
+        for _ in range(2):
+            u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+            time.sleep(0.02)
+            u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+            time.sleep(0.04)
+    elif act == "rightclick":
+        u32.mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
+        time.sleep(0.02)
+        u32.mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
+    elif act == "middleclick":
+        u32.mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, 0)
+        time.sleep(0.02)
+        u32.mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0)
+    elif act == "mousedown":
+        u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+    elif act == "mouseup":
+        u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+    elif act == "wheel":
+        u32.mouse_event(MOUSEEVENTF_WHEEL, 0, 0, int(req.delta), 0)
+
+    return {"status": "ok", "x": tx, "y": ty}
+
+VK_MAP = {
+    "enter": 0x0D, "return": 0x0D, "backspace": 0x08, "tab": 0x09,
+    "escape": 0x1B, "esc": 0x1B, "space": 0x20, "delete": 0x2E, "del": 0x2E,
+    "up": 0x26, "arrowup": 0x26, "down": 0x28, "arrowdown": 0x28,
+    "left": 0x25, "arrowleft": 0x25, "right": 0x27, "arrowright": 0x27,
+    "home": 0x24, "end": 0x23, "pageup": 0x21, "pagedown": 0x22,
+    "win": 0x5B, "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73,
+    "f5": 0x74, "f6": 0x75, "f7": 0x76, "f8": 0x77, "f9": 0x78,
+    "f10": 0x79, "f11": 0x7A, "f12": 0x7B,
+}
+
+def _tap_vk(vk: int):
+    u32 = ctypes.windll.user32
+    u32.keybd_event(vk, 0, 0, 0)
+    time.sleep(0.02)
+    u32.keybd_event(vk, 0, 2, 0)
+
+def _combo_vk(mod_vk: int, key_vk: int):
+    u32 = ctypes.windll.user32
+    u32.keybd_event(mod_vk, 0, 0, 0)
+    time.sleep(0.02)
+    u32.keybd_event(key_vk, 0, 0, 0)
+    time.sleep(0.02)
+    u32.keybd_event(key_vk, 0, 2, 0)
+    time.sleep(0.02)
+    u32.keybd_event(mod_vk, 0, 2, 0)
+
+@app.post("/api/screen/key")
+def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header(None)):
+    verify_token(x_auth_token)
+    act = req.action.lower()
+    if act == "text" and req.text:
+        # 透過剪貼簿直接貼上中英文文字，100% 支援中文、符號與整段貼上
+        subprocess.run(["clip"], input=req.text.encode("utf-16le"), check=False)
+        time.sleep(0.05)
+        _combo_vk(0x11, 0x56)  # Ctrl + V
+        return {"status": "ok", "typed": req.text}
+    elif act == "combo":
+        c = req.key.lower()
+        if c == "ctrl+c": _combo_vk(0x11, 0x43)
+        elif c == "ctrl+v": _combo_vk(0x11, 0x56)
+        elif c == "ctrl+a": _combo_vk(0x11, 0x41)
+        elif c == "ctrl+z": _combo_vk(0x11, 0x5A)
+        elif c == "ctrl+s": _combo_vk(0x11, 0x53)
+        elif c == "ctrl+w": _combo_vk(0x11, 0x57)
+        elif c == "alt+tab": _combo_vk(0x12, 0x09)
+        elif c == "alt+f4": _combo_vk(0x12, 0x73)
+        elif c == "win+d": _combo_vk(0x5B, 0x44)
+        return {"status": "ok", "combo": c}
+    else:
+        k = req.key.lower()
+        if k in VK_MAP:
+            _tap_vk(VK_MAP[k])
+        elif len(k) == 1:
+            vk = ctypes.windll.user32.VkKeyScanW(ord(req.key))
+            if vk != -1:
+                base_vk = vk & 0xFF
+                shift = (vk >> 8) & 1
+                if shift:
+                    _combo_vk(0x10, base_vk)
+                else:
+                    _tap_vk(base_vk)
+        return {"status": "ok", "key": req.key}
 
 def resolve_static_dir() -> str:
     local = os.path.join(RUNTIME_DIR, "static")
