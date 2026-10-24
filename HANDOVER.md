@@ -1,6 +1,24 @@
 ﻿# 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-23 Google Colab 影片工作流部署、原創角色「小偉」全套資產庫建立、工廠裝卸料員工教學分鏡試映、AI 克隆聲音網站串接 Colab 黃金克隆母帶、收工規則修正)
+## 今日進度與交接事項 (2026-10-24 NoType AI 語音輸入法 Gemini/Groq 極速混用與免安裝打包、HTTPS 遠端穿透中心個人帳號設定與免安裝打包、三合一單自動產生器免安裝打包與啟動畫面優化)
+* **NoType AI 語音輸入法 (`C:\notype-master\`):**
+  - **Google Gemini 一鍵轉錄＋潤飾引擎與自動降級/混用機制 (`src/api/gemini.js`, `src/shortcut.js`, `src/api/llm.js`)**:
+    1. 支援 Google AI Studio 新版 `AQ.` 與 `AIza` 金鑰格式（透過 `x-goog-api-key` Header）。
+    2. 實作 `transcribeAndPolishWithGemini` 單次請求同步完成語音轉文字與潤飾，省去二次 API 往返時間；並將 `src/typer.js` 剪貼簿貼上延遲由 550ms 縮短至 170ms。
+    3. 針對免費版配額限制（`gemini-3.8-flash` / `3.6-flash` 僅 20 RPD 且超額會無限排隊），加入 `AbortController` 2.0s~3.5s 強制超時中斷與跨日自動重置黑名單 (`blacklistDate`)，優先鎖定高配額極速模型 `gemini-3.1-flash-lite`（500 RPD，約 1.9 秒完成）。
+    4. 支援 Gemini ⇄ Groq (`whisper-large-v3-turbo` / `llama-3.3-70b-versatile`) 雙引擎自動備援，當單一平台配額耗盡時自動無縫切換。
+    5. 修復 `start.bat` 中文亂碼 (`chcp 65001`) 與舊背景程序搶佔 `Alt+Space` 快捷鍵問題，並打包產出零金鑰殘留之免安裝單一執行檔 `dist\NoType-Portable-1.0.0.exe`。
+* **HTTPS 遠端網頁穿透中心 (`C:\GOOGLE ANGET\HTTPS遠端網頁穿透中心\`):**
+  - **支援個人 Google 帳號登入設定與單一免安裝 `.exe` 封裝 (`main.py`, `static/index.html`)**:
+    1. 新增 `/api/account/info` 與 `/api/account/setup` 端點，並在前端登入畫面（本機直連時）與系統頂部導覽列新增「👤 帳號設定」彈窗 (`#account-modal`)。
+    2. 任何使用者皆可自行輸入個人的 Google 帳號 (Email)、自訂專屬管理密碼，並一鍵重設專屬 2FA QR Code 綁定自己的手機 Google Authenticator，完全不共用開發者帳號。
+    3. 封裝為免安裝單一執行檔 `dist\HTTPS遠端穿透中心-免安裝版.exe`（自動排除 `security_config.json` 確保無個人金鑰外洩）。
+* **三合一單自動產生器 (`C:\GOOGLE ANGET\三合一單自動產生器\`):**
+  - **免安裝 `.exe` 封裝、對照表防覆蓋與 0.1 秒極速啟動提示畫面 (`main.py`, `splash.png`)**:
+    1. 修正啟動時提取預設資源檔邏輯：只要執行目錄下存在任何檔名包含 `地點代號對照` 的 `.xlsx` 檔案（例如使用者自訂之 `地點代號對照表--20261025.xlsx`），就絕不再解壓縮產生預設的 `地點代號對照表.xlsx`，徹底解決新舊檔案並存誤讀問題。
+    2. 整合 PyInstaller `--splash "splash.png"` 原生啟動畫面與 `pyi_splash.close()` + 視窗置頂 (`-topmost`)，雙擊 `dist\三合一單自動產生器-免安裝版.exe` 0.1 秒內立即彈出「🚀 系統啟動中 — 三合一單自動產生器」提示框，消除單一執行檔解壓縮期間無反應的困惑。
+
+## 前次進度與交接事項 (2026-10-23 Google Colab 影片工作流部署、原創角色「小偉」全套資產庫建立、工廠裝卸料員工教學分鏡試映、AI 克隆聲音網站串接 Colab 黃金克隆母帶、收工規則修正)
 * **GoogleColab影片 (`c:/GOOGLE ANGET/GoogleColab影片/`):**
   - **三師爸 Colab + MiniMax H3 雲端影片工作流部署與 Windows 修補**:
     1. 完整拉取並更新 `shanshiba-workflow-colab` 至最新提交，安裝 `google-colab-cli` (v0.7.4) 並執行 `cloud/colab_cli_windows_patch.py` 修復 Windows `termios` 相容性問題。

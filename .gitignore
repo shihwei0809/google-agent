@@ -101,3 +101,8 @@ skills_backup/
 教育訓練教材/
 cross-device-agent-skills/
 my-ai-brain/
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec

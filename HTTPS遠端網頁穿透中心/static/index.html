@@ -70,6 +70,44 @@
     </div>
   </div>
 
+  <!-- 個人 Google 帳號與 2FA 設定彈窗 -->
+  <div id="account-modal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 text-left">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i data-lucide="user-cog" class="w-5 h-5 text-blue-400"></i>
+          <span>個人 Google 帳號與 2FA 安全設定</span>
+        </h3>
+        <button onclick="closeAccountSetupModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 font-semibold mb-1">1. 您的個人 Google 帳號 (Email，顯示於手機 Authenticator)</label>
+          <input type="text" id="setup-account" placeholder="例如: yourname@gmail.com"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="block text-slate-400 font-semibold mb-1">2. 自訂遠端登入密碼 (至少 4 碼)</label>
+          <input type="text" id="setup-password" placeholder="輸入您的專屬管理密碼"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <input type="checkbox" id="setup-regen" class="w-4 h-4 accent-blue-500">
+          <label for="setup-regen" class="text-slate-300 cursor-pointer">同時重新產生全新的 2FA 金鑰 (換手機或首次綁定時勾選)</label>
+        </div>
+        <button onclick="saveAccountSetup()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl transition-all mt-2">
+          💾 儲存個人帳號設定並更新 QR Code
+        </button>
+        <p id="setup-msg" class="text-center font-medium hidden"></p>
+        <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center mt-3">
+          <div style="color:#94a3b8; margin-bottom:8px;">📱 請用手機 <b>Google Authenticator</b> 掃描綁定：</div>
+          <img id="setup-qr" src="" alt="2FA QR" class="mx-auto bg-white p-2 rounded-lg w-36 h-36">
+          <div class="mt-2 font-mono text-[11px] text-sky-400 break-all" id="setup-secret-text"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 頂部導航 -->
   <header class="border-b border-slate-800/80 bg-slate-900/50 backdrop-blur sticky top-0 z-40">
     <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -113,6 +151,11 @@
             <span>RDP 穿透</span>
           </button>
         </nav>
+        <button onclick="openAccountSetupModal()" title="設定您個人的 Google 帳號、登入密碼與手機 2FA QR Code"
+                class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-medium transition-all flex items-center gap-1">
+          <i data-lucide="user-cog" class="w-3.5 h-3.5 text-blue-400"></i>
+          <span class="hidden sm:inline">帳號設定</span>
+        </button>
         <button onclick="handleEmergencyShutdown()" title="用完立即關閉外網穿透通道，確保安全" 
                 class="px-2.5 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 rounded-xl text-xs font-medium transition-all flex items-center gap-1">
           <i data-lucide="power" class="w-3.5 h-3.5"></i>
@@ -355,6 +398,7 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       lucide.createIcons();
+      checkLocalSetupEntry();
       if (authToken) {
         verifySavedToken();
       }
@@ -445,6 +489,82 @@
           localStorage.removeItem("remote_hub_token");
         }
       } catch (e) {}
+    }
+
+    async function checkLocalSetupEntry() {
+      try {
+        const res = await fetch("/api/account/info");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.is_local) {
+            document.getElementById("local-setup-entry").classList.remove("hidden");
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function openAccountSetupModal() {
+      try {
+        const res = await fetch("/api/account/info", {
+          headers: authToken ? { "x-auth-token": authToken } : {}
+        });
+        if (!res.ok) {
+          alert("請先登入，或在主機本機瀏覽器 (127.0.0.1) 開啟設定！");
+          return;
+        }
+        const data = await res.json();
+        document.getElementById("setup-account").value = data.account || "";
+        document.getElementById("setup-qr").src = data.qr_url || "";
+        document.getElementById("setup-secret-text").textContent = "2FA 金鑰: " + (data.totp_secret || "");
+        document.getElementById("setup-msg").classList.add("hidden");
+        document.getElementById("account-modal").classList.remove("hidden");
+        lucide.createIcons();
+      } catch (e) {
+        alert("讀取帳號資訊失敗: " + e.message);
+      }
+    }
+
+    function closeAccountSetupModal() {
+      document.getElementById("account-modal").classList.add("hidden");
+    }
+
+    async function saveAccountSetup() {
+      const acc = document.getElementById("setup-account").value.trim();
+      const pwd = document.getElementById("setup-password").value.trim();
+      const regen = document.getElementById("setup-regen").checked;
+      const msgEl = document.getElementById("setup-msg");
+      if (!acc || !pwd) {
+        msgEl.textContent = "請輸入您的個人 Google 帳號與自訂登入密碼！";
+        msgEl.className = "text-center font-medium text-rose-400";
+        msgEl.classList.remove("hidden");
+        return;
+      }
+      try {
+        const res = await fetch("/api/account/setup", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(authToken ? { "x-auth-token": authToken } : {})
+          },
+          body: JSON.stringify({ account: acc, password: pwd, regenerate_secret: regen })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          document.getElementById("setup-qr").src = data.qr_url;
+          document.getElementById("setup-secret-text").textContent = "2FA 金鑰: " + data.totp_secret;
+          msgEl.textContent = "✓ 已成功更新為您的個人 Google 帳號與密碼！請用手機掃描下方最新 QR Code。";
+          msgEl.className = "text-center font-medium text-emerald-400";
+          msgEl.classList.remove("hidden");
+        } else {
+          msgEl.textContent = data.detail || "更新失敗";
+          msgEl.className = "text-center font-medium text-rose-400";
+          msgEl.classList.remove("hidden");
+        }
+      } catch (e) {
+        msgEl.textContent = "發生錯誤: " + e.message;
+        msgEl.className = "text-center font-medium text-rose-400";
+        msgEl.classList.remove("hidden");
+      }
     }
 
     function initApp() {

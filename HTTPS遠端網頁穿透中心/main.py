@@ -14,59 +14,85 @@ import struct
 import hmac
 import hashlib
 import secrets
+import webbrowser
 from typing import Optional
 from fastapi import FastAPI, HTTPException, Header, Query, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 import uvicorn
 
-sys.stdout.reconfigure(encoding="utf-8")
-sys.stderr.reconfigure(encoding="utf-8")
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 
-# --- 全域設定 ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECTS_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
-CLOUDFLARED_PATH = os.path.join(PROJECTS_ROOT, "cloudflared.exe")
-CONFIG_FILE = os.path.join(BASE_DIR, "security_config.json")
-PUBLIC_URL_FILE = os.path.join(BASE_DIR, "public_url.txt")
+# --- 支援 PyInstaller 單一 EXE 免安裝封裝與一般開發模式 ---
+IS_FROZEN = getattr(sys, "frozen", False)
+# RUNTIME_DIR: .exe 執行檔所在的真實外部資料夾（用來存放每個使用者獨立的 security_config.json 與最新穿透網址）
+RUNTIME_DIR = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(os.path.abspath(__file__))
+# BUNDLE_DIR: PyInstaller 解壓縮內部資源的目錄 (_MEIPASS)，用來讀取封裝在內的 static/index.html 與 cloudflared.exe
+BUNDLE_DIR = getattr(sys, "_MEIPASS", RUNTIME_DIR)
 
-# 讀取安全配置 (若無則自動產生)
+PROJECTS_ROOT = RUNTIME_DIR if IS_FROZEN else os.path.abspath(os.path.join(RUNTIME_DIR, ".."))
+
+def resolve_cloudflared_path() -> str:
+    candidates = [
+        os.path.join(BUNDLE_DIR, "cloudflared.exe"),
+        os.path.join(RUNTIME_DIR, "cloudflared.exe"),
+        os.path.join(PROJECTS_ROOT, "cloudflared.exe"),
+        os.path.join(PROJECTS_ROOT, "IPAHQ排程", "cloudflared.exe"),
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    return os.path.join(RUNTIME_DIR, "cloudflared.exe")
+
+CLOUDFLARED_PATH = resolve_cloudflared_path()
+CONFIG_FILE = os.path.join(RUNTIME_DIR, "security_config.json")
+PUBLIC_URL_FILE = os.path.join(RUNTIME_DIR, "public_url.txt")
+
+# 讀取安全配置 (若無則自動在執行檔旁為該位使用者產生專屬金鑰與 QR Code 設定頁)
 def load_security_config():
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                return json.load(f), False
         except Exception:
             pass
+    comp_name = os.environ.get("COMPUTERNAME", "PC")
+    user_name = os.environ.get("USERNAME", "User")
     secret = base64.b32encode(secrets.token_bytes(20)).decode("utf-8")
+    issuer = f"RemoteHub-{comp_name}"
+    totp_uri = f"otpauth://totp/{issuer}:{user_name}?secret={secret}&issuer={issuer}"
     cfg = {
         "password": os.environ.get("REMOTE_HUB_PWD", "c606admin"),
         "totp_secret": secret,
-        "issuer": "GoogleAgent-C606",
-        "account": "shihwei0809@gmail.com",
-        "totp_uri": f"otpauth://totp/GoogleAgent:shihwei0809@gmail.com?secret={secret}&issuer=GoogleAgent-C606"
+        "issuer": issuer,
+        "account": user_name,
+        "totp_uri": totp_uri
     }
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, indent=2)
-    return cfg
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent=2, ensure_ascii=False)
+    except Exception:
+        pass
+    return cfg, True
 
-SEC_CONFIG = load_security_config()
+SEC_CONFIG, IS_FIRST_RUN = load_security_config()
 ACCESS_PASSWORD = SEC_CONFIG["password"]
 TOTP_SECRET = SEC_CONFIG["totp_secret"]
+TOTP_URI = SEC_CONFIG.get("totp_uri", f"otpauth://totp/RemoteHub?secret={TOTP_SECRET}")
 
 app = FastAPI(title="HTTPS Remote Web Penetration Hub with 2FA")
 public_tunnel_url = ""
 tunnel_process = None
 
-# 安全工作階段管理 (Session Tokens)
-# token -> expire_timestamp
 ACTIVE_SESSIONS = {}
-
-# 防暴力破解 (Rate Limiting)
-# ip -> {"count": int, "blocked_until": float}
 FAILED_ATTEMPTS = {}
 MAX_FAILED_ATTEMPTS = 5
-LOCKOUT_SECONDS = 900 # 15 分鐘
+LOCKOUT_SECONDS = 900  # 15 分鐘
 
 def verify_totp(secret: str, code: str, window: int = 1) -> bool:
     curr = int(time.time()) // 30
@@ -130,6 +156,15 @@ def find_available_port(start_port: int = 8800, max_attempts: int = 50) -> int:
                 continue
     return start_port
 
+def detect_google_drive_root() -> Optional[str]:
+    import string
+    for letter in string.ascii_uppercase:
+        for folder in ["我的雲端硬碟", "My Drive"]:
+            candidate = f"{letter}:\\{folder}"
+            if os.path.exists(candidate):
+                return candidate
+    return None
+
 def start_cloudflared_tunnel(local_port: int):
     global public_tunnel_url, tunnel_process
     if not os.path.exists(CLOUDFLARED_PATH):
@@ -143,7 +178,7 @@ def start_cloudflared_tunnel(local_port: int):
         "--url", f"http://127.0.0.1:{local_port}"
     ]
     print(f"[*] 正在建立 Cloudflare HTTPS 安全穿透隧道 (Port {local_port})...")
-    
+
     tunnel_process = subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,
@@ -159,12 +194,13 @@ def start_cloudflared_tunnel(local_port: int):
             if m:
                 public_tunnel_url = m.group(0)
                 try:
-                    print("\n" + "="*60)
+                    print("\n" + "="*64)
                     print(f"[ONLINE] 2FA Cloudflare HTTPS Protected Portal Live!")
-                    print(f"URL: {public_tunnel_url}")
-                    print(f"Password: {ACCESS_PASSWORD}")
-                    print(f"2FA Secret: {TOTP_SECRET}")
-                    print("="*60 + "\n")
+                    print(f"外網穿透網址 (Public URL) : {public_tunnel_url}")
+                    print(f"區網連線網址 (Local URL)  : http://{get_local_ip()}:{local_port}")
+                    print(f"預設管理密碼 (Password)   : {ACCESS_PASSWORD}")
+                    print(f"手機 2FA 金鑰 (TOTP Key)  : {TOTP_SECRET}")
+                    print("="*64 + "\n")
                 except Exception:
                     pass
                 publish_tunnel_url(public_tunnel_url)
@@ -175,6 +211,8 @@ def start_cloudflared_tunnel(local_port: int):
 
 def publish_tunnel_url(url: str):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    comp_name = os.environ.get("COMPUTERNAME", "PC")
+
     # 1. 寫入本地 public_url.txt
     try:
         with open(PUBLIC_URL_FILE, "w", encoding="utf-8") as f:
@@ -182,67 +220,94 @@ def publish_tunnel_url(url: str):
     except Exception as e:
         print(f"[!] 寫入 {PUBLIC_URL_FILE} 失敗: {e}")
 
-    # 2. 產生 HTML 自動導向頁面
+    # 2. 產生 HTML 自動導向與本機 2FA 綁定說明頁面 (僅存於本機與個人雲端硬碟，方便初次使用者掃描 QR Code)
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={requests.utils.quote(TOTP_URI) if 'requests' in sys.modules else TOTP_URI}"
+    import urllib.parse
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=180x180&data={urllib.parse.quote(TOTP_URI)}"
+
     html_content = f"""<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="2; url={url}">
-<title>連線至 GOOGLE本機 (C606-PC1) 遠端穿透中心</title>
+<title>連線至 {comp_name} 遠端穿透中心</title>
 <style>
   body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }}
-  .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 32px; max-width: 480px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); text-align: center; }}
-  .badge {{ display: inline-block; background: #059669; color: #ecfdf5; font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; margin-bottom: 16px; }}
-  h1 {{ font-size: 20px; margin: 0 0 12px; color: #ffffff; }}
-  p {{ font-size: 14px; color: #94a3b8; margin: 0 0 24px; line-height: 1.6; }}
+  .card {{ background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 28px; max-width: 500px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); text-align: center; }}
+  .badge {{ display: inline-block; background: #059669; color: #ecfdf5; font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 9999px; margin-bottom: 12px; }}
+  h1 {{ font-size: 20px; margin: 0 0 8px; color: #ffffff; }}
+  p {{ font-size: 13px; color: #94a3b8; margin: 0 0 20px; line-height: 1.6; }}
   .btn {{ display: block; background: #2563eb; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600; padding: 14px 20px; border-radius: 10px; transition: background 0.2s; word-break: break-all; }}
   .btn:hover {{ background: #1d4ed8; }}
-  .info-box {{ margin-top: 24px; background: #0f172a; border-radius: 8px; padding: 16px; text-align: left; font-size: 13px; color: #cbd5e1; }}
-  .info-row {{ display: flex; justify-content: space-between; margin-bottom: 8px; }}
+  .info-box {{ margin-top: 20px; background: #0f172a; border-radius: 10px; padding: 16px; text-align: left; font-size: 13px; color: #cbd5e1; }}
+  .info-row {{ display: flex; justify-content: space-between; margin-bottom: 8px; gap: 10px; }}
   .info-row:last-child {{ margin-bottom: 0; }}
-  .label {{ color: #64748b; }}
-  .val {{ font-family: monospace; color: #38bdf8; font-weight: 600; }}
+  .label {{ color: #64748b; white-space: nowrap; }}
+  .val {{ font-family: monospace; color: #38bdf8; font-weight: 600; word-break: break-all; text-align: right; }}
+  .qr-box {{ margin-top: 16px; background: #0f172a; border: 1px dashed #334155; border-radius: 10px; padding: 14px; text-align: center; }}
+  .qr-box img {{ background: #fff; padding: 8px; border-radius: 8px; margin-top: 8px; }}
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="badge">● 主機連線中 (在線)</div>
-  <h1>GOOGLE 本機 (C606-PC1) 遠端穿透中心</h1>
-  <p>系統將在 2 秒內自動為您導向至安全穿透入口，或直接點擊下方按鈕前往：</p>
+  <div class="badge">● 主機連線就緒 (HTTPS 安全穿透)</div>
+  <h1>{comp_name} 遠端穿透中心</h1>
+  <p>請點擊下方按鈕開啟遠端 Web 控制台（可將此網址傳至手機隨時連線）：</p>
   <a class="btn" href="{url}" target="_blank">🚀 立即開啟遠端控制台</a>
   <div class="info-box">
-    <div class="info-row"><span class="label">穿透網址:</span><span class="val" style="word-break: break-all;">{url}</span></div>
+    <div class="info-row"><span class="label">公網穿透網址:</span><span class="val">{url}</span></div>
     <div class="info-row"><span class="label">更新時間:</span><span class="val">{timestamp}</span></div>
-    <div class="info-row"><span class="label">本機名稱:</span><span class="val">C606-PC1 (Windows)</span></div>
-    <div class="info-row"><span class="label">登入密碼:</span><span class="val">c606admin</span></div>
-    <div class="info-row"><span class="label">動態雙重認證:</span><span class="val">Google Authenticator (6位數)</span></div>
+    <div class="info-row"><span class="label">本機名稱:</span><span class="val">{comp_name}</span></div>
+    <div class="info-row"><span class="label">綁定 Google 帳號:</span><span class="val">{SEC_CONFIG.get('account', comp_name)}</span></div>
+    <div class="info-row"><span class="label">1. 登入密碼:</span><span class="val">{ACCESS_PASSWORD}</span></div>
+    <div class="info-row"><span class="label">2. 手機 2FA 金鑰:</span><span class="val">{TOTP_SECRET}</span></div>
+  </div>
+  <div class="qr-box">
+    <div style="font-size:12px; color:#94a3b8;">📱 首次使用請用手機 <b>Google Authenticator</b> 掃描下方 QR Code 綁定 6 位數動態碼（登入控制台後可於右上角「⚙️ 帳號設定」隨時改為您個人的 Google 帳號與密碼）：</div>
+    <img src="{qr_url}" width="150" height="150" alt="2FA QR Code">
   </div>
 </div>
 </body>
 </html>"""
 
-    # 3. 寫入本機專案與根目錄
+    # 3. 寫入執行檔所在目錄與上層目錄
     local_targets = [
-        os.path.join(PROJECTS_ROOT, "最新遠端穿透網址.html"),
-        os.path.join(PROJECTS_ROOT, "最新遠端穿透網址.txt"),
+        os.path.join(RUNTIME_DIR, "最新遠端穿透網址.html"),
+        os.path.join(RUNTIME_DIR, "最新遠端穿透網址.txt"),
     ]
+    if PROJECTS_ROOT != RUNTIME_DIR:
+        local_targets.extend([
+            os.path.join(PROJECTS_ROOT, "最新遠端穿透網址.html"),
+            os.path.join(PROJECTS_ROOT, "最新遠端穿透網址.txt"),
+        ])
+
     for target in local_targets:
         try:
             with open(target, "w", encoding="utf-8") as f:
-                f.write(html_content if target.endswith(".html") else f"最新穿透網址: {url}\n更新時間: {timestamp}\n")
+                f.write(html_content if target.endswith(".html") else f"最新穿透網址: {url}\n更新時間: {timestamp}\n登入密碼: {ACCESS_PASSWORD}\n2FA金鑰: {TOTP_SECRET}\n")
         except Exception:
             pass
 
-    # 4. 同步寫入 Google 雲端硬碟 (G:\我的雲端硬碟)
-    gdrive_root = r"G:\我的雲端硬碟"
-    if os.path.exists(gdrive_root):
+    # 若為單一 EXE 模式或首次執行，自動為使用者在瀏覽器打開本機引導頁（含網址與 2FA QR Code）
+    if IS_FROZEN or IS_FIRST_RUN:
+        try:
+            webbrowser.open(os.path.join(RUNTIME_DIR, "最新遠端穿透網址.html"))
+        except Exception:
+            pass
+
+    # 4. 動態偵測 Google 雲端硬碟並同步
+    gdrive_root = detect_google_drive_root()
+    if gdrive_root and os.path.exists(gdrive_root):
         gdrive_targets = [
             os.path.join(gdrive_root, "最新遠端穿透網址.html"),
             os.path.join(gdrive_root, "最新遠端穿透網址.txt"),
-            os.path.join(gdrive_root, "GOOGLE ANGET", "最新遠端穿透網址.html"),
-            os.path.join(gdrive_root, "GOOGLE ANGET", "最新遠端穿透網址.txt"),
         ]
+        ga_dir = os.path.join(gdrive_root, "GOOGLE ANGET")
+        if os.path.exists(ga_dir):
+            gdrive_targets.extend([
+                os.path.join(ga_dir, "最新遠端穿透網址.html"),
+                os.path.join(ga_dir, "最新遠端穿透網址.txt"),
+            ])
         for target in gdrive_targets:
             try:
                 os.makedirs(os.path.dirname(target), exist_ok=True)
@@ -255,7 +320,6 @@ def publish_tunnel_url(url: str):
 def verify_token(x_auth_token: Optional[str] = Header(None)):
     if not x_auth_token:
         raise HTTPException(status_code=401, detail="未提供安全驗證 Token")
-    # 檢查是否為合法有效之 Session Token
     expire_time = ACTIVE_SESSIONS.get(x_auth_token)
     if not expire_time or expire_time < time.time():
         raise HTTPException(status_code=401, detail="驗證已過期或無效，請重新進行 2FA 登入")
@@ -267,6 +331,11 @@ class Auth2FARequest(BaseModel):
     password: str
     totp_code: str
 
+class AccountSetupRequest(BaseModel):
+    account: str
+    password: str
+    regenerate_secret: bool = False
+
 class CommandRequest(BaseModel):
     command: str
     shell: str = "powershell"
@@ -276,24 +345,85 @@ class FileSaveRequest(BaseModel):
     path: str
     content: str
 
+def is_local_request(req: Request) -> bool:
+    ip = get_client_ip(req)
+    return ip in ("127.0.0.1", "::1", "localhost") and not req.headers.get("cf-connecting-ip")
 
+@app.get("/api/account/info")
+def get_account_info(request: Request, x_auth_token: Optional[str] = Header(None)):
+    # 允許本機 (127.0.0.1) 直接檢視，或外網已通過 2FA 登入之使用者檢視
+    if not is_local_request(request):
+        verify_token(x_auth_token)
+    import urllib.parse
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={urllib.parse.quote(TOTP_URI)}"
+    return {
+        "account": SEC_CONFIG.get("account", ""),
+        "issuer": SEC_CONFIG.get("issuer", ""),
+        "totp_secret": TOTP_SECRET,
+        "totp_uri": TOTP_URI,
+        "qr_url": qr_url,
+        "is_local": is_local_request(request)
+    }
+
+@app.post("/api/account/setup")
+def setup_account(req: AccountSetupRequest, request: Request, x_auth_token: Optional[str] = Header(None)):
+    global SEC_CONFIG, ACCESS_PASSWORD, TOTP_SECRET, TOTP_URI
+    if not is_local_request(request):
+        verify_token(x_auth_token)
+
+    clean_account = req.account.strip() or os.environ.get("USERNAME", "User")
+    clean_pwd = req.password.strip()
+    if len(clean_pwd) < 4:
+        raise HTTPException(status_code=400, detail="密碼長度請至少輸入 4 碼以上！")
+
+    comp_name = os.environ.get("COMPUTERNAME", "PC")
+    issuer = f"RemoteHub-{comp_name}"
+    new_secret = base64.b32encode(secrets.token_bytes(20)).decode("utf-8") if req.regenerate_secret else TOTP_SECRET
+    new_uri = f"otpauth://totp/{issuer}:{clean_account}?secret={new_secret}&issuer={issuer}"
+
+    SEC_CONFIG = {
+        "password": clean_pwd,
+        "totp_secret": new_secret,
+        "issuer": issuer,
+        "account": clean_account,
+        "totp_uri": new_uri
+    }
+    ACCESS_PASSWORD = clean_pwd
+    TOTP_SECRET = new_secret
+    TOTP_URI = new_uri
+
+    try:
+        with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+            json.dump(SEC_CONFIG, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"寫入設定失敗: {e}")
+
+    if public_tunnel_url:
+        publish_tunnel_url(public_tunnel_url)
+
+    import urllib.parse
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={urllib.parse.quote(TOTP_URI)}"
+    return {
+        "status": "ok",
+        "message": "個人 Google 帳號與密碼已更新儲存！",
+        "account": clean_account,
+        "totp_secret": TOTP_SECRET,
+        "qr_url": qr_url
+    }
 
 @app.post("/api/auth")
 def auth(req: Auth2FARequest, request: Request):
     ip = get_client_ip(request)
     check_rate_limit(ip)
 
-    # 1. 密碼驗證
     if req.password != ACCESS_PASSWORD:
         record_failed_attempt(ip)
         raise HTTPException(status_code=401, detail="密碼錯誤，請重新確認！")
 
-    # 2. 2FA 動態驗證碼 (TOTP 6位數)
     if not verify_totp(TOTP_SECRET, req.totp_code):
         record_failed_attempt(ip)
         raise HTTPException(status_code=401, detail="2FA 動態驗證碼錯誤或已過期，請確認手機 Authenticator 時間與數字！")
 
-    # 登入成功：清除失敗紀錄，生成高強度 Session Token (有效期限 8 小時)
     if ip in FAILED_ATTEMPTS:
         FAILED_ATTEMPTS[ip]["count"] = 0
 
@@ -311,7 +441,7 @@ def auth(req: Auth2FARequest, request: Request):
 def shutdown(x_auth_token: Optional[str] = Header(None)):
     verify_token(x_auth_token)
     print("[SECURITY] 使用者要求立即關閉穿透通道與伺服器...")
-    
+
     def kill_soon():
         time.sleep(1)
         global tunnel_process
@@ -345,16 +475,16 @@ def get_system_drives():
                     "free_gb": 0,
                     "is_drive": True
                 })
-    # 常見捷徑
     user_home = os.path.expanduser("~")
     shortcuts = [
-        {"name": "💻 本機專案庫 (D:\\GOOGLE ANGET)", "path": PROJECTS_ROOT.replace("\\", "/")},
+        {"name": f"💻 程式工作目錄 ({PROJECTS_ROOT})", "path": PROJECTS_ROOT.replace("\\", "/")},
         {"name": "🖥️ 桌面 (Desktop)", "path": os.path.join(user_home, "Desktop").replace("\\", "/")},
         {"name": "📥 下載 (Downloads)", "path": os.path.join(user_home, "Downloads").replace("\\", "/")},
         {"name": "📄 文件 (Documents)", "path": os.path.join(user_home, "Documents").replace("\\", "/")},
     ]
-    if os.path.exists("G:\\我的雲端硬碟"):
-        shortcuts.insert(1, {"name": "☁️ Google 雲端硬碟 (G:)", "path": "G:/我的雲端硬碟"})
+    gdrive = detect_google_drive_root()
+    if gdrive:
+        shortcuts.insert(1, {"name": f"☁️ Google 雲端硬碟 ({gdrive[:2]})", "path": gdrive.replace("\\", "/")})
     return {"drives": drives, "shortcuts": shortcuts}
 
 @app.get("/api/drives")
@@ -365,9 +495,12 @@ def get_drives(x_auth_token: Optional[str] = Header(None)):
 @app.get("/api/status")
 def get_status(x_auth_token: Optional[str] = Header(None)):
     verify_token(x_auth_token)
-    
-    total, used, free = shutil.disk_usage(PROJECTS_ROOT)
-    
+
+    try:
+        total, used, free = shutil.disk_usage(PROJECTS_ROOT)
+    except Exception:
+        total, used, free = shutil.disk_usage("C:\\")
+
     class MEMORYSTATUSEX(ctypes.Structure):
         _fields_ = [
             ("dwLength", ctypes.c_ulong),
@@ -383,7 +516,7 @@ def get_status(x_auth_token: Optional[str] = Header(None)):
     mem_stat = MEMORYSTATUSEX()
     mem_stat.dwLength = ctypes.sizeof(MEMORYSTATUSEX)
     ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(mem_stat))
-    
+
     rdp_active = False
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1.0)
@@ -449,7 +582,7 @@ def run_command(req: CommandRequest, x_auth_token: Optional[str] = Header(None))
 @app.get("/api/files/list")
 def list_files(path: str = "", x_auth_token: Optional[str] = Header(None)):
     verify_token(x_auth_token)
-    
+
     if not path or path == "root":
         data = get_system_drives()
         items = []
@@ -499,7 +632,7 @@ def list_files(path: str = "", x_auth_token: Optional[str] = Header(None)):
         raise HTTPException(status_code=403, detail="存取被拒 (此系統資料夾需要更高權限)")
 
     items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
-    
+
     parent = os.path.dirname(target_dir)
     if parent == target_dir:
         parent = ""
@@ -544,9 +677,16 @@ def save_file(req: FileSaveRequest, x_auth_token: Optional[str] = Header(None)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-STATIC_DIR = os.path.join(BASE_DIR, "static")
-if not os.path.exists(STATIC_DIR):
-    os.makedirs(STATIC_DIR, exist_ok=True)
+def resolve_static_dir() -> str:
+    bundled = os.path.join(BUNDLE_DIR, "static")
+    if os.path.exists(os.path.join(bundled, "index.html")):
+        return bundled
+    local = os.path.join(RUNTIME_DIR, "static")
+    if not os.path.exists(local):
+        os.makedirs(local, exist_ok=True)
+    return local
+
+STATIC_DIR = resolve_static_dir()
 
 @app.get("/", response_class=HTMLResponse)
 def index():
@@ -558,7 +698,8 @@ def index():
 
 if __name__ == "__main__":
     local_port = find_available_port(8800)
-    print(f"[*] 啟動本機伺服器於: http://127.0.0.1:{local_port}")
-    
+    local_ip = get_local_ip()
+    print(f"[*] 啟動本機伺服器於: http://localhost:{local_port} (區網 IP: http://{local_ip}:{local_port})")
+
     start_cloudflared_tunnel(local_port)
     uvicorn.run(app, host="0.0.0.0", port=local_port, log_level="info")

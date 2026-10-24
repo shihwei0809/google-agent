@@ -30,7 +30,11 @@ from copy import copy
 
 # ================= OCR 三重引擎：Gemini 2.0 Flash + GCP Vision + Tesseract =================
 
-KEY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gcp_keys")
+import sys, shutil
+IS_FROZEN = getattr(sys, "frozen", False)
+RUNTIME_DIR = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(os.path.abspath(__file__))
+BUNDLE_DIR = getattr(sys, "_MEIPASS", RUNTIME_DIR)
+KEY_DIR = os.path.join(RUNTIME_DIR, "gcp_keys")
 GEMINI_KEYS_FILE = os.path.join(KEY_DIR, "gemini_keys.json")
 GCP_TRACKER_FILE = os.path.join(KEY_DIR, "usage_tracker.json")
 
@@ -1261,8 +1265,28 @@ class App(tk.Tk):
         self.minsize(1080, 620)
         self.configure(padx=15, pady=15)
 
-        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.base_dir = RUNTIME_DIR
         self.template_path = os.path.join(self.base_dir, "台積電槽車barcode三合一單-範本.xlsx")
+        # 1. 範本檔：只有當外部完全沒有範本檔時才釋放
+        bun_tpl = os.path.join(BUNDLE_DIR, "台積電槽車barcode三合一單-範本.xlsx")
+        if not os.path.exists(self.template_path) and os.path.exists(bun_tpl):
+            try:
+                shutil.copy2(bun_tpl, self.template_path)
+            except Exception:
+                self.template_path = bun_tpl
+        # 2. 地點代號對照表：只要資料夾內已經有任何「地點代號對照*.xlsx」（包含帶日期的 地點代號對照表--20261025.xlsx），就絕對不再釋放內建對照表！
+        has_any_mapping = any(
+            (fname.endswith(".xlsx") and not fname.startswith("~$") and "地點代號對照" in fname)
+            for fname in os.listdir(self.base_dir)
+        )
+        if not has_any_mapping:
+            ext_map = os.path.join(self.base_dir, "地點代號對照表.xlsx")
+            bun_map = os.path.join(BUNDLE_DIR, "地點代號對照表.xlsx")
+            if os.path.exists(bun_map):
+                try:
+                    shutil.copy2(bun_map, ext_map)
+                except Exception:
+                    pass
         self.origin_options = []
         self.mapping_dict = {}
         self.imported_lorry_files = []
@@ -2956,5 +2980,17 @@ class App(tk.Tk):
             os.startfile(d)
 
 if __name__ == "__main__":
+    try:
+        import pyi_splash
+        pyi_splash.close()
+    except Exception:
+        pass
     app = App()
+    try:
+        app.lift()
+        app.attributes("-topmost", True)
+        app.after(300, lambda: app.attributes("-topmost", False))
+        app.focus_force()
+    except Exception:
+        pass
     app.mainloop()
