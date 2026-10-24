@@ -110,7 +110,7 @@ foreach ($dir in $subDirs) {
             "/XO",
             "/MAXAGE:1",
             "/XD", ".wrangler", "node_modules", ".git", "__pycache__", "build", "venv", ".venv",
-            "/XF", "*.sqlite", "*.sqlite-wal", "*.sqlite-shm", "security_config.json", "*.exe",
+            "/XF", "*.sqlite", "*.sqlite-wal", "*.sqlite-shm", "security_config.json",
             "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NJS"
         )
         & robocopy @rcArgs | Out-Null
@@ -130,7 +130,7 @@ if (Test-Path "C:\notype-master") {
             "/E",
             "/XO",
             "/XD", "node_modules", ".git", "dist", "build",
-            "/XF", "*.exe", "*.log",
+            "/XF",
             "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NJS"
         )
         & robocopy @rcArgs2 | Out-Null
@@ -139,5 +139,22 @@ if (Test-Path "C:\notype-master") {
 }
 
 Write-Output "------------------------------------------------------------"
+
+# 4. 今日打包之免安裝 EXE 專屬同步區 (方便跨電腦或手機直接下載)
+$exeOutputDir = Join-Path $targetSnapshot "00_免安裝EXE執行檔"
+New-Item -ItemType Directory -Force -Path $exeOutputDir | Out-Null
+
+$knownExes = @(
+    "C:\GOOGLE ANGET\三合一單自動產生器\dist\三合一單自動產生器-免安裝版.exe",
+    "C:\GOOGLE ANGET\HTTPS遠端網頁穿透中心\dist\HTTPS遠端穿透中心-免安裝版.exe",
+    "C:\notype-master\dist\NoType-Portable-1.0.0.exe"
+)
+foreach ($exe in $knownExes) {
+    if (Test-Path $exe) {
+        Copy-Item -Path $exe -Destination $exeOutputDir -Force
+        Write-Output "  -> 已同步最新免安裝執行檔: $(Split-Path $exe -Leaf)"
+    }
+}
+
 Write-Output "[DONE] 收工備份完成！共計同步 $($syncedProjects.Count) 個今日異動專案: $($syncedProjects -join ', ')"
 Write-Output "============================================================"
