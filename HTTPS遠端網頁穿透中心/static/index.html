@@ -810,12 +810,20 @@
       } catch (err) {}
     }
 
-    function sendRemoteText() {
+    async function sendRemoteText() {
       const inp = document.getElementById("remote-text-input");
       const txt = inp.value;
       if (!txt) return;
-      sendRemoteKey("text", "", txt);
       inp.value = "";
+      const toast = document.getElementById("screen-fps-counter");
+      if (toast) {
+        toast.textContent = `⏳ 正在將「${txt.slice(0, 15)}...」送入遠端主機焦點視窗...`;
+      }
+      await sendRemoteKey("text", "", txt);
+      if (toast) {
+        toast.textContent = `✓ 已成功輸入「${txt.slice(0, 15)}」至遠端焦點視窗`;
+        setTimeout(fetchNextScreenFrame, 50);
+      }
     }
 
     function toggleDesktopFullscreen() {

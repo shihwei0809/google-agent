@@ -978,8 +978,17 @@ def get_screen_frame(
         from PIL import Image
         from io import BytesIO
         left, top, w, h = _get_screen_bounds(all_screens)
-        _attach_to_input_desktop(force_default=True)
-        img = _grab_desktop_composited(left, top, w, h)
+        img = None
+        if not _is_workstation_locked():
+            try:
+                _attach_to_input_desktop(force_default=False)
+                from PIL import ImageGrab
+                img = ImageGrab.grab(all_screens=all_screens)
+            except Exception:
+                img = None
+        if img is None:
+            _attach_to_input_desktop(force_default=True)
+            img = _grab_desktop_composited(left, top, w, h)
         _draw_cursor_on_image(img, left, top)
         if 0.2 <= scale < 0.99:
             new_w = max(320, int(img.width * scale))
@@ -1042,8 +1051,10 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
         if h_target:
             root_h = u32.GetAncestor(h_target, 2) or h_target
             if root_h and u32.IsWindow(root_h):
-                u32.BringWindowToTop(root_h)
+                u32.keybd_event(0x12, 0, 0, 0)
                 u32.SetForegroundWindow(root_h)
+                u32.BringWindowToTop(root_h)
+                u32.keybd_event(0x12, 0, 2, 0)
     except Exception:
         pass
 
@@ -1138,8 +1149,46 @@ class INPUT_UNION(ctypes.Union):
 class INPUT(ctypes.Structure):
     _fields_ = [('type', ctypes.c_ulong), ('u', INPUT_UNION)]
 
+def _set_clipboard_text(text: str) -> bool:
+    try:
+        user32 = ctypes.windll.user32
+        kernel32 = ctypes.windll.kernel32
+        kernel32.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
+        kernel32.GlobalAlloc.restype = ctypes.c_void_p
+        kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+        kernel32.GlobalLock.restype = ctypes.c_void_p
+        kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+        user32.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
+        user32.SetClipboardData.restype = ctypes.c_void_p
+
+        CF_UNICODETEXT = 13
+        GMEM_MOVEABLE = 0x0002
+        if not user32.OpenClipboard(0):
+            return False
+        user32.EmptyClipboard()
+        encoded = text.encode("utf-16le") + b"\x00\x00"
+        h_mem = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(encoded))
+        if not h_mem:
+            user32.CloseClipboard()
+            return False
+        p_mem = kernel32.GlobalLock(h_mem)
+        if p_mem:
+            ctypes.memmove(p_mem, encoded, len(encoded))
+            kernel32.GlobalUnlock(h_mem)
+            user32.SetClipboardData(CF_UNICODETEXT, h_mem)
+        user32.CloseClipboard()
+        return True
+    except Exception:
+        try:
+            ctypes.windll.user32.CloseClipboard()
+        except Exception:
+            pass
+        return False
+
 def _send_unicode_text(text: str):
     u32 = ctypes.windll.user32
+    u32.SendInput.argtypes = [ctypes.c_uint, ctypes.POINTER(INPUT), ctypes.c_int]
+    u32.SendInput.restype = ctypes.c_uint
     KEYEVENTF_KEYUP = 0x0002
     KEYEVENTF_UNICODE = 0x0004
     for ch in text:
@@ -1165,8 +1214,21 @@ def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header
     _attach_to_input_desktop(force_default=False)
 
     if act == "text" and req.text:
-        _send_unicode_text(req.text)
-        return {"status": "ok", "typed": req.text}
+        # 雙軌並行超高可靠度文字注入：
+        # 1. 優先透過 Win32 64-bit 原生剪貼簿注入 + Ctrl+V (完美支援任意中英文長字串、標點符號與多行內容)
+        pasted = False
+        try:
+            if _set_clipboard_text(req.text):
+                time.sleep(0.03)
+                _combo_vk(0x11, 0x56)  # Ctrl + V
+                pasted = True
+        except Exception:
+            pasted = False
+
+        # 2. 若剪貼簿失敗則無縫降級為 SendInput KEYEVENTF_UNICODE 保底
+        if not pasted:
+            _send_unicode_text(req.text)
+        return {"status": "ok", "typed": req.text, "mode": "clipboard" if pasted else "sendinput"}
 
     elif act == "combo":
         c = req.key.lower()
