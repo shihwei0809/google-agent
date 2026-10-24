@@ -35,6 +35,59 @@ RUNTIME_DIR = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(
 # BUNDLE_DIR: PyInstaller 解壓縮內部資源的目錄 (_MEIPASS)，用來讀取封裝在內的 static/index.html 與 cloudflared.exe
 BUNDLE_DIR = getattr(sys, "_MEIPASS", RUNTIME_DIR)
 
+# --- 方案 B：GitHub 雲端熱更新 (main.py & static/index.html) ---
+if IS_FROZEN and not globals().get("_HOT_RELOADED_"):
+    def _run_hub_cloud_hot_reload():
+        import urllib.request
+        cache_dir = os.path.join(RUNTIME_DIR, ".cloud_cache")
+        cached_py = os.path.join(cache_dir, "main_cloud.py")
+        cached_static = os.path.join(cache_dir, "static", "index.html")
+        local_py = os.path.join(RUNTIME_DIR, "main.py")
+        base_raw = "https://raw.githubusercontent.com/shihwei0809/google-agent/main/HTTPS%E9%81%A0%E7%AB%AF%E7%B6%B2%E9%A0%81%E7%A9%BF%E9%80%8F%E4%B8%AD%E5%BF%83"
+        try:
+            # 1. 同步最新 static/index.html
+            req_html = urllib.request.Request(f"{base_raw}/static/index.html", headers={"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req_html, timeout=2.5) as r_html:
+                if r_html.status == 200:
+                    html_bytes = r_html.read()
+                    if len(html_bytes) > 1000:
+                        os.makedirs(os.path.dirname(cached_static), exist_ok=True)
+                        with open(cached_static, "wb") as hf:
+                            hf.write(html_bytes)
+            # 2. 同步最新 main.py
+            req_py = urllib.request.Request(f"{base_raw}/main.py", headers={"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req_py, timeout=2.5) as r_py:
+                if r_py.status == 200:
+                    py_bytes = r_py.read()
+                    if b"FastAPI" in py_bytes and len(py_bytes) > 5000:
+                        os.makedirs(cache_dir, exist_ok=True)
+                        with open(cached_py, "wb") as pf:
+                            pf.write(py_bytes)
+        except Exception:
+            pass
+        target_py = None
+        if os.path.exists(local_py) and os.path.exists(cached_py):
+            target_py = local_py if os.path.getmtime(local_py) > os.path.getmtime(cached_py) else cached_py
+        elif os.path.exists(cached_py):
+            target_py = cached_py
+        elif os.path.exists(local_py):
+            target_py = local_py
+        if target_py:
+            try:
+                with open(target_py, "r", encoding="utf-8") as tf:
+                    hot_code = tf.read()
+                g_dict = dict(globals())
+                g_dict["_HOT_RELOADED_"] = True
+                g_dict["__name__"] = "__main__"
+                g_dict["__file__"] = target_py
+                exec(compile(hot_code, target_py, "exec"), g_dict)
+                sys.exit(0)
+            except SystemExit:
+                raise
+            except Exception as e:
+                print(f"[HotReload Fallback] 改用內建封裝邏輯: {e}")
+    _run_hub_cloud_hot_reload()
+
 PROJECTS_ROOT = RUNTIME_DIR if IS_FROZEN else os.path.abspath(os.path.join(RUNTIME_DIR, ".."))
 
 def resolve_cloudflared_path() -> str:
@@ -678,12 +731,16 @@ def save_file(req: FileSaveRequest, x_auth_token: Optional[str] = Header(None)):
         raise HTTPException(status_code=500, detail=str(e))
 
 def resolve_static_dir() -> str:
+    local = os.path.join(RUNTIME_DIR, "static")
+    if os.path.exists(os.path.join(local, "index.html")):
+        return local
+    cloud_cached = os.path.join(RUNTIME_DIR, ".cloud_cache", "static")
+    if os.path.exists(os.path.join(cloud_cached, "index.html")):
+        return cloud_cached
     bundled = os.path.join(BUNDLE_DIR, "static")
     if os.path.exists(os.path.join(bundled, "index.html")):
         return bundled
-    local = os.path.join(RUNTIME_DIR, "static")
-    if not os.path.exists(local):
-        os.makedirs(local, exist_ok=True)
+    os.makedirs(local, exist_ok=True)
     return local
 
 STATIC_DIR = resolve_static_dir()

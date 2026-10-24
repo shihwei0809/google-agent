@@ -34,6 +34,50 @@ import sys, shutil
 IS_FROZEN = getattr(sys, "frozen", False)
 RUNTIME_DIR = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(os.path.abspath(__file__))
 BUNDLE_DIR = getattr(sys, "_MEIPASS", RUNTIME_DIR)
+
+# --- 方案 B：GitHub 雲端熱更新 & 外部腳本優先載入機制 ---
+if IS_FROZEN and not globals().get("_HOT_RELOADED_"):
+    def _run_cloud_or_local_hot_reload():
+        import urllib.request
+        cache_dir = os.path.join(RUNTIME_DIR, ".cloud_cache")
+        cached_py = os.path.join(cache_dir, "main_cloud.py")
+        local_py = os.path.join(RUNTIME_DIR, "main.py")
+        raw_url = "https://raw.githubusercontent.com/shihwei0809/google-agent/main/%E4%B8%89%E5%90%88%E4%B8%80%E5%96%AE%E8%87%AA%E5%8B%95%E7%94%A2%E7%94%9F%E5%99%A8/main.py"
+        try:
+            req = urllib.request.Request(raw_url, headers={"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
+                if resp.status == 200:
+                    code_bytes = resp.read()
+                    code_text = code_bytes.decode("utf-8")
+                    if "class App" in code_text and len(code_text) > 5000:
+                        os.makedirs(cache_dir, exist_ok=True)
+                        with open(cached_py, "wb") as cf:
+                            cf.write(code_bytes)
+        except Exception:
+            pass
+        # 優先順序：1. 同資料夾外部 main.py (若有放且比快取新) -> 2. 雲端最新快取 main_cloud.py -> 3. 內建封裝版
+        target_py = None
+        if os.path.exists(local_py) and os.path.exists(cached_py):
+            target_py = local_py if os.path.getmtime(local_py) > os.path.getmtime(cached_py) else cached_py
+        elif os.path.exists(cached_py):
+            target_py = cached_py
+        elif os.path.exists(local_py):
+            target_py = local_py
+        if target_py:
+            try:
+                with open(target_py, "r", encoding="utf-8") as tf:
+                    hot_code = tf.read()
+                g_dict = dict(globals())
+                g_dict["_HOT_RELOADED_"] = True
+                g_dict["__name__"] = "__main__"
+                g_dict["__file__"] = target_py
+                exec(compile(hot_code, target_py, "exec"), g_dict)
+                sys.exit(0)
+            except SystemExit:
+                raise
+            except Exception as e:
+                print(f"[HotReload Fallback] 改用內建封裝邏輯: {e}")
+    _run_cloud_or_local_hot_reload()
 KEY_DIR = os.path.join(RUNTIME_DIR, "gcp_keys")
 GEMINI_KEYS_FILE = os.path.join(KEY_DIR, "gemini_keys.json")
 GCP_TRACKER_FILE = os.path.join(KEY_DIR, "usage_tracker.json")
