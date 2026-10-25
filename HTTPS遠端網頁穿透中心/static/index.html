@@ -768,9 +768,34 @@
     function getImgRelativeCoords(e) {
       const img = document.getElementById("remote-screen-img");
       const rect = img.getBoundingClientRect();
-      if (!rect.width || !rect.height) return null;
-      const x_ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const y_ratio = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
+      if (!rect.width || !rect.height || !img.naturalWidth || !img.naturalHeight) return null;
+
+      // 消除 object-contain 產生的黑邊邊距 (Letterbox)，確保點擊坐標 100% 精準對齊真實螢幕像素
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      const containerRatio = rect.width / rect.height;
+
+      let renderedW = rect.width;
+      let renderedH = rect.height;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (containerRatio > imgRatio) {
+        renderedW = rect.height * imgRatio;
+        offsetX = (rect.width - renderedW) / 2;
+      } else {
+        renderedH = rect.width / imgRatio;
+        offsetY = (rect.height - renderedH) / 2;
+      }
+
+      const clickX = e.clientX - rect.left - offsetX;
+      const clickY = e.clientY - rect.top - offsetY;
+
+      if (clickX < 0 || clickX > renderedW || clickY < 0 || clickY > renderedH) {
+        return null; // 點擊在黑邊邊框外
+      }
+
+      const x_ratio = Math.max(0, Math.min(1, clickX / renderedW));
+      const y_ratio = Math.max(0, Math.min(1, clickY / renderedH));
       return { x_ratio, y_ratio };
     }
 
@@ -835,16 +860,37 @@
       }
     }
 
+    let clickDebounceTimer = null;
+
     window.addEventListener("DOMContentLoaded", () => {
       const img = document.getElementById("remote-screen-img");
       const wrap = document.getElementById("desktop-canvas-wrap");
       if (img) {
         img.addEventListener("click", (e) => {
           wrap.focus();
-          sendRemoteMouse(currentClickMode, e);
+          if (currentClickMode === 'dblclick') {
+            if (clickDebounceTimer) { clearTimeout(clickDebounceTimer); clickDebounceTimer = null; }
+            sendRemoteMouse('dblclick', e);
+            return;
+          }
+          if (currentClickMode === 'rightclick') {
+            if (clickDebounceTimer) { clearTimeout(clickDebounceTimer); clickDebounceTimer = null; }
+            sendRemoteMouse('rightclick', e);
+            return;
+          }
+          // 延遲 180ms 執行單擊，若期間觸發 dblclick 則自動取消單擊，避免雙擊被拆成兩次慢速單擊 (重新命名模式)
+          if (clickDebounceTimer) clearTimeout(clickDebounceTimer);
+          clickDebounceTimer = setTimeout(() => {
+            sendRemoteMouse('click', e);
+            clickDebounceTimer = null;
+          }, 180);
         });
         img.addEventListener("dblclick", (e) => {
           e.preventDefault();
+          if (clickDebounceTimer) {
+            clearTimeout(clickDebounceTimer);
+            clickDebounceTimer = null;
+          }
           sendRemoteMouse("dblclick", e);
         });
         img.addEventListener("contextmenu", (e) => {

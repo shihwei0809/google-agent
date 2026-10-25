@@ -1044,21 +1044,7 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
     _attach_to_input_desktop(force_default=False)
     u32.SetCursorPos(tx, ty)
 
-    # 2. 如果點擊到特定視窗，提升為前景
-    try:
-        pt = _POINT(tx, ty)
-        h_target = u32.WindowFromPoint(pt)
-        if h_target:
-            root_h = u32.GetAncestor(h_target, 2) or h_target
-            if root_h and u32.IsWindow(root_h):
-                u32.keybd_event(0x12, 0, 0, 0)
-                u32.SetForegroundWindow(root_h)
-                u32.BringWindowToTop(root_h)
-                u32.keybd_event(0x12, 0, 2, 0)
-    except Exception:
-        pass
-
-    # 3. 發送真實 OS 硬體級滑鼠事件 (通用於所有原生程式、Chromium、Electron、Teams、Chrome)
+    # 2. 發送真實 OS 硬體級滑鼠事件 (移除干擾雙擊的 Alt 鍵干擾，確保 Windows 100% 辨識連點開檔)
     MOUSEEVENTF_LEFTDOWN = 0x0002
     MOUSEEVENTF_LEFTUP = 0x0004
     MOUSEEVENTF_RIGHTDOWN = 0x0008
@@ -1072,11 +1058,14 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
         time.sleep(0.02)
         u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
     elif act == "dblclick":
-        for _ in range(2):
-            u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-            time.sleep(0.02)
-            u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-            time.sleep(0.04)
+        # 嚴格遵循 Windows 雙擊開檔標準時序 (Click 1 -> 70ms 最適間隔 -> Click 2)
+        u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        time.sleep(0.02)
+        u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        time.sleep(0.07)
+        u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        time.sleep(0.02)
+        u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
     elif act == "rightclick":
         u32.mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
         time.sleep(0.02)
