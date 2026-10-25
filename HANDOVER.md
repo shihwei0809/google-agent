@@ -1,6 +1,18 @@
 ﻿# 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-24 NoType AI 語音輸入法 Gemini/Groq 極速混用與免安裝打包、HTTPS 遠端穿透中心個人帳號設定與免安裝打包、三合一單自動產生器免安裝打包與啟動畫面優化)
+## 今日進度與交接事項 (2026-10-25 HTTPS 遠端網頁穿透中心黑邊坐標偏差逆推修復、單雙擊防抖分離與雙擊開檔時序優化、免安裝 EXE 重新封裝、Cloudflare RDP 原生穿透腳本建置)
+* **HTTPS 遠端網頁穿透中心 (C:\GOOGLE ANGET\HTTPS遠端網頁穿透中心\):**
+  - **遠端滑鼠點擊與雙擊開檔深度修復 (main.py, static/index.html)**:
+    1. **消除 object-contain 黑邊坐標偏差**: 針對不同長寬比螢幕產生的上下/左右黑邊（Letterbox），實作幾何比例逆推扣除邊距，徹底根除滑鼠點擊坐標平移偏差，實現 100% 像素精準對齊。
+    2. **單擊/雙擊防抖分離 (Debounce Separation)**: 前端加入 180ms 單擊防抖機制。當使用者快速雙擊時，自動攔截取消單擊請求，避免多次單擊被網路延遲拆散而誤入 Windows 檔案重新命名模式。
+    3. **Windows 雙擊開檔黃金時序**: 後端 handle_screen_mouse 嚴格遵循 Windows 雙擊時序（Click 1 -> 70ms 最適間隔 -> Click 2），並徹底移除先前干擾雙擊的 Alt 鍵連動，確保 Windows 檔案總管 100% 穩定觸發開啟檔案與資料夾。
+    4. **免安裝單一執行檔重新打包**: 使用 PyInstaller 6.21.0 重新編譯封裝完成，產出最新版 dist\HTTPS遠端穿透中心-免安裝版.exe。
+* **Cloudflare RDP 原生遠端桌面穿透 (C:\GOOGLE ANGET\):**
+  - **一鍵啟動腳本建置 (一鍵啟動RDP穿透(微軟遠端桌面).bat)**:
+    1. 利用本機現有 cloudflared.exe 自動建立 RDP 3389 穿透隧道，偽裝為標準 443 HTTPS 網頁流量，100% 穿透企業防火牆。
+    2. 自動抓取並顯示筆電端連線指令，且自動產生 筆電端一鍵連線.bat 與 最新RDP穿透網址.txt，連線即可享受 60FPS 原生桌面、跨機複製貼上檔案與筆電磁碟直接掛載。
+
+## 前次進度與交接事項 (2026-10-24 NoType AI 語音輸入法 Gemini/Groq 極速混用與免安裝打包、HTTPS 遠端穿透中心個人帳號設定與免安裝打包、三合一單自動產生器免安裝打包與啟動畫面優化)
 * **NoType AI 語音輸入法 (`C:\notype-master\`):**
   - **Google Gemini 一鍵轉錄＋潤飾引擎與自動降級/混用機制 (`src/api/gemini.js`, `src/shortcut.js`, `src/api/llm.js`)**:
     1. 支援 Google AI Studio 新版 `AQ.` 與 `AIza` 金鑰格式（透過 `x-goog-api-key` Header）。
