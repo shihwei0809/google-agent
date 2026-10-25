@@ -841,6 +841,8 @@ def _get_ordered_desktop_windows(screen_w: int = 1920, screen_h: int = 1080):
         cls = cls_buf.value
         txt = txt_buf.value
 
+        if "Antigravity" in txt or "QC檢驗看板系統程式碼" in txt:
+            continue
         if cls in SKIP_CLASSES or txt in SKIP_TITLES:
             continue
         if cls == "ApplicationFrameWindow" and ("鎖定畫面" in txt or "Lock Screen" in txt or not txt.strip()):
@@ -887,9 +889,14 @@ def _print_window_to_image(hwnd: int, w: int, h: int):
     try:
         ret = u32.PrintWindow(hwnd, hdc_mem, 2)
         if not ret:
-            u32.PrintWindow(hwnd, hdc_mem, 0)
+            ret = u32.PrintWindow(hwnd, hdc_mem, 0)
+        if not ret:
+            return None
         buf = (ctypes.c_ubyte * (w * h * 4)).from_address(ppv.value)
         img = Image.frombuffer("RGBA", (w, h), buf, "raw", "BGRA", 0, 1).convert("RGB")
+        ext = img.getextrema()
+        if ext == ((0, 0), (0, 0), (0, 0)):
+            return None
         return img
     finally:
         gdi.SelectObject(hdc_mem, old_bm)
@@ -918,6 +925,8 @@ def _grab_desktop_composited(left: int, top: int, w: int, h: int):
     for item in reversed(render_stack):
         try:
             win_img = _print_window_to_image(item["hwnd"], item["w"], item["h"])
+            if win_img is None:
+                continue
             l, t, _, _ = item["rect"]
             canvas.paste(win_img, (l - left, t - top))
         except Exception:
@@ -978,17 +987,8 @@ def get_screen_frame(
         from PIL import Image
         from io import BytesIO
         left, top, w, h = _get_screen_bounds(all_screens)
-        img = None
-        if not _is_workstation_locked():
-            try:
-                _attach_to_input_desktop(force_default=False)
-                from PIL import ImageGrab
-                img = ImageGrab.grab(all_screens=all_screens)
-            except Exception:
-                img = None
-        if img is None:
-            _attach_to_input_desktop(force_default=True)
-            img = _grab_desktop_composited(left, top, w, h)
+        _attach_to_input_desktop(force_default=True)
+        img = _grab_desktop_composited(left, top, w, h)
         _draw_cursor_on_image(img, left, top)
         if 0.2 <= scale < 0.99:
             new_w = max(320, int(img.width * scale))
@@ -1043,6 +1043,18 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
     # 1. 確保掛載至互動桌面並將滑鼠物理移動至座標
     _attach_to_input_desktop(force_default=False)
     u32.SetCursorPos(tx, ty)
+
+    # 自動激活點擊之目標視窗前景
+    try:
+        pt = _POINT(tx, ty)
+        h_target = u32.WindowFromPoint(pt)
+        if h_target:
+            root_h = u32.GetAncestor(h_target, 2) or h_target
+            if root_h and u32.IsWindow(root_h):
+                u32.BringWindowToTop(root_h)
+                u32.SetForegroundWindow(root_h)
+    except Exception:
+        pass
 
     # 2. 發送真實 OS 硬體級滑鼠事件 (移除干擾雙擊的 Alt 鍵干擾，確保 Windows 100% 辨識連點開檔)
     MOUSEEVENTF_LEFTDOWN = 0x0002
