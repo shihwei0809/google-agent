@@ -960,9 +960,10 @@ def _draw_cursor_on_image(img, offset_left=0, offset_top=0, use_virtual=False):
     try:
         from PIL import ImageDraw
         pt = _POINT()
-        if ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
-            _virtual_cursor[0] = pt.x
-            _virtual_cursor[1] = pt.y
+        if not use_virtual and ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
+            if pt.x != 0 or pt.y != 0:
+                _virtual_cursor[0] = pt.x
+                _virtual_cursor[1] = pt.y
         cx = _virtual_cursor[0] - offset_left
         cy = _virtual_cursor[1] - offset_top
         if 0 <= cx <= img.width and 0 <= cy <= img.height:
@@ -1041,22 +1042,32 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
     act = req.action.lower()
 
     # 1. 確保掛載至互動桌面並將滑鼠物理移動至座標
-    _attach_to_input_desktop(force_default=False)
+    _attach_to_input_desktop(force_default=True)
     u32.SetCursorPos(tx, ty)
 
-    # 自動激活點擊之目標視窗前景
-    try:
-        pt = _POINT(tx, ty)
-        h_target = u32.WindowFromPoint(pt)
-        if h_target:
-            root_h = u32.GetAncestor(h_target, 2) or h_target
-            if root_h and u32.IsWindow(root_h):
-                u32.BringWindowToTop(root_h)
-                u32.SetForegroundWindow(root_h)
-    except Exception:
-        pass
+    # 2. 智慧穿透鎖定遮罩，辨識使用者畫面上真正點選之視窗
+    app_windows, taskbar_win, _ = _get_ordered_desktop_windows(w, h)
+    target_win = None
+    for item in app_windows:
+        l, t, r, b = item["rect"]
+        if l <= tx < r and t <= ty < b:
+            target_win = item
+            break
+    if not target_win and taskbar_win:
+        l, t, r, b = taskbar_win["rect"]
+        if l <= tx < r and t <= ty < b:
+            target_win = taskbar_win
 
-    # 2. 發送真實 OS 硬體級滑鼠事件 (移除干擾雙擊的 Alt 鍵干擾，確保 Windows 100% 辨識連點開檔)
+    target_hwnd = target_win["hwnd"] if target_win else 0
+    if target_hwnd:
+        try:
+            u32.BringWindowToTop(target_hwnd)
+            u32.SetForegroundWindow(target_hwnd)
+        except Exception:
+            pass
+        _promoted_hwnd = target_hwnd
+
+    # 3. 雙軌並行輸入 (OS 硬體事件 + Win32 視窗直通 PostMessage)
     MOUSEEVENTF_LEFTDOWN = 0x0002
     MOUSEEVENTF_LEFTUP = 0x0004
     MOUSEEVENTF_RIGHTDOWN = 0x0008
@@ -1065,12 +1076,43 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
     MOUSEEVENTF_MIDDLEUP = 0x0040
     MOUSEEVENTF_WHEEL = 0x0800
 
+    WM_MOUSEMOVE = 0x0200
+    WM_LBUTTONDOWN = 0x0201
+    WM_LBUTTONUP = 0x0202
+    WM_RBUTTONDOWN = 0x0204
+    WM_RBUTTONUP = 0x0205
+    WM_MBUTTONDOWN = 0x0207
+    WM_MBUTTONUP = 0x0208
+    MK_LBUTTON = 0x0001
+    MK_RBUTTON = 0x0002
+    MK_MBUTTON = 0x0010
+
+    # 計算目標視窗內部相對座標
+    lparam = 0
+    if target_hwnd:
+        pt_client = _POINT(tx, ty)
+        u32.ScreenToClient(target_hwnd, ctypes.byref(pt_client))
+        lparam = ((pt_client.y & 0xFFFF) << 16) | (pt_client.x & 0xFFFF)
+
+    def _post_win(msg, wparam):
+        if target_hwnd:
+            u32.PostMessageW(target_hwnd, msg, wparam, lparam)
+            child = _find_deepest_child_at(target_hwnd, tx, ty)
+            if child and child != target_hwnd:
+                pt_c = _POINT(tx, ty)
+                u32.ScreenToClient(child, ctypes.byref(pt_c))
+                lp_c = ((pt_c.y & 0xFFFF) << 16) | (pt_c.x & 0xFFFF)
+                u32.PostMessageW(child, msg, wparam, lp_c)
+
     if act == "click":
         u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(0.02)
         u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        _post_win(WM_MOUSEMOVE, 0)
+        _post_win(WM_LBUTTONDOWN, MK_LBUTTON)
+        time.sleep(0.02)
+        _post_win(WM_LBUTTONUP, 0)
     elif act == "dblclick":
-        # 嚴格遵循 Windows 雙擊開檔標準時序 (Click 1 -> 70ms 最適間隔 -> Click 2)
         u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(0.02)
         u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
@@ -1078,25 +1120,38 @@ def handle_screen_mouse(req: MouseEventRequest, x_auth_token: Optional[str] = He
         u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
         time.sleep(0.02)
         u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        _post_win(WM_LBUTTONDOWN, MK_LBUTTON)
+        _post_win(WM_LBUTTONUP, 0)
+        time.sleep(0.07)
+        _post_win(WM_LBUTTONDOWN, MK_LBUTTON)
+        _post_win(WM_LBUTTONUP, 0)
     elif act == "rightclick":
         u32.mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0)
         time.sleep(0.02)
         u32.mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0)
+        _post_win(WM_RBUTTONDOWN, MK_RBUTTON)
+        time.sleep(0.02)
+        _post_win(WM_RBUTTONUP, 0)
     elif act == "middleclick":
         u32.mouse_event(MOUSEEVENTF_MIDDLEDOWN, 0, 0, 0, 0)
         time.sleep(0.02)
         u32.mouse_event(MOUSEEVENTF_MIDDLEUP, 0, 0, 0, 0)
+        _post_win(WM_MBUTTONDOWN, MK_MBUTTON)
+        time.sleep(0.02)
+        _post_win(WM_MBUTTONUP, 0)
     elif act == "mousedown":
         u32.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+        _post_win(WM_LBUTTONDOWN, MK_LBUTTON)
     elif act == "mouseup":
         u32.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+        _post_win(WM_LBUTTONUP, 0)
     elif act == "wheel":
         d = int(req.delta)
         if d == 0:
             d = 120
         u32.mouse_event(MOUSEEVENTF_WHEEL, 0, 0, d, 0)
 
-    return {"status": "ok", "x": tx, "y": ty, "mode": "hardware_direct"}
+    return {"status": "ok", "x": tx, "y": ty, "mode": "dual_direct"}
 
 VK_MAP = {
     "enter": 0x0D, "return": 0x0D, "backspace": 0x08, "tab": 0x09,
@@ -1212,11 +1267,11 @@ def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header
     u32 = ctypes.windll.user32
     act = req.action.lower()
 
-    _attach_to_input_desktop(force_default=False)
+    _attach_to_input_desktop(force_default=True)
 
     if act == "text" and req.text:
         # 雙軌並行超高可靠度文字注入：
-        # 1. 優先透過 Win32 64-bit 原生剪貼簿注入 + Ctrl+V (完美支援任意中英文長字串、標點符號與多行內容)
+        # 1. 優先透過 Win32 64-bit 原生剪貼簿注入 + Ctrl+V
         pasted = False
         try:
             if _set_clipboard_text(req.text):
@@ -1226,10 +1281,16 @@ def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header
         except Exception:
             pasted = False
 
-        # 2. 若剪貼簿失敗則無縫降級為 SendInput KEYEVENTF_UNICODE 保底
-        if not pasted:
-            _send_unicode_text(req.text)
-        return {"status": "ok", "typed": req.text, "mode": "clipboard" if pasted else "sendinput"}
+        # 2. 剪貼簿 + SendInput + Win32 視窗直通 PostMessage
+        _send_unicode_text(req.text)
+        if _promoted_hwnd:
+            for ch in req.text:
+                u32.PostMessageW(_promoted_hwnd, 0x0102, ord(ch), 0)
+                child = _find_deepest_child_at(_promoted_hwnd, _virtual_cursor[0], _virtual_cursor[1])
+                if child and child != _promoted_hwnd:
+                    u32.PostMessageW(child, 0x0102, ord(ch), 0)
+
+        return {"status": "ok", "typed": req.text, "mode": "dual_text"}
 
     elif act == "combo":
         c = req.key.lower()
@@ -1248,8 +1309,20 @@ def handle_screen_key(req: KeyEventRequest, x_auth_token: Optional[str] = Header
         k = req.key.lower()
         if k in VK_MAP:
             _tap_vk(VK_MAP[k])
+            if _promoted_hwnd:
+                u32.PostMessageW(_promoted_hwnd, 0x0100, VK_MAP[k], 0)
+                u32.PostMessageW(_promoted_hwnd, 0x0101, VK_MAP[k], 0)
+                child = _find_deepest_child_at(_promoted_hwnd, _virtual_cursor[0], _virtual_cursor[1])
+                if child and child != _promoted_hwnd:
+                    u32.PostMessageW(child, 0x0100, VK_MAP[k], 0)
+                    u32.PostMessageW(child, 0x0101, VK_MAP[k], 0)
         elif len(k) == 1:
             _send_unicode_text(req.key)
+            if _promoted_hwnd:
+                u32.PostMessageW(_promoted_hwnd, 0x0102, ord(k), 0)
+                child = _find_deepest_child_at(_promoted_hwnd, _virtual_cursor[0], _virtual_cursor[1])
+                if child and child != _promoted_hwnd:
+                    u32.PostMessageW(child, 0x0102, ord(k), 0)
         return {"status": "ok", "key": req.key}
 
 def resolve_static_dir() -> str:
