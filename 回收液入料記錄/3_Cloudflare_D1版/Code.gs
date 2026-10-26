@@ -11,7 +11,7 @@ const SHEET_NAME = "入料記錄總表"; // 請確認您的試算表分頁名稱
 function setup() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
   if (sheet.getLastRow() === 0) {
-    sheet.appendRow(["ID", "日期", "車號", "狀態", "入料前照片URL", "車輛照片URL", "入料後照片URL", "入料前時間", "入料後時間", "歷時(分)"]);
+    sheet.appendRow(["ID", "日期", "車號", "狀態", "入料前時間", "入料後時間", "歷時(分)", "入料前照片URL", "車輛照片URL", "入料後照片URL"]);
   }
 }
 
@@ -58,12 +58,12 @@ function doGet(e) {
         date: formatDateStr(data[i][1]),
         license_plate: String(data[i][2]),
         status: String(data[i][3]),
-        tBeforeUrl: data[i][4],
-        vPhotoUrl: data[i][5],
-        tAfterUrl: data[i][6],
-        before_time: formatDateTimeStr(data[i][7]),
-        after_time: formatDateTimeStr(data[i][8]),
-        duration: data[i][9] !== undefined && data[i][9] !== "" ? data[i][9] : null
+        before_time: formatDateTimeStr(data[i][4]),
+        after_time: formatDateTimeStr(data[i][5]),
+        duration: data[i][6] !== undefined && data[i][6] !== "" ? data[i][6] : null,
+        tBeforeUrl: data[i][7],
+        vPhotoUrl: data[i][8],
+        tAfterUrl: data[i][9]
       });
     }
     return ContentService.createTextOutput(JSON.stringify({ records: allRecords }))
@@ -84,7 +84,7 @@ function doGet(e) {
           id: String(data[i][0]),
           date: formatDateStr(data[i][1]),
           license_plate: String(data[i][2]),
-          before_time: formatDateTimeStr(data[i][7])
+          before_time: formatDateTimeStr(data[i][4])
         });
       }
     }
@@ -143,7 +143,7 @@ function handleBeforeFeed(params) {
   
   // 寫入 Sheets：優先採用手機拍照當下的實際時間 client_before_time，離線拍照也能精準記錄
   const beforeTime = client_before_time || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
-  sheet.appendRow([String(id), "'" + String(date).split("T")[0], license_plate, "pending", t_url, v_url, "", beforeTime, "", ""]);
+  sheet.appendRow([String(id), "'" + String(date).split("T")[0], license_plate, "pending", beforeTime, "", "", t_url, v_url, ""]);
   
   return jsonResponse({ 
     success: true, 
@@ -184,7 +184,7 @@ function handleCompleteFeed(params) {
     }
   } catch (err) {}
 
-  sheet.appendRow([String(id), "'" + String(date).split("T")[0], license_plate, "completed", t_url, v_url, a_url, beforeTime, afterTime, durationMin]);
+  sheet.appendRow([String(id), "'" + String(date).split("T")[0], license_plate, "completed", beforeTime, afterTime, durationMin, t_url, v_url, a_url]);
 
   return jsonResponse({ 
     success: true, 
@@ -212,7 +212,7 @@ function handleAfterFeed(params) {
         rowIndex = i + 1;
         date = data[i][1];
         license_plate = data[i][2];
-        beforeTime = data[i][7];
+        beforeTime = data[i][4];
         break;
       } else if (data[i][3] === "completed") {
         return jsonResponse({ success: true, message: "已經是完成狀態" });
@@ -246,13 +246,13 @@ function handleAfterFeed(params) {
     }
   } catch (err) {}
 
-  // 更新 Sheets: 狀態(Col 4), 後照片(Col 7), 入料後時間(Col 9), 歷時(Col 10)
+  // 更新 Sheets: 狀態(Col 4), 入料後時間(Col 6), 歷時(Col 7), 後照片(Col 10)
   sheet.getRange(rowIndex, 4).setValue("completed");
-  sheet.getRange(rowIndex, 7).setValue(a_url);
-  sheet.getRange(rowIndex, 9).setValue(afterTime);
+  sheet.getRange(rowIndex, 6).setValue(afterTime);
   if (durationMin !== "") {
-    sheet.getRange(rowIndex, 10).setValue(durationMin);
+    sheet.getRange(rowIndex, 7).setValue(durationMin);
   }
+  sheet.getRange(rowIndex, 10).setValue(a_url);
   
   return jsonResponse({ 
     success: true, 
