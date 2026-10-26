@@ -46,32 +46,29 @@ $todayStr = (Get-Date).ToString("yyyyMMdd")
 $todayStart = (Get-Date).Date
 $cutoffDate = $todayStart.AddDays(-7)
 
-# 2. 自動滾動封存超過 7 天的歷史快照
+# 2. 自動滾動封存超過 7 天的歷史快照 (嚴格保留最新的 7 個快照，其餘歸檔)
 Write-Output "------------------------------------------------------------"
-Write-Output "[STEP 1] 檢查 00_最近7天收工快照 滾動封存 (保留 7 天內: >= $($cutoffDate.ToString('yyyy-MM-dd')))"
-$existingSnapshots = Get-ChildItem -Path $recentDir -Directory
+Write-Output "[STEP 1] 檢查 00_最近7天收工快照 滾動封存 (嚴格維持最多 7 天快照)"
+$allSnaps = Get-ChildItem -Path $recentDir -Directory | Where-Object { $_.Name -match "^(\d{8})_收工備份$" } | Sort-Object Name -Descending
 $archivedCount = 0
-foreach ($snap in $existingSnapshots) {
-    if ($snap.Name -match "^(\d{4})(\d{2})(\d{2})") {
-        $y = [int]$Matches[1]
-        $m = [int]$Matches[2]
-        $d = [int]$Matches[3]
-        try {
-            $snapDate = Get-Date -Year $y -Month $m -Day $d -Hour 0 -Minute 0 -Second 0
-            if ($snapDate -lt $cutoffDate) {
-                $ymStr = "{0:D4}年{1:D2}月" -f $y, $m
-                $monthFolder = Join-Path $archiveDir $ymStr
-                New-Item -ItemType Directory -Force -Path $monthFolder | Out-Null
-                $destSnap = Join-Path $monthFolder $snap.Name
-                Write-Output "  -> 歸檔超期快照: $($snap.Name) -> 01_歷史按月封存\$ymStr"
-                Move-Item -Path $snap.FullName -Destination $destSnap -Force
-                $archivedCount++
-            }
-        } catch {}
+if ($allSnaps.Count -gt 7) {
+    $toArchive = $allSnaps | Select-Object -Skip 7
+    foreach ($snap in $toArchive) {
+        if ($snap.Name -match "^(\d{4})(\d{2})") {
+            $y = [int]$Matches[1]
+            $m = [int]$Matches[2]
+            $ymStr = "{0:D4}年{1:D2}月" -f $y, $m
+            $monthFolder = Join-Path $archiveDir $ymStr
+            New-Item -ItemType Directory -Force -Path $monthFolder | Out-Null
+            $destSnap = Join-Path $monthFolder $snap.Name
+            Write-Output "  -> 歸檔超期快照: $($snap.Name) -> 01_歷史按月封存\$ymStr"
+            Move-Item -Path $snap.FullName -Destination $destSnap -Force
+            $archivedCount++
+        }
     }
 }
 if ($archivedCount -eq 0) {
-    Write-Output "  -> 無超過 7 天之快照需歸檔，目錄保持乾淨。"
+    Write-Output "  -> 快照數量未超過 7 天，目錄保持乾淨。"
 }
 
 # 3. 同步今日修改之子專案與根目錄核心檔案
@@ -106,7 +103,7 @@ foreach ($dir in $subDirs) {
         $rcArgs = @(
             $dir.FullName,
             $destProj,
-            "/E",
+            "/S",
             "/XO",
             "/MAXAGE:1",
             "/XD", ".wrangler", "node_modules", ".git", "__pycache__", "build", "venv", ".venv",
@@ -127,7 +124,7 @@ if (Test-Path "C:\notype-master") {
         $rcArgs2 = @(
             "C:\notype-master",
             $destNotype,
-            "/E",
+            "/S",
             "/XO",
             "/XD", "node_modules", ".git", "dist", "build",
             "/XF",
