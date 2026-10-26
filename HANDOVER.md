@@ -10,6 +10,11 @@
     2. **GAS 後端更新**: 更新 Code.gs 的 setup()、doGet(action=query/pending)、handleBeforeFeed()、handleCompleteFeed() 與 handleAfterFeed()，確保對調欄位後讀寫對應精準無誤。
     3. **Cloudflare D1 驗證**: 確認 D1 為具名 Column 欄位架構，完全不受 Google 試算表格子順序異動之影響。
 
+  - **全系統 API KEY 盤點與 Cloudflare 雲端加密環境變數升級**:
+    1. **全面清查**: 盤點系統內全部 9 個 .env 檔案，確認核心業務專案（回收液、ACT、IPA、穿透中心）之敏感金鑰 100% 留存於伺服器端。
+    2. **教育訓練平台金鑰抽離**: 將 unctions/api/ (chat.js, convert_sop.js, generate_image.js) 寫死的明文金鑰陣列完全抽離，改由 Cloudflare 後台 env.GEMINI_API_KEY 加密機密 (secret_text) 注入，支援多組逗號分隔自動輪替。
+    3. **Cloudflare 雲端教材一鍵備份工具落地**: 建立 一鍵備份雲端教材.py 與 一鍵備份雲端教材.bat，可自動調用 API 將 Cloudflare R2/D1 中的全數 15 份教材 Markdown 檔案秒級下載並備份至本機 雲端教材備份 目錄。
+
 ## 前次進度與交接事項 (2026-10-25 HTTPS 遠端網頁穿透中心黑邊坐標偏差逆推修復、單雙擊防抖分離與雙擊開檔時序優化、免安裝 EXE 重新封裝、Cloudflare RDP 原生穿透腳本建置)
 * **HTTPS 遠端網頁穿透中心 (C:\GOOGLE ANGET\HTTPS遠端網頁穿透中心\):**
   - **遠端滑鼠點擊與雙擊開檔深度修復 (main.py, static/index.html)**:
