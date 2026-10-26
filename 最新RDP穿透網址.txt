@@ -1,2 +1,2 @@
-主機: customise-palace-whatever-halloween.trycloudflare.com
-指令: cloudflared.exe access rdp --hostname customise-palace-whatever-halloween.trycloudflare.com --url localhost:3389
+主機: arthur-artistic-enrolled-fee.trycloudflare.com
+指令: cloudflared.exe access rdp --hostname arthur-artistic-enrolled-fee.trycloudflare.com --url localhost:3389

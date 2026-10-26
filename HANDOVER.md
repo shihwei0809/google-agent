@@ -1,6 +1,16 @@
 ﻿# 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-25 HTTPS 遠端網頁穿透中心黑邊坐標偏差逆推修復、單雙擊防抖分離與雙擊開檔時序優化、免安裝 EXE 重新封裝、Cloudflare RDP 原生穿透腳本建置)
+## 今日進度與交接事項 (2026-10-26 回收液入料系統手動完成雙向對齊修復、Google試算表全新自訂欄位順序支援)
+* **回收液入料記錄 App (`recycle-feed-records.pages.dev` / `3_Cloudflare_D1版`):**
+  - **Google 試算表強制完成 (completed) 狀態自動回寫 D1**:
+    1. **問題排查**: 使用者在 Google Sheets 手動將 10/22 紀錄強制改為 completed，但 Cloudflare D1 依然停留為 pending，導致 App 前端兩邊取聯集時依然顯示待入料。
+    2. **雙向自動對齊**: 前端更新為 16-D1，載入待入料時以 Google Sheets query 狀態為權威，若 Sheets 已完成則自動剔除並發送背景請求回寫修復 Cloudflare D1，已將 10/22 幽靈待入料全數清除對齊。
+  - **Google 試算表欄位順序客製化升級**:
+    1. **欄位重構**: 將 入料前時間 (E)、入料後時間 (F)、歷時(分) (G) 前移緊接在 狀態 (D) 之後，照片 URL (H, I, J) 後移至最後三欄。
+    2. **GAS 後端更新**: 更新 Code.gs 的 setup()、doGet(action=query/pending)、handleBeforeFeed()、handleCompleteFeed() 與 handleAfterFeed()，確保對調欄位後讀寫對應精準無誤。
+    3. **Cloudflare D1 驗證**: 確認 D1 為具名 Column 欄位架構，完全不受 Google 試算表格子順序異動之影響。
+
+## 前次進度與交接事項 (2026-10-25 HTTPS 遠端網頁穿透中心黑邊坐標偏差逆推修復、單雙擊防抖分離與雙擊開檔時序優化、免安裝 EXE 重新封裝、Cloudflare RDP 原生穿透腳本建置)
 * **HTTPS 遠端網頁穿透中心 (C:\GOOGLE ANGET\HTTPS遠端網頁穿透中心\):**
   - **遠端滑鼠點擊與雙擊開檔深度修復 (main.py, static/index.html)**:
     1. **消除 object-contain 黑邊坐標偏差**: 針對不同長寬比螢幕產生的上下/左右黑邊（Letterbox），實作幾何比例逆推扣除邊距，徹底根除滑鼠點擊坐標平移偏差，實現 100% 像素精準對齊。
