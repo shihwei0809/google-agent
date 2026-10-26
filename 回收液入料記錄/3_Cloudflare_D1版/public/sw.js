@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recycle-d1-v15-filter-quick';
+const CACHE_NAME = 'recycle-d1-v16-auto-bidirectional-sync';
 const urlsToCache = [
   './',
   './index.html',

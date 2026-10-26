@@ -45,7 +45,7 @@
 <div id="updateBanner" onclick="location.reload(true)">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
 <div class="header">
-    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v15-D1 (待入料同步與快速篩選)</span>
+    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v16-D1 (雙向自動對齊回寫)</span>
     <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
@@ -588,10 +588,11 @@
             if (navigator.onLine) {
                 try {
                     let cloudPending = [];
-                    // 平行發送 D1 與 GAS 請求，確保待入料不遺漏
-                    const [d1Res, gasRes] = await Promise.allSettled([
+                    // 平行發送 D1 待入料與 GAS 權威清單
+                    const [d1Res, gasRes, gasQueryRes] = await Promise.allSettled([
                         fetch(D1_API).then(r => r.ok ? r.json() : Promise.reject(r.statusText)),
-                        fetch(GAS_URL).then(r => r.json())
+                        fetch(GAS_URL).then(r => r.json()),
+                        fetch(GAS_URL + "?action=query").then(r => r.json())
                     ]);
 
                     let pendingMap = new Map();
@@ -609,6 +610,33 @@
                                     pendingMap.set(key, gr);
                                 } else {
                                     pendingMap.set(key, Object.assign({}, pendingMap.get(key), gr));
+                                }
+                            }
+                        });
+                    }
+
+                    // 權威對齊與自動回寫機制：
+                    // 若管理員在 Google 試算表直接將某筆改為 completed 或刪除，
+                    // 檢查 GAS Query 結果，若 GAS 該筆狀態已為 completed，必須立即從 pending 清除並自動回寫通知 D1 同步！
+                    if (gasQueryRes.status === 'fulfilled' && gasQueryRes.value && Array.isArray(gasQueryRes.value.records)) {
+                        const gasCompletedIds = new Set();
+                        gasQueryRes.value.records.forEach(qr => {
+                            if (qr && qr.id && qr.status === 'completed') {
+                                const qKey = String(qr.id).trim();
+                                gasCompletedIds.add(qKey);
+                                // 如果 D1 還有這筆 pending，代表後台手動修改了 Google 試算表但尚未回寫 D1
+                                if (pendingMap.has(qKey)) {
+                                    pendingMap.delete(qKey); // 立即從待入料排除
+                                    // 背景自動向 D1 發送狀態回寫同步
+                                    fetch(D1_API, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            action: 'after_feed',
+                                            id: qKey,
+                                            client_after_time: qr.after_time || new Date().toLocaleString('zh-TW', { hour12: false })
+                                        })
+                                    }).catch(() => {});
                                 }
                             }
                         });
