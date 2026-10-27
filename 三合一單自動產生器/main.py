@@ -38,11 +38,26 @@ BUNDLE_DIR = getattr(sys, "_MEIPASS", RUNTIME_DIR)
 # --- 方案 B：GitHub 雲端熱更新 & 外部腳本優先載入機制 ---
 if IS_FROZEN and not globals().get("_HOT_RELOADED_"):
     def _run_cloud_or_local_hot_reload():
+        try:
+            import pyi_splash
+        except Exception:
+            pyi_splash = None
+
+        def _update_splash(text):
+            if pyi_splash:
+                try:
+                    pyi_splash.update_text(text)
+                except Exception:
+                    pass
+
+        _update_splash("🔍 正在檢查雲端更新...")
+
         import urllib.request
         cache_dir = os.path.join(RUNTIME_DIR, ".cloud_cache")
         cached_py = os.path.join(cache_dir, "main_cloud.py")
         local_py = os.path.join(RUNTIME_DIR, "main.py")
         raw_url = "https://raw.githubusercontent.com/shihwei0809/google-agent/main/%E4%B8%89%E5%90%88%E4%B8%80%E5%96%AE%E8%87%AA%E5%8B%95%E7%94%A2%E7%94%9F%E5%99%A8/main.py"
+        downloaded_new = False
         try:
             req = urllib.request.Request(raw_url, headers={"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"})
             with urllib.request.urlopen(req, timeout=2.5) as resp:
@@ -50,11 +65,30 @@ if IS_FROZEN and not globals().get("_HOT_RELOADED_"):
                     code_bytes = resp.read()
                     code_text = code_bytes.decode("utf-8")
                     if "class App" in code_text and len(code_text) > 5000:
-                        os.makedirs(cache_dir, exist_ok=True)
-                        with open(cached_py, "wb") as cf:
-                            cf.write(code_bytes)
+                        need_save = True
+                        if os.path.exists(cached_py):
+                            try:
+                                with open(cached_py, "rb") as old_f:
+                                    if old_f.read() == code_bytes:
+                                        need_save = False
+                            except Exception:
+                                pass
+                        if need_save:
+                            _update_splash("🚀 偵測到新版本！正在更新中，請稍候...")
+                            os.makedirs(cache_dir, exist_ok=True)
+                            with open(cached_py, "wb") as cf:
+                                cf.write(code_bytes)
+                            downloaded_new = True
+                            import time
+                            time.sleep(0.6)
         except Exception:
             pass
+
+        if downloaded_new:
+            _update_splash("✅ 已更新至最新版本！即將啟動...")
+        else:
+            _update_splash("✅ 已為最新版本 (v2.2.2)，即將啟動...")
+
         # 優先順序：1. 同資料夾外部 main.py (若有放且比快取新) -> 2. 雲端最新快取 main_cloud.py -> 3. 內建封裝版
         target_py = None
         if os.path.exists(local_py) and os.path.exists(cached_py):
