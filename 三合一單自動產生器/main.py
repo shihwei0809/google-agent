@@ -44,13 +44,7 @@ if IS_FROZEN and not globals().get("_HOT_RELOADED_"):
             pyi_splash = None
 
         def _update_splash(text):
-            if pyi_splash:
-                try:
-                    pyi_splash.update_text(text)
-                except Exception:
-                    pass
-
-        _update_splash("🔍 正在檢查雲端更新...")
+            pass
 
         import urllib.request
         cache_dir = os.path.join(RUNTIME_DIR, ".cloud_cache")
