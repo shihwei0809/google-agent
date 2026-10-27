@@ -1,4 +1,4 @@
-﻿import pytesseract
+import pytesseract
 from pytesseract import Output
 from tkinter import filedialog
 from io import BytesIO
@@ -1332,7 +1332,7 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("三合一單自動產生器 (v2.2.3 - 2026/10/13更新)")
+        self.title("三合一單自動產生器 (v2.2.4 - 2026/10/27更新)")
         self.geometry("1260x820")
         self.minsize(1080, 620)
         self.configure(padx=15, pady=15)

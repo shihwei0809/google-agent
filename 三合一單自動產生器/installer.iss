@@ -1,6 +1,6 @@
 ; Inno Setup Script for 三合一單自動產生器
 #define MyAppName "三合一單自動產生器"
-#define MyAppVersion "2.2.2"
+#define MyAppVersion "2.2.4"
 #define MyAppPublisher "Shiny Chemical"
 #define MyAppExeName "三合一單自動產生器.exe"
 
