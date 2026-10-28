@@ -1603,7 +1603,7 @@ class App(tk.Tk):
     def reload_mapping_with_msg(self):
         """點擊『🔄 重新載入對照表』時執行"""
         self.load_mapping()
-        messagebox.showinfo("對照表已更新", f"已重新讀取『N系料小包-地點代號對照表.xlsx』！\n目前共載入 {len(self.mapping_dict)} 筆地點對照碼。\n表格中的地點長代號已同步更新！")
+        messagebox.showinfo("對照表已更新", f"已重新讀取『台積小包材地點代號對照表.xlsx』！\n目前共載入 {len(self.mapping_dict)} 筆地點對照碼。\n表格中的地點長代號已同步更新！")
 
     def open_calendar_dialog(self, target_var):
         CalendarDialog(self, target_var)
@@ -1620,7 +1620,7 @@ class App(tk.Tk):
         map_status_frame.pack(anchor="w", pady=(2, 0))
 
         m_color = "green" if os.path.exists(self.mapping_path) else "red"
-        m_text = f"對照表檔案 (N系料小包-地點代號對照表.xlsx): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "對照表檔案 (N系料小包-地點代號對照表.xlsx): ❌ 未找到"
+        m_text = f"對照表檔案 (台積小包材地點代號對照表.xlsx): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "對照表檔案 (台積小包材地點代號對照表.xlsx): ❌ 未找到"
         
         self.lbl_mapping_status = tk.Label(map_status_frame, text=m_text, fg=m_color)
         self.lbl_mapping_status.pack(side="left")
