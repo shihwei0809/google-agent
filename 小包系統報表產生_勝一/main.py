@@ -624,9 +624,8 @@ def clean_location_str(loc, mapping_dict=None):
     if not loc:
         return ""
     s = str(loc).strip().upper()
-    # 智慧移除常見多餘文字：台積、台積電、新竹、台中、台南、廠、空格、底線、破折號
-    # 例：18廠P2 -> 18P2, 18廠p2 -> 18P2, 15廠P5 -> 15P5, 15廠p5 -> 15P5, 18p2 -> 18P2
-    cleaned = re.sub(r'台積電?|新竹|台中|台南|廠|[-_\s]', '', s)
+    # 智慧移除常見多餘文字：台積、台積電、新竹、台中、台南、中科、南科、龍潭、廠、空格、底線、破折號、括號
+    cleaned = re.sub(r'台積電?|新竹|台中|台南|中科|南科|龍潭|廠|[-_\s\(\)\[\]]', '', s)
     if mapping_dict and cleaned in mapping_dict:
         return cleaned
     if mapping_dict and s in mapping_dict:
@@ -640,6 +639,10 @@ def clean_location_str(loc, mapping_dict=None):
         if (mapping_dict and val in mapping_dict) or any(x in val for x in ["18P", "15P", "12P", "14P"]):
             return val
         return val
+    # 中文數字廠別轉換 (例如: 二 -> 2廠)
+    ch_map = {'一': '1廠', '二': '2廠', '三': '3廠', '四': '4廠', '五': '5廠', '六': '6廠', '七': '7廠', '八': '8廠'}
+    if cleaned in ch_map:
+        return ch_map[cleaned]
     return cleaned or s
 
 
@@ -651,8 +654,8 @@ class ImportRangeDialog(tk.Toplevel):
         super().__init__(parent)
         self.parent_app = parent
         self.title("📥 Excel 匯入筆數與範圍選擇 (跨分頁智慧過濾)")
-        self.geometry("1080x700")
-        self.minsize(920, 560)
+        self.geometry("1300x720")
+        self.minsize(1050, 560)
         self.grab_set()
 
         # 視窗居中於父視窗
@@ -840,22 +843,25 @@ class ImportRangeDialog(tk.Toplevel):
         preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽 (欄寬可自由拉動，全欄位完整呈現)", font=("Arial", 10, "bold"), padx=6, pady=6, fg="#002060")
         preview_frame.pack(fill="both", expand=True, pady=(0, 10))
 
-        # 定義 Treeview 欄位
-        columns = ("chk", "idx", "date", "arr_date", "batch", "raw_batch", "loc", "name", "spec", "qty", "po")
+        # 定義 Treeview 欄位 (勝一專用 12 核心欄位)
+        columns = ("chk", "idx", "loc", "name", "spec", "date", "arr_date", "time", "unit_w", "pcs", "qty", "plate", "raw_batch", "cust_batch")
         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
 
         col_defs = [
-            ("chk", "✅選取", 50, "center"),
-            ("idx", "項次", 45, "center"),
+            ("chk", "✅選取", 48, "center"),
+            ("idx", "項次", 40, "center"),
+            ("loc", "指送地(地點)", 120, "center"),
+            ("name", "品名", 95, "w"),
+            ("spec", "規格", 95, "w"),
             ("date", "預計出貨 📅", 95, "center"),
             ("arr_date", "預計到貨 📅", 95, "center"),
-            ("batch", "客戶批號(Lot No)", 125, "center"),
-            ("raw_batch", "原料批號", 115, "center"),
-            ("loc", "指送地點", 90, "center"),
-            ("name", "品名", 110, "w"),
-            ("spec", "規格", 90, "w"),
-            ("qty", "出貨數量/件數", 100, "center"),
-            ("po", "出貨單別號", 130, "w")
+            ("time", "到貨時間", 65, "center"),
+            ("unit_w", "單重", 50, "center"),
+            ("pcs", "件數", 50, "center"),
+            ("qty", "出貨數量", 75, "center"),
+            ("plate", "車牌", 70, "center"),
+            ("raw_batch", "原料批號", 105, "center"),
+            ("cust_batch", "客戶批號(Lot No)", 120, "center")
         ]
 
         for col_id, heading_text, width, anchor in col_defs:
@@ -1022,15 +1028,18 @@ class ImportRangeDialog(tk.Toplevel):
                 values=(
                     "☑",
                     f"[{idx+1:02d}]",
-                    d_str,
-                    arr_d_str,
-                    b_str,
-                    raw_b_str,
                     loc_str,
                     name_str,
                     spec_str,
-                    display_qty_str,
-                    po_str
+                    d_str,
+                    arr_d_str,
+                    t_str,
+                    rec.get("unit_weight") or "",
+                    rec.get("pieces") or "",
+                    rec.get("qty") or "",
+                    rec.get("plate") or "",
+                    raw_b_str,
+                    rec.get("cust_batch") or ""
                 ),
                 tags=(tag,)
             )
@@ -1337,8 +1346,8 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(f"小包系統報表產生器 (勝一專用版) - 版本: {APP_VERSION}")
-        self.geometry("1260x820")
-        self.minsize(1080, 620)
+        self.geometry("1360x840")
+        self.minsize(1120, 620)
         self.configure(padx=15, pady=15)
         
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1673,22 +1682,23 @@ class App(tk.Tk):
         self.bind_all("<MouseWheel>", lambda event: self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units"))
 
         # --- Row 0: 表格標題列 (置於滾動區最上方，共享 100% 同一 Grid 欄位規格) ---
-        # col_idx, label_text, min_width(px)
+        # col_idx, label_text, min_width(px) - 勝一排程 12 欄位對齊
         headers = [
             (0,  "產生",                     40),
-            (1,  "項次",                     40),
-            (2,  "批號 (10碼)",              110),
-            (3,  "數量 (ShipQty)",           100),
-            (4,  "地點 (如15P5)",            100),
-            (5,  "長代號 (自動)",             100),
-            (6,  "出貨日期 📅",              110),
-            (7,  "到貨日期 📅",              110),
-            (8,  "採購單號",                 110),
-            (9,  "品名",                     220),
-            (10, "製造日",                   80),
-            (11, "保存期限",                 80),
-            (12, "剩餘天數",                 80),
-            (13, "清空單列",                 80),
+            (1,  "項次",                     35),
+            (2,  "指送地 (地點)",            130),
+            (3,  "品名",                     95),
+            (4,  "規格",                     110),
+            (5,  "預計出貨日 📅",            115),
+            (6,  "預計到貨日 📅",            115),
+            (7,  "到貨時間",                 70),
+            (8,  "單重",                     55),
+            (9,  "件數",                     55),
+            (10, "出貨數量",                 80),
+            (11, "車牌",                     80),
+            (12, "原料批號",                 110),
+            (13, "客戶批號 (Lot No)",        120),
+            (14, "清空單列",                 60),
         ]
         
         for col_idx, title, min_w in headers:
@@ -1706,8 +1716,8 @@ class App(tk.Tk):
                 width=0,
             )
             lbl.grid(row=0, column=col_idx, sticky="ew", padx=1, pady=(0, 4), ipadx=2, ipady=2)
-            # 設定最小欄寬與動態延展權重 (採購單號、品名等欄位允許延展)
-            weight = 1 if col_idx in (8, 9) else 0
+            # 設定最小欄寬與動態延展權重 (指送地點、品名允許延展)
+            weight = 1 if col_idx in (2, 3) else 0
             self.scrollable_frame.columnconfigure(col_idx, minsize=min_w, weight=weight)
 
         # 產生按鈕
@@ -1719,7 +1729,7 @@ class App(tk.Tk):
             row_idx = len(self.entries) + 1
             row_grid_idx = row_idx
             
-            # Col 0: 勾選
+            # Col 0: 勾選 (產生)
             chk_var = tk.BooleanVar(value=True)
             chk = tk.Checkbutton(self.scrollable_frame, variable=chk_var)
             chk.grid(row=row_grid_idx, column=0, padx=2, pady=2)
@@ -1728,77 +1738,79 @@ class App(tk.Tk):
             lbl_num = tk.Label(self.scrollable_frame, text=str(row_idx), font=("Arial", 10), width=3)
             lbl_num.grid(row=row_grid_idx, column=1, padx=2, pady=2)
             
-            # Col 2: 批號
-            batch_var = tk.StringVar()
-            batch_entry = tk.Entry(self.scrollable_frame, textvariable=batch_var, width=16, font=("Arial", 10))
-            batch_entry.grid(row=row_grid_idx, column=2, padx=2, pady=2, sticky="ew")
-            
-            # Col 3: 槽號
-            qty_var = tk.StringVar()
-            qty_entry = tk.Entry(self.scrollable_frame, textvariable=qty_var, width=10, font=("Arial", 10), fg="blue")
-            qty_entry.grid(row=row_grid_idx, column=3, padx=2, pady=2, sticky="ew")
-            
-            # Col 4: 地點
+            # Col 2: 指送地 (地點)
             loc_var = tk.StringVar()
-            loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=12, font=("Arial", 10))
-            loc_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
+            loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=14, font=("Arial", 10))
+            loc_entry.grid(row=row_grid_idx, column=2, padx=2, pady=2, sticky="ew")
             
-            # Col 5: 長代號 (改為純文字輸入框，不用下拉選單)
-            long_code_var = tk.StringVar()
-            long_code_entry = tk.Entry(self.scrollable_frame, textvariable=long_code_var, width=12, font=("Arial", 10))
-            long_code_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
-            
-            # Col 6: 出貨日期 (Entry + 📅 日曆按鈕)
+            # Col 3: 品名
+            name_var = tk.StringVar()
+            name_entry = tk.Entry(self.scrollable_frame, textvariable=name_var, width=10, font=("Arial", 10), fg="purple")
+            name_entry.grid(row=row_grid_idx, column=3, padx=2, pady=2, sticky="ew")
+
+            # Col 4: 規格
+            spec_var = tk.StringVar()
+            spec_entry = tk.Entry(self.scrollable_frame, textvariable=spec_var, width=12, font=("Arial", 10))
+            spec_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
+
+            # Col 5: 預計出貨日 (Entry + 📅 日曆按鈕)
             date_frame = tk.Frame(self.scrollable_frame)
-            date_frame.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
+            date_frame.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
             
             date_var = tk.StringVar(value="")
-            date_entry = tk.Entry(date_frame, textvariable=date_var, width=11, font=("Arial", 10))
+            date_entry = tk.Entry(date_frame, textvariable=date_var, width=10, font=("Arial", 10))
             date_entry.pack(side="left", fill="x", expand=True)
             
             btn_cal = tk.Button(date_frame, text="📅", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal.pack(side="right", padx=(2, 0))
             
-            # Col 7: 到貨日期 (Entry + 📅 日曆按鈕)
+            # Col 6: 預計到貨日 (Entry + 📅 日曆按鈕)
             arr_date_frame = tk.Frame(self.scrollable_frame)
-            arr_date_frame.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
+            arr_date_frame.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
             
             arr_date_var = tk.StringVar(value="")
-            arr_date_entry = tk.Entry(arr_date_frame, textvariable=arr_date_var, width=11, font=("Arial", 10))
+            arr_date_entry = tk.Entry(arr_date_frame, textvariable=arr_date_var, width=10, font=("Arial", 10))
             arr_date_entry.pack(side="left", fill="x", expand=True)
             
             btn_cal_arr = tk.Button(arr_date_frame, text="📅", command=lambda dv=arr_date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal_arr.pack(side="right", padx=(2, 0))
-            
-            # Col 8: 採購單號
-            po_var = tk.StringVar(value="")
-            po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=18, font=("Arial", 10), fg="#333")
-            po_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
-            # 料號 (自動)：後台保留變數連動與報表產出，畫面不顯示
-            part_var = tk.StringVar()
+            # Col 7: 到貨時間
+            time_var = tk.StringVar()
+            time_entry = tk.Entry(self.scrollable_frame, textvariable=time_var, width=8, font=("Arial", 10), justify="center")
+            time_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
 
-            # Col 9: 品名
-            name_var = tk.StringVar()
-            name_entry = tk.Entry(self.scrollable_frame, textvariable=name_var, width=28, font=("Arial", 10), fg="purple")
-            name_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
+            # Col 8: 單重
+            unit_w_var = tk.StringVar()
+            unit_w_entry = tk.Entry(self.scrollable_frame, textvariable=unit_w_var, width=6, font=("Arial", 10), justify="center")
+            unit_w_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
-            # Col 10: 製造日
-            mfg_var = tk.StringVar()
-            mfg_entry = tk.Entry(self.scrollable_frame, textvariable=mfg_var, width=10, font=("Arial", 10), fg="black")
-            mfg_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
+            # Col 9: 件數
+            pcs_var = tk.StringVar()
+            pcs_entry = tk.Entry(self.scrollable_frame, textvariable=pcs_var, width=6, font=("Arial", 10), justify="center")
+            pcs_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 11: 保存期限
-            exp_var = tk.StringVar()
-            exp_entry = tk.Entry(self.scrollable_frame, textvariable=exp_var, width=10, font=("Arial", 10), fg="black")
-            exp_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
+            # Col 10: 出貨數量
+            qty_var = tk.StringVar()
+            qty_entry = tk.Entry(self.scrollable_frame, textvariable=qty_var, width=9, font=("Arial", 10), fg="blue", justify="center")
+            qty_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
 
-            # Col 12: 剩餘天數
-            rem_var = tk.StringVar()
-            rem_entry = tk.Entry(self.scrollable_frame, textvariable=rem_var, width=6, font=("Arial", 10), fg="red")
-            rem_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
+            # Col 11: 車牌
+            plate_var = tk.StringVar()
+            plate_entry = tk.Entry(self.scrollable_frame, textvariable=plate_var, width=9, font=("Arial", 10), justify="center")
+            plate_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
 
-            # Col 13: 單列清空按鈕
+            # Col 12: 原料批號
+            raw_batch_var = tk.StringVar()
+            raw_batch_entry = tk.Entry(self.scrollable_frame, textvariable=raw_batch_var, width=13, font=("Arial", 10))
+            raw_batch_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
+
+            # Col 13: 客戶批號 (Lot No)
+            cust_batch_var = tk.StringVar()
+            cust_batch_entry = tk.Entry(self.scrollable_frame, textvariable=cust_batch_var, width=14, font=("Arial", 10), fg="darkgreen")
+            cust_batch_entry.grid(row=row_grid_idx, column=13, padx=2, pady=2, sticky="ew")
+
+            # Col 14: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
                 text="清空", 
@@ -1807,55 +1819,68 @@ class App(tk.Tk):
                 bg="#FFEBEE", 
                 fg="#C62828", 
                 cursor="hand2", 
-                width=6,
+                width=5,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=13, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=14, padx=4, pady=2)
+
+            # 後台相容性變數 (支援 COA / 報表產出與長代號/料號對照)
+            batch_var = tk.StringVar()
+            long_code_var = tk.StringVar()
+            part_var = tk.StringVar()
+            po_var = tk.StringVar()
+            mfg_var = tk.StringVar()
+            exp_var = tk.StringVar()
+            rem_var = tk.StringVar()
+
+            # 雙向同步批號 (優先取客戶批號，其次原料批號)
+            def sync_batch(*args, bv=batch_var, cbv=cust_batch_var, rbv=raw_batch_var):
+                b = cbv.get().strip().upper() or rbv.get().strip().upper()
+                if bv.get() != b:
+                    bv.set(b)
+
+            cust_batch_var.trace_add("write", sync_batch)
+            raw_batch_var.trace_add("write", sync_batch)
 
             # 綁定事件
-            batch_var.trace_add("write", lambda name, index, mode, bv=batch_var, tv=qty_var: self.on_batch_change(bv, tv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, pv=part_var: self.update_part_no(lv, pv))
             
-            for widget in (batch_entry, loc_entry, date_entry):
+            for widget in (loc_entry, cust_batch_entry, raw_batch_entry, date_entry):
                 widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
             
             self.entries.append({
                 "chk_var": chk_var,
-                "batch_var": batch_var,
-                "qty_var": qty_var,
                 "loc_var": loc_var,
-                "long_code_var": long_code_var,
+                "name_var": name_var,
+                "spec_var": spec_var,
                 "date_var": date_var,
                 "arr_date_var": arr_date_var,
-                "po_var": po_var,
+                "time_var": time_var,
+                "unit_w_var": unit_w_var,
+                "pcs_var": pcs_var,
+                "qty_var": qty_var,
+                "plate_var": plate_var,
+                "raw_batch_var": raw_batch_var,
+                "cust_batch_var": cust_batch_var,
+                "batch_var": batch_var,
+                "long_code_var": long_code_var,
                 "part_var": part_var,
-                "name_var": name_var,
+                "po_var": po_var,
                 "mfg_var": mfg_var,
                 "exp_var": exp_var,
                 "rem_var": rem_var,
-                
             })
 
     def clear_all_rows(self):
         """一鍵清除全部輸入欄位 (全清)"""
-        if messagebox.askyesno("確認清空", "確定要清空所有已填寫的批號、地點與時間資料嗎？"):
+        if messagebox.askyesno("確認清空", "確定要清空所有已填寫的排程資料嗎？"):
             for entry in self.entries:
-                entry["batch_var"].set("")
-                entry["loc_var"].set("")
-                entry["long_code_var"].set("")
-                entry["qty_var"].set("")
-                entry["date_var"].set("")
-                entry["arr_date_var"].set("")
-                if "po_var" in entry: entry["po_var"].set("")
-                if "part_var" in entry: entry["part_var"].set("")
-                if "name_var" in entry: entry["name_var"].set("")
-                if "mfg_var" in entry: entry["mfg_var"].set("")
-                if "exp_var" in entry: entry["exp_var"].set("")
-                if "rem_var" in entry: entry["rem_var"].set("")
-                
+                for k, v in entry.items():
+                    if hasattr(v, "set") and k != "chk_var":
+                        v.set("")
 
     def set_today_all_dates(self):
         from datetime import datetime
@@ -1870,18 +1895,9 @@ class App(tk.Tk):
         """清空單一列的資料 (單個清)"""
         if 0 <= r_idx < len(self.entries):
             entry = self.entries[r_idx]
-            entry["batch_var"].set("")
-            entry["loc_var"].set("")
-            entry["long_code_var"].set("")
-            entry["qty_var"].set("")
-            entry["date_var"].set("")
-            entry["arr_date_var"].set("")
-            if "po_var" in entry: entry["po_var"].set("")
-            if "part_var" in entry: entry["part_var"].set("")
-            if "name_var" in entry: entry["name_var"].set("")
-            if "mfg_var" in entry: entry["mfg_var"].set("")
-            if "exp_var" in entry: entry["exp_var"].set("")
-            if "rem_var" in entry: entry["rem_var"].set("")
+            for k, v in entry.items():
+                if hasattr(v, "set") and k != "chk_var":
+                    v.set("")
             
 
     def on_batch_change(self, batch_var, qty_var):
@@ -2426,12 +2442,7 @@ class App(tk.Tk):
                                 start_row = r_idx + 1
                                 break
 
-                        if batch_col == -1: batch_col = 2
-                        if loc_col == -1: loc_col = 5
-                        if ship_date_col == -1: ship_date_col = 0
-                        if arr_date_col == -1: arr_date_col = 1
-                        if qty_col == -1: qty_col = 4
-                        # 找不到就留空（-1），不死寫固定欄號，以免抓到不相關欄位
+                        # 欄位依據表頭精確辨識，找不到時維持 -1，絕不胡亂指派以免抓錯欄位
 
                         for r_idx in range(start_row, len(rows)):
                             row = rows[r_idx]
@@ -2442,38 +2453,36 @@ class App(tk.Tk):
 
                             raw_b = str(get_cell_val(raw_batch_col) or "").strip().upper()
                             cust_b = str(get_cell_val(cust_batch_col) or "").strip().upper()
-                            b_val = cust_b or raw_b or str(get_cell_val(batch_col) or "").strip().upper()
-                            l_val = str(get_cell_val(loc_col) or "").strip().upper()
-                            d_val = get_cell_val(ship_date_col)
-                            arr_d_val = get_cell_val(arr_date_col)
-                            qty_val = str(get_cell_val(qty_col) or "").strip()
-                            time_val = normalize_time_str(get_cell_val(time_col))
-                            origin_val = str(get_cell_val(origin_col) or "").strip()
-                            mt_val = normalize_time_str(get_cell_val(mod_time_col))
-                            po_val = str(get_cell_val(po_col) or "").strip()
-                            cust_val = str(get_cell_val(cust_col) or "").strip()
-                            mfg_val = str(get_cell_val(mfg_col) or "").strip()
-                            exp_val = str(get_cell_val(exp_col) or "").strip()
-                            rem_val = str(get_cell_val(rem_col) or "").strip()
-                            name_val = str(get_cell_val(name_col) or "").strip() if name_col != -1 else ""
-                            spec_val = str(get_cell_val(spec_col) or "").strip() if spec_col != -1 else ""
-                            unit_w_val = str(get_cell_val(unit_w_col) or "").strip() if unit_w_col != -1 else ""
-                            pcs_val = str(get_cell_val(pcs_col) or "").strip() if pcs_col != -1 else ""
-                            plate_val = str(get_cell_val(plate_col) or "").strip() if plate_col != -1 else ""
+                            fallback_b = str(get_cell_val(batch_col) or "").strip().upper() if batch_col != -1 else ""
 
-                            # 若預設欄位非 10 碼批號，全列搜尋 10 碼英數混合批號
-                            if len(b_val) != 10 or not any(c.isdigit() for c in b_val):
-                                for cell in row:
+                            # 移除批號中的雜訊與中文說明 (例如鋼桶、廠別等)
+                            if any(k in raw_b for k in ["廠", "台積", "鋼桶", "桶", "KG", "/"]): raw_b = ""
+                            if any(k in cust_b for k in ["廠", "台積", "鋼桶", "桶", "KG", "/"]): cust_b = ""
+                            if any(k in fallback_b for k in ["廠", "台積", "鋼桶", "桶", "KG", "/"]): fallback_b = ""
+
+                            b_val = cust_b or raw_b or fallback_b
+
+                            # 若預設欄位非標準 10 碼英數混合批號，只在非文字欄位搜尋合格 10 碼批號
+                            has_batch = (len(b_val) == 10 and any(c.isdigit() for c in b_val) and any(c.isalpha() for c in b_val))
+                            if not has_batch:
+                                found_b = ""
+                                for c_idx_sub, cell in enumerate(row):
+                                    if c_idx_sub in (loc_col, name_col, spec_col, po_col, ship_date_col, arr_date_col, time_col, qty_col, unit_w_col, pcs_col):
+                                        continue
                                     cell_str = str(cell or "").strip().upper()
-                                    if len(cell_str) == 10 and any(c.isdigit() for c in cell_str) and any(c.isalpha() for c in cell_str) and "/" not in cell_str and "-" not in cell_str:
-                                        b_val = cell_str
+                                    if len(cell_str) == 10 and any(c.isdigit() for c in cell_str) and any(c.isalpha() for c in cell_str) and not any(k in cell_str for k in ["/", "-", "廠", "台積", "桶"]):
+                                        found_b = cell_str
                                         break
+                                b_val = found_b  # 找不到即為空字串，絕不使用地點字串作為批號！
+                                has_batch = bool(b_val)
 
-                            # 若預設欄位非有效地點或地點為空，全列搜尋包含地點特徵的儲存格
-                            clean_loc = clean_location_str(l_val, self.mapping_dict)
+                            l_val = str(get_cell_val(loc_col) or "").strip()
+                            clean_loc = clean_location_str(l_val, self.mapping_dict) or l_val
+
+                            # 若預設欄位未抓到地點，且非批號非日期，才搜尋包含地點特徵的儲存格
                             if not clean_loc or (clean_loc not in self.mapping_dict and not re.search(r'\d+P\d+', clean_loc)):
-                                for cell in row:
-                                    if cell is None: continue
+                                for c_sub, cell in enumerate(row):
+                                    if cell is None or c_sub in (name_col, spec_col, po_col, ship_date_col, arr_date_col, time_col, qty_col, unit_w_col, pcs_col): continue
                                     cs = str(cell).strip()
                                     if not cs or cs == b_val or "/" in cs or "-" in cs: continue
                                     candidate = clean_location_str(cs, self.mapping_dict)
@@ -2483,7 +2492,6 @@ class App(tk.Tk):
                                         break
 
                             # 若全列皆無批號，且地點與出貨日為空，視為空白行略過
-                            has_batch = (len(b_val) == 10 and any(c.isdigit() for c in b_val))
                             if not has_batch and not (clean_loc and d_val):
                                 continue
 
@@ -2553,7 +2561,11 @@ class App(tk.Tk):
 
                 start_idx = 0
                 for idx, entry in enumerate(self.entries):
-                    if not entry["batch_var"].get().strip():
+                    # 若該列的 指送地、原料批號與客戶批號 皆為空，視為可用空白列
+                    if not entry.get("loc_var", tk.StringVar()).get().strip() and \
+                       not entry.get("raw_batch_var", tk.StringVar()).get().strip() and \
+                       not entry.get("cust_batch_var", tk.StringVar()).get().strip() and \
+                       not entry.get("batch_var", tk.StringVar()).get().strip():
                         start_idx = idx
                         break
                 else:
@@ -2565,17 +2577,28 @@ class App(tk.Tk):
                     
                 for i, rec in enumerate(target_records):
                     row_e = self.entries[start_idx + i]
-                    row_e["batch_var"].set(rec.get("batch", ""))
-                    if "qty_var" in row_e and rec.get("qty"):
-                        row_e["qty_var"].set(rec["qty"])
-                    row_e["loc_var"].set(rec.get("loc", ""))
-                    if rec.get("date"): row_e["date_var"].set(rec["date"])
-                    if rec.get("arr_date"): row_e["arr_date_var"].set(rec["arr_date"])
-                    if rec.get("po"): row_e.get("po_var", tk.StringVar()).set(rec["po"])
-                    if rec.get("name") and "name_var" in row_e: row_e["name_var"].set(rec["name"])
-                    if rec.get("mfg_date") and "mfg_var" in row_e: row_e["mfg_var"].set(rec["mfg_date"])
-                    if rec.get("exp_date") and "exp_var" in row_e: row_e["exp_var"].set(rec["exp_date"])
-                    if rec.get("rem_days") and "rem_var" in row_e: row_e["rem_var"].set(rec["rem_days"])
+                    # 精準寫入勝一排程 12 核心欄位
+                    if "loc_var" in row_e: row_e["loc_var"].set(rec.get("loc", ""))
+                    if "name_var" in row_e: row_e["name_var"].set(rec.get("name", ""))
+                    if "spec_var" in row_e: row_e["spec_var"].set(rec.get("spec", ""))
+                    if "date_var" in row_e: row_e["date_var"].set(rec.get("date", ""))
+                    if "arr_date_var" in row_e: row_e["arr_date_var"].set(rec.get("arr_date", ""))
+                    if "time_var" in row_e: row_e["time_var"].set(rec.get("time", ""))
+                    if "unit_w_var" in row_e: row_e["unit_w_var"].set(rec.get("unit_weight", ""))
+                    if "pcs_var" in row_e: row_e["pcs_var"].set(rec.get("pieces", ""))
+                    if "qty_var" in row_e: row_e["qty_var"].set(rec.get("qty", ""))
+                    if "plate_var" in row_e: row_e["plate_var"].set(rec.get("plate", ""))
+                    if "raw_batch_var" in row_e: row_e["raw_batch_var"].set(rec.get("raw_batch", ""))
+                    if "cust_batch_var" in row_e: row_e["cust_batch_var"].set(rec.get("cust_batch", ""))
+
+                    # 後台相容變數同步
+                    eff_b = rec.get("cust_batch") or rec.get("raw_batch") or rec.get("batch", "")
+                    if "batch_var" in row_e: row_e["batch_var"].set(eff_b)
+                    if "po_var" in row_e and rec.get("po"): row_e["po_var"].set(rec["po"])
+                    if "mfg_var" in row_e and rec.get("mfg_date"): row_e["mfg_var"].set(rec["mfg_date"])
+                    if "exp_var" in row_e and rec.get("exp_date"): row_e["exp_var"].set(rec["exp_date"])
+                    if "rem_var" in row_e and rec.get("rem_days"): row_e["rem_var"].set(rec["rem_days"])
+
                     # 儲存勝一排程專用 12 欄位資料 (備便後續寫入 COA 與 生產履歷)
                     row_e["raw_batch"] = rec.get("raw_batch", "")
                     row_e["cust_batch"] = rec.get("cust_batch", "")
