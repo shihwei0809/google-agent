@@ -2491,6 +2491,23 @@ class App(tk.Tk):
                                         clean_loc = candidate
                                         break
 
+                            d_val = get_cell_val(ship_date_col)
+                            arr_d_val = get_cell_val(arr_date_col)
+                            qty_val = str(get_cell_val(qty_col) or "").strip()
+                            time_val = normalize_time_str(get_cell_val(time_col))
+                            origin_val = str(get_cell_val(origin_col) or "").strip()
+                            mt_val = normalize_time_str(get_cell_val(mod_time_col))
+                            po_val = str(get_cell_val(po_col) or "").strip()
+                            cust_val = str(get_cell_val(cust_col) or "").strip()
+                            mfg_val = str(get_cell_val(mfg_col) or "").strip()
+                            exp_val = str(get_cell_val(exp_col) or "").strip()
+                            rem_val = str(get_cell_val(rem_col) or "").strip()
+                            name_val = str(get_cell_val(name_col) or "").strip() if name_col != -1 else ""
+                            spec_val = str(get_cell_val(spec_col) or "").strip() if spec_col != -1 else ""
+                            unit_w_val = str(get_cell_val(unit_w_col) or "").strip() if unit_w_col != -1 else ""
+                            pcs_val = str(get_cell_val(pcs_col) or "").strip() if pcs_col != -1 else ""
+                            plate_val = str(get_cell_val(plate_col) or "").strip() if plate_col != -1 else ""
+
                             # 若全列皆無批號，且地點與出貨日為空，視為空白行略過
                             if not has_batch and not (clean_loc and d_val):
                                 continue
