@@ -843,14 +843,15 @@ class ImportRangeDialog(tk.Toplevel):
         preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽 (欄寬可自由拉動，全欄位完整呈現)", font=("Arial", 10, "bold"), padx=6, pady=6, fg="#002060")
         preview_frame.pack(fill="both", expand=True, pady=(0, 10))
 
-        # 定義 Treeview 欄位 (勝一專用 12 核心欄位)
-        columns = ("chk", "idx", "loc", "name", "spec", "date", "arr_date", "time", "unit_w", "pcs", "qty", "plate", "raw_batch", "cust_batch")
+        # 定義 Treeview 欄位 (勝一專用 12 核心欄位 + 簡稱核對)
+        columns = ("chk", "idx", "loc", "short_loc", "name", "spec", "date", "arr_date", "time", "unit_w", "pcs", "qty", "plate", "raw_batch", "cust_batch")
         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
 
         col_defs = [
             ("chk", "✅選取", 48, "center"),
             ("idx", "項次", 40, "center"),
             ("loc", "指送地(地點)", 120, "center"),
+            ("short_loc", "簡稱", 70, "center"),
             ("name", "品名", 95, "w"),
             ("spec", "規格", 95, "w"),
             ("date", "預計出貨 📅", 95, "center"),
@@ -1022,6 +1023,7 @@ class ImportRangeDialog(tk.Toplevel):
             po_str = rec.get("po") or ""
 
             tag = "evenrow" if idx % 2 == 0 else "oddrow"
+            short_str = rec.get("short_loc") or getattr(self.parent_app, "loc_to_short", {}).get(loc_str) or clean_location_str(loc_str, getattr(self.parent_app, "mapping_dict", {})) or ""
             self.tree.insert(
                 "",
                 "end",
@@ -1029,6 +1031,7 @@ class ImportRangeDialog(tk.Toplevel):
                     "☑",
                     f"[{idx+1:02d}]",
                     loc_str,
+                    short_str,
                     name_str,
                     spec_str,
                     d_str,
@@ -1728,18 +1731,19 @@ class App(tk.Tk):
             (0,  "產生",                     40),
             (1,  "項次",                     35),
             (2,  "指送地 (地點)",            130),
-            (3,  "品名",                     95),
-            (4,  "規格",                     110),
-            (5,  "預計出貨日 📅",            115),
-            (6,  "預計到貨日 📅",            115),
-            (7,  "到貨時間",                 70),
-            (8,  "單重",                     55),
-            (9,  "件數",                     55),
-            (10, "出貨數量",                 80),
-            (11, "車牌",                     80),
-            (12, "原料批號",                 110),
-            (13, "客戶批號 (Lot No)",        120),
-            (14, "清空單列",                 60),
+            (3,  "簡稱",                     75),
+            (4,  "品名",                     95),
+            (5,  "規格",                     110),
+            (6,  "預計出貨日 📅",            115),
+            (7,  "預計到貨日 📅",            115),
+            (8,  "到貨時間",                 70),
+            (9,  "單重",                     55),
+            (10, "件數",                     55),
+            (11, "出貨數量",                 80),
+            (12, "車牌",                     80),
+            (13, "原料批號",                 110),
+            (14, "客戶批號 (Lot No)",        120),
+            (15, "清空單列",                 60),
         ]
         
         for col_idx, title, min_w in headers:
@@ -1758,7 +1762,7 @@ class App(tk.Tk):
             )
             lbl.grid(row=0, column=col_idx, sticky="ew", padx=1, pady=(0, 4), ipadx=2, ipady=2)
             # 設定最小欄寬與動態延展權重 (指送地點、品名允許延展)
-            weight = 1 if col_idx in (2, 3) else 0
+            weight = 1 if col_idx in (2, 4) else 0
             self.scrollable_frame.columnconfigure(col_idx, minsize=min_w, weight=weight)
 
         # 產生按鈕
@@ -1783,20 +1787,25 @@ class App(tk.Tk):
             loc_var = tk.StringVar()
             loc_entry = tk.Entry(self.scrollable_frame, textvariable=loc_var, width=14, font=("Arial", 10))
             loc_entry.grid(row=row_grid_idx, column=2, padx=2, pady=2, sticky="ew")
+
+            # Col 3: 簡稱 (顯示/核對/手動修改)
+            short_var = tk.StringVar()
+            short_entry = tk.Entry(self.scrollable_frame, textvariable=short_var, width=8, font=("Arial", 10, "bold"), fg="#D84315", justify="center")
+            short_entry.grid(row=row_grid_idx, column=3, padx=2, pady=2, sticky="ew")
             
-            # Col 3: 品名
+            # Col 4: 品名
             name_var = tk.StringVar()
             name_entry = tk.Entry(self.scrollable_frame, textvariable=name_var, width=10, font=("Arial", 10), fg="purple")
-            name_entry.grid(row=row_grid_idx, column=3, padx=2, pady=2, sticky="ew")
+            name_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
 
-            # Col 4: 規格
+            # Col 5: 規格
             spec_var = tk.StringVar()
             spec_entry = tk.Entry(self.scrollable_frame, textvariable=spec_var, width=12, font=("Arial", 10))
-            spec_entry.grid(row=row_grid_idx, column=4, padx=2, pady=2, sticky="ew")
+            spec_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
 
-            # Col 5: 預計出貨日 (Entry + 📅 日曆按鈕)
+            # Col 6: 預計出貨日 (Entry + 📅 日曆按鈕)
             date_frame = tk.Frame(self.scrollable_frame)
-            date_frame.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
+            date_frame.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
             
             date_var = tk.StringVar(value="")
             date_entry = tk.Entry(date_frame, textvariable=date_var, width=10, font=("Arial", 10))
@@ -1805,9 +1814,9 @@ class App(tk.Tk):
             btn_cal = tk.Button(date_frame, text="📅", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal.pack(side="right", padx=(2, 0))
             
-            # Col 6: 預計到貨日 (Entry + 📅 日曆按鈕)
+            # Col 7: 預計到貨日 (Entry + 📅 日曆按鈕)
             arr_date_frame = tk.Frame(self.scrollable_frame)
-            arr_date_frame.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
+            arr_date_frame.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
             
             arr_date_var = tk.StringVar(value="")
             arr_date_entry = tk.Entry(arr_date_frame, textvariable=arr_date_var, width=10, font=("Arial", 10))
@@ -1816,42 +1825,42 @@ class App(tk.Tk):
             btn_cal_arr = tk.Button(arr_date_frame, text="📅", command=lambda dv=arr_date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal_arr.pack(side="right", padx=(2, 0))
 
-            # Col 7: 到貨時間
+            # Col 8: 到貨時間
             time_var = tk.StringVar()
             time_entry = tk.Entry(self.scrollable_frame, textvariable=time_var, width=8, font=("Arial", 10), justify="center")
-            time_entry.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
+            time_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
 
-            # Col 8: 單重
+            # Col 9: 單重
             unit_w_var = tk.StringVar()
             unit_w_entry = tk.Entry(self.scrollable_frame, textvariable=unit_w_var, width=6, font=("Arial", 10), justify="center")
-            unit_w_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+            unit_w_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 9: 件數
+            # Col 10: 件數
             pcs_var = tk.StringVar()
             pcs_entry = tk.Entry(self.scrollable_frame, textvariable=pcs_var, width=6, font=("Arial", 10), justify="center")
-            pcs_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
+            pcs_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
 
-            # Col 10: 出貨數量
+            # Col 11: 出貨數量
             qty_var = tk.StringVar()
             qty_entry = tk.Entry(self.scrollable_frame, textvariable=qty_var, width=9, font=("Arial", 10), fg="blue", justify="center")
-            qty_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
+            qty_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
 
-            # Col 11: 車牌
+            # Col 12: 車牌
             plate_var = tk.StringVar()
             plate_entry = tk.Entry(self.scrollable_frame, textvariable=plate_var, width=9, font=("Arial", 10), justify="center")
-            plate_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
+            plate_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
 
-            # Col 12: 原料批號
+            # Col 13: 原料批號
             raw_batch_var = tk.StringVar()
             raw_batch_entry = tk.Entry(self.scrollable_frame, textvariable=raw_batch_var, width=13, font=("Arial", 10))
-            raw_batch_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
+            raw_batch_entry.grid(row=row_grid_idx, column=13, padx=2, pady=2, sticky="ew")
 
-            # Col 13: 客戶批號 (Lot No)
+            # Col 14: 客戶批號 (Lot No)
             cust_batch_var = tk.StringVar()
             cust_batch_entry = tk.Entry(self.scrollable_frame, textvariable=cust_batch_var, width=14, font=("Arial", 10), fg="darkgreen")
-            cust_batch_entry.grid(row=row_grid_idx, column=13, padx=2, pady=2, sticky="ew")
+            cust_batch_entry.grid(row=row_grid_idx, column=14, padx=2, pady=2, sticky="ew")
 
-            # Col 14: 單列清空按鈕
+            # Col 15: 單列清空按鈕
             btn_clear_row = tk.Button(
                 self.scrollable_frame, 
                 text="清空", 
@@ -1863,7 +1872,7 @@ class App(tk.Tk):
                 width=5,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=14, padx=4, pady=2)
+            btn_clear_row.grid(row=row_grid_idx, column=15, padx=4, pady=2)
 
             # 後台相容性變數 (支援 COA / 報表產出與長代號/料號對照)
             batch_var = tk.StringVar()
@@ -1883,12 +1892,21 @@ class App(tk.Tk):
             cust_batch_var.trace_add("write", sync_batch)
             raw_batch_var.trace_add("write", sync_batch)
 
-            # 綁定事件 (雙條件核對: 地點或品名變更時即時核對料號)
-            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
-            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, nv=name_var, pv=part_var: self.update_part_no(lv, nv, pv))
+            # 綁定事件: 指送地變更時，自動更新簡稱
+            def on_loc_change_wrapper(*args, lv=loc_var, sv=short_var, lcv=long_code_var, nv=name_var, pv=part_var):
+                raw_l = lv.get().strip()
+                s_code = getattr(self, "loc_to_short", {}).get(raw_l) or clean_location_str(raw_l, getattr(self, "mapping_dict", {})) or ""
+                if s_code and sv.get() != s_code:
+                    sv.set(s_code)
+                self.on_loc_change(lv, lcv)
+                self.update_part_no(lv, nv, pv)
+
+            loc_var.trace_add("write", on_loc_change_wrapper)
+            # 若手動修改簡稱，亦觸發料號與代號更新
+            short_var.trace_add("write", lambda *args, sv=short_var, lv=loc_var, nv=name_var, pv=part_var: self.update_part_no(sv, nv, pv))
             name_var.trace_add("write", lambda name, index, mode, lv=loc_var, nv=name_var, pv=part_var: self.update_part_no(lv, nv, pv))
             
-            for widget in (loc_entry, cust_batch_entry, raw_batch_entry, date_entry):
+            for widget in (loc_entry, short_entry, cust_batch_entry, raw_batch_entry, date_entry):
                 widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
                 widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
@@ -1896,6 +1914,7 @@ class App(tk.Tk):
             self.entries.append({
                 "chk_var": chk_var,
                 "loc_var": loc_var,
+                "short_var": short_var,
                 "name_var": name_var,
                 "spec_var": spec_var,
                 "date_var": date_var,
@@ -2644,11 +2663,13 @@ class App(tk.Tk):
                     
                 for i, rec in enumerate(target_records):
                     row_e = self.entries[start_idx + i]
-                    # 精準寫入勝一排程 12 核心欄位 (地點欄位顯示人員習慣的完整中文+英文名稱)
+                    # 精準寫入勝一排程 12 核心欄位 (地點欄位顯示人員習慣的完整中文+英文名稱，簡稱顯示核對碼)
                     display_loc = rec.get("raw_loc") or rec.get("loc", "")
+                    short_loc_val = str(getattr(self, "loc_to_short", {}).get(display_loc) or clean_location_str(display_loc, self.mapping_dict) or "")
                     if "loc_var" in row_e: row_e["loc_var"].set(display_loc)
+                    if "short_var" in row_e: row_e["short_var"].set(short_loc_val)
+                    row_e["short_loc"] = short_loc_val
                     if "name_var" in row_e: row_e["name_var"].set(rec.get("name", ""))
-                    row_e["short_loc"] = str(getattr(self, "loc_to_short", {}).get(display_loc) or clean_location_str(display_loc, self.mapping_dict) or "")
                     if "spec_var" in row_e: row_e["spec_var"].set(rec.get("spec", ""))
                     if "date_var" in row_e: row_e["date_var"].set(rec.get("date", ""))
                     if "arr_date_var" in row_e: row_e["arr_date_var"].set(rec.get("arr_date", ""))
