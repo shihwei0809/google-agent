@@ -1454,8 +1454,6 @@ class App(tk.Tk):
                                 if l_k:
                                     if prod_name:
                                         self.part_mapping_dict[(l_k, prod_name)] = info
-                                    if (l_k, "") not in self.part_mapping_dict and part_no1:
-                                        self.part_mapping_dict[(l_k, "")] = info
                         else:
                             # 舊版 4~5 欄格式相容
                             loc_key = str(row[0]).strip().upper()
@@ -1972,18 +1970,13 @@ class App(tk.Tk):
         raw_name = name_var.get().strip().upper() if name_var else ""
         norm_loc = clean_location_str(raw_loc, self.mapping_dict)
         
+        # 嚴格雙條件精準核對：必須「廠區地點」與「品名」皆吻合才可代入料號
+        # 只要缺少品名或對照表中無該品名匹配，一律保持留空，絕不退回單地點查詢！
         part_no = ""
-        # 雙條件精準核對: (地點全名/簡稱, 品名)
-        for l_k in (norm_loc, raw_loc.upper(), raw_loc):
-            if (l_k, raw_name) in self.part_mapping_dict:
-                part_no = self.part_mapping_dict[(l_k, raw_name)].get("default", "")
-                if part_no: break
-        
-        # 若雙條件無匹配且品名為空，才嘗試以單純地點查詢
-        if not part_no and not raw_name:
-            for l_k in (norm_loc, raw_loc.upper()):
-                if l_k in self.part_mapping_dict and isinstance(self.part_mapping_dict[l_k], dict):
-                    part_no = self.part_mapping_dict[l_k].get("default", "")
+        if raw_name:
+            for l_k in (norm_loc, raw_loc.upper(), raw_loc):
+                if (l_k, raw_name) in self.part_mapping_dict:
+                    part_no = self.part_mapping_dict[(l_k, raw_name)].get("default", "")
                     if part_no: break
 
         part_var.set(part_no)
