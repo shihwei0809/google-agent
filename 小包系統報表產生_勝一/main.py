@@ -1352,7 +1352,9 @@ class App(tk.Tk):
         
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.template_path = None
-        self.mapping_path = os.path.join(self.base_dir, "N系料小包-地點代號對照表.xlsx")
+        new_map = os.path.join(self.base_dir, "台積小包材地點代號對照表.xlsx")
+        old_map = os.path.join(self.base_dir, "N系料小包-地點代號對照表.xlsx")
+        self.mapping_path = new_map if os.path.exists(new_map) else old_map
         
         self.mapping_dict = {}
         self.imported_lorry_files = []
@@ -1406,6 +1408,7 @@ class App(tk.Tk):
     def load_mapping(self):
         self.mapping_dict = {}
         self.part_mapping_dict = {}
+        self.loc_to_short = {}
         if os.path.exists(self.mapping_path):
             try:
                 map_wb = openpyxl.load_workbook(self.mapping_path, data_only=True)
@@ -1413,8 +1416,45 @@ class App(tk.Tk):
                 rows = list(map_ws.iter_rows(values_only=True))
                 if rows:
                     headers = [str(h).strip() if h else "" for h in rows[0]]
+                    is_new_format = ("簡稱" in headers or "品名" in headers) and len(headers) >= 5
                     for row in rows[1:]:
-                        if row and len(row) >= 2 and row[0] and row[1]:
+                        if not row or len(row) < 2: continue
+                        if is_new_format:
+                            full_loc = str(row[0] or "").strip()
+                            short_code = str(row[1] or "").strip().upper()
+                            prod_name = str(row[2] or "").strip().upper() if len(row) > 2 and row[2] else ""
+                            loc_val = str(row[3] or "").strip() if len(row) > 3 and row[3] else ""
+                            part_no1 = str(row[4] or "").strip() if len(row) > 4 and row[4] else ""
+                            part_no2 = str(row[5] or "").strip() if len(row) > 5 and row[5] else ""
+                            
+                            if not short_code and not full_loc: continue
+                            
+                            # 建立 full_loc -> short_code 雙向對照
+                            if full_loc and short_code:
+                                self.loc_to_short[full_loc] = short_code
+                                self.loc_to_short[clean_location_str(full_loc)] = short_code
+                            if short_code:
+                                self.loc_to_short[short_code] = short_code
+
+                            # mapping_dict (長代號/工廠地點)
+                            for l_k in (short_code, full_loc, clean_location_str(full_loc)):
+                                if l_k:
+                                    if l_k not in self.mapping_dict:
+                                        self.mapping_dict[l_k] = []
+                                    if loc_val and loc_val not in self.mapping_dict[l_k]:
+                                        self.mapping_dict[l_k].append(loc_val)
+
+                            # part_mapping_dict (雙條件: (地點, 品名) -> 料號)
+                            info = {"default": part_no1, "part2": part_no2, "origins": {}}
+                            if part_no2: info["origins"]["預設料號2"] = part_no2
+                            for l_k in (short_code, full_loc, clean_location_str(full_loc)):
+                                if l_k:
+                                    if prod_name:
+                                        self.part_mapping_dict[(l_k, prod_name)] = info
+                                    if (l_k, "") not in self.part_mapping_dict and part_no1:
+                                        self.part_mapping_dict[(l_k, "")] = info
+                        else:
+                            # 舊版 4~5 欄格式相容
                             loc_key = str(row[0]).strip().upper()
                             loc_val = str(row[1]).strip()
                             if any(kw in loc_key for kw in ("到貨", "地點", "SHORT", "LOCATION", "KEY", "HEADER")):
@@ -1423,20 +1463,21 @@ class App(tk.Tk):
                                 self.mapping_dict[loc_key] = []
                             if loc_val not in self.mapping_dict[loc_key]:
                                 self.mapping_dict[loc_key].append(loc_val)
-                            if loc_key not in self.part_mapping_dict:
-                                info = {"default": str(row[2]).strip() if len(row) > 2 and row[2] else "", "origins": {}}
-                                for i in range(3, len(headers)):
-                                    if i < len(row) and row[i] is not None:
-                                        h_name = headers[i]
-                                        if h_name: info["origins"][h_name] = str(row[i]).strip()
-                                self.part_mapping_dict[loc_key] = info
+                            info = {"default": str(row[2]).strip() if len(row) > 2 and row[2] else "", "origins": {}}
+                            for i in range(3, len(headers)):
+                                if i < len(row) and row[i] is not None:
+                                    h_name = headers[i]
+                                    if h_name: info["origins"][h_name] = str(row[i]).strip()
+                            self.part_mapping_dict[loc_key] = info
+                            self.part_mapping_dict[(loc_key, "")] = info
                 map_wb.close()
             except Exception as e:
                 pass
 
         if hasattr(self, "lbl_mapping_status"):
+            base_name = os.path.basename(self.mapping_path)
             m_color = "green" if os.path.exists(self.mapping_path) else "red"
-            m_text = f"對照表檔案 (N系料小包-地點代號對照表.xlsx): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "對照表檔案 (N系料小包-地點代號對照表.xlsx): ❌ 未找到"
+            m_text = f"對照表檔案 ({base_name}): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else f"對照表檔案 ({base_name}): ❌ 未找到"
             self.lbl_mapping_status.config(text=m_text, fg=m_color)
 
         if hasattr(self, "entries"):
@@ -1842,9 +1883,10 @@ class App(tk.Tk):
             cust_batch_var.trace_add("write", sync_batch)
             raw_batch_var.trace_add("write", sync_batch)
 
-            # 綁定事件
+            # 綁定事件 (雙條件核對: 地點或品名變更時即時核對料號)
             loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, lcv=long_code_var: self.on_loc_change(lv, lcv))
-            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, pv=part_var: self.update_part_no(lv, pv))
+            loc_var.trace_add("write", lambda name, index, mode, lv=loc_var, nv=name_var, pv=part_var: self.update_part_no(lv, nv, pv))
+            name_var.trace_add("write", lambda name, index, mode, lv=loc_var, nv=name_var, pv=part_var: self.update_part_no(lv, nv, pv))
             
             for widget in (loc_entry, cust_batch_entry, raw_batch_entry, date_entry):
                 widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
@@ -1905,19 +1947,27 @@ class App(tk.Tk):
         tank = ""
         # qty_var.set(tank) # no auto calculation for qty
 
-    def update_part_no(self, loc_var, part_var):
+    def update_part_no(self, loc_var, name_var, part_var):
         if not hasattr(self, 'part_mapping_dict'): return
-        raw_loc = loc_var.get()
+        raw_loc = loc_var.get().strip()
+        raw_name = name_var.get().strip().upper() if name_var else ""
         norm_loc = clean_location_str(raw_loc, self.mapping_dict)
-        lookup_key = norm_loc if (hasattr(self, 'part_mapping_dict') and norm_loc in self.part_mapping_dict) else raw_loc.strip().upper()
-        if lookup_key in self.part_mapping_dict:
-            info = self.part_mapping_dict[lookup_key]
-            part_no = info["default"]
-            # 對照表有此地點，但無設定料號 → 空白
-            part_var.set(part_no)
-        else:
-            # 地點不在對照表 → 空白（不用硬碼兜底）
-            part_var.set("")
+        
+        part_no = ""
+        # 雙條件精準核對: (地點全名/簡稱, 品名)
+        for l_k in (norm_loc, raw_loc.upper(), raw_loc):
+            if (l_k, raw_name) in self.part_mapping_dict:
+                part_no = self.part_mapping_dict[(l_k, raw_name)].get("default", "")
+                if part_no: break
+        
+        # 若雙條件無匹配且品名為空，才嘗試以單純地點查詢
+        if not part_no and not raw_name:
+            for l_k in (norm_loc, raw_loc.upper()):
+                if l_k in self.part_mapping_dict and isinstance(self.part_mapping_dict[l_k], dict):
+                    part_no = self.part_mapping_dict[l_k].get("default", "")
+                    if part_no: break
+
+        part_var.set(part_no)
 
     def on_loc_change(self, loc_var, long_code_var, long_code_combo=None):
         raw_loc = loc_var.get()
@@ -2594,9 +2644,11 @@ class App(tk.Tk):
                     
                 for i, rec in enumerate(target_records):
                     row_e = self.entries[start_idx + i]
-                    # 精準寫入勝一排程 12 核心欄位
-                    if "loc_var" in row_e: row_e["loc_var"].set(rec.get("loc", ""))
+                    # 精準寫入勝一排程 12 核心欄位 (地點欄位顯示人員習慣的完整中文+英文名稱)
+                    display_loc = rec.get("raw_loc") or rec.get("loc", "")
+                    if "loc_var" in row_e: row_e["loc_var"].set(display_loc)
                     if "name_var" in row_e: row_e["name_var"].set(rec.get("name", ""))
+                    row_e["short_loc"] = str(getattr(self, "loc_to_short", {}).get(display_loc) or clean_location_str(display_loc, self.mapping_dict) or "")
                     if "spec_var" in row_e: row_e["spec_var"].set(rec.get("spec", ""))
                     if "date_var" in row_e: row_e["date_var"].set(rec.get("date", ""))
                     if "arr_date_var" in row_e: row_e["arr_date_var"].set(rec.get("arr_date", ""))
