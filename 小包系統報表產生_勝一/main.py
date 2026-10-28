@@ -1355,9 +1355,14 @@ class App(tk.Tk):
         
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.template_path = None
-        new_map = os.path.join(self.base_dir, "台積小包材地點代號對照表.xlsx")
-        old_map = os.path.join(self.base_dir, "N系料小包-地點代號對照表.xlsx")
-        self.mapping_path = new_map if os.path.exists(new_map) else old_map
+        # 自動動態搜尋任何檔名包含「地點代號對照表」或「代號對照表」之 xlsx 檔案
+        self.mapping_path = os.path.join(self.base_dir, "台積小包材地點代號對照表.xlsx")
+        for cand in glob.glob(os.path.join(self.base_dir, "*.xlsx")):
+            b_name = os.path.basename(cand)
+            if "地點代號對照表" in b_name or "代號對照表" in b_name:
+                self.mapping_path = cand
+                if "台積小包材" in b_name:
+                    break
         
         self.mapping_dict = {}
         self.imported_lorry_files = []
@@ -1602,8 +1607,16 @@ class App(tk.Tk):
 
     def reload_mapping_with_msg(self):
         """點擊『🔄 重新載入對照表』時執行"""
+        # 重新掃描符合「地點代號對照表」或「代號對照表」之 xlsx
+        for cand in glob.glob(os.path.join(self.base_dir, "*.xlsx")):
+            b_name = os.path.basename(cand)
+            if "地點代號對照表" in b_name or "代號對照表" in b_name:
+                self.mapping_path = cand
+                if "台積小包材" in b_name:
+                    break
         self.load_mapping()
-        messagebox.showinfo("對照表已更新", f"已重新讀取『台積小包材地點代號對照表.xlsx』！\n目前共載入 {len(self.mapping_dict)} 筆地點對照碼。\n表格中的地點長代號已同步更新！")
+        cur_name = os.path.basename(self.mapping_path) if self.mapping_path else "台積小包材地點代號對照表.xlsx"
+        messagebox.showinfo("對照表已更新", f"已重新讀取『{cur_name}』！\n目前共載入 {len(self.mapping_dict)} 筆地點對照碼。\n表格中的地點長代號已同步更新！")
 
     def open_calendar_dialog(self, target_var):
         CalendarDialog(self, target_var)
@@ -1620,7 +1633,8 @@ class App(tk.Tk):
         map_status_frame.pack(anchor="w", pady=(2, 0))
 
         m_color = "green" if os.path.exists(self.mapping_path) else "red"
-        m_text = f"對照表檔案 (台積小包材地點代號對照表.xlsx): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else "對照表檔案 (台積小包材地點代號對照表.xlsx): ❌ 未找到"
+        cur_file_name = os.path.basename(self.mapping_path) if self.mapping_path else "台積小包材地點代號對照表.xlsx"
+        m_text = f"對照表檔案 ({cur_file_name}): ✅ 已找到 (載入 {len(self.mapping_dict)} 筆代號)" if os.path.exists(self.mapping_path) else f"對照表檔案 ({cur_file_name}): ❌ 未找到"
         
         self.lbl_mapping_status = tk.Label(map_status_frame, text=m_text, fg=m_color)
         self.lbl_mapping_status.pack(side="left")
