@@ -1529,6 +1529,180 @@ def deduce_fab_phase(loc_key, phase_dict=None):
         return "125A"
     return s
 
+
+class CoaResultDialog(tk.Toplevel):
+    """
+    COA 表單解析與核對結果對話框 (結合方案 A 的捲動表格與複製功能 + 方案 B 的分類標籤與篩選)
+    """
+    def __init__(self, parent, results, new_count, total_count):
+        super().__init__(parent)
+        self.parent_app = parent
+        self.results = results
+        self.new_count = new_count
+        self.total_count = total_count
+        
+        ok_count = sum(1 for r in results if r["status"] == "ok")
+        err_count = sum(1 for r in results if r["status"] == "err")
+        
+        self.title(f"📑 COA 載入核對結果 (成功: {ok_count} 份 / 未配對: {err_count} 份)")
+        self.geometry("880x520")
+        self.minsize(760, 400)
+        self.grab_set()
+
+        try:
+            self.update_idletasks()
+            pw = parent.winfo_width()
+            ph = parent.winfo_height()
+            px = parent.winfo_rootx()
+            py = parent.winfo_rooty()
+            w, h = 880, 520
+            x = max(20, px + (pw - w) // 2)
+            y = max(20, py + (ph - h) // 2)
+            self.geometry(f"{w}x{h}+{x}+{y}")
+        except Exception:
+            pass
+
+        # 頂部資訊列
+        top_frame = tk.Frame(self, bg="#f8fafc", padx=12, pady=10)
+        top_frame.pack(fill="x")
+
+        title_lbl = tk.Label(
+            top_frame, 
+            text=f"📄 COA 表單載入完成：本次新增 {new_count} 份，累計已載入 {total_count} 份", 
+            font=("Microsoft JhengHei", 11, "bold"), 
+            bg="#f8fafc", 
+            fg="#0f172a"
+        )
+        title_lbl.pack(anchor="w")
+
+        # 工具與過濾列
+        tool_frame = tk.Frame(self, bg="#ffffff", padx=12, pady=6)
+        tool_frame.pack(fill="x")
+
+        # 分類 Tab 模式按鈕 (方案 B 精華)
+        self.filter_mode = tk.StringVar(value="all")
+        
+        btn_all = tk.Radiobutton(tool_frame, text=f"全部 ({len(results)})", variable=self.filter_mode, value="all", indicatoron=0, command=self.apply_filter, font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=4, selectcolor="#e2e8f0")
+        btn_all.pack(side="left", padx=(0, 4))
+        
+        btn_ok = tk.Radiobutton(tool_frame, text=f"✅ 成功核對 ({ok_count})", variable=self.filter_mode, value="ok", indicatoron=0, command=self.apply_filter, font=("Microsoft JhengHei", 9, "bold"), fg="#15803d", padx=10, pady=4, selectcolor="#dcfce7")
+        btn_ok.pack(side="left", padx=4)
+
+        btn_err = tk.Radiobutton(tool_frame, text=f"⚠️ 未配對排程 ({err_count})", variable=self.filter_mode, value="err", indicatoron=0, command=self.apply_filter, font=("Microsoft JhengHei", 9, "bold"), fg="#b91c1c", padx=10, pady=4, selectcolor="#fee2e2")
+        btn_err.pack(side="left", padx=4)
+
+        # 快速搜尋與複製按鈕 (方案 A 精華)
+        copy_btn = tk.Button(tool_frame, text="📋 一鍵複製表格清單", font=("Microsoft JhengHei", 9, "bold"), bg="#0284c7", fg="white", activebackground="#0369a1", activeforeground="white", relief="flat", padx=8, pady=3, cursor="hand2", command=self.copy_to_clipboard)
+        copy_btn.pack(side="right", padx=(8, 0))
+
+        self.search_var = tk.StringVar()
+        self.search_var.trace_add("write", lambda *args: self.apply_filter())
+        search_entry = tk.Entry(tool_frame, textvariable=self.search_var, font=("Microsoft JhengHei", 9), width=20)
+        search_entry.pack(side="right", padx=2)
+        tk.Label(tool_frame, text="🔍 搜尋:", font=("Microsoft JhengHei", 9), bg="#ffffff").pack(side="right", padx=2)
+
+        # 表格區域 (Treeview + 垂直滾軸)
+        table_frame = tk.Frame(self, padx=12, pady=6)
+        table_frame.pack(fill="both", expand=True)
+
+        cols = ("status", "num", "file", "raw_lot", "match_lot", "loc", "note")
+        self.tree = ttk.Treeview(table_frame, columns=cols, show="headings", selectmode="extended")
+        
+        self.tree.heading("status", text="狀態")
+        self.tree.heading("num", text="#")
+        self.tree.heading("file", text="COA 來源檔案名稱")
+        self.tree.heading("raw_lot", text="內部 RawLotId 批號")
+        self.tree.heading("match_lot", text="排程配對批號")
+        self.tree.heading("loc", text="廠區簡稱")
+        self.tree.heading("note", text="核對說明")
+
+        self.tree.column("status", width=75, anchor="center")
+        self.tree.column("num", width=40, anchor="center")
+        self.tree.column("file", width=280, anchor="w")
+        self.tree.column("raw_lot", width=130, anchor="center")
+        self.tree.column("match_lot", width=130, anchor="center")
+        self.tree.column("loc", width=80, anchor="center")
+        self.tree.column("note", width=140, anchor="w")
+
+        v_scroll = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=v_scroll.set)
+        self.tree.pack(side="left", fill="both", expand=True)
+        v_scroll.pack(side="right", fill="y")
+
+        # 樣式與標籤
+        self.tree.tag_configure("ok_tag", background="#ffffff", foreground="#0f172a")
+        self.tree.tag_configure("err_tag", background="#fff1f2", foreground="#991b1b")
+        self.tree.tag_configure("even_ok", background="#f8fafc", foreground="#0f172a")
+
+        # 底部狀態列
+        bottom_frame = tk.Frame(self, bg="#f1f5f9", padx=12, pady=8)
+        bottom_frame.pack(fill="x")
+
+        rule_lbl = tk.Label(
+            bottom_frame, 
+            text="🔒 驗證規則：100% 依據檔案內部 RawLotId 欄位精確核對，檔名僅供備查", 
+            font=("Microsoft JhengHei", 9), 
+            bg="#f1f5f9", 
+            fg="#475569"
+        )
+        rule_lbl.pack(side="left")
+
+        close_btn = tk.Button(
+            bottom_frame, 
+            text="確定關閉 (Esc)", 
+            font=("Microsoft JhengHei", 9, "bold"), 
+            bg="#334155", 
+            fg="white", 
+            relief="flat", 
+            padx=14, 
+            pady=4, 
+            cursor="hand2", 
+            command=self.destroy
+        )
+        close_btn.pack(side="right")
+
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.apply_filter()
+
+    def apply_filter(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        mode = self.filter_mode.get()
+        kw = self.search_var.get().strip().lower()
+
+        idx = 1
+        for r in self.results:
+            if mode != "all" and r["status"] != mode:
+                continue
+            if kw:
+                haystack = f"{r['file']} {r['raw_lot']} {r['match_lot']} {r['loc']} {r['note']}".lower()
+                if kw not in haystack:
+                    continue
+
+            is_ok = (r["status"] == "ok")
+            status_text = "✅ 成功" if is_ok else "⚠️ 未配對"
+            tag = "err_tag" if not is_ok else ("even_ok" if idx % 2 == 0 else "ok_tag")
+
+            self.tree.insert(
+                "", 
+                "end", 
+                values=(status_text, idx, r["file"], r["raw_lot"], r["match_lot"], r["loc"], r["note"]),
+                tags=(tag,)
+            )
+            idx += 1
+
+    def copy_to_clipboard(self):
+        lines = ["狀態\t#\tCOA 來源檔名\t內部 RawLotId\t排程配對批號\t廠區\t說明"]
+        for idx, r in enumerate(self.results, 1):
+            st = "成功" if r["status"] == "ok" else "未配對"
+            lines.append(f"{st}\t{idx}\t{r['file']}\t{r['raw_lot']}\t{r['match_lot']}\t{r['loc']}\t{r['note']}")
+        text = "\n".join(lines)
+        self.clipboard_clear()
+        self.clipboard_append(text)
+        messagebox.showinfo("複製成功", f"已成功複製 {len(self.results)} 筆核對明細至剪貼簿！\n可直接貼入 Excel 或 Line 備查。", parent=self)
+
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -2553,8 +2727,7 @@ class App(tk.Tk):
             messagebox.showwarning("提示", "請先在列表中填寫並勾選包含批號的資料！")
             return
             
-        matched_results = []
-        unmatched_files = []
+        dialog_results = []
         for file_path in file_paths:
             base_name = os.path.basename(file_path)
             # 嚴格只從 COA 內部抓取批號 (RawLotId) 進行核對，絕不比對檔名！
@@ -2568,45 +2741,41 @@ class App(tk.Tk):
             if found_batch:
                 for vr in valid_rows:
                     if any(found_batch == b or (len(found_batch) >= 6 and (found_batch in b or b in found_batch)) for b in vr["batches"]):
-                        m_str = f"{vr['disp_batch']}|{vr['loc']}" if vr['loc'] else vr['disp_batch']
-                        matched_for_file.append(m_str)
+                        clean_l = clean_location_str(vr['loc'], getattr(self, "mapping_dict", {})) or vr['loc']
+                        matched_for_file.append({
+                            "batch": vr["disp_batch"],
+                            "loc": clean_l
+                        })
 
             if matched_for_file:
-                distinct_matches = list(dict.fromkeys(matched_for_file))
-                matched_results.append((base_name, found_batch, distinct_matches[0]))
+                m_info = matched_for_file[0]
+                dialog_results.append({
+                    "status": "ok",
+                    "file": base_name,
+                    "raw_lot": found_batch,
+                    "match_lot": m_info["batch"],
+                    "loc": m_info["loc"],
+                    "note": "批號核對相符"
+                })
             else:
-                reason = f"內部 RawLotId: {found_batch} (與排程批號不符)" if found_batch else "內部未找到 RawLotId 欄位"
-                unmatched_files.append((base_name, reason))
+                reason = f"內部批號 {found_batch} 與排程不符" if found_batch else "未找到 RawLotId 欄位"
+                dialog_results.append({
+                    "status": "err",
+                    "file": base_name,
+                    "raw_lot": found_batch or "(無)",
+                    "match_lot": "-",
+                    "loc": "-",
+                    "note": reason
+                })
 
         # 累加模式：新檔案合併至既有清單，去重複後更新
         existing_coa = list(getattr(self, 'imported_coa_files', []))
         new_coa = [p for p in file_paths if p not in existing_coa]
         self.imported_coa_files = existing_coa + new_coa
-        
         total_count = len(self.imported_coa_files)
-        msg_lines = [
-            f"📄 COA 載入完成：本次新增 {len(new_coa)} 份，累計已載入 {total_count} 份\n"
-        ]
 
-        if matched_results:
-            msg_lines.append(f"✅ 成功核對批號 {len(matched_results)} 份 (嚴格依內部 RawLotId)：")
-            max_show = 4 if len(matched_results) > 5 else len(matched_results)
-            for i in range(max_show):
-                fname, fb, m_info = matched_results[i]
-                msg_lines.append(f"  • {fname}  ➜  批號: {fb}")
-            if len(matched_results) > 5:
-                msg_lines.append(f"  ...等其餘 {len(matched_results) - max_show} 份檔案皆已成功配對")
-
-        if unmatched_files:
-            msg_lines.append(f"\n⚠️ 未配對排程 {len(unmatched_files)} 份 (絕不依檔名猜測)：")
-            max_show_un = 4 if len(unmatched_files) > 5 else len(unmatched_files)
-            for i in range(max_show_un):
-                fname, reason = unmatched_files[i]
-                msg_lines.append(f"  • {fname}  [{reason}]")
-            if len(unmatched_files) > 5:
-                msg_lines.append(f"  ...等其餘 {len(unmatched_files) - max_show_un} 份未配對")
-
-        messagebox.showinfo("COA 表單已載入", "\n".join(msg_lines))
+        # 彈出兼具方案 A (捲動表格+複製) 與方案 B (分類標籤過濾) 的高質感對話框
+        CoaResultDialog(self, dialog_results, len(new_coa), total_count)
 
     def upload_coa(self):
         if not os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'):
