@@ -388,6 +388,7 @@ class OcrKeyManagerDialog(tk.Toplevel):
                 messagebox.showinfo("成功", f"已儲存並啟用 {fname}")
                 dlg.destroy()
             except Exception as e:
+                self.hide_loading()
                 messagebox.showerror("錯誤", f"JSON 格式不正確：{e}")
 
         tk.Button(dlg, text="💾 儲存並啟用", bg="#4CAF50", fg="white",
@@ -646,6 +647,23 @@ def clean_location_str(loc, mapping_dict=None):
     return cleaned or s
 
 
+def get_canonical_prod_name(name_raw, spec_raw=""):
+    s = f"{name_raw}_{spec_raw}".upper()
+    if "CPN" in s or "A515" in s or "A-515" in s:
+        return "CPN"
+    if "PMAUPS" in s or "PMA-UPS" in s or "PMA-UP" in s:
+        return "PMAUPS"
+    if "PMAHQ" in s or "PMA-HQ" in s:
+        return "PMAHQ"
+    if "PMA" in s:
+        return "PMA"
+    if "SEP73" in s:
+        return "SEP73E4"
+    clean_n = re.sub(r'[^A-Z0-9]', '', str(name_raw).upper())
+    return clean_n or "未命名品名"
+
+
+
 class ImportRangeDialog(tk.Toplevel):
     """
     Excel 匯入筆數與範圍選擇對話框 (支援全分頁跨頁統計、今天~後天智慧過濾與倒數擷取)
@@ -839,21 +857,56 @@ class ImportRangeDialog(tk.Toplevel):
         self.spin.bind("<KeyRelease>", lambda e: self.update_preview())
         tk.Label(count_bar, text="筆", font=("Arial", 9)).pack(side="left")
 
+        # 選取控制按鈕 (全選 / 全部取消)
+        tk.Button(
+            count_bar, 
+            text="🔄 反選", 
+            command=self.invert_all_selection, 
+            font=("Arial", 9, "bold"), 
+            bg="#EDE7F6", 
+            fg="#512DA8", 
+            padx=8, 
+            cursor="hand2"
+        ).pack(side="right", padx=3)
+
+        tk.Button(
+            count_bar, 
+            text="☐ 全部取消", 
+            command=self.deselect_all_items, 
+            font=("Arial", 9, "bold"), 
+            bg="#FFEBEE", 
+            fg="#C62828", 
+            padx=8, 
+            cursor="hand2"
+        ).pack(side="right", padx=3)
+
+        tk.Button(
+            count_bar, 
+            text="☑ 全選", 
+            command=self.select_all_items, 
+            font=("Arial", 9, "bold"), 
+            bg="#E8F5E9", 
+            fg="#2E7D32", 
+            padx=8, 
+            cursor="hand2"
+        ).pack(side="right", padx=3)
+
         # 預覽表格區 (採用專業 Treeview 多欄呈現，欄寬自由拖拉，全資料完整展示)
         preview_frame = tk.LabelFrame(self, text="📋 即將匯入資料即時預覽 (欄寬可自由拉動，全欄位完整呈現)", font=("Arial", 10, "bold"), padx=6, pady=6, fg="#002060")
         preview_frame.pack(fill="both", expand=True, pady=(0, 10))
 
         # 定義 Treeview 欄位 (勝一專用 12 核心欄位 + 簡稱核對)
-        columns = ("chk", "idx", "loc", "short_loc", "name", "spec", "date", "arr_date", "time", "unit_w", "pcs", "qty", "plate", "raw_batch", "cust_batch")
+        columns = ("chk", "idx", "loc", "short_loc", "name", "spec", "po", "date", "arr_date", "time", "unit_w", "pcs", "qty", "plate", "raw_batch", "cust_batch", "exp_date")
         self.tree = ttk.Treeview(preview_frame, columns=columns, show="headings", selectmode="none")
 
         col_defs = [
-            ("chk", "✅選取", 48, "center"),
+            ("chk", "☑選取(點我反選)", 68, "center"),
             ("idx", "項次", 40, "center"),
             ("loc", "指送地(地點)", 120, "center"),
             ("short_loc", "簡稱", 70, "center"),
             ("name", "品名", 95, "w"),
             ("spec", "規格", 95, "w"),
+            ("po", "PO", 90, "center"),
             ("date", "預計出貨 📅", 95, "center"),
             ("arr_date", "預計到貨 📅", 95, "center"),
             ("time", "到貨時間", 65, "center"),
@@ -862,11 +915,15 @@ class ImportRangeDialog(tk.Toplevel):
             ("qty", "出貨數量", 75, "center"),
             ("plate", "車牌", 70, "center"),
             ("raw_batch", "原料批號", 105, "center"),
-            ("cust_batch", "客戶批號(Lot No)", 120, "center")
+            ("cust_batch", "客戶批號(Lot No)", 120, "center"),
+            ("exp_date", "保存期限", 100, "center")
         ]
 
         for col_id, heading_text, width, anchor in col_defs:
-            self.tree.heading(col_id, text=heading_text, anchor=anchor)
+            if col_id == "chk":
+                self.tree.heading(col_id, text=heading_text, anchor=anchor, command=self.toggle_all_selection)
+            else:
+                self.tree.heading(col_id, text=heading_text, anchor=anchor)
             self.tree.column(col_id, width=width, minwidth=40, anchor=anchor, stretch=True)
 
         scroll_y = ttk.Scrollbar(preview_frame, orient="vertical", command=self.tree.yview)
@@ -1024,6 +1081,11 @@ class ImportRangeDialog(tk.Toplevel):
 
             tag = "evenrow" if idx % 2 == 0 else "oddrow"
             short_str = rec.get("short_loc") or getattr(self.parent_app, "loc_to_short", {}).get(loc_str) or clean_location_str(loc_str, getattr(self.parent_app, "mapping_dict", {})) or ""
+            eff_exp = rec.get("exp_date") or ""
+            eff_cust_b = rec.get("cust_batch") or rec.get("batch") or ""
+            if not eff_exp and eff_cust_b:
+                _, calc_e = parse_lot_dates(eff_cust_b)
+                eff_exp = calc_e
             self.tree.insert(
                 "",
                 "end",
@@ -1034,6 +1096,7 @@ class ImportRangeDialog(tk.Toplevel):
                     short_str,
                     name_str,
                     spec_str,
+                    po_str,
                     d_str,
                     arr_d_str,
                     t_str,
@@ -1042,12 +1105,66 @@ class ImportRangeDialog(tk.Toplevel):
                     rec.get("qty") or "",
                     rec.get("plate") or "",
                     raw_b_str,
-                    rec.get("cust_batch") or ""
+                    rec.get("cust_batch") or "",
+                    eff_exp
                 ),
                 tags=(tag,)
             )
 
-        self.btn_confirm.config(text=f"🚀 確認由下往上擷取最新的 {cnt} 筆匯入系統")
+        self.update_confirm_button_text()
+
+    def toggle_all_selection(self):
+        items = self.tree.get_children()
+        if not items:
+            return
+        any_checked = any(self.tree.item(item, "values")[0] == "☑" for item in items)
+        new_val = "☐" if any_checked else "☑"
+        for item in items:
+            vals = list(self.tree.item(item, "values"))
+            vals[0] = new_val
+            self.tree.item(item, values=vals)
+        self.update_confirm_button_text()
+
+    def invert_all_selection(self):
+        items = self.tree.get_children()
+        if not items:
+            return
+        for item in items:
+            vals = list(self.tree.item(item, "values"))
+            vals[0] = "☐" if vals[0] == "☑" else "☑"
+            self.tree.item(item, values=vals)
+        self.update_confirm_button_text()
+
+    def select_all_items(self):
+        for item in self.tree.get_children():
+            vals = list(self.tree.item(item, "values"))
+            vals[0] = "☑"
+            self.tree.item(item, values=vals)
+        self.update_confirm_button_text()
+
+    def deselect_all_items(self):
+        for item in self.tree.get_children():
+            vals = list(self.tree.item(item, "values"))
+            vals[0] = "☐"
+            self.tree.item(item, values=vals)
+        self.update_confirm_button_text()
+
+    def update_confirm_button_text(self):
+        items = self.tree.get_children()
+        checked = sum(1 for item in items if self.tree.item(item, "values")[0] == "☑")
+        total = len(items)
+        if checked > 0:
+            self.btn_confirm.config(
+                text=f"🚀 確認將這 {checked} 筆匯入系統 (已選 {checked}/{total} 筆)",
+                state="normal",
+                bg="#4CAF50"
+            )
+        else:
+            self.btn_confirm.config(
+                text="⚠️ 目前尚未選取任何資料 (請點擊核取方塊或右上『☑ 全選』)",
+                state="disabled",
+                bg="#9E9E9E"
+            )
 
     def on_tree_click(self, event):
         region = self.tree.identify("region", event.x, event.y)
@@ -1059,9 +1176,7 @@ class ImportRangeDialog(tk.Toplevel):
                     vals = list(self.tree.item(item_id, "values"))
                     vals[0] = "☐" if vals[0] == "☑" else "☑"
                     self.tree.item(item_id, values=vals)
-                    
-                    checked = sum(1 for item in self.tree.get_children() if self.tree.item(item, "values")[0] == "☑")
-                    self.btn_confirm.config(text=f"🚀 確認將這 {checked} 筆匯入系統")
+                    self.update_confirm_button_text()
 
     def confirm_import(self):
         cnt = self.count_var.get()
@@ -1074,6 +1189,10 @@ class ImportRangeDialog(tk.Toplevel):
             if vals[0] == "☑" and idx < len(slice_records):
                 selected_recs.append(slice_records[idx])
                 
+        if not selected_recs:
+            messagebox.showwarning("未選取資料", "目前沒有勾選任何出貨排程！\n請點擊每列核取方塊或點擊『☑ 全選』後再執行匯入。")
+            return
+
         self.selected_records = selected_recs
         self.destroy()
 
@@ -1345,12 +1464,78 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 
 APP_VERSION = "v1.0.1 (勝一專用版 2026/10/28)"
 
+def parse_lot_dates(batch_str):
+    """
+    依客戶批號 (Lot No) 前五碼推算製造日與保存期限 (加一年減一天)
+    例如: 26A10 -> 2026/10/10 -> 保存期限: 2027/10/09
+    例如: 26A12K41D2 -> 2026/10/12 -> 保存期限: 2027/10/11
+    """
+    if not batch_str or len(str(batch_str).strip()) < 5:
+        return "", ""
+    s = str(batch_str).strip().upper()
+    try:
+        yr_str = s[0:2]
+        mo_char = s[2]
+        day_str = s[3:5]
+        
+        year = 2000 + int(yr_str)
+        if mo_char.isdigit():
+            month = int(mo_char)
+        elif mo_char == 'A':
+            month = 10
+        elif mo_char == 'B':
+            month = 11
+        elif mo_char == 'C':
+            month = 12
+        else:
+            return "", ""
+            
+        day = int(day_str)
+        mfg_date = datetime(year, month, day)
+        
+        try:
+            next_year_same_day = mfg_date.replace(year=year + 1)
+        except ValueError:
+            next_year_same_day = mfg_date.replace(year=year + 1, day=28)
+            
+        exp_date = next_year_same_day - timedelta(days=1)
+        return mfg_date.strftime("%Y/%m/%d"), exp_date.strftime("%Y/%m/%d")
+    except Exception:
+        return "", ""
+
+def deduce_fab_phase(loc_key, phase_dict=None):
+    """
+    推算 TSMC 廠區之 FabPhase 期別 (如 F20P1 -> 201A, F20P2 -> 202A, 14P5 -> 145A)
+    """
+    if phase_dict and loc_key in phase_dict and phase_dict[loc_key]:
+        return phase_dict[loc_key]
+    if not loc_key:
+        return ""
+    s = str(loc_key).upper().strip()
+    m = re.search(r'F?(\d+)P(\d+)([A-Z]*)', s)
+    if m:
+        return f"{m.group(1)}{m.group(2)}{m.group(3) or 'A'}"
+    if "AP7" in s:
+        return "AP71"
+    if "FB30" in s:
+        return "FB30"
+    if "VISERA" in s:
+        return "VISERA"
+    if "7F3E" in s or "F3E" in s:
+        return "F3E0"
+    if s == "2廠" or "二廠" in s:
+        return "1200"
+    if s == "5廠" or ("5廠" in s and "15廠" not in s):
+        return "125A"
+    return s
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(f"小包系統報表產生器 (勝一專用版) - 版本: {APP_VERSION}")
         self.geometry("1360x840")
         self.minsize(1120, 620)
+        self.state("zoomed")
         self.configure(padx=15, pady=15)
         
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1359,6 +1544,8 @@ class App(tk.Tk):
         self.mapping_path = os.path.join(self.base_dir, "台積小包材地點代號對照表.xlsx")
         for cand in glob.glob(os.path.join(self.base_dir, "*.xlsx")):
             b_name = os.path.basename(cand)
+            if b_name.startswith("~$"):
+                continue
             if "地點代號對照表" in b_name or "代號對照表" in b_name:
                 self.mapping_path = cand
                 if "台積小包材" in b_name:
@@ -1417,6 +1604,7 @@ class App(tk.Tk):
         self.mapping_dict = {}
         self.part_mapping_dict = {}
         self.loc_to_short = {}
+        self.phase_mapping_dict = {}
         if os.path.exists(self.mapping_path):
             try:
                 map_wb = openpyxl.load_workbook(self.mapping_path, data_only=True)
@@ -1432,6 +1620,19 @@ class App(tk.Tk):
                             short_code = str(row[1] or "").strip().upper()
                             prod_name = str(row[2] or "").strip().upper() if len(row) > 2 and row[2] else ""
                             loc_val = str(row[3] or "").strip() if len(row) > 3 and row[3] else ""
+                            phase_col = -1
+                            for c_i, h in enumerate(headers):
+                                if any(pk in h.lower() for pk in ["fabphase", "phase", "期別"]):
+                                    phase_col = c_i
+                                    break
+                            phase_val = str(row[phase_col]).strip() if phase_col != -1 and len(row) > phase_col and row[phase_col] else ""
+                            if not phase_val:
+                                phase_val = deduce_fab_phase(short_code or full_loc)
+                            if short_code: self.phase_mapping_dict[short_code] = phase_val
+                            if full_loc:
+                                self.phase_mapping_dict[full_loc] = phase_val
+                                clean_l = clean_location_str(full_loc)
+                                if clean_l: self.phase_mapping_dict[clean_l] = phase_val
                             part_no1 = str(row[4] or "").strip() if len(row) > 4 and row[4] else ""
                             part_no2 = str(row[5] or "").strip() if len(row) > 5 and row[5] else ""
                             
@@ -1496,23 +1697,39 @@ class App(tk.Tk):
         if not hasattr(self, "imported_lorry_files"):
             self.imported_lorry_files = []
         if not self.imported_lorry_files:
-            defaults = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
-            if defaults:
-                self.imported_lorry_files = [defaults[0]]
+            all_pr = glob.glob(os.path.join(self.base_dir, "PR_*.xlsx"))
+            all_lorry = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+            candidates = [f for f in (all_pr + all_lorry) if not os.path.basename(f).startswith("~$")]
+            if candidates:
+                self.imported_lorry_files = list(dict.fromkeys(candidates))
         
         if hasattr(self, "lbl_lorry_status"):
             if self.imported_lorry_files:
-                if len(self.imported_lorry_files) > 1:
-                    fname = f"已選 {len(self.imported_lorry_files)} 份檔案"
+                count = len(self.imported_lorry_files)
+                if count > 1:
+                    # 擷取各模版簡短識別名稱 (例如 CPN, PMAHQ, PMAUPS)
+                    short_names = []
+                    for f in self.imported_lorry_files:
+                        bn = os.path.splitext(os.path.basename(f))[0].upper()
+                        tokens = [t for t in ["CPN", "PMAHQ", "PMAUPS", "PMA", "EL"] if t in bn]
+                        if tokens:
+                            short_names.append(tokens[0])
+                        else:
+                            short_names.append(bn[:15])
+                    names_str = ", ".join(dict.fromkeys(short_names))
+                    self.lbl_lorry_status.config(
+                        text=f"生產履歷檔案: ✅ 已就緒 (共載入 {count} 份模版: {names_str})",
+                        fg="#2E7D32"
+                    )
                 else:
                     fname = os.path.basename(self.imported_lorry_files[0])
-                self.lbl_lorry_status.config(
-                    text=f"生產履歷檔案 (Chemical_Lorry*.xlsx): ✅ 已就緒 ({fname})",
-                    fg="#2E7D32"
-                )
+                    self.lbl_lorry_status.config(
+                        text=f"生產履歷檔案: ✅ 已就緒 ({fname})",
+                        fg="#2E7D32"
+                    )
             else:
                 self.lbl_lorry_status.config(
-                    text="生產履歷檔案 (Chemical_Lorry*.xlsx): ⚠️ 尚未載入 (點擊右側按鈕或下方工具列『📋 載入生產履歷』)",
+                    text="生產履歷檔案: ⚠️ 尚未載入 (點擊右側按鈕或下方工具列『📋 載入生產履歷』)",
                     fg="#D32F2F"
                 )
 
@@ -1610,6 +1827,8 @@ class App(tk.Tk):
         # 重新掃描符合「地點代號對照表」或「代號對照表」之 xlsx
         for cand in glob.glob(os.path.join(self.base_dir, "*.xlsx")):
             b_name = os.path.basename(cand)
+            if b_name.startswith("~$"):
+                continue
             if "地點代號對照表" in b_name or "代號對照表" in b_name:
                 self.mapping_path = cand
                 if "台積小包材" in b_name:
@@ -1678,7 +1897,7 @@ class App(tk.Tk):
         left_btn_frame.pack(side="left")
         
         tk.Button(left_btn_frame, text="📥 從 Excel 匯入排程", command=self.import_from_excel, bg="#1976D2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(0, 4))
-        tk.Button(left_btn_frame, text="📋 載入生產履歷 (Chemical_Lorry)", command=self.load_chemical_lorry_file, bg="#E65100", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
+        tk.Button(left_btn_frame, text="📋 載入生產履歷 (PR)", command=self.load_chemical_lorry_file, bg="#E65100", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="📄 載入 COA 表單", command=self.load_coa_forms, bg="#8E24AA", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
         tk.Button(left_btn_frame, text="🗑 清除已載入檔案", command=self.clear_loaded_files, bg="#546E7A", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
 
@@ -1686,9 +1905,12 @@ class App(tk.Tk):
         right_btn_frame = tk.Frame(top_ctrl_frame)
         right_btn_frame.pack(side="right")
         
-        tk.Button(right_btn_frame, text="📅 帶入今天日期", command=self.set_today_all_dates, bg="#546E7A", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(right_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#00897B", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=4)
-        tk.Button(right_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(4, 0))
+        tk.Button(right_btn_frame, text="🔄 反選排程", command=self.toggle_all_rows_selection, bg="#7E57C2", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=3)
+        tk.Button(right_btn_frame, text="☐ 全部取消", command=self.deselect_all_rows, bg="#EF5350", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=3)
+        tk.Button(right_btn_frame, text="☑ 全部勾選", command=self.select_all_rows, bg="#43A047", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=3)
+        tk.Button(right_btn_frame, text="📅 帶入今天日期", command=self.set_today_all_dates, bg="#546E7A", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=3)
+        tk.Button(right_btn_frame, text="➕ 新增 10 列", command=lambda: self.add_input_rows(10), bg="#00897B", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=3)
+        tk.Button(right_btn_frame, text="🗑️ 清除全部資料", command=self.clear_all_rows, bg="#D32F2F", fg="white", font=("Microsoft JhengHei", 9, "bold"), padx=8, pady=2, cursor="hand2").pack(side="left", padx=(3, 0))
 
         # 預計時間 (遺留變數)
         self.gen_3in1_var = tk.BooleanVar(value=False)
@@ -1742,37 +1964,51 @@ class App(tk.Tk):
         headers = [
             (0,  "產生",                     40),
             (1,  "項次",                     35),
-            (2,  "指送地 (地點)",            130),
-            (3,  "簡稱",                     75),
-            (4,  "品名",                     95),
-            (5,  "規格",                     110),
-            (6,  "預計出貨日 📅",            115),
-            (7,  "預計到貨日 📅",            115),
-            (8,  "到貨時間",                 70),
-            (9,  "單重",                     55),
-            (10, "件數",                     55),
-            (11, "出貨數量",                 80),
-            (12, "車牌",                     80),
-            (13, "原料批號",                 110),
-            (14, "客戶批號 (Lot No)",        120),
-            (15, "清空單列",                 60),
+            (2,  "指送地 (地點)",            125),
+            (3,  "簡稱",                     65),
+            (4,  "品名",                     85),
+            (5,  "規格",                     100),
+            (6,  "PO",                       95),
+            (7,  "預計出貨日 📅",            105),
+            (8,  "預計到貨日 📅",            105),
+            (9,  "到貨時間",                 65),
+            (10, "單重",                     50),
+            (11, "件數",                     50),
+            (12, "出貨數量",                 75),
+            (13, "車牌",                     75),
+            (14, "原料批號",                 100),
+            (15, "客戶批號 (Lot No)",        115),
+            (16, "保存期限",                 100),
+            (17, "清空單列",                 55),
         ]
         
         for col_idx, title, min_w in headers:
-            lbl = tk.Label(
-                self.scrollable_frame, 
-                text=title, 
-                font=("Arial", 9, "bold"), 
-                bg="#EAEAEA", 
-                fg="#333333",
-                padx=4,
-                pady=3,
-                relief="groove",
-                justify="center",
-                wraplength=0,      # 讓 \n 自然換行
-                width=0,
-            )
-            lbl.grid(row=0, column=col_idx, sticky="ew", padx=1, pady=(0, 4), ipadx=2, ipady=2)
+            if col_idx == 0:
+                header_widget = tk.Button(
+                    self.scrollable_frame, 
+                    text="☑產生\n(點擊反選)", 
+                    font=("Arial", 8, "bold"), 
+                    bg="#E3F2FD", 
+                    fg="#0D47A1",
+                    relief="groove",
+                    cursor="hand2",
+                    command=self.toggle_all_rows_selection
+                )
+            else:
+                header_widget = tk.Label(
+                    self.scrollable_frame, 
+                    text=title, 
+                    font=("Arial", 9, "bold"), 
+                    bg="#EAEAEA", 
+                    fg="#333333",
+                    padx=4,
+                    pady=3,
+                    relief="groove",
+                    justify="center",
+                    wraplength=0,      # 讓 \n 自然換行
+                    width=0,
+                )
+            header_widget.grid(row=0, column=col_idx, sticky="ew", padx=1, pady=(0, 4), ipadx=2, ipady=2)
             # 設定最小欄寬與動態延展權重 (指送地點、品名允許延展)
             weight = 1 if col_idx in (2, 4) else 0
             self.scrollable_frame.columnconfigure(col_idx, minsize=min_w, weight=weight)
@@ -1815,91 +2051,105 @@ class App(tk.Tk):
             spec_entry = tk.Entry(self.scrollable_frame, textvariable=spec_var, width=12, font=("Arial", 10))
             spec_entry.grid(row=row_grid_idx, column=5, padx=2, pady=2, sticky="ew")
 
-            # Col 6: 預計出貨日 (Entry + 📅 日曆按鈕)
+            # Col 6: PO (人員手動自行輸入)
+            po_var = tk.StringVar()
+            po_entry = tk.Entry(self.scrollable_frame, textvariable=po_var, width=12, font=("Arial", 10), justify="center")
+            po_entry.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
+
+            # Col 7: 預計出貨日 (Entry + 📅 日曆按鈕)
             date_frame = tk.Frame(self.scrollable_frame)
-            date_frame.grid(row=row_grid_idx, column=6, padx=2, pady=2, sticky="ew")
-            
+            date_frame.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
+
             date_var = tk.StringVar(value="")
             date_entry = tk.Entry(date_frame, textvariable=date_var, width=10, font=("Arial", 10))
             date_entry.pack(side="left", fill="x", expand=True)
-            
+
             btn_cal = tk.Button(date_frame, text="📅", command=lambda dv=date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal.pack(side="right", padx=(2, 0))
-            
-            # Col 7: 預計到貨日 (Entry + 📅 日曆按鈕)
+
+            # Col 8: 預計到貨日 (Entry + 📅 日曆按鈕)
             arr_date_frame = tk.Frame(self.scrollable_frame)
-            arr_date_frame.grid(row=row_grid_idx, column=7, padx=2, pady=2, sticky="ew")
-            
+            arr_date_frame.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+
             arr_date_var = tk.StringVar(value="")
             arr_date_entry = tk.Entry(arr_date_frame, textvariable=arr_date_var, width=10, font=("Arial", 10))
             arr_date_entry.pack(side="left", fill="x", expand=True)
-            
+
             btn_cal_arr = tk.Button(arr_date_frame, text="📅", command=lambda dv=arr_date_var: self.open_calendar_dialog(dv), font=("Arial", 8), cursor="hand2")
             btn_cal_arr.pack(side="right", padx=(2, 0))
 
-            # Col 8: 到貨時間
+            # Col 9: 到貨時間
             time_var = tk.StringVar()
             time_entry = tk.Entry(self.scrollable_frame, textvariable=time_var, width=8, font=("Arial", 10), justify="center")
-            time_entry.grid(row=row_grid_idx, column=8, padx=2, pady=2, sticky="ew")
+            time_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
 
-            # Col 9: 單重
+            # Col 10: 單重
             unit_w_var = tk.StringVar()
             unit_w_entry = tk.Entry(self.scrollable_frame, textvariable=unit_w_var, width=6, font=("Arial", 10), justify="center")
-            unit_w_entry.grid(row=row_grid_idx, column=9, padx=2, pady=2, sticky="ew")
+            unit_w_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
 
-            # Col 10: 件數
+            # Col 11: 件數
             pcs_var = tk.StringVar()
             pcs_entry = tk.Entry(self.scrollable_frame, textvariable=pcs_var, width=6, font=("Arial", 10), justify="center")
-            pcs_entry.grid(row=row_grid_idx, column=10, padx=2, pady=2, sticky="ew")
+            pcs_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
 
-            # Col 11: 出貨數量
+            # Col 12: 出貨數量
             qty_var = tk.StringVar()
             qty_entry = tk.Entry(self.scrollable_frame, textvariable=qty_var, width=9, font=("Arial", 10), fg="blue", justify="center")
-            qty_entry.grid(row=row_grid_idx, column=11, padx=2, pady=2, sticky="ew")
+            qty_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
 
-            # Col 12: 車牌
+            # Col 13: 車牌
             plate_var = tk.StringVar()
             plate_entry = tk.Entry(self.scrollable_frame, textvariable=plate_var, width=9, font=("Arial", 10), justify="center")
-            plate_entry.grid(row=row_grid_idx, column=12, padx=2, pady=2, sticky="ew")
+            plate_entry.grid(row=row_grid_idx, column=13, padx=2, pady=2, sticky="ew")
 
-            # Col 13: 原料批號
+            # Col 14: 原料批號
             raw_batch_var = tk.StringVar()
             raw_batch_entry = tk.Entry(self.scrollable_frame, textvariable=raw_batch_var, width=13, font=("Arial", 10))
-            raw_batch_entry.grid(row=row_grid_idx, column=13, padx=2, pady=2, sticky="ew")
+            raw_batch_entry.grid(row=row_grid_idx, column=14, padx=2, pady=2, sticky="ew")
 
-            # Col 14: 客戶批號 (Lot No)
+            # Col 15: 客戶批號 (Lot No)
             cust_batch_var = tk.StringVar()
             cust_batch_entry = tk.Entry(self.scrollable_frame, textvariable=cust_batch_var, width=14, font=("Arial", 10), fg="darkgreen")
-            cust_batch_entry.grid(row=row_grid_idx, column=14, padx=2, pady=2, sticky="ew")
+            cust_batch_entry.grid(row=row_grid_idx, column=15, padx=2, pady=2, sticky="ew")
 
-            # Col 15: 單列清空按鈕
+            # Col 16: 保存期限 (依客戶批號前五碼自動計算)
+            exp_var = tk.StringVar()
+            exp_entry = tk.Entry(self.scrollable_frame, textvariable=exp_var, width=12, font=("Arial", 10), fg="darkblue", justify="center")
+            exp_entry.grid(row=row_grid_idx, column=16, padx=2, pady=2, sticky="ew")
+
+            # Col 17: 單列清空按鈕
             btn_clear_row = tk.Button(
-                self.scrollable_frame, 
-                text="清空", 
-                command=lambda r=row_idx-1: self.clear_single_row(r), 
-                font=("Microsoft JhengHei", 9, "bold"), 
-                bg="#FFEBEE", 
-                fg="#C62828", 
-                cursor="hand2", 
+                self.scrollable_frame,
+                text="清空",
+                command=lambda r=row_idx-1: self.clear_single_row(r),
+                font=("Microsoft JhengHei", 9, "bold"),
+                bg="#FFEBEE",
+                fg="#C62828",
+                cursor="hand2",
                 width=5,
                 pady=1
             )
-            btn_clear_row.grid(row=row_grid_idx, column=15, padx=4, pady=2)
-
+            btn_clear_row.grid(row=row_grid_idx, column=17, padx=4, pady=2)
             # 後台相容性變數 (支援 COA / 報表產出與長代號/料號對照)
             batch_var = tk.StringVar()
             long_code_var = tk.StringVar()
             part_var = tk.StringVar()
-            po_var = tk.StringVar()
             mfg_var = tk.StringVar()
-            exp_var = tk.StringVar()
             rem_var = tk.StringVar()
 
-            # 雙向同步批號 (優先取客戶批號，其次原料批號)
-            def sync_batch(*args, bv=batch_var, cbv=cust_batch_var, rbv=raw_batch_var):
+            # 雙向同步批號 (優先取客戶批號，其次原料批號)，並自動根據客戶批號前五碼推算製造日與保存期限
+            def sync_batch(*args, bv=batch_var, cbv=cust_batch_var, rbv=raw_batch_var, ev=exp_var, mv=mfg_var):
                 b = cbv.get().strip().upper() or rbv.get().strip().upper()
                 if bv.get() != b:
                     bv.set(b)
+                target_b = cbv.get().strip().upper() or rbv.get().strip().upper()
+                if len(target_b) >= 5:
+                    mfg_calc, exp_calc = parse_lot_dates(target_b)
+                    if exp_calc and ev.get() != exp_calc:
+                        ev.set(exp_calc)
+                    if mfg_calc and mv.get() != mfg_calc:
+                        mv.set(mfg_calc)
 
             cust_batch_var.trace_add("write", sync_batch)
             raw_batch_var.trace_add("write", sync_batch)
@@ -1918,10 +2168,26 @@ class App(tk.Tk):
             short_var.trace_add("write", lambda *args, sv=short_var, lv=loc_var, nv=name_var, pv=part_var: self.update_part_no(sv, nv, pv))
             name_var.trace_add("write", lambda name, index, mode, lv=loc_var, nv=name_var, pv=part_var: self.update_part_no(lv, nv, pv))
             
-            for widget in (loc_entry, short_entry, cust_batch_entry, raw_batch_entry, date_entry):
-                widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
-                widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
-                widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget: self.on_paste(e, r, w))
+            def _bind_context_menu(w, r_i, c_type):
+                m = tk.Menu(w, tearoff=0)
+                m.add_command(label="剪下 (Cut)", command=lambda: w.event_generate("<<Cut>>"))
+                m.add_command(label="複製 (Copy)", command=lambda: w.event_generate("<<Copy>>"))
+                m.add_command(label="貼上 (Paste)", command=lambda: self.on_paste(None, r_i, w, c_type))
+                w.bind("<Button-3>", lambda e: m.tk_popup(e.x_root, e.y_root))
+
+            for widget, c_type in [
+                (loc_entry, "loc"),
+                (short_entry, "short"),
+                (cust_batch_entry, "cust_batch"),
+                (raw_batch_entry, "raw_batch"),
+                (date_entry, "date"),
+                (po_entry, "po"),
+                (exp_entry, "exp")
+            ]:
+                widget.bind("<<Paste>>", lambda e, r=row_idx-1, w=widget, ct=c_type: self.on_paste(e, r, w, ct))
+                widget.bind("<Control-v>", lambda e, r=row_idx-1, w=widget, ct=c_type: self.on_paste(e, r, w, ct))
+                widget.bind("<Control-V>", lambda e, r=row_idx-1, w=widget, ct=c_type: self.on_paste(e, r, w, ct))
+                _bind_context_menu(widget, row_idx-1, c_type)
             
             self.entries.append({
                 "chk_var": chk_var,
@@ -1945,7 +2211,34 @@ class App(tk.Tk):
                 "mfg_var": mfg_var,
                 "exp_var": exp_var,
                 "rem_var": rem_var,
+                "po_entry": po_entry,
+                "cust_batch_entry": cust_batch_entry,
+                "raw_batch_entry": raw_batch_entry,
+                "loc_entry": loc_entry,
+                "short_entry": short_entry,
+                "date_entry": date_entry,
+                "exp_entry": exp_entry,
             })
+
+    def toggle_all_rows_selection(self):
+        """主畫面排程列反選功能：反轉所有填寫列或全部列的勾選狀態"""
+        filled_entries = [e for e in self.entries if e.get("loc_var", tk.StringVar()).get().strip() or e.get("cust_batch_var", tk.StringVar()).get().strip()]
+        target_entries = filled_entries if filled_entries else self.entries
+        for entry in target_entries:
+            curr = entry["chk_var"].get()
+            entry["chk_var"].set(not curr)
+
+    def select_all_rows(self):
+        """主畫面排程列全部勾選"""
+        filled_entries = [e for e in self.entries if e.get("loc_var", tk.StringVar()).get().strip() or e.get("cust_batch_var", tk.StringVar()).get().strip()]
+        target_entries = filled_entries if filled_entries else self.entries
+        for entry in target_entries:
+            entry["chk_var"].set(True)
+
+    def deselect_all_rows(self):
+        """主畫面排程列全部取消勾選"""
+        for entry in self.entries:
+            entry["chk_var"].set(False)
 
     def clear_all_rows(self):
         """一鍵清除全部輸入欄位 (全清)"""
@@ -2013,10 +2306,10 @@ class App(tk.Tk):
             if long_code_combo: long_code_combo['values'] = []
     def parse_pasted_row_items(self, parts):
         """
-        智慧解析貼上行中的元素，自動辨識：出貨日期、批號、槽號、地點、時間。
+        智慧解析貼上行中的元素，自動辨識：出貨日期、批號、槽號、地點、時間、PO。
         支援 Image 1 範例（到貨 + 批號 + 槽號 + 地點）及各式自訂順序！
         """
-        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": "", "origin": ""}
+        res = {"batch": "", "loc": "", "date": "", "time": "", "mod_time": "", "origin": "", "po": ""}
         clean_parts = [p.strip() for p in parts if p.strip()]
         if not clean_parts:
             return res
@@ -2031,19 +2324,23 @@ class App(tk.Tk):
                     res["date"] = p
                     continue
 
-            # 2. 批號 (8~12 碼英數混合，例如 26817E3051)
+            # 2. 批號 (8~12 碼英數混合，且必須同時包含英文字母與數字，例如 26A12K41D2)
             if not res["batch"] and (8 <= len(p_upper) <= 12 and any(c.isdigit() for c in p_upper) and any(c.isalpha() for c in p_upper)):
                 res["batch"] = p_upper
                 continue
 
-            # 3. 地點 (在 mapping_dict 內或含 18P, 15P, P, 廠等)
+            # 3. PO (純數字且長度為 8~12 碼，例如 4800386965)
+            if not res["po"] and p.isdigit() and (8 <= len(p) <= 12):
+                res["po"] = p
+                continue
+
+            # 4. 地點 (在 mapping_dict 內或含 18P, 15P, P, 廠等)
             clean_p = clean_location_str(p, getattr(self, 'mapping_dict', {}))
             if not res["loc"] and (clean_p in getattr(self, 'mapping_dict', {}) or "18P" in clean_p or "15P" in clean_p or "P" in clean_p or "廠" in p):
                 res["loc"] = clean_p if clean_p else p_upper
                 continue
 
-
-            # 4. 槽號 (3~5 碼以 E/T/P 開頭，例如 E305) -> 可略過，因為寫入批號時微服務會自動算槽號！
+            # 5. 槽號 (3~5 碼以 E/T/P 開頭，例如 E305) -> 可略過，因為寫入批號時微服務會自動算槽號！
             if len(p_upper) <= 5 and p_upper.startswith(("E", "T", "P")):
                 continue
 
@@ -2052,7 +2349,9 @@ class App(tk.Tk):
 
         # 針對缺額自動後補填入
         for item in unassigned:
-            if not res["batch"] and len(item) >= 6:
+            if not res["po"] and item.isdigit() and 8 <= len(item) <= 12:
+                res["po"] = item
+            elif not res["batch"] and len(item) >= 6 and any(c.isalpha() for c in item) and any(c.isdigit() for c in item):
                 res["batch"] = item.upper()
             elif not res["loc"] and len(item) <= 10:
                 res["loc"] = item.upper()
@@ -2070,51 +2369,92 @@ class App(tk.Tk):
                 
         return res
 
-    def on_paste(self, event, start_row_idx, widget=None):
+    def on_paste(self, event, start_row_idx, widget=None, col_type=None):
         try:
+            target_w = widget or getattr(event, 'widget', None)
             clipboard = self.clipboard_get()
-            lines = clipboard.split('\n')
-            
-            valid_lines = [l for l in lines if l.strip()]
-            if not valid_lines:
+            lines = [l for l in clipboard.split('\n') if l.strip()]
+            if not lines:
                 return "break"
                 
-            needed_rows = start_row_idx + len(valid_lines)
+            needed_rows = start_row_idx + len(lines)
             if needed_rows > len(self.entries):
                 self.add_input_rows(needed_rows - len(self.entries))
-            
+
+            # 辨識當前焦點所屬欄位
+            c_type = col_type
+            if not c_type and target_w and start_row_idx < len(self.entries):
+                for row_dict in self.entries:
+                    if target_w == row_dict.get("po_entry"):
+                        c_type = "po"
+                        break
+                    elif target_w == row_dict.get("cust_batch_entry"):
+                        c_type = "cust_batch"
+                        break
+                    elif target_w == row_dict.get("raw_batch_entry"):
+                        c_type = "raw_batch"
+                        break
+                    elif target_w == row_dict.get("loc_entry"):
+                        c_type = "loc"
+                        break
+                    elif target_w == row_dict.get("short_entry"):
+                        c_type = "short"
+                        break
+                    elif target_w == row_dict.get("date_entry"):
+                        c_type = "date"
+                        break
+                    elif target_w == row_dict.get("exp_entry"):
+                        c_type = "exp"
+                        break
+
             curr_row = start_row_idx
             for line in lines:
-                if not line.strip(): continue
                 parts = line.split('\t')
                 if len(parts) == 1:
                     parts = line.split()
-                    
-                if len(parts) >= 2:
-                    # 使用智慧元素剖析器！
+                if not parts:
+                    continue
+
+                if c_type == "po":
+                    # 專屬 PO 欄位貼上：整欄多行直接逐行填入 po_var
+                    val = parts[0].strip()
+                    if curr_row < len(self.entries):
+                        self.entries[curr_row]["po_var"].set(val)
+                    curr_row += 1
+                elif c_type == "cust_batch" and len(parts) == 1:
+                    val = parts[0].strip()
+                    if curr_row < len(self.entries):
+                        self.entries[curr_row]["cust_batch_var"].set(val)
+                    curr_row += 1
+                elif c_type == "raw_batch" and len(parts) == 1:
+                    val = parts[0].strip()
+                    if curr_row < len(self.entries):
+                        self.entries[curr_row]["raw_batch_var"].set(val)
+                    curr_row += 1
+                elif len(parts) >= 2:
                     parsed = self.parse_pasted_row_items(parts)
-                    
-                    if parsed["batch"]:
-                        self.entries[curr_row]["batch_var"].set(parsed["batch"])
-                    if parsed["loc"]:
+                    if parsed.get("batch"):
+                        self.entries[curr_row]["cust_batch_var"].set(parsed["batch"])
+                    if parsed.get("loc"):
                         self.entries[curr_row]["loc_var"].set(parsed["loc"])
-                    if parsed["date"]:
+                    if parsed.get("date"):
                         self.entries[curr_row]["date_var"].set(parsed["date"])
-                    
+                    if parsed.get("po"):
+                        self.entries[curr_row]["po_var"].set(parsed["po"])
                     curr_row += 1
                 elif len(parts) == 1:
                     val = parts[0].strip()
-                    # 單一欄位貼上：依當前焦點與內容自動指派
-                    if val:
-                        parsed = self.parse_pasted_row_items([val])
-                        if parsed["batch"]:
-                            self.entries[curr_row]["batch_var"].set(parsed["batch"])
-                        elif parsed["loc"]:
-                            self.entries[curr_row]["loc_var"].set(parsed["loc"])
-                        elif parsed["date"]:
-                            self.entries[curr_row]["date_var"].set(parsed["date"])
-                        else:
-                            self.entries[curr_row]["batch_var"].set(val)
+                    parsed = self.parse_pasted_row_items([val])
+                    if parsed.get("po"):
+                        self.entries[curr_row]["po_var"].set(parsed["po"])
+                    elif parsed.get("batch"):
+                        self.entries[curr_row]["cust_batch_var"].set(parsed["batch"])
+                    elif parsed.get("loc"):
+                        self.entries[curr_row]["loc_var"].set(parsed["loc"])
+                    elif parsed.get("date"):
+                        self.entries[curr_row]["date_var"].set(parsed["date"])
+                    else:
+                        self.entries[curr_row]["cust_batch_var"].set(val)
                     curr_row += 1
                     
             return "break"
@@ -2127,33 +2467,60 @@ class App(tk.Tk):
 
     def _extract_batch_from_coa(self, file_path):
         import csv
-        try:
-            with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    if len(row) >= 2 and 'RawLotId' in str(row[0]):
-                        return str(row[1]).strip()
-        except:
-            pass
-        try:
-            with open(file_path, 'r', encoding='cp950', errors='ignore') as f:
-                reader = csv.reader(f)
-                for row in reader:
-                    if len(row) >= 2 and 'RawLotId' in str(row[0]):
-                        return str(row[1]).strip()
-        except:
-            pass
+        for enc in ('utf-8-sig', 'utf-8', 'cp950', 'gbk'):
+            try:
+                with open(file_path, 'r', encoding=enc, errors='ignore') as f:
+                    reader = csv.reader(f)
+                    for row in reader:
+                        if len(row) >= 2 and row[0]:
+                            c0 = str(row[0]).lower().replace(' ', '').replace('_', '')
+                            if 'rawlotid' in c0:
+                                val = str(row[1]).strip()
+                                if val:
+                                    return val
+            except:
+                pass
         try:
             import openpyxl
             wb = openpyxl.load_workbook(file_path, data_only=True)
             for sheet in wb.sheetnames:
                 ws = wb[sheet]
-                for row in ws.iter_rows(min_row=1, max_row=50, min_col=1, max_col=2):
-                    if row[0].value and 'RawLotId' in str(row[0].value) and row[1].value:
-                        return str(row[1].value).strip()
+                for row in ws.iter_rows(min_row=1, max_row=50, min_col=1, max_col=5):
+                    if len(row) >= 2 and row[0].value:
+                        c0 = str(row[0].value).lower().replace(' ', '').replace('_', '')
+                        if 'rawlotid' in c0 and row[1].value:
+                            val = str(row[1].value).strip()
+                            if val:
+                                wb.close()
+                                return val
+            wb.close()
         except:
             pass
         return None
+
+    def get_report_loc_folder(self, output_dir, loc_raw, batch_no, target_date_str, mode):
+        c_loc = clean_location_str(loc_raw, getattr(self, "mapping_dict", {})) or str(loc_raw).strip().upper()
+        safe_l = "".join(c for c in c_loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
+        if not safe_l:
+            safe_l = "未命名地點"
+        if mode == 2:
+            target_dir = os.path.join(output_dir, safe_l)
+        else:
+            mmdd = "0000"
+            if target_date_str:
+                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                    try:
+                        dt = datetime.strptime(str(target_date_str).split()[0], fmt)
+                        mmdd = f"{dt.month:02d}{dt.day:02d}"
+                        break
+                    except ValueError:
+                        pass
+            if mmdd == "0000":
+                mmdd = datetime.now().strftime("%m%d")
+            sub_d = f"{mmdd} {safe_l} {batch_no}".strip()
+            target_dir = os.path.join(output_dir, safe_l, sub_d)
+        os.makedirs(target_dir, exist_ok=True)
+        return target_dir
 
     def load_coa_forms(self):
         file_paths = filedialog.askopenfilenames(
@@ -2165,16 +2532,24 @@ class App(tk.Tk):
             return
         self._save_last_dir('coa', file_paths[0])
 
-        valid_batches = {}
-        for row in self.entries:
+        valid_rows = []
+        for idx, row in enumerate(self.entries):
             if row["chk_var"].get():
-                batch = row["batch_var"].get().strip().upper()
-                loc = row["loc_var"].get().strip().upper() if "loc_var" in row else ""
-                if batch:
-                    vb_key = f"{batch}|{loc}" if loc else batch
-                    valid_batches[vb_key] = row
+                cb = row.get("cust_batch_var", tk.StringVar()).get().strip().upper()
+                rb = row.get("raw_batch_var", tk.StringVar()).get().strip().upper()
+                bv = row.get("batch_var", tk.StringVar()).get().strip().upper()
+                loc = row.get("loc_var", tk.StringVar()).get().strip()
+                batches = set(filter(None, [cb, rb, bv]))
+                if batches:
+                    valid_rows.append({
+                        "idx": idx,
+                        "row": row,
+                        "loc": loc,
+                        "batches": batches,
+                        "disp_batch": cb or rb or bv
+                    })
 
-        if not valid_batches:
+        if not valid_rows:
             messagebox.showwarning("提示", "請先在列表中填寫並勾選包含批號的資料！")
             return
             
@@ -2182,28 +2557,26 @@ class App(tk.Tk):
         unmatched_files = []
         for file_path in file_paths:
             base_name = os.path.basename(file_path)
-            fn_upper = base_name.upper()
-            
-            # 收集所有批號吻合的 key (支援同批號多廠區)
-            matched_keys = []
-            for b_key, row_entry in valid_batches.items():
-                b = b_key.split('|')[0]
-                if b in fn_upper:
-                    matched_keys.append(b_key)
-                    
-            if not matched_keys:
-                found_batch = self._extract_batch_from_coa(file_path)
-                if found_batch:
-                    for b_key, row_entry in valid_batches.items():
-                        b = b_key.split('|')[0]
-                        if b == found_batch or b in found_batch or found_batch in b:
-                            matched_keys.append(b_key)
-                            
-            if matched_keys:
-                for mk in matched_keys:
-                    matched_results.append((base_name, mk))
+            # 嚴格只從 COA 內部抓取批號 (RawLotId) 進行核對，絕不比對檔名！
+            found_batch = self._extract_batch_from_coa(file_path)
+            if found_batch:
+                found_batch = found_batch.strip().upper()
+
+            matched_for_file = []
+
+            # 嚴格以 COA 內部 RawLotId 核對排程勾選之批號
+            if found_batch:
+                for vr in valid_rows:
+                    if any(found_batch == b or (len(found_batch) >= 6 and (found_batch in b or b in found_batch)) for b in vr["batches"]):
+                        m_str = f"{vr['disp_batch']}|{vr['loc']}" if vr['loc'] else vr['disp_batch']
+                        matched_for_file.append(m_str)
+
+            if matched_for_file:
+                distinct_matches = list(dict.fromkeys(matched_for_file))
+                matched_results.append((base_name, found_batch, distinct_matches[0]))
             else:
-                unmatched_files.append(base_name)
+                reason = f"內部 RawLotId: {found_batch} (與排程批號不符)" if found_batch else "內部未找到 RawLotId 欄位"
+                unmatched_files.append((base_name, reason))
 
         # 累加模式：新檔案合併至既有清單，去重複後更新
         existing_coa = list(getattr(self, 'imported_coa_files', []))
@@ -2211,16 +2584,29 @@ class App(tk.Tk):
         self.imported_coa_files = existing_coa + new_coa
         
         total_count = len(self.imported_coa_files)
-        msg = f"本次新增 {len(new_coa)} 份，累計已載入 {total_count} 份 COA 表單\n\n"
+        msg_lines = [
+            f"📄 COA 載入完成：本次新增 {len(new_coa)} 份，累計已載入 {total_count} 份\n"
+        ]
+
         if matched_results:
-            msg += f"✅ 成功對應 {len(matched_results)} 筆批號：\n"
-            for fname, b in matched_results:
-                msg += f" - {fname} -> {b}\n"
+            msg_lines.append(f"✅ 成功核對批號 {len(matched_results)} 份 (嚴格依內部 RawLotId)：")
+            max_show = 4 if len(matched_results) > 5 else len(matched_results)
+            for i in range(max_show):
+                fname, fb, m_info = matched_results[i]
+                msg_lines.append(f"  • {fname}  ➜  批號: {fb}")
+            if len(matched_results) > 5:
+                msg_lines.append(f"  ...等其餘 {len(matched_results) - max_show} 份檔案皆已成功配對")
+
         if unmatched_files:
-            msg += f"\n⚠️ 找不到對應批號 {len(unmatched_files)} 份：\n"
-            for fname in unmatched_files:
-                msg += f" - {fname}\n"
-        messagebox.showinfo("COA 表單已載入", msg)
+            msg_lines.append(f"\n⚠️ 未配對排程 {len(unmatched_files)} 份 (絕不依檔名猜測)：")
+            max_show_un = 4 if len(unmatched_files) > 5 else len(unmatched_files)
+            for i in range(max_show_un):
+                fname, reason = unmatched_files[i]
+                msg_lines.append(f"  • {fname}  [{reason}]")
+            if len(unmatched_files) > 5:
+                msg_lines.append(f"  ...等其餘 {len(unmatched_files) - max_show_un} 份未配對")
+
+        messagebox.showinfo("COA 表單已載入", "\n".join(msg_lines))
 
     def upload_coa(self):
         if not os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe') and not os.path.exists(r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe'):
@@ -2283,6 +2669,8 @@ class App(tk.Tk):
 
         total_imported = 0
         for filepath in filepaths:
+            self.show_loading("⏳ 正在解析 Excel 排程檔案，請稍候...")
+            self.update()
             try:
                 records = []
                 sheet_count = 1
@@ -2354,7 +2742,7 @@ class App(tk.Tk):
                                 if exp_col == -1 and any(k in clean_v for k in ["到期", "保存", "EXP", "期限", "效期", "批號到期"]) and "剩餘" not in clean_v and "天數" not in clean_v: exp_col = c_idx
                                 if time_col == -1 and any(k in clean_v for k in ["到貨時間", "預計", "時間", "TIME"]) and "修正" not in clean_v: time_col = c_idx
                                 if mod_time_col == -1 and "修正" in clean_v and ("時間" in clean_v or "TIME" in clean_v): mod_time_col = c_idx
-                                if po_col == -1 and any(k in clean_v for k in ["採購單號", "採購單", "采购单", "採購"]): po_col = c_idx
+                                if po_col == -1 and clean_v in ["PO", "PONO", "PO號", "PO#"]: po_col = c_idx
                                 if origin_col == -1 and any(k in clean_v for k in ["出貨地", "出貨區", "出貨廠", "灌裝"]): origin_col = c_idx
                                 if name_col == -1 and any(k in clean_v for k in ["品名", "產品名稱", "PRODUCT", "NAME", "描述", "SPEC"]): name_col = c_idx
                             if batch_col != -1 and (loc_col != -1 or ship_date_col != -1 or arr_date_col != -1):
@@ -2421,13 +2809,24 @@ class App(tk.Tk):
                                 "rem_days": rem_val
                             })
                 else:
-                    # 遍歷 Excel 所有分頁 (跨分頁抓取所有有效排程)
-                    wb = openpyxl.load_workbook(filepath, data_only=True)
-                    sheet_count = len(wb.worksheets)
+                    # 遍歷 Excel 所有分頁 (以 read_only 模式快速讀取，避免百萬空行卡頓)
+                    wb = openpyxl.load_workbook(filepath, read_only=True, data_only=True)
+                    sheet_count = len(wb.sheetnames)
 
-                    for ws in wb.worksheets:
-                        sheet_name = ws.title
-                        rows = list(ws.iter_rows(values_only=True))
+                    for s_name in wb.sheetnames:
+                        ws = wb[s_name]
+                        sheet_name = s_name
+                        rows = []
+                        consecutive_empty = 0
+                        for r in ws.iter_rows(values_only=True):
+                            if not any(r):
+                                consecutive_empty += 1
+                                if consecutive_empty >= 25:
+                                    break
+                            else:
+                                consecutive_empty = 0
+                                rows.append(r)
+
                         if not rows or len(rows) == 0:
                             continue
 
@@ -2479,7 +2878,7 @@ class App(tk.Tk):
                                 if not v: continue
                                 clean_v = v.replace(" ", "").replace("\t", "").replace("\n", "")
                                 
-                                if po_col == -1 and any(k in clean_v for k in ["採購單號", "採購單", "采购单", "採購", "出貨通知單", "單別號", "單號"]):
+                                if po_col == -1 and clean_v in ["PO", "PONO", "PO號", "PO#"]:
                                     po_col = c_idx
                                 if ship_date_col == -1 and any(k in clean_v for k in ["預計出貨", "出貨日", "出車日", "出貨日期"]) and not any(k in clean_v for k in ["單別號", "單號", "通知單", "地", "點"]):
                                     ship_date_col = c_idx
@@ -2640,6 +3039,7 @@ class App(tk.Tk):
                             })
                     wb.close()
 
+                self.hide_loading()
                 if not records:
                     messagebox.showinfo("匯入提示", f"在檔案 {os.path.basename(filepath)} 的所有 {sheet_count} 個分頁中，找不到任何有效的台積電排程資料！")
                     continue
@@ -2692,8 +3092,14 @@ class App(tk.Tk):
                     eff_b = rec.get("cust_batch") or rec.get("raw_batch") or rec.get("batch", "")
                     if "batch_var" in row_e: row_e["batch_var"].set(eff_b)
                     if "po_var" in row_e and rec.get("po"): row_e["po_var"].set(rec["po"])
-                    if "mfg_var" in row_e and rec.get("mfg_date"): row_e["mfg_var"].set(rec["mfg_date"])
-                    if "exp_var" in row_e and rec.get("exp_date"): row_e["exp_var"].set(rec["exp_date"])
+                    mfg_d = rec.get("mfg_date") or ""
+                    exp_d = rec.get("exp_date") or ""
+                    if (not mfg_d or not exp_d) and eff_b:
+                        mfg_c, exp_c = parse_lot_dates(eff_b)
+                        if not mfg_d: mfg_d = mfg_c
+                        if not exp_d: exp_d = exp_c
+                    if "mfg_var" in row_e and mfg_d: row_e["mfg_var"].set(mfg_d)
+                    if "exp_var" in row_e and exp_d: row_e["exp_var"].set(exp_d)
                     if "rem_var" in row_e and rec.get("rem_days"): row_e["rem_var"].set(rec["rem_days"])
 
                     # 儲存勝一排程專用 12 欄位資料 (備便後續寫入 COA 與 生產履歷)
@@ -2729,7 +3135,21 @@ class App(tk.Tk):
             if not row["chk_var"].get():
                 continue
                 
-            batch = row["batch_var"].get().strip().upper()
+            cust_batch_val = row.get("cust_batch_var", tk.StringVar()).get().strip().upper() if "cust_batch_var" in row else ""
+            raw_batch_val = row.get("raw_batch_var", tk.StringVar()).get().strip().upper() if "raw_batch_var" in row else ""
+            po_str = row.get("po_var", tk.StringVar()).get().strip() if "po_var" in row else ""
+
+            # 嚴格以客戶批號 (Lot No) 為主，其次原料批號；絕不誤抓 PO 欄位數值
+            batch = cust_batch_val or raw_batch_val
+            if not batch:
+                old_bv = row["batch_var"].get().strip().upper()
+                if old_bv and old_bv != po_str:
+                    batch = old_bv
+
+            # 同步更新回 batch_var，清除舊殘留或誤填之 PO 數值
+            if batch:
+                row["batch_var"].set(batch)
+
             raw_loc = row["loc_var"].get().strip()
             loc = clean_location_str(raw_loc, self.mapping_dict) or raw_loc.strip().upper()
             qty = row["qty_var"].get().strip()
@@ -2739,17 +3159,22 @@ class App(tk.Tk):
             
             if not batch and not loc:
                 continue
-            if not batch or not loc:
-                messagebox.showerror("錯誤", f"第 {idx+1} 項資料不齊全！")
+            if not loc:
+                messagebox.showerror("錯誤", f"第 {idx+1} 項未填寫指送地點！")
                 return
-            if len(batch) != 10:
-                messagebox.showerror("錯誤", f"第 {idx+1} 項的批號長度錯誤！\n批號必須剛好 10 碼，目前輸入: {batch} (長度 {len(batch)})")
+            if not cust_batch_val and not batch:
+                messagebox.showerror("錯誤", f"第 {idx+1} 項未填寫客戶批號！")
+                return
+
+            # 專門判讀「客戶批號」是否為 10 碼（排除 PO 號碼）
+            target_check_batch = cust_batch_val or batch
+            if len(target_check_batch) != 10:
+                messagebox.showerror("錯誤", f"第 {idx+1} 項的客戶批號長度錯誤！\n客戶批號 (Lot No) 必須剛好 10 碼，目前輸入: {target_check_batch} (長度 {len(target_check_batch)})")
                 return
                 
             part_no_str = row.get("part_var", tk.StringVar()).get().strip() if "part_var" in row else ""
             if not part_no_str and hasattr(self, 'part_mapping_dict') and loc in self.part_mapping_dict:
                 part_no_str = self.part_mapping_dict[loc].get("default", "")
-            po_str = row.get("po_var", tk.StringVar()).get().strip() if "po_var" in row else ""
             mfg_date_str = row.get("mfg_var", tk.StringVar()).get().strip() if "mfg_var" in row else ""
             exp_date_str = row.get("exp_var", tk.StringVar()).get().strip() if "exp_var" in row else ""
             arr_date_str = row.get("arr_date_var", tk.StringVar()).get().strip() if "arr_date_var" in row else ""
@@ -2758,10 +3183,18 @@ class App(tk.Tk):
             if (not long_code_val or "未知" in long_code_val) and loc in self.mapping_dict:
                 vals = self.mapping_dict.get(loc, [])
                 long_code_val = vals[0] if isinstance(vals, list) and vals else (vals if isinstance(vals, str) else "")
+            short_loc_val = row.get("short_var", tk.StringVar()).get().strip().upper() if "short_var" in row else ""
+            name_val = row.get("name_var", tk.StringVar()).get().strip() if "name_var" in row else ""
+            spec_val = row.get("spec_var", tk.StringVar()).get().strip() if "spec_var" in row else ""
             valid_data.append({
                 "batch": batch,
                 "qty": qty,
                 "loc": loc,
+                "short_loc": short_loc_val,
+                "cust_batch": cust_batch_val,
+                "raw_batch": raw_batch_val,
+                "name": name_val,
+                "spec": spec_val,
                 "long_code": long_code_val,
                 "date": date_str,
                 "arr_date": arr_date_str,
@@ -2788,10 +3221,11 @@ class App(tk.Tk):
 
         self.show_loading("⏳ 正在產生所有報表，請稍候...")
         
-        # 按出貨日分群，每個日期產生獨立資料夾
+        # 按 (到貨日, 品名) 分群，以到貨日與品名區分不同資料夾產出
         groups = {}
         for data in valid_data:
-            d_raw = data.get("date", "").strip()
+            # 優先使用到貨日 (arr_date)，若無則 fallback 出貨日 (date)
+            d_raw = data.get("arr_date", "").strip() or data.get("date", "").strip()
             g_date_str = datetime.now().strftime('%Y%m%d')
             if d_raw:
                 d_part = d_raw.split()[0]
@@ -2802,7 +3236,9 @@ class App(tk.Tk):
                         break
                     except ValueError:
                         pass
-            groups.setdefault(g_date_str, []).append(data)
+            prod_canon = get_canonical_prod_name(data.get("name", ""), data.get("spec", ""))
+            g_key = (g_date_str, prod_canon)
+            groups.setdefault(g_key, []).append(data)
 
         all_output_dirs = []
         total_success_3in1 = 0
@@ -2811,11 +3247,13 @@ class App(tk.Tk):
         total_error_msgs = []
         mat_no = ""
 
-        for _g_date_str, _g_data in groups.items():
+        for (_g_date_str, _g_prod), _g_data in groups.items():
             valid_data = _g_data
-            output_dir = os.path.join(self.base_dir, f"N系小包報表輸出_{_g_date_str}")
+            folder_name = f"N系小包報表輸出_{_g_prod}_{_g_date_str}" if _g_prod else f"N系小包報表輸出_{_g_date_str}"
+            output_dir = os.path.join(self.base_dir, folder_name)
             os.makedirs(output_dir, exist_ok=True)
-            all_output_dirs.append(output_dir)
+            if output_dir not in all_output_dirs:
+                all_output_dirs.append(output_dir)
             success_3in1 = 0
             error_msgs = []
             success_transport = False
@@ -3080,153 +3518,220 @@ class App(tk.Tk):
 
                 lorry_sources = list(getattr(self, "imported_lorry_files", []))
                 if not lorry_sources:
-                    lorry_sources = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+                    lorry_sources = glob.glob(os.path.join(self.base_dir, "PR_*.xlsx")) or glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
                     if not lorry_sources:
-                        error_msgs.append("⚠️ 找不到任何 Chemical_Lorry 檔案作為來源！")
+                        error_msgs.append("⚠️ 找不到任何生產履歷 (PR / Chemical_Lorry) 檔案作為來源！")
 
                 lorry_generated_batches = set()
                 
+                # 預先解析所有來源模版的特徵 (料號 MaterialNo、品名 MaterialName、檔名)
+                pr_template_meta = []
                 for l_path in lorry_sources:
-                    with open(os.path.join(os.path.expanduser('~'), 'Desktop', 'debug_lorry.txt'), 'a', encoding='utf-8') as dfile:
-                        dfile.write(f"\n--- Processing {l_path} ---\n")
-                        dfile.write(f"valid_data has {len(valid_data)} items\n")
-
                     orig_filename = os.path.splitext(os.path.basename(l_path))[0]
                     orig_ext = os.path.splitext(l_path)[1]
-                    base_lorry_name = orig_filename.rsplit('-', 1)[0] if '-' in orig_filename else orig_filename
+                    t_mat_no = ""
+                    t_mat_name = ""
+                    t_batch_in_file = ""
+                    try:
+                        wb_info = openpyxl.load_workbook(l_path, data_only=True)
+                        ws_info = wb_info.active
+                        t_mat_no = str(ws_info.cell(row=1, column=2).value or "").strip().upper()
+                        t_mat_name = str(ws_info.cell(row=2, column=2).value or "").strip().upper()
+                        t_batch_in_file = str(ws_info.cell(row=7, column=1).value or "").strip().upper()
+                        wb_info.close()
+                    except Exception:
+                        pass
+                    pr_template_meta.append({
+                        "path": l_path,
+                        "filename": orig_filename,
+                        "ext": orig_ext,
+                        "mat_no": t_mat_no,
+                        "mat_name": t_mat_name,
+                        "batch_in_file": t_batch_in_file,
+                    })
+
+                # 定義精確模版比對演算法 (防止 PMAUPS 與 PMAHQ(R) 混淆，長字串優先比對)
+                def clean_token(s):
+                    import re as _re_tok
+                    return _re_tok.sub(r'[^A-Z0-9]', '', str(s).upper())
+
+                def find_best_pr_template(item_data, meta_list):
+                    p_name = clean_token(item_data.get("name", ""))
+                    p_spec = clean_token(item_data.get("spec", ""))
+                    p_part = clean_token(item_data.get("part_no", ""))
+                    full_p_info = f"{p_name}_{p_spec}_{p_part}"
+
+                    # 1. 優先比對料號 (MaterialNo)
+                    for m in meta_list:
+                        m_mat = clean_token(m.get("mat_no", ""))
+                        if m_mat and m_mat in full_p_info:
+                            return m
+
+                    # 2. 特殊長字串關鍵字精確比對 (Longest Match First)
+                    # 避免 PMA 單獨匹配導致 PMAUPS 與 PMAHQ 互相覆蓋
+                    long_rules = [
+                        ("PMAUPS", ["PMAUPS", "PMAUP"]),
+                        ("PMAHQ", ["PMAHQ", "PMAHQR", "PMAHQ(R)"]),
+                        ("CPN", ["CPN", "A515", "A-515", "L2C9172"]),
+                    ]
+                    for canon_name, aliases in long_rules:
+                        for alias in aliases:
+                            if clean_token(alias) in full_p_info:
+                                for m in meta_list:
+                                    m_text = clean_token(m["mat_name"]) + "_" + clean_token(m["filename"])
+                                    if any(clean_token(a) in m_text for a in aliases):
+                                        return m
+
+                    # 3. 模版完整品名比對
+                    for m in meta_list:
+                        m_name = clean_token(m.get("mat_name", ""))
+                        if m_name and (m_name in full_p_info or full_p_info in m_name):
+                            return m
+
+                    # 4. 若只有單一模版且無衝突時，可作為保底
+                    if len(meta_list) == 1:
+                        return meta_list[0]
+
+                    return None
+
+                # 依排程項目逐一選取最佳模版並產出生產履歷
+                for item in valid_data:
+                    b_no = str(item.get("batch", "")).strip().upper()
+                    cb_no = str(item.get("cust_batch", "")).strip().upper()
+                    rb_no = str(item.get("raw_batch", "")).strip().upper()
+                    eff_batch = cb_no or b_no or rb_no
+
+                    matched_tpl = find_best_pr_template(item, pr_template_meta)
+                    if not matched_tpl:
+                        item_label = item.get("name") or item.get("spec") or item.get("part_no") or eff_batch
+                        error_msgs.append(f"⚠️ 找不到品名規格「{item_label}」對應的生產履歷模版，已略過產出。")
+                        continue
+
+                    l_path = matched_tpl["path"]
+                    orig_filename = matched_tpl["filename"]
+                    orig_ext = matched_tpl["ext"]
 
                     try:
-                        wb_data = openpyxl.load_workbook(l_path, data_only=True)
-                        ws_data = wb_data.active
-                        l_batch = str(ws_data.cell(row=7, column=1).value or "").strip().upper()
-                        wb_data.close()
-                        
-                        fn_upper = orig_filename.upper()
-                        
-                        # 找出所有批號吻合的項目 (同批號多廠區)
-                        matched_items = []
-                        for item in valid_data:
-                            b_no = str(item.get("batch", "")).strip().upper()
-                            # 批號必須吻合 (不強制檔名有廠區，因為原始檔名通常沒有廠區)
-                            if b_no and (b_no in l_batch or b_no in fn_upper):
-                                matched_items.append((item, b_no))
-                                
-                        for item, l_batch_found in matched_items:
-                            # 每次寫入都重新載入原始檔，避免多廠區時資料互相覆蓋
-                            wb_l = openpyxl.load_workbook(l_path, data_only=False)
-                            ws_l = wb_l.active
-                            
-                            l_loc = item.get("loc", "")
-                            # 優先使用到貨日期，若無才用出貨日期
-                            d_str = item.get("arr_date", "").strip()
-                            if not d_str:
-                                d_str = item.get("date", "").strip()
-                            
-                            # Convert d_str to YYYY/MM/DD format
-                            try:
-                                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
-                                    try:
-                                        _dt = datetime.strptime(d_str.split()[0], fmt)
-                                        d_str_fmt = f"{_dt.year}/{_dt.month:02d}/{_dt.day:02d}"
-                                        break
-                                    except ValueError:
-                                        pass
-                                else:
-                                    d_str_fmt = d_str
-                            except:
-                                d_str_fmt = d_str
+                        wb_l = openpyxl.load_workbook(l_path, data_only=False)
+                        ws_l = wb_l.active
 
-                            # Convert mfg_date to YYYY/MM/DD format
-                            try:
-                                mfg_str = item.get('mfg_date', '')
-                                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
-                                    try:
-                                        _mdt = datetime.strptime(str(mfg_str).split()[0], fmt)
-                                        mfg_str_fmt = f"{_mdt.year}/{_mdt.month:02d}/{_mdt.day:02d}"
-                                        break
-                                    except ValueError:
-                                        pass
-                                else:
-                                    mfg_str_fmt = str(mfg_str)
-                            except:
-                                mfg_str_fmt = str(item.get('mfg_date', ''))
+                        l_loc = item.get("loc", "")
+                        # 優先使用到貨日期，若無才用出貨日期
+                        d_str = item.get("arr_date", "").strip()
+                        if not d_str:
+                            d_str = item.get("date", "").strip()
 
-                            long_code_val = item.get('long_code', '')
-                            # 用文字搜尋表頭的位置後再寫入，寫入位置為「表頭的正下方一格」
-                            lorry_field_map = {
-                                "fabphase": (long_code_val, 7, 7), # 預設 G7
-                                "tsmcfab": (long_code_val, 7, 2),  # 預設 B7
-                                "deliverydate": (d_str_fmt, 7, 3), # 預設 C7
-                                "deliverdate": (d_str_fmt, 7, 3),  # 預防拼寫差異
-                                "manufacturedate": (mfg_str_fmt, 7, 6), # 預設 F7
-                                "manufacturingdate": (mfg_str_fmt, 7, 6),
-                            }
-                            
-                            lorry_found_keys = set()
-                            # 掃描前 15 列、前 20 欄尋找表頭
-                            for r_idx in range(1, min(ws_l.max_row + 5, 16)):
-                                for c_idx in range(1, min(ws_l.max_column + 5, 22)):
-                                    cell_val = ws_l.cell(row=r_idx, column=c_idx).value
-                                    if cell_val and isinstance(cell_val, str):
-                                        ck = cell_val.lower().replace(" ", "")
-                                        for sk, (sv, fb_row, fb_col) in lorry_field_map.items():
-                                            if sv and sk in ck and sk not in lorry_found_keys:
-                                                # 表頭的正下方一格 (r_idx + 1)
-                                                ws_l.cell(row=r_idx + 1, column=c_idx).value = sv
-                                                lorry_found_keys.add(sk)
-                                                
-                            # 沒找到的 fallback 到固定格子
-                            for sk, (sv, fb_row, fb_col) in lorry_field_map.items():
-                                if sv and sk not in lorry_found_keys:
-                                    ws_l.cell(row=fb_row, column=fb_col).value = sv
-
-                            mmdd = "0000"
-                            if d_str:
-                                for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
-                                    try:
-                                        dt_l = datetime.strptime(d_str.split()[0], fmt)
-                                        mmdd = f"{dt_l.month:02d}{dt_l.day:02d}"
-                                        break
-                                    except ValueError:
-                                        pass
-                            if mmdd == "0000":
-                                now_l = datetime.now()
-                                mmdd = f"{now_l.month:02d}{now_l.day:02d}"
-                            
-                            safe_loc = "".join(c for c in l_loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
-                            loc_sub_dir = f"{mmdd} {safe_loc} {l_batch_found}".strip()
-                            
-                            if self.folder_mode_var.get() == 2:
-                                current_loc_folder = os.path.join(output_dir, safe_loc)
+                        # Convert d_str to YYYY/MM/DD format
+                        try:
+                            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                try:
+                                    _dt = datetime.strptime(d_str.split()[0], fmt)
+                                    d_str_fmt = f"{_dt.year}/{_dt.month:02d}/{_dt.day:02d}"
+                                    break
+                                except ValueError:
+                                    pass
                             else:
-                                current_loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
-                                
-                            os.makedirs(current_loc_folder, exist_ok=True)
+                                d_str_fmt = d_str
+                        except:
+                            d_str_fmt = d_str
 
-                            lorry_out_name = f"{base_lorry_name}-{l_batch_found} {mmdd} {l_loc}{orig_ext}"
-                            out_l_path = os.path.join(current_loc_folder, lorry_out_name)
-                            
-                            # 確保檔名不重複，若重複則加上後綴 (1), (2) ...
-                            counter_l = 1
-                            while os.path.exists(out_l_path):
-                                out_l_path = os.path.join(current_loc_folder, f"{base_lorry_name}-{l_batch_found} {mmdd} {l_loc} ({counter_l}){orig_ext}")
-                                counter_l += 1
-                                
-                            wb_l.save(out_l_path)
-                            wb_l.close()
-                            
-                            success_lorry += 1
-                            lorry_generated_batches.add(l_batch_found)
+                        # Convert mfg_date to YYYY/MM/DD format
+                        try:
+                            mfg_str = item.get('mfg_date', '')
+                            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                try:
+                                    _mdt = datetime.strptime(str(mfg_str).split()[0], fmt)
+                                    mfg_str_fmt = f"{_mdt.year}/{_mdt.month:02d}/{_mdt.day:02d}"
+                                    break
+                                except ValueError:
+                                    pass
+                            else:
+                                mfg_str_fmt = str(mfg_str)
+                        except:
+                            mfg_str_fmt = str(item.get('mfg_date', ''))
+
+                        long_code_val = item.get('long_code', '')
+                        loc_key = item.get("short_loc") or item.get("loc", "")
+                        phase_val = deduce_fab_phase(loc_key, getattr(self, "phase_mapping_dict", {}))
+
+                        # 精確寫入第 7 列（注意：Tank No. 已固定於模版，保護不覆寫）
+                        lorry_field_map = {
+                            "finalbatchid": (eff_batch, 7, 1),             # Col A: 批號 (FinalBatchID)
+                            "tsmcfab": (long_code_val, 7, 2),              # Col B: TSMCFab (長代號如 F200)
+                            "deliverydate": (d_str_fmt, 7, 3),             # Col C: DeliveryDate
+                            "deliverdate": (d_str_fmt, 7, 3),
+                            "manufacturedate": (mfg_str_fmt, 7, 6),         # Col F: ManufactureDate
+                            "manufacturingdate": (mfg_str_fmt, 7, 6),
+                            "fabphase": (phase_val or long_code_val, 7, 7), # Col G: FabPhase (期別代號如 201A)
+                            "rawmaterialid": (rb_no or eff_batch, 7, 8),    # Col H: Raw Material ID (原料批號)
+                        }
+
+                        lorry_found_keys = set()
+                        # 掃描前 15 列、前 20 欄尋找表頭
+                        for r_idx in range(1, min(ws_l.max_row + 5, 16)):
+                            for c_idx in range(1, min(ws_l.max_column + 5, 22)):
+                                cell_val = ws_l.cell(row=r_idx, column=c_idx).value
+                                if cell_val and isinstance(cell_val, str):
+                                    ck = cell_val.lower().replace(" ", "").replace(".", "")
+                                    for sk, (sv, fb_row, fb_col) in lorry_field_map.items():
+                                        if sv and sk in ck and sk not in lorry_found_keys:
+                                            # 表頭的正下方一格 (r_idx + 1)
+                                            ws_l.cell(row=r_idx + 1, column=c_idx).value = sv
+                                            lorry_found_keys.add(sk)
+
+                        # 沒找到的 fallback 到固定格子
+                        for sk, (sv, fb_row, fb_col) in lorry_field_map.items():
+                            if sv and sk not in lorry_found_keys:
+                                ws_l.cell(row=fb_row, column=fb_col).value = sv
+
+                        current_loc_folder = self.get_report_loc_folder(
+                            output_dir,
+                            l_loc,
+                            eff_batch,
+                            d_str,
+                            self.folder_mode_var.get()
+                        )
+
+                        # 決定 PR 檔名：PR_{料號}_{統編}_{地點代號}_Shiny{YYYYMMDD(到貨日)}.xlsx
+                        loc_code = item.get("short_loc") or clean_location_str(item.get("loc", "")) or item.get("loc", "")
+                        # 到貨日期 8 碼 (YYYYMMDD)，若無則 fallback 出貨日
+                        arr_d_raw = item.get("arr_date", "").strip() or item.get("date", "").strip() or d_str
+                        arr_date_8 = _g_date_str
+                        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                            try:
+                                _adt = datetime.strptime(arr_d_raw.split()[0], fmt)
+                                arr_date_8 = _adt.strftime("%Y%m%d")
+                                break
+                            except ValueError:
+                                pass
+
+                        import re as _re_pr
+                        m_pr = _re_pr.match(r'^(PR_[^_]+_[^_]+)', orig_filename, _re_pr.IGNORECASE)
+                        pr_prefix = (m_pr.group(1) + "_") if m_pr else "PR_L2C9172_75970680_"
+                        lorry_out_name = f"{pr_prefix}{loc_code}_Shiny{arr_date_8}{orig_ext}"
+                        out_l_path = os.path.join(current_loc_folder, lorry_out_name)
+
+                        # 確保檔名不重複，若重複則加上後綴 (1), (2) ...
+                        counter_l = 1
+                        base_pr_stem = f"{pr_prefix}{loc_code}_Shiny{arr_date_8}"
+                        while os.path.exists(out_l_path):
+                            out_l_path = os.path.join(current_loc_folder, f"{base_pr_stem} ({counter_l}){orig_ext}")
+                            counter_l += 1
+
+                        wb_l.save(out_l_path)
+                        wb_l.close()
+
+                        success_lorry += 1
+                        lorry_generated_batches.add(eff_batch)
                     except PermissionError as le:
                         import os as _os2
-                        locked_file = _os2.path.basename(str(le).split("'")[-2]) if "'" in str(le) else "Chemical_Lorry 檔案"
+                        locked_file = _os2.path.basename(str(le).split("'")[-2]) if "'" in str(le) else "生產履歷 (PR) 檔案"
                         error_msgs.append(
                             f"🔒 {locked_file} 正在被 Excel 開啟中，無法寫入！\n"
                             f"   → 請先關閉 Excel 後，重新執行產生，即可解決此問題。"
                         )
-
                     except Exception as le:
-                        error_msgs.append(f"產生 Chemical_Lorry 失敗: {le}")
+                        error_msgs.append(f"產生生產履歷 (PR) 失敗: {le}")
 
                 # After checking all Lorry files, see which ones missed
                 for item in valid_data:
@@ -3261,7 +3766,9 @@ class App(tk.Tk):
             valid_batches = {}
             for idx, row in enumerate(self.entries):
                 if row["chk_var"].get():
-                    b_val = row["batch_var"].get().strip().upper()
+                    cb = row.get("cust_batch_var", tk.StringVar()).get().strip().upper()
+                    rb = row.get("raw_batch_var", tk.StringVar()).get().strip().upper()
+                    b_val = cb or rb or row.get("batch_var", tk.StringVar()).get().strip().upper()
                     l_val = row["loc_var"].get().strip().upper() if "loc_var" in row else ""
                     if b_val:
                         # key 用 批號|廠區|索引 確保每一列都是獨立的，即使完全重複也不會互相覆蓋
@@ -3297,21 +3804,25 @@ class App(tk.Tk):
                     base_name, ext = os.path.splitext(os.path.basename(file_path))
                     fn_upper = base_name.upper()
 
-                    # 收集所有批號吻合的 vb_key（同批號不同廠會有多個）
+                    # 嚴格只從 COA 內部抓取批號 (RawLotId) 進行核對，吻合才可寫入，絕不比對檔名！
+                    found_batch = self._extract_batch_from_coa(file_path)
                     matched_keys = []
-                    for vb_key, vb_row in valid_batches.items():
-                        b_part = vb_key.split("|")[0]
-                        if b_part in fn_upper:
-                            matched_keys.append(vb_key)
+                    
+                    if found_batch:
+                        fb_upper = found_batch.upper()
+                        for vb_key, vb_row in valid_batches.items():
+                            b_part = vb_key.split("|")[0].upper()
+                            cb_part = vb_row.get("cust_batch_var", tk.StringVar()).get().strip().upper()
+                            rb_part = vb_row.get("raw_batch_var", tk.StringVar()).get().strip().upper()
+                            b_candidates = set(filter(None, [b_part, cb_part, rb_part]))
+                            if any(fb_upper == cand or (len(fb_upper) >= 6 and (fb_upper in cand or cand in fb_upper)) for cand in b_candidates):
+                                matched_keys.append(vb_key)
+
                     if not matched_keys:
-                        found_batch = self._extract_batch_from_coa(file_path)
-                        if found_batch:
-                            for vb_key, vb_row in valid_batches.items():
-                                b_part = vb_key.split("|")[0]
-                                if b_part == found_batch or b_part in found_batch or found_batch in b_part:
-                                    matched_keys.append(vb_key)
-                    if not matched_keys:
-                        total_error_msgs.append(f"COA: 找不到對應批號: {os.path.basename(file_path)}")
+                        if not found_batch:
+                            total_error_msgs.append(f"COA 略過: 檔案內部未找到 RawLotId 欄位: {os.path.basename(file_path)}")
+                        else:
+                            total_error_msgs.append(f"COA 略過: 內部批號 RawLotId={found_batch} 與排程勾選之批號不符: {os.path.basename(file_path)}")
                         continue
 
                     for matched_key in matched_keys:
@@ -3320,52 +3831,56 @@ class App(tk.Tk):
 
                             row = valid_batches[matched_key]
                             loc_str = row["loc_var"].get().strip()
-                            import re
-                            fc_match = re.search(r'[A-Za-z0-9]+', loc_str)
-                            factory_code = fc_match.group(0) if fc_match else loc_str
+                            short_loc_str = row.get("short_var", tk.StringVar()).get().strip()
+                            loc_code = short_loc_str or clean_location_str(loc_str, getattr(self, "mapping_dict", {})) or loc_str
                             
                             # 出貨日期 (維持用來決定最外層的主資料夾，確保和三合一單、Lorry 放在同一個根目錄)
                             ship_date_str = row["date_var"].get().strip()
                             formatted_ship_date = ship_date_str.replace("/", "").replace("-", "")
                             
-                            # 交貨日期/到貨日期 (用來寫入 COA 欄位與檔案命名)
-                            date_str = row.get("arr_date_var", type("X", (), {"get": lambda: ""})()).get().strip()
-                            if not date_str:
-                                date_str = ship_date_str
+                            # 到貨日期 8 碼 (YYYYMMDD)，用來作為檔名結尾之日期 (若無則 fallback 出貨日)
+                            arr_date_str = row.get("arr_date_var", type("X", (), {"get": lambda: ""})()).get().strip()
+                            arr_d_eval = arr_date_str or ship_date_str
+                            arr_date_8 = formatted_ship_date
+                            for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                                try:
+                                    _adt = datetime.strptime(arr_d_eval.split()[0], fmt)
+                                    arr_date_8 = _adt.strftime("%Y%m%d")
+                                    break
+                                except ValueError:
+                                    pass
+
+                            # 交貨日期/到貨日期 (用來寫入 COA 欄位)
+                            date_str = arr_date_str if arr_date_str else ship_date_str
                             formatted_date = date_str.replace("/", "").replace("-", "")
 
                             import os as _os
                             import re
-                            
-                            # base_name 已經在前面去過副檔名了，直接處理
-                            # 移除 TSMC字樣 (不分大小寫)
-                            clean_base = re.sub(r'(?i)\s*TSMC\s*', ' ', base_name)
-                            
-                            # 移除原有批號，避免後續重複加上
-                            for b_candidate in list(valid_batches.keys()):
-                                b_only = b_candidate.split('|')[0]
-                                clean_base = clean_base.replace(b_only, " ")
-                            clean_base = clean_base.rstrip("-_ ").strip()
 
-                            date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
-                            new_base = f"{clean_base} {matched_batch} {date_MMDD} {factory_code}"
-                            # 合併多餘空白
-                            new_base = re.sub(r'\s+', ' ', new_base).strip()
-                            output_dir = os.path.join(self.base_dir, f"N系小包報表輸出_{formatted_ship_date}")
+                            # 決定 COA 產出檔名：COA_{料號}_{品名規格}_{排程地點代號}_{到貨日期YYYYMMDD}{ext}
+                            # 例如：COA_L2C9172_A515_CPN_VISERA_20261030.CSV
+                            m_coa = re.match(r'^(COA_[^_]+_[^_]+_[^_]+)', base_name, re.IGNORECASE)
+                            coa_prefix = (m_coa.group(1) + "_") if m_coa else "COA_L2C9172_A515_CPN_"
+                            new_base = f"{coa_prefix}{loc_code}_{arr_date_8}"
+
+                            # 依據該筆排程的品名與到貨日決定輸出主目錄 (以到貨日及品名區分產出資料夾)
+                            prod_canon = get_canonical_prod_name(
+                                row.get("name_var", tk.StringVar()).get().strip(),
+                                row.get("spec_var", tk.StringVar()).get().strip()
+                            )
+                            folder_name = f"N系小包報表輸出_{prod_canon}_{arr_date_8}" if prod_canon else f"N系小包報表輸出_{arr_date_8}"
+                            output_dir = os.path.join(self.base_dir, folder_name)
                             if output_dir not in all_output_dirs:
                                 all_output_dirs.append(output_dir)
 
                             qty_str = row["qty_var"].get().strip()
-                            safe_loc = "".join(c for c in loc_str if c.isalnum() or c in (' ', '_', '-')).rstrip()
-                            if not safe_loc: safe_loc = "未命名地點"
-                            loc_sub_dir = f"{date_MMDD} {safe_loc} {matched_batch}".strip()
-
-                            if self.folder_mode_var.get() == 2:
-                                loc_folder = os.path.join(output_dir, safe_loc)
-                            else:
-                                loc_folder = os.path.join(output_dir, safe_loc, loc_sub_dir)
-                                
-                            os.makedirs(loc_folder, exist_ok=True)
+                            loc_folder = self.get_report_loc_folder(
+                                output_dir,
+                                loc_str,
+                                matched_batch,
+                                date_str,
+                                self.folder_mode_var.get()
+                            )
                             new_file_path = os.path.join(loc_folder, new_base + ext)
                             
                             # 確保檔名不重複，若重複則加上後綴 (1), (2) ...
@@ -3420,13 +3935,25 @@ class App(tk.Tk):
                                 wb = openpyxl.load_workbook(file_path)
                                 ws = wb.active
                                 
+                                loc_for_phase = matched_row["loc_var"].get().strip() if matched_row and "loc_var" in matched_row else factory_code
+                                phase_val = deduce_fab_phase(loc_for_phase, getattr(self, "phase_mapping_dict", {}))
+                                cust_lot_val = matched_row["cust_batch_var"].get().strip() if matched_row and "cust_batch_var" in matched_row else matched_batch
+                                raw_lot_val = matched_row["raw_batch_var"].get().strip() if matched_row and "raw_batch_var" in matched_row else cust_lot_val
+                                exp_date_val = matched_row["exp_var"].get().strip() if matched_row and "exp_var" in matched_row else ""
+                                if not exp_date_val and cust_lot_val:
+                                    _, exp_calc = parse_lot_dates(cust_lot_val)
+                                    exp_date_val = exp_calc
+                                mat_name_val = matched_row["name_var"].get().strip() if matched_row and "name_var" in matched_row else ""
                                 field_map = {
-                                    "tsmcfab": (long_code_val, 6),
-                                    "fabphase": (col_g, 7),
-                                    "shipqty": (qty_str, 8),
-                                    "manufacturingdate": (col_c_fmt, 11),
-                                    "deliverdate": (date_str_fmt, 12),
-                                    "pono": (po_no, 14),
+                                    "tsmcfab": (long_code_val, 7),
+                                    "fabphase": (phase_val, 8),
+                                    "shipqty": (qty_str, 9),
+                                    "manufacturingdate": (col_c_fmt, 10),
+                                    "deliverdate": (date_str_fmt, 11),
+                                    "pono": (po_no, 12),
+                                    "rawlotid": (cust_lot_val or raw_lot_val, 13),
+                                    "expirydate": (exp_date_val, 15),
+                                    "materialname": (mat_name_val, 16),
                                 }
                                 found_keys = set()
                                 for r_idx in range(1, ws.max_row + 20):
@@ -3467,13 +3994,25 @@ class App(tk.Tk):
                                     with open(file_path, 'r', encoding='utf-8-sig', errors='ignore') as f:
                                         reader = list(csv.reader(f))
                                         
+                                loc_for_phase = matched_row["loc_var"].get().strip() if matched_row and "loc_var" in matched_row else factory_code
+                                phase_val = deduce_fab_phase(loc_for_phase, getattr(self, "phase_mapping_dict", {}))
+                                cust_lot_val = matched_row["cust_batch_var"].get().strip() if matched_row and "cust_batch_var" in matched_row else matched_batch
+                                raw_lot_val = matched_row["raw_batch_var"].get().strip() if matched_row and "raw_batch_var" in matched_row else cust_lot_val
+                                exp_date_val = matched_row["exp_var"].get().strip() if matched_row and "exp_var" in matched_row else ""
+                                if not exp_date_val and cust_lot_val:
+                                    _, exp_calc = parse_lot_dates(cust_lot_val)
+                                    exp_date_val = exp_calc
+                                mat_name_val = matched_row["name_var"].get().strip() if matched_row and "name_var" in matched_row else ""
                                 field_map_csv = {
-                                    "tsmcfab": (long_code_val, 5),
-                                    "fabphase": (col_g, 6),
-                                    "shipqty": (qty_str, 7),
-                                    "manufacturingdate": (col_c_fmt, 10),
-                                    "deliverdate": (date_str_fmt, 11),
-                                    "pono": (po_no, 13),
+                                    "tsmcfab": (long_code_val, 6),
+                                    "fabphase": (phase_val, 7),
+                                    "shipqty": (qty_str, 8),
+                                    "manufacturingdate": (col_c_fmt, 9),
+                                    "deliverdate": (date_str_fmt, 10),
+                                    "pono": (po_no, 11),
+                                    "rawlotid": (cust_lot_val or raw_lot_val, 12),
+                                    "expirydate": (exp_date_val, 14),
+                                    "materialname": (mat_name_val, 15),
                                 }
                                 found_keys_csv = set()
                                 for row_data in reader:
@@ -3530,7 +4069,7 @@ class App(tk.Tk):
             msg_parts.append(f"• 運輸通知表：{status_str} (共 {total_count} 筆排程卡片)")
 
         if True:
-            msg_parts.append(f"• 單列 Chemical_Lorry：成功產生 {total_success_lorry} 份")
+            msg_parts.append(f"• 生產履歷 (PR)：成功產生 {total_success_lorry} 份")
         if getattr(self, "imported_coa_files", None) and success_coa > 0:
             msg_parts.append(f"• COA 表單：成功產生 {success_coa} 份")
 

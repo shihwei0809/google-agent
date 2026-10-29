@@ -65,6 +65,9 @@ yarn-error.log*
 # Jobs & Media Working Dirs
 jobs/
 三合一單輸出_*/
+N系小包報表輸出_*/
+last_dirs.json
+last_generated_session.json
 
 # Archives & Executables
 *.zip
