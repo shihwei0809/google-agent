@@ -44,8 +44,8 @@
 
 <div id="updateBanner" onclick="location.reload(true)">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
-<div class="header">
-    入料記錄 App <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v16-D1 (雙向自動對齊回寫)</span>
+<div class="header" id="appHeader" style="user-select:none; -webkit-user-select:none;">
+    <span id="appHeaderTitle">入料記錄 App</span> <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v17-D1 (長按管理維護)</span>
     <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
@@ -713,34 +713,83 @@
             const a_name = aFile ? aFile.name.replace(/\.[^/.]+$/, "") + ".jpg" : "tank_after.jpg";
             const afterTimeStr = new Date().toLocaleString('zh-TW', { hour12: false });
 
-            const tx = db.transaction(["records"], "readwrite");
-            const store = tx.objectStore("records");
-            const getReq = store.get(id);
-            
-            getReq.onsuccess = () => {
-                let record = getReq.result;
-                if (record) {
-                    record.status = 'completed';
-                    record.tAfter_b64 = a_b64;
-                    record.a_name = a_name;
-                    record.client_after_time = afterTimeStr;
-                    store.put(record);
-                } else {
-                    store.add({
-                        id: id,
-                        status: 'completed',
-                        syncState: 'pending_synced',
-                        tAfter_b64: a_b64,
-                        a_name: a_name,
-                        client_after_time: afterTimeStr
+            // 1. 先寫入本地 IndexedDB 確保資料不丟失
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(["records"], "readwrite");
+                const store = tx.objectStore("records");
+                const getReq = store.get(id);
+                getReq.onsuccess = () => {
+                    let record = getReq.result;
+                    if (record) {
+                        record.status = 'completed';
+                        record.tAfter_b64 = a_b64;
+                        record.a_name = a_name;
+                        record.client_after_time = afterTimeStr;
+                        store.put(record);
+                    } else {
+                        store.add({
+                            id: id,
+                            status: 'completed',
+                            syncState: 'pending_synced',
+                            tAfter_b64: a_b64,
+                            a_name: a_name,
+                            client_after_time: afterTimeStr
+                        });
+                    }
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = (e) => reject(e);
+                };
+            });
+
+            // 2. 若當前在線，直接發送雲端請求，避免單純丟背景因非同步排隊或延遲造成介面假卡住
+            if (navigator.onLine) {
+                if (submitBtn) submitBtn.innerText = '☁️ 雲端寫入中...';
+                try {
+                    // (A) 毫秒級更新 D1 狀態
+                    await fetch(D1_API, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: "after_feed",
+                            id: id,
+                            client_after_time: afterTimeStr
+                        })
+                    }).catch(e => console.warn("直傳 D1 失敗", e));
+
+                    // (B) 傳送 GAS 上傳入料後照片並更新 Google 試算表
+                    const gasRes = await fetch(GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: "after_feed",
+                            id: id,
+                            client_after_time: afterTimeStr,
+                            tank_level_after_b64: a_b64,
+                            a_name: a_name
+                        })
                     });
+                    const gasData = await gasRes.json();
+                    if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複')))) {
+                        // 雲端完成，安全清除本機該筆記錄
+                        const delTx = db.transaction(["records"], "readwrite");
+                        delTx.objectStore("records").delete(id);
+                        if (gasData.a_url) {
+                            fetch(D1_API, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: "update_photos", id: id, a_url: gasData.a_url })
+                            }).catch(() => {});
+                        }
+                    }
+                } catch (netErr) {
+                    console.warn("直接雲端上傳稍有延遲，將退回背景重試", netErr);
                 }
-                alert('入料完成！');
-                document.getElementById('afterForm').reset();
-                cancelAfter();
-                loadPendingRecords();
-                autoSync(); // 觸發背景快速上傳
-            };
+            }
+
+            alert('入料完成！');
+            document.getElementById('afterForm').reset();
+            cancelAfter();
+            loadPendingRecords();
+            autoSync(); // 觸發背景補傳剩餘項目
         } catch (err) {
             console.error("入料完成記錄失敗", err);
             alert("處理入料完成發生錯誤：" + err.message);
@@ -1049,6 +1098,36 @@
             };
         };
     }
+
+    // 頂部標題列「長按 1.2 秒」開啟管理維護面板
+    (function setupHeaderLongPress() {
+        const headerEl = document.getElementById('appHeader');
+        if (!headerEl) return;
+        let pressTimer = null;
+
+        function startPress(e) {
+            // 避免點擊 syncBtn 觸發長按
+            if (e.target && e.target.id === 'syncBtn') return;
+            pressTimer = setTimeout(() => {
+                if (navigator.vibrate) navigator.vibrate(50);
+                handleSyncBtnClick();
+            }, 1200);
+        }
+
+        function cancelPress() {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        }
+
+        headerEl.addEventListener('touchstart', startPress, { passive: true });
+        headerEl.addEventListener('touchend', cancelPress);
+        headerEl.addEventListener('touchcancel', cancelPress);
+        headerEl.addEventListener('mousedown', startPress);
+        headerEl.addEventListener('mouseup', cancelPress);
+        headerEl.addEventListener('mouseleave', cancelPress);
+    })();
 </script>
 </body>
 </html>
