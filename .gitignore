@@ -106,3 +106,5 @@ my-ai-brain/
 build/
 dist/
 *.spec
+
+claude-motion-explainer/
