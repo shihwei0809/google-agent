@@ -180,20 +180,29 @@
         });
     }
 
-    function forceCheckUpdate() {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistration().then(reg => {
-                if (reg) {
-                    reg.update().then(() => {
-                        alert('已向雲端伺服器檢查更新！\n若有新版本發布，將於頂部顯示更新條。');
-                    });
-                } else {
-                    location.reload(true);
+    async function forceCheckUpdate() {
+        if (!confirm('是否要強制清除快取並檢查雲端最新版本？')) return;
+        
+        try {
+            // 1. 清除 Cache Storage 中的所有網頁快取
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+            }
+            // 2. 取消註冊目前舊的 Service Worker
+            if ('serviceWorker' in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                for (let r of regs) {
+                    await r.unregister();
                 }
-            });
-        } else {
-            location.reload(true);
+            }
+        } catch (e) {
+            console.warn('清除快取失敗', e);
         }
+
+        // 3. 強制帶時間戳記繞過瀏覽器快取重新載入
+        const cleanUrl = window.location.origin + window.location.pathname + '?_t=' + Date.now();
+        window.location.replace(cleanUrl);
     }
 
     document.getElementById('dateInput').value = new Date().toISOString().split('T')[0];
