@@ -75,7 +75,7 @@
         <h1 class="text-base font-bold tracking-wide flex items-center flex-wrap gap-1.5">
           <span id="txtHeaderProductBadge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded font-extrabold shadow-sm">ACT</span>
           <span>動態生產排程與進耗存整合系統</span>
-          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v1.7 (2026/10/30 修訂)</span>
+          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.0 (2026/10/30 修訂)</span>
         </h1>
         <div class="text-[10px] text-slate-400">Cloudflare Pages 邊緣高速版 (資料庫同步 Google 試算表)</div>
       </div>
@@ -432,7 +432,8 @@
       if (!val) return "";
       if (typeof val === "string") {
         const m = val.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
-        if (!val.includes("Z") && !val.includes("+") && m) {
+        if (m) {
+          // 無論 Google Sheets 是否在字串尾端自動附加 .000Z，一律直接取前 16 碼 YYYY-MM-DDTHH:mm，防止 UTC+8 重複加 8 小時造成日期跳轉！
           return m[1];
         }
       }
@@ -511,9 +512,28 @@
       buildCalendarDates();
       recalculateAll(false);
 
-      // 自動連線 Google 試算表同步最新資料
+      // 自動連線 Google 試算表同步最新資料與歷史紀錄
       await fetchFromGoogleSheet(currentProfileKey);
+      await fetchCloudArchives(currentProfileKey);
       refreshHistoryDropdown();
+
+      // ==================== 跨人員自動同步機制 (視窗喚醒 + 背景定時輪詢) ====================
+      // 1. 當人員切換回此分頁或視窗重新獲得焦點時，若無尚未儲存的修改，立即靜默拉取雲端最新資料與歷史存檔
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          silentAutoRefreshFromCloud();
+        }
+      });
+      window.addEventListener("focus", () => {
+        silentAutoRefreshFromCloud();
+      });
+
+      // 2. 每 60 秒背景定時靜默巡檢雲端是否有其他人員更新的資料或歷史存檔
+      setInterval(() => {
+        if (document.visibilityState === "visible") {
+          silentAutoRefreshFromCloud();
+        }
+      }, 60000);
     });
 
     // ==================== 產品設定檔與槽桶動態管理 ====================
@@ -583,8 +603,9 @@
       saveLocalCache();
       recalculateAll(false);
 
-      // 切換產品時，主動向 Google 試算表拉取該產品分頁 (DataStore_[產品名]) 的最新數據
+      // 切換產品時，主動向 Google 試算表拉取該產品分頁 (DataStore_[產品名]) 的最新數據與歷史紀錄
       await fetchFromGoogleSheet(profileKey);
+      await fetchCloudArchives(profileKey);
       refreshHistoryDropdown();
     }
 
@@ -1636,17 +1657,72 @@
     }
 
     // ==================== 雲端 Google 試算表 API 串接 ====================
-    async function fetchFromGoogleSheet(targetProduct = null) {
+    let isSavingToCloud = false;
+
+    // 判斷使用者是否正在輸入框打字，避免自動更新打斷輸入
+    function isUserEditingInput() {
+      const el = document.activeElement;
+      if (!el) return false;
+      const tag = el.tagName ? el.tagName.toUpperCase() : "";
+      if (tag === "INPUT" || tag === "TEXTAREA") return true;
+      if (tag === "SELECT" && el.id === "historySelect") return true;
+      return false;
+    }
+
+    // 從雲端試算表同步所有歷史存檔清單 (ACT_ArchiveStore) 至本機並刷新下拉選單
+    async function fetchCloudArchives(targetProduct = null) {
+      try {
+        const prodName = targetProduct || currentProfileKey || appState.currentProduct || "EGUPS";
+        const res = await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "get_archives", product: prodName })
+        });
+        const json = await res.json();
+        if (json.status === "SUCCESS" && Array.isArray(json.archives)) {
+          const localArchives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+          json.archives.forEach(item => {
+            if (item.id && item.dataStr) {
+              try {
+                localArchives[item.id] = JSON.parse(item.dataStr);
+              } catch (e) {}
+            }
+          });
+          localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(localArchives));
+          const select = document.getElementById("historySelect");
+          const currentSelected = select ? select.value : "";
+          refreshHistoryDropdown();
+          if (select && currentSelected) {
+            select.value = currentSelected;
+          }
+        }
+      } catch (err) {
+        console.warn("雲端歷史紀錄同步略過:", err);
+      }
+    }
+
+    // 背景靜默拉取雲端最新狀態（當放置一段時間或切換視窗回來時，自動同步其他人員的最新修改）
+    async function silentAutoRefreshFromCloud() {
+      // 若使用者正在打字、或有待寫入的防抖計時器、或正在儲存中，則暫停拉取以免覆蓋手頭輸入
+      if (autoSyncTimer || isSavingToCloud || isUserEditingInput()) return;
+      await fetchFromGoogleSheet(currentProfileKey, true);
+      await fetchCloudArchives(currentProfileKey);
+    }
+
+    async function fetchFromGoogleSheet(targetProduct = null, isSilentPoll = false) {
       const statusEl = document.getElementById("txtCloudStatus");
       const prodName = targetProduct || currentProfileKey || appState.currentProduct || "ACT";
       try {
-        statusEl.innerText = `同步中 (${prodName})...`;
+        if (!isSilentPoll && statusEl) statusEl.innerText = `同步中 (${prodName})...`;
         const res = await fetch(GAS_API_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
           body: JSON.stringify({ action: "load", product: prodName })
         });
         const json = await res.json();
+        // 若網路請求返回期間使用者開始打字或觸發了本地修改，放棄套用此次拉取
+        if (isSilentPoll && (autoSyncTimer || isSavingToCloud || isUserEditingInput())) return;
+
         if (json.status === "SUCCESS" && json.data && Object.keys(json.data).length > 0) {
           const cloudData = json.data;
 
@@ -1700,13 +1776,14 @@
           buildCalendarDates();
           recalculateAll(false);
           saveLocalCache(true); // 從雲端拉取下來的資料，不重複向雲端觸發回寫
-          statusEl.innerText = `已連線 (分頁: DataStore_${prodName})`;
+          const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          if (statusEl) statusEl.innerText = `已連線 (自動同步 ${timeStr})`;
         } else {
-          statusEl.innerText = `已就緒 (本地快取: ${prodName})`;
+          if (!isSilentPoll && statusEl) statusEl.innerText = `已就緒 (本地快取: ${prodName})`;
         }
       } catch (err) {
         console.warn("GAS 連線提示:", err);
-        statusEl.innerText = "離線模式 (本地可用)";
+        if (!isSilentPoll && statusEl) statusEl.innerText = "離線模式 (本地可用)";
       }
     }
 
@@ -1723,7 +1800,11 @@
     }
 
     async function saveToCloud(isSilent = false) {
-      if (autoSyncTimer) clearTimeout(autoSyncTimer);
+      if (autoSyncTimer) {
+        clearTimeout(autoSyncTimer);
+        autoSyncTimer = null;
+      }
+      isSavingToCloud = true;
 
       const btn = document.getElementById("btnSaveCloud");
       const statusEl = document.getElementById("txtCloudStatus");
@@ -1761,6 +1842,7 @@
         if (statusEl) statusEl.innerText = `已儲存 (本地快取)`;
         if (!isSilent) alert(`⚠️ 雲端寫入提示：已儲存至本機快取！`);
       } finally {
+        isSavingToCloud = false;
         if (!isSilent) {
           btn.innerHTML = originalText;
           btn.disabled = false;
@@ -1831,7 +1913,7 @@
       });
     }
 
-    function loadHistoryRecord() {
+    async function loadHistoryRecord() {
       const select = document.getElementById("historySelect");
       const chosen = select.value;
       if (!chosen) {
@@ -1844,7 +1926,8 @@
         if (appState.currentProduct) {
           currentProfileKey = appState.currentProduct;
         }
-        saveLocalCache();
+        saveLocalCache(true);
+        await saveToCloud(true);
         window.location.reload();
       }
     }
