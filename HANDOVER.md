@@ -1,6 +1,6 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-10-30 ACT/EGUPS動態生產排程 v2.0 升級與工作區清理整合)
+## 今日進度與交接事項 (2026-10-30 ACT/EGUPS動態生產排程 v2.0 升級與系統問題診斷修復)
 * **ACT動態生產排程與進耗存整合系統 (`C:\GOOGLE ANGET\ACT動態生產排程與進耗存整合系統\`) 升級至 `v2.0` 並部署至 Cloudflare Pages (`https://act-planner-pwa.pages.dev`):**
   - **根治試算表自動同步回傳時區 `+8 小時` 跳日 Bug (`formatDateTimeLocal`)**:
     1. **根本原因**: Google Sheets 將 `2026-11-16T16:00` 辨識為日期型態後，透過 GAS `JSON.stringify` 回傳時會自動轉為 `2026-11-16T16:00:00.000Z`（多了尾部 `Z`）。前端 `formatDateTimeLocal` 原本在遇到 `Z` 時會交給 `new Date(val)` 解析，導致瀏覽器自動加上台灣時區 `+8 小時`，把 `2026/11/16 16:00` 推成 `2026/11/17 00:00`，進而使排程起始日往後跳一天、`11/16` 當日 `90T` 進貨被擠出排程（總進貨由 `720T` 變成 `630T`）。
@@ -11,11 +11,6 @@
   - **多人協作背景定時自動更新 (`silentAutoRefreshFromCloud`)**:
     1. 新增每 60 秒定時輪詢、視窗重新取得焦點 (`window.focus`) 與分頁切換回來 (`visibilitychange`) 時自動靜默拉取雲端最新排程。
     2. 內建 `isUserEditingInput()` 防護機制：當人員正在輸入框打字或尚有未上傳的變更 (`autoSyncTimer` / `isSavingToCloud`) 時自動跳過更新，絕不中斷打字。
-
-* **根目錄工作區 (`C:\GOOGLE ANGET\`) 大掃除與一鍵執行中心整合:**
-  - 清理重複備份與暫存資料夾（`old`、`CodexWork`、`codex-skills-backup`、`node_modules`、`venv`、`_Archive_文件歸檔`、`專案備份` 等），釋放約 `17.8 GB` 空間。
-  - 建立 `C:\GOOGLE ANGET\00_一鍵執行中心\`，將根目錄所有 `.bat`、`.ps1`（含 `AutoStartWork.ps1`、`AutoSync_OffWork_Drive.ps1` 等）與輔助 `.py` 統一收納管理並修正相對路徑。
-  - 將 24 個 Codex 技能包統一彙整至 `C:\codex\skills`。
 
 * **Antigravity 編輯器 Git 自動掃描卡死 100% CPU 徹底根治:**
   - **根本原因**: Antigravity (VS Code 底層) 預設開啟 Git 背景自動監視，在工作區包含數十個歷史 .git 專案時，會瞬間並行發動數十個 git.exe 執行全盤掃描；同時觸發公司端趨勢防毒 (Trend Micro) 檔案攔截檢查，導致進程鎖死互咬，CPU 瞬間衝破 100%。
