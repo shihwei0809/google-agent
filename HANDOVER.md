@@ -1,5 +1,20 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-10-30 系統問題診斷與修復)
+* **Antigravity 編輯器 Git 自動掃描卡死 100% CPU 徹底根治:**
+  - **根本原因**: Antigravity (VS Code 底層) 預設開啟 Git 背景自動監視，在工作區包含數十個歷史 .git 專案時，會瞬間並行發動數十個 git.exe 執行全盤掃描；同時觸發公司端趨勢防毒 (Trend Micro) 檔案攔截檢查，導致進程鎖死互咬，CPU 瞬間衝破 100%。
+  - **處置方案**: 於 C:\Users\C606-PC\AppData\Roaming\Antigravity\User\settings.json 寫入 git.enabled: false 與關閉深度掃描。編輯器背景徹底停止自動掃描，而終端機、開工收工腳本與 AI 的 Git 功能完全正常不受任何影響。
+
+* **回收液入料記錄系統 Cloudflare Pages 中華電信誤判阻擋排除 (雙軌入口架構):**
+  - **根本原因**: 中華電信 HiNet 企業固網 (SOC) 將 
+ecycle-feed-records.pages.dev 網址誤判為 Category: phishing 釣魚網站。桌機因加入公司網域 (eshineac.com.tw)，走內網 DNS，HTTPS 請求發出時在 SNI 階段被 HiNet 防火牆強制中斷 (ERR_CONNECTION_CLOSED / ERR_QUIC_PROTOCOL_ERROR)。手機因連 WiFi 時走系統預設的加密 DNS (DoH/ECH) 未外洩網域名稱，故手機連線正常。
+  - **公司資安限制**: 桌機之 Chrome 與 Edge 瀏覽器因受公司 AD 網域原則控管，安全 DNS (DoH) 選項皆呈鎖定狀態，無法於本機手動切換。
+  - **雙軌入口架構 (免重裝公務機)**:
+    1. 原網址 https://recycle-feed-records.pages.dev **完整保留不動**，確保現場所有已安裝 PWA 之公務機手機完全不受影響、不需重新安裝。
+    2. 透過 Cloudflare Pages 另外部署專案 
+ecycle-portal (https://recycle-portal.pages.dev)，綁定同一 D1 資料庫 (egups-db)。
+    3. 桌機連線至新入口實測回傳 HTTP 200 秒開，且能即時同步讀取今日現場入料之最新資料。
+
 ## 今日進度與交接事項 (2026-10-29 小包系統報表產生器_勝一專用版 重大功能升級：COA/PR檔名與資料夾全面切換為到貨日、品名獨立分群產出、COA內部批號嚴格核對、超量折疊與排程反選)
 * **小包系統報表產生_勝一 (`c:\GOOGLE ANGET\小包系統報表產生_勝一\`):**
   - **COA 與生產履歷 (PR) 檔名尾部日期全面改為「到貨日」**:
