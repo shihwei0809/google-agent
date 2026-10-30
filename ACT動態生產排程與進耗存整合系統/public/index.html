@@ -75,7 +75,7 @@
         <h1 class="text-base font-bold tracking-wide flex items-center flex-wrap gap-1.5">
           <span id="txtHeaderProductBadge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded font-extrabold shadow-sm">ACT</span>
           <span>動態生產排程與進耗存整合系統</span>
-          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v1.6 (2026/10/21 修訂)</span>
+          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v1.7 (2026/10/30 修訂)</span>
         </h1>
         <div class="text-[10px] text-slate-400">Cloudflare Pages 邊緣高速版 (資料庫同步 Google 試算表)</div>
       </div>
@@ -1872,7 +1872,8 @@
       const ws2 = XLSX.utils.table_to_sheet(truckTableClone);
       XLSX.utils.book_append_sheet(wb, ws2, "槽車出車動態排程");
 
-      const fileName = `ACT動態生產排程與槽車排程_${appState.fullDateKeys[0]}.xlsx`;
+      const curProd = productProfiles[currentProfileKey]?.name || currentProfileKey || appState.currentProduct || "ACT";
+      const fileName = `${curProd}動態生產排程與槽車排程_${appState.fullDateKeys[0]}.xlsx`;
       XLSX.writeFile(wb, fileName);
     }
 
