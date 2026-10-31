@@ -1,7 +1,7 @@
 {
-  "name": "ACT 動態生產排程與進耗存整合系統",
-  "short_name": "ACT排程",
-  "description": "ACT 專用動態生產排程、槽車出車與 30 日進耗存推算系統 (Google 試算表雲端同步)",
+  "name": "動態生產排程與進耗存整合系統 (EGUPS / ACT)",
+  "short_name": "動態生產排程",
+  "description": "EGUPS / ACT 專用動態生產排程、槽車出車與 30 日進耗存推算系統 (Google 試算表雲端同步)",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",

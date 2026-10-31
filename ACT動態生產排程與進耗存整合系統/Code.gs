@@ -3,9 +3,9 @@
  * 支援 Cloudflare Pages 跨網域 (CORS) 雙向讀寫與快照封存
  */
 
-const SPREADSHEET_ID = '1aAkQzTlbtStVP27l_MYQwExkbZCRkk8npInIlhifz88'; // 預設試算表ID，可依需求調整
-const MAIN_SHEET_NAME = 'ACT_DataStore';
-const ARCHIVE_SHEET_NAME = 'ACT_ArchiveStore';
+const SPREADSHEET_ID = '1yaspE-iJx3C4i2HgeM9XstHEV3TZRF4qjiqDctxYZ_Y'; // 預設試算表ID，可依需求調整
+const MAIN_SHEET_NAME = 'DataStore';
+const ARCHIVE_SHEET_NAME = 'ArchiveStore';
 
 // 取得或自動建立工作表
 function getSheet(sheetName) {
@@ -71,6 +71,12 @@ function doPost(e) {
     if (action === 'get_archives') {
       const list = getArchiveList(product);
       return buildJsonResponse({ status: "SUCCESS", product: product, archives: list });
+    }
+
+    // 5. 🌟 刪除指定歷史存檔 (依 ArchiveID 刪除對應整列)
+    if (action === 'delete_archive') {
+      const delRes = deleteArchiveData(contents.archiveName || contents.archiveId);
+      return buildJsonResponse({ status: "SUCCESS", product: product, message: delRes });
     }
 
     return buildJsonResponse({ status: "ERROR", message: "未知操作" });
@@ -196,4 +202,20 @@ function getArchiveList(filterProduct) {
     }
   }
   return list.reverse();
+}
+
+// --- 🌟 刪除歷史存檔 (依 ArchiveID 搜尋並整列刪除) ---
+function deleteArchiveData(archiveName) {
+  if (!archiveName) return "未指定欲刪除的存檔名稱";
+  const sheet = getSheet(ARCHIVE_SHEET_NAME);
+  const data = sheet.getDataRange().getValues();
+  const target = String(archiveName).trim();
+  for (let i = data.length - 1; i >= 1; i--) {
+    if (String(data[i][0]).trim() === target) {
+      sheet.deleteRow(i + 1);
+      SpreadsheetApp.flush();
+      return "SUCCESS: 成功刪除存檔 " + target;
+    }
+  }
+  return "在試算表中未找到相符存檔: " + target;
 }

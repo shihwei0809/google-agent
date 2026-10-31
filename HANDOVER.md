@@ -1,5 +1,22 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-10-31 動態生產排程系統全面更名 prod-planner-pwa、網址動態同步、LINE分享卡片優化、試算表唯一資料庫對齊與密碼保護刪除存檔)
+* **動態生產排程與進耗存整合系統 (`C:\GOOGLE ANGET\ACT動態生產排程與進耗存整合系統\`):**
+  - **正式部署全新中立主要網址與雙軌無縫銜接 (`prod-planner-pwa.pages.dev`)**:
+    1. 解決原網址 `act-planner-pwa` 造成人員誤會為單一產品問題，建立並發布全新專案 `https://prod-planner-pwa.pages.dev/`。
+    2. 舊網址 `https://act-planner-pwa.pages.dev/` 同步發布並內建自動銜接跳轉邏輯，原有書籤與通訊軟體舊紀錄完全不失效，點開即自動平滑遷移至新網址。
+  - **網址參數動態同步與指定產品直連 (`?prod=產品名`)**:
+    1. 實作 `window.history.replaceState` 動態參數同步：在介面切換產品時，網址列即時變更為 `?prod=EGUPS` 或 `?prod=ACT`。
+    2. 支援指定產品直連開頁（如傳給人員 `https://prod-planner-pwa.pages.dev/?prod=EGUPS`，點開直接鎖定 EGUPS），並支援瀏覽器上一頁/下一頁返回按鈕。
+  - **根治 LINE / 通訊軟體分享卡片預覽 (Open Graph Meta 標籤)**:
+    1. 於 `index.html` 頂部加入 `og:title`、`og:description`、`og:type` 與中立的 `<title>`，解決通訊軟體爬蟲抓取死板 ACT 舊抬頭問題。
+  - **歷史存檔「以 Google 試算表為唯一準則」同步修復**:
+    1. 釐清系統無 Cloudflare DB，唯一雲端資料庫即為 Google 試算表 `ArchiveStore`。
+    2. 修復前端 `fetchCloudArchives` 原先只增不減的缺陷，改為先清除本地屬於該產品之舊快取，100% 以 Google 試算表當前存檔列為準。
+  - **線上密碼保護刪除存檔功能 (`deleteHistoryRecord`)**:
+    1. 前端新增紅色「🗑️ 刪除」按鈕，內建管理員密碼驗證（預設 `8888` / `admin`），杜絕人員誤觸誤刪。
+    2. 本地快取立即清除，並同步呼叫 Google Apps Script `action: "delete_archive"` 實體刪除試算表對應列。
+
 ## 今日進度與交接事項 (2026-10-30 ACT/EGUPS動態生產排程 v2.0 升級與系統問題診斷修復)
 * **ACT動態生產排程與進耗存整合系統 (`C:\GOOGLE ANGET\ACT動態生產排程與進耗存整合系統\`) 升級至 `v2.0` 並部署至 Cloudflare Pages (`https://act-planner-pwa.pages.dev`):**
   - **根治試算表自動同步回傳時區 `+8 小時` 跳日 Bug (`formatDateTimeLocal`)**:

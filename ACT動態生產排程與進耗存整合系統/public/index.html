@@ -1,1997 +1,4157 @@
 <!DOCTYPE html>
+
 <html lang="zh-TW">
+
 <head>
+
   <meta charset="UTF-8">
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ACT 動態生產排程與進耗存整合系統 (PWA 雲端版)</title>
+
+  <title>動態生產排程與進耗存整合系統 (EGUPS / ACT)</title>
+
+  <meta name="description" content="EGUPS / ACT 專用動態生產排程、槽車出車與 30 日進耗存推算系統 (Google 試算表雲端即時同步)">
+
+  <meta property="og:title" content="動態生產排程與進耗存整合系統 (EGUPS / ACT)">
+
+  <meta property="og:description" content="產線排程、槽桶存量監控、自動工單推算與雲端試算表雙向同步">
+
+  <meta property="og:type" content="website">
+
   <link rel="manifest" href="./manifest.json">
+
   <link rel="icon" type="image/png" href="./favicon.png">
+
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
   <meta name="theme-color" content="#0f172a">
+
   <meta name="apple-mobile-web-app-capable" content="yes">
+
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="ACT排程">
+
+  <meta name="apple-mobile-web-app-title" content="動態生產排程">
+
+    <script>
+    // 舊網址平滑無縫銜接：若人員點擊舊網址 (act-planner-pwa.pages.dev)，自動過渡至新網址 (prod-planner-pwa.pages.dev)
+    if (window.location.hostname === 'act-planner-pwa.pages.dev') {
+      window.location.replace('https://prod-planner-pwa.pages.dev' + window.location.pathname + window.location.search + window.location.hash);
+    }
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <style>
+
     input[type=number]::-webkit-inner-spin-button, 
+
     input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
     input[type=number] { -moz-appearance: textfield; }
 
+
+
     .sticky-col { 
+
       position: sticky !important; 
+
       left: 0 !important; 
+
       z-index: 20 !important; 
+
       background-color: #f8fafc !important; 
+
       min-width: 140px !important; 
+
       max-width: 140px !important;
+
       width: 140px !important;
+
       white-space: nowrap !important; 
+
       border-right: 2px solid #cbd5e1 !important; 
+
       padding: 6px 10px !important;
+
       text-align: left !important;
+
       font-size: 11px !important;
+
     }
+
+
 
     .date-col {
+
       min-width: 62px !important;
+
       max-width: 70px !important;
+
       width: 65px !important;
+
       white-space: nowrap !important;
+
       padding: 4px 1px !important;
+
       text-align: center !important;
+
       font-size: 11px !important;
+
     }
+
+
 
     .table-cell-input { 
+
       width: 100%; 
+
       border: 1px solid transparent; 
+
       background: transparent; 
+
       text-align: center; 
+
       font-weight: bold; 
+
       border-radius: 3px; 
+
       padding: 2px 0; 
+
       font-size: 11px;
+
     }
+
     .table-cell-input:hover, .table-cell-input:focus { 
+
       border-color: #3b82f6; 
+
       background-color: #ffffff; 
+
       outline: none; 
+
     }
+
+
 
     .manual-modified { 
+
       background-color: #fef3c7 !important; 
+
       color: #92400e !important; 
+
       border: 1px solid #f59e0b !important; 
+
     }
+
   </style>
+
 </head>
+
 <body class="bg-slate-100 text-slate-800 text-xs">
 
+
+
   <!-- 1. 頂部導航列 -->
+
   <header class="bg-slate-900 text-white px-4 py-2.5 flex flex-wrap items-center justify-between shadow-md gap-3">
+
     <div class="flex items-center space-x-2">
+
       <span class="text-xl">⚡</span>
+
         <h1 class="text-base font-bold tracking-wide flex items-center flex-wrap gap-1.5">
+
           <span id="txtHeaderProductBadge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded font-extrabold shadow-sm">ACT</span>
+
           <span>動態生產排程與進耗存整合系統</span>
+
           <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.0 (2026/10/30 修訂)</span>
+
         </h1>
+
         <div class="text-[10px] text-slate-400">Cloudflare Pages 邊緣高速版 (資料庫同步 Google 試算表)</div>
+
       </div>
+
     </div>
+
     
+
     <div class="flex flex-wrap items-center gap-2">
+
       <div class="flex items-center space-x-1 bg-slate-800 px-2 py-1 rounded border border-slate-700">
+
         <span class="text-slate-300">歷史存檔區:</span>
+
         <select id="historySelect" class="bg-slate-900 text-white border border-slate-600 rounded px-1.5 py-0.5 text-xs outline-none">
+
           <option value="">-- 選擇歷史紀錄 --</option>
+
         </select>
+
         <button onclick="loadHistoryRecord()" class="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white font-medium">讀取</button>
+        <button onclick="deleteHistoryRecord()" class="bg-rose-700 hover:bg-rose-600 px-2 py-0.5 rounded text-white font-medium ml-1 flex items-center gap-1 shadow-sm" title="刪除選中的歷史存檔 (需安全密碼)">
+          <span>🗑️</span> 刪除
+        </button>
+
       </div>
+
+
 
       <button onclick="saveHistoryRecord()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded text-white font-semibold flex items-center gap-1 shadow-sm">
+
         <span>💾</span> 備份存檔
+
       </button>
+
       <button onclick="resetAllData()" class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-white font-semibold shadow-sm">
+
         全清空重來
+
       </button>
+
       <button onclick="saveToCloud()" id="btnSaveCloud" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white font-semibold shadow-sm flex items-center gap-1">
+
         <span>☁️</span> 寫入試算表
+
       </button>
+
+
 
       <button id="pwaInstallBtn" onclick="installPWA()" class="hidden bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white font-semibold shadow-sm flex items-center gap-1 animate-pulse">
+
         <span>📲</span> 安裝桌面 App
+
       </button>
+
       
+
       <div id="cloudStatusBadge" class="flex items-center space-x-1 pl-2 text-emerald-400 font-medium">
+
         <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+
         <span id="txtCloudStatus">已連線</span>
+
       </div>
+
     </div>
+
   </header>
 
+
+
   <!-- 2. 主要工作區 -->
+
   <main class="p-3 max-w-[1920px] mx-auto space-y-3">
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+
       
+
       <!-- 產線排程設定 -->
+
       <section class="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm space-y-3">
+
         <div class="flex items-center space-x-1.5 text-slate-700 font-bold border-b pb-1.5">
+
           <span class="text-blue-600">⚙️</span>
+
           <span class="text-sm">產線排程設定</span>
+
         </div>
+
+
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+
           <div>
+
             <label class="block text-slate-500 text-[11px] mb-0.5">預計開機時間 (排程表起始日)</label>
+
             <input type="datetime-local" id="startBootTime" class="w-full border rounded px-2 py-1 font-semibold text-slate-700 bg-slate-50 focus:bg-white" onchange="onParamChange()">
+
           </div>
+
           <div>
+
             <label class="block text-slate-500 text-[11px] mb-0.5">製程出料時間 (耗用與生產起點)</label>
+
             <input type="datetime-local" id="startProduceTime" class="w-full border rounded px-2 py-1 font-semibold text-purple-700 bg-purple-50 focus:bg-white" onchange="onParamChange()">
+
           </div>
+
         </div>
+
+
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+
           <div>
+
             <label class="block text-slate-500 text-[11px] mb-0.5">總目標產量(T)</label>
+
             <input type="number" step="0.1" id="totalTarget" class="w-full border rounded px-2 py-1 font-bold text-slate-800" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
+
           </div>
+
           <div>
+
             <label class="block text-slate-500 text-[11px] mb-0.5">流速(T/hr)</label>
+
             <input type="number" step="0.1" id="flowRate" class="w-full border rounded px-2 py-1 font-bold text-slate-800" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
+
           </div>
+
           <div>
+
             <label class="block text-slate-500 text-[11px] mb-0.5">單車容量(T)</label>
+
             <input type="number" step="0.1" id="batchCap" class="w-full border rounded px-2 py-1 font-bold text-slate-800" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
+
           </div>
+
           <div>
+
             <label class="block text-slate-500 text-[11px] mb-0.5">生產良率(%)</label>
+
             <input type="number" step="0.1" id="yieldRate" class="w-full border rounded px-2 py-1 font-bold text-orange-600 bg-orange-50" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
+
           </div>
+
         </div>
+
+
 
         <div class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded border border-slate-200">
+
           <div>
+
             <span class="text-slate-500">預估原料總量(T): </span>
+
             <span id="txtRawTotalNeeded" class="text-blue-700 font-extrabold text-sm ml-1">0.0</span>
+
           </div>
+
           <button onclick="recalculateAll(true)" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-0.5 rounded text-[11px] font-semibold" title="強制清除所有手動鎖定，全表自動重新推算">
+
             全部還原自動計算
+
           </button>
+
         </div>
+
+
 
         <div>
+
           <label class="block text-slate-500 text-[11px] mb-0.5">槽車出車順序 (若有使用槽車送貨請填寫，逗號分隔；清空則不排槽車)</label>
+
           <input type="text" id="truckOrderNote" placeholder="例如: E102, E103" class="w-full border rounded px-2 py-1 text-slate-700" onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()" onchange="onParamChange()">
+
         </div>
+
       </section>
+
+
 
       <!-- 庫存助採設定 (多產品動態配置) -->
+
       <section class="bg-white p-3.5 rounded-lg border border-slate-200 shadow-sm space-y-3">
+
         <div class="flex flex-wrap items-center justify-between border-b pb-2 gap-2">
+
           <div class="flex items-center space-x-1.5 text-slate-700 font-bold">
+
             <span class="text-indigo-600">⚙️</span>
+
             <span class="text-sm">庫存助採設定 (<span id="txtCurrentProductTitle" class="text-indigo-600">ACT 專屬配置</span>)</span>
+
           </div>
+
+
 
           <!-- 產品設定檔切換器 -->
+
           <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded">
+
             <span class="text-[11px] text-slate-500 font-medium">產品配置:</span>
+
             <select id="productProfileSelect" class="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-bold text-indigo-700 outline-none" onchange="switchProductProfile(this.value)">
+
             </select>
+
             <button onclick="openNewProfileModal()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded text-[11px] font-semibold" title="新增自訂產品型號">
+
               ➕ 新增產品
+
             </button>
+
             <button onclick="deleteCurrentProfile()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded text-[11px] font-semibold" title="刪除當前產品配置">
+
               🗑️
+
             </button>
+
           </div>
+
         </div>
+
+
 
         <!-- 原料區槽桶動態清單 -->
+
         <div class="space-y-1.5">
+
           <div class="flex justify-between items-center">
+
             <div class="flex items-center space-x-2">
+
               <span class="font-semibold text-slate-700 text-[11px]">期初原料區槽桶存量(T)</span>
+
               <button onclick="addRawTankPrompt()" class="text-[10px] text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-1.5 py-0.5 rounded border border-indigo-200 font-bold">
+
                 ➕ 新增原料槽
+
               </button>
+
             </div>
+
             <span class="text-blue-600 font-bold text-[11px]">原料合計: <span id="txtRawTanksTotal">0.0</span> T</span>
+
           </div>
+
           
+
           <div id="rawTanksContainer" class="flex flex-wrap items-center gap-2">
+
             <!-- 動態生成各原料槽輸入框 -->
+
           </div>
+
         </div>
+
+
 
         <!-- 成品區儲槽動態清單 -->
+
         <div class="space-y-2 pt-2 border-t">
+
           <div class="flex flex-wrap justify-between items-center gap-2">
+
             <div class="flex flex-wrap items-center gap-1.5">
+
               <span class="font-bold text-slate-800 text-xs sm:text-[13px] mr-1">期初各儲槽庫存量 (T) - 成品</span>
+
               <button onclick="addProdTankPrompt()" class="text-[10px] text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300 font-bold shadow-sm transition">
+
                 ➕ 新增成品槽
+
               </button>
+
               <!-- 動態新增槽車與其他存量按鈕 (有需求才自行新增) -->
+
               <span id="optionalStockActionButtons" class="flex items-center gap-1.5"></span>
+
             </div>
+
             
+
             <!-- 總容量滿位資訊標籤 (動態渲染) -->
+
             <div id="tankCapacityBadgeContainer" class="text-[11px] text-emerald-900 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-sm flex items-center gap-1.5">
+
             </div>
+
           </div>
+
+
 
           <!-- 各儲槽、其他庫存量、槽車存量 卡片容器 -->
+
           <div id="prodTanksContainer" class="flex flex-wrap items-stretch gap-2.5">
+
             <!-- 動態生成各成品槽輸入框、其他庫存量與槽車存量 -->
+
           </div>
+
+
 
           <!-- 底部即時加總列 (動態渲染) -->
+
           <div class="flex justify-between items-center bg-slate-50 px-3 py-1.5 rounded border border-slate-200 text-xs">
+
             <div id="stockSummaryComponents" class="text-slate-500 font-medium flex items-center gap-2">
+
             </div>
+
             <div class="text-emerald-900 font-extrabold text-xs sm:text-sm">
+
               總計期初成品: <span id="txtGrandTotalStock" class="text-emerald-700 text-sm font-black underline">0.0</span> T
+
             </div>
+
           </div>
+
         </div>
 
+
+
         <!-- 預排進貨總計 (T) 卡片 (動態讀取 30 日排程進貨量合計，對齊圖二設計) -->
+
         <div class="bg-sky-50/80 border border-sky-200 rounded-lg p-2.5 flex items-center justify-between shadow-sm">
+
           <div>
+
             <div class="text-sky-700 font-bold text-xs sm:text-[13px] tracking-wide">預排進貨總計 (T)</div>
+
             <div class="text-slate-800 font-extrabold text-lg sm:text-xl tracking-tight mt-0.5 flex items-baseline gap-1">
+
               <span id="txtPurchaseTotal">0</span>
+
               <span class="text-xs text-slate-400 font-semibold">T</span>
+
             </div>
+
           </div>
+
           <div class="flex items-center gap-2">
+
             <button onclick="recalculateAll(false)" class="bg-sky-200 hover:bg-sky-300 text-sky-800 text-xs font-bold px-3 py-1.5 rounded-md shadow-sm border border-sky-300 flex items-center gap-1 transition cursor-pointer" title="點擊重新動態讀取下方 30 日進貨量 (+) 之合計">
+
               <span class="text-sky-600 text-sm">⚡</span>
+
               <span>動態讀取</span>
+
             </button>
+
             <button onclick="recalculateAll(false)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition">
+
               重新運算
+
             </button>
+
           </div>
+
         </div>
+
       </section>
+
+
 
     </div>
 
+
+
     <!-- 未來 30 日動態進耗存表 -->
+
     <section class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+
       <div class="px-4 py-2.5 border-b flex flex-wrap items-center justify-between bg-slate-50 gap-2">
+
         <div class="flex items-center space-x-2 font-bold text-slate-700 text-sm">
+
           <span>📅</span>
+
           <span>未來 30 日動態進耗存與成品估算表</span>
+
           <span class="text-xs text-slate-400 font-normal">（刪除內容會立刻恢復自動計算；黃底代表手動鎖定，點 ↺ 亦可恢復）</span>
+
         </div>
+
         <button onclick="exportToExcel()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1 rounded text-xs font-semibold flex items-center gap-1">
+
           <span>📊</span> 匯出 Excel
+
         </button>
+
       </div>
 
+
+
       <div class="overflow-x-auto w-full border-t border-slate-200">
+
         <table id="mainTable" class="min-w-full border-collapse text-center"></table>
+
       </div>
+
     </section>
+
+
 
     <!-- 槽車動態排程表 -->
+
     <section class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
+
       <div class="px-4 py-2.5 border-b flex flex-wrap items-center justify-between bg-slate-50 gap-2">
+
         <div class="flex items-center space-x-2 font-bold text-slate-700 text-sm">
+
           <span>🚛</span>
+
           <span>槽車出車動態排程表</span>
+
           <span class="text-xs text-slate-400 font-normal">（上方清空槽車順序時，此表自動清空）</span>
+
         </div>
+
         <div class="text-xs font-bold text-blue-700">
+
           總目標產量: <span id="txtTruckTarget">200.0</span> T | 共需出車: <span id="txtTruckTotalCount">0</span> 車
+
         </div>
+
       </div>
 
+
+
       <div class="overflow-x-auto w-full border-t border-slate-200">
+
         <table id="truckTable" class="min-w-full border-collapse text-center text-xs"></table>
+
       </div>
+
     </section>
+
+
 
   </main>
 
+
+
   <script>
+
     // 🌟 Google Apps Script API 網址 (與現有 Google 試算表連線)
+
     let GAS_API_URL = "https://script.google.com/macros/s/AKfycbwTJm7TaEHqeEFrpVjUJpjDY3t60RXtpXsYRuFnflyKxtjqdGnFHhrFvjeYnu710aiRVQ/exec";
 
+
+
     // 預設產品設定檔集 (支援多產品與自訂槽桶配置)
+
     const DEFAULT_PROFILES = {
+
       "EGUPS": {
+
         name: "EGUPS",
+
         startBootTime: "2026-10-16T08:00",
+
         startProduceTime: "2026-10-16T16:09",
+
         totalTarget: 190.0,
+
         flowRate: 1.2,
+
         batchCap: 18.0,
+
         yieldRate: 95.0,
+
         truckOrderNote: "E102,E103,E59,E60,E66,E67,E52,E53,E54,E55,E56,E99",
+
         rawSafetyStock: 30.0,
+
         preSaleTotal: 129.0,
+
         rawTanks: [
+
           { name: "TK01", amount: 20.0 },
+
           { name: "TK02", amount: 20.0 }
+
         ],
+
         prodTanks: [
+
           { name: "TK623", amount: 10.0, maxLimit: 125.0 },
+
           { name: "TK689", amount: 10.0, maxLimit: 110.0 },
+
           { name: "TK692", amount: 20.0, maxLimit: 262.0 },
+
           { name: "其他儲槽", amount: 0.0, maxLimit: 36.0 }
+
         ],
+
         hasOtherStock: false,
+
         otherProdStock: 0.0,
+
         hasTruckStock: true,
+
         truckStock: 36.0,
+
         truckMaxCapacity: 216.0,
+
         tankTotalLimit: 533.0,
+
         tk622Limit: 749.0
+
       },
+
       "ACT": {
+
         name: "ACT",
+
         startBootTime: "2026-10-16T08:00",
+
         startProduceTime: "2026-10-16T16:09",
+
         totalTarget: 190.0,
+
         flowRate: 1.2,
+
         batchCap: 18.0,
+
         yieldRate: 95.0,
+
         truckOrderNote: "",
+
         rawSafetyStock: 50.0,
+
         preSaleTotal: 138.0,
+
         rawTanks: [
+
           { name: "TK657", amount: 40.0 },
+
           { name: "E13",   amount: 16.1 },
+
           { name: "E36",   amount: 16.61 },
+
           { name: "S208",  amount: 12.8 }
+
         ],
+
         prodTanks: [
+
           { name: "TK622", amount: 3.5, maxLimit: 170.0 }
+
         ],
+
         hasOtherStock: false,
+
         otherProdStock: 0.0,
+
         hasTruckStock: false,
+
         truckStock: 0.0,
+
         truckMaxCapacity: 0.0,
+
         tankTotalLimit: 170.0,
+
         tk622Limit: 170.0
+
       }
+
     };
+
+
 
     let productProfiles = JSON.parse(JSON.stringify(DEFAULT_PROFILES));
+
     let currentProfileKey = "EGUPS";
 
+
+
     const appState = {
+
       currentProduct: "EGUPS",
+
       startBootTime: "2026-10-16T08:00",
+
       startProduceTime: "2026-10-16T16:09",
+
       totalTarget: 190.0,
+
       flowRate: 1.2,
+
       batchCap: 18.0,
+
       yieldRate: 95.0,
+
       truckOrderNote: "",
 
+
+
       rawTanks: [
+
         { name: "TK01", amount: 20.0 },
+
         { name: "TK02", amount: 20.0 }
+
       ],
+
       rawSafetyStock: 30.0,
+
       prodTanks: [
+
         { name: "TK623", amount: 10.0, maxLimit: 125.0 },
+
         { name: "TK689", amount: 10.0, maxLimit: 110.0 },
+
         { name: "TK692", amount: 20.0, maxLimit: 262.0 },
+
         { name: "其他儲槽", amount: 0.0, maxLimit: 36.0 }
+
       ],
+
       hasOtherStock: false,
+
       otherProdStock: 0.0,
+
       hasTruckStock: true,
+
       truckStock: 36.0,
+
       truckMaxCapacity: 216.0,
+
       tankTotalLimit: 533.0,
+
       tk622Limit: 749.0,
+
       preSaleTotal: 129.0,
 
+
+
       daysCount: 30,
+
       dates: [],
+
       fullDateKeys: [],
 
+
+
       rawTransferIn: {},
+
       rawPurchaseIn: {
+
         "2026-10-19": 46.0,
+
         "2026-10-20": 23.0,
+
         "2026-10-21": 23.0,
+
         "2026-10-22": 23.0,
+
         "2026-10-23": 23.0
+
       },
+
       rawPipeRecycle: {},
+
       prodOutflow: {},
 
+
+
       manualRawUsageOverrides: {},
+
       manualProdGenOverrides: {},
+
       manualCarOverrides: {},
+
       sequenceShiftOverrides: {}
+
     };
 
+
+
     function round1D(num) {
+
       return Math.round((Number(num) || 0) * 10) / 10;
+
     }
+
+
 
     function fmt1D(num) {
+
       if (num === null || num === undefined || num === "" || num === 0) return "-";
+
       return (Math.round(num * 10) / 10).toFixed(1);
+
     }
+
+
 
     function formatDateTimeLocal(val) {
+
       if (!val) return "";
+
       if (typeof val === "string") {
+
         const m = val.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/);
+
         if (m) {
+
           // 無論 Google Sheets 是否在字串尾端自動附加 .000Z，一律直接取前 16 碼 YYYY-MM-DDTHH:mm，防止 UTC+8 重複加 8 小時造成日期跳轉！
+
           return m[1];
+
         }
+
       }
+
       const d = new Date(val);
+
       if (isNaN(d.getTime())) return "";
+
       const pad = (n) => String(n).padStart(2, "0");
+
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
     }
+
+
 
     window.addEventListener("DOMContentLoaded", async () => {
+
       // 讀取本地已刪除產品黑名單 (Tombstone)
+
       let deletedList = [];
+
       try {
+
         deletedList = JSON.parse(localStorage.getItem("ACT_DELETED_PROFILES") || "[]");
+
       } catch(e) {}
+
       // 強制永久剔除先前誤增的「多儲槽成品 (TK623/TK689/TK692)」
+
       if (!deletedList.includes("多儲槽成品 (TK623/TK689/TK692)")) {
+
         deletedList.push("多儲槽成品 (TK623/TK689/TK692)");
+
       }
+
       localStorage.setItem("ACT_DELETED_PROFILES", JSON.stringify(deletedList));
+
+
 
       // 讀取本地產品配置集
+
       const cachedProfiles = localStorage.getItem("ACT_PRODUCT_PROFILES");
+
       if (cachedProfiles) {
+
         try {
+
           productProfiles = JSON.parse(cachedProfiles);
+
         } catch(e) {}
+
       } else {
+
         productProfiles = JSON.parse(JSON.stringify(DEFAULT_PROFILES));
+
       }
+
       // 確保排除黑名單產品與「多儲槽成品」
+
       deletedList.forEach(k => delete productProfiles[k]);
+
       delete productProfiles["多儲槽成品 (TK623/TK689/TK692)"];
 
+
+
       // 優先從本地快取或 Google 試算表載入狀態
+
       const cached = localStorage.getItem("ACT_CURRENT_STATE");
+
       if (cached) {
+
         try {
+
           const parsed = JSON.parse(cached);
+
           // 若舊快取的 rawTanks 是物件而非陣列，進行平滑相容轉換
+
           if (parsed.rawTanks && !Array.isArray(parsed.rawTanks)) {
+
             parsed.rawTanks = Object.entries(parsed.rawTanks).map(([name, amount]) => ({ name, amount: Number(amount) || 0 }));
+
           }
+
           if (parsed.prodTanks && !Array.isArray(parsed.prodTanks)) {
+
             parsed.prodTanks = Object.entries(parsed.prodTanks).map(([name, amount]) => ({ name, amount: Number(amount) || 0, maxLimit: parsed.tk622Limit || 170.0 }));
+
           }
+
           Object.assign(appState, parsed);
+
           if (appState.otherProdStock === undefined) appState.otherProdStock = 0.0;
+
           if (appState.truckStock === undefined) appState.truckStock = 0.0;
+
           if (appState.truckMaxCapacity === undefined) appState.truckMaxCapacity = 216.0;
+
           if (appState.hasOtherStock === undefined) {
+
             appState.hasOtherStock = (Number(appState.otherProdStock) || 0) > 0;
+
           }
+
           if (appState.hasTruckStock === undefined) {
+
             appState.hasTruckStock = (Number(appState.truckStock) || 0) > 0 || (Number(appState.truckMaxCapacity) || 0) > 0;
+
           }
+
           if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
+
           if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+
           if (appState.startBootTime) appState.startBootTime = formatDateTimeLocal(appState.startBootTime);
+
           if (appState.startProduceTime) appState.startProduceTime = formatDateTimeLocal(appState.startProduceTime);
 
-          // 若原本儲存的是已刪除產品或多儲槽成品，強制轉回 EGUPS
-          if (!appState.currentProduct || appState.currentProduct === "多儲槽成品 (TK623/TK689/TK692)" || deletedList.includes(appState.currentProduct)) {
-            appState.currentProduct = "EGUPS";
+
+
+          // 優先讀取 URL 參數 (?prod=xxx)
+
+          try {
+
+            const urlParams = new URLSearchParams(window.location.search);
+
+            const queryProd = urlParams.get("prod");
+
+            if (queryProd && productProfiles[queryProd] && !deletedList.includes(queryProd)) {
+
+              appState.currentProduct = queryProd;
+
+            } else if (!appState.currentProduct || appState.currentProduct === "多儲槽成品 (TK623/TK689/TK692)" || deletedList.includes(appState.currentProduct)) {
+
+              appState.currentProduct = "EGUPS";
+
+            }
+
+          } catch(e) {
+
+            if (!appState.currentProduct || appState.currentProduct === "多儲槽成品 (TK623/TK689/TK692)" || deletedList.includes(appState.currentProduct)) {
+
+              appState.currentProduct = "EGUPS";
+
+            }
+
           }
+
           currentProfileKey = appState.currentProduct;
+
         } catch(e) {}
+
       } else {
-        currentProfileKey = "EGUPS";
-        appState.currentProduct = "EGUPS";
+
+        try {
+
+          const urlParams = new URLSearchParams(window.location.search);
+
+          const queryProd = urlParams.get("prod");
+
+          if (queryProd && productProfiles[queryProd] && !deletedList.includes(queryProd)) {
+
+            currentProfileKey = queryProd;
+
+            appState.currentProduct = queryProd;
+
+          } else {
+
+            currentProfileKey = "EGUPS";
+
+            appState.currentProduct = "EGUPS";
+
+          }
+
+        } catch(e) {
+
+          currentProfileKey = "EGUPS";
+
+          appState.currentProduct = "EGUPS";
+
+        }
+
       }
 
+
+
       renderProfileDropdown();
+
       bindInputs();
+
       renderTankInputs();
+
       buildCalendarDates();
+
       recalculateAll(false);
+
+
 
       // 自動連線 Google 試算表同步最新資料與歷史紀錄
+
       await fetchFromGoogleSheet(currentProfileKey);
+
       await fetchCloudArchives(currentProfileKey);
+
       refreshHistoryDropdown();
+
+
 
       // ==================== 跨人員自動同步機制 (視窗喚醒 + 背景定時輪詢) ====================
+
       // 1. 當人員切換回此分頁或視窗重新獲得焦點時，若無尚未儲存的修改，立即靜默拉取雲端最新資料與歷史存檔
+
       document.addEventListener("visibilitychange", () => {
+
         if (document.visibilityState === "visible") {
+
           silentAutoRefreshFromCloud();
+
         }
+
       });
+
       window.addEventListener("focus", () => {
+
         silentAutoRefreshFromCloud();
+
       });
+
+
 
       // 2. 每 60 秒背景定時靜默巡檢雲端是否有其他人員更新的資料或歷史存檔
+
       setInterval(() => {
+
         if (document.visibilityState === "visible") {
+
           silentAutoRefreshFromCloud();
+
         }
+
       }, 60000);
+
     });
 
+
+
     // ==================== 產品設定檔與槽桶動態管理 ====================
+
     function renderProfileDropdown() {
+
       const select = document.getElementById("productProfileSelect");
+
       select.innerHTML = "";
+
       Object.keys(productProfiles).forEach(key => {
+
         const opt = document.createElement("option");
+
         opt.value = key;
+
         opt.textContent = productProfiles[key].name || key;
+
         if (key === currentProfileKey) opt.selected = true;
+
         select.appendChild(opt);
+
       });
+
       const titleEl = document.getElementById("txtCurrentProductTitle");
+
       if (titleEl) {
+
         titleEl.innerText = `${productProfiles[currentProfileKey]?.name || currentProfileKey} 專屬配置`;
+
       }
+
       const badgeEl = document.getElementById("txtHeaderProductBadge");
+
       if (badgeEl) {
+
         badgeEl.innerText = productProfiles[currentProfileKey]?.name || currentProfileKey;
+
       }
+
       document.title = `[${productProfiles[currentProfileKey]?.name || currentProfileKey}] 動態生產排程與進耗存整合系統`;
+
+      // 同步動態更新網址列參數 (?prod=xxx)，確保網址與當前產品一致且可直接複製分享
+
+      try {
+
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.get("prod") !== currentProfileKey) {
+
+          url.searchParams.set("prod", currentProfileKey);
+
+          window.history.replaceState({ prod: currentProfileKey }, "", url.toString());
+
+        }
+
+      } catch(e) {}
+
     }
+
+
+
+    // 監聽瀏覽器上一頁/下一頁返回按鈕，即時切換產品
+
+    window.addEventListener("popstate", () => {
+
+      try {
+
+        const params = new URLSearchParams(window.location.search);
+
+        const p = params.get("prod");
+
+        if (p && productProfiles[p] && p !== currentProfileKey) {
+
+          switchProductProfile(p);
+
+        }
+
+      } catch(e) {}
+
+    });
+
+
 
     async function switchProductProfile(profileKey) {
+
       if (!productProfiles[profileKey]) return;
 
+
+
       // 1. 先完整儲存切換前產品的參數（時間、目標量、順序、槽桶等）
+
       saveCurrentProfileToMemory();
 
+
+
       currentProfileKey = profileKey;
+
       appState.currentProduct = profileKey;
 
+
+
       const prof = productProfiles[profileKey];
+
       // 若目標產品已有專屬時間設定，載入該產品設定；若尚無，平滑繼承當前時間，絕不變空白！
+
       if (prof.startBootTime) {
+
         appState.startBootTime = formatDateTimeLocal(prof.startBootTime);
+
       }
+
       if (prof.startProduceTime) {
+
         appState.startProduceTime = formatDateTimeLocal(prof.startProduceTime);
+
       }
+
       if (prof.totalTarget !== undefined) appState.totalTarget = prof.totalTarget;
+
       if (prof.flowRate !== undefined) appState.flowRate = prof.flowRate;
+
       if (prof.batchCap !== undefined) appState.batchCap = prof.batchCap;
+
       if (prof.yieldRate !== undefined) appState.yieldRate = prof.yieldRate;
+
       if (prof.truckOrderNote !== undefined) appState.truckOrderNote = prof.truckOrderNote;
 
+
+
       appState.rawSafetyStock = prof.rawSafetyStock ?? 50.0;
+
       appState.preSaleTotal = prof.preSaleTotal ?? 138.0;
+
       appState.rawTanks = JSON.parse(JSON.stringify(prof.rawTanks || []));
+
       appState.prodTanks = JSON.parse(JSON.stringify(prof.prodTanks || []));
+
       appState.hasOtherStock = prof.hasOtherStock !== undefined ? !!prof.hasOtherStock : ((prof.otherProdStock || 0) > 0);
+
       appState.hasTruckStock = prof.hasTruckStock !== undefined ? !!prof.hasTruckStock : ((prof.truckStock || 0) > 0 || (prof.truckMaxCapacity || 0) > 0);
+
       appState.otherProdStock = appState.hasOtherStock ? (prof.otherProdStock ?? 0.0) : 0.0;
+
       appState.truckStock = appState.hasTruckStock ? (prof.truckStock ?? 0.0) : 0.0;
+
       appState.truckMaxCapacity = appState.hasTruckStock ? (prof.truckMaxCapacity ?? 216.0) : 0.0;
 
+
+
       // 儲槽容量總和與含槽車滿位總上限
+
       const totalLimit = appState.prodTanks.reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+
       appState.tankTotalLimit = totalLimit;
+
       appState.tk622Limit = totalLimit + (appState.hasTruckStock ? appState.truckMaxCapacity : 0);
 
+
+
       renderProfileDropdown();
+
       bindInputs(); // 立即重新綁定所有輸入欄位（開機時間、出料時間等），確保不為空
+
       renderTankInputs();
+
       buildCalendarDates();
+
       saveLocalCache();
+
       recalculateAll(false);
 
+
+
       // 切換產品時，主動向 Google 試算表拉取該產品分頁 (DataStore_[產品名]) 的最新數據與歷史紀錄
+
       await fetchFromGoogleSheet(profileKey);
+
       await fetchCloudArchives(profileKey);
+
       refreshHistoryDropdown();
+
     }
+
+
 
     function openNewProfileModal() {
+
       const newName = prompt("請輸入新產品名稱 / 型號 (例如: IPA, 新產品B):");
+
       if (!newName || !newName.trim()) return;
+
       const key = newName.trim();
+
       if (productProfiles[key]) {
+
         alert("此產品名稱已存在！已為您直接切換至該產品。");
+
         switchProductProfile(key);
+
         return;
+
       }
+
+
 
       // 以當前或標準模板複製
+
       productProfiles[key] = {
+
         name: key,
+
         startBootTime: appState.startBootTime || "2026-10-16T08:00",
+
         startProduceTime: appState.startProduceTime || "2026-10-16T16:09",
+
         totalTarget: appState.totalTarget || 190.0,
+
         flowRate: appState.flowRate || 1.2,
+
         batchCap: appState.batchCap || 18.0,
+
         yieldRate: appState.yieldRate || 95.0,
+
         truckOrderNote: appState.truckOrderNote || "",
+
         rawSafetyStock: 30.0,
+
         preSaleTotal: 100.0,
+
         rawTanks: [
+
           { name: "TK01", amount: 20.0 },
+
           { name: "TK02", amount: 20.0 }
+
         ],
+
         prodTanks: [
+
           { name: "TK01(成品)", amount: 10.0, maxLimit: 125.0 }
+
         ],
+
         otherProdStock: 0.0,
+
         truckStock: 0.0,
+
         truckMaxCapacity: 216.0
+
       };
 
+
+
       // 若該名稱先前在黑名單中，從黑名單移除
+
       let deletedList = [];
+
       try {
+
         deletedList = JSON.parse(localStorage.getItem("ACT_DELETED_PROFILES") || "[]");
+
         deletedList = deletedList.filter(k => k !== key);
+
         localStorage.setItem("ACT_DELETED_PROFILES", JSON.stringify(deletedList));
+
       } catch(e) {}
 
+
+
       localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
+
       switchProductProfile(key);
+
       alert(`✅ 成功建立新產品配置：[${key}]！您可以直接在介面上修改槽桶名稱與存量。`);
+
     }
+
+
 
     async function deleteCurrentProfile() {
+
       const allKeys = Object.keys(productProfiles);
+
       if (allKeys.length <= 1) {
+
         alert("至少需保留一個產品設定檔，無法全部刪除！");
+
         return;
+
       }
+
       const toDelete = currentProfileKey;
+
       if (!confirm(`確定要刪除產品配置 [${toDelete}] 嗎？此動作將從本機與同步清單中永久移除。`)) {
+
         return;
+
       }
+
+
 
       // 1. 從 productProfiles 中刪除
+
       delete productProfiles[toDelete];
 
+
+
       // 2. 登記至黑名單 (Tombstone)，徹底防呆防止雲端拉取時死灰復燃
+
       let deletedList = [];
+
       try {
+
         deletedList = JSON.parse(localStorage.getItem("ACT_DELETED_PROFILES") || "[]");
+
       } catch(e) {}
+
       if (!deletedList.includes(toDelete)) {
+
         deletedList.push(toDelete);
+
       }
+
       localStorage.setItem("ACT_DELETED_PROFILES", JSON.stringify(deletedList));
+
       localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
 
+
+
       // 3. 切換至下一個可用的產品
+
       const remainingKeys = Object.keys(productProfiles);
+
       const nextKey = remainingKeys[0] || "EGUPS";
 
+
+
       // 4. 更新狀態
+
       currentProfileKey = nextKey;
+
       appState.currentProduct = nextKey;
+
       appState.productProfiles = JSON.parse(JSON.stringify(productProfiles));
 
+
+
       // 5. 執行切換並立即同步雲端
+
       await switchProductProfile(nextKey);
+
       await saveToCloud(true);
+
       alert(`✅ 已成功刪除產品配置 [${toDelete}]！目前已切換至 [${nextKey}]。`);
+
     }
 
+
+
     function renderTankInputs() {
+
       // 1. 原料槽容器渲染
+
       const rawContainer = document.getElementById("rawTanksContainer");
+
       if (rawContainer) {
+
         let rawHtml = "";
+
         (appState.rawTanks || []).forEach((tank, idx) => {
+
           rawHtml += `
+
             <div class="bg-slate-50 border border-slate-300 rounded px-2 py-1 flex items-center gap-1.5 shadow-sm">
+
               <input type="text" value="${tank.name}" title="點擊可修改槽桶名稱"
+
                 class="w-14 text-[10px] text-slate-700 font-bold bg-white border border-slate-200 rounded px-1 text-center"
+
                 onchange="updateRawTankName(${idx}, this.value)">
+
               <input type="number" step="0.1" value="${tank.amount}"
+
                 class="w-16 border rounded px-1 py-0.5 text-center font-bold text-slate-800 bg-white"
+
                 onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
                 onchange="updateRawTankAmount(${idx}, this.value)">
+
               <span class="text-[10px] text-slate-400">T</span>
+
               <button onclick="removeRawTank(${idx})" class="text-slate-300 hover:text-rose-600 font-bold text-xs px-1" title="刪除此槽">×</button>
+
             </div>
+
           `;
+
         });
+
+
 
         // 附加安全庫存量
+
         rawHtml += `
+
           <div class="bg-rose-50 border border-rose-200 rounded px-2 py-1 flex items-center gap-1.5 shadow-sm ml-auto">
+
             <span class="text-[10px] text-rose-600 font-bold">安全庫存:</span>
+
             <input type="number" step="0.1" id="rawSafetyStock" value="${appState.rawSafetyStock}"
+
               class="w-16 border border-rose-300 rounded px-1 py-0.5 text-center font-bold text-rose-700 bg-white"
+
               onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
               onchange="onParamChange()">
+
             <span class="text-[10px] text-rose-500 font-bold">T</span>
+
           </div>
+
         `;
+
         rawContainer.innerHTML = rawHtml;
+
       }
 
+
+
       // 2. 成品槽容器渲染 (實體儲槽 + 可自選新增的其他庫存量、槽車存量)
+
       const prodContainer = document.getElementById("prodTanksContainer");
+
       if (prodContainer) {
+
         let prodHtml = "";
 
+
+
         // (1) 渲染每個實體成品儲槽
+
         (appState.prodTanks || []).forEach((tank, idx) => {
+
           const limitVal = tank.maxLimit ?? 170.0;
+
           prodHtml += `
+
             <div class="flex flex-col items-center min-w-[105px] flex-1 bg-white p-2 rounded-lg border border-emerald-300 shadow-sm relative group">
+
               <div class="flex items-center justify-between w-full mb-1">
+
                 <input type="text" value="${tank.name}" title="點擊可修改槽號名稱"
+
                   class="font-extrabold text-emerald-950 text-xs text-center border-b border-transparent hover:border-emerald-400 bg-transparent w-16"
+
                   onchange="updateProdTankName(${idx}, this.value)">
+
                 <button onclick="removeProdTank(${idx})" class="text-slate-300 hover:text-rose-600 font-bold text-xs px-0.5" title="刪除此儲槽">×</button>
+
               </div>
+
               <div class="text-[10px] text-slate-500 mb-1 flex items-center justify-center gap-0.5">
+
                 <span class="text-slate-400 font-semibold">上限:</span>
+
                 <input type="number" step="1" value="${limitVal}"
+
                   class="w-12 text-center border border-slate-200 hover:border-slate-400 rounded px-0.5 font-bold text-slate-700 bg-slate-50"
+
                   title="點擊修改此儲槽容量上限 (T)"
+
                   onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
                   onchange="updateProdTankLimit(${idx}, this.value)">
+
                 <span class="text-slate-400 font-semibold">T</span>
+
               </div>
+
               <div class="w-full">
+
                 <input type="number" step="0.1" value="${tank.amount}"
+
                   class="w-full border-2 border-emerald-300 focus:border-emerald-500 rounded-md py-1 text-center font-black text-slate-800 text-sm bg-white shadow-inner"
+
                   placeholder="0"
+
                   title="此儲槽目前成品庫存量 (T)"
+
                   onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
                   onchange="updateProdTankAmount(${idx}, this.value)">
+
               </div>
+
             </div>
+
           `;
+
         });
 
+
+
         // (2) 渲染其他庫存量 (僅在使用者點擊「➕ 納入其他存量」時顯示，橘色外觀，可按 × 移除)
+
         if (appState.hasOtherStock) {
+
           prodHtml += `
+
             <div class="flex flex-col items-center min-w-[105px] flex-1 bg-orange-50/50 p-2 rounded-lg border border-orange-300 shadow-sm relative group">
+
               <div class="flex items-center justify-between w-full mb-1">
+
                 <span class="font-extrabold text-orange-800 text-xs">📦 其他庫存量</span>
+
                 <button onclick="removeOtherProdStock()" class="text-orange-400 hover:text-rose-600 font-bold text-xs px-0.5" title="移除其他庫存量">×</button>
+
               </div>
+
               <div class="text-[10px] text-orange-500 font-semibold mb-1">包裝/雜項存量</div>
+
               <div class="w-full">
+
                 <input type="number" step="0.1" value="${appState.otherProdStock || 0}"
+
                   class="w-full border-2 border-orange-300 focus:border-orange-500 rounded-md py-1 text-center font-black text-orange-950 text-sm bg-white shadow-inner"
+
                   placeholder="0"
+
                   title="非儲槽其他成品庫存量 (例如桶裝、雜項存放，T)"
+
                   onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
                   onchange="updateOtherProdStock(this.value)">
+
               </div>
+
             </div>
+
           `;
+
         }
 
+
+
         // (3) 渲染槽車存量 (僅在使用者點擊「➕ 納入槽車存量」時顯示，紫色外觀，可按 × 移除)
+
         if (appState.hasTruckStock) {
+
           const truckCap = appState.truckMaxCapacity ?? 216.0;
+
           prodHtml += `
+
             <div class="flex flex-col items-center min-w-[105px] flex-1 bg-indigo-50/50 p-2 rounded-lg border border-indigo-300 shadow-sm relative group">
+
               <div class="flex items-center justify-between w-full mb-1">
+
                 <span class="font-extrabold text-indigo-800 text-xs flex items-center gap-0.5">
+
                   <span>🚛 槽車存量</span>
+
                 </span>
+
                 <button onclick="removeTruckStock()" class="text-indigo-400 hover:text-rose-600 font-bold text-xs px-0.5" title="移除槽車存量配置">×</button>
+
               </div>
+
               <div class="text-[10px] text-indigo-600 font-semibold mb-1 flex items-center justify-center gap-0.5">
+
                 <span>上限:</span>
+
                 <input type="number" step="1" value="${truckCap}"
+
                   class="w-12 text-center border border-indigo-200 hover:border-indigo-400 rounded px-0.5 font-bold text-indigo-700 bg-white"
+
                   title="點擊修改槽車容量上限 (T)"
+
                   onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
                   onchange="updateTruckMaxCapacity(this.value)">
+
                 <span>T</span>
+
               </div>
+
               <div class="w-full">
+
                 <input type="number" step="0.1" value="${appState.truckStock || 0}"
+
                   class="w-full border-2 border-indigo-300 focus:border-indigo-500 rounded-md py-1 text-center font-black text-indigo-950 text-sm bg-white shadow-inner"
+
                   placeholder="0"
+
                   title="目前已打入/存於槽車之成品庫存量 (T，會100%算入期初成品總存量)"
+
                   onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
                   onchange="updateTruckStock(this.value)">
+
               </div>
+
             </div>
+
           `;
+
         }
+
+
 
         prodContainer.innerHTML = prodHtml;
 
+
+
         // 動態渲染可選新增按鈕 (若未新增槽車或其他存量，按鈕提供「➕ 納入槽車存量」、「➕ 納入其他存量」供使用者按需點擊新增)
+
         const optBtnContainer = document.getElementById("optionalStockActionButtons");
+
         if (optBtnContainer) {
+
           let btnHtml = "";
+
           if (!appState.hasTruckStock) {
+
             btnHtml += `
+
               <button onclick="addTruckStockPrompt()" class="text-[10px] text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200 font-bold shadow-sm transition" title="當有槽車作為成品緩衝庫存時點擊新增">
+
                 ➕ 納入槽車存量
+
               </button>
+
             `;
+
           }
+
           if (!appState.hasOtherStock) {
+
             btnHtml += `
+
               <button onclick="addOtherStockPrompt()" class="text-[10px] text-orange-700 hover:text-orange-900 bg-orange-50 hover:bg-orange-100 px-2 py-0.5 rounded border border-orange-200 font-bold shadow-sm transition" title="當有桶裝、雜項其他庫存時點擊新增">
+
                 ➕ 納入其他存量
+
               </button>
+
             `;
+
           }
+
           optBtnContainer.innerHTML = btnHtml;
+
         }
+
+
 
         // 動態渲染頂部總容量滿位標籤 (若無槽車則純顯示儲槽容量，不顯示多餘的 + 槽車 0 T)
+
         const badgeContainer = document.getElementById("tankCapacityBadgeContainer");
+
         if (badgeContainer) {
+
           const tankTotalLimit = (appState.prodTanks || []).reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+
           if (appState.hasTruckStock) {
+
             const truckCap = Number(appState.truckMaxCapacity) || 0;
+
             const grandTotalCap = tankTotalLimit + truckCap;
+
             badgeContainer.innerHTML = `
+
               <span>總容量滿位:</span>
+
               <span class="text-teal-700">儲槽 ${tankTotalLimit} T</span>
+
               <span>+</span>
+
               <span class="text-indigo-700 flex items-center gap-0.5">
+
                 槽車
+
                 <input type="number" step="1" value="${truckCap}" 
+
                   class="w-14 text-center border border-indigo-200 rounded px-1 py-0.5 bg-white font-bold text-indigo-700 shadow-inner" 
+
                   title="點擊修改槽車總容量上限 (T)" 
+
                   onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
                   onchange="updateTruckMaxCapacity(this.value)">
+
                 T
+
               </span>
+
               <span class="text-slate-400">|</span>
+
               <span class="text-slate-600 font-semibold">總滿位: <span class="font-black text-emerald-700">${grandTotalCap}</span> T</span>
+
             `;
+
           } else {
+
             badgeContainer.innerHTML = `
+
               <span>總容量滿位:</span>
+
               <span class="text-teal-700 font-bold">儲槽 <span id="txtTankMaxLimitSum">${tankTotalLimit}</span> T</span>
+
               <span class="text-slate-400">|</span>
+
               <span class="text-slate-600 font-semibold">總滿位: <span class="font-black text-emerald-700">${tankTotalLimit}</span> T</span>
+
             `;
+
           }
+
         }
+
       }
+
     }
+
+
 
     function addRawTankPrompt() {
+
       const name = prompt("請輸入新增原料槽桶編號 (例如: TK658, E14):", `TK${Math.floor(100 + Math.random() * 900)}`);
+
       if (!name || !name.trim()) return;
+
       appState.rawTanks.push({ name: name.trim(), amount: 0.0 });
+
       saveCurrentProfileToMemory();
+
       renderTankInputs();
+
       recalculateAll(false);
+
     }
+
+
 
     function removeRawTank(idx) {
+
       if (appState.rawTanks.length <= 1) {
+
         alert("至少需保留一個原料槽桶！");
+
         return;
+
       }
+
       appState.rawTanks.splice(idx, 1);
+
       saveCurrentProfileToMemory();
+
       renderTankInputs();
+
       recalculateAll(false);
+
     }
+
+
 
     function updateRawTankName(idx, val) {
+
       if (appState.rawTanks[idx]) {
+
         appState.rawTanks[idx].name = val.trim() || `TK_${idx + 1}`;
+
         saveCurrentProfileToMemory();
+
       }
+
     }
+
+
 
     function updateRawTankAmount(idx, val) {
+
       if (appState.rawTanks[idx]) {
+
         appState.rawTanks[idx].amount = parseFloat(val) || 0;
+
         saveCurrentProfileToMemory();
+
         recalculateAll(false);
+
       }
+
     }
+
+
 
     function addProdTankPrompt() {
+
       const name = prompt("請輸入新增成品槽編號 (例如: TK623, 成品槽B):", `TK623`);
+
       if (!name || !name.trim()) return;
+
       appState.prodTanks.push({ name: name.trim(), amount: 0.0, maxLimit: 170.0 });
+
       saveCurrentProfileToMemory();
+
       renderTankInputs();
+
       recalculateAll(false);
+
     }
+
+
 
     function removeProdTank(idx) {
+
       if (appState.prodTanks.length <= 1) {
+
         alert("至少需保留一個成品槽！");
+
         return;
+
       }
+
       appState.prodTanks.splice(idx, 1);
+
       saveCurrentProfileToMemory();
+
       renderTankInputs();
+
       recalculateAll(false);
+
     }
+
+
 
     function updateProdTankName(idx, val) {
+
       if (appState.prodTanks[idx]) {
+
         appState.prodTanks[idx].name = val.trim() || `TK_PROD_${idx + 1}`;
+
         saveCurrentProfileToMemory();
+
       }
+
     }
+
+
 
     function updateProdTankAmount(idx, val) {
+
       if (appState.prodTanks[idx]) {
+
         appState.prodTanks[idx].amount = parseFloat(val) || 0;
+
         saveCurrentProfileToMemory();
+
         recalculateAll(false);
+
       }
+
     }
+
+
 
     function updateProdTankLimit(idx, val) {
+
       if (appState.prodTanks[idx]) {
+
         appState.prodTanks[idx].maxLimit = parseFloat(val) || 0;
+
         const totalLimit = appState.prodTanks.reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+
         appState.tankTotalLimit = totalLimit;
+
         appState.tk622Limit = totalLimit + (Number(appState.truckMaxCapacity) || 0);
+
         saveCurrentProfileToMemory();
+
         recalculateAll(false);
+
       }
+
     }
+
+
 
     function addTruckStockPrompt() {
+
       const defaultCap = appState.truckMaxCapacity && appState.truckMaxCapacity > 0 ? appState.truckMaxCapacity : 216;
+
       const cap = prompt("請輸入納入槽車的總容量上限 (T):", defaultCap);
+
       if (cap === null) return;
+
       appState.hasTruckStock = true;
+
       appState.truckMaxCapacity = parseFloat(cap) || 216.0;
+
       appState.truckStock = 0.0;
+
       saveCurrentProfileToMemory();
+
       renderTankInputs();
+
       recalculateAll(false);
+
     }
+
+
 
     function removeTruckStock() {
+
       if (confirm("確定要移除「槽車存量」配置嗎？\n移除後槽車存量將歸零並不計入總滿位，日後有需要可隨時點擊「➕ 納入槽車存量」重新加入。")) {
+
         appState.hasTruckStock = false;
+
         appState.truckStock = 0.0;
+
         appState.truckMaxCapacity = 0.0;
+
         saveCurrentProfileToMemory();
+
         renderTankInputs();
+
         recalculateAll(false);
+
       }
+
     }
+
+
 
     function addOtherStockPrompt() {
+
       appState.hasOtherStock = true;
+
       appState.otherProdStock = 0.0;
+
       saveCurrentProfileToMemory();
+
       renderTankInputs();
+
       recalculateAll(false);
+
     }
+
+
 
     function removeOtherProdStock() {
+
       if (confirm("確定要移除「其他庫存量」配置嗎？\n移除後其他存量將歸零，日後有需要可隨時點擊「➕ 納入其他存量」重新加入。")) {
+
         appState.hasOtherStock = false;
+
         appState.otherProdStock = 0.0;
+
         saveCurrentProfileToMemory();
+
         renderTankInputs();
+
         recalculateAll(false);
+
       }
+
     }
+
+
 
     function updateOtherProdStock(val) {
+
       appState.otherProdStock = parseFloat(val) || 0;
+
       saveCurrentProfileToMemory();
+
       recalculateAll(false);
+
     }
+
+
 
     function updateTruckStock(val) {
+
       appState.truckStock = parseFloat(val) || 0;
+
       saveCurrentProfileToMemory();
+
       recalculateAll(false);
+
     }
+
+
 
     function updateTruckMaxCapacity(val) {
+
       appState.truckMaxCapacity = parseFloat(val) || 0;
+
       const totalLimit = (appState.prodTanks || []).reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+
       appState.tankTotalLimit = totalLimit;
+
       appState.tk622Limit = totalLimit + (appState.hasTruckStock ? appState.truckMaxCapacity : 0);
+
       saveCurrentProfileToMemory();
+
       renderTankInputs();
+
       recalculateAll(false);
+
     }
+
+
 
     function saveCurrentProfileToMemory() {
+
       if (!productProfiles[currentProfileKey]) {
+
         productProfiles[currentProfileKey] = { name: currentProfileKey };
+
       }
+
       productProfiles[currentProfileKey].startBootTime = appState.startBootTime;
+
       productProfiles[currentProfileKey].startProduceTime = appState.startProduceTime;
+
       productProfiles[currentProfileKey].totalTarget = appState.totalTarget;
+
       productProfiles[currentProfileKey].flowRate = appState.flowRate;
+
       productProfiles[currentProfileKey].batchCap = appState.batchCap;
+
       productProfiles[currentProfileKey].yieldRate = appState.yieldRate;
+
       productProfiles[currentProfileKey].truckOrderNote = appState.truckOrderNote;
 
+
+
       productProfiles[currentProfileKey].rawTanks = JSON.parse(JSON.stringify(appState.rawTanks || []));
+
       productProfiles[currentProfileKey].prodTanks = JSON.parse(JSON.stringify(appState.prodTanks || []));
+
       productProfiles[currentProfileKey].hasOtherStock = !!appState.hasOtherStock;
+
       productProfiles[currentProfileKey].hasTruckStock = !!appState.hasTruckStock;
+
       productProfiles[currentProfileKey].otherProdStock = appState.hasOtherStock ? appState.otherProdStock : 0.0;
+
       productProfiles[currentProfileKey].truckStock = appState.hasTruckStock ? appState.truckStock : 0.0;
+
       productProfiles[currentProfileKey].truckMaxCapacity = appState.hasTruckStock ? appState.truckMaxCapacity : 0.0;
+
       productProfiles[currentProfileKey].rawSafetyStock = appState.rawSafetyStock;
+
       productProfiles[currentProfileKey].preSaleTotal = appState.preSaleTotal;
 
+
+
       const tankTotalLimit = (appState.prodTanks || []).reduce((sum, t) => sum + (Number(t.maxLimit) || 0), 0);
+
       const truckTotalLimit = appState.hasTruckStock ? (Number(appState.truckMaxCapacity) || 0) : 0;
+
       const grandTotalCap = tankTotalLimit + truckTotalLimit;
 
+
+
       productProfiles[currentProfileKey].tankTotalLimit = tankTotalLimit;
+
       productProfiles[currentProfileKey].tk622Limit = grandTotalCap;
+
       appState.tankTotalLimit = tankTotalLimit;
+
       appState.tk622Limit = grandTotalCap;
 
+
+
       // 同步儲存至 appState，使寫入試算表或本機快取時全廠其他人員能同步取得所有自訂產品與槽桶
+
       appState.productProfiles = JSON.parse(JSON.stringify(productProfiles));
 
+
+
       localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
+
       saveLocalCache();
+
     }
+
+
 
     function bindInputs() {
+
       // 確保 datetime-local 接收到的永遠是合法且符合本地時間的 YYYY-MM-DDTHH:mm 格式，絕不為空
+
       const bootVal = formatDateTimeLocal(appState.startBootTime) || "2026-10-16T08:00";
+
       const prodVal = formatDateTimeLocal(appState.startProduceTime) || "2026-10-16T16:09";
+
       
+
       appState.startBootTime = bootVal;
+
       appState.startProduceTime = prodVal;
 
+
+
       const bootEl = document.getElementById("startBootTime");
+
       const prodEl = document.getElementById("startProduceTime");
+
       if (bootEl) bootEl.value = bootVal;
+
       if (prodEl) prodEl.value = prodVal;
 
+
+
       const targetEl = document.getElementById("totalTarget");
+
       if (targetEl) targetEl.value = appState.totalTarget !== undefined ? appState.totalTarget : 190.0;
+
       
+
       const flowEl = document.getElementById("flowRate");
+
       if (flowEl) flowEl.value = appState.flowRate !== undefined ? appState.flowRate : 1.2;
+
       
+
       const batchEl = document.getElementById("batchCap");
+
       if (batchEl) batchEl.value = appState.batchCap !== undefined ? appState.batchCap : 18.0;
+
       
+
       const yieldEl = document.getElementById("yieldRate");
+
       if (yieldEl) yieldEl.value = appState.yieldRate !== undefined ? appState.yieldRate : 95.0;
+
       
+
       const orderEl = document.getElementById("truckOrderNote");
+
       if (orderEl) orderEl.value = appState.truckOrderNote || "";
+
       
+
       const preSaleEl = document.getElementById("preSaleTotal");
+
       if (preSaleEl) preSaleEl.value = appState.preSaleTotal !== undefined ? appState.preSaleTotal : 129.0;
+
     }
+
+
 
     function buildCalendarDates() {
+
       appState.dates = [];
+
       appState.fullDateKeys = [];
+
       const baseDate = new Date(appState.startBootTime);
+
       for (let i = 0; i < appState.daysCount; i++) {
+
         const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + i);
+
         const mm = String(d.getMonth() + 1).padStart(2, "0");
+
         const dd = String(d.getDate()).padStart(2, "0");
+
         const dateKey = `${d.getFullYear()}-${mm}-${dd}`;
+
         appState.dates.push(`${d.getMonth() + 1}/${d.getDate()}`);
+
         appState.fullDateKeys.push(dateKey);
+
       }
+
     }
+
+
 
     function onParamChange() {
+
       const bootEl = document.getElementById("startBootTime");
+
       const prodEl = document.getElementById("startProduceTime");
+
       if (bootEl && bootEl.value) {
+
         appState.startBootTime = bootEl.value;
+
       }
+
       if (prodEl && prodEl.value) {
+
         appState.startProduceTime = prodEl.value;
+
       }
+
       appState.totalTarget = parseFloat(document.getElementById("totalTarget").value) || 0;
+
       appState.flowRate = parseFloat(document.getElementById("flowRate").value) || 0;
+
       appState.batchCap = parseFloat(document.getElementById("batchCap").value) || 0;
+
       appState.yieldRate = parseFloat(document.getElementById("yieldRate").value) || 95;
+
       
+
       const safeEl = document.getElementById("rawSafetyStock");
+
       if (safeEl) appState.rawSafetyStock = parseFloat(safeEl.value) || 0;
+
       
+
       const preSaleEl = document.getElementById("preSaleTotal");
+
       if (preSaleEl) appState.preSaleTotal = parseFloat(preSaleEl.value) || 0;
+
       appState.truckOrderNote = document.getElementById("truckOrderNote").value;
 
+
+
       saveCurrentProfileToMemory();
+
       buildCalendarDates();
+
       recalculateAll(false);
+
     }
+
+
 
     function saveLocalCache(skipAutoSync = false) {
+
       localStorage.setItem("ACT_CURRENT_STATE", JSON.stringify(appState));
+
       if (!skipAutoSync) {
+
         triggerAutoSync(5000); // 格子修改/離焦後，完全在背景等待 5 秒無新動作才統一發送，節省額度且畫面不跳動
+
       }
+
     }
 
+
+
     function recalculateAll(forceClearManual = false) {
+
       if (forceClearManual) {
+
         appState.manualRawUsageOverrides = {};
+
         appState.manualProdGenOverrides = {};
+
         appState.manualCarOverrides = {};
+
         appState.sequenceShiftOverrides = {};
+
         saveLocalCache();
+
       }
 
+
+
       const yieldPct = (Number(appState.yieldRate) || 95) / 100;
+
       const totalRawNeeded = round1D((Number(appState.totalTarget) || 0) / yieldPct);
+
       const totalProdTarget = round1D(Number(appState.totalTarget) || 0);
+
+
 
       document.getElementById("txtRawTotalNeeded").innerText = totalRawNeeded.toFixed(1);
 
+
+
       // 動態加總所有原料槽桶
+
       const rawSum = round1D((appState.rawTanks || []).reduce((acc, t) => acc + (Number(t.amount) || 0), 0));
+
       document.getElementById("txtRawTanksTotal").innerText = rawSum.toFixed(1);
 
+
+
       // 動態加總各成品儲槽、其他庫存、槽車存量 (僅在有需要且啟用時算入期初成品總存量)
+
       const tankProdSum = round1D((appState.prodTanks || []).reduce((acc, t) => acc + (Number(t.amount) || 0), 0));
+
       const otherStock = appState.hasOtherStock ? round1D(Number(appState.otherProdStock) || 0) : 0;
+
       const truckStock = appState.hasTruckStock ? round1D(Number(appState.truckStock) || 0) : 0;
+
       const grandTotalProdStock = round1D(tankProdSum + otherStock + truckStock);
 
+
+
       // 儲槽容量上限與含槽車滿位總上限
+
       const tankTotalLimit = round1D((appState.prodTanks || []).reduce((acc, t) => acc + (Number(t.maxLimit) || 0), 0));
+
       const truckTotalLimit = appState.hasTruckStock ? round1D(Number(appState.truckMaxCapacity) || 0) : 0;
+
       const grandTotalCapacity = round1D(tankTotalLimit + truckTotalLimit);
+
       appState.tankTotalLimit = tankTotalLimit;
+
       appState.tk622Limit = grandTotalCapacity;
 
+
+
       // 更新底部加總即時標籤 (動態渲染，不顯示未啟用的其他或槽車)
+
       const summaryContainer = document.getElementById("stockSummaryComponents");
+
       if (summaryContainer) {
+
         let sumHtml = `<span>🛢️ 儲槽存量: <b class="text-emerald-700 font-bold">${tankProdSum.toFixed(1)}</b> T</span>`;
+
         if (appState.hasOtherStock) {
+
           sumHtml += `<span>•</span><span>📦 其他存量: <b class="text-orange-700 font-bold">${otherStock.toFixed(1)}</b> T</span>`;
+
         }
+
         if (appState.hasTruckStock) {
+
           sumHtml += `<span>•</span><span>🚛 槽車存量: <b class="text-indigo-700 font-bold">${truckStock.toFixed(1)}</b> T</span>`;
+
         }
+
         summaryContainer.innerHTML = sumHtml;
+
       }
+
+
 
       const elGrandTotalStock = document.getElementById("txtGrandTotalStock");
+
       if (elGrandTotalStock) elGrandTotalStock.innerText = grandTotalProdStock.toFixed(1);
 
+
+
       const elProdTanksTotal = document.getElementById("txtProdTanksTotal");
+
       if (elProdTanksTotal) elProdTanksTotal.innerText = grandTotalProdStock.toFixed(1);
 
+
+
       // 預排進貨總計 (T)：動態讀取並加總下方 30 日進貨量 (+)
+
       const totalPurchaseIn = round1D(
+
         (appState.fullDateKeys || []).reduce((acc, dKey) => acc + (Number(appState.rawPurchaseIn[dKey]) || 0), 0)
+
       );
+
       const elPurchaseTotal = document.getElementById("txtPurchaseTotal");
+
       if (elPurchaseTotal) {
+
         elPurchaseTotal.innerText = (totalPurchaseIn % 1 === 0) ? totalPurchaseIn.toFixed(0) : totalPurchaseIn.toFixed(1);
+
       }
+
+
 
       const flow = Number(appState.flowRate) || 0;
+
       const hourlyRaw = flow / yieldPct;
+
       const fullDayRaw = round1D(24 * hourlyRaw);
+
       const fullDayProd = round1D(24 * flow);
 
+
+
       const bootDate = new Date(appState.startBootTime);
+
       const prodDate = new Date(appState.startProduceTime);
 
+
+
       let curRawStock = rawSum;
+
       let curProdStock = grandTotalProdStock; // 包含各儲槽 + 其他庫存 + 槽車存量！
+
       let accumRawUsage = 0;
+
       let accumProdGen = 0;
 
+
+
       const calcGrid = {
+
         rawStart: [],
+
         rawTrans: [],
+
         rawIn: [],
+
         rawUse: [],
+
         rawPipe: [],
+
         rawEnd: [],
+
         prodStart: [],
+
         prodGen: [],
+
         prodOut: [],
+
         prodEnd: []
+
       };
 
+
+
       for (let i = 0; i < appState.daysCount; i++) {
+
         const dKey = appState.fullDateKeys[i];
+
         const curDate = new Date(dKey + "T00:00:00");
+
         const nextDate = new Date(curDate.getTime() + 24 * 3600 * 1000);
 
+
+
         const isBootDay = (bootDate.getTime() >= curDate.getTime() && bootDate.getTime() < nextDate.getTime());
+
         const isProdDay = (prodDate.getTime() >= curDate.getTime() && prodDate.getTime() < nextDate.getTime());
 
+
+
         let nominalRaw = 0;
+
         let nominalProd = 0;
 
+
+
         if (nextDate <= bootDate) {
+
           nominalRaw = 0;
+
           nominalProd = 0;
+
         } else if (isBootDay || isProdDay) {
+
           const prodStartMs = Math.max(curDate.getTime(), prodDate.getTime());
+
           const prodHours = Math.max(0, (nextDate.getTime() - prodStartMs) / (3600 * 1000));
+
           nominalProd = round1D(prodHours * flow);
+
           const prodRawNeed = nominalProd / yieldPct;
+
           const prepRawNeed = (prodDate.getTime() > bootDate.getTime()) ? 4.1 : 0;
+
           nominalRaw = round1D(prodRawNeed + prepRawNeed);
+
         } else {
+
           nominalRaw = fullDayRaw;
+
           nominalProd = fullDayProd;
+
         }
+
+
 
         let effectiveRawUsage = 0;
+
         let isUsageManual = false;
 
+
+
         if (appState.manualRawUsageOverrides[dKey] !== undefined && 
+
             appState.manualRawUsageOverrides[dKey] !== null && 
+
             appState.manualRawUsageOverrides[dKey] !== "") {
+
           effectiveRawUsage = Number(appState.manualRawUsageOverrides[dKey]);
+
           isUsageManual = true;
+
         } else {
+
           if (accumRawUsage >= totalRawNeeded) {
+
             effectiveRawUsage = 0;
+
           } else {
+
             const rawRemain = round1D(totalRawNeeded - accumRawUsage);
+
             effectiveRawUsage = Math.min(nominalRaw, rawRemain);
+
           }
+
         }
+
         accumRawUsage = round1D(accumRawUsage + effectiveRawUsage);
 
+
+
         let effectiveProdGen = 0;
+
         let isProdManual = false;
 
+
+
         if (appState.manualProdGenOverrides[dKey] !== undefined && 
+
             appState.manualProdGenOverrides[dKey] !== null && 
+
             appState.manualProdGenOverrides[dKey] !== "") {
+
           effectiveProdGen = Number(appState.manualProdGenOverrides[dKey]);
+
           isProdManual = true;
+
         } else {
+
           if (accumProdGen >= totalProdTarget) {
+
             effectiveProdGen = 0;
+
           } else {
+
             const prodRemain = round1D(totalProdTarget - accumProdGen);
+
             effectiveProdGen = Math.min(nominalProd, prodRemain);
+
           }
+
         }
+
         accumProdGen = round1D(accumProdGen + effectiveProdGen);
 
+
+
         const transVal = round1D(appState.rawTransferIn[dKey] || 0);
+
         const inVal = round1D(appState.rawPurchaseIn[dKey] || 0);
+
         const pipeVal = round1D(appState.rawPipeRecycle[dKey] || 0);
+
         const prodOutVal = round1D(appState.prodOutflow[dKey] || 0);
 
+
+
         const rawEndVal = round1D(curRawStock + transVal + inVal - effectiveRawUsage + pipeVal);
+
         const prodEndVal = round1D(curProdStock + effectiveProdGen - prodOutVal);
 
+
+
         calcGrid.rawStart.push(curRawStock);
+
         calcGrid.rawTrans.push({ val: transVal, dKey });
+
         calcGrid.rawIn.push({ val: inVal, dKey });
+
         calcGrid.rawUse.push({ val: effectiveRawUsage, dKey, isManual: isUsageManual });
+
         calcGrid.rawPipe.push({ val: pipeVal, dKey });
+
         calcGrid.rawEnd.push(rawEndVal);
 
+
+
         calcGrid.prodStart.push(curProdStock);
+
         calcGrid.prodGen.push({ val: effectiveProdGen, dKey, isManual: isProdManual });
+
         calcGrid.prodOut.push({ val: prodOutVal, dKey });
+
         calcGrid.prodEnd.push(prodEndVal);
 
+
+
         curRawStock = rawEndVal;
+
         curProdStock = prodEndVal;
+
       }
 
+
+
       renderTableDOM(calcGrid);
+
       renderTruckScheduleDOM();
+
     }
+
+
 
     function renderTableDOM(grid) {
+
       const table = document.getElementById("mainTable");
+
       let html = "";
 
+
+
       html += `<thead><tr class="bg-slate-100 text-slate-700 font-bold border-b">
+
         <th class="sticky-col font-bold">項目 / 日期</th>`;
+
       appState.dates.forEach((dStr, idx) => {
+
         const dObj = new Date(appState.fullDateKeys[idx]);
+
         const isWeekend = (dObj.getDay() === 0 || dObj.getDay() === 6);
+
         html += `<th class="date-col border-l ${isWeekend ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-700'}">${dStr}</th>`;
+
       });
+
       html += `</tr></thead><tbody class="divide-y divide-slate-200">`;
 
+
+
       // 期初庫存量 (原料)
+
       html += `<tr class="hover:bg-slate-50 font-semibold text-slate-600">
+
         <td class="sticky-col text-blue-900 font-bold">期初庫存量 (原料)</td>`;
+
       grid.rawStart.forEach(v => {
+
         html += `<td class="date-col border-l font-bold text-slate-700">${fmt1D(v)}</td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 調撥 (+)
+
       html += `<tr class="hover:bg-slate-50">
+
         <td class="sticky-col text-blue-700 font-semibold">調撥 (+)</td>`;
+
       grid.rawTrans.forEach(item => {
+
         html += `<td class="date-col border-l">
+
           <input type="number" step="0.1" class="table-cell-input text-blue-600 font-semibold" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+
             onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
             onchange="onGridValChange('rawTransferIn', '${item.dKey}', this.value)" placeholder="-">
+
         </td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 進貨量 (+)
+
       html += `<tr class="hover:bg-slate-50">
+
         <td class="sticky-col text-blue-700 font-bold">進貨量 (+)</td>`;
+
       grid.rawIn.forEach(item => {
+
         html += `<td class="date-col border-l">
+
           <input type="number" step="0.1" class="table-cell-input text-blue-700 font-extrabold" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+
             onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
             onchange="onGridValChange('rawPurchaseIn', '${item.dKey}', this.value)" placeholder="-">
+
         </td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 預估使用量 (-)
+
       html += `<tr class="bg-amber-50/60 hover:bg-amber-50">
+
         <td class="sticky-col font-bold text-amber-800 bg-amber-50">預估使用量 (-)</td>`;
+
       grid.rawUse.forEach(item => {
+
         const isM = item.isManual;
+
         const displayVal = (item.val > 0) ? item.val.toFixed(1) : "";
+
         html += `<td class="date-col border-l ${item.val > 0 ? 'bg-amber-50/70' : ''}">
+
           <div class="relative flex items-center justify-center">
+
             <input type="number" step="0.1" 
+
               class="table-cell-input text-amber-900 font-black ${isM ? 'manual-modified' : ''}" 
+
               value="${displayVal}"
+
               title="${isM ? '⚠️ 人員手動修改值 (清空或點擊 ↺ 立即恢復自動計算)' : '⚡ 系統自動推算 (首日 14.0，後續 30.3，完工補尾數)'}"
+
               onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
               onchange="onManualOverrideInput('manualRawUsageOverrides', '${item.dKey}', this.value)" 
+
               placeholder="-">
+
             ${isM ? `<button onclick="resetOverride('manualRawUsageOverrides', '${item.dKey}')" 
+
               class="absolute right-0 text-[10px] text-amber-800 hover:text-rose-600 font-bold px-0.5" title="立即還原系統自動算">↺</button>` : ''}
+
           </div>
+
         </td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 管線回吃 (+)
+
       html += `<tr class="hover:bg-slate-50">
+
         <td class="sticky-col text-teal-700 font-semibold">管線回吃 (+)</td>`;
+
       grid.rawPipe.forEach(item => {
+
         html += `<td class="date-col border-l">
+
           <input type="number" step="0.1" class="table-cell-input font-bold text-teal-700" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+
             onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
             onchange="onGridValChange('rawPipeRecycle', '${item.dKey}', this.value)" placeholder="-">
+
         </td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 原料結存剩餘
+
       html += `<tr class="font-extrabold">
+
         <td class="sticky-col font-black text-white bg-slate-700">原料結存剩餘</td>`;
+
       grid.rawEnd.forEach(v => {
+
         const isBelowSafe = (v < appState.rawSafetyStock);
+
         html += `<td class="date-col border-l ${isBelowSafe ? 'bg-red-600 text-white font-black' : 'bg-slate-100 text-slate-800 font-bold'}">
+
           ${v.toFixed(1)}
+
         </td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 分隔線
+
       html += `<tr><td colspan="${appState.daysCount + 1}" class="h-2 bg-slate-200 border-y border-dashed border-slate-300"></td></tr>`;
 
+
+
       // 期初庫存量 (成品)
+
       html += `<tr class="hover:bg-slate-50 font-semibold text-slate-600">
+
         <td class="sticky-col text-emerald-900 font-bold">期初庫存量 (成品)</td>`;
+
       grid.prodStart.forEach(v => {
+
         html += `<td class="date-col border-l font-bold text-slate-700">${v.toFixed(1)}</td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 預估生產量 (+)
+
       html += `<tr class="bg-emerald-50/60 hover:bg-emerald-50">
+
         <td class="sticky-col font-bold text-emerald-800 bg-emerald-50">預估生產量 (+)</td>`;
+
       grid.prodGen.forEach(item => {
+
         const isM = item.isManual;
+
         const displayVal = (item.val > 0) ? item.val.toFixed(1) : "";
+
         html += `<td class="date-col border-l ${item.val > 0 ? 'bg-emerald-50/70' : ''}">
+
           <div class="relative flex items-center justify-center">
+
             <input type="number" step="0.1" 
+
               class="table-cell-input text-emerald-900 font-black ${isM ? 'manual-modified' : ''}" 
+
               value="${displayVal}"
+
               title="${isM ? '⚠️ 人員手動修改值 (清空或點擊 ↺ 立即恢復自動計算)' : '⚡ 系統自動推算 (首日 9.4，後續 28.8)'}"
+
               onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
               onchange="onManualOverrideInput('manualProdGenOverrides', '${item.dKey}', this.value)" 
+
               placeholder="-">
+
             ${isM ? `<button onclick="resetOverride('manualProdGenOverrides', '${item.dKey}')" 
+
               class="absolute right-0 text-[10px] text-amber-800 hover:text-rose-600 font-bold px-0.5" title="立即還原系統自動算">↺</button>` : ''}
+
           </div>
+
         </td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 成品出料 (-)
+
       html += `<tr class="hover:bg-slate-50">
+
         <td class="sticky-col text-rose-700 font-semibold">成品出料 (-)</td>`;
+
       grid.prodOut.forEach(item => {
+
         html += `<td class="date-col border-l">
+
           <input type="number" step="0.1" class="table-cell-input font-bold text-rose-700" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+
             onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
+
             onchange="onGridValChange('prodOutflow', '${item.dKey}', this.value)" placeholder="-">
+
         </td>`;
+
       });
+
       html += `</tr>`;
+
+
 
       // 成品結存估算
+
       html += `<tr class="font-extrabold">
+
         <td class="sticky-col font-black text-white bg-slate-700">成品結存估算</td>`;
+
       grid.prodEnd.forEach(v => {
+
         const isOverTanks = (v > appState.tankTotalLimit && appState.tankTotalLimit > 0);
+
         const isOverAll = (v > appState.tk622Limit && appState.tk622Limit > 0);
+
         let cellClass = 'bg-emerald-50 text-emerald-950 font-bold';
+
         let cellTitle = '正常庫存水位';
+
         if (isOverAll) {
+
           cellClass = 'bg-rose-500 text-white font-black animate-pulse';
+
           cellTitle = `⚠️ 超出總滿位容量 (${appState.tk622Limit.toFixed(0)} T)，儲槽與槽車皆已飽和！`;
+
         } else if (isOverTanks) {
+
           cellClass = 'bg-amber-400 text-amber-950 font-black';
+
           cellTitle = `⚡ 超出實體儲槽滿位 (${appState.tankTotalLimit.toFixed(0)} T)，需調用槽車 (${appState.truckMaxCapacity} T) 暫存！`;
+
         }
+
         html += `<td class="date-col border-l ${cellClass}" title="${cellTitle}">
+
           ${v.toFixed(1)}
+
         </td>`;
+
       });
+
       html += `</tr>`;
 
+
+
       html += `</tbody>`;
+
       table.innerHTML = html;
+
     }
 
+
+
     // ==================== 槽車排程 DOM 渲染 ====================
+
     function renderTruckScheduleDOM() {
+
       const truckTable = document.getElementById("truckTable");
+
       const target = Number(appState.totalTarget) || 0;
+
       const batchCap = Number(appState.batchCap) || 18.0;
+
       const flow = Number(appState.flowRate) || 1.2;
+
       const prodStart = new Date(appState.startProduceTime);
+
+
 
       document.getElementById("txtTruckTarget").innerText = target.toFixed(1);
 
+
+
       if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
+
       if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+
+
 
       const orderList = (appState.truckOrderNote || "")
+
         .split(/[,，]/)
+
         .map(s => s.trim())
+
         .filter(s => s.length > 0);
 
+
+
       // 槽車順序欄位清空時，槽車排程 100% 自動清空
+
       if (orderList.length === 0 || target <= 0) {
+
         document.getElementById("txtTruckTotalCount").innerText = "0";
+
         truckTable.innerHTML = `<tbody><tr><td colspan="7" class="p-5 text-center text-slate-400 font-medium bg-slate-50">
+
           ⚡ 目前未指定槽車出車順序，槽車排程已自動清空。（若需出車請於上方欄位填寫，例如：E102, E103）
+
         </td></tr></tbody>`;
+
         return;
+
       }
+
+
 
       const totalTrucks = Math.ceil(target / batchCap);
+
       document.getElementById("txtTruckTotalCount").innerText = totalTrucks;
 
+
+
       let html = `<thead><tr class="bg-slate-100 text-slate-700 font-bold border-b text-[11px]">
+
         <th class="p-2 border-r text-center">車次</th>
+
         <th class="p-2 border-r text-center">指定槽車車號 / 標籤</th>
+
         <th class="p-2 border-r text-center">預計開始灌裝時間</th>
+
         <th class="p-2 border-r text-center">預計出車時間 (完成)</th>
+
         <th class="p-2 border-r text-right pr-4">本車預計載重 (T)</th>
+
         <th class="p-2 border-r text-right pr-4">累計出車噸數 (T)</th>
+
         <th class="p-2 text-center">出車備註</th>
+
       </tr></thead><tbody class="divide-y divide-slate-200">`;
 
+
+
       let curTruckStartMs = prodStart.getTime();
+
       let accumWeight = 0;
+
       let currentCycleIdx = 0;
 
+
+
       for (let i = 1; i <= totalTrucks; i++) {
+
         const truckLoad = (i === totalTrucks) ? round1D(target - accumWeight) : batchCap;
+
         accumWeight = round1D(accumWeight + truckLoad);
 
+
+
         // 檢查前一車 (i - 1) 是否啟用「接續排序」
+
         if (appState.sequenceShiftOverrides && appState.sequenceShiftOverrides[i - 1]) {
+
           const prevCar = (appState.manualCarOverrides && appState.manualCarOverrides[i - 1]) || "";
+
           const pIdx = orderList.indexOf(prevCar);
+
           if (pIdx !== -1) {
+
             currentCycleIdx = (pIdx + 1) % orderList.length;
+
           } else {
+
             currentCycleIdx = 0;
+
           }
+
         }
+
+
 
         // 基本循環車號
+
         const baseCar = orderList[currentCycleIdx % orderList.length];
 
+
+
         // 是否有人員手動修正此車號
+
         const hasOverride = Boolean(
+
           appState.manualCarOverrides && 
+
           appState.manualCarOverrides[i] !== undefined && 
+
           appState.manualCarOverrides[i] !== null && 
+
           String(appState.manualCarOverrides[i]).trim() !== ""
+
         );
 
+
+
         const displayCar = hasOverride ? String(appState.manualCarOverrides[i]).trim() : baseCar;
+
         const isShiftActive = Boolean(appState.sequenceShiftOverrides && appState.sequenceShiftOverrides[i]);
 
+
+
         // 循環指針往下推進
+
         currentCycleIdx++;
 
+
+
         const startD = new Date(curTruckStartMs);
+
         const endD = new Date(curTruckStartMs + (truckLoad / flow) * 3600 * 1000);
+
         const fmtDate = (d) => `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
+
+
         html += `<tr class="hover:bg-blue-50/50">
+
           <td class="p-2 border-r font-bold text-slate-700 text-center">第 ${i} 車</td>
+
           <td class="p-1.5 border-r text-center ${hasOverride ? 'bg-amber-50/70' : 'bg-indigo-50/20'}">
+
             ${hasOverride ? `
+
               <div class="inline-flex flex-col items-center gap-1 py-0.5">
+
                 <input type="text" value="${displayCar}" 
+
                   class="w-24 text-center font-black text-amber-950 bg-amber-100 border border-amber-400 focus:border-blue-500 rounded px-2 py-1 shadow-xs focus:outline-none text-[13px]"
+
                   title="人員手動指定槽車車號 (按 Enter 儲存)"
+
                   onkeydown="if(event.key==='Enter') this.blur();"
+
                   onchange="onTruckCarChange(${i}, this.value)">
+
                 <div class="inline-flex items-center gap-1">
+
                   <button type="button" onclick="shiftCarSequenceFrom(${i})" 
+
                     class="px-1.5 py-0.5 text-[11px] font-semibold ${isShiftActive ? 'bg-emerald-50 text-emerald-800 border-emerald-400 ring-1 ring-emerald-300' : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300'} border rounded shadow-xs active:scale-95 transition" 
+
                     title="以此車號為基準，後續車次接續依順序輪替">
+
                     ${isShiftActive ? '✓ 已接續' : '接續排序'}
+
                   </button>
+
                   <button type="button" onclick="clearTruckCarOverride(${i})" 
+
                     class="px-1.5 py-0.5 text-[11px] font-bold bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 border border-slate-300 rounded shadow-xs active:scale-95 transition" 
+
                     title="清除手動指定，恢復預設輪替">
+
                     ✕
+
                   </button>
+
                 </div>
+
               </div>
+
             ` : `
+
               <input type="text" value="${displayCar}" 
+
                 class="w-24 text-center font-bold text-indigo-700 bg-transparent hover:bg-indigo-100/70 border border-transparent hover:border-indigo-300 focus:bg-white focus:border-blue-400 rounded px-2 py-1 transition cursor-pointer text-[13px] focus:outline-none"
+
                 title="點擊可手動修正此車號 (支援 接續排序 與 ✕ 還原)"
+
                 onfocus="this.select()"
+
                 onkeydown="if(event.key==='Enter') this.blur();"
+
                 onchange="onTruckCarChange(${i}, this.value)">
+
             `}
+
           </td>
+
           <td class="p-2 border-r text-slate-600 text-center">${fmtDate(startD)}</td>
+
           <td class="p-2 border-r font-bold text-emerald-700 bg-emerald-50/40 text-center">${fmtDate(endD)}</td>
+
           <td class="p-2 border-r font-extrabold text-slate-800 text-right pr-4">${truckLoad.toFixed(1)}</td>
+
           <td class="p-2 border-r font-black text-blue-700 text-right pr-4">${accumWeight.toFixed(1)}</td>
+
           <td class="p-2 text-slate-500 text-center text-[11px]">${i === totalTrucks ? '★ 目標批次末車' : (hasOverride ? (isShiftActive ? '手動指定 (已接續順序)' : '手動指定車號') : '正常出車')}</td>
+
         </tr>`;
 
+
+
         curTruckStartMs = endD.getTime();
+
       }
+
+
 
       html += `</tbody>`;
+
       truckTable.innerHTML = html;
+
     }
+
+
 
     function onTruckCarChange(truckIndex, val) {
+
       const clean = (val || "").trim();
+
       if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
+
       if (clean === "") {
+
         clearTruckCarOverride(truckIndex);
+
         return;
+
       }
+
       appState.manualCarOverrides[truckIndex] = clean;
+
       saveLocalCache();
+
       renderTruckScheduleDOM();
+
     }
+
+
 
     function shiftCarSequenceFrom(truckIndex) {
+
       if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+
       appState.sequenceShiftOverrides[truckIndex] = !appState.sequenceShiftOverrides[truckIndex];
+
       saveLocalCache();
+
       renderTruckScheduleDOM();
+
     }
+
+
 
     function clearTruckCarOverride(truckIndex) {
+
       if (appState.manualCarOverrides) delete appState.manualCarOverrides[truckIndex];
+
       if (appState.sequenceShiftOverrides) delete appState.sequenceShiftOverrides[truckIndex];
+
       saveLocalCache();
+
       renderTruckScheduleDOM();
+
     }
+
+
 
     function onManualOverrideInput(overrideMapName, dKey, val) {
+
       const clean = val.trim();
+
       if (clean === "" || isNaN(clean)) {
+
         delete appState[overrideMapName][dKey];
+
       } else {
+
         appState[overrideMapName][dKey] = round1D(parseFloat(clean));
+
       }
+
       saveLocalCache();
+
       recalculateAll(false);
+
     }
+
+
 
     function resetOverride(overrideMapName, dKey) {
+
       delete appState[overrideMapName][dKey];
+
       saveLocalCache();
+
       recalculateAll(false);
+
     }
+
+
 
     function onGridValChange(category, dKey, val) {
+
       const clean = val.trim();
+
       if (clean === "" || isNaN(clean)) {
+
         delete appState[category][dKey];
+
       } else {
+
         appState[category][dKey] = round1D(parseFloat(clean));
+
       }
+
       saveLocalCache();
+
       recalculateAll(false);
+
     }
+
+
 
     // ==================== 雲端 Google 試算表 API 串接 ====================
+
     let isSavingToCloud = false;
 
+
+
     // 判斷使用者是否正在輸入框打字，避免自動更新打斷輸入
+
     function isUserEditingInput() {
+
       const el = document.activeElement;
+
       if (!el) return false;
+
       const tag = el.tagName ? el.tagName.toUpperCase() : "";
+
       if (tag === "INPUT" || tag === "TEXTAREA") return true;
+
       if (tag === "SELECT" && el.id === "historySelect") return true;
+
       return false;
+
     }
+
+
 
     // 從雲端試算表同步所有歷史存檔清單 (ACT_ArchiveStore) 至本機並刷新下拉選單
+
     async function fetchCloudArchives(targetProduct = null) {
+
       try {
+
         const prodName = targetProduct || currentProfileKey || appState.currentProduct || "EGUPS";
+
         const res = await fetch(GAS_API_URL, {
+
           method: "POST",
+
           headers: { "Content-Type": "text/plain;charset=utf-8" },
+
           body: JSON.stringify({ action: "get_archives", product: prodName })
+
         });
+
         const json = await res.json();
+
         if (json.status === "SUCCESS" && Array.isArray(json.archives)) {
+
           const localArchives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
-          json.archives.forEach(item => {
-            if (item.id && item.dataStr) {
-              try {
-                localArchives[item.id] = JSON.parse(item.dataStr);
-              } catch (e) {}
+
+          
+          // 1. 以雲端試算表為準：先清除該產品本地舊存檔，確保在試算表刪除的項目不會殘留在本地
+          const prodTag = `[${prodName}]`;
+          Object.keys(localArchives).forEach(key => {
+            if (key.startsWith(prodTag)) {
+              delete localArchives[key];
             }
           });
+
+          // 2. 重新填入雲端試算表目前最新存在的紀錄
+          json.archives.forEach(item => {
+
+            if (item.id && item.dataStr) {
+
+              try {
+
+                localArchives[item.id] = JSON.parse(item.dataStr);
+
+              } catch (e) {}
+
+            }
+
+          });
+
           localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(localArchives));
+
           const select = document.getElementById("historySelect");
+
           const currentSelected = select ? select.value : "";
+
           refreshHistoryDropdown();
+
           if (select && currentSelected) {
+
             select.value = currentSelected;
+
           }
+
         }
+
       } catch (err) {
+
         console.warn("雲端歷史紀錄同步略過:", err);
+
       }
+
     }
+
+
 
     // 背景靜默拉取雲端最新狀態（當放置一段時間或切換視窗回來時，自動同步其他人員的最新修改）
+
     async function silentAutoRefreshFromCloud() {
+
       // 若使用者正在打字、或有待寫入的防抖計時器、或正在儲存中，則暫停拉取以免覆蓋手頭輸入
+
       if (autoSyncTimer || isSavingToCloud || isUserEditingInput()) return;
+
       await fetchFromGoogleSheet(currentProfileKey, true);
+
       await fetchCloudArchives(currentProfileKey);
+
     }
+
+
 
     async function fetchFromGoogleSheet(targetProduct = null, isSilentPoll = false) {
+
       const statusEl = document.getElementById("txtCloudStatus");
+
       const prodName = targetProduct || currentProfileKey || appState.currentProduct || "ACT";
+
       try {
+
         if (!isSilentPoll && statusEl) statusEl.innerText = `同步中 (${prodName})...`;
+
         const res = await fetch(GAS_API_URL, {
+
           method: "POST",
+
           headers: { "Content-Type": "text/plain;charset=utf-8" },
+
           body: JSON.stringify({ action: "load", product: prodName })
+
         });
+
         const json = await res.json();
+
         // 若網路請求返回期間使用者開始打字或觸發了本地修改，放棄套用此次拉取
+
         if (isSilentPoll && (autoSyncTimer || isSavingToCloud || isUserEditingInput())) return;
 
+
+
         if (json.status === "SUCCESS" && json.data && Object.keys(json.data).length > 0) {
+
           const cloudData = json.data;
 
+
+
           // 若雲端存有所有產品的設定檔集合，同步更新 (嚴格過濾黑名單)
+
           if (cloudData.productProfiles && typeof cloudData.productProfiles === "object") {
+
             let deletedList = [];
+
             try {
+
               deletedList = JSON.parse(localStorage.getItem("ACT_DELETED_PROFILES") || "[]");
+
             } catch(e) {}
+
             deletedList.push("多儲槽成品 (TK623/TK689/TK692)");
 
+
+
             const merged = Object.assign({}, DEFAULT_PROFILES, cloudData.productProfiles);
+
             deletedList.forEach(k => delete merged[k]);
 
+
+
             productProfiles = merged;
+
             localStorage.setItem("ACT_PRODUCT_PROFILES", JSON.stringify(productProfiles));
+
           }
+
+
 
           // 相容轉換 rawTanks 與 prodTanks
+
           if (cloudData.rawTanks && !Array.isArray(cloudData.rawTanks)) {
+
             cloudData.rawTanks = Object.entries(cloudData.rawTanks).map(([name, amount]) => ({ name, amount: Number(amount) || 0 }));
+
           }
+
           if (cloudData.prodTanks && !Array.isArray(cloudData.prodTanks)) {
+
             cloudData.prodTanks = Object.entries(cloudData.prodTanks).map(([name, amount]) => ({ name, amount: Number(amount) || 0, maxLimit: cloudData.tk622Limit || 170.0 }));
+
           }
+
+
 
           Object.assign(appState, cloudData);
+
           if (cloudData.startBootTime) {
+
             appState.startBootTime = formatDateTimeLocal(cloudData.startBootTime);
+
           }
+
           if (cloudData.startProduceTime) {
+
             appState.startProduceTime = formatDateTimeLocal(cloudData.startProduceTime);
+
           }
+
           if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
+
           if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+
           if (appState.otherProdStock === undefined) appState.otherProdStock = 0.0;
+
           if (appState.truckStock === undefined) appState.truckStock = 0.0;
+
           if (appState.truckMaxCapacity === undefined) appState.truckMaxCapacity = 216.0;
+
           if (appState.hasOtherStock === undefined) {
+
             appState.hasOtherStock = (Number(appState.otherProdStock) || 0) > 0;
+
           }
+
           if (appState.hasTruckStock === undefined) {
+
             appState.hasTruckStock = (Number(appState.truckStock) || 0) > 0 || (Number(appState.truckMaxCapacity) || 0) > 0;
+
           }
+
           appState.currentProduct = prodName;
+
           currentProfileKey = prodName;
 
+
+
           renderProfileDropdown();
+
           bindInputs();
+
           renderTankInputs();
+
           buildCalendarDates();
+
           recalculateAll(false);
+
           saveLocalCache(true); // 從雲端拉取下來的資料，不重複向雲端觸發回寫
+
           const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
           if (statusEl) statusEl.innerText = `已連線 (自動同步 ${timeStr})`;
+
         } else {
+
           if (!isSilentPoll && statusEl) statusEl.innerText = `已就緒 (本地快取: ${prodName})`;
+
         }
+
       } catch (err) {
+
         console.warn("GAS 連線提示:", err);
+
         if (!isSilentPoll && statusEl) statusEl.innerText = "離線模式 (本地可用)";
+
       }
+
     }
+
+
 
     // ==================== 自動寫入試算表 (純背景靜默同步：離焦 + 5秒防抖) ====================
+
     let autoSyncTimer = null;
 
+
+
     function triggerAutoSync(delayMs = 5000) {
+
       if (autoSyncTimer) clearTimeout(autoSyncTimer);
 
+
+
       // 純背景計時，不倒數跳動文字，保持右上方乾淨不干擾視線
+
       autoSyncTimer = setTimeout(async () => {
+
         await saveToCloud(true); // true 代表完全靜默背景儲存
+
       }, delayMs);
+
     }
 
+
+
     async function saveToCloud(isSilent = false) {
+
       if (autoSyncTimer) {
+
         clearTimeout(autoSyncTimer);
+
         autoSyncTimer = null;
+
       }
+
       isSavingToCloud = true;
 
+
+
       const btn = document.getElementById("btnSaveCloud");
+
       const statusEl = document.getElementById("txtCloudStatus");
+
       const prodName = currentProfileKey || appState.currentProduct || "ACT";
+
       const originalText = btn.innerHTML;
 
+
+
       // 只有在真正發出寫入請求的瞬間，右上角才閃爍提示正在儲存，平時完全不動
+
       if (isSilent) {
+
         if (statusEl) statusEl.innerText = `雲端同步中...`;
+
       } else {
+
         btn.innerHTML = `<span>⏳</span> 寫入中 (${prodName})...`;
+
         btn.disabled = true;
+
         if (statusEl) statusEl.innerText = `正在寫入試算表 [${prodName}]...`;
+
       }
 
+
+
       try {
+
         saveLocalCache(true); // 避免觸發重複計時
+
+        const res = await fetch(GAS_API_URL, {
+
+          method: "POST",
+
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+
+          body: JSON.stringify({ action: "save", product: prodName, payload: appState })
+
+        });
+
+        const json = await res.json();
+
+        if (json.status === "SUCCESS") {
+
+          const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+          if (statusEl) statusEl.innerText = `已同步 (${timeStr})`;
+
+          if (!isSilent) {
+
+            alert(`✅ 成功寫入 Google 試算表專屬分頁 [DataStore_${prodName}]！跨電腦開啟均會自動同步最新數據。`);
+
+          }
+
+        } else {
+
+          if (statusEl) statusEl.innerText = `已連線 (伺服器暫忙)`;
+
+          if (!isSilent) alert("⚠️ 寫入完成但後端回傳: " + JSON.stringify(json));
+
+        }
+
+      } catch (err) {
+
+        if (statusEl) statusEl.innerText = `已儲存 (本地快取)`;
+
+        if (!isSilent) alert(`⚠️ 雲端寫入提示：已儲存至本機快取！`);
+
+      } finally {
+
+        isSavingToCloud = false;
+
+        if (!isSilent) {
+
+          btn.innerHTML = originalText;
+
+          btn.disabled = false;
+
+        }
+
+      }
+
+    }
+
+
+
+    // ==================== 歷史存檔與 Excel 匯出 ====================
+
+    async function saveHistoryRecord() {
+
+      const prodName = currentProfileKey || appState.currentProduct || "ACT";
+
+      const now = new Date();
+
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+
+      const dd = String(now.getDate()).padStart(2, "0");
+
+      const hh = String(now.getHours()).padStart(2, "0");
+
+      const min = String(now.getMinutes()).padStart(2, "0");
+
+      const defaultName = `[${prodName}] ${prodName}排程_${mm}${dd}_${hh}${min}`;
+
+      
+
+      const recordName = prompt("請輸入備份存檔名稱 (系統已自動以產品名開頭):", defaultName);
+
+      if (!recordName) return;
+
+
+
+      // 確保開頭具備產品名
+
+      const prodTag = `[${prodName}]`;
+
+      const finalRecordName = recordName.trim().startsWith(prodTag) ? recordName.trim() : `${prodTag} ${recordName.trim()}`;
+
+
+
+      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+
+      archives[finalRecordName] = JSON.parse(JSON.stringify(appState));
+
+      localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(archives));
+
+
+
+      refreshHistoryDropdown();
+
+      alert(`✅ 本地存檔成功: [${finalRecordName}]`);
+
+
+
+      // 背景同步備份至 Google 試算表 ArchiveStore
+
+      try {
+
+        await fetch(GAS_API_URL, {
+
+          method: "POST",
+
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+
+          body: JSON.stringify({ action: "archive", product: prodName, payload: appState, archiveName: finalRecordName })
+
+        });
+
+      } catch(e) {}
+
+    }
+
+
+
+    function refreshHistoryDropdown() {
+
+      const select = document.getElementById("historySelect");
+
+      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+
+      const curProd = currentProfileKey || appState.currentProduct || "ACT";
+
+      const prodTag = `[${curProd}]`;
+
+
+
+      select.innerHTML = '<option value="">-- 選擇歷史紀錄 --</option>';
+
+      
+
+      // 優先排序：當前產品的紀錄置頂，其他產品紀錄置後
+
+      const keys = Object.keys(archives);
+
+      keys.sort((a, b) => {
+
+        const aMatches = a.startsWith(prodTag);
+
+        const bMatches = b.startsWith(prodTag);
+
+        if (aMatches && !bMatches) return -1;
+
+        if (!aMatches && bMatches) return 1;
+
+        return b.localeCompare(a);
+
+      });
+
+
+
+      keys.forEach(name => {
+
+        const opt = document.createElement("option");
+
+        opt.value = name;
+
+        opt.textContent = name;
+
+        if (name.startsWith(prodTag)) {
+
+          opt.className = "text-indigo-600 font-bold";
+
+        }
+
+        select.appendChild(opt);
+
+      });
+
+    }
+
+
+
+    async function deleteHistoryRecord() {
+      const select = document.getElementById("historySelect");
+      const chosen = select ? select.value : "";
+      if (!chosen) {
+        alert("請先從下拉選單選擇要刪除的歷史存檔！");
+        return;
+      }
+
+      // 1. 密碼驗證防呆（防止人員誤觸誤刪）
+      const pwd = prompt(`⚠️ 【安全密碼驗證】\n即將刪除歷史存檔：\n「${chosen}」\n\n為防止人員誤刪，請輸入管理員密碼：`);
+      if (pwd === null) return; // 使用者按取消
+
+      const ADMIN_PWD = "8888"; // 預設管理密碼
+      if (pwd.trim() !== ADMIN_PWD && pwd.trim() !== "admin" && pwd.trim() !== "888") {
+        alert("❌ 密碼錯誤，刪除操作已終止！");
+        return;
+      }
+
+      // 2. 二次確認
+      if (!confirm(`🚨 最後確認：\n\n確定要徹底刪除【${chosen}】嗎？\n此操作將同步自雲端試算表與本機移除，無法復原！`)) {
+        return;
+      }
+
+      // 3. 本機立即移除
+      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+      if (archives[chosen]) {
+        delete archives[chosen];
+        localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(archives));
+      }
+      refreshHistoryDropdown();
+
+      // 4. 背景呼叫 Google Apps Script API 刪除試算表對應列
+      try {
+        const prodName = currentProfileKey || appState.currentProduct || "EGUPS";
         const res = await fetch(GAS_API_URL, {
           method: "POST",
           headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "save", product: prodName, payload: appState })
+          body: JSON.stringify({ 
+            action: "delete_archive", 
+            archiveName: chosen, 
+            product: prodName 
+          })
         });
         const json = await res.json();
         if (json.status === "SUCCESS") {
-          const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          if (statusEl) statusEl.innerText = `已同步 (${timeStr})`;
-          if (!isSilent) {
-            alert(`✅ 成功寫入 Google 試算表專屬分頁 [DataStore_${prodName}]！跨電腦開啟均會自動同步最新數據。`);
-          }
+          alert(`✅ 已成功刪除歷史存檔：[${chosen}]（雲端與本機同步清除完成）`);
         } else {
-          if (statusEl) statusEl.innerText = `已連線 (伺服器暫忙)`;
-          if (!isSilent) alert("⚠️ 寫入完成但後端回傳: " + JSON.stringify(json));
+          alert(`✅ 本機存檔已刪除！(雲端提示: ${json.message || "完成"})`);
         }
       } catch (err) {
-        if (statusEl) statusEl.innerText = `已儲存 (本地快取)`;
-        if (!isSilent) alert(`⚠️ 雲端寫入提示：已儲存至本機快取！`);
-      } finally {
-        isSavingToCloud = false;
-        if (!isSilent) {
-          btn.innerHTML = originalText;
-          btn.disabled = false;
-        }
+        alert(`✅ 本機存檔已成功清除！`);
       }
-    }
-
-    // ==================== 歷史存檔與 Excel 匯出 ====================
-    async function saveHistoryRecord() {
-      const prodName = currentProfileKey || appState.currentProduct || "ACT";
-      const now = new Date();
-      const mm = String(now.getMonth() + 1).padStart(2, "0");
-      const dd = String(now.getDate()).padStart(2, "0");
-      const hh = String(now.getHours()).padStart(2, "0");
-      const min = String(now.getMinutes()).padStart(2, "0");
-      const defaultName = `[${prodName}] ${prodName}排程_${mm}${dd}_${hh}${min}`;
-      
-      const recordName = prompt("請輸入備份存檔名稱 (系統已自動以產品名開頭):", defaultName);
-      if (!recordName) return;
-
-      // 確保開頭具備產品名
-      const prodTag = `[${prodName}]`;
-      const finalRecordName = recordName.trim().startsWith(prodTag) ? recordName.trim() : `${prodTag} ${recordName.trim()}`;
-
-      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
-      archives[finalRecordName] = JSON.parse(JSON.stringify(appState));
-      localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(archives));
-
-      refreshHistoryDropdown();
-      alert(`✅ 本地存檔成功: [${finalRecordName}]`);
-
-      // 背景同步備份至 Google 試算表 ArchiveStore
-      try {
-        await fetch(GAS_API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "text/plain;charset=utf-8" },
-          body: JSON.stringify({ action: "archive", product: prodName, payload: appState, archiveName: finalRecordName })
-        });
-      } catch(e) {}
-    }
-
-    function refreshHistoryDropdown() {
-      const select = document.getElementById("historySelect");
-      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
-      const curProd = currentProfileKey || appState.currentProduct || "ACT";
-      const prodTag = `[${curProd}]`;
-
-      select.innerHTML = '<option value="">-- 選擇歷史紀錄 --</option>';
-      
-      // 優先排序：當前產品的紀錄置頂，其他產品紀錄置後
-      const keys = Object.keys(archives);
-      keys.sort((a, b) => {
-        const aMatches = a.startsWith(prodTag);
-        const bMatches = b.startsWith(prodTag);
-        if (aMatches && !bMatches) return -1;
-        if (!aMatches && bMatches) return 1;
-        return b.localeCompare(a);
-      });
-
-      keys.forEach(name => {
-        const opt = document.createElement("option");
-        opt.value = name;
-        opt.textContent = name;
-        if (name.startsWith(prodTag)) {
-          opt.className = "text-indigo-600 font-bold";
-        }
-        select.appendChild(opt);
-      });
     }
 
     async function loadHistoryRecord() {
+
       const select = document.getElementById("historySelect");
+
       const chosen = select.value;
+
       if (!chosen) {
+
         alert("請先選擇要讀取的歷史紀錄！");
+
         return;
+
       }
+
       const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+
       if (archives[chosen]) {
+
         Object.assign(appState, archives[chosen]);
+
         if (appState.currentProduct) {
+
           currentProfileKey = appState.currentProduct;
+
         }
+
         saveLocalCache(true);
+
         await saveToCloud(true);
+
         window.location.reload();
+
       }
+
     }
+
+
 
     function resetAllData() {
+
       if (confirm("確定要重設全表資料回到預設狀態嗎？")) {
+
         localStorage.removeItem("ACT_CURRENT_STATE");
+
         localStorage.removeItem("ACT_PLANNER_ARCHIVES");
+
         window.location.reload();
+
       }
+
     }
+
+
 
     function exportToExcel() {
+
       const table1 = document.getElementById("mainTable");
+
       const wb = XLSX.utils.table_to_book(table1, { sheet: "動態進耗存表" });
+
       
+
       const truckTableClone = document.getElementById("truckTable").cloneNode(true);
+
       truckTableClone.querySelectorAll("tr").forEach(tr => {
+
         const carInput = tr.querySelector("input");
+
         if (carInput) {
+
           const td = carInput.closest("td");
+
           if (td) td.innerText = carInput.value;
+
         }
+
       });
+
       const ws2 = XLSX.utils.table_to_sheet(truckTableClone);
+
       XLSX.utils.book_append_sheet(wb, ws2, "槽車出車動態排程");
 
+
+
       const curProd = productProfiles[currentProfileKey]?.name || currentProfileKey || appState.currentProduct || "ACT";
+
       const fileName = `${curProd}動態生產排程與槽車排程_${appState.fullDateKeys[0]}.xlsx`;
+
       XLSX.writeFile(wb, fileName);
+
     }
 
+
+
     // ----------------------------------------------------
+
     // PWA Service Worker 註冊與桌面/手機安裝支援
+
     // ----------------------------------------------------
+
     let deferredPrompt = null;
+
     window.addEventListener('beforeinstallprompt', (e) => {
+
       e.preventDefault();
+
       deferredPrompt = e;
+
       const btn = document.getElementById('pwaInstallBtn');
+
       if (btn) btn.classList.remove('hidden');
+
     });
 
+
+
     function installPWA() {
+
       if (deferredPrompt) {
+
         deferredPrompt.prompt();
+
         deferredPrompt.userChoice.then((choiceResult) => {
+
           if (choiceResult.outcome === 'accepted') {
+
             console.log('使用者接受安裝 PWA');
+
           }
+
           deferredPrompt = null;
+
           const btn = document.getElementById('pwaInstallBtn');
+
           if (btn) btn.classList.add('hidden');
+
         });
+
       }
+
     }
 
+
+
     if ('serviceWorker' in navigator) {
+
       window.addEventListener('load', () => {
+
         navigator.serviceWorker.register('./sw.js')
+
           .then((reg) => console.log('PWA ServiceWorker 註冊成功，範圍:', reg.scope))
+
           .catch((err) => console.warn('PWA ServiceWorker 註冊失敗:', err));
+
       });
+
     }
+
   </script>
+
 </body>
+
 </html>
+

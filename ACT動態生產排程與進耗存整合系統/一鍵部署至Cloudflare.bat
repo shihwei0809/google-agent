@@ -3,7 +3,7 @@ chcp 65001 > nul
 cd /d "%~dp0"
 
 echo ========================================================
-echo [ACT 動態生產排程與進耗存整合系統] 一鍵部署至 Cloudflare Pages
+echo [動態生產排程與進耗存整合系統] 一鍵部署至 Cloudflare Pages
 echo ========================================================
 echo.
 
@@ -15,29 +15,38 @@ if exist ".env" (
 )
 if "%NODE_TLS_REJECT_UNAUTHORIZED%"=="" set NODE_TLS_REJECT_UNAUTHORIZED=0
 
-call npx --yes wrangler pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
+echo 🚀 [1/2] 正在部署至新主要網址 [prod-planner-pwa] ...
+call npx --yes wrangler pages deploy public --project-name prod-planner-pwa --no-bundle --commit-dirty=true
+set DEPLOY_MAIN_STATUS=%ERRORLEVEL%
 
 echo.
-if %ERRORLEVEL% EQU 0 (
+echo 🔄 [2/2] 正在同步部署至相容舊網址 [act-planner-pwa] (確保舊連結/書籤不失效) ...
+call npx --yes wrangler pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
+set DEPLOY_OLD_STATUS=%ERRORLEVEL%
+
+echo.
+if %DEPLOY_MAIN_STATUS% EQU 0 (
     echo ========================================================
-    echo [SUCCESS] 部署成功！
-    echo 線上網址: https://act-planner-pwa.pages.dev
+    echo [SUCCESS] 部署成功！雙網址皆已同步發布：
+    echo 🌟 新版正式網址: https://prod-planner-pwa.pages.dev
+    echo 🔗 相容舊版網址: https://act-planner-pwa.pages.dev (自動無縫導向新網址)
     echo ========================================================
-    start https://act-planner-pwa.pages.dev
+    start https://prod-planner-pwa.pages.dev
 ) else (
     echo ========================================================
-    echo [提示] 偵測到 Cloudflare 授權憑證可能已過期，正在為您開啟瀏覽器登入...
+    echo [提示] 偵測到 Cloudflare 授權可能需要重新驗證，正在開啟瀏覽器登入...
     echo ========================================================
     call npx --yes wrangler login
     echo.
     echo 正在使用新授權進行部署...
+    call npx --yes wrangler pages deploy public --project-name prod-planner-pwa --no-bundle --commit-dirty=true
     call npx --yes wrangler pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
     if %ERRORLEVEL% EQU 0 (
         echo ========================================================
         echo [SUCCESS] 部署成功！
-        echo 線上網址: https://act-planner-pwa.pages.dev
+        echo 🌟 新版正式網址: https://prod-planner-pwa.pages.dev
         echo ========================================================
-        start https://act-planner-pwa.pages.dev
+        start https://prod-planner-pwa.pages.dev
     ) else (
         echo ========================================================
         echo [FAILED] 部署仍未完成，請確認網路連線或登入狀態。
