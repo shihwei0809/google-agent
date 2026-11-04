@@ -3932,7 +3932,23 @@ class App(tk.Tk):
                                     return m
                             return cpn_candidates[0]
 
-                    # 3. 特殊長字串關鍵字精確比對 (Longest Match First，防止 PMAUPS、PMAHQ(R)、PMAHQ、SEP73E4 混淆)
+                    # 3. 針對 PMAHQ 與 PMAHQ(R) (新液 M01 vs 回收 M02)：
+                    #    依品名 (帶不帶 R)、規格 (是否標註回收) 以及批號中之儲槽特徵 (M01 新液 vs M02 回收) 嚴格精確分流
+                    if any(k in full_p_info for k in ("PMAHQ", "PMA-HQ", "L2R9500", "L2C9500")):
+                        is_recycled_item = (
+                            any(rk in full_p_info for rk in ("PMAHQR", "PMAHQ(R)", "RECYCLED", "L2R9500"))
+                            or "回收" in str(item_data.get("spec", ""))
+                            or any("M02" in b for b in item_batches)
+                        )
+                        for m in meta_list:
+                            m_text = clean_token(m["mat_name"]) + "_" + clean_token(m["filename"]) + "_" + clean_token(m["mat_no"])
+                            is_tpl_recycled = any(rk in m_text for rk in ("RECYCLED", "L2R9500", "PMAHQR"))
+                            if is_recycled_item and is_tpl_recycled:
+                                return m
+                            elif (not is_recycled_item) and (not is_tpl_recycled) and any(pk in m_text for pk in ("PMAHQ", "L2C9500")):
+                                return m
+
+                    # 4. 特殊長字串關鍵字精確比對 (Longest Match First，防止 PMAUPS、PMAHQ(R)、PMAHQ、SEP73E4 混淆)
                     long_rules = [
                         ("PMAUPS", ["PMAUPS", "PMAUP", "C260", "L2C9180"]),
                         ("PMAHQ(R)", ["PMAHQR", "RECYCLED", "L2R9500"]),
@@ -4172,12 +4188,21 @@ class App(tk.Tk):
                                 for rc in raw_target_cols:
                                     ws_l.cell(row=target_r, column=rc).value = rb_no
 
-                            # 3. 針對 CPN (L2C9172 / L2C9170)：若批號帶有 K41 / K44 等槽號資訊，自動對應寫入 Tank No. (TK641 / TK644)
+                            # 3. 針對 CPN (L2C9172 / L2C9170) 與 PMAHQ (L2C9500 / L2R9500) 槽號推導寫入：
+                            # (a) CPN: 批號帶 K41 -> TK641, K44 -> TK644
                             deduced_tank, _ = deduce_cpn_tank_and_mat(item)
                             if deduced_tank:
                                 for ck, c_idx in col_map.items():
                                     if ck == "tankno":
                                         ws_l.cell(row=target_r, column=c_idx).value = deduced_tank
+                                        break
+                            # (b) PMAHQ: 批號帶 M01 -> MT5801 (新鮮原液調配槽), M02 -> MT5802 (回收液調配槽)
+                            eff_b_upper = eff_batch.upper()
+                            if "M01" in eff_b_upper or "M02" in eff_b_upper:
+                                pma_tank_val = "MT5801" if "M01" in eff_b_upper else "MT5802"
+                                for ck, c_idx in col_map.items():
+                                    if any(tk_key in ck for tk_key in ("mixingtankno", "mixingtank")):
+                                        ws_l.cell(row=target_r, column=c_idx).value = pma_tank_val
                                         break
 
                             return eff_batch
