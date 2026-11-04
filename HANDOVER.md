@@ -1,5 +1,18 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-04 易見｜多重命理分析網站升級與三軌 AI 整合部署、跨網遠端桌面防火牆穿透檢測)
+* **易見｜多重命理分析網站 (`C:\Users\C606\Documents\Codex\2026-11-02\new-chat\outputs\yijing-online-site\` | 線上網址：`https://yijing-multi-analysis.shihwei0809.workers.dev`):**
+  - **依《易見網站建置說明書_AGY.md》完成全規格資訊架構重構**:
+    1. 全面升級視覺與六大區塊（Hero 區塊、金色框線隱私與免責提示、雙欄響應式表單、互動分析結果三卡片與深度分析面板、視覺化六爻起卦區、FAQ 與頁尾）。
+    2. 實作集中式 `YIJING_CONFIG` 設定物件，支援 4 種收入、5 種投資、4 種資產目標、3 種風險承受度、3 種研究方向、3 種分析深度之全單選切換與即時重算。
+    3. 內建 `@media print` 列印／另存 PDF 專屬排版，並將表單預設值全面去個人化（改為 `1990-01-01`、`午時`、出生地空白、性別不指定）。
+  - **整合三軌混合 AI 深度綜合解讀（Groq 內建高速引擎 + Cloudflare Workers AI + 選填自備 Gemini Key）**:
+    1. 透過 `wrangler secret put GROQ_API_KEY` 將金鑰安全存入 Cloudflare 雲端加密環境變數（前端與原始碼零金鑰外洩）。
+    2. 後端 `/api/ai-insight` 預設優先呼叫內建 Groq 高速模型，並以 Cloudflare Workers AI (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`) 作為自動備援；前端亦支援選填個人 Gemini API Key 直連（含 `3.8-flash` 至 `1.5-flash` 自動降級）。
+    3. 嚴格執行去識別化保護：AI 提示詞僅傳送干支五行象意、時辰、財務情境與提問，絕不傳送西元出生年月日與出生地。
+* **跨網遠端桌面與公司防火牆穿透診斷 (`C606-NB` ➔ `C606-PC1`):**
+  - 排除大陸製 ToDesk 強制 `+86` 手機實名制與資安疑慮，實測確認美國開源免註冊之 **HopToDesk (`https://www.hoptodesk.com`)** 與歐洲開源純 HTTPS 之 **DWService (`https://www.dwservice.net`)** 可直接通過公司防火牆（HTTP 200），免連公司 VPN 即可跨網遠端連線。
+
 ## 今日進度與交接事項 (2026-11-04 小包系統報表產生_勝一：五大生產履歷結構與差異分析、同日多筆續寫、CPN雙料號/雙槽號判別、SEP73雙原料保護與舊版.xls相容)
 * **小包系統報表產生_勝一 (C:\GOOGLE ANGET\小包系統報表產生_勝一\):**
   - **完成五大生產履歷 (PR) 結構整合分析與產出分析 Excel 報表 (五大生產履歷結構與差異分析整合表.xlsx)**:
