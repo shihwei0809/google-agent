@@ -649,18 +649,134 @@ def clean_location_str(loc, mapping_dict=None):
 
 def get_canonical_prod_name(name_raw, spec_raw=""):
     s = f"{name_raw}_{spec_raw}".upper()
-    if "CPN" in s or "A515" in s or "A-515" in s:
+    if "CPN" in s or "A515" in s or "A-515" in s or "L2C9172" in s or "L2C9170" in s:
         return "CPN"
-    if "PMAUPS" in s or "PMA-UPS" in s or "PMA-UP" in s:
+    if "PMAUPS" in s or "PMA-UPS" in s or "PMA-UP" in s or "C260" in s or "C-260" in s or "L2C9180" in s:
         return "PMAUPS"
-    if "PMAHQ" in s or "PMA-HQ" in s:
+    if "PMAHQ(R)" in s or "PMAHQR" in s or "RECYCLED" in s or "L2R9500" in s:
+        return "PMAHQ(R)"
+    if "PMAHQ" in s or "PMA-HQ" in s or "PMTHINNERHQ" in s or "PM THINNER HQ" in s or "L2C9500" in s:
         return "PMAHQ"
     if "PMA" in s:
         return "PMA"
-    if "SEP73" in s:
+    if "SEP73" in s or "L269000" in s:
         return "SEP73E4"
     clean_n = re.sub(r'[^A-Z0-9]', '', str(name_raw).upper())
     return clean_n or "未命名品名"
+
+
+def load_pr_workbook_any(file_path, data_only=False):
+    """
+    載入生產履歷 Excel 檔案 (.xlsx 或舊版 BIFF8 .xls)，統一回傳 openpyxl Workbook。
+    """
+    if not str(file_path).lower().endswith(".xls"):
+        return openpyxl.load_workbook(file_path, data_only=data_only)
+
+    # 針對舊版 .xls (BIFF8) 內建純 Python 解析器，轉為標準 openpyxl Workbook
+    import struct as _st
+    with open(file_path, "rb") as f:
+        raw = f.read()
+
+    pos = 0
+    bof_positions = []
+    while pos + 4 <= len(raw):
+        rec_id, rec_len = _st.unpack_from("<HH", raw, pos)
+        if rec_id == 0x0809 and rec_len in (8, 16) and pos + 4 + rec_len <= len(raw):
+            ver, dt = _st.unpack_from("<HH", raw, pos + 4)
+            if ver == 0x0600 and dt in (0x0005, 0x0010):
+                bof_positions.append((pos, dt))
+        pos += 1
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+
+    if not bof_positions:
+        return wb
+
+    pos = bof_positions[0][0]
+    sst_strings = []
+    sheet_names = []
+    while pos + 4 <= len(raw):
+        rec_id, rec_len = _st.unpack_from("<HH", raw, pos)
+        if pos + 4 + rec_len > len(raw):
+            break
+        rec_data = raw[pos + 4 : pos + 4 + rec_len]
+        if rec_id == 0x0085 and len(rec_data) >= 8:  # BOUNDSHEET
+            slen = rec_data[6]
+            sflag = rec_data[7]
+            sname = (
+                rec_data[8 : 8 + slen].decode("latin1", errors="ignore")
+                if sflag == 0
+                else rec_data[8 : 8 + slen * 2].decode("utf-16le", errors="ignore")
+            )
+            if sname:
+                sheet_names.append(sname)
+        elif rec_id == 0x00FC:  # SST
+            _, uniq_str = _st.unpack_from("<II", rec_data, 0)
+            s_pos = 8
+            for _ in range(uniq_str):
+                if s_pos + 3 > len(rec_data):
+                    break
+                char_cnt, flags = _st.unpack_from("<HB", rec_data, s_pos)
+                s_pos += 3
+                rt_runs = 0
+                ext_len = 0
+                if flags & 0x08:
+                    rt_runs = _st.unpack_from("<H", rec_data, s_pos)[0]
+                    s_pos += 2
+                if flags & 0x04:
+                    ext_len = _st.unpack_from("<I", rec_data, s_pos)[0]
+                    s_pos += 4
+                if flags & 0x01:
+                    s_val = rec_data[s_pos : s_pos + char_cnt * 2].decode("utf-16le", errors="ignore")
+                    s_pos += char_cnt * 2
+                else:
+                    s_val = rec_data[s_pos : s_pos + char_cnt].decode("latin1", errors="ignore")
+                    s_pos += char_cnt
+                s_pos += rt_runs * 4 + ext_len
+                sst_strings.append(s_val)
+        elif rec_id == 0x00FD and rec_len == 10:  # LABELSST
+            r, c, _, sst_idx = _st.unpack_from("<HHHI", rec_data, 0)
+            val = sst_strings[sst_idx] if sst_idx < len(sst_strings) else ""
+            ws.cell(row=r + 1, column=c + 1, value=val)
+        elif rec_id == 0x027E and rec_len == 10:  # RK
+            r, c, _, rk = _st.unpack_from("<HHHI", rec_data, 0)
+            val = (rk >> 2) if (rk & 2) else _st.unpack("<d", _st.pack("<II", 0, rk & ~3))[0]
+            if rk & 1:
+                val /= 100.0
+            if isinstance(val, float) and val.is_integer():
+                val = int(val)
+            ws.cell(row=r + 1, column=c + 1, value=val)
+        elif rec_id == 0x00BD:  # MULRK
+            r, first_c = _st.unpack_from("<HH", rec_data, 0)
+            num_rk = (rec_len - 6) // 6
+            for i in range(num_rk):
+                _, rk = _st.unpack_from("<HI", rec_data, 4 + i * 6)
+                val = (rk >> 2) if (rk & 2) else _st.unpack("<d", _st.pack("<II", 0, rk & ~3))[0]
+                if rk & 1:
+                    val /= 100.0
+                if isinstance(val, float) and val.is_integer():
+                    val = int(val)
+                ws.cell(row=r + 1, column=first_c + i + 1, value=val)
+        elif rec_id == 0x0203 and rec_len == 14:  # NUMBER
+            r, c, _, val = _st.unpack_from("<HHHd", rec_data, 0)
+            # 針對第 11, 12 欄 (Start/End Filling time) 轉為標準時間字串
+            if (c + 1) in (11, 12) and 35000 < val < 60000:
+                dt_excel = datetime(1899, 12, 30) + timedelta(days=val)
+                val = dt_excel.strftime("%Y/%m/%d %H:%M")
+            elif (c + 1) in (3, 6) and 35000 < val < 60000:
+                dt_excel = datetime(1899, 12, 30) + timedelta(days=val)
+                val = dt_excel.strftime("%Y/%m/%d")
+            elif isinstance(val, float) and val.is_integer():
+                val = int(val)
+            ws.cell(row=r + 1, column=c + 1, value=val)
+        pos += 4 + rec_len
+        if rec_id == 0x000A and pos > bof_positions[-1][0]:
+            break
+
+    if sheet_names:
+        ws.title = sheet_names[0]
+    return wb
 
 
 
@@ -1462,7 +1578,7 @@ def build_single_row_lorry_workbook(src_ws, target_row, max_cols=30):
 
 # ================= 介面與操作 =================
 
-APP_VERSION = "v1.0.1 (勝一專用版 2026/10/28)"
+APP_VERSION = "v1.0.2 (勝一專用版 2026/11/04)"
 
 def parse_lot_dates(batch_str):
     """
@@ -1871,8 +1987,8 @@ class App(tk.Tk):
         if not hasattr(self, "imported_lorry_files"):
             self.imported_lorry_files = []
         if not self.imported_lorry_files:
-            all_pr = glob.glob(os.path.join(self.base_dir, "PR_*.xlsx"))
-            all_lorry = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+            all_pr = glob.glob(os.path.join(self.base_dir, "PR_*.xlsx")) + glob.glob(os.path.join(self.base_dir, "PR_*.xls"))
+            all_lorry = glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx")) + glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xls"))
             candidates = [f for f in (all_pr + all_lorry) if not os.path.basename(f).startswith("~$")]
             if candidates:
                 self.imported_lorry_files = list(dict.fromkeys(candidates))
@@ -1881,15 +1997,26 @@ class App(tk.Tk):
             if self.imported_lorry_files:
                 count = len(self.imported_lorry_files)
                 if count > 1:
-                    # 擷取各模版簡短識別名稱 (例如 CPN, PMAHQ, PMAUPS)
+                    # 擷取各模版簡短識別名稱 (例如 CPN(L2C9172), CPN(L2C9170), PMAUPS, SEP73E4, PMAHQ(R))
                     short_names = []
                     for f in self.imported_lorry_files:
                         bn = os.path.splitext(os.path.basename(f))[0].upper()
-                        tokens = [t for t in ["CPN", "PMAHQ", "PMAUPS", "PMA", "EL"] if t in bn]
-                        if tokens:
-                            short_names.append(tokens[0])
+                        if "L2C9172" in bn:
+                            short_names.append("CPN(L2C9172)")
+                        elif "L2C9170" in bn:
+                            short_names.append("CPN(L2C9170)")
+                        elif "L2C9180" in bn or "PMAUPS" in bn:
+                            short_names.append("PMAUPS(L2C9180)")
+                        elif "L269000" in bn or "SEP73" in bn:
+                            short_names.append("SEP73E4(L269000)")
+                        elif "L2R9500" in bn or "PMAHQ(R)" in bn:
+                            short_names.append("PMAHQ(R)(L2R9500)")
                         else:
-                            short_names.append(bn[:15])
+                            tokens = [t for t in ["CPN", "PMAHQ", "PMAUPS", "PMA", "EL"] if t in bn]
+                            if tokens:
+                                short_names.append(tokens[0])
+                            else:
+                                short_names.append(bn[:15])
                     names_str = ", ".join(dict.fromkeys(short_names))
                     self.lbl_lorry_status.config(
                         text=f"生產履歷檔案: ✅ 已就緒 (共載入 {count} 份模版: {names_str})",
@@ -1933,18 +2060,19 @@ class App(tk.Tk):
         finally:
             self.hide_loading()
             
-        # 比對排程批號 vs 生產履歷批號
+        # 比對排程批號 vs 生產履歷批號 (掃描第 7 列起所有資料列批號與原料批號)
         try:
-            import openpyxl as _opxl
             lorry_batches = set()
             if hasattr(self, "imported_lorry_files"):
                 for l_file in self.imported_lorry_files:
                     try:
-                        _wb = _opxl.load_workbook(l_file, data_only=True)
+                        _wb = load_pr_workbook_any(l_file, data_only=True)
                         _ws = _wb.active
-                        _val = str(_ws.cell(row=7, column=1).value or "").strip().upper()
-                        if _val:
-                            lorry_batches.add(_val)
+                        for _r in range(7, _ws.max_row + 1):
+                            for _c in (1, 8, 9, 10):
+                                _val = str(_ws.cell(row=_r, column=_c).value or "").strip().upper()
+                                if len(_val) >= 8:
+                                    lorry_batches.add(_val)
                         _wb.close()
                     except:
                         pass
@@ -3687,83 +3815,191 @@ class App(tk.Tk):
 
                 lorry_sources = list(getattr(self, "imported_lorry_files", []))
                 if not lorry_sources:
-                    lorry_sources = glob.glob(os.path.join(self.base_dir, "PR_*.xlsx")) or glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+                    lorry_sources = (
+                        glob.glob(os.path.join(self.base_dir, "PR_*.xlsx"))
+                        + glob.glob(os.path.join(self.base_dir, "PR_*.xls"))
+                        + glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xlsx"))
+                        + glob.glob(os.path.join(self.base_dir, "Chemical_Lorry*.xls"))
+                    )
                     if not lorry_sources:
                         error_msgs.append("⚠️ 找不到任何生產履歷 (PR / Chemical_Lorry) 檔案作為來源！")
 
                 lorry_generated_batches = set()
-                
-                # 預先解析所有來源模版的特徵 (料號 MaterialNo、品名 MaterialName、檔名)
+
+                # 預先解析所有來源模版的特徵 (料號 MaterialNo、品名 MaterialName、內部批號、槽號 Tank No.、檔名)
                 pr_template_meta = []
                 for l_path in lorry_sources:
                     orig_filename = os.path.splitext(os.path.basename(l_path))[0]
                     orig_ext = os.path.splitext(l_path)[1]
                     t_mat_no = ""
                     t_mat_name = ""
-                    t_batch_in_file = ""
+                    t_batches_in_file = set()
+                    t_tank_in_file = ""
                     try:
-                        wb_info = openpyxl.load_workbook(l_path, data_only=True)
+                        wb_info = load_pr_workbook_any(l_path, data_only=True)
                         ws_info = wb_info.active
                         t_mat_no = str(ws_info.cell(row=1, column=2).value or "").strip().upper()
                         t_mat_name = str(ws_info.cell(row=2, column=2).value or "").strip().upper()
-                        t_batch_in_file = str(ws_info.cell(row=7, column=1).value or "").strip().upper()
+                        # 擷取檔案內第 7 列起所有批號與槽號 (如 TK641 / TK644 / PE06 / PE04 / MT5802)
+                        for _r in range(7, min(ws_info.max_row + 1, 60)):
+                            _b1 = str(ws_info.cell(row=_r, column=1).value or "").strip().upper()
+                            if _b1:
+                                t_batches_in_file.add(_b1)
+                            for _c in range(8, min(ws_info.max_column + 1, 14)):
+                                _v = str(ws_info.cell(row=_r, column=_c).value or "").strip().upper()
+                                if len(_v) == 10 and any(ch.isdigit() for ch in _v) and any(ch.isalpha() for ch in _v):
+                                    t_batches_in_file.add(_v)
+                                elif not t_tank_in_file and _v.startswith(("TK", "PE", "MT")):
+                                    t_tank_in_file = _v
                         wb_info.close()
                     except Exception:
                         pass
                     pr_template_meta.append({
                         "path": l_path,
                         "filename": orig_filename,
-                        "ext": orig_ext,
+                        "ext": ".xlsx" if orig_ext.lower() == ".xls" else orig_ext,
                         "mat_no": t_mat_no,
                         "mat_name": t_mat_name,
-                        "batch_in_file": t_batch_in_file,
+                        "batches_in_file": t_batches_in_file,
+                        "tank_in_file": t_tank_in_file,
                     })
 
-                # 定義精確模版比對演算法 (防止 PMAUPS 與 PMAHQ(R) 混淆，長字串優先比對)
                 def clean_token(s):
                     import re as _re_tok
                     return _re_tok.sub(r'[^A-Z0-9]', '', str(s).upper())
+
+                def deduce_cpn_tank_and_mat(item_data):
+                    """
+                    同品名 CPN 有兩種不同料號 (L2C9172 vs L2C9170) 與不同槽號 (TK641 vs TK644)：
+                    依「品名 + 批號 (如 K41 -> TK641, K44 -> TK644)」與廠區代號同時精確判別。
+                    """
+                    b_all = (
+                        str(item_data.get("cust_batch", ""))
+                        + "_"
+                        + str(item_data.get("raw_batch", ""))
+                        + "_"
+                        + str(item_data.get("batch", ""))
+                    ).upper()
+                    import re as _re_tk
+                    # 從批號擷取 K41 / K44 等槽號特徵 (例如 26A12K41D2 -> TK641, 26A12K44D1 -> TK644)
+                    m_k = _re_tk.search(r'K(\d{2})', b_all)
+                    deduced_tank = f"TK6{m_k.group(1)}" if m_k else ""
+                    return deduced_tank, b_all
 
                 def find_best_pr_template(item_data, meta_list):
                     p_name = clean_token(item_data.get("name", ""))
                     p_spec = clean_token(item_data.get("spec", ""))
                     p_part = clean_token(item_data.get("part_no", ""))
                     full_p_info = f"{p_name}_{p_spec}_{p_part}"
+                    cb_no = str(item_data.get("cust_batch", "")).strip().upper()
+                    rb_no = str(item_data.get("raw_batch", "")).strip().upper()
+                    b_no = str(item_data.get("batch", "")).strip().upper()
+                    item_batches = {x for x in (cb_no, rb_no, b_no) if x}
 
-                    # 1. 優先比對料號 (MaterialNo)
+                    # 1. 優先比對排程料號 (MaterialNo，若有明確指定 L2C9172 / L2C9170 / L2C9180 / L269000 / L2R9500)
                     for m in meta_list:
                         m_mat = clean_token(m.get("mat_no", ""))
                         if m_mat and m_mat in full_p_info:
                             return m
 
-                    # 2. 特殊長字串關鍵字精確比對 (Longest Match First)
-                    # 避免 PMA 單獨匹配導致 PMAUPS 與 PMAHQ 互相覆蓋
+                    # 2. 針對 CPN (同品名有 L2C9172 vs L2C9170 兩種料號、TK641 vs TK644 兩種槽號)：
+                    #    同時依「品名 + 批號 (與內部批號或槽號 TK641/TK644)」精確判別
+                    if any(k in full_p_info for k in ("CPN", "A515", "L2C917")):
+                        cpn_candidates = [
+                            m for m in meta_list
+                            if any(k in (clean_token(m["mat_name"]) + "_" + clean_token(m["filename"]) + "_" + clean_token(m["mat_no"]))
+                                   for k in ("CPN", "A515", "L2C9172", "L2C9170"))
+                        ]
+                        if cpn_candidates:
+                            # (a) 優先比對檔案內部是否已有完全相同的客戶批號或原料批號
+                            for m in cpn_candidates:
+                                if item_batches & m.get("batches_in_file", set()):
+                                    return m
+                            # (b) 依批號中的槽號代碼 (如 K41 -> TK641, K44 -> TK644) 比對模版 Tank No.
+                            deduced_tank, _ = deduce_cpn_tank_and_mat(item_data)
+                            if deduced_tank:
+                                for m in cpn_candidates:
+                                    if m.get("tank_in_file", "").upper() == deduced_tank.upper():
+                                        return m
+                            # (c) 依廠區代號輔助判別 (14廠 1450 常用 L2C9170，F20/其他常用 L2C9172)
+                            loc_check = (str(item_data.get("short_loc", "")) + "_" + str(item_data.get("long_code", "")) + "_" + str(item_data.get("loc", ""))).upper()
+                            if "14" in loc_check:
+                                for m in cpn_candidates:
+                                    if "L2C9170" in m.get("mat_no", ""):
+                                        return m
+                            for m in cpn_candidates:
+                                if "L2C9172" in m.get("mat_no", ""):
+                                    return m
+                            return cpn_candidates[0]
+
+                    # 3. 特殊長字串關鍵字精確比對 (Longest Match First，防止 PMAUPS、PMAHQ(R)、PMAHQ、SEP73E4 混淆)
                     long_rules = [
-                        ("PMAUPS", ["PMAUPS", "PMAUP"]),
-                        ("PMAHQ", ["PMAHQ", "PMAHQR", "PMAHQ(R)"]),
-                        ("CPN", ["CPN", "A515", "A-515", "L2C9172"]),
+                        ("PMAUPS", ["PMAUPS", "PMAUP", "C260", "L2C9180"]),
+                        ("PMAHQ(R)", ["PMAHQR", "RECYCLED", "L2R9500"]),
+                        ("PMAHQ", ["PMAHQ", "PMTHINNERHQ", "L2C9500"]),
+                        ("SEP73E4", ["SEP73E4", "SEP73", "L269000"]),
+                        ("CPN", ["CPN", "A515", "L2C9172", "L2C9170"]),
                     ]
                     for canon_name, aliases in long_rules:
-                        for alias in aliases:
-                            if clean_token(alias) in full_p_info:
-                                for m in meta_list:
-                                    m_text = clean_token(m["mat_name"]) + "_" + clean_token(m["filename"])
-                                    if any(clean_token(a) in m_text for a in aliases):
+                        if any(clean_token(alias) in full_p_info for alias in aliases):
+                            matched_by_rule = []
+                            for m in meta_list:
+                                m_text = clean_token(m["mat_name"]) + "_" + clean_token(m["filename"]) + "_" + clean_token(m["mat_no"])
+                                if any(clean_token(a) in m_text for a in aliases):
+                                    matched_by_rule.append(m)
+                            if matched_by_rule:
+                                # 若同品名有多份模版，優先選取內部批號相符者
+                                for m in matched_by_rule:
+                                    if item_batches & m.get("batches_in_file", set()):
                                         return m
+                                return matched_by_rule[0]
 
-                    # 3. 模版完整品名比對
+                    # 4. 模版內部批號直接命中
+                    for m in meta_list:
+                        if item_batches & m.get("batches_in_file", set()):
+                            return m
+
+                    # 5. 模版完整品名比對
                     for m in meta_list:
                         m_name = clean_token(m.get("mat_name", ""))
                         if m_name and (m_name in full_p_info or full_p_info in m_name):
                             return m
 
-                    # 4. 若只有單一模版且無衝突時，可作為保底
+                    # 6. 若只有單一模版且無衝突時，可作為保底
                     if len(meta_list) == 1:
                         return meta_list[0]
 
                     return None
 
-                # 依排程項目逐一選取最佳模版並產出生產履歷
+                def copy_row_style(ws, src_row, dst_row, max_col):
+                    """將第 7 列範本列的字型、邊框、底色、對齊與列高完整複製到新增的第 8, 9... 列"""
+                    if ws.row_dimensions[src_row].height:
+                        ws.row_dimensions[dst_row].height = ws.row_dimensions[src_row].height
+                    for c_i in range(1, max_col + 1):
+                        sc = ws.cell(row=src_row, column=c_i)
+                        dc = ws.cell(row=dst_row, column=c_i)
+                        if sc.has_style:
+                            dc.font = copy(sc.font)
+                            dc.border = copy(sc.border)
+                            dc.fill = copy(sc.fill)
+                            dc.number_format = copy(sc.number_format)
+                            dc.protection = copy(sc.protection)
+                            dc.alignment = copy(sc.alignment)
+
+                # 將同一天群組內的排程項目，依「目標輸出檔案 (模版 + 廠區 + 到貨日)」分組
+                # 先檢查同一 (模版, 廠區, 到貨日) 下是否有 2 筆以上排程：
+                # 若同一天同廠區同品名有 2 筆以上，統一匯整至該廠區資料夾並從第 7 列往下續寫 (Row 7, Row 8, Row 9...)！
+                pre_counts = {}
+                for item in valid_data:
+                    matched_tpl = find_best_pr_template(item, pr_template_meta)
+                    if not matched_tpl:
+                        continue
+                    l_loc = item.get("loc", "")
+                    loc_code = item.get("short_loc") or clean_location_str(l_loc) or l_loc
+                    pre_k = (matched_tpl["path"], loc_code)
+                    pre_counts[pre_k] = pre_counts.get(pre_k, 0) + 1
+
+                pr_output_groups = {}
                 for item in valid_data:
                     b_no = str(item.get("batch", "")).strip().upper()
                     cb_no = str(item.get("cust_batch", "")).strip().upper()
@@ -3776,22 +4012,106 @@ class App(tk.Tk):
                         error_msgs.append(f"⚠️ 找不到品名規格「{item_label}」對應的生產履歷模版，已略過產出。")
                         continue
 
-                    l_path = matched_tpl["path"]
+                    l_loc = item.get("loc", "")
+                    d_str = item.get("arr_date", "").strip() or item.get("date", "").strip()
+                    loc_code = item.get("short_loc") or clean_location_str(l_loc) or l_loc
+
+                    # 到貨日期 8 碼 (YYYYMMDD)，若無則 fallback 出貨日
+                    arr_d_raw = item.get("arr_date", "").strip() or item.get("date", "").strip() or d_str
+                    arr_date_8 = _g_date_str
+                    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
+                        try:
+                            _adt = datetime.strptime(arr_d_raw.split()[0], fmt)
+                            arr_date_8 = _adt.strftime("%Y%m%d")
+                            break
+                        except ValueError:
+                            pass
+
+                    # 若同一天同廠區同模版有 2 筆以上，子資料夾以廠區層級共用 (或使用第一筆之資料夾)，確保多筆寫入同一份 PR 檔案往下延伸
+                    is_multi_same_loc = pre_counts.get((matched_tpl["path"], loc_code), 0) > 1
+                    folder_mode_eff = 2 if is_multi_same_loc else self.folder_mode_var.get()
+                    current_loc_folder = self.get_report_loc_folder(
+                        output_dir,
+                        l_loc,
+                        eff_batch,
+                        d_str,
+                        folder_mode_eff
+                    )
+
                     orig_filename = matched_tpl["filename"]
                     orig_ext = matched_tpl["ext"]
+                    import re as _re_pr
+                    m_pr = _re_pr.match(r'^(PR_[^_]+_[^_]+)', orig_filename, _re_pr.IGNORECASE)
+                    if m_pr:
+                        pr_prefix = m_pr.group(1) + "_"
+                    elif matched_tpl.get("mat_no"):
+                        pr_prefix = f"PR_{matched_tpl['mat_no']}_75970680_"
+                    else:
+                        pr_prefix = "PR_L2C9172_75970680_"
 
+                    # 以 (模版路徑, 目的資料夾, 預定檔名) 為 Key 聚合同一天多筆排程
+                    group_pr_key = (matched_tpl["path"], current_loc_folder, f"{pr_prefix}{loc_code}_Shiny{arr_date_8}", orig_ext)
+                    pr_output_groups.setdefault(group_pr_key, {"tpl": matched_tpl, "items": []})["items"].append(item)
+
+                # 針對每個聚合群組開啟模版，將單筆或多筆排程依序從第 7 列往下寫入
+                for (l_path, current_loc_folder, base_pr_stem, orig_ext), grp_info in pr_output_groups.items():
+                    grp_items = grp_info["items"]
                     try:
-                        wb_l = openpyxl.load_workbook(l_path, data_only=False)
+                        wb_l = load_pr_workbook_any(l_path, data_only=False)
                         ws_l = wb_l.active
 
-                        l_loc = item.get("loc", "")
-                        # 優先使用到貨日期，若無才用出貨日期
-                        d_str = item.get("arr_date", "").strip()
-                        if not d_str:
-                            d_str = item.get("date", "").strip()
+                        # 尋找第 6 列表頭位置 (預設為第 6 列，並動態掃描 1~15 列確認欄位索引)
+                        header_row_idx = 6
+                        col_map = {}  # key -> col_idx
+                        max_header_col = max(ws_l.max_column, 13)
+                        for r_idx in range(1, min(ws_l.max_row + 1, 16)):
+                            row_headers = {}
+                            for c_idx in range(1, max_header_col + 1):
+                                cell_val = ws_l.cell(row=r_idx, column=c_idx).value
+                                if cell_val and isinstance(cell_val, str):
+                                    ck = cell_val.lower().replace(" ", "").replace(".", "").replace("_", "")
+                                    row_headers[ck] = c_idx
+                            if "finalbatchid" in row_headers or "tsmcfab" in row_headers:
+                                header_row_idx = r_idx
+                                col_map = row_headers
+                                break
 
-                        # Convert d_str to YYYY/MM/DD format
-                        try:
+                        first_data_row = header_row_idx + 1
+                        # 先備份第 7 列 (first_data_row) 原始模版各欄預設值 (例如 Tank No.、Mixing Tank、Circulation count、Drum 等固定欄位)
+                        template_default_row_vals = [
+                            ws_l.cell(row=first_data_row, column=c_i).value
+                            for c_i in range(1, max_header_col + 1)
+                        ]
+
+                        # 檢查來源檔案是否為「已含多桶桶號 (Drum No.)」的現成多列檔案 (如 L269000 SEP73E4、L2R9500 PMAHQ(R))
+                        drum_col_idx = None
+                        for hk, hc in col_map.items():
+                            if hk == "drumno":
+                                drum_col_idx = hc
+                                break
+
+                        existing_data_row_count = 0
+                        for r_check in range(first_data_row, ws_l.max_row + 1):
+                            if any(ws_l.cell(row=r_check, column=c_i).value is not None for c_i in range(1, max_header_col + 1)):
+                                existing_data_row_count += 1
+
+                        is_existing_multi_drum_sheet = (drum_col_idx is not None and existing_data_row_count > 1 and len(grp_items) == 1)
+
+                        def write_schedule_item_to_row(target_r, item):
+                            b_no = str(item.get("batch", "")).strip().upper()
+                            cb_no = str(item.get("cust_batch", "")).strip().upper()
+                            rb_no = str(item.get("raw_batch", "")).strip().upper()
+                            eff_batch = cb_no or b_no or rb_no
+
+                            # 若為新增列 (target_r > first_data_row) 且非現成多桶表，先複製第 7 列的樣式與固定預設值 (如 Tank No. / Mixing Tank / Drum)
+                            if target_r > first_data_row and not is_existing_multi_drum_sheet:
+                                copy_row_style(ws_l, first_data_row, target_r, max_header_col)
+                                for c_i in range(1, max_header_col + 1):
+                                    ws_l.cell(row=target_r, column=c_i).value = template_default_row_vals[c_i - 1]
+
+                            # 到貨日期 (優先) 或出貨日期 -> YYYY/MM/DD
+                            d_str = item.get("arr_date", "").strip() or item.get("date", "").strip()
+                            d_str_fmt = d_str
                             for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
                                 try:
                                     _dt = datetime.strptime(d_str.split()[0], fmt)
@@ -3799,99 +4119,102 @@ class App(tk.Tk):
                                     break
                                 except ValueError:
                                     pass
-                            else:
-                                d_str_fmt = d_str
-                        except:
-                            d_str_fmt = d_str
 
-                        # Convert mfg_date to YYYY/MM/DD format
-                        try:
-                            mfg_str = item.get('mfg_date', '')
+                            # 製造日期 -> YYYY/MM/DD
+                            mfg_str = str(item.get("mfg_date", "")).strip()
+                            if not mfg_str and eff_batch:
+                                mfg_str, _ = parse_lot_dates(eff_batch)
+                            mfg_str_fmt = mfg_str
                             for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
                                 try:
-                                    _mdt = datetime.strptime(str(mfg_str).split()[0], fmt)
+                                    _mdt = datetime.strptime(mfg_str.split()[0], fmt)
                                     mfg_str_fmt = f"{_mdt.year}/{_mdt.month:02d}/{_mdt.day:02d}"
                                     break
                                 except ValueError:
                                     pass
-                            else:
-                                mfg_str_fmt = str(mfg_str)
-                        except:
-                            mfg_str_fmt = str(item.get('mfg_date', ''))
 
-                        long_code_val = item.get('long_code', '')
-                        loc_key = item.get("short_loc") or item.get("loc", "")
-                        phase_val = deduce_fab_phase(loc_key, getattr(self, "phase_mapping_dict", {}))
+                            long_code_val = item.get("long_code", "")
+                            loc_key = item.get("short_loc") or item.get("loc", "")
+                            phase_val = deduce_fab_phase(loc_key, getattr(self, "phase_mapping_dict", {}))
 
-                        # 精確寫入第 7 列（注意：Tank No. 已固定於模版，保護不覆寫）
-                        lorry_field_map = {
-                            "finalbatchid": (eff_batch, 7, 1),             # Col A: 批號 (FinalBatchID)
-                            "tsmcfab": (long_code_val, 7, 2),              # Col B: TSMCFab (長代號如 F200)
-                            "deliverydate": (d_str_fmt, 7, 3),             # Col C: DeliveryDate
-                            "deliverdate": (d_str_fmt, 7, 3),
-                            "manufacturedate": (mfg_str_fmt, 7, 6),         # Col F: ManufactureDate
-                            "manufacturingdate": (mfg_str_fmt, 7, 6),
-                            "fabphase": (phase_val or long_code_val, 7, 7), # Col G: FabPhase (期別代號如 201A)
-                            "rawmaterialid": (rb_no or eff_batch, 7, 8),    # Col H: Raw Material ID (原料批號)
-                        }
+                            # 1. 寫入前 7 欄標準核心欄位 (Col A ~ Col G)
+                            core_fields = [
+                                (["finalbatchid"], eff_batch, 1),
+                                (["tsmcfab"], long_code_val, 2),
+                                (["deliverydate", "deliverdate"], d_str_fmt, 3),
+                                (["manufacturedate", "manufacturingdate"], mfg_str_fmt, 6),
+                                (["fabphase"], phase_val or long_code_val, 7),
+                            ]
+                            for header_keys, val_to_set, fallback_c in core_fields:
+                                if not val_to_set:
+                                    continue
+                                target_c = None
+                                for hk in header_keys:
+                                    for ck, c_idx in col_map.items():
+                                        if hk in ck:
+                                            target_c = c_idx
+                                            break
+                                    if target_c:
+                                        break
+                                if not target_c:
+                                    target_c = fallback_c
+                                ws_l.cell(row=target_r, column=target_c).value = val_to_set
 
-                        lorry_found_keys = set()
-                        # 掃描前 15 列、前 20 欄尋找表頭
-                        for r_idx in range(1, min(ws_l.max_row + 5, 16)):
-                            for c_idx in range(1, min(ws_l.max_column + 5, 22)):
-                                cell_val = ws_l.cell(row=r_idx, column=c_idx).value
-                                if cell_val and isinstance(cell_val, str):
-                                    ck = cell_val.lower().replace(" ", "").replace(".", "")
-                                    for sk, (sv, fb_row, fb_col) in lorry_field_map.items():
-                                        if sv and sk in ck and sk not in lorry_found_keys:
-                                            # 表頭的正下方一格 (r_idx + 1)
-                                            ws_l.cell(row=r_idx + 1, column=c_idx).value = sv
-                                            lorry_found_keys.add(sk)
+                            # 2. 寫入原料批號原則：
+                            # 依勝一現場規格：SEP73 (L269000) 因含 PGME 與 PGMEA 雙原料，無法由排程單一欄位決定，一律保留空白 (或維持模版原值) 讓人員手動填寫！
+                            # 只有單一原料之產品 (如 CPN L2C9172/L2C9170 的 Raw Material ID、PMAUPS L2C9180 的 Raw Matereial A) 才從排程自動寫入；排程無原料則保留空白。
+                            is_sep73 = any("SEP73" in k or "L269000" in k for k in (str(item.get("name", "")).upper(), str(item.get("spec", "")).upper(), str(l_path).upper()))
+                            if not is_sep73 and rb_no:
+                                raw_target_cols = []
+                                for ck, c_idx in col_map.items():
+                                    if any(rk in ck for rk in ("rawmaterialid", "rawmatereiala", "rawmateriala")):
+                                        raw_target_cols.append(c_idx)
+                                for rc in raw_target_cols:
+                                    ws_l.cell(row=target_r, column=rc).value = rb_no
 
-                        # 沒找到的 fallback 到固定格子
-                        for sk, (sv, fb_row, fb_col) in lorry_field_map.items():
-                            if sv and sk not in lorry_found_keys:
-                                ws_l.cell(row=fb_row, column=fb_col).value = sv
+                            # 3. 針對 CPN (L2C9172 / L2C9170)：若批號帶有 K41 / K44 等槽號資訊，自動對應寫入 Tank No. (TK641 / TK644)
+                            deduced_tank, _ = deduce_cpn_tank_and_mat(item)
+                            if deduced_tank:
+                                for ck, c_idx in col_map.items():
+                                    if ck == "tankno":
+                                        ws_l.cell(row=target_r, column=c_idx).value = deduced_tank
+                                        break
 
-                        current_loc_folder = self.get_report_loc_folder(
-                            output_dir,
-                            l_loc,
-                            eff_batch,
-                            d_str,
-                            self.folder_mode_var.get()
-                        )
+                            return eff_batch
 
-                        # 決定 PR 檔名：PR_{料號}_{統編}_{地點代號}_Shiny{YYYYMMDD(到貨日)}.xlsx
-                        loc_code = item.get("short_loc") or clean_location_str(item.get("loc", "")) or item.get("loc", "")
-                        # 到貨日期 8 碼 (YYYYMMDD)，若無則 fallback 出貨日
-                        arr_d_raw = item.get("arr_date", "").strip() or item.get("date", "").strip() or d_str
-                        arr_date_8 = _g_date_str
-                        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y%m%d", "%m/%d/%Y", "%d/%m/%Y"):
-                            try:
-                                _adt = datetime.strptime(arr_d_raw.split()[0], fmt)
-                                arr_date_8 = _adt.strftime("%Y%m%d")
-                                break
-                            except ValueError:
-                                pass
+                        if is_existing_multi_drum_sheet:
+                            # 當來源本身是已展開多列桶號 (Drum No.) 的檔案且單筆排程配對時，同步更新所有資料列 (Row 7 ~ 最後一列)，保留各列桶號
+                            single_item = grp_items[0]
+                            eff_b = ""
+                            for r_curr in range(first_data_row, first_data_row + existing_data_row_count):
+                                eff_b = write_schedule_item_to_row(r_curr, single_item)
+                            if eff_b:
+                                lorry_generated_batches.add(eff_b)
+                            success_lorry += 1
+                        else:
+                            # 一般情況或同一天有 2 筆以上排程：第 1 筆寫入第 7 列，第 2 筆寫入第 8 列，依此類推往下寫！
+                            # 若模版原本第 8 列以後有舊殘留列且超過本次排程筆數，予以清除保持乾淨
+                            if ws_l.max_row >= first_data_row + len(grp_items):
+                                ws_l.delete_rows(first_data_row + len(grp_items), ws_l.max_row - (first_data_row + len(grp_items)) + 1)
 
-                        import re as _re_pr
-                        m_pr = _re_pr.match(r'^(PR_[^_]+_[^_]+)', orig_filename, _re_pr.IGNORECASE)
-                        pr_prefix = (m_pr.group(1) + "_") if m_pr else "PR_L2C9172_75970680_"
-                        lorry_out_name = f"{pr_prefix}{loc_code}_Shiny{arr_date_8}{orig_ext}"
+                            for idx_item, s_item in enumerate(grp_items):
+                                target_row_num = first_data_row + idx_item
+                                eff_b = write_schedule_item_to_row(target_row_num, s_item)
+                                if eff_b:
+                                    lorry_generated_batches.add(eff_b)
+                                success_lorry += 1
+
+                        lorry_out_name = f"{base_pr_stem}{orig_ext}"
                         out_l_path = os.path.join(current_loc_folder, lorry_out_name)
 
                         # 確保檔名不重複，若重複則加上後綴 (1), (2) ...
                         counter_l = 1
-                        base_pr_stem = f"{pr_prefix}{loc_code}_Shiny{arr_date_8}"
                         while os.path.exists(out_l_path):
                             out_l_path = os.path.join(current_loc_folder, f"{base_pr_stem} ({counter_l}){orig_ext}")
                             counter_l += 1
 
                         wb_l.save(out_l_path)
                         wb_l.close()
-
-                        success_lorry += 1
-                        lorry_generated_batches.add(eff_batch)
                     except PermissionError as le:
                         import os as _os2
                         locked_file = _os2.path.basename(str(le).split("'")[-2]) if "'" in str(le) else "生產履歷 (PR) 檔案"
@@ -3949,7 +4272,7 @@ class App(tk.Tk):
                 try:
                     for l_file in self.imported_lorry_files:
                         try:
-                            src_wb_l = openpyxl.load_workbook(l_file, data_only=True)
+                            src_wb_l = load_pr_workbook_any(l_file, data_only=True)
                             src_ws_l = src_wb_l.active
                             for r in range(7, src_ws_l.max_row + 1):
                                 val = str(src_ws_l.cell(row=r, column=1).value or "").strip().upper()

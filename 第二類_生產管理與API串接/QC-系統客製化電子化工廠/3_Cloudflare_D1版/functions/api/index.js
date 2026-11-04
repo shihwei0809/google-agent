@@ -342,23 +342,51 @@ export async function onRequest(context) {
         }
 
         if (alertLevel > 0) {
+          const pwaUrl = configMap['PWA_URL'] || 'https://qc-samples.pages.dev';
           const cardPayload = {
-            "@type": "MessageCard",
-            "@context": "http://schema.org/extensions",
-            "themeColor": alertLevel === 2 ? "990000" : "D9381E",
-            "summary": alertTitle,
-            "sections": [{
-              "activityTitle": alertTitle,
-              "activitySubtitle": `樣品待檢驗已超過 ${alertLevel === 2 ? '4' : '2'} 小時未判定，請盡速處理！`,
-              "facts": [
-                { "name": "🏢 樣品單位", "value": `${s.dept} (送樣人: ${s.requester || '無'})` },
-                { "name": "🧪 檢驗品名", "value": s.productName },
-                { "name": "🚚 槽號 / 車牌", "value": `${s.tankNo || '-'} / ${s.customer || '-'}` },
-                { "name": "🏷️ 條碼資訊", "value": s.barcode || '-' },
-                { "name": "⏰ 送樣時間", "value": s.createdAt }
-              ],
-              "markdown": true
-            }]
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "contentUrl": null,
+                "content": {
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": `🚨【QC 檢驗超時警報】等候已達 ${s.diffHours.toFixed(1)} 小時`,
+                      "weight": "Bolder",
+                      "size": "Large",
+                      "color": "Attention"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": `樣品檢驗已逾 ${alertLevel === 2 ? '4' : '2'} 小時未判定，請品管與 ${s.dept} 儘速處理`,
+                      "wrap": true
+                    },
+                    {
+                      "type": "FactSet",
+                      "facts": [
+                        { "title": "🏢 送樣單位:", "value": `${s.dept}（送樣人：${s.requester || '無'}）` },
+                        { "title": "🧪 檢驗品名:", "value": s.productName },
+                        { "title": "🛢️ 槽號 / 車牌:", "value": `${s.tankNo || '-'} / ${s.customer || '-'}` },
+                        { "title": "📋 單號編號:", "value": s.barcode || '-' },
+                        { "title": "⏰ 送樣時間:", "value": s.createdAt }
+                      ]
+                    }
+                  ],
+                  "actions": [
+                    {
+                      "type": "Action.OpenUrl",
+                      "title": "📱 開啟 PWA 看板立即判定",
+                      "url": pwaUrl
+                    }
+                  ]
+                }
+              }
+            ]
           };
 
           const urls = [];

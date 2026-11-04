@@ -4445,6 +4445,15 @@
     // 定時刷新等候時長動畫與 KPI
     setInterval(render, 60000);
 
+    // 自動定時觸發雲端超時巡檢 (支援 Cloudflare D1 + Teams Webhook 推播)
+    function autoCheckOverdueCloud() {
+      if (navigator.onLine) {
+        fetch('/api?action=checkOverdue').catch(e => console.warn('checkOverdue background error:', e));
+      }
+    }
+    setTimeout(autoCheckOverdueCloud, 3000);
+    setInterval(autoCheckOverdueCloud, 300000);
+
     // 註冊 Service Worker (強制檢查更新，保證每次載入最新版本)
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js').then((reg) => {
