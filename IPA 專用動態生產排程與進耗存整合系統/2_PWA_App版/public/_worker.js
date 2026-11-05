@@ -110,13 +110,14 @@ export default {
         }
       }
 
-      // POST: 新增備份紀錄
+      // POST: 新增或覆蓋備份紀錄 (ON CONFLICT DO UPDATE)
       if (request.method === 'POST') {
         try {
           if (!env.DB) {
             return new Response("ERROR: D1 資料庫未綁定", { status: 500 });
           }
-          const { archiveName, payload } = await request.json();
+          const { archiveName, archiveId, payload } = await request.json();
+          const finalId = String(archiveId || archiveName);
 
           // 產生台灣時區的 timestamp
           const now = new Date();
@@ -125,8 +126,52 @@ export default {
 
           const dataJSON = JSON.stringify(payload);
 
-          await env.DB.prepare("INSERT INTO ipa_archives (id, timestamp, data_json) VALUES (?1, ?2, ?3)")
-            .bind(String(archiveName), timestamp, dataJSON)
+          await env.DB.prepare("INSERT INTO ipa_archives (id, timestamp, data_json) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET timestamp=?2, data_json=?3")
+            .bind(finalId, timestamp, dataJSON)
+            .run();
+
+          return new Response("SUCCESS", {
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Cache-Control': 'no-cache, no-store'
+            }
+          });
+        } catch (err) {
+          return new Response("ERROR: " + err.toString(), { status: 500 });
+        }
+      }
+
+      // PUT: 修改存檔名稱 (Rename)
+      if (request.method === 'PUT') {
+        try {
+          if (!env.DB) {
+            return new Response("ERROR: D1 資料庫未綁定", { status: 500 });
+          }
+          const { oldId, newId } = await request.json();
+          await env.DB.prepare("UPDATE ipa_archives SET id = ?1 WHERE id = ?2")
+            .bind(String(newId), String(oldId))
+            .run();
+
+          return new Response("SUCCESS", {
+            headers: {
+              'Content-Type': 'text/plain; charset=utf-8',
+              'Cache-Control': 'no-cache, no-store'
+            }
+          });
+        } catch (err) {
+          return new Response("ERROR: " + err.toString(), { status: 500 });
+        }
+      }
+
+      // DELETE: 刪除備份紀錄
+      if (request.method === 'DELETE') {
+        try {
+          if (!env.DB) {
+            return new Response("ERROR: D1 資料庫未綁定", { status: 500 });
+          }
+          const { archiveId } = await request.json();
+          await env.DB.prepare("DELETE FROM ipa_archives WHERE id = ?1")
+            .bind(String(archiveId))
             .run();
 
           return new Response("SUCCESS", {

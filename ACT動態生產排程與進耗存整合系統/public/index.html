@@ -167,7 +167,7 @@
 
           <span>動態生產排程與進耗存整合系統</span>
 
-          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.1 (2026/11/05 彩色公式匯出版)</span>
+          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.2 (2026/11/05 支援存檔改名與覆蓋更新)</span>
 
         </h1>
 
@@ -181,29 +181,25 @@
 
     <div class="flex flex-wrap items-center gap-2">
 
-      <div class="flex items-center space-x-1 bg-slate-800 px-2 py-1 rounded border border-slate-700">
-
+      <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded border border-slate-700">
         <span class="text-slate-300">歷史存檔區:</span>
-
         <select id="historySelect" class="bg-slate-900 text-white border border-slate-600 rounded px-1.5 py-0.5 text-xs outline-none">
-
           <option value="">-- 選擇歷史紀錄 --</option>
-
         </select>
-
-        <button onclick="loadHistoryRecord()" class="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white font-medium">讀取</button>
-        <button onclick="deleteHistoryRecord()" class="bg-rose-700 hover:bg-rose-600 px-2 py-0.5 rounded text-white font-medium ml-1 flex items-center gap-1 shadow-sm" title="刪除選中的歷史存檔 (需安全密碼)">
+        <button onclick="loadHistoryRecord()" class="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white font-medium cursor-pointer" title="載入選中的歷史存檔">讀取</button>
+        <button onclick="renameHistoryRecord()" class="bg-amber-600 hover:bg-amber-500 px-2 py-0.5 rounded text-white font-medium flex items-center gap-1 shadow-sm cursor-pointer" title="修改選中存檔的名稱">
+          <span>✏️</span> 改名
+        </button>
+        <button onclick="overwriteHistoryRecord()" class="bg-blue-600 hover:bg-blue-500 px-2 py-0.5 rounded text-white font-medium flex items-center gap-1 shadow-sm cursor-pointer" title="以目前排程數據直接覆蓋更新選中的存檔（不產生新紀錄）">
+          <span>🔄</span> 覆蓋
+        </button>
+        <button onclick="deleteHistoryRecord()" class="bg-rose-700 hover:bg-rose-600 px-2 py-0.5 rounded text-white font-medium ml-0.5 flex items-center gap-1 shadow-sm cursor-pointer" title="刪除選中的歷史存檔 (需安全密碼)">
           <span>🗑️</span> 刪除
         </button>
-
       </div>
 
-
-
-      <button onclick="saveHistoryRecord()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1 rounded text-white font-semibold flex items-center gap-1 shadow-sm">
-
-        <span>💾</span> 備份存檔
-
+      <button onclick="saveHistoryRecord()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded font-bold text-white flex items-center gap-1 shadow-sm cursor-pointer" title="儲存為全新的歷史存檔">
+        <span>➕</span> 另存新檔
       </button>
 
       <button onclick="resetAllData()" class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-white font-semibold shadow-sm">
@@ -3814,6 +3810,95 @@
 
 
     // ==================== 歷史存檔與 Excel 匯出 ====================
+
+    async function renameHistoryRecord() {
+      const select = document.getElementById("historySelect");
+      const chosen = select.value;
+      if (!chosen) {
+        alert("請先從下拉選單選擇要修改名稱的歷史存檔！");
+        return;
+      }
+
+      const prodName = currentProfileKey || appState.currentProduct || "ACT";
+      const prodTag = `[${prodName}]`;
+      let defaultClean = chosen;
+      if (defaultClean.startsWith(prodTag)) {
+        defaultClean = defaultClean.substring(prodTag.length).trim();
+      }
+
+      const newName = prompt("請輸入新的存檔名稱：", defaultClean);
+      if (!newName || !newName.trim()) return;
+
+      const cleanNew = newName.trim();
+      const finalNewName = cleanNew.startsWith(prodTag) ? cleanNew : `${prodTag} ${cleanNew}`;
+      if (finalNewName === chosen) return;
+
+      // 1. 本地更新
+      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+      if (archives[chosen]) {
+        archives[finalNewName] = archives[chosen];
+        delete archives[chosen];
+        localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(archives));
+      }
+      refreshHistoryDropdown();
+      select.value = finalNewName;
+
+      // 2. 雲端同步
+      try {
+        await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "rename_archive",
+            oldArchiveName: chosen,
+            newArchiveName: finalNewName,
+            product: prodName
+          })
+        });
+      } catch(e) {}
+
+      alert(`✅ 存檔名稱已成功修改為：[${finalNewName}]`);
+    }
+
+    async function overwriteHistoryRecord() {
+      const select = document.getElementById("historySelect");
+      const chosen = select.value;
+      if (!chosen) {
+        alert("請先從下拉選單選擇要覆蓋的歷史存檔！");
+        return;
+      }
+
+      if (!confirm(`⚠️ 【確認覆蓋】\n\n即將以目前的生產排程數據【覆蓋更新】歷史存檔：\n「${chosen}」\n\n此動作將更新該紀錄內容，不會產生新存檔。\n確定要覆蓋嗎？`)) {
+        return;
+      }
+
+      const prodName = currentProfileKey || appState.currentProduct || "ACT";
+
+      // 1. 本地覆蓋
+      const archives = JSON.parse(localStorage.getItem("ACT_PLANNER_ARCHIVES") || "{}");
+      archives[chosen] = JSON.parse(JSON.stringify(appState));
+      localStorage.setItem("ACT_PLANNER_ARCHIVES", JSON.stringify(archives));
+
+      refreshHistoryDropdown();
+      select.value = chosen;
+
+      // 2. 雲端同步
+      try {
+        await fetch(GAS_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "archive",
+            product: prodName,
+            payload: appState,
+            archiveName: chosen,
+            overwrite: true
+          })
+        });
+      } catch(e) {}
+
+      alert(`✅ 已成功覆蓋更新存檔：[${chosen}]！`);
+    }
 
     async function saveHistoryRecord() {
 

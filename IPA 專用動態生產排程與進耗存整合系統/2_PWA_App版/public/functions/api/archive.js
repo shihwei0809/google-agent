@@ -14,11 +14,12 @@ export async function onRequestGet(context) {
   }
 }
 
-// 新增備份紀錄
+// 新增或覆蓋備份紀錄 (ON CONFLICT DO UPDATE)
 export async function onRequestPost(context) {
   const { request, env } = context;
   try {
-    const { archiveName, payload } = await request.json();
+    const { archiveName, archiveId, payload } = await request.json();
+    const finalId = String(archiveId || archiveName);
     
     // 產生台灣時區的 timestamp
     const now = new Date();
@@ -27,8 +28,8 @@ export async function onRequestPost(context) {
     
     const dataJSON = JSON.stringify(payload);
     
-    await env.DB.prepare("INSERT INTO ipa_archives (id, timestamp, data_json) VALUES (?1, ?2, ?3)")
-      .bind(String(archiveName), timestamp, dataJSON)
+    await env.DB.prepare("INSERT INTO ipa_archives (id, timestamp, data_json) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET timestamp=?2, data_json=?3")
+      .bind(finalId, timestamp, dataJSON)
       .run();
       
     return new Response("SUCCESS");
@@ -37,6 +38,19 @@ export async function onRequestPost(context) {
   }
 }
 
+// 修改備份紀錄名稱 (Rename)
+export async function onRequestPut(context) {
+  const { request, env } = context;
+  try {
+    const { oldId, newId } = await request.json();
+    await env.DB.prepare("UPDATE ipa_archives SET id = ?1 WHERE id = ?2")
+      .bind(String(newId), String(oldId))
+      .run();
+    return new Response("SUCCESS");
+  } catch (err) {
+    return new Response("ERROR: " + err.toString(), { status: 500 });
+  }
+}
 
 // 刪除備份紀錄
 export async function onRequestDelete(context) {

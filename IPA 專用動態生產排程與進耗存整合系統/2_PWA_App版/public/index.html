@@ -139,7 +139,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // 系統最新版別標籤
-    const SYSTEM_VERSION = "v4.0 (彩色公式Excel匯出與日報各槽真實庫存起算)";
+    const SYSTEM_VERSION = "v4.1 (支援歷史存檔改名與覆蓋更新)";
 
     // 數字格式化輔助函式：即時過濾前導 0
     const cleanNumStr = (val) => {
@@ -483,6 +483,111 @@
       };
 
       // 刪除歷史備份紀錄（仿 ACT/EGUPS 安全密碼防呆刪除機制）
+      // ✏️ 修改歷史存檔名稱 (Rename)
+      const handleRenameArchive = async () => {
+        if (!selectedArchive) {
+          return alert("請先從下拉選單選擇要修改名稱的歷史存檔！");
+        }
+
+        // 取得乾淨名稱（去除後方時間戳記）
+        const currentCleanName = selectedArchive.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        const newName = window.prompt("請輸入新的存檔名稱：", currentCleanName);
+        if (!newName || !newName.trim()) return;
+
+        const cleanNewName = newName.trim();
+        if (cleanNewName === currentCleanName || cleanNewName === selectedArchive) return;
+
+        // 1. 本地 LocalStorage 改名
+        try {
+          const localArchsStr = localStorage.getItem('ipa_schedule_archives') || '[]';
+          const localArchs = JSON.parse(localArchsStr);
+          const targetItem = localArchs.find(a => a.id === selectedArchive);
+          if (targetItem) {
+            targetItem.id = cleanNewName;
+            targetItem.name = cleanNewName;
+            localStorage.setItem('ipa_schedule_archives', JSON.stringify(localArchs));
+            setArchiveList([...localArchs]);
+            setSelectedArchive(cleanNewName);
+          }
+        } catch(e) {}
+
+        // 2. 雲端 D1 同步改名
+        try {
+          await fetch('/api/archive', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oldId: selectedArchive, newId: cleanNewName })
+          });
+          const archRes = await fetch('/api/archive');
+          if (archRes.ok) {
+            const list = await archRes.json();
+            setArchiveList(list);
+            setSelectedArchive(cleanNewName);
+          }
+        } catch (err) {
+          console.warn("雲端改名未連線，本機名稱已更新", err);
+        }
+
+        alert(`✅ 存檔名稱已成功修改為：「${cleanNewName}」`);
+      };
+
+      // 🔄 覆蓋更新選中的歷史存檔 (Overwrite)
+      const handleOverwriteArchive = async () => {
+        if (!selectedArchive) {
+          return alert("請先從下拉選單選擇要覆蓋的歷史存檔！");
+        }
+
+        const cleanName = selectedArchive.replace(/\s*\([^)]*\)\s*$/, '').trim();
+        if (!window.confirm(`⚠️ 【確認覆蓋】\n\n即將以目前的生產排程數據【覆蓋更新】歷史存檔：\n「${selectedArchive}」\n\n此動作將直接更新現有存檔，不會產生新紀錄。\n確定要覆蓋嗎？`)) {
+          return;
+        }
+
+        const payload = getCurrentPayload();
+        setSaveStatus('saving');
+
+        // 1. 本地 LocalStorage 覆蓋更新
+        try {
+          const localArchsStr = localStorage.getItem('ipa_schedule_archives') || '[]';
+          const localArchs = JSON.parse(localArchsStr);
+          const targetIdx = localArchs.findIndex(a => a.id === selectedArchive);
+          const updatedItem = {
+            id: selectedArchive,
+            name: cleanName,
+            dataStr: JSON.stringify(payload),
+            time: new Date().toISOString()
+          };
+          if (targetIdx !== -1) {
+            localArchs[targetIdx] = updatedItem;
+          } else {
+            localArchs.unshift(updatedItem);
+          }
+          localStorage.setItem('ipa_schedule_archives', JSON.stringify(localArchs));
+          setArchiveList([...localArchs]);
+        } catch(e) {}
+
+        // 2. 雲端 D1 同步覆蓋更新
+        try {
+          const res = await fetch('/api/archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ archiveName: selectedArchive, archiveId: selectedArchive, payload })
+          });
+          if (res.ok) {
+            const archRes = await fetch('/api/archive');
+            if (archRes.ok) {
+              const list = await archRes.json();
+              setArchiveList(list);
+            }
+          }
+        } catch (err) {
+          console.warn("雲端存檔覆蓋未連線，本機存檔已更新", err);
+        }
+
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+        alert(`✅ 已成功覆蓋更新存檔：「${cleanName}」！`);
+      };
+
       const handleDeleteArchive = async () => {
         if (!selectedArchive) {
           return alert("請先從下拉選單選擇要刪除的歷史存檔！");
@@ -2085,15 +2190,26 @@
                       );
                     })}
                   </select>
-                  <button onClick={handleRestoreArchive} className="bg-slate-500 hover:bg-slate-400 px-2.5 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap">
-                    📂 讀取
-                  </button>
-                                    <button onClick={handleDeleteArchive} className="bg-rose-700 hover:bg-rose-600 px-2 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap cursor-pointer ml-0.5" title="刪除選中的歷史存檔 (需安全密碼 8888)">
+                  <button onClick={handleRestoreArchive} className="bg-slate-500 hover:bg-slate-400 px-2 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap cursor-pointer" title="載入選中的歷史存檔">
+                    📂 讀取
+                  </button>
+
+                  <button onClick={handleRenameArchive} className="bg-amber-600 hover:bg-amber-500 px-2 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap cursor-pointer" title="修改選中存檔的名稱">
+                    ✏️ 改名
+                  </button>
+
+                  <button onClick={handleOverwriteArchive} className="bg-blue-600 hover:bg-blue-500 px-2 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap cursor-pointer" title="以目前排程數據直接覆蓋更新選中的存檔（不產生新紀錄）">
+                    🔄 覆蓋
+                  </button>
+
+                  <button onClick={handleDeleteArchive} className="bg-rose-700 hover:bg-rose-600 px-2 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap cursor-pointer ml-0.5" title="刪除選中的歷史存檔 (需安全密碼 8888)">
                     🗑️ 刪除
                   </button>
-<div className="h-4 w-px bg-slate-500 mx-0.5"></div>
-                  <button onClick={handleArchiveOnly} className="bg-indigo-500 hover:bg-indigo-400 px-2.5 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap">
-                    💾 備份存檔
+
+                  <div className="h-4 w-px bg-slate-500 mx-0.5"></div>
+
+                  <button onClick={handleArchiveOnly} className="bg-indigo-500 hover:bg-indigo-400 px-2.5 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap cursor-pointer" title="儲存為全新的歷史存檔">
+                    ➕ 另存新檔
                   </button>
                 </div>
 

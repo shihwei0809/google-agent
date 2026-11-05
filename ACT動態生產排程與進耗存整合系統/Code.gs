@@ -74,6 +74,12 @@ function doPost(e) {
     }
 
     // 5. 🌟 刪除指定歷史存檔 (依 ArchiveID 刪除對應整列)
+        // 6. 🌟 修改指定歷史存檔名稱 (Rename)
+    if (action === 'rename_archive') {
+      const renRes = renameArchiveData(contents.oldArchiveName, contents.newArchiveName, product);
+      return buildJsonResponse({ status: "SUCCESS", product: product, message: renRes });
+    }
+
     if (action === 'delete_archive') {
       const delRes = deleteArchiveData(contents.archiveName || contents.archiveId);
       return buildJsonResponse({ status: "SUCCESS", product: product, message: delRes });
@@ -172,12 +178,43 @@ function archiveData(payload, archiveName, product) {
     finalName = `${prodTag} ${finalName}`;
   }
 
+  // 檢查是否已存在同名紀錄 (若為同名紀錄，直接覆蓋更新該列內容與時間)
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === finalName) {
+      sheet.getRange(i + 1, 3).setValue("'" + timestamp);
+      sheet.getRange(i + 1, 4).setValue(dataJSON);
+      SpreadsheetApp.flush();
+      return "SUCCESS_UPDATED";
+    }
+  }
+
   sheet.appendRow([finalName, product || 'ACT', "'" + timestamp, dataJSON]);
   SpreadsheetApp.flush();
   return "SUCCESS";
 }
 
-// --- 取得歷史清單 (可依產品篩選或全列出) ---
+function renameArchiveData(oldName, newName, product) {
+  if (!oldName || !newName) return "名稱不得為空";
+  const sheet = getSheet(ARCHIVE_SHEET_NAME);
+  const data = sheet.getDataRange().getValues();
+
+  const prodTag = `[${product || 'ACT'}]`;
+  let finalNewName = String(newName).trim();
+  if (!finalNewName.startsWith(prodTag)) {
+    finalNewName = `${prodTag} ${finalNewName}`;
+  }
+
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === String(oldName).trim()) {
+      sheet.getRange(i + 1, 1).setValue(finalNewName);
+      SpreadsheetApp.flush();
+      return "SUCCESS";
+    }
+  }
+  return "未找到原紀錄";
+}
+
 function getArchiveList(filterProduct) {
   const sheet = getSheet(ARCHIVE_SHEET_NAME);
   const data = sheet.getDataRange().getValues();
