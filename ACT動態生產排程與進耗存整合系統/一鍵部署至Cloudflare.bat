@@ -16,12 +16,12 @@ if exist ".env" (
 if "%NODE_TLS_REJECT_UNAUTHORIZED%"=="" set NODE_TLS_REJECT_UNAUTHORIZED=0
 
 echo 🚀 [1/2] 正在部署至新主要網址 [prod-planner-pwa] ...
-call npx --yes wrangler pages deploy public --project-name prod-planner-pwa --no-bundle --commit-dirty=true
+call npx --yes wrangler@4.158.0 pages deploy public --project-name prod-planner-pwa --no-bundle --commit-dirty=true
 set DEPLOY_MAIN_STATUS=%ERRORLEVEL%
 
 echo.
 echo 🔄 [2/2] 正在同步部署至相容舊網址 [act-planner-pwa] (確保舊連結/書籤不失效) ...
-call npx --yes wrangler pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
+call npx --yes wrangler@4.158.0 pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
 set DEPLOY_OLD_STATUS=%ERRORLEVEL%
 
 echo.
@@ -39,8 +39,8 @@ if %DEPLOY_MAIN_STATUS% EQU 0 (
     call npx --yes wrangler login
     echo.
     echo 正在使用新授權進行部署...
-    call npx --yes wrangler pages deploy public --project-name prod-planner-pwa --no-bundle --commit-dirty=true
-    call npx --yes wrangler pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
+    call npx --yes wrangler@4.158.0 pages deploy public --project-name prod-planner-pwa --no-bundle --commit-dirty=true
+    call npx --yes wrangler@4.158.0 pages deploy public --project-name act-planner-pwa --no-bundle --commit-dirty=true
     if %ERRORLEVEL% EQU 0 (
         echo ========================================================
         echo [SUCCESS] 部署成功！
