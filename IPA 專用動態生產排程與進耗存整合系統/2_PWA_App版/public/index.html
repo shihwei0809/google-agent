@@ -15,7 +15,8 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="./xlsx.full.min.js"></script>
+  <script src="./xlsx.full.min.js"></script>
+  <script src="./exceljs.min.js"></script>
   
   <style>
     input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
@@ -1468,6 +1469,513 @@
       }, [monthsList, safetyStock, calcMode, tanksList, lines, tankInits, manualGridData, salesPlanData, plant1SharedPoolTanks]);
 
       // 匯出 CSV 報表
+      // 輔助函式：數字轉 Excel 欄位英文字母 (1 -> A, 2 -> B...)
+      const getExcelColLetter = (colNum) => {
+        let str = '';
+        while (colNum > 0) {
+          let rem = (colNum - 1) % 26;
+          str = String.fromCharCode(65 + rem) + str;
+          colNum = Math.floor((colNum - 1) / 26);
+        }
+        return str;
+      };
+
+      // 🌟 匯出高質感彩色與動態公式 Excel (.xlsx) 報表
+      const exportExcel = async () => {
+        const currentMonthObj = activeMonthObj;
+        const plantObj = activePlantObj;
+        if (!currentMonthObj) return;
+
+        // 若無 ExcelJS 引擎則降級回 CSV
+        if (!window.ExcelJS) {
+          console.warn("ExcelJS 引擎未載入，降級回 CSV 匯出");
+          return exportCSV();
+        }
+
+        const wb = new window.ExcelJS.Workbook();
+        wb.creator = '勝一化工 - IPA 整合系統';
+        wb.lastModifiedBy = 'IPA 排程系統';
+        wb.created = new Date();
+        wb.modified = new Date();
+
+        const sheetName = `${plantObj.name}_${currentMonthObj.month}月預估`;
+        const ws = wb.addWorksheet(sheetName.replace(/[\/\\?*:\[\]]/g, '_'));
+
+        const totalDays = displayDaysArr.length;
+        const lastColLetter = getExcelColLetter(1 + totalDays);
+
+        // 樣式常數定義
+        const fontTitle = { name: 'Microsoft JhengHei', bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+        const fontHeader = { name: 'Microsoft JhengHei', bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+        const fontItem = { name: 'Microsoft JhengHei', bold: true, size: 9.5, color: { argb: 'FF1E293B' } };
+        const fontBold = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF1E293B' } };
+        const fontPositive = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF047857' } };
+        const fontNegative = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FFBE123C' } };
+        const fontDeficit = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FFDC2626' } };
+        const fontSafeEnd = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF1D4ED8' } };
+
+        const borderThin = {
+          top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+          right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+        };
+
+        const fillTitle = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+        const fillDateHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+        const fillPoolHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+        const fillSupplyHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0284C7' } };
+        const fillScrapHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+        
+        const fillStart = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+        const fillIn = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+        const fillUse = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF1F2' } };
+        const fillRecycle = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAF5FF' } };
+        const fillSafeEnd = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+        const fillDeficit = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEE2E2' } };
+
+        // 1. 設定欄寬
+        ws.getColumn(1).width = 28;
+        for (let c = 2; c <= 1 + totalDays; c++) {
+          ws.getColumn(c).width = 9;
+        }
+
+        // 2. 主標題行 (Row 1)
+        const modeText = calcMode === 'SALES' ? `產銷排產首日(${latestSalesDayIndex + 1}號起)模式` : '流速滿載模式';
+        ws.mergeCells(`A1:${lastColLetter}1`);
+        const titleCell = ws.getCell('A1');
+        titleCell.value = `IPA 生產排程與進耗存整合系統 ${SYSTEM_VERSION} (${plantObj.name} - ${currentMonthObj.label} - ${modeText})`;
+        titleCell.font = fontTitle;
+        titleCell.fill = fillTitle;
+        titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+        ws.getRow(1).height = 28;
+
+        // 3. 日期欄位行 (Row 2)
+        const row2 = ws.getRow(2);
+        row2.height = 22;
+        const cellA2 = row2.getCell(1);
+        cellA2.value = '項目 / 儲槽';
+        cellA2.font = fontHeader;
+        cellA2.fill = fillDateHeader;
+        cellA2.alignment = { vertical: 'middle', horizontal: 'center' };
+        cellA2.border = borderThin;
+
+        displayDaysArr.forEach((dayIdx, idx) => {
+          const c = row2.getCell(2 + idx);
+          c.value = `${currentMonthObj.month}/${dayIdx + 1}`;
+          c.font = fontHeader;
+          c.fill = fillDateHeader;
+          c.alignment = { vertical: 'middle', horizontal: 'center' };
+          c.border = borderThin;
+        });
+
+        let curRowNum = 3;
+
+        // 4. 一廠共用原料池 (合計)
+        if ((activePlantId === 'plant1' || activePlantId === 'summary') && calculatedData.poolSummary[activeMonthKey]) {
+          const pSum = calculatedData.poolSummary[activeMonthKey];
+
+          // 空行分隔
+          ws.getRow(curRowNum).height = 6;
+          curRowNum++;
+
+          // 區塊標題
+          ws.mergeCells(`A${curRowNum}:${lastColLetter}${curRowNum}`);
+          const poolHeadCell = ws.getCell(`A${curRowNum}`);
+          poolHeadCell.value = '=== 🔗 彰濱一廠共用原料池 (合計) ===';
+          poolHeadCell.font = fontHeader;
+          poolHeadCell.fill = fillPoolHeader;
+          poolHeadCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+          ws.getRow(curRowNum).height = 20;
+          curRowNum++;
+
+          const startRowNum = curRowNum;
+          const useRowNum = curRowNum + 1;
+          const transRowNum = curRowNum + 2;
+          const inRowNum = curRowNum + 3;
+          const endRowNum = curRowNum + 4;
+
+          // 共用池總期初量
+          const rStart = ws.getRow(startRowNum);
+          rStart.height = 19;
+          rStart.getCell(1).value = '共用池總期初量';
+          rStart.getCell(1).font = fontItem;
+          rStart.getCell(1).fill = fillStart;
+          rStart.getCell(1).border = borderThin;
+
+          // 製程耗用原料總量(-)
+          const rUse = ws.getRow(useRowNum);
+          rUse.height = 19;
+          rUse.getCell(1).value = '製程耗用原料總量(-)';
+          rUse.getCell(1).font = fontItem;
+          rUse.getCell(1).fill = fillUse;
+          rUse.getCell(1).border = borderThin;
+
+          // 共用池調撥(+)
+          const rTrans = ws.getRow(transRowNum);
+          rTrans.height = 19;
+          rTrans.getCell(1).value = '共用池調撥(+)';
+          rTrans.getCell(1).font = fontItem;
+          rTrans.getCell(1).fill = fillIn;
+          rTrans.getCell(1).border = borderThin;
+
+          // 共用池進貨(+)
+          const rIn = ws.getRow(inRowNum);
+          rIn.height = 19;
+          rIn.getCell(1).value = '共用池進貨(+)';
+          rIn.getCell(1).font = fontItem;
+          rIn.getCell(1).fill = fillIn;
+          rIn.getCell(1).border = borderThin;
+
+          // 共用池當日剩餘結存
+          const rEnd = ws.getRow(endRowNum);
+          rEnd.height = 20;
+          rEnd.getCell(1).value = '共用池當日剩餘結存';
+          rEnd.getCell(1).font = fontItem;
+          rEnd.getCell(1).fill = fillSafeEnd;
+          rEnd.getCell(1).border = borderThin;
+
+          displayDaysArr.forEach((dayIdx, idx) => {
+            const colIdx = 2 + idx;
+            const colL = getExcelColLetter(colIdx);
+            const prevColL = idx > 0 ? getExcelColLetter(colIdx - 1) : null;
+
+            // 期初庫存 (首日數值，次日帶公式 =前日結存)
+            const cellStart = rStart.getCell(colIdx);
+            if (idx === 0) {
+              cellStart.value = Math.round(pSum[dayIdx].start);
+            } else {
+              cellStart.value = { formula: `${prevColL}${endRowNum}`, result: Math.round(pSum[dayIdx].start) };
+            }
+            cellStart.font = fontBold;
+            cellStart.fill = fillStart;
+            cellStart.alignment = { vertical: 'middle', horizontal: 'center' };
+            cellStart.border = borderThin;
+            cellStart.numFmt = '#,##0';
+
+            // 製程耗用
+            const cellUse = rUse.getCell(colIdx);
+            cellUse.value = Math.round(pSum[dayIdx].use);
+            cellUse.font = fontNegative;
+            cellUse.fill = fillUse;
+            cellUse.alignment = { vertical: 'middle', horizontal: 'center' };
+            cellUse.border = borderThin;
+            cellUse.numFmt = '#,##0';
+
+            // 調撥
+            const cellTrans = rTrans.getCell(colIdx);
+            cellTrans.value = pSum[dayIdx].trans || 0;
+            cellTrans.font = fontPositive;
+            cellTrans.fill = fillIn;
+            cellTrans.alignment = { vertical: 'middle', horizontal: 'center' };
+            cellTrans.border = borderThin;
+            cellTrans.numFmt = '#,##0';
+
+            // 進貨
+            const cellIn = rIn.getCell(colIdx);
+            cellIn.value = pSum[dayIdx].in || 0;
+            cellIn.font = fontPositive;
+            cellIn.fill = fillIn;
+            cellIn.alignment = { vertical: 'middle', horizontal: 'center' };
+            cellIn.border = borderThin;
+            cellIn.numFmt = '#,##0';
+
+            // 結存 (公式：期初 - 耗用 + 調撥 + 進貨)
+            const cellEnd = rEnd.getCell(colIdx);
+            const endFormula = `${colL}${startRowNum}-${colL}${useRowNum}+${colL}${transRowNum}+${colL}${inRowNum}`;
+            const endVal = Math.round(pSum[dayIdx].end);
+            cellEnd.value = { formula: endFormula, result: endVal };
+            cellEnd.alignment = { vertical: 'middle', horizontal: 'center' };
+            cellEnd.border = borderThin;
+            cellEnd.numFmt = '#,##0';
+
+            if (endVal < 0) {
+              cellEnd.fill = fillDeficit;
+              cellEnd.font = fontDeficit;
+            } else {
+              cellEnd.fill = fillSafeEnd;
+              cellEnd.font = fontSafeEnd;
+            }
+          });
+
+          curRowNum += 5;
+        }
+
+        // 5. 各儲槽資料 (原料槽與下腳料槽)
+        const tanksToExport = activePlantId === 'summary' ? operatingSupplyTanks : activePlantTanks;
+
+        tanksToExport.forEach(t => {
+          const isSupply = t.type === 'SUPPLY';
+          const daysData = (calculatedData.result[activeMonthKey] && calculatedData.result[activeMonthKey][t.id]) || [];
+
+          // 空行
+          ws.getRow(curRowNum).height = 6;
+          curRowNum++;
+
+          // 儲槽區塊標題
+          ws.mergeCells(`A${curRowNum}:${lastColLetter}${curRowNum}`);
+          const tankHeadCell = ws.getCell(`A${curRowNum}`);
+          tankHeadCell.value = `--- ${t.name} ---`;
+          tankHeadCell.font = fontHeader;
+          tankHeadCell.fill = isSupply ? fillSupplyHeader : fillScrapHeader;
+          tankHeadCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+          ws.getRow(curRowNum).height = 20;
+          curRowNum++;
+
+          if (isSupply) {
+            // 原料槽 5 行：期初、調撥(+)、進貨(+)、預估使用(-)、結存剩餘
+            const startRNum = curRowNum;
+            const transRNum = curRowNum + 1;
+            const inRNum = curRowNum + 2;
+            const useRNum = curRowNum + 3;
+            const endRNum = curRowNum + 4;
+
+            const rStart = ws.getRow(startRNum);
+            const rTrans = ws.getRow(transRNum);
+            const rIn = ws.getRow(inRNum);
+            const rUse = ws.getRow(useRNum);
+            const rEnd = ws.getRow(endRNum);
+
+            [rStart, rTrans, rIn, rUse, rEnd].forEach(r => r.height = 19);
+            rEnd.height = 20;
+
+            rStart.getCell(1).value = '期初庫存';
+            rStart.getCell(1).font = fontItem;
+            rStart.getCell(1).fill = fillStart;
+            rStart.getCell(1).border = borderThin;
+
+            rTrans.getCell(1).value = '鴻勝調撥(+)';
+            rTrans.getCell(1).font = fontItem;
+            rTrans.getCell(1).fill = fillIn;
+            rTrans.getCell(1).border = borderThin;
+
+            rIn.getCell(1).value = '進貨量(+)';
+            rIn.getCell(1).font = fontItem;
+            rIn.getCell(1).fill = fillIn;
+            rIn.getCell(1).border = borderThin;
+
+            rUse.getCell(1).value = '預估使用(-)';
+            rUse.getCell(1).font = fontItem;
+            rUse.getCell(1).fill = fillUse;
+            rUse.getCell(1).border = borderThin;
+
+            rEnd.getCell(1).value = '結存剩餘';
+            rEnd.getCell(1).font = fontItem;
+            rEnd.getCell(1).fill = fillSafeEnd;
+            rEnd.getCell(1).border = borderThin;
+
+            displayDaysArr.forEach((dayIdx, idx) => {
+              const colIdx = 2 + idx;
+              const colL = getExcelColLetter(colIdx);
+              const prevColL = idx > 0 ? getExcelColLetter(colIdx - 1) : null;
+              const dRec = daysData[dayIdx] || { start: 0, trans: 0, in: 0, use: 0, end: 0 };
+
+              // 期初庫存 (首日數值，次日公式 =前日結存)
+              const cellStart = rStart.getCell(colIdx);
+              if (idx === 0) {
+                cellStart.value = Math.round(dRec.start);
+              } else {
+                cellStart.value = { formula: `${prevColL}${endRNum}`, result: Math.round(dRec.start) };
+              }
+              cellStart.font = fontBold;
+              cellStart.fill = fillStart;
+              cellStart.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellStart.border = borderThin;
+              cellStart.numFmt = '#,##0';
+
+              // 調撥(+)
+              const cellTrans = rTrans.getCell(colIdx);
+              cellTrans.value = dRec.trans || 0;
+              cellTrans.font = fontPositive;
+              cellTrans.fill = fillIn;
+              cellTrans.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellTrans.border = borderThin;
+              cellTrans.numFmt = '#,##0';
+
+              // 進貨(+)
+              const cellIn = rIn.getCell(colIdx);
+              cellIn.value = dRec.in || 0;
+              cellIn.font = fontPositive;
+              cellIn.fill = fillIn;
+              cellIn.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellIn.border = borderThin;
+              cellIn.numFmt = '#,##0';
+
+              // 預估使用(-)
+              const cellUse = rUse.getCell(colIdx);
+              cellUse.value = Math.round(dRec.use);
+              cellUse.font = fontNegative;
+              cellUse.fill = fillUse;
+              cellUse.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellUse.border = borderThin;
+              cellUse.numFmt = '#,##0';
+
+              // 結存 (公式：期初 + 調撥 + 進貨 - 預估使用)
+              const cellEnd = rEnd.getCell(colIdx);
+              const formula = `${colL}${startRNum}+${colL}${transRNum}+${colL}${inRNum}-${colL}${useRNum}`;
+              const endVal = Math.round(dRec.end);
+              cellEnd.value = { formula, result: endVal };
+              cellEnd.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellEnd.border = borderThin;
+              cellEnd.numFmt = '#,##0';
+
+              if (endVal < 0) {
+                cellEnd.fill = fillDeficit;
+                cellEnd.font = fontDeficit;
+              } else {
+                cellEnd.fill = fillSafeEnd;
+                cellEnd.font = fontSafeEnd;
+              }
+            });
+
+            curRowNum += 5;
+          } else {
+            // 下腳料槽：期初、產線下腳料(+)、外部進項(+)、預估清運(-)、[產線回吃(-)]、結存剩餘
+            const startRNum = curRowNum;
+            const autoInRNum = curRowNum + 1;
+            const inRNum = curRowNum + 2;
+            const useRNum = curRowNum + 3;
+            const hasRecycle = Boolean(t.canRecycle);
+            const recycleRNum = hasRecycle ? curRowNum + 4 : null;
+            const endRNum = hasRecycle ? curRowNum + 5 : curRowNum + 4;
+
+            const rStart = ws.getRow(startRNum);
+            const rAutoIn = ws.getRow(autoInRNum);
+            const rIn = ws.getRow(inRNum);
+            const rUse = ws.getRow(useRNum);
+            const rRecycle = hasRecycle ? ws.getRow(recycleRNum) : null;
+            const rEnd = ws.getRow(endRNum);
+
+            [rStart, rAutoIn, rIn, rUse, rEnd].forEach(r => r.height = 19);
+            if (rRecycle) rRecycle.height = 19;
+            rEnd.height = 20;
+
+            rStart.getCell(1).value = '期初庫存';
+            rStart.getCell(1).font = fontItem;
+            rStart.getCell(1).fill = fillStart;
+            rStart.getCell(1).border = borderThin;
+
+            rAutoIn.getCell(1).value = '產線下腳料(+)';
+            rAutoIn.getCell(1).font = fontItem;
+            rAutoIn.getCell(1).fill = fillIn;
+            rAutoIn.getCell(1).border = borderThin;
+
+            rIn.getCell(1).value = '外部進項(+)';
+            rIn.getCell(1).font = fontItem;
+            rIn.getCell(1).fill = fillIn;
+            rIn.getCell(1).border = borderThin;
+
+            rUse.getCell(1).value = '預估清運(-)';
+            rUse.getCell(1).font = fontItem;
+            rUse.getCell(1).fill = fillUse;
+            rUse.getCell(1).border = borderThin;
+
+            if (rRecycle) {
+              rRecycle.getCell(1).value = '產線/槽車回吃(-)';
+              rRecycle.getCell(1).font = fontItem;
+              rRecycle.getCell(1).fill = fillRecycle;
+              rRecycle.getCell(1).border = borderThin;
+            }
+
+            rEnd.getCell(1).value = '結存剩餘';
+            rEnd.getCell(1).font = fontItem;
+            rEnd.getCell(1).fill = fillSafeEnd;
+            rEnd.getCell(1).border = borderThin;
+
+            displayDaysArr.forEach((dayIdx, idx) => {
+              const colIdx = 2 + idx;
+              const colL = getExcelColLetter(colIdx);
+              const prevColL = idx > 0 ? getExcelColLetter(colIdx - 1) : null;
+              const dRec = daysData[dayIdx] || { start: 0, autoIn: 0, in: 0, use: 0, recycle: 0, end: 0 };
+
+              // 期初
+              const cellStart = rStart.getCell(colIdx);
+              if (idx === 0) {
+                cellStart.value = Math.round(dRec.start);
+              } else {
+                cellStart.value = { formula: `${prevColL}${endRNum}`, result: Math.round(dRec.start) };
+              }
+              cellStart.font = fontBold;
+              cellStart.fill = fillStart;
+              cellStart.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellStart.border = borderThin;
+              cellStart.numFmt = '#,##0';
+
+              // 產線下腳料(+)
+              const cellAutoIn = rAutoIn.getCell(colIdx);
+              cellAutoIn.value = Math.round((dRec.autoIn || 0) * 10) / 10;
+              cellAutoIn.font = fontPositive;
+              cellAutoIn.fill = fillIn;
+              cellAutoIn.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellAutoIn.border = borderThin;
+              cellAutoIn.numFmt = '#,##0.0';
+
+              // 外部進項(+)
+              const cellIn = rIn.getCell(colIdx);
+              cellIn.value = dRec.in || 0;
+              cellIn.font = fontPositive;
+              cellIn.fill = fillIn;
+              cellIn.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellIn.border = borderThin;
+              cellIn.numFmt = '#,##0';
+
+              // 預估清運(-)
+              const cellUse = rUse.getCell(colIdx);
+              cellUse.value = dRec.use || 0;
+              cellUse.font = fontNegative;
+              cellUse.fill = fillUse;
+              cellUse.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellUse.border = borderThin;
+              cellUse.numFmt = '#,##0';
+
+              // 回吃(-)
+              if (hasRecycle) {
+                const cellRecycle = rRecycle.getCell(colIdx);
+                cellRecycle.value = dRec.recycle || 0;
+                cellRecycle.font = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF7E22CE' } };
+                cellRecycle.fill = fillRecycle;
+                cellRecycle.alignment = { vertical: 'middle', horizontal: 'center' };
+                cellRecycle.border = borderThin;
+                cellRecycle.numFmt = '#,##0';
+              }
+
+              // 結存 (公式：期初 + 下腳料 + 進項 - 清運 [- 回吃])
+              const cellEnd = rEnd.getCell(colIdx);
+              const formula = hasRecycle
+                ? `${colL}${startRNum}+${colL}${autoInRNum}+${colL}${inRNum}-${colL}${useRNum}-${colL}${recycleRNum}`
+                : `${colL}${startRNum}+${colL}${autoInRNum}+${colL}${inRNum}-${colL}${useRNum}`;
+              const endVal = Math.round(dRec.end);
+              cellEnd.value = { formula, result: endVal };
+              cellEnd.alignment = { vertical: 'middle', horizontal: 'center' };
+              cellEnd.border = borderThin;
+              cellEnd.numFmt = '#,##0';
+
+              if (endVal < 0) {
+                cellEnd.fill = fillDeficit;
+                cellEnd.font = fontDeficit;
+              } else {
+                cellEnd.fill = fillSafeEnd;
+                cellEnd.font = fontSafeEnd;
+              }
+            });
+
+            curRowNum += (hasRecycle ? 6 : 5);
+          }
+        });
+
+        // 產生檔案並觸發下載
+        const buffer = await wb.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `IPA_${plantObj.name}_進耗存預估報表_${currentMonthObj.label.replace('/','-')}.xlsx`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      };
+
       const exportCSV = () => {
         const currentMonthObj = activeMonthObj;
         const plantObj = activePlantObj;
@@ -2309,7 +2817,7 @@
                           ? `📦 產銷排產模式 (最新從 ${activeMonthObj.month}/${latestSalesDayIndex + 1} 日起算)` 
                           : '🏭 全月流速滿載模式 (1日~月底)'}
                       </span>
-                      <button onClick={exportCSV} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 shadow transition-colors flex items-center">
+                      <button onClick={exportExcel} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded text-xs font-bold mb-2 shadow transition-colors flex items-center">
                         📥 匯出 {activePlantObj.name} - {activeMonthObj.label} 報表 (Excel)
                       </button>
                     </div>
