@@ -23,6 +23,7 @@
   <link rel="icon" type="image/png" href="./favicon.png">
 
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <script src="./exceljs.min.js"></script>
 
   <meta name="theme-color" content="#0f172a">
 
@@ -166,7 +167,7 @@
 
           <span>動態生產排程與進耗存整合系統</span>
 
-          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.0 (2026/10/30 修訂)</span>
+          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.1 (2026/11/05 彩色公式匯出版)</span>
 
         </h1>
 
@@ -2734,6 +2735,7 @@
 
 
     function renderTableDOM(grid) {
+      window.lastCalcGrid = grid;
 
       const table = document.getElementById("mainTable");
 
@@ -4045,49 +4047,544 @@
 
 
 
-    function exportToExcel() {
-
-      const table1 = document.getElementById("mainTable");
-
-      const wb = XLSX.utils.table_to_book(table1, { sheet: "動態進耗存表" });
-
-      
-
-      const truckTableClone = document.getElementById("truckTable").cloneNode(true);
-
-      truckTableClone.querySelectorAll("tr").forEach(tr => {
-
-        const carInput = tr.querySelector("input");
-
-        if (carInput) {
-
-          const td = carInput.closest("td");
-
-          if (td) td.innerText = carInput.value;
-
-        }
-
-      });
-
-      const ws2 = XLSX.utils.table_to_sheet(truckTableClone);
-
-      XLSX.utils.book_append_sheet(wb, ws2, "槽車出車動態排程");
-
-
-
-      const curProd = productProfiles[currentProfileKey]?.name || currentProfileKey || appState.currentProduct || "ACT";
-
-      const fileName = `${curProd}動態生產排程與槽車排程_${appState.fullDateKeys[0]}.xlsx`;
-
-      XLSX.writeFile(wb, fileName);
-
+    function getExcelColLetter(colNum) {
+      let str = '';
+      while (colNum > 0) {
+        let rem = (colNum - 1) % 26;
+        str = String.fromCharCode(65 + rem) + str;
+        colNum = Math.floor((colNum - 1) / 26);
+      }
+      return str;
     }
 
+    async function exportToExcel() {
+      // 若無 ExcelJS 引擎則降級使用 SheetJS 匯出
+      if (!window.ExcelJS) {
+        console.warn("ExcelJS 引擎未載入，降級使用 SheetJS 匯出");
+        const table1 = document.getElementById("mainTable");
+        const wb = XLSX.utils.table_to_book(table1, { sheet: "動態進耗存表" });
+        const truckTableClone = document.getElementById("truckTable").cloneNode(true);
+        truckTableClone.querySelectorAll("tr").forEach(tr => {
+          const carInput = tr.querySelector("input");
+          if (carInput) {
+            const td = carInput.closest("td");
+            if (td) td.innerText = carInput.value;
+          }
+        });
+        const ws2 = XLSX.utils.table_to_sheet(truckTableClone);
+        XLSX.utils.book_append_sheet(wb, ws2, "槽車出車動態排程");
+        const curProd = productProfiles[currentProfileKey]?.name || currentProfileKey || appState.currentProduct || "ACT";
+        const fileName = `${curProd}動態生產排程與槽車排程_${appState.fullDateKeys[0]}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        return;
+      }
 
+      const grid = window.lastCalcGrid;
+      if (!grid) {
+        alert("尚未產生試算資料，請先確認畫面已完成試算");
+        return;
+      }
 
-    // ----------------------------------------------------
+      const curProd = productProfiles[currentProfileKey]?.name || currentProfileKey || appState.currentProduct || "ACT";
+      const totalDays = appState.daysCount || grid.rawStart.length;
+      const lastColLetter = getExcelColLetter(1 + totalDays);
 
-    // PWA Service Worker 註冊與桌面/手機安裝支援
+      const wb = new window.ExcelJS.Workbook();
+      wb.creator = '勝一化工 - 動態排程系統';
+      wb.lastModifiedBy = '生產排程與進耗存整合系統';
+      wb.created = new Date();
+      wb.modified = new Date();
+
+      // ----------------------------------------------------
+      // Sheet 1: 動態進耗存表
+      // ----------------------------------------------------
+      const ws1 = wb.addWorksheet('動態進耗存表');
+
+      // 樣式常數定義
+      const fontTitle = { name: 'Microsoft JhengHei', bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+      const fontHeader = { name: 'Microsoft JhengHei', bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+      const fontHeaderWeekend = { name: 'Microsoft JhengHei', bold: true, size: 10, color: { argb: 'FFE11D48' } };
+      const fontItem = { name: 'Microsoft JhengHei', bold: true, size: 9.5, color: { argb: 'FF1E293B' } };
+      const fontNum = { name: 'Calibri', size: 10, color: { argb: 'FF1E293B' } };
+      const fontNumBold = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF1E293B' } };
+      const fontInflow = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FF047857' } };
+      const fontOutflow = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FFBE123C' } };
+      const fontAlert = { name: 'Calibri', bold: true, size: 10, color: { argb: 'FFFFFFFF' } };
+
+      const borderThin = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+      };
+
+      const fillTitle = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
+      const fillDateHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+      const fillWeekendHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE4E6' } };
+      const fillRawSection = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2563EB' } };
+      const fillProdSection = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF059669' } };
+      const fillEndRowHeader = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+      
+      const fillStart = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+      const fillInflow = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
+      const fillUse = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFBEB' } };
+      const fillPipe = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDFA' } };
+      const fillOutflow = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF1F2' } };
+      const fillSafeEnd = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFF6FF' } };
+      const fillRedAlert = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDC2626' } };
+      const fillAmberWarn = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF59E0B' } };
+
+      // 設定欄寬
+      ws1.getColumn(1).width = 24;
+      for (let c = 2; c <= 1 + totalDays; c++) {
+        ws1.getColumn(c).width = 10;
+      }
+
+      // Row 1: 主標題
+      ws1.mergeCells(`A1:${lastColLetter}1`);
+      const titleCell = ws1.getCell('A1');
+      titleCell.value = `${curProd} 動態生產排程與進耗存推估 (${appState.fullDateKeys[0]} 起 ${totalDays} 天)`;
+      titleCell.font = fontTitle;
+      titleCell.fill = fillTitle;
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws1.getRow(1).height = 28;
+
+      // Row 2: 日期欄位行
+      const rDate = ws1.getRow(2);
+      rDate.height = 22;
+      const cA2 = rDate.getCell(1);
+      cA2.value = '項目 / 日期';
+      cA2.font = fontHeader;
+      cA2.fill = fillDateHeader;
+      cA2.alignment = { vertical: 'middle', horizontal: 'center' };
+      cA2.border = borderThin;
+
+      appState.dates.forEach((dStr, idx) => {
+        const dObj = new Date(appState.fullDateKeys[idx]);
+        const isWeekend = (dObj.getDay() === 0 || dObj.getDay() === 6);
+        const cell = rDate.getCell(2 + idx);
+        cell.value = dStr;
+        cell.font = isWeekend ? fontHeaderWeekend : fontHeader;
+        cell.fill = isWeekend ? fillWeekendHeader : fillDateHeader;
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = borderThin;
+      });
+
+      // Row 3: 原料區塊標題
+      ws1.mergeCells(`A3:${lastColLetter}3`);
+      const rawSecCell = ws1.getCell('A3');
+      rawSecCell.value = `=== 💧 原料進耗存推估 (${curProd} 原料 / 溶劑) ===`;
+      rawSecCell.font = fontTitle;
+      rawSecCell.fill = fillRawSection;
+      rawSecCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws1.getRow(3).height = 22;
+
+      // Row 4: 期初庫存量 (原料)
+      const rRawStart = ws1.getRow(4);
+      rRawStart.height = 20;
+      const cA4 = rRawStart.getCell(1);
+      cA4.value = '期初庫存量 (原料)';
+      cA4.font = fontItem;
+      cA4.fill = fillStart;
+      cA4.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA4.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const cell = rRawStart.getCell(2 + idx);
+        if (idx === 0) {
+          cell.value = Number(grid.rawStart[0]) || 0;
+        } else {
+          const prevColLetter = getExcelColLetter(2 + idx - 1);
+          cell.value = { formula: `=${prevColLetter}9` };
+        }
+        cell.font = fontNumBold;
+        cell.fill = fillStart;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 5: 調撥 (+)
+      const rRawTrans = ws1.getRow(5);
+      rRawTrans.height = 20;
+      const cA5 = rRawTrans.getCell(1);
+      cA5.value = '調撥 (+)';
+      cA5.font = fontItem;
+      cA5.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA5.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const cell = rRawTrans.getCell(2 + idx);
+        cell.value = Number(grid.rawTrans[idx]?.val) || 0;
+        cell.font = fontInflow;
+        cell.fill = fillInflow;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 6: 進貨量 (+)
+      const rRawIn = ws1.getRow(6);
+      rRawIn.height = 20;
+      const cA6 = rRawIn.getCell(1);
+      cA6.value = '進貨量 (+)';
+      cA6.font = fontItem;
+      cA6.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA6.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const cell = rRawIn.getCell(2 + idx);
+        cell.value = Number(grid.rawIn[idx]?.val) || 0;
+        cell.font = fontInflow;
+        cell.fill = fillInflow;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 7: 預估使用量 (-)
+      const rRawUse = ws1.getRow(7);
+      rRawUse.height = 20;
+      const cA7 = rRawUse.getCell(1);
+      cA7.value = '預估使用量 (-)';
+      cA7.font = fontItem;
+      cA7.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA7.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const cell = rRawUse.getCell(2 + idx);
+        cell.value = Number(grid.rawUse[idx]?.val) || 0;
+        cell.font = fontOutflow;
+        cell.fill = fillUse;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 8: 管線回吃 (+)
+      const rRawPipe = ws1.getRow(8);
+      rRawPipe.height = 20;
+      const cA8 = rRawPipe.getCell(1);
+      cA8.value = '管線回吃 (+)';
+      cA8.font = fontItem;
+      cA8.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA8.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const cell = rRawPipe.getCell(2 + idx);
+        cell.value = Number(grid.rawPipe[idx]?.val) || 0;
+        cell.font = fontInflow;
+        cell.fill = fillPipe;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 9: 原料結存剩餘
+      const rRawEnd = ws1.getRow(9);
+      rRawEnd.height = 22;
+      const cA9 = rRawEnd.getCell(1);
+      cA9.value = '原料結存剩餘';
+      cA9.font = fontHeader;
+      cA9.fill = fillEndRowHeader;
+      cA9.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA9.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const colLetter = getExcelColLetter(2 + idx);
+        const cell = rRawEnd.getCell(2 + idx);
+        cell.value = { formula: `=${colLetter}4+${colLetter}5+${colLetter}6-${colLetter}7+${colLetter}8` };
+        const endVal = Number(grid.rawEnd[idx]) || 0;
+        const isBelowSafe = (endVal < appState.rawSafetyStock);
+        cell.font = isBelowSafe ? fontAlert : fontNumBold;
+        cell.fill = isBelowSafe ? fillRedAlert : fillSafeEnd;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 10: 分隔空行
+      const rSpacer = ws1.getRow(10);
+      rSpacer.height = 10;
+      for (let c = 1; c <= 1 + totalDays; c++) {
+        rSpacer.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      }
+
+      // Row 11: 成品區塊標題
+      ws1.mergeCells(`A11:${lastColLetter}11`);
+      const prodSecCell = ws1.getCell('A11');
+      prodSecCell.value = `=== 📦 成品庫存推估 (實體儲槽 / 槽車暫存) ===`;
+      prodSecCell.font = fontTitle;
+      prodSecCell.fill = fillProdSection;
+      prodSecCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws1.getRow(11).height = 22;
+
+      // Row 12: 期初庫存量 (成品)
+      const rProdStart = ws1.getRow(12);
+      rProdStart.height = 20;
+      const cA12 = rProdStart.getCell(1);
+      cA12.value = '期初庫存量 (成品)';
+      cA12.font = fontItem;
+      cA12.fill = fillStart;
+      cA12.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA12.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const cell = rProdStart.getCell(2 + idx);
+        if (idx === 0) {
+          cell.value = Number(grid.prodStart[0]) || 0;
+        } else {
+          const prevColLetter = getExcelColLetter(2 + idx - 1);
+          cell.value = { formula: `=${prevColLetter}15` };
+        }
+        cell.font = fontNumBold;
+        cell.fill = fillStart;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 13: 預估生產量 (+)
+      const rProdGen = ws1.getRow(13);
+      rProdGen.height = 20;
+      const cA13 = rProdGen.getCell(1);
+      cA13.value = '預估生產量 (+)';
+      cA13.font = fontItem;
+      cA13.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA13.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const cell = rProdGen.getCell(2 + idx);
+        cell.value = Number(grid.prodGen[idx]?.val) || 0;
+        cell.font = fontInflow;
+        cell.fill = fillInflow;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 14: 成品出料 (-)
+      const rProdOut = ws1.getRow(14);
+      rProdOut.height = 20;
+      const cA14 = rProdOut.getCell(1);
+      cA14.value = '成品出料 (-)';
+      cA14.font = fontItem;
+      cA14.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA14.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const cell = rProdOut.getCell(2 + idx);
+        cell.value = Number(grid.prodOut[idx]?.val) || 0;
+        cell.font = fontOutflow;
+        cell.fill = fillOutflow;
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // Row 15: 成品結存估算
+      const rProdEnd = ws1.getRow(15);
+      rProdEnd.height = 22;
+      const cA15 = rProdEnd.getCell(1);
+      cA15.value = '成品結存估算';
+      cA15.font = fontHeader;
+      cA15.fill = fillEndRowHeader;
+      cA15.alignment = { vertical: 'middle', horizontal: 'left' };
+      cA15.border = borderThin;
+
+      for (let idx = 0; idx < totalDays; idx++) {
+        const colLetter = getExcelColLetter(2 + idx);
+        const cell = rProdEnd.getCell(2 + idx);
+        cell.value = { formula: `=${colLetter}12+${colLetter}13-${colLetter}14` };
+        const endVal = Number(grid.prodEnd[idx]) || 0;
+        const isOverTanks = (endVal > appState.tankTotalLimit && appState.tankTotalLimit > 0);
+        const isOverAll = (endVal > appState.tk622Limit && appState.tk622Limit > 0);
+        
+        if (isOverAll) {
+          cell.font = fontAlert;
+          cell.fill = fillRedAlert;
+        } else if (isOverTanks) {
+          cell.font = fontAlert;
+          cell.fill = fillAmberWarn;
+        } else {
+          cell.font = fontInflow;
+          cell.fill = fillInflow;
+        }
+        cell.alignment = { vertical: 'middle', horizontal: 'right' };
+        cell.numFmt = '#,##0.0';
+        cell.border = borderThin;
+      }
+
+      // ----------------------------------------------------
+      // Sheet 2: 槽車出車動態排程
+      // ----------------------------------------------------
+      const ws2 = wb.addWorksheet('槽車出車動態排程');
+
+      const target = Number(appState.totalTarget) || 0;
+      const batchCap = Number(appState.batchCap) || 18.0;
+      const flow = Number(appState.flowRate) || 1.2;
+      const prodStart = new Date(appState.startProduceTime);
+
+      const orderList = (appState.truckOrderNote || "")
+        .split(/[,，]/)
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      const totalTrucks = (orderList.length > 0 && target > 0) ? Math.ceil(target / batchCap) : 0;
+
+      // 設定 Sheet 2 欄寬
+      ws2.getColumn(1).width = 8;
+      ws2.getColumn(2).width = 22;
+      ws2.getColumn(3).width = 20;
+      ws2.getColumn(4).width = 20;
+      ws2.getColumn(5).width = 18;
+      ws2.getColumn(6).width = 18;
+      ws2.getColumn(7).width = 22;
+
+      // Sheet 2 Row 1: 標題行
+      ws2.mergeCells('A1:G1');
+      const truckTitleCell = ws2.getCell('A1');
+      truckTitleCell.value = `${curProd} 槽車出車動態排程 (目標出車: ${target.toFixed(1)} T, 共 ${totalTrucks} 車)`;
+      truckTitleCell.font = fontTitle;
+      truckTitleCell.fill = fillTitle;
+      truckTitleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      ws2.getRow(1).height = 28;
+
+      // Sheet 2 Row 2: 表頭行
+      const rTruckHeader = ws2.getRow(2);
+      rTruckHeader.height = 22;
+      const truckHeaders = ['車次', '指定槽車車號 / 標籤', '預計開始灌裝時間', '預計出車時間 (完成)', '本車預計載重 (T)', '累計出車噸數 (T)', '出車備註'];
+      truckHeaders.forEach((h, idx) => {
+        const c = rTruckHeader.getCell(1 + idx);
+        c.value = h;
+        c.font = fontHeader;
+        c.fill = fillDateHeader;
+        c.alignment = { vertical: 'middle', horizontal: 'center' };
+        c.border = borderThin;
+      });
+
+      if (totalTrucks > 0) {
+        let curTruckStartMs = prodStart.getTime();
+        let accumWeight = 0;
+        let currentCycleIdx = 0;
+
+        for (let i = 1; i <= totalTrucks; i++) {
+          const truckLoad = (i === totalTrucks) ? round1D(target - accumWeight) : batchCap;
+          accumWeight = round1D(accumWeight + truckLoad);
+
+          if (appState.sequenceShiftOverrides && appState.sequenceShiftOverrides[i - 1]) {
+            const prevCar = (appState.manualCarOverrides && appState.manualCarOverrides[i - 1]) || "";
+            const pIdx = orderList.indexOf(prevCar);
+            if (pIdx !== -1) {
+              currentCycleIdx = (pIdx + 1) % orderList.length;
+            } else {
+              currentCycleIdx = 0;
+            }
+          }
+
+          const baseCar = orderList[currentCycleIdx % orderList.length];
+          const hasOverride = Boolean(
+            appState.manualCarOverrides && 
+            appState.manualCarOverrides[i] !== undefined && 
+            appState.manualCarOverrides[i] !== null && 
+            String(appState.manualCarOverrides[i]).trim() !== ""
+          );
+          const displayCar = hasOverride ? String(appState.manualCarOverrides[i]).trim() : baseCar;
+          const isShiftActive = Boolean(appState.sequenceShiftOverrides && appState.sequenceShiftOverrides[i]);
+          currentCycleIdx++;
+
+          const startD = new Date(curTruckStartMs);
+          const endD = new Date(curTruckStartMs + (truckLoad / flow) * 3600 * 1000);
+          const fmtDate = (d) => `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+          
+          let note = '依序輪替';
+          if (isShiftActive) note = '接續排序已套用';
+          else if (hasOverride) note = '手動指定車號';
+
+          const rowNum = 2 + i;
+          const r = ws2.getRow(rowNum);
+          r.height = 20;
+
+          // A: 車次
+          const cA = r.getCell(1);
+          cA.value = i;
+          cA.font = fontNumBold;
+          cA.alignment = { vertical: 'middle', horizontal: 'center' };
+          cA.border = borderThin;
+
+          // B: 指定槽車車號
+          const cB = r.getCell(2);
+          cB.value = displayCar;
+          cB.font = fontNumBold;
+          cB.alignment = { vertical: 'middle', horizontal: 'center' };
+          cB.fill = hasOverride ? fillUse : null;
+          cB.border = borderThin;
+
+          // C: 開始時間
+          const cC = r.getCell(3);
+          cC.value = fmtDate(startD);
+          cC.font = fontNum;
+          cC.alignment = { vertical: 'middle', horizontal: 'center' };
+          cC.border = borderThin;
+
+          // D: 完成時間
+          const cD = r.getCell(4);
+          cD.value = fmtDate(endD);
+          cD.font = fontNumBold;
+          cD.alignment = { vertical: 'middle', horizontal: 'center' };
+          cD.border = borderThin;
+
+          // E: 本車預計載重 (T)
+          const cE = r.getCell(5);
+          cE.value = truckLoad;
+          cE.font = fontNumBold;
+          cE.alignment = { vertical: 'middle', horizontal: 'right' };
+          cE.numFmt = '#,##0.0';
+          cE.border = borderThin;
+
+          // F: 累計出車噸數 (T) -> Excel 公式！
+          const cF = r.getCell(6);
+          if (i === 1) {
+            cF.value = { formula: `=E3` };
+          } else {
+            cF.value = { formula: `=F${rowNum - 1}+E${rowNum}` };
+          }
+          cF.font = fontInflow;
+          cF.alignment = { vertical: 'middle', horizontal: 'right' };
+          cF.numFmt = '#,##0.0';
+          cF.border = borderThin;
+
+          // G: 備註
+          const cG = r.getCell(7);
+          cG.value = note;
+          cG.font = fontNum;
+          cG.alignment = { vertical: 'middle', horizontal: 'center' };
+          cG.border = borderThin;
+
+          curTruckStartMs = endD.getTime();
+        }
+      } else {
+        const rEmpty = ws2.getRow(3);
+        rEmpty.height = 30;
+        ws2.mergeCells('A3:G3');
+        const cEmpty = rEmpty.getCell(1);
+        cEmpty.value = '⚡ 目前未指定槽車出車順序，槽車排程已自動清空。（若需出車請於上方欄位填寫，例如：E102, E103）';
+        cEmpty.font = fontItem;
+        cEmpty.alignment = { vertical: 'middle', horizontal: 'center' };
+      }
+
+      // 匯出檔案
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${curProd}動態生產排程與槽車排程_${appState.fullDateKeys[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
 
     // ----------------------------------------------------
 

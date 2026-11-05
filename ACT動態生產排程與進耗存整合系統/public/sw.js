@@ -1,9 +1,10 @@
-const CACHE_NAME = 'act-pwa-v2.0';
+const CACHE_NAME = 'act-pwa-v2.1';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './favicon.png',
+  './exceljs.min.js',
   'https://cdn.tailwindcss.com',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
 ];
