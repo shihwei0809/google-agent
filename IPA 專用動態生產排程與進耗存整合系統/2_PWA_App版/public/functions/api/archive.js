@@ -36,3 +36,18 @@ export async function onRequestPost(context) {
     return new Response("ERROR: " + err.toString(), { status: 500 });
   }
 }
+
+
+// 刪除備份紀錄
+export async function onRequestDelete(context) {
+  const { request, env } = context;
+  try {
+    const { archiveId } = await request.json();
+    await env.DB.prepare("DELETE FROM ipa_archives WHERE id = ?1")
+      .bind(String(archiveId))
+      .run();
+    return new Response("SUCCESS");
+  } catch (err) {
+    return new Response("ERROR: " + err.toString(), { status: 500 });
+  }
+}

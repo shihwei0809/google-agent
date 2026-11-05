@@ -481,6 +481,52 @@
         }
       };
 
+      // 刪除歷史備份紀錄（仿 ACT/EGUPS 安全密碼防呆刪除機制）
+      const handleDeleteArchive = async () => {
+        if (!selectedArchive) {
+          return alert("請先從下拉選單選擇要刪除的歷史存檔！");
+        }
+
+        // 1. 密碼驗證防呆（防止人員誤觸誤刪）
+        const pwd = window.prompt(`⚠️ 【安全密碼驗證】\n即將刪除歷史存檔：\n「${selectedArchive}」\n\n為防止人員誤刪，請輸入管理員密碼：`);
+        if (pwd === null) return; // 使用者按取消
+
+        const ADMIN_PWD = "8888"; // 預設管理密碼 (同 ACT 系統)
+        if (pwd.trim() !== ADMIN_PWD && pwd.trim() !== "admin" && pwd.trim() !== "888") {
+          return alert("❌ 密碼錯誤，刪除操作已終止！");
+        }
+
+        // 2. 二次確認
+        if (!window.confirm(`🚨 最後確認：\n\n確定要徹底刪除【${selectedArchive}】嗎？\n此操作將同步自本機與雲端移除，無法復原！`)) {
+          return;
+        }
+
+        const toDeleteId = selectedArchive;
+
+        // 3. 本機立即移除
+        try {
+          const localArchsStr = localStorage.getItem('ipa_schedule_archives') || '[]';
+          const localArchs = JSON.parse(localArchsStr);
+          const updatedArchs = localArchs.filter(a => a.id !== toDeleteId);
+          localStorage.setItem('ipa_schedule_archives', JSON.stringify(updatedArchs));
+          setArchiveList(updatedArchs);
+          setSelectedArchive('');
+        } catch(e) {}
+
+        // 4. 雲端 D1 同步刪除
+        try {
+          await fetch('/api/archive', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ archiveId: toDeleteId })
+          });
+        } catch(e) {
+          console.warn("雲端刪除未連線，本機存檔已成功移除", e);
+        }
+
+        alert(`✅ 已成功刪除歷史存檔：\n[${toDeleteId}]`);
+      };
+
       // 強制清空重置
       const handleClearAll = () => {
         if (window.confirm("確定要重置為最新產線與儲槽預設值嗎？")) {
@@ -1534,7 +1580,10 @@
                   <button onClick={handleRestoreArchive} className="bg-slate-500 hover:bg-slate-400 px-2.5 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap">
                     📂 讀取
                   </button>
-                  <div className="h-4 w-px bg-slate-500 mx-0.5"></div>
+                                    <button onClick={handleDeleteArchive} className="bg-rose-700 hover:bg-rose-600 px-2 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap cursor-pointer ml-0.5" title="刪除選中的歷史存檔 (需安全密碼 8888)">
+                    🗑️ 刪除
+                  </button>
+<div className="h-4 w-px bg-slate-500 mx-0.5"></div>
                   <button onClick={handleArchiveOnly} className="bg-indigo-500 hover:bg-indigo-400 px-2.5 py-1 rounded text-xs font-bold transition-all shadow flex items-center text-white whitespace-nowrap">
                     💾 備份存檔
                   </button>
