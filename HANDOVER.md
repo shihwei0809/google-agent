@@ -1,5 +1,21 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 進度與交接事項 (2026-11-05 IPA 與 ACT/EGUPS 動態排程系統全功能升級與發布)
+* **IPA 生產排程與進耗存整合系統 (C:\GOOGLE ANGET\IPA 專用動態生產排程與進耗存整合系統 | 線上網址: https://ipa-pwa-app.pages.dev):**
+  - **日報數據解析修復**: 修正 08:00 儲槽報表零值防呆，避免 16:00 數據回填滲漏導致 11/5 一廠總重誤判為 230.71T（正確為 217.32T）。
+  - **真實槽位數值套用**: 首日個別儲槽改為依據作業日報真實數值填入，不再採平均分配。
+  - **歷史封存刪除功能**: 比照主系統新增管理員密碼驗證（8888），支援從 Cloudflare D1 雲端資料庫刪除歷史排程紀錄。
+  - **高質感彩色公式 Excel 匯出**: 引入 ExcelJS，產出含石板灰表頭、紅底週末、雙區塊配色與全自動公式連結之 .xlsx 活頁簿。
+  - **版次升級**: 介面版次正式標記為 4.0，並推送到 origin main。
+
+* **ACT / EGUPS 動態生產排程與進耗存整合系統 (C:\GOOGLE ANGET\ACT動態生產排程與進耗存整合系統 | 線上網址: https://prod-planner-pwa.pages.dev):**
+  - **彩色公式 Excel 匯出升級**: 比照 IPA 系統重構 exportToExcel()，匯出 Sheet 1（動態進耗存表）與 Sheet 2（槽車出車動態排程），支援即時計算公式與安全警戒上色。
+  - **離線 PWA 支援**: 本地封裝 exceljs.min.js，更新 sw.js 快取名單並推進快取版本至 ct-pwa-v2.1。
+  - **Cloudflare Direct Upload 部署修復**: 排查確認此專案在 Cloudflare Pages 為 Direct Upload 模式（無 Git 連線 Webhook），需透過 Wrangler 部署。針對 Node 24 環境升級採用 wrangler@4.158.0，成功將最新版發布至 prod-planner-pwa.pages.dev 與舊相容網址 ct-planner-pwa.pages.dev。
+  - **一鍵部署腳本同步**: 更新 一鍵部署至Cloudflare.bat 為 wrangler@4.158.0，確保日後雙擊亦可一鍵部署。
+
+---
+
 ## 今日進度與交接事項 (2026-11-04 易見｜多重命理分析網站升級與三軌 AI 整合部署、跨網遠端桌面防火牆穿透檢測)
 * **易見｜多重命理分析網站 (`C:\Users\C606\Documents\Codex\2026-11-02\new-chat\outputs\yijing-online-site\` | 線上網址：`https://yijing-multi-analysis.shihwei0809.workers.dev`):**
   - **依《易見網站建置說明書_AGY.md》完成全規格資訊架構重構**:
