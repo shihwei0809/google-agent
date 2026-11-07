@@ -1,5 +1,32 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-07 永豐金證券 Shioaji 即時看盤儀表板專案建置、雙軌實盤/模擬盤架構、Windows CMD Big5 編碼防呆修復)
+* **永豐 Shioaji 即時看盤儀表板 (`C:\GOOGLE ANGET\shioaji-market-dashboard\` | 本機服務位址: `http://localhost:8088`):**
+  - **完成專案核心後端與雙軌行情引擎 (`server.py`)**:
+    1. 整合 FastAPI、WebSockets 與幾何布朗運動高仿真模擬撮合引擎，支援台積電 (2330)、鴻海 (2317)、聯發科 (2454)、元大台灣50 (0050)、台指期 (TXF) 等標的秒級跳動 K 線、動態五檔撮合與逐筆成交。
+    2. 支援直連永豐金證券官方 Shioaji API，金鑰 100% 留存在本地端，零雲端外洩風險，徹底解決 Colab 閒置斷線與金鑰資安問題。
+    3. 實作智慧 Port 佔用偵測自動切換 (Port Fallback) 與區域網路 IP 抓取，以及自動延遲彈出瀏覽器看盤頁面。
+  - **專業級三欄 TradingView 看盤介面 (`static/` | `index.html`, `style.css`, `app.js`)**:
+    1. 引入 TradingView Lightweight Charts 4.x，實作台股習慣「漲紅跌綠」秒級 K 線、成交量副圖、分時折線切換。
+    2. 最佳五檔委託深度 (Order Depth-5)：實作紅買綠賣動態長條圖百分比視覺化。
+    3. 逐筆明細流水帳 (Tick Tape)：毫秒級流水帳，自動判定外盤主動買與內盤主動賣，具備平滑淡入動畫。
+    4. 支援觀察清單 (Watchlist) 即時輪巡報價更新、自訂代號搜尋訂閱，以及系統設定彈窗切換實盤與模擬盤。
+  - **專案標準規範文件與自動生成器完整建置**:
+    1. `README.md` (人類說明書，含完整目錄樹與啟動流程)。
+    2. `SKILL.md` (AI 代理指導規範)。
+    3. `setup_env.ps1` (一鍵 PowerShell 自動安裝腳本)。
+    4. `build_manual_doc.py` (Word 操作手冊自動產出腳本)。
+    5. `.env` 與 `.env.example` (環境變數設定範本)。
+  - **Windows CMD Big5 (CP950) 踩坑防呆與修復指南**:
+    1. **錯誤現象 1**: BAT 腳本解析 `pkg|pkg>=version` 時，CMD 誤判為管線與重定向，將套件名稱當作指令執行，導致跳出 `'pydantic' 不是內部或外部命令` 並中斷跳至 Python 下載頁。
+    2. **錯誤現象 2**: Python 輸出含有 Unicode 符號（如 `\u26a1` ⚡ 與 `\ud83d\udca1` 💡）時，在 Windows 預設 CP950 控制台會觸發 `UnicodeEncodeError: 'cp950' codec can't encode character` 崩潰。
+    3. **錯誤現象 3**: `.bat` 檔若為 UTF-8 且含中文註解，Windows CMD 在 Big5 解碼下會因多字節錯位將指令截斷（如 `echo.` 變 `'ho.' 不是內部或外部命令`）。
+    4. **正確解決方案**: 
+       - `.bat` 檔一律採用純 ASCII 英文指令（`啟動看盤儀表板.bat`）。
+       - Python `server.py` 最頂層加入 `sys.stdout.reconfigure(encoding="utf-8")`，並全面將主控台輸出換為相容性純文字。
+
+---
+
 ## 進度與交接事項 (2026-11-05 IPA 與 ACT/EGUPS 動態排程系統全功能升級與發布)
   - **歷史存檔改名與直接覆蓋更新**: 兩大系統（IPA 與 ACT/EGUPS）之歷史存檔區全面升級，新增 ✏️ 改名 與 🔄 覆蓋 功能，並將原存檔按鈕調整為 ➕ 另存新檔。覆蓋時直接原地更新 LocalStorage 與雲端資料庫（IPA D1 / ACT Google Sheet），不需再重複新增多筆記錄。
 * **IPA 生產排程與進耗存整合系統 (C:\GOOGLE ANGET\IPA 專用動態生產排程與進耗存整合系統 | 線上網址: https://ipa-pwa-app.pages.dev):**

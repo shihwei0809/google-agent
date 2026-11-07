@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>永豐 Shioaji 專業看盤儀表板 | AGY Local</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- TradingView Lightweight Charts -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- 頂部導航列 -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo">⚡</div>
+        <div class="brand-text">
+          <h1>Shioaji Trading Terminal</h1>
+          <span class="sub-title">永豐金證券 API 動態即時看盤 · AGY 本機端</span>
+        </div>
+      </div>
+
+      <!-- 快速切換標的膠囊 -->
+      <div class="quick-symbols" id="quickSymbols">
+        <!-- 動態由 JS 渲染 -->
+      </div>
+
+      <!-- 搜尋自選標的 -->
+      <div class="search-box">
+        <input type="text" id="symbolInput" placeholder="輸入代號 (例: 2603, TXF)" maxlength="10">
+        <button id="btnSubscribe" class="btn btn-primary">查詢</button>
+      </div>
+
+      <!-- 狀態指標與設定 -->
+      <div class="header-actions">
+        <div class="status-badge" id="connBadge">
+          <span class="status-dot pulse"></span>
+          <span id="connStatusText">連線中...</span>
+        </div>
+        <button id="btnOpenSettings" class="btn btn-ghost" title="API 設定">⚙️ 設定</button>
+      </div>
+    </header>
+
+    <!-- 主工作區 (三欄佈局) -->
+    <main class="main-content">
+      <!-- 左側：自選股與板塊 -->
+      <aside class="panel left-panel">
+        <div class="panel-header">
+          <h2>📊 觀察清單</h2>
+          <span class="badge-count" id="watchlistCount">5 檔</span>
+        </div>
+        <div class="watchlist" id="watchlistContainer">
+          <!-- 自選股列表 -->
+        </div>
+      </aside>
+
+      <!-- 中間：即時行情總覽與 K 線圖表 -->
+      <section class="panel center-panel">
+        <div class="quote-summary" id="quoteSummary">
+          <div class="summary-main">
+            <div class="stock-title">
+              <span class="stock-code" id="stockCode">2330</span>
+              <span class="stock-name" id="stockName">台積電</span>
+              <span class="market-tag" id="stockCategory">上市 · 半導體</span>
+            </div>
+            <div class="price-block">
+              <span class="price-large" id="currentPrice">--</span>
+              <div class="change-group">
+                <span class="change-val" id="priceChange">--</span>
+                <span class="change-pct" id="pricePctChange">--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-metrics">
+            <div class="metric-item">
+              <span class="label">最高</span>
+              <span class="val high" id="metricHigh">--</span>
+            </div>
+            <div class="metric-item">
+              <span class="label">最低</span>
+              <span class="val low" id="metricLow">--</span>
+            </div>
+            <div class="metric-item">
+              <span class="label">開盤</span>
+              <span class="val" id="metricOpen">--</span>
+            </div>
+            <div class="metric-item">
+              <span class="label">昨收</span>
+              <span class="val" id="metricRef">--</span>
+            </div>
+            <div class="metric-item">
+              <span class="label">總成交量</span>
+              <span class="val" id="metricVolume">--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 圖表工具列 -->
+        <div class="chart-toolbar">
+          <div class="toolbar-left">
+            <button class="timeframe-btn active" data-tf="1m">1分K</button>
+            <button class="timeframe-btn" data-tf="5m">5分K</button>
+            <button class="timeframe-btn" data-tf="line">分時即時線</button>
+          </div>
+          <div class="toolbar-right">
+            <span class="chart-legend">TradingView Lightweight-Charts 引擎</span>
+          </div>
+        </div>
+
+        <!-- K 線圖本體 -->
+        <div class="chart-container" id="chartContainer"></div>
+      </section>
+
+      <!-- 右側：最佳五檔 (Order Depth) + 成交流水帳 (Tick Tape) -->
+      <aside class="panel right-panel">
+        <!-- 最佳五檔 -->
+        <div class="order-book-section">
+          <div class="panel-header">
+            <h2>⚡ 最佳五檔委託</h2>
+            <span class="sub-info">委託深度</span>
+          </div>
+          <div class="depth-table">
+            <div class="depth-head">
+              <span>買量</span>
+              <span>買進價</span>
+              <span>賣出價</span>
+              <span>賣量</span>
+            </div>
+            <div class="depth-body" id="depthBody">
+              <!-- 動態渲染五檔 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 即時逐筆成交明細 -->
+        <div class="trade-tape-section">
+          <div class="panel-header">
+            <h2>📜 即時逐筆明細</h2>
+            <span class="sub-info" id="tapeCount">最新 30 筆</span>
+          </div>
+          <div class="tape-table">
+            <div class="tape-head">
+              <span>時間</span>
+              <span>成交價</span>
+              <span>單量</span>
+              <span>內外盤</span>
+            </div>
+            <div class="tape-body" id="tapeBody">
+              <!-- 動態逐筆流水帳 -->
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- 設定 Modal -->
+    <div class="modal-backdrop" id="settingsModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>⚙️ 系統設定 & Shioaji API 連線</h3>
+          <button class="btn-close" id="btnCloseSettings">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>運行模式</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="mode" value="SIMULATION" checked>
+                <span>🧪 高仿真即時模擬盤 (免金鑰即刻體驗)</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="mode" value="LIVE">
+                <span>🔴 Shioaji 永豐正式實盤串流 (需填寫金鑰)</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Shioaji API Key</label>
+            <input type="password" id="cfgApiKey" placeholder="輸入永豐 API Key">
+          </div>
+          <div class="form-group">
+            <label>Shioaji Secret Key</label>
+            <input type="password" id="cfgSecretKey" placeholder="輸入永豐 Secret Key">
+          </div>
+          <div class="form-group">
+            <label>身分證字號 (選填 / 下單驗證使用)</label>
+            <input type="text" id="cfgPersonId" placeholder="例: A123456789">
+          </div>
+          <div class="alert-box">
+            💡 本系統為 AGY 本機端私有運行，所有金鑰均儲存於本機端，絕不經過外部伺服器或第三方雲端。
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="btnCancelSettings">取消</button>
+          <button class="btn btn-primary" id="btnSaveSettings">儲存並套用</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
