@@ -795,14 +795,16 @@
                         delTx.objectStore("records").delete(id);
                     }
 
-                    // (C) 非同步純文字備份至 Google Sheets (完全不傳 Base64 照片，0 耗損 Drive 空間)
+                    // (C) 同步至 Google Sheets (附帶 R2 照片超連結，0 耗損 Google Drive 空間)
+                    const full_a_url = a_url ? (a_url.startsWith('http') ? a_url : window.location.origin + a_url) : '';
                     fetch(GAS_URL, {
                         method: 'POST',
                         body: JSON.stringify({
                             action: "after_feed",
                             id: id,
                             client_after_time: afterTimeStr,
-                            a_name: a_name
+                            a_name: a_name,
+                            a_url: full_a_url
                         })
                     }).catch(() => {});
                 } catch (netErr) {
@@ -904,7 +906,8 @@
                             delTx.objectStore("records").delete(r.id);
                             successCount++;
 
-                            // 純文字備份至 Google Sheets (不送 Base64，0 耗損 Google Drive 空間)
+                            // 同步至 Google Sheets (附帶 R2 照片超連結，0 耗損 Google Drive 空間)
+                            const origin = window.location.origin;
                             fetch(GAS_URL, {
                                 method: 'POST',
                                 body: JSON.stringify({
@@ -916,7 +919,10 @@
                                     client_after_time: r.client_after_time,
                                     t_name: r.t_name,
                                     v_name: r.v_name,
-                                    a_name: r.a_name
+                                    a_name: r.a_name,
+                                    t_url: t_url ? (t_url.startsWith('http') ? t_url : origin + t_url) : '',
+                                    v_url: v_url ? (v_url.startsWith('http') ? v_url : origin + v_url) : '',
+                                    a_url: a_url ? (a_url.startsWith('http') ? a_url : origin + a_url) : ''
                                 })
                             }).catch(() => {});
                         }
@@ -976,7 +982,8 @@
                             updateTx.objectStore("records").put(r);
                             successCount++;
 
-                            // 純文字備份至 Google Sheets (不送 Base64，0 耗損 Google Drive 空間)
+                            // 同步至 Google Sheets (附帶 R2 照片超連結，0 耗損 Google Drive 空間)
+                            const originB = window.location.origin;
                             fetch(GAS_URL, {
                                 method: 'POST',
                                 body: JSON.stringify({
@@ -986,7 +993,9 @@
                                     license_plate: r.license_plate,
                                     client_before_time: r.client_before_time,
                                     t_name: r.t_name,
-                                    v_name: r.v_name
+                                    v_name: r.v_name,
+                                    t_url: t_url ? (t_url.startsWith('http') ? t_url : originB + t_url) : '',
+                                    v_url: v_url ? (v_url.startsWith('http') ? v_url : originB + v_url) : ''
                                 })
                             }).catch(() => {});
                         }
@@ -1034,14 +1043,16 @@
                             delTx.objectStore("records").delete(r.id);
                             successCount++;
 
-                            // 純文字備份至 Google Sheets
+                            // 同步至 Google Sheets (附帶 R2 照片超連結，0 耗損 Google Drive 空間)
+                            const full_a_url_c = a_url ? (a_url.startsWith('http') ? a_url : window.location.origin + a_url) : '';
                             fetch(GAS_URL, {
                                 method: 'POST',
                                 body: JSON.stringify({
                                     action: "after_feed",
                                     id: r.id,
                                     client_after_time: r.client_after_time,
-                                    a_name: r.a_name
+                                    a_name: r.a_name,
+                                    a_url: full_a_url_c
                                 })
                             }).catch(() => {});
                         }
