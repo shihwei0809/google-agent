@@ -46,36 +46,63 @@ $todayStr = (Get-Date).ToString("yyyyMMdd")
 $todayStart = (Get-Date).Date
 $cutoffDate = $todayStart.AddDays(-7)
 
-# 2. 自動滾動封存超過 7 天的歷史快照 (嚴格保留最新的 7 個快照，其餘歸檔)
-Write-Output "------------------------------------------------------------"
-Write-Output "[STEP 1] 檢查 00_最近7天收工快照 滾動封存 (嚴格維持最多 7 天快照)"
-$allSnaps = Get-ChildItem -Path $recentDir -Directory | Where-Object { $_.Name -match "^(\d{8})_收工備份$" } | Sort-Object Name -Descending
-$archivedCount = 0
-if ($allSnaps.Count -gt 7) {
-    $toArchive = $allSnaps | Select-Object -Skip 7
-    foreach ($snap in $toArchive) {
-        if ($snap.Name -match "^(\d{4})(\d{2})") {
-            $y = [int]$Matches[1]
-            $m = [int]$Matches[2]
-            $ymStr = "{0:D4}年{1:D2}月" -f $y, $m
-            $monthFolder = Join-Path $archiveDir $ymStr
-            New-Item -ItemType Directory -Force -Path $monthFolder | Out-Null
-            $destSnap = Join-Path $monthFolder $snap.Name
-            Write-Output "  -> 歸檔超期快照: $($snap.Name) -> 01_歷史按月封存\$ymStr"
-            Move-Item -Path $snap.FullName -Destination $destSnap -Force
-            $archivedCount++
+# 定義滾動封存函式：
+# 條件一：日曆天數超過 7 天 (早於 cutoffDate，即 < 今天 - 7 天) -> 無條件封存
+# 條件二：即使在 7 天內，若保留數量已滿 7 份 -> 較舊者封存
+function Invoke-SnapshotRollingArchive {
+    param([string]$RecentPath, [string]$ArchivePath, [datetime]$Cutoff)
+    
+    Write-Output "------------------------------------------------------------"
+    Write-Output "[檢查] 00_最近7天收工快照 滾動封存 (嚴格只留最近 7 天且最多 7 份快照)"
+    Write-Output "  -> 7 天截止日期基準 (早於此日無條件封存): $($Cutoff.ToString('yyyy/MM/dd'))"
+    
+    $allSnaps = Get-ChildItem -Path $RecentPath -Directory | Where-Object { $_.Name -match "^(\d{8})_收工備份$" } | Sort-Object Name -Descending
+    $archivedCount = 0
+    $keptCount = 0
+    
+    foreach ($snap in $allSnaps) {
+        $snapDateStr = $snap.Name.Substring(0, 8)
+        $snapDate = $null
+        try {
+            $snapDate = [datetime]::ParseExact($snapDateStr, "yyyyMMdd", $null)
+        } catch {
+            $snapDate = $snap.LastWriteTime.Date
+        }
+        
+        $isOver7Days = ($snapDate -lt $Cutoff)
+        $isOverMaxCount = ($keptCount -ge 7)
+        
+        if ($isOver7Days -or $isOverMaxCount) {
+            if ($snap.Name -match "^(\d{4})(\d{2})") {
+                $y = [int]$Matches[1]
+                $m = [int]$Matches[2]
+                $ymStr = "{0:D4}年{1:D2}月" -f $y, $m
+                $monthFolder = Join-Path $ArchivePath $ymStr
+                New-Item -ItemType Directory -Force -Path $monthFolder | Out-Null
+                $destSnap = Join-Path $monthFolder $snap.Name
+                $reason = if ($isOver7Days) { "超過 7 日曆天" } else { "超過 7 份快照上限" }
+                Write-Output "  -> 歸檔超期快照 [$reason]: $($snap.Name) (快照日: $($snapDate.ToString('yyyy/MM/dd'))) -> 01_歷史按月封存\$ymStr"
+                Move-Item -Path $snap.FullName -Destination $destSnap -Force
+                $archivedCount++
+            }
+        } else {
+            $keptCount++
+            Write-Output "  -> 保留有效快照 ($keptCount/7): $($snap.Name) (快照日: $($snapDate.ToString('yyyy/MM/dd')))"
         }
     }
-}
-if ($archivedCount -eq 0) {
-    Write-Output "  -> 快照數量未超過 7 天，目錄保持乾淨。"
+    
+    if ($archivedCount -eq 0) {
+        Write-Output "  -> 快照皆在 7 天內且未超過上限，目錄保持乾淨 (目前共 $keptCount 份)。"
+    } else {
+        Write-Output "  -> 已完成封存 $archivedCount 份快照，目前 00_最近7天收工快照 保留 $keptCount 份。"
+    }
 }
 
-# 3. 同步今日修改之子專案與根目錄核心檔案
+# 2. 同步今日修改之子專案與根目錄核心檔案
 $targetSnapshot = Join-Path $recentDir ("{0}_收工備份" -f $todayStr)
 New-Item -ItemType Directory -Force -Path $targetSnapshot | Out-Null
 Write-Output "------------------------------------------------------------"
-Write-Output "[STEP 2] 今日收工快照目標: $targetSnapshot"
+Write-Output "[STEP 1] 今日收工快照目標: $targetSnapshot"
 
 $sourceRoot = "C:\GOOGLE ANGET"
 $excludeDirs = @(".git", "node_modules", "__pycache__", ".wrangler", "build", "venv", ".venv", "old", "專案備份", "category_folders_backup", "skills_backup", "my-ai-brain", "cross-device-agent-skills")
@@ -135,9 +162,9 @@ if (Test-Path "C:\notype-master") {
     }
 }
 
+# 3. 同步完畢後，執行嚴格滾動封存（確保目錄下永遠最多 7 天、最多 7 份快照）
+Invoke-SnapshotRollingArchive -RecentPath $recentDir -ArchivePath $archiveDir -Cutoff $cutoffDate
+
 Write-Output "------------------------------------------------------------"
-
-
-
 Write-Output "[DONE] 收工備份完成！共計同步 $($syncedProjects.Count) 個今日異動專案: $($syncedProjects -join ', ')"
 Write-Output "============================================================"
