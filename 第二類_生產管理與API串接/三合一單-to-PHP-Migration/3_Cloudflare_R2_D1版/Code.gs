@@ -510,6 +510,31 @@ function processFormAndVerify_V10(formObject) {
         "核對成功", urlBatch, urlLoc, extractedSourceOrder, extractedDocOrder      
       ]);
 
+      // ★★★ 同步寫入 Cloudflare D1 資料庫 (毫秒級無時差) ★★★
+      try {
+        var cloudPayload = {
+          "時間": Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss"),
+          "料號": formObject.materialNo || "",
+          "槽號": formObject.tankNo || "",
+          "批號": formObject.batchNo || "",
+          "供應商": formObject.supplier || "",
+          "送達地點": formObject.deliveryPlace || targetPlace || "",
+          "狀態": "核對成功",
+          "COA照片": urlBatch || "",
+          "地磅照片": urlLoc || "",
+          "來源單號": extractedSourceOrder || "",
+          "磅單": extractedDocOrder || ""
+        };
+        UrlFetchApp.fetch("https://coa-check-pwa.pages.dev/api/sync-from-gas", {
+          method: "post",
+          contentType: "application/json",
+          payload: JSON.stringify(cloudPayload),
+          muteHttpExceptions: true
+        });
+      } catch (cloudErr) {
+        Logger.log("Cloudflare D1 同步略過: " + cloudErr.message);
+      }
+
       msg = "✅ 完美！全數核對成功\n--------------------\n";
       if(extractedSourceOrder) msg += "📄 來源單號：" + extractedSourceOrder + "\n";
       if(extractedDocOrder)    msg += "🎫 磅單編號：" + extractedDocOrder + "\n"; 
