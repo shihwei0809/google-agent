@@ -1,0 +1,14 @@
+name = "education-training-pwa"
+pages_build_output_dir = "./public"
+compatibility_date = "2026-09-01"
+
+# 綁定 Cloudflare R2 物件儲存 (存放教材 Markdown、截圖、標註圖、上傳檔案)
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "training-materials"
+
+# 綁定 Cloudflare D1 關聯式資料庫 (存放教材結構索引、問答紀錄與題庫，整併至 weather-monitor-db)
+[[d1_databases]]
+binding = "DB"
+database_name = "weather-monitor-db"
+database_id = "521c2592-1953-42a3-a559-bd403c8d3017"
