@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COA 核對紀錄列表 (Cloudflare D1 + R2)</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; }
+        .table-header { background-color: #f1f5f9; color: #475569; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .table-row { transition: background-color 0.15s; border-bottom: 1px solid #e2e8f0; }
+        .table-row:hover { background-color: #f8fafc; }
+        /* 圖片燈箱 */
+        #lightboxModal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="p-3 sm:p-6 min-h-screen">
+
+    <!-- 圖片預覽燈箱 Lightbox -->
+    <div id="lightboxModal" onclick="closeLightbox(event)">
+        <div class="relative max-w-3xl w-full bg-white rounded-2xl p-3 overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center px-2 py-1 border-b border-gray-100 mb-2">
+                <span id="lightboxTitle" class="font-bold text-sm text-gray-800">照片預覽 (Cloudflare R2)</span>
+                <button onclick="closeLightbox()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold leading-none">&times;</button>
+            </div>
+            <div class="flex justify-center items-center max-h-[75vh] overflow-auto">
+                <img id="lightboxImg" src="" alt="照片預覽" class="max-w-full max-h-[70vh] object-contain rounded-lg">
+            </div>
+            <div class="mt-2 text-right">
+                <a id="lightboxDownload" href="#" target="_blank" class="inline-block bg-blue-50 text-blue-600 font-bold text-xs px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-100">另開原圖下載</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        
+        <!-- Header -->
+        <div class="p-4 sm:p-6 border-b border-gray-100 flex flex-wrap justify-between items-center gap-4 bg-gradient-to-r from-slate-50 to-white">
+            <div class="flex items-center gap-3">
+                <a href="index.html" class="p-2 bg-white rounded-xl shadow-sm border border-gray-200 text-gray-600 hover:text-blue-600 transition" title="返回首頁">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                </a>
+                <div>
+                    <h1 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        COA 四重核對紀錄列表
+                        <span class="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-bold">Cloudflare D1 + R2</span>
+                    </h1>
+                    <p class="text-xs text-gray-500 mt-0.5">即時查詢雲端核對狀態與 R2 高畫質相片存證</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportCSV()" class="flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow hover:bg-emerald-700 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    匯出 CSV
+                </button>
+                <a href="index.html" class="flex items-center gap-1 bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow hover:bg-blue-700 transition">
+                    ➕ 開始新核對
+                </a>
+            </div>
+        </div>
+
+        <!-- 搜尋與篩選列 -->
+        <div class="p-4 bg-slate-50 border-b border-gray-200">
+            <form id="filterForm" onsubmit="handleFilter(event)" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+                <div class="md:col-span-2">
+                    <input type="text" id="searchInput" placeholder="搜尋批號 / 料號 / 來源單號 / 磅單號 / 供應商..." 
+                           class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <input type="date" id="startDate" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div>
+                    <input type="date" id="endDate" class="w-full text-xs sm:text-sm px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg py-2 transition shadow">
+                        🔍 搜尋
+                    </button>
+                    <button type="button" onclick="resetFilter()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-3 rounded-lg transition">
+                        重設
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 表格區 -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                    <tr class="table-header">
+                        <th class="py-3 px-3">時間</th>
+                        <th class="py-3 px-3">料號</th>
+                        <th class="py-3 px-3">槽號</th>
+                        <th class="py-3 px-3">批號</th>
+                        <th class="py-3 px-3">送達地點</th>
+                        <th class="py-3 px-3">供應商</th>
+                        <th class="py-3 px-3">來源單號 / 磅單</th>
+                        <th class="py-3 px-3">狀態</th>
+                        <th class="py-3 px-3 text-center">COA 照片 (R2)</th>
+                        <th class="py-3 px-3 text-center">地磅照片 (R2)</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="10" class="text-center py-10 text-gray-400">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分頁器 -->
+        <div class="p-4 border-t border-gray-100 flex justify-between items-center text-xs text-gray-600 bg-slate-50">
+            <div id="pageInfo">第 1 頁，共 1 頁 (0 筆)</div>
+            <div class="flex gap-1.5" id="paginationBtns"></div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let currentRecords = [];
+
+        async function fetchRecords(page = 1) {
+            currentPage = page;
+            const q = document.getElementById('searchInput').value.trim();
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center py-10 text-gray-400">讀取中...</td></tr>';
+
+            const params = new URLSearchParams({
+                page: page,
+                limit: 15,
+                q: q,
+                start_date: start,
+                end_date: end
+            });
+
+            try {
+                const res = await fetch(`/api/query?${params.toString()}`);
+                const result = await res.json();
+                if (!result.success) throw new Error(result.message);
+
+                currentRecords = result.data || [];
+                renderTable(currentRecords);
+                renderPagination(result.pagination);
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-rose-500 font-bold">讀取失敗: ${err.message}</td></tr>`;
+            }
+        }
+
+        function renderTable(list) {
+            const tbody = document.getElementById('tableBody');
+            if (list.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center py-10 text-gray-400 font-bold">📭 目前查無核對紀錄</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = list.map(r => {
+                const isSuccess = r.verification_status === "四重核對成功";
+                const statusBadge = isSuccess
+                    ? '<span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-bold">✅ 核對成功</span>'
+                    : '<span class="bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full text-[11px] font-bold" title="' + (r.error_details || '') + '">❌ 核對失敗</span>';
+
+                const coaBtn = r.photo_batch_url
+                    ? `<button onclick="openLightbox('${r.photo_batch_url}', 'COA 批號照片 - 批號: ${r.batch_no}')" class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100">查看照片</button>`
+                    : '<span class="text-gray-300 text-xs">無</span>';
+
+                const locBtn = r.photo_loc_url
+                    ? `<button onclick="openLightbox('${r.photo_loc_url}', '地磅/系統照片 - 槽號: ${r.tank_no}')" class="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded border border-emerald-200 hover:bg-emerald-100">查看照片</button>`
+                    : '<span class="text-gray-300 text-xs">無</span>';
+
+                return `
+                    <tr class="table-row text-xs text-gray-700">
+                        <td class="py-3 px-3 text-gray-500 whitespace-nowrap">${r.created_at || ''}</td>
+                        <td class="py-3 px-3 font-semibold">${r.material_no || '-'}</td>
+                        <td class="py-3 px-3 font-bold text-red-600">${r.tank_no || '-'}</td>
+                        <td class="py-3 px-3 font-mono font-bold text-blue-700">${r.batch_no || '-'}</td>
+                        <td class="py-3 px-3">${r.delivery_place || '-'}</td>
+                        <td class="py-3 px-3 text-gray-600">${r.supplier || '-'}</td>
+                        <td class="py-3 px-3 font-mono text-[11px]">
+                            <div>${r.source_doc_no ? '📄 ' + r.source_doc_no : ''}</div>
+                            <div>${r.weighbridgeNo || r.weighbridge_no ? '⚖️ ' + (r.weighbridge_no || r.weighbridgeNo) : ''}</div>
+                        </td>
+                        <td class="py-3 px-3 whitespace-nowrap">${statusBadge}</td>
+                        <td class="py-3 px-3 text-center whitespace-nowrap">${coaBtn}</td>
+                        <td class="py-3 px-3 text-center whitespace-nowrap">${locBtn}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderPagination(p) {
+            document.getElementById('pageInfo').innerText = `第 ${p.page} 頁，共 ${p.totalPages} 頁 (共 ${p.total} 筆紀錄)`;
+            const container = document.getElementById('paginationBtns');
+            container.innerHTML = '';
+
+            if (p.page > 1) {
+                container.innerHTML += `<button onclick="fetchRecords(${p.page - 1})" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100">上一頁</button>`;
+            }
+            if (p.page < p.totalPages) {
+                container.innerHTML += `<button onclick="fetchRecords(${p.page + 1})" class="px-2.5 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100">下一頁</button>`;
+            }
+        }
+
+        function handleFilter(e) {
+            e.preventDefault();
+            fetchRecords(1);
+        }
+
+        function resetFilter() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('startDate').value = '';
+            document.getElementById('endDate').value = '';
+            fetchRecords(1);
+        }
+
+        // 圖片燈箱控制
+        function openLightbox(url, title) {
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxTitle').innerText = title;
+            document.getElementById('lightboxDownload').href = url;
+            document.getElementById('lightboxModal').style.display = 'flex';
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightboxModal').style.display = 'none';
+            document.getElementById('lightboxImg').src = '';
+        }
+
+        // 匯出 CSV
+        function exportCSV() {
+            if (!currentRecords || currentRecords.length === 0) {
+                alert("目前無資料可匯出");
+                return;
+            }
+            const headers = ["時間", "料號", "槽號", "批號", "地點", "供應商", "來源單號", "地磅單號", "核對狀態", "COA照片網址", "地磅照片網址"];
+            const rows = currentRecords.map(r => [
+                r.created_at,
+                r.material_no,
+                r.tank_no,
+                r.batch_no,
+                r.delivery_place,
+                r.supplier,
+                r.source_doc_no,
+                r.weighbridge_no,
+                r.verification_status,
+                r.photo_batch_url ? window.location.origin + r.photo_batch_url : "",
+                r.photo_loc_url ? window.location.origin + r.photo_loc_url : ""
+            ]);
+
+            const csvContent = "\uFEFF" + [headers, ...rows].map(row => 
+                row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(",")
+            ).join("\r\n");
+
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `COA核對紀錄_${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+        }
+
+        window.onload = () => fetchRecords(1);
+    </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+name = "coa-check-pwa"
+pages_build_output_dir = "public"
+compatibility_date = "2024-03-20"
+
+# Cloudflare D1 資料庫綁定 (共用工廠核心進出料資料庫 egups-db，節省資料庫名額)
+[[d1_databases]]
+binding = "DB"
+database_name = "egups-db"
+database_id = "b87a145c-937d-430b-94f0-1962255abd04"
+
+# Cloudflare R2 物件儲存桶綁定 (存放 COA 與地磅照片)
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "coa-check-photos"
+
+[vars]
+# Google Apps Script 網頁應用程式網址 (雙向動態獲取金鑰與雙邊寫入)
+GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyJNqo25ny2IiwajeltMlSi1M8PnVonczlLA2UoEoxZYGSE72tiWTEJ61Y_wQhPU0H5/exec"
+
+# 預備 Fallback 金鑰 (若 GAS 暫時無連線時的保底機制)
+DEFAULT_VISION_KEY_1 = "AIzaSyCxpDwmsFfKtYkz-_rnqPJW_iVh5j-wQd4"
+DEFAULT_VISION_KEY_2 = "AIzaSyCdI7WZKnyUtYL0mubKslz7Cvq2wqStS_8"
+DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/91b9b15b99a64990bf3f7116c031dea4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huhEyZ8m-m8EKJ7JXRmhR-CtuVI83kTLRADHB12g-7k"

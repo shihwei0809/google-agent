@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>核對系統 V41 (輕量版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; padding-bottom: 100px; touch-action: manipulation; }
+        .mode-btn { display: flex; align-items: center; justify-content: center; padding: 16px; border-radius: 12px; font-weight: bold; font-size: 1.1rem; color: white; cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); gap: 8px; user-select: none; }
+        .mode-btn:active { transform: scale(0.97); }
+        .btn-qr { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+        .btn-ai { background: linear-gradient(135deg, #9333ea, #7e22ce); }
+        .btn-submit { width: 100%; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.1rem; background-color: #10b981; color: white; margin-top: 20px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); }
+        .btn-disabled { background-color: #cbd5e1 !important; color: #64748b; cursor: not-allowed; box-shadow: none; }
+        .camera-container { display: none; position: relative; width: 100%; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
+        video { width: 100%; height: auto; display: block; }
+        .snap-btn { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 64px; height: 64px; border-radius: 50%; background: white; border: 4px solid #ddd; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
+        .snap-btn::after { content: ''; width: 50px; height: 50px; background: #ef4444; border-radius: 50%; display: block; }
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 99; display: none; align-items: center; justify-content: center; flex-direction: column; color: white; }
+        .photo-box { border: 2px dashed #cbd5e1; padding: 15px; text-align: center; border-radius: 12px; background: white; margin-bottom: 15px; }
+        .photo-box.valid { border-color: #10b981; background-color: #f0fdf4; border-style: solid; }
+        input[type="text"] { font-size: 15px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%; background: #fff; margin-top: 4px; }
+        input[readonly] { background-color: #f1f5f9; color: #475569; }
+        label { font-size: 0.85rem; font-weight: 700; color: #64748b; margin-left: 2px; }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay">
+        <div class="text-4xl animate-spin mb-4">⏳</div>
+        <div id="loadingText" class="text-lg font-bold">資料傳輸中...</div>
+        <div class="text-xs text-gray-300 mt-2">請勿關閉視窗</div>
+    </div>
+
+    <div class="max-w-md mx-auto bg-white p-5 rounded-2xl shadow-xl mt-4 border border-gray-100">
+        
+        <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2 rounded-lg text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-800">核對系統 V41</h2>
+                    <p class="text-xs text-gray-500">輕量極速版</p>
+                </div>
+            </div>
+            <a href="query.php" class="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition">查詢紀錄</a>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div onclick="startQrMode()" class="mode-btn btn-qr">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                掃描 QR
+            </div>
+            <div onclick="startAiCamera()" class="mode-btn btn-ai">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                AI 讀單
+            </div>
+        </div>
+
+        <div id="qr-reader" class="camera-container"></div>
+
+        <div id="ai-camera-view" class="camera-container">
+            <video id="ai-video" autoplay playsinline></video>
+            <div class="snap-btn" onclick="captureAiImage()"></div>
+            <div class="absolute top-2 left-0 w-full text-center text-white text-xs bg-black/50 py-1">對準文字，按下紅鈕</div>
+        </div>
+
+        <form id="myForm" onsubmit="handleFormSubmit(event)">
+            
+            <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6">
+                <div class="mb-3">
+                    <label>原始內容</label>
+                    <input type="text" name="rawQr" id="rawQr" placeholder="操作上方按鈕" readonly class="text-gray-400 font-mono text-sm">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label>料號</label><input type="text" id="materialNo" readonly></div>
+                    <div><label>槽號</label><input type="text" id="tankNo" readonly></div>
+                    <div><label class="text-red-600">批號 (目標)</label><input type="text" id="batchNo" readonly class="text-red-600 font-bold bg-red-50 border-red-200"></div>
+                    <div><label class="text-blue-600">送達地點</label><input type="text" id="deliveryPlace" readonly class="text-blue-600 font-bold bg-blue-50 border-blue-200"></div>
+                    
+                    <div class="col-span-2">
+                        <label class="text-gray-600">供應商</label>
+                        <input type="text" id="supplier" readonly class="text-gray-600 font-bold bg-gray-100">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="photo-box" id="box1">
+                <label for="photoBatch" class="cursor-pointer block w-full h-full">
+                    <div class="text-3xl mb-2">📦</div>
+                    <div class="text-gray-800 font-bold text-lg">2. 拍攝 COA (批號)</div>
+                    <div id="status1" class="text-xs text-gray-400 mt-1">點擊拍攝</div>
+                </label>
+                <input type="file" id="photoBatch" accept="image/*" capture="environment" class="hidden" onchange="processImage(this, 'preview1', 'dataBatch', 'status1', 'box1')">
+                <img id="preview1" class="hidden mt-3 w-full rounded-lg shadow-sm">
+                <input type="hidden" name="photoDataBatch" id="dataBatch">
+            </div>
+
+            <div class="photo-box" id="box2">
+                <label for="photoLoc" class="cursor-pointer block w-full h-full">
+                    <div class="text-3xl mb-2">🏭</div>
+                    <div class="text-gray-800 font-bold text-lg">3. 拍攝 地磅/系統</div>
+                    <div id="status2" class="text-xs text-gray-400 mt-1">點擊拍攝 (含槽號+地點)</div>
+                </label>
+                <input type="file" id="photoLoc" accept="image/*" capture="environment" class="hidden" onchange="processImage(this, 'preview2', 'dataLoc', 'status2', 'box2')">
+                <img id="preview2" class="hidden mt-3 w-full rounded-lg shadow-sm">
+                <input type="hidden" name="photoDataLoc" id="dataLoc">
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn-submit">
+                🚀 開始四重驗證
+            </button>
+        </form>
+    </div>
+
+    <script>
+        let html5QrcodeScanner;
+        let aiStream = null;
+
+        function startQrMode() {
+            stopAiCamera();
+            const reader = document.getElementById('qr-reader');
+            if (reader.style.display === 'block') {
+                if (html5QrcodeScanner) { 
+                    try { html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); }); } catch(e){} 
+                }
+                reader.style.display = 'none';
+                return;
+            }
+            reader.style.display = 'block';
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, (decodedText) => {
+                document.getElementById('rawQr').value = decodedText;
+                parseQrData(decodedText);
+                html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear());
+                reader.style.display = 'none';
+            }).catch(err => alert("相機啟動失敗 (請確認已使用 HTTPS 連線)"));
+        }
+
+        async function startAiCamera() {
+            if (html5QrcodeScanner) {
+                try { await html5QrcodeScanner.stop(); html5QrcodeScanner.clear(); } catch(e){}
+                document.getElementById('qr-reader').style.display = 'none';
+            }
+            const videoContainer = document.getElementById('ai-camera-view');
+            const videoElement = document.getElementById('ai-video');
+            if (videoContainer.style.display === 'block') {
+                stopAiCamera(); return;
+            }
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                alert("⚠️ 安全警告：瀏覽器禁止在非 HTTPS 網站開啟相機。\n請使用 Ngrok 網址或 Localhost。");
+                return;
+            }
+            try {
+                aiStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } 
+                });
+                videoElement.srcObject = aiStream;
+                videoContainer.style.display = 'block';
+            } catch (err) {
+                alert("無法存取相機: " + err.message);
+            }
+        }
+
+        function stopAiCamera() {
+            const videoContainer = document.getElementById('ai-camera-view');
+            const videoElement = document.getElementById('ai-video');
+            if (aiStream) {
+                aiStream.getTracks().forEach(track => track.stop());
+                aiStream = null;
+            }
+            videoElement.srcObject = null;
+            videoContainer.style.display = 'none';
+        }
+
+        function captureAiImage() {
+            const video = document.getElementById('ai-video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            // ★ V41: 畫質降為 0.6，減少 Base64 體積
+            const imageData = canvas.toDataURL('image/jpeg', 0.6);
+            stopAiCamera();
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            document.getElementById('loadingText').innerText = "AI 讀取中...";
+
+            fetch('process_ai_read.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ photoData: imageData })
+            })
+            .then(res => {
+                if (!res.ok) throw new Error("伺服器連線錯誤: " + res.status);
+                return res.json();
+            })
+            .then(res => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                if (res.success) {
+                    const d = res.data;
+                    document.getElementById('batchNo').value = d.batchNo;
+                    document.getElementById('tankNo').value = d.tankNo;
+                    document.getElementById('materialNo').value = d.materialNo;
+                    document.getElementById('deliveryPlace').value = d.deliveryPlace;
+                    document.getElementById('supplier').value = d.supplier;
+                    document.getElementById('rawQr').value = "[AI 讀取] " + d.batchNo;
+                    alert(`✅ 讀取成功！\n批號: ${d.batchNo}\n槽號: ${d.tankNo}`);
+                } else {
+                    alert("❌ 讀取失敗: " + res.message);
+                }
+            })
+            .catch(err => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                alert("系統錯誤: " + err.message);
+            });
+        }
+
+        function parseQrData(text) {
+            if (!text) return;
+            const parts = text.split("||");
+            if (parts.length >= 6) {
+                document.getElementById('materialNo').value = parts[1];
+                document.getElementById('tankNo').value = parts[2];
+                document.getElementById('batchNo').value = parts[3];
+                document.getElementById('supplier').value = parts[4];
+                document.getElementById('deliveryPlace').value = parts[5];
+            } else {
+                alert("QR 格式不符");
+            }
+        }
+
+        function processImage(input, previewId, dataId, statusId, boxId) {
+            const file = input.files[0];
+            if (!file) return;
+            const status = document.getElementById(statusId);
+            status.innerText = '壓縮處理中...';
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    // ★ V41 關鍵：強制縮小到 800px，保證 iPhone 不崩潰
+                    const MAX_WIDTH = 800; 
+                    let width = img.width; let height = img.height;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
+                    ctx.filter = 'grayscale(1) contrast(1.5) brightness(1.1)';
+                    ctx.drawImage(img, 0, 0, width, height);
+                    // ★ V41: 畫質 0.6
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    document.getElementById(previewId).src = compressedDataUrl;
+                    document.getElementById(previewId).style.display = 'block';
+                    document.getElementById(dataId).value = compressedDataUrl;
+                    status.innerText = '✅ 已就緒';
+                    document.getElementById(boxId).classList.add('valid');
+                }
+            }
+        }
+
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const batchNo = document.getElementById('batchNo').value;
+            const photoBatch = document.getElementById('dataBatch').value;
+            const photoLoc = document.getElementById('dataLoc').value;
+
+            if (!batchNo) { alert("❌ 請先 [掃描 QR] 或 [AI 讀單]"); return; }
+            if (!photoBatch) { alert("❌ 請拍攝步驟 2 照片"); return; }
+            if (!photoLoc) { alert("❌ 請拍攝步驟 3 照片"); return; }
+
+            const btn = document.getElementById('submitBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true; btn.innerText = "⏳ 驗證中..."; btn.classList.add('btn-disabled');
+            
+            // 顯示全螢幕遮罩，防止重複點擊
+            document.getElementById('loadingOverlay').style.display = 'flex';
+            document.getElementById('loadingText').innerText = "四重驗證中...";
+
+            const payload = {
+                batchNo: batchNo,
+                deliveryPlace: document.getElementById('deliveryPlace').value,
+                tankNo: document.getElementById('tankNo').value,
+                photoBatch: photoBatch,
+                photoLoc: photoLoc,
+                materialNo: document.getElementById('materialNo').value,
+                supplier: document.getElementById('supplier').value,
+                rawQr: document.getElementById('rawQr').value
+            };
+
+            fetch('process.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => {
+                if (!res.ok) {
+                    // 如果伺服器回傳 413 (Payload Too Large) 或 500
+                    return res.text().then(text => { throw new Error("伺服器錯誤 (" + res.status + ")"); });
+                }
+                return res.json();
+            })
+            .then(data => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                alert(data.message);
+                if (data.success) {
+                    location.reload(); 
+                }
+            })
+            .catch(err => {
+                document.getElementById('loadingOverlay').style.display = 'none';
+                alert("錯誤: " + err.message + "\n(可能原因：照片檔案過大或網路不穩)");
+            })
+            .finally(() => {
+                btn.disabled = false; btn.innerText = originalText; btn.classList.remove('btn-disabled');
+            });
+        }
+    </script>
+</body>
+</html>

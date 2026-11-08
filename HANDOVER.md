@@ -1,12 +1,18 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-11-08 三合一單與COA核對系統V46轉移至Cloudflare+R2+PWA雙邊同步架構、三大核心D1資料庫整併完成)
+## 今日進度與交接事項 (2026-11-08 三合一單與COA核對系統V46轉移至Cloudflare+R2+PWA雙邊同步架構、三大核心D1資料庫整併完成、歷史222筆全數同步)
 * **台積三合一單與COA雙重核對系統 V46 (`C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單-to-PHP-Migration\` | 線上網址: `https://coa-check-pwa.pages.dev/`):**
   - **雙軌架構正式發布 (Cloudflare Pages + Functions + D1 + R2 + PWA)**:
     1. **前端雙軌離線防呆 (V46)**：連線時使用 Google Vision API，斷網時改用手機晶片離線 OCR（Tesseract.js）。
     2. **嚴格現場卡控**：若現場核對「失敗」，即時亮紅燈警報攔截，**絕不上傳、絕不寫入暫存**；若核對「合格且斷網」，資料自動存入手機離線合格隊列，**一旦偵測到網路恢復，背景自動補傳**至 Cloudflare D1、R2 照片庫與 Google 試算表。
     3. **雙邊寫入機制**：動態向既有 GAS Web App 索取金鑰與 Teams Webhook，資料核對合格後同時寫入 Cloudflare D1 與 Google 試算表對應的雙月份分頁（如 `Data_2026_11-12`），照片連結存為 R2 高畫質直連網址，零耗損 Google Drive 容量。
-    4. **42 筆歷史紀錄整合**：已追查確認原 `tsmc-verification-db` 為該系統前身版本，已將該 42 筆歷史核對資料完整遷移至 `egups-db.coa_verification_logs`，查詢頁面（`/query.html`）新舊紀錄完全合一。
+    4. **查詢頁雙軌響應式升級與狀態防呆修正 (`query.html`)**:
+       - **錯誤排查修復**：排除前次比對硬性要求 `四重核對成功` 導致所有 `核對成功` 歷史紀錄誤判為紅字 `❌ 核對失敗` 之 Bug，改為智慧包含相符。
+       - **手機卡片流 (Card View) + 桌機表格 (Table View)**：手機自動渲染大字藍色批號卡片與綠燈狀態標籤，桌機顯示完整寬表格。
+       - **日期快捷快篩晶片**：支援 `近 3 天`、`今天`、`昨天`、`近 7 天`、`全部` 與 `自訂區間`。
+       - **相片預覽智慧分流**：Google Drive 連結支援在新分頁開啟原圖，Cloudflare R2 支援高畫質彈跳燈箱預覽。
+    5. **Google 試算表 9、10、11 月完整資料導入 (共 222 筆)**：
+       - 透過 GAS Web App API 完整撈取 2026-09-01 至 2026-11-07 歷史核對紀錄，全數寫入 `egups-db.coa_verification_logs`，並重設資料庫 ID 排序。
 * **Cloudflare D1 資料庫整併大行動 (9 庫 ➔ 3 大核心庫，釋出 7 個可用額度)**:
   - 依照三大核心資料庫規劃，完成逐一遷移與防呆刪除：
     1. `coa-check-db` ➔ 結構遷入 `egups-db.coa_verification_logs`，已刪除。

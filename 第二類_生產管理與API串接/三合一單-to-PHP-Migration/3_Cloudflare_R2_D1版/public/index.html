@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>核對系統 V46 (Cloud+R2 雙軌離線PWA)</title>
+    
+    <!-- PWA 配置 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="核對系統V46">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+    <!-- 依賴庫 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <!-- 手機本機離線 OCR 引擎 (離線備援專用) -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; padding-bottom: 90px; touch-action: manipulation; }
+        .mode-btn { display: flex; align-items: center; justify-content: center; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.05rem; color: white; cursor: pointer; transition: transform 0.1s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); gap: 8px; user-select: none; }
+        .mode-btn:active { transform: scale(0.97); }
+        .btn-qr { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+        .btn-ai { background: linear-gradient(135deg, #9333ea, #7e22ce); }
+        .btn-submit { width: 100%; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1.15rem; background: linear-gradient(135deg, #10b981, #059669); color: white; margin-top: 18px; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.35); transition: opacity 0.2s; }
+        .btn-disabled { background: #cbd5e1 !important; color: #64748b; cursor: not-allowed; box-shadow: none; }
+        .camera-container { display: none; position: relative; width: 100%; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+        video { width: 100%; height: auto; display: block; }
+        .snap-btn { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 64px; height: 64px; border-radius: 50%; background: white; border: 4px solid #ddd; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; }
+        .snap-btn::after { content: ''; width: 48px; height: 48px; background: #ef4444; border-radius: 50%; display: block; }
+        #loadingOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; display: none; align-items: center; justify-content: center; flex-direction: column; color: white; backdrop-filter: blur(4px); }
+        .photo-box { border: 2px dashed #cbd5e1; padding: 14px; text-align: center; border-radius: 12px; background: white; margin-bottom: 14px; transition: border-color 0.2s, background-color 0.2s; }
+        .photo-box.valid { border-color: #10b981; background-color: #f0fdf4; border-style: solid; }
+        input[type="text"] { font-size: 15px; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 8px; width: 100%; background: #fff; margin-top: 4px; }
+        input[readonly] { background-color: #f1f5f9; color: #475569; }
+        label { font-size: 0.82rem; font-weight: 700; color: #64748b; margin-left: 2px; }
+        /* 結果 Modal */
+        #resultModal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; backdrop-filter: blur(3px); }
+    </style>
+</head>
+<body>
+
+    <!-- PWA 頂部安裝橫幅 -->
+    <div id="pwaInstallBanner" class="hidden bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-4 py-3 shadow-md flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-2">
+            <span class="text-xl">📲</span>
+            <div class="text-xs">
+                <p class="font-bold">安裝 核對系統 V46 PWA</p>
+                <p class="opacity-90">享有全螢幕快速開單與斷網即時防呆卡控</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="pwaInstallBtn" class="bg-white text-blue-700 font-bold text-xs px-3 py-1.5 rounded-lg shadow active:scale-95">立刻安裝</button>
+            <button onclick="dismissInstallBanner()" class="text-white opacity-70 hover:opacity-100 text-lg p-1">&times;</button>
+        </div>
+    </div>
+
+    <!-- 網路狀態條 -->
+    <div id="networkStatus" class="bg-emerald-50 text-emerald-700 border-b border-emerald-200 px-3 py-1.5 text-[11px] font-bold flex justify-between items-center">
+        <span class="flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            已連線：Google Vision API 雲端高準度模式
+        </span>
+        <span class="text-[10px] text-gray-500 font-normal">離線時自動切換手機本機 OCR</span>
+    </div>
+
+    <!-- 離線待補傳警示條 (核對正確暫存佇列) -->
+    <div id="offlineSyncBar" class="hidden bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3.5 py-2 text-xs font-bold flex justify-between items-center shadow-sm">
+        <span class="flex items-center gap-1.5">
+            <span>📦</span>
+            <span id="offlineSyncText">偵測到 1 筆離線合格紀錄待補傳</span>
+        </span>
+        <button onclick="triggerOfflineSync()" class="bg-white text-amber-800 text-[11px] px-2.5 py-1 rounded-lg font-extrabold shadow hover:bg-amber-50 active:scale-95">
+            立即上傳
+        </button>
+    </div>
+
+    <!-- 全螢幕 Loading -->
+    <div id="loadingOverlay">
+        <div class="text-5xl animate-spin mb-4">⏳</div>
+        <div id="loadingText" class="text-lg font-bold text-center px-4">資料傳輸與核對中...</div>
+        <div id="loadingSubText" class="text-xs text-blue-200 mt-2">請稍候，勿關閉螢幕</div>
+    </div>
+
+    <!-- 核對結果彈窗 Modal (現場即時卡控) -->
+    <div id="resultModal">
+        <div class="bg-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-gray-100 text-center animate-fade-in">
+            <div id="modalIcon" class="text-5xl mb-2">✅</div>
+            <h3 id="modalTitle" class="text-xl font-bold text-gray-800 mb-2">核對結果</h3>
+            <pre id="modalContent" class="text-left bg-gray-50 p-3 rounded-lg text-xs font-mono text-gray-700 leading-relaxed mb-4 max-h-60 overflow-y-auto whitespace-pre-wrap border border-gray-200"></pre>
+            
+            <div id="modalLinks" class="flex gap-2 mb-4 hidden">
+                <a id="linkCoaPhoto" href="#" target="_blank" class="flex-1 bg-blue-50 text-blue-600 font-bold py-2 rounded-lg text-xs hover:bg-blue-100 border border-blue-200">🔍 查看 COA 照片</a>
+                <a id="linkLocPhoto" href="#" target="_blank" class="flex-1 bg-emerald-50 text-emerald-600 font-bold py-2 rounded-lg text-xs hover:bg-emerald-100 border border-emerald-200">🔍 查看地磅照片</a>
+            </div>
+
+            <button onclick="closeResultModal()" id="modalCloseBtn" class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm shadow hover:bg-blue-700">確定並返回</button>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto bg-white p-5 rounded-2xl shadow-xl mt-3 border border-gray-100">
+        
+        <!-- Header (明確顯示版次 V46) -->
+        <div class="flex justify-between items-center mb-5 pb-3 border-b border-gray-100">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-blue-600 to-indigo-600 p-2.5 rounded-xl text-white shadow-md">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-xl font-black text-gray-900 tracking-tight">核對系統 V46</h2>
+                        <span class="bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">雙軌旗艦版</span>
+                    </div>
+                    <p class="text-[11px] text-gray-500">Cloud+R2 永存 &bull; 斷網離線即時卡控</p>
+                </div>
+            </div>
+            <a href="query.html" class="flex items-center gap-1 text-blue-600 font-bold text-xs bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition border border-blue-100">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                紀錄列表
+            </a>
+        </div>
+
+        <!-- 模式切換按鈕 -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div onclick="startQrMode()" class="mode-btn btn-qr">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
+                掃描 QR
+            </div>
+            <div onclick="startAiCamera()" class="mode-btn btn-ai">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                AI 讀單
+            </div>
+        </div>
+
+        <!-- 相機預覽區 -->
+        <div id="qr-reader" class="camera-container"></div>
+
+        <div id="ai-camera-view" class="camera-container">
+            <video id="ai-video" autoplay playsinline></video>
+            <div class="snap-btn" onclick="captureAiImage()"></div>
+            <div class="absolute top-2 left-0 w-full text-center text-white text-xs bg-black/60 py-1 font-bold">對準三合一單文字，按紅色按鈕拍攝</div>
+        </div>
+
+        <!-- 表單內容 -->
+        <form id="myForm" onsubmit="handleFormSubmit(event)">
+            
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 mb-5">
+                <div class="mb-2.5">
+                    <label>原始 QR / 讀取標籤</label>
+                    <input type="text" name="rawQr" id="rawQr" placeholder="請先點擊上方按鈕操作" readonly class="text-gray-500 font-mono text-xs">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label>料號</label>
+                        <input type="text" id="materialNo" readonly placeholder="自動帶入">
+                    </div>
+                    <div>
+                        <label>槽號</label>
+                        <input type="text" id="tankNo" readonly placeholder="自動帶入">
+                    </div>
+                    <div>
+                        <label class="text-red-600">批號 (目標)</label>
+                        <input type="text" id="batchNo" readonly class="text-red-600 font-bold bg-red-50/70 border-red-200" placeholder="自動帶入">
+                    </div>
+                    <div>
+                        <label class="text-blue-600">送達地點</label>
+                        <input type="text" id="deliveryPlace" readonly class="text-blue-600 font-bold bg-blue-50/70 border-blue-200" placeholder="自動帶入">
+                    </div>
+                    
+                    <div class="col-span-2">
+                        <label class="text-gray-600">供應商</label>
+                        <input type="text" id="supplier" readonly class="text-gray-600 font-semibold bg-gray-100" placeholder="自動帶入或自動補償">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 拍照區 1: COA 批號 -->
+            <div class="photo-box" id="box1">
+                <label for="photoBatch" class="cursor-pointer block w-full h-full">
+                    <div class="text-3xl mb-1">📦</div>
+                    <div class="text-gray-800 font-bold text-base">2. 拍攝 COA (批號照片)</div>
+                    <div id="status1" class="text-xs text-gray-400 mt-1">點擊開啟相機拍攝</div>
+                </label>
+                <input type="file" id="photoBatch" accept="image/*" capture="environment" class="hidden" onchange="processImage(this, 'preview1', 'dataBatch', 'status1', 'box1')">
+                <img id="preview1" class="hidden mt-3 w-full rounded-lg shadow-sm border border-gray-200">
+                <input type="hidden" name="photoDataBatch" id="dataBatch">
+            </div>
+
+            <!-- 拍照區 2: 地磅/系統 -->
+            <div class="photo-box" id="box2">
+                <label for="photoLoc" class="cursor-pointer block w-full h-full">
+                    <div class="text-3xl mb-1">🏭</div>
+                    <div class="text-gray-800 font-bold text-base">3. 拍攝 地磅/系統 (槽號+地點)</div>
+                    <div id="status2" class="text-xs text-gray-400 mt-1">點擊開啟相機拍攝 (含單號與槽號)</div>
+                </label>
+                <input type="file" id="photoLoc" accept="image/*" capture="environment" class="hidden" onchange="processImage(this, 'preview2', 'dataLoc', 'status2', 'box2')">
+                <img id="preview2" class="hidden mt-3 w-full rounded-lg shadow-sm border border-gray-200">
+                <input type="hidden" name="photoDataLoc" id="dataLoc">
+            </div>
+
+            <button type="submit" id="submitBtn" class="btn-submit">
+                🚀 開始四重驗證 (現場即時卡控)
+            </button>
+        </form>
+
+        <div class="mt-4 text-center">
+            <span class="text-[11px] text-gray-400">核對系統 V46 &bull; Cloudflare Pages + R2 + D1 (共用庫) &bull; Google 試算表雙邊同步</span>
+        </div>
+    </div>
+
+    <script>
+        const APP_VERSION = "V46";
+        const QUEUE_STORAGE_KEY = "COA_OFFLINE_VERIFIED_QUEUE_V46";
+
+        // PWA 註冊與離線快取
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('✅ ServiceWorker Registered (V46)'))
+                    .catch(err => console.warn('ServiceWorker Registration failed:', err));
+            });
+        }
+
+        // 取得本機暫存佇列 (僅存現場離線核對「成功」的紀錄)
+        function getOfflineQueue() {
+            try {
+                return JSON.parse(localStorage.getItem(QUEUE_STORAGE_KEY) || "[]");
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveToOfflineQueue(record) {
+            const queue = getOfflineQueue();
+            queue.push(record);
+            localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+            updateOfflineSyncBar();
+        }
+
+        function clearFromOfflineQueue(id) {
+            let queue = getOfflineQueue();
+            queue = queue.filter(r => r.id !== id);
+            localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(queue));
+            updateOfflineSyncBar();
+        }
+
+        function updateOfflineSyncBar() {
+            const queue = getOfflineQueue();
+            const bar = document.getElementById('offlineSyncBar');
+            const text = document.getElementById('offlineSyncText');
+            if (queue.length > 0) {
+                bar.classList.remove('hidden');
+                text.innerText = `📦 偵測到 ${queue.length} 筆離線核對成功紀錄待補傳`;
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+
+        // 自動背景補傳離線合格紀錄至雲端
+        async function triggerOfflineSync() {
+            if (!navigator.onLine) {
+                alert("目前仍處於離線狀態，請等候網路恢復後再補傳。");
+                return;
+            }
+            const queue = getOfflineQueue();
+            if (queue.length === 0) return;
+
+            const overlay = document.getElementById('loadingOverlay');
+            const loadText = document.getElementById('loadingText');
+            overlay.style.display = 'flex';
+            loadText.innerText = `正在自動補傳離線合格憑證 (共 ${queue.length} 筆)...`;
+
+            let successCount = 0;
+            for (const item of queue) {
+                try {
+                    const res = await fetch('/api/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(item.payload)
+                    });
+                    if (res.ok) {
+                        clearFromOfflineQueue(item.id);
+                        successCount++;
+                    }
+                } catch (e) {
+                    console.error("補傳失敗:", e);
+                }
+            }
+
+            overlay.style.display = 'none';
+            if (successCount > 0) {
+                alert(`🎉 恭喜！已成功補傳 ${successCount} 筆離線核對合格紀錄至 Cloudflare R2 與 Google 試算表！`);
+            }
+            updateOfflineSyncBar();
+        }
+
+        // 網路狀態動態更新 (一連線自動觸發補傳)
+        function updateOnlineStatus() {
+            const bar = document.getElementById('networkStatus');
+            if (navigator.onLine) {
+                bar.className = "bg-emerald-50 text-emerald-700 border-b border-emerald-200 px-3 py-1.5 text-[11px] font-bold flex justify-between items-center";
+                bar.innerHTML = `
+                    <span class="flex items-center gap-1.5">
+                        <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        已連線：Google Vision API 雲端高準度模式
+                    </span>
+                    <span class="text-[10px] text-gray-500 font-normal">核對成功同步雲端</span>
+                `;
+                // 連線恢復，自動背景補傳
+                triggerOfflineSync();
+            } else {
+                bar.className = "bg-amber-50 text-amber-800 border-b border-amber-200 px-3 py-1.5 text-[11px] font-bold flex justify-between items-center";
+                bar.innerHTML = `
+                    <span class="flex items-center gap-1.5">
+                        <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+                        離線狀態：已自動切換為手機本機 OCR 引擎
+                    </span>
+                    <span class="text-[10px] text-amber-700 font-normal">現場即時判定 / 錯誤絕不上傳</span>
+                `;
+            }
+            updateOfflineSyncBar();
+        }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+
+        // PWA 智慧安裝條控制
+        let deferredPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const banner = document.getElementById('pwaInstallBanner');
+            if (banner) banner.classList.remove('hidden');
+        });
+
+        document.getElementById('pwaInstallBtn')?.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            dismissInstallBanner();
+        });
+
+        function dismissInstallBanner() {
+            const banner = document.getElementById('pwaInstallBanner');
+            if (banner) banner.classList.add('hidden');
+        }
+
+        let html5QrcodeScanner = null;
+        let aiStream = null;
+
+        // 1. QR 掃描模式 (離線本機純 JS 解碼)
+        function startQrMode() {
+            stopAiCamera();
+            const reader = document.getElementById('qr-reader');
+            if (reader.style.display === 'block') {
+                if (html5QrcodeScanner) { 
+                    try { html5QrcodeScanner.stop().then(() => { html5QrcodeScanner.clear(); }); } catch(e){} 
+                }
+                reader.style.display = 'none';
+                return;
+            }
+            reader.style.display = 'block';
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            html5QrcodeScanner = new Html5Qrcode("qr-reader");
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, (decodedText) => {
+                document.getElementById('rawQr').value = decodedText;
+                parseQrData(decodedText);
+                html5QrcodeScanner.stop().then(() => html5QrcodeScanner.clear());
+                reader.style.display = 'none';
+            }).catch(err => alert("相機啟動失敗 (請確認開啟相機權限)"));
+        }
+
+        // 2. AI 讀單模式
+        async function startAiCamera() {
+            if (html5QrcodeScanner) {
+                try { await html5QrcodeScanner.stop(); html5QrcodeScanner.clear(); } catch(e){}
+                document.getElementById('qr-reader').style.display = 'none';
+            }
+            const videoContainer = document.getElementById('ai-camera-view');
+            const videoElement = document.getElementById('ai-video');
+            if (videoContainer.style.display === 'block') {
+                stopAiCamera(); return;
+            }
+            try {
+                aiStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } } 
+                });
+                videoElement.srcObject = aiStream;
+                videoContainer.style.display = 'block';
+            } catch (err) {
+                alert("無法存取相機: " + err.message);
+            }
+        }
+
+        function stopAiCamera() {
+            const videoContainer = document.getElementById('ai-camera-view');
+            const videoElement = document.getElementById('ai-video');
+            if (aiStream) {
+                aiStream.getTracks().forEach(track => track.stop());
+                aiStream = null;
+            }
+            if (videoElement) videoElement.srcObject = null;
+            if (videoContainer) videoContainer.style.display = 'none';
+        }
+
+        // 拍攝三合一單並辨識 (有網走 Google，斷網自動切手機 Tesseract)
+        async function captureAiImage() {
+            const video = document.getElementById('ai-video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = canvas.toDataURL('image/jpeg', 0.6);
+            stopAiCamera();
+
+            const overlay = document.getElementById('loadingOverlay');
+            const loadText = document.getElementById('loadingText');
+            overlay.style.display = 'flex';
+
+            if (navigator.onLine) {
+                loadText.innerText = "☁️ 雲端 Google Vision AI 辨識中...";
+                try {
+                    const res = await fetch('/api/ai-read', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ photoData: imageData })
+                    });
+                    if (!res.ok) throw new Error("伺服器回應: " + res.status);
+                    const json = await res.json();
+                    overlay.style.display = 'none';
+
+                    if (json.success) {
+                        applyExtractedData(json.data);
+                        alert(`✅ Google AI 讀取完成！\n批號: ${json.data.batchNo || '未偵測'}\n槽號: ${json.data.tankNo || '未偵測'}`);
+                    } else {
+                        throw new Error(json.message);
+                    }
+                    return;
+                } catch (cloudErr) {
+                    console.warn("雲端讀單失敗，自動降級至手機本機 OCR:", cloudErr);
+                }
+            }
+
+            // 離線降級：調用手機本機 Tesseract OCR
+            loadText.innerText = "📶 離線模式：手機晶片本機辨識中 (約需 2~3 秒)...";
+            try {
+                if (typeof Tesseract === "undefined") throw new Error("本機 OCR 引擎未載入");
+                const result = await Tesseract.recognize(imageData, 'eng', {
+                    logger: m => { if (m.status === 'recognizing text') loadText.innerText = `📶 手機本機辨識中: ${Math.round(m.progress * 100)}%`; }
+                });
+                overlay.style.display = 'none';
+                const text = result.data.text || "";
+                const parsed = parseTextRegex(text);
+                applyExtractedData(parsed);
+                alert(`✅ [離線模式] 手機辨識完成！\n批號: ${parsed.batchNo || '未偵測'}\n槽號: ${parsed.tankNo || '未偵測'}`);
+            } catch (localErr) {
+                overlay.style.display = 'none';
+                alert("辨識失敗: " + localErr.message);
+            }
+        }
+
+        function parseTextRegex(rawText) {
+            const cleanText = rawText.replace(/：/g, ":").replace(/　/g, " ").replace(/\|/g, " ");
+            const d = { batchNo: "", tankNo: "", materialNo: "", deliveryPlace: "", supplier: "" };
+
+            let m = cleanText.match(/送達地點[\s:.]*([E|F][0-9A-Z]+)/i);
+            if (m) d.deliveryPlace = m[1];
+            else { m = cleanText.match(/地點[\s:.]*([E|F][0-9A-Z]+)/i); if (m) d.deliveryPlace = m[1]; }
+
+            m = cleanText.match(/供應商[\s:.]*([0-9]+)/);
+            if (m) d.supplier = m[1];
+
+            m = cleanText.match(/料號[\s:.]*([A-Z0-9]+)/i);
+            if (m) d.materialNo = m[1];
+
+            m = cleanText.match(/槽號[\s:.]*([0-9A-Z]+)/i);
+            if (m) d.tankNo = m[1];
+
+            m = cleanText.match(/批號[\s:.]*([0-9A-Z]+)/i);
+            if (m) d.batchNo = m[1];
+
+            if (!d.deliveryPlace) { m = cleanText.match(/\b([E|F][A-Z0-9]{5,})\b/i); if (m) d.deliveryPlace = m[1]; }
+            if (!d.batchNo) { m = cleanText.match(/\b(626[0-9A-Z]{5,}|261[0-9A-Z]{5,})\b/i); if (m) d.batchNo = m[1]; }
+            if (!d.tankNo) { m = cleanText.match(/\b(5?E3[0-9]{2,})\b/i); if (m) d.tankNo = m[1]; }
+
+            return d;
+        }
+
+        function applyExtractedData(d) {
+            document.getElementById('batchNo').value = d.batchNo || "";
+            document.getElementById('tankNo').value = d.tankNo || "";
+            document.getElementById('materialNo').value = d.materialNo || "";
+            document.getElementById('deliveryPlace').value = d.deliveryPlace || "";
+            document.getElementById('supplier').value = d.supplier || "";
+            document.getElementById('rawQr').value = "[AI 讀取] 批號:" + (d.batchNo || "無");
+        }
+
+        function parseQrData(text) {
+            if (!text) return;
+            const parts = text.split("||");
+            if (parts.length >= 6) {
+                document.getElementById('materialNo').value = parts[1];
+                document.getElementById('tankNo').value = parts[2];
+                document.getElementById('batchNo').value = parts[3];
+                document.getElementById('supplier').value = parts[4];
+                document.getElementById('deliveryPlace').value = parts[5];
+            } else {
+                alert("QR 格式不符標準 (缺少 || 分隔符號)");
+            }
+        }
+
+        function processImage(input, previewId, dataId, statusId, boxId) {
+            const file = input.files[0];
+            if (!file) return;
+            const status = document.getElementById(statusId);
+            status.innerText = '處理中 (縮圖優化)...';
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const MAX_WIDTH = 800; 
+                    let width = img.width; let height = img.height;
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
+                    ctx.filter = 'grayscale(1) contrast(1.5) brightness(1.1)';
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    document.getElementById(previewId).src = compressedDataUrl;
+                    document.getElementById(previewId).style.display = 'block';
+                    document.getElementById(dataId).value = compressedDataUrl;
+                    status.innerText = '✅ 照片已準備完成';
+                    document.getElementById(boxId).classList.add('valid');
+                }
+            }
+        }
+
+        // ==========================================
+        // 前端四重核對演算法 (V46 離線即時卡控防呆專用)
+        // ==========================================
+        const FUZZY_MAP = { O:'0', D:'0', Q:'0', I:'1', L:'1', '|':'1', Z:'2', S:'5', B:'8', G:'6' };
+        function localFuzzy(text) {
+            return text.split('').map(c => FUZZY_MAP[c] || c).join('');
+        }
+
+        function verifyLocally(cleanCOA, cleanWeigh, rawBatch, rawLoc, rawTank) {
+            const fuzzyCOA = localFuzzy(cleanCOA);
+            const fuzzyWeigh = localFuzzy(cleanWeigh);
+
+            // A. 批號目標
+            const batchTargets = [rawBatch];
+            if (rawBatch.startsWith('6') || rawBatch.length >= 11) batchTargets.push(rawBatch.substring(1));
+
+            // B. 槽號目標
+            const tankTargets = [rawTank];
+            if (rawTank.startsWith('5')) tankTargets.push(rawTank.substring(1));
+            if (rawTank.length > 3) tankTargets.push(rawTank.substring(1));
+
+            // C. 地點目標
+            const locTargets = [rawLoc];
+            if (rawLoc.length > 3) {
+                if (rawLoc.startsWith('E')) locTargets.push(rawLoc.substring(1));
+                if (rawLoc.endsWith('A')) locTargets.push(rawLoc.slice(0, -1));
+                if (rawLoc.startsWith('E') && rawLoc.endsWith('A')) locTargets.push(rawLoc.slice(1, -1));
+            }
+
+            // 關卡 1: COA 批號
+            let c1 = batchTargets.some(t => cleanCOA.includes(t) || fuzzyCOA.includes(localFuzzy(t)));
+
+            // 關卡 2: 地磅 地點 (含 T100 拆解)
+            let c2 = locTargets.some(lt => cleanWeigh.includes(lt) || fuzzyWeigh.includes(localFuzzy(lt)));
+            if (!c2 && rawLoc.length > 5) {
+                const sheetCore = rawLoc.slice(1, -1);
+                const fac = cleanWeigh.match(/廠別\D*([A-Z0-9]{4})/);
+                const area = cleanWeigh.match(/廠區\D*([A-Z0-9]{3})/);
+                if (fac && area) {
+                    const combined = fac[1] + area[1];
+                    if (sheetCore === combined || localFuzzy(sheetCore) === localFuzzy(combined) || combined.includes(sheetCore)) {
+                        c2 = true;
+                    }
+                }
+            }
+
+            // 關卡 3: 地磅 槽號 (排除批號)
+            let textForTank = cleanWeigh;
+            let fuzzyTextForTank = fuzzyWeigh;
+            batchTargets.forEach(bt => {
+                textForTank = textForTank.replaceAll(bt, "------");
+                fuzzyTextForTank = fuzzyTextForTank.replaceAll(localFuzzy(bt), "------");
+            });
+            let c3 = tankTargets.some(tt => textForTank.includes(tt) || fuzzyTextForTank.includes(localFuzzy(tt)));
+
+            // 關卡 4: 地磅 系統批號
+            let c4 = batchTargets.some(t => cleanWeigh.includes(t) || fuzzyWeigh.includes(localFuzzy(t)));
+
+            const success = c1 && c2 && c3 && c4;
+            let msg = success ? "✅ [現場離線核對成功！] 全數相符" : "❌ [現場即時攔截] 核對不相符 (禁止入料！)";
+            msg += "\n----------------";
+            msg += c1 ? "\n✅ COA批號: OK" : "\n❌ COA批號不符";
+            msg += c2 ? "\n✅ 送達地點: OK" : "\n❌ 地點不符";
+            msg += c3 ? "\n✅ 地磅槽號: OK" : "\n❌ 槽號不符";
+            msg += c4 ? "\n✅ 系統批號: OK" : "\n❌ 系統批號不符";
+
+            if (success) {
+                msg += "\n\n💡 提示：本筆合格資料已暫存於手機，連線時將自動補傳至雲端 R2 與 Google 試算表。現場可安心放行！";
+            } else {
+                msg += "\n\n🛑 錯誤阻擋：單據規格不符，請立即現場糾正！此錯誤資料【絕不上傳】！";
+            }
+
+            return { success, message: msg };
+        }
+
+        // ==========================================
+        // 核心送出按鈕：現場即時卡控 + 離線暫存
+        // ==========================================
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            const batchNo = document.getElementById('batchNo').value.trim();
+            const photoBatch = document.getElementById('dataBatch').value;
+            const photoLoc = document.getElementById('dataLoc').value;
+            const deliveryPlace = document.getElementById('deliveryPlace').value.trim();
+            const tankNo = document.getElementById('tankNo').value.trim();
+            const materialNo = document.getElementById('materialNo').value.trim();
+            const supplier = document.getElementById('supplier').value.trim();
+            const rawQr = document.getElementById('rawQr').value.trim();
+
+            if (!batchNo) { alert("❌ 請先 [掃描 QR] 或 [AI 讀單]"); return; }
+            if (!photoBatch) { alert("❌ 請拍攝步驟 2: COA (批號) 照片"); return; }
+            if (!photoLoc) { alert("❌ 請拍攝步驟 3: 地磅/系統 照片"); return; }
+
+            const btn = document.getElementById('submitBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true; btn.innerText = "⏳ 現場即時驗證中..."; btn.classList.add('btn-disabled');
+            
+            const overlay = document.getElementById('loadingOverlay');
+            const loadText = document.getElementById('loadingText');
+            overlay.style.display = 'flex';
+
+            const payloadData = {
+                batchNo,
+                deliveryPlace,
+                tankNo,
+                materialNo,
+                supplier,
+                rawQr,
+                photoBatch,
+                photoLoc
+            };
+
+            // ★ 狀況 A：線上模式 (有網路走 Google Vision API + R2 + 試算表)
+            if (navigator.onLine) {
+                loadText.innerText = "☁️ 雲端 Google Vision 四重核對中...";
+                try {
+                    const res = await fetch('/api/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payloadData)
+                    });
+
+                    if (!res.ok) throw new Error("伺服器錯誤: " + res.status);
+                    const data = await res.json();
+                    overlay.style.display = 'none';
+
+                    showResultModal(data, false);
+                    return;
+                } catch (err) {
+                    console.warn("雲端核對連線異常，切入手機本機離線驗證:", err);
+                }
+            }
+
+            // ★ 狀況 B：斷網離線模式 (手機本機 Tesseract 即時判讀與四重比對)
+            loadText.innerText = "📶 斷網模式：由手機晶片進行本機 OCR 辨識與四重核對...";
+            try {
+                if (typeof Tesseract === "undefined") throw new Error("本機 OCR 模組未就緒");
+
+                loadText.innerText = "📶 正在辨識 COA 批號照片 (1/2)...";
+                const coaOcr = await Tesseract.recognize(photoBatch, 'eng');
+                const cleanCOA = (coaOcr.data.text || "").toUpperCase().replace(/\s+/g, "");
+
+                loadText.innerText = "📶 正在辨識 地磅槽號與地點照片 (2/2)...";
+                const weighOcr = await Tesseract.recognize(photoLoc, 'eng');
+                const cleanWeigh = (weighOcr.data.text || "").toUpperCase().replace(/\s+/g, "");
+
+                // 前端執行即時四重核對
+                const localResult = verifyLocally(
+                    cleanCOA, cleanWeigh,
+                    batchNo.toUpperCase(),
+                    deliveryPlace.toUpperCase(),
+                    tankNo.toUpperCase()
+                );
+
+                overlay.style.display = 'none';
+
+                // ★★★ 核心鐵律：只有核對「成功」的才暫存，核對「失敗」的絕不暫存、絕不上傳！★★★
+                if (localResult.success) {
+                    saveToOfflineQueue({
+                        id: "OFFLINE_" + Date.now(),
+                        payload: payloadData,
+                        createdAt: new Date().toLocaleString('zh-TW', { hour12: false })
+                    });
+                }
+
+                showResultModal(localResult, true);
+
+            } catch (err) {
+                overlay.style.display = 'none';
+                alert("❌ 離線現場驗證發生錯誤: " + err.message);
+            } finally {
+                btn.disabled = false; btn.innerText = originalText; btn.classList.remove('btn-disabled');
+            }
+        }
+
+        function showResultModal(data, isOffline) {
+            const modal = document.getElementById('resultModal');
+            const icon = document.getElementById('modalIcon');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+            const links = document.getElementById('modalLinks');
+            const linkCoa = document.getElementById('linkCoaPhoto');
+            const linkLoc = document.getElementById('linkLocPhoto');
+
+            icon.innerText = data.success ? "✅" : "🛑";
+            
+            if (data.success) {
+                title.innerText = isOffline ? "✅ [離線合格] 現場四重核對成功！" : "✅ 四重核對成功！";
+                title.className = "text-xl font-bold mb-2 text-emerald-600";
+            } else {
+                title.innerText = "🚨 現場錯誤攔截 (禁止入料！)";
+                title.className = "text-xl font-bold mb-2 text-rose-600";
+            }
+
+            content.innerText = data.message;
+
+            if (!isOffline && data.details && (data.details.photoBatchUrl || data.details.photoLocUrl)) {
+                links.classList.remove('hidden');
+                if (data.details.photoBatchUrl) {
+                    linkCoa.href = data.details.photoBatchUrl;
+                    linkCoa.classList.remove('hidden');
+                } else linkCoa.classList.add('hidden');
+                if (data.details.photoLocUrl) {
+                    linkLoc.href = data.details.photoLocUrl;
+                    linkLoc.classList.remove('hidden');
+                } else linkLoc.classList.add('hidden');
+            } else {
+                links.classList.add('hidden');
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeResultModal() {
+            document.getElementById('resultModal').style.display = 'none';
+            const title = document.getElementById('modalTitle').innerText;
+            if (title.includes("成功")) {
+                location.reload();
+            }
+        }
+
+        window.onload = () => {
+            updateOnlineStatus();
+            updateOfflineSyncBar();
+        };
+    </script>
+</body>
+</html>
