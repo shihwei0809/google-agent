@@ -374,8 +374,13 @@
             setQuickDate('3'); // 重設為預設近 3 天
         }
 
-        // 圖片燈箱控制
+        // 圖片預覽控制 (智慧判斷：Google Drive 開新分頁，R2 走全螢幕燈箱)
         function openLightbox(url, title) {
+            if (!url) return;
+            if (url.includes('drive.google.com') || url.includes('script.google.com')) {
+                window.open(url, '_blank');
+                return;
+            }
             document.getElementById('lightboxImg').src = url;
             document.getElementById('lightboxTitle').innerText = title;
             document.getElementById('lightboxDownload').href = url;
