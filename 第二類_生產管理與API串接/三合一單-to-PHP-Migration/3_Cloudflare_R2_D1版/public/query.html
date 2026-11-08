@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>COA 四重核對紀錄列表 (Cloudflare D1 + R2)</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #f8fafc; }
+        .table-header { background-color: #f1f5f9; color: #475569; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+        .table-row { transition: background-color 0.15s; border-bottom: 1px solid #e2e8f0; }
+        .table-row:hover { background-color: #f8fafc; }
+        
+        /* 日期快捷晶片 */
+        .date-chip { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; border: 1.5px solid #cbd5e1; color: #475569; background: #ffffff; white-space: nowrap; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+        .date-chip:hover { border-color: #94a3b8; }
+        .date-chip.active { background: #2563eb; color: white; border-color: #2563eb; box-shadow: 0 2px 5px rgba(37,99,235,0.25); }
+
+        /* 手機卡片專用樣式 */
+        .record-card { background: white; border-radius: 14px; padding: 14px 16px; border: 1px solid #e2e8f0; box-shadow: 0 2px 6px rgba(0,0,0,0.04); margin-bottom: 12px; transition: transform 0.1s, box-shadow 0.1s; }
+        .record-card:active { transform: scale(0.99); }
+        .record-card-batch { font-size: 1.05rem; font-weight: 700; color: #1d4ed8; font-family: monospace; word-break: break-all; }
+        .record-card-time { font-size: 0.72rem; color: #94a3b8; font-family: monospace; }
+        .record-card-label { font-size: 0.68rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 1px; }
+        .record-card-field { font-size: 0.85rem; color: #334155; font-weight: 500; }
+        
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* 圖片燈箱 */
+        #lightboxModal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="p-2 sm:p-5 min-h-screen">
+
+    <!-- 圖片預覽燈箱 Lightbox -->
+    <div id="lightboxModal" onclick="closeLightbox(event)">
+        <div class="relative max-w-3xl w-full bg-white rounded-2xl p-4 overflow-hidden shadow-2xl" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center px-1 pb-2 border-b border-gray-100 mb-2">
+                <span id="lightboxTitle" class="font-bold text-sm text-gray-800">照片存證 (Cloudflare R2)</span>
+                <button onclick="closeLightbox()" class="text-gray-400 hover:text-gray-700 text-2xl font-bold leading-none p-1">&times;</button>
+            </div>
+            <div class="flex justify-center items-center max-h-[75vh] overflow-auto bg-slate-900 rounded-xl p-1">
+                <img id="lightboxImg" src="" alt="照片預覽" class="max-w-full max-h-[70vh] object-contain rounded-lg">
+            </div>
+            <div class="mt-3 flex justify-between items-center">
+                <span class="text-xs text-slate-400">若圖片無法顯示請點右側以原圖下載</span>
+                <a id="lightboxDownload" href="#" target="_blank" class="inline-block bg-blue-600 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg shadow hover:bg-blue-700">另開原圖下載</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
+        
+        <!-- Header -->
+        <div class="p-4 sm:p-5 border-b border-gray-100 flex flex-wrap justify-between items-center gap-3 bg-gradient-to-r from-slate-50 to-white">
+            <div class="flex items-center gap-3">
+                <a href="index.html" class="p-2 bg-white rounded-xl shadow-sm border border-gray-200 text-gray-600 hover:text-blue-600 transition" title="返回核對">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                </a>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-gray-800 flex items-center gap-2">
+                        COA 四重核對紀錄列表
+                        <span class="bg-blue-100 text-blue-700 text-[11px] px-2 py-0.5 rounded-full font-bold">Cloudflare D1 + R2</span>
+                    </h1>
+                    <p class="text-xs text-gray-500 mt-0.5">即時查詢雲端核對紀錄與 R2 高畫質相片存證</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="exportCSV()" class="flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow hover:bg-emerald-700 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    匯出 CSV
+                </button>
+                <a href="index.html" class="flex items-center gap-1 bg-blue-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow hover:bg-blue-700 transition">
+                    ➕ 開始新核對
+                </a>
+            </div>
+        </div>
+
+        <!-- 搜尋與快捷日期列 -->
+        <div class="p-3 sm:p-4 bg-slate-50 border-b border-gray-200 space-y-2.5">
+            
+            <!-- 日期快捷晶片 -->
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                <span class="text-xs font-bold text-slate-500 flex-shrink-0">快篩：</span>
+                <button type="button" onclick="setQuickDate('3')" id="chip-3" class="date-chip active">近 3 天</button>
+                <button type="button" onclick="setQuickDate('0')" id="chip-0" class="date-chip">今天</button>
+                <button type="button" onclick="setQuickDate('1')" id="chip-1" class="date-chip">昨天</button>
+                <button type="button" onclick="setQuickDate('7')" id="chip-7" class="date-chip">近 7 天</button>
+                <button type="button" onclick="setQuickDate('all')" id="chip-all" class="date-chip">全部</button>
+                <button type="button" onclick="setQuickDate('custom')" id="chip-custom" class="date-chip">🗓 自訂區間</button>
+            </div>
+
+            <!-- 自訂日期區間 (預設隱藏) -->
+            <div id="customDateRow" class="hidden flex-wrap items-center gap-2 pt-1 pb-1">
+                <span class="text-xs text-gray-500 font-bold">起訖日期：</span>
+                <input type="date" id="startDate" class="text-xs sm:text-sm px-2.5 py-1.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                <span class="text-gray-400 text-xs">至</span>
+                <input type="date" id="endDate" class="text-xs sm:text-sm px-2.5 py-1.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                <button type="button" onclick="fetchRecords(1)" class="bg-blue-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg shadow hover:bg-blue-700">套用區間</button>
+            </div>
+
+            <!-- 關鍵字搜尋列 -->
+            <form id="filterForm" onsubmit="handleFilter(event)" class="flex gap-2">
+                <input type="text" id="searchInput" placeholder="搜尋批號 / 料號 / 槽號 / 送達地點 / 供應商..." 
+                       class="flex-1 text-xs sm:text-sm px-3.5 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition shadow whitespace-nowrap">
+                    🔍 搜尋
+                </button>
+                <button type="button" onclick="resetFilter()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs px-3 py-2 rounded-lg transition whitespace-nowrap">
+                    重設
+                </button>
+            </form>
+        </div>
+
+        <!-- 讀取中提示 -->
+        <div id="loadingStatus" class="hidden p-10 text-center text-slate-400 text-sm font-medium">⏳ 讀取資料中...</div>
+
+        <!-- 手機卡片流 (桌機螢幕自動隱藏) -->
+        <div id="cardView" class="block md:hidden p-3 bg-slate-50 min-h-[300px]">
+            <!-- 動態插入卡片 -->
+        </div>
+
+        <!-- 桌機寬版表格 (手機螢幕自動隱藏) -->
+        <div id="tableView" class="hidden md:block overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[950px]">
+                <thead>
+                    <tr class="table-header">
+                        <th class="py-3 px-3.5">時間 / 狀態</th>
+                        <th class="py-3 px-3">單號資訊</th>
+                        <th class="py-3 px-3 text-blue-700 font-bold">批號 (BATCH)</th>
+                        <th class="py-3 px-3">料號</th>
+                        <th class="py-3 px-3 text-rose-600 font-bold">槽號</th>
+                        <th class="py-3 px-3">送達地點</th>
+                        <th class="py-3 px-3">供應商</th>
+                        <th class="py-3 px-3 text-center">COA 照片 (R2)</th>
+                        <th class="py-3 px-3 text-center">地磅照片 (R2)</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td colspan="9" class="text-center py-10 text-gray-400">載入中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分頁控制列 -->
+        <div class="p-3 sm:p-4 border-t border-gray-100 flex justify-between items-center text-xs text-gray-600 bg-white">
+            <div id="pageInfo" class="font-medium">第 1 頁，共 1 頁 (共 0 筆紀錄)</div>
+            <div class="flex gap-2" id="paginationBtns">
+                <button id="prevBtn" onclick="changePage(-1)" class="px-3 py-1.5 bg-white border border-gray-300 rounded-lg font-bold hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">« 上一頁</button>
+                <button id="nextBtn" onclick="changePage(1)" class="px-3 py-1.5 bg-white border border-gray-300 rounded-lg font-bold hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">下一頁 »</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let currentRecords = [];
+        let activeDateMode = '3';
+
+        // 快捷日期設定
+        function setQuickDate(mode) {
+            activeDateMode = mode;
+            document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
+            const activeBtn = document.getElementById(`chip-${mode}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const customRow = document.getElementById('customDateRow');
+            const startInput = document.getElementById('startDate');
+            const endInput = document.getElementById('endDate');
+
+            const now = new Date();
+            const formatD = (d) => {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            if (mode === 'custom') {
+                customRow.classList.remove('hidden');
+                return;
+            } else {
+                customRow.classList.add('hidden');
+            }
+
+            if (mode === 'all') {
+                startInput.value = '';
+                endInput.value = '';
+            } else if (mode === '0') { // 今天
+                const todayStr = formatD(now);
+                startInput.value = todayStr;
+                endInput.value = todayStr;
+            } else if (mode === '1') { // 昨天
+                const yday = new Date(now);
+                yday.setDate(now.getDate() - 1);
+                const ydayStr = formatD(yday);
+                startInput.value = ydayStr;
+                endInput.value = ydayStr;
+            } else if (mode === '3') { // 近 3 天
+                const d3 = new Date(now);
+                d3.setDate(now.getDate() - 2);
+                startInput.value = formatD(d3);
+                endInput.value = formatD(now);
+            } else if (mode === '7') { // 近 7 天
+                const d7 = new Date(now);
+                d7.setDate(now.getDate() - 6);
+                startInput.value = formatD(d7);
+                endInput.value = formatD(now);
+            }
+
+            fetchRecords(1);
+        }
+
+        async function fetchRecords(page = 1) {
+            currentPage = page;
+            const q = document.getElementById('searchInput').value.trim();
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            const loading = document.getElementById('loadingStatus');
+            loading.classList.remove('hidden');
+
+            const params = new URLSearchParams({
+                page: page,
+                limit: 15,
+                q: q,
+                start_date: start,
+                end_date: end
+            });
+
+            try {
+                const res = await fetch(`/api/query?${params.toString()}`);
+                const result = await res.json();
+                if (!result.success) throw new Error(result.message);
+
+                currentRecords = result.data || [];
+                totalPages = result.pagination.totalPages || 1;
+                renderView(currentRecords);
+                updatePagination(result.pagination);
+            } catch (err) {
+                document.getElementById('cardView').innerHTML = `<div class="text-center py-10 text-rose-500 font-bold">讀取失敗: ${err.message}</div>`;
+                document.getElementById('tableBody').innerHTML = `<tr><td colspan="9" class="text-center py-10 text-rose-500 font-bold">讀取失敗: ${err.message}</td></tr>`;
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        // 渲染視圖 (卡片流與表格列同步渲染)
+        function renderView(list) {
+            const cardView = document.getElementById('cardView');
+            const tbody = document.getElementById('tableBody');
+
+            if (list.length === 0) {
+                const emptyHtml = '<div class="text-center py-16 text-gray-400 font-bold">📭 目前查無符合條件之核對紀錄</div>';
+                cardView.innerHTML = emptyHtml;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-16 text-gray-400 font-bold">📭 目前查無符合條件之核對紀錄</td></tr>`;
+                return;
+            }
+
+            let cardHtml = '';
+            let tableHtml = '';
+
+            list.forEach(r => {
+                // ★★★ 核心修復：精準比對成功狀態 (包含「核對成功」、「四重核對成功」或含「成功」字眼) ★★★
+                const isSuccess = Boolean(r.verification_status && (
+                    r.verification_status.includes("成功") || 
+                    r.verification_status.includes("合格") || 
+                    r.verification_status.includes("放行")
+                ));
+
+                const statusBadge = isSuccess
+                    ? '<span class="bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 shadow-sm">✅ 核對成功</span>'
+                    : '<span class="bg-rose-100 text-rose-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 shadow-sm" title="' + (r.error_details || '') + '">❌ 核對失敗</span>';
+
+                // 照片按鈕
+                const coaBtn = (r.photo_batch_url && r.photo_batch_url.startsWith('http'))
+                    ? `<button onclick="openLightbox('${r.photo_batch_url}', 'COA 批號照片 - 批號: ${r.batch_no}')" class="text-xs bg-blue-50 text-blue-600 font-bold px-2.5 py-1 rounded-lg border border-blue-200 hover:bg-blue-100 inline-flex items-center gap-1">📦 COA</button>`
+                    : '<span class="text-gray-300 text-xs">無</span>';
+
+                const locBtn = (r.photo_loc_url && r.photo_loc_url.startsWith('http'))
+                    ? `<button onclick="openLightbox('${r.photo_loc_url}', '地磅/槽號照片 - 槽號: ${r.tank_no}')" class="text-xs bg-emerald-50 text-emerald-600 font-bold px-2.5 py-1 rounded-lg border border-emerald-200 hover:bg-emerald-100 inline-flex items-center gap-1">🏭 地磅</button>`
+                    : '<span class="text-gray-300 text-xs">無</span>';
+
+                // 單號資訊文字
+                const orderTextMobile = [
+                    r.source_doc_no ? `<div><div class="record-card-label">來源單號</div><div class="record-card-field font-mono">${r.source_doc_no}</div></div>` : '',
+                    r.weighbridge_no ? `<div><div class="record-card-label">磅單編號</div><div class="record-card-field font-mono text-blue-600">${r.weighbridge_no}</div></div>` : ''
+                ].join('');
+
+                // 1. 手機卡片結構
+                cardHtml += `
+                    <div class="record-card">
+                        <div class="flex items-start justify-between mb-2">
+                            <div>
+                                <div class="record-card-batch">${r.batch_no || '-'}</div>
+                                <div class="record-card-time mt-0.5">${r.created_at || ''}</div>
+                            </div>
+                            <div>${statusBadge}</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-x-3 gap-y-2 mb-2.5 pt-1 border-t border-slate-100">
+                            <div><div class="record-card-label">料號</div><div class="record-card-field font-mono">${r.material_no || '-'}</div></div>
+                            <div><div class="record-card-label">槽號</div><div class="record-card-field font-bold text-rose-600">${r.tank_no || '-'}</div></div>
+                            <div><div class="record-card-label">送達地點</div><div class="record-card-field">${r.delivery_place || '-'}</div></div>
+                            <div><div class="record-card-label">供應商</div><div class="record-card-field truncate" title="${r.supplier}">${r.supplier || '-'}</div></div>
+                            ${orderTextMobile}
+                        </div>
+
+                        ${(r.photo_batch_url || r.photo_loc_url) ? `
+                            <div class="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                <span class="text-[11px] font-bold text-slate-400">存證相片：</span>
+                                ${coaBtn} ${locBtn}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                // 2. 桌機表格列
+                let orderCell = '-';
+                if (r.source_doc_no || r.weighbridge_no) {
+                    orderCell = '<div class="space-y-1">';
+                    if (r.source_doc_no) orderCell += `<div class="text-[11px] bg-slate-100 px-2 py-0.5 rounded font-mono">來源: ${r.source_doc_no}</div>`;
+                    if (r.weighbridge_no) orderCell += `<div class="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-mono">磅單: ${r.weighbridge_no}</div>`;
+                    orderCell += '</div>';
+                }
+
+                tableHtml += `
+                    <tr class="table-row text-xs text-gray-700">
+                        <td class="py-3 px-3.5 whitespace-nowrap">
+                            <div class="text-gray-500 font-mono text-[11px] mb-1">${r.created_at || ''}</div>
+                            ${statusBadge}
+                        </td>
+                        <td class="py-3 px-3 font-mono">${orderCell}</td>
+                        <td class="py-3 px-3 font-mono font-bold text-blue-700 text-sm">${r.batch_no || '-'}</td>
+                        <td class="py-3 px-3 font-semibold font-mono">${r.material_no || '-'}</td>
+                        <td class="py-3 px-3 font-bold text-rose-600 text-sm font-mono">${r.tank_no || '-'}</td>
+                        <td class="py-3 px-3">${r.delivery_place || '-'}</td>
+                        <td class="py-3 px-3 text-gray-600 max-w-[120px] truncate" title="${r.supplier}">${r.supplier || '-'}</td>
+                        <td class="py-3 px-3 text-center whitespace-nowrap">${coaBtn}</td>
+                        <td class="py-3 px-3 text-center whitespace-nowrap">${locBtn}</td>
+                    </tr>
+                `;
+            });
+
+            cardView.innerHTML = cardHtml;
+            tbody.innerHTML = tableHtml;
+        }
+
+        function updatePagination(p) {
+            document.getElementById('pageInfo').innerText = `第 ${p.page} 頁，共 ${p.totalPages} 頁 (共 ${p.total} 筆紀錄)`;
+            document.getElementById('prevBtn').disabled = (p.page <= 1);
+            document.getElementById('nextBtn').disabled = (p.page >= p.totalPages);
+        }
+
+        function changePage(delta) {
+            const targetPage = currentPage + delta;
+            if (targetPage >= 1 && targetPage <= totalPages) {
+                fetchRecords(targetPage);
+            }
+        }
+
+        function handleFilter(e) {
+            e.preventDefault();
+            fetchRecords(1);
+        }
+
+        function resetFilter() {
+            document.getElementById('searchInput').value = '';
+            setQuickDate('3'); // 重設為預設近 3 天
+        }
+
+        // 圖片燈箱控制
+        function openLightbox(url, title) {
+            document.getElementById('lightboxImg').src = url;
+            document.getElementById('lightboxTitle').innerText = title;
+            document.getElementById('lightboxDownload').href = url;
+            document.getElementById('lightboxModal').style.display = 'flex';
+        }
+
+        function closeLightbox(e) {
+            if (!e || e.target.id === 'lightboxModal') {
+                document.getElementById('lightboxModal').style.display = 'none';
+                document.getElementById('lightboxImg').src = '';
+            }
+        }
+
+        // CSV 匯出功能
+        async function exportCSV() {
+            const q = document.getElementById('searchInput').value.trim();
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            const params = new URLSearchParams({
+                page: 1,
+                limit: 1000,
+                q: q,
+                start_date: start,
+                end_date: end
+            });
+
+            try {
+                const res = await fetch(`/api/query?${params.toString()}`);
+                const result = await res.json();
+                if (!result.success || !result.data || result.data.length === 0) {
+                    alert('目前沒有符合條件的紀錄可供匯出');
+                    return;
+                }
+
+                let csv = "\uFEFF時間,料號,槽號,批號,送達地點,供應商,來源單號,磅單號,狀態,COA照片URL,地磅照片URL\n";
+                result.data.forEach(r => {
+                    const clean = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
+                    csv += [
+                        clean(r.created_at),
+                        clean(r.material_no),
+                        clean(r.tank_no),
+                        clean(r.batch_no),
+                        clean(r.delivery_place),
+                        clean(r.supplier),
+                        clean(r.source_doc_no),
+                        clean(r.weighbridge_no),
+                        clean(r.verification_status),
+                        clean(r.photo_batch_url),
+                        clean(r.photo_loc_url)
+                    ].join(',') + '\n';
+                });
+
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `COA核對紀錄_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert('匯出失敗: ' + err.message);
+            }
+        }
+
+        window.onload = () => {
+            // 預設近 3 天
+            setQuickDate('all');
+        };
+    </script>
+</body>
+</html>
