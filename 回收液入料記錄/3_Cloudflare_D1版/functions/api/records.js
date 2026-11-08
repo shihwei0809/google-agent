@@ -207,6 +207,18 @@ export async function onRequest(context) {
         const { id } = payload;
         if (id) {
           await env.DB.prepare("DELETE FROM recycle_records WHERE id = ?").bind(id).run();
+          // 同步清理 R2 照片空間
+          if (env.PHOTOS) {
+            try {
+              await Promise.all([
+                env.PHOTOS.delete(`${id}_before.jpg`),
+                env.PHOTOS.delete(`${id}_vehicle.jpg`),
+                env.PHOTOS.delete(`${id}_after.jpg`)
+              ]);
+            } catch (r2Err) {
+              console.warn("R2 照片清理略過", r2Err);
+            }
+          }
         }
         return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
       }

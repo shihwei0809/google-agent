@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recycle-d1-v17-longpress-and-direct-sync';
+const CACHE_NAME = 'recycle-d1-v18-r2-photos-sync';
 const urlsToCache = [
   './',
   './index.html',

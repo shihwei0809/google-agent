@@ -45,7 +45,7 @@
 <div id="updateBanner" onclick="location.reload(true)">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
 <div class="header" id="appHeader" style="user-select:none; -webkit-user-select:none;">
-    <span id="appHeaderTitle">入料記錄 App</span> <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v17-D1 (長按管理維護)</span>
+    <span id="appHeaderTitle">入料記錄 App</span> <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v18-D1 (R2 照片整合)</span>
     <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
@@ -140,10 +140,12 @@
 <div id="loading">🚀 雲端傳輸中...請稍候</div>
 
 <script>
-    // 雙雲端端點配置：
+    // 雲端端點配置：
     // D1_API: Cloudflare D1 資料庫 (毫秒級狀態讀寫、零延遲、原子事務)
-    // GAS_URL: Google Apps Script (專門負責背景將 Base64 照片存入 Google Drive)
+    // UPLOAD_API: Cloudflare R2 物件儲存 (照片直存 R2，免除 Google Drive 20GB 配額負擔)
+    // GAS_URL: Google Apps Script (備用純文字日誌紀錄)
     const D1_API = "/api/records";
+    const UPLOAD_API = "/api/upload";
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxRnwQm3KmR3eZSGFK4-cm5chGdj5jc8DJiTTvU-OzIkAX9qtFdvPsn_UgTEcuhaRkU/exec";
 
     // 監聽 Service Worker 主動推播的更新訊息與控制器切換事件
@@ -754,41 +756,55 @@
             if (navigator.onLine) {
                 if (submitBtn) submitBtn.innerText = '☁️ 雲端寫入中...';
                 try {
-                    // (A) 毫秒級更新 D1 狀態
-                    await fetch(D1_API, {
+                    let a_url = null;
+                    // (A) 先將入料後照片高速存入 Cloudflare R2 (免除 Google Drive 配額耗損)
+                    try {
+                        const upRes = await fetch(UPLOAD_API, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: id,
+                                a_b64: a_b64
+                            })
+                        });
+                        if (upRes.ok) {
+                            const upData = await upRes.json();
+                            if (upData.success) {
+                                a_url = upData.a_url;
+                            }
+                        }
+                    } catch (upErr) {
+                        console.warn("R2 照片上傳稍有延遲", upErr);
+                    }
+
+                    // (B) 毫秒級更新 D1 狀態與 R2 照片網址
+                    const d1Res = await fetch(D1_API, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             action: "after_feed",
                             id: id,
-                            client_after_time: afterTimeStr
+                            client_after_time: afterTimeStr,
+                            a_url: a_url
                         })
-                    }).catch(e => console.warn("直傳 D1 失敗", e));
+                    });
 
-                    // (B) 傳送 GAS 上傳入料後照片並更新 Google 試算表
-                    const gasRes = await fetch(GAS_URL, {
+                    if (d1Res.ok || d1Res.status === 404) {
+                        // 雲端完成，安全清除本機該筆記錄
+                        const delTx = db.transaction(["records"], "readwrite");
+                        delTx.objectStore("records").delete(id);
+                    }
+
+                    // (C) 非同步純文字備份至 Google Sheets (完全不傳 Base64 照片，0 耗損 Drive 空間)
+                    fetch(GAS_URL, {
                         method: 'POST',
                         body: JSON.stringify({
                             action: "after_feed",
                             id: id,
                             client_after_time: afterTimeStr,
-                            tank_level_after_b64: a_b64,
                             a_name: a_name
                         })
-                    });
-                    const gasData = await gasRes.json();
-                    if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複')))) {
-                        // 雲端完成，安全清除本機該筆記錄
-                        const delTx = db.transaction(["records"], "readwrite");
-                        delTx.objectStore("records").delete(id);
-                        if (gasData.a_url) {
-                            fetch(D1_API, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ action: "update_photos", id: id, a_url: gasData.a_url })
-                            }).catch(() => {});
-                        }
-                    }
+                    }).catch(() => {});
                 } catch (netErr) {
                     console.warn("直接雲端上傳稍有延遲，將退回背景重試", netErr);
                 }
@@ -837,174 +853,197 @@
                     if (r.status === 'completed' && r.syncState === 'new') {
                         if (!r.license_plate || !r.tBefore_b64 || !r.vPhoto_b64 || !r.tAfter_b64) continue;
 
-                        // 1. 先將結構化資料極速寫入 Cloudflare D1
+                        let t_url = r.tBeforeUrl || null;
+                        let v_url = r.vPhotoUrl || null;
+                        let a_url = r.tAfterUrl || null;
+
+                        // 1. 照片全數極速上傳至 Cloudflare R2 (免除 Google Drive 配額負擔)
                         try {
-                            await fetch(D1_API, {
+                            const uploadRes = await fetch(UPLOAD_API, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    id: r.id,
+                                    t_b64: r.tBefore_b64,
+                                    v_b64: r.vPhoto_b64,
+                                    a_b64: r.tAfter_b64
+                                })
+                            });
+                            if (uploadRes.ok) {
+                                const uploadData = await uploadRes.json();
+                                if (uploadData.success) {
+                                    t_url = uploadData.t_url;
+                                    v_url = uploadData.v_url;
+                                    a_url = uploadData.a_url;
+                                }
+                            }
+                        } catch (e) {
+                            console.warn("上傳照片至 R2 延遲", e);
+                        }
+
+                        // 2. 將完整入料與 R2 照片網址寫入 Cloudflare D1
+                        const d1Res = await fetch(D1_API, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: "complete_feed",
+                                id: r.id,
+                                date: r.date,
+                                license_plate: r.license_plate,
+                                client_before_time: r.client_before_time,
+                                client_after_time: r.client_after_time,
+                                t_url: t_url,
+                                v_url: v_url,
+                                a_url: a_url
+                            })
+                        });
+
+                        if (d1Res.ok) {
+                            // 同步完成，自手機 IndexedDB 移除
+                            const delTx = db.transaction(["records"], "readwrite");
+                            delTx.objectStore("records").delete(r.id);
+                            successCount++;
+
+                            // 純文字備份至 Google Sheets (不送 Base64，0 耗損 Google Drive 空間)
+                            fetch(GAS_URL, {
+                                method: 'POST',
                                 body: JSON.stringify({
                                     action: "complete_feed",
                                     id: r.id,
                                     date: r.date,
                                     license_plate: r.license_plate,
                                     client_before_time: r.client_before_time,
-                                    client_after_time: r.client_after_time
+                                    client_after_time: r.client_after_time,
+                                    t_name: r.t_name,
+                                    v_name: r.v_name,
+                                    a_name: r.a_name
                                 })
-                            });
-                        } catch (e) {
-                            console.warn("寫入 D1 失敗，將由 GAS 兜底", e);
-                        }
-
-                        // 2. 將照片上傳到 Google Drive (GAS)
-                        const gasPayload = {
-                            action: "complete_feed",
-                            id: r.id,
-                            date: r.date,
-                            license_plate: r.license_plate,
-                            client_before_time: r.client_before_time,
-                            client_after_time: r.client_after_time,
-                            tank_level_before_b64: r.tBefore_b64,
-                            vehicle_photo_b64: r.vPhoto_b64,
-                            tank_level_after_b64: r.tAfter_b64,
-                            t_name: r.t_name,
-                            v_name: r.v_name,
-                            a_name: r.a_name
-                        };
-                        const gasRes = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(gasPayload) });
-                        const gasData = await gasRes.json();
-                        
-                        if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複')))) {
-                            // 同步將照片連結回寫 D1
-                            if (gasData.t_url || gasData.v_url || gasData.a_url) {
-                                fetch(D1_API, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        action: "update_photos",
-                                        id: r.id,
-                                        t_url: gasData.t_url,
-                                        v_url: gasData.v_url,
-                                        a_url: gasData.a_url
-                                    })
-                                }).catch(e => console.warn("回寫照片至 D1 失敗", e));
-                            }
-                            // 同步完成，自手機 IndexedDB 移除
-                            const delTx = db.transaction(["records"], "readwrite");
-                            delTx.objectStore("records").delete(r.id);
-                            successCount++;
+                            }).catch(() => {});
                         }
                     }
                     // 情境 B：只完成入料前，上傳至雲端 pending
                     else if (r.status === 'pending' && r.syncState === 'new') {
                         if (!r.license_plate || !r.tBefore_b64 || !r.vPhoto_b64) continue;
 
-                        // 1. 先將狀態極速寫入 Cloudflare D1
+                        let t_url = r.tBeforeUrl || null;
+                        let v_url = r.vPhotoUrl || null;
+
+                        // 1. 先將入料前照片存入 Cloudflare R2
                         try {
-                            await fetch(D1_API, {
+                            const uploadRes = await fetch(UPLOAD_API, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    id: r.id,
+                                    t_b64: r.tBefore_b64,
+                                    v_b64: r.vPhoto_b64
+                                })
+                            });
+                            if (uploadRes.ok) {
+                                const uploadData = await uploadRes.json();
+                                if (uploadData.success) {
+                                    t_url = uploadData.t_url;
+                                    v_url = uploadData.v_url;
+                                }
+                            }
+                        } catch (e) {
+                            console.warn("上傳照片至 R2 延遲", e);
+                        }
+
+                        // 2. 將狀態與 R2 照片網址極速寫入 Cloudflare D1
+                        const d1Res = await fetch(D1_API, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: "before_feed",
+                                id: r.id,
+                                date: r.date,
+                                license_plate: r.license_plate,
+                                client_before_time: r.client_before_time,
+                                t_url: t_url,
+                                v_url: v_url
+                            })
+                        });
+
+                        if (d1Res.ok) {
+                            r.syncState = 'pending_synced';
+                            r.tBeforeUrl = t_url;
+                            r.vPhotoUrl = v_url;
+                            delete r.tBefore_b64; // 釋放記憶體
+                            delete r.vPhoto_b64;
+                            delete r.isProcessing;
+                            const updateTx = db.transaction(["records"], "readwrite");
+                            updateTx.objectStore("records").put(r);
+                            successCount++;
+
+                            // 純文字備份至 Google Sheets (不送 Base64，0 耗損 Google Drive 空間)
+                            fetch(GAS_URL, {
+                                method: 'POST',
                                 body: JSON.stringify({
                                     action: "before_feed",
                                     id: r.id,
                                     date: r.date,
                                     license_plate: r.license_plate,
-                                    client_before_time: r.client_before_time
+                                    client_before_time: r.client_before_time,
+                                    t_name: r.t_name,
+                                    v_name: r.v_name
                                 })
-                            });
-                        } catch (e) {
-                            console.warn("寫入 D1 失敗", e);
-                        }
-
-                        // 2. 將入料前照片上傳到 Google Drive (GAS)
-                        const gasPayload = {
-                            action: "before_feed",
-                            id: r.id,
-                            date: r.date,
-                            license_plate: r.license_plate,
-                            client_before_time: r.client_before_time,
-                            tank_level_before_b64: r.tBefore_b64,
-                            vehicle_photo_b64: r.vPhoto_b64,
-                            t_name: r.t_name,
-                            v_name: r.v_name
-                        };
-                        const gasRes = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(gasPayload) });
-                        const gasData = await gasRes.json();
-
-                        if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複')))) {
-                            // 同步將照片連結回寫 D1
-                            if (gasData.t_url || gasData.v_url) {
-                                fetch(D1_API, {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({
-                                        action: "update_photos",
-                                        id: r.id,
-                                        t_url: gasData.t_url,
-                                        v_url: gasData.v_url
-                                    })
-                                }).catch(e => console.warn("回寫照片至 D1 失敗", e));
-                            }
-                            r.syncState = 'pending_synced';
-                            delete r.isProcessing;
-                            const updateTx = db.transaction(["records"], "readwrite");
-                            updateTx.objectStore("records").put(r);
-                            successCount++;
+                            }).catch(() => {});
                         }
                     }
                     // 情境 C：入料前已在雲端，現在手機完成入料後
                     else if (r.status === 'completed' && r.syncState === 'pending_synced') {
-                        // 1. 立即更新 Cloudflare D1 完成狀態 (毫秒級，解決卡在前端清單不移除之痛點)
-                        let d1Res = null;
-                        try {
-                            d1Res = await fetch(D1_API, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    action: "after_feed",
-                                    id: r.id,
-                                    client_after_time: r.client_after_time
-                                })
-                            });
-                            
-                            // 若後台回傳 404 (紀錄已被刪除)，直接清掉本地快取
-                            if (d1Res.status === 404) {
-                                const delTx = db.transaction(["records"], "readwrite");
-                                delTx.objectStore("records").delete(r.id);
-                                successCount++;
-                                continue;
-                            }
-                        } catch (e) {
-                            console.warn("更新 D1 失敗", e);
-                        }
+                        let a_url = r.tAfterUrl || null;
 
-                        // 2. 將入料後照片上傳到 Google Drive (GAS)
-                        const gasPayload = {
-                            action: "after_feed",
-                            id: r.id,
-                            client_after_time: r.client_after_time,
-                            tank_level_after_b64: r.tAfter_b64,
-                            a_name: r.a_name
-                        };
-                        const gasRes = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify(gasPayload) });
-                        const gasData = await gasRes.json();
-
-                        // 關鍵防呆：若 GAS 成功、或者回報重複、或者回報 404「找不到該筆待入料紀錄」（表示後台已刪除）
-                        if (gasData.success || (gasData.message && (gasData.message.includes('已') || gasData.message.includes('重複'))) || (gasData.detail && gasData.detail.includes('找不到'))) {
-                            // 同步將照片連結回寫 D1
-                            if (gasData.a_url) {
-                                fetch(D1_API, {
+                        // 1. 將入料後照片存入 Cloudflare R2
+                        if (r.tAfter_b64) {
+                            try {
+                                const uploadRes = await fetch(UPLOAD_API, {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({
-                                        action: "update_photos",
                                         id: r.id,
-                                        a_url: gasData.a_url
+                                        a_b64: r.tAfter_b64
                                     })
-                                }).catch(e => console.warn("回寫照片至 D1 失敗", e));
+                                });
+                                if (uploadRes.ok) {
+                                    const uploadData = await uploadRes.json();
+                                    if (uploadData.success) {
+                                        a_url = uploadData.a_url;
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn("上傳照片至 R2 延遲", e);
                             }
+                        }
+
+                        // 2. 立即更新 Cloudflare D1 完成狀態與 R2 照片網址
+                        const d1Res = await fetch(D1_API, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                action: "after_feed",
+                                id: r.id,
+                                client_after_time: r.client_after_time,
+                                a_url: a_url
+                            })
+                        });
+
+                        if (d1Res.ok || d1Res.status === 404) {
                             const delTx = db.transaction(["records"], "readwrite");
                             delTx.objectStore("records").delete(r.id);
                             successCount++;
+
+                            // 純文字備份至 Google Sheets
+                            fetch(GAS_URL, {
+                                method: 'POST',
+                                body: JSON.stringify({
+                                    action: "after_feed",
+                                    id: r.id,
+                                    client_after_time: r.client_after_time,
+                                    a_name: r.a_name
+                                })
+                            }).catch(() => {});
                         }
                     }
                 } catch (e) {

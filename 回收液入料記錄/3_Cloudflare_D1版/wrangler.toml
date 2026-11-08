@@ -6,3 +6,7 @@ compatibility_date = "2024-03-20"
 binding = "DB"
 database_name = "egups-db"
 database_id = "b87a145c-937d-430b-94f0-1962255abd04"
+
+[[r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "recycle-photos"
