@@ -1,5 +1,27 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-08 三合一單與COA核對系統V46轉移至Cloudflare+R2+PWA雙邊同步架構、三大核心D1資料庫整併完成)
+* **台積三合一單與COA雙重核對系統 V46 (`C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單-to-PHP-Migration\` | 線上網址: `https://coa-check-pwa.pages.dev/`):**
+  - **雙軌架構正式發布 (Cloudflare Pages + Functions + D1 + R2 + PWA)**:
+    1. **前端雙軌離線防呆 (V46)**：連線時使用 Google Vision API，斷網時改用手機晶片離線 OCR（Tesseract.js）。
+    2. **嚴格現場卡控**：若現場核對「失敗」，即時亮紅燈警報攔截，**絕不上傳、絕不寫入暫存**；若核對「合格且斷網」，資料自動存入手機離線合格隊列，**一旦偵測到網路恢復，背景自動補傳**至 Cloudflare D1、R2 照片庫與 Google 試算表。
+    3. **雙邊寫入機制**：動態向既有 GAS Web App 索取金鑰與 Teams Webhook，資料核對合格後同時寫入 Cloudflare D1 與 Google 試算表對應的雙月份分頁（如 `Data_2026_11-12`），照片連結存為 R2 高畫質直連網址，零耗損 Google Drive 容量。
+    4. **42 筆歷史紀錄整合**：已追查確認原 `tsmc-verification-db` 為該系統前身版本，已將該 42 筆歷史核對資料完整遷移至 `egups-db.coa_verification_logs`，查詢頁面（`/query.html`）新舊紀錄完全合一。
+* **Cloudflare D1 資料庫整併大行動 (9 庫 ➔ 3 大核心庫，釋出 7 個可用額度)**:
+  - 依照三大核心資料庫規劃，完成逐一遷移與防呆刪除：
+    1. `coa-check-db` ➔ 結構遷入 `egups-db.coa_verification_logs`，已刪除。
+    2. `tsmc-verification-db` ➔ 42 筆歷史資料遷入 `egups-db.coa_verification_logs`，已刪除。
+    3. `nitrogen_valve_records` ➔ 遷入 `training-db` 與 `egups-db`，已刪除。
+    4. `chemflow_pro_db` ➔ `flow_data` 遷入 `egups-db`，已刪除。
+    5. `ipa-pwa-db` ➔ `ipa_data` (8筆) 與 `ipa_archives` (5筆) 遷入 `qc-db`，更新其 `wrangler.toml` 並推送 GitHub，已刪除。
+    6. `training-db` ➔ `materials` 與 `chat_logs` 遷入 `weather-monitor-db`，更新其 `wrangler.toml` 並推送 GitHub，已刪除。
+  - **目前 Cloudflare D1 僅保留三大核心資料庫 (名額剩餘 7 個)**:
+    1. 🏭 **`egups-db`** (`b87a145c-937d-430b-94f0-1962255abd04`): 生產管理、進耗存、回收液、三合一單與 COA 核對。
+    2. 🧪 **`qc-db`** (`a4cbfe74-f067-462b-b70a-be242f9fafb9`): 品管化驗、樣品管理、IPA 生產排程與進耗存。
+    3. 🌤️ **`weather-monitor-db`** (`521c2592-1953-42a3-a559-bd403c8d3017`): 廠務氣象監控、高低溫通報、員工教育訓練題庫與問答。
+
+---
+
 ## 今日進度與交接事項 (2026-11-07 永豐金證券 Shioaji 即時看盤儀表板專案建置、雙軌實盤/模擬盤架構、Windows CMD Big5 編碼防呆修復)
 * **永豐 Shioaji 即時看盤儀表板 (`C:\GOOGLE ANGET\shioaji-market-dashboard\` | 本機服務位址: `http://localhost:8088`):**
   - **完成專案核心後端與雙軌行情引擎 (`server.py`)**:
