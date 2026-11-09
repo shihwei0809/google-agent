@@ -148,31 +148,31 @@
     const UPLOAD_API = "/api/upload";
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxRnwQm3KmR3eZSGFK4-cm5chGdj5jc8DJiTTvU-OzIkAX9qtFdvPsn_UgTEcuhaRkU/exec";
 
-    // 監聽 Service Worker 主動推播的更新訊息與控制器切換事件
+    // 嚴謹的 Service Worker 更新偵測 (遵循 Google PWA 標準規範)
+    // 只有在「既有舊版控制中」且「下載到全新 Worker」時才提示更新；當前若為最新版則絕對不顯示！
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('message', event => {
-            if (event.data && event.data.type === 'VERSION_UPDATED') {
-                const banner = document.getElementById('updateBanner');
-                if (banner) banner.style.display = 'block';
-            }
-        });
-
+        // 當新版接管時，自動隱藏更新橫幅
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             const banner = document.getElementById('updateBanner');
-            if (banner) banner.style.display = 'block';
+            if (banner) banner.style.display = 'none';
         });
 
         navigator.serviceWorker.register('sw.js').then(reg => {
+            // 背景檢查是否有新版 sw.js
             reg.update();
-            if (reg.waiting) {
+
+            // 若原本已有舊 controller 且已有新 worker 在 waiting
+            if (reg.waiting && navigator.serviceWorker.controller) {
                 const banner = document.getElementById('updateBanner');
                 if (banner) banner.style.display = 'block';
             }
+
             reg.onupdatefound = () => {
-                const installingWorker = reg.installing;
-                if (installingWorker) {
-                    installingWorker.onstatechange = () => {
-                        if (installingWorker.state === 'installed' || installingWorker.state === 'activated') {
+                const newWorker = reg.installing;
+                if (newWorker) {
+                    newWorker.onstatechange = () => {
+                        // 關鍵條件：只有當本頁面原本就有舊版在控制 (controller)，且新版安裝完成時，才跳更新提示！
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                             const banner = document.getElementById('updateBanner');
                             if (banner) banner.style.display = 'block';
                         }

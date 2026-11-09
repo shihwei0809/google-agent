@@ -26,12 +26,7 @@ self.addEventListener('activate', event => {
           }
         })
       );
-    }).then(() => self.clients.claim()).then(() => {
-      // 主動通知所有開啟的畫面有更新
-      return self.clients.matchAll().then(clients => {
-        clients.forEach(client => client.postMessage({ type: 'VERSION_UPDATED' }));
-      });
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
