@@ -1,5 +1,36 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-09 雲端硬碟快照7天嚴格滾動封存修復、三合一單GAS即時無時差同步、排程字體純白樣式修正、易經多重分析系統undefined與維度修正)
+* **雲端硬碟收工快照嚴格滾動封存修復 (`AutoSync_OffWork_Drive.ps1`):**
+  - **排查修復原因**：原腳本僅依快照數量 `Count > 7` 判斷，逢例假日未開機（如 11/01～11/03）時，即使快照已超過 7 日曆天也不會封存；且原先檢查在今日同步前執行，導致今日快照一寫入，總數又變回 8 個。
+  - **雙重卡控機制**：
+    1. 條件一（日曆天數）：凡早於 7 天前之快照（`$snapDate < $cutoffDate`，早於 2026/11/01）一律無條件移至 `01_歷史按月封存\YYYY年MM月`。
+    2. 條件二（數量上限）：若保留數量已達 7 份，超額之較舊快照亦自動歸檔。
+    3. 執行順序調整：改於今日備份同步完成後執行檢查，確保 `00_最近7天收工快照` 內「永遠最多 7 天且最多 7 份快照」。
+  - **立即清理成果**：已將 10 月的 4 份超期快照（10/28、10/29、10/30、10/31）全數歸檔至 `01_歷史按月封存\2026年10月`，目前最近7天快照目錄保持乾淨的 4 份（11/04、11/05、11/07、11/08）。
+
+* **三合一單與 COA 核對系統 — GAS 即時雙向無時差同步 (`C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單-to-PHP-Migration\`):**
+  - **建立 Cloudflare 同步 API 接口 (`functions/api/sync-from-gas.js`)**:
+    1. 專供 Google Apps Script (GAS) 寫入試算表後即時推送資料至 Cloudflare D1。
+    2. 內建防呆去重（同批號＋同時間或同磅單自動跳過）、日期時間字串自動正規化與中文欄位自動轉換。
+  - **GAS 即時秒級推送代碼整合 (`Code.gs`)**:
+    1. 在 `processFormAndVerify_V10` 將紀錄 `appendRow` 寫入工作表的同一步驟，加入 `UrlFetchApp.fetch` 發送 JSON，現場人員使用 GAS 表單時，Google Sheet 與 Cloudflare D1 毫秒級同步寫入，不受雙月份切換分頁影響。
+    2. 補齊 2026-11-08 現場人員使用 GAS 寫入之 3 筆最新合格紀錄（626B07E29J1、626B07E3091、626B06E3181）至 `egups-db.coa_verification_logs`（ID: 224, 225, 226）。
+
+* **ACT / EGUPS 動態生產排程系統歷史存檔字體修正 (`C:\GOOGLE ANGET\ACT動態生產排程與進耗存整合系統\` | 線上網址: `https://prod-planner-pwa.pages.dev/`):**
+  - **字體顏色修復**：排查發現歷史存檔下拉選單動態添加之 class `text-indigo-600 font-bold` 在深色背景下拉中為暗藍色極難辨識，強制修正為純白色（`#ffffff`）粗體，並在全域 CSS 與元素行內樣式加上 `#historySelect, #historySelect option { color: #ffffff !important; background-color: #0f172a !important; }`，徹底根治瀏覽器下拉選單字體對比度問題。
+  - **部署配置齊全**：補齊專案根目錄之 `wrangler.toml` 與 `一鍵部署至Cloudflare.bat`，同步支援 `prod-planner-pwa` 與舊網址 `act-planner-pwa`。
+
+* **易見多重命理分析系統全面排查修復與專案收錄 (`C:\GOOGLE ANGET\第一類_核心網頁與互動系統\yijing-multi-analysis\` | 線上網址: `https://yijing-multi-analysis.shihwei0809.workers.dev/`):**
+  - **釐清卦象機制**：向使用者說明推演之卦為個人終身「生辰本命卦」（固定依 1982-08-09 丑時數理推算得雷火豐變澤火革），單選按鈕為「分析深度與報告主題」；在卦象區塊新增黃色醒目標籤引導卜卦時點擊「隨機起一卦」。
+  - **全面修復多處 `undefined` 錯誤**:
+    1. **`元神: undefined木`**：八字排盤計算核心 `calculateFullBazi` 回傳物件漏給 `dayMaster: dayStem` 屬性，導致標籤與文字顯示 undefined，已修正補齊為 `甲木 (身弱)`。
+    2. **五行條 `木行 ()` 空括號**：因 `dayMaster` undefined 導致判斷元神失效，修復為僅元神標註 `木行 (本命元神)`，其餘四行保持簡潔無空括號。
+    3. **深度維度卡片內容與 AI 提示詞脫鉤**：表單 radio key（`years`, `elements`, `ten`）與底層字典（`comprehensive`, `risk`, `growth`）未對齊，補齊三大維度專屬卡片內容，使選取「深入五行」與「深入十神」時下方卡片即時呈現不同分析面向，並將所選深度注入 AI Prompt。
+  - **專案結構標準化**：將原本暫存於 Codex 目錄之專案完整收錄至主庫 `C:\GOOGLE ANGET\第一類_核心網頁與互動系統\yijing-multi-analysis`，建立 `一鍵部署至Cloudflare.bat` 並納入 Git 版控。
+
+---
+
 ## 今日進度與交接事項 (2026-11-08 三合一單與COA核對系統V46轉移至Cloudflare+R2+PWA雙邊同步架構、三大核心D1資料庫整併完成、歷史222筆全數同步)
 * **台積三合一單與COA雙重核對系統 V46 (`C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單-to-PHP-Migration\` | 線上網址: `https://coa-check-pwa.pages.dev/`):**
   - **雙軌架構正式發布 (Cloudflare Pages + Functions + D1 + R2 + PWA)**:
