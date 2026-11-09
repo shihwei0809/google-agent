@@ -1,0 +1,2371 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>易見｜多重命理分析</title>
+  <meta name="description" content="以出生資料、生活情境與易經提問，產生可比較的個人參考報告。所有資料僅留存於本機瀏覽器。">
+  <style>
+    :root {
+      --ink: #162736;
+      --muted: #5a6b77;
+      --paper: #f5f0e7;
+      --card: #fffdf9;
+      --red: #9d4e37;
+      --red-dark: #7d3b27;
+      --green: #176b62;
+      --green-dark: #104e47;
+      --gold: #bc8b35;
+      --gold-soft: #f5e6c5;
+      --line: #dfd6c7;
+      --surface-teal: #edf6f3;
+      --shadow: 0 10px 28px rgba(22, 39, 54, 0.07);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(145deg, #f2eadc 0%, #f8f4ed 50%, #e4efec 100%);
+      color: var(--ink);
+      font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+      line-height: 1.72;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .wrap {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 28px 18px 64px;
+    }
+
+    /* 1. Hero 區塊 */
+    .hero {
+      background: linear-gradient(135deg, #163038 0%, #17544d 62%, #1d3c47 100%);
+      color: #fff;
+      border-radius: 24px;
+      padding: 44px 40px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 38px rgba(22, 48, 56, 0.18);
+      border: 1px solid rgba(188, 139, 53, 0.35);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -40px;
+      top: -40px;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      border: 1px solid rgba(237, 206, 128, 0.16);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      display: inline-block;
+      color: #edce80;
+      letter-spacing: 0.15em;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .hero h1 {
+      margin: 4px 0 12px;
+      font-size: clamp(2rem, 4.6vw, 3.1rem);
+      letter-spacing: 0.03em;
+      line-height: 1.25;
+    }
+
+    .hero p {
+      margin: 0 0 24px;
+      color: #e2ece9;
+      font-size: clamp(1rem, 2vw, 1.15rem);
+      max-width: 680px;
+    }
+
+    .hero-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--gold);
+      color: #13222b;
+      text-decoration: none;
+      font-weight: 700;
+      padding: 12px 24px;
+      border-radius: 999px;
+      transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-cta:hover,
+    .hero-cta:focus-visible {
+      background: #cfa049;
+      transform: translateY(-1px);
+    }
+
+    /* 2. 免責與隱私提示區 */
+    .privacy-banner {
+      background: #fdf5e2;
+      border-left: 5px solid var(--gold);
+      border-top: 1px solid #ecdcb8;
+      border-right: 1px solid #ecdcb8;
+      border-bottom: 1px solid #ecdcb8;
+      padding: 15px 20px;
+      margin: 22px 0;
+      border-radius: 0 14px 14px 0;
+      font-size: 0.95rem;
+      color: #3b2f1e;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .privacy-badge {
+      background: var(--gold);
+      color: #fff;
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      white-space: nowrap;
+      margin-top: 3px;
+    }
+
+    /* 3. 表單雙欄佈局 */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 26px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-sub {
+      margin: 4px 0 0;
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+
+    .field-group {
+      margin-bottom: 16px;
+    }
+
+    .field-label {
+      font-size: 0.93rem;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 6px;
+      color: var(--ink);
+    }
+
+    .req {
+      color: var(--red);
+      margin-left: 3px;
+    }
+
+    input[type="date"],
+    input[type="text"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1px solid #cdc2b0;
+      border-radius: 10px;
+      background: #fff;
+      font: inherit;
+      color: var(--ink);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(23, 107, 98, 0.14);
+    }
+
+    textarea {
+      min-height: 96px;
+      resize: vertical;
+    }
+
+    /* Radio 單選組 */
+    fieldset.option-fieldset {
+      border: 0;
+      padding: 0;
+      margin: 0 0 18px;
+    }
+
+    fieldset.option-fieldset legend {
+      font-size: 0.93rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--ink);
+      padding: 0;
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .choice-grid.cols-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .choice-grid.cols-1 {
+      grid-template-columns: 1fr;
+    }
+
+    .choice {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      background: #fff;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .choice:hover {
+      border-color: var(--gold);
+      background: #fffdf7;
+    }
+
+    .choice input[type="radio"] {
+      width: auto;
+      margin: 4px 0 0;
+      accent-color: var(--red);
+      flex-shrink: 0;
+    }
+
+    .choice:has(input:checked) {
+      border-color: var(--red);
+      background: #fdf6f3;
+      font-weight: 700;
+    }
+
+    .choice-desc {
+      display: block;
+      font-size: 0.79rem;
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* 表單錯誤提示 */
+    .error-msg {
+      background: #fdecea;
+      color: #8a2617;
+      border: 1px solid #f3c2ba;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .error-msg.visible {
+      display: block;
+    }
+
+    /* 按鈕區 */
+    .action-bar {
+      margin-top: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      background: var(--red);
+      color: #fff;
+      padding: 12px 22px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.12s;
+    }
+
+    button:hover {
+      background: var(--red-dark);
+    }
+
+    button:active {
+      transform: scale(0.99);
+    }
+
+    button.secondary {
+      background: #e1efec;
+      color: var(--green-dark);
+      border: 1px solid #bdd9d3;
+    }
+
+    button.secondary:hover {
+      background: #d1e6e1;
+    }
+
+    button.outline {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button.outline:hover {
+      background: #f6f2ea;
+    }
+
+    /* 4. 互動分析結果區 */
+    .result-section {
+      margin-top: 28px;
+      border: 2px solid #b5d0c8;
+      background: var(--surface-teal);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: var(--shadow);
+    }
+
+    .result-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      border-bottom: 1px solid #cce0da;
+      padding-bottom: 16px;
+      margin-bottom: 16px;
+    }
+
+    .result-header h2 {
+      margin: 0 0 8px;
+      color: var(--red);
+      font-size: 1.6rem;
+    }
+
+    .summary-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .summary-tags span {
+      display: inline-flex;
+      align-items: center;
+      background: #d9ece6;
+      color: var(--green-dark);
+      border: 1px solid #b8d8cf;
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+
+    .summary-tags span.tag-gold {
+      background: var(--gold-soft);
+      color: #5c4012;
+      border-color: #e2c78c;
+    }
+
+    .calendar-notice {
+      background: #fffdf8;
+      border-left: 4px solid var(--green);
+      border-radius: 0 10px 10px 0;
+      padding: 11px 15px;
+      font-size: 0.9rem;
+      color: #26433f;
+      margin: 0 0 20px;
+    }
+
+    /* 三張並排卡片 */
+    .report-cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 18px 0;
+    }
+
+    .report-card {
+      background: #fff;
+      border: 1px solid #c6dcd5;
+      border-top: 4px solid var(--red);
+      border-radius: 14px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .report-card:nth-child(2) {
+      border-top-color: var(--green);
+    }
+
+    .report-card:nth-child(3) {
+      border-top-color: var(--gold);
+    }
+
+    .report-card h3 {
+      color: var(--ink);
+      font-size: 1.08rem;
+      margin: 0 0 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-badge {
+      font-size: 0.76rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: #f3efe6;
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    .report-card p {
+      margin: 0 0 10px;
+      font-size: 0.93rem;
+    }
+
+    .report-list {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 0.9rem;
+      color: #2c3e4c;
+    }
+
+    .report-list li {
+      margin-bottom: 6px;
+    }
+
+    .detail-panel {
+      background: #fff;
+      border: 1px solid #c8ddd6;
+      border-radius: 14px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+
+    .detail-panel h3 {
+      margin: 0 0 10px;
+      color: var(--green);
+      font-size: 1.15rem;
+      border-left: 4px solid var(--gold);
+      padding-left: 10px;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .detail-box {
+      background: #faf7f0;
+      border: 1px solid #e6decb;
+      border-radius: 10px;
+      padding: 13px 15px;
+    }
+
+    .detail-box h4 {
+      margin: 0 0 6px;
+      font-size: 0.95rem;
+      color: var(--red);
+    }
+
+    .detail-box p {
+      margin: 0;
+      font-size: 0.9rem;
+    }
+
+    /* 易經六爻視覺區 */
+    .hexagram-box {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      background: #fdfaf3;
+      border: 1px solid #e4d8be;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-top: 12px;
+    }
+
+    .hexagram-lines {
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 7px;
+      width: 130px;
+      padding: 12px 16px;
+      background: #1b2e38;
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    .hex-line {
+      height: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hex-line.yang .bar {
+      width: 100%;
+      height: 100%;
+      background: #edce80;
+      border-radius: 2px;
+    }
+
+    .hex-line.yin .bar {
+      width: 44%;
+      height: 100%;
+      background: #edce80;
+      border-radius: 2px;
+    }
+
+    .hexagram-meta {
+      flex: 1;
+      min-width: 220px;
+    }
+
+    .hexagram-meta p {
+      margin: 0 0 6px;
+      font-size: 0.92rem;
+    }
+
+    .report-disclaimer {
+      margin-top: 18px;
+      padding: 12px 16px;
+      background: #f7efe0;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #554732;
+    }
+
+    .report-actions {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    /* AI 深度顧問面板 */
+    .ai-panel {
+      background: linear-gradient(145deg, #fffdf8 0%, #f6efe0 100%);
+      border: 1.5px solid var(--gold);
+      border-radius: 14px;
+      padding: 20px;
+      margin-top: 16px;
+    }
+
+    .ai-panel-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .ai-panel h3 {
+      margin: 0;
+      color: #5c4012;
+      font-size: 1.15rem;
+      border-left: 4px solid var(--red);
+      padding-left: 10px;
+    }
+
+    .ai-privacy-tag {
+      font-size: 0.78rem;
+      background: #efe2c4;
+      color: #5c4012;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+
+    .ai-controls {
+      display: grid;
+      grid-template-columns: 220px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .ai-key-input {
+      font-size: 0.88rem;
+      padding: 10px 12px;
+    }
+
+    .ai-output {
+      margin-top: 14px;
+      background: #fff;
+      border: 1px solid #e2d4b7;
+      border-radius: 10px;
+      padding: 16px 18px;
+      white-space: pre-wrap;
+      font-size: 0.93rem;
+      line-height: 1.78;
+      color: var(--ink);
+    }
+
+    .ai-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-bottom: 1px dashed #e2d4b7;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+    }
+
+    .ai-error {
+      margin-top: 12px;
+      background: #fdecea;
+      border: 1px solid #f3c2ba;
+      color: #8a2617;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.88rem;
+      white-space: pre-wrap;
+    }
+
+    /* 5. FAQ 區塊 */
+    .faq-section {
+      margin-top: 32px;
+    }
+
+    .faq-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    details.faq-item {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 18px;
+    }
+
+    details.faq-item summary {
+      font-weight: 700;
+      cursor: pointer;
+      color: var(--ink);
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    details.faq-item summary::-webkit-details-marker {
+      display: none;
+    }
+
+    details.faq-item summary::after {
+      content: "＋";
+      color: var(--gold);
+      font-weight: 700;
+    }
+
+    details.faq-item[open] summary::after {
+      content: "－";
+    }
+
+    details.faq-item p {
+      margin: 10px 0 0;
+      font-size: 0.92rem;
+      color: var(--muted);
+      border-top: 1px dashed var(--line);
+      padding-top: 10px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* 6. 頁尾 */
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-top: 36px;
+      padding-top: 20px;
+      border-top: 1px solid var(--line);
+    }
+
+    /* 響應式：手機 375px 優化 */
+    @media (max-width: 820px) {
+      .form-grid,
+      .report-cards,
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding: 30px 22px;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .wrap {
+        padding: 16px 12px 44px;
+      }
+
+      .card,
+      .result-section {
+        padding: 18px 15px;
+      }
+
+      .choice-grid,
+      .choice-grid.cols-3 {
+        grid-template-columns: 1fr;
+      }
+
+      .privacy-banner {
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .action-bar button,
+      .report-actions button {
+        width: 100%;
+      }
+
+      .ai-controls {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* 列印／另存 PDF 樣式 */
+    @media print {
+      body {
+        background: #fff;
+        color: #000;
+      }
+
+      .hero-cta,
+      #analysis-form,
+      .faq-section,
+      .report-actions,
+      .ai-controls {
+        display: none !important;
+      }
+
+      .wrap {
+        max-width: 100%;
+        padding: 0;
+      }
+
+      .hero {
+        background: #fff !important;
+        color: #000 !important;
+        border: 1px solid #000;
+        padding: 16px;
+        box-shadow: none;
+      }
+
+      .hero p,
+      .hero-eyebrow {
+        color: #333 !important;
+      }
+
+      .result-section {
+        border: 1px solid #888;
+        background: #fff;
+        box-shadow: none;
+        margin-top: 12px;
+        padding: 16px;
+      }
+
+      .report-cards {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .report-card,
+      .detail-panel,
+      .detail-box {
+        break-inside: avoid;
+      }
+    }
+  
+    /* === 八字四柱與五行排盤視覺樣式 === */
+    .bazi-dashboard {
+      background: #fff;
+      border: 1px solid var(--line, #dfd6c7);
+      border-radius: 18px;
+      padding: 24px;
+      margin: 20px 0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    }
+    .bazi-dash-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px dashed var(--line, #dfd6c7);
+    }
+    .bazi-dash-title {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: var(--ink, #162736);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .bazi-master-tag {
+      background: #1e2e3a;
+      color: #fff;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .bazi-pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 680px) {
+      .bazi-pillars-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    .bazi-col {
+      background: #fbf9f5;
+      border: 1px solid #ebd8be;
+      border-radius: 12px;
+      padding: 14px 10px;
+      text-align: center;
+      position: relative;
+    }
+    .bazi-col-name {
+      font-size: 0.82rem;
+      color: var(--muted, #637380);
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .bazi-tengod {
+      font-size: 0.82rem;
+      color: var(--gold, #bc8b35);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .bazi-char-box {
+      margin: 6px 0;
+    }
+    .bazi-char {
+      font-size: 2.2rem;
+      font-weight: 800;
+      line-height: 1.1;
+      font-family: "KaiTi", "BiauKai", "DFKai-SB", "Microsoft JhengHei", serif;
+      display: block;
+    }
+    .bazi-c-tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+    .elem-wood { color: #166534; background: #dcfce7; }
+    .elem-fire { color: #991b1b; background: #fee2e2; }
+    .elem-earth { color: #92400e; background: #fef3c7; }
+    .elem-metal { color: #475569; background: #f1f5f9; }
+    .elem-water { color: #075985; background: #e0f2fe; }
+
+    .bazi-hidden-stems {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      color: #718096;
+      border-top: 1px dotted #e2e8f0;
+      padding-top: 6px;
+    }
+
+    /* 五行能量分佈 */
+    .element-bars-wrap {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 14px;
+    }
+    .element-bar-row {
+      display: flex;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 0.88rem;
+    }
+    .elem-bar-label {
+      width: 75px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .elem-bar-track {
+      flex: 1;
+      height: 12px;
+      background: #e2e8f0;
+      border-radius: 6px;
+      overflow: hidden;
+      margin: 0 10px;
+    }
+    .elem-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .elem-bar-val {
+      width: 45px;
+      text-align: right;
+      font-weight: bold;
+      color: var(--ink, #162736);
+    }
+
+    /* 易經梅花起卦卦象面板 */
+    .yijing-hex-panel {
+      background: #fff;
+      border: 1px solid var(--line, #dfd6c7);
+      border-radius: 18px;
+      padding: 24px;
+      margin: 20px 0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    }
+    .hex-triplet-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin: 16px 0;
+    }
+    @media (max-width: 768px) {
+      .hex-triplet-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .hex-card {
+      background: #fdfaf6;
+      border: 1px solid #e9dcc9;
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+    }
+    .hex-card-tag {
+      font-size: 0.8rem;
+      font-weight: bold;
+      color: #9d4e37;
+      margin-bottom: 6px;
+    }
+    .hex-big-name {
+      font-size: 1.45rem;
+      font-weight: bold;
+      color: var(--ink, #162736);
+      margin: 4px 0 8px;
+    }
+    .hex-symbol {
+      font-size: 2.8rem;
+      line-height: 1;
+      margin: 8px 0;
+      color: #1e2e3a;
+    }
+    .hex-lines-visual {
+      display: inline-flex;
+      flex-direction: column-reverse;
+      gap: 5px;
+      margin: 10px auto;
+      padding: 8px;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid #eee;
+    }
+    .hex-line-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      width: 70px;
+      height: 7px;
+    }
+    .hex-line-yang {
+      width: 100%;
+      height: 100%;
+      background: #1e2e3a;
+      border-radius: 2px;
+    }
+    .hex-line-yin-left, .hex-line-yin-right {
+      width: 45%;
+      height: 100%;
+      background: #1e2e3a;
+      border-radius: 2px;
+    }
+    .hex-line-yin-gap {
+      width: 10%;
+    }
+    .hex-line-moving {
+      background: #e11d48 !important;
+      box-shadow: 0 0 6px rgba(225, 29, 72, 0.4);
+    }
+    .hex-desc {
+      font-size: 0.85rem;
+      color: #4a5568;
+      line-height: 1.6;
+      margin-top: 8px;
+    }
+    .dynamic-badge {
+      background: #eef2ff !important;
+      color: #4338ca !important;
+      border: 1px solid #c7d2fe !important;
+      font-size: 0.8rem !important;
+      font-weight: 600 !important;
+    }
+</style>
+</head>
+<body>
+  <main class="wrap">
+    <!-- 1. Hero 區塊 -->
+    <header class="hero" role="banner">
+      <span class="hero-eyebrow">YI JING · MULTI-SCENARIO REFLECTION</span>
+      <h1>易見｜多重命理分析</h1>
+      <p>以出生資料、生活情境與易經提問，產生可比較的個人參考報告。</p>
+      <a href="#analysis-form" class="hero-cta" aria-label="捲動至輸入表單開始分析">開始我的分析 ↓</a>
+    </header>
+
+    <!-- 2. 免責與隱私提示區 -->
+    <aside class="privacy-banner" aria-label="隱私與免責聲明">
+      <span class="privacy-badge">隱私與定位</span>
+      <div>
+        出生資料不會傳送或儲存到伺服器；本公開版僅在你的瀏覽器內生成結果。內容為傳統文化與自我反思用途，不構成投資、醫療、法律或人生事件預測。
+      </div>
+    </aside>
+
+    <!-- 3. 輸入表單 -->
+    <form id="analysis-form" novalidate aria-label="多重命理與財務情境輸入表單">
+      <div class="form-grid">
+        <!-- 左欄：A. 基本資料 -->
+        <section class="card" aria-labelledby="sec-basic-title">
+          <div class="card-header">
+            <h2 id="sec-basic-title">A. 基本資料與提問</h2>
+            <p class="card-sub">僅於您的瀏覽器本機運算，用於產生文化性干支摘要與提問脈絡。</p>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="birth-date">出生日期<span class="req" aria-hidden="true">*</span></label>
+            <input required id="birth-date" name="birthDate" type="date" value="1990-01-01" aria-required="true">
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="birth-time">出生時間（十二時辰）<span class="req" aria-hidden="true">*</span></label>
+            <select required id="birth-time" name="birthTime" aria-required="true">
+              <option value="">請選擇出生時辰</option>
+              <option value="子">子時（23:00–00:59）</option>
+              <option value="丑">丑時（01:00–02:59）</option>
+              <option value="寅">寅時（03:00–04:59）</option>
+              <option value="卯">卯時（05:00–06:59）</option>
+              <option value="辰">辰時（07:00–08:59）</option>
+              <option value="巳">巳時（09:00–10:59）</option>
+              <option value="午" selected>午時（11:00–12:59）</option>
+              <option value="未">未時（13:00–14:59）</option>
+              <option value="申">申時（15:00–16:59）</option>
+              <option value="酉">酉時（17:00–18:59）</option>
+              <option value="戌">戌時（19:00–20:59）</option>
+              <option value="亥">亥時（21:00–22:59）</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="birth-place">出生地（城市／地區）</label>
+            <input id="birth-place" name="birthPlace" type="text" value="" placeholder="例如：臺北、臺中、高雄">
+          </div>
+
+          <div class="field-group">
+            <fieldset class="option-fieldset">
+              <legend>性別</legend>
+              <div class="choice-grid cols-3">
+                <label class="choice"><input type="radio" name="gender" value="男性"><span>男性</span></label>
+                <label class="choice"><input type="radio" name="gender" value="女性"><span>女性</span></label>
+                <label class="choice"><input type="radio" name="gender" value="不指定" checked><span>不指定</span></label>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="question">想問的易經問題</label>
+            <textarea id="question" name="question" placeholder="未來一年應優先加強本業還是開展副業？"></textarea>
+          </div>
+        </section>
+
+        <!-- 右欄：B. 多重情境分析選項 -->
+        <section class="card" aria-labelledby="sec-scenario-title">
+          <div class="card-header">
+            <h2 id="sec-scenario-title">B. 多重情境分析選項</h2>
+            <p class="card-sub">切換任一選項皆會即時重組策略報告，方便橫向比較不同人生與財務配置。</p>
+          </div>
+
+          <!-- 1. 收入來源 -->
+          <fieldset class="option-fieldset">
+            <legend>收入來源（單選）</legend>
+            <div class="choice-grid">
+              <label class="choice">
+                <input type="radio" name="income" value="salary" checked>
+                <span>薪資為主，投資為輔</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="income" value="balanced">
+                <span>薪資與投資各半</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="income" value="side">
+                <span>投資與副業為主</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="income" value="business">
+                <span>有自己的事業</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- 2. 投資項目 -->
+          <fieldset class="option-fieldset">
+            <legend>投資項目（單選）</legend>
+            <div class="choice-grid">
+              <label class="choice">
+                <input type="radio" name="asset" value="mixed" checked>
+                <span>股票、ETF、BTC、ETH</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="asset" value="crypto">
+                <span>主要是 BTC、ETH</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="asset" value="property">
+                <span>股票、ETF、不動產</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="asset" value="safe">
+                <span>存款、定存、不動產</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="asset" value="none">
+                <span>目前尚未固定投資</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- 3. 資產目標 -->
+          <fieldset class="option-fieldset">
+            <legend>資產目標（單選）</legend>
+            <div class="choice-grid">
+              <label class="choice">
+                <input type="radio" name="goal" value="g300">
+                <span>300～500 萬</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="goal" value="g500">
+                <span>500～1000 萬</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="goal" value="g1000" checked>
+                <span>1000～2000 萬</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="goal" value="g2000">
+                <span>2000 萬以上</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- 4. 風險承受度 -->
+          <fieldset class="option-fieldset">
+            <legend>風險承受度（單選）</legend>
+            <div class="choice-grid cols-3">
+              <label class="choice">
+                <input type="radio" name="risk" value="low">
+                <span>保守</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="risk" value="mid" checked>
+                <span>中等</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="risk" value="high">
+                <span>積極</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- 5. 研究方向 -->
+          <fieldset class="option-fieldset">
+            <legend>研究方向（單選）</legend>
+            <div class="choice-grid cols-1">
+              <label class="choice">
+                <input type="radio" name="focus" value="wealth" checked>
+                <span>財富與投資：正財、偏財、財庫、投資風險</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="focus" value="career">
+                <span>事業與官運：升遷、管理職、貴人、創業</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="focus" value="life">
+                <span>人生完整命盤：家庭、感情、子女、健康及晚年</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <!-- 6. 分析深度 -->
+          <fieldset class="option-fieldset" style="margin-bottom: 0;">
+            <legend>分析深度（單選）</legend>
+            <div class="choice-grid cols-1">
+              <label class="choice">
+                <input type="radio" name="depth" value="years" checked>
+                <span>逐年規劃 2026～2045</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="depth" value="elements">
+                <span>深入五行、格局、喜用神</span>
+              </label>
+              <label class="choice">
+                <input type="radio" name="depth" value="ten">
+                <span>深入十神與格局</span>
+              </label>
+            </div>
+          </fieldset>
+        </section>
+      </div>
+
+      <div id="form-error" class="error-msg" role="alert" aria-live="assertive"></div>
+
+      <div class="action-bar">
+        <button type="submit" id="btn-submit">產生多重分析報告</button>
+        <button type="button" id="btn-cast" class="secondary">隨機起一卦</button>
+      </div>
+    </form>
+
+    <!-- 4. 互動分析結果區 -->
+    <section id="result-section" class="result-section hidden" aria-live="polite" aria-labelledby="report-title">
+      <div class="result-header">
+        <div>
+          <h2 id="report-title">你的專屬多重命盤與財務策略報告</h2>
+          <div id="summary-tags" class="summary-tags" aria-label="出生資料與情境摘要標籤"></div>
+        </div>
+      </div>
+
+      <!-- 1. 四柱八字排盤卡片 -->
+      <div class="bazi-dashboard">
+        <div class="bazi-dash-header">
+          <div class="bazi-dash-title">
+            <span>🎴 個人本命四柱八字排盤</span>
+            <span id="bazi-summary-text" style="font-size: 0.9rem; font-weight: normal; color: var(--muted);"></span>
+          </div>
+          <div id="bazi-master-status" class="bazi-master-tag"></div>
+        </div>
+
+        <div id="bazi-pillars" class="bazi-pillars-grid">
+          <!-- 4 Pillars rendered here by JS -->
+        </div>
+
+        <!-- 五行能量旺衰圖 -->
+        <div class="element-bars-wrap">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <strong style="font-size: 0.95rem;">☯ 本命五行能量分佈與喜用神</strong>
+            <span id="bazi-favorable-badge" style="font-size: 0.85rem; color: #166534; font-weight: bold;"></span>
+          </div>
+          <div id="element-bars-list">
+            <!-- 5 Element bars rendered here by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 易經梅花起卦與時運變卦 -->
+      <div class="yijing-hex-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; border-bottom: 1px dashed var(--line); padding-bottom: 10px;">
+          <h3 style="margin: 0; font-size: 1.15rem; color: var(--ink);">📜 易經生辰本命卦與時運推演</h3>
+          <span id="yijing-moving-line-tip" style="font-size: 0.85rem; color: #b91c1c; font-weight: bold;"></span>
+        </div>
+        <p id="yijing-lead-text" style="font-size: 0.92rem; color: var(--muted); margin-bottom: 14px;"></p>
+        
+        <div class="hex-triplet-grid">
+          <div class="hex-card" id="card-hex-main">
+            <div class="hex-card-tag">本卦（當前局勢根基）</div>
+            <div id="hex-main-symbol" class="hex-symbol"></div>
+            <div id="hex-main-name" class="hex-big-name"></div>
+            <div id="hex-main-lines" class="hex-lines-visual"></div>
+            <div id="hex-main-desc" class="hex-desc"></div>
+          </div>
+
+          <div class="hex-card" id="card-hex-mutual">
+            <div class="hex-card-tag" style="color: #bc8b35;">互卦（內在互通發展）</div>
+            <div id="hex-mutual-symbol" class="hex-symbol"></div>
+            <div id="hex-mutual-name" class="hex-big-name"></div>
+            <div id="hex-mutual-lines" class="hex-lines-visual"></div>
+            <div id="hex-mutual-desc" class="hex-desc"></div>
+          </div>
+
+          <div class="hex-card" id="card-hex-changed">
+            <div class="hex-card-tag" style="color: #0369a1;">變卦（未來動向與落點）</div>
+            <div id="hex-changed-symbol" class="hex-symbol"></div>
+            <div id="hex-changed-name" class="hex-big-name"></div>
+            <div id="hex-changed-lines" class="hex-lines-visual"></div>
+            <div id="hex-changed-desc" class="hex-desc"></div>
+          </div>
+        </div>
+        
+        <div id="yijing-decision-box" style="background: #fff8eb; border-left: 4px solid var(--gold); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 0.9rem; margin-top: 14px;"></div>
+      </div>
+
+      <!-- 3. 三大核心卡片（八字+十神+五行+易經卦象全動態計算） -->
+      <div class="report-cards">
+        <article class="report-card" aria-labelledby="card-income-title">
+          <div>
+            <h3 id="card-income-title">
+              <span>收入與事業策略</span>
+              <span id="badge-income" class="card-badge dynamic-badge"></span>
+            </h3>
+            <p id="income-summary"></p>
+            <ul id="income-points" class="report-list"></ul>
+          </div>
+        </article>
+
+        <article class="report-card" aria-labelledby="card-asset-title">
+          <div>
+            <h3 id="card-asset-title">
+              <span>資產架構</span>
+              <span id="badge-asset" class="card-badge dynamic-badge"></span>
+            </h3>
+            <p id="asset-summary"></p>
+            <ul id="asset-points" class="report-list"></ul>
+          </div>
+        </article>
+
+        <article class="report-card" aria-labelledby="card-risk-title">
+          <div>
+            <h3 id="card-risk-title">
+              <span>風險與目標</span>
+              <span id="badge-risk-goal" class="card-badge dynamic-badge"></span>
+            </h3>
+            <p id="risk-summary"></p>
+            <p id="goal-summary"></p>
+            <ul id="risk-goal-points" class="report-list"></ul>
+          </div>
+        </article>
+      </div>
+
+      <!-- 本次研究焦點 -->
+      <article class="detail-panel" aria-labelledby="panel-focus-title">
+        <h3 id="panel-focus-title">本次研究焦點</h3>
+        <p id="focus-lead"></p>
+        <div id="focus-grid" class="detail-grid"></div>
+      </article>
+
+      <!-- 分析角度 -->
+      <article class="detail-panel" aria-labelledby="panel-depth-title">
+        <h3 id="panel-depth-title">分析角度</h3>
+        <p id="depth-lead"></p>
+        <div id="depth-grid" class="detail-grid"></div>
+      </article>
+
+      <!-- AI 深度綜合解讀顧問（三軌混合模式：內建 Groq 高速引擎 + 內建 Cloudflare Workers AI + 選填自備 Gemini Key） -->
+      <article class="ai-panel" aria-labelledby="panel-ai-title">
+        <div class="ai-panel-header">
+          <h3 id="panel-ai-title">✨ AI 深度綜合命盤解讀（已為您自動聯動推演）</h3>
+          <span class="ai-privacy-tag">已將真實四柱八字、十神與易經爻象全量融合</span>
+        </div>
+        <p style="margin: 0; font-size: 0.9rem; color: var(--muted);">
+          系統已將您的「四柱八字、日元旺衰喜用、易經本卦/互卦/變卦六爻結構」與「財務問卷」全量打包，直接呼叫 AI 引擎撰寫專屬解讀。
+        </p>
+        <div class="ai-controls">
+          <select id="ai-engine-select" aria-label="選擇 AI 推演引擎">
+            <option value="groq" selected>⚡ 內建 Groq 高速引擎 (預設)</option>
+            <option value="cloudflare">☁️ 內建 Cloudflare AI</option>
+            <option value="gemini">🔑 自備 Gemini API Key</option>
+          </select>
+          <input
+            type="password"
+            id="gemini-api-key"
+            class="ai-key-input"
+            placeholder="選填個人 Gemini API Key（若填寫將優先使用 Gemini 直連，留空自動用內建 Groq / Cloudflare）"
+            aria-label="選填個人 Gemini API Key"
+            autocomplete="off"
+          >
+          <button type="button" id="btn-ai-generate">🔄 重新推演 AI 深度解讀</button>
+        </div>
+        <div id="ai-error-box" class="ai-error hidden" role="alert"></div>
+        <div id="ai-output-box" class="ai-output" aria-live="polite">
+          <div class="ai-meta-bar">
+            <span id="ai-provider-badge">AI 模型推演中...</span>
+            <span>融合四柱八字、易經象數與現代財務規劃</span>
+          </div>
+          <div id="ai-result-text">
+            <p style="color: var(--muted); font-style: italic;">⏳ 正在結合您的「四柱八字（年柱、月柱、日柱、時柱）」與「易經本卦變卦」進行深度推演，請稍候 3~5 秒...</p>
+          </div>
+        </div>
+      </article>
+
+      <!-- 報告底部免責說明 -->
+      <div class="report-disclaimer">
+        <strong>免責與自我反思說明：</strong>出生資料僅在您的瀏覽器記憶體計算，不作任何商業儲存。內容融合東方傳統哲學、八字象數與現代財務自我反思用途，不構成具體投資保證、醫療診斷或人生宿命預測。重大決策請依據實際財務數據並諮詢專業人士。
+      </div>
+
+      <!-- 報告操作按鈕 -->
+      <div class="report-actions">
+        <button type="button" id="btn-print">列印／另存 PDF</button>
+        <button type="button" id="btn-reset" class="outline">重新設定</button>
+      </div>
+    </section>
+
+    <!-- 5. FAQ 區塊 -->
+    <section class="card faq-section" aria-labelledby="faq-title">
+      <div class="card-header">
+        <h2 id="faq-title">常見問題（FAQ）</h2>
+        <p class="card-sub">關於「易見｜多重命理分析」的運作方式、隱私保護與設計理念。</p>
+      </div>
+      <div class="faq-list">
+        <details class="faq-item">
+          <summary>我的出生日期、時辰與資產選項會被上傳或儲存嗎？</summary>
+          <p>不會。本網站第一版採純前端瀏覽器計算，所有表單輸入、情境切換與隨機起卦皆在您的裝置記憶體內完成，不會傳送至任何遠端伺服器或第三方資料庫。</p>
+        </details>
+        <details class="faq-item">
+          <summary>為什麼稱為「多重命理分析」？應該如何使用？</summary>
+          <p>傳統命理常被誤用為單一宿命結論。本工具將干支文化象意結合「收入結構、資產配置、風險紅線與人生階段」，當您切換不同選項時，系統會即時重組策略報告，讓您對比不同財務與職涯路徑的風險與行動重點。</p>
+        </details>
+        <details class="faq-item">
+          <summary>公開版的八字干支與正式專業排盤有何差異？</summary>
+          <p>公開版僅根據西元出生年份與所選時辰提供文化性摘要標籤。完整的專業八字四柱排盤需依據立春等二十四節氣交節時刻、出生地經度（真太陽時）與大運起算規則校正，已列為下一階段架構預留項目。</p>
+        </details>
+        <details class="faq-item">
+          <summary>「隨機起一卦」的六爻結果代表吉凶預言嗎？</summary>
+          <p>不代表吉凶預言。隨機起卦產生的六爻線條僅作為「易經提問反思提示」，協助您檢視問題是否具體、行動邊界是否清晰，請務必回到問題脈絡與現實條件做判斷。</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- 6. 頁尾 -->
+    <footer>
+      易見公開測試版 · 所有輸入僅留在本機瀏覽器
+    </footer>
+  </main>
+
+  <script>
+    /**
+     * 易見｜多重命理與現代財務策略分析引擎 (真實八字 + 真實易經六十四卦 + AI深度推演)
+     */
+    const STEMS = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+    const BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+    const STEM_ELEMENTS = { '甲':'木', '乙':'木', '丙':'火', '丁':'火', '戊':'土', '己':'土', '庚':'金', '辛':'金', '壬':'水', '癸':'水' };
+    const BRANCH_ELEMENTS = { '子':'水', '丑':'土', '寅':'木', '卯':'木', '辰':'土', '巳':'火', '午':'火', '未':'土', '申':'金', '酉':'金', '戌':'土', '亥':'水' };
+    const BRANCH_HIDDEN = {
+      '子': ['癸'], '丑': ['己', '癸', '辛'], '寅': ['甲', '丙', '戊'], '卯': ['乙'],
+      '辰': ['戊', '乙', '癸'], '巳': ['丙', '庚', '戊'], '午': ['丁', '己'], '未': ['己', '丁', '乙'],
+      '申': ['庚', '壬', '戊'], '酉': ['辛'], '戌': ['戊', '辛', '丁'], '亥': ['壬', '甲']
+    };
+
+    const TRIGRAMS = [
+      { name: '坤', nature: '地', element: '土', binary: '000', symbol: '☷' },
+      { name: '乾', nature: '天', element: '金', binary: '111', symbol: '☰' },
+      { name: '兌', nature: '澤', element: '金', binary: '011', symbol: '☱' },
+      { name: '離', nature: '火', element: '火', binary: '101', symbol: '☲' },
+      { name: '震', nature: '雷', element: '木', binary: '001', symbol: '☳' },
+      { name: '巽', nature: '風', element: '木', binary: '110', symbol: '☴' },
+      { name: '坎', nature: '水', element: '水', binary: '010', symbol: '☵' },
+      { name: '艮', nature: '山', element: '土', binary: '100', symbol: '☶' }
+    ];
+
+    const HEXAGRAMS = {
+      '1,1': { name: '乾為天', symbol: '䷀', desc: '大通順暢，元亨利貞。剛健自強，宜堅持核心專長，忌傲慢急進。' },
+      '0,0': { name: '坤為地', symbol: '䷁', desc: '厚德載物，包容蓄勢。柔順承載，先迷後得主，利於防守與穩健儲蓄。' },
+      '6,4': { name: '水雷屯', symbol: '䷂', desc: '草創維艱，萬物萌動。宜建侯而不寧，多向顧問借力，切忌輕舉妄動。' },
+      '7,6': { name: '山水蒙', symbol: '䷃', desc: '蒙以養正，初筮告誡。需藉專業學習破除盲點，嚴控認知外的冒險投資。' },
+      '6,1': { name: '水天需', symbol: '䷄', desc: '守正待時，沉著蓄力。君子以飲食宴樂，積累資本底座，等待時機。' },
+      '1,6': { name: '天水訟', symbol: '䷅', desc: '事有阻隔，慎防爭訟。不利涉大川，宜加強契約與法務防線，退讓保本。' },
+      '0,6': { name: '地水師', symbol: '䷆', desc: '行師統御，紀律嚴明。資金調度需如行軍嚴格，止損紀律絕不通融。' },
+      '6,0': { name: '水地比', symbol: '䷇', desc: '親和團結，相輔相成。及早結盟優秀夥伴，擇善而從，共享成長紅利。' },
+      '5,1': { name: '風天小畜', symbol: '䷈', desc: '微風蓄勢，密雲不雨。積小成大，重在定期定額蓄積實力，不急於求成。' },
+      '1,2': { name: '天澤履', symbol: '䷉', desc: '如履薄冰，辨別尊卑。遵守合規框架與風險紅線，戒慎恐懼方得平安。' },
+      '0,1': { name: '地天泰', symbol: '䷊', desc: '天地交泰，萬物亨通。把握向上大週期積極布局，但需居安思危留備用金。' },
+      '1,0': { name: '天地否', symbol: '䷋', desc: '陰陽不合，閉塞阻滯。君子儉德辟難，嚴格收縮開支與槓桿，靜候轉機。' },
+      '1,3': { name: '天火同人', symbol: '䷌', desc: '同人於野，廣結同盟。適合團隊協作與跨界整合，以利他思維拓展財源。' },
+      '3,1': { name: '火天大有', symbol: '䷍', desc: '日麗中天，大獲豐收。遏惡揚善，順天休命，善用豐厚盈餘進行再平衡。' },
+      '0,7': { name: '地山謙', symbol: '䷎', desc: '尊光自守，謙受益滿。厚重低調，不炫燿財富，行穩致遠之吉象。' },
+      '4,0': { name: '雷地豫', symbol: '䷏', desc: '春雷初動，由豫和樂。宜建立制度，防沉迷短期投機，防逸豫自損。' },
+      '2,4': { name: '澤雷隨', symbol: '䷐', desc: '順天應人，隨順時勢。擇善而從，戒除主觀執念，順應大趨勢調倉。' },
+      '7,5': { name: '山風蠱', symbol: '䷑', desc: '振弊起衰，整頓革新。及早修補財務漏洞與不良資產，先甲三日後甲三日。' },
+      '0,2': { name: '地澤臨', symbol: '䷒', desc: '居高臨下，督導親近。順境正在開展，但需提防八月衰竭，預留回檔防禦。' },
+      '5,0': { name: '風地觀', symbol: '䷓', desc: '風行大地，深遠洞察。冷靜旁觀市場噪音，唯有看清週期底層才出手。' },
+      '3,4': { name: '火雷噬嗑', symbol: '䷔', desc: '排除阻礙，法紀嚴明。勇於切除虧損部位，果斷糾正不合規財務行為。' },
+      '7,3': { name: '山火賁', symbol: '䷕', desc: '返璞歸真，修飾得宜。不可流於虛浮包裝，注重本業實質產出與真實獲利。' },
+      '7,0': { name: '山地剝', symbol: '䷖', desc: '順時而止，厚下安宅。不可進取，市場空頭或事業逆風，守住本金為重。' },
+      '0,4': { name: '地雷復', symbol: '䷗', desc: '一陽復始，生機萌芽。觸底反彈之契機，安靜休養，從小部位重新啟動。' },
+      '1,4': { name: '天雷無妄', symbol: '䷘', desc: '恪守本分，順應正理。不求僥倖之財，凡非分之想皆易招致無妄之災。' },
+      '7,1': { name: '山天大畜', symbol: '䷙', desc: '不家食吉，大有蓄積。厚積專業厚度與現金儲備，利涉大川大有作為。' },
+      '7,4': { name: '山雷頤', symbol: '䷚', desc: '自求口實，觀其所養。審視日常消費與資金滋養之處，戒絕無謂消耗。' },
+      '2,5': { name: '澤風大過', symbol: '䷛', desc: '重任在肩，棟撓之危。負債或壓力接近極限，宜迅速減壓降槓桿以防折斷。' },
+      '6,6': { name: '坎為水', symbol: '䷜', desc: '重重險隘，習坎常流。維持現金流不枯竭，以堅毅心態步步為營渡過難關。' },
+      '3,3': { name: '離為火', symbol: '䷝', desc: '光明照曜，附麗得正。必須依附正確合規的專業平台，守持中正方得長久。' },
+      '2,7': { name: '澤山咸', symbol: '䷞', desc: '感應通達，虛懷若谷。善聽市場反饋與專業建議，真誠合作帶來轉機。' },
+      '4,5': { name: '雷風恆', symbol: '䷟', desc: '立不易方，恆久之道。長期主義勝過頻繁交易，堅持預先設定的風控紀律。' },
+      '1,7': { name: '天山遁', symbol: '䷠', desc: '遠離是非，退避全軀。高檔及時獲利了結，君子遠小人，不與市場對抗。' },
+      '4,1': { name: '雷天大壯', symbol: '䷡', desc: '聲勢浩大，止於至正。忌恃強冒進，羝羊觸藩羸其角，宜謀定而後動。' },
+      '3,0': { name: '火地晉', symbol: '䷢', desc: '旭日東昇，升遷進取。順應個人運勢展現才能，正向獲取名望與調薪。' },
+      '0,3': { name: '地火明夷', symbol: '䷣', desc: '晦暗避難，韜光養晦。艱困逆境中守持心智光明，低調不顯，保全實力。' },
+      '5,3': { name: '風火家人', symbol: '䷤', desc: '家道興旺，各盡其職。正本清源，內政與家庭財務共識第一，方能無後顧之憂。' },
+      '3,2': { name: '火澤睽', symbol: '䷥', desc: '異中求同，化解分歧。投資觀念容易與同儕衝突，保持獨立思考莫隨眾。' },
+      '6,7': { name: '水山蹇', symbol: '䷦', desc: '前途險峻，見險而止。切莫強行推進，反求諸己，尋覓西南方向貴人相助。' },
+      '4,6': { name: '雷水解', symbol: '䷧', desc: '春雷化雨，危厄解散。宜寬仁果決，問題既解速歸正軌，不可猶豫延宕。' },
+      '7,2': { name: '山澤損', symbol: '䷨', desc: '損己利人，懲忿窒慾。主動捨去高摩擦短線交易，換取長線確定性成長。' },
+      '5,4': { name: '風雷益', symbol: '䷩', desc: '損上益下，大展宏圖。見善則遷，有過則改，善用資源放大正向回報。' },
+      '2,1': { name: '澤天夬', symbol: '䷪', desc: '果斷決裂，揚棄弊端。迅速切斷劣質資產與耗損關係，嚴防暗處逆襲。' },
+      '1,5': { name: '天風姤', symbol: '䷫', desc: '相遇逢迎，慎選夥伴。突發的誘人暴利機遇往往伴隨巨大陷阱，不可輕信。' },
+      '2,0': { name: '澤地萃', symbol: '䷬', desc: '群英薈萃，凝聚資源。宜加強儲備資金，用系統化統籌替代單打獨鬥。' },
+      '0,5': { name: '地風升', symbol: '䷭', desc: '柔順積累，步步高升。南征吉，依託實幹與良好人脈徐徐爬升，前途光明。' },
+      '2,6': { name: '澤水困', symbol: '䷮', desc: '龍困淺灘，言之不信。處境艱困時多言無益，唯有堅守品性，用時間換空間。' },
+      '6,5': { name: '水風井', symbol: '䷯', desc: '泉水長流，厚德潤物。深耕難以被取代的底層專業能力，財富源源不絕。' },
+      '2,3': { name: '澤火革', symbol: '䷰', desc: '順天應人，大破大立。舊模式已難以為繼，徹底轉型重組才能重獲新生。' },
+      '3,5': { name: '火風鼎', symbol: '䷱', desc: '去舊取新，大器終成。凝練智慧與資本，穩坐核心中樞，承擔更大格局。' },
+      '4,4': { name: '震為雷', symbol: '䷲', desc: '震驚百里，戒慎恐懼。市場或外在衝擊降臨時，不喪匕鬯，處變不驚。' },
+      '7,7': { name: '艮為山', symbol: '䷳', desc: '動靜得宜，行止有時。思不出其位，堅守能力圈與資產邊界，不作非分想。' },
+      '5,7': { name: '風山漸', symbol: '䷴', desc: '循序漸進，木秀於山。如鴻鳥漸進，積累誠信與績效，吉不可阻。' },
+      '4,2': { name: '雷澤歸妹', symbol: '䷵', desc: '顛倒錯置，防情急失策。征凶無攸利，切忌因焦慮而在未成熟條件下重倉。' },
+      '4,3': { name: '雷火豐', symbol: '䷶', desc: '盛大豐沛，日中則昃。處於盈滿顛峰時即應準備退路，慎防盛極而衰。' },
+      '3,7': { name: '火山旅', symbol: '䷷', desc: '羈旅漂泊，親朋寥落。身處異地或變動環境宜謙和謹慎，保全資本為上。' },
+      '5,5': { name: '巽為風', symbol: '䷸', desc: '謙遜滲透，順風而行。小亨，申命行事，重視複利與細微細節的累積效應。' },
+      '2,2': { name: '兌為澤', symbol: '䷹', desc: '和睦喜悅，朋友講習。以愉悅誠懇態度開展商務，合作共贏，亨利貞。' },
+      '5,6': { name: '風水渙', symbol: '䷺', desc: '渙散離析，利涉大川。破除心中的執念與恐懼，立大志以聚合人心資源。' },
+      '6,2': { name: '水澤節', symbol: '䷻', desc: '節制有度，不可過苦。建立清楚的預算邊界，苦節不可貞，適度享受平衡。' },
+      '5,2': { name: '風澤中孚', symbol: '䷼', desc: '信及豚魚，至誠感通。誠信是立身之本，契約精神能跨越任何牛熊週期。' },
+      '4,7': { name: '雷山小過', symbol: '䷽', desc: '可小事不可大事，行過乎恭。細節謹慎，大事暫緩，飛鳥遺音宜下不宜上。' },
+      '6,3': { name: '水火既濟', symbol: '䷾', desc: '功德圓滿，初吉終亂。事情已達完美階段，當防微杜漸，嚴防自滿鬆懈。' },
+      '3,6': { name: '火水未濟', symbol: '䷿', desc: '大業待興，萬物初始。雖未大成然生機無窮，慎辨物居方，再創下一輝煌。' }
+    };
+
+    const FOCUS_DIRECTIONS = {
+      life: {
+        label: '人生完整命盤：家庭、感情、子女、健康及晚年',
+        lead: '從全生命週期視角整合財務與生活：以家庭溝通共識、工作與休息節奏、長期重要文件整理為核心。',
+        cards: [
+          { title: '家庭溝通與長期文件整理', text: '與伴侶及家人定期對齊財務目標、緊急聯絡清單、保單彙整表與重要資產文件存放位置，減少資訊不對稱帶來的家庭壓力。' },
+          { title: '生活節奏與健康醫療提醒', text: '維持規律作息、運動與壓力管理節奏；本報告不作任何生理或心理診斷，若有身體不適或健康疑慮，請立即就醫或安排專業健康檢查。' }
+        ]
+      },
+      wealth: {
+        label: '財富與投資：正財、偏財、財庫、投資風險',
+        lead: '以「正財築底、偏財守紀律、財庫看留存」作為文化反思框架，將所有財務決策收斂至現金流、資產配置、負債成本與資金權責。',
+        cards: [
+          { title: '現金流與正偏財結構', text: '「正財」對應本業與穩定現金流，「偏財」對應市場波動收益。先確保正財能穩定覆蓋生活與儲蓄，再以閒置資金配置偏財，避免本末倒置。' },
+          { title: '財庫留存與負債成本', text: '「財庫」在現代財務中即為淨資產留存率與風險管控。定期檢視貸款利率、交易摩擦成本與稅費，並明確劃分家庭與個人資金權責。' }
+        ]
+      },
+      career: {
+        label: '事業與功名：工作、升遷、創業、貴人',
+        lead: '將「官印相生」解讀為制度、授權、組織信任與個人聲譽；在組織中追求可複製、可交付的具體成果。',
+        cards: [
+          { title: '組織授權與聲譽累積', text: '主動爭取能展現專業影響力的關鍵專案，將個人產出轉化為團隊資產；累積職場信任資本，為升遷或轉職建立堅實護城河。' },
+          { title: '合作邊界與契約精神', text: '無論內部跨部門協作或外部創業合夥，皆應將權利義務、分潤機制與退場條件落實於文字契約，防範認知分歧帶來的關係消耗。' }
+        ]
+      },
+      relationship: {
+        label: '人際與合夥：合夥、防小人、朋友、職場人際',
+        lead: '以「同人、中孚」為人際溝通指引，強化合夥誠信、分工權責與利益分配透明度；以客觀制度防範人際消耗。',
+        cards: [
+          { title: '合夥利益透明度', text: '合夥核心在於「帳目透明、定期對齊、各展所長」；重大資本支出與日常營運授權應設立明確審核流程，避免模糊帶來的信任危機。' },
+          { title: '健康人際邊界', text: '辨識並遠離頻繁消耗個人專注力、誘導高風險投機或欠缺契約精神的人際關係；建立清晰的情感與財務防火牆。' }
+        ]
+      }
+    };
+
+    const DEPTH_ANGLES = {
+      years: {
+        label: '2026～2045 逐年大運與流年規劃',
+        lead: '從未來二十年九運離火週期出發，結合八字大運轉換與流年太歲引動，鎖定財富積累與轉型之黃金關鍵年。',
+        cards: [
+          { title: '九運週期與流年機遇 (2026~2035)', text: '前十年重點在於順應九運火土趨勢，善用本命喜用神佈局核心現金流與優質實體/數位資產，避開太歲相沖年份的盲目擴張。' },
+          { title: '大運交接與資產收成 (2036~2045)', text: '後十年進入大運轉折收斂期，聚焦資產保值、傳承架構與穩定被動收益，將早期高成長部位平穩過渡至高防禦性領息資產。' }
+        ]
+      },
+      elements: {
+        label: '深入五行、格局、喜用神',
+        lead: '以日主五行生剋制化為軸心，精算本命金木水火土能量強弱，找出調候喜神以補足命理偏枯，達到平衡致富。',
+        cards: [
+          { title: '五行調候與喜忌配置', text: '本命五行以平衡為貴。精確掌握生旺扶抑之喜用神，在日常作息、生活環境與投資行業領域上主動趨吉避凶。' },
+          { title: '身旺身弱與耐受力分析', text: '透視元神日主之強弱底蘊，身旺者勇於任財任官，身弱者喜印比生扶護體，據此制定合適的財務槓桿與風險承受邊界。' }
+        ]
+      },
+      ten: {
+        label: '深入十神與格局解析',
+        lead: '透析年、月、時柱之正偏印、食神傷官、正偏財、官殺等十神配置，全面拆解本命天賦特質與商業創富密碼。',
+        cards: [
+          { title: '十神心性與職場天賦', text: '月令與透干十神主導個人處世風格與賺錢心態。善用優勢十神建立獨特護城河，轉化為無可取代的專業溢價。' },
+          { title: '正偏財與官殺格局調控', text: '深析命局財星與官印配合，辨識正財穩固還是偏財豐厚，避免因官殺攻身或比劫爭財引發資產外流與合夥紛爭。' }
+        ]
+      },
+      comprehensive: {
+        label: '綜合策略',
+        lead: '平衡考慮本業收入底座、各類資產配置比重、下檔風險防護與長期人生目標推進。',
+        cards: [
+          { title: '整體架構協同', text: '確保職涯規劃、投資組合與生活預算各環節彼此支撐，不讓單一領域的激進冒險危及整體財務安全底線。' },
+          { title: '動態平衡檢視', text: '每半年對齊一次整體資產淨值、儲蓄率與目標達成進度，依人生階段彈性微調配置，兼顧穩健與成長。' }
+        ]
+      },
+      risk: {
+        label: '風控防守',
+        lead: '以最大極端情境推演為先，優先檢視流動性緩衝、債務槓桿上限與下檔停損紀律。',
+        cards: [
+          { title: '流動性極限測試', text: '模擬本業中斷或市場劇烈修正 12 個月之極端情況，確保現有緊急預備金與無風險資產足以支撐固定開銷。' },
+          { title: '下檔紀律與負債邊界', text: '嚴格限制任何形式的槓桿使用，對高波動資產設定不可違背的止損與再平衡觸發點，確保生存優先。' }
+        ]
+      },
+      growth: {
+        label: '積極拓展',
+        lead: '聚焦高附加價值技能提升、事業版圖擴展與具非對稱報酬潛力的高勝率機會。',
+        cards: [
+          { title: '非對稱報酬探索', text: '在核心資產穩固的前提下，以小比例資本嘗試副業或具爆發力的新興領域，爭取向上無限空間。' },
+          { title: '專注核心競爭力', text: '將主要精力投入能產生複利效應的關鍵知識與個人品牌建設，持續拉開職場競爭維度。' }
+        ]
+      }
+    };
+
+    const GOAL_STAGES = {
+      seed: { label: '0～300 萬（積累期）', summary: '核心在於提升本業儲蓄率與建立緊急備用金。' },
+      growth: { label: '300～1000 萬（成長期）', summary: '核心在於擴大可投資資產規模與提升資產配置效率。' },
+      system: { label: '1000～2000 萬（系統期）', summary: '核心轉向多元資產系統化管理，追求長久複利與抗通膨。' },
+      freedom: { label: '2000 萬以上（成熟期）', summary: '核心在於資產保全、傳承規劃與現金流可持續性。' }
+    };
+
+    /**
+     * 1. 專業八字四柱計算核心 (天文基準日推算)
+     */
+    function calculateFullBazi(dateStr, timeStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      
+      // 年柱 (以立春 2/4 為界)
+      let baziYear = y;
+      if (m === 1 || (m === 2 && d < 4)) {
+        baziYear = y - 1;
+      }
+      const yearStemIdx = ((baziYear - 4) % 10 + 10) % 10;
+      const yearBranchIdx = ((baziYear - 4) % 12 + 12) % 12;
+
+      // 月柱 (依節氣月份 + 五虎遁)
+      const monthTerms = [
+        { m: 1, d: 5, b: 1 },  // 丑月
+        { m: 2, d: 4, b: 2 },  // 寅月 (立春)
+        { m: 3, d: 5, b: 3 },  // 卯月 (驚蟄)
+        { m: 4, d: 4, b: 4 },  // 辰月 (清明)
+        { m: 5, d: 5, b: 5 },  // 巳月 (立夏)
+        { m: 6, d: 5, b: 6 },  // 午月 (芒種)
+        { m: 7, d: 7, b: 7 },  // 未月 (小暑)
+        { m: 8, d: 7, b: 8 },  // 申月 (立秋)
+        { m: 9, d: 7, b: 9 },  // 酉月 (白露)
+        { m: 10, d: 8, b: 10 }, // 戌月 (寒露)
+        { m: 11, d: 7, b: 11 }, // 亥月 (立冬)
+        { m: 12, d: 7, b: 0 }  // 子月 (大雪)
+      ];
+      let monthBranchIdx = 1;
+      for (let i = monthTerms.length - 1; i >= 0; i--) {
+        const t = monthTerms[i];
+        if (m > t.m || (m === t.m && d >= t.d)) {
+          monthBranchIdx = t.b;
+          break;
+        }
+      }
+      const monthOffsetFromYin = (monthBranchIdx - 2 + 12) % 12;
+      const monthStemBase = ((yearStemIdx % 5) * 2 + 2) % 10;
+      const monthStemIdx = (monthStemBase + monthOffsetFromYin) % 10;
+
+      // 日柱 (基準日 2000-01-01 為 戊午日 54)
+      const refDate = new Date(Date.UTC(2000, 0, 1));
+      const targetDate = new Date(Date.UTC(y, m - 1, d));
+      const diffDays = Math.round((targetDate - refDate) / (1000 * 60 * 60 * 24));
+      const dayGzIdx = ((54 + diffDays) % 60 + 60) % 60;
+      const dayStemIdx = dayGzIdx % 10;
+      const dayBranchIdx = dayGzIdx % 12;
+
+      // 時柱 (五鼠遁)
+      let hourVal = 12;
+      if (timeStr) {
+        const parts = timeStr.split(':');
+        hourVal = parseInt(parts[0], 10) || 12;
+      }
+      const hourBranchIdx = Math.floor(((hourVal + 1) % 24) / 2);
+      const hourStemBase = (dayStemIdx % 5) * 2;
+      const hourStemIdx = (hourStemBase + hourBranchIdx) % 10;
+
+      const yearPillar = { stem: STEMS[yearStemIdx], branch: BRANCHES[yearBranchIdx] };
+      const monthPillar = { stem: STEMS[monthStemIdx], branch: BRANCHES[monthBranchIdx] };
+      const dayPillar = { stem: STEMS[dayStemIdx], branch: BRANCHES[dayBranchIdx] };
+      const hourPillar = { stem: STEMS[hourStemIdx], branch: BRANCHES[hourBranchIdx] };
+
+      // 十神計算
+      const dayStem = dayPillar.stem;
+      const dayElement = STEM_ELEMENTS[dayStem];
+      const dayPolarity = dayStemIdx % 2;
+
+      function getTenGod(stem) {
+        if (!stem) return '';
+        const sIdx = STEMS.indexOf(stem);
+        const sElem = STEM_ELEMENTS[stem];
+        const sPolarity = sIdx % 2;
+        const samePolarity = dayPolarity === sPolarity;
+
+        if (sElem === dayElement) return samePolarity ? '比肩' : '劫財';
+        const generatesMe = (sElem === '水' && dayElement === '木') ||
+                            (sElem === '木' && dayElement === '火') ||
+                            (sElem === '火' && dayElement === '土') ||
+                            (sElem === '土' && dayElement === '金') ||
+                            (sElem === '金' && dayElement === '水');
+        if (generatesMe) return samePolarity ? '偏印' : '正印';
+
+        const iGenerate = (dayElement === '水' && sElem === '木') ||
+                          (dayElement === '木' && sElem === '火') ||
+                          (dayElement === '火' && sElem === '土') ||
+                          (dayElement === '土' && sElem === '金') ||
+                          (dayElement === '金' && sElem === '水');
+        if (iGenerate) return samePolarity ? '食神' : '傷官';
+
+        const iOvercome = (dayElement === '木' && sElem === '土') ||
+                          (dayElement === '土' && sElem === '水') ||
+                          (dayElement === '水' && sElem === '火') ||
+                          (dayElement === '火' && sElem === '金') ||
+                          (dayElement === '金' && sElem === '木');
+        if (iOvercome) return samePolarity ? '偏財' : '正財';
+
+        return samePolarity ? '七殺' : '正官';
+      }
+
+      // 五行比重計算
+      const counts = { '金': 0, '木': 0, '水': 0, '火': 0, '土': 0 };
+      [yearPillar.stem, monthPillar.stem, dayPillar.stem, hourPillar.stem].forEach(s => counts[STEM_ELEMENTS[s]] += 1);
+      [yearPillar.branch, monthPillar.branch, dayPillar.branch, hourPillar.branch].forEach((b, idx) => {
+        const weight = idx === 1 ? 2.6 : 1.2;
+        counts[BRANCH_ELEMENTS[b]] += weight;
+      });
+
+      const totalScore = Object.values(counts).reduce((a, b) => a + b, 0);
+      const elementPercent = {};
+      for (const k in counts) {
+        elementPercent[k] = Math.round((counts[k] / totalScore) * 100);
+      }
+
+      const supportScore = counts[dayElement] + (
+        dayElement === '木' ? counts['水'] :
+        dayElement === '火' ? counts['木'] :
+        dayElement === '土' ? counts['火'] :
+        dayElement === '金' ? counts['土'] : counts['金']
+      );
+      const isStrong = supportScore / totalScore >= 0.43;
+
+      let favorable = '';
+      let unfavorable = '';
+      if (isStrong) {
+        favorable = dayElement === '木' ? '火、土、金' : dayElement === '火' ? '土、金、水' : dayElement === '土' ? '金、水、木' : dayElement === '金' ? '水、木、火' : '木、火、土';
+        unfavorable = dayElement === '木' ? '水、木' : dayElement === '火' ? '木、火' : dayElement === '土' ? '火、土' : dayElement === '金' ? '土、金' : '金、水';
+      } else {
+        favorable = dayElement === '木' ? '水、木' : dayElement === '火' ? '木、火' : dayElement === '土' ? '火、土' : dayElement === '金' ? '土、金' : '金、水';
+        unfavorable = dayElement === '木' ? '金、土、火' : dayElement === '火' ? '水、金、土' : dayElement === '土' ? '木、水、金' : dayElement === '金' ? '火、木、水' : '土、火、木';
+      }
+
+      return {
+        year: { ...yearPillar, stemElem: STEM_ELEMENTS[yearPillar.stem], branchElem: BRANCH_ELEMENTS[yearPillar.branch], tenGod: getTenGod(yearPillar.stem), hidden: BRANCH_HIDDEN[yearPillar.branch] },
+        month: { ...monthPillar, stemElem: STEM_ELEMENTS[monthPillar.stem], branchElem: BRANCH_ELEMENTS[monthPillar.branch], tenGod: getTenGod(monthPillar.stem), hidden: BRANCH_HIDDEN[monthPillar.branch] },
+        day: { ...dayPillar, stemElem: STEM_ELEMENTS[dayPillar.stem], branchElem: BRANCH_ELEMENTS[dayPillar.branch], tenGod: '元神(日主)', hidden: BRANCH_HIDDEN[dayPillar.branch] },
+        hour: { ...hourPillar, stemElem: STEM_ELEMENTS[hourPillar.stem], branchElem: BRANCH_ELEMENTS[hourPillar.branch], tenGod: getTenGod(hourPillar.stem), hidden: BRANCH_HIDDEN[hourPillar.branch] },
+        yearBranchIdx,
+        monthBranchIdx,
+        dayStem,
+        dayMaster: dayStem,
+        dayElement,
+        isStrong,
+        elementPercent,
+        favorable,
+        unfavorable
+      };
+    }
+
+    /**
+     * 2. 易經梅花起卦核心 (生辰起卦 + 變爻推演)
+     */
+    function calculateMeihuaHexagram(yearBranchIdx, month, day, hourBranchIdx, forcedMovingLine = null) {
+      // 梅花易數: 上卦 = (年支 + 月 + 日) % 8
+      let upperNum = (yearBranchIdx + 1 + month + day) % 8;
+      if (upperNum === 0) upperNum = 0; // 0代表坤卦
+
+      // 下卦 = (年支 + 月 + 日 + 時支) % 8
+      let lowerNum = (yearBranchIdx + 1 + month + day + hourBranchIdx + 1) % 8;
+      if (lowerNum === 0) lowerNum = 0;
+
+      // 動爻: 1~6
+      let movingLine = forcedMovingLine || ((yearBranchIdx + 1 + month + day + hourBranchIdx + 1) % 6);
+      if (movingLine === 0) movingLine = 6;
+
+      const upperTri = TRIGRAMS[upperNum];
+      const lowerTri = TRIGRAMS[lowerNum];
+      const mainKey = `${upperNum},${lowerNum}`;
+      const mainHex = HEXAGRAMS[mainKey] || { name: '易經正卦', symbol: '䷀', desc: '守正得吉。' };
+
+      // 6爻二進位表示 (從初爻至上爻: lower 0,1,2 + upper 0,1,2)
+      // 注意 TRIGRAMS binary: 第0位初爻，第1位二爻，第2位三爻
+      const lowerBits = lowerTri.binary.split('');
+      const upperBits = upperTri.binary.split('');
+      const lines = [...lowerBits, ...upperBits]; // index 0..5 (爻1..6)
+
+      // 互卦: 下互為 2,3,4爻，上互為 3,4,5爻
+      const mutualLowerBin = lines[1] + lines[2] + lines[3];
+      const mutualUpperBin = lines[2] + lines[3] + lines[4];
+      const mutualLowerIdx = TRIGRAMS.findIndex(t => t.binary === mutualLowerBin);
+      const mutualUpperIdx = TRIGRAMS.findIndex(t => t.binary === mutualUpperBin);
+      const mutualKey = `${mutualUpperIdx >= 0 ? mutualUpperIdx : 0},${mutualLowerIdx >= 0 ? mutualLowerIdx : 0}`;
+      const mutualHex = HEXAGRAMS[mutualKey] || { name: '互通之卦', symbol: '䷐', desc: '內在情勢變化。' };
+
+      // 變卦: 動爻陰陽翻轉
+      const changedLines = [...lines];
+      const moveIdx = movingLine - 1;
+      changedLines[moveIdx] = changedLines[moveIdx] === '1' ? '0' : '1';
+      const changedLowerBin = changedLines.slice(0, 3).join('');
+      const changedUpperBin = changedLines.slice(3, 6).join('');
+      const changedLowerIdx = TRIGRAMS.findIndex(t => t.binary === changedLowerBin);
+      const changedUpperIdx = TRIGRAMS.findIndex(t => t.binary === changedUpperBin);
+      const changedKey = `${changedUpperIdx >= 0 ? changedUpperIdx : 0},${changedLowerIdx >= 0 ? changedLowerIdx : 0}`;
+      const changedHex = HEXAGRAMS[changedKey] || { name: '變化之卦', symbol: '䷊', desc: '後續發展落點。' };
+
+      return {
+        upperTri,
+        lowerTri,
+        mainHex,
+        mutualHex,
+        changedHex,
+        movingLine,
+        lines,
+        changedLines
+      };
+    }
+
+    /**
+     * 3. 動態合成三大核心策略 (徹底告別死板罐頭文字)
+     */
+    function generateDynamicIncomeStrategy(bazi, hex, incomeKey) {
+      const tenGod = bazi.month.tenGod;
+      const dm = bazi.dayMaster;
+      const elem = bazi.dayElement;
+      const isStrong = bazi.isStrong;
+
+      let badge = `${dm}${elem}日主 · ${tenGod}格 · ${isStrong ? '身旺任財' : '身弱喜印'}`;
+      let summary = '';
+      let points = [];
+
+      if (isStrong) {
+        summary = `本命為【${dm}${elem}日主身旺】，內在自我驅動力強，具備開拓市場與主動創富之命格底蘊。喜【${bazi.favorable}】洩秀生財，職場宜重「結果導向、業務分潤、主導專案」，避免久居封閉官僚體系。`;
+        points.push(`本業護城河：善用身旺抗壓優勢，鎖定具備溢價空間與獨立分潤機制之核心業務，將職位話語權轉化為薪酬談判籌碼。`);
+        points.push(`正偏財配比：本命能承擔市場風險，但需警惕比劫爭財之隱患；進帳後應迅速將利潤移轉至【${bazi.favorable.split('、')[0]}屬性】之長期資產帳戶。`);
+        points.push(`行動指引：逢易經【${hex.mainHex.name}】之局，宜主動擴大業務觸角，以誠信立身，切忌恃才傲物。`);
+      } else {
+        summary = `本命為【${dm}${elem}日主身弱】，氣質溫潤內斂，重制度與信用，忌單打獨鬥與高強度惡性消耗。喜【${bazi.favorable}】生身護體，事業應以「依託強大平台、積累專業背書、官印相生」為上策。`;
+        points.push(`本業護城河：專注於難以被取代的技術厚度與專業認證，借力大型組織平台或優秀主管之庇護，獲取長期穩定調薪。`);
+        points.push(`自動化儲蓄防線：身弱最忌財重破印，日常收入務必執行「先儲蓄後開銷」，嚴格保護現金流底座，避免因透支體力或焦慮引發決策失誤。`);
+        points.push(`行動指引：易經【${hex.mainHex.name}】提醒「守正待時」，近期應以鞏固內部團隊信任為第一要務，不輕易跟風盲目創業。`);
+      }
+
+      return { label: badge, summary, points };
+    }
+
+    function generateDynamicAssetStructure(bazi, hex, assetKey) {
+      const fav = bazi.favorable;
+      const unFav = bazi.unfavorable;
+      const isStrong = bazi.isStrong;
+
+      let badge = `五行喜【${fav.split('、')[0]}】· 核心${isStrong ? '70%' : '85%'}衛星${isStrong ? '30%' : '15%'}`;
+      let summary = `依據本命五行能量（金${bazi.elementPercent['金']}% 木${bazi.elementPercent['木']}% 水${bazi.elementPercent['水']}% 火${bazi.elementPercent['火']}% 土${bazi.elementPercent['土']}%），本局喜神為【${fav}】，忌神為【${unFav}】。資產配置首重「以五行之所喜平衡命理偏枯」，建立抗通膨之立體護城河。`;
+      
+      let points = [
+        `核心部位（大盤ETF與穩健債券）：佔總資產 ${isStrong ? '70%' : '85%'}，依託整體經濟成長複利，為整體家庭資產提供堅定底座。`,
+        `衛星部位（五行對應標的）：佔總資產 ${isStrong ? '30%' : '15%'}。本命喜【${fav}】，可著重留意對應領域（如喜火配置綠能科技AI、喜木配置醫療醫藥生技、喜土配置REITs或穩健基建、喜金水配置全球高流動性主權債）。`,
+        `忌神風控：本命忌【${unFav}】，避免過度集中於高槓桿或投機性盲盒標的，每半年嚴格執行一次股債再平衡，確保心態安穩。`
+      ];
+
+      return { label: badge, summary, points };
+    }
+
+    function generateDynamicRiskGoal(bazi, hex, riskKey, goalKey) {
+      const hexName = hex.mainHex.name;
+      const changeName = hex.changedHex.name;
+      const moving = hex.movingLine;
+      const goalObj = GOAL_STAGES[goalKey] || { label: '穩健成長期', summary: '系統化複利推進。' };
+
+      let badge = `本卦【${hexName}】動${moving}爻 · 之卦【${changeName}】`;
+      let riskSummary = `易經卦示：「${hex.mainHex.desc}」當前動爻在第 ${moving} 爻，局勢正在由【${hexName}】轉化為【${changeName}】，關鍵在於「${moving <= 2 ? '初爻慎始，蓄力守底' : moving <= 4 ? '三四爻重在中樞斡旋，嚴守邊界' : '五六爻宜居高思危，善終獲吉'}」。`;
+      let goalSummary = `階段目標【${goalObj.label}】：${goalObj.summary}`;
+
+      let points = [
+        `卦象風控：依據【${hexName}】變【${changeName}】之象，凡遇市場異常波動，嚴格禁止非理性補倉與融資借貸。`,
+        `推進重點：當前首要任務在於建立可視化的家庭資產負債表，確保每一筆結餘皆具備確定性用途。`,
+        `動爻決策法則：動在第 ${moving} 爻象徵變動節點已至，重大資產決策應諮詢中立專業人士，以客觀數據替代直覺衝動。`
+      ];
+
+      return { label: badge, riskSummary, goalSummary, points };
+    }
+
+    const getEl = (id) => document.getElementById(id);
+    const getRadioVal = (name) => {
+      const el = document.querySelector(`input[name="${name}"]:checked`);
+      return el ? el.value : '';
+    };
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function validateForm() {
+      const dateVal = getEl('birth-date').value;
+      if (!dateVal) {
+        alert('請先填寫出生日期！');
+        getEl('birth-date').focus();
+        return false;
+      }
+      return true;
+    }
+
+    // 全域變數保存當前計算結果
+    let currentBazi = null;
+    let currentHex = null;
+
+    /**
+     * 主渲染函式
+     */
+    function renderReport(options = { scrollToResult: false }) {
+      if (!validateForm()) return;
+
+      const dateVal = getEl('birth-date').value;
+      const timeVal = getEl('birth-time').value || '12:00';
+      const placeVal = getEl('birth-place').value.trim() || '未填寫出生地';
+      const genderVal = getRadioVal('gender') || '未選擇';
+      const questionVal = getEl('question').value;
+
+      const incomeKey = getRadioVal('income') || 'salary';
+      const assetKey = getRadioVal('asset') || 'mixed';
+      const goalKey = getRadioVal('goal') || 'growth';
+      const riskKey = getRadioVal('risk') || 'mid';
+      const focusKey = getRadioVal('focus') || 'life';
+      const depthKey = getRadioVal('depth') || 'comprehensive';
+
+      // 1. 真實八字計算
+      currentBazi = calculateFullBazi(dateVal, timeVal);
+      const [y, m, d] = dateVal.split('-').map(Number);
+      const hourBranchIdx = Math.floor(((parseInt(timeVal.split(':')[0], 10) || 12) + 1) % 24 / 2);
+
+      // 2. 真實易經梅花起卦
+      currentHex = calculateMeihuaHexagram(currentBazi.yearBranchIdx, m, d, hourBranchIdx);
+
+      // 3. 渲染摘要標籤
+      const tagsEl = getEl('summary-tags');
+      tagsEl.innerHTML = [
+        `<span>🎂 ${escapeHtml(dateVal)} ${escapeHtml(timeVal)}</span>`,
+        `<span>📍 ${escapeHtml(placeVal)} · ${escapeHtml(genderVal)}</span>`,
+        `<span class="tag-gold">元神：${currentBazi.dayMaster}${currentBazi.dayElement} (${currentBazi.isStrong ? '身旺' : '身弱'})</span>`,
+        `<span class="tag-gold">本命卦：${currentHex.mainHex.name}</span>`
+      ].join('');
+
+      // 4. 渲染八字四柱盤
+      getEl('bazi-summary-text').textContent = `${currentBazi.year.stem}${currentBazi.year.branch}年 ${currentBazi.month.stem}${currentBazi.month.branch}月 ${currentBazi.day.stem}${currentBazi.day.branch}日 ${currentBazi.hour.stem}${currentBazi.hour.branch}時`;
+      getEl('bazi-master-status').textContent = `元神日主：${currentBazi.dayMaster}${currentBazi.dayElement} · ${currentBazi.isStrong ? '身旺格' : '身弱格'}`;
+
+      const pillars = [
+        { name: '年柱 (根基祖蔭)', p: currentBazi.year },
+        { name: '月柱 (事業環境)', p: currentBazi.month },
+        { name: '日柱 (本命元神)', p: currentBazi.day },
+        { name: '時柱 (歸宿子女)', p: currentBazi.hour }
+      ];
+
+      function getElemClass(e) {
+        if (e === '木') return 'elem-wood';
+        if (e === '火') return 'elem-fire';
+        if (e === '土') return 'elem-earth';
+        if (e === '金') return 'elem-metal';
+        return 'elem-water';
+      }
+
+      getEl('bazi-pillars').innerHTML = pillars.map(col => `
+        <div class="bazi-col">
+          <div class="bazi-col-name">${col.name}</div>
+          <div class="bazi-tengod">${col.p.tenGod}</div>
+          <div class="bazi-char-box">
+            <span class="bazi-char">${col.p.stem}</span>
+            <span class="bazi-c-tag ${getElemClass(col.p.stemElem)}">${col.p.stemElem}</span>
+          </div>
+          <div class="bazi-char-box" style="margin-top: 10px;">
+            <span class="bazi-char">${col.p.branch}</span>
+            <span class="bazi-c-tag ${getElemClass(col.p.branchElem)}">${col.p.branchElem}</span>
+          </div>
+          <div class="bazi-hidden-stems">
+            藏干：${col.p.hidden ? col.p.hidden.join('、') : ''}
+          </div>
+        </div>
+      `).join('');
+
+      // 5. 渲染五行能量分佈
+      getEl('bazi-favorable-badge').innerHTML = `喜用五行：【<span style="color:#b91c1c;">${currentBazi.favorable}</span>】 · 忌神：【${currentBazi.unfavorable}】`;
+      const elemColors = { '木': '#16a34a', '火': '#dc2626', '土': '#d97706', '金': '#64748b', '水': '#0284c7' };
+      getEl('element-bars-list').innerHTML = ['木', '火', '土', '金', '水'].map(e => {
+        const pct = currentBazi.elementPercent[e] || 0;
+        return `
+          <div class="element-bar-row">
+            <div class="elem-bar-label">${e}行${STEM_ELEMENTS[currentBazi.dayMaster] === e ? ' (本命元神)' : ''}</div>
+            <div class="elem-bar-track">
+              <div class="elem-bar-fill" style="width: ${pct}%; background: ${elemColors[e]};"></div>
+            </div>
+            <div class="elem-bar-val">${pct}%</div>
+          </div>
+        `;
+      }).join('');
+
+      // 6. 渲染易經梅花卦象
+      getEl('yijing-moving-line-tip').textContent = `⚡ 動爻在第 ${currentHex.movingLine} 爻（由下往上數）`;
+      getEl('yijing-lead-text').innerHTML = `依據生辰數理起卦：上卦為【${currentHex.upperTri.name}（${currentHex.upperTri.nature}）】、下卦為【${currentHex.lowerTri.name}（${currentHex.lowerTri.nature}）】，感通成卦。<br><span style="color:#b45309;font-size:0.85rem;display:inline-block;margin-top:4px;">💡 本區為依出生年月日時辰推算之「生辰本命卦」（終身本盤固定）；若欲卜問當下特定事項或查看不同卦象，請點擊上方【隨機起一卦】！</span>`;
+
+      function renderVisualLines(linesArr, movingLine = null) {
+        return linesArr.map((bit, idx) => {
+          const isMoving = movingLine === (idx + 1);
+          if (bit === '1') {
+            return `<div class="hex-line-row"><div class="hex-line-yang ${isMoving ? 'hex-line-moving' : ''}"></div></div>`;
+          } else {
+            return `<div class="hex-line-row"><div class="hex-line-yin-left ${isMoving ? 'hex-line-moving' : ''}"></div><div class="hex-line-yin-gap"></div><div class="hex-line-yin-right ${isMoving ? 'hex-line-moving' : ''}"></div></div>`;
+          }
+        }).join('');
+      }
+
+      // 本卦
+      getEl('hex-main-symbol').textContent = currentHex.mainHex.symbol;
+      getEl('hex-main-name').textContent = currentHex.mainHex.name;
+      getEl('hex-main-lines').innerHTML = renderVisualLines(currentHex.lines, currentHex.movingLine);
+      getEl('hex-main-desc').textContent = currentHex.mainHex.desc;
+
+      // 互卦
+      getEl('hex-mutual-symbol').textContent = currentHex.mutualHex.symbol;
+      getEl('hex-mutual-name').textContent = currentHex.mutualHex.name;
+      getEl('hex-mutual-lines').innerHTML = renderVisualLines([currentHex.lines[1], currentHex.lines[2], currentHex.lines[3], currentHex.lines[2], currentHex.lines[3], currentHex.lines[4]]);
+      getEl('hex-mutual-desc').textContent = currentHex.mutualHex.desc;
+
+      // 變卦
+      getEl('hex-changed-symbol').textContent = currentHex.changedHex.symbol;
+      getEl('hex-changed-name').textContent = currentHex.changedHex.name;
+      getEl('hex-changed-lines').innerHTML = renderVisualLines(currentHex.changedLines);
+      getEl('hex-changed-desc').textContent = currentHex.changedHex.desc;
+
+      getEl('yijing-decision-box').innerHTML = `
+        <strong>易理決策核心反思：</strong>由【${currentHex.mainHex.name}】轉進至【${currentHex.changedHex.name}】，動爻警示在於事物正在經歷微觀轉折。${currentHex.movingLine <= 3 ? '現階段宜防守蓄勢，不可急進。' : '現階段宜把握上升時機，鞏固實質成果。'}
+      `;
+
+      // 7. 動態渲染三大核心卡片 (100% 個人化)
+      const incData = generateDynamicIncomeStrategy(currentBazi, currentHex, incomeKey);
+      getEl('badge-income').textContent = incData.label;
+      getEl('income-summary').textContent = incData.summary;
+      getEl('income-points').innerHTML = incData.points.map(pt => `<li>${escapeHtml(pt)}</li>`).join('');
+
+      const astData = generateDynamicAssetStructure(currentBazi, currentHex, assetKey);
+      getEl('badge-asset').textContent = astData.label;
+      getEl('asset-summary').textContent = astData.summary;
+      getEl('asset-points').innerHTML = astData.points.map(pt => `<li>${escapeHtml(pt)}</li>`).join('');
+
+      const rskData = generateDynamicRiskGoal(currentBazi, currentHex, riskKey, goalKey);
+      getEl('badge-risk-goal').textContent = rskData.label;
+      getEl('risk-summary').textContent = rskData.riskSummary;
+      getEl('goal-summary').textContent = rskData.goalSummary;
+      getEl('risk-goal-points').innerHTML = rskData.points.map(pt => `<li>${escapeHtml(pt)}</li>`).join('');
+
+      // 8. 研究焦點與分析角度
+      const focusData = FOCUS_DIRECTIONS[focusKey] || FOCUS_DIRECTIONS.life;
+      getEl('focus-lead').textContent = `【${focusData.label}】${focusData.lead}`;
+      getEl('focus-grid').innerHTML = focusData.cards.map(c => `
+        <div class="detail-box">
+          <h4>${escapeHtml(c.title)}</h4>
+          <p>${escapeHtml(c.text)}</p>
+        </div>
+      `).join('');
+
+      const depthData = DEPTH_ANGLES[depthKey] || DEPTH_ANGLES.comprehensive;
+      getEl('depth-lead').textContent = `【${depthData.label}】${depthData.lead}`;
+      getEl('depth-grid').innerHTML = depthData.cards.map(c => `
+        <div class="detail-box">
+          <h4>${escapeHtml(c.title)}</h4>
+          <p>${escapeHtml(c.text)}</p>
+        </div>
+      `).join('');
+
+      // 顯示結果區塊
+      const resultSec = getEl('result-section');
+      resultSec.classList.remove('hidden');
+
+      if (options.scrollToResult) {
+        resultSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // 9. 自動觸發 AI 深度推演 (將真八字與易經全量傳入 AI)
+      setTimeout(() => {
+        handleGenerateAiInsight();
+      }, 500);
+    }
+
+    /**
+     * 隨機起卦處理
+     */
+    function handleRandomCast() {
+      if (!validateForm()) return;
+      const randomLine = Math.floor(Math.random() * 6) + 1;
+      const dateVal = getEl('birth-date').value;
+      const timeVal = getEl('birth-time').value || '12:00';
+      const [y, m, d] = dateVal.split('-').map(Number);
+      const bazi = calculateFullBazi(dateVal, timeVal);
+      const hourBranchIdx = Math.floor(((parseInt(timeVal.split(':')[0], 10) || 12) + 1) % 24 / 2);
+
+      currentHex = calculateMeihuaHexagram(bazi.yearBranchIdx, m, d, hourBranchIdx, randomLine);
+      renderReport({ scrollToResult: true });
+    }
+
+    function handleReset() {
+      getEl('analysis-form').reset();
+      getEl('result-section').classList.add('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /**
+     * 建構 AI 提示詞 (融合真實八字與易經六十四卦)
+     */
+    function buildAnonymizedAiPrompt() {
+      if (!currentBazi || !currentHex) return '';
+
+      const incomeKey = getRadioVal('income') || 'salary';
+      const assetKey = getRadioVal('asset') || 'mixed';
+      const goalKey = getRadioVal('goal') || 'growth';
+      const riskKey = getRadioVal('risk') || 'mid';
+      const focusKey = getRadioVal('focus') || 'life';
+      const questionVal = getEl('question').value.trim() || '無特別指定問題';
+
+      return `
+【使用者真實命盤與情境參數】
+1. 四柱八字：
+   - 年柱：${currentBazi.year.stem}${currentBazi.year.branch}（五行：${currentBazi.year.stemElem}${currentBazi.year.branchElem}，十神：${currentBazi.year.tenGod}）
+   - 月柱：${currentBazi.month.stem}${currentBazi.month.branch}（五行：${currentBazi.month.stemElem}${currentBazi.month.branchElem}，十神：${currentBazi.month.tenGod}）
+   - 日柱：${currentBazi.day.stem}${currentBazi.day.branch}（元神日主：${currentBazi.dayMaster}${currentBazi.dayElement}）
+   - 時柱：${currentBazi.hour.stem}${currentBazi.hour.branch}（五行：${currentBazi.hour.stemElem}${currentBazi.hour.branchElem}，十神：${currentBazi.hour.tenGod}）
+   - 日主旺衰：${currentBazi.isStrong ? '身旺格' : '身弱格'}
+   - 五行能量分佈：金${currentBazi.elementPercent['金']}%、木${currentBazi.elementPercent['木']}%、水${currentBazi.elementPercent['水']}%、火${currentBazi.elementPercent['火']}%、土${currentBazi.elementPercent['土']}%
+   - 本命喜用神：${currentBazi.favorable}（忌神：${currentBazi.unfavorable}）
+
+2. 易經梅花起卦：
+   - 本卦：【${currentHex.mainHex.name}】（${currentHex.mainHex.desc}）
+   - 互卦：【${currentHex.mutualHex.name}】（${currentHex.mutualHex.desc}）
+   - 變卦：【${currentHex.changedHex.name}】（${currentHex.changedHex.desc}）
+   - 當前動爻：第 ${currentHex.movingLine} 爻（由下數起）
+
+3. 財務情境與問卷設定：
+   - 收入策略偏好：${incomeKey}
+   - 資產偏好：${assetKey}
+   - 階段目標：${goalKey}
+   - 風險承受度：${riskKey}
+   - 研究焦點：${focusKey}
+   - 分析維度深度：${depthKey === 'years' ? '2026~2045 逐年規劃' : depthKey === 'elements' ? '深入五行、格局、喜用神' : depthKey === 'ten' ? '深入十神與格局' : depthKey}
+   - 使用者特定提問：${questionVal}
+
+請以「易見專業文化反思與財務顧問」之口吻，撰寫結構嚴謹、富有東方哲學深度且能具體指導財務行動之綜合解盤。請嚴格根據上方提供的【四柱十神五行喜忌】與【易經本變卦爻象】量身解讀，杜絕死板罐頭文字。
+`.trim();
+    }
+
+    const GEMINI_FALLBACK_MODELS = [
+      'gemini-3.8-flash',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash'
+    ];
+
+    const AI_KEY_STORAGE = 'yijing_user_gemini_key_v1';
+    try {
+      const savedKey = localStorage.getItem(AI_KEY_STORAGE);
+      if (savedKey) getEl('gemini-api-key').value = savedKey;
+    } catch (_) {}
+
+    getEl('gemini-api-key').addEventListener('change', (e) => {
+      try {
+        const val = e.target.value.trim();
+        if (val) localStorage.setItem(AI_KEY_STORAGE, val);
+        else localStorage.removeItem(AI_KEY_STORAGE);
+      } catch (_) {}
+    });
+
+    async function callDirectGeminiWithFallback(apiKey, prompt) {
+      let lastErr = '';
+      for (const model of GEMINI_FALLBACK_MODELS) {
+        try {
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          const resp = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.6, maxOutputTokens: 1800 }
+            })
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok) {
+            lastErr = `[${model}] ${data?.error?.message || 'HTTP ' + resp.status}`;
+            continue;
+          }
+          const candidate = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (candidate) {
+            return { ok: true, provider: `Google Gemini (${model})`, text: candidate.trim() };
+          }
+          lastErr = `[${model}] 未取得候選回覆`;
+        } catch (e) {
+          lastErr = `[${model}] ${e?.message || String(e)}`;
+        }
+      }
+      return { ok: false, error: `所有 Gemini 模型階層皆無法連線：${lastErr}` };
+    }
+
+    async function handleGenerateAiInsight() {
+      if (!validateForm()) return;
+
+      const btn = getEl('btn-ai-generate');
+      const errBox = getEl('ai-error-box');
+      const outBox = getEl('ai-output-box');
+      const outText = getEl('ai-result-text');
+      const badge = getEl('ai-provider-badge');
+      const userKey = getEl('gemini-api-key').value.trim();
+      const selectedEngine = getEl('ai-engine-select').value;
+
+      errBox.classList.add('hidden');
+      errBox.textContent = '';
+      btn.disabled = true;
+      btn.textContent = '⏳ AI 正在深度推演命盤與易理...';
+      badge.textContent = 'AI 模型推演中...';
+      outText.innerHTML = '<p style="color: var(--muted); font-style: italic;">⏳ 正在結合您的「四柱八字（年柱、月柱、日柱、時柱）」與「易經本卦變卦」進行深度推演，請稍候 3~5 秒...</p>';
+
+      const prompt = buildAnonymizedAiPrompt();
+
+      try {
+        let result;
+        if (selectedEngine === 'gemini' || (userKey && selectedEngine !== 'cloudflare' && selectedEngine !== 'groq')) {
+          if (!userKey) {
+            errBox.textContent = '請先填入你的 Gemini API Key，或切換回「⚡ 內建 Groq 高速引擎」。';
+            errBox.classList.remove('hidden');
+            btn.disabled = false;
+            btn.textContent = '🔄 重新推演 AI 深度解讀';
+            return;
+          }
+          result = await callDirectGeminiWithFallback(userKey, prompt);
+        } else {
+          const resp = await fetch('/api/ai-insight', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, engine: selectedEngine })
+          });
+          result = await resp.json().catch(() => ({ ok: false, error: '後端回傳格式非 JSON' }));
+        }
+
+        if (!result.ok) {
+          errBox.textContent = result.error || 'AI 服務連線失敗，請稍後重試。';
+          errBox.classList.remove('hidden');
+          outText.innerHTML = '<p style="color: #991b1b;">AI 深度推演暫時無法完成，上方之「四柱八字盤」、「五行能量分佈」與「易經本變卦象」依然為完全精準之排盤，請對照參考。</p>';
+          return;
+        }
+
+        badge.textContent = `${result.provider || 'AI 顧問'} · 推演完成`;
+        outText.innerHTML = formatMarkdownToHtml(result.text);
+      } catch (err) {
+        errBox.textContent = `連線發生錯誤：${err?.message || String(err)}`;
+        errBox.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 重新推演 AI 深度解讀';
+      }
+    }
+
+    function formatMarkdownToHtml(md) {
+      if (!md) return '';
+      const paragraphs = md.split(/\n\s*\n/);
+      return paragraphs.map(p => {
+        const clean = p.trim();
+        if (clean.startsWith('#')) {
+          const text = clean.replace(/^#+\s*/, '');
+          return `<h4 style="margin: 16px 0 8px; color: var(--ink); font-size: 1.1rem; border-left: 3px solid var(--gold); padding-left: 8px;">${escapeHtml(text)}</h4>`;
+        }
+        if (clean.startsWith('-') || clean.startsWith('*')) {
+          const items = clean.split('\n').map(l => l.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
+          return `<ul style="margin: 8px 0; padding-left: 20px;">${items.map(it => `<li>${escapeHtml(it)}</li>`).join('')}</ul>`;
+        }
+        return `<p style="margin: 8px 0; line-height: 1.7; color: var(--ink);">${escapeHtml(clean).replace(/\n/g, '<br>')}</p>`;
+      }).join('');
+    }
+
+    // 事件監聽
+    getEl('analysis-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      renderReport({ scrollToResult: true });
+    });
+
+    getEl('btn-cast').addEventListener('click', handleRandomCast);
+
+    getEl('btn-print').addEventListener('click', () => {
+      window.print();
+    });
+
+    getEl('btn-reset').addEventListener('click', handleReset);
+
+    getEl('analysis-form').addEventListener('change', () => {
+      const resultSec = getEl('result-section');
+      if (!resultSec.classList.contains('hidden')) {
+        renderReport({ scrollToResult: false });
+      }
+    });
+
+    getEl('btn-ai-generate').addEventListener('click', handleGenerateAiInsight);
+  </script>
+</body>
+</html>
