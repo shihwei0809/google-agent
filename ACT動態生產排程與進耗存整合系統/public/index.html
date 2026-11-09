@@ -44,6 +44,10 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <style>
+    #historySelect, #historySelect option {
+      background-color: #0f172a !important;
+      color: #ffffff !important;
+    }
 
     input[type=number]::-webkit-inner-spin-button, 
 
@@ -183,7 +187,7 @@
 
       <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded border border-slate-700">
         <span class="text-slate-300">歷史存檔區:</span>
-        <select id="historySelect" class="bg-slate-900 text-white border border-slate-600 rounded px-1.5 py-0.5 text-xs outline-none">
+        <select id="historySelect" style="color:#ffffff;background-color:#0f172a;" class="bg-slate-900 text-white border border-slate-600 rounded px-1.5 py-0.5 text-xs outline-none">
           <option value="">-- 選擇歷史紀錄 --</option>
         </select>
         <button onclick="loadHistoryRecord()" class="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white font-medium cursor-pointer" title="載入選中的歷史存檔">讀取</button>
@@ -3978,7 +3982,7 @@
 
 
 
-      select.innerHTML = '<option value="">-- 選擇歷史紀錄 --</option>';
+      select.innerHTML = '<option value="" class="bg-slate-900 text-white" style="color:#ffffff;background-color:#0f172a;">-- 選擇歷史紀錄 --</option>';
 
       
 
@@ -4010,10 +4014,11 @@
 
         opt.textContent = name;
 
+        opt.className = "bg-slate-900 text-white";
+        opt.style.color = "#ffffff";
+        opt.style.backgroundColor = "#0f172a";
         if (name.startsWith(prodTag)) {
-
-          opt.className = "text-indigo-600 font-bold";
-
+          opt.classList.add("font-bold");
         }
 
         select.appendChild(opt);
