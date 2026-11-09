@@ -1748,51 +1748,51 @@
             // 期初庫存 (首日數值，次日帶公式 =前日結存)
             const cellStart = rStart.getCell(colIdx);
             if (idx === 0) {
-              cellStart.value = Math.round(pSum[dayIdx].start);
+              cellStart.value = Math.round(pSum[dayIdx].start * 10) / 10;
             } else {
-              cellStart.value = { formula: `${prevColL}${endRowNum}`, result: Math.round(pSum[dayIdx].start) };
+              cellStart.value = { formula: `${prevColL}${endRowNum}`, result: Math.round(pSum[dayIdx].start * 10) / 10 };
             }
             cellStart.font = fontBold;
             cellStart.fill = fillStart;
             cellStart.alignment = { vertical: 'middle', horizontal: 'center' };
             cellStart.border = borderThin;
-            cellStart.numFmt = '#,##0';
+            cellStart.numFmt = '#,##0.0';
 
             // 製程耗用
             const cellUse = rUse.getCell(colIdx);
-            cellUse.value = Math.round(pSum[dayIdx].use);
+            cellUse.value = Math.round((pSum[dayIdx].use || 0) * 10) / 10;
             cellUse.font = fontNegative;
             cellUse.fill = fillUse;
             cellUse.alignment = { vertical: 'middle', horizontal: 'center' };
             cellUse.border = borderThin;
-            cellUse.numFmt = '#,##0';
+            cellUse.numFmt = '#,##0.0';
 
             // 調撥
             const cellTrans = rTrans.getCell(colIdx);
-            cellTrans.value = pSum[dayIdx].trans || 0;
+            cellTrans.value = Math.round((pSum[dayIdx].trans || 0) * 10) / 10;
             cellTrans.font = fontPositive;
             cellTrans.fill = fillIn;
             cellTrans.alignment = { vertical: 'middle', horizontal: 'center' };
             cellTrans.border = borderThin;
-            cellTrans.numFmt = '#,##0';
+            cellTrans.numFmt = '#,##0.0';
 
             // 進貨
             const cellIn = rIn.getCell(colIdx);
-            cellIn.value = pSum[dayIdx].in || 0;
+            cellIn.value = Math.round((pSum[dayIdx].in || 0) * 10) / 10;
             cellIn.font = fontPositive;
             cellIn.fill = fillIn;
             cellIn.alignment = { vertical: 'middle', horizontal: 'center' };
             cellIn.border = borderThin;
-            cellIn.numFmt = '#,##0';
+            cellIn.numFmt = '#,##0.0';
 
             // 結存 (公式：期初 - 耗用 + 調撥 + 進貨)
             const cellEnd = rEnd.getCell(colIdx);
             const endFormula = `${colL}${startRowNum}-${colL}${useRowNum}+${colL}${transRowNum}+${colL}${inRowNum}`;
-            const endVal = Math.round(pSum[dayIdx].end);
+            const endVal = Math.round(pSum[dayIdx].end * 10) / 10;
             cellEnd.value = { formula: endFormula, result: endVal };
             cellEnd.alignment = { vertical: 'middle', horizontal: 'center' };
             cellEnd.border = borderThin;
-            cellEnd.numFmt = '#,##0';
+            cellEnd.numFmt = '#,##0.0';
 
             if (endVal < 0) {
               cellEnd.fill = fillDeficit;
@@ -2093,11 +2093,11 @@
           rows.push([]);
           rows.push(["=== 🔗 彰濱一廠共用原料池 (合計) ==="]);
           const pSum = calculatedData.poolSummary[activeMonthKey];
-          rows.push(["共用池總期初量", ...displayDaysArr.map(i => Math.round(pSum[i].start))]);
-          rows.push(["製程耗用原料總量(-)", ...displayDaysArr.map(i => Math.round(pSum[i].use))]);
-          rows.push(["共用池調撥(+)", ...displayDaysArr.map(i => pSum[i].trans)]);
-          rows.push(["共用池進貨(+)", ...displayDaysArr.map(i => pSum[i].in)]);
-          rows.push(["共用池當日剩餘結存", ...displayDaysArr.map(i => Math.round(pSum[i].end))]);
+          rows.push(["共用池總期初量", ...displayDaysArr.map(i => Number(pSum[i].start || 0).toFixed(1))]);
+          rows.push(["製程耗用原料總量(-)", ...displayDaysArr.map(i => Number(pSum[i].use || 0).toFixed(1))]);
+          rows.push(["共用池調撥(+)", ...displayDaysArr.map(i => Number(pSum[i].trans || 0).toFixed(1))]);
+          rows.push(["共用池進貨(+)", ...displayDaysArr.map(i => Number(pSum[i].in || 0).toFixed(1))]);
+          rows.push(["共用池當日剩餘結存", ...displayDaysArr.map(i => Number(pSum[i].end || 0).toFixed(1))]);
         }
 
         const tanksToExport = activePlantId === 'summary' ? operatingSupplyTanks : activePlantTanks;
@@ -3055,9 +3055,10 @@
                               <tr className="bg-white">
                                 <td className="sticky-col p-2 pl-4 text-left font-bold border-b text-indigo-900">共用池總期初量</td>
                                 {displayDaysArr.map((i) => {
-                                  const startVal = Math.round(calculatedData.poolSummary[activeMonthKey][i].start);
+                                  const rawStart = calculatedData.poolSummary[activeMonthKey][i].start;
+                                  const startVal = Number(rawStart || 0).toFixed(1);
                                   return (
-                                    <td key={i} className={`p-1 border-b font-bold ${startVal < 0 ? 'text-red-600 bg-red-50/60 font-black' : 'text-indigo-800'}`}>
+                                    <td key={i} className={`p-1 border-b font-bold ${Number(rawStart || 0) < 0 ? 'text-red-600 bg-red-50/60 font-black' : 'text-indigo-800'}`}>
                                       {startVal}
                                     </td>
                                   );
@@ -3070,10 +3071,10 @@
                                   ⚙️ 製程耗用原料總量 (-)
                                 </td>
                                 {displayDaysArr.map((i) => {
-                                  const rawUse = Math.round(calculatedData.poolSummary[activeMonthKey][i].use || 0);
+                                  const rawUse = calculatedData.poolSummary[activeMonthKey][i].use || 0;
                                   return (
                                     <td key={i} className="p-1 border-b text-sm font-black text-orange-900">
-                                      {rawUse > 0 ? rawUse : 0}
+                                      {rawUse > 0 ? Number(rawUse).toFixed(1) : '0.0'}
                                     </td>
                                   );
                                 })}
@@ -3083,7 +3084,7 @@
                               <tr>
                                 <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700">共用池調撥 (+)</td>
                                 {displayDaysArr.map((i) => (
-                                  <td key={i} className="p-1 border-b font-bold text-blue-600">{Math.round(calculatedData.poolSummary[activeMonthKey][i].trans)}</td>
+                                  <td key={i} className="p-1 border-b font-bold text-blue-600">{Number(calculatedData.poolSummary[activeMonthKey][i].trans || 0).toFixed(1)}</td>
                                 ))}
                               </tr>
 
@@ -3091,7 +3092,7 @@
                               <tr>
                                 <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700">共用池進貨 (+)</td>
                                 {displayDaysArr.map((i) => (
-                                  <td key={i} className="p-1 border-b font-bold text-blue-600">{Math.round(calculatedData.poolSummary[activeMonthKey][i].in)}</td>
+                                  <td key={i} className="p-1 border-b font-bold text-blue-600">{Number(calculatedData.poolSummary[activeMonthKey][i].in || 0).toFixed(1)}</td>
                                 ))}
                               </tr>
 
@@ -3102,7 +3103,7 @@
                                   const d = calculatedData.poolSummary[activeMonthKey][i];
                                   return (
                                     <td key={i} className={`p-1 border-b font-black text-sm ${d.end < (parseFloat(safetyStock) || 50) ? 'bg-red-600 text-white' : 'text-indigo-900'}`}>
-                                      {Math.round(d.end)}
+                                      {Number(d.end || 0).toFixed(1)}
                                     </td>
                                   );
                                 })}
