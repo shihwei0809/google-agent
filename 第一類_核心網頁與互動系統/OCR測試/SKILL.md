@@ -1,19 +1,27 @@
 ---
-name: ocr測試-manager
-description: 協助使用者初始化與運行「OCR測試」專案環境
+name: ocr-to-excel-manager
+description: 協助使用者初始化與運行「AI 圖片智慧判讀轉 Excel 系統」環境
 ---
 
-# OCR測試 專案管理技能
+# AI 圖片智慧判讀轉 Excel 系統 (OCR to Excel) 專案管理技能
 
-本專案是「OCR測試」的實作專案。
+本專案提供高精度的本機圖片 OCR 判讀與自動轉 Excel 報表服務。
 
 ## 🛠️ 環境依賴需求
-1. **Node.js (npm)**：用於執行網頁伺服器或管理套件依賴。
-2. **Python 3**：用於執行後台自動化腳本或數據處理。
+1. **Python 3.9+**：核心運算與 FastAPI 伺服器。
+2. **依賴套件**：
+   - `fastapi`, `uvicorn`, `python-multipart`
+   - `easyocr` (繁體中文 + 英文離線模型)
+   - `openpyxl` (商務 Excel 報表生成)
+   - `Pillow` (影像讀取與標註圖繪製)
+   - `pymupdf` (PDF 轉影像)
+   - `opencv-python` (圖像處理)
 
 ## 🚀 AI 助理執行指引
-1. **環境檢查**：
-   - 檢查系統中是否已安裝相關依賴。
-   - 若未安裝，請建議使用者執行 `powershell -ExecutionPolicy Bypass -File setup_env.ps1`。
-2. **初始化與執行**：
-   - 本專案可以直接雙擊 HTML 開啟，或使用本機 HTTP 伺服器託管運行。
+1. **環境檢查與初始化**：
+   - 若人員環境缺少套件，可執行 `powershell -ExecutionPolicy Bypass -File setup_env.ps1`。
+2. **服務啟動**：
+   - 啟動主服務：執行 `run_web_app.bat` 或在終端機執行 `python ocr_web_app.py`。
+   - 伺服器啟動後會在 `http://localhost:8000`（或自動 Fallback 之 Port）提供服務。
+3. **功能更新規範**：
+   - 當修改表格聚類演算法或 Excel 樣式時，同步確認 `web_index.html` 之互動式預覽功能。

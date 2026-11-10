@@ -3,451 +3,630 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DeckEdit - 本地私密簡報轉檔工具</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <title>AI 圖片/PDF 智慧判讀轉 Excel 系統 (OCR to Excel)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    :root {
-      --bg: #090d16;
-      --card-bg: rgba(17, 24, 39, 0.7);
-      --border: rgba(255, 255, 255, 0.08);
-      --primary: #2563eb;
-      --primary-glow: rgba(37, 99, 235, 0.4);
-      --secondary: #8b5cf6;
-      --secondary-glow: rgba(139, 92, 246, 0.4);
-      --text: #f3f4f6;
-      --text-muted: #9ca3af;
-      --success: #10b981;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Inter', 'Noto Sans TC', sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      overflow-x: hidden;
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(37, 99, 235, 0.15) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
-    }
-
-    .container {
-      width: 100%;
-      max-width: 640px;
-      background: var(--card-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 40px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 
-                  0 0 80px rgba(37, 99, 235, 0.05);
-      text-align: center;
-      position: relative;
-    }
-
-    .logo-container {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    .logo-icon {
-      width: 48px;
-      height: 48px;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 14px var(--primary-glow);
-    }
-
-    .logo-icon svg {
-      width: 26px;
-      height: 26px;
-      fill: white;
-    }
-
-    h1 {
-      font-size: 28px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .subtitle {
-      color: var(--text-muted);
-      font-size: 15px;
-      margin-bottom: 32px;
-    }
-
-    /* 格式選擇器 */
-    .format-selector {
-      display: grid;
-      grid-cols: 2;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .format-btn {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 16px;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .format-btn svg {
-      width: 32px;
-      height: 32px;
-      fill: var(--text-muted);
-      transition: fill 0.3s;
-    }
-
-    .format-btn span {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-muted);
-      transition: color 0.3s;
-    }
-
-    .format-btn small {
-      font-size: 11px;
-      color: #6b7280;
-    }
-
-    /* 點擊選中狀態 */
-    .format-btn.active[data-format="ppt"] {
-      border-color: var(--primary);
-      box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
-      background: rgba(37, 99, 235, 0.08);
-    }
-    .format-btn.active[data-format="ppt"] svg { fill: #3b82f6; }
-    .format-btn.active[data-format="ppt"] span { color: #ffffff; }
-
-    .format-btn.active[data-format="word"] {
-      border-color: var(--secondary);
-      box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
-      background: rgba(139, 92, 246, 0.08);
-    }
-    .format-btn.active[data-format="word"] svg { fill: #a78bfa; }
-    .format-btn.active[data-format="word"] span { color: #ffffff; }
-
-    /* 拖曳上傳區域 */
-    .dropzone {
-      border: 2px dashed var(--border);
-      border-radius: 20px;
-      padding: 40px 20px;
-      cursor: pointer;
-      background: rgba(255, 255, 255, 0.01);
-      transition: all 0.3s;
-      position: relative;
-      margin-bottom: 24px;
-    }
-
-    .dropzone:hover, .dropzone.dragover {
-      border-color: var(--primary);
-      background: rgba(37, 99, 235, 0.03);
-    }
-
-    .dropzone-icon {
-      font-size: 40px;
-      margin-bottom: 12px;
-      display: inline-block;
-    }
-
-    .dropzone p {
-      font-size: 14px;
-      color: var(--text-muted);
-    }
-
-    .dropzone-file-info {
-      font-weight: 600;
-      color: var(--text);
-      display: none;
-    }
-
-    #fileInput {
-      display: none;
-    }
-
-    /* 轉換按鈕 */
-    .convert-btn {
-      width: 100%;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-      color: white;
-      border: none;
-      padding: 16px;
-      border-radius: 16px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
-      transition: all 0.3s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    .convert-btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 24px rgba(37, 99, 235, 0.4);
-    }
-
-    .convert-btn:active:not(:disabled) {
-      transform: translateY(0);
-    }
-
-    .convert-btn:disabled {
-      background: #374151;
-      color: #6b7280;
-      box-shadow: none;
-      cursor: not-allowed;
-    }
-
-    /* 進度條與狀態 */
-    .status-area {
-      margin-top: 24px;
-      display: none;
-    }
-
-    .progress-bar-container {
-      width: 100%;
-      height: 8px;
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 12px;
-    }
-
-    .progress-bar-fill {
-      width: 0%;
-      height: 100%;
-      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
-      border-radius: 4px;
-      transition: width 0.4s ease;
-    }
-
-    .status-text {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-
-    .footer {
-      margin-top: 32px;
-      font-size: 12px;
-      color: #4b5563;
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    .table-cell-input:focus {
+      outline: 2px solid #3b82f6;
+      background-color: #1e293b;
     }
   </style>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col antialiased selection:bg-brand-500 selection:text-white">
 
-  <div class="container">
-    <div class="logo-container">
-      <div class="logo-icon">
-        <svg viewBox="0 0 24 24">
-          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3.5 9c.83 0 1.5-.67 1.5-1.5S16.33 9 15.5 9 14 9.67 14 10.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 9 8.5 9 7 9.67 7 10.5 7.67 12 8.5 12zm0 4.5c1.84 0 3.48-.96 4.43-2.42H4.07c.95 1.46 2.59 2.42 4.43 2.42z"/>
-        </svg>
+  <!-- 頂部導航列 -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/20 text-xl font-bold">
+          📊
+        </div>
+        <div>
+          <h1 class="font-bold text-base sm:text-lg text-white leading-tight">AI 圖片 / PDF 智慧判讀轉 Excel 系統</h1>
+          <p class="text-xs text-slate-400">支援手機照片自動轉正・多頁 PDF 逐頁解析・二維表格還原</p>
+        </div>
       </div>
-      <h1>DeckEdit Offline</h1>
-    </div>
-    <div class="subtitle">100% 私密。在本地瀏覽器內將圖片/PDF 轉換為可編輯的 Office 簡報</div>
-
-    <!-- 輸出格式選擇 -->
-    <div class="format-selector">
-      <div class="format-btn active" data-format="ppt">
-        <svg viewBox="0 0 24 24">
-          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/>
-        </svg>
-        <span>匯出至 PowerPoint</span>
-        <small>.pptx 簡報格式</small>
-      </div>
-      <div class="format-btn" data-format="word">
-        <svg viewBox="0 0 24 24">
-          <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
-        </svg>
-        <span>匯出至 Word</span>
-        <small>.docx 報告格式</small>
+      <div class="flex items-center space-x-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+          EasyOCR + PyMuPDF 雙引擎就緒
+        </span>
       </div>
     </div>
+  </header>
 
-    <!-- 拖放上傳區 -->
-    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
-      <div class="dropzone-icon" id="dropzoneIcon">📂</div>
-      <p id="dropzonePrompt">拖曳圖片/PDF 檔案至此處，或點擊選擇檔案</p>
-      <p class="dropzone-file-info" id="fileInfo"></p>
-      <input type="file" id="fileInput" accept="image/*, application/pdf">
-    </div>
+  <!-- 主要工作區 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-    <!-- 轉換按鈕 -->
-    <button class="convert-btn" id="convertBtn" disabled>
-      <span>開始轉檔與辨識</span>
-    </button>
-
-    <!-- 進度條 -->
-    <div class="status-area" id="statusArea">
-      <div class="progress-bar-container">
-        <div class="progress-bar-fill" id="progressFill"></div>
+    <!-- 支援格式與使用秘訣提示條 -->
+    <div class="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div class="flex items-center space-x-3">
+        <span class="text-2xl">💡</span>
+        <div class="text-xs sm:text-sm text-slate-300">
+          <span class="font-semibold text-white">智慧自動辨識：</span>
+          支援<span class="text-emerald-400 font-bold">「手機照片 (自動旋轉轉正)」</span>與<span class="text-brand-400 font-bold">「PDF 文件 (多頁自動逐頁辨識)」</span>。系統會將內容自動重構為乾淨的 Excel 表格！
+        </div>
       </div>
-      <div class="status-text" id="statusText">等待轉檔...</div>
+      <div class="flex items-center space-x-2 text-xs text-slate-400 font-mono">
+        <span class="bg-slate-700/60 px-2.5 py-1 rounded border border-slate-600/50">📸 支援相機照片</span>
+        <span class="bg-slate-700/60 px-2.5 py-1 rounded border border-slate-600/50">📑 支援多頁 PDF</span>
+        <span class="bg-slate-700/60 px-2.5 py-1 rounded border border-slate-600/50">📋 支援 Ctrl+V 貼上截圖</span>
+      </div>
     </div>
 
-    <div class="footer">本軟體完全於本機電腦執行，不傳輸任何資料至外部網路。</div>
-  </div>
+    <!-- 上傳區塊 -->
+    <div id="uploadSection" class="transition-all duration-300 space-y-4">
+      <div 
+        id="dropZone" 
+        class="relative border-2 border-dashed border-slate-700 hover:border-brand-500 rounded-3xl p-8 sm:p-12 text-center bg-slate-800/40 hover:bg-slate-800/70 transition-all cursor-pointer group shadow-xl"
+      >
+        <input type="file" id="fileInput" class="hidden" accept="image/*,.pdf" />
+        
+        <div class="space-y-4 max-w-md mx-auto">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-brand-500/10 text-brand-400 flex items-center justify-center text-3xl group-hover:scale-110 group-hover:bg-brand-500/20 transition-all">
+            📁
+          </div>
+          <div>
+            <h3 class="text-lg font-bold text-white mb-1">點擊選取照片 / PDF，或直接拖曳檔案至此</h3>
+            <p class="text-xs sm:text-sm text-slate-400">支援手機拍照 (JPG/PNG/WEBP/BMP) 或 單頁/多頁 PDF 文件</p>
+          </div>
+          <div class="pt-2 flex flex-wrap justify-center gap-2">
+            <span class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600/40">📸 手機拍照/出貨單據</span>
+            <span class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600/40">📑 多頁 PDF 報表</span>
+            <span class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600/40">⚖️ 磅單 / 驗收單</span>
+            <span class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-700/50 text-slate-300 border border-slate-600/40">🧾 發票與憑證</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- PDF 頁數設定區塊 (上傳 PDF 時可選) -->
+      <div class="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <span class="text-base">📑</span>
+            <span class="text-xs sm:text-sm font-bold text-white">PDF 解析範圍設定（照片會自動全張轉正處理）：</span>
+          </div>
+          <span class="text-[11px] text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+            ⚡ 建議大檔案先跑第 1 頁看效果
+          </span>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+          <label class="page-mode-card flex items-center space-x-2 p-2.5 rounded-xl border border-brand-500 bg-brand-500/10 cursor-pointer text-slate-200">
+            <input type="radio" name="pageMode" value="first_page" checked class="text-brand-600 focus:ring-0">
+            <span>⚡ 僅第 1 頁 (約15秒・推薦)</span>
+          </label>
+          <label class="page-mode-card flex items-center space-x-2 p-2.5 rounded-xl border border-slate-700 bg-slate-900/40 hover:border-slate-600 cursor-pointer text-slate-300">
+            <input type="radio" name="pageMode" value="first_3" class="text-brand-600 focus:ring-0">
+            <span>📑 前 3 頁 (約45秒)</span>
+          </label>
+          <label class="page-mode-card flex items-center space-x-2 p-2.5 rounded-xl border border-slate-700 bg-slate-900/40 hover:border-slate-600 cursor-pointer text-slate-300">
+            <input type="radio" name="pageMode" value="all" class="text-brand-600 focus:ring-0">
+            <span>📚 全部頁面 (大檔需數分鐘)</span>
+          </label>
+          <div class="flex items-center space-x-1.5 p-1 rounded-xl border border-slate-700 bg-slate-900/40">
+            <label class="flex items-center space-x-1.5 cursor-pointer pl-1.5">
+              <input type="radio" name="pageMode" value="custom" class="text-brand-600 focus:ring-0">
+              <span class="text-slate-300 shrink-0">自訂：</span>
+            </label>
+            <input type="text" id="customPagesInput" placeholder="如 1-3" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-200 text-xs focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 判讀中動畫區塊 -->
+    <div id="loadingSection" class="hidden py-16 text-center space-y-6">
+      <div class="inline-flex relative">
+        <div class="w-20 h-20 rounded-2xl border-4 border-brand-500/30 border-t-brand-500 animate-spin"></div>
+        <div class="absolute inset-0 flex items-center justify-center text-2xl">⚡</div>
+      </div>
+      <div class="space-y-2">
+        <h3 id="loadingTitle" class="text-lg font-bold text-white">正在解析照片/PDF 內容...</h3>
+        <p id="loadingSub" class="text-sm text-slate-400">正在執行文字方向校正、光學識別與二維表格重構，請稍候</p>
+      </div>
+      <div class="max-w-md mx-auto grid grid-cols-3 gap-2 text-xs pt-2">
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-brand-500/30 text-brand-300">1. 方向轉正與預處理</div>
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-brand-500/30 text-brand-300">2. 文字光學辨識</div>
+        <div class="bg-slate-800 p-2.5 rounded-xl border border-brand-500/30 text-brand-300">3. 產出 Excel 活頁簿</div>
+      </div>
+    </div>
+
+    <!-- 辨識成果與下載區塊 -->
+    <div id="resultSection" class="hidden space-y-6 transition-all duration-300">
+      
+      <!-- 頂部操作列 -->
+      <div class="bg-slate-800/90 border border-slate-700 rounded-2xl p-5 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+        
+        <!-- 左側資訊 -->
+        <div class="space-y-1.5 text-center md:text-left">
+          <div class="flex items-center space-x-2 justify-center md:justify-start">
+            <span class="text-xl">✅</span>
+            <h2 id="resultFileName" class="text-base sm:text-lg font-bold text-white truncate max-w-md">判讀完成</h2>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+            <span class="bg-slate-700/60 px-2 py-0.5 rounded text-amber-400 font-semibold" id="statPages">共 1 頁</span>
+            <span class="bg-slate-700/60 px-2 py-0.5 rounded text-emerald-400 font-semibold" id="statItems">0 個字塊</span>
+            <span class="bg-slate-700/60 px-2 py-0.5 rounded text-blue-400 font-semibold" id="statGrid">0 列 × 0 欄</span>
+            <span class="bg-slate-700/60 px-2 py-0.5 rounded text-purple-400 font-semibold" id="statConf">可信度 0%</span>
+          </div>
+        </div>
+
+        <!-- 右側操作按鈕 -->
+        <div class="flex flex-wrap items-center justify-center gap-3 w-full md:w-auto">
+          <a 
+            id="downloadBtn" 
+            href="#" 
+            download 
+            class="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 flex items-center space-x-2 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+          >
+            <span class="text-lg">📥</span>
+            <span>下載 Excel 報表 (.xlsx)</span>
+          </a>
+          
+          <button 
+            id="copyTextBtn" 
+            class="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white font-semibold text-xs transition-all flex items-center space-x-1.5"
+            title="複製辨識到的純文字"
+          >
+            <span>📋</span>
+            <span>複製文字</span>
+          </button>
+
+          <button 
+            id="downloadCsvBtn" 
+            class="px-4 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 hover:text-white font-semibold text-xs transition-all flex items-center space-x-1.5"
+            title="下載為 CSV 格式"
+          >
+            <span>📄</span>
+            <span>下載 CSV</span>
+          </button>
+
+          <button 
+            id="reUploadBtn" 
+            class="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 hover:text-white font-semibold text-xs transition-all flex items-center space-x-1.5"
+          >
+            <span>🔄</span>
+            <span>重選檔案</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- 多頁 PDF 頁次切換列 (若是多頁自動呈現) -->
+      <div id="pageSelectorSection" class="hidden bg-slate-800/60 border border-slate-700/70 p-3 rounded-xl flex items-center space-x-2 overflow-x-auto">
+        <span class="text-xs font-bold text-slate-400 shrink-0 mr-1">📄 頁面切換：</span>
+        <div id="pageButtonsContainer" class="flex items-center space-x-1.5">
+          <!-- 動態注入各頁按鈕 -->
+        </div>
+      </div>
+
+      <!-- 功能分頁切換 (Tab Navigation) -->
+      <div class="flex items-center space-x-2 border-b border-slate-800 pb-2">
+        <button id="tabTableBtn" class="tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-brand-600 text-white shadow transition-all flex items-center space-x-2">
+          <span>📋</span>
+          <span>智慧表格即時預覽 (可線上點擊編輯)</span>
+        </button>
+        <button id="tabImageBtn" class="tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all flex items-center space-x-2">
+          <span>🖼️</span>
+          <span>影像辨識框對照 (標註圖)</span>
+        </button>
+        <button id="tabRawBtn" class="tab-btn px-4 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all flex items-center space-x-2">
+          <span>📄</span>
+          <span>整行純文字</span>
+        </button>
+      </div>
+
+      <!-- Tab 1: 表格預覽 -->
+      <div id="tabTableContent" class="space-y-2">
+        <div class="flex justify-between items-center text-xs text-slate-400 px-1">
+          <span>💡 提示：可直接點擊表格儲存格線上修改文字，修改後可直接「下載 CSV」！</span>
+          <span id="gridDimensions" class="font-mono text-brand-400"></span>
+        </div>
+        <div class="bg-slate-800/80 border border-slate-700 rounded-2xl overflow-hidden shadow-xl">
+          <div class="overflow-x-auto max-h-[550px]">
+            <table id="previewTable" class="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead id="tableHead" class="bg-slate-900/90 sticky top-0 border-b border-slate-700 z-10 text-slate-300">
+                <!-- 動態注入標題列 -->
+              </thead>
+              <tbody id="tableBody" class="divide-y divide-slate-700/60 font-mono">
+                <!-- 動態注入資料列 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: 圖片標註對照圖 -->
+      <div id="tabImageContent" class="hidden bg-slate-800/80 border border-slate-700 rounded-2xl p-4 text-center">
+        <div class="mb-3 text-xs text-slate-400 flex items-center justify-center space-x-4">
+          <span class="flex items-center"><span class="w-3 h-3 bg-emerald-500 rounded mr-1.5"></span> 綠色：高可信度 (>=85%)</span>
+          <span class="flex items-center"><span class="w-3 h-3 bg-yellow-500 rounded mr-1.5"></span> 黃色：中可信度 (60-84%)</span>
+          <span class="flex items-center"><span class="w-3 h-3 bg-red-500 rounded mr-1.5"></span> 紅色：需人工確認 (&lt;60%)</span>
+        </div>
+        <div class="overflow-auto max-h-[600px] rounded-xl border border-slate-700 bg-slate-950 flex items-center justify-center p-2">
+          <img id="annotatedImage" src="" alt="OCR 標註對照圖" class="max-w-full h-auto rounded shadow-lg" />
+        </div>
+      </div>
+
+      <!-- Tab 3: 純文字檢視 -->
+      <div id="tabRawContent" class="hidden bg-slate-800/80 border border-slate-700 rounded-2xl p-4 space-y-3">
+        <div class="flex justify-between items-center text-xs text-slate-400">
+          <span>以下為辨識出的原始行文字：</span>
+          <button id="copyRawBtn" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-slate-200 text-xs">📋 點擊複製此區塊</button>
+        </div>
+        <textarea id="rawTextArea" rows="16" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 font-mono text-xs text-slate-200 focus:outline-none focus:border-brand-500" readonly></textarea>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 頁腳 -->
+  <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
+    AI 圖片/PDF 判讀轉 Excel 系統 v2.5 (EasyOCR + EXIF 自動轉正 + 多頁 PDF 解析引擎)
+  </footer>
 
   <script>
-    let selectedFile = null;
-    let selectedFormat = 'ppt'; // 預設 PPT
+    // DOM 元素
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadSection = document.getElementById('uploadSection');
+    const loadingSection = document.getElementById('loadingSection');
+    const resultSection = document.getElementById('resultSection');
 
-    // 格式按鈕切換
-    const formatBtns = document.querySelectorAll('.format-btn');
-    formatBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        formatBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        selectedFormat = btn.getAttribute('data-format');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+    const copyTextBtn = document.getElementById('copyTextBtn');
+    const copyRawBtn = document.getElementById('copyRawBtn');
+    const reUploadBtn = document.getElementById('reUploadBtn');
+
+    const resultFileName = document.getElementById('resultFileName');
+    const statPages = document.getElementById('statPages');
+    const statItems = document.getElementById('statItems');
+    const statGrid = document.getElementById('statGrid');
+    const statConf = document.getElementById('statConf');
+    const gridDimensions = document.getElementById('gridDimensions');
+
+    const pageSelectorSection = document.getElementById('pageSelectorSection');
+    const pageButtonsContainer = document.getElementById('pageButtonsContainer');
+
+    const tableHead = document.getElementById('tableHead');
+    const tableBody = document.getElementById('tableBody');
+    const annotatedImage = document.getElementById('annotatedImage');
+    const rawTextArea = document.getElementById('rawTextArea');
+
+    const tabTableBtn = document.getElementById('tabTableBtn');
+    const tabImageBtn = document.getElementById('tabImageBtn');
+    const tabRawBtn = document.getElementById('tabRawBtn');
+    const tabTableContent = document.getElementById('tabTableContent');
+    const tabImageContent = document.getElementById('tabImageContent');
+    const tabRawContent = document.getElementById('tabRawContent');
+
+    let currentOcrData = null;
+    let selectedPageIndex = 0; // 0 代表第一頁
+
+    // PDF 頁數設定卡片選中樣式監聽
+    document.querySelectorAll('input[name="pageMode"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        document.querySelectorAll('.page-mode-card').forEach(card => {
+          card.classList.remove('border-brand-500', 'bg-brand-500/10', 'text-slate-200');
+          card.classList.add('border-slate-700', 'bg-slate-900/40', 'text-slate-300');
+        });
+        const parentCard = e.target.closest('.page-mode-card');
+        if (parentCard) {
+          parentCard.classList.remove('border-slate-700', 'bg-slate-900/40', 'text-slate-300');
+          parentCard.classList.add('border-brand-500', 'bg-brand-500/10', 'text-slate-200');
+        }
       });
     });
 
-    // 拖曳上傳控制
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('fileInput');
-    const dropzoneIcon = document.getElementById('dropzoneIcon');
-    const dropzonePrompt = document.getElementById('dropzonePrompt');
-    const fileInfo = document.getElementById('fileInfo');
-    const convertBtn = document.getElementById('convertBtn');
-
-    dropzone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
+    // 拖曳上傳
+    dropZone.addEventListener('click', () => fileInput.click());
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('border-brand-500', 'bg-slate-800/80');
+      });
     });
 
-    dropzone.addEventListener('dragleave', () => {
-      dropzone.classList.remove('dragover');
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('border-brand-500', 'bg-slate-800/80');
+      });
     });
 
-    dropzone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-      if (e.dataTransfer.files.length > 0) {
-        handleFileSelect(e.dataTransfer.files[0]);
+    dropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        handleUpload(files[0]);
       }
     });
 
     fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleFileSelect(e.target.files[0]);
+      if (e.target.files && e.target.files.length > 0) {
+        handleUpload(e.target.files[0]);
       }
     });
 
-    function handleFileSelect(file) {
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/bmp', 'application/pdf'];
-      if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.pdf')) {
-        alert('請上傳 JPG/PNG/BMP 圖片或 PDF 檔案！');
-        return;
+    // 支援 Ctrl+V 貼上剪貼簿截圖
+    window.addEventListener('paste', (e) => {
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      for (let item of items) {
+        if (item.kind === 'file') {
+          const blob = item.getAsFile();
+          handleUpload(blob);
+          break;
+        }
       }
-      
-      selectedFile = file;
-      dropzoneIcon.textContent = file.type === 'application/pdf' ? '📄' : '🖼️';
-      dropzonePrompt.style.display = 'none';
-      fileInfo.style.display = 'block';
-      fileInfo.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
-      convertBtn.disabled = false;
-    }
+    });
 
-    // 轉換按鈕點擊
-    const statusArea = document.getElementById('statusArea');
-    const progressFill = document.getElementById('progressFill');
-    const statusText = document.getElementById('statusText');
-
-    convertBtn.addEventListener('click', async () => {
-      if (!selectedFile) return;
-
-      convertBtn.disabled = true;
-      statusArea.style.display = 'block';
-      progressFill.style.width = '10%';
-      statusText.textContent = '正在將檔案上傳至本機處理核心...';
+    async function handleUpload(file) {
+      if (!file) return;
 
       const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('format', selectedFormat);
+      formData.append('file', file);
 
-      // 進度條動畫模擬
-      let progress = 10;
-      const progressInterval = setInterval(() => {
-        if (progress < 85) {
-          progress += Math.floor(Math.random() * 5) + 2;
-          progressFill.style.width = `${progress}%`;
-          if (progress > 30 && progress < 60) {
-            statusText.textContent = '本地 OCR 正在逐頁解析文字中，請稍候...';
-          } else if (progress >= 60) {
-            statusText.textContent = '正在重建版面並寫入可編輯之 Office 檔案中...';
-          }
-        }
-      }, 800);
+      // 取得 PDF 頁數設定
+      const selectedMode = document.querySelector('input[name="pageMode"]:checked')?.value || 'first_page';
+      const customPages = document.getElementById('customPagesInput')?.value || '';
+      formData.append('page_mode', selectedMode);
+      formData.append('custom_pages', customPages);
+
+      uploadSection.classList.add('hidden');
+      resultSection.classList.add('hidden');
+      loadingSection.classList.remove('hidden');
 
       try {
-        const isLocalFile = window.location.protocol === 'file:';
-        const apiBase = isLocalFile ? 'http://localhost:8000' : '';
-
-        const response = await fetch(`${apiBase}/convert`, {
+        const response = await fetch('/convert', {
           method: 'POST',
           body: formData
         });
 
-        clearInterval(progressInterval);
-
-        if (!response.ok) {
-          throw new Error('伺服器處理出錯');
-        }
-
         const data = await response.json();
-        if (data.success) {
-          progressFill.style.width = '100%';
-          statusText.textContent = '🎉 轉換成功！檔案已自動為您下載。';
-          
-          // 自動觸發下載
-          const downloadUrl = `${apiBase}${data.download_url}?name=${encodeURIComponent(data.filename)}`;
-          const link = document.createElement('a');
-          link.href = downloadUrl;
-          link.download = data.filename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        } else {
-          throw new Error(data.message || '轉檔失敗');
+
+        if (!data.success) {
+          throw new Error(data.message || '辨識失敗');
         }
+
+        currentOcrData = data;
+        selectedPageIndex = 0;
+        renderResults(data);
+
       } catch (err) {
-        clearInterval(progressInterval);
-        progressFill.style.width = '100%';
-        progressFill.style.background = 'var(--error)';
-        statusText.innerHTML = `<span style="color:var(--error)">❌ 轉檔錯誤：${err.message}</span>`;
-        alert(`轉換失敗：${err.message}`);
-      } finally {
-        convertBtn.disabled = false;
+        alert('❌ 處理發生錯誤：' + err.message);
+        loadingSection.classList.add('hidden');
+        uploadSection.classList.remove('hidden');
       }
+    }
+
+    function renderResults(data) {
+      loadingSection.classList.add('hidden');
+      resultSection.classList.remove('hidden');
+
+      resultFileName.textContent = data.filename;
+      statPages.textContent = `共 ${data.total_pages} 頁`;
+      statItems.textContent = `${data.total_items} 個字塊`;
+      statConf.textContent = `可信度 ${data.avg_confidence}`;
+
+      downloadBtn.href = data.download_url;
+      downloadBtn.download = data.filename;
+
+      // 若為多頁 PDF，渲染頁次選擇按鈕
+      if (data.total_pages > 1) {
+        pageSelectorSection.classList.remove('hidden');
+        pageButtonsContainer.innerHTML = '';
+
+        data.pages.forEach((p, idx) => {
+          const btn = document.createElement('button');
+          btn.className = `px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+            idx === selectedPageIndex 
+              ? 'bg-brand-600 text-white shadow' 
+              : 'bg-slate-700/80 text-slate-300 hover:bg-slate-600'
+          }`;
+          btn.textContent = `第 ${p.page_num} 頁 (${p.items.length}字)`;
+          btn.addEventListener('click', () => {
+            selectedPageIndex = idx;
+            updateActivePageDisplay();
+          });
+          pageButtonsContainer.appendChild(btn);
+        });
+      } else {
+        pageSelectorSection.classList.add('hidden');
+      }
+
+      updateActivePageDisplay();
+      rawTextArea.value = data.raw_text || '';
+      switchTab('table');
+    }
+
+    function updateActivePageDisplay() {
+      if (!currentOcrData) return;
+
+      const curPage = currentOcrData.pages ? currentOcrData.pages[selectedPageIndex] : currentOcrData;
+      
+      statGrid.textContent = `${curPage.rows_count} 列 × ${curPage.cols_count} 欄`;
+      gridDimensions.textContent = `[第 ${selectedPageIndex + 1} 頁: ${curPage.rows_count} Rows × ${curPage.cols_count} Columns]`;
+
+      // 更新分頁按鈕選中樣式
+      if (currentOcrData.total_pages > 1) {
+        const btns = pageButtonsContainer.querySelectorAll('button');
+        btns.forEach((b, idx) => {
+          if (idx === selectedPageIndex) {
+            b.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-brand-600 text-white shadow transition-all';
+          } else {
+            b.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-slate-700/80 text-slate-300 hover:bg-slate-600 transition-all';
+          }
+        });
+      }
+
+      // 渲染表格
+      renderTable(curPage.table_matrix);
+
+      // 渲染標註圖
+      if (curPage.annotated_image) {
+        annotatedImage.src = curPage.annotated_image;
+        tabImageBtn.classList.remove('hidden');
+      } else {
+        tabImageBtn.classList.add('hidden');
+      }
+    }
+
+    function renderTable(matrix) {
+      tableHead.innerHTML = '';
+      tableBody.innerHTML = '';
+
+      if (!matrix || matrix.length === 0) {
+        tableBody.innerHTML = '<tr><td class="p-6 text-center text-slate-500">本頁未辨識出表格文字</td></tr>';
+        return;
+      }
+
+      const maxCols = Math.max(...matrix.map(r => r.length));
+
+      // 標題列
+      const headTr = document.createElement('tr');
+      const thIndex = document.createElement('th');
+      thIndex.className = 'p-3 text-center text-xs font-bold text-slate-400 bg-slate-900 border-r border-slate-700 w-12';
+      thIndex.textContent = '#';
+      headTr.appendChild(thIndex);
+
+      for (let c = 0; c < maxCols; c++) {
+        const th = document.createElement('th');
+        th.className = 'p-3 text-xs font-bold text-slate-300 border-r border-slate-700/60 whitespace-nowrap';
+        th.textContent = `欄 ${c + 1}`;
+        headTr.appendChild(th);
+      }
+      tableHead.appendChild(headTr);
+
+      // 資料列
+      matrix.forEach((row, rIdx) => {
+        const tr = document.createElement('tr');
+        tr.className = rIdx % 2 === 1 ? 'bg-slate-800/40 hover:bg-slate-700/40' : 'bg-slate-800/10 hover:bg-slate-700/40';
+
+        const tdIdx = document.createElement('td');
+        tdIdx.className = 'p-2.5 text-center text-xs text-slate-500 bg-slate-900/60 border-r border-slate-700 select-none';
+        tdIdx.textContent = rIdx + 1;
+        tr.appendChild(tdIdx);
+
+        for (let c = 0; c < maxCols; c++) {
+          const val = row[c] || '';
+          const td = document.createElement('td');
+          td.className = 'p-2 border-r border-slate-700/50';
+
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = val;
+          input.className = 'table-cell-input w-full bg-transparent px-2 py-1 rounded text-slate-200 border border-transparent hover:border-slate-600 transition-colors focus:bg-slate-900';
+          input.addEventListener('input', (e) => {
+            const pageData = currentOcrData.pages ? currentOcrData.pages[selectedPageIndex] : currentOcrData;
+            if (!pageData.table_matrix[rIdx]) pageData.table_matrix[rIdx] = [];
+            pageData.table_matrix[rIdx][c] = e.target.value;
+          });
+
+          td.appendChild(input);
+          tr.appendChild(td);
+        }
+
+        tableBody.appendChild(tr);
+      });
+    }
+
+    function switchTab(activeTab) {
+      [tabTableBtn, tabImageBtn, tabRawBtn].forEach(btn => {
+        btn.classList.remove('bg-brand-600', 'text-white');
+        btn.classList.add('bg-slate-800', 'text-slate-400');
+      });
+      [tabTableContent, tabImageContent, tabRawContent].forEach(c => c.classList.add('hidden'));
+
+      if (activeTab === 'table') {
+        tabTableBtn.classList.add('bg-brand-600', 'text-white');
+        tabTableContent.classList.remove('hidden');
+      } else if (activeTab === 'image') {
+        tabImageBtn.classList.add('bg-brand-600', 'text-white');
+        tabImageContent.classList.remove('hidden');
+      } else if (activeTab === 'raw') {
+        tabRawBtn.classList.add('bg-brand-600', 'text-white');
+        tabRawContent.classList.remove('hidden');
+      }
+    }
+
+    tabTableBtn.addEventListener('click', () => switchTab('table'));
+    tabImageBtn.addEventListener('click', () => switchTab('image'));
+    tabRawBtn.addEventListener('click', () => switchTab('raw'));
+
+    reUploadBtn.addEventListener('click', () => {
+      resultSection.classList.add('hidden');
+      uploadSection.classList.remove('hidden');
+      fileInput.value = '';
     });
+
+    function copyText(str, btn) {
+      navigator.clipboard.writeText(str).then(() => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span>✅</span><span>已複製到剪貼簿！</span>';
+        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+      });
+    }
+
+    copyTextBtn.addEventListener('click', () => {
+      if (currentOcrData) copyText(currentOcrData.raw_text, copyTextBtn);
+    });
+
+    copyRawBtn.addEventListener('click', () => {
+      copyText(rawTextArea.value, copyRawBtn);
+    });
+
+    downloadCsvBtn.addEventListener('click', () => {
+      if (!currentOcrData) return;
+      const curPage = currentOcrData.pages ? currentOcrData.pages[selectedPageIndex] : currentOcrData;
+      const matrix = curPage.table_matrix;
+      if (!matrix) return;
+      
+      const csvContent = matrix.map(row => {
+        return row.map(val => `"${(val || '').replace(/"/g, '""')}"`).join(',');
+      }).join('\r\n');
+
+      const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (currentOcrData.filename || 'ocr_result').replace(/\.xlsx$/i, `_P${selectedPageIndex + 1}.csv`);
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
   </script>
+
 </body>
 </html>
