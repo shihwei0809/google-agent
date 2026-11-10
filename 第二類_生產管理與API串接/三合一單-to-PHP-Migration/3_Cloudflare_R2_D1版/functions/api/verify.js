@@ -86,6 +86,48 @@ function applyFuzzy(text) {
   return text.split("").map(c => FUZZY_MAP[c] || c).join("");
 }
 
+// 完整對齊 GAS advancedFuzzyCheck + 螢幕摩爾紋單字漏讀容錯 (末4碼流水槽號必須100%相符)
+function advancedFuzzyCheck(ocrText, target, isBatchOnScreen = false) {
+  if (!ocrText || !target) return false;
+  const cleanOCR = ocrText.toUpperCase().replace(/[\s\-:：]/g, "");
+  const cleanTarget = target.toUpperCase().replace(/[\s\-:：]/g, "");
+  if (!cleanTarget) return false;
+
+  function testMatch(t) {
+    if (!t) return false;
+    if (cleanOCR.includes(t)) return true;
+    if (cleanOCR.includes(t.replace(/8/g, "B"))) return true;
+    if (cleanOCR.includes(t.replace(/B/g, "8"))) return true;
+    if (cleanOCR.includes(t.replace(/3/g, "5"))) return true;
+    if (cleanOCR.includes(t.replace(/5/g, "3"))) return true;
+    const variant1 = t.replace(/3/g, "5").replace(/8/g, "B");
+    if (cleanOCR.includes(variant1)) return true;
+    const variant2 = t.replace(/5/g, "3").replace(/B/g, "8");
+    if (cleanOCR.includes(variant2)) return true;
+    if (applyFuzzy(cleanOCR).includes(applyFuzzy(t))) return true;
+
+    // 針對地磅電腦螢幕拍攝之 10 碼批號 (如 26B09E3061)，容許螢幕網格干擾造成前段單一字元漏讀 (如 26B9E3061 或 26B093071)，但末 4 碼流水槽號必須 100% 精確一致
+    if (isBatchOnScreen && t.length >= 9) {
+      const suffix4 = t.slice(-4);
+      const prefix = t.slice(0, -4);
+      for (let i = 1; i < prefix.length; i++) {
+        const droppedOne = prefix.slice(0, i) + prefix.slice(i + 1) + suffix4;
+        if (cleanOCR.includes(droppedOne) || applyFuzzy(cleanOCR).includes(applyFuzzy(droppedOne))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  if (testMatch(cleanTarget)) return true;
+  if (/^\d/.test(cleanTarget)) {
+    const noPrefix = cleanTarget.substring(1);
+    if (noPrefix.length >= 3 && testMatch(noPrefix)) return true;
+  }
+  return false;
+}
+
 function smartLocationCheck(cleanWeigh, fuzzyWeigh, locTarget) {
   if (!cleanWeigh || !locTarget) return { pass: false, debug: "" };
 
@@ -283,12 +325,13 @@ export async function onRequest(context) {
     const textWeigh = ocrResultLoc?.responses?.[0]?.fullTextAnnotation?.text || "";
     const cleanWeigh = textWeigh.replace(/\s+/g, "").toUpperCase();
 
-    // 2. 雙單號截取 (11碼)
+    // 2. 雙單號截取 (相容 GAS 空白修復與完整編號)
     let sourceDocNo = "";
     let weighbridgeNo = "";
-    const docMatch = cleanWeigh.match(/(ESXM101-[0-9A-Z]{11})/);
+    const fixedOcr = textWeigh.replace(/E\s+S\s+X\s+M/gi, "ESXM").replace(/ESXM\s+/gi, "ESXM");
+    const docMatch = fixedOcr.match(/\b(ESXM1[A-Z0-9\-]+)/i) || cleanWeigh.match(/(ESXM101-[0-9A-Z]{8,11})/);
     if (docMatch) sourceDocNo = docMatch[1];
-    const weighMatch = cleanWeigh.match(/(ESXM201-[0-9A-Z]{11})/);
+    const weighMatch = fixedOcr.match(/\b(ESXM2[A-Z0-9\-]+)/i) || cleanWeigh.match(/(ESXM201-[0-9A-Z]{8,11})/);
     if (weighMatch) weighbridgeNo = weighMatch[1];
 
     // 3. 供應商補償
@@ -304,13 +347,16 @@ export async function onRequest(context) {
 
     const fuzzyWeigh = applyFuzzy(cleanWeigh);
 
-    // 4. 比對目標準備
+    // 4. 比對目標準備 (100% 對齊 GAS)
     // A. 批號目標
     const cleanRawBatch = rawQrBatch.replace(/\s+/g, "").toUpperCase();
     const batchTargets = [];
     if (cleanRawBatch) {
       batchTargets.push(cleanRawBatch);
-      if (cleanRawBatch.startsWith("6") || cleanRawBatch.length >= 11) {
+      if (cleanRawBatch.startsWith("6") && cleanRawBatch.length > 1) {
+        batchTargets.push(cleanRawBatch.substring(1));
+      } else if (cleanRawBatch.length >= 11) {
+        batchTargets.push(cleanRawBatch.substring(1, 11));
         batchTargets.push(cleanRawBatch.substring(1));
       }
     }
@@ -320,30 +366,22 @@ export async function onRequest(context) {
     let tankTargets = [];
     if (cleanRawTank) {
       tankTargets.push(cleanRawTank);
-      if (cleanRawTank.startsWith("5")) tankTargets.push(cleanRawTank.substring(1));
-      if (cleanRawTank.length > 3) tankTargets.push(cleanRawTank.substring(1));
+      if (cleanRawTank.startsWith("5") && cleanRawTank.length > 1) {
+        tankTargets.push(cleanRawTank.substring(1));
+      } else if (cleanRawTank.length > 3) {
+        tankTargets.push(cleanRawTank.substring(1));
+      }
       tankTargets = Array.from(new Set(tankTargets));
     }
 
-    // C. 地點目標 (標準版)
+    // C. 地點目標
     const locTarget = rawLoc.replace(/\s+/g, "").toUpperCase();
-    const locTargets = [];
-    if (locTarget) {
-      locTargets.push(locTarget);
-      if (locTarget.length > 3) {
-        if (locTarget.startsWith("E")) locTargets.push(locTarget.substring(1));
-        if (locTarget.endsWith("A")) locTargets.push(locTarget.slice(0, -1));
-        if (locTarget.startsWith("E") && locTarget.endsWith("A")) locTargets.push(locTarget.slice(1, -1));
-      }
-    }
 
-    // 🛑 關卡 1: COA 批號核對
+    // 🛑 關卡 1: COA 批號核對 (使用 GAS advancedFuzzyCheck 雙向容錯)
     let check1_Batch = false;
     if (batchTargets.length > 0) {
-      const fuzzyCOA = applyFuzzy(cleanCOA);
       for (const t of batchTargets) {
-        const fuzzyT = applyFuzzy(t);
-        if (cleanCOA.includes(t) || fuzzyCOA.includes(fuzzyT)) {
+        if (advancedFuzzyCheck(textCOA, t, false)) {
           check1_Batch = true;
           break;
         }
@@ -355,23 +393,21 @@ export async function onRequest(context) {
     const check2_Loc = locResult.pass;
     const locDebugMsg = locResult.debug ? ` ${locResult.debug}` : "";
 
-    // 🛑 關卡 3: 地磅 槽號 (排除批號後的獨立槽號檢查)
+    // 🛑 關卡 3: 地磅 槽號 (排除批號後的獨立槽號檢查 + GAS fallback)
     let check3_Tank = false;
     let tankErrorMsg = "";
     if (tankTargets.length === 0) {
       tankErrorMsg = "(QR Code 缺少槽號)";
     } else {
-      let textForTankCheck = cleanWeigh;
-      let fuzzyTextForTankCheck = fuzzyWeigh;
+      let textForTankCheck = textWeigh.toUpperCase();
       for (const bt of batchTargets) {
-        textForTankCheck = textForTankCheck.replaceAll(bt, "------");
-        const fuzzyBT = applyFuzzy(bt);
-        fuzzyTextForTankCheck = fuzzyTextForTankCheck.replaceAll(fuzzyBT, "------");
+        if (bt.length > 5) {
+          textForTankCheck = textForTankCheck.split(bt).join("------");
+        }
       }
       for (const tankT of tankTargets) {
         if (!tankT) continue;
-        const fuzzyTankT = applyFuzzy(tankT);
-        if (textForTankCheck.includes(tankT) || fuzzyTextForTankCheck.includes(fuzzyTankT)) {
+        if (advancedFuzzyCheck(textForTankCheck, tankT, false) || advancedFuzzyCheck(textWeigh, tankT, false)) {
           check3_Tank = true;
           break;
         }
@@ -379,13 +415,12 @@ export async function onRequest(context) {
       if (!check3_Tank) tankErrorMsg = "(未發現獨立槽號)";
     }
 
-    // 🛑 關卡 4: 地磅 系統批號
+    // 🛑 關卡 4: 地磅 系統批號 (支援 GAS B<->8, 3<->5 及電腦螢幕摩爾紋單字容錯)
     let check4_SystemBatch = false;
     let batchDebugMsg = "";
     if (batchTargets.length > 0) {
       for (const t of batchTargets) {
-        const fuzzyT = applyFuzzy(t);
-        if (cleanWeigh.includes(t) || fuzzyWeigh.includes(fuzzyT)) {
+        if (advancedFuzzyCheck(textWeigh, t, true)) {
           check4_SystemBatch = true;
           break;
         }
@@ -416,9 +451,11 @@ export async function onRequest(context) {
       responseMsg += "\n\n🛑 錯誤阻擋：單據規格或照片不符，請立即現場糾正！此錯誤資料【絕不上傳】，請重新拍照或掃描！";
     }
 
-    // 5. 儲存照片至 Cloudflare R2 (核心防呆：只有核對「成功」才上傳儲存照片，失敗絕不上傳！)
+    // 5. 核心鐵律：只有核對「成功」(isSuccess === true) 才上傳 R2 照片、才寫入 D1 與 Google 試算表正式庫！
+    // 若核對失敗，絕不上傳照片、絕不寫入正式紀錄表！
     let photoBatchUrl = "";
     let photoLocUrl = "";
+    const statusText = isSuccess ? "四重核對成功" : "核對失敗";
 
     if (isSuccess) {
       const now = new Date();
@@ -448,65 +485,62 @@ export async function onRequest(context) {
       } catch (r2Err) {
         console.error("R2 Upload error:", r2Err);
       }
-    }
 
-    const statusText = isSuccess ? "四重核對成功" : "核對失敗";
-
-    // 6. 雙邊寫入 1: 寫入 Cloudflare D1
-    if (env.DB) {
-      try {
-        await env.DB.prepare(`
-          INSERT INTO coa_verification_logs 
-          (material_no, tank_no, batch_no, supplier, delivery_place, raw_qr, source_doc_no, weighbridge_no, verification_status, photo_batch_url, photo_loc_url, error_details, ocr_snippet)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          materialNo,
-          rawTank,
-          rawQrBatch,
-          finalSupplier,
-          rawLoc,
-          rawQr,
-          sourceDocNo,
-          weighbridgeNo,
-          statusText,
-          photoBatchUrl,
-          photoLocUrl,
-          responseMsg,
-          `COA: ${cleanCOA.slice(0, 100)} | 地磅: ${cleanWeigh.slice(0, 100)}`
-        ).run();
-      } catch (dbErr) {
-        console.error("D1 Insert error:", dbErr);
+      // 6. 雙邊寫入 1: 寫入 Cloudflare D1 (僅限核對成功之正式紀錄)
+      if (env.DB) {
+        try {
+          await env.DB.prepare(`
+            INSERT INTO coa_verification_logs 
+            (material_no, tank_no, batch_no, supplier, delivery_place, raw_qr, source_doc_no, weighbridge_no, verification_status, photo_batch_url, photo_loc_url, error_details, ocr_snippet)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            materialNo,
+            rawTank,
+            rawQrBatch,
+            finalSupplier,
+            rawLoc,
+            rawQr,
+            sourceDocNo,
+            weighbridgeNo,
+            statusText,
+            photoBatchUrl,
+            photoLocUrl,
+            responseMsg,
+            `COA: ${cleanCOA.slice(0, 100)} | 地磅: ${cleanWeigh.slice(0, 100)}`
+          ).run();
+        } catch (dbErr) {
+          console.error("D1 Insert error:", dbErr);
+        }
       }
-    }
 
-    // 7. 雙邊寫入 2: 同步寫入 Google 試算表 (GAS)
-    // 取得完整 R2 照片網址 (包含網域) 方便在 Google Sheet 點開
-    const host = request.headers.get("host") || "";
-    const protocol = request.headers.get("x-forwarded-proto") || "https";
-    const origin = `${protocol}://${host}`;
-    const fullPhotoBatchUrl = photoBatchUrl ? `${origin}${photoBatchUrl}` : "";
-    const fullPhotoLocUrl = photoLocUrl ? `${origin}${photoLocUrl}` : "";
+      // 7. 雙邊寫入 2: 同步寫入 Google 試算表 (GAS 僅限核對成功才同步寫入 Data 表)
+      const host = request.headers.get("host") || "";
+      const protocol = request.headers.get("x-forwarded-proto") || "https";
+      const origin = `${protocol}://${host}`;
+      const fullPhotoBatchUrl = photoBatchUrl ? `${origin}${photoBatchUrl}` : "";
+      const fullPhotoLocUrl = photoLocUrl ? `${origin}${photoLocUrl}` : "";
 
-    const gasPayload = {
-      materialNo,
-      tankNo: rawTank,
-      batchNo: rawQrBatch,
-      supplier: finalSupplier,
-      deliveryPlace: rawLoc,
-      rawQr,
-      sourceDocNo,
-      weighbridgeNo,
-      status: statusText,
-      success: isSuccess,
-      photoBatchUrl: fullPhotoBatchUrl,
-      photoLocUrl: fullPhotoLocUrl,
-      errorDetails: responseMsg
-    };
+      const gasPayload = {
+        materialNo,
+        tankNo: rawTank,
+        batchNo: rawQrBatch,
+        supplier: finalSupplier,
+        deliveryPlace: rawLoc,
+        rawQr,
+        sourceDocNo,
+        weighbridgeNo,
+        status: statusText,
+        success: true,
+        photoBatchUrl: fullPhotoBatchUrl,
+        photoLocUrl: fullPhotoLocUrl,
+        errorDetails: responseMsg
+      };
 
-    if (context.waitUntil) {
-      context.waitUntil(syncRecordToGoogleSheets(env, gasPayload));
-    } else {
-      syncRecordToGoogleSheets(env, gasPayload).catch(e => console.error("GAS sync:", e));
+      if (context.waitUntil) {
+        context.waitUntil(syncRecordToGoogleSheets(env, gasPayload));
+      } else {
+        syncRecordToGoogleSheets(env, gasPayload).catch(e => console.error("GAS sync:", e));
+      }
     }
 
     // 8. Teams Webhook 通知 (優先從試算表「設定」分頁讀取)

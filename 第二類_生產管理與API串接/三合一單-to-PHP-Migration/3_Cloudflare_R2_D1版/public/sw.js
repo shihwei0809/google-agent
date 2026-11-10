@@ -1,5 +1,5 @@
 // Service Worker for COA Check PWA
-const CACHE_NAME = 'coa-check-pwa-v47';
+const CACHE_NAME = 'coa-check-pwa-v48';
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -51,20 +51,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 靜態資源使用 Stale-While-Revalidate 策略
+  // 頁面與靜態資源一律優先走網路 (Network First)，確保有網路時 100% 載入最新版本，斷網才退回快取
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => cachedResponse);
-
-      return cachedResponse || fetchPromise;
+    fetch(event.request).then((networkResponse) => {
+      if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        const responseToCache = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+      }
+      return networkResponse;
+    }).catch(() => {
+      return caches.match(event.request);
     })
   );
 });

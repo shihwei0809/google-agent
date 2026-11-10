@@ -2,35 +2,42 @@
 // 專門用於「三合一單 AI 拍照讀單」，自動解析送達地點、供應商、料號、槽號、批號
 // 支援向 GAS 獲取最新金鑰與雙 Key 自動輪詢
 
-import { getVisionApiKey } from "./_gas_helper.js";
+import { getVisionApiKeysList } from "./_gas_helper.js";
 
-async function callGoogleVision(base64Image, apiKey) {
+async function callGoogleVisionWithRetry(base64Image, keyList) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
   }
   cleanB64 = cleanB64.replace(/\s/g, "");
 
-  const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      requests: [
-        {
-          image: { content: cleanB64 },
-          features: [{ type: "TEXT_DETECTION", maxResults: 10 }]
-        }
-      ]
-    })
-  });
+  let lastError = null;
+  for (const apiKey of keyList) {
+    try {
+      const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [
+            {
+              image: { content: cleanB64 },
+              features: [{ type: "TEXT_DETECTION", maxResults: 10 }]
+            }
+          ]
+        })
+      });
 
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Google Vision API 呼叫失敗 (${response.status}): ${errText}`);
+      if (response.ok) {
+        return { data: await response.json(), usedKey: apiKey };
+      }
+      const errText = await response.text();
+      lastError = new Error(`Google Vision API 呼叫失敗 (${response.status}): ${errText}`);
+    } catch (err) {
+      lastError = err;
+    }
   }
-
-  return await response.json();
+  throw lastError || new Error("所有 Google Vision API 金鑰皆無法連線");
 }
 
 export async function onRequest(context) {
@@ -64,9 +71,9 @@ export async function onRequest(context) {
       });
     }
 
-    // ★ 向 GAS 或環境獲取最新 Vision API Key
-    const apiKey = await getVisionApiKey(env);
-    const ocrResult = await callGoogleVision(photoData, apiKey);
+    // ★ 向 GAS 或環境獲取最新 Vision API Key 清單並支援自動重試
+    const keyList = await getVisionApiKeysList(env);
+    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry(photoData, keyList);
     const text = ocrResult?.responses?.[0]?.fullTextAnnotation?.text || "";
 
     // 預處理：全形符號替換
@@ -126,7 +133,7 @@ export async function onRequest(context) {
       try {
         await env.DB.prepare(
           "INSERT INTO api_logs (api_type, model_name, key_snippet, status, note) VALUES (?, ?, ?, ?, ?)"
-        ).bind("VISION_AI_READ", "Google-Vision-OCR", apiKey.slice(0, 8) + "...", "SUCCESS", `批號: ${data.batchNo || "未讀到"}`).run();
+        ).bind("VISION_AI_READ", "Google-Vision-OCR", (usedKey || "").slice(0, 8) + "...", "SUCCESS", `批號: ${data.batchNo || "未讀到"}`).run();
       } catch (logErr) {
         console.error("D1 log error:", logErr);
       }

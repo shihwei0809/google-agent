@@ -96,11 +96,6 @@ async function getVisionApiKeysList(env) {
   const validVisionKeys = Array.from(new Set(allCandidates)).filter((k) => typeof k === "string" && k.startsWith("AIzaSy"));
   return validVisionKeys.length > 0 ? validVisionKeys : DEFAULT_VISION_KEYS;
 }
-async function getVisionApiKey(env) {
-  const list = await getVisionApiKeysList(env);
-  const sec = (/* @__PURE__ */ new Date()).getSeconds();
-  return list[sec % list.length];
-}
 async function getTeamsWebhookUrl(env) {
   const now = Date.now();
   if (cachedTeamsWebhookUrl && now - lastKeyFetchTime < CACHE_TTL_MS) {
@@ -218,6 +213,42 @@ var FUZZY_MAP = {
 function applyFuzzy(text) {
   if (!text) return "";
   return text.split("").map((c) => FUZZY_MAP[c] || c).join("");
+}
+function advancedFuzzyCheck(ocrText, target, isBatchOnScreen = false) {
+  if (!ocrText || !target) return false;
+  const cleanOCR = ocrText.toUpperCase().replace(/[\s\-:：]/g, "");
+  const cleanTarget = target.toUpperCase().replace(/[\s\-:：]/g, "");
+  if (!cleanTarget) return false;
+  function testMatch(t) {
+    if (!t) return false;
+    if (cleanOCR.includes(t)) return true;
+    if (cleanOCR.includes(t.replace(/8/g, "B"))) return true;
+    if (cleanOCR.includes(t.replace(/B/g, "8"))) return true;
+    if (cleanOCR.includes(t.replace(/3/g, "5"))) return true;
+    if (cleanOCR.includes(t.replace(/5/g, "3"))) return true;
+    const variant1 = t.replace(/3/g, "5").replace(/8/g, "B");
+    if (cleanOCR.includes(variant1)) return true;
+    const variant2 = t.replace(/5/g, "3").replace(/B/g, "8");
+    if (cleanOCR.includes(variant2)) return true;
+    if (applyFuzzy(cleanOCR).includes(applyFuzzy(t))) return true;
+    if (isBatchOnScreen && t.length >= 9) {
+      const suffix4 = t.slice(-4);
+      const prefix = t.slice(0, -4);
+      for (let i = 1; i < prefix.length; i++) {
+        const droppedOne = prefix.slice(0, i) + prefix.slice(i + 1) + suffix4;
+        if (cleanOCR.includes(droppedOne) || applyFuzzy(cleanOCR).includes(applyFuzzy(droppedOne))) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+  if (testMatch(cleanTarget)) return true;
+  if (/^\d/.test(cleanTarget)) {
+    const noPrefix = cleanTarget.substring(1);
+    if (noPrefix.length >= 3 && testMatch(noPrefix)) return true;
+  }
+  return false;
 }
 function smartLocationCheck(cleanWeigh, fuzzyWeigh, locTarget) {
   if (!cleanWeigh || !locTarget) return { pass: false, debug: "" };
@@ -378,9 +409,10 @@ async function onRequest(context) {
     const cleanWeigh = textWeigh.replace(/\s+/g, "").toUpperCase();
     let sourceDocNo = "";
     let weighbridgeNo = "";
-    const docMatch = cleanWeigh.match(/(ESXM101-[0-9A-Z]{11})/);
+    const fixedOcr = textWeigh.replace(/E\s+S\s+X\s+M/gi, "ESXM").replace(/ESXM\s+/gi, "ESXM");
+    const docMatch = fixedOcr.match(/\b(ESXM1[A-Z0-9\-]+)/i) || cleanWeigh.match(/(ESXM101-[0-9A-Z]{8,11})/);
     if (docMatch) sourceDocNo = docMatch[1];
-    const weighMatch = cleanWeigh.match(/(ESXM201-[0-9A-Z]{11})/);
+    const weighMatch = fixedOcr.match(/\b(ESXM2[A-Z0-9\-]+)/i) || cleanWeigh.match(/(ESXM201-[0-9A-Z]{8,11})/);
     if (weighMatch) weighbridgeNo = weighMatch[1];
     let finalSupplier = inputSupplier;
     if (!finalSupplier) {
@@ -396,7 +428,10 @@ async function onRequest(context) {
     const batchTargets = [];
     if (cleanRawBatch) {
       batchTargets.push(cleanRawBatch);
-      if (cleanRawBatch.startsWith("6") || cleanRawBatch.length >= 11) {
+      if (cleanRawBatch.startsWith("6") && cleanRawBatch.length > 1) {
+        batchTargets.push(cleanRawBatch.substring(1));
+      } else if (cleanRawBatch.length >= 11) {
+        batchTargets.push(cleanRawBatch.substring(1, 11));
         batchTargets.push(cleanRawBatch.substring(1));
       }
     }
@@ -404,26 +439,18 @@ async function onRequest(context) {
     let tankTargets = [];
     if (cleanRawTank) {
       tankTargets.push(cleanRawTank);
-      if (cleanRawTank.startsWith("5")) tankTargets.push(cleanRawTank.substring(1));
-      if (cleanRawTank.length > 3) tankTargets.push(cleanRawTank.substring(1));
+      if (cleanRawTank.startsWith("5") && cleanRawTank.length > 1) {
+        tankTargets.push(cleanRawTank.substring(1));
+      } else if (cleanRawTank.length > 3) {
+        tankTargets.push(cleanRawTank.substring(1));
+      }
       tankTargets = Array.from(new Set(tankTargets));
     }
     const locTarget = rawLoc.replace(/\s+/g, "").toUpperCase();
-    const locTargets = [];
-    if (locTarget) {
-      locTargets.push(locTarget);
-      if (locTarget.length > 3) {
-        if (locTarget.startsWith("E")) locTargets.push(locTarget.substring(1));
-        if (locTarget.endsWith("A")) locTargets.push(locTarget.slice(0, -1));
-        if (locTarget.startsWith("E") && locTarget.endsWith("A")) locTargets.push(locTarget.slice(1, -1));
-      }
-    }
     let check1_Batch = false;
     if (batchTargets.length > 0) {
-      const fuzzyCOA = applyFuzzy(cleanCOA);
       for (const t of batchTargets) {
-        const fuzzyT = applyFuzzy(t);
-        if (cleanCOA.includes(t) || fuzzyCOA.includes(fuzzyT)) {
+        if (advancedFuzzyCheck(textCOA, t, false)) {
           check1_Batch = true;
           break;
         }
@@ -437,17 +464,15 @@ async function onRequest(context) {
     if (tankTargets.length === 0) {
       tankErrorMsg = "(QR Code \u7F3A\u5C11\u69FD\u865F)";
     } else {
-      let textForTankCheck = cleanWeigh;
-      let fuzzyTextForTankCheck = fuzzyWeigh;
+      let textForTankCheck = textWeigh.toUpperCase();
       for (const bt of batchTargets) {
-        textForTankCheck = textForTankCheck.replaceAll(bt, "------");
-        const fuzzyBT = applyFuzzy(bt);
-        fuzzyTextForTankCheck = fuzzyTextForTankCheck.replaceAll(fuzzyBT, "------");
+        if (bt.length > 5) {
+          textForTankCheck = textForTankCheck.split(bt).join("------");
+        }
       }
       for (const tankT of tankTargets) {
         if (!tankT) continue;
-        const fuzzyTankT = applyFuzzy(tankT);
-        if (textForTankCheck.includes(tankT) || fuzzyTextForTankCheck.includes(fuzzyTankT)) {
+        if (advancedFuzzyCheck(textForTankCheck, tankT, false) || advancedFuzzyCheck(textWeigh, tankT, false)) {
           check3_Tank = true;
           break;
         }
@@ -458,8 +483,7 @@ async function onRequest(context) {
     let batchDebugMsg = "";
     if (batchTargets.length > 0) {
       for (const t of batchTargets) {
-        const fuzzyT = applyFuzzy(t);
-        if (cleanWeigh.includes(t) || fuzzyWeigh.includes(fuzzyT)) {
+        if (advancedFuzzyCheck(textWeigh, t, true)) {
           check4_SystemBatch = true;
           break;
         }
@@ -496,6 +520,7 @@ async function onRequest(context) {
     }
     let photoBatchUrl = "";
     let photoLocUrl = "";
+    const statusText = isSuccess ? "\u56DB\u91CD\u6838\u5C0D\u6210\u529F" : "\u6838\u5C0D\u5931\u6557";
     if (isSuccess) {
       const now = /* @__PURE__ */ new Date();
       const pad = (n) => String(n).padStart(2, "0");
@@ -521,57 +546,56 @@ async function onRequest(context) {
       } catch (r2Err) {
         console.error("R2 Upload error:", r2Err);
       }
-    }
-    const statusText = isSuccess ? "\u56DB\u91CD\u6838\u5C0D\u6210\u529F" : "\u6838\u5C0D\u5931\u6557";
-    if (env.DB) {
-      try {
-        await env.DB.prepare(`
-          INSERT INTO coa_verification_logs 
-          (material_no, tank_no, batch_no, supplier, delivery_place, raw_qr, source_doc_no, weighbridge_no, verification_status, photo_batch_url, photo_loc_url, error_details, ocr_snippet)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          materialNo,
-          rawTank,
-          rawQrBatch,
-          finalSupplier,
-          rawLoc,
-          rawQr,
-          sourceDocNo,
-          weighbridgeNo,
-          statusText,
-          photoBatchUrl,
-          photoLocUrl,
-          responseMsg,
-          `COA: ${cleanCOA.slice(0, 100)} | \u5730\u78C5: ${cleanWeigh.slice(0, 100)}`
-        ).run();
-      } catch (dbErr) {
-        console.error("D1 Insert error:", dbErr);
+      if (env.DB) {
+        try {
+          await env.DB.prepare(`
+            INSERT INTO coa_verification_logs 
+            (material_no, tank_no, batch_no, supplier, delivery_place, raw_qr, source_doc_no, weighbridge_no, verification_status, photo_batch_url, photo_loc_url, error_details, ocr_snippet)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            materialNo,
+            rawTank,
+            rawQrBatch,
+            finalSupplier,
+            rawLoc,
+            rawQr,
+            sourceDocNo,
+            weighbridgeNo,
+            statusText,
+            photoBatchUrl,
+            photoLocUrl,
+            responseMsg,
+            `COA: ${cleanCOA.slice(0, 100)} | \u5730\u78C5: ${cleanWeigh.slice(0, 100)}`
+          ).run();
+        } catch (dbErr) {
+          console.error("D1 Insert error:", dbErr);
+        }
       }
-    }
-    const host = request.headers.get("host") || "";
-    const protocol = request.headers.get("x-forwarded-proto") || "https";
-    const origin = `${protocol}://${host}`;
-    const fullPhotoBatchUrl = photoBatchUrl ? `${origin}${photoBatchUrl}` : "";
-    const fullPhotoLocUrl = photoLocUrl ? `${origin}${photoLocUrl}` : "";
-    const gasPayload = {
-      materialNo,
-      tankNo: rawTank,
-      batchNo: rawQrBatch,
-      supplier: finalSupplier,
-      deliveryPlace: rawLoc,
-      rawQr,
-      sourceDocNo,
-      weighbridgeNo,
-      status: statusText,
-      success: isSuccess,
-      photoBatchUrl: fullPhotoBatchUrl,
-      photoLocUrl: fullPhotoLocUrl,
-      errorDetails: responseMsg
-    };
-    if (context.waitUntil) {
-      context.waitUntil(syncRecordToGoogleSheets(env, gasPayload));
-    } else {
-      syncRecordToGoogleSheets(env, gasPayload).catch((e) => console.error("GAS sync:", e));
+      const host = request.headers.get("host") || "";
+      const protocol = request.headers.get("x-forwarded-proto") || "https";
+      const origin = `${protocol}://${host}`;
+      const fullPhotoBatchUrl = photoBatchUrl ? `${origin}${photoBatchUrl}` : "";
+      const fullPhotoLocUrl = photoLocUrl ? `${origin}${photoLocUrl}` : "";
+      const gasPayload = {
+        materialNo,
+        tankNo: rawTank,
+        batchNo: rawQrBatch,
+        supplier: finalSupplier,
+        deliveryPlace: rawLoc,
+        rawQr,
+        sourceDocNo,
+        weighbridgeNo,
+        status: statusText,
+        success: true,
+        photoBatchUrl: fullPhotoBatchUrl,
+        photoLocUrl: fullPhotoLocUrl,
+        errorDetails: responseMsg
+      };
+      if (context.waitUntil) {
+        context.waitUntil(syncRecordToGoogleSheets(env, gasPayload));
+      } else {
+        syncRecordToGoogleSheets(env, gasPayload).catch((e) => console.error("GAS sync:", e));
+      }
     }
     const teamsWebhook = await getTeamsWebhookUrl(env);
     if (teamsWebhook && (!isSuccess || env.ENABLE_TEAMS_ON_SUCCESS === "true")) {
@@ -611,30 +635,38 @@ async function onRequest(context) {
 }
 
 // 3_Cloudflare_R2_D1版/functions/api/ai-read.js
-async function callGoogleVision(base64Image, apiKey) {
+async function callGoogleVisionWithRetry2(base64Image, keyList) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
   }
   cleanB64 = cleanB64.replace(/\s/g, "");
-  const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      requests: [
-        {
-          image: { content: cleanB64 },
-          features: [{ type: "TEXT_DETECTION", maxResults: 10 }]
-        }
-      ]
-    })
-  });
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`Google Vision API \u547C\u53EB\u5931\u6557 (${response.status}): ${errText}`);
+  let lastError = null;
+  for (const apiKey of keyList) {
+    try {
+      const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: [
+            {
+              image: { content: cleanB64 },
+              features: [{ type: "TEXT_DETECTION", maxResults: 10 }]
+            }
+          ]
+        })
+      });
+      if (response.ok) {
+        return { data: await response.json(), usedKey: apiKey };
+      }
+      const errText = await response.text();
+      lastError = new Error(`Google Vision API \u547C\u53EB\u5931\u6557 (${response.status}): ${errText}`);
+    } catch (err) {
+      lastError = err;
+    }
   }
-  return await response.json();
+  throw lastError || new Error("\u6240\u6709 Google Vision API \u91D1\u9470\u7686\u7121\u6CD5\u9023\u7DDA");
 }
 async function onRequest2(context) {
   const { request, env } = context;
@@ -662,8 +694,8 @@ async function onRequest2(context) {
         headers: corsHeaders
       });
     }
-    const apiKey = await getVisionApiKey(env);
-    const ocrResult = await callGoogleVision(photoData, apiKey);
+    const keyList = await getVisionApiKeysList(env);
+    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry2(photoData, keyList);
     const text = ocrResult?.responses?.[0]?.fullTextAnnotation?.text || "";
     const cleanText = text.replace(/：/g, ":").replace(/　/g, " ").replace(/\|/g, " ");
     const data = {
@@ -703,7 +735,7 @@ async function onRequest2(context) {
       try {
         await env.DB.prepare(
           "INSERT INTO api_logs (api_type, model_name, key_snippet, status, note) VALUES (?, ?, ?, ?, ?)"
-        ).bind("VISION_AI_READ", "Google-Vision-OCR", apiKey.slice(0, 8) + "...", "SUCCESS", `\u6279\u865F: ${data.batchNo || "\u672A\u8B80\u5230"}`).run();
+        ).bind("VISION_AI_READ", "Google-Vision-OCR", (usedKey || "").slice(0, 8) + "...", "SUCCESS", `\u6279\u865F: ${data.batchNo || "\u672A\u8B80\u5230"}`).run();
       } catch (logErr) {
         console.error("D1 log error:", logErr);
       }
