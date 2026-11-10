@@ -42,9 +42,13 @@ if not os.path.exists(OUTPUT_DIR):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # 初始化 EasyOCR 模型 (繁體中文 + 英文)
-print("[*] 正在載入 EasyOCR 繁體中文與英文辨識引擎...")
+print("=" * 60)
+print("  AI 圖片/PDF 智慧判讀轉 Excel 系統 (OCR to Excel)")
+print("  正在啟動本機伺服器中，請稍候...")
+print("=" * 60)
+print("[*] 正在載入 EasyOCR 繁體中文與英文雙語模型 (約需 5-10 秒)...")
 reader = easyocr.Reader(['ch_tra', 'en'], gpu=False)
-print("[+] OCR 模型就緒，支援手機照片自動轉正與多頁 PDF 解析！")
+print("[+] OCR 模型就緒！支援手機照片自動轉正與多頁 PDF 解析")
 
 def get_local_ip():
     """獲取本機區域網路 IP 位址"""
