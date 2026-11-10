@@ -115,8 +115,9 @@ export async function getVisionApiKeysList(env) {
     ...DEFAULT_VISION_KEYS
   ].filter(Boolean).map(sanitizeKey);
 
-  // 去重並回傳
-  return Array.from(new Set(allCandidates));
+  // 去重並嚴格過濾：Google Vision API 金鑰必須以 AIzaSy 開頭 (排除 Gemini 專用之 AQ.Ab8RN 等其他金鑰)
+  const validVisionKeys = Array.from(new Set(allCandidates)).filter(k => typeof k === 'string' && k.startsWith('AIzaSy'));
+  return validVisionKeys.length > 0 ? validVisionKeys : DEFAULT_VISION_KEYS;
 }
 
 export async function getVisionApiKey(env) {

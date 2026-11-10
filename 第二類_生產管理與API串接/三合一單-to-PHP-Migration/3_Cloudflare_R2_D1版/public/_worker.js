@@ -93,7 +93,8 @@ async function getVisionApiKeysList(env) {
     env.DEFAULT_VISION_KEY_2,
     ...DEFAULT_VISION_KEYS
   ].filter(Boolean).map(sanitizeKey);
-  return Array.from(new Set(allCandidates));
+  const validVisionKeys = Array.from(new Set(allCandidates)).filter((k) => typeof k === "string" && k.startsWith("AIzaSy"));
+  return validVisionKeys.length > 0 ? validVisionKeys : DEFAULT_VISION_KEYS;
 }
 async function getVisionApiKey(env) {
   const list = await getVisionApiKeysList(env);
