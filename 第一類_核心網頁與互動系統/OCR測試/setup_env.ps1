@@ -1,9 +1,9 @@
 # =====================================================================
-# 🚀 AI 圖片智慧判讀轉 Excel 系統環境一鍵設定腳本 (setup_env.ps1)
+# 🚀 AI 圖片/PDF 雙重 OCR 轉 Excel 系統環境一鍵設定腳本 (setup_env.ps1)
 # =====================================================================
 
 Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "🎨 開始檢查並安裝「AI 圖片智慧判讀轉 Excel 系統」環境..." -ForegroundColor Cyan
+Write-Host "🎨 開始檢查並安裝「AI 圖片/PDF 雙重 OCR 轉 Excel 系統」環境..." -ForegroundColor Cyan
 Write-Host "==================================================" -ForegroundColor Cyan
 
 # 檢查 Python
@@ -13,6 +13,7 @@ if (Get-Command python -ErrorAction SilentlyContinue) {
     $packages = @(
         "fastapi>=0.100.0",
         "uvicorn>=0.22.0",
+        "google-genai",
         "easyocr",
         "openpyxl",
         "python-multipart",
@@ -37,5 +38,3 @@ if (Get-Command python -ErrorAction SilentlyContinue) {
 } else {
     Write-Warning "⚠️ 未在系統中偵測到 Python，請先安裝 Python 3.9 以上！"
 }
-
-Write-Host "`n🎉 環境設定檢查結束！可雙擊 run_web_app.bat 開啟服務。" -ForegroundColor Cyan
