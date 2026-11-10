@@ -6,6 +6,16 @@ const DEFAULT_VISION_KEYS = [
   "AIzaSyCdI7WZKnyUtYL0mubKslz7Cvq2wqStS_8"
 ];
 
+// 防呆過濾器：自動修正試算表中可能被誤植成小寫 l 的 Key
+function sanitizeKey(k) {
+  if (!k || typeof k !== 'string') return k;
+  let clean = k.trim();
+  if (clean.includes('AIzaSyCdl7')) {
+    clean = clean.replace('AIzaSyCdl7', 'AIzaSyCdI7');
+  }
+  return clean;
+}
+
 const DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/91b9b15b99a64990bf3f7116c031dea4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huhEyZ8m-m8EKJ7JXRmhR-CtuVI83kTLRADHB12g-7k";
 
 // 全域記憶體快取 (減少每次請求重複向 Google 請求所造成的延遲)
@@ -68,48 +78,51 @@ async function fetchConfigFromGas(env) {
 }
 
 /**
- * 向 GAS 要 Google Vision API Key (具備快取、D1 暫存與優雅降級)
+ * 取得所有可用之 Google Vision API Key 清單 (已自動清理壞碼、支援多 Key 輪替與失敗重試)
  */
-export async function getVisionApiKey(env) {
+export async function getVisionApiKeysList(env) {
   const now = Date.now();
+  let keys = [];
 
-  // 1. 若記憶體快取有效，直接分流回傳
+  // 1. 記憶體快取
   if (cachedVisionKeys && cachedVisionKeys.length > 0 && (now - lastKeyFetchTime < CACHE_TTL_MS)) {
-    const sec = new Date().getSeconds();
-    return cachedVisionKeys[sec % cachedVisionKeys.length];
-  }
-
-  // 2. 向 GAS 獲取最新設定
-  const gasData = await fetchConfigFromGas(env);
-  if (gasData && Array.isArray(gasData.visionKeys) && gasData.visionKeys.length > 0) {
-    const sec = new Date().getSeconds();
-    return gasData.visionKeys[sec % gasData.visionKeys.length];
-  }
-
-  // 3. 降級順位：從 D1 資料庫讀取
-  if (env.DB) {
-    try {
-      const { results } = await env.DB.prepare(
-        "SELECT value FROM system_config WHERE key LIKE 'VISION_API_KEY%'"
-      ).all();
-      if (results && results.length > 0) {
-        const d1Keys = results.map(r => r.value).filter(Boolean);
-        if (d1Keys.length > 0) {
-          const sec = new Date().getSeconds();
-          return d1Keys[sec % d1Keys.length];
+    keys = cachedVisionKeys;
+  } else {
+    // 2. 向 GAS 獲取
+    const gasData = await fetchConfigFromGas(env);
+    if (gasData && Array.isArray(gasData.visionKeys) && gasData.visionKeys.length > 0) {
+      keys = gasData.visionKeys;
+    } else if (env.DB) {
+      // 3. D1 資料庫
+      try {
+        const { results } = await env.DB.prepare(
+          "SELECT value FROM system_config WHERE key LIKE 'VISION_API_KEY%'"
+        ).all();
+        if (results && results.length > 0) {
+          keys = results.map(r => r.value).filter(Boolean);
         }
-      }
-    } catch (e) {}
+      } catch (e) {}
+    }
   }
 
-  // 4. 最後保底：環境變數或預設 Key
-  const fallbackKeys = [
-    env.VISION_API_KEY_1 || env.DEFAULT_VISION_KEY_1 || DEFAULT_VISION_KEYS[0],
-    env.VISION_API_KEY_2 || env.DEFAULT_VISION_KEY_2 || DEFAULT_VISION_KEYS[1]
-  ].filter(Boolean);
+  // 4. 合併預設/環境變數 Key
+  const allCandidates = [
+    ...keys,
+    env.VISION_API_KEY_1,
+    env.DEFAULT_VISION_KEY_1,
+    env.VISION_API_KEY_2,
+    env.DEFAULT_VISION_KEY_2,
+    ...DEFAULT_VISION_KEYS
+  ].filter(Boolean).map(sanitizeKey);
 
+  // 去重並回傳
+  return Array.from(new Set(allCandidates));
+}
+
+export async function getVisionApiKey(env) {
+  const list = await getVisionApiKeysList(env);
   const sec = new Date().getSeconds();
-  return fallbackKeys[sec % fallbackKeys.length];
+  return list[sec % list.length];
 }
 
 /**

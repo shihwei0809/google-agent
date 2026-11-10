@@ -461,7 +461,91 @@
         // ==========================================
         const FUZZY_MAP = { O:'0', D:'0', Q:'0', I:'1', L:'1', '|':'1', Z:'2', S:'5', B:'8', G:'6' };
         function localFuzzy(text) {
+            if (!text) return '';
             return text.split('').map(c => FUZZY_MAP[c] || c).join('');
+        }
+
+        function smartLocationCheck(cleanWeigh, fuzzyWeigh, locTarget) {
+            if (!cleanWeigh || !locTarget) return { pass: false, debug: "" };
+
+            const target = locTarget.replace(/\s+/g, "").toUpperCase();
+            const cleanOCR = cleanWeigh.replace(/\s+/g, "").toUpperCase();
+            const fWeigh = fuzzyWeigh || localFuzzy(cleanOCR);
+
+            if (cleanOCR.includes(target) || fWeigh.includes(localFuzzy(target))) {
+                return { pass: true, debug: "" };
+            }
+
+            let core = target;
+            if (core.startsWith("E")) core = core.substring(1);
+
+            let coreNoA = core;
+            if (coreNoA.endsWith("A") && coreNoA.length > 5) {
+                coreNoA = coreNoA.slice(0, -1);
+            }
+
+            const candidates = Array.from(new Set([core, coreNoA]));
+            for (const cand of candidates) {
+                if (cand && (cleanOCR.includes(cand) || fWeigh.includes(localFuzzy(cand)))) {
+                    return { pass: true, debug: "" };
+                }
+            }
+
+            // GAS 雙重相符判定 (前4碼廠別 + 後續碼廠區)
+            for (const cand of candidates) {
+                if (cand.length >= 7) {
+                    const part1 = cand.substring(0, 4);
+                    const part2 = cand.substring(4);
+                    const part2Variants = [part2];
+                    if (part2.startsWith("L") && part2.length > 1) {
+                        part2Variants.push(part2.substring(1));
+                    }
+
+                    const hasPart1 = cleanOCR.includes(part1) || fWeigh.includes(localFuzzy(part1));
+                    const hasPart2 = part2Variants.some(p2 => cleanOCR.includes(p2) || fWeigh.includes(localFuzzy(p2)));
+
+                    if (hasPart1 && hasPart2) {
+                        return { pass: true, debug: "" };
+                    }
+
+                    // 反光 2-3 容錯
+                    const r23OCR = cleanOCR.replace(/2/g, "3");
+                    const r23P1 = part1.replace(/2/g, "3");
+                    const r23HasP1 = r23OCR.includes(r23P1);
+                    const r23HasP2 = part2Variants.some(p2 => r23OCR.includes(p2.replace(/2/g, "3")));
+                    if (r23HasP1 && r23HasP2) {
+                        return { pass: true, debug: "" };
+                    }
+                }
+            }
+
+            // T100 拼湊判定
+            let t100_Factory = "";
+            let t100_Area = "";
+            const facMatch = cleanOCR.match(/廠別\D*([A-Z0-9]{4})/);
+            if (facMatch) t100_Factory = facMatch[1];
+            const areaMatch = cleanOCR.match(/廠區\D*([A-Z0-9]{3,4})/);
+            if (areaMatch) t100_Area = areaMatch[1];
+
+            if (t100_Factory && t100_Area) {
+                const t100_Combined = t100_Factory + t100_Area;
+                const fuzzyCombined = localFuzzy(t100_Combined);
+
+                for (const cand of candidates) {
+                    const candNoL = cand.replace(/([A-Z0-9]{4})L/, "$1");
+                    if (cand === t100_Combined ||
+                        localFuzzy(cand) === fuzzyCombined ||
+                        candNoL === t100_Combined ||
+                        localFuzzy(candNoL) === fuzzyCombined ||
+                        t100_Combined.includes(cand) ||
+                        cand.includes(t100_Combined)) {
+                        return { pass: true, debug: "" };
+                    }
+                }
+                return { pass: false, debug: `(系統拼湊: ${t100_Combined} vs 單據: ${core})` };
+            }
+
+            return { pass: false, debug: `(單據地點: ${core})` };
         }
 
         function verifyLocally(cleanCOA, cleanWeigh, rawBatch, rawLoc, rawTank) {
@@ -477,30 +561,12 @@
             if (rawTank.startsWith('5')) tankTargets.push(rawTank.substring(1));
             if (rawTank.length > 3) tankTargets.push(rawTank.substring(1));
 
-            // C. 地點目標
-            const locTargets = [rawLoc];
-            if (rawLoc.length > 3) {
-                if (rawLoc.startsWith('E')) locTargets.push(rawLoc.substring(1));
-                if (rawLoc.endsWith('A')) locTargets.push(rawLoc.slice(0, -1));
-                if (rawLoc.startsWith('E') && rawLoc.endsWith('A')) locTargets.push(rawLoc.slice(1, -1));
-            }
-
             // 關卡 1: COA 批號
             let c1 = batchTargets.some(t => cleanCOA.includes(t) || fuzzyCOA.includes(localFuzzy(t)));
 
-            // 關卡 2: 地磅 地點 (含 T100 拆解)
-            let c2 = locTargets.some(lt => cleanWeigh.includes(lt) || fuzzyWeigh.includes(localFuzzy(lt)));
-            if (!c2 && rawLoc.length > 5) {
-                const sheetCore = rawLoc.slice(1, -1);
-                const fac = cleanWeigh.match(/廠別\D*([A-Z0-9]{4})/);
-                const area = cleanWeigh.match(/廠區\D*([A-Z0-9]{3})/);
-                if (fac && area) {
-                    const combined = fac[1] + area[1];
-                    if (sheetCore === combined || localFuzzy(sheetCore) === localFuzzy(combined) || combined.includes(sheetCore)) {
-                        c2 = true;
-                    }
-                }
-            }
+            // 關卡 2: 地磅 地點 (智慧核對)
+            const locResult = smartLocationCheck(cleanWeigh, fuzzyWeigh, rawLoc);
+            let c2 = locResult.pass;
 
             // 關卡 3: 地磅 槽號 (排除批號)
             let textForTank = cleanWeigh;

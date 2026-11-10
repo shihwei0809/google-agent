@@ -367,38 +367,39 @@ function logVerificationError(formObject, errorReason, ocrLoc, ocrBatch) {
 // ==========================================
 function syncRecordFromCloudflare(data) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var targetSheetName = getTargetSheetName();
-  var ws = ss.getSheetByName(targetSheetName);
-  
-  if (!ws) { 
-    ws = ss.insertSheet(targetSheetName); 
-    try { ss.setActiveSheet(ws); ss.moveActiveSheet(2); } catch(e){} 
-    ws.appendRow(["時間","料號","槽號","批號","供應商","原始地點","比對用地點","原始QR","狀態","COA照片","地點照片", "來源單號", "磅單編號"]); 
-    ws.getRange("A1:M1").setFontWeight("bold").setBackground("#dbeafe");
-  }
-
   var isSuccess = data.status === "四重核對成功" || data.status === "核對成功" || data.success === true;
   var statusText = isSuccess ? "核對成功" : "核對失敗";
 
-  // 寫入 Data 分頁
-  ws.appendRow([
-    new Date(), 
-    "'" + (data.materialNo || ""), 
-    "'" + (data.tankNo || ""), 
-    "'" + (data.batchNo || ""), 
-    data.supplier || "", 
-    data.deliveryPlace || "", 
-    data.deliveryPlace || "", 
-    "'" + (data.rawQr || ""), 
-    statusText, 
-    data.photoBatchUrl || "", 
-    data.photoLocUrl || "", 
-    data.sourceDocNo || "", 
-    data.weighbridgeNo || ""      
-  ]);
+  // ★★★ 核心鐵律：只有核對「成功」才寫入 Data 正式資料表；核對「失敗」絕不寫入 Data！★★★
+  if (isSuccess) {
+    var targetSheetName = getTargetSheetName();
+    var ws = ss.getSheetByName(targetSheetName);
+    
+    if (!ws) { 
+      ws = ss.insertSheet(targetSheetName); 
+      try { ss.setActiveSheet(ws); ss.moveActiveSheet(2); } catch(e){} 
+      ws.appendRow(["時間","料號","槽號","批號","供應商","原始地點","比對用地點","原始QR","狀態","COA照片","地點照片", "來源單號", "磅單編號"]); 
+      ws.getRange("A1:M1").setFontWeight("bold").setBackground("#dbeafe");
+    }
 
-  // 若失敗，額外同步寫入 Error_Log 分頁並發送 Teams 通知
-  if (!isSuccess) {
+    // 寫入 Data 分頁
+    ws.appendRow([
+      new Date(), 
+      "'" + (data.materialNo || ""), 
+      "'" + (data.tankNo || ""), 
+      "'" + (data.batchNo || ""), 
+      data.supplier || "", 
+      data.deliveryPlace || "", 
+      data.deliveryPlace || "", 
+      "'" + (data.rawQr || ""), 
+      statusText, 
+      data.photoBatchUrl || "", 
+      data.photoLocUrl || "", 
+      data.sourceDocNo || "", 
+      data.weighbridgeNo || ""      
+    ]);
+  } else {
+    // 若失敗，【絕不寫入 Data 分頁】，只寫入 Error_Log 分頁備查，並發送 Teams 通知
     logVerificationError({
       materialNo: data.materialNo,
       tankNo: data.tankNo,
@@ -409,7 +410,7 @@ function syncRecordFromCloudflare(data) {
     }, data.errorDetails || "四重驗證不符合", "", "");
   }
 
-  return { success: true, message: "雙邊寫入 Google 試算表成功！" };
+  return { success: true, message: isSuccess ? "雙邊寫入 Google 試算表成功！" : "核對失敗紀錄已記入 Error_Log (未寫入正式 Data)" };
 }
 
 // ==========================================

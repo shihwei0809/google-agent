@@ -131,18 +131,120 @@ try {
     }
 
     // ==========================================
-    // 🛑 關卡 2: 地磅 地點 (V45 重點修正)
+    // 🛑 關卡 2: 地磅 地點 (智慧核對：包含 GAS 雙重相符 + 反光容錯 + T100 拼湊)
     // ==========================================
     $check2_Loc = false;
-    $locDebugMsg = ""; // 用來顯示系統拼湊了什麼，方便除錯
+    $locDebugMsg = "";
 
-    // 1. 標準比對 (既有邏輯：直接找字串)
-    if (!empty($locTargets)) {
-        foreach ($locTargets as $lt) {
-            $fuzzyLT = strtr($lt, $replacements);
-            if (strpos($cleanWeigh, $lt) !== false || strpos($fuzzyWeigh, $fuzzyLT) !== false) {
-                $check2_Loc = true; break;
+    // 1. 完全命中 (或模糊全字串命中)
+    if (!empty($locTarget)) {
+        if (strpos($cleanWeigh, $locTarget) !== false || strpos($fuzzyWeigh, strtr($locTarget, $replacements)) !== false) {
+            $check2_Loc = true;
+        }
+    }
+
+    // 2. 去除開頭 E、只有在結尾為 'A' 時才去除結尾 (絕不可誤截尾碼數字如 '2')
+    $locCore = $locTarget;
+    if (strpos($locCore, 'E') === 0) {
+        $locCore = substr($locCore, 1);
+    }
+    $locCoreNoA = $locCore;
+    if (substr($locCoreNoA, -1) === 'A' && strlen($locCoreNoA) > 5) {
+        $locCoreNoA = substr($locCoreNoA, 0, -1);
+    }
+
+    $candidates = array_unique(array_filter([$locCore, $locCoreNoA]));
+
+    if (!$check2_Loc) {
+        foreach ($candidates as $cand) {
+            $fuzzyCand = strtr($cand, $replacements);
+            if (strpos($cleanWeigh, $cand) !== false || strpos($fuzzyWeigh, $fuzzyCand) !== false) {
+                $check2_Loc = true;
+                break;
             }
+        }
+    }
+
+    // 3. GAS 經典雙重判定 (前4碼廠別 + 後續碼廠區)
+    // 例: EF180L182 -> 去E為 F180L182 -> 廠別 F180, 廠區 L182 (或 182)
+    if (!$check2_Loc) {
+        foreach ($candidates as $cand) {
+            if (strlen($cand) >= 7) {
+                $part1 = substr($cand, 0, 4);
+                $part2 = substr($cand, 4);
+
+                $part2Variants = [$part2];
+                if (strpos($part2, 'L') === 0 && strlen($part2) > 1) {
+                    $part2Variants[] = substr($part2, 1); // 182
+                }
+
+                $part1Fuzzy = strtr($part1, $replacements);
+                $hasPart1 = (strpos($cleanWeigh, $part1) !== false || strpos($fuzzyWeigh, $part1Fuzzy) !== false);
+                $hasPart2 = false;
+                foreach ($part2Variants as $p2) {
+                    if (strpos($cleanWeigh, $p2) !== false || strpos($fuzzyWeigh, strtr($p2, $replacements)) !== false) {
+                        $hasPart2 = true;
+                        break;
+                    }
+                }
+
+                if ($hasPart1 && $hasPart2) {
+                    $check2_Loc = true;
+                    break;
+                }
+
+                // 反光 2-3 容錯
+                $r23OCR = str_replace('2', '3', $cleanWeigh);
+                $r23P1 = str_replace('2', '3', $part1);
+                $r23HasP1 = (strpos($r23OCR, $r23P1) !== false);
+                $r23HasP2 = false;
+                foreach ($part2Variants as $p2) {
+                    if (strpos($r23OCR, str_replace('2', '3', $p2)) !== false) {
+                        $r23HasP2 = true;
+                        break;
+                    }
+                }
+                if ($r23HasP1 && $r23HasP2) {
+                    $check2_Loc = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    // 4. T100 拆解組合比對
+    if (!$check2_Loc) {
+        $t100_Factory = "";
+        $t100_Area = "";
+        if (preg_match('/廠別\D*([A-Z0-9]{4})/u', $cleanWeigh, $m)) {
+            $t100_Factory = $m[1];
+        }
+        if (preg_match('/廠區\D*([A-Z0-9]{3,4})/u', $cleanWeigh, $m)) {
+            $t100_Area = $m[1];
+        }
+
+        if (!empty($t100_Factory) && !empty($t100_Area)) {
+            $t100_Combined = $t100_Factory . $t100_Area;
+            $fuzzy_T100_Combined = strtr($t100_Combined, $replacements);
+
+            foreach ($candidates as $cand) {
+                $candNoL = preg_replace('/([A-Z0-9]{4})L/', '$1', $cand);
+                if ($cand === $t100_Combined ||
+                    strtr($cand, $replacements) === $fuzzy_T100_Combined ||
+                    $candNoL === $t100_Combined ||
+                    strtr($candNoL, $replacements) === $fuzzy_T100_Combined ||
+                    strpos($t100_Combined, $cand) !== false ||
+                    strpos($cand, $t100_Combined) !== false) {
+                    $check2_Loc = true;
+                    break;
+                }
+            }
+
+            if (!$check2_Loc) {
+                $locDebugMsg = "(系統拼湊: $t100_Combined vs 單據: $locCore)";
+            }
+        } else {
+            $locDebugMsg = "(單據地點: $locCore)";
         }
     }
 
