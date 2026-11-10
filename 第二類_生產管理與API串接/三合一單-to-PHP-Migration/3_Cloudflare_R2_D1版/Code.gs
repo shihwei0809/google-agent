@@ -1,17 +1,23 @@
 // ==========================================
-// 檔名: 三合一單與COA核對系統_動態設定與Teams通知版 (Cloudflare R2 + GAS 雙邊寫入加強版)
+// 檔名: 三合一單與COA核對系統_動態設定與Teams通知版 (Cloudflare R2 + GAS 雙邊寫入加強版 V48)
 // 基礎架構: 基於既有穩定核心擴充，100% 向下相容原本所有分頁與功能
 // 核心升級:
-// 1. 支援 Cloudflare 邊緣向 GAS 讀取金鑰 (action: "getConfig")。
+// 1. 支援 Cloudflare 邊緣向 GAS 讀取金鑰 (action: "getConfig")，並自動過濾有效 AIzaSy 金鑰。
 // 2. 支援 Cloudflare 雙邊同步寫入 (action: "sync_record")：
-//    - 自動將核對紀錄寫入原有的 Data_YYYY_MM-MM 分頁。
-//    - 照片網址直接帶入 Cloudflare R2 高畫質連結，不浪費 Google Drive 儲存空間！
-//    - 核對失敗時，自動同步寫入原有的 Error_Log 分頁並發送 Teams 通知！
+//    - 【僅限核對成功】才會寫入 Data_YYYY_MM-MM 分頁（照片網址帶入 Cloudflare R2 高畫質連結）。
+//    - 【核對失敗時】絕不寫入 Data 分頁！僅同步寫入 Error_Log 分頁（含完整 OCR 辨識全文）並發送 Teams 通知！
+// 3. Vision API 多把金鑰自動輪替與容錯重試：第 1 把失敗自動切換第 2 把 Vision Key。
 // ==========================================
 
 var DEFAULT_USAGE_LIMIT = 900; 
 var BACKUP_FOLDER_ID = "16lBdHf67N3QVfBEbnU2O5fgFa_6H1j4v"; 
 var DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/91b9b15b99a64990bf3f7116c031dea4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huhEyZ8m-m8EKJ7JXRmhR-CtuVI83kTLRADHB12g-7k";
+
+// 內建雙金鑰保底 (與試算表設定分頁自動合併去重)
+var FALLBACK_VISION_KEYS = [
+  "AIzaSyCxpDwmsFfKtYkz-_rnqPJW_iVh5j-wQd4",
+  "AIzaSyCdI7WZKnyUtYL0mubKslz7Cvq2wqStS_8"
+];
 
 // ==========================================
 // 0. 動態設定管理機制
@@ -26,8 +32,8 @@ function setupConfigSheet() {
     sheet.getRange("A1:C1").setFontWeight("bold").setBackground("#f3f4f6");
     
     var defaults = [
-      ["VISION_API_KEY", "填入你的_Google_Vision_金鑰_1", "主力 OCR 金鑰 (每月前 1000 次)"],
-      ["VISION_API_KEY", "填入你的_Google_Vision_金鑰_2", "備用 OCR 金鑰"],
+      ["VISION_API_KEY", "AIzaSyCxpDwmsFfKtYkz-_rnqPJW_iVh5j-wQd4", "主力 OCR 金鑰 (每月前 1000 次)"],
+      ["VISION_API_KEY", "AIzaSyCdI7WZKnyUtYL0mubKslz7Cvq2wqStS_8", "備用 OCR 金鑰"],
       ["GEMINI_API_KEY", "填入你的_Gemini_專用金鑰_1", "Gemini 主力備援金鑰"],
       ["GEMINI_MODEL", "gemini-3.6-flash", "第 1 順位 (每日 20 次)"],
       ["GEMINI_MODEL", "gemini-3.5-flash", "第 2 順位 (每日 20 次)"],
@@ -68,19 +74,29 @@ function getSystemConfig() {
     teamsWebhookUrl: DEFAULT_TEAMS_WEBHOOK_URL
   };
   
-  if (!sheet) return config;
-  
-  var data = sheet.getDataRange().getValues();
-  for (var i = 1; i < data.length; i++) {
-    var key = data[i][0] ? String(data[i][0]).trim() : "";
-    var val = data[i][1] ? String(data[i][1]).trim() : "";
-    if (!key || !val) continue;
-    
-    if (key === "VISION_API_KEY") config.visionKeys.push(val);
-    else if (key === "GEMINI_API_KEY") config.geminiKeys.push(val);
-    else if (key === "GEMINI_MODEL") config.geminiModels.push(val);
-    else if (key === "USAGE_LIMIT") config.usageLimit = parseInt(val) || DEFAULT_USAGE_LIMIT;
-    else if (key === "TEAMS_WEBHOOK_URL") config.teamsWebhookUrl = val;
+  if (sheet) {
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      var key = data[i][0] ? String(data[i][0]).trim() : "";
+      var val = data[i][1] ? String(data[i][1]).trim() : "";
+      if (!key || !val || val.indexOf("填入") !== -1) continue;
+      
+      // 強制驗證 Google Cloud Vision API Key 必須為 AIzaSy 開頭，避免誤填 AQ. 造成 400 錯誤
+      if (key === "VISION_API_KEY" && val.indexOf("AIzaSy") === 0) {
+        if (config.visionKeys.indexOf(val) === -1) config.visionKeys.push(val);
+      }
+      else if (key === "GEMINI_API_KEY") config.geminiKeys.push(val);
+      else if (key === "GEMINI_MODEL") config.geminiModels.push(val);
+      else if (key === "USAGE_LIMIT") config.usageLimit = parseInt(val) || DEFAULT_USAGE_LIMIT;
+      else if (key === "TEAMS_WEBHOOK_URL") config.teamsWebhookUrl = val;
+    }
+  }
+
+  // 自動補齊內建保底的兩把有效 Vision Key
+  for (var k = 0; k < FALLBACK_VISION_KEYS.length; k++) {
+    if (config.visionKeys.indexOf(FALLBACK_VISION_KEYS[k]) === -1) {
+      config.visionKeys.push(FALLBACK_VISION_KEYS[k]);
+    }
   }
   
   return config;
@@ -363,14 +379,13 @@ function logVerificationError(formObject, errorReason, ocrLoc, ocrBatch) {
 }
 
 // ==========================================
-// 2.8 ★★★ Cloudflare 雙邊同步專用寫入函式 ★★★
+// 2.8 ★★★ Cloudflare 雙邊同步專用寫入函式 (修正：失敗絕不寫入 Data 表) ★★★
 // ==========================================
 function syncRecordFromCloudflare(data) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var isSuccess = data.status === "四重核對成功" || data.status === "核對成功" || data.success === true;
-  var statusText = isSuccess ? "核對成功" : "核對失敗";
 
-  // ★★★ 核心鐵律：只有核對「成功」才寫入 Data 正式資料表；核對「失敗」絕不寫入 Data！★★★
+  // ★★★ 核心鐵律：只有核對「成功」才寫入 Data_YYYY_MM-MM 分頁；核對「失敗」絕不寫入 Data！★★★
   if (isSuccess) {
     var targetSheetName = getTargetSheetName();
     var ws = ss.getSheetByName(targetSheetName);
@@ -382,7 +397,7 @@ function syncRecordFromCloudflare(data) {
       ws.getRange("A1:M1").setFontWeight("bold").setBackground("#dbeafe");
     }
 
-    // 寫入 Data 分頁
+    // 寫入原本的 Data 分頁 (照片使用 Cloudflare R2 高畫質連結)
     ws.appendRow([
       new Date(), 
       "'" + (data.materialNo || ""), 
@@ -392,14 +407,16 @@ function syncRecordFromCloudflare(data) {
       data.deliveryPlace || "", 
       data.deliveryPlace || "", 
       "'" + (data.rawQr || ""), 
-      statusText, 
+      "核對成功", 
       data.photoBatchUrl || "", 
       data.photoLocUrl || "", 
       data.sourceDocNo || "", 
       data.weighbridgeNo || ""      
     ]);
+
+    return { success: true, message: "雙邊寫入 Google 試算表 Data 成功！" };
   } else {
-    // 若失敗，【絕不寫入 Data 分頁】，只寫入 Error_Log 分頁備查，並發送 Teams 通知
+    // 若失敗：【絕不寫入 Data 分頁】，只寫入 Error_Log 分頁（含 OCR 全文）並發送 Teams 通知
     logVerificationError({
       materialNo: data.materialNo,
       tankNo: data.tankNo,
@@ -407,10 +424,10 @@ function syncRecordFromCloudflare(data) {
       supplier: data.supplier,
       deliveryPlace: data.deliveryPlace,
       userName: "Cloudflare-PWA現場人員"
-    }, data.errorDetails || "四重驗證不符合", "", "");
-  }
+    }, data.errorDetails || "四重驗證不符合", data.ocrLoc || "", data.ocrBatch || "");
 
-  return { success: true, message: isSuccess ? "雙邊寫入 Google 試算表成功！" : "核對失敗紀錄已記入 Error_Log (未寫入正式 Data)" };
+    return { success: true, message: "核對失敗已寫入 Error_Log 並通知 Teams（未寫入 Data 分頁）" };
+  }
 }
 
 // ==========================================
@@ -510,8 +527,6 @@ function processFormAndVerify_V10(formObject) {
         formObject.supplier, formObject.deliveryPlace, targetPlace, "'" + (formObject.rawQr||""), 
         "核對成功", urlBatch, urlLoc, extractedSourceOrder, extractedDocOrder      
       ]);
-
-      // ★★★ 同步寫入 Cloudflare D1 資料庫 (毫秒級無時差) ★★★
       try {
         var cloudPayload = {
           "時間": Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss"),
@@ -561,10 +576,10 @@ function processFormAndVerify_V10(formObject) {
 }
 
 // ==========================================
-// 4. API 呼叫與備援
+// 4. API 呼叫與備援 (支援多把 Vision 金鑰自動容錯重試)
 // ==========================================
-function getSmartApiKey(visionKeys, usageLimit) {
-  if (!visionKeys || visionKeys.length === 0) return "";
+function getSmartApiKeyIndex(visionKeys, usageLimit) {
+  if (!visionKeys || visionKeys.length === 0) return 0;
   var props = PropertiesService.getScriptProperties();
   var currentMonth = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM");
   var lastResetMonth = props.getProperty("LAST_RESET_MONTH");
@@ -575,7 +590,7 @@ function getSmartApiKey(visionKeys, usageLimit) {
   var usage = parseInt(props.getProperty("USAGE_COUNT") || "0");
   var keyIndex = Math.floor(usage / usageLimit);
   if (keyIndex >= visionKeys.length) keyIndex = visionKeys.length - 1;
-  return visionKeys[keyIndex];
+  return keyIndex;
 }
 
 function incrementApiUsage() {
@@ -605,21 +620,28 @@ function logApiUsage(apiType, modelName, keyString, status, note) {
 function callVisionAPI(base64Data, config) {
   if (!config) config = getSystemConfig();
   if (config.visionKeys && config.visionKeys.length > 0) {
-    var currentKey = getSmartApiKey(config.visionKeys, config.usageLimit);
-    var url = "https://vision.googleapis.com/v1/images:annotate?key=" + currentKey;
-    var payload = { "requests": [{ "image": { "content": base64Data.split(',')[1] }, "features": [{ "type": "TEXT_DETECTION" }] }] };
-    try {
-      var response = UrlFetchApp.fetch(url, { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
-      var json = JSON.parse(response.getContentText());
-      if (!json.error) {
-        incrementApiUsage(); 
-        logApiUsage("Google Vision", "default", currentKey, "✅ 成功", "");
-        return (json.responses && json.responses[0].fullTextAnnotation) ? json.responses[0].fullTextAnnotation.text : "";
-      } else {
-        logApiUsage("Google Vision", "default", currentKey, "❌ 失敗", json.error.message);
+    var startIndex = getSmartApiKeyIndex(config.visionKeys, config.usageLimit);
+    var totalKeys = config.visionKeys.length;
+
+    // 依序嘗試所有有效的 Vision API Keys (主力失敗自動切備用)
+    for (var attempt = 0; attempt < totalKeys; attempt++) {
+      var idx = (startIndex + attempt) % totalKeys;
+      var currentKey = config.visionKeys[idx];
+      var url = "https://vision.googleapis.com/v1/images:annotate?key=" + currentKey;
+      var payload = { "requests": [{ "image": { "content": base64Data.split(',')[1] }, "features": [{ "type": "TEXT_DETECTION" }] }] };
+      try {
+        var response = UrlFetchApp.fetch(url, { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
+        var json = JSON.parse(response.getContentText());
+        if (!json.error) {
+          incrementApiUsage(); 
+          logApiUsage("Google Vision", "default", currentKey, "✅ 成功", attempt > 0 ? ("備援 Key#" + (idx + 1) + " 接手") : "");
+          return (json.responses && json.responses[0].fullTextAnnotation) ? json.responses[0].fullTextAnnotation.text : "";
+        } else {
+          logApiUsage("Google Vision", "default", currentKey, "❌ 失敗", json.error.message);
+        }
+      } catch (e) {
+        logApiUsage("Google Vision", "default", currentKey, "❌ 連線失敗", e.message);
       }
-    } catch (e) {
-      logApiUsage("Google Vision", "default", currentKey, "❌ 連線失敗", e.message);
     }
   }
 
@@ -747,6 +769,18 @@ function advancedFuzzyCheck(ocrText, target) {
     var fO = cleanOCR.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]});
     var fT = t.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]});
     if (fO.includes(fT)) return true;
+
+    // 針對地磅螢幕摩爾紋造成 10 碼批號前段漏 1 字元容錯 (鎖定末 4 碼流水槽號必須 100% 相符)
+    if (t.length >= 9) {
+      var suffix4 = t.slice(-4);
+      var prefix = t.slice(0, -4);
+      for (var i = 1; i < prefix.length; i++) {
+        var droppedOne = prefix.slice(0, i) + prefix.slice(i + 1) + suffix4;
+        if (cleanOCR.includes(droppedOne) || fO.includes(droppedOne.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]}))) {
+          return true;
+        }
+      }
+    }
     return false;
   }
 
@@ -767,7 +801,7 @@ function saveImageToDrive(base64Data, prefix) {
 }
 
 // ==========================================
-// 5. PWA 專用 API 接口 (支援外部 fetch 呼叫)
+// 5. PWA 與 Cloudflare 專用 API 接口
 // ==========================================
 function doPost(e) {
   if (typeof e === 'undefined') {
@@ -779,7 +813,7 @@ function doPost(e) {
     var action = requestData.action;
     var result = {};
 
-    // ★ 1. Cloudflare 向 GAS 要最新設定與金鑰
+    // ★ 1. Cloudflare 向 GAS 動態要最新設定與金鑰
     if (action === "getConfig" || action === "get_config") {
       result = Object.assign({ success: true }, getSystemConfig());
     }
