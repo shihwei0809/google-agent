@@ -17,21 +17,21 @@ set START_CMD=python -m uvicorn main:app --host 0.0.0.0 --port
 :: 套件清單格式: import名稱|pip安裝名稱
 :: import名稱用於 python -c "import XXX" 測試
 :: pip安裝名稱用於 pip install XXX
-set PKG[0]=fastapi|fastapi>=0.100.0
-set PKG[1]=uvicorn|uvicorn>=0.22.0
-set PKG[2]=google.genai|google-genai
-set PKG[3]=pydantic|pydantic>=2.0.0
-set PKG[4]=multipart|python-multipart
-set PKG[5]=openpyxl|openpyxl
-set PKG[6]=docx|python-docx
+set "PKG[0]=fastapi|fastapi>=0.100.0"
+set "PKG[1]=uvicorn|uvicorn>=0.22.0"
+set "PKG[2]=google.genai|google-genai"
+set "PKG[3]=pydantic|pydantic>=2.0.0"
+set "PKG[4]=multipart|python-multipart"
+set "PKG[5]=openpyxl|openpyxl"
+set "PKG[6]=docx|python-docx"
 :: set PKG[7]=requests|requests         ← 需要爬蟲時取消註解
 :: set PKG[8]=bs4|beautifulsoup4        ← 需要爬蟲時取消註解
 set PKG_COUNT=7
 
 :: 必要資料夾 (空字串表示不需要)
-set FOLDER[0]=data
-set FOLDER[1]=data\audios
-set FOLDER[2]=static
+set "FOLDER[0]=data"
+set "FOLDER[1]=data\audios"
+set "FOLDER[2]=static"
 set FOLDER_COUNT=3
 
 :: 啟動後自動開啟瀏覽器？ (YES/NO)
@@ -87,7 +87,7 @@ echo.
 set /a idx=0
 :PKG_LOOP
 if %idx% GEQ %PKG_COUNT% goto :PKG_DONE
-set PKG_ENTRY=!PKG[%idx%]!
+set "PKG_ENTRY=!PKG[%idx%]!"
 for /f "tokens=1,2 delims=|" %%a in ("!PKG_ENTRY!") do (
     set IMPORT_NAME=%%a
     set PIP_NAME=%%b
@@ -114,7 +114,7 @@ echo  [4/4] 確認資料夾結構...
 set /a fidx=0
 :FOLDER_LOOP
 if %fidx% GEQ %FOLDER_COUNT% goto :FOLDER_DONE
-set FOLDER_PATH=!FOLDER[%fidx%]!
+set "FOLDER_PATH=!FOLDER[%fidx%]!"
 if not exist "!FOLDER_PATH!" (
     mkdir "!FOLDER_PATH!"
     echo         建立: !FOLDER_PATH!

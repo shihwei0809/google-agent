@@ -821,11 +821,14 @@ if __name__ == "__main__":
     local_ip = get_local_ip()
     port = 8000
     
-    for test_port in range(8000, 8050):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(('127.0.0.1', test_port)) != 0:
-                port = test_port
-                break
+    if len(sys.argv) > 1 and sys.argv[1].isdigit():
+        port = int(sys.argv[1])
+    else:
+        for test_port in range(8000, 8050):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                if s.connect_ex(('127.0.0.1', test_port)) != 0:
+                    port = test_port
+                    break
                 
     if port != 8000:
         print(f"[提示] 預設 Port 8000 已被佔用，已自動切換至可用 Port: {port}")
