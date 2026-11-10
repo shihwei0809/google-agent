@@ -171,7 +171,7 @@
 
           <span>動態生產排程與進耗存整合系統</span>
 
-          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.2 (2026/11/05 支援存檔改名與覆蓋更新)</span>
+          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.3 (2026/11/10 存檔清單字體白色對比優化)</span>
 
         </h1>
 
@@ -4018,7 +4018,10 @@
         opt.style.color = "#ffffff";
         opt.style.backgroundColor = "#0f172a";
         if (name.startsWith(prodTag)) {
-          opt.classList.add("font-bold");
+          opt.style.color = "#ffffff";
+          opt.style.fontWeight = "bold";
+        } else {
+          opt.style.color = "#cbd5e1";
         }
 
         select.appendChild(opt);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'act-pwa-v2.2';
+const CACHE_NAME = 'act-pwa-v2.3';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -32,6 +32,20 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   // Google Apps Script API 走網路優先，不快取
   if (e.request.url.includes('script.google.com')) {
+    return;
+  }
+
+  // HTML 頁面導航採用網路優先 (Network First)，確保即時取得最新版，離線時才回退快取
+  if (e.request.mode === 'navigate' || e.request.destination === 'document') {
+    e.respondWith(
+      fetch(e.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(e.request).then((res) => res || caches.match('./index.html')))
+    );
     return;
   }
 
