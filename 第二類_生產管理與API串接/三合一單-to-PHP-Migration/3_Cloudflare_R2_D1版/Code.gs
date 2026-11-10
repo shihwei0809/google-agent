@@ -569,27 +569,35 @@ function processFormAndVerify_V10(formObject) {
 }
 
 // ==========================================
-// 4. API 呼叫與備援 (支援多把 Vision 金鑰自動容錯重試)
+// 4. API 呼叫與備援 (支援多把 Vision 金鑰輪流分攤 + 每把 900 次免費上限防收費鎖定)
 // ==========================================
-function getSmartApiKeyIndex(visionKeys, usageLimit) {
-  if (!visionKeys || visionKeys.length === 0) return 0;
+function checkAndResetMonthlyUsage() {
   var props = PropertiesService.getScriptProperties();
   var currentMonth = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM");
   var lastResetMonth = props.getProperty("LAST_RESET_MONTH");
   if (lastResetMonth !== currentMonth) {
-    props.setProperty("USAGE_COUNT", "0");
+    var allProps = props.getProperties();
+    for (var k in allProps) {
+      if (k.indexOf("USAGE_COUNT") === 0 || k === "RR_INDEX") {
+        props.deleteProperty(k);
+      }
+    }
     props.setProperty("LAST_RESET_MONTH", currentMonth);
   }
-  var usage = parseInt(props.getProperty("USAGE_COUNT") || "0");
-  var keyIndex = Math.floor(usage / usageLimit);
-  if (keyIndex >= visionKeys.length) keyIndex = visionKeys.length - 1;
-  return keyIndex;
+  return props;
 }
 
-function incrementApiUsage() {
-  var props = PropertiesService.getScriptProperties();
-  var usage = parseInt(props.getProperty("USAGE_COUNT") || "0");
-  props.setProperty("USAGE_COUNT", String(usage + 1));
+function getKeyMonthlyUsage(props, keyIndex) {
+  return parseInt(props.getProperty("USAGE_COUNT_KEY_" + keyIndex) || "0");
+}
+
+function incrementKeyMonthlyUsage(props, keyIndex, totalKeys) {
+  var cur = getKeyMonthlyUsage(props, keyIndex) + 1;
+  props.setProperty("USAGE_COUNT_KEY_" + keyIndex, String(cur));
+  // 推進輪流指標 (Round-Robin)，讓下一張照片自動換下一把 Key
+  var nextIndex = (keyIndex + 1) % totalKeys;
+  props.setProperty("RR_INDEX", String(nextIndex));
+  return cur;
 }
 
 function logApiUsage(apiType, modelName, keyString, status, note) {
@@ -613,12 +621,21 @@ function logApiUsage(apiType, modelName, keyString, status, note) {
 function callVisionAPI(base64Data, config) {
   if (!config) config = getSystemConfig();
   if (config.visionKeys && config.visionKeys.length > 0) {
-    var startIndex = getSmartApiKeyIndex(config.visionKeys, config.usageLimit);
+    var props = checkAndResetMonthlyUsage();
     var totalKeys = config.visionKeys.length;
+    var limit = config.usageLimit || DEFAULT_USAGE_LIMIT; // 預設 900 次防收費上限
+    var rrStart = parseInt(props.getProperty("RR_INDEX") || "0") % totalKeys;
 
-    // 依序嘗試所有有效的 Vision API Keys (主力失敗自動切備用)
+    // 輪流嘗試每一把尚未達到 900 次上限的 Vision API Key
     for (var attempt = 0; attempt < totalKeys; attempt++) {
-      var idx = (startIndex + attempt) % totalKeys;
+      var idx = (rrStart + attempt) % totalKeys;
+      var keyUsage = getKeyMonthlyUsage(props, idx);
+
+      // ★ 防收費鐵律：單把 Key 當月達 900 次即強制略過，絕不超過 1000 次免費額度
+      if (keyUsage >= limit) {
+        continue;
+      }
+
       var currentKey = config.visionKeys[idx];
       var url = "https://vision.googleapis.com/v1/images:annotate?key=" + currentKey;
       var payload = { "requests": [{ "image": { "content": base64Data.split(',')[1] }, "features": [{ "type": "TEXT_DETECTION" }] }] };
@@ -626,8 +643,8 @@ function callVisionAPI(base64Data, config) {
         var response = UrlFetchApp.fetch(url, { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
         var json = JSON.parse(response.getContentText());
         if (!json.error) {
-          incrementApiUsage(); 
-          logApiUsage("Google Vision", "default", currentKey, "✅ 成功", attempt > 0 ? ("備援 Key#" + (idx + 1) + " 接手") : "");
+          var newCount = incrementKeyMonthlyUsage(props, idx, totalKeys);
+          logApiUsage("Google Vision", "default", currentKey, "✅ 成功", "輪流 Key#" + (idx + 1) + " (當月累計: " + newCount + "/" + limit + ")");
           return (json.responses && json.responses[0].fullTextAnnotation) ? json.responses[0].fullTextAnnotation.text : "";
         } else {
           logApiUsage("Google Vision", "default", currentKey, "❌ 失敗", json.error.message);

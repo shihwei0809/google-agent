@@ -30,8 +30,10 @@ const DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6
 let cachedVisionKeys = null;
 let cachedGeminiKeys = null;
 let cachedGeminiModels = null;
+let cachedUsageLimit = 900;
 let cachedTeamsWebhookUrl = null;
 let lastKeyFetchTime = 0;
+let roundRobinCounter = 0;
 const CACHE_TTL_MS = 10 * 60 * 1000; // 快取 10 分鐘
 
 async function fetchConfigFromGas(env) {
@@ -61,6 +63,9 @@ async function fetchConfigFromGas(env) {
         }
         if (Array.isArray(data.geminiModels) && data.geminiModels.length > 0) {
           cachedGeminiModels = normalizeGeminiModels(data.geminiModels);
+        }
+        if (data.usageLimit) {
+          cachedUsageLimit = parseInt(data.usageLimit, 10) || 900;
         }
         if (data.teamsWebhookUrl) {
           cachedTeamsWebhookUrl = data.teamsWebhookUrl;
@@ -144,8 +149,50 @@ export async function getVisionApiKeysList(env) {
 
 export async function getVisionApiKey(env) {
   const list = await getVisionApiKeysList(env);
-  const sec = new Date().getSeconds();
-  return list[sec % list.length];
+  const idx = roundRobinCounter++ % list.length;
+  return list[idx];
+}
+
+export function getNextRoundRobinIndex() {
+  return roundRobinCounter++;
+}
+
+function getCurrentYearMonth() {
+  const now = new Date();
+  const tw = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+  return tw.toISOString().slice(0, 7); // YYYY-MM
+}
+
+/**
+ * 檢查該把 Vision Key 當月使用次數是否未達 900 次上限 (防收費保護閥)
+ */
+export async function isVisionKeyUnderQuota(env, apiKey) {
+  if (!env || !env.DB || !apiKey) return true;
+  const ym = getCurrentYearMonth();
+  const quotaKey = `VISION_USAGE_${ym}_${apiKey.slice(-6)}`;
+  try {
+    const row = await env.DB.prepare("SELECT value FROM system_config WHERE key = ?").bind(quotaKey).first();
+    const used = row && row.value ? parseInt(row.value, 10) || 0 : 0;
+    return used < (cachedUsageLimit || 900);
+  } catch (e) {
+    return true;
+  }
+}
+
+/**
+ * 成功呼叫一次 Vision Key 後，將當月該把 Key 的計數器 +1
+ */
+export async function incrementVisionKeyQuota(env, apiKey) {
+  if (!env || !env.DB || !apiKey) return;
+  const ym = getCurrentYearMonth();
+  const quotaKey = `VISION_USAGE_${ym}_${apiKey.slice(-6)}`;
+  try {
+    const row = await env.DB.prepare("SELECT value FROM system_config WHERE key = ?").bind(quotaKey).first();
+    const used = (row && row.value ? parseInt(row.value, 10) || 0 : 0) + 1;
+    await env.DB.prepare(
+      "INSERT INTO system_config (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    ).bind(quotaKey, String(used), `Vision Key (${apiKey.slice(0, 8)}...) ${ym} 月累計次數 (上限 ${cachedUsageLimit})`).run();
+  } catch (e) {}
 }
 
 /**

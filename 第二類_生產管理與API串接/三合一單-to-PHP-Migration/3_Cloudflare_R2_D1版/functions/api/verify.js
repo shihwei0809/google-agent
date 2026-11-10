@@ -1,9 +1,17 @@
 // Cloudflare Pages Functions API: /api/verify
 // 核心四重核對引擎 + Cloudflare R2 照片儲存 + D1 紀錄 + Google 試算表 (GAS) 雙向同步 + Teams 警報推播
 
-import { getVisionApiKeysList, callGeminiFallback, getTeamsWebhookUrl, syncRecordToGoogleSheets } from "./_gas_helper.js";
+import {
+  getVisionApiKeysList,
+  getNextRoundRobinIndex,
+  isVisionKeyUnderQuota,
+  incrementVisionKeyQuota,
+  callGeminiFallback,
+  getTeamsWebhookUrl,
+  syncRecordToGoogleSheets
+} from "./_gas_helper.js";
 
-async function callGoogleVisionWithRetry(base64Image, keyList, env) {
+async function callGoogleVisionWithRetry(base64Image, keyList, env, startIndex = 0) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
@@ -11,7 +19,19 @@ async function callGoogleVisionWithRetry(base64Image, keyList, env) {
   cleanB64 = cleanB64.replace(/\s/g, "");
 
   let lastError = null;
-  for (const apiKey of keyList) {
+  const totalKeys = keyList.length;
+
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
+    const idx = (startIndex + attempt) % totalKeys;
+    const apiKey = keyList[idx];
+
+    // ★ 防收費鐵律：若該把 Key 當月累計已達 900 次上限，強制略過不呼叫
+    const underQuota = await isVisionKeyUnderQuota(env, apiKey);
+    if (!underQuota) {
+      console.log(`Vision Key [${apiKey.slice(0, 8)}...] 當月已達 900 次免費安全上限，自動跳過避免收費`);
+      continue;
+    }
+
     try {
       const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
       const response = await fetch(url, {
@@ -30,6 +50,7 @@ async function callGoogleVisionWithRetry(base64Image, keyList, env) {
       if (response.ok) {
         const json = await response.json();
         if (!json.error) {
+          await incrementVisionKeyQuota(env, apiKey);
           return json;
         }
         lastError = new Error(`Google Vision API 錯誤: ${json.error.message}`);
@@ -43,7 +64,7 @@ async function callGoogleVisionWithRetry(base64Image, keyList, env) {
     }
   }
 
-  // 當所有 Vision API Key 都用完或失敗時，自動切換至 Gemini 模型備援 (優先 gemini-3.8-flash)
+  // 當所有 Vision API Key 都達 900 次上限或失敗時，自動切換至 Gemini 模型備援 (優先 gemini-3.8-flash)
   if (env) {
     const geminiText = await callGeminiFallback(base64Image, env);
     if (geminiText !== null) {
@@ -328,11 +349,13 @@ export async function onRequest(context) {
       });
     }
 
-    // 1. Google Vision OCR 解析 (向 GAS 或環境要最新 Key 清單，若 Vision Key 全數用盡則自動切換 Gemini 3.8 備援)
+    // 1. Google Vision OCR 解析 (兩張照片自動一左一右輪流分攤至不同 Key，且單把滿 900 次自動跳過防收費，全滿則切 Gemini 3.8)
     const keyList = await getVisionApiKeysList(env);
+    const startIdxBatch = getNextRoundRobinIndex();
+    const startIdxLoc = getNextRoundRobinIndex();
     const [ocrResultBatch, ocrResultLoc] = await Promise.all([
-      callGoogleVisionWithRetry(photoBatch, keyList, env),
-      callGoogleVisionWithRetry(photoLoc, keyList, env)
+      callGoogleVisionWithRetry(photoBatch, keyList, env, startIdxBatch),
+      callGoogleVisionWithRetry(photoLoc, keyList, env, startIdxLoc)
     ]);
 
     const textCOA = ocrResultBatch?.responses?.[0]?.fullTextAnnotation?.text || "";

@@ -2,9 +2,15 @@
 // 專門用於「三合一單 AI 拍照讀單」，自動解析送達地點、供應商、料號、槽號、批號
 // 支援向 GAS 獲取最新金鑰與雙 Key 自動輪詢
 
-import { getVisionApiKeysList, callGeminiFallback } from "./_gas_helper.js";
+import {
+  getVisionApiKeysList,
+  getNextRoundRobinIndex,
+  isVisionKeyUnderQuota,
+  incrementVisionKeyQuota,
+  callGeminiFallback
+} from "./_gas_helper.js";
 
-async function callGoogleVisionWithRetry(base64Image, keyList, env) {
+async function callGoogleVisionWithRetry(base64Image, keyList, env, startIndex = 0) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
@@ -12,7 +18,16 @@ async function callGoogleVisionWithRetry(base64Image, keyList, env) {
   cleanB64 = cleanB64.replace(/\s/g, "");
 
   let lastError = null;
-  for (const apiKey of keyList) {
+  const totalKeys = keyList.length;
+
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
+    const idx = (startIndex + attempt) % totalKeys;
+    const apiKey = keyList[idx];
+
+    // ★ 防收費鐵律：若該把 Key 當月累計已達 900 次上限，強制略過不呼叫
+    const underQuota = await isVisionKeyUnderQuota(env, apiKey);
+    if (!underQuota) continue;
+
     try {
       const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
       const response = await fetch(url, {
@@ -31,6 +46,7 @@ async function callGoogleVisionWithRetry(base64Image, keyList, env) {
       if (response.ok) {
         const json = await response.json();
         if (!json.error) {
+          await incrementVisionKeyQuota(env, apiKey);
           return { data: json, usedKey: apiKey };
         }
         lastError = new Error(`Google Vision API 錯誤: ${json.error.message}`);
@@ -43,7 +59,7 @@ async function callGoogleVisionWithRetry(base64Image, keyList, env) {
     }
   }
 
-  // 當所有 Vision API Key 都用完或失敗時，自動切換至 Gemini 模型備援 (優先 gemini-3.8-flash)
+  // 當所有 Vision API Key 都達 900 次上限或失敗時，自動切換至 Gemini 模型備援 (優先 gemini-3.8-flash)
   if (env) {
     const geminiText = await callGeminiFallback(base64Image, env);
     if (geminiText !== null) {
@@ -88,9 +104,10 @@ export async function onRequest(context) {
       });
     }
 
-    // ★ 向 GAS 或環境獲取最新 Vision API Key 清單並支援自動重試與 Gemini 3.8 備援
+    // ★ 向 GAS 或環境獲取最新 Vision API Key 清單並支援輪流分攤與 900 次上限保護
     const keyList = await getVisionApiKeysList(env);
-    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry(photoData, keyList, env);
+    const startIdx = getNextRoundRobinIndex();
+    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry(photoData, keyList, env, startIdx);
     const text = ocrResult?.responses?.[0]?.fullTextAnnotation?.text || "";
 
     // 預處理：全形符號替換

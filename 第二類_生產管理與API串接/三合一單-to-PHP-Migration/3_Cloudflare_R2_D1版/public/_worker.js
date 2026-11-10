@@ -20,8 +20,10 @@ var DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d
 var cachedVisionKeys = null;
 var cachedGeminiKeys = null;
 var cachedGeminiModels = null;
+var cachedUsageLimit = 900;
 var cachedTeamsWebhookUrl = null;
 var lastKeyFetchTime = 0;
+var roundRobinCounter = 0;
 var CACHE_TTL_MS = 10 * 60 * 1e3;
 async function fetchConfigFromGas(env) {
   const gasUrl = (env.GAS_WEB_APP_URL || "").trim();
@@ -47,6 +49,9 @@ async function fetchConfigFromGas(env) {
         }
         if (Array.isArray(data.geminiModels) && data.geminiModels.length > 0) {
           cachedGeminiModels = normalizeGeminiModels(data.geminiModels);
+        }
+        if (data.usageLimit) {
+          cachedUsageLimit = parseInt(data.usageLimit, 10) || 900;
         }
         if (data.teamsWebhookUrl) {
           cachedTeamsWebhookUrl = data.teamsWebhookUrl;
@@ -114,6 +119,39 @@ async function getVisionApiKeysList(env) {
   ].filter(Boolean).map(sanitizeKey);
   const validVisionKeys = Array.from(new Set(allCandidates)).filter((k) => typeof k === "string" && k.startsWith("AIzaSy"));
   return validVisionKeys;
+}
+function getNextRoundRobinIndex() {
+  return roundRobinCounter++;
+}
+function getCurrentYearMonth() {
+  const now = /* @__PURE__ */ new Date();
+  const tw = new Date(now.getTime() + 8 * 60 * 60 * 1e3);
+  return tw.toISOString().slice(0, 7);
+}
+async function isVisionKeyUnderQuota(env, apiKey) {
+  if (!env || !env.DB || !apiKey) return true;
+  const ym = getCurrentYearMonth();
+  const quotaKey = `VISION_USAGE_${ym}_${apiKey.slice(-6)}`;
+  try {
+    const row = await env.DB.prepare("SELECT value FROM system_config WHERE key = ?").bind(quotaKey).first();
+    const used = row && row.value ? parseInt(row.value, 10) || 0 : 0;
+    return used < (cachedUsageLimit || 900);
+  } catch (e) {
+    return true;
+  }
+}
+async function incrementVisionKeyQuota(env, apiKey) {
+  if (!env || !env.DB || !apiKey) return;
+  const ym = getCurrentYearMonth();
+  const quotaKey = `VISION_USAGE_${ym}_${apiKey.slice(-6)}`;
+  try {
+    const row = await env.DB.prepare("SELECT value FROM system_config WHERE key = ?").bind(quotaKey).first();
+    const used = (row && row.value ? parseInt(row.value, 10) || 0 : 0) + 1;
+    await env.DB.prepare(
+      "INSERT INTO system_config (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+    ).bind(quotaKey, String(used), `Vision Key (${apiKey.slice(0, 8)}...) ${ym} \u6708\u7D2F\u8A08\u6B21\u6578 (\u4E0A\u9650 ${cachedUsageLimit})`).run();
+  } catch (e) {
+  }
 }
 async function callGeminiFallback(base64Image, env) {
   const now = Date.now();
@@ -207,14 +245,22 @@ async function syncRecordToGoogleSheets(env, recordPayload) {
 }
 
 // 3_Cloudflare_R2_D1版/functions/api/verify.js
-async function callGoogleVisionWithRetry(base64Image, keyList, env) {
+async function callGoogleVisionWithRetry(base64Image, keyList, env, startIndex = 0) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
   }
   cleanB64 = cleanB64.replace(/\s/g, "");
   let lastError = null;
-  for (const apiKey of keyList) {
+  const totalKeys = keyList.length;
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
+    const idx = (startIndex + attempt) % totalKeys;
+    const apiKey = keyList[idx];
+    const underQuota = await isVisionKeyUnderQuota(env, apiKey);
+    if (!underQuota) {
+      console.log(`Vision Key [${apiKey.slice(0, 8)}...] \u7576\u6708\u5DF2\u9054 900 \u6B21\u514D\u8CBB\u5B89\u5168\u4E0A\u9650\uFF0C\u81EA\u52D5\u8DF3\u904E\u907F\u514D\u6536\u8CBB`);
+      continue;
+    }
     try {
       const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
       const response = await fetch(url, {
@@ -232,6 +278,7 @@ async function callGoogleVisionWithRetry(base64Image, keyList, env) {
       if (response.ok) {
         const json = await response.json();
         if (!json.error) {
+          await incrementVisionKeyQuota(env, apiKey);
           return json;
         }
         lastError = new Error(`Google Vision API \u932F\u8AA4: ${json.error.message}`);
@@ -482,9 +529,11 @@ async function onRequest(context) {
       });
     }
     const keyList = await getVisionApiKeysList(env);
+    const startIdxBatch = getNextRoundRobinIndex();
+    const startIdxLoc = getNextRoundRobinIndex();
     const [ocrResultBatch, ocrResultLoc] = await Promise.all([
-      callGoogleVisionWithRetry(photoBatch, keyList, env),
-      callGoogleVisionWithRetry(photoLoc, keyList, env)
+      callGoogleVisionWithRetry(photoBatch, keyList, env, startIdxBatch),
+      callGoogleVisionWithRetry(photoLoc, keyList, env, startIdxLoc)
     ]);
     const textCOA = ocrResultBatch?.responses?.[0]?.fullTextAnnotation?.text || "";
     const cleanCOA = textCOA.replace(/\s+/g, "").toUpperCase();
@@ -718,14 +767,19 @@ async function onRequest(context) {
 }
 
 // 3_Cloudflare_R2_D1版/functions/api/ai-read.js
-async function callGoogleVisionWithRetry2(base64Image, keyList, env) {
+async function callGoogleVisionWithRetry2(base64Image, keyList, env, startIndex = 0) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
   }
   cleanB64 = cleanB64.replace(/\s/g, "");
   let lastError = null;
-  for (const apiKey of keyList) {
+  const totalKeys = keyList.length;
+  for (let attempt = 0; attempt < totalKeys; attempt++) {
+    const idx = (startIndex + attempt) % totalKeys;
+    const apiKey = keyList[idx];
+    const underQuota = await isVisionKeyUnderQuota(env, apiKey);
+    if (!underQuota) continue;
     try {
       const url = `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`;
       const response = await fetch(url, {
@@ -743,6 +797,7 @@ async function callGoogleVisionWithRetry2(base64Image, keyList, env) {
       if (response.ok) {
         const json = await response.json();
         if (!json.error) {
+          await incrementVisionKeyQuota(env, apiKey);
           return { data: json, usedKey: apiKey };
         }
         lastError = new Error(`Google Vision API \u932F\u8AA4: ${json.error.message}`);
@@ -792,7 +847,8 @@ async function onRequest2(context) {
       });
     }
     const keyList = await getVisionApiKeysList(env);
-    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry2(photoData, keyList, env);
+    const startIdx = getNextRoundRobinIndex();
+    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry2(photoData, keyList, env, startIdx);
     const text = ocrResult?.responses?.[0]?.fullTextAnnotation?.text || "";
     const cleanText = text.replace(/：/g, ":").replace(/　/g, " ").replace(/\|/g, " ");
     const data = {
