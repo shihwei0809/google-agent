@@ -13,14 +13,8 @@ var DEFAULT_USAGE_LIMIT = 900;
 var BACKUP_FOLDER_ID = "16lBdHf67N3QVfBEbnU2O5fgFa_6H1j4v"; 
 var DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/91b9b15b99a64990bf3f7116c031dea4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huhEyZ8m-m8EKJ7JXRmhR-CtuVI83kTLRADHB12g-7k";
 
-// 內建雙金鑰保底 (與試算表設定分頁自動合併去重)
-var FALLBACK_VISION_KEYS = [
-  "AIzaSyCxpDwmsFfKtYkz-_rnqPJW_iVh5j-wQd4",
-  "AIzaSyCdI7WZKnyUtYL0mubKslz7Cvq2wqStS_8"
-];
-
 // ==========================================
-// 0. 動態設定管理機制
+// 0. 動態設定管理機制 (所有 API Key 統一由試算表「設定」分頁管理，不寫死於程式碼)
 // ==========================================
 function setupConfigSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -32,8 +26,8 @@ function setupConfigSheet() {
     sheet.getRange("A1:C1").setFontWeight("bold").setBackground("#f3f4f6");
     
     var defaults = [
-      ["VISION_API_KEY", "AIzaSyCxpDwmsFfKtYkz-_rnqPJW_iVh5j-wQd4", "主力 OCR 金鑰 (每月前 1000 次)"],
-      ["VISION_API_KEY", "AIzaSyCdI7WZKnyUtYL0mubKslz7Cvq2wqStS_8", "備用 OCR 金鑰"],
+      ["VISION_API_KEY", "填入你的_Google_Vision_金鑰_1", "主力 OCR 金鑰 (每月前 1000 次)"],
+      ["VISION_API_KEY", "填入你的_Google_Vision_金鑰_2", "備用 OCR 金鑰"],
       ["GEMINI_API_KEY", "填入你的_Gemini_專用金鑰_1", "Gemini 主力備援金鑰"],
       ["GEMINI_MODEL", "gemini-3.6-flash", "第 1 順位 (每日 20 次)"],
       ["GEMINI_MODEL", "gemini-3.5-flash", "第 2 順位 (每日 20 次)"],
@@ -74,29 +68,22 @@ function getSystemConfig() {
     teamsWebhookUrl: DEFAULT_TEAMS_WEBHOOK_URL
   };
   
-  if (sheet) {
-    var data = sheet.getDataRange().getValues();
-    for (var i = 1; i < data.length; i++) {
-      var key = data[i][0] ? String(data[i][0]).trim() : "";
-      var val = data[i][1] ? String(data[i][1]).trim() : "";
-      if (!key || !val || val.indexOf("填入") !== -1) continue;
-      
-      // 強制驗證 Google Cloud Vision API Key 必須為 AIzaSy 開頭，避免誤填 AQ. 造成 400 錯誤
-      if (key === "VISION_API_KEY" && val.indexOf("AIzaSy") === 0) {
-        if (config.visionKeys.indexOf(val) === -1) config.visionKeys.push(val);
-      }
-      else if (key === "GEMINI_API_KEY") config.geminiKeys.push(val);
-      else if (key === "GEMINI_MODEL") config.geminiModels.push(val);
-      else if (key === "USAGE_LIMIT") config.usageLimit = parseInt(val) || DEFAULT_USAGE_LIMIT;
-      else if (key === "TEAMS_WEBHOOK_URL") config.teamsWebhookUrl = val;
+  if (!sheet) return config;
+  
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var key = data[i][0] ? String(data[i][0]).trim() : "";
+    var val = data[i][1] ? String(data[i][1]).trim() : "";
+    if (!key || !val || val.indexOf("填入") !== -1) continue;
+    
+    // 僅過濾掉非 AIzaSy 開頭的誤植金鑰，所有金鑰完全從「設定」分頁動態讀取
+    if (key === "VISION_API_KEY" && val.indexOf("AIzaSy") === 0) {
+      if (config.visionKeys.indexOf(val) === -1) config.visionKeys.push(val);
     }
-  }
-
-  // 自動補齊內建保底的兩把有效 Vision Key
-  for (var k = 0; k < FALLBACK_VISION_KEYS.length; k++) {
-    if (config.visionKeys.indexOf(FALLBACK_VISION_KEYS[k]) === -1) {
-      config.visionKeys.push(FALLBACK_VISION_KEYS[k]);
-    }
+    else if (key === "GEMINI_API_KEY") config.geminiKeys.push(val);
+    else if (key === "GEMINI_MODEL") config.geminiModels.push(val);
+    else if (key === "USAGE_LIMIT") config.usageLimit = parseInt(val) || DEFAULT_USAGE_LIMIT;
+    else if (key === "TEAMS_WEBHOOK_URL") config.teamsWebhookUrl = val;
   }
   
   return config;

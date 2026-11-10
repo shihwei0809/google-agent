@@ -1,8 +1,4 @@
 // 3_Cloudflare_R2_D1版/functions/api/_gas_helper.js
-var DEFAULT_VISION_KEYS = [
-  "AIzaSyCxpDwmsFfKtYkz-_rnqPJW_iVh5j-wQd4",
-  "AIzaSyCdI7WZKnyUtYL0mubKslz7Cvq2wqStS_8"
-];
 function sanitizeKey(k) {
   if (!k || typeof k !== "string") return k;
   let clean = k.trim();
@@ -90,11 +86,10 @@ async function getVisionApiKeysList(env) {
     env.VISION_API_KEY_1,
     env.DEFAULT_VISION_KEY_1,
     env.VISION_API_KEY_2,
-    env.DEFAULT_VISION_KEY_2,
-    ...DEFAULT_VISION_KEYS
+    env.DEFAULT_VISION_KEY_2
   ].filter(Boolean).map(sanitizeKey);
   const validVisionKeys = Array.from(new Set(allCandidates)).filter((k) => typeof k === "string" && k.startsWith("AIzaSy"));
-  return validVisionKeys.length > 0 ? validVisionKeys : DEFAULT_VISION_KEYS;
+  return validVisionKeys;
 }
 async function getTeamsWebhookUrl(env) {
   const now = Date.now();

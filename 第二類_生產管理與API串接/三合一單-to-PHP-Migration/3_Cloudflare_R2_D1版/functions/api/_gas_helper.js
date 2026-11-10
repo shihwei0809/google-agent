@@ -1,10 +1,5 @@
 // functions/api/_gas_helper.js
-// 負責處理：向 GAS 取得動態金鑰與 Teams Webhook + 雙向同步寫入 Google 試算表
-
-const DEFAULT_VISION_KEYS = [
-  "AIzaSyCxpDwmsFfKtYkz-_rnqPJW_iVh5j-wQd4",
-  "AIzaSyCdI7WZKnyUtYL0mubKslz7Cvq2wqStS_8"
-];
+// 負責處理：向 GAS 試算表「設定」分頁取得動態金鑰與 Teams Webhook + 雙向同步寫入 Google 試算表
 
 // 防呆過濾器：自動修正試算表中可能被誤植成小寫 l 的 Key
 function sanitizeKey(k) {
@@ -105,19 +100,18 @@ export async function getVisionApiKeysList(env) {
     }
   }
 
-  // 4. 合併預設/環境變數 Key
+  // 4. 合併試算表「設定」分頁與環境變數 Key (不寫死於程式碼)
   const allCandidates = [
     ...keys,
     env.VISION_API_KEY_1,
     env.DEFAULT_VISION_KEY_1,
     env.VISION_API_KEY_2,
-    env.DEFAULT_VISION_KEY_2,
-    ...DEFAULT_VISION_KEYS
+    env.DEFAULT_VISION_KEY_2
   ].filter(Boolean).map(sanitizeKey);
 
   // 去重並嚴格過濾：Google Vision API 金鑰必須以 AIzaSy 開頭 (排除 Gemini 專用之 AQ.Ab8RN 等其他金鑰)
   const validVisionKeys = Array.from(new Set(allCandidates)).filter(k => typeof k === 'string' && k.startsWith('AIzaSy'));
-  return validVisionKeys.length > 0 ? validVisionKeys : DEFAULT_VISION_KEYS;
+  return validVisionKeys;
 }
 
 export async function getVisionApiKey(env) {
