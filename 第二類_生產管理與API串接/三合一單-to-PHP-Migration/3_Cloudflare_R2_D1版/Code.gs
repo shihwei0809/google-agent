@@ -29,7 +29,7 @@ function setupConfigSheet() {
       ["VISION_API_KEY", "填入你的_Google_Vision_金鑰_1", "主力 OCR 金鑰 (每月前 1000 次)"],
       ["VISION_API_KEY", "填入你的_Google_Vision_金鑰_2", "備用 OCR 金鑰"],
       ["GEMINI_API_KEY", "填入你的_Gemini_專用金鑰_1", "Gemini 主力備援金鑰"],
-      ["GEMINI_MODEL", "gemini-3.6-flash", "第 1 順位 (每日 20 次)"],
+      ["GEMINI_MODEL", "gemini-3.8-flash", "第 1 順位 (每日 20 次)"],
       ["GEMINI_MODEL", "gemini-3.5-flash", "第 2 順位 (每日 20 次)"],
       ["GEMINI_MODEL", "gemini-3.5-flash-lite", "第 3 順位 (每日 500 次)"],
       ["GEMINI_MODEL", "gemini-3.1-flash-lite", "第 4 順位 (每日 500 次)"],
@@ -76,12 +76,18 @@ function getSystemConfig() {
     var val = data[i][1] ? String(data[i][1]).trim() : "";
     if (!key || !val || val.indexOf("填入") !== -1) continue;
     
-    // 僅過濾掉非 AIzaSy 開頭的誤植金鑰，所有金鑰完全從「設定」分頁動態讀取
+    // 所有金鑰完全從「設定」分頁動態讀取，僅過濾非 AIzaSy 開頭的誤植格式
     if (key === "VISION_API_KEY" && val.indexOf("AIzaSy") === 0) {
       if (config.visionKeys.indexOf(val) === -1) config.visionKeys.push(val);
     }
-    else if (key === "GEMINI_API_KEY") config.geminiKeys.push(val);
-    else if (key === "GEMINI_MODEL") config.geminiModels.push(val);
+    else if (key === "GEMINI_API_KEY") {
+      if (config.geminiKeys.indexOf(val) === -1) config.geminiKeys.push(val);
+    }
+    else if (key === "GEMINI_MODEL") {
+      // 3.6 與 3.7 已停用，若試算表仍填寫舊名稱則自動升級對應為 gemini-3.8-flash
+      var modelName = (val === "gemini-3.6-flash" || val === "gemini-3.7-flash") ? "gemini-3.8-flash" : val;
+      if (config.geminiModels.indexOf(modelName) === -1) config.geminiModels.push(modelName);
+    }
     else if (key === "USAGE_LIMIT") config.usageLimit = parseInt(val) || DEFAULT_USAGE_LIMIT;
     else if (key === "TEAMS_WEBHOOK_URL") config.teamsWebhookUrl = val;
   }

@@ -1,9 +1,9 @@
 // Cloudflare Pages Functions API: /api/verify
 // 核心四重核對引擎 + Cloudflare R2 照片儲存 + D1 紀錄 + Google 試算表 (GAS) 雙向同步 + Teams 警報推播
 
-import { getVisionApiKeysList, getTeamsWebhookUrl, syncRecordToGoogleSheets } from "./_gas_helper.js";
+import { getVisionApiKeysList, callGeminiFallback, getTeamsWebhookUrl, syncRecordToGoogleSheets } from "./_gas_helper.js";
 
-async function callGoogleVisionWithRetry(base64Image, keyList) {
+async function callGoogleVisionWithRetry(base64Image, keyList, env) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
@@ -28,16 +28,32 @@ async function callGoogleVisionWithRetry(base64Image, keyList) {
       });
 
       if (response.ok) {
-        return await response.json();
+        const json = await response.json();
+        if (!json.error) {
+          return json;
+        }
+        lastError = new Error(`Google Vision API 錯誤: ${json.error.message}`);
+      } else {
+        const errText = await response.text();
+        lastError = new Error(`Google Vision API 失敗 (${response.status}): ${errText}`);
       }
-      const errText = await response.text();
-      lastError = new Error(`Google Vision API 失敗 (${response.status}): ${errText}`);
       console.warn(`Vision API Key [${apiKey.slice(0, 10)}...] 失敗，切換下一把金鑰重試...`);
     } catch (err) {
       lastError = err;
     }
   }
-  throw lastError || new Error("所有 Google Vision API 金鑰皆無法連線");
+
+  // 當所有 Vision API Key 都用完或失敗時，自動切換至 Gemini 模型備援 (優先 gemini-3.8-flash)
+  if (env) {
+    const geminiText = await callGeminiFallback(base64Image, env);
+    if (geminiText !== null) {
+      return {
+        responses: [{ fullTextAnnotation: { text: geminiText } }]
+      };
+    }
+  }
+
+  throw lastError || new Error("所有 Google Vision 與 Gemini 備援 API 金鑰皆已用盡或無法連線");
 }
 
 function parseBase64ToBytes(base64String) {
@@ -312,11 +328,11 @@ export async function onRequest(context) {
       });
     }
 
-    // 1. Google Vision OCR 解析 (向 GAS 或環境要最新 Key 清單，支援自動重試與壞 Key 自動修復)
+    // 1. Google Vision OCR 解析 (向 GAS 或環境要最新 Key 清單，若 Vision Key 全數用盡則自動切換 Gemini 3.8 備援)
     const keyList = await getVisionApiKeysList(env);
     const [ocrResultBatch, ocrResultLoc] = await Promise.all([
-      callGoogleVisionWithRetry(photoBatch, keyList),
-      callGoogleVisionWithRetry(photoLoc, keyList)
+      callGoogleVisionWithRetry(photoBatch, keyList, env),
+      callGoogleVisionWithRetry(photoLoc, keyList, env)
     ]);
 
     const textCOA = ocrResultBatch?.responses?.[0]?.fullTextAnnotation?.text || "";

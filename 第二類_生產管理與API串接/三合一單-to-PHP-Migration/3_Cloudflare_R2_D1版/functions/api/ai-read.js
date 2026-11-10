@@ -2,9 +2,9 @@
 // 專門用於「三合一單 AI 拍照讀單」，自動解析送達地點、供應商、料號、槽號、批號
 // 支援向 GAS 獲取最新金鑰與雙 Key 自動輪詢
 
-import { getVisionApiKeysList } from "./_gas_helper.js";
+import { getVisionApiKeysList, callGeminiFallback } from "./_gas_helper.js";
 
-async function callGoogleVisionWithRetry(base64Image, keyList) {
+async function callGoogleVisionWithRetry(base64Image, keyList, env) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
@@ -29,15 +29,32 @@ async function callGoogleVisionWithRetry(base64Image, keyList) {
       });
 
       if (response.ok) {
-        return { data: await response.json(), usedKey: apiKey };
+        const json = await response.json();
+        if (!json.error) {
+          return { data: json, usedKey: apiKey };
+        }
+        lastError = new Error(`Google Vision API 錯誤: ${json.error.message}`);
+      } else {
+        const errText = await response.text();
+        lastError = new Error(`Google Vision API 呼叫失敗 (${response.status}): ${errText}`);
       }
-      const errText = await response.text();
-      lastError = new Error(`Google Vision API 呼叫失敗 (${response.status}): ${errText}`);
     } catch (err) {
       lastError = err;
     }
   }
-  throw lastError || new Error("所有 Google Vision API 金鑰皆無法連線");
+
+  // 當所有 Vision API Key 都用完或失敗時，自動切換至 Gemini 模型備援 (優先 gemini-3.8-flash)
+  if (env) {
+    const geminiText = await callGeminiFallback(base64Image, env);
+    if (geminiText !== null) {
+      return {
+        data: { responses: [{ fullTextAnnotation: { text: geminiText } }] },
+        usedKey: "GEMINI_FALLBACK_3.8"
+      };
+    }
+  }
+
+  throw lastError || new Error("所有 Google Vision 與 Gemini 備援 API 金鑰皆已用盡或無法連線");
 }
 
 export async function onRequest(context) {
@@ -71,9 +88,9 @@ export async function onRequest(context) {
       });
     }
 
-    // ★ 向 GAS 或環境獲取最新 Vision API Key 清單並支援自動重試
+    // ★ 向 GAS 或環境獲取最新 Vision API Key 清單並支援自動重試與 Gemini 3.8 備援
     const keyList = await getVisionApiKeysList(env);
-    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry(photoData, keyList);
+    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry(photoData, keyList, env);
     const text = ocrResult?.responses?.[0]?.fullTextAnnotation?.text || "";
 
     // 預處理：全形符號替換

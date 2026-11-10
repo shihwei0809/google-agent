@@ -7,8 +7,19 @@ function sanitizeKey(k) {
   }
   return clean;
 }
+function normalizeGeminiModels(models) {
+  const rawList = Array.isArray(models) && models.length > 0 ? models : ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+  const mapped = rawList.map((m) => {
+    const clean = String(m || "").trim();
+    if (clean === "gemini-3.6-flash" || clean === "gemini-3.7-flash") return "gemini-3.8-flash";
+    return clean;
+  }).filter(Boolean);
+  return Array.from(new Set(mapped));
+}
 var DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/91b9b15b99a64990bf3f7116c031dea4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huhEyZ8m-m8EKJ7JXRmhR-CtuVI83kTLRADHB12g-7k";
 var cachedVisionKeys = null;
+var cachedGeminiKeys = null;
+var cachedGeminiModels = null;
 var cachedTeamsWebhookUrl = null;
 var lastKeyFetchTime = 0;
 var CACHE_TTL_MS = 10 * 60 * 1e3;
@@ -31,6 +42,12 @@ async function fetchConfigFromGas(env) {
         if (Array.isArray(data.visionKeys) && data.visionKeys.length > 0) {
           cachedVisionKeys = data.visionKeys;
         }
+        if (Array.isArray(data.geminiKeys) && data.geminiKeys.length > 0) {
+          cachedGeminiKeys = data.geminiKeys;
+        }
+        if (Array.isArray(data.geminiModels) && data.geminiModels.length > 0) {
+          cachedGeminiModels = normalizeGeminiModels(data.geminiModels);
+        }
         if (data.teamsWebhookUrl) {
           cachedTeamsWebhookUrl = data.teamsWebhookUrl;
         }
@@ -42,6 +59,13 @@ async function fetchConfigFromGas(env) {
                 await env.DB.prepare(
                   "INSERT INTO system_config (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 ).bind(`VISION_API_KEY_${idx + 1}`, data.visionKeys[idx], "\u5F9E GAS \u540C\u6B65\u4E4B Vision \u91D1\u9470").run();
+              }
+            }
+            if (data.geminiKeys) {
+              for (let idx = 0; idx < data.geminiKeys.length; idx++) {
+                await env.DB.prepare(
+                  "INSERT INTO system_config (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+                ).bind(`GEMINI_API_KEY_${idx + 1}`, data.geminiKeys[idx], "\u5F9E GAS \u540C\u6B65\u4E4B Gemini \u91D1\u9470").run();
               }
             }
             if (data.teamsWebhookUrl) {
@@ -91,6 +115,57 @@ async function getVisionApiKeysList(env) {
   const validVisionKeys = Array.from(new Set(allCandidates)).filter((k) => typeof k === "string" && k.startsWith("AIzaSy"));
   return validVisionKeys;
 }
+async function callGeminiFallback(base64Image, env) {
+  const now = Date.now();
+  if (!cachedGeminiKeys || now - lastKeyFetchTime >= CACHE_TTL_MS) {
+    await fetchConfigFromGas(env);
+  }
+  let geminiKeys = cachedGeminiKeys || [];
+  if (geminiKeys.length === 0 && env.DB) {
+    try {
+      const { results } = await env.DB.prepare(
+        "SELECT value FROM system_config WHERE key LIKE 'GEMINI_API_KEY%'"
+      ).all();
+      if (results && results.length > 0) {
+        geminiKeys = results.map((r) => r.value).filter(Boolean);
+      }
+    } catch (e) {
+    }
+  }
+  const validGeminiKeys = geminiKeys.filter((k) => typeof k === "string" && k.startsWith("AIzaSy"));
+  const models = normalizeGeminiModels(cachedGeminiModels);
+  if (validGeminiKeys.length === 0 || models.length === 0) return null;
+  const cleanBase64 = base64Image.includes(",") ? base64Image.split(",")[1] : base64Image;
+  for (const modelName of models) {
+    for (const apiKey of validGeminiKeys) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: "\u8ACB\u5C07\u9019\u5F35\u5716\u7247\u88E1\u7684\u6240\u6709\u6587\u5B57\u5B8C\u6574\u8B80\u53D6\u51FA\u4F86\uFF0C\u4E0D\u8981\u52A0\u4E0A\u4EFB\u4F55\u984D\u5916\u7684\u8AAA\u660E\u6216\u5F15\u865F\u3002" },
+                { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
+              ]
+            }]
+          })
+        });
+        if (!res.ok) continue;
+        const json = await res.json();
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          console.log(`\u2705 Gemini Fallback (${modelName}) \u5099\u63F4\u8FA8\u8B58\u6210\u529F`);
+          return text;
+        }
+      } catch (e) {
+        console.warn(`Gemini (${modelName}) \u547C\u53EB\u7570\u5E38:`, e.message);
+      }
+    }
+  }
+  return null;
+}
 async function getTeamsWebhookUrl(env) {
   const now = Date.now();
   if (cachedTeamsWebhookUrl && now - lastKeyFetchTime < CACHE_TTL_MS) {
@@ -132,7 +207,7 @@ async function syncRecordToGoogleSheets(env, recordPayload) {
 }
 
 // 3_Cloudflare_R2_D1版/functions/api/verify.js
-async function callGoogleVisionWithRetry(base64Image, keyList) {
+async function callGoogleVisionWithRetry(base64Image, keyList, env) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
@@ -155,16 +230,29 @@ async function callGoogleVisionWithRetry(base64Image, keyList) {
         })
       });
       if (response.ok) {
-        return await response.json();
+        const json = await response.json();
+        if (!json.error) {
+          return json;
+        }
+        lastError = new Error(`Google Vision API \u932F\u8AA4: ${json.error.message}`);
+      } else {
+        const errText = await response.text();
+        lastError = new Error(`Google Vision API \u5931\u6557 (${response.status}): ${errText}`);
       }
-      const errText = await response.text();
-      lastError = new Error(`Google Vision API \u5931\u6557 (${response.status}): ${errText}`);
       console.warn(`Vision API Key [${apiKey.slice(0, 10)}...] \u5931\u6557\uFF0C\u5207\u63DB\u4E0B\u4E00\u628A\u91D1\u9470\u91CD\u8A66...`);
     } catch (err) {
       lastError = err;
     }
   }
-  throw lastError || new Error("\u6240\u6709 Google Vision API \u91D1\u9470\u7686\u7121\u6CD5\u9023\u7DDA");
+  if (env) {
+    const geminiText = await callGeminiFallback(base64Image, env);
+    if (geminiText !== null) {
+      return {
+        responses: [{ fullTextAnnotation: { text: geminiText } }]
+      };
+    }
+  }
+  throw lastError || new Error("\u6240\u6709 Google Vision \u8207 Gemini \u5099\u63F4 API \u91D1\u9470\u7686\u5DF2\u7528\u76E1\u6216\u7121\u6CD5\u9023\u7DDA");
 }
 function parseBase64ToBytes(base64String) {
   if (!base64String || typeof base64String !== "string") return null;
@@ -395,8 +483,8 @@ async function onRequest(context) {
     }
     const keyList = await getVisionApiKeysList(env);
     const [ocrResultBatch, ocrResultLoc] = await Promise.all([
-      callGoogleVisionWithRetry(photoBatch, keyList),
-      callGoogleVisionWithRetry(photoLoc, keyList)
+      callGoogleVisionWithRetry(photoBatch, keyList, env),
+      callGoogleVisionWithRetry(photoLoc, keyList, env)
     ]);
     const textCOA = ocrResultBatch?.responses?.[0]?.fullTextAnnotation?.text || "";
     const cleanCOA = textCOA.replace(/\s+/g, "").toUpperCase();
@@ -630,7 +718,7 @@ async function onRequest(context) {
 }
 
 // 3_Cloudflare_R2_D1版/functions/api/ai-read.js
-async function callGoogleVisionWithRetry2(base64Image, keyList) {
+async function callGoogleVisionWithRetry2(base64Image, keyList, env) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
     cleanB64 = cleanB64.split(",")[1];
@@ -653,15 +741,29 @@ async function callGoogleVisionWithRetry2(base64Image, keyList) {
         })
       });
       if (response.ok) {
-        return { data: await response.json(), usedKey: apiKey };
+        const json = await response.json();
+        if (!json.error) {
+          return { data: json, usedKey: apiKey };
+        }
+        lastError = new Error(`Google Vision API \u932F\u8AA4: ${json.error.message}`);
+      } else {
+        const errText = await response.text();
+        lastError = new Error(`Google Vision API \u547C\u53EB\u5931\u6557 (${response.status}): ${errText}`);
       }
-      const errText = await response.text();
-      lastError = new Error(`Google Vision API \u547C\u53EB\u5931\u6557 (${response.status}): ${errText}`);
     } catch (err) {
       lastError = err;
     }
   }
-  throw lastError || new Error("\u6240\u6709 Google Vision API \u91D1\u9470\u7686\u7121\u6CD5\u9023\u7DDA");
+  if (env) {
+    const geminiText = await callGeminiFallback(base64Image, env);
+    if (geminiText !== null) {
+      return {
+        data: { responses: [{ fullTextAnnotation: { text: geminiText } }] },
+        usedKey: "GEMINI_FALLBACK_3.8"
+      };
+    }
+  }
+  throw lastError || new Error("\u6240\u6709 Google Vision \u8207 Gemini \u5099\u63F4 API \u91D1\u9470\u7686\u5DF2\u7528\u76E1\u6216\u7121\u6CD5\u9023\u7DDA");
 }
 async function onRequest2(context) {
   const { request, env } = context;
@@ -690,7 +792,7 @@ async function onRequest2(context) {
       });
     }
     const keyList = await getVisionApiKeysList(env);
-    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry2(photoData, keyList);
+    const { data: ocrResult, usedKey } = await callGoogleVisionWithRetry2(photoData, keyList, env);
     const text = ocrResult?.responses?.[0]?.fullTextAnnotation?.text || "";
     const cleanText = text.replace(/：/g, ":").replace(/　/g, " ").replace(/\|/g, " ");
     const data = {

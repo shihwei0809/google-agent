@@ -1,5 +1,5 @@
 // functions/api/_gas_helper.js
-// 負責處理：向 GAS 試算表「設定」分頁取得動態金鑰與 Teams Webhook + 雙向同步寫入 Google 試算表
+// 負責處理：向 GAS 試算表「設定」分頁取得動態金鑰 (Vision + Gemini) 與 Teams Webhook + 雙向同步寫入 Google 試算表
 
 // 防呆過濾器：自動修正試算表中可能被誤植成小寫 l 的 Key
 function sanitizeKey(k) {
@@ -11,10 +11,25 @@ function sanitizeKey(k) {
   return clean;
 }
 
+// 自動升級已停用的 3.6 / 3.7 模型至 gemini-3.8-flash
+function normalizeGeminiModels(models) {
+  const rawList = Array.isArray(models) && models.length > 0
+    ? models
+    : ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+  const mapped = rawList.map(m => {
+    const clean = String(m || "").trim();
+    if (clean === "gemini-3.6-flash" || clean === "gemini-3.7-flash") return "gemini-3.8-flash";
+    return clean;
+  }).filter(Boolean);
+  return Array.from(new Set(mapped));
+}
+
 const DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/91b9b15b99a64990bf3f7116c031dea4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huhEyZ8m-m8EKJ7JXRmhR-CtuVI83kTLRADHB12g-7k";
 
 // 全域記憶體快取 (減少每次請求重複向 Google 請求所造成的延遲)
 let cachedVisionKeys = null;
+let cachedGeminiKeys = null;
+let cachedGeminiModels = null;
 let cachedTeamsWebhookUrl = null;
 let lastKeyFetchTime = 0;
 const CACHE_TTL_MS = 10 * 60 * 1000; // 快取 10 分鐘
@@ -41,6 +56,12 @@ async function fetchConfigFromGas(env) {
         if (Array.isArray(data.visionKeys) && data.visionKeys.length > 0) {
           cachedVisionKeys = data.visionKeys;
         }
+        if (Array.isArray(data.geminiKeys) && data.geminiKeys.length > 0) {
+          cachedGeminiKeys = data.geminiKeys;
+        }
+        if (Array.isArray(data.geminiModels) && data.geminiModels.length > 0) {
+          cachedGeminiModels = normalizeGeminiModels(data.geminiModels);
+        }
         if (data.teamsWebhookUrl) {
           cachedTeamsWebhookUrl = data.teamsWebhookUrl;
         }
@@ -54,6 +75,13 @@ async function fetchConfigFromGas(env) {
                 await env.DB.prepare(
                   "INSERT INTO system_config (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
                 ).bind(`VISION_API_KEY_${idx + 1}`, data.visionKeys[idx], "從 GAS 同步之 Vision 金鑰").run();
+              }
+            }
+            if (data.geminiKeys) {
+              for (let idx = 0; idx < data.geminiKeys.length; idx++) {
+                await env.DB.prepare(
+                  "INSERT INTO system_config (key, value, description) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+                ).bind(`GEMINI_API_KEY_${idx + 1}`, data.geminiKeys[idx], "從 GAS 同步之 Gemini 金鑰").run();
               }
             }
             if (data.teamsWebhookUrl) {
@@ -73,7 +101,7 @@ async function fetchConfigFromGas(env) {
 }
 
 /**
- * 取得所有可用之 Google Vision API Key 清單 (已自動清理壞碼、支援多 Key 輪替與失敗重試)
+ * 取得所有可用之 Google Vision API Key 清單 (從試算表「設定」分頁動態讀取)
  */
 export async function getVisionApiKeysList(env) {
   const now = Date.now();
@@ -118,6 +146,64 @@ export async function getVisionApiKey(env) {
   const list = await getVisionApiKeysList(env);
   const sec = new Date().getSeconds();
   return list[sec % list.length];
+}
+
+/**
+ * 當所有 Google Vision API Key 都用盡或失敗時，自動啟動 Gemini 模型備援 (優先使用 gemini-3.8-flash)
+ */
+export async function callGeminiFallback(base64Image, env) {
+  const now = Date.now();
+  if (!cachedGeminiKeys || (now - lastKeyFetchTime >= CACHE_TTL_MS)) {
+    await fetchConfigFromGas(env);
+  }
+
+  let geminiKeys = cachedGeminiKeys || [];
+  if (geminiKeys.length === 0 && env.DB) {
+    try {
+      const { results } = await env.DB.prepare(
+        "SELECT value FROM system_config WHERE key LIKE 'GEMINI_API_KEY%'"
+      ).all();
+      if (results && results.length > 0) {
+        geminiKeys = results.map(r => r.value).filter(Boolean);
+      }
+    } catch (e) {}
+  }
+
+  const validGeminiKeys = geminiKeys.filter(k => typeof k === 'string' && k.startsWith('AIzaSy'));
+  const models = normalizeGeminiModels(cachedGeminiModels);
+  if (validGeminiKeys.length === 0 || models.length === 0) return null;
+
+  const cleanBase64 = base64Image.includes(',') ? base64Image.split(',')[1] : base64Image;
+
+  for (const modelName of models) {
+    for (const apiKey of validGeminiKeys) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: "請將這張圖片裡的所有文字完整讀取出來，不要加上任何額外的說明或引號。" },
+                { inlineData: { mimeType: "image/jpeg", data: cleanBase64 } }
+              ]
+            }]
+          })
+        });
+        if (!res.ok) continue;
+        const json = await res.json();
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          console.log(`✅ Gemini Fallback (${modelName}) 備援辨識成功`);
+          return text;
+        }
+      } catch (e) {
+        console.warn(`Gemini (${modelName}) 呼叫異常:`, e.message);
+      }
+    }
+  }
+  return null;
 }
 
 /**
