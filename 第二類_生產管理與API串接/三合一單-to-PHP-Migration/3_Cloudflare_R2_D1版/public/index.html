@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>核對系統 V46 (Cloud+R2 雙軌離線PWA)</title>
+    <title>核對系統 V47 (Google Vision 雙金鑰 + R2 PWA)</title>
     
     <!-- PWA 配置 -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="核對系統V46">
+    <meta name="apple-mobile-web-app-title" content="核對系統V47">
     <link rel="apple-touch-icon" href="icons/icon-192.png">
 
     <!-- 依賴庫 -->
@@ -48,7 +48,7 @@
         <div class="flex items-center gap-2">
             <span class="text-xl">📲</span>
             <div class="text-xs">
-                <p class="font-bold">安裝 核對系統 V46 PWA</p>
+                <p class="font-bold">安裝 核對系統 V47 PWA</p>
                 <p class="opacity-90">享有全螢幕快速開單與斷網即時防呆卡控</p>
             </div>
         </div>
@@ -111,7 +111,7 @@
                 </div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <h2 class="text-xl font-black text-gray-900 tracking-tight">核對系統 V46</h2>
+                        <h2 class="text-xl font-black text-gray-900 tracking-tight">核對系統 V47</h2>
                         <span class="bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">雙軌旗艦版</span>
                     </div>
                     <p class="text-[11px] text-gray-500">Cloud+R2 永存 &bull; 斷網離線即時卡控</p>
@@ -208,19 +208,19 @@
         </form>
 
         <div class="mt-4 text-center">
-            <span class="text-[11px] text-gray-400">核對系統 V46 &bull; Cloudflare Pages + R2 + D1 (共用庫) &bull; Google 試算表雙邊同步</span>
+            <span class="text-[11px] text-gray-400">核對系統 V47 &bull; Cloudflare Pages + R2 + D1 (共用庫) &bull; Google 試算表雙邊同步</span>
         </div>
     </div>
 
     <script>
-        const APP_VERSION = "V46";
-        const QUEUE_STORAGE_KEY = "COA_OFFLINE_VERIFIED_QUEUE_V46";
+        const APP_VERSION = "V47";
+        const QUEUE_STORAGE_KEY = "COA_OFFLINE_VERIFIED_QUEUE_V47";
 
         // PWA 註冊與離線快取
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('✅ ServiceWorker Registered (V46)'))
+                    .then(reg => console.log('✅ ServiceWorker Registered (V47)'))
                     .catch(err => console.warn('ServiceWorker Registration failed:', err));
             });
         }
