@@ -1,5 +1,29 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-10 ~ 2026-11-11 AI圖片/PDF雙重OCR轉Excel系統建置、跨機自動補裝BAT、三合一單V48雙Key輪詢與配額保護)
+* **AI 圖片/PDF 智慧判讀轉 Excel 系統全面重構 (`C:\GOOGLE ANGET\第一類_核心網頁與互動系統\OCR測試\`):**
+  - **核心業務功能轉型**：
+    1. **手機拍照無損轉正**：透過 `ImageOps.exif_transpose` 自動校正手機陀螺儀方向，徹底解決手機直拍上傳後文字躺臥倒置問題。
+    2. **多頁 PDF 逐頁解析**：支援頁次選擇模式（僅第1頁/前3頁/全部/自訂），動態渲染各頁預覽標籤。
+    3. **二維表格空間聚類重構**：依文字框高度與 Y 座標聚類為 Row，依 X 座標聚類為 Column，重構為精準二維矩陣。
+    4. **商務級 Excel 活頁簿匯出**：自動生成「📋 全部頁面合併總表 / 表格智慧還原」、「📄 各頁獨立分頁」、「📝 辨識明細清單（含綠黃紅置信度條件著色與像素座標）」。
+  - **雙重 OCR 引擎架構 (線上 Google Gemini 優先 + 離線 EasyOCR 自動平滑備援)**：
+    1. **Google Gemini 2.5 雲端多模態**：具備 API Key 時優先調用，針對繁中、模糊掃描、手寫註記與表格對齊提供最高精準度判讀。
+    2. **本機 EasyOCR 備援**：離線、無金鑰或雲端 API 遇 503/配額上限時，系統自動平滑降級為本機 EasyOCR，絕不中斷作業。
+    3. **前端網頁整合**：新增金鑰儲存（`localStorage`）與雙重引擎切換卡片，即時標記使用之引擎。
+  - **避坑指南與重大錯誤排查修復**：
+    1. **OpenPyXL `StyleProxy` 崩潰**：`cell.font` 取值為 `StyleProxy` 不可作為字典鍵，改用單向賦值 `if c not in (3, 4): cell.font = font_data`。
+    2. **NumPy `int32` JSON 序列化失敗**：FastAPI 回傳時遇 `np.int32` 拋出 `TypeError: 'numpy.int32' object is not iterable`，加入遞迴清洗函數 `sanitize_numpy()` 與強制原生型別轉換徹底修復。
+    3. **Windows CMD 換行字元錯位**：`.bat` 存為 Linux LF 時導致 CMD 指令被截斷執行（出現 `'o'`、`'ul'`、`'_app.py'`），全面轉為嚴格 Windows CRLF (`\r\n`)。
+    4. **跨電腦一鍵啟動器升級 (`run_web_app.bat`)**：依照 Rule 8 通用模板，全面支援 Python 環境偵測、pip 自我修復、8 大依賴套件（`fastapi`, `uvicorn`, `easyocr`, `openpyxl`, `Pillow`, `pymupdf`, `google-genai` 等）自動背景補裝、自動 Port 佔用偵測與延遲開窗。
+
+* **三合一單與 COA 雙重核對系統升級至 V48 (`C:\GOOGLE ANGET\第二類_生產管理與API串接\三合一單-to-PHP-Migration\`):**
+  - **核對失敗嚴格卡控**：若現場核對未通過，嚴格攔截禁止寫入 Google Sheet 與 Cloudflare D1，且不上傳 R2 與 Drive 照片。
+  - **雙 Vision Key 1:1 輪詢與單月硬性 900 次配額保護**：導入 Round-Robin 機制與每月計數器，避免超過 Google 官方每月 1000 次免費額度。
+  - **Gemini 3.8 自動降級備援**：全面升級過時之 3.6/3.7 模型，淘汰硬編碼金鑰，全面自 Google Sheet「設定」工作表動態讀取。
+
+---
+
 ## 今日進度與交接事項 (2026-11-09 雲端硬碟快照7天嚴格滾動封存修復、三合一單GAS即時無時差同步、排程字體純白樣式修正、易經多重分析系統undefined與維度修正)
 * **雲端硬碟收工快照嚴格滾動封存修復 (`AutoSync_OffWork_Drive.ps1`):**
   - **排查修復原因**：原腳本僅依快照數量 `Count > 7` 判斷，逢例假日未開機（如 11/01～11/03）時，即使快照已超過 7 日曆天也不會封存；且原先檢查在今日同步前執行，導致今日快照一寫入，總數又變回 8 個。
