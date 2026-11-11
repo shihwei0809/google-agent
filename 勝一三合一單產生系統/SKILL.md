@@ -1,7 +1,7 @@
-﻿# 技能說明：勝一三合一單產生系統 (Shinyi TSMC 3-in-1 Dispatch Generator)
+# 技能說明：勝一三合一單產生系統 (Shinyi TSMC 3-in-1 Dispatch Generator)
 
 ## 專案概要
-以「勝一訂單」排程與台積電槽車出貨為核心的自動化桌面工具，支援 Excel 訂單解析、批號槽號提取、指送地正規化、QR Code 生成、COA 截圖 OCR 嵌入及運輸通知表併排修訂。
+以「勝一槽車排程 (SNXM101)」與台積電槽車出貨為核心的自動化桌面工具，全面支援勝一 5 大槽車品項（`CPNE4R`=`L2C9173`、`SEP73E4`=`L269100`、`SEP73E5`=`L2C9100`、`PMAHQ`=`L2C9501`、`PMAHQ(R)`=`L2R9501`）、52 筆全廠區指送地正規化、10~11 碼批號槽號提取、TGCM 動態公式、QR Code 生成、5 種不同結構 COA Key-Based 動態寫入，以及 12~16 欄多格式 `Chemical_Lorry` 單列生產履歷輸出。
 
 ## 依賴套件 (Requirements)
 - python >= 3.10
