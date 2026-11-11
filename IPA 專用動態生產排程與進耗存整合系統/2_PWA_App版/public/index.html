@@ -139,7 +139,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // 系統最新版別標籤
-    const SYSTEM_VERSION = "v4.1 (支援歷史存檔改名與覆蓋更新)";
+    const SYSTEM_VERSION = "v4.2 (共用原料池總表支援直接修改調撥/進貨並預設調整604A)";
 
     // 數字格式化輔助函式：即時過濾前導 0
     const cleanNumStr = (val) => {
@@ -882,6 +882,75 @@
         }
         return PLANTS.find(p => p.id === activePlantId) || PLANTS[0];
       }, [activePlantId]);
+
+      // 🌟 共用原料池合計表直接修改調撥/進貨：差額預設調整至 TK604A
+      const handlePoolGridInputChange = (mKey, field, dayIdx, rawVal) => {
+        if (rawVal === '-') {
+          handleGridInputChange(mKey, 'TK604A', field, dayIdx, '-');
+          return;
+        }
+        const cleanedVal = cleanNumStr(rawVal);
+        
+        // 計算其他一廠共用儲槽 (非 TK604A) 的總量
+        let otherTanksSum = 0;
+        plant1SharedPoolTanks.forEach(st => {
+          if (st.id !== 'TK604A') {
+            const v = manualGridData[mKey]?.[st.id]?.[dayIdx]?.[field];
+            if (v !== undefined && v !== null && v !== '') {
+              otherTanksSum += parseFloat(v) || 0;
+            }
+          }
+        });
+
+        let valFor604A = '';
+        if (cleanedVal === '') {
+          valFor604A = '';
+        } else {
+          const desiredTotal = parseFloat(cleanedVal);
+          if (!isNaN(desiredTotal)) {
+            if (otherTanksSum === 0) {
+              valFor604A = cleanedVal;
+            } else {
+              const diff = Math.round((desiredTotal - otherTanksSum) * 10) / 10;
+              valFor604A = cleanNumStr(diff.toString());
+            }
+          } else {
+            valFor604A = cleanedVal;
+          }
+        }
+
+        handleGridInputChange(mKey, 'TK604A', field, dayIdx, valFor604A);
+      };
+
+      // 取得共用原料池合計表格子呈現值
+      const getPoolGridDisplayVal = (mKey, field, dayIdx) => {
+        let otherTanksSum = 0;
+        let otherTanksHasVal = false;
+        plant1SharedPoolTanks.forEach(st => {
+          if (st.id !== 'TK604A') {
+            const v = manualGridData[mKey]?.[st.id]?.[dayIdx]?.[field];
+            if (v !== undefined && v !== null && v !== '') {
+              otherTanksHasVal = true;
+              otherTanksSum += parseFloat(v) || 0;
+            }
+          }
+        });
+
+        const val604A = manualGridData[mKey]?.['TK604A']?.[dayIdx]?.[field];
+        const has604A = val604A !== undefined && val604A !== null && val604A !== '';
+
+        if (!otherTanksHasVal && !has604A) {
+          return '';
+        }
+
+        if (!otherTanksHasVal) {
+          return cleanNumStr(val604A);
+        }
+
+        const num604A = parseFloat(val604A) || 0;
+        const total = Math.round((otherTanksSum + num604A) * 10) / 10;
+        return cleanNumStr(total.toString());
+      };
 
       // 國定假日與行事曆自動同步 (支援每年自動抓取與離線快取)
       const [holidayMap, setHolidayMap] = useState({});
@@ -3082,18 +3151,52 @@
 
                               {/* 3. 共用池調撥 (+) */}
                               <tr>
-                                <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700">共用池調撥 (+)</td>
-                                {displayDaysArr.map((i) => (
-                                  <td key={i} className="p-1 border-b font-bold text-blue-600">{Number(calculatedData.poolSummary[activeMonthKey][i].trans || 0).toFixed(1)}</td>
-                                ))}
+                                <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700" title="點擊數值可直接修改，預設調整 TK604A">
+                                  共用池調撥 (+)
+                                  <span className="ml-1 text-[10px] text-blue-500 font-normal">✎預設604A</span>
+                                </td>
+                                {displayDaysArr.map((i) => {
+                                  const val = getPoolGridDisplayVal(activeMonthKey, 'trans', i);
+                                  return (
+                                    <td key={i} className="p-0 border-b">
+                                      <input 
+                                        type="number" 
+                                        step="any"
+                                        value={val} 
+                                        onFocus={e => e.target.select()}
+                                        onChange={e => handlePoolGridInputChange(activeMonthKey, 'trans', i, e.target.value)}
+                                        className="table-input text-blue-600 font-bold" 
+                                        placeholder="0"
+                                        title={`共用池調撥 (+)：目前累計 ${Number(calculatedData.poolSummary[activeMonthKey]?.[i]?.trans || 0).toFixed(1)} T（編輯將調整 TK604A）`}
+                                      />
+                                    </td>
+                                  );
+                                })}
                               </tr>
 
                               {/* 4. 共用池進貨 (+) */}
                               <tr>
-                                <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700">共用池進貨 (+)</td>
-                                {displayDaysArr.map((i) => (
-                                  <td key={i} className="p-1 border-b font-bold text-blue-600">{Number(calculatedData.poolSummary[activeMonthKey][i].in || 0).toFixed(1)}</td>
-                                ))}
+                                <td className="sticky-col p-2 pl-4 text-left font-medium border-b text-blue-700" title="點擊數值可直接修改，預設調整 TK604A">
+                                  共用池進貨 (+)
+                                  <span className="ml-1 text-[10px] text-blue-500 font-normal">✎預設604A</span>
+                                </td>
+                                {displayDaysArr.map((i) => {
+                                  const val = getPoolGridDisplayVal(activeMonthKey, 'in', i);
+                                  return (
+                                    <td key={i} className="p-0 border-b">
+                                      <input 
+                                        type="number" 
+                                        step="any"
+                                        value={val} 
+                                        onFocus={e => e.target.select()}
+                                        onChange={e => handlePoolGridInputChange(activeMonthKey, 'in', i, e.target.value)}
+                                        className="table-input text-blue-600 font-bold" 
+                                        placeholder="0"
+                                        title={`共用池進貨 (+)：目前累計 ${Number(calculatedData.poolSummary[activeMonthKey]?.[i]?.in || 0).toFixed(1)} T（編輯將調整 TK604A）`}
+                                      />
+                                    </td>
+                                  );
+                                })}
                               </tr>
 
                               {/* 5. 共用池當日剩餘結存 */}
