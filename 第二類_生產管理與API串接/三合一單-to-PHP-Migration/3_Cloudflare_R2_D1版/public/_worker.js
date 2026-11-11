@@ -409,17 +409,32 @@ function smartLocationCheck(cleanWeigh, fuzzyWeigh, locTarget) {
         part2Variants.push(part2.substring(1));
       }
       const part1Fuzzy = applyFuzzy(part1);
-      const hasPart1 = cleanOCR.includes(part1) || fWeigh.includes(part1Fuzzy);
-      const hasPart2 = part2Variants.some((p2) => cleanOCR.includes(p2) || fWeigh.includes(applyFuzzy(p2)));
-      if (hasPart1 && hasPart2) {
-        return { pass: true, debug: "" };
+      const p1Idx = cleanOCR.indexOf(part1);
+      const f1Idx = fWeigh.indexOf(part1Fuzzy);
+      const hasPart1 = p1Idx !== -1 || f1Idx !== -1;
+      if (hasPart1) {
+        let cleanRest = cleanOCR;
+        if (p1Idx !== -1) {
+          cleanRest = cleanOCR.slice(0, p1Idx) + " " + cleanOCR.slice(p1Idx + part1.length);
+        }
+        let fRest = fWeigh;
+        if (f1Idx !== -1) {
+          fRest = fWeigh.slice(0, f1Idx) + " " + fWeigh.slice(f1Idx + part1Fuzzy.length);
+        }
+        const hasPart2 = part2Variants.some((p2) => cleanRest.includes(p2) || fRest.includes(applyFuzzy(p2)));
+        if (hasPart2) {
+          return { pass: true, debug: "" };
+        }
       }
       const r23OCR = cleanOCR.replace(/2/g, "3");
       const r23P1 = part1.replace(/2/g, "3");
-      const r23HasP1 = r23OCR.includes(r23P1);
-      const r23HasP2 = part2Variants.some((p2) => r23OCR.includes(p2.replace(/2/g, "3")));
-      if (r23HasP1 && r23HasP2) {
-        return { pass: true, debug: "" };
+      const r23Idx = r23OCR.indexOf(r23P1);
+      if (r23Idx !== -1) {
+        const r23Rest = r23OCR.slice(0, r23Idx) + " " + r23OCR.slice(r23Idx + r23P1.length);
+        const r23HasP2 = part2Variants.some((p2) => r23Rest.includes(p2.replace(/2/g, "3")));
+        if (r23HasP2) {
+          return { pass: true, debug: "" };
+        }
       }
     }
   }

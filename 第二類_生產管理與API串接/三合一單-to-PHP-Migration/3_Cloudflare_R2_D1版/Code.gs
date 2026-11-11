@@ -747,14 +747,22 @@ function smartLocationCheck(ocrText, target) {
   if (processedTarget.length === 8) {
       var part1 = processedTarget.substring(0, 4);
       var part2 = processedTarget.substring(4);
-      if (cleanOCR.includes(part1) && cleanOCR.includes(part2)) return { pass: true };
+      var p1Idx = cleanOCR.indexOf(part1);
+      if (p1Idx !== -1) {
+        var cleanRest = cleanOCR.slice(0, p1Idx) + " " + cleanOCR.slice(p1Idx + part1.length);
+        if (cleanRest.includes(part2)) return { pass: true };
+      }
   }
   var fuzzyOCR = cleanOCR.replace(/2/g, "3");
   var fuzzyTarget = processedTarget.replace(/2/g, "3");
   if (fuzzyTarget.length === 8) {
       var fPart1 = fuzzyTarget.substring(0, 4);
       var fPart2 = fuzzyTarget.substring(4);
-      if (fuzzyOCR.includes(fPart1) && fuzzyOCR.includes(fPart2)) return { pass: true };
+      var fp1Idx = fuzzyOCR.indexOf(fPart1);
+      if (fp1Idx !== -1) {
+        var fRest = fuzzyOCR.slice(0, fp1Idx) + " " + fuzzyOCR.slice(fp1Idx + fPart1.length);
+        if (fRest.includes(fPart2)) return { pass: true };
+      }
   }
   return { pass: false };
 }

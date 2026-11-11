@@ -194,33 +194,51 @@ function smartLocationCheck(cleanWeigh, fuzzyWeigh, locTarget) {
     }
   }
 
-  // 3. GAS 經典雙重判定 (前4碼廠別 + 後續碼廠區，同在單據內即可)
+  // 3. GAS 經典雙重判定 (前4碼廠別 + 後續碼廠區，必須各自獨立出現在不同位置)
   // 例: EF180L182 -> 去E為 F180L182 -> 廠別 F180, 廠區 L182 (或 182)
+  // 嚴謹防呆：廠別 (如 1860) 常包含去L後的廠區 (如 186)，絕不可讓 part2 複用 part1 的位置！
   for (const cand of candidates) {
     if (cand.length >= 7) {
-      const part1 = cand.substring(0, 4); // 廠別 (如 F180, 1550, 0070)
-      const part2 = cand.substring(4);    // 廠區 (如 L182, 183B, 156, 0001)
+      const part1 = cand.substring(0, 4); // 廠別 (如 F180, 1550, 1860, 0070)
+      const part2 = cand.substring(4);    // 廠區 (如 L182, 183B, L186, 156, 0001)
 
       const part2Variants = [part2];
       if (part2.startsWith("L") && part2.length > 1) {
-        part2Variants.push(part2.substring(1)); // 支援去 L: 182
+        part2Variants.push(part2.substring(1)); // 支援去 L: 182, 186
       }
 
       const part1Fuzzy = applyFuzzy(part1);
-      const hasPart1 = cleanOCR.includes(part1) || fWeigh.includes(part1Fuzzy);
-      const hasPart2 = part2Variants.some(p2 => cleanOCR.includes(p2) || fWeigh.includes(applyFuzzy(p2)));
+      const p1Idx = cleanOCR.indexOf(part1);
+      const f1Idx = fWeigh.indexOf(part1Fuzzy);
+      const hasPart1 = p1Idx !== -1 || f1Idx !== -1;
 
-      if (hasPart1 && hasPart2) {
-        return { pass: true, debug: "" };
+      if (hasPart1) {
+        // 從文字中挖除已匹配的 part1，確保 part2 必須在畫面其他位置獨立存在
+        let cleanRest = cleanOCR;
+        if (p1Idx !== -1) {
+          cleanRest = cleanOCR.slice(0, p1Idx) + " " + cleanOCR.slice(p1Idx + part1.length);
+        }
+        let fRest = fWeigh;
+        if (f1Idx !== -1) {
+          fRest = fWeigh.slice(0, f1Idx) + " " + fWeigh.slice(f1Idx + part1Fuzzy.length);
+        }
+
+        const hasPart2 = part2Variants.some(p2 => cleanRest.includes(p2) || fRest.includes(applyFuzzy(p2)));
+        if (hasPart2) {
+          return { pass: true, debug: "" };
+        }
       }
 
-      // 支援 2 與 3 螢幕反光雙向容錯 (GAS 經典機制)
+      // 支援 2 與 3 螢幕反光雙向容錯 (GAS 經典機制，同樣必須各自獨立)
       const r23OCR = cleanOCR.replace(/2/g, "3");
       const r23P1 = part1.replace(/2/g, "3");
-      const r23HasP1 = r23OCR.includes(r23P1);
-      const r23HasP2 = part2Variants.some(p2 => r23OCR.includes(p2.replace(/2/g, "3")));
-      if (r23HasP1 && r23HasP2) {
-        return { pass: true, debug: "" };
+      const r23Idx = r23OCR.indexOf(r23P1);
+      if (r23Idx !== -1) {
+        const r23Rest = r23OCR.slice(0, r23Idx) + " " + r23OCR.slice(r23Idx + r23P1.length);
+        const r23HasP2 = part2Variants.some(p2 => r23Rest.includes(p2.replace(/2/g, "3")));
+        if (r23HasP2) {
+          return { pass: true, debug: "" };
+        }
       }
     }
   }
