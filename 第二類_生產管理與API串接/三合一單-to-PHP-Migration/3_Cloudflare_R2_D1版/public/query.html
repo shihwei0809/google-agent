@@ -277,13 +277,20 @@
                     ? '<span class="bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 shadow-sm">✅ 核對成功</span>'
                     : '<span class="bg-rose-100 text-rose-700 px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-flex items-center gap-1 shadow-sm" title="' + (r.error_details || '') + '">❌ 核對失敗</span>';
 
-                // 照片按鈕
-                const coaBtn = (r.photo_batch_url && r.photo_batch_url.startsWith('http'))
-                    ? `<button onclick="openLightbox('${r.photo_batch_url}', 'COA 批號照片 - 批號: ${r.batch_no}')" class="text-xs bg-blue-50 text-blue-600 font-bold px-2.5 py-1 rounded-lg border border-blue-200 hover:bg-blue-100 inline-flex items-center gap-1">📦 COA</button>`
+                // 檢查是否有有效照片 (支援完整 http 網址與 R2 /api/photos/... 相對路徑)
+                function isValidPhoto(u) {
+                    if (!u || typeof u !== 'string') return false;
+                    const c = u.trim();
+                    return c !== '' && c !== '無' && c !== '-' && c !== 'null' && c !== 'undefined';
+                }
+
+                // 照片按鈕 (COA 照片與地磅照片)
+                const coaBtn = isValidPhoto(r.photo_batch_url)
+                    ? `<button onclick="openLightbox('${r.photo_batch_url}', 'COA 批號照片 - 批號: ${r.batch_no || ''}')" class="text-xs bg-blue-50 text-blue-600 font-bold px-2.5 py-1 rounded-lg border border-blue-200 hover:bg-blue-100 inline-flex items-center gap-1 shadow-xs transition hover:scale-105">📦 COA</button>`
                     : '<span class="text-gray-300 text-xs">無</span>';
 
-                const locBtn = (r.photo_loc_url && r.photo_loc_url.startsWith('http'))
-                    ? `<button onclick="openLightbox('${r.photo_loc_url}', '地磅/槽號照片 - 槽號: ${r.tank_no}')" class="text-xs bg-emerald-50 text-emerald-600 font-bold px-2.5 py-1 rounded-lg border border-emerald-200 hover:bg-emerald-100 inline-flex items-center gap-1">🏭 地磅</button>`
+                const locBtn = isValidPhoto(r.photo_loc_url)
+                    ? `<button onclick="openLightbox('${r.photo_loc_url}', '地磅/槽號照片 - 槽號: ${r.tank_no || ''}')" class="text-xs bg-emerald-50 text-emerald-600 font-bold px-2.5 py-1 rounded-lg border border-emerald-200 hover:bg-emerald-100 inline-flex items-center gap-1 shadow-xs transition hover:scale-105">🏭 地磅</button>`
                     : '<span class="text-gray-300 text-xs">無</span>';
 
                 // 單號資訊文字
@@ -381,9 +388,10 @@
                 window.open(url, '_blank');
                 return;
             }
-            document.getElementById('lightboxImg').src = url;
+            const fullUrl = url.startsWith('/') ? (window.location.origin + url) : url;
+            document.getElementById('lightboxImg').src = fullUrl;
             document.getElementById('lightboxTitle').innerText = title;
-            document.getElementById('lightboxDownload').href = url;
+            document.getElementById('lightboxDownload').href = fullUrl;
             document.getElementById('lightboxModal').style.display = 'flex';
         }
 
@@ -429,8 +437,8 @@
                         clean(r.source_doc_no),
                         clean(r.weighbridge_no),
                         clean(r.verification_status),
-                        clean(r.photo_batch_url),
-                        clean(r.photo_loc_url)
+                        clean(r.photo_batch_url ? (r.photo_batch_url.startsWith('/') ? window.location.origin + r.photo_batch_url : r.photo_batch_url) : ''),
+                        clean(r.photo_loc_url ? (r.photo_loc_url.startsWith('/') ? window.location.origin + r.photo_loc_url : r.photo_loc_url) : '')
                     ].join(',') + '\n';
                 });
 

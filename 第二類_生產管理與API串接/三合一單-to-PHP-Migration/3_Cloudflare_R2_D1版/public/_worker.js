@@ -1,4 +1,4 @@
-// 3_Cloudflare_R2_D1版/functions/api/_gas_helper.js
+// functions/api/_gas_helper.js
 function sanitizeKey(k) {
   if (!k || typeof k !== "string") return k;
   let clean = k.trim();
@@ -244,7 +244,7 @@ async function syncRecordToGoogleSheets(env, recordPayload) {
   }
 }
 
-// 3_Cloudflare_R2_D1版/functions/api/verify.js
+// functions/api/verify.js
 async function callGoogleVisionWithRetry(base64Image, keyList, env, startIndex = 0) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
@@ -766,7 +766,7 @@ async function onRequest(context) {
   }
 }
 
-// 3_Cloudflare_R2_D1版/functions/api/ai-read.js
+// functions/api/ai-read.js
 async function callGoogleVisionWithRetry2(base64Image, keyList, env, startIndex = 0) {
   let cleanB64 = base64Image;
   if (cleanB64.includes(",")) {
@@ -904,7 +904,7 @@ async function onRequest2(context) {
   }
 }
 
-// 3_Cloudflare_R2_D1版/functions/api/config.js
+// functions/api/config.js
 async function onRequest3(context) {
   const { request, env } = context;
   const corsHeaders = {
@@ -973,7 +973,7 @@ async function onRequest3(context) {
   }
 }
 
-// 3_Cloudflare_R2_D1版/functions/api/query.js
+// functions/api/query.js
 async function onRequest4(context) {
   const { request, env } = context;
   const corsHeaders = {
@@ -1066,7 +1066,7 @@ async function onRequest4(context) {
   }
 }
 
-// 3_Cloudflare_R2_D1版/functions/api/sync-from-gas.js
+// functions/api/sync-from-gas.js
 async function onRequest5(context) {
   const { request, env } = context;
   const corsHeaders = {
@@ -1203,7 +1203,7 @@ async function onRequest5(context) {
   }
 }
 
-// 3_Cloudflare_R2_D1版/functions/api/photos/[[path]].js
+// functions/api/photos/[[path]].js
 async function onRequest6(context) {
   const { request, env, params } = context;
   if (request.method === "OPTIONS") {

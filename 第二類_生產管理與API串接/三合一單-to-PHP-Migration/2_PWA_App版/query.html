@@ -163,11 +163,11 @@
                     ? '<span class="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-bold">✅ 核對成功</span>'
                     : '<span class="bg-rose-100 text-rose-700 px-2.5 py-1 rounded-full text-[11px] font-bold" title="' + (r.error_details || '') + '">❌ 核對失敗</span>';
 
-                const coaBtn = r.photo_batch_url
+                const coaBtn = (r.photo_batch_url && r.photo_batch_url !== '無' && r.photo_batch_url !== '-')
                     ? `<button onclick="openLightbox('${r.photo_batch_url}', 'COA 批號照片 - 批號: ${r.batch_no}')" class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100">查看照片</button>`
                     : '<span class="text-gray-300 text-xs">無</span>';
 
-                const locBtn = r.photo_loc_url
+                const locBtn = (r.photo_loc_url && r.photo_loc_url !== '無' && r.photo_loc_url !== '-')
                     ? `<button onclick="openLightbox('${r.photo_loc_url}', '地磅/系統照片 - 槽號: ${r.tank_no}')" class="text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded border border-emerald-200 hover:bg-emerald-100">查看照片</button>`
                     : '<span class="text-gray-300 text-xs">無</span>';
 
@@ -218,9 +218,10 @@
 
         // 圖片燈箱控制
         function openLightbox(url, title) {
-            document.getElementById('lightboxImg').src = url;
+            const fullUrl = url.startsWith('/') ? (window.location.origin + url) : url;
+            document.getElementById('lightboxImg').src = fullUrl;
             document.getElementById('lightboxTitle').innerText = title;
-            document.getElementById('lightboxDownload').href = url;
+            document.getElementById('lightboxDownload').href = fullUrl;
             document.getElementById('lightboxModal').style.display = 'flex';
         }
 
