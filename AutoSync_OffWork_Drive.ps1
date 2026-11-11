@@ -3,7 +3,7 @@
 # 依據 Rule 4 & Rule 11：
 # 1. 動態偵測 Google Drive（掃描含有「我的雲端硬碟」或「My Drive」之磁碟）
 # 2. 自動滾動封存超過 7 天的快照至 01_歷史按月封存\YYYY年MM月
-# 3. 僅同步今日 (00:00 起) 修改之子專案至 00_最近7天收工快照\yyyyMMdd_收工備份
+# 3. 僅同步今日 (00:00 起) 修改之子專案至 00_最近7天收工快照\yyyyMMdd_收工備份 (精確複製今日修改檔案，不建立未修改空資料夾)
 # ==========================================
 
 $ErrorActionPreference = "Continue"
@@ -46,9 +46,6 @@ $todayStr = (Get-Date).ToString("yyyyMMdd")
 $todayStart = (Get-Date).Date
 $cutoffDate = $todayStart.AddDays(-7)
 
-# 定義滾動封存函式：
-# 條件一：日曆天數超過 7 天 (早於 cutoffDate，即 < 今天 - 7 天) -> 無條件封存
-# 條件二：即使在 7 天內，若保留數量已滿 7 份 -> 較舊者封存
 function Invoke-SnapshotRollingArchive {
     param([string]$RecentPath, [string]$ArchivePath, [datetime]$Cutoff)
     
@@ -107,7 +104,7 @@ Write-Output "[STEP 1] 今日收工快照目標: $targetSnapshot"
 $sourceRoot = "C:\GOOGLE ANGET"
 $excludeDirs = @(".git", "node_modules", "__pycache__", ".wrangler", "build", "venv", ".venv", "old", "專案備份", "category_folders_backup", "skills_backup", "my-ai-brain", "cross-device-agent-skills")
 
-# 複製根目錄今日修改之檔案 (如 HANDOVER.md, .gitignore 等)
+# 複製根目錄今日修改之檔案 (如 HANDOVER.md 等)
 $rootFiles = Get-ChildItem -Path $sourceRoot -File | Where-Object { $_.LastWriteTime -ge $todayStart }
 foreach ($rf in $rootFiles) {
     Copy-Item -Path $rf.FullName -Destination (Join-Path $targetSnapshot $rf.Name) -Force
@@ -121,23 +118,22 @@ $syncedProjects = @()
 foreach ($dir in $subDirs) {
     $modifiedFiles = Get-ChildItem -Path $dir.FullName -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
         $_.LastWriteTime -ge $todayStart -and
-        $_.FullName -notmatch "\\(\.git|node_modules|__pycache__|\.wrangler|build|venv|\.venv)\\"
+        $_.FullName -notmatch "\\(\.git|node_modules|__pycache__|\.wrangler|build|venv|\.venv)\\" -and
+        $_.Extension -notmatch "^\.(sqlite|sqlite-wal|sqlite-shm|exe)$" -and
+        $_.Name -ne "security_config.json"
     }
     if ($modifiedFiles -and $modifiedFiles.Count -gt 0) {
         $destProj = Join-Path $targetSnapshot $dir.Name
-        Write-Output "  -> 同步今日異動子專案: $($dir.Name) (異動檔案數: $($modifiedFiles.Count))"
-        # 依據差異化備份規範：程式碼與今日修改之檔案同步，排除暫存目錄與大型舊安裝包
-        $rcArgs = @(
-            $dir.FullName,
-            $destProj,
-            "/S",
-            "/XO",
-            "/MAXAGE:1",
-            "/XD", ".wrangler", "node_modules", ".git", "__pycache__", "build", "venv", ".venv",
-            "/XF", "*.sqlite", "*.sqlite-wal", "*.sqlite-shm", "security_config.json", "*.exe",
-            "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NJS"
-        )
-        & robocopy @rcArgs | Out-Null
+        Write-Output "  -> 精確同步今日異動子專案: $($dir.Name) (異動檔案數: $($modifiedFiles.Count))"
+        foreach ($file in $modifiedFiles) {
+            $relPath = $file.FullName.Substring($dir.FullName.Length).TrimStart("\/")
+            $targetFilePath = Join-Path $destProj $relPath
+            $targetFileDir = [System.IO.Path]::GetDirectoryName($targetFilePath)
+            if (-not (Test-Path $targetFileDir)) {
+                New-Item -ItemType Directory -Force -Path $targetFileDir | Out-Null
+            }
+            Copy-Item -Path $file.FullName -Destination $targetFilePath -Force
+        }
         $syncedProjects += $dir.Name
     }
 }
@@ -147,17 +143,16 @@ if (Test-Path "C:\notype-master") {
     $notypeMod = Get-ChildItem -Path "C:\notype-master\src" -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $todayStart }
     if ($notypeMod -and $notypeMod.Count -gt 0) {
         $destNotype = Join-Path $targetSnapshot "notype-master"
-        Write-Output "  -> 同步今日異動專案: C:\notype-master -> notype-master (異動檔案數: $($notypeMod.Count))"
-        $rcArgs2 = @(
-            "C:\notype-master",
-            $destNotype,
-            "/S",
-            "/XO",
-            "/XD", "node_modules", ".git", "dist", "build",
-            "/XF",
-            "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NJS"
-        )
-        & robocopy @rcArgs2 | Out-Null
+        Write-Output "  -> 精確同步今日異動專案: C:\notype-master -> notype-master (異動檔案數: $($notypeMod.Count))"
+        foreach ($file in $notypeMod) {
+            $relPath = $file.FullName.Substring("C:\notype-master".Length).TrimStart("\/")
+            $targetFilePath = Join-Path $destNotype $relPath
+            $targetFileDir = [System.IO.Path]::GetDirectoryName($targetFilePath)
+            if (-not (Test-Path $targetFileDir)) {
+                New-Item -ItemType Directory -Force -Path $targetFileDir | Out-Null
+            }
+            Copy-Item -Path $file.FullName -Destination $targetFilePath -Force
+        }
         $syncedProjects += "notype-master"
     }
 }
