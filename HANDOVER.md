@@ -1,5 +1,20 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-12 勝一三合一單產生系統 PyInstaller 執行檔封裝與 GitHub 雲端自動熱更新機制實裝)
+* **勝一三合一單產生系統執行檔封裝與自動熱更新 (`D:\GOOGLE ANGET\勝一三合一單產生系統`):**
+  - **GitHub 雲端自動熱更新 (Hot-Reload) 機制**:
+    1. 比照鴻勝版架構，於 `main.py` 頂部植入 `IS_FROZEN`、`RUNTIME_DIR`、`BUNDLE_DIR` 與 `_run_cloud_or_local_hot_reload()`。
+    2. 啟動 `.exe` 時自動在 2.5 秒內連線 GitHub 主庫 (`shihwei0809/google-agent` 之 `勝一三合一單產生系統/main.py`) 檢查是否有新版；若有新版則自動下載快取至 `.cloud_cache/main_cloud.py` 並透過 `exec(compile(...))` 無縫熱載入，現場人員免重裝 `.exe` 即可即時獲得最新功能。
+    3. 支援三層防呆降級載入：同目錄外部 `main.py` (最新者) ➔ 雲端快取 `.cloud_cache/main_cloud.py` ➔ `.exe` 內建封裝版（斷網環境自動保底執行，絕不報錯當機）。
+  - **內建 12 份範本與基準檔「首次自動釋放 + 防覆蓋保護」**:
+    1. 將 `台積電槽車barcode三合一單-範本.xlsx`、`地點代號對照表.xlsx`、5 份勝一 `COA.csv` 以及 5 份 `Chemical_Lorry.xlsx` 封裝進 `.exe` 內部。
+    2. 首次於空資料夾啟動時自動釋放缺失檔案；若外部目錄已有使用者更新之檔案則嚴格保護不覆蓋。
+  - **輕量化單一執行檔與雙軌更新工具產出**:
+    1. 排除無關巨型套件 (`torch`, `scipy`, `pandas` 等)，將執行檔由 352 MB 瘦身至 68.4 MB (`勝一三合一單產生系統.exe` 及 `dist\勝一三合一單產生系統-免安裝版.exe`)。
+    2. 產出 `一鍵更新系統程式.bat`（支援 Git Pull 與 GitHub Raw 雙軌更新）、`splash.png` 啟動畫面與 `installer.iss` 安裝腳本。
+
+---
+
 ## 今日進度與交接事項 (2026-11-11 勝一三合一單產生系統全面重構升級、嚴格批號核對防呆、純欄位名稱動態定位、凍結窗格與自適應介面)
 * **勝一三合一單產生系統全面重構升級 (`C:\GOOGLE ANGET\勝一三合一單產生系統`):**
   - **支援勝一 5 大產品最新格式**：

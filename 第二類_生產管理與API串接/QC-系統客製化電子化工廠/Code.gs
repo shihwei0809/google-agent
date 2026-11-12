@@ -14,7 +14,7 @@ const CONFIG = {
       '一部一課': '',
       '一部二課': ''
     },
-    PWA_URL: 'https://google-agent.pages.dev/qc-system'
+    PWA_URL: 'https://qc-samples.pages.dev'
   },
 
   headers: [
@@ -217,7 +217,7 @@ function initSystemConfigSheet() {
       ['TEAMS_WEBHOOK_二部二課', '', '二部二課專屬 Webhook'],
       ['TEAMS_WEBHOOK_一部一課', '', '一部一課專屬 Webhook'],
       ['TEAMS_WEBHOOK_一部二課', '', '一部二課專屬 Webhook'],
-      ['PWA_URL', 'https://google-agent.pages.dev/qc-system', 'PWA 系統網址'],
+      ['PWA_URL', 'https://qc-samples.pages.dev', 'PWA 系統網址'],
       ['OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託', '動向選單項目 (以逗號隔開)'],
       ['OPTIONS_GRADES', '工業級, UPS, IF', '等級選單項目 (以逗號隔開)'],
       ['OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課', '送樣單位選單 (以逗號隔開)'],

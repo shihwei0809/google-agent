@@ -1,5 +1,26 @@
 // Cloudflare Pages Functions API: /api/records
-// 提供高效能、毫秒級的回收液入料資料讀取、新增、狀態更新與刪除
+// 提供高效能、毫秒級的回收液入料資料讀取、新增、狀態更新與刪除，並支援伺服器端雙向回寫 Google Sheets
+
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxRnwQm3KmR3eZSGFK4-cm5chGdj5jc8DJiTTvU-OzIkAX9qtFdvPsn_UgTEcuhaRkU/exec";
+
+async function forwardToGas(payload, origin = "https://recycle-portal.pages.dev") {
+  try {
+    const body = { ...payload };
+    ['t_url', 'v_url', 'a_url', 'tBeforeUrl', 'vPhotoUrl', 'tAfterUrl'].forEach(key => {
+      if (body[key] && typeof body[key] === 'string' && body[key].startsWith('/')) {
+        body[key] = origin + body[key];
+      }
+    });
+
+    await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  } catch (err) {
+    console.warn("Cloudflare Worker forwardToGas warning:", err);
+  }
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -52,7 +73,48 @@ export async function onRequest(context) {
     if (request.method === "GET") {
       const action = url.searchParams.get("action");
 
-      if (action === "query") {
+      if (action === "sync_to_gas") {
+        // 伺服器端全量批次回寫至 Google Sheets
+        const { results } = await env.DB.prepare(
+          "SELECT * FROM recycle_records ORDER BY created_at ASC"
+        ).all();
+
+        const formatted = results.map(r => ({
+          id: r.id,
+          date: r.date,
+          license_plate: r.license_plate,
+          status: r.status,
+          tBeforeUrl: r.t_before_url ? (r.t_before_url.startsWith('http') ? r.t_before_url : url.origin + r.t_before_url) : '',
+          vPhotoUrl: r.v_photo_url ? (r.v_photo_url.startsWith('http') ? r.v_photo_url : url.origin + r.v_photo_url) : '',
+          tAfterUrl: r.t_after_url ? (r.t_after_url.startsWith('http') ? r.t_after_url : url.origin + r.t_after_url) : '',
+          before_time: r.before_time,
+          after_time: r.after_time,
+          duration: r.duration
+        }));
+
+        try {
+          const gasRes = await fetch(GAS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "sync_from_d1",
+              records: formatted
+            })
+          });
+          const gasData = await gasRes.json().catch(() => ({ success: false }));
+
+          return new Response(JSON.stringify({
+            success: true,
+            total_synced: formatted.length,
+            gas_response: gasData
+          }), { headers: corsHeaders });
+        } catch (gasErr) {
+          return new Response(JSON.stringify({
+            success: false,
+            detail: "呼叫 Google 試算表失敗: " + gasErr.toString()
+          }), { status: 500, headers: corsHeaders });
+        }
+      } else if (action === "query") {
         // 歷史查詢模式：回傳所有紀錄，依建立時間倒序
         const { results } = await env.DB.prepare(
           "SELECT * FROM recycle_records ORDER BY created_at DESC LIMIT 500"
@@ -109,6 +171,19 @@ export async function onRequest(context) {
           VALUES (?, ?, ?, 'pending', ?, ?, ?)
         `).bind(id, date, license_plate, t_url || "", v_url || "", bTime).run();
 
+        // 伺服器端非同步雙寫至 Google Sheets
+        if (context.waitUntil) {
+          context.waitUntil(forwardToGas({
+            action: "before_feed",
+            id: id,
+            date: date,
+            license_plate: license_plate,
+            client_before_time: bTime,
+            t_url: t_url,
+            v_url: v_url
+          }, url.origin));
+        }
+
         return new Response(JSON.stringify({ success: true, message: "入料前紀錄已建立至 D1" }), { headers: corsHeaders });
       }
 
@@ -153,6 +228,16 @@ export async function onRequest(context) {
           WHERE id = ?
         `).bind(a_url || "", aTime, durationMin, id).run();
 
+        // 伺服器端非同步雙寫至 Google Sheets
+        if (context.waitUntil) {
+          context.waitUntil(forwardToGas({
+            action: "after_feed",
+            id: id,
+            client_after_time: aTime,
+            a_url: a_url
+          }, url.origin));
+        }
+
         return new Response(JSON.stringify({ success: true, message: "入料完成已更新至 D1" }), { headers: corsHeaders });
       }
 
@@ -181,6 +266,21 @@ export async function onRequest(context) {
             duration = excluded.duration,
             updated_at = CURRENT_TIMESTAMP
         `).bind(id, date, license_plate, t_url || "", v_url || "", a_url || "", client_before_time || "", client_after_time || "", durationMin).run();
+
+        // 伺服器端非同步雙寫至 Google Sheets
+        if (context.waitUntil) {
+          context.waitUntil(forwardToGas({
+            action: "complete_feed",
+            id: id,
+            date: date,
+            license_plate: license_plate,
+            client_before_time: client_before_time,
+            client_after_time: client_after_time,
+            t_url: t_url,
+            v_url: v_url,
+            a_url: a_url
+          }, url.origin));
+        }
 
         return new Response(JSON.stringify({ success: true, message: "完整入料紀錄已寫入 D1" }), { headers: corsHeaders });
       }
