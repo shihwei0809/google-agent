@@ -17,7 +17,7 @@ yijing-online-site/
 ├── public/
 │   └── index.html      # 單頁式前端主程式（含視覺樣式、無障礙表單與 YIJING_CONFIG 分析引擎）
 ├── src/
-│   └── worker.js       # Cloudflare Worker 靜態資源派送與資安標頭（nosniff / Referrer-Policy）
+│   └── index.js        # Cloudflare Worker 靜態資源派送與資安標頭（nosniff / Referrer-Policy）
 ├── wrangler.jsonc      # Cloudflare Workers Static Assets 部署設定檔
 └── README.md           # 專案架構與部署說明書
 ```

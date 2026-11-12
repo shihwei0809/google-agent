@@ -37,11 +37,12 @@ export async function onRequest(context) {
         ['TEAMS_WEBHOOK_一部二課', ''],
         ['PWA_URL', 'https://qc-samples.pages.dev'],
         ['OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託'],
-        ['OPTIONS_GRADES', '工業級, 電子級, IF'],
+        ['OPTIONS_GRADES', '工業級, 電子級, UPS, IF, 回收液'],
         ['OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課'],
         ['OPTIONS_PRODUCTS', 'IPA, IPAUPS, IPAHQ, CPNE3(T), CPNE4, CPN-P1R, EBR, EBR-P1R, NBAC, NBAC-P1R, CPN, EG, NMP, GAA, ACT, PM, PMA98, heavy-R, DPM, DPM-B1, SEP73, Anone, GBL, PG, EBRR'],
         ['OPTIONS_JUDGE_RESULTS', 'PASS:合格放行, FAIL:不合格退回, 需特採:不符合內控需特採'],
-        ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:電子級, IPAUPS:UPS']
+        ['OPTIONS_PRODUCT_GRADES_MAP', 'EBR-P1R:電子級, IPAUPS:UPS'],
+        ['OPTIONS_MULTI_ORDER_PRODUCTS', 'EBR-P1R, NBAC-P1R, CPN-P1R']
       ];
       await env.DB.batch(defaults.map(d => stmt.bind(d[0], d[1])));
       return new Response(JSON.stringify({ success: true }), { headers: h });

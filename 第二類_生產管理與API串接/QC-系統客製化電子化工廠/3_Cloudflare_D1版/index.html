@@ -539,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.1.1 (指定日期清理版)
+          🚀 v3.3.0 (最新強化版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -642,11 +642,14 @@
           </select>
         </div>
         <div>
-          <label>等級</label>
-          <select id="grade">
+          <label class="required">等級</label>
+          <select id="grade" required>
+            <option value="" disabled selected>-- 系統判定等級 --</option>
             <option value="工業級">工業級</option>
+            <option value="電子級">電子級</option>
             <option value="UPS">UPS</option>
             <option value="IF">IF</option>
+            <option value="回收液">回收液</option>
           </select>
         </div>
         <div>
@@ -679,9 +682,10 @@
           <label>送樣單位 (Teams 分流通報依據)</label>
           <select id="dept">
             <option value="資材課">資材課</option>
-            <option value="現場一課">現場一課</option>
-            <option value="現場二課">現場二課</option>
-            <option value="回收處理課">回收處理課</option>
+            <option value="二部一課">二部一課</option>
+            <option value="二部二課">二部二課</option>
+            <option value="一部一課">一部一課</option>
+            <option value="一部二課">一部二課</option>
           </select>
         </div>
         <div>
@@ -794,7 +798,7 @@
     <div class="kanban-column" id="col-completed">
       <div class="kanban-header header-completed">
         <span style="display:flex; align-items:center; gap:6px;">
-          ✅ 已檢驗完成
+          ✅ 已檢驗完成 <span style="font-size:0.75rem; font-weight:normal; color:#047857; opacity:0.9;">(預設顯示近2天)</span>
         </span>
         <div style="display:flex; align-items:center; gap:8px;">
           <button type="button" onclick="toggleTableMode()" title="點擊切換表格欄位排版模式" style="font-size:0.75rem; padding:3px 8px; border-radius:6px; border:1.5px solid #059669; background:#fff; color:#047857; cursor:pointer; font-weight:bold;">
@@ -821,8 +825,8 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.1.1 (指定日期清理版)</strong><br>
-    <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：T100 排程增量去重防呆 · 陸續補單自動合併 · Cloudflare D1 即時同步</span>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.0 (同車多單彈性配置·重複送樣防呆·等級智慧判定·完成件近2天版)</strong><br>
+    <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：同車同日連續單號自動勾選 · 後台自由勾選合併品名 · 重複送樣自主判定視窗 · 完成件預設近2天 · Cloudflare D1 即時同步</span>
   </div>
 </div>
 
@@ -910,6 +914,90 @@
       <div style="font-size:0.8rem; color:#64748b; margin-bottom:8px;">⚠️ 如需將所有歷史排程徹底清空歸零：</div>
       <button type="button" onclick="confirmClearAllOrders()" style="width:100%; padding:9px; background:#64748b; color:white; border:none; border-radius:6px; font-size:0.86rem; cursor:pointer; font-weight:600;">
         ⚠️ 清空所有歷史排程 (全部歸零)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 🚚 同車次多單號合併勾選視窗 Modal -->
+<div id="truckMergeModal" class="modal" style="display:none; z-index:9999;">
+  <div class="modal-content" style="max-width:620px; text-align:left;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px;">
+      <h3 style="margin:0; color:#1e293b; display:flex; align-items:center; gap:8px; font-size:1.12rem;">
+        <span style="font-size:1.3rem;">🚚</span> 同車次多單號合併確認
+      </h3>
+      <button type="button" onclick="closeTruckMergeModal(false)" style="background:none; border:none; font-size:1.3rem; color:#94a3b8; cursor:pointer;" title="關閉">✕</button>
+    </div>
+
+    <!-- 頂部車次資訊 -->
+    <div id="truckMergeHeaderInfo" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:0.86rem; color:#334155; line-height:1.5;">
+    </div>
+
+    <!-- 快捷操作列 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+      <span style="font-size:0.83rem; font-weight:bold; color:#475569;">
+        📋 請勾選欲合併為同一張送樣單的排程單號：
+      </span>
+      <div style="display:flex; gap:6px;">
+        <button type="button" onclick="selectTruckMergeOnlyTargetDate()" style="padding:4px 9px; font-size:0.75rem; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:5px; cursor:pointer; font-weight:600;">
+          📅 只勾選選定日期
+        </button>
+        <button type="button" onclick="selectTruckMergeAll(true)" style="padding:4px 9px; font-size:0.75rem; background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer;">
+          全選可用
+        </button>
+        <button type="button" onclick="selectTruckMergeAll(false)" style="padding:4px 9px; font-size:0.75rem; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; border-radius:5px; cursor:pointer;">
+          全不選
+        </button>
+      </div>
+    </div>
+
+    <!-- 單號勾選清單 -->
+    <div id="truckMergeList" style="max-height:300px; overflow-y:auto; border:1.5px solid #e2e8f0; border-radius:8px; padding:8px; margin-bottom:14px; background:#fafafa;">
+      <!-- 動態載入單號項目 -->
+    </div>
+
+    <!-- 底部操作列 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:12px; flex-wrap:wrap; gap:8px;">
+      <div id="truckMergeSelectedCount" style="font-size:0.88rem; font-weight:bold; color:#0284c7;">
+        已勾選 1 筆單號
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" onclick="closeTruckMergeModal(false)" style="padding:8px 14px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem; cursor:pointer; font-weight:500;">
+          僅保留原單號 (不合併)
+        </button>
+        <button type="button" onclick="confirmTruckMerge()" style="padding:8px 18px; background:#0284c7; color:white; border:none; border-radius:6px; font-size:0.88rem; font-weight:bold; cursor:pointer; box-shadow:0 1px 3px rgba(2,132,199,0.3);">
+          ✅ 確認合併帶入
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ⚠️ 重複送樣／二次複驗確認 Modal -->
+<div id="repeatSubmissionModal" class="modal" style="display:none; z-index:10000;">
+  <div class="modal-content" style="max-width:520px; text-align:left;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #fed7aa; padding-bottom:10px; margin-bottom:14px;">
+      <h3 style="margin:0; color:#ea580c; display:flex; align-items:center; gap:8px; font-size:1.15rem;">
+        <span style="font-size:1.3rem;">⚠️</span> 重複送樣／二次複驗確認
+      </h3>
+      <button type="button" onclick="cancelRepeatSubmission()" style="background:none; border:none; font-size:1.3rem; color:#94a3b8; cursor:pointer;" title="取消">✕</button>
+    </div>
+
+    <!-- 歷史送樣紀錄卡片 -->
+    <div id="repeatSubDetails" style="background:#fff7ed; border:1px solid #ffedd5; border-radius:8px; padding:12px 14px; margin-bottom:14px; font-size:0.88rem; line-height:1.6; color:#9a3412;">
+      <!-- 動態載入車次與上次檢驗狀態 -->
+    </div>
+
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:0.86rem; color:#475569;">
+      💡 <strong>人員提醒：</strong>此車次排程在系統中已有送樣／檢驗紀錄。若現場需要進行<strong>二次複驗、重新抽樣</strong>，請點擊下方「確定再次送樣」繼續填單；若為誤選請點擊「取消」。
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #e2e8f0; padding-top:12px;">
+      <button type="button" onclick="cancelRepeatSubmission()" style="padding:9px 16px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; font-size:0.88rem; cursor:pointer; font-weight:500;">
+        ✕ 取消 (不重複送樣)
+      </button>
+      <button type="button" onclick="confirmRepeatSubmission()" style="padding:9px 20px; background:#ea580c; color:white; border:none; border-radius:6px; font-size:0.9rem; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(234,88,12,0.3);">
+        ✅ 確定再次送樣 (複驗/重取樣)
       </button>
     </div>
   </div>
@@ -1038,16 +1126,20 @@
       <input type="text" id="teamsWebhook_資材課" placeholder="https://xxx.webhook.office.com/...">
     </div>
     <div style="margin-bottom:12px;">
-      <label>🏭 現場一課頻道 Webhook</label>
-      <input type="text" id="teamsWebhook_現場一課" placeholder="https://xxx.webhook.office.com/...">
+      <label>🏭 二部一課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_二部一課" placeholder="https://xxx.webhook.office.com/...">
     </div>
     <div style="margin-bottom:12px;">
-      <label>🏭 現場二課頻道 Webhook</label>
-      <input type="text" id="teamsWebhook_現場二課" placeholder="https://xxx.webhook.office.com/...">
+      <label>🏭 二部二課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_二部二課" placeholder="https://xxx.webhook.office.com/...">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label>🏭 一部一課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_一部一課" placeholder="https://xxx.webhook.office.com/...">
     </div>
     <div style="margin-bottom:14px;">
-      <label>♻️ 回收處理課頻道 Webhook</label>
-      <input type="text" id="teamsWebhook_回收處理課" placeholder="https://xxx.webhook.office.com/...">
+      <label>🏭 一部二課頻道 Webhook</label>
+      <input type="text" id="teamsWebhook_一部二課" placeholder="https://xxx.webhook.office.com/...">
     </div>
 
     <div style="background:#f1f5f9; padding:10px 12px; border-radius:6px; margin-bottom:16px; font-size:0.82rem; color:#475569;">
@@ -1248,27 +1340,100 @@
     return `${y}-${m}-${day}`;
   }
 
-  
-  // 自動套用產品等級
-  function autoSelectGrade(prodName) {
-    if(!prodName) return;
-    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
-    if(!cfgStr) return;
+  // 安全解析各類日期字串為本地 YYYY-MM-DD，徹底解決 UTC-8 造成早晨紀錄倒退 1 天之時區 bug
+  function extractLocalDateStr(raw) {
+    if (!raw) return '';
+    const str = String(raw).trim();
+    // 1. 若本身已為 YYYY-MM-DD 格式或以其開頭的純文字 (如 "2026-11-11 07:48:22")
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m && !str.includes('T') && !str.includes('Z')) {
+      return `${m[1]}-${m[2]}-${m[3]}`;
+    }
+    // 2. 若為標準 ISO 時間 (如 "2026-11-11T07:48:22Z")，以本地時區轉為日期
     try {
-      const cfg = JSON.parse(cfgStr);
-      const mapStr = cfg.OPTIONS_PRODUCT_GRADES_MAP || cfg.productGradesMap || '';
-      if(!mapStr) return;
-      const pairs = mapStr.split(',').map(s => s.trim()).filter(Boolean);
-      const mapping = {};
-      pairs.forEach(p => {
-        const parts = p.split(':').map(s => s.trim());
-        if(parts.length >= 2) mapping[parts[0]] = parts[1];
-      });
-      if(mapping[prodName]) {
-        const gradeSelect = document.getElementById('grade');
-        if (gradeSelect) gradeSelect.value = mapping[prodName];
+      const d = new Date(str);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const mon = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${mon}-${day}`;
       }
-    } catch(e) { console.warn(e); }
+    } catch(e) {}
+    return m ? `${m[1]}-${m[2]}-${m[3]}` : '';
+  }
+
+  
+  // 智慧判斷產品等級：自訂映射表 > 排程指定等級 > 命名特徵精確比對 (絕非死板預設第一項)
+  function autoSelectGrade(prodName, explicitGrade) {
+    const gradeSelect = document.getElementById('grade');
+    if (!gradeSelect) return;
+    if (!prodName) {
+      gradeSelect.value = '';
+      return;
+    }
+    const cleanProd = String(prodName).trim().toUpperCase();
+
+    // 1. 優先從雲端 / 本機自訂對照表 (OPTIONS_PRODUCT_GRADES_MAP) 比對 (支援不區分大小寫與自動去空白)
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    if(cfgStr) {
+      try {
+        const cfg = JSON.parse(cfgStr);
+        const mapStr = cfg.OPTIONS_PRODUCT_GRADES_MAP || cfg.productGradesMap || '';
+        if(mapStr) {
+          const pairs = mapStr.split(',').map(s => s.trim()).filter(Boolean);
+          const mapping = {};
+          pairs.forEach(p => {
+            const parts = p.split(':').map(s => s.trim());
+            if(parts.length >= 2) mapping[parts[0].toUpperCase()] = parts[1];
+          });
+          if(mapping[cleanProd]) {
+            gradeSelect.value = mapping[cleanProd];
+            return;
+          }
+        }
+      } catch(e) { console.warn("解析產品等級映射表失敗：", e); }
+    }
+
+    // 2. 若排程資料本身已有明確等級且在選項內，直接採用
+    if (explicitGrade && String(explicitGrade).trim()) {
+      const cleanExp = String(explicitGrade).trim();
+      const hasOpt = Array.from(gradeSelect.options).some(o => o.value === cleanExp);
+      if (hasOpt) {
+        gradeSelect.value = cleanExp;
+        return;
+      }
+    }
+
+    // 3. 智慧規則自動判定 (特徵比對)
+    if (cleanProd.includes('-P1R') || cleanProd.includes('-R') || cleanProd.includes('EBRR') || cleanProd.includes('HEAVY-R') || cleanProd.includes('回收')) {
+      gradeSelect.value = '回收液';
+    } else if (cleanProd.includes('UPS')) {
+      gradeSelect.value = 'UPS';
+    } else if (cleanProd.includes('IF')) {
+      gradeSelect.value = 'IF';
+    } else if (cleanProd.includes('OEM') || cleanProd.includes('E3') || cleanProd.includes('E4') || cleanProd.includes('SEP73') || cleanProd.includes('(T)')) {
+      gradeSelect.value = '電子級';
+    } else if (['IPA', 'GAA', 'CPN', 'EBR', 'NBAC', 'EG', 'NMP', 'ACT', 'PM', 'PMA98', 'DPM', 'DPM-B1', 'ANONE', 'GBL', 'PG', 'IPAHW'].some(p => cleanProd.startsWith(p))) {
+      gradeSelect.value = '工業級';
+    } else {
+      // 若完全無特徵吻合，由人員自行確認選擇
+      gradeSelect.value = '';
+    }
+  }
+
+  // 取得支援同車多單合併的品名清單 (優先從雲端 System_Config 讀取，預設為 EBR-P1R、NBAC-P1R、CPN-P1R)
+  function getMultiOrderAllowedProducts() {
+    const cfgStr = localStorage.getItem('HS_QC_DYNAMIC_OPTIONS');
+    if (cfgStr) {
+      try {
+        const cfg = JSON.parse(cfgStr);
+        const mapStr = cfg.OPTIONS_MULTI_ORDER_PRODUCTS || cfg.multiOrderProducts || '';
+        if (mapStr) {
+          return mapStr.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        }
+      } catch(e) {}
+    }
+    return ['EBR-P1R', 'NBAC-P1R', 'CPN-P1R'];
   }
 
   let allData = [];
@@ -1287,9 +1452,10 @@
     managerWebhook: '',
     depts: {
       '資材課': '',
-      '現場一課': '',
-      '現場二課': '',
-      '回收處理課': ''
+      '二部一課': '',
+      '二部二課': '',
+      '一部一課': '',
+      '一部二課': ''
     },
     enableRealSend: false
   };
@@ -1309,9 +1475,10 @@
     if (!localTeamsConfig.depts) localTeamsConfig.depts = {};
     localTeamsConfig.managerWebhook = document.getElementById('teamsManagerWebhook').value.trim();
     localTeamsConfig.depts['資材課'] = document.getElementById('teamsWebhook_資材課').value.trim();
-    localTeamsConfig.depts['現場一課'] = document.getElementById('teamsWebhook_現場一課').value.trim();
-    localTeamsConfig.depts['現場二課'] = document.getElementById('teamsWebhook_現場二課').value.trim();
-    localTeamsConfig.depts['回收處理課'] = document.getElementById('teamsWebhook_回收處理課').value.trim();
+    localTeamsConfig.depts['二部一課'] = document.getElementById('teamsWebhook_二部一課').value.trim();
+    localTeamsConfig.depts['二部二課'] = document.getElementById('teamsWebhook_二部二課').value.trim();
+    localTeamsConfig.depts['一部一課'] = document.getElementById('teamsWebhook_一部一課').value.trim();
+    localTeamsConfig.depts['一部二課'] = document.getElementById('teamsWebhook_一部二課').value.trim();
     localTeamsConfig.enableRealSend = document.getElementById('teamsEnableRealSend').checked;
 
     localStorage.setItem('HS_QC_TEAMS_CONFIG', JSON.stringify(localTeamsConfig));
@@ -1323,9 +1490,10 @@
     loadTeamsConfig();
     document.getElementById('teamsManagerWebhook').value = localTeamsConfig.managerWebhook || '';
     document.getElementById('teamsWebhook_資材課').value = localTeamsConfig.depts['資材課'] || '';
-    document.getElementById('teamsWebhook_現場一課').value = localTeamsConfig.depts['現場一課'] || '';
-    document.getElementById('teamsWebhook_現場二課').value = localTeamsConfig.depts['現場二課'] || '';
-    document.getElementById('teamsWebhook_回收處理課').value = localTeamsConfig.depts['回收處理課'] || '';
+    document.getElementById('teamsWebhook_二部一課').value = localTeamsConfig.depts['二部一課'] || '';
+    document.getElementById('teamsWebhook_二部二課').value = localTeamsConfig.depts['二部二課'] || '';
+    document.getElementById('teamsWebhook_一部一課').value = localTeamsConfig.depts['一部一課'] || '';
+    document.getElementById('teamsWebhook_一部二課').value = localTeamsConfig.depts['一部二課'] || '';
     document.getElementById('teamsEnableRealSend').checked = !!localTeamsConfig.enableRealSend;
     document.getElementById('teamsConfigModal').style.display = 'flex';
   }
@@ -1753,57 +1921,301 @@
     sel.innerHTML = html;
   }
 
-  // 當使用者在下拉選單選取某車次時，自動帶入表單並偵測重複送樣
-  function onT100SelectChange(val) {
-    const alertBox = document.getElementById('t100AlreadySubmittedAlert');
-    const alertText = document.getElementById('t100AlertText');
+  let activeTruckMergeContext = null;
+  let pendingRepeatContext = null;
 
+  // 當使用者在下拉選單選取某車次時，先檢查重複送樣狀態，再自動帶入表單或提示同車次多單號合併
+  function onT100SelectChange(val) {
     if (val === "") {
+      const alertBox = document.getElementById('t100AlreadySubmittedAlert');
       if (alertBox) alertBox.style.display = 'none';
       return;
     }
     const item = t100Orders[parseInt(val)];
     if (!item) return;
 
-    
-    // 自動尋找同車次的進出貨單 (同車牌/同動向)
-    let combinedDocs = item.doc_no || '';
-    if (item.container && item.container.trim() !== '' && item.flowType === '進料') {
-        const sameTruckItems = t100Orders.filter(o => o !== item && o.container === item.container && o.flowType === item.flowType);
-        if (sameTruckItems.length > 0) {
-            const extraDocs = sameTruckItems.map(o => o.doc_no).filter(Boolean);
-            if (extraDocs.length > 0) {
-                const combined = [item.doc_no, ...extraDocs].join(', ');
-                if (confirm(`發現此車次 (${item.container}) 共有 ${extraDocs.length + 1} 筆排程單號：\n${combined}\n\n是否要自動合併成同一張檢驗單？`)) {
-                    combinedDocs = combined;
-                }
-            }
-        }
+    // 檢查該單號是否已送過樣或已完成判定
+    const sub = getOrderSubmissionInfo(item);
+    if (sub) {
+      // 🚨 彈出對話視窗提醒，讓人員自主判定是否再次送樣！
+      openRepeatSubmissionModal(item, sub);
+      return;
     }
 
-    document.getElementById('barcode').value = combinedDocs;
+    applyT100OrderToForm(item, false);
+  }
 
+  function openRepeatSubmissionModal(item, sub) {
+    pendingRepeatContext = { item, sub };
+    const modal = document.getElementById('repeatSubmissionModal');
+    const details = document.getElementById('repeatSubDetails');
+    if (!modal || !details) {
+      if (confirm(`⚠️ 重複送樣提醒：\n單號 ${item.doc_no} (${item.productName}) 已於 ${formatSimpleDate(sub.createdAt)} 送樣過！\n是否確認要再次送樣 (二次複驗/重新抽樣)？`)) {
+        applyT100OrderToForm(item, true);
+      } else {
+        document.getElementById('t100Select').value = '';
+      }
+      return;
+    }
+
+    const truckName = item.container || item.customer || '-';
+    const subTime = formatSimpleDate(sub.createdAt);
+    const compTime = sub.completedAt ? formatSimpleDate(sub.completedAt) : '';
+    let statusBadge = '';
+    if (sub.status === 'completed') {
+      const isPass = (sub.qcResult === 'PASS');
+      statusBadge = `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:0.82rem; background:${isPass?'#dcfce7':'#fee2e2'}; color:${isPass?'#15803d':'#b91c1c'};">已完成檢驗放行 (${sub.qcResult || 'PASS'})</span>`;
+    } else if (sub.status === 'failed') {
+      statusBadge = `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:0.82rem; background:#fee2e2; color:#b91c1c;">退件 / 需重抽樣</span>`;
+    } else {
+      statusBadge = `<span style="display:inline-block; padding:2px 8px; border-radius:4px; font-weight:bold; font-size:0.82rem; background:#fef3c7; color:#b45309;">檢驗中 (等候化驗中)</span>`;
+    }
+
+    details.innerHTML = `
+      <div style="font-size:0.95rem; font-weight:bold; margin-bottom:6px; color:#9a3412;">
+        🚚 車次：${truckName} | 單號：<code>${item.doc_no}</code>
+      </div>
+      <div><strong>品名規格：</strong>${item.productName || '-'}（${item.flowType || '-'} / ${item.tankNo || '-'} 槽）</div>
+      <div><strong>前次送樣：</strong>${subTime}（送樣人員：${sub.requester || '未知'}）</div>
+      <div style="margin-top:4px;"><strong>當前檢驗狀態：</strong>${statusBadge} ${compTime ? `(完成於 ${compTime})` : ''}</div>
+      ${sub.qcNote ? `<div style="margin-top:4px; color:#6b7280; font-size:0.82rem;">📝 前次備註：${sub.qcNote}</div>` : ''}
+    `;
+
+    modal.style.display = 'flex';
+  }
+
+  function cancelRepeatSubmission() {
+    const modal = document.getElementById('repeatSubmissionModal');
+    if (modal) modal.style.display = 'none';
+    document.getElementById('t100Select').value = '';
+    showToast('已取消重複送樣。');
+    pendingRepeatContext = null;
+  }
+
+  function confirmRepeatSubmission() {
+    const modal = document.getElementById('repeatSubmissionModal');
+    if (modal) modal.style.display = 'none';
+    if (!pendingRepeatContext) return;
+    const item = pendingRepeatContext.item;
+    pendingRepeatContext = null;
+    applyT100OrderToForm(item, true);
+  }
+
+  function applyT100OrderToForm(item, isRepeat = false) {
+    const alertBox = document.getElementById('t100AlreadySubmittedAlert');
+    const alertText = document.getElementById('t100AlertText');
+
+    // 先填妥基礎欄位
+    document.getElementById('barcode').value = item.doc_no || '';
     document.getElementById('flowType').value = item.flowType || '出貨';
-    document.getElementById('grade').value = item.grade || '工業級';
     document.getElementById('productName').value = item.productName || '';
-    autoSelectGrade(item.productName);
+    autoSelectGrade(item.productName, item.grade); // 智慧等級判斷
     document.getElementById('tankNo').value = item.tankNo || '';
     document.getElementById('customer').value = item.container || item.customer || '';
     document.getElementById('quantity').value = item.quantity || '';
 
-    // 檢查該訂單是否已送過樣
-    const sub = getOrderSubmissionInfo(item);
-    if (sub && alertBox && alertText) {
-      alertBox.style.display = 'flex';
-      const timeStr = formatSimpleDate(sub.createdAt);
-      const statusDesc = (sub.status === 'completed') ? '已完成檢驗 (放行)' : '檢驗中 (等候結果)';
-      alertText.innerHTML = `<strong>⚠️ 重複送樣警示：</strong>此車次單號 <code>${item.doc_no}</code> 已於 <strong>${timeStr}</strong> 提交送樣！目前狀態為 <strong>【${statusDesc}】</strong>。<br>若此車次需重新抽樣或進行二次複驗，請確認後再提交。`;
-      showToast(`⚠️ 注意：此車次已於 ${timeStr} 送樣過 (${statusDesc})！`, 4500);
-    } else if (alertBox) {
-      alertBox.style.display = 'none';
-      showToast(`✅ 已自動帶入 [${item.flowType}] 排程：${item.productName} (${item.container || item.tankNo})`);
+    if (isRepeat) {
+      if (alertBox && alertText) {
+        alertBox.style.display = 'flex';
+        alertText.innerHTML = `<strong>⚠️ 二次送樣／複驗中：</strong>此車次單號 <code>${item.doc_no}</code> 前次已有檢驗紀錄，目前以二次複驗模式填單。`;
+      }
+      showToast(`⚠️ 已載入單號 [${item.doc_no}]，請填寫送樣人員後提交二次送樣`, 4000);
+    } else {
+      if (alertBox) alertBox.style.display = 'none';
     }
 
+    // 取得可進行同車多單合併的品名清單 (動態讀取 OPTIONS_MULTI_ORDER_PRODUCTS)
+    const multiProds = getMultiOrderAllowedProducts();
+    const pUpper = String(item.productName || '').trim().toUpperCase();
+    const isMultiAllowed = multiProds.includes(pUpper);
+    const targetTruck = (item.container || item.customer || '').trim();
+
+    if (!isMultiAllowed) {
+      showToast(`✅ 已帶入獨立排程單號 [${item.flowType}]：${item.productName} (${item.doc_no})`);
+      document.getElementById('requester').focus();
+      return;
+    }
+
+    if (!targetTruck) {
+      document.getElementById('requester').focus();
+      return;
+    }
+
+    // 針對允許品名尋找同車次候選排程（同車牌/櫃號、同品名、同動向）
+    const candidates = (t100Orders || []).filter(o => {
+      const oTruck = (o.container || o.customer || '').trim();
+      const isSameTruck = (o.container && item.container && o.container.trim() === item.container.trim()) ||
+                          (targetTruck && (oTruck === targetTruck));
+      const isSameFlow = o.flowType === item.flowType;
+      const isSameProd = String(o.productName || '').trim().toUpperCase() === pUpper;
+      return isSameTruck && isSameFlow && isSameProd;
+    });
+
+    // 若整批只有 1 筆單號，直接完成帶入，免彈窗打擾
+    if (candidates.length <= 1) {
+      showToast(`✅ 已自動帶入 [${item.flowType}] 排程：${item.productName} (${targetTruck})`);
+      document.getElementById('requester').focus();
+      return;
+    }
+
+    // 若有 2 筆以上同車次單號，開啟自選勾選彈窗！
+    openTruckMergeModal(item, candidates);
+  }
+
+  // 開啟同車多單號合併勾選彈窗
+  function openTruckMergeModal(targetItem, candidates) {
+    activeTruckMergeContext = { targetItem, candidates };
+    const modal = document.getElementById('truckMergeModal');
+    const headerInfo = document.getElementById('truckMergeHeaderInfo');
+    const listContainer = document.getElementById('truckMergeList');
+    if (!modal || !headerInfo || !listContainer) return;
+
+    const truckName = (targetItem.container || targetItem.customer || '-');
+    const targetDate = targetItem.date || '';
+
+    headerInfo.innerHTML = `
+      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span>🚚 車次/櫃號：<b style="color:#0284c7; font-size:0.95rem;">${truckName}</b></span>
+        <span>動向：<b style="color:#0f172a;">${targetItem.flowType || '-'}</b></span>
+        <span>品名：<b style="color:#0f172a;">${targetItem.productName || '-'}</b></span>
+        <span>槽號：<b>${targetItem.tankNo || '-'}</b></span>
+      </div>
+      <div style="margin-top:6px; font-size:0.82rem; color:#475569; background:#e0f2fe; padding:4px 8px; border-radius:5px; border-left:3px solid #0284c7;">
+        🎯 您點選之排程日期為 <b>【${targetDate || '無指定日期'}】</b>：系統已自動為您<b>預設勾選該日同車次的所有連續單號</b>。其他日期的單號若非補送則預設不勾。
+      </div>
+    `;
+
+    // 排序：先排相同日期 (選取日期最優先)，次排單號升冪 (業助連續開立之單號順序呈現)
+    const sorted = [...candidates].sort((a, b) => {
+      const aSameDate = (a.date === targetDate);
+      const bSameDate = (b.date === targetDate);
+      if (aSameDate && !bSameDate) return -1;
+      if (!aSameDate && bSameDate) return 1;
+      return String(a.doc_no || '').localeCompare(String(b.doc_no || ''));
+    });
+
+    let html = '';
+    sorted.forEach((o, idx) => {
+      const isTargetDate = (o.date === targetDate);
+      const isCurrentItem = (o === targetItem || o.doc_no === targetItem.doc_no);
+      const sub = getOrderSubmissionInfo(o);
+      const isSubmitted = !!sub;
+
+      // 預設勾選邏輯：
+      // 1. 同日期 (o.date === targetDate) 且未曾送樣過 -> 自動打勾！
+      // 2. 當前選取的單號 (即使是無日期) 且未曾送樣過 -> 自動打勾！
+      // 3. 不同日期的單號 -> 預設不勾選 (供人員視現場需要自主手動勾選)
+      // 4. 若歷史已送樣/已判定 -> 預設不勾，但開放人員自行判定是否勾選再次送樣 (不鎖死 disabled)
+      const checked = !isSubmitted && (isTargetDate || isCurrentItem);
+      const disabled = false;
+
+      html += `
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 10px; margin-bottom:6px; background:${isSubmitted ? '#fffbeb' : (isTargetDate ? '#f0f9ff' : '#ffffff')}; border:1px solid ${isSubmitted ? '#fde68a' : (isTargetDate ? '#bae6fd' : '#e2e8f0')}; border-radius:6px;">
+          <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1; margin:0;">
+            <input type="checkbox" class="truck-merge-chk" data-doc="${o.doc_no}" data-qty="${o.quantity || ''}" data-date="${o.date || ''}" ${checked ? 'checked' : ''} onchange="updateTruckMergeSelectedCount()">
+            <div style="flex:1;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="font-size:0.75rem; font-weight:bold; padding:1px 6px; border-radius:4px; ${isTargetDate ? 'background:#0284c7; color:white;' : 'background:#94a3b8; color:white;'}">
+                  ${o.date || '無日期'}
+                </span>
+                <b style="font-size:0.9rem; font-family:monospace; color:#0f172a;">${o.doc_no}</b>
+                ${isCurrentItem ? '<span style="font-size:0.7rem; background:#fef3c7; color:#92400e; padding:1px 5px; border-radius:4px; font-weight:bold;">您點選的</span>' : ''}
+                ${isSubmitted ? `<span style="font-size:0.7rem; background:#fee2e2; color:#b91c1c; padding:1px 6px; border-radius:4px; font-weight:bold;">⚠️ 已於 ${formatSimpleDate(sub.createdAt)} 送樣判定 (${sub.qcResult || sub.status})</span>` : ''}
+              </div>
+              <div style="font-size:0.76rem; color:#64748b; margin-top:3px; display:flex; gap:12px; flex-wrap:wrap;">
+                <span>品名: <b>${o.productName}</b></span>
+                <span>槽號: <b>${o.tankNo || '-'}</b></span>
+                <span>數量: <b>${o.quantity || '-'}</b></span>
+              </div>
+            </div>
+          </label>
+        </div>
+      `;
+    });
+
+    listContainer.innerHTML = html;
+    updateTruckMergeSelectedCount();
+    modal.style.display = 'flex';
+  }
+
+  function updateTruckMergeSelectedCount() {
+    const chks = document.querySelectorAll('.truck-merge-chk:checked');
+    const label = document.getElementById('truckMergeSelectedCount');
+    if (label) {
+      label.innerText = `已勾選 ${chks.length} 筆單號`;
+    }
+  }
+
+  function selectTruckMergeOnlyTargetDate() {
+    if (!activeTruckMergeContext) return;
+    const targetDate = activeTruckMergeContext.targetItem.date || '';
+    document.querySelectorAll('.truck-merge-chk').forEach(chk => {
+      if (!chk.disabled) {
+        chk.checked = (chk.getAttribute('data-date') === targetDate);
+      }
+    });
+    updateTruckMergeSelectedCount();
+  }
+
+  function selectTruckMergeAll(state) {
+    document.querySelectorAll('.truck-merge-chk').forEach(chk => {
+      if (!chk.disabled) {
+        chk.checked = !!state;
+      }
+    });
+    updateTruckMergeSelectedCount();
+  }
+
+  function closeTruckMergeModal(confirmed = false) {
+    const modal = document.getElementById('truckMergeModal');
+    if (modal) modal.style.display = 'none';
+
+    if (!confirmed && activeTruckMergeContext && activeTruckMergeContext.targetItem) {
+      // 若取消，則僅保留最初點選的那 1 筆單號
+      const item = activeTruckMergeContext.targetItem;
+      document.getElementById('barcode').value = item.doc_no || '';
+      showToast(`已保留原單號：${item.doc_no}`);
+      document.getElementById('requester').focus();
+    }
+    activeTruckMergeContext = null;
+  }
+
+  function confirmTruckMerge() {
+    if (!activeTruckMergeContext) return;
+    const item = activeTruckMergeContext.targetItem;
+    const checked = Array.from(document.querySelectorAll('.truck-merge-chk:checked'));
+
+    if (checked.length === 0) {
+      alert("⚠️ 請至少勾選 1 筆單號！若不需合併，可點擊「僅保留原單號」。");
+      return;
+    }
+
+    const docs = checked.map(c => c.getAttribute('data-doc')).filter(Boolean);
+    const combinedBarcode = docs.join(', ');
+    document.getElementById('barcode').value = combinedBarcode;
+
+    // 智慧累計數量
+    let totalQty = 0;
+    let hasNumeric = false;
+    let unit = '';
+    checked.forEach(c => {
+      const qStr = (c.getAttribute('data-qty') || '').trim();
+      const m = qStr.match(/^([\d\.]+)\s*([a-zA-Z\u4e00-\u9fa5]*)$/);
+      if (m) {
+        totalQty += parseFloat(m[1]);
+        if (!unit && m[2]) unit = m[2];
+        hasNumeric = true;
+      }
+    });
+
+    if (hasNumeric && totalQty > 0) {
+      document.getElementById('quantity').value = `${totalQty} ${unit}`.trim();
+    } else {
+      document.getElementById('quantity').value = item.quantity || '';
+    }
+
+    showToast(`✅ 成功合併 ${docs.length} 筆同車單號：${combinedBarcode}`, 4500);
+    closeTruckMergeModal(true);
     document.getElementById('requester').focus();
   }
 
@@ -2419,8 +2831,11 @@
     if(grades.length) {
       const selGrade = document.getElementById('grade');
       if(selGrade) {
-        selGrade.innerHTML = grades.map(g => `<option value="${g}">${g}</option>`).join('');
-        }
+        const curVal = selGrade.value;
+        selGrade.innerHTML = `<option value="" disabled ${!curVal ? 'selected' : ''}>-- 系統判定等級 --</option>` +
+          grades.map(g => `<option value="${g}">${g}</option>`).join('');
+        if (curVal) selGrade.value = curVal;
+      }
     }
 
     // 3. 動態填充「品名」datalist
@@ -2447,8 +2862,9 @@
     }
     return {
       flowTypes: ['出貨', '進料', '補料', '委託'],
-      grades: ['工業級', 'UPS', 'IF'],
+      grades: ['工業級', '電子級', 'UPS', 'IF', '回收液'],
       depts: ['資材課', '二部一課', '二部二課', '一部一課', '一部二課'],
+      multiOrderProducts: ['EBR-P1R', 'NBAC-P1R', 'CPN-P1R'],
       products: [
         'IPA', 'IPAUPS', 'IPAHQ', 'CPNE3(T)', 'CPNE4', 'CPN-P1R',
         'EBR', 'EBR-P1R', 'NBAC', 'NBAC-P1R', 'CPN', 'EG',
@@ -2726,7 +3142,7 @@
       } else {
         allData = [
           { id: "sample-1", barcode: "ESXM101-20260901013", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK624", customer: "PPCU7019228", quantity: "5000 KG", dept: "資材課", requester: "陳明哲", status: "pending", createdAt: new Date(Date.now() - 2.5 * 3600 * 1000).toISOString() },
-          { id: "sample-2", barcode: "ESPM411-20260906001", flowType: "進料", grade: "工業級", productName: "EBR-P1R", tankNo: "TKC05", customer: "KEQ-3506 (櫃:6108)", quantity: "8000 KG", dept: "回收處理課", requester: "張建國", status: "pending", createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
+          { id: "sample-2", barcode: "ESPM411-20260906001", flowType: "進料", grade: "工業級", productName: "EBR-P1R", tankNo: "TKC05", customer: "KEQ-3506 (櫃:6108)", quantity: "8000 KG", dept: "二部一課", requester: "張建國", status: "pending", createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString() },
           { id: "sample-3", barcode: "ESXM101-20260901020", flowType: "出貨", grade: "UPS", productName: "IPAUPS", tankNo: "TK605", customer: "PPCU7020018", quantity: "5000 KG", dept: "一部一課", requester: "林大為", status: "completed", qcResult: "PASS", qcNote: "品質合格放行", createdAt: new Date(Date.now()-3600000).toISOString(), completedAt: new Date().toISOString() }
         ];
         localStorage.setItem('HS_QC_SAMPLES', JSON.stringify(allData));
@@ -2752,7 +3168,7 @@
                       String(s.tankNo || '').toLowerCase().includes(kw) ||
                       String(s.customer || '').toLowerCase().includes(kw) ||
                       String(s.dept || '').toLowerCase().includes(kw);
-      const sDate = s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : '';
+      const sDate = extractLocalDateStr(s.createdAt);
       const matchDate = (!start || sDate >= start) && (!end || sDate <= end);
       return matchKw && matchDate;
     });
@@ -2761,15 +3177,16 @@
     let cData = filtered.filter(s => s.status === 'completed' || s.status === 'failed');
     updateT100ButtonCounts();
 
-    // 如果使用者沒有輸入明確的起迄日期，則「已檢驗完成」預設只顯示近3天 (今天、昨天、前天)
+    // 如果使用者沒有輸入明確的起迄日期，則「已檢驗完成」預設只顯示近2天 (今天與昨天，其餘以日期查詢)
     if (!start && !end) {
       const d = new Date();
-      d.setDate(d.getDate() - 2); // 往前推2天 = 包含今天共3天
-      const minDateStr = d.toISOString().split('T')[0];
+      d.setDate(d.getDate() - 1); // 往前推1天 = 包含今天與昨天共2天
+      const minDateStr = getLocalDateString(d); // 採用本地時間格式 YYYY-MM-DD，絕不用 toISOString() 避免時區倒退問題
       cData = cData.filter(s => {
         if (s.qcResult === 'FAIL') return true; // FAIL 案件不隱藏，保留以供特採評估
-        const sDate = s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : '';
-        return sDate >= minDateStr;
+        // 優先採用完成時間，其次採用建立時間，並以本地時區字串比對
+        const recDate = extractLocalDateStr(s.completedAt || s.createdAt);
+        return recDate >= minDateStr;
       });
     }
 
@@ -2960,6 +3377,8 @@
   function resetForm() {
     document.getElementById('qcForm').reset();
     document.getElementById('t100Select').value = '';
+    const gradeSelect = document.getElementById('grade');
+    if (gradeSelect) gradeSelect.value = '';
     const alertBox = document.getElementById('t100AlreadySubmittedAlert');
     if (alertBox) alertBox.style.display = 'none';
     const empId = document.getElementById('empIdInput');
@@ -4556,7 +4975,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.1.1) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.3.0) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);
@@ -4567,6 +4986,7 @@
   <input type="file" id="photoInput" accept="image/*" style="display:none;" onchange="handlePhotoSelect(event)">
 </body>
 </html>
+
 
 
 

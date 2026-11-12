@@ -129,6 +129,7 @@
             <th>品名 (Product)</th>
             <th style="width: 200px;">預設等級 (Grade)</th>
             <th style="width: 100px; text-align: center;">自動免送樣</th>
+            <th style="width: 130px; text-align: center;">同車多單合併</th>
             <th style="width: 80px; text-align: center;">操作</th>
           </tr>
         </thead>
@@ -180,38 +181,43 @@
       const prodsStr = data['OPTIONS_PRODUCTS'] || '';
       const gradesMapStr = data['OPTIONS_PRODUCT_GRADES_MAP'] || '';
       const ignoreStr = data['T100_IGNORE_PRODUCTS'] || '';
+      const multiStr = data['OPTIONS_MULTI_ORDER_PRODUCTS'] || 'EBR-P1R, NBAC-P1R, CPN-P1R';
       
       const allProds = prodsStr.split(',').map(s => s.trim()).filter(Boolean);
-      const ignores = ignoreStr.split(',').map(s => s.trim()).filter(Boolean);
+      const ignores = ignoreStr.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+      const multis = multiStr.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
       const gradesMap = {};
       gradesMapStr.split(',').map(s => s.trim()).filter(Boolean).forEach(p => {
         const parts = p.split(':');
         if(parts.length >= 2) gradesMap[parts[0].trim()] = parts[1].trim();
       });
 
-      // Ensure keys that have a grade or are ignored are also in the allProds list
+      // Ensure keys that have a grade, are ignored, or multi-order are in allProds
       Object.keys(gradesMap).forEach(k => { if(!allProds.includes(k)) allProds.push(k); });
       ignores.forEach(k => { if(!allProds.includes(k)) allProds.push(k); });
+      multis.forEach(k => { if(!allProds.includes(k)) allProds.push(k); });
 
       allProds.forEach(prod => {
-        addGradeRow(prod, gradesMap[prod] || '', ignores.includes(prod));
+        const pUpper = prod.toUpperCase();
+        addGradeRow(prod, gradesMap[prod] || '', ignores.includes(pUpper), multis.includes(pUpper));
       });
     }
 
-    function addGradeRow(prod = '', grade = '', isIgnored = false) {
+    function addGradeRow(prod = '', grade = '', isIgnored = false, isMulti = false) {
       const tbody = document.querySelector('#gradesTable tbody');
       const tr = document.createElement('tr');
-      const gOpts = (window.CURRENT_GRADE_OPTIONS || ['工業級', 'UPS', 'IF', '電子級', '回收液']).map(g => `<option value="${g}" ${g===grade?'selected':''}>${g}</option>`).join('');
+      const gOpts = (window.CURRENT_GRADE_OPTIONS || ['工業級', '電子級', 'UPS', 'IF', '回收液']).map(g => `<option value="${g}" ${g===grade?'selected':''}>${g}</option>`).join('');
       
       tr.innerHTML = `
         <td><input type="text" class="g-prod" value="${prod.replace(/"/g, '&quot;')}" placeholder="例如: IPAHQ"></td>
         <td>
           <select class="g-grade" style="width: 100%; padding: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            <option value="">(無預設)</option>
+            <option value="">(由品名智慧判定)</option>
             ${gOpts}
           </select>
         </td>
-        <td style="text-align: center;"><input type="checkbox" class="g-ignore" ${isIgnored ? 'checked' : ''} style="transform: scale(1.5); cursor: pointer;"></td>
+        <td style="text-align: center;"><input type="checkbox" class="g-ignore" ${isIgnored ? 'checked' : ''} style="transform: scale(1.5); cursor: pointer;" title="勾選則匯入排程時自動過濾免送樣"></td>
+        <td style="text-align: center;"><input type="checkbox" class="g-multi" ${isMulti ? 'checked' : ''} style="transform: scale(1.5); cursor: pointer;" title="勾選則同車次連續多張單號時開啟合併視窗"></td>
         <td style="text-align: center;"><button style="background: #ef4444; padding: 5px 10px;" onclick="this.closest('tr').remove()">刪除</button></td>
       `;
       tbody.appendChild(tr);
@@ -222,15 +228,18 @@
       const products = [];
       const gradesMap = [];
       const ignores = [];
+      const multis = [];
       
       rows.forEach(tr => {
         const p = tr.querySelector('.g-prod').value.trim();
         const g = tr.querySelector('.g-grade').value.trim();
         const ignore = tr.querySelector('.g-ignore').checked;
+        const multi = tr.querySelector('.g-multi').checked;
         if (p) {
           products.push(p);
           if (g) gradesMap.push(`${p}:${g}`);
           if (ignore) ignores.push(p);
+          if (multi) multis.push(p);
         }
       });
       
@@ -241,7 +250,8 @@
           body: JSON.stringify({ action: 'updateConfig', configs: { 
             'OPTIONS_PRODUCTS': products.join(','),
             'OPTIONS_PRODUCT_GRADES_MAP': gradesMap.join(','),
-            'T100_IGNORE_PRODUCTS': ignores.join(',')
+            'T100_IGNORE_PRODUCTS': ignores.join(','),
+            'OPTIONS_MULTI_ORDER_PRODUCTS': multis.join(',')
           } }) 
         });
         alert('產品總表已成功儲存！');
@@ -296,7 +306,7 @@
         renderGradesTable(data);
 
         for(const k in data) {
-          if (['OPTIONS_PRODUCT_GRADES_MAP', 'OPTIONS_PRODUCTS', 'T100_IGNORE_PRODUCTS'].includes(k)) continue;
+          if (['OPTIONS_PRODUCT_GRADES_MAP', 'OPTIONS_PRODUCTS', 'T100_IGNORE_PRODUCTS', 'OPTIONS_MULTI_ORDER_PRODUCTS'].includes(k)) continue;
           t.innerHTML += `<tr><td><strong>${k}</strong></td><td><input type="text" id="cfg_${k}" value="${String(data[k] || '').replace(/"/g, '&quot;')}"></td></tr>`;
         }
       } catch (err) { console.error(err); }
