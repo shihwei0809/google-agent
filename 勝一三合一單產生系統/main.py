@@ -1,94 +1,7 @@
-import pytesseract
-from pytesseract import Output
-from tkinter import filedialog
-from io import BytesIO
-from openpyxl.drawing.image import Image as OpenpyxlImage
-import tkinter as tk
-from tkinter import ttk, messagebox
-import openpyxl
-from openpyxl.drawing.image import Image as OpenpyxlImage
-from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
-from openpyxl.drawing.xdr import XDRPositiveSize2D
-from openpyxl.utils.units import pixels_to_EMU
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-from openpyxl.cell.rich_text import TextBlock, CellRichText
-from openpyxl.cell.text import InlineFont
 import os
-import re
-import glob
-import json
-import csv
-import webbrowser
-from datetime import datetime, timedelta, date
-from openpyxl.utils import get_column_letter
-import calendar
+import sys
+import shutil
 
-# ================= 產品品名與固定充填重量、料號對照表 =================
-PRODUCT_WEIGHT_MAP = {
-    "CPNE4R": "6000",
-    "SEP73E4": "6000",
-    "SEP73E5": "6000",
-    "PMAHQ": "6000",
-    "PMAHQ(R)": "6000",
-    "PMAHQR": "6000",
-    "IPA": "4300",
-    "IPA HQ": "4300",
-    "IPAHQ": "4300",
-    "PMA": "6000",
-    "CPNE4": "6000",
-    "EDG": "4300",
-    "BDGE": "4300",
-    "SET100": "4300",
-}
-
-SHINYI_PRODUCT_PART_MAP = {
-    "CPNE4R": "L2C9173",
-    "SEP73E4": "L269100",
-    "SEP73E5": "L2C9100",
-    "PMAHQ": "L2C9501",
-    "PMAHQ(R)": "L2R9501",
-    "PMAHQR": "L2R9501",
-}
-
-def get_product_weight(product_name):
-    if not product_name:
-        return "6000"
-    p = str(product_name).strip()
-    return PRODUCT_WEIGHT_MAP.get(p, PRODUCT_WEIGHT_MAP.get(p.upper(), "6000"))
-
-def parse_mfg_date_from_batch(batch_str):
-    """
-    從勝一批號前 5 碼解析製造日期 (ManufactureDate):
-    例如 '26B05S93T1' -> 26(2026年), B(11月), 05(5日) -> datetime(2026, 11, 5)
-    月份碼: 1~9 為 1~9月, A=10月, B=11月, C=12月 (或 X/Y/Z 備用)
-    """
-    if not batch_str or len(batch_str) < 5:
-        return None
-    s = str(batch_str).strip().upper()
-    try:
-        yy = int(s[0:2])
-        m_char = s[2]
-        dd = int(s[3:5])
-        month_map = {
-            '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
-            'A': 10, 'B': 11, 'C': 12, 'X': 10, 'Y': 11, 'Z': 12
-        }
-        mm = month_map.get(m_char)
-        if mm and 1 <= dd <= 31:
-            return datetime(2000 + yy, mm, dd)
-    except Exception:
-        pass
-    return None
-
-import qrcode
-from PIL import Image as PILImage, Image
-from io import BytesIO
-from copy import copy
-
-
-# ================= OCR 三重引擎：Gemini 2.0 Flash + GCP Vision + Tesseract =================
-
-import sys, shutil
 IS_FROZEN = getattr(sys, "frozen", False)
 RUNTIME_DIR = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(os.path.abspath(__file__))
 BUNDLE_DIR = getattr(sys, "_MEIPASS", RUNTIME_DIR)
@@ -168,6 +81,100 @@ if IS_FROZEN and not globals().get("_HOT_RELOADED_"):
             except Exception as e:
                 print(f"[HotReload Fallback] 改用內建封裝邏輯: {e}")
     _run_cloud_or_local_hot_reload()
+
+# --- 安全導入第三方套件（防呆機制：杜絕因缺少 C 擴充模組導致 EXE 崩潰）---
+try:
+    import pytesseract
+    from pytesseract import Output
+except Exception:
+    pytesseract = None
+    Output = None
+
+from tkinter import filedialog
+from io import BytesIO
+from openpyxl.drawing.image import Image as OpenpyxlImage
+import tkinter as tk
+from tkinter import ttk, messagebox
+import openpyxl
+from openpyxl.drawing.spreadsheet_drawing import AnchorMarker, OneCellAnchor
+from openpyxl.drawing.xdr import XDRPositiveSize2D
+from openpyxl.utils.units import pixels_to_EMU
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.cell.rich_text import TextBlock, CellRichText
+from openpyxl.cell.text import InlineFont
+import re
+import glob
+import json
+import csv
+import webbrowser
+from datetime import datetime, timedelta, date
+from openpyxl.utils import get_column_letter
+import calendar
+
+# ================= 產品品名與固定充填重量、料號對照表 =================
+PRODUCT_WEIGHT_MAP = {
+    "CPNE4R": "6000",
+    "SEP73E4": "6000",
+    "SEP73E5": "6000",
+    "PMAHQ": "6000",
+    "PMAHQ(R)": "6000",
+    "PMAHQR": "6000",
+    "IPA": "4300",
+    "IPA HQ": "4300",
+    "IPAHQ": "4300",
+    "PMA": "6000",
+    "CPNE4": "6000",
+    "EDG": "4300",
+    "BDGE": "4300",
+    "SET100": "4300",
+}
+
+SHINYI_PRODUCT_PART_MAP = {
+    "CPNE4R": "L2C9173",
+    "SEP73E4": "L269100",
+    "SEP73E5": "L2C9100",
+    "PMAHQ": "L2C9501",
+    "PMAHQ(R)": "L2R9501",
+    "PMAHQR": "L2R9501",
+}
+
+def get_product_weight(product_name):
+    if not product_name:
+        return "6000"
+    p = str(product_name).strip()
+    return PRODUCT_WEIGHT_MAP.get(p, PRODUCT_WEIGHT_MAP.get(p.upper(), "6000"))
+
+def parse_mfg_date_from_batch(batch_str):
+    """
+    從勝一批號前 5 碼解析製造日期 (ManufactureDate):
+    例如 '26B05S93T1' -> 26(2026年), B(11月), 05(5日) -> datetime(2026, 11, 5)
+    月份碼: 1~9 為 1~9月, A=10月, B=11月, C=12月 (或 X/Y/Z 備用)
+    """
+    if not batch_str or len(batch_str) < 5:
+        return None
+    s = str(batch_str).strip().upper()
+    try:
+        yy = int(s[0:2])
+        m_char = s[2]
+        dd = int(s[3:5])
+        month_map = {
+            '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9,
+            'A': 10, 'B': 11, 'C': 12, 'X': 10, 'Y': 11, 'Z': 12
+        }
+        mm = month_map.get(m_char)
+        if mm and 1 <= dd <= 31:
+            return datetime(2000 + yy, mm, dd)
+    except Exception:
+        pass
+    return None
+
+import qrcode
+from PIL import Image as PILImage, Image
+from io import BytesIO
+from copy import copy
+
+
+# ================= OCR 三重引擎：Gemini 2.0 Flash + GCP Vision + Tesseract =================
 
 KEY_DIR = os.path.join(RUNTIME_DIR, "gcp_keys")
 GEMINI_KEYS_FILE = os.path.join(KEY_DIR, "gemini_keys.json")
@@ -3107,10 +3114,11 @@ class App(tk.Tk):
             if do_3in1:
 
                 coa_crops = {}
-                if os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe'):
-                    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-                else:
-                    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe' 
+                if pytesseract:
+                    if os.path.exists(r'C:\Program Files\Tesseract-OCR\tesseract.exe'):
+                        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+                    else:
+                        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files (x86)\Tesseract-OCR\tesseract.exe' 
                 if self.coa_paths:
                     for img_path in self.coa_paths:
                         try:
@@ -3193,13 +3201,17 @@ class App(tk.Tk):
                                             if len(digits) >= 6:
                                                 coa_crops[digits] = new_img
                                     else:
-                                        # Tesseract 備用方案
-                                        d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
-                                        for i in range(len(d['text'])):
-                                            text = d['text'][i].strip()
-                                            digits = ''.join(c for c in text if c.isdigit())
-                                            if len(digits) >= 6:
-                                                coa_crops[digits] = new_img
+                                        # Tesseract 備用方案 (若環境未裝或未支援則跳過，避免崩潰)
+                                        if pytesseract and Output:
+                                            try:
+                                                d = pytesseract.image_to_data(row_scaled, output_type=Output.DICT)
+                                                for i in range(len(d['text'])):
+                                                    text = d['text'][i].strip()
+                                                    digits = ''.join(c for c in text if c.isdigit())
+                                                    if len(digits) >= 6:
+                                                        coa_crops[digits] = new_img
+                                            except Exception as te:
+                                                print("Tesseract fallback error:", te)
                             else:
                                 # 找不到結構，整張圖備用
                                 if not hasattr(self, 'fallback_coa'):

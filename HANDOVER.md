@@ -1,6 +1,22 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-11-12 勝一三合一單產生系統 PyInstaller 執行檔封裝與 GitHub 雲端自動熱更新機制實裝)
+## 今日進度與交接事項 (2026-11-12 勝一三合一單產生系統 PyInstaller 封裝 NumPy C-extension 崩潰修復、熱更新頂部移位與易見 AI 解讀修復)
+* **勝一三合一單產生系統執行檔封裝修復與安全導入機制 (`C:\GOOGLE ANGET\勝一三合一單產生系統`):**
+  - **NumPy C-extension 崩潰根本原因與修復**:
+    1. **崩潰根因**：封裝時為大幅減重排除 `pandas/scipy`，但 `pytesseract` 內部第 35 行預設執行 `from numpy import ndarray`。原 `main.py` 於第 1 行直接 `import pytesseract`，導致 `.exe` 一啟動即拋出 `Importing the numpy C-extensions failed`，甚至來不及執行第 97 行的熱更新即閃退。
+    2. **熱更新頂部移位**：將 `_run_cloud_or_local_hot_reload()` 徹底移至 `main.py` 最頂部（僅依賴標準庫 `os, sys, shutil, urllib`），確保在載入任何第三方套件前先完成外部腳本/雲端熱更新判定。
+    3. **安全導入與防呆保護**：對 `pytesseract` 實施 `try...except ImportError` 安全包裹，離線 Tesseract 調用時加入 `if pytesseract and Output:` 防禦，杜絕缺少 C-extension 時整支程式癱瘓。
+    4. **產出一鍵重新打包工具**：新增 `一鍵重新封裝EXE.bat`，內建 12 大基準範本檔 `--add-data` 與自動置換當前目錄 EXE 機制。
+    5. **本機直啟雙軌保底**：現場人員雙擊 `啟動_勝一三合一單產生器.bat`（執行 `python main.py`）可 100% 正常秒開。
+
+* **易見｜多重命理分析線上版 AI 截斷與 `undefined` 修復 (`C:\GOOGLE ANGET\第一類_核心網頁與互動系統\yijing-multi-analysis`):**
+  - **Groq Token 額度擴增至 3500**：解決原本 1400 tokens 輸出月柱即截斷之嚴重問題。
+  - **Prompt 提問直面優先**：新增第一章節直擊提問痛點，並禁用吃大量 token 的大表格。
+  - **前端 Markdown 解析升級**：內建表格自動轉換、粗體與大標題解析，徹底修復 `undefined木` 與 `木行 ()` 顯示異常。
+
+---
+
+## 前次進度與交接事項 (2026-11-12 勝一三合一單產生系統 PyInstaller 執行檔封裝與 GitHub 雲端自動熱更新機制實裝)
 * **勝一三合一單產生系統執行檔封裝與自動熱更新 (`D:\GOOGLE ANGET\勝一三合一單產生系統`):**
   - **GitHub 雲端自動熱更新 (Hot-Reload) 機制**:
     1. 比照鴻勝版架構，於 `main.py` 頂部植入 `IS_FROZEN`、`RUNTIME_DIR`、`BUNDLE_DIR` 與 `_run_cloud_or_local_hot_reload()`。
