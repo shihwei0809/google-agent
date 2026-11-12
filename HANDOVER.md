@@ -6,8 +6,8 @@
     1. **崩潰根因**：封裝時為大幅減重排除 `pandas/scipy`，但 `pytesseract` 內部第 35 行預設執行 `from numpy import ndarray`。原 `main.py` 於第 1 行直接 `import pytesseract`，導致 `.exe` 一啟動即拋出 `Importing the numpy C-extensions failed`，甚至來不及執行第 97 行的熱更新即閃退。
     2. **熱更新頂部移位**：將 `_run_cloud_or_local_hot_reload()` 徹底移至 `main.py` 最頂部（僅依賴標準庫 `os, sys, shutil, urllib`），確保在載入任何第三方套件前先完成外部腳本/雲端熱更新判定。
     3. **安全導入與防呆保護**：對 `pytesseract` 實施 `try...except ImportError` 安全包裹，離線 Tesseract 調用時加入 `if pytesseract and Output:` 防禦，杜絕缺少 C-extension 時整支程式癱瘓。
-    4. **產出一鍵重新打包工具**：新增 `一鍵重新封裝EXE.bat`，內建 12 大基準範本檔 `--add-data` 與自動置換當前目錄 EXE 機制。
-    5. **本機直啟雙軌保底**：現場人員雙擊 `啟動_勝一三合一單產生器.bat`（執行 `python main.py`）可 100% 正常秒開。
+    4. **產出一鍵重新打包工具與完成 EXE 封裝**：新增 `一鍵重新封裝EXE.bat`，內建 12 大基準範本檔 `--add-data` 與自動置換當前目錄 EXE 機制。已重新封裝出 `勝一三合一單產生系統.exe`（74.6 MB）並實測背景啟動驗證成功（PID 23476，無報錯閃退），同步更新 `勝一三合一單產生系統.zip`（73.9 MB）。
+    5. **現場人員零安裝 Python 保證**：現場人員解壓縮後直接雙擊 `勝一三合一單產生系統.exe` 即可免裝 Python、免裝依賴套件秒開作業。亦保留 `啟動_勝一三合一單產生器.bat`（執行 `python main.py`）作為雙軌保底。
 
 * **易見｜多重命理分析線上版 AI 截斷與 `undefined` 修復 (`C:\GOOGLE ANGET\第一類_核心網頁與互動系統\yijing-multi-analysis`):**
   - **Groq Token 額度擴增至 3500**：解決原本 1400 tokens 輸出月柱即截斷之嚴重問題。
