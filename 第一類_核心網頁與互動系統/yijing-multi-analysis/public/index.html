@@ -2184,9 +2184,13 @@
       const goalKey = getRadioVal('goal') || 'growth';
       const riskKey = getRadioVal('risk') || 'mid';
       const focusKey = getRadioVal('focus') || 'life';
-      const questionVal = getEl('question').value.trim() || '無特別指定問題';
+      const depthKey = getRadioVal('depth') || 'comprehensive';
+      const questionVal = getEl('question').value.trim() || '（使用者未特別指定問題，請聚焦本命卦象與八字財務規劃重點）';
 
       return `
+【使用者核心諮詢提問（請務必在第一章節「使用者特定提問直面解答」優先透徹回答）】
+🔥 提問內容：${questionVal}
+
 【使用者真實命盤與情境參數】
 1. 四柱八字：
    - 年柱：${currentBazi.year.stem}${currentBazi.year.branch}（五行：${currentBazi.year.stemElem}${currentBazi.year.branchElem}，十神：${currentBazi.year.tenGod}）
@@ -2210,7 +2214,6 @@
    - 風險承受度：${riskKey}
    - 研究焦點：${focusKey}
    - 分析維度深度：${depthKey === 'years' ? '2026~2045 逐年規劃' : depthKey === 'elements' ? '深入五行、格局、喜用神' : depthKey === 'ten' ? '深入十神與格局' : depthKey}
-   - 使用者特定提問：${questionVal}
 
 請以「易見專業文化反思與財務顧問」之口吻，撰寫結構嚴謹、富有東方哲學深度且能具體指導財務行動之綜合解盤。請嚴格根據上方提供的【四柱十神五行喜忌】與【易經本變卦爻象】量身解讀，杜絕死板罐頭文字。
 `.trim();
@@ -2329,18 +2332,63 @@
 
     function formatMarkdownToHtml(md) {
       if (!md) return '';
+
+      function inlineFormat(str) {
+        return escapeHtml(str)
+          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.*?)\*/g, '<em>$1</em>');
+      }
+
       const paragraphs = md.split(/\n\s*\n/);
       return paragraphs.map(p => {
         const clean = p.trim();
+        if (!clean) return '';
+
+        // Check if markdown table
+        const lines = clean.split('\n').map(l => l.trim()).filter(Boolean);
+        const isTable = lines.length >= 2 && lines.every(l => l.includes('|'));
+        if (isTable) {
+          const rows = lines.filter(l => !l.match(/^\|?(\s*:?-+:?\s*\|?)+$/));
+          if (rows.length > 0) {
+            let html = '<div style="overflow-x:auto; margin: 14px 0;"><table style="width:100%; border-collapse: collapse; font-size: 0.9rem; text-align: left; background: #fff; border: 1px solid #e2e8f0; border-radius: 6px;">';
+            rows.forEach((r, idx) => {
+              const cells = r.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length);
+              const tag = idx === 0 ? 'th' : 'td';
+              const cellStyle = idx === 0
+                ? 'background: #f8fafc; font-weight: 600; padding: 10px 12px; border-bottom: 2px solid #e2e8f0; color: var(--ink); white-space: nowrap;'
+                : 'padding: 9px 12px; border-bottom: 1px solid #edf2f7; color: #334155;';
+              html += '<tr>' + cells.map(c => `<${tag} style="${cellStyle}">${inlineFormat(c)}</${tag}>`).join('') + '</tr>';
+            });
+            html += '</table></div>';
+            return html;
+          }
+        }
+
+        // Heading
         if (clean.startsWith('#')) {
           const text = clean.replace(/^#+\s*/, '');
-          return `<h4 style="margin: 16px 0 8px; color: var(--ink); font-size: 1.1rem; border-left: 3px solid var(--gold); padding-left: 8px;">${escapeHtml(text)}</h4>`;
+          return `<h4 style="margin: 20px 0 10px; color: var(--ink); font-size: 1.15rem; border-left: 4px solid var(--gold); padding-left: 10px; font-weight: bold;">${inlineFormat(text)}</h4>`;
         }
-        if (clean.startsWith('-') || clean.startsWith('*')) {
-          const items = clean.split('\n').map(l => l.replace(/^[-*]\s*/, '').trim()).filter(Boolean);
-          return `<ul style="margin: 8px 0; padding-left: 20px;">${items.map(it => `<li>${escapeHtml(it)}</li>`).join('')}</ul>`;
+
+        // Section header like 一、【...】 or 1. 【...】
+        if (/^[一二三四五六七八九十0-9]+[、. ]\s*【/.test(clean)) {
+          const lines = clean.split('\n');
+          const title = lines[0];
+          const rest = lines.slice(1).join('\n').trim();
+          let html = `<h4 style="margin: 20px 0 10px; color: var(--gold-dark, #b45309); font-size: 1.15rem; border-left: 4px solid var(--gold); padding-left: 10px; font-weight: bold;">${inlineFormat(title)}</h4>`;
+          if (rest) {
+            html += `<p style="margin: 8px 0; line-height: 1.75; color: var(--ink);">${inlineFormat(rest).replace(/\n/g, '<br>')}</p>`;
+          }
+          return html;
         }
-        return `<p style="margin: 8px 0; line-height: 1.7; color: var(--ink);">${escapeHtml(clean).replace(/\n/g, '<br>')}</p>`;
+
+        // List items
+        if (lines.every(l => l.startsWith('-') || l.startsWith('*') || l.startsWith('•') || /^\d+\./.test(l))) {
+          const items = lines.map(l => l.replace(/^([-*•]|\d+\.)\s*/, '').trim()).filter(Boolean);
+          return `<ul style="margin: 10px 0; padding-left: 24px; line-height: 1.75;">${items.map(it => `<li style="margin-bottom: 6px; color: var(--ink);">${inlineFormat(it)}</li>`).join('')}</ul>`;
+        }
+
+        return `<p style="margin: 10px 0; line-height: 1.75; color: var(--ink);">${inlineFormat(clean).replace(/\n/g, '<br>')}</p>`;
       }).join('');
     }
 
