@@ -88,7 +88,88 @@ from copy import copy
 
 # ================= OCR 三重引擎：Gemini 2.0 Flash + GCP Vision + Tesseract =================
 
-KEY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gcp_keys")
+import sys, shutil
+IS_FROZEN = getattr(sys, "frozen", False)
+RUNTIME_DIR = os.path.dirname(sys.executable) if IS_FROZEN else os.path.dirname(os.path.abspath(__file__))
+BUNDLE_DIR = getattr(sys, "_MEIPASS", RUNTIME_DIR)
+
+# --- 方案 B：GitHub 雲端熱更新 & 外部腳本優先載入機制 ---
+if IS_FROZEN and not globals().get("_HOT_RELOADED_"):
+    def _run_cloud_or_local_hot_reload():
+        try:
+            import pyi_splash
+        except Exception:
+            pyi_splash = None
+
+        def _update_splash(msg_text):
+            if pyi_splash:
+                try:
+                    pyi_splash.update_text(msg_text)
+                except Exception:
+                    pass
+
+        import urllib.request
+        cache_dir = os.path.join(RUNTIME_DIR, ".cloud_cache")
+        cached_py = os.path.join(cache_dir, "main_cloud.py")
+        local_py = os.path.join(RUNTIME_DIR, "main.py")
+        raw_url = "https://raw.githubusercontent.com/shihwei0809/google-agent/main/%E5%8B%9D%E4%B8%80%E4%B8%89%E5%90%88%E4%B8%80%E5%96%AE%E7%94%A2%E7%94%9F%E7%B3%BB%E7%B5%B1/main.py"
+        downloaded_new = False
+        try:
+            req = urllib.request.Request(raw_url, headers={"User-Agent": "Mozilla/5.0", "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
+                if resp.status == 200:
+                    code_bytes = resp.read()
+                    code_text = code_bytes.decode("utf-8")
+                    if "class App" in code_text and len(code_text) > 5000:
+                        need_save = True
+                        if os.path.exists(cached_py):
+                            try:
+                                with open(cached_py, "rb") as old_f:
+                                    if old_f.read() == code_bytes:
+                                        need_save = False
+                            except Exception:
+                                pass
+                        if need_save:
+                            _update_splash("🚀 偵測到新版本！正在更新中，請稍候...")
+                            os.makedirs(cache_dir, exist_ok=True)
+                            with open(cached_py, "wb") as cf:
+                                cf.write(code_bytes)
+                            downloaded_new = True
+                            import time
+                            time.sleep(0.6)
+        except Exception:
+            pass
+
+        if downloaded_new:
+            _update_splash("✅ 已更新至最新版本！即將啟動...")
+        else:
+            _update_splash("✅ 已為最新版本，即將啟動...")
+
+        # 優先順序：1. 同資料夾外部 main.py (若有放且比快取新) -> 2. 雲端最新快取 main_cloud.py -> 3. 內建封裝版
+        target_py = None
+        if os.path.exists(local_py) and os.path.exists(cached_py):
+            target_py = local_py if os.path.getmtime(local_py) > os.path.getmtime(cached_py) else cached_py
+        elif os.path.exists(cached_py):
+            target_py = cached_py
+        elif os.path.exists(local_py):
+            target_py = local_py
+        if target_py:
+            try:
+                with open(target_py, "r", encoding="utf-8") as tf:
+                    hot_code = tf.read()
+                g_dict = dict(globals())
+                g_dict["_HOT_RELOADED_"] = True
+                g_dict["__name__"] = "__main__"
+                g_dict["__file__"] = target_py
+                exec(compile(hot_code, target_py, "exec"), g_dict)
+                sys.exit(0)
+            except SystemExit:
+                raise
+            except Exception as e:
+                print(f"[HotReload Fallback] 改用內建封裝邏輯: {e}")
+    _run_cloud_or_local_hot_reload()
+
+KEY_DIR = os.path.join(RUNTIME_DIR, "gcp_keys")
 GEMINI_KEYS_FILE = os.path.join(KEY_DIR, "gemini_keys.json")
 GCP_TRACKER_FILE = os.path.join(KEY_DIR, "usage_tracker.json")
 
@@ -1436,9 +1517,37 @@ class App(tk.Tk):
         self.minsize(1080, 620)
         self.configure(padx=15, pady=15)
         
-        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.base_dir = RUNTIME_DIR
         self.template_path = os.path.join(self.base_dir, "台積電槽車barcode三合一單-範本.xlsx")
         self.mapping_path = os.path.join(self.base_dir, "地點代號對照表.xlsx")
+
+        # 1. 自動釋放內建預設檔案（範本、地點代號對照表、預設 COA CSV、預設 Chemical_Lorry）
+        #    只有在外部目錄尚無該檔案時才釋放，絕不覆蓋使用者既有檔案！
+        bundled_defaults = [
+            "台積電槽車barcode三合一單-範本.xlsx",
+            "地點代號對照表.xlsx",
+            "L269100_SEP73E4_COA.csv",
+            "L2C9100_SEP73E5_COA.csv",
+            "L2C9173_CPNE4R_COA.csv",
+            "L2C9501_PMAHQ_COA.csv",
+            "L2R9501_PMAHQR_COA.csv",
+            "Chemical_Lorry_L269100_SEP73E4.xlsx",
+            "Chemical_Lorry_L2C9100_SEP73E5.xlsx",
+            "Chemical_Lorry_L2C9173_CPNE4R.xlsx",
+            "Chemical_Lorry_L2C9501_PMAHQ.xlsx",
+            "Chemical_Lorry_L2R9501_PMAHQR.xlsx",
+        ]
+        for b_fname in bundled_defaults:
+            ext_p = os.path.join(self.base_dir, b_fname)
+            bun_p = os.path.join(BUNDLE_DIR, b_fname)
+            if not os.path.exists(ext_p) and os.path.exists(bun_p):
+                try:
+                    shutil.copy2(bun_p, ext_p)
+                except Exception:
+                    if b_fname == "台積電槽車barcode三合一單-範本.xlsx":
+                        self.template_path = bun_p
+                    elif b_fname == "地點代號對照表.xlsx":
+                        self.mapping_path = bun_p
         
         self.mapping_dict = {}
         self.part_mapping_dict = {}
@@ -3350,5 +3459,17 @@ class App(tk.Tk):
             os.startfile(d)
 
 if __name__ == "__main__":
+    try:
+        import pyi_splash
+        pyi_splash.close()
+    except Exception:
+        pass
     app = App()
+    try:
+        app.lift()
+        app.attributes("-topmost", True)
+        app.after(300, lambda: app.attributes("-topmost", False))
+        app.focus_force()
+    except Exception:
+        pass
     app.mainloop()

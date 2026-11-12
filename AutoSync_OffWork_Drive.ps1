@@ -101,7 +101,7 @@ New-Item -ItemType Directory -Force -Path $targetSnapshot | Out-Null
 Write-Output "------------------------------------------------------------"
 Write-Output "[STEP 1] 今日收工快照目標: $targetSnapshot"
 
-$sourceRoot = "C:\GOOGLE ANGET"
+$sourceRoot = if ($PSScriptRoot) { $PSScriptRoot } else { "D:\GOOGLE ANGET" }
 $excludeDirs = @(".git", "node_modules", "__pycache__", ".wrangler", "build", "venv", ".venv", "old", "專案備份", "category_folders_backup", "skills_backup", "my-ai-brain", "cross-device-agent-skills")
 
 # 複製根目錄今日修改之檔案 (如 HANDOVER.md 等)

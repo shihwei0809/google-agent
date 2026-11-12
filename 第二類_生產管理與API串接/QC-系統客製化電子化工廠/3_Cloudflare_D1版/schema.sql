@@ -1,4 +1,4 @@
-﻿DROP TABLE IF EXISTS System_Config;
+DROP TABLE IF EXISTS System_Config;
 CREATE TABLE System_Config (
     config_key TEXT PRIMARY KEY,
     config_value TEXT
@@ -12,7 +12,7 @@ INSERT INTO System_Config (config_key, config_value) VALUES
 ('TEAMS_WEBHOOK_二部二課', ''),
 ('TEAMS_WEBHOOK_一部一課', ''),
 ('TEAMS_WEBHOOK_一部二課', ''),
-('PWA_URL', 'https://google-agent.pages.dev/qc-system'),
+('PWA_URL', 'https://qc-samples.pages.dev'),
 ('OPTIONS_FLOW_TYPES', '出貨, 進料, 補料, 委託'),
 ('OPTIONS_GRADES', '工業級, 電子級, IF'),
 ('OPTIONS_DEPTS', '資材課, 二部一課, 二部二課, 一部一課, 一部二課'),

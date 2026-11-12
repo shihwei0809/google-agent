@@ -108,6 +108,8 @@ function doPost(e) {
       return handleAfterFeed(params);
     } else if (action === "complete_feed") {
       return handleCompleteFeed(params);
+    } else if (action === "sync_from_d1") {
+      return handleSyncFromD1(params);
     }
     
     return jsonResponse({ success: false, detail: "未知的 action" }, 400);
@@ -137,9 +139,9 @@ function handleBeforeFeed(params) {
     }
   }
 
-  // 存檔到 Drive
-  const t_url = saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`, date);
-  const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`, date);
+  // 存檔到 Drive (優先支援外部 R2 網址，若無則將 Base64 存入 Google Drive)
+  const t_url = params.t_url || params.tBeforeUrl || saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`, date);
+  const v_url = params.v_url || params.vPhotoUrl || saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`, date);
   
   // 寫入 Sheets：優先採用手機拍照當下的實際時間 client_before_time，離線拍照也能精準記錄
   const beforeTime = client_before_time || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
@@ -166,9 +168,9 @@ function handleCompleteFeed(params) {
     }
   }
 
-  const t_url = saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`, date);
-  const v_url = saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`, date);
-  const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`, date);
+  const t_url = params.t_url || params.tBeforeUrl || saveBase64ToDrive(tank_level_before_b64, `before_${date}_${license_plate}_${t_name}`, date);
+  const v_url = params.v_url || params.vPhotoUrl || saveBase64ToDrive(vehicle_photo_b64, `vehicle_${date}_${license_plate}_${v_name}`, date);
+  const a_url = params.a_url || params.tAfterUrl || saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`, date);
 
   const nowStr = Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
   const beforeTime = client_before_time || nowStr;
@@ -229,8 +231,8 @@ function handleAfterFeed(params) {
     return jsonResponse({ success: false, detail: "找不到該筆待入料紀錄" }, 404);
   }
 
-  // 存檔到 Drive
-  const a_url = saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`, date);
+  // 存檔到 Drive (優先支援外部 R2 網址，若無則將 Base64 存入 Google Drive)
+  const a_url = params.a_url || params.tAfterUrl || saveBase64ToDrive(tank_level_after_b64, `after_${date}_${license_plate}_${a_name}`, date);
   
   const afterTime = client_after_time || Utilities.formatDate(new Date(), "GMT+8", "yyyy-MM-dd HH:mm:ss");
 
@@ -252,12 +254,73 @@ function handleAfterFeed(params) {
   if (durationMin !== "") {
     sheet.getRange(rowIndex, 7).setValue(durationMin);
   }
-  sheet.getRange(rowIndex, 10).setValue(a_url);
+  if (a_url) {
+    sheet.getRange(rowIndex, 10).setValue(a_url);
+  }
   
   return jsonResponse({ 
     success: true, 
     message: "入料後記錄已更新至 Google 雲端",
     a_url: a_url
+  });
+}
+
+// 支援從 Cloudflare D1 完整回寫/雙向同步 Google 試算表
+function handleSyncFromD1(params) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const records = Array.isArray(params.records) ? params.records : [params];
+  const data = sheet.getDataRange().getValues();
+  
+  // 建立既有 ID 對照表：ID -> 列號 (從 1 開始)
+  const idRowMap = {};
+  for (let i = 1; i < data.length; i++) {
+    const rowId = String(data[i][0]).trim();
+    if (rowId) {
+      idRowMap[rowId] = i + 1;
+    }
+  }
+
+  let updatedCount = 0;
+  let insertedCount = 0;
+
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    if (!r || !r.id) continue;
+    const rId = String(r.id).trim();
+    const dateVal = "'" + String(r.date || "").split("T")[0];
+    const plate = String(r.license_plate || "").trim();
+    const status = String(r.status || "pending").trim();
+    const beforeTime = r.before_time || r.client_before_time || "";
+    const afterTime = r.after_time || r.client_after_time || "";
+    const duration = (r.duration !== undefined && r.duration !== null && r.duration !== "") ? r.duration : "";
+    const tUrl = r.tBeforeUrl || r.t_url || "";
+    const vUrl = r.vPhotoUrl || r.v_url || "";
+    const aUrl = r.tAfterUrl || r.a_url || "";
+
+    if (idRowMap[rId]) {
+      // 既有列比對更新 (補齊空白照片與完成狀態)
+      const rowIndex = idRowMap[rId];
+      if (status) sheet.getRange(rowIndex, 4).setValue(status);
+      if (beforeTime && !data[rowIndex - 1][4]) sheet.getRange(rowIndex, 5).setValue(beforeTime);
+      if (afterTime) sheet.getRange(rowIndex, 6).setValue(afterTime);
+      if (duration !== "") sheet.getRange(rowIndex, 7).setValue(duration);
+      if (tUrl && !data[rowIndex - 1][7]) sheet.getRange(rowIndex, 8).setValue(tUrl);
+      if (vUrl && !data[rowIndex - 1][8]) sheet.getRange(rowIndex, 9).setValue(vUrl);
+      if (aUrl && !data[rowIndex - 1][9]) sheet.getRange(rowIndex, 10).setValue(aUrl);
+      updatedCount++;
+    } else {
+      // 插入全新列 (如遺漏的 HAB-3977)
+      sheet.appendRow([rId, dateVal, plate, status, beforeTime, afterTime, duration, tUrl, vUrl, aUrl]);
+      idRowMap[rId] = sheet.getLastRow();
+      insertedCount++;
+    }
+  }
+
+  return jsonResponse({
+    success: true,
+    message: `D1 資料回寫完成：新增 ${insertedCount} 筆，更新 ${updatedCount} 筆`,
+    inserted: insertedCount,
+    updated: updatedCount
   });
 }
 

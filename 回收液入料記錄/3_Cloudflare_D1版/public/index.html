@@ -45,7 +45,7 @@
 <div id="updateBanner" onclick="applySystemUpdate()">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
 <div class="header" id="appHeader" style="user-select:none; -webkit-user-select:none;">
-    <span id="appHeaderTitle">入料記錄 App</span> <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v18-D1 (R2 照片整合)</span>
+    <span id="appHeaderTitle">入料記錄 App</span> <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v19-D1 (雙向回寫強化)</span>
     <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
@@ -105,9 +105,12 @@
 
     <!-- 解鎖後查詢內容區域 -->
     <div id="queryContentContainer" style="display:none;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
             <span style="font-size:13px; color:#28a745;">🔓 已授權查閱</span>
-            <button type="button" onclick="lockQuery()" style="width:auto; padding:5px 12px; margin:0; font-size:13px; background:#6c757d;">🔒 重新上鎖</button>
+            <div style="display:flex; gap:6px;">
+                <button type="button" onclick="triggerD1ToGasSync()" style="width:auto; padding:5px 12px; margin:0; font-size:12px; background:#007bff; color:#fff; border-radius:4px; border:none; cursor:pointer; font-weight:bold;">🔄 同步 D1 回寫試算表</button>
+                <button type="button" onclick="lockQuery()" style="width:auto; padding:5px 12px; margin:0; font-size:12px; background:#6c757d; border-radius:4px; border:none; color:#fff; cursor:pointer;">🔒 重新上鎖</button>
+            </div>
         </div>
         <!-- 快速狀態篩選標籤 -->
         <div class="filter-chip-group">
@@ -302,6 +305,30 @@
     function lockQuery() {
         sessionStorage.removeItem('queryUnlocked');
         checkQueryAuth();
+    }
+
+    async function triggerD1ToGasSync() {
+        if (!confirm('是否要將 Cloudflare D1 所有最新入料記錄與照片超連結完整同步回寫至 Google 試算表？')) return;
+        const loadEl = document.getElementById('loading');
+        if (loadEl) {
+            loadEl.style.display = 'block';
+            loadEl.innerText = '🚀 正在將 D1 資料回寫至 Google 試算表...';
+        }
+        try {
+            const res = await fetch('/api/records?action=sync_to_gas');
+            const data = await res.json();
+            if (data.success) {
+                const msg = data.gas_response ? data.gas_response.message : `共處理 ${data.total_synced} 筆`;
+                alert('✅ 雙向回寫成功！\n' + msg);
+                loadQueryRecords(true);
+            } else {
+                alert('⚠️ 回寫失敗：' + (data.detail || '未知錯誤'));
+            }
+        } catch (e) {
+            alert('❌ 回寫發生網路異常：' + e.message);
+        } finally {
+            if (loadEl) loadEl.style.display = 'none';
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
