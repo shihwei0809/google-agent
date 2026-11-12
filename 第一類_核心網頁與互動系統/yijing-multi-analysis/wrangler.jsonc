@@ -1,6 +1,6 @@
 {
   "name": "yijing-multi-analysis",
-  "main": "src/worker.js",
+  "main": "src/index.js",
   "compatibility_date": "2026-11-02",
   "assets": { "directory": "./public", "binding": "ASSETS" },
   "ai": { "binding": "AI" }
