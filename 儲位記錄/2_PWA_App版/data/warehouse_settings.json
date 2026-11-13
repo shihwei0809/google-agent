@@ -1,0 +1,97 @@
+{
+  "lunwei": {
+    "items": [
+      {
+        "item_name": "IPAIF",
+        "item_no": "",
+        "package": "",
+        "enabled": true
+      },
+      {
+        "item_name": "ACTUPS",
+        "item_no": "",
+        "package": "",
+        "enabled": true
+      },
+      {
+        "item_name": "NSE-115",
+        "item_no": "L140025",
+        "package": "200L",
+        "enabled": true
+      },
+      {
+        "item_name": "NSE-1106",
+        "item_no": "L140024",
+        "package": "200L",
+        "enabled": true
+      },
+      {
+        "item_name": "NSR-716",
+        "item_no": "L1185100",
+        "package": "200L",
+        "enabled": true
+      },
+      {
+        "item_name": "NSE-1106A",
+        "item_no": "L1400241",
+        "package": "200L",
+        "enabled": true
+      },
+      {
+        "item_name": "NSE-1106A(M50)",
+        "item_no": "L1400241",
+        "package": "200L",
+        "enabled": true
+      },
+      {
+        "item_name": "NSR-716A",
+        "item_no": "",
+        "package": "",
+        "enabled": true
+      },
+      {
+        "item_name": "NMP-1",
+        "item_no": "",
+        "package": "",
+        "enabled": true
+      },
+      {
+        "item_name": "KODA空桶",
+        "item_no": "",
+        "package": "",
+        "enabled": true
+      },
+      {
+        "item_name": "久存品",
+        "item_no": "",
+        "package": "",
+        "enabled": true
+      },
+      {
+        "item_name": "其他",
+        "item_no": "",
+        "package": "",
+        "enabled": true
+      },
+      {
+        "item_name": "GB-PS300",
+        "item_no": "",
+        "package": "",
+        "enabled": true
+      },
+      {
+        "item_name": "NSE-115A",
+        "item_no": "L1400251",
+        "package": "200L",
+        "enabled": true
+      }
+    ],
+    "packages": [
+      "GAL",
+      "20L",
+      "200L",
+      "1M",
+      "pallet"
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+name = "storage-rack-pwa"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "./public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "storage-rack-db"
+database_id = "7d562a45-6dd3-43e7-a6c4-d266cfdb22d5"

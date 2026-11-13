@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>倉儲儲位 Web 網頁管理版</title>
+  <style>
+    body { margin:0; font-family:"Microsoft JhengHei",sans-serif; background:#f8fafc; color:#0f172a; }
+    header { background:#0f172a; color:#fff; padding:14px 24px; display:flex; justify-content:space-between; align-items:center; }
+    .wrap { max-width:1100px; margin:20px auto; padding:0 16px; }
+    .card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:16px; margin-bottom:16px; }
+    .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    input, select, button { padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; font-size:14px; }
+    button { background:#0d9488; color:#fff; border:none; font-weight:700; cursor:pointer; }
+    table { width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+    th, td { padding:8px 10px; border-bottom:1px solid #e2e8f0; text-align:left; }
+    th { background:#f1f5f9; }
+  </style>
+</head>
+<body>
+  <header>
+    <div><strong>🏭 倉儲儲位 Web 網頁版（桌機對帳控制台）</strong></div>
+    <div class="row">
+      <input id="apiBase" type="text" value="http://localhost:8010" style="width:220px;" />
+      <button onclick="loadAll()">連線讀取</button>
+    </div>
+  </header>
+  <div class="wrap">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <strong>今日板數與批號核對總覽</strong>
+          <span id="summaryLine" style="margin-left:12px;color:#475569;">尚未連線</span>
+        </div>
+        <div class="row">
+          <input id="dtInput" type="date" />
+          <button onclick="exportCsv()">📥 匯出今日對帳 CSV</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr><th>批號</th><th>品名</th><th>入庫板數</th><th>入庫數量</th><th>出庫板數</th><th>出庫數量</th><th>筆數</th></tr>
+        </thead>
+        <tbody id="batchBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    const dt = new Date().toISOString().slice(0, 10);
+    document.getElementById('dtInput').value = dt;
+    function base() { return document.getElementById('apiBase').value.replace(/\/$/, ''); }
+    async function loadAll() {
+      try {
+        const res = await fetch(`${base()}/api/daily-stats?date=${document.getElementById('dtInput').value}`);
+        const st = await res.json();
+        document.getElementById('summaryLine').textContent =
+          `總板數: ${st.total_pallets} 板 (入庫 ${st.in_pallets} / 出庫 ${st.out_pallets}) | 入庫總量: ${st.in_qty} | 出庫總量: ${st.out_qty}`;
+        document.getElementById('batchBody').innerHTML = st.by_batch.map(b => `
+          <tr>
+            <td><strong>${b.lot_no}</strong></td>
+            <td>${b.item_name}</td>
+            <td>${b.in_pallets}</td>
+            <td>${b.in_qty}</td>
+            <td>${b.out_pallets}</td>
+            <td>${b.out_qty}</td>
+            <td>${b.record_count}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="7">今日尚無紀錄</td></tr>';
+      } catch (e) {
+        document.getElementById('summaryLine').textContent = '無法連線至本機伺服器，請先啟動 2_PWA_App版\\啟動PWA儲位系統.bat';
+      }
+    }
+    function exportCsv() {
+      window.open(`${base()}/api/daily-export?date=${document.getElementById('dtInput').value}`, '_blank');
+    }
+    loadAll();
+  </script>
+</body>
+</html>

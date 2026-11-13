@@ -17,6 +17,47 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
+function callGeminiWithFallback(geminiKey, requestBody, modelIndex = 0, callback) {
+  const models = [
+    process.env.GEMINI_MODEL || env.GEMINI_MODEL,
+    'gemini-3.8-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-2.5-flash',
+    'gemini-flash-latest'
+  ].filter(Boolean);
+  if (modelIndex >= models.length) {
+    return callback(new Error('所有可用的 Gemini 模組皆呼叫失敗'));
+  }
+  const modelName = models[modelIndex];
+  const req = https.request({
+    hostname: 'generativelanguage.googleapis.com',
+    path: `/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(requestBody)
+    }
+  }, (geminiRes) => {
+    let resData = '';
+    geminiRes.on('data', chunk => { resData += chunk; });
+    geminiRes.on('end', () => {
+      if (geminiRes.statusCode === 200) {
+        callback(null, resData);
+      } else {
+        console.warn(`[Gemini] 模組 ${modelName} 返回錯誤碼: ${geminiRes.statusCode}，嘗試下一個模組。`);
+        callGeminiWithFallback(geminiKey, requestBody, modelIndex + 1, callback);
+      }
+    });
+  });
+  req.on('error', (err) => {
+    console.warn(`[Gemini] 模組 ${modelName} 連線異常: ${err.message}，嘗試下一個模組。`);
+    callGeminiWithFallback(geminiKey, requestBody, modelIndex + 1, callback);
+  });
+  req.write(requestBody);
+  req.end();
+}
+
 // 1. 簡易讀取並解析 .env 檔案
 const env = {};
 try {
@@ -142,7 +183,7 @@ const server = http.createServer((req, res) => {
           return res.end(JSON.stringify({ error: '未配置 GEMINI_API_KEY' }));
         }
 
-        // 呼叫 Gemini 進行批改 (使用 1.5-flash)
+        // 呼叫 Gemini 進行批改 (支援多模型自動降級)
         const geminiReqBody = JSON.stringify({
           contents: [{
             parts: [{
@@ -154,47 +195,26 @@ const server = http.createServer((req, res) => {
           }
         });
 
-        const geminiReq = https.request({
-          hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(geminiReqBody)
+        callGeminiWithFallback(geminiKey, geminiReqBody, 0, (err, resData) => {
+          if (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: '連線到 Gemini 失敗: ' + err.message }));
           }
-        }, (geminiRes) => {
-          let resData = '';
-          geminiRes.on('data', chunk => { resData += chunk; });
-          geminiRes.on('end', () => {
-            try {
-              const parsed = JSON.parse(resData);
-              if (geminiRes.statusCode === 200) {
-                const textResult = parsed.candidates[0].content.parts[0].text;
-                const grading = JSON.parse(textResult.trim());
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({
-                  score: grading.score,
-                  feedback: grading.feedback,
-                  simulated: false
-                }));
-              } else {
-                res.writeHead(geminiRes.statusCode, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: parsed.error?.message || 'Gemini API 錯誤' }));
-              }
-            } catch (err) {
-              res.writeHead(500, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: '解析 Gemini 回傳資料失敗' }));
-            }
-          });
+          try {
+            const parsed = JSON.parse(resData);
+            const textResult = parsed.candidates[0].content.parts[0].text;
+            const grading = JSON.parse(textResult.trim());
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              score: grading.score,
+              feedback: grading.feedback,
+              simulated: false
+            }));
+          } catch (parseErr) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: '解析 Gemini 回傳資料失敗' }));
+          }
         });
-
-        geminiReq.on('error', (err) => {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: '連線到 Gemini 失敗: ' + err.message }));
-        });
-
-        geminiReq.write(geminiReqBody);
-        geminiReq.end();
 
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });

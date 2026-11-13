@@ -1,0 +1,24 @@
+{
+  "name": "倉儲儲位 PWA 記錄系統",
+  "short_name": "儲位記錄",
+  "description": "手機掃選儲位、批號與數量，即時回寫 Excel 並統計每日板數與批號核對",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

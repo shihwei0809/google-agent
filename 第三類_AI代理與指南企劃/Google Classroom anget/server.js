@@ -3,6 +3,47 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
+function callGeminiWithFallback(geminiKey, requestBody, modelIndex = 0, callback) {
+  const models = [
+    process.env.GEMINI_MODEL || env.GEMINI_MODEL,
+    'gemini-3.8-flash',
+    'gemini-3.6-flash',
+    'gemini-3.5-flash',
+    'gemini-2.5-flash',
+    'gemini-flash-latest'
+  ].filter(Boolean);
+  if (modelIndex >= models.length) {
+    return callback(new Error('All Gemini fallback models failed'));
+  }
+  const modelName = models[modelIndex];
+  const req = https.request({
+    hostname: 'generativelanguage.googleapis.com',
+    path: `/v1beta/models/${modelName}:generateContent?key=${geminiKey}`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(requestBody)
+    }
+  }, (geminiRes) => {
+    let resData = '';
+    geminiRes.on('data', chunk => { resData += chunk; });
+    geminiRes.on('end', () => {
+      if (geminiRes.statusCode === 200) {
+        callback(null, resData);
+      } else {
+        console.warn(`[Gemini] ${modelName} failed (${geminiRes.statusCode}), trying next...`);
+        callGeminiWithFallback(geminiKey, requestBody, modelIndex + 1, callback);
+      }
+    });
+  });
+  req.on('error', (err) => {
+    console.warn(`[Gemini] ${modelName} error (${err.message}), trying next...`);
+    callGeminiWithFallback(geminiKey, requestBody, modelIndex + 1, callback);
+  });
+  req.write(requestBody);
+  req.end();
+}
+
 const PORT = 3000;
 
 // 1. Load env variables
@@ -188,47 +229,26 @@ http.createServer((req, res) => {
           }
         });
 
-        const geminiReq = https.request({
-          hostname: 'generativelanguage.googleapis.com',
-          path: `/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(geminiReqBody)
+        callGeminiWithFallback(geminiKey, geminiReqBody, 0, (err, resData) => {
+          if (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Connection to Gemini failed: ' + err.message }));
           }
-        }, (geminiRes) => {
-          let resData = '';
-          geminiRes.on('data', chunk => { resData += chunk; });
-          geminiRes.on('end', () => {
-            try {
-              const parsed = JSON.parse(resData);
-              if (geminiRes.statusCode === 200) {
-                const textResult = parsed.candidates[0].content.parts[0].text;
-                const grading = JSON.parse(textResult.trim());
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({
-                  score: grading.score,
-                  feedback: grading.feedback,
-                  simulated: false
-                }));
-              } else {
-                res.writeHead(geminiRes.statusCode, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ error: parsed.error?.message || 'Gemini API Error' }));
-              }
-            } catch (err) {
-              res.writeHead(500, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify({ error: 'Failed to parse Gemini response' }));
-            }
-          });
+          try {
+            const parsed = JSON.parse(resData);
+            const textResult = parsed.candidates[0].content.parts[0].text;
+            const grading = JSON.parse(textResult.trim());
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              score: grading.score,
+              feedback: grading.feedback,
+              simulated: false
+            }));
+          } catch (parseErr) {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: 'Failed to parse Gemini response' }));
+          }
         });
-
-        geminiReq.on('error', (err) => {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Connection to Gemini failed: ' + err.message }));
-        });
-
-        geminiReq.write(geminiReqBody);
-        geminiReq.end();
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid JSON request' }));

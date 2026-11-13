@@ -99,40 +99,43 @@ PROMPTS_SCHEMA = {
 
 # ─── Gemini & Grok API Call Helpers ───────────────────────────────────────────
 def call_gemini_json(api_key: str, model: str, system_instruction: str, user_prompt: str, response_schema: Optional[dict] = None) -> dict:
-    """Call Google Gemini API with JSON response format enabled and optional schema validation."""
-    try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-        headers = {"Content-Type": "application/json"}
-        
-        payload = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": user_prompt}]
-                }
-            ],
-            "systemInstruction": {
-                "parts": [{"text": system_instruction}]
-            },
-            "generationConfig": {
-                "responseMimeType": "application/json"
+    """Call Google Gemini API with JSON response format enabled and automatic model fallback."""
+    fallback_models = [model, "gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-flash-latest"]
+    models_to_try = list(dict.fromkeys(m for m in fallback_models if m))
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": user_prompt}]
             }
+        ],
+        "systemInstruction": {
+            "parts": [{"text": system_instruction}]
+        },
+        "generationConfig": {
+            "responseMimeType": "application/json"
         }
-        
-        if response_schema:
-            payload["generationConfig"]["responseSchema"] = response_schema
-        
-        response = requests.post(url, json=payload, headers=headers, timeout=90)
-        response.raise_for_status()
-        data = response.json()
-        
-        # Extract response text
-        text_content = data["candidates"][0]["content"]["parts"][0]["text"]
-        logger.info("Successfully received response from Gemini API.")
-        return json.loads(text_content.strip())
-    except Exception as e:
-        logger.exception("Gemini API request failed")
-        raise HTTPException(status_code=500, detail=f"呼叫 Gemini API 失敗：{str(e)}")
+    }
+    if response_schema:
+        payload["generationConfig"]["responseSchema"] = response_schema
+
+    last_error = None
+    for current_model in models_to_try:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent?key={api_key}"
+            response = requests.post(url, json=payload, headers=headers, timeout=90)
+            response.raise_for_status()
+            data = response.json()
+            text_content = data["candidates"][0]["content"]["parts"][0]["text"]
+            logger.info(f"Successfully received response from Gemini API ({current_model}).")
+            return json.loads(text_content.strip())
+        except Exception as e:
+            logger.warning(f"Gemini model {current_model} failed: {e}")
+            last_error = e
+
+    logger.exception("All Gemini fallback models failed")
+    raise HTTPException(status_code=500, detail=f"呼叫 Gemini API 失敗：{str(last_error)}")
 
 def call_grok_json(api_key: str, model: str, system_instruction: str, user_prompt: str) -> dict:
     """Call xAI Grok API with JSON response format enabled."""

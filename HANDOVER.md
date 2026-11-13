@@ -1,6 +1,27 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-11-12 鴻勝化學 QC 檢驗即時看板 v3.3.0 升級：同車多單彈性配置、重複送樣自主判定防呆、等級智慧動態判定、完成件近2天時區修正與線上部署)
+## 今日進度與交接事項 (2026-11-13 倉儲儲位 PWA 記錄系統建置完成：雙倉 .xlsm 無損回寫、儲位平面圖、批號出入庫獨立彙整、人員帳密登入與 Cloudflare D1 雲端部署)
+* **倉儲儲位 PWA 記錄系統 (`C:\GOOGLE ANGET\儲位記錄`)**:
+  - **三軌架構與標準四件套完整建立**:
+    1. `1_Web_網頁版/index.html`、`2_PWA_App版/`（本機區網 FastAPI + PWA）、`3_Cloudflare_D1版/`（Pages + D1 Serverless）。
+    2. 完整建立 `README.md`、`SKILL.md`、`setup_env.ps1`、`build_manual_doc.py` 與 `倉儲儲位PWA記錄系統_操作手冊.docx`。
+  - **Excel (`.xlsm`) 無損讀寫引擎 (`2_PWA_App版/excel_engine.py`)**:
+    1. **避坑指南**：`鴻勝儲位表.xlsm` 的 drawing XML 含有 `pitchFamily > 52`，`openpyxl.load_workbook(..., keep_vba=True)` 寫入會直接報錯且破壞 DataValidation；因此改用 **Surgical XML/ZIP 寫入引擎**，僅修改總表（`崙尾倉儲儲位表_總表202208` / `倉庫總表`）C~H 欄，完整保留 VLOOKUP 公式、VBA 巨集、圖表與 50+ 張分區儲位表連動，寫入前自動備份至 `backups/`。
+    2. 新增「下載儲位專用精簡版 Excel（`*_儲位專用.xlsm`）」，自動過濾無關帳卡分頁並重編 `localSheetId`，保留原本儲位表樣式與公式。
+  - **核心作業與防呆功能 (`2_PWA_App版/index.html` & `run_server.py`)**:
+    1. **儲位卡片顯示**：直接顯示儲位代碼、數量標籤、品名與批號（多批號以 `/` 顯示），並支援品名自動帶出品號與預設包材。
+    2. **入庫防呆與多批號支援**：入庫遇已有貨儲位自動彈窗選擇「🔄 覆蓋舊資料（忘記出庫）」或「➕ 併板／累加」；多批號可用逗號分隔，回寫 Excel 自動轉為換行格式（`\n`）。
+    3. **總表即時看板與 2D 儲位平面圖**：僅動態顯示架上有貨品名與依備註（`HOLD`/`異常`/`不良`/`後助`/`侯住`）抓取之異常品桶數，並提供全螢幕響應式排版（手機～32 吋螢幕）。
+    4. **今日統計與批號核對**：將「📥 今日入庫批號彙整」與「📤 今日出庫批號彙整」分為獨立兩欄（不管儲位依批號加總），並支援匯出 UTF-8 BOM CSV。
+    5. **各倉庫獨立品名包材設定（品名可直接修改）** 與 **離線優先自動補傳**（`sw.js` v1.0.12 + `pwa_offline_sync.js`）。
+    6. **人員帳密登入與異動追蹤**：預設帳號 `admin` / `1234`（管理員可新增/修改/刪除現場人員）與 `staff1` / `1234`，全螢幕不透明登入頁，每筆異動自動記錄操作人員；`啟動PWA儲位系統.bat` 已轉為 Windows `CRLF` 格式並實測通過。
+  - **Cloudflare Pages + 獨立 D1 部署**:
+    1. 建立獨立 D1 資料庫 `storage-rack-db`（UUID：`7d562a45-6dd3-43e7-a6c4-d266cfdb22d5`），與原有 `weather-monitor-db`、`qc-db`、`egups-db` 完全隔離。
+    2. 已匯入 2,636 筆儲位與品項設定，正式網址：`https://storage-rack-pwa.pages.dev`。
+
+---
+
+## 前次進度與交接事項 (2026-11-12 鴻勝化學 QC 檢驗即時看板 v3.3.0 升級：同車多單彈性配置、重複送樣自主判定防呆、等級智慧動態判定、完成件近2天時區修正與線上部署)
 * **鴻勝化學 QC 檢驗即時看板系統升級至 v3.3.0 (`C:\GOOGLE ANGET\第二類_生產管理與API串接\QC-系統客製化電子化工廠\3_Cloudflare_D1版`):**
   - **同車多單合併機制動態彈性配置 (`OPTIONS_MULTI_ORDER_PRODUCTS`)**:
     1. 將多單合併支援品名由寫死代碼改為後台動態自訂，資料庫 `System_Config` 新增 `OPTIONS_MULTI_ORDER_PRODUCTS` 參數（預設 `EBR-P1R, NBAC-P1R, CPN-P1R`）。

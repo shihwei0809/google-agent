@@ -2271,9 +2271,14 @@ function updateAiStatus() {
   }
 }
 
-// Call Gemini API (underlying)
+// Call Gemini API (underlying, with model fallback)
 async function callGeminiAPI(promptText, systemInstruction, apiKey) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const models = [
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-flash-latest"
+  ];
 
   const requestBody = {
     contents: [
@@ -2293,30 +2298,37 @@ async function callGeminiAPI(promptText, systemInstruction, apiKey) {
     };
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(requestBody)
-  });
+  let lastError = null;
+  for (const modelName of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(requestBody)
+    });
 
-  if (!response.ok) {
+    if (response.ok) {
+      const resData = await response.json();
+      const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) {
+        lastError = new Error("API 未返回文字內容");
+        continue;
+      }
+      return text;
+    }
+
     const errData = await response.json().catch(() => ({}));
     if (response.status === 429) {
-      throw new Error("QUOTA_EXCEEDED");
+      lastError = new Error("QUOTA_EXCEEDED");
+      continue;
     }
     const errMsg = errData?.error?.message || `HTTP 錯誤碼: ${response.status}`;
-    throw new Error(errMsg);
+    lastError = new Error(errMsg);
   }
 
-  const resData = await response.json();
-  const text = resData?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error("API 未返回文字內容");
-  }
-
-  return text;
+  throw lastError || new Error("所有 Gemini 備援模型皆呼叫失敗");
 }
 
 // Call Groq API (underlying)

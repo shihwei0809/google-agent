@@ -4513,33 +4513,53 @@ ${JSON.stringify(stateSummary)}
     });
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${geminiApiKey}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: systemMessage + "\n\n使用者問題/指令:\n" + searchHint + messageText }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseMimeType: "application/json"
-      }
-    })
-  });
+  const modelsToTry = Array.from(new Set([
+    geminiModel,
+    "gemini-3.8-flash",
+    "gemini-3.5-flash",
+    "gemini-2.5-flash",
+    "gemini-flash-latest"
+  ].filter(Boolean)));
 
-  if (!response.ok) {
-    const errText = await response.text();
-    if (response.status === 429) {
+  let response = null;
+  let lastErrText = "";
+  let lastStatus = 0;
+
+  for (const mName of modelsToTry) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${mName}:generateContent?key=${geminiApiKey}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { text: systemMessage + "\n\n使用者問題/指令:\n" + searchHint + messageText }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      })
+    });
+
+    if (res.ok) {
+      response = res;
+      break;
+    }
+    lastStatus = res.status;
+    lastErrText = await res.text();
+  }
+
+  if (!response) {
+    if (lastStatus === 429) {
       throw new Error("QUOTA_EXCEEDED");
     }
-    throw new Error(`Gemini API 錯誤 (${response.status}): ${errText}`);
+    throw new Error(`Gemini API 錯誤 (${lastStatus}): ${lastErrText}`);
   }
 
   const resJson = await response.json();

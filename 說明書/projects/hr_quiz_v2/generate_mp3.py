@@ -77,12 +77,28 @@ async def generate_one(name, text, idx, total):
             
         try:
             client = genai.Client(api_key=api_key)
-            interaction = client.interactions.create(
-                model="gemini-3.1-flash-tts-preview",
-                input=text,
-                response_format={"type": "audio"},
-                generation_config={"speech_config": [{"voice": GEMINI_VOICE}]}
-            )
+            tts_models = [
+                os.environ.get("GEMINI_TTS_MODEL"),
+                "gemini-3.1-flash-tts",
+                "gemini-3.1-flash-tts-preview",
+                "gemini-2.5-flash-preview-tts",
+                "gemini-2.5-pro-preview-tts",
+            ]
+            interaction = None
+            last_err = None
+            for m in [m for m in tts_models if m]:
+                try:
+                    interaction = client.interactions.create(
+                        model=m,
+                        input=text,
+                        response_format={"type": "audio"},
+                        generation_config={"speech_config": [{"voice": GEMINI_VOICE}]}
+                    )
+                    break
+                except Exception as inner_e:
+                    last_err = inner_e
+            if interaction is None:
+                raise last_err
             
             import base64
             import wave

@@ -189,8 +189,6 @@ function askGemini(username, userQuestion) {
                           "請務必填寫你評估出來的各項屬性，未提及的屬性可保留空字串，但不可省略該 JSON 格式。\n\n" +
                           "【當前使用者：" + username + " 的保養品資料庫內容如下】\n" + context;
   
-  var url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + apiKey;
-  
   var payload = {
     "contents": [
       {
@@ -206,31 +204,43 @@ function askGemini(username, userQuestion) {
       "maxOutputTokens": 1000
     }
   };
-  
+
   var options = {
     "method": "post",
     "contentType": "application/json",
     "payload": JSON.stringify(payload),
     "muteHttpExceptions": true
   };
-  
-  try {
-    var response = UrlFetchApp.fetch(url, options);
-    var responseCode = response.getResponseCode();
-    var responseText = response.getContentText();
-    var json = JSON.parse(responseText);
-    
-    if (responseCode === 200) {
-      if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts[0]) {
-        return json.candidates[0].content.parts[0].text;
+
+  var candidateModels = [modelName, "gemini-3.8-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-flash-latest"];
+  var triedModels = {};
+  var lastErrMsg = "";
+
+  for (var mIdx = 0; mIdx < candidateModels.length; mIdx++) {
+    var mName = candidateModels[mIdx];
+    if (!mName || triedModels[mName]) continue;
+    triedModels[mName] = true;
+
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/" + mName + ":generateContent?key=" + apiKey;
+    try {
+      var response = UrlFetchApp.fetch(url, options);
+      var responseCode = response.getResponseCode();
+      var responseText = response.getContentText();
+      var json = JSON.parse(responseText);
+
+      if (responseCode === 200) {
+        if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts[0]) {
+          return json.candidates[0].content.parts[0].text;
+        }
+        return "AI 沒有返回內容，請稍後再試。";
+      } else {
+        lastErrMsg = "狀態碼: " + responseCode + " (" + (json.error ? json.error.message : responseText) + ")";
       }
-      return "AI 沒有返回內容，請稍後再試。";
-    } else {
-      return "❌ AI 呼叫失敗，狀態碼: " + responseCode + "。錯誤原因: " + (json.error ? json.error.message : responseText);
+    } catch (e) {
+      lastErrMsg = e.toString();
     }
-  } catch (e) {
-    return "❌ 連線失敗: " + e.toString();
   }
+  return "❌ AI 呼叫失敗：" + lastErrMsg;
 }
 
 /**
