@@ -80,6 +80,41 @@ export async function onRequest(context) {
     return json({ local_url: url.origin, lan_url: url.origin, ip: "Cloudflare D1", port: 443 });
   }
 
+  const ensureDefaultWarehouses = async () => {
+    const cnt = await db.prepare("SELECT COUNT(*) AS c FROM warehouses").first();
+    if (!cnt || Number(cnt.c) === 0) {
+      await db.prepare("INSERT OR IGNORE INTO warehouses (id, name, icon, sort_order) VALUES (?, ?, ?, ?)").bind("lunwei", "崙尾倉儲", "🏭", 1).run();
+      await db.prepare("INSERT OR IGNORE INTO warehouses (id, name, icon, sort_order) VALUES (?, ?, ?, ?)").bind("hongsheng", "鴻勝倉庫", "🏢", 2).run();
+    }
+  };
+
+  if (path === "/api/warehouses") {
+    await ensureDefaultWarehouses();
+    if (request.method === "GET") {
+      const rows = (await db.prepare("SELECT id, name, icon, sort_order FROM warehouses ORDER BY sort_order, created_at").all()).results || [];
+      return json({ warehouses: rows.map(w => ({ ...w, exists: true })) });
+    }
+    if (request.method === "POST") {
+      const p = await request.json();
+      const wid = (p.id || "").trim();
+      const wname = (p.name || "").trim();
+      if (!wid || !wname) return json({ detail: "請填寫倉庫代碼與名稱" }, 400);
+      await db.prepare(
+        `INSERT INTO warehouses (id, name, icon, sort_order) VALUES (?, ?, ?, 10)
+         ON CONFLICT(id) DO UPDATE SET name=excluded.name, icon=excluded.icon`
+      ).bind(wid, wname, p.icon || "🏬").run();
+      const rows = (await db.prepare("SELECT id, name, icon, sort_order FROM warehouses ORDER BY sort_order, created_at").all()).results || [];
+      return json({ ok: true, message: `已儲存倉庫 ${wname}`, warehouses: rows.map(w => ({ ...w, exists: true })) });
+    }
+  }
+
+  if (path.startsWith("/api/warehouses/") && request.method === "DELETE") {
+    const wid = decodeURIComponent(path.split("/")[3]);
+    if (wid === "lunwei" || wid === "hongsheng") return json({ detail: "不可刪除預設倉庫" }, 400);
+    await db.prepare("DELETE FROM warehouses WHERE id = ?").bind(wid).run();
+    return json({ ok: true });
+  }
+
   if (path.startsWith("/api/warehouse/") && path.endsWith("/settings")) {
     const whId = path.split("/")[3];
     if (request.method === "GET") {
@@ -179,8 +214,11 @@ export async function onRequest(context) {
       total_empty_summary_count = Object.values(zm).reduce((s, c) => s + c.empty, 0);
     }
 
+    await ensureDefaultWarehouses();
+    const whRow = await db.prepare("SELECT name FROM warehouses WHERE id = ?").bind(whId).first();
+    const whName = whRow ? whRow.name : whId;
     return json({
-      warehouse: { id: whId, name: whId === "lunwei" ? "崙尾倉儲" : "鴻勝倉庫" },
+      warehouse: { id: whId, name: whName },
       zones,
       locations: locs,
       catalog,
@@ -260,13 +298,16 @@ export async function onRequest(context) {
       clear ? 0 : afterQty, clear ? "" : nextNote
     ).run();
 
+    await ensureDefaultWarehouses();
+    const whRow = await db.prepare("SELECT name FROM warehouses WHERE id = ?").bind(p.wh_id).first();
+    const whName = whRow ? whRow.name : p.wh_id;
     await db.prepare(
       `INSERT OR IGNORE INTO daily_logs
        (id, client_tx_id, log_date, log_time, wh_id, wh_name, zone, location, action, item_no, item_name, lot_no, package, before_qty, op_qty, after_qty, pallets, note, operator)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).bind(
       id, p.client_tx_id || null, logDate, logTime, p.wh_id,
-      p.wh_id === "lunwei" ? "崙尾倉儲" : "鴻勝倉庫",
+      whName,
       existing?.zone || "", p.location, p.action, nextNo, nextName,
       nextLot, nextPkg, beforeQty, opQty, afterQty, p.pallets ?? 1, nextNote, p.operator || "現場人員"
     ).run();

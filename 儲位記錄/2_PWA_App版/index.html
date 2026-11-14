@@ -92,7 +92,7 @@
     .brand img { width: 28px; height: 28px; border-radius: 6px; }
     .wh-tabs {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
       gap: 8px;
       margin-top: 10px;
     }
@@ -449,7 +449,7 @@
         <div id="syncBadge"></div>
       </div>
     </div>
-    <div class="wh-tabs">
+    <div id="whTabs" class="wh-tabs">
       <button class="wh-btn active" data-wh="lunwei">🏭 崙尾倉儲</button>
       <button class="wh-btn" data-wh="hongsheng">🏢 鴻勝倉庫</button>
     </div>
@@ -772,6 +772,50 @@
         </div>
       </div>
 
+      <div class="card" id="whMgmtCard" style="display:none;">
+        <div class="card-title"><span>🏭 倉庫管理（擴充第 3、4 倉庫，免改程式碼）</span></div>
+        <p style="font-size:12px;color:var(--muted);margin:0 0 8px 0;">
+          將新的 <code>.xlsm</code> 儲位表放入專案資料夾後，於此選擇檔案與總表名稱即可一鍵新增倉庫分頁。
+        </p>
+        <div class="grid-2" style="margin-bottom:8px;">
+          <div>
+            <label>倉庫代碼（英文/數字，如 wh3）</label>
+            <input id="newWhId" type="text" placeholder="如 wh3" style="padding:7px;font-size:13px;" />
+          </div>
+          <div>
+            <label>顯示名稱（如 三廠倉庫）</label>
+            <input id="newWhName" type="text" placeholder="如 三廠倉庫" style="padding:7px;font-size:13px;" />
+          </div>
+        </div>
+        <div id="localWhExcelFields">
+          <div class="grid-2" style="margin-bottom:8px;">
+            <div>
+              <label>對應 Excel 檔案（.xlsm）</label>
+              <select id="newWhFile" style="padding:7px;font-size:13px;"></select>
+            </div>
+            <div>
+              <label>總表工作表名稱</label>
+              <select id="newWhMaster" style="padding:7px;font-size:13px;"></select>
+            </div>
+          </div>
+          <div class="grid-2" style="margin-bottom:8px;">
+            <div>
+              <label>品名表單工作表（選填）</label>
+              <select id="newWhForm" style="padding:7px;font-size:13px;"></select>
+            </div>
+            <div>
+              <label>表單欄位順序</label>
+              <select id="newWhLayout" style="padding:7px;font-size:13px;">
+                <option value="name_first">A=品名, B=品號, C=包材（同崙尾）</option>
+                <option value="code_first">A=品號, B=品名, C=包材（同鴻勝）</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <button type="button" id="btnAddWarehouse" class="submit-btn" style="margin-top:4px;">＋ 新增 / 儲存倉庫</button>
+        <div id="whMgmtList" style="margin-top:10px;font-size:13px;"></div>
+      </div>
+
       <div class="card" id="userMgmtCard" style="display:none;">
         <div class="card-title"><span>👥 人員帳號管理（管理員專用）</span></div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 0.8fr auto;gap:6px;margin-bottom:8px;">
@@ -829,6 +873,10 @@
   <script>
     const state = {
       whId: localStorage.getItem('pwa_wh_id') || 'lunwei',
+      warehouses: [
+        { id: 'lunwei', name: '崙尾倉儲', icon: '🏭' },
+        { id: 'hongsheng', name: '鴻勝倉庫', icon: '🏢' }
+      ],
       whData: null,
       selectedLoc: null,
       action: 'in',
@@ -912,20 +960,46 @@
       });
     });
 
-    // 倉庫切換
-    document.querySelectorAll('.wh-btn[data-wh]').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.wh === state.whId);
-      btn.addEventListener('click', () => {
-        state.whId = btn.dataset.wh;
-        localStorage.setItem('pwa_wh_id', state.whId);
-        document.querySelectorAll('.wh-btn[data-wh]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.selectedLoc = null;
-        updateSelectedLocUI();
-        loadWarehouseData(state.whId).then(() => loadWarehouseSettings());
-        loadWarehouseSettings();
+    // 倉庫切換（動態渲染）
+    function renderWarehouseTabs() {
+      const wrap = document.getElementById('whTabs');
+      if (!wrap) return;
+      wrap.innerHTML = state.warehouses.map(w => `
+        <button class="wh-btn ${w.id === state.whId ? 'active' : ''}" data-wh="${w.id}">${w.icon || '🏬'} ${w.name}</button>
+      `).join('');
+      wrap.querySelectorAll('.wh-btn[data-wh]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.whId = btn.dataset.wh;
+          localStorage.setItem('pwa_wh_id', state.whId);
+          wrap.querySelectorAll('.wh-btn[data-wh]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.selectedLoc = null;
+          updateSelectedLocUI();
+          loadWarehouseData(state.whId).then(() => loadWarehouseSettings());
+        });
       });
-    });
+    }
+
+    async function loadWarehouses() {
+      try {
+        const res = await fetch('/api/warehouses');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.warehouses) && data.warehouses.length) {
+            state.warehouses = data.warehouses;
+          }
+        }
+      } catch (e) {
+        // 離線或讀取失敗時沿用預設清單
+      }
+      if (!state.warehouses.some(w => w.id === state.whId) && state.warehouses.length) {
+        state.whId = state.warehouses[0].id;
+        localStorage.setItem('pwa_wh_id', state.whId);
+      }
+      renderWarehouseTabs();
+      renderWarehouseMgmtList();
+      loadLocalExcelFiles();
+    }
 
     async function loadWarehouseData(whId) {
       try {
@@ -1525,6 +1599,7 @@
       const hdr = document.querySelector('header');
       const mn = document.querySelector('main');
       const bnav = document.querySelector('nav.bottom-nav');
+      const whMgmt = document.getElementById('whMgmtCard');
       if (!state.user) {
         overlay.style.display = 'flex';
         if (hdr) hdr.style.display = 'none';
@@ -1533,6 +1608,7 @@
         badge.textContent = '👤 未登入';
         detail.textContent = '尚未登入';
         mgmt.style.display = 'none';
+        if (whMgmt) whMgmt.style.display = 'none';
       } else {
         overlay.style.display = 'none';
         if (hdr) hdr.style.display = 'block';
@@ -1541,7 +1617,12 @@
         badge.textContent = `👤 ${state.user.display_name} · 登出`;
         detail.textContent = `${state.user.display_name}（帳號：${state.user.username} / ${state.user.role === 'admin' ? '管理員' : '現場人員'}）`;
         mgmt.style.display = state.user.role === 'admin' ? 'block' : 'none';
-        if (state.user.role === 'admin') loadUsersList();
+        if (whMgmt) whMgmt.style.display = state.user.role === 'admin' ? 'block' : 'none';
+        if (state.user.role === 'admin') {
+          loadUsersList();
+          loadLocalExcelFiles();
+          renderWarehouseMgmtList();
+        }
       }
     }
 
@@ -1646,7 +1727,8 @@
     // 倉庫品名與包材設定
     let currentCfgItems = [];
     async function loadWarehouseSettings(reset = false) {
-      document.getElementById('cfgWhLabel').textContent = state.whId === 'lunwei' ? '🏭 崙尾倉儲' : '🏢 鴻勝倉庫';
+      const wObj = state.warehouses.find(w => w.id === state.whId);
+      document.getElementById('cfgWhLabel').textContent = wObj ? `${wObj.icon || '🏬'} ${wObj.name}` : state.whId;
       try {
         const res = await fetch(`/api/warehouse/${state.whId}/settings${reset ? '?reset=true' : ''}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1721,7 +1803,84 @@
       }
     });
 
-    loadWarehouseData(state.whId).then(() => loadWarehouseSettings());
+    // 倉庫動態管理（新增第 3、4 倉庫）
+    let scannedExcelFiles = [];
+    async function loadLocalExcelFiles() {
+      const wrap = document.getElementById('localWhExcelFields');
+      try {
+        const res = await fetch('/api/warehouses/files');
+        if (!res.ok) throw new Error('cloud');
+        const data = await res.json();
+        scannedExcelFiles = data.files || [];
+        if (wrap) wrap.style.display = 'block';
+        const fSel = document.getElementById('newWhFile');
+        fSel.innerHTML = scannedExcelFiles.map(f => `<option value="${f.filename}">${f.filename}</option>`).join('');
+        syncSheetSelects();
+      } catch (e) {
+        // Cloudflare D1 雲端版無本機 Excel 檔案掃描
+        if (wrap) wrap.style.display = 'none';
+      }
+    }
+
+    function syncSheetSelects() {
+      const fname = document.getElementById('newWhFile').value;
+      const found = scannedExcelFiles.find(f => f.filename === fname);
+      const sheets = found ? found.sheets : [];
+      document.getElementById('newWhMaster').innerHTML = sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+      document.getElementById('newWhForm').innerHTML = '<option value="">（無）</option>' + sheets.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+    document.getElementById('newWhFile').addEventListener('change', syncSheetSelects);
+
+    function renderWarehouseMgmtList() {
+      const box = document.getElementById('whMgmtList');
+      if (!box) return;
+      box.innerHTML = state.warehouses.map(w => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span>${w.icon || '🏬'} <strong>${w.name}</strong> <span style="color:var(--muted);">(${w.id}${w.filename ? ` · ${w.filename}` : ''})</span></span>
+          ${(w.id !== 'lunwei' && w.id !== 'hongsheng') ? `<button type="button" onclick="deleteWarehouse('${w.id}')" class="pill" style="color:var(--red);">刪除</button>` : '<span style="font-size:11px;color:var(--muted);">預設</span>'}
+        </div>
+      `).join('');
+    }
+
+    async function deleteWarehouse(wid) {
+      if (!confirm(`確定移除倉庫 ${wid}？`)) return;
+      const res = await fetch(`/api/warehouses/${encodeURIComponent(wid)}`, { method: 'DELETE' });
+      if (res.ok) {
+        await loadWarehouses();
+        showToast(`已移除倉庫 ${wid}`);
+      }
+    }
+
+    document.getElementById('btnAddWarehouse').addEventListener('click', async () => {
+      const id = document.getElementById('newWhId').value.trim();
+      const name = document.getElementById('newWhName').value.trim();
+      if (!id || !name) return showToast('請填寫倉庫代碼與顯示名稱');
+      const payload = {
+        id,
+        name,
+        icon: '🏬',
+        filename: document.getElementById('newWhFile').value || '',
+        master_sheet: document.getElementById('newWhMaster').value || '',
+        form_sheet: document.getElementById('newWhForm').value || '',
+        form_layout: document.getElementById('newWhLayout').value || 'name_first'
+      };
+      const res = await fetch('/api/warehouses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const out = await res.json();
+      if (res.ok) {
+        document.getElementById('newWhId').value = '';
+        document.getElementById('newWhName').value = '';
+        await loadWarehouses();
+        showToast(`✅ ${out.message}`);
+      } else {
+        showToast(`⚠️ ${out.detail || '新增失敗'}`);
+      }
+    });
+
+    loadWarehouses().then(() => loadWarehouseData(state.whId).then(() => loadWarehouseSettings()));
   </script>
 </body>
 </html>

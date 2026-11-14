@@ -27,7 +27,7 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from excel_engine import WAREHOUSES, ExcelEngine, ExcelLockedError
+from excel_engine import ExcelEngine, ExcelLockedError
 
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_DIR.parent
@@ -52,7 +52,7 @@ ACTIVE_PORT = DEFAULT_PORT
 
 
 class RecordPayload(BaseModel):
-    wh_id: Literal["lunwei", "hongsheng"]
+    wh_id: str = Field(..., min_length=1)
     location: str = Field(..., min_length=1)
     action: Literal["in", "out", "set"] = "in"
     in_mode: Literal["add", "replace", "merge"] = "add"
@@ -178,6 +178,16 @@ class UserUpsertPayload(BaseModel):
     password: str = ""
     role: Literal["admin", "staff"] = "staff"
     enabled: bool = True
+
+
+class WarehouseUpsertPayload(BaseModel):
+    id: str = Field(..., min_length=1)
+    name: str = Field(..., min_length=1)
+    icon: str = "🏬"
+    filename: str = ""
+    master_sheet: str = ""
+    form_sheet: str = ""
+    form_layout: Literal["name_first", "code_first"] = "name_first"
 
 
 class WarehouseItemSetting(BaseModel):
@@ -392,9 +402,57 @@ def api_warehouses():
     return {"warehouses": engine.list_warehouses()}
 
 
+@app.get("/api/warehouses/files")
+def api_warehouse_files():
+    """掃描專案根目錄下的 .xlsm / .xlsx 檔案與工作表名稱，供新增倉庫時直接選取。"""
+    import openpyxl
+    files = []
+    for p in sorted(PROJECT_ROOT.glob("*.xls*")):
+        if p.name.startswith("~$"):
+            continue
+        try:
+            wb = openpyxl.load_workbook(p, read_only=True)
+            sheets = list(wb.sheetnames)
+            wb.close()
+        except Exception:
+            sheets = []
+        files.append({"filename": p.name, "sheets": sheets})
+    return {"files": files}
+
+
+@app.post("/api/warehouses")
+def api_upsert_warehouse(payload: WarehouseUpsertPayload):
+    whs = engine.get_warehouses()
+    wid = payload.id.strip()
+    whs[wid] = {
+        "id": wid,
+        "name": payload.name.strip(),
+        "icon": payload.icon.strip() or "🏬",
+        "filename": payload.filename.strip(),
+        "master_sheet": payload.master_sheet.strip(),
+        "form_sheet": payload.form_sheet.strip(),
+        "form_layout": payload.form_layout,
+    }
+    engine.save_warehouses(whs)
+    return {"ok": True, "message": f"已儲存倉庫 {payload.name}", "warehouses": engine.list_warehouses()}
+
+
+@app.delete("/api/warehouses/{wh_id}")
+def api_delete_warehouse(wh_id: str):
+    if wh_id in ("lunwei", "hongsheng"):
+        raise HTTPException(status_code=400, detail="不可刪除預設倉庫")
+    whs = engine.get_warehouses()
+    if wh_id not in whs:
+        raise HTTPException(status_code=404, detail="找不到指定倉庫")
+    del whs[wh_id]
+    engine.save_warehouses(whs)
+    return {"ok": True, "warehouses": engine.list_warehouses()}
+
+
 @app.get("/api/warehouse/{wh_id}/data")
 def api_warehouse_data(wh_id: str):
-    if wh_id not in WAREHOUSES:
+    whs = engine.get_warehouses()
+    if wh_id not in whs:
         raise HTTPException(status_code=404, detail="找不到指定倉庫")
     try:
         data = engine.read_warehouse_data(wh_id)
@@ -420,7 +478,8 @@ def api_warehouse_data(wh_id: str):
 
 @app.get("/api/warehouse/{wh_id}/settings")
 def api_get_warehouse_settings(wh_id: str, reset: bool = False):
-    if wh_id not in WAREHOUSES:
+    whs = engine.get_warehouses()
+    if wh_id not in whs:
         raise HTTPException(status_code=404, detail="找不到指定倉庫")
     all_settings = load_all_settings()
     if not reset and wh_id in all_settings:
@@ -445,7 +504,8 @@ def api_get_warehouse_settings(wh_id: str, reset: bool = False):
 
 @app.post("/api/warehouse/{wh_id}/settings")
 def api_save_warehouse_settings(wh_id: str, payload: WarehouseSettingsPayload):
-    if wh_id not in WAREHOUSES:
+    whs = engine.get_warehouses()
+    if wh_id not in whs:
         raise HTTPException(status_code=404, detail="找不到指定倉庫")
     all_settings = load_all_settings()
     all_settings[wh_id] = {
@@ -453,12 +513,13 @@ def api_save_warehouse_settings(wh_id: str, payload: WarehouseSettingsPayload):
         "packages": [p.strip() for p in payload.packages if p.strip()],
     }
     save_all_settings(all_settings)
-    return {"ok": True, "message": f"已儲存 {WAREHOUSES[wh_id]['name']} 的品名與包材設定"}
+    return {"ok": True, "message": f"已儲存 {whs[wh_id]['name']} 的品名與包材設定"}
 
 
 @app.get("/api/warehouse/{wh_id}/download")
 def api_warehouse_download(wh_id: str):
-    if wh_id not in WAREHOUSES:
+    whs = engine.get_warehouses()
+    if wh_id not in whs:
         raise HTTPException(status_code=404, detail="找不到指定倉庫")
     fpath = engine.get_file_path(wh_id)
     if not fpath.exists():
@@ -495,13 +556,17 @@ def api_record(payload: RecordPayload):
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+    whs = engine.get_warehouses()
+    if payload.wh_id not in whs:
+        raise HTTPException(status_code=404, detail=f"未知倉庫: {payload.wh_id}")
+    wh_cfg = whs[payload.wh_id]
     target_loc = next(
         (loc for loc in wh_data["locations"] if loc["location"] == payload.location),
         None,
     )
     if not target_loc:
         raise HTTPException(
-            status_code=404, detail=f"在 {WAREHOUSES[payload.wh_id]['name']} 找不到儲位: {payload.location}"
+            status_code=404, detail=f"在 {wh_cfg['name']} 找不到儲位: {payload.location}"
         )
 
     catalog_map = {c["item_name"]: c["item_no"] for c in wh_data["catalog"]}
@@ -590,7 +655,7 @@ def api_record(payload: RecordPayload):
         "date": now.strftime("%Y-%m-%d"),
         "time": now.strftime("%H:%M:%S"),
         "wh_id": payload.wh_id,
-        "wh_name": WAREHOUSES[payload.wh_id]["name"],
+        "wh_name": wh_cfg["name"],
         "zone": target_loc["zone"],
         "location": payload.location,
         "action": payload.action,
@@ -610,7 +675,7 @@ def api_record(payload: RecordPayload):
 
     return {
         "ok": True,
-        "message": f"已成功回寫 {WAREHOUSES[payload.wh_id]['filename']} 儲位 {payload.location}",
+        "message": f"已成功回寫 {wh_cfg['filename']} 儲位 {payload.location}",
         "log": log_entry,
         "updated_location": {
             "row": target_loc["row"],

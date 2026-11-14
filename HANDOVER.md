@@ -1,5 +1,16 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-14 LINE 飲食熱量精算師 GAS 系統全面升級：9項完整營養標示、每日累積與建議剩餘對照、文字直接記餐與單項刪改)
+* **LINE 飲食熱量精算師 (`C:\GOOGLE ANGET\專案生成工具\generate_docs.py` & `LINE_飲食熱量精算師_Code.gs`)**:
+  - **完整 9 項營養標示 + 每日累積 vs 每日建議剩餘/超標**：
+    1. 擴充為熱量、蛋白質、脂肪、飽和脂肪、反式脂肪、碳水化合物、糖、膳食纖維、鈉，試算表 `writeToUserSheet` 自動補齊 `G~K` 欄位標題並向下相容舊資料。
+    2. 新增 `DAILY_TARGETS`、`getTodayTotals`、`formatDailyProgress` 與 `設定目標` 指令（以 `PropertiesService` 儲存個人化每日目標）。
+  - **模型動態偵測與 503 避坑指南**：
+    1. **實測發現**：`gemini-3.8-flash`、`gemini-flash-latest` 在尖峰時段偶發 `HTTP 503` 高負載、`2.0-flash` / `2.5-flash-lite` 回傳 `404` 下線，若依序重試多把 Key 會超過 LINE `replyToken` 30 秒效期導致靜默無聲。
+    2. **解決方案**：`getDynamicModelPool` 改為 `gemini-2.5-flash` 穩定優先 + `gemini-flash-latest` + 動態最高版備援（快取 6 小時）；遇到 `404` 或 `503` 立即 `break` 換下一模型；加入 45 秒總超時保險，並在 `replyMessage` 加上 `push` 補發機制。
+  - **自然語意指令強化**：
+    1. 支援直接打食物名稱記帳（如 `鹹酥雞約100公克`）、`新增第X餐 食物`（已存在則追加重算、不存在則建新餐）、`刪除第X餐`（整餐刪除）或 `刪除第X餐的某食物`（只移除單項並重算），以及 `parseMealNumber` 同時支援國字與阿拉伯數字餐號。
+
 ## 今日進度與交接事項 (2026-11-14 Wegovy 針劑施打與體重紀錄 PWA 上線、動態劑量規格自訂、時區偏移防呆、Excel 匯出與 Cloudflare Pages 雲端部署)
 * **Wegovy 針劑施打與體重紀錄 PWA 系統 (`第一類_核心網頁與互動系統/wegovy-tracker`)**:
   - **核心架構與部署 (`https://wegovy-tracker.pages.dev`)**:

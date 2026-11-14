@@ -6,6 +6,7 @@ Excel (.xlsm) 讀取與無損回寫引擎
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -23,22 +24,27 @@ REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 
 COL_INDEX = {"A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6, "G": 7, "H": 8}
 
-WAREHOUSES: dict[str, dict[str, str]] = {
+DEFAULT_WAREHOUSES: dict[str, dict[str, str]] = {
     "lunwei": {
         "id": "lunwei",
         "name": "崙尾倉儲",
+        "icon": "🏭",
         "filename": "崙尾倉儲儲位表.xlsm",
         "master_sheet": "崙尾倉儲儲位表_總表202208",
         "form_sheet": "表單",
+        "form_layout": "name_first",
     },
     "hongsheng": {
         "id": "hongsheng",
         "name": "鴻勝倉庫",
+        "icon": "🏢",
         "filename": "鴻勝儲位表.xlsm",
         "master_sheet": "倉庫總表",
         "form_sheet": "單位表單",
+        "form_layout": "code_first",
     },
 }
+WAREHOUSES = DEFAULT_WAREHOUSES
 
 
 class ExcelLockedError(Exception):
@@ -46,27 +52,52 @@ class ExcelLockedError(Exception):
 
 
 class ExcelEngine:
-    """讀寫崙尾與鴻勝 .xlsm 儲位表的核心引擎。"""
+    """讀寫各倉庫 .xlsm 儲位表的核心引擎（支援動態新增倉庫）。"""
 
-    def __init__(self, base_dir: str | Path):
+    def __init__(self, base_dir: str | Path, registry_path: str | Path | None = None):
         self.base_dir = Path(base_dir)
         self.backup_dir = self.base_dir / "backups"
+        self.registry_path = Path(registry_path) if registry_path else (Path(__file__).resolve().parent / "data" / "warehouses.json")
         self._lock = threading.Lock()
 
+    def get_warehouses(self) -> dict[str, dict[str, str]]:
+        if self.registry_path.exists():
+            try:
+                items = json.loads(self.registry_path.read_text(encoding="utf-8"))
+                if isinstance(items, list) and items:
+                    return {w["id"]: w for w in items if w.get("id")}
+                if isinstance(items, dict) and items:
+                    return items
+            except Exception:
+                pass
+        return dict(DEFAULT_WAREHOUSES)
+
+    def save_warehouses(self, warehouses_map: dict[str, dict[str, str]]) -> None:
+        self.registry_path.parent.mkdir(parents=True, exist_ok=True)
+        self.registry_path.write_text(
+            json.dumps(list(warehouses_map.values()), ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+
     def get_file_path(self, wh_id: str) -> Path:
-        if wh_id not in WAREHOUSES:
+        whs = self.get_warehouses()
+        if wh_id not in whs:
             raise ValueError(f"未知倉庫代碼: {wh_id}")
-        return self.base_dir / WAREHOUSES[wh_id]["filename"]
+        return self.base_dir / whs[wh_id]["filename"]
 
     def list_warehouses(self) -> list[dict[str, Any]]:
         result = []
-        for wh_id, cfg in WAREHOUSES.items():
+        for wh_id, cfg in self.get_warehouses().items():
             fpath = self.base_dir / cfg["filename"]
             result.append(
                 {
                     "id": wh_id,
                     "name": cfg["name"],
+                    "icon": cfg.get("icon", "🏬"),
                     "filename": cfg["filename"],
+                    "master_sheet": cfg.get("master_sheet", ""),
+                    "form_sheet": cfg.get("form_sheet", ""),
+                    "form_layout": cfg.get("form_layout", "name_first"),
                     "exists": fpath.exists(),
                     "mtime": (
                         datetime.fromtimestamp(fpath.stat().st_mtime).strftime(
@@ -81,7 +112,10 @@ class ExcelEngine:
 
     def read_warehouse_data(self, wh_id: str) -> dict[str, Any]:
         """讀取指定倉庫的所有儲位、區域、品名/品號/包材選單與現有批號。"""
-        cfg = WAREHOUSES[wh_id]
+        whs = self.get_warehouses()
+        if wh_id not in whs:
+            raise ValueError(f"未知倉庫代碼: {wh_id}")
+        cfg = whs[wh_id]
         fpath = self.get_file_path(wh_id)
         if not fpath.exists():
             raise FileNotFoundError(f"找不到檔案: {fpath}")
@@ -176,7 +210,9 @@ class ExcelEngine:
                     }
                 )
 
-            catalog, form_packages = self._read_form_sheet(wb, cfg["form_sheet"], wh_id)
+            catalog, form_packages = self._read_form_sheet(
+                wb, cfg["form_sheet"], wh_id, cfg.get("form_layout", "name_first" if wh_id == "lunwei" else "code_first")
+            )
             for p_name, p_info in products_from_master.items():
                 top_pkg = ""
                 if p_info["pkg_counts"]:
@@ -303,24 +339,24 @@ class ExcelEngine:
             }
 
     def _read_form_sheet(
-        self, wb: openpyxl.Workbook, form_sheet_name: str, wh_id: str
+        self, wb: openpyxl.Workbook, form_sheet_name: str, wh_id: str, form_layout: str = "name_first"
     ) -> tuple[dict[str, dict[str, str]], list[str]]:
         """解析 表單 / 單位表單 取得品名->(品號, 預設包材)對照與包材清單。"""
         catalog: dict[str, dict[str, str]] = {}
         packages: list[str] = []
-        if form_sheet_name not in wb.sheetnames:
+        if not form_sheet_name or form_sheet_name not in wb.sheetnames:
             return catalog, packages
         ws = wb[form_sheet_name]
         for row_idx, row in enumerate(ws.iter_rows(values_only=True), start=1):
             if row_idx == 1:
                 continue
-            if wh_id == "lunwei":
-                # 崙尾 表單: A=品名, B=品號, C=包材
+            if form_layout == "name_first":
+                # A=品名, B=品號, C=包材
                 name = str(row[0]).strip() if len(row) > 0 and row[0] else ""
                 code = str(row[1]).strip() if len(row) > 1 and row[1] else ""
                 pkg = str(row[2]).strip() if len(row) > 2 and row[2] else ""
             else:
-                # 鴻勝 單位表單: A=品號, B=品名, C=包材
+                # A=品號, B=品名, C=包材
                 code = str(row[0]).strip() if len(row) > 0 and row[0] else ""
                 name = str(row[1]).strip() if len(row) > 1 and row[1] else ""
                 pkg = str(row[2]).strip() if len(row) > 2 and row[2] else ""
@@ -345,7 +381,7 @@ class ExcelEngine:
         以 Surgical XML/ZIP 方式精準回寫 .xlsm 總表該列儲存格，
         保留所有巨集、圖表、資料驗證、分區儲位表與公式。
         """
-        cfg = WAREHOUSES[wh_id]
+        cfg = self.get_warehouses()[wh_id]
         fpath = self.get_file_path(wh_id)
         if not fpath.exists():
             raise FileNotFoundError(f"找不到檔案: {fpath}")
@@ -533,14 +569,18 @@ class ExcelEngine:
             raise FileNotFoundError(f"找不到檔案: {fpath}")
 
         def should_keep(name: str) -> bool:
+            whs = self.get_warehouses()
+            cfg = whs.get(wh_id, {})
             if wh_id == "lunwei":
                 return (
                     name in ("崙尾倉儲儲位表_總表202208", "表單")
                     or "儲位" in name
                 )
-            return name in ("倉庫總表", "單位表單", "位置圖", "暫存區") or (
-                "區" in name and ("儲位" in name or "走道" in name or "走到" in name)
-            )
+            if wh_id == "hongsheng":
+                return name in ("倉庫總表", "單位表單", "位置圖", "暫存區") or (
+                    "區" in name and ("儲位" in name or "走道" in name or "走到" in name)
+                )
+            return name in (cfg.get("master_sheet"), cfg.get("form_sheet"), "位置圖", "暫存區") or "儲位" in name
 
         with zipfile.ZipFile(fpath, "r") as zin:
             wb_root = etree.fromstring(zin.read("xl/workbook.xml"))

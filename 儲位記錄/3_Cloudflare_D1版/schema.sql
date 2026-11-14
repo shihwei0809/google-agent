@@ -53,3 +53,11 @@ CREATE TABLE IF NOT EXISTS users (
   enabled INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS warehouses (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  icon TEXT NOT NULL DEFAULT '🏬',
+  sort_order INTEGER NOT NULL DEFAULT 10,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
