@@ -52,6 +52,36 @@
       </div>
     </div>
 
+    <!-- ☁️ 跨設備雲端即時同步列 (Cloud Sync Bar) -->
+    <div id="cloud_sync_bar" class="mb-4 bg-gradient-to-r from-sky-50 to-indigo-50/50 border border-sky-200 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm transition">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg bg-sky-500 text-white flex items-center justify-center font-bold text-lg shadow-sm flex-shrink-0">
+          ☁️
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-slate-800">跨設備雲端同步</span>
+            <span id="sync_status_badge" class="text-[11px] px-2 py-0.5 rounded-full font-bold bg-slate-200 text-slate-600 border border-slate-300">
+              未綁定同步碼
+            </span>
+            <span id="sync_code_display" class="hidden text-xs font-mono font-bold bg-sky-100 text-sky-800 px-2 py-0.5 rounded border border-sky-300"></span>
+          </div>
+          <div id="sync_status_detail" class="text-[11px] text-slate-500 mt-0.5">
+            在 iPhone 主畫面、瀏覽器、電腦輸入同一組同步碼，資料自動即時連通不消失
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 self-stretch sm:self-auto justify-end">
+        <button id="btn_quick_sync" onclick="manualSyncNow()" class="hidden bg-sky-600 hover:bg-sky-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold shadow-sm transition flex items-center gap-1">
+          <span id="quick_sync_icon">🔄</span>
+          <span id="quick_sync_text">立即同步</span>
+        </button>
+        <button onclick="openSyncModal()" class="flex-1 sm:flex-initial bg-white hover:bg-sky-50 text-sky-800 border border-sky-300 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition flex items-center justify-center gap-1">
+          <span>⚙️ 雲端同步設定</span>
+        </button>
+      </div>
+    </div>
+
     <!-- 體重核心指標看板 (Metric Cards) -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
       <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
@@ -278,6 +308,8 @@
           statusEl.innerText = `🟢 已自動儲存 (${nowStr})`;
           statusEl.className = "text-emerald-700 font-semibold flex items-center gap-1";
         }, 150);
+        // 若有綁定雲端同步碼，背景防抖自動同步
+        debouncedCloudPush();
       } catch (e) {
         console.warn("無法寫入 localStorage (可能是 iframe 沙盒限制):", e);
         statusEl.innerText = "⚠️ 沙盒限制無法寫入，請另開獨立網頁";
@@ -992,7 +1024,302 @@
       }
     }
 
+    // ==========================================
+    // ☁️ 跨設備雲端即時同步核心引擎 (Cloudflare KV)
+    // ==========================================
+    let currentSyncCode = localStorage.getItem("wegovy_sync_code") || "";
+    let cloudPushTimer = null;
+
+    function updateSyncUI(statusText, isConnected, detailText) {
+      const badgeEl = document.getElementById("sync_status_badge");
+      const detailEl = document.getElementById("sync_status_detail");
+      const codeDisplay = document.getElementById("sync_code_display");
+      const quickBtn = document.getElementById("btn_quick_sync");
+      const unbindBtn = document.getElementById("btn_unbind_sync");
+      const codeInput = document.getElementById("sync_code_input");
+
+      if (codeInput && !codeInput.value && currentSyncCode) {
+        codeInput.value = currentSyncCode;
+      }
+
+      if (currentSyncCode) {
+        if (badgeEl) {
+          badgeEl.innerText = isConnected ? "🟢 雲端已連線" : (statusText || "🟢 已綁定");
+          badgeEl.className = isConnected 
+            ? "text-[11px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 border border-emerald-300"
+            : "text-[11px] px-2 py-0.5 rounded-full font-bold bg-sky-100 text-sky-800 border border-sky-300";
+        }
+        if (codeDisplay) {
+          codeDisplay.innerText = currentSyncCode;
+          codeDisplay.classList.remove("hidden");
+        }
+        if (quickBtn) {
+          quickBtn.classList.remove("hidden");
+          quickBtn.classList.add("flex");
+        }
+        if (unbindBtn) unbindBtn.classList.remove("hidden");
+        if (detailEl && detailText) detailEl.innerText = detailText;
+        else if (detailEl) detailEl.innerText = `已綁定同步碼 [${currentSyncCode}]，在此裝置的修改會自動即時備份至雲端`;
+      } else {
+        if (badgeEl) {
+          badgeEl.innerText = "未綁定同步碼";
+          badgeEl.className = "text-[11px] px-2 py-0.5 rounded-full font-bold bg-slate-200 text-slate-600 border border-slate-300";
+        }
+        if (codeDisplay) codeDisplay.classList.add("hidden");
+        if (quickBtn) {
+          quickBtn.classList.add("hidden");
+          quickBtn.classList.remove("flex");
+        }
+        if (unbindBtn) unbindBtn.classList.add("hidden");
+        if (detailEl) detailEl.innerText = "在 iPhone 主畫面、瀏覽器、電腦輸入同一組同步碼，資料自動即時連通不消失";
+      }
+    }
+
+    function openSyncModal() {
+      const modal = document.getElementById("sync_modal");
+      const codeInput = document.getElementById("sync_code_input");
+      if (currentSyncCode && codeInput) {
+        codeInput.value = currentSyncCode;
+      }
+      if (modal) modal.classList.remove("hidden");
+    }
+
+    function closeSyncModal() {
+      const modal = document.getElementById("sync_modal");
+      if (modal) modal.classList.add("hidden");
+    }
+
+    function generateRandomSyncCode() {
+      const randNum = Math.floor(100000 + Math.random() * 900000);
+      const codeInput = document.getElementById("sync_code_input");
+      if (codeInput) codeInput.value = "WGV" + randNum;
+    }
+
+    function copySyncCode() {
+      const codeInput = document.getElementById("sync_code_input");
+      const code = (codeInput?.value || currentSyncCode || "").trim().toUpperCase();
+      if (!code) {
+        alert("請先輸入或產生同步碼！");
+        return;
+      }
+      navigator.clipboard.writeText(code).then(() => {
+        alert(`📋 同步碼 [${code}] 已成功複製到剪貼簿！`);
+      }).catch(() => {
+        alert(`您的同步碼為: ${code}`);
+      });
+    }
+
+    function unbindSyncCode() {
+      if (confirm(`確定要解除此設備上的同步碼 [${currentSyncCode}] 嗎？\n（雲端資料不會被刪除，只是此設備不再連動）`)) {
+        localStorage.removeItem("wegovy_sync_code");
+        currentSyncCode = "";
+        const codeInput = document.getElementById("sync_code_input");
+        if (codeInput) codeInput.value = "";
+        updateSyncUI("未綁定同步碼", false);
+        alert("已解除綁定。您隨時可以再次輸入代碼連線！");
+      }
+    }
+
+    function debouncedCloudPush() {
+      if (!currentSyncCode) return;
+      clearTimeout(cloudPushTimer);
+      cloudPushTimer = setTimeout(() => {
+        uploadToCloud(false);
+      }, 1200);
+    }
+
+    async function uploadToCloud(manual = true) {
+      const codeInput = document.getElementById("sync_code_input");
+      const code = (codeInput?.value || currentSyncCode || "").trim().toUpperCase();
+
+      if (!code || code.length < 3) {
+        alert("請輸入至少 3 碼以上的有效同步代碼！");
+        return;
+      }
+
+      const quickText = document.getElementById("quick_sync_text");
+      const quickIcon = document.getElementById("quick_sync_icon");
+      if (quickText) quickText.innerText = "上傳中...";
+      if (quickIcon) quickIcon.classList.add("animate-spin");
+
+      try {
+        const res = await fetch("/api/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, data: appData })
+        });
+        const result = await res.json();
+
+        if (result.success) {
+          currentSyncCode = code;
+          localStorage.setItem("wegovy_sync_code", code);
+          const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+          updateSyncUI("🟢 雲端已同步", true, `最新雲端同步時間：${timeStr} (代碼: ${code})`);
+          if (manual) {
+            alert(`✅ 雲端上傳成功！\n\n您的專屬同步碼為：【${code}】\n\n現在請前往 iPhone 主畫面的 App（或任何其他手機/電腦），點選「⚙️ 雲端同步設定」輸入此代碼並按「下載同步」，資料就會瞬間同步！`);
+            closeSyncModal();
+          }
+        } else {
+          throw new Error(result.message || "上傳失敗");
+        }
+      } catch (err) {
+        console.error("雲端上傳失敗:", err);
+        updateSyncUI("⚠️ 同步失敗", false, `上傳失敗: ${err.message}`);
+        if (manual) alert("❌ 雲端上傳失敗：" + err.message);
+      } finally {
+        if (quickText) quickText.innerText = "立即同步";
+        if (quickIcon) quickIcon.classList.remove("animate-spin");
+      }
+    }
+
+    async function downloadFromCloud(manual = true) {
+      const codeInput = document.getElementById("sync_code_input");
+      const code = (codeInput?.value || currentSyncCode || "").trim().toUpperCase();
+
+      if (!code || code.length < 3) {
+        alert("請輸入要下載的同步代碼！");
+        return;
+      }
+
+      if (manual && !confirm(`確定要從雲端下載 [${code}] 的資料嗎？\n此動作將以雲端資料更新您當前畫面。`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/sync?code=${encodeURIComponent(code)}`);
+        const result = await res.json();
+
+        if (result.success && result.data && Array.isArray(result.data.pens)) {
+          appData = result.data;
+          appData.pens.forEach(pen => {
+            if (!pen.penType) pen.penType = "1.0";
+            if (!pen.doseRules) pen.doseRules = JSON.parse(JSON.stringify(DOSE_PRESETS[pen.penType] || DOSE_PRESETS["1.0"]));
+          });
+          currentSyncCode = code;
+          localStorage.setItem("wegovy_sync_code", code);
+          localStorage.setItem("wegovy_multi_pens_v6", JSON.stringify(appData));
+          
+          const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+          updateSyncUI("🟢 雲端已連線", true, `已從雲端同步最新紀錄 (${timeStr})`);
+          render();
+          closeSyncModal();
+          if (manual) {
+            alert(`🎉 恭喜！已成功從雲端同步 [${code}] 的所有紀錄！\n已為您還原所有體重趨勢圖與施打明細。`);
+          }
+        } else {
+          throw new Error(result.message || "找不到該代碼的紀錄");
+        }
+      } catch (err) {
+        console.error("雲端下載失敗:", err);
+        if (manual) alert("❌ 雲端下載失敗：" + err.message);
+      }
+    }
+
+    function manualSyncNow() {
+      if (!currentSyncCode) {
+        openSyncModal();
+        return;
+      }
+      uploadToCloud(true);
+    }
+
     render();
+    updateSyncUI();
+
+    // 若本機有同步碼且資料庫是預設空白，主動嘗試從雲端抓取一次
+    if (currentSyncCode) {
+      const hasAnyWeight = appData.pens && appData.pens.some(p => p.records && p.records.some(r => r.weight && parseFloat(r.weight) > 0));
+      if (!hasAnyWeight) {
+        downloadFromCloud(false);
+      }
+    }
   </script>
+
+  <!-- ☁️ 雲端跨機即時同步視窗 (Modal) -->
+  <div id="sync_modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-5 md:p-6 border border-slate-200">
+      
+      <!-- 視窗標題 -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">☁️</span>
+          <div>
+            <h3 class="text-base md:text-lg font-bold text-slate-800">跨設備雲端即時同步</h3>
+            <p class="text-xs text-slate-500">免帳號密碼・輸入同一組代碼即可多機連動</p>
+          </div>
+        </div>
+        <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-600 text-2xl font-bold p-1 leading-none">&times;</button>
+      </div>
+
+      <!-- 個人同步代碼輸入區 -->
+      <div class="mb-4">
+        <label class="block text-xs font-bold text-slate-700 mb-1.5">
+          🔑 個人專屬同步代碼 (自訂或自動產生)：
+        </label>
+        <div class="flex gap-2">
+          <input id="sync_code_input" type="text" placeholder="例: 888999 或手機末6碼"
+            class="flex-1 font-mono font-bold text-base px-3 py-2 border-2 border-sky-300 rounded-xl focus:outline-none focus:border-sky-600 uppercase tracking-wider text-sky-900 placeholder:normal-case placeholder:font-normal placeholder:text-sm">
+          <button onclick="generateRandomSyncCode()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-2.5 py-2 rounded-xl font-medium transition" title="產生一組隨機 6 碼代碼">
+            🎲 產生
+          </button>
+          <button onclick="copySyncCode()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-2.5 py-2 rounded-xl font-medium transition" title="複製代碼">
+            📋 複製
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-400 mt-1">代碼支援 3~20 碼英文字母與數字（不分大小寫）</p>
+      </div>
+
+      <!-- 核心雙向同步操作按鈕 -->
+      <div class="space-y-2.5 mb-4">
+        <!-- 上傳至雲端 -->
+        <button onclick="uploadToCloud(true)" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">⬆️</span>
+            <div>
+              <div class="text-sm">立即將目前手機資料「上傳雲端」</div>
+              <div class="text-[11px] text-sky-100 font-normal">把目前畫面上的體重與施打紀錄儲存到此同步碼</div>
+            </div>
+          </div>
+          <span class="text-xs bg-sky-500/80 px-2 py-0.5 rounded">上傳備份</span>
+        </button>
+
+        <!-- 從雲端下載 -->
+        <button onclick="downloadFromCloud(true)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">⬇️</span>
+            <div>
+              <div class="text-sm">從雲端「下載同步」至此設備</div>
+              <div class="text-[11px] text-indigo-100 font-normal">抓取此同步碼最新資料，覆蓋當前畫面</div>
+            </div>
+          </div>
+          <span class="text-xs bg-indigo-500/80 px-2 py-0.5 rounded">下載還原</span>
+        </button>
+      </div>
+
+      <!-- 💡 iPhone 換機/切換主畫面 App 提示 -->
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 mb-4 space-y-1">
+        <div class="font-bold flex items-center gap-1 text-amber-900">
+          <span>💡 救回剛才輸入資料的步驟：</span>
+        </div>
+        <ol class="list-decimal list-inside space-y-0.5 text-[11px] text-amber-900/90 pl-1">
+          <li>在原先填過資料的瀏覽器產生代碼並按 <b>「⬆️ 上傳雲端」</b></li>
+          <li>打開 iPhone 主畫面上的 App，輸入<b>同一組代碼</b></li>
+          <li>按下 <b>「⬇️ 下載同步」</b>，資料即刻 100% 恢復！</li>
+        </ol>
+      </div>
+
+      <!-- 底部解除綁定與關閉按鈕 -->
+      <div class="flex items-center justify-between pt-2 border-t border-slate-200 text-xs">
+        <button id="btn_unbind_sync" onclick="unbindSyncCode()" class="hidden text-rose-600 hover:text-rose-800 font-medium">
+          ✕ 解除此設備代碼綁定
+        </button>
+        <span class="flex-1"></span>
+        <button onclick="closeSyncModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-1.5 rounded-lg transition">
+          完成 / 關閉
+        </button>
+      </div>
+
+    </div>
+  </div>
 </body>
 </html>

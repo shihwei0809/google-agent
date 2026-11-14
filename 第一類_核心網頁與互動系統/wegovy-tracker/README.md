@@ -5,6 +5,7 @@
 ---
 
 ## 🌟 核心功能亮點
+- ☁️ **跨設備雲端即時同步 (Cloudflare KV + Functions)**：免帳號密碼，輸入同一組自訂或隨機 6 碼同步代碼，即可在 iPhone 瀏覽器、主畫面 App、電腦、iPad 之間即時雙向連線同步，換設備或加入主畫面不掉資料。
 - 📊 **Chart.js 動態體重記錄曲線圖**：圓滑漸層折線圖，自動縮放 Y 軸刻度，支援懸浮提示施打劑量與體重數值。
 - 📗 **一鍵匯出專業 Excel 報表 (.xlsx)**：支援將全期跨筆與各週施打明細、劑量、體重、週變化及累計減重一鍵匯出為格式化試算表，方便看診與存檔。
 - 👁️ **雙視角自由切換**：可一鍵切換「當前筆紀錄」或「全期跨筆累計總覽」。
@@ -21,9 +22,13 @@
 ## 📂 完整檔案結構說明 (File Tree)
 ```text
 D:\GOOGLE ANGET\第一類_核心網頁與互動系統\wegovy-tracker\
+├── functions\
+│   └── api\
+│       └── sync.js              # Cloudflare Pages Functions (雲端同步 KV Serverless API)
 ├── public\
-│   ├── index.html               # 核心前端主頁面 (HTML5 / Tailwind CSS / Chart.js / 本機快取)
+│   ├── index.html               # 核心前端主頁面 (HTML5 / Tailwind CSS / Chart.js / 本機快取 / 雲端同步)
 │   └── manifest.json            # PWA 應用程式清單設定檔
+├── wrangler.toml                # Cloudflare Pages 與 KV Namespace (WEGOVY_SYNC) 設定
 ├── 一鍵部署至Cloudflare.bat      # 一鍵部署至 Cloudflare Pages (wegovy-tracker)
 ├── README.md                    # 給人類閱讀之專案完整說明書
 ├── SKILL.md                     # 給 AI 助理閱讀之技術規範與行為說明書
