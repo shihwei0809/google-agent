@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wegovy 針劑施打與體重紀錄 PWA</title>
+  <meta name="description" content="Wegovy 每週針劑施打紀錄、批號管理、體重動態折線圖、劑量對照自訂與自動存檔系統">
+  <meta name="theme-color" content="#0f766e">
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js 折線圖 -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS Excel 匯出庫 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 p-3 md:p-6 font-sans">
+  
+  <!-- 若在 Google Sites iframe 內開啟，顯示快捷開啟獨立網頁提示列 -->
+  <div id="iframe_notice" class="hidden max-w-4xl mx-auto mb-4 bg-teal-50 border border-teal-300 rounded-xl p-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-teal-900 shadow-sm">
+    <div class="flex items-center gap-2">
+      <span class="text-base">💡</span>
+      <span><b>最佳體驗提示</b>：若在協作平台內可能受瀏覽器沙盒限制，建議使用獨立網頁開啟，享受完整自動存檔與手機桌面 App 功能。</span>
+    </div>
+    <a href="https://wegovy-tracker.pages.dev" target="_blank" rel="noopener noreferrer" class="bg-teal-700 hover:bg-teal-800 text-white font-bold px-3 py-1.5 rounded-lg shadow whitespace-nowrap">
+      📱 另開全螢幕 App
+    </a>
+  </div>
+
+  <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-4 md:p-7 border border-slate-200">
+    
+    <!-- 標題與操作按鈕 -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 mb-4 gap-3">
+      <div>
+        <h1 class="text-2xl font-bold text-teal-700 flex items-center gap-2">
+          <span>💉 Wegovy 施打與體重紀錄</span>
+          <span class="text-xs bg-teal-100 text-teal-800 font-semibold px-2.5 py-0.5 rounded-full border border-teal-300">雲端正式版</span>
+        </h1>
+        <div class="flex items-center gap-3 mt-1 text-xs text-slate-500">
+          <span>分頁管理・批號設定・每週推算・劑量對照自訂・Excel匯出</span>
+          <span id="save_status" class="text-emerald-700 font-semibold flex items-center gap-1">🟢 自動存檔已就緒</span>
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="addPen()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs md:text-sm px-3 py-2 rounded-lg shadow font-medium transition">+ 新增下一支筆</button>
+        <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs md:text-sm px-3 py-2 rounded-lg shadow font-medium transition flex items-center gap-1">
+          <span>📊 匯出 Excel</span>
+        </button>
+        <button onclick="exportData()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs md:text-sm px-2.5 py-2 rounded-lg transition" title="匯出完整系統設定JSON備份">📥 備份</button>
+        <button onclick="document.getElementById('import_file').click()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs md:text-sm px-2.5 py-2 rounded-lg transition" title="匯入先前備份的JSON檔">📤 匯入</button>
+        <input type="file" id="import_file" accept=".json" class="hidden" onchange="importData(event)">
+        <button onclick="resetData()" class="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs md:text-sm px-2.5 py-2 rounded-lg transition">重置</button>
+      </div>
+    </div>
+
+    <!-- 體重核心指標看板 (Metric Cards) -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+        <div class="text-xs text-slate-500 mb-1">🏁 起始體重</div>
+        <div id="stat_start_weight" class="text-lg md:text-xl font-bold text-slate-700">-- <span class="text-xs font-normal">kg</span></div>
+      </div>
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center">
+        <div class="text-xs text-slate-500 mb-1">⚖️ 最新體重</div>
+        <div id="stat_current_weight" class="text-lg md:text-xl font-bold text-teal-700">-- <span class="text-xs font-normal">kg</span></div>
+      </div>
+      <div class="bg-teal-50/60 border border-teal-200 rounded-xl p-3 text-center">
+        <div class="text-xs text-teal-800 font-medium mb-1">📉 累計減重</div>
+        <div id="stat_diff_weight" class="text-lg md:text-xl font-extrabold text-teal-700">-- <span class="text-xs font-normal">kg</span></div>
+      </div>
+      <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-3 text-center">
+        <div class="text-xs text-amber-800 font-medium mb-1 flex items-center justify-center gap-1">
+          <span>🎯 目標體重</span>
+        </div>
+        <div class="flex items-center justify-center gap-1">
+          <input id="input_target_weight" type="number" step="0.1" placeholder="設定"
+            class="w-16 text-center text-base md:text-lg font-bold text-amber-900 bg-white border border-amber-300 rounded px-1 py-0.5 focus:outline-none focus:border-amber-600"
+            onchange="updateTargetWeight(this.value)">
+          <span class="text-xs text-amber-700">kg</span>
+        </div>
+        <div id="stat_target_remain" class="text-[10px] text-amber-700 mt-0.5">未設定</div>
+      </div>
+    </div>
+
+    <!-- 📈 重量記錄變化曲線圖 (Chart.js 折線圖) -->
+    <div class="bg-white border border-slate-200 rounded-xl p-4 mb-5 shadow-sm">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+        <div class="flex items-center gap-2">
+          <h2 class="font-bold text-slate-700 text-sm md:text-base flex items-center gap-1.5">
+            <span>📈 體重記錄變化曲線</span>
+          </h2>
+          <span id="chart_subtitle" class="text-xs text-slate-400"></span>
+        </div>
+        <!-- 視角切換開關 -->
+        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs">
+          <button id="btn_view_current" onclick="setChartView('current')" class="px-2.5 py-1 rounded-md font-medium transition bg-white shadow-sm text-teal-700">
+            當前筆
+          </button>
+          <button id="btn_view_all" onclick="setChartView('all')" class="px-2.5 py-1 rounded-md font-medium transition text-slate-600 hover:text-slate-900">
+            全期跨筆總覽
+          </button>
+        </div>
+      </div>
+      
+      <!-- 圖表畫布容器 -->
+      <div class="relative h-60 sm:h-72 w-full">
+        <canvas id="weightChart"></canvas>
+        <div id="chart_empty_tip" class="hidden absolute inset-0 flex items-center justify-center bg-white/80 text-slate-400 text-xs md:text-sm">
+          💡 尚未填寫體重資料，請於下方表格輸入空腹體重，曲線圖將自動即時繪製
+        </div>
+      </div>
+    </div>
+
+    <!-- 筆數分頁導覽列 -->
+    <div class="flex items-center justify-between border-b border-slate-200 pb-2 mb-4">
+      <span class="text-xs font-bold text-slate-500">切換筆數分頁：</span>
+      <div id="pen_tabs" class="flex flex-wrap gap-2"></div>
+    </div>
+
+    <!-- 當前筆的資訊設定（批號在此統一設定） -->
+    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-5">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+        <div>
+          <label class="text-xs text-slate-500 block mb-1 font-medium flex items-center justify-between">
+            <span>📅 本支筆開始使用日 / 看診日</span>
+            <button type="button" onclick="setPenDateToday()" class="text-teal-600 hover:text-teal-800 text-[11px] font-semibold underline">設為今天</button>
+          </label>
+          <input id="pen_date" type="date" class="w-full bg-white border border-slate-300 rounded px-3 py-1.5 text-sm cursor-pointer focus:outline-none focus:border-teal-600 font-sans" oninput="updatePenInfo('startDate', this.value)" onchange="updatePenInfo('startDate', this.value)">
+        </div>
+        <div>
+          <label class="text-xs text-teal-700 font-bold block mb-1">🏷️ 本支筆藥品批號（整支統一帶入）</label>
+          <input id="pen_batch" type="text" placeholder="例: A126068" class="w-full bg-white border border-teal-300 rounded px-3 py-1.5 text-sm font-semibold focus:outline-none focus:border-teal-600" oninput="updatePenInfo('batch', this.value)" onchange="updatePenInfo('batch', this.value)">
+        </div>
+      </div>
+      <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-200 text-xs">
+        <span id="weight_stat" class="text-slate-600 font-medium"></span>
+        <button onclick="deleteCurrentPen()" class="text-rose-600 hover:underline">🗑️ 刪除目前這支筆的紀錄</button>
+      </div>
+    </div>
+
+    <!-- 📌 劑量設定對照卡片 (支援筆型切換與完全自訂編輯) -->
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 mb-5 text-sm">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2 pb-2 border-b border-amber-200/70">
+        <div class="flex items-center gap-2">
+          <span class="font-bold text-amber-900 text-xs md:text-sm">📌 本支筆劑量規格對照：</span>
+          <select id="pen_preset_select" onchange="applyPenPreset(this.value)" class="bg-white border border-amber-300 text-amber-900 text-xs rounded px-2 py-1 font-semibold focus:outline-none focus:border-amber-600 cursor-pointer">
+            <option value="1.0">1.0 mg 筆規格 (總劑量 4mg/3mL)</option>
+            <option value="1.7">1.7 mg 筆規格 (總劑量 6.8mg/3mL)</option>
+            <option value="2.4">2.4 mg 筆規格 (總劑量 9.6mg/3mL)</option>
+            <option value="custom">自訂規格檔位</option>
+          </select>
+        </div>
+        <button id="btn_toggle_custom_dose" onclick="toggleCustomDoseEditor()" class="text-amber-800 hover:text-amber-950 bg-amber-100 hover:bg-amber-200 border border-amber-300 text-xs px-2.5 py-1 rounded font-medium transition flex items-center gap-1">
+          <span>✏️ 自訂修改格數/劑量</span>
+        </button>
+      </div>
+
+      <!-- 對照卡片展示區 -->
+      <div id="dose_display_grid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-amber-900 text-xs"></div>
+
+      <!-- 自訂劑量編輯抽屜 (點選「自訂修改」時展開) -->
+      <div id="custom_dose_editor" class="hidden mt-3 pt-3 border-t border-amber-200 bg-white/70 p-3 rounded-lg">
+        <div class="text-xs font-bold text-amber-900 mb-2 flex items-center justify-between">
+          <span>🛠️ 自訂此筆劑量檔位（修改後表格選單會同步連動）：</span>
+          <button onclick="addCustomDoseRow()" class="text-teal-700 hover:text-teal-900 font-bold text-xs">+ 新增檔位</button>
+        </div>
+        <div id="custom_dose_rows" class="space-y-2 mb-3"></div>
+        <div class="flex justify-end gap-2 text-xs">
+          <button onclick="toggleCustomDoseEditor(false)" class="px-3 py-1 bg-slate-200 hover:bg-slate-300 rounded text-slate-700 font-medium">取消</button>
+          <button onclick="saveCustomDoseRules()" class="px-3 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded font-bold shadow">✔ 儲存並套用</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 該筆的施打與體重紀錄表格 -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-3 gap-2">
+      <h2 id="current_pen_title" class="font-bold text-slate-700 text-sm md:text-base">第 1 支筆施打明細</h2>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="autoFillDatesWeekly()" title="以第1週日期為基準，自動幫後續週次每+7天自動填入" class="bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-300 text-xs px-2.5 py-1.5 rounded font-medium transition flex items-center gap-1 active:scale-95 shadow-sm">
+          <span>⚡ 依首週自動推算每週(+7天)</span>
+        </button>
+        <button onclick="addRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs px-3 py-1.5 rounded transition">+ 新增一週紀錄</button>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto mb-6">
+      <table class="w-full text-sm text-left border-collapse">
+        <thead>
+          <tr class="bg-teal-700 text-white text-xs">
+            <th class="p-2.5 rounded-tl-lg text-center w-12">週次</th>
+            <th class="p-2.5 min-w-[135px]">施打日 (點選日曆)</th>
+            <th class="p-2.5 min-w-[140px]">劑量 (mg)</th>
+            <th class="p-2.5 text-center w-16 md:w-20">已打</th>
+            <th class="p-2.5">空腹體重 (kg)</th>
+            <th class="p-2.5 rounded-tr-lg text-center w-12">刪除</th>
+          </tr>
+        </thead>
+        <tbody id="record_body" class="divide-y divide-slate-200 text-xs md:text-sm"></tbody>
+      </table>
+    </div>
+
+    <!-- 衛教提醒 -->
+    <div class="space-y-2 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-600">
+      <p class="font-bold text-slate-700">⚠️ 補打與不適處理原則：</p>
+      <ul class="list-disc pl-4 space-y-1">
+        <li>若忘了打針，<b>3天內可補打</b>；超過3天請勿補打，等下個施打日再打。</li>
+        <li>噁心嘔吐採少量多餐；腹瀉或便秘請多喝水保持水分。</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const DOSE_PRESETS = {
+      "1.0": [
+        { dose: "0.25", label: "0.25 mg", note: "18格 (黑線)", badge: "⚫" },
+        { dose: "0.5",  label: "0.5 mg",  note: "37格 (藍線)", badge: "🔵" },
+        { dose: "1.0",  label: "1.0 mg",  note: "轉到底 (74格)", badge: "🔴" }
+      ],
+      "1.7": [
+        { dose: "0.25", label: "0.25 mg", note: "11格", badge: "⚫" },
+        { dose: "0.5",  label: "0.5 mg",  note: "22格", badge: "🔵" },
+        { dose: "1.0",  label: "1.0 mg",  note: "44格", badge: "🔴" },
+        { dose: "1.7",  label: "1.7 mg",  note: "轉到底 (74格)", badge: "🟣" }
+      ],
+      "2.4": [
+        { dose: "0.25", label: "0.25 mg", note: "8格",  badge: "⚫" },
+        { dose: "0.5",  label: "0.5 mg",  note: "15格", badge: "🔵" },
+        { dose: "1.0",  label: "1.0 mg",  note: "31格", badge: "🔴" },
+        { dose: "1.7",  label: "1.7 mg",  note: "52格", badge: "🟠" },
+        { dose: "2.4",  label: "2.4 mg",  note: "轉到底 (74格)", badge: "🟣" }
+      ]
+    };
+
+    if (window.self !== window.top) {
+      document.getElementById("iframe_notice").classList.remove("hidden");
+    }
+
+    let chartViewMode = 'current';
+    let weightChart = null;
+
+    let appData = JSON.parse(localStorage.getItem("wegovy_multi_pens_v6")) || {
+      activePen: 0,
+      targetWeight: "",
+      pens: [
+        {
+          startDate: "",
+          batch: "",
+          penType: "1.0",
+          doseRules: JSON.parse(JSON.stringify(DOSE_PRESETS["1.0"])),
+          records: [
+            { date: "", dose: "0.25", done: false, weight: "" },
+            { date: "", dose: "0.5", done: false, weight: "" },
+            { date: "", dose: "0.5", done: false, weight: "" },
+            { date: "", dose: "0.5", done: false, weight: "" }
+          ]
+        }
+      ]
+    };
+
+    appData.pens.forEach(pen => {
+      if (!pen.penType) pen.penType = "1.0";
+      if (!pen.doseRules || !Array.isArray(pen.doseRules) || pen.doseRules.length === 0) {
+        pen.doseRules = JSON.parse(JSON.stringify(DOSE_PRESETS[pen.penType] || DOSE_PRESETS["1.0"]));
+      }
+    });
+
+    let saveTimer = null;
+    function save() {
+      const statusEl = document.getElementById("save_status");
+      statusEl.innerText = "💾 儲存中...";
+      statusEl.className = "text-amber-600 font-semibold flex items-center gap-1";
+
+      try {
+        localStorage.setItem("wegovy_multi_pens_v6", JSON.stringify(appData));
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => {
+          const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+          statusEl.innerText = `🟢 已自動儲存 (${nowStr})`;
+          statusEl.className = "text-emerald-700 font-semibold flex items-center gap-1";
+        }, 150);
+      } catch (e) {
+        console.warn("無法寫入 localStorage (可能是 iframe 沙盒限制):", e);
+        statusEl.innerText = "⚠️ 沙盒限制無法寫入，請另開獨立網頁";
+        statusEl.className = "text-rose-600 font-semibold flex items-center gap-1";
+      }
+    }
+
+    function formatDateLocal(d) {
+      if (!d || isNaN(d.getTime())) return "";
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function normalizeDateForInput(dStr) {
+      if (!dStr) return "";
+      dStr = String(dStr).trim().replace(/\//g, "-");
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return dStr;
+      if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(dStr)) {
+        const parts = dStr.split("-");
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      }
+      if (/^\d{1,2}-\d{1,2}$/.test(dStr)) {
+        const year = new Date().getFullYear();
+        const parts = dStr.split("-");
+        return `${year}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+      }
+      return "";
+    }
+
+    function formatDateForLabel(dStr) {
+      if (!dStr) return "";
+      const normalized = normalizeDateForInput(dStr);
+      if (normalized) {
+        const parts = normalized.split("-");
+        return `${parts[1]}/${parts[2]}`;
+      }
+      return dStr;
+    }
+
+    function setPenDateToday() {
+      const today = formatDateLocal(new Date());
+      document.getElementById("pen_date").value = today;
+      updatePenInfo('startDate', today);
+    }
+
+    function setRowDateToday(idx) {
+      const today = formatDateLocal(new Date());
+      updateRow(idx, 'date', today);
+      const inputEl = document.getElementById(`row_date_${idx}`);
+      if (inputEl) inputEl.value = today;
+      render();
+    }
+
+    function autoFillDatesWeekly() {
+      const currentPen = appData.pens[appData.activePen];
+      const firstRowInput = document.getElementById("row_date_0");
+      let baseDateStr = (firstRowInput && firstRowInput.value) ? firstRowInput.value : (currentPen.records[0]?.date || currentPen.startDate);
+      baseDateStr = normalizeDateForInput(baseDateStr);
+
+      if (!baseDateStr) {
+        alert("請先在「第 1 週施打日」點選日曆選擇起始日期，才能為您自動推算後續每週日期！");
+        return;
+      }
+
+      const [y, m, d] = baseDateStr.split("-").map(Number);
+      const baseDate = new Date(y, m - 1, d);
+
+      currentPen.records.forEach((r, idx) => {
+        const nextDate = new Date(baseDate);
+        nextDate.setDate(baseDate.getDate() + (idx * 7));
+        r.date = formatDateLocal(nextDate);
+      });
+
+      currentPen.startDate = baseDateStr;
+
+      save();
+      render();
+    }
+
+    function applyPenPreset(presetKey) {
+      const currentPen = appData.pens[appData.activePen];
+      currentPen.penType = presetKey;
+      if (presetKey !== 'custom' && DOSE_PRESETS[presetKey]) {
+        currentPen.doseRules = JSON.parse(JSON.stringify(DOSE_PRESETS[presetKey]));
+        toggleCustomDoseEditor(false);
+      } else {
+        toggleCustomDoseEditor(true);
+      }
+      save();
+      render();
+    }
+
+    function toggleCustomDoseEditor(forceState) {
+      const editor = document.getElementById("custom_dose_editor");
+      const isShow = typeof forceState === 'boolean' ? forceState : editor.classList.contains("hidden");
+      if (isShow) {
+        editor.classList.remove("hidden");
+        renderCustomDoseEditorRows();
+      } else {
+        editor.classList.add("hidden");
+      }
+    }
+
+    function renderCustomDoseEditorRows() {
+      const currentPen = appData.pens[appData.activePen];
+      const container = document.getElementById("custom_dose_rows");
+      container.innerHTML = "";
+
+      currentPen.doseRules.forEach((rule, idx) => {
+        const row = document.createElement("div");
+        row.className = "flex items-center gap-2";
+        row.innerHTML = `
+          <input type="text" value="${rule.badge || '⚫'}" class="w-10 text-center bg-white border border-slate-300 rounded px-1 py-1 text-xs" onchange="editDoseRuleTemp(${idx}, 'badge', this.value)">
+          <div class="flex items-center gap-1">
+            <input type="number" step="0.01" value="${rule.dose || ''}" placeholder="劑量" class="w-20 bg-white border border-slate-300 rounded px-2 py-1 text-xs font-bold" onchange="editDoseRuleTemp(${idx}, 'dose', this.value)">
+            <span class="text-xs text-slate-500">mg</span>
+          </div>
+          <input type="text" value="${rule.note || ''}" placeholder="格數或說明 (例: 18格)" class="flex-1 bg-white border border-slate-300 rounded px-2 py-1 text-xs" onchange="editDoseRuleTemp(${idx}, 'note', this.value)">
+          <button onclick="removeDoseRuleTemp(${idx})" class="text-rose-500 hover:text-rose-700 font-bold px-2 py-1 text-xs">✕</button>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function editDoseRuleTemp(idx, field, val) {
+      const currentPen = appData.pens[appData.activePen];
+      currentPen.doseRules[idx][field] = val;
+      if (field === 'dose') {
+        currentPen.doseRules[idx].label = `${val} mg`;
+      }
+    }
+
+    function addCustomDoseRow() {
+      const currentPen = appData.pens[appData.activePen];
+      currentPen.doseRules.push({ dose: "1.0", label: "1.0 mg", note: "轉到底", badge: "🔵" });
+      renderCustomDoseEditorRows();
+    }
+
+    function removeDoseRuleTemp(idx) {
+      const currentPen = appData.pens[appData.activePen];
+      if (currentPen.doseRules.length <= 1) {
+        alert("至少保留一個劑量檔位！");
+        return;
+      }
+      currentPen.doseRules.splice(idx, 1);
+      renderCustomDoseEditorRows();
+    }
+
+    function saveCustomDoseRules() {
+      const currentPen = appData.pens[appData.activePen];
+      currentPen.penType = "custom";
+      save();
+      toggleCustomDoseEditor(false);
+      render();
+    }
+
+    function getAllValidWeights() {
+      let allRecords = [];
+      appData.pens.forEach((pen, pIdx) => {
+        pen.records.forEach((r, rIdx) => {
+          const w = parseFloat(r.weight);
+          if (!isNaN(w) && w > 0) {
+            const shortDate = formatDateForLabel(r.date);
+            allRecords.push({
+              penIdx: pIdx,
+              penBatch: pen.batch,
+              weekIdx: rIdx,
+              date: r.date,
+              dose: r.dose,
+              weight: w,
+              label: `P${pIdx + 1}-W${rIdx + 1}${shortDate ? ' (' + shortDate + ')' : ''}`
+            });
+          }
+        });
+      });
+      return allRecords;
+    }
+
+    function getCurrentPenWeights() {
+      const pen = appData.pens[appData.activePen];
+      let records = [];
+      pen.records.forEach((r, rIdx) => {
+        const w = parseFloat(r.weight);
+        if (!isNaN(w) && w > 0) {
+          const shortDate = formatDateForLabel(r.date);
+          records.push({
+            weekIdx: rIdx,
+            date: r.date,
+            dose: r.dose,
+            weight: w,
+            label: `第${rIdx + 1}週${shortDate ? ' (' + shortDate + ')' : ''}`
+          });
+        }
+      });
+      return records;
+    }
+
+    function updateMetricCards() {
+      const allWeights = getAllValidWeights();
+      const startEl = document.getElementById("stat_start_weight");
+      const currEl = document.getElementById("stat_current_weight");
+      const diffEl = document.getElementById("stat_diff_weight");
+      const targetInput = document.getElementById("input_target_weight");
+      const targetRemainEl = document.getElementById("stat_target_remain");
+
+      targetInput.value = appData.targetWeight || "";
+
+      if (allWeights.length > 0) {
+        const startW = allWeights[0].weight;
+        const latestW = allWeights[allWeights.length - 1].weight;
+        const diff = (latestW - startW).toFixed(1);
+
+        startEl.innerHTML = `${startW} <span class="text-xs font-normal">kg</span>`;
+        currEl.innerHTML = `${latestW} <span class="text-xs font-normal">kg</span>`;
+
+        if (diff <= 0) {
+          diffEl.innerHTML = `<span class="text-emerald-600">${diff}</span> <span class="text-xs font-normal">kg</span>`;
+        } else {
+          diffEl.innerHTML = `<span class="text-rose-600">+${diff}</span> <span class="text-xs font-normal">kg</span>`;
+        }
+
+        const targetW = parseFloat(appData.targetWeight);
+        if (!isNaN(targetW) && targetW > 0) {
+          const remain = (latestW - targetW).toFixed(1);
+          if (remain > 0) {
+            targetRemainEl.innerText = `距目標還差 ${remain} kg`;
+            targetRemainEl.className = "text-[10px] text-amber-700 mt-0.5 font-medium";
+          } else if (remain == 0) {
+            targetRemainEl.innerText = `🎉 恭喜已達成目標！`;
+            targetRemainEl.className = "text-[10px] text-emerald-600 mt-0.5 font-bold";
+          } else {
+            targetRemainEl.innerText = `🔥 已超越目標 ${Math.abs(remain)} kg！`;
+            targetRemainEl.className = "text-[10px] text-teal-700 mt-0.5 font-bold";
+          }
+        } else {
+          targetRemainEl.innerText = "點擊上方輸入目標";
+          targetRemainEl.className = "text-[10px] text-slate-400 mt-0.5";
+        }
+      } else {
+        startEl.innerHTML = `-- <span class="text-xs font-normal">kg</span>`;
+        currEl.innerHTML = `-- <span class="text-xs font-normal">kg</span>`;
+        diffEl.innerHTML = `-- <span class="text-xs font-normal">kg</span>`;
+        targetRemainEl.innerText = "尚無體重記錄";
+      }
+    }
+
+    function updateTargetWeight(val) {
+      appData.targetWeight = val;
+      save();
+      updateMetricCards();
+      renderChart();
+    }
+
+    function setChartView(mode) {
+      chartViewMode = mode;
+      document.getElementById("btn_view_current").className = mode === 'current' 
+        ? "px-2.5 py-1 rounded-md font-medium transition bg-white shadow-sm text-teal-700" 
+        : "px-2.5 py-1 rounded-md font-medium transition text-slate-600 hover:text-slate-900";
+      document.getElementById("btn_view_all").className = mode === 'all' 
+        ? "px-2.5 py-1 rounded-md font-medium transition bg-white shadow-sm text-teal-700" 
+        : "px-2.5 py-1 rounded-md font-medium transition text-slate-600 hover:text-slate-900";
+      renderChart();
+    }
+
+    function renderChart() {
+      const records = chartViewMode === 'current' ? getCurrentPenWeights() : getAllValidWeights();
+      const emptyTip = document.getElementById("chart_empty_tip");
+      const subtitle = document.getElementById("chart_subtitle");
+
+      if (chartViewMode === 'current') {
+        subtitle.innerText = `(顯示第 ${appData.activePen + 1} 支筆紀錄)`;
+      } else {
+        subtitle.innerText = `(顯示全期跨筆共 ${records.length} 筆紀錄)`;
+      }
+
+      if (records.length === 0) {
+        emptyTip.classList.remove("hidden");
+        if (weightChart) {
+          weightChart.destroy();
+          weightChart = null;
+        }
+        return;
+      }
+      emptyTip.classList.add("hidden");
+
+      const labels = records.map(r => r.label);
+      const dataPoints = records.map(r => r.weight);
+      const doses = records.map(r => r.dose);
+
+      const minW = Math.min(...dataPoints);
+      const maxW = Math.max(...dataPoints);
+      const targetW = parseFloat(appData.targetWeight);
+      const yMin = Math.floor(Math.min(minW, !isNaN(targetW) && targetW > 0 ? targetW : minW) - 1.5);
+      const yMax = Math.ceil(Math.max(maxW, !isNaN(targetW) && targetW > 0 ? targetW : maxW) + 1.5);
+
+      const datasets = [
+        {
+          label: '體重 (kg)',
+          data: dataPoints,
+          borderColor: '#0d9488',
+          backgroundColor: 'rgba(20, 184, 166, 0.12)',
+          fill: true,
+          tension: 0.35,
+          pointBackgroundColor: '#0f766e',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          pointHoverBackgroundColor: '#0d9488',
+        }
+      ];
+
+      if (!isNaN(targetW) && targetW > 0) {
+        datasets.push({
+          label: `目標體重 (${targetW} kg)`,
+          data: Array(labels.length).fill(targetW),
+          borderColor: '#f59e0b',
+          borderDash: [6, 6],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0
+        });
+      }
+
+      const ctx = document.getElementById('weightChart').getContext('2d');
+      if (weightChart) {
+        weightChart.data.labels = labels;
+        weightChart.data.datasets = datasets;
+        weightChart.options.scales.y.min = yMin;
+        weightChart.options.scales.y.max = yMax;
+        weightChart.update();
+      } else {
+        weightChart = new Chart(ctx, {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false,
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: 'top',
+                labels: { boxWidth: 12, font: { size: 11 } }
+              },
+              tooltip: {
+                backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                padding: 10,
+                callbacks: {
+                  afterLabel: function(context) {
+                    if (context.datasetIndex === 0) {
+                      const dose = doses[context.dataIndex];
+                      return dose ? `💉 劑量: ${dose} mg` : '';
+                    }
+                    return '';
+                  }
+                }
+              }
+            },
+            scales: {
+              x: {
+                grid: { display: false },
+                ticks: { font: { size: 11 }, maxRotation: 45 }
+              },
+              y: {
+                min: yMin,
+                max: yMax,
+                grid: { color: '#f1f5f9' },
+                ticks: {
+                  stepSize: 1,
+                  font: { size: 11 },
+                  callback: function(value) { return value + ' kg'; }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    function render() {
+      const tabsContainer = document.getElementById("pen_tabs");
+      tabsContainer.innerHTML = "";
+      appData.pens.forEach((pen, idx) => {
+        const btn = document.createElement("button");
+        btn.className = `px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-all ${idx === appData.activePen ? 'bg-teal-700 text-white shadow' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`;
+        btn.innerText = `第 ${idx + 1} 支筆 ${pen.batch ? '(' + pen.batch + ')' : ''}`;
+        btn.onclick = () => { appData.activePen = idx; save(); render(); };
+        tabsContainer.appendChild(btn);
+      });
+
+      const currentPen = appData.pens[appData.activePen];
+      document.getElementById("pen_date").value = normalizeDateForInput(currentPen.startDate) || "";
+      document.getElementById("pen_batch").value = currentPen.batch || "";
+      document.getElementById("current_pen_title").innerText = `第 ${appData.activePen + 1} 支筆施打明細 ${currentPen.batch ? ' [批號: ' + currentPen.batch + ']' : ''}`;
+
+      // 渲染劑量設定卡片
+      document.getElementById("pen_preset_select").value = currentPen.penType || "1.0";
+      const doseGrid = document.getElementById("dose_display_grid");
+      doseGrid.innerHTML = "";
+      currentPen.doseRules.forEach(rule => {
+        const item = document.createElement("div");
+        item.className = "bg-white/85 px-2.5 py-1.5 rounded border border-amber-200/90 shadow-sm flex items-center gap-1.5";
+        item.innerHTML = `<span>${rule.badge || '⚫'}</span> <span><b>${rule.label || (rule.dose + ' mg')}</b>：${rule.note || ''}</span>`;
+        doseGrid.appendChild(item);
+      });
+
+      // 渲染施打記錄表格
+      const tbody = document.getElementById("record_body");
+      tbody.innerHTML = "";
+
+      currentPen.records.forEach((r, idx) => {
+        const dateVal = normalizeDateForInput(r.date);
+        const tr = document.createElement("tr");
+        tr.className = r.done ? "bg-teal-50/50" : "hover:bg-slate-50";
+
+        // 動態生成劑量選單選項
+        let doseOptionsHtml = "";
+        let matched = false;
+        currentPen.doseRules.forEach(rule => {
+          const isSel = (String(r.dose) === String(rule.dose));
+          if (isSel) matched = true;
+          doseOptionsHtml += `<option value="${rule.dose}" ${isSel ? 'selected' : ''}>${rule.label || (rule.dose + 'mg')} (${rule.note})</option>`;
+        });
+        if (!matched && r.dose) {
+          doseOptionsHtml += `<option value="${r.dose}" selected>${r.dose} mg (自訂)</option>`;
+        }
+
+        tr.innerHTML = `
+          <td class="p-2.5 text-center font-bold text-slate-700">${idx + 1}</td>
+          <td class="p-2.5">
+            <div class="flex items-center gap-1.5">
+              <input id="row_date_${idx}" type="date" value="${dateVal}" 
+                class="w-32 sm:w-36 bg-white border border-slate-300 rounded px-2 py-1.5 text-xs md:text-sm cursor-pointer focus:outline-none focus:border-teal-600 font-sans"
+                oninput="updateRow(${idx}, 'date', this.value)"
+                onchange="updateRow(${idx}, 'date', this.value)">
+              <button type="button" onclick="setRowDateToday(${idx})" title="帶入今天" class="text-slate-400 hover:text-teal-600 text-xs font-semibold px-1 py-1 rounded hover:bg-slate-100">今</button>
+            </div>
+          </td>
+          <td class="p-2.5">
+            <select class="bg-white border border-slate-300 rounded px-2 py-1.5 text-xs md:text-sm focus:outline-none focus:border-teal-600 cursor-pointer w-full max-w-[160px]"
+              onchange="updateRow(${idx}, 'dose', this.value)">
+              ${doseOptionsHtml}
+            </select>
+          </td>
+          <td class="p-2.5 text-center">
+            <input type="checkbox" ${r.done ? "checked" : ""} 
+              class="w-5 h-5 accent-teal-600 rounded cursor-pointer"
+              onchange="updateRow(${idx}, 'done', this.checked)">
+          </td>
+          <td class="p-2.5">
+            <div class="flex items-center gap-1">
+              <input type="number" step="0.1" value="${r.weight || ''}" placeholder="體重" 
+                class="w-20 md:w-24 bg-white border border-slate-300 rounded px-2 py-1.5 text-xs md:text-sm focus:outline-none focus:border-teal-600"
+                oninput="updateRowInstant(${idx}, 'weight', this.value)"
+                onchange="updateRow(${idx}, 'weight', this.value)">
+              <span class="text-slate-400 text-xs">kg</span>
+            </div>
+          </td>
+          <td class="p-2.5 text-center">
+            <button onclick="deleteRow(${idx})" class="text-slate-400 hover:text-rose-600 font-bold px-2 py-1">✕</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      updateMetricCards();
+      renderChart();
+    }
+
+    function updatePenInfo(field, val) {
+      appData.pens[appData.activePen][field] = val;
+      save();
+      render();
+    }
+
+    function updateRowInstant(idx, field, val) {
+      appData.pens[appData.activePen].records[idx][field] = val;
+      updateMetricCards();
+      renderChart();
+    }
+
+    function updateRow(idx, field, val) {
+      appData.pens[appData.activePen].records[idx][field] = val;
+      if (idx === 0 && field === 'date') {
+        appData.pens[appData.activePen].startDate = val;
+        const penDateInput = document.getElementById("pen_date");
+        if (penDateInput) penDateInput.value = val;
+      }
+      save();
+      updateMetricCards();
+      renderChart();
+    }
+
+    function addRow() {
+      const currentPen = appData.pens[appData.activePen];
+      const records = currentPen.records;
+      let nextDateStr = "";
+      if (records.length > 0) {
+        const lastDate = normalizeDateForInput(records[records.length - 1].date);
+        if (lastDate) {
+          const [y, m, d] = lastDate.split("-").map(Number);
+          const nextDate = new Date(y, m - 1, d);
+          nextDate.setDate(nextDate.getDate() + 7);
+          nextDateStr = formatDateLocal(nextDate);
+        }
+      }
+      const defaultDose = (currentPen.doseRules && currentPen.doseRules.length > 1) ? currentPen.doseRules[1].dose : "0.5";
+      currentPen.records.push({ date: nextDateStr, dose: defaultDose, done: false, weight: "" });
+      save();
+      render();
+    }
+
+    function deleteRow(idx) {
+      appData.pens[appData.activePen].records.splice(idx, 1);
+      save();
+      render();
+    }
+
+    function addPen() {
+      appData.pens.push({
+        startDate: "",
+        batch: "",
+        penType: "1.0",
+        doseRules: JSON.parse(JSON.stringify(DOSE_PRESETS["1.0"])),
+        records: [
+          { date: "", dose: "0.25", done: false, weight: "" },
+          { date: "", dose: "0.5", done: false, weight: "" },
+          { date: "", dose: "0.5", done: false, weight: "" },
+          { date: "", dose: "0.5", done: false, weight: "" }
+        ]
+      });
+      appData.activePen = appData.pens.length - 1;
+      save();
+      render();
+    }
+
+    function deleteCurrentPen() {
+      if (appData.pens.length <= 1) {
+        alert("至少需要保留一支筆的紀錄！");
+        return;
+      }
+      if (confirm("確定要刪除目前這支筆的所有紀錄嗎？")) {
+        appData.pens.splice(appData.activePen, 1);
+        appData.activePen = Math.max(0, appData.activePen - 1);
+        save();
+        render();
+      }
+    }
+
+    function exportToExcel() {
+      if (typeof XLSX === 'undefined') {
+        alert("Excel 模組載入中，請稍候重試！");
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+      const rows = [];
+
+      rows.push(["💉 Wegovy 針劑施打與體重紀錄表"]);
+      rows.push([`匯出日期：${formatDateLocal(new Date())}`]);
+
+      const allWeights = getAllValidWeights();
+      if (allWeights.length > 0) {
+        const startW = allWeights[0].weight;
+        const latestW = allWeights[allWeights.length - 1].weight;
+        const diff = (latestW - startW).toFixed(1);
+        const targetW = appData.targetWeight ? `${appData.targetWeight} kg` : "未設定";
+        rows.push([`起始體重：${startW} kg`, `最新體重：${latestW} kg`, `累計減重：${diff} kg`, `目標體重：${targetW}`]);
+      }
+      rows.push([]);
+
+      rows.push([
+        "筆數",
+        "筆型規格",
+        "藥品批號",
+        "開始使用日",
+        "週次",
+        "施打日期",
+        "劑量 (mg)",
+        "施打狀態",
+        "空腹體重 (kg)",
+        "較前週變化 (kg)",
+        "累計減重 (kg)"
+      ]);
+
+      let firstWeight = null;
+      let prevWeight = null;
+
+      appData.pens.forEach((pen, pIdx) => {
+        pen.records.forEach((r, rIdx) => {
+          const penName = `第 ${pIdx + 1} 支筆`;
+          const penSpec = pen.penType ? `${pen.penType} mg規格` : "1.0 mg規格";
+          const batch = pen.batch || "--";
+          const startDate = pen.startDate || "--";
+          const weekName = `第 ${rIdx + 1} 週`;
+          const date = r.date || "--";
+          const dose = r.dose ? `${r.dose} mg` : "--";
+          const doneStr = r.done ? "已施打" : "未施打";
+          const weightVal = parseFloat(r.weight);
+          const weightStr = (!isNaN(weightVal) && weightVal > 0) ? weightVal : "--";
+
+          let diffPrev = "--";
+          let diffTotal = "--";
+
+          if (!isNaN(weightVal) && weightVal > 0) {
+            if (firstWeight === null) {
+              firstWeight = weightVal;
+            }
+            if (prevWeight !== null) {
+              const d = (weightVal - prevWeight).toFixed(1);
+              diffPrev = d > 0 ? `+${d}` : d;
+            } else {
+              diffPrev = "0.0";
+            }
+            prevWeight = weightVal;
+
+            const dTot = (weightVal - firstWeight).toFixed(1);
+            diffTotal = dTot > 0 ? `+${dTot}` : dTot;
+          }
+
+          rows.push([
+            penName,
+            penSpec,
+            batch,
+            startDate,
+            weekName,
+            date,
+            dose,
+            doneStr,
+            weightStr,
+            diffPrev,
+            diffTotal
+          ]);
+        });
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+
+      ws['!cols'] = [
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 14 },
+        { wch: 10 },
+        { wch: 14 },
+        { wch: 12 },
+        { wch: 10 },
+        { wch: 14 },
+        { wch: 16 },
+        { wch: 16 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, ws, "施打與體重明細");
+
+      const fileName = `Wegovy施打紀錄_${formatDateLocal(new Date())}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    }
+
+    function exportData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `wegovy_backup_${formatDateLocal(new Date())}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function importData(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed && Array.isArray(parsed.pens)) {
+            appData = parsed;
+            appData.pens.forEach(pen => {
+              if (!pen.penType) pen.penType = "1.0";
+              if (!pen.doseRules) pen.doseRules = JSON.parse(JSON.stringify(DOSE_PRESETS[pen.penType] || DOSE_PRESETS["1.0"]));
+            });
+            save();
+            render();
+            alert("✅ 備份資料匯入成功！劑量對照與紀錄已更新。");
+          } else {
+            alert("❌ 備份格式不符！");
+          }
+        } catch (err) {
+          alert("❌ 讀取備份檔案失敗：" + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    }
+
+    function resetData() {
+      if (confirm("確定要清除所有資料重置嗎？")) {
+        localStorage.removeItem("wegovy_multi_pens_v6");
+        location.reload();
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>

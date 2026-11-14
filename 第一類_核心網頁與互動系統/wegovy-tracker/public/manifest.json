@@ -1,0 +1,21 @@
+{
+  "name": "Wegovy 施打與體重紀錄",
+  "short_name": "Wegovy紀錄",
+  "description": "Wegovy 每週針劑施打紀錄、批號管理與體重動態折線圖",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/822/822143.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/822/822143.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,6 +1,23 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-11-13 倉儲儲位 PWA 記錄系統建置完成：雙倉 .xlsm 無損回寫、儲位平面圖、批號出入庫獨立彙整、人員帳密登入與 Cloudflare D1 雲端部署)
+## 今日進度與交接事項 (2026-11-14 Wegovy 針劑施打與體重紀錄 PWA 上線、動態劑量規格自訂、時區偏移防呆、Excel 匯出與 Cloudflare Pages 雲端部署)
+* **Wegovy 針劑施打與體重紀錄 PWA 系統 (`第一類_核心網頁與互動系統/wegovy-tracker`)**:
+  - **核心架構與部署 (`https://wegovy-tracker.pages.dev`)**:
+    1. **解決 Google Sites 嵌入沙盒限制**：Google Sites iframe 運行於 `*.googleusercontent.com` 隨機動態子網域且第三方 Cookie / Storage 隔離，導致 `localStorage` 無法跨頁籤持久保存。因此正式獨立部署至 Cloudflare Pages，支援完整 PWA（離線快取、添加到主螢幕如原生 App）。
+    2. **標準三件套建立**：完整建立 `README.md`（含詳細檔案架構樹）、`SKILL.md`、`setup_env.ps1` 與 `一鍵部署至Cloudflare.bat`。
+  - **功能演進與避坑修復**:
+    1. **體重紀錄動態曲線圖表**：整合 Chart.js 動態折線圖，即時監控體重與減重幅度，並提供最新體重、累積減重與施打進度 KPI 看板。
+    2. **HTML5 日曆選擇器與 UTC+8 時區防呆**:
+       - **避坑指南**：原自動每週推算 (+7天) 使用 `nextDate.toISOString().slice(0, 10)`，在台灣 UTC+8 環境下因午夜轉換被減 8 小時導致日期往前倒退 1 天（例如 11/13 變成 11/12）。改採 `formatDateLocal()` 依本地年月日提取，徹底解決時區偏移問題。
+       - **即時響應**：日曆元件同時監聽 `oninput` 與 `onchange`，即使使用者在手機滾輪選完立即點擊推算按鈕，亦能立即獲取最新首週日期。
+    3. **Excel (`.xlsx`) 完整匯出功能**：整合 SheetJS（xlsx.full.min.js），一鍵將 6 週施打週次、施打日期、劑量與體重資料匯出為標準 Excel 檔案。
+    4. **劑量設定對照支援完全自訂與規格切換**:
+       - 支援 1.0mg、1.7mg、2.4mg 預設筆型規格切換。
+       - 支援自訂各劑量之名稱、格數與備註，編輯後自動即時同步更新下方每週施打明細的劑量下拉選單。
+
+---
+
+## 前次進度與交接事項 (2026-11-13 倉儲儲位 PWA 記錄系統建置完成：雙倉 .xlsm 無損回寫、儲位平面圖、批號出入庫獨立彙整、人員帳密登入與 Cloudflare D1 雲端部署)
 * **倉儲儲位 PWA 記錄系統 (`C:\GOOGLE ANGET\儲位記錄`)**:
   - **三軌架構與標準四件套完整建立**:
     1. `1_Web_網頁版/index.html`、`2_PWA_App版/`（本機區網 FastAPI + PWA）、`3_Cloudflare_D1版/`（Pages + D1 Serverless）。
