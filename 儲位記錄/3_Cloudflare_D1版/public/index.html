@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>倉儲儲位 PWA 記錄系統</title>
   <link rel="manifest" href="/manifest.json" />
+  <script src="./xlsx.full.min.js"></script>
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <style>
@@ -477,7 +478,42 @@
     </div>
   </div>
 
-  <div id="toastBox" class="toast-box"></div>
+  
+  <!-- 匯入 Excel/CSV 確認 Modal -->
+  <div id="modalImportConfirm" class="modal-backdrop" style="display:none;z-index:10005;">
+    <div class="modal-card" style="max-width:460px;padding:24px;">
+      <h3 style="margin-top:0;font-size:18px;display:flex;align-items:center;gap:8px;">
+        <span>📤 批次匯入更新儲位</span>
+      </h3>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5;">
+        已成功解析檔案！系統將比對儲位代碼，直接覆蓋更新系統資料庫，解決雙軌測試重工問題。
+      </div>
+      <div style="background:var(--bg);padding:14px;border-radius:10px;margin-bottom:16px;font-size:13px;">
+        <div style="margin-bottom:6px;"><b>📁 檔案名稱：</b><span id="importFileName" style="color:var(--teal-dark);font-weight:700;"></span></div>
+        <div style="margin-bottom:8px;"><b>🏬 目標倉庫：</b>
+          <select id="importTargetWh" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);font-weight:700;">
+            <option value="lunwei">🏭 崙尾倉儲</option>
+            <option value="hongsheng">🏢 鴻勝倉庫</option>
+          </select>
+        </div>
+        <div style="margin-bottom:6px;"><b>📊 總儲位數：</b><span id="importTotalCount" style="color:var(--blue);font-weight:700;">0</span> 筆</div>
+        <div style="margin-bottom:6px;"><b>📦 有貨儲位：</b><span id="importOccupiedCount" style="color:var(--green);font-weight:700;">0</span> 筆</div>
+        <div><b>🈳 空儲位數：</b><span id="importEmptyCount" style="color:var(--muted);font-weight:700;">0</span> 筆</div>
+      </div>
+      <div id="importProgressBar" style="display:none;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--teal-dark);margin-bottom:4px;" id="importProgressText">正在寫入資料庫 (0%)...</div>
+        <div style="width:100%;background:#e2e8f0;height:8px;border-radius:4px;overflow:hidden;">
+          <div id="importProgressInner" style="width:0%;background:var(--teal);height:100%;transition:width 0.2s;"></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button type="button" id="btnCancelImport" class="pill" style="padding:8px 16px;">取消</button>
+        <button type="button" id="btnDoImportSubmit" class="wh-btn active" style="padding:8px 16px;background:var(--green);border-color:var(--green);">⚡ 確認覆蓋更新</button>
+      </div>
+    </div>
+  </div>
+
+<div id="toastBox" class="toast-box"></div>
 
   <main>
     <!-- TAB 1: 儲位錄入 -->
@@ -578,9 +614,13 @@
     <!-- TAB 1.5: 總表看板與儲位平面圖 -->
     <section id="tab-board" class="tab-page">
       <div class="card">
-        <div class="card-title">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <span>📋 總表即時統計看板</span>
-          <button id="btnDownloadXlsm" class="wh-btn active" style="padding:6px 10px;font-size:12px;">📥 下載最新 Excel</button>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button id="btnTriggerImport" class="wh-btn" style="padding:6px 12px;font-size:12px;background:var(--blue);color:#fff;border-color:var(--blue);font-weight:700;">📤 匯入更新 Excel/CSV</button>
+            <button id="btnDownloadXlsm" class="wh-btn active" style="padding:6px 12px;font-size:12px;font-weight:700;">📥 下載最新 Excel</button>
+            <input type="file" id="fileExcelImport" accept=".xlsm,.xlsx,.csv" style="display:none;" />
+          </div>
         </div>
         <div class="grid-2" style="margin-bottom:10px;">
           <div>
@@ -1181,9 +1221,213 @@
 
     document.getElementById('rackZoneSelect').addEventListener('change', renderRackMap);
     document.getElementById('rackRangeSelect').addEventListener('change', renderRackMap);
-    document.getElementById('btnDownloadXlsm').addEventListener('click', () => {
-      window.open(`/api/warehouse/${state.whId}/download`, '_blank');
+    function exportCurrentWarehouseExcel() {
+      const whId = state.whId || 'lunwei';
+      const fileName = whId === 'lunwei' ? '崙尾倉儲儲位表_儲位專用.xlsm' : '鴻勝儲位表_儲位專用.xlsm';
+      const downloadUrl = `/downloads/${encodeURIComponent(fileName)}`;
+      
+      showToast('📥 正在下載完整儲位表（含 40~26 個各區儲位分頁與公式連動）...', 3500);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    document.getElementById('btnDownloadXlsm').addEventListener('click', exportCurrentWarehouseExcel);
+
+    // ==========================================
+    // 智慧匯入更新 Excel / CSV 模組
+    // ==========================================
+    let pendingImportRows = [];
+    const fileImportInput = document.getElementById('fileExcelImport');
+    const modalImport = document.getElementById('modalImportConfirm');
+
+    document.getElementById('btnTriggerImport').addEventListener('click', () => {
+      fileImportInput.value = '';
+      fileImportInput.click();
     });
+
+    document.getElementById('btnCancelImport').addEventListener('click', () => {
+      modalImport.style.display = 'none';
+      pendingImportRows = [];
+    });
+
+    fileImportInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      showToast('⏳ 正在解析檔案中...', 2000);
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const wb = XLSX.read(arrayBuffer, { type: 'array' });
+
+        // 智慧判斷倉庫
+        let defaultWh = state.whId || 'lunwei';
+        const lowerName = file.name.toLowerCase();
+        if (lowerName.includes('鴻勝') || lowerName.includes('hongsheng')) defaultWh = 'hongsheng';
+        else if (lowerName.includes('崙尾') || lowerName.includes('lunwei')) defaultWh = 'lunwei';
+        document.getElementById('importTargetWh').value = defaultWh;
+
+        // 智慧選擇工作表
+        let targetSheetName = wb.SheetNames[0];
+        if (defaultWh === 'hongsheng') {
+          targetSheetName = wb.SheetNames.find(n => n.includes('倉庫總表') || n.includes('總表')) || wb.SheetNames[0];
+        } else {
+          targetSheetName = wb.SheetNames.find(n => n.includes('崙尾倉儲儲位表_總表') || n.includes('總表') || n.includes('儲位現況')) || wb.SheetNames[0];
+        }
+
+        const ws = wb.Sheets[targetSheetName];
+        if (!ws) throw new Error('找不到可讀取的工作表');
+
+        // 轉成 2D 陣列解析
+        const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (rawData.length < 2) throw new Error('表格內無有效資料列');
+
+        // 智慧尋找 Header 列（含有「儲位」的列，通常在第 1 或 2 列）
+        let headerRowIdx = 0;
+        for (let r = 0; r < Math.min(10, rawData.length); r++) {
+          const rowStr = rawData[r].map(c => String(c).trim()).join('|');
+          if (rowStr.includes('儲位') || rowStr.includes('品名') || rowStr.includes('批號')) {
+            headerRowIdx = r;
+            break;
+          }
+        }
+
+        const headers = rawData[headerRowIdx].map(h => String(h).trim());
+        const findCol = (...keywords) => {
+          return headers.findIndex(h => keywords.some(k => h.includes(k)));
+        };
+
+        const colLocCode = findCol('儲位代碼', '儲位');
+        const colZone = findCol('區域', '儲位序號', '區');
+        const colItemNo = findCol('料號', '品號');
+        const colItemName = findCol('品名', '物料名稱');
+        const colLotNo = findCol('批號');
+        const colQty = findCol('數量');
+        const colPkg = findCol('包材', '包裝');
+        const colNote = findCol('備註');
+
+        const parsedRows = [];
+        let occupiedCount = 0;
+
+        for (let r = headerRowIdx + 1; r < rawData.length; r++) {
+          const row = rawData[r];
+          if (!row || row.length === 0) continue;
+
+          let loc = '';
+          let zone = '';
+
+          // 判斷儲位代碼與區域
+          if (headers[colLocCode] === '儲位' && colLocCode === 0 && row[1] && /^[A-Z0-9\-]+$/i.test(String(row[1]).trim())) {
+            // 鴻勝格式：A欄是區域（如 A區儲位），B欄是代碼（如 A01-前）
+            zone = String(row[0] || '').trim();
+            loc = String(row[1] || '').trim();
+          } else if (headers[colLocCode] === '儲位代碼' || (colLocCode >= 0 && row[colLocCode])) {
+            loc = String(row[colLocCode] || '').trim();
+            zone = colZone >= 0 ? String(row[colZone] || '').trim() : '';
+          } else if (row[1] && String(row[1]).trim()) {
+            loc = String(row[1] || '').trim();
+            zone = String(row[0] || '').trim();
+          }
+
+          if (!loc || loc === '0' || loc.includes('儲位') || loc.includes('品號')) continue;
+
+          const itemName = colItemName >= 0 ? String(row[colItemName] || '').trim() : '';
+          const lotNo = colLotNo >= 0 ? String(row[colLotNo] || '').trim() : '';
+          const qty = colQty >= 0 ? Number(row[colQty] || 0) : 0;
+          const pkg = colPkg >= 0 ? String(row[colPkg] || '').trim() : '';
+          const itemNo = colItemNo >= 0 ? String(row[colItemNo] || '').trim() : '';
+          const note = colNote >= 0 ? String(row[colNote] || '').trim() : '';
+
+          const isOccupied = Boolean(itemName || lotNo || qty > 0);
+          if (isOccupied) occupiedCount++;
+
+          parsedRows.push({
+            location: loc,
+            zone: zone,
+            item_no: itemNo,
+            item_name: itemName,
+            lot_no: lotNo,
+            package: pkg,
+            qty: qty,
+            note: note
+          });
+        }
+
+        if (parsedRows.length === 0) throw new Error('未從檔案中辨識出任何有效儲位代碼');
+
+        pendingImportRows = parsedRows;
+        document.getElementById('importFileName').textContent = file.name;
+        document.getElementById('importTotalCount').textContent = parsedRows.length.toLocaleString();
+        document.getElementById('importOccupiedCount').textContent = occupiedCount.toLocaleString();
+        document.getElementById('importEmptyCount').textContent = (parsedRows.length - occupiedCount).toLocaleString();
+        document.getElementById('importProgressBar').style.display = 'none';
+        document.getElementById('btnDoImportSubmit').disabled = false;
+        document.getElementById('btnDoImportSubmit').textContent = '⚡ 確認覆蓋更新';
+        modalImport.style.display = 'flex';
+
+      } catch (err) {
+        alert('❌ 解析檔案失敗：' + err.message);
+      }
+    });
+
+    // 執行匯入
+    document.getElementById('btnDoImportSubmit').addEventListener('click', async () => {
+      if (!pendingImportRows || pendingImportRows.length === 0) return;
+      const targetWh = document.getElementById('importTargetWh').value;
+      const btn = document.getElementById('btnDoImportSubmit');
+      btn.disabled = true;
+
+      const pBar = document.getElementById('importProgressBar');
+      const pText = document.getElementById('importProgressText');
+      const pInner = document.getElementById('importProgressInner');
+      pBar.style.display = 'block';
+
+      try {
+        const total = pendingImportRows.length;
+        const chunkSize = 150; // 前端每 150 筆呼叫一次 API
+        for (let i = 0; i < total; i += chunkSize) {
+          const chunk = pendingImportRows.slice(i, i + chunkSize);
+          const percent = Math.min(100, Math.round(((i + chunk.length) / total) * 100));
+          pText.textContent = `正在寫入雲端資料庫 (${i + chunk.length} / ${total}) - ${percent}%...`;
+          pInner.style.width = `${percent}%`;
+
+          const res = await fetch(`/api/warehouse/${targetWh}/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rows: chunk })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || `HTTP ${res.status}`);
+          }
+        }
+
+        pText.textContent = '✅ 更新成功！';
+        showToast(`🎉 成功更新 ${total.toLocaleString()} 筆儲位！已與傳統 Excel 完全對齊`, 4000);
+        modalImport.style.display = 'none';
+        
+        // 若當前倉庫正是目標倉庫，立即刷新前端資料
+        if (state.whId === targetWh) {
+          await loadWarehouseData(targetWh);
+          await loadWarehouseSettings();
+        } else {
+          // 切換到該倉庫並刷新
+          state.whId = targetWh;
+          localStorage.setItem('pwa_wh_id', targetWh);
+          updateWhButtons();
+          await loadWarehouseData(targetWh);
+          await loadWarehouseSettings();
+        }
+      } catch (err) {
+        alert('❌ 匯入更新失敗：' + err.message);
+        btn.disabled = false;
+        btn.textContent = '重試匯入';
+      }
+    });
+
 
     function renderQuickLots() {
       const box = document.getElementById('quickLots');

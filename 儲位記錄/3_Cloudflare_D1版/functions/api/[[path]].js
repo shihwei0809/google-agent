@@ -366,5 +366,101 @@ export async function onRequest(context) {
     });
   }
 
+  if (path.startsWith("/api/warehouse/") && path.endsWith("/import") && request.method === "POST") {
+    const whId = path.split("/")[3];
+    const body = await request.json();
+    const rows = body.rows || [];
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return json({ error: "未接收到任何儲位資料" }, 400);
+    }
+
+    const now = new Date();
+    const twTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+    const updatedTime = twTime.toISOString().replace("T", " ").substring(0, 19);
+
+    // 分批寫入 D1 (每批 80 筆，避開 D1 batch statement 數量上限)
+    const chunkSize = 80;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
+      const stmts = chunk.map(r => {
+        const loc = String(r.location || "").trim();
+        const zone = String(r.zone || "").trim();
+        const itemNo = String(r.item_no || "").trim();
+        const itemName = String(r.item_name || "").trim();
+        const lotNo = normalizeLots(String(r.lot_no || "").trim());
+        const pkg = String(r.package || "").trim();
+        const qty = Number(r.qty || 0);
+        const note = String(r.note || "").trim();
+
+        return db.prepare(`
+          INSERT INTO locations (wh_id, location, zone, item_no, item_name, lot_no, package, qty, note, updated_at)
+          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+          ON CONFLICT(wh_id, location) DO UPDATE SET
+            zone = excluded.zone,
+            item_no = excluded.item_no,
+            item_name = excluded.item_name,
+            lot_no = excluded.lot_no,
+            package = excluded.package,
+            qty = excluded.qty,
+            note = excluded.note,
+            updated_at = excluded.updated_at
+        `).bind(whId, loc, zone, itemNo, itemName, lotNo, pkg, qty, note, updatedTime);
+      });
+      await db.batch(stmts);
+    }
+
+    return json({ ok: true, count: rows.length, message: `成功匯入更新 ${rows.length} 筆儲位資料！` });
+  }
+
+  if (path.startsWith("/api/warehouse/") && path.endsWith("/download")) {
+    const whId = path.split("/")[3];
+    const isCsv = url.searchParams.get("format") === "csv";
+
+    // 預設下載完整版 .xlsm（包含 40~26 個各區各層儲位平面圖分頁與公式連動）
+    if (!isCsv) {
+      const fileName = whId === "lunwei" ? "崙尾倉儲儲位表_儲位專用.xlsm" : "鴻勝儲位表_儲位專用.xlsm";
+      return Response.redirect(`${url.origin}/downloads/${encodeURIComponent(fileName)}`, 302);
+    }
+
+    const whInfo = await db.prepare("SELECT name FROM warehouses WHERE id = ?").bind(whId).first();
+    const whName = whInfo ? whInfo.name : whId;
+    const rows = (await db.prepare("SELECT * FROM locations WHERE wh_id = ? ORDER BY location").bind(whId).all()).results || [];
+    
+    // 輸出 UTF-8 CSV (附帶 BOM，讓 Excel 預設直接開不會亂碼)
+    const bom = "\uFEFF";
+    const headers = ["儲位", "區域", "料號", "品名", "批號", "數量", "包材", "備註", "更新時間"];
+    const csvLines = [headers.join(",")];
+    for (const r of rows) {
+      const escapeCsv = (val) => {
+        const s = String(val === undefined || val === null ? "" : val);
+        if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      };
+      csvLines.push([
+        escapeCsv(r.location),
+        escapeCsv(r.zone),
+        escapeCsv(r.item_no),
+        escapeCsv(r.item_name),
+        escapeCsv(r.lot_no),
+        escapeCsv(r.qty),
+        escapeCsv(r.package),
+        escapeCsv(r.note),
+        escapeCsv(r.updated_at)
+      ].join(","));
+    }
+    const csvContent = bom + csvLines.join("\r\n");
+    const filename = encodeURIComponent(whName + "_最新儲位表.csv");
+    return new Response(csvContent, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": 'attachment; filename="' + filename + '"; filename*=UTF-8\'\'' + filename,
+        "Cache-Control": "no-cache, no-store"
+      }
+    });
+  }
+
   return json({ error: "Not found" }, 404);
 }
