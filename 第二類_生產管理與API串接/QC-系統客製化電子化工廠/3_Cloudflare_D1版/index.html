@@ -539,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.3.2 (智慧排程過濾·已送樣防刪版)
+          🚀 v3.3.3 (排程項目勾選清除·已送樣防刪版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -825,7 +825,7 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.2 (智慧排程過濾·無送樣單獨刪除·已送樣防刪保護·Cloudflare D1 旗艦版)</strong><br>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.3 (排程項目完整顯示·Checkbox批量勾選·單獨刪除·已送樣防刪保護·Cloudflare D1 旗艦版)</strong><br>
     <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：單號字首嚴格對齊 (ESPM 進料 / ESXM 出貨) · 背景定時輪詢保護使用者動向不被重設 · 同車多單動向強制鎖定 · Cloudflare D1 即時同步</span>
   </div>
 </div>
@@ -910,17 +910,23 @@
       </div>
     </div>
 
-    <!-- 未送樣排程清單 (可單獨刪除) -->
-    <div style="flex:1; overflow-y:auto; min-height:180px; max-height:360px; border:1px solid #e2e8f0; border-radius:8px; padding:10px; background:#ffffff; margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #f1f5f9;">
-        <span style="font-size:0.86rem; font-weight:700; color:#475569;" id="clearOrderListTitle">
-          📋 無送樣排程清單（可單獨刪除）
-        </span>
-        <span id="clearOrderUnsubmittedCount" style="font-size:0.8rem; color:#dc2626; font-weight:700;">
-          共 0 筆未送樣
-        </span>
+    <!-- 快捷操作與清單標題 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+      <span style="font-size:0.86rem; font-weight:700; color:#334155;" id="clearOrderListTitle">
+        📋 無送樣排程清單（可勾選或單獨刪除）
+      </span>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <button type="button" onclick="toggleSelectAllUnsubmittedOrders(true)" style="padding:3px 8px; font-size:0.75rem; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:4px; cursor:pointer; font-weight:600;">
+          全選
+        </button>
+        <button type="button" onclick="toggleSelectAllUnsubmittedOrders(false)" style="padding:3px 8px; font-size:0.75rem; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:4px; cursor:pointer;">
+          全不選
+        </button>
       </div>
+    </div>
 
+    <!-- 未送樣排程清單 (可勾選 + 可單獨刪除) -->
+    <div style="flex:1; overflow-y:auto; min-height:200px; max-height:360px; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; background:#ffffff; margin-bottom:12px;">
       <!-- 滾動清單容器 -->
       <div id="clearOrdersListContainer" style="display:flex; flex-direction:column; gap:8px;">
         <!-- 動態渲染各筆無送樣排程 -->
@@ -929,8 +935,8 @@
 
     <!-- 底部批次動作列 -->
     <div style="display:flex; gap:10px; align-items:center; margin-bottom:8px;">
-      <button type="button" id="btnBatchClearUnsubmitted" onclick="confirmClearUnsubmittedDateOrders()" style="flex:1; padding:9px 12px; background:#ef4444; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.9rem; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:6px;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
-        <span>🗑️</span> <span id="btnBatchClearText">一鍵清除選定日期所有【未送樣】排程</span>
+      <button type="button" id="btnBatchClearUnsubmitted" onclick="confirmClearCheckedUnsubmittedOrders()" style="flex:1; padding:10px 12px; background:#ef4444; color:white; border:none; border-radius:6px; font-weight:bold; cursor:pointer; font-size:0.92rem; transition:0.2s; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 1px 3px rgba(239,68,68,0.25);" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+        <span>🗑️</span> <span id="btnBatchClearText">清除所勾選的未送樣排程 (已勾選 0 筆)</span>
       </button>
     </div>
 
@@ -2725,14 +2731,13 @@
     renderClearOrdersList();
   }
 
-  // 🎯 智慧渲染指定日期的【未送樣】排程清單 (自動排除已送樣項目)
+  // 🎯 智慧渲染指定日期的【未送樣】排程清單 (自動排除已送樣項目，提供勾選與單獨刪除)
   function renderClearOrdersList() {
     const customDate = document.getElementById('clearOrderCustomDate');
     const select = document.getElementById('clearOrderDateSelect');
     const targetDate = (customDate && customDate.value) || (select && select.value);
     const container = document.getElementById('clearOrdersListContainer');
     const protectBadge = document.getElementById('clearOrderProtectBadge');
-    const unsubmittedBadge = document.getElementById('clearOrderUnsubmittedCount');
     const listTitle = document.getElementById('clearOrderListTitle');
     const btnBatch = document.getElementById('btnBatchClearUnsubmitted');
     const btnText = document.getElementById('btnBatchClearText');
@@ -2764,25 +2769,18 @@
       protectBadge.style.display = submittedOrders.length > 0 ? 'inline-block' : 'none';
     }
 
-    if (unsubmittedBadge) {
-      unsubmittedBadge.innerHTML = `可清理未送樣：<b>${unsubmittedOrders.length}</b> 筆`;
-      unsubmittedBadge.style.color = unsubmittedOrders.length > 0 ? '#dc2626' : '#16a34a';
-    }
-
     if (listTitle) {
-      listTitle.textContent = `📋 【${targetDate}】無送樣排程清單（共 ${unsubmittedOrders.length} 筆可單獨刪除）`;
-    }
-
-    if (btnText) {
-      btnText.textContent = `一鍵清除 【${targetDate}】 所有未送樣排程 (共 ${unsubmittedOrders.length} 筆)`;
-    }
-    if (btnBatch) {
-      btnBatch.disabled = (unsubmittedOrders.length === 0);
-      btnBatch.style.opacity = (unsubmittedOrders.length === 0) ? '0.5' : '1';
-      btnBatch.style.cursor = (unsubmittedOrders.length === 0) ? 'not-allowed' : 'pointer';
+      listTitle.innerHTML = `📋 【${targetDate}】無送樣排程清單（共 <b style="color:#dc2626;">${unsubmittedOrders.length}</b> 筆可刪除）`;
     }
 
     if (unsubmittedOrders.length === 0) {
+      if (btnText) btnText.textContent = `無可清除之未送樣排程`;
+      if (btnBatch) {
+        btnBatch.disabled = true;
+        btnBatch.style.opacity = '0.5';
+        btnBatch.style.cursor = 'not-allowed';
+      }
+
       if (dayOrders.length === 0) {
         container.innerHTML = `
           <div style="text-align:center; padding:25px 15px; color:#94a3b8; font-size:0.88rem;">
@@ -2794,7 +2792,7 @@
           <div style="text-align:center; padding:25px 15px; background:#f0fdf4; border:1px dashed #86efac; border-radius:8px; color:#166534; font-size:0.88rem;">
             🎉 <b>此日期的所有排程（共 ${submittedOrders.length} 筆）皆已完成送樣或檢驗！</b><br>
             <span style="font-size:0.8rem; color:#15803d; margin-top:4px; display:inline-block;">
-              🛡️ 智慧保護已生效：已自動隱藏，不會被誤刪，確保歷史報告與檢驗進度完整安全。
+              🛡️ 智慧保護已生效：已自動隱藏保護，不會被誤刪，確保歷史報告與檢驗進度完整安全。
             </span>
           </div>
         `;
@@ -2802,40 +2800,44 @@
       return;
     }
 
-    // 渲染各筆未送樣排程卡片
+    // 渲染各筆未送樣排程卡片 (包含 Checkbox 勾選框)
     let html = '';
     unsubmittedOrders.forEach((o, idx) => {
       const isOut = (o.flowType === '出貨');
       const flowBadgeColor = isOut ? '#dbeafe' : '#fce7f3';
       const flowTextColor = isOut ? '#1e40af' : '#9d174d';
       const flowIcon = isOut ? '🚚' : '📥';
-      const docNoSafe = escapeHtml(o.doc_no || '無單號');
-      const prodSafe = escapeHtml(o.productName || '未指定品名');
-      const tankSafe = escapeHtml(o.tankNo || '-');
-      const contSafe = escapeHtml(o.container || o.customer || '-');
-      const qtySafe = escapeHtml(o.quantity || '-');
-      const timeSafe = escapeHtml(o.time || '--:--');
-      const orderId = o.id || '';
+      
+      const docNoStr = String(o.doc_no || '無單號');
+      const prodStr = String(o.productName || '未指定品名');
+      const tankStr = String(o.tankNo || '-');
+      const contStr = String(o.container || o.customer || '-');
+      const qtyStr = String(o.quantity || '-');
+      const timeStr = String(o.time || '--:--');
+      const orderId = String(o.id || '');
 
       html += `
         <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:8px 12px; gap:10px; transition:0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#f8fafc'">
-          <div style="display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;">
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-              <span style="font-size:0.75rem; font-weight:bold; background:${flowBadgeColor}; color:${flowTextColor}; padding:2px 6px; border-radius:4px;">
-                ${flowIcon} ${o.flowType || '排程'}
-              </span>
-              <span style="font-weight:700; color:#0f172a; font-size:0.88rem;">${docNoSafe}</span>
-              <span style="font-size:0.78rem; color:#64748b; background:#e2e8f0; padding:1px 5px; border-radius:3px;">⏰ ${timeSafe}</span>
-            </div>
-            <div style="font-size:0.82rem; color:#334155; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <span style="font-weight:600; color:#1e293b;">🧪 ${prodSafe}</span>
-              <span style="color:#0284c7; font-weight:600;">🛢️ 槽: ${tankSafe}</span>
-              <span style="color:#475569;">🚛 ${contSafe}</span>
-              <span style="color:#64748b; font-size:0.78rem;">(${qtySafe})</span>
+          <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+            <input type="checkbox" class="unsubmitted-order-chk" data-id="${orderId}" data-doc="${encodeURIComponent(docNoStr)}" data-prod="${encodeURIComponent(prodStr)}" data-tank="${encodeURIComponent(tankStr)}" data-date="${o.date || o.targetDate || ''}" checked onchange="updateCheckedUnsubmittedOrdersCount()" style="width:17px; height:17px; cursor:pointer;">
+            <div style="display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="font-size:0.75rem; font-weight:bold; background:${flowBadgeColor}; color:${flowTextColor}; padding:2px 6px; border-radius:4px;">
+                  ${flowIcon} ${o.flowType || '排程'}
+                </span>
+                <span style="font-weight:700; color:#0f172a; font-size:0.88rem; font-family:monospace;">${docNoStr}</span>
+                <span style="font-size:0.78rem; color:#64748b; background:#e2e8f0; padding:1px 5px; border-radius:3px;">⏰ ${timeStr}</span>
+              </div>
+              <div style="font-size:0.82rem; color:#334155; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="font-weight:600; color:#1e293b;">🧪 ${prodStr}</span>
+                <span style="color:#0284c7; font-weight:600;">🛢️ 槽: ${tankStr}</span>
+                <span style="color:#475569;">🚛 ${contStr}</span>
+                <span style="color:#64748b; font-size:0.78rem;">(${qtyStr})</span>
+              </div>
             </div>
           </div>
           <div style="flex-shrink:0;">
-            <button type="button" onclick="deleteSingleOrder('${orderId}', '${encodeURIComponent(o.doc_no || '')}', '${encodeURIComponent(o.productName || '')}', '${encodeURIComponent(o.tankNo || '')}', '${o.date || o.targetDate || ''}')" style="padding:5px 9px; background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; border-radius:5px; font-size:0.78rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;" onmouseover="this.style.background='#ef4444'; this.style.color='white';" onmouseout="this.style.background='#fee2e2'; this.style.color='#b91c1c';">
+            <button type="button" onclick="deleteSingleOrder('${orderId}', '${encodeURIComponent(docNoStr)}', '${encodeURIComponent(prodStr)}', '${encodeURIComponent(tankStr)}', '${o.date || o.targetDate || ''}')" style="padding:5px 9px; background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; border-radius:5px; font-size:0.78rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:3px;" onmouseover="this.style.background='#ef4444'; this.style.color='white';" onmouseout="this.style.background='#fee2e2'; this.style.color='#b91c1c';">
               🗑️ 刪除此筆
             </button>
           </div>
@@ -2844,6 +2846,39 @@
     });
 
     container.innerHTML = html;
+    updateCheckedUnsubmittedOrdersCount();
+  }
+
+  // 勾選計數與按鈕更新
+  function updateCheckedUnsubmittedOrdersCount() {
+    const chks = document.querySelectorAll('.unsubmitted-order-chk:checked');
+    const totalChks = document.querySelectorAll('.unsubmitted-order-chk');
+    const btnBatch = document.getElementById('btnBatchClearUnsubmitted');
+    const btnText = document.getElementById('btnBatchClearText');
+    const count = chks.length;
+
+    if (btnText) {
+      if (count === 0) {
+        btnText.textContent = `請勾選欲清除的排程 (已勾選 0 筆)`;
+      } else if (count === totalChks.length) {
+        btnText.textContent = `一鍵清除所有未送樣排程 (共 ${count} 筆)`;
+      } else {
+        btnText.textContent = `清除所勾選的未送樣排程 (已選 ${count} / ${totalChks.length} 筆)`;
+      }
+    }
+    if (btnBatch) {
+      btnBatch.disabled = (count === 0);
+      btnBatch.style.opacity = (count === 0) ? '0.5' : '1';
+      btnBatch.style.cursor = (count === 0) ? 'not-allowed' : 'pointer';
+    }
+  }
+
+  // 全選 / 全不選
+  function toggleSelectAllUnsubmittedOrders(checkAll) {
+    document.querySelectorAll('.unsubmitted-order-chk').forEach(chk => {
+      chk.checked = checkAll;
+    });
+    updateCheckedUnsubmittedOrdersCount();
   }
 
   // 🗑️ 單獨刪除某一筆未送樣排程
@@ -2898,42 +2933,44 @@
     }
   }
 
-  // 🗑️ 一鍵清除選定日期所有【未送樣】排程 (保護已送樣排程安全)
-  async function confirmClearUnsubmittedDateOrders() {
+  // 🗑️ 清除所有「勾選」的未送樣排程 (保護已送樣排程安全)
+  async function confirmClearCheckedUnsubmittedOrders() {
+    const chks = document.querySelectorAll('.unsubmitted-order-chk:checked');
+    if (chks.length === 0) {
+      alert("請先勾選欲清除的排程項目！");
+      return;
+    }
+
     const customDate = document.getElementById('clearOrderCustomDate');
     const select = document.getElementById('clearOrderDateSelect');
-    const targetDate = (customDate && customDate.value) || (select && select.value);
-    if (!targetDate) {
-      alert("請選擇欲清除的排程日期！");
-      return;
-    }
+    const targetDate = (customDate && customDate.value) || (select && select.value) || '';
 
-    const dayOrders = (t100Orders || []).filter(o => o.date === targetDate || o.targetDate === targetDate);
-    const unsubmittedList = dayOrders.filter(o => !getOrderSubmissionInfo(o));
-    const submittedList = dayOrders.filter(o => getOrderSubmissionInfo(o));
+    const toDeleteIds = [];
+    const toDeleteDocs = [];
+    chks.forEach(chk => {
+      const id = chk.getAttribute('data-id');
+      const doc = decodeURIComponent(chk.getAttribute('data-doc') || '');
+      if (id) toDeleteIds.push(id);
+      if (doc) toDeleteDocs.push(doc);
+    });
 
-    if (unsubmittedList.length === 0) {
-      alert(`【${targetDate}】沒有任何「未送樣」的排程可清除！\n（該日期的 ${submittedList.length} 筆已送樣排程已受系統保護）`);
-      return;
-    }
-
-    const confirmMsg = `🛡️ 智慧安全清除確認：\n\n確定要一鍵清除 【${targetDate}】 的所有【未送樣】排程嗎？\n\n` +
-      `- 預計清除未送樣：共 ${unsubmittedList.length} 筆\n` +
-      `- 智慧保護受保留：共 ${submittedList.length} 筆（已送樣/檢驗中記錄完整保留，絕不刪除）\n\n` +
-      `清除後本機與雲端 D1 資料庫將同步移除這 ${unsubmittedList.length} 筆未送樣排程。`;
+    const confirmMsg = `🛡️ 清除勾選排程確認：\n\n確定要清除已勾選的 ${chks.length} 筆未送樣排程嗎？\n\n` +
+      `- 預計清除未送樣：共 ${chks.length} 筆\n` +
+      `- 智慧保護已送樣：所有已送樣/檢驗中記錄 100% 完整保留\n\n` +
+      `清除後本機與雲端 D1 資料庫將同步移除這 ${chks.length} 筆排程。`;
 
     if (!confirm(confirmMsg)) return;
 
-    // 收集要刪除的 ID 或 unique keys
-    const unsubmittedIds = unsubmittedList.map(o => o.id).filter(Boolean);
-    const unsubmittedDocs = new Set(unsubmittedList.map(o => o.doc_no).filter(Boolean));
+    // 1. 本機清理：過濾掉被勾選的排程
+    const docSet = new Set(toDeleteDocs);
+    const idSet = new Set(toDeleteIds.map(String));
 
-    // 1. 本機清理：保留「非該日期」或「該日期但已送樣」之排程
     t100Orders = (t100Orders || []).filter(o => {
-      const isTargetDate = (o.date === targetDate || o.targetDate === targetDate);
-      if (!isTargetDate) return true;
-      // 屬於選定日期：檢查是否為已送樣
-      return !!getOrderSubmissionInfo(o);
+      // 只要是已送樣的排程，絕對不刪
+      if (getOrderSubmissionInfo(o)) return true;
+      if (o.id && idSet.has(String(o.id))) return false;
+      if (o.doc_no && docSet.has(o.doc_no)) return false;
+      return true;
     });
 
     localStorage.setItem('HS_QC_T100_ORDERS', JSON.stringify(t100Orders));
@@ -2941,6 +2978,46 @@
     updateT100ButtonCounts();
     render();
     renderClearOrdersList();
+
+    // 2. 雲端同步清理
+    if (GAS_API_URL) {
+      try {
+        let payload = { action: 'clearOrders' };
+        if (toDeleteIds.length > 0) {
+          payload.ids = toDeleteIds;
+        } else {
+          // 雲端以單號逐筆清除
+          for (const doc of docSet) {
+            await fetch(GAS_API_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+              body: JSON.stringify({ action: 'clearOrders', doc_no: doc })
+            });
+          }
+        }
+
+        if (toDeleteIds.length > 0) {
+          await fetch(GAS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+          });
+        }
+
+        showToast(`🗑️ 已成功清除勾選之 ${chks.length} 筆未送樣排程 (本機+雲端同步)！`, 4500);
+      } catch(e) {
+        console.warn('雲端清理失敗：', e);
+        showToast(`🗑️ 本機已清除勾選排程，但雲端同步失敗`, 4000);
+      }
+    } else {
+      showToast(`🗑️ 已清除勾選之 ${chks.length} 筆未送樣排程！`, 3000);
+    }
+  }
+
+  // 向下相容
+  function confirmClearUnsubmittedDateOrders() {
+    confirmClearCheckedUnsubmittedOrders();
+  }
 
     // 2. 雲端同步清理
     if (GAS_API_URL) {
@@ -5317,7 +5394,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.3.2) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.3.3) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);
