@@ -385,6 +385,44 @@ def api_upsert_user(payload: UserUpsertPayload):
     return {"ok": True, "message": f"已儲存帳號 {uname}"}
 
 
+@app.post("/api/users/import")
+def api_import_users(payload: dict):
+    raw_users = payload.get("users") or []
+    if not raw_users:
+        raise HTTPException(status_code=400, detail="匯入帳號清單為空")
+    users = load_users()
+    by_name = {u["username"]: u for u in users}
+    count = 0
+    for item in raw_users:
+        uname = str(item.get("username", "")).strip()
+        if not uname:
+            continue
+        dn = str(item.get("display_name") or uname).strip() or uname
+        role = "admin" if item.get("role") == "admin" else "staff"
+        enabled = item.get("enabled", True) is not False
+        pw = str(item.get("password") or "").strip()
+        if uname in by_name:
+            u = by_name[uname]
+            u["display_name"] = dn
+            u["role"] = role
+            u["enabled"] = enabled
+            if pw:
+                u["password_hash"] = hash_password(pw)
+        else:
+            new_u = {
+                "username": uname,
+                "display_name": dn,
+                "password_hash": hash_password(pw or "1234"),
+                "role": role,
+                "enabled": enabled,
+            }
+            users.append(new_u)
+            by_name[uname] = new_u
+        count += 1
+    save_users(users)
+    return {"ok": True, "count": count, "message": f"已匯入更新 {count} 筆人員帳號"}
+
+
 @app.delete("/api/users/{username}")
 def api_delete_user(username: str):
     if username == "admin":

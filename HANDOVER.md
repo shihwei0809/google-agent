@@ -1,5 +1,17 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-16 儲位記錄 PWA 升級 v1.0.20 ~ v1.0.22：人員帳號匯出/匯入、可輸入搜尋品名選單、依品號動態過濾批號)
+* **倉儲儲位 PWA 記錄系統 (`儲位記錄\2_PWA_App版` & `儲位記錄\3_Cloudflare_D1版`) 升級至 v1.0.22:**
+  - **人員帳號 Excel 匯出與匯入 (`v1.0.20`)**:
+    - 在「人員帳號管理（管理員專用）」新增 `📤 匯出帳號`（匯出 `.xlsx` 含帳號、姓名、權限、啟用狀態）與 `📥 匯入帳號`（支援 `.xlsx/.xls/.csv` 批次新增/更新，既有帳號留空保留原密碼、新增帳號留空預設 `1234`）。
+    - 後端雲端 [functions/api/[[path]].js](file:///c:/GOOGLE%20ANGET/儲位記錄/3_Cloudflare_D1版/functions/api/%5B%5Bpath%5D%5D.js) 與本機 [run_server.py](file:///c:/GOOGLE%20ANGET/儲位記錄/2_PWA_App版/run_server.py) 均新增 `POST /api/users/import` 端點。
+  - **可輸入＋可展開搜尋品名選單 & 依品號過濾批號 (`v1.0.21` → `v1.0.22`)**:
+    - 解決原生 `<datalist>` 選定品名後必須刪空才能重選的限制，改為自訂可搜尋下拉選單 `#itemCatalogMenu`（支援打字模糊搜尋品名/品號、輸入自訂新品名、點擊或按 `▾` 直接展開全品項、右側 `✕` 一鍵清除）。
+    - 新增 `updateFilteredLots()`，輸入或選取 `品名 / 品號` 時，`#existingLotsList` 與 `#quickLots` 僅顯示該品號/品名目前在倉庫內實際存在的批號。
+  - **線上部署**：已部署至 `https://storage-rack-pwa.pages.dev`（`5652b198.storage-rack-pwa.pages.dev`），`sw.js` 快取同步為 `storage-pwa-v1.0.22`。
+
+---
+
 ## 今日進度與交接事項 (2026-11-16 儲位記錄 PWA 升級 v1.0.19：修復批次匯入有貨儲位歸零、區域排序錯亂、跨倉庫誤匯鎖定與公司環境 Wrangler 部署修正)
 * **倉儲儲位 PWA 記錄系統 (`儲位記錄\2_PWA_App版` & `儲位記錄\3_Cloudflare_D1版`) 升級至 v1.0.19:**
   - **批次匯入有貨儲位顯示 0 筆修復**:

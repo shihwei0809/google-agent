@@ -444,7 +444,7 @@
       <div class="brand">
         <img src="/icons/icon-192.png" alt="Logo" />
         <span>倉儲儲位 PWA</span>
-        <span id="appVersionBadge" style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.18);color:#e2e8f0;padding:2px 7px;border-radius:999px;letter-spacing:0.3px;">v1.0.19</span>
+        <span id="appVersionBadge" style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.18);color:#e2e8f0;padding:2px 7px;border-radius:999px;letter-spacing:0.3px;">v1.0.22</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span id="userHeaderBadge" style="font-size:12px;background:rgba(255,255,255,0.14);padding:4px 9px;border-radius:999px;cursor:pointer;" title="點擊登出">👤 未登入</span>
@@ -462,7 +462,7 @@
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <img src="/icons/icon-192.png" alt="Logo" style="width:48px;height:48px;border-radius:12px;" />
         <div>
-          <h3 style="margin:0;font-size:19px;">倉儲儲位系統登入 <span style="font-size:11px;font-weight:700;color:var(--teal-dark);background:#ccfbf1;padding:2px 7px;border-radius:999px;vertical-align:middle;">v1.0.19</span></h3>
+          <h3 style="margin:0;font-size:19px;">倉儲儲位系統登入 <span style="font-size:11px;font-weight:700;color:var(--teal-dark);background:#ccfbf1;padding:2px 7px;border-radius:999px;vertical-align:middle;">v1.0.22</span></h3>
           <div style="font-size:12px;color:var(--muted);">請登入人員帳號以進行儲位作業</div>
         </div>
       </div>
@@ -560,8 +560,13 @@
 
         <div class="grid-2" style="margin-bottom:10px;">
           <div>
-            <label>品名（選取自動帶出品號）</label>
-            <select id="itemNameSelect"></select>
+            <label>品名（可輸入或下拉選擇）</label>
+            <div style="position:relative;" id="itemComboWrap">
+              <input id="itemNameSelect" type="text" placeholder="輸入或點擊選取品名" autocomplete="off" style="padding-right:54px;" />
+              <button type="button" id="btnClearItemName" title="清除品名" style="position:absolute;right:28px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px;">✕</button>
+              <button type="button" id="btnToggleItemMenu" title="展開全部品名" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);border:none;background:none;color:var(--muted);cursor:pointer;font-size:13px;padding:4px;">▾</button>
+              <div id="itemCatalogMenu" style="display:none;position:absolute;left:0;right:0;top:100%;margin-top:4px;max-height:240px;overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,0.16);z-index:200;"></div>
+            </div>
           </div>
           <div>
             <label>品號（自動帶出 / 可微調）</label>
@@ -859,7 +864,14 @@
       </div>
 
       <div class="card" id="userMgmtCard" style="display:none;">
-        <div class="card-title"><span>👥 人員帳號管理（管理員專用）</span></div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <span>👥 人員帳號管理（管理員專用）</span>
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="btnExportUsers" class="pill" style="font-size:12px;padding:4px 10px;">📤 匯出帳號</button>
+            <button type="button" id="btnImportUsers" class="pill" style="font-size:12px;padding:4px 10px;">📥 匯入帳號</button>
+            <input id="fileImportUsers" type="file" accept=".xlsx,.xls,.csv" style="display:none;" />
+          </div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr 0.8fr auto;gap:6px;margin-bottom:8px;">
           <input id="newUName" type="text" placeholder="帳號" style="padding:7px;font-size:13px;" />
           <input id="newUDN" type="text" placeholder="姓名" style="padding:7px;font-size:13px;" />
@@ -1079,19 +1091,13 @@
         d.zones.map(z => `<option value="${z}">${z}</option>`).join('');
       if ([...zoneSel.options].some(o => o.value === prevZone)) zoneSel.value = prevZone;
 
-      // 品名選單
-      const itemSel = document.getElementById('itemNameSelect');
-      itemSel.innerHTML = '<option value="">-- 請選擇品名 --</option>' +
-        d.catalog.map(c => `<option value="${c.item_name}" data-no="${c.item_no || ''}" data-pkg="${c.package || ''}">${c.item_name}${c.item_no ? ' (' + c.item_no + ')' : ''}</option>`).join('');
+      // 品名下拉選單資料就緒
+      renderItemCatalogMenu('');
 
       // 包材選單
       const pkgSel = document.getElementById('packageSelect');
       pkgSel.innerHTML = '<option value="">-- 自動 / 無 --</option>' +
         d.packages.map(p => `<option value="${p}">${p}</option>`).join('');
-
-      // 批號 datalist + 快選
-      document.getElementById('existingLotsList').innerHTML =
-        d.existing_lots.map(l => `<option value="${l}"></option>`).join('');
 
       // 儲位平面圖區域選單（獨立於 dashboard 確保永不空白）
       const rzSel = document.getElementById('rackZoneSelect');
@@ -1103,7 +1109,7 @@
         rzSel.value = d.zones[0];
       }
 
-      renderQuickLots();
+      updateFilteredLots();
       renderLocGrid();
       renderGlobalSearch();
       renderDashboardBoard();
@@ -1496,11 +1502,36 @@
     });
 
 
-    function renderQuickLots() {
+    function updateFilteredLots() {
+      const d = state.whData;
+      const dl = document.getElementById('existingLotsList');
+      if (!d || !dl) return;
+      const itemNo = document.getElementById('itemNoInput').value.trim().toLowerCase();
+      const itemName = document.getElementById('itemNameSelect').value.trim().toLowerCase();
+
+      let matchedLots = [];
+      if (itemNo || itemName) {
+        const matchedLocs = (d.locations || []).filter(l => {
+          const lNo = (l.item_no || '').trim().toLowerCase();
+          const lName = (l.item_name || '').trim().toLowerCase();
+          if (itemNo && itemName) return lNo === itemNo || lName === itemName;
+          if (itemNo) return lNo === itemNo;
+          return lName === itemName;
+        });
+        matchedLots = [...new Set(matchedLocs.map(l => (l.lot_no || '').trim()).filter(Boolean))];
+      } else {
+        matchedLots = d.existing_lots || [];
+      }
+      dl.innerHTML = matchedLots.map(l => `<option value="${l}"></option>`).join('');
+      renderQuickLots((itemNo || itemName) ? matchedLots : null);
+    }
+
+    function renderQuickLots(filteredLots = null) {
       const box = document.getElementById('quickLots');
+      const baseLots = Array.isArray(filteredLots) ? filteredLots : state.recentLots;
       const candidates = [...new Set([
         ...(state.selectedLoc && state.selectedLoc.lot_no ? [state.selectedLoc.lot_no] : []),
-        ...state.recentLots
+        ...baseLots
       ])].slice(0, 6);
       box.innerHTML = candidates.map(l =>
         `<button type="button" class="pill" onclick="document.getElementById('lotNoInput').value='${l}'">${l}</button>`
@@ -1582,7 +1613,7 @@
       }
       if (loc.lot_no) document.getElementById('lotNoInput').value = loc.lot_no;
       if (loc.package) document.getElementById('packageSelect').value = loc.package;
-      renderQuickLots();
+      updateFilteredLots();
     }
 
     document.getElementById('zoneSelect').addEventListener('change', renderLocGrid);
@@ -1596,22 +1627,102 @@
       });
     });
 
-    // 品名連動品號與包材
-    document.getElementById('itemNameSelect').addEventListener('change', (e) => {
-      const opt = e.target.selectedOptions[0];
-      if (!opt) return;
-      document.getElementById('itemNoInput').value = opt.dataset.no || '';
-      if (opt.dataset.pkg) {
+    // 品名可輸入 + 一鍵展開/清除下拉選單，連動品號、包材與批號過濾
+    const itemNameInput = document.getElementById('itemNameSelect');
+    const itemMenu = document.getElementById('itemCatalogMenu');
+
+    function applyCatalogItem(matched) {
+      if (!matched) return;
+      itemNameInput.value = matched.item_name;
+      document.getElementById('itemNoInput').value = matched.item_no || '';
+      if (matched.package) {
         const pkgSel = document.getElementById('packageSelect');
-        if (![...pkgSel.options].some(o => o.value === opt.dataset.pkg)) {
+        if (![...pkgSel.options].some(o => o.value === matched.package)) {
           const extra = document.createElement('option');
-          extra.value = opt.dataset.pkg;
-          extra.textContent = opt.dataset.pkg;
+          extra.value = matched.package;
+          extra.textContent = matched.package;
           pkgSel.appendChild(extra);
         }
-        pkgSel.value = opt.dataset.pkg;
+        pkgSel.value = matched.package;
+      }
+      updateFilteredLots();
+    }
+
+    function renderItemCatalogMenu(filterText = '') {
+      const catalog = (state.whData && Array.isArray(state.whData.catalog)) ? state.whData.catalog : [];
+      const q = String(filterText || '').trim().toLowerCase();
+      const list = q
+        ? catalog.filter(c => (c.item_name || '').toLowerCase().includes(q) || (c.item_no || '').toLowerCase().includes(q))
+        : catalog;
+      if (!list.length) {
+        itemMenu.innerHTML = `<div style="padding:10px 12px;font-size:12px;color:var(--muted);">無符合品項，可直接保留自訂輸入「${filterText}」</div>`;
+        return;
+      }
+      itemMenu.innerHTML = list.map(c => `
+        <div class="item-opt" data-name="${c.item_name.replace(/"/g, '&quot;')}" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f1f5f9;font-size:13px;">
+          <strong>${c.item_name}</strong>
+          <span style="font-size:11px;color:var(--muted);">${c.item_no || ''}${c.package ? ` · ${c.package}` : ''}</span>
+        </div>
+      `).join('');
+      itemMenu.querySelectorAll('.item-opt').forEach(el => {
+        el.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          const matched = catalog.find(c => c.item_name === el.dataset.name);
+          applyCatalogItem(matched);
+          itemMenu.style.display = 'none';
+        });
+      });
+    }
+
+    function onItemNameOrNoChanged(fromName) {
+      const nameVal = itemNameInput.value.trim();
+      if (fromName && state.whData && Array.isArray(state.whData.catalog)) {
+        const matched = state.whData.catalog.find(c => c.item_name === nameVal);
+        if (matched) applyCatalogItem(matched);
+        else updateFilteredLots();
+      } else {
+        updateFilteredLots();
+      }
+    }
+
+    itemNameInput.addEventListener('focus', () => {
+      const val = itemNameInput.value.trim();
+      const isExact = (state.whData?.catalog || []).some(c => c.item_name === val);
+      renderItemCatalogMenu(isExact ? '' : val);
+      itemMenu.style.display = 'block';
+    });
+    itemNameInput.addEventListener('input', () => {
+      renderItemCatalogMenu(itemNameInput.value);
+      itemMenu.style.display = 'block';
+      onItemNameOrNoChanged(true);
+    });
+    itemNameInput.addEventListener('change', () => onItemNameOrNoChanged(true));
+    document.getElementById('btnToggleItemMenu').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (itemMenu.style.display === 'block') {
+        itemMenu.style.display = 'none';
+      } else {
+        renderItemCatalogMenu('');
+        itemMenu.style.display = 'block';
+        itemNameInput.focus();
       }
     });
+    document.getElementById('btnClearItemName').addEventListener('click', (e) => {
+      e.stopPropagation();
+      itemNameInput.value = '';
+      document.getElementById('itemNoInput').value = '';
+      updateFilteredLots();
+      renderItemCatalogMenu('');
+      itemMenu.style.display = 'block';
+      itemNameInput.focus();
+    });
+    document.addEventListener('click', (e) => {
+      if (!document.getElementById('itemComboWrap').contains(e.target)) {
+        itemMenu.style.display = 'none';
+      }
+    });
+    document.getElementById('itemNoInput').addEventListener('input', () => onItemNameOrNoChanged(false));
+    document.getElementById('itemNoInput').addEventListener('change', () => onItemNameOrNoChanged(false));
 
     // 動作切換
     document.querySelectorAll('.act-btn').forEach(b => {
@@ -2030,6 +2141,94 @@
         document.getElementById('newUPw').value = '';
         showToast(`已新增人員 ${dn}`);
         loadUsersList();
+      }
+    });
+
+    // 匯出人員帳號（Excel .xlsx）
+    document.getElementById('btnExportUsers').addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/users');
+        const data = await res.json();
+        const users = data.users || [];
+        if (!users.length) return showToast('目前沒有可匯出的帳號');
+        const rows = [['帳號', '姓名', '權限', '啟用', '密碼']];
+        for (const u of users) {
+          rows.push([
+            u.username,
+            u.display_name || u.username,
+            u.role === 'admin' ? '管理員' : '現場人員',
+            u.enabled !== false ? '是' : '否',
+            ''
+          ]);
+        }
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '人員帳號清單');
+        const d = new Date();
+        const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+        XLSX.writeFile(wb, `人員帳號清單_${stamp}.xlsx`);
+        showToast(`✅ 已匯出 ${users.length} 筆人員帳號`);
+      } catch (e) {
+        showToast('⚠️ 匯出帳號失敗：' + e.message);
+      }
+    });
+
+    // 匯入人員帳號（Excel / CSV）
+    const fileImportUsers = document.getElementById('fileImportUsers');
+    document.getElementById('btnImportUsers').addEventListener('click', () => {
+      fileImportUsers.value = '';
+      fileImportUsers.click();
+    });
+    fileImportUsers.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        if (raw.length < 2) throw new Error('檔案內無有效帳號資料');
+        const headers = raw[0].map(h => String(h || '').trim());
+        const colIdx = (...keys) => {
+          for (const k of keys) {
+            const idx = headers.findIndex(h => h === k || h.includes(k));
+            if (idx >= 0) return idx;
+          }
+          return -1;
+        };
+        const cUser = colIdx('帳號', 'username');
+        const cName = colIdx('姓名', 'display_name', '名稱');
+        const cRole = colIdx('權限', 'role');
+        const cEn = colIdx('啟用', 'enabled');
+        const cPw = colIdx('密碼', 'password');
+        if (cUser < 0) throw new Error('找不到「帳號」欄位');
+
+        const parsed = [];
+        for (let r = 1; r < raw.length; r++) {
+          const row = raw[r];
+          const uname = String(row[cUser] || '').trim();
+          if (!uname) continue;
+          const dn = cName >= 0 ? String(row[cName] || '').trim() : '';
+          const roleRaw = cRole >= 0 ? String(row[cRole] || '').trim().toLowerCase() : '';
+          const role = (roleRaw === 'admin' || roleRaw.includes('管理')) ? 'admin' : 'staff';
+          const enRaw = cEn >= 0 ? String(row[cEn] || '').trim().toLowerCase() : '';
+          const enabled = !['否', '0', 'false', '停用', 'no'].includes(enRaw);
+          const pw = cPw >= 0 ? String(row[cPw] || '').trim() : '';
+          parsed.push({ username: uname, display_name: dn || uname, role, enabled, password: pw });
+        }
+        if (!parsed.length) throw new Error('未解析到任何有效帳號');
+        if (!confirm(`共解析 ${parsed.length} 筆帳號，確定批次匯入更新嗎？（既有帳號密碼留空將保留原密碼，新增帳號留空預設為 1234）`)) return;
+        const res = await fetch('/api/users/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ users: parsed })
+        });
+        const out = await res.json();
+        if (!res.ok) throw new Error(out.detail || `HTTP ${res.status}`);
+        showToast(`✅ ${out.message}`);
+        loadUsersList();
+      } catch (err) {
+        alert('❌ 匯入帳號失敗：' + err.message);
       }
     });
 

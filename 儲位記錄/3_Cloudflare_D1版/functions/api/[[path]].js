@@ -69,6 +69,40 @@ export async function onRequest(context) {
     }
   }
 
+  if (path === "/api/users/import" && request.method === "POST") {
+    await ensureDefaultUsers();
+    const p = await request.json();
+    const list = Array.isArray(p.users) ? p.users : [];
+    if (!list.length) return json({ detail: "匯入帳號清單為空" }, 400);
+    const existingRows = (await db.prepare("SELECT username FROM users").all()).results || [];
+    const existingSet = new Set(existingRows.map(r => r.username));
+    const stmts = [];
+    let count = 0;
+    for (const u of list) {
+      const uname = String(u.username || "").trim();
+      if (!uname) continue;
+      const dn = String(u.display_name || uname).trim() || uname;
+      const role = u.role === "admin" ? "admin" : "staff";
+      const enabled = u.enabled !== false ? 1 : 0;
+      const pw = String(u.password || "").trim();
+      if (existingSet.has(uname)) {
+        if (pw) {
+          const h = await hashPw(pw);
+          stmts.push(db.prepare("UPDATE users SET display_name=?, role=?, enabled=?, password_hash=? WHERE username=?").bind(dn, role, enabled, h, uname));
+        } else {
+          stmts.push(db.prepare("UPDATE users SET display_name=?, role=?, enabled=? WHERE username=?").bind(dn, role, enabled, uname));
+        }
+      } else {
+        const h = await hashPw(pw || "1234");
+        stmts.push(db.prepare("INSERT INTO users (username, display_name, password_hash, role, enabled) VALUES (?, ?, ?, ?, ?)").bind(uname, dn, h, role, enabled));
+        existingSet.add(uname);
+      }
+      count++;
+    }
+    if (stmts.length) await db.batch(stmts);
+    return json({ ok: true, count, message: `已匯入更新 ${count} 筆人員帳號` });
+  }
+
   if (path.startsWith("/api/users/") && request.method === "DELETE") {
     const uname = decodeURIComponent(path.split("/")[3]);
     if (uname === "admin") return json({ detail: "不可刪除預設管理員帳號 admin" }, 400);
