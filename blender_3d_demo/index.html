@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blender 3D 智慧儲位看板 | Digital Twin Demo</title>
+  <style>
+    :root {
+      --bg: #070b14;
+      --panel: rgba(13, 20, 36, 0.82);
+      --panel-border: rgba(56, 189, 248, 0.22);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --normal: #10b981;
+      --full: #ef4444;
+      --low: #f59e0b;
+      --empty: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+      user-select: none;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+
+    /* Top HUD */
+    .top-bar {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      pointer-events: none;
+    }
+
+    .glass-card {
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      pointer-events: auto;
+    }
+
+    .brand-card {
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-width: 480px;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.08rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.16);
+      color: #7dd3fc;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    .brand-sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .kpi-strip {
+      display: flex;
+      gap: 10px;
+      padding: 10px 14px;
+      flex-wrap: wrap;
+    }
+
+    .kpi-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 72px;
+      padding: 4px 8px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .kpi-val {
+      font-size: 1.25rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .kpi-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Left Controls */
+    .left-panel {
+      position: fixed;
+      left: 16px;
+      top: 112px;
+      width: 260px;
+      z-index: 10;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      max-height: calc(100vh - 144px);
+      overflow-y: auto;
+    }
+
+    .section-title {
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #7dd3fc;
+      margin-bottom: 8px;
+    }
+
+    .search-box {
+      display: flex;
+      gap: 6px;
+    }
+
+    .search-box input {
+      flex: 1;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent);
+    }
+
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .btn {
+      background: rgba(30, 41, 59, 0.85);
+      color: var(--text);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.14);
+    }
+
+    .btn.active {
+      background: rgba(56, 189, 248, 0.24);
+      border-color: var(--accent);
+      color: #e0f2fe;
+    }
+
+    .btn-full {
+      grid-column: 1 / -1;
+    }
+
+    .filter-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* Right Inspector Panel */
+    .right-panel {
+      position: fixed;
+      right: 16px;
+      top: 112px;
+      width: 300px;
+      z-index: 10;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .inspector-empty {
+      text-align: center;
+      padding: 20px 10px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .slot-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+      padding-bottom: 10px;
+    }
+
+    .slot-code {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .status-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .status-normal { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .status-full   { background: rgba(239, 68, 68, 0.2);  color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .status-low    { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .status-empty  { background: rgba(100, 116, 139, 0.25); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.35); }
+
+    .detail-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.84rem;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .detail-key { color: var(--muted); }
+    .detail-val { font-weight: 600; text-align: right; }
+
+    /* Bottom Hint Bar */
+    .bottom-hint {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      padding: 8px 16px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      white-space: nowrap;
+    }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: #070b14;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      transition: opacity 0.4s ease;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid rgba(56, 189, 248, 0.2);
+      border-top-color: #38bdf8;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Guide Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.72);
+      backdrop-filter: blur(6px);
+      z-index: 40;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-card {
+      max-width: 560px;
+      width: 100%;
+      padding: 22px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      line-height: 1.6;
+      font-size: 0.9rem;
+    }
+
+    .modal-card code {
+      background: rgba(56, 189, 248, 0.14);
+      color: #7dd3fc;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-family: Consolas, monospace;
+      font-size: 0.84rem;
+    }
+
+    @media (max-width: 900px) {
+      .left-panel, .right-panel {
+        width: 220px;
+      }
+      .kpi-strip {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div style="font-weight:600; color:#e2e8f0;">正在載入 Blender 產出的 3D 智慧倉庫模型...</div>
+    <div id="loading-status" style="font-size:0.82rem; color:#94a3b8;">warehouse_3d.glb</div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div class="top-bar">
+    <div class="glass-card brand-card">
+      <div class="brand-title">
+        <span>🏭 Blender 3D 智慧儲位數位孿生</span>
+        <span class="badge">Blender GLB + Three.js</span>
+      </div>
+      <div class="brand-sub">
+        本場景由 Blender Python 自動建模並匯出 <code>warehouse_3d.glb</code>，針對筆電內顯優化，支援 360° 旋轉與點擊查庫存。
+      </div>
+    </div>
+
+    <div class="glass-card kpi-strip">
+      <div class="kpi-item">
+        <span class="kpi-val" id="kpi-total">0</span>
+        <span class="kpi-label">總儲位數</span>
+      </div>
+      <div class="kpi-item">
+        <span class="kpi-val" style="color:var(--normal)" id="kpi-normal">0</span>
+        <span class="kpi-label">正常庫存</span>
+      </div>
+      <div class="kpi-item">
+        <span class="kpi-val" style="color:var(--full)" id="kpi-full">0</span>
+        <span class="kpi-label">滿載預警</span>
+      </div>
+      <div class="kpi-item">
+        <span class="kpi-val" style="color:var(--low)" id="kpi-low">0</span>
+        <span class="kpi-label">低水位</span>
+      </div>
+      <div class="kpi-item">
+        <span class="kpi-val" style="color:#94a3b8" id="kpi-empty">0</span>
+        <span class="kpi-label">空儲位</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass-card left-panel">
+    <div>
+      <div class="section-title">🔎 快速定位儲位</div>
+      <div class="search-box">
+        <input id="slot-search" type="text" placeholder="輸入編號如 A-02-1" />
+        <button class="btn" id="btn-search">飛往</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">🎥 視角快速切換</div>
+      <div class="btn-grid">
+        <button class="btn active" data-cam="overview">全景鳥瞰</button>
+        <button class="btn" data-cam="aisleA">A 區走道</button>
+        <button class="btn" data-cam="rowB">B 區高架</button>
+        <button class="btn" data-cam="agv">追蹤 AGV</button>
+        <button class="btn btn-full" id="btn-autorotate">🔄 開啟自動環繞</button>
+        <button class="btn btn-full active" id="btn-agv-move">🤖 AGV 自動巡航：開</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-title">🏷️ 庫存狀態篩選</div>
+      <div class="btn-grid">
+        <button class="btn btn-full active" data-filter="all">全部儲位</button>
+        <button class="btn" data-filter="normal"><span class="filter-dot" style="background:var(--normal)"></span>正常</button>
+        <button class="btn" data-filter="full"><span class="filter-dot" style="background:var(--full)"></span>滿載</button>
+        <button class="btn" data-filter="low"><span class="filter-dot" style="background:var(--low)"></span>低水位</button>
+        <button class="btn" data-filter="empty"><span class="filter-dot" style="background:var(--empty)"></span>空位</button>
+      </div>
+    </div>
+
+    <div>
+      <button class="btn btn-full" id="btn-open-guide" style="border-color:rgba(56,189,248,0.45); color:#7dd3fc;">
+        🤖 如何用 Antigravity 遙控修改？
+      </button>
+      <a class="btn btn-full" href="./fpv_studio.html" style="margin-top:7px; text-decoration:none; border-color:rgba(16,185,129,0.45); color:#6ee7b7;">
+        🎬 前往 FPV 白模運鏡工作室
+      </a>
+    </div>
+  </div>
+
+  <div class="glass-card right-panel" id="inspector-panel">
+    <div class="inspector-empty">
+      👆 <b>點擊畫面中的任意儲位貨物</b><br />
+      或點選 <b>AGV 無人搬運車</b><br /><br />
+      即可查看即時料號、庫存水位與模擬異動！
+    </div>
+  </div>
+
+  <div class="glass-card bottom-hint">
+    <span>🖱️ 左鍵拖曳：旋轉視角</span>
+    <span>🖱️ 右鍵拖曳：平移</span>
+    <span>⚙️ 滾輪：縮放</span>
+    <span>👆 左鍵點擊貨箱：檢視/切換儲位狀態</span>
+  </div>
+
+  <div class="modal-backdrop" id="guide-modal">
+    <div class="glass-card modal-card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="font-size:1.1rem; color:#7dd3fc;">🤖 用 Antigravity + Blender MCP 改這個 3D 場景</h3>
+        <button class="btn" id="btn-close-guide">關閉</button>
+      </div>
+      <p>這個 3D 倉庫檔案已同步存放在資料夾內的 <code>warehouse_scene.blend</code>，你可以用純中文叫 AI 幫你現場改模型：</p>
+      <ol style="padding-left:20px; display:flex; flex-direction:column; gap:6px;">
+        <li>雙擊資料夾內的 <code>warehouse_scene.blend</code> 用 Blender 打開。</li>
+        <li>在 Blender 視窗按鍵盤 <code>N</code> 鍵叫出右側邊欄，切換到 <b>MCP for Blender</b> 標籤。</li>
+        <li>點擊 <b>Connect to MCP server</b>（或 Start MCP Server）。</li>
+        <li>回到 Antigravity 對話框打字許願，例如：<br />
+          <code>「把 B 區貨架再加高一層，並在走道多放一台黃色堆高機，然後重新匯出 warehouse_3d.glb」</code>
+        </li>
+      </ol>
+      <p style="color:#94a3b8; font-size:0.82rem;">💡 若剛設定完 <code>mcp_config.json</code>，重開一次 Antigravity 視窗即可在右上角 <code>... &gt; MCP Servers</code> 看到 <code>blender</code> 綠燈連線。</p>
+    </div>
+  </div>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+    const STATUS_META = {
+      normal: { label: "正常庫存", cls: "status-normal", color: 0x10b981, fill: "68%" },
+      full:   { label: "滿載預警", cls: "status-full",   color: 0xef4444, fill: "96%" },
+      low:    { label: "低水位補貨", cls: "status-low",  color: 0xf59e0b, fill: "24%" },
+      empty:  { label: "空儲位可用", cls: "status-empty", color: 0x64748b, fill: "0%"  },
+    };
+
+    const INITIAL_STATE_MAP = {
+      "A-01-1": "normal", "A-01-2": "full",   "A-01-3": "normal",
+      "A-02-1": "full",   "A-02-2": "normal", "A-02-3": "low",
+      "A-03-1": "normal", "A-03-2": "empty",  "A-03-3": "normal",
+      "A-04-1": "low",    "A-04-2": "full",   "A-04-3": "empty",
+      "B-01-1": "full",   "B-01-2": "full",   "B-01-3": "normal",
+      "B-02-1": "normal", "B-02-2": "low",    "B-02-3": "normal",
+      "B-03-1": "normal", "B-03-2": "normal", "B-03-3": "full",
+      "B-04-1": "empty",  "B-04-2": "normal", "B-04-3": "low",
+      "C-01-1": "normal", "C-01-2": "normal", "C-01-3": "empty",
+      "C-02-1": "low",    "C-02-2": "normal", "C-02-3": "normal",
+      "C-03-1": "full",   "C-03-2": "full",   "C-03-3": "low",
+      "C-04-1": "normal", "C-04-2": "empty",  "C-04-3": "normal",
+    };
+
+    const SAMPLE_ITEMS = [
+      "精密軸承組 SKF-6205",
+      "伺服馬達驅動器 400W",
+      "不鏽鋼法蘭墊片包",
+      "條碼熱感應標籤紙卷",
+      "鋁擠型連接角碼 4040",
+      "防靜電周轉箱 (標準型)",
+      "工業級光電感測器",
+      "聚氨酯耐磨腳輪組",
+    ];
+
+    // Scene setup (tuned for Intel Iris Xe: capped DPR <= 2, clean shadows)
+    const container = document.getElementById("canvas-container");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070b14);
+    scene.fog = new THREE.FogExp2(0x070b14, 0.018);
+
+    const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 150);
+    camera.position.set(11.5, 9.2, 12.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.maxPolarAngle = Math.PI / 2 - 0.04;
+    controls.minDistance = 3;
+    controls.maxDistance = 36;
+    controls.target.set(0, 1.4, 0);
+
+    // Studio Lighting
+    const hemiLight = new THREE.HemisphereLight(0xbbe6ff, 0x0f172a, 0.9);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    dirLight.position.set(10, 16, 10);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 1024;
+    dirLight.shadow.mapSize.height = 1024;
+    dirLight.shadow.camera.near = 1;
+    dirLight.shadow.camera.far = 45;
+    const d = 12;
+    dirLight.shadow.camera.left = -d;
+    dirLight.shadow.camera.right = d;
+    dirLight.shadow.camera.top = d;
+    dirLight.shadow.camera.bottom = -d;
+    scene.add(dirLight);
+
+    const fillLight = new THREE.DirectionalLight(0x38bdf8, 0.7);
+    fillLight.position.set(-10, 8, -10);
+    scene.add(fillLight);
+
+    // Subtle ground grid outside platform
+    const gridHelper = new THREE.GridHelper(48, 48, 0x1e3a5f, 0x0f172a);
+    gridHelper.position.y = -0.21;
+    scene.add(gridHelper);
+
+    // State
+    const slotRegistry = new Map(); // id -> { id, obj, meshes, status, itemName, qty, maxQty, updated }
+    let agvObject = null;
+    let agvMoving = true;
+    let agvPhase = 0;
+    let selectedId = null;
+    let activeFilter = "all";
+    let camAnim = null;
+
+    function cloneMaterialsForInteractiveObject(root) {
+      const meshes = [];
+      root.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (Array.isArray(child.material)) {
+            child.material = child.material.map((m) => m.clone());
+          } else if (child.material) {
+            child.material = child.material.clone();
+          }
+          meshes.push(child);
+        }
+      });
+      return meshes;
+    }
+
+    function getInteractiveRoot(obj) {
+      let cur = obj;
+      while (cur) {
+        if (cur.name && (cur.name.startsWith("Slot_") || cur.name.startsWith("AGV_"))) {
+          return cur;
+        }
+        cur = cur.parent;
+      }
+      return null;
+    }
+
+    function refreshKPI() {
+      const counts = { total: 0, normal: 0, full: 0, low: 0, empty: 0 };
+      for (const s of slotRegistry.values()) {
+        counts.total += 1;
+        counts[s.status] = (counts[s.status] || 0) + 1;
+      }
+      document.getElementById("kpi-total").textContent = counts.total;
+      document.getElementById("kpi-normal").textContent = counts.normal;
+      document.getElementById("kpi-full").textContent = counts.full;
+      document.getElementById("kpi-low").textContent = counts.low;
+      document.getElementById("kpi-empty").textContent = counts.empty;
+    }
+
+    function applySlotVisuals() {
+      for (const s of slotRegistry.values()) {
+        const isSelected = selectedId === s.id;
+        const matchesFilter = activeFilter === "all" || s.status === activeFilter;
+
+        for (const m of s.meshes) {
+          const mats = Array.isArray(m.material) ? m.material : [m.material];
+          for (const mat of mats) {
+            mat.transparent = !matchesFilter;
+            mat.opacity = matchesFilter ? 1.0 : 0.16;
+            if (isSelected) {
+              mat.emissive.setHex(0x38bdf8);
+              mat.emissiveIntensity = 0.55;
+            } else if (s.status === "full" && mat.name.includes("Full")) {
+              mat.emissive.setHex(0xef4444);
+              mat.emissiveIntensity = 0.18;
+            } else {
+              mat.emissive.setHex(0x000000);
+              mat.emissiveIntensity = 0;
+            }
+          }
+        }
+      }
+
+      if (agvObject) {
+        const isAgvSel = selectedId === "AGV_Robot_01";
+        agvObject.traverse((child) => {
+          if (child.isMesh) {
+            const mats = Array.isArray(child.material) ? child.material : [child.material];
+            for (const mat of mats) {
+              if (!mat.name.includes("Glow")) {
+                mat.emissive.setHex(isAgvSel ? 0x38bdf8 : 0x000000);
+                mat.emissiveIntensity = isAgvSel ? 0.45 : 0;
+              }
+            }
+          }
+        });
+      }
+    }
+
+    function cycleSlotStatus(slot) {
+      const order = ["normal", "full", "low", "empty"];
+      const next = order[(order.indexOf(slot.status) + 1) % order.length];
+      slot.status = next;
+      slot.qty = next === "empty" ? 0 : next === "low" ? 12 : next === "normal" ? 34 : 48;
+      slot.updated = "剛剛（網頁即時更新）";
+
+      // Update main cargo material color live in 3D
+      const targetColor = STATUS_META[next].color;
+      for (const m of slot.meshes) {
+        const mats = Array.isArray(m.material) ? m.material : [m.material];
+        for (const mat of mats) {
+          if (
+            mat.name.includes("Normal") ||
+            mat.name.includes("Full") ||
+            mat.name.includes("Low") ||
+            mat.name.includes("Empty")
+          ) {
+            mat.color.setHex(targetColor);
+          }
+        }
+      }
+      refreshKPI();
+      applySlotVisuals();
+      renderInspector(slot.id);
+    }
+
+    function renderInspector(id) {
+      const panel = document.getElementById("inspector-panel");
+      if (id === "AGV_Robot_01") {
+        panel.innerHTML = `
+          <div class="slot-header">
+            <div class="slot-code">🤖 AGV-01</div>
+            <span class="status-pill status-normal">${agvMoving ? "巡航作業中" : "待機中"}</span>
+          </div>
+          <div class="detail-list">
+            <div class="detail-row"><span class="detail-key">設備型號</span><span class="detail-val">潛伏頂升式搬運車</span></div>
+            <div class="detail-row"><span class="detail-key">所在走道</span><span class="detail-val">A / B 區主幹道</span></div>
+            <div class="detail-row"><span class="detail-key">電池電量</span><span class="detail-val" style="color:#6ee7b7">87%</span></div>
+            <div class="detail-row"><span class="detail-key">載運任務</span><span class="detail-val">A-02-1 調撥至出貨區</span></div>
+          </div>
+          <button class="btn btn-full" id="btn-panel-agv-toggle">${agvMoving ? "⏸️ 暫停 AGV 行駛" : "▶️ 恢復 AGV 巡航"}</button>
+        `;
+        document.getElementById("btn-panel-agv-toggle").onclick = () => {
+          document.getElementById("btn-agv-move").click();
+          renderInspector("AGV_Robot_01");
+        };
+        return;
+      }
+
+      const slot = slotRegistry.get(id);
+      if (!slot) return;
+      const meta = STATUS_META[slot.status];
+      const zone = slot.id.split("-")[0];
+
+      panel.innerHTML = `
+        <div class="slot-header">
+          <div class="slot-code">📦 ${slot.id}</div>
+          <span class="status-pill ${meta.cls}">${meta.label}</span>
+        </div>
+        <div class="detail-list">
+          <div class="detail-row"><span class="detail-key">儲位分區</span><span class="detail-val">${zone} 區重型貨架</span></div>
+          <div class="detail-row"><span class="detail-key">存放品項</span><span class="detail-val">${slot.status === "empty" ? "— (尚無物料)" : slot.itemName}</span></div>
+          <div class="detail-row"><span class="detail-key">庫存數量</span><span class="detail-val">${slot.qty} / ${slot.maxQty} 箱</span></div>
+          <div class="detail-row"><span class="detail-key">最近盤點</span><span class="detail-val">${slot.updated}</span></div>
+        </div>
+        <button class="btn btn-full" id="btn-cycle-status" style="border-color:rgba(56,189,248,0.45); color:#7dd3fc;">
+          🔄 模擬異動（切換儲位狀態與 3D 顏色）
+        </button>
+      `;
+      document.getElementById("btn-cycle-status").onclick = () => cycleSlotStatus(slot);
+    }
+
+    function flyCameraTo(pos, target) {
+      camAnim = {
+        startPos: camera.position.clone(),
+        endPos: new THREE.Vector3(...pos),
+        startTarget: controls.target.clone(),
+        endTarget: new THREE.Vector3(...target),
+        t: 0,
+      };
+    }
+
+    function focusObject(obj) {
+      const box = new THREE.Box3().setFromObject(obj);
+      const center = box.getCenter(new THREE.Vector3());
+      flyCameraTo([center.x + 3.6, center.y + 2.4, center.z + 4.4], [center.x, center.y, center.z]);
+    }
+
+    // Load Blender GLB
+    const loader = new GLTFLoader();
+    loader.load(
+      "./warehouse_3d.glb",
+      (gltf) => {
+        const model = gltf.scene;
+        scene.add(model);
+
+        let idx = 0;
+        model.traverse((obj) => {
+          if (obj.name && obj.name.startsWith("Slot_")) {
+            const slotId = obj.name.replace("Slot_", "");
+            const status = INITIAL_STATE_MAP[slotId] || "normal";
+            const meshes = cloneMaterialsForInteractiveObject(obj);
+            const qty = status === "empty" ? 0 : status === "low" ? 12 : status === "normal" ? 34 : 48;
+            slotRegistry.set(slotId, {
+              id: slotId,
+              obj,
+              meshes,
+              status,
+              itemName: SAMPLE_ITEMS[idx % SAMPLE_ITEMS.length],
+              qty,
+              maxQty: 50,
+              updated: "今日 19:30",
+            });
+            idx += 1;
+          } else if (obj.name === "AGV_Robot_01") {
+            agvObject = obj;
+            cloneMaterialsForInteractiveObject(obj);
+          } else if (obj.isMesh) {
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+          }
+        });
+
+        refreshKPI();
+        applySlotVisuals();
+
+        const overlay = document.getElementById("loading-overlay");
+        overlay.style.opacity = "0";
+        setTimeout(() => (overlay.style.display = "none"), 400);
+      },
+      (xhr) => {
+        if (xhr.total) {
+          const pct = Math.round((xhr.loaded / xhr.total) * 100);
+          document.getElementById("loading-status").textContent = `載入進度 ${pct}%`;
+        }
+      },
+      (err) => {
+        console.error(err);
+        document.getElementById("loading-status").textContent = "無法載入 warehouse_3d.glb，請確認透過本機伺服器開啟！";
+      }
+    );
+
+    // Pointer Raycasting
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let pointerDownPos = { x: 0, y: 0 };
+
+    renderer.domElement.addEventListener("pointerdown", (e) => {
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+    });
+
+    renderer.domElement.addEventListener("pointermove", (e) => {
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(scene.children, true);
+      const hitRoot = hits.length ? getInteractiveRoot(hits[0].object) : null;
+      renderer.domElement.style.cursor = hitRoot ? "pointer" : "grab";
+    });
+
+    renderer.domElement.addEventListener("pointerup", (e) => {
+      const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+      if (dist > 6) return; // Ignore drag orbits
+
+      pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hits = raycaster.intersectObjects(scene.children, true);
+      if (!hits.length) return;
+
+      const root = getInteractiveRoot(hits[0].object);
+      if (!root) return;
+
+      selectedId = root.name === "AGV_Robot_01" ? "AGV_Robot_01" : root.name.replace("Slot_", "");
+      applySlotVisuals();
+      renderInspector(selectedId);
+    });
+
+    // Camera Presets
+    const CAM_PRESETS = {
+      overview: [[11.5, 9.2, 12.2], [0, 1.4, 0]],
+      aisleA:   [[-9.5, 2.8, 3.2], [1.5, 1.4, 3.2]],
+      rowB:     [[7.8, 4.6, 5.2], [0, 1.8, 0]],
+    };
+
+    document.querySelectorAll("[data-cam]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-cam]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const key = btn.dataset.cam;
+        if (key === "agv" && agvObject) {
+          selectedId = "AGV_Robot_01";
+          applySlotVisuals();
+          renderInspector("AGV_Robot_01");
+          focusObject(agvObject);
+        } else if (CAM_PRESETS[key]) {
+          flyCameraTo(...CAM_PRESETS[key]);
+        }
+      });
+    });
+
+    // Auto-rotate & AGV toggles
+    const btnAutoRotate = document.getElementById("btn-autorotate");
+    btnAutoRotate.addEventListener("click", () => {
+      controls.autoRotate = !controls.autoRotate;
+      controls.autoRotateSpeed = 1.2;
+      btnAutoRotate.classList.toggle("active", controls.autoRotate);
+      btnAutoRotate.textContent = controls.autoRotate ? "⏸️ 停止自動環繞" : "🔄 開啟自動環繞";
+    });
+
+    const btnAgvMove = document.getElementById("btn-agv-move");
+    btnAgvMove.addEventListener("click", () => {
+      agvMoving = !agvMoving;
+      btnAgvMove.classList.toggle("active", agvMoving);
+      btnAgvMove.textContent = agvMoving ? "🤖 AGV 自動巡航：開" : "🤖 AGV 自動巡航：關";
+    });
+
+    // Status Filters
+    document.querySelectorAll("[data-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-filter]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        activeFilter = btn.dataset.filter;
+        applySlotVisuals();
+      });
+    });
+
+    // Search Slot
+    function doSearch() {
+      const q = document.getElementById("slot-search").value.trim().toUpperCase();
+      if (!q) return;
+      for (const [id, slot] of slotRegistry.entries()) {
+        if (id.includes(q)) {
+          selectedId = id;
+          applySlotVisuals();
+          renderInspector(id);
+          focusObject(slot.obj);
+          return;
+        }
+      }
+      alert(`找不到符合「${q}」的儲位，請試試 A-01-2 或 B-03-1`);
+    }
+    document.getElementById("btn-search").addEventListener("click", doSearch);
+    document.getElementById("slot-search").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doSearch();
+    });
+
+    // Guide Modal
+    const modal = document.getElementById("guide-modal");
+    document.getElementById("btn-open-guide").onclick = () => modal.classList.add("open");
+    document.getElementById("btn-close-guide").onclick = () => modal.classList.remove("open");
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) modal.classList.remove("open");
+    });
+
+    // Resize
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Render Loop
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      if (agvObject && agvMoving) {
+        agvPhase += dt * 0.55;
+        agvObject.position.x = Math.sin(agvPhase) * 3.4;
+      }
+
+      if (camAnim) {
+        camAnim.t = Math.min(1, camAnim.t + dt * 2.2);
+        const ease = 1 - Math.pow(1 - camAnim.t, 3);
+        camera.position.lerpVectors(camAnim.startPos, camAnim.endPos, ease);
+        controls.target.lerpVectors(camAnim.startTarget, camAnim.endTarget, ease);
+        if (camAnim.t >= 1) camAnim = null;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>

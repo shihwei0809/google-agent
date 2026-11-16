@@ -111,3 +111,6 @@ dist/
 *.spec
 
 claude-motion-explainer/
+
+# Chrome automated flow profile (session cookies & cache)
+.chrome_flow_profile/

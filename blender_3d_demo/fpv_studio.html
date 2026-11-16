@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blender 3D 白模 FPV 運鏡工作室 | Previs Studio</title>
+  <style>
+    :root {
+      --bg: #070b14;
+      --panel: rgba(13, 20, 36, 0.88);
+      --border: rgba(56, 189, 248, 0.24);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+    }
+
+    /* Left Studio Panel */
+    .sidebar {
+      background: #0b1120;
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .title {
+      font-size: 1.08rem;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .sub {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .card {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #7dd3fc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 8px;
+      background: #020617;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      aspect-ratio: 16 / 9;
+    }
+
+    .thumb-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .thumb-box {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    .thumb-box img {
+      width: 100%;
+      border-radius: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      background: rgba(30, 41, 59, 0.9);
+      color: var(--text);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 8px;
+      padding: 7px 11px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: all 0.16s ease;
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.16);
+    }
+
+    .btn.active {
+      background: rgba(56, 189, 248, 0.26);
+      border-color: var(--accent);
+      color: #e0f2fe;
+    }
+
+    .btn-primary {
+      background: rgba(16, 185, 129, 0.18);
+      border-color: rgba(16, 185, 129, 0.45);
+      color: #6ee7b7;
+      flex: 1;
+    }
+
+    .steps {
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      line-height: 1.55;
+      padding-left: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .steps code {
+      background: rgba(56, 189, 248, 0.15);
+      color: #7dd3fc;
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+
+    /* Right 3D Stage */
+    .stage {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #viewport {
+      position: absolute;
+      inset: 0;
+    }
+
+    .hud-top {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .hud-group {
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .hud-bottom {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 5;
+    }
+
+    .scrubber-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .scrubber-row input[type="range"] {
+      flex: 1;
+      accent-color: #38bdf8;
+      cursor: pointer;
+    }
+
+    .frame-readout {
+      font-family: Consolas, monospace;
+      font-size: 0.82rem;
+      color: #7dd3fc;
+      min-width: 108px;
+      text-align: right;
+    }
+
+    @media (max-width: 960px) {
+      body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 55vh;
+        overflow-y: auto;
+        height: auto;
+      }
+      .stage {
+        height: 55vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="header-row">
+      <div>
+        <div class="title">🎬 Blender 白模 FPV 工作室</div>
+        <div class="sub">免手寫程式碼：已由 Blender Workbench 算完 5 秒 1280×720 白模運鏡影片</div>
+      </div>
+      <a class="btn" href="./index.html" title="回到 3D 智慧儲位看板">🏭 儲位 3D</a>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>📹 Blender 算出的實際白模影片 (MP4)</span>
+        <span style="font-size:0.72rem; color:#94a3b8;">24 FPS · 120 格</span>
+      </div>
+      <video id="mp4-player" src="./fpv_white_model.mp4" controls autoplay loop muted playsinline></video>
+      <div class="btn-row">
+        <a class="btn btn-primary" href="./fpv_white_model.mp4" download="fpv_white_model.mp4">📥 下載白模 MP4</a>
+        <a class="btn" href="./fpv_white_model.blend" download="fpv_white_model.blend">🧊 下載 .blend 檔</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>🖼️ 首幀 & 尾幀白模參考圖（給 AI 生圖/定調用）</span>
+      </div>
+      <div class="thumb-grid">
+        <div class="thumb-box">
+          <img src="./fpv_first_frame.png" alt="第 1 格高空俯瞰" />
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>第 1 格：高空俯衝起點</span>
+            <a class="btn" style="padding:3px 7px; font-size:0.7rem;" href="./fpv_first_frame.png" download="fpv_first_frame.png">下載</a>
+          </div>
+        </div>
+        <div class="thumb-box">
+          <img src="./fpv_last_frame.png" alt="第 120 格主角特寫" />
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>第 120 格：主角急煞特寫</span>
+            <a class="btn" style="padding:3px 7px; font-size:0.7rem;" href="./fpv_last_frame.png" download="fpv_last_frame.png">下載</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>✨ Google Flow 專用：已轉好電影皮膚的首尾幀</span>
+        <span style="font-size:0.7rem; color:#6ee7b7;">直接拖進 Frames to Video</span>
+      </div>
+
+      <div style="font-size:0.76rem; font-weight:700; color:#e2e8f0;">⚡ 方案 A：賽博龐克霓虹雨夜 (Cyberpunk)</div>
+      <div class="thumb-grid">
+        <div class="thumb-box">
+          <img src="./cyberpunk_first_frame.png" alt="賽博龐克首幀" />
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>首幀 (Start)</span>
+            <a class="btn" style="padding:3px 7px; font-size:0.7rem;" href="./cyberpunk_first_frame.png" download="cyberpunk_first_frame.png">下載</a>
+          </div>
+        </div>
+        <div class="thumb-box">
+          <img src="./cyberpunk_last_frame.png" alt="賽博龐克尾幀" />
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>尾幀 (End)</span>
+            <a class="btn" style="padding:3px 7px; font-size:0.7rem;" href="./cyberpunk_last_frame.png" download="cyberpunk_last_frame.png">下載</a>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="copy-cyber-prompt" style="flex:1; font-size:0.73rem; border-color:rgba(56,189,248,0.4); color:#7dd3fc;">
+          📋 複製 Prompt
+        </button>
+        <button class="btn" data-upload-flow="cyberpunk" style="flex:1; font-size:0.73rem; border-color:rgba(16,185,129,0.5); color:#6ee7b7;">
+          🚀 一鍵自動送進 Flow
+        </button>
+      </div>
+
+      <div style="font-size:0.76rem; font-weight:700; color:#e2e8f0; margin-top:4px;">⚔️ 方案 B：奇幻武俠仙俠古街 (Wuxia)</div>
+      <div class="thumb-grid">
+        <div class="thumb-box">
+          <img src="./wuxia_first_frame.png" alt="奇幻武俠首幀" />
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>首幀 (Start)</span>
+            <a class="btn" style="padding:3px 7px; font-size:0.7rem;" href="./wuxia_first_frame.png" download="wuxia_first_frame.png">下載</a>
+          </div>
+        </div>
+        <div class="thumb-box">
+          <img src="./wuxia_last_frame.png" alt="奇幻武俠尾幀" />
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>尾幀 (End)</span>
+            <a class="btn" style="padding:3px 7px; font-size:0.7rem;" href="./wuxia_last_frame.png" download="wuxia_last_frame.png">下載</a>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="copy-wuxia-prompt" style="flex:1; font-size:0.73rem; border-color:rgba(245,158,11,0.45); color:#fcd34d;">
+          📋 複製 Prompt
+        </button>
+        <button class="btn" data-upload-flow="wuxia" style="flex:1; font-size:0.73rem; border-color:rgba(16,185,129,0.5); color:#6ee7b7;">
+          🚀 一鍵自動送進 Flow
+        </button>
+      </div>
+
+      <div style="font-size:0.76rem; font-weight:700; color:#e2e8f0; margin-top:4px;">🎈 方案 C：兒童卡通玩具王國 (Kids 3D)</div>
+      <div class="thumb-grid">
+        <div class="thumb-box">
+          <img src="./kids_first_frame.png" alt="兒童版首幀" />
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>首幀 (Start)</span>
+            <a class="btn" style="padding:3px 7px; font-size:0.7rem;" href="./kids_first_frame.png" download="kids_first_frame.png">下載</a>
+          </div>
+        </div>
+        <div class="thumb-box">
+          <img src="./kids_last_frame.png" alt="兒童版尾幀" />
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>尾幀 (End)</span>
+            <a class="btn" style="padding:3px 7px; font-size:0.7rem;" href="./kids_last_frame.png" download="kids_last_frame.png">下載</a>
+          </div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="copy-kids-prompt" style="flex:1; font-size:0.73rem; border-color:rgba(56,189,248,0.45); color:#7dd3fc;">
+          📋 複製 Prompt
+        </button>
+        <button class="btn btn-primary" data-upload-flow="kids" style="flex:1; font-size:0.73rem;">
+          🚀 一鍵自動送進 Flow
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🚀 接下來怎麼丟進 Google Flow / AI 影片？</div>
+      <ol class="steps">
+        <li><b>Google Flow (Veo)</b>：選 <code>Frames to Video</code>，將上方任一套的 <b>首幀</b> 與 <b>尾幀</b> 放入 Start/End Frame，貼上對應的 Prompt 即可。</li>
+        <li><b>Seedance / 可靈 Kling / Runway</b>：選「<b>影片參考 / Motion Reference</b>」，上傳上方「風格首幀圖」＋ <code>fpv_white_model.mp4</code>，即可 100% 鎖定這條俯衝軌跡。</li>
+      </ol>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div id="viewport"></div>
+
+    <div class="hud-top">
+      <div class="hud-group">
+        <button class="btn active" id="mode-fpv">🎥 FPV 第一人稱預覽</button>
+        <button class="btn" id="mode-god">🛸 上帝視角看軌跡線</button>
+      </div>
+      <div class="hud-group" style="font-size:0.78rem; color:#cbd5e1;">
+        <span id="view-hint">目前：完全同步 Blender 攝影機鏡頭 & 壓彎傾角</span>
+      </div>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="scrubber-row">
+        <button class="btn active" id="btn-play">⏸️ 暫停</button>
+        <input id="frame-slider" type="range" min="0" max="119" value="0" />
+        <div class="frame-readout" id="frame-readout">Frame 1 / 120</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" data-jump="0">🚀 起點高空俯衝 (F1)</button>
+        <button class="btn" data-jump="52">🌉 壓低穿過天橋 (F53)</button>
+        <button class="btn" data-jump="92">⚡ 貼地急轉彎 (F93)</button>
+        <button class="btn" data-jump="119">🧍 急煞停在主角前 (F120)</button>
+      </div>
+    </div>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+    const stage = document.querySelector(".stage");
+    const viewport = document.getElementById("viewport");
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x282c34);
+    scene.fog = new THREE.FogExp2(0x282c34, 0.012);
+
+    const fpvCamera = new THREE.PerspectiveCamera(50, stage.clientWidth / stage.clientHeight, 0.1, 250);
+    const godCamera = new THREE.PerspectiveCamera(48, stage.clientWidth / stage.clientHeight, 0.1, 250);
+    godCamera.position.set(22, 18, 28);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setSize(stage.clientWidth, stage.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    viewport.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(godCamera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.target.set(0, 3, 18);
+    controls.enabled = false;
+
+    // Clay Studio Lighting
+    const hemi = new THREE.HemisphereLight(0xf8fafc, 0x334155, 1.05);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.85);
+    sun.position.set(16, 28, 18);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(1024, 1024);
+    scene.add(sun);
+
+    let viewMode = "fpv"; // "fpv" | "god"
+    let playing = true;
+    let currentFrameFloat = 0;
+    let pathData = null;
+    let trajectoryGroup = new THREE.Group();
+    let droneMarker = null;
+    scene.add(trajectoryGroup);
+
+    // Load White-Model GLB
+    const loader = new GLTFLoader();
+    loader.load("./fpv_white_model.glb", (gltf) => {
+      gltf.scene.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+      scene.add(gltf.scene);
+    });
+
+    // Load Camera Path JSON & Build Glowing Trajectory Tube
+    fetch("./fpv_camera_path.json")
+      .then((r) => r.json())
+      .then((data) => {
+        pathData = data;
+        fpvCamera.fov = data.fovDeg || 50;
+        fpvCamera.updateProjectionMatrix();
+
+        const pts = data.frames.map((f) => new THREE.Vector3(...f.pos));
+        const curve = new THREE.CatmullRomCurve3(pts);
+        const tubeGeo = new THREE.TubeGeometry(curve, 160, 0.08, 8, false);
+        const tubeMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.85 });
+        const tubeMesh = new THREE.Mesh(tubeGeo, tubeMat);
+        trajectoryGroup.add(tubeMesh);
+
+        // Drone/Camera Cone Marker
+        const droneGeo = new THREE.ConeGeometry(0.32, 0.75, 4);
+        droneGeo.rotateX(Math.PI / 2);
+        const droneMat = new THREE.MeshStandardMaterial({
+          color: 0xf43f5e,
+          emissive: 0xf43f5e,
+          emissiveIntensity: 0.6,
+        });
+        droneMarker = new THREE.Mesh(droneGeo, droneMat);
+        trajectoryGroup.add(droneMarker);
+        trajectoryGroup.visible = false; // Hidden in FPV mode
+      });
+
+    const slider = document.getElementById("frame-slider");
+    const readout = document.getElementById("frame-readout");
+    const btnPlay = document.getElementById("btn-play");
+    const modeFpvBtn = document.getElementById("mode-fpv");
+    const modeGodBtn = document.getElementById("mode-god");
+    const viewHint = document.getElementById("view-hint");
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      modeFpvBtn.classList.toggle("active", mode === "fpv");
+      modeGodBtn.classList.toggle("active", mode === "god");
+      controls.enabled = mode === "god";
+      trajectoryGroup.visible = mode === "god";
+      viewHint.textContent =
+        mode === "fpv"
+          ? "目前：完全同步 Blender 攝影機鏡頭 & 壓彎傾角"
+          : "目前：自由拖曳 3D 街道，青色線即為 FPV 飛行軌跡";
+    }
+
+    modeFpvBtn.onclick = () => setViewMode("fpv");
+    modeGodBtn.onclick = () => setViewMode("god");
+
+    btnPlay.onclick = () => {
+      playing = !playing;
+      btnPlay.classList.toggle("active", playing);
+      btnPlay.textContent = playing ? "⏸️ 暫停" : "▶️ 播放";
+    };
+
+    slider.addEventListener("input", () => {
+      playing = false;
+      btnPlay.classList.remove("active");
+      btnPlay.textContent = "▶️ 播放";
+      currentFrameFloat = parseInt(slider.value, 10);
+    });
+
+    document.querySelectorAll("[data-jump]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        currentFrameFloat = parseInt(btn.dataset.jump, 10);
+        slider.value = currentFrameFloat;
+      });
+    });
+
+    function applyCameraFrame(idxFloat) {
+      if (!pathData || !pathData.frames.length) return;
+      const maxIdx = pathData.frames.length - 1;
+      const i0 = Math.min(maxIdx, Math.max(0, Math.floor(idxFloat)));
+      const i1 = Math.min(maxIdx, i0 + 1);
+      const alpha = idxFloat - i0;
+
+      const f0 = pathData.frames[i0];
+      const f1 = pathData.frames[i1];
+
+      const pos = new THREE.Vector3(...f0.pos).lerp(new THREE.Vector3(...f1.pos), alpha);
+      const tgt = new THREE.Vector3(...f0.target).lerp(new THREE.Vector3(...f1.target), alpha);
+      const roll = f0.roll * (1 - alpha) + f1.roll * alpha;
+
+      fpvCamera.position.copy(pos);
+      fpvCamera.up.set(0, 1, 0);
+      fpvCamera.lookAt(tgt);
+      fpvCamera.rotateZ(roll);
+
+      if (droneMarker) {
+        droneMarker.position.copy(pos);
+        droneMarker.lookAt(tgt);
+      }
+
+      const displayFrame = i0 + 1;
+      slider.value = i0;
+      readout.textContent = `Frame ${displayFrame} / ${pathData.totalFrames}`;
+    }
+
+    window.addEventListener("resize", () => {
+      const w = stage.clientWidth;
+      const h = stage.clientHeight;
+      fpvCamera.aspect = w / h;
+      fpvCamera.updateProjectionMatrix();
+      godCamera.aspect = w / h;
+      godCamera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    });
+
+    const clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      if (pathData && playing) {
+        currentFrameFloat += dt * (pathData.fps || 24);
+        if (currentFrameFloat >= pathData.frames.length) {
+          currentFrameFloat = 0;
+        }
+      }
+
+      applyCameraFrame(currentFrameFloat);
+      if (viewMode === "god") controls.update();
+      renderer.render(scene, viewMode === "fpv" ? fpvCamera : godCamera);
+    }
+    const CYBER_PROMPT =
+      "Fast FPV drone shot diving steeply from high above the rainy cyberpunk street canyon, flying underneath the neon holographic skybridges at high speed, banking smoothly along the wet asphalt road and pulling up to a sudden stop right in front of the armored cyber-warrior with a glowing cyan visor standing in the center of the street, cinematic neon reflections, volumetric rain mist, 4k photorealistic.";
+    const WUXIA_PROMPT =
+      "Fast FPV drone shot diving steeply from high above the misty ancient Chinese wuxia street canyon at night, soaring underneath the ornate wooden corridor bridges lit by warm red and golden lanterns, banking smoothly along the wet stone pavement and pulling up to a sudden stop right in front of the martial arts warrior with a spirit sword on his back, cinematic moonlight and lantern glow, atmospheric fog, 4k photorealistic.";
+    const KIDS_PROMPT =
+      "Playful fast FPV camera flight diving from high above a colorful 3D animated toy city street, flying underneath bright rainbow bridges with balloons, gliding past cute cartoon cars and stopping right in front of an adorable little kid hero wearing a star helmet and cape in the center of the street, Pixar 3D animation style, joyful bright daylight, 4k.";
+
+    function bindCopyPrompt(btnId, text) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      const orig = btn.textContent;
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.textContent = "✅ 已複製！直接貼進 Google Flow";
+          setTimeout(() => (btn.textContent = orig), 2200);
+        } catch {
+          prompt("請複製以下 Prompt：", text);
+        }
+      });
+    }
+    bindCopyPrompt("copy-cyber-prompt", CYBER_PROMPT);
+    bindCopyPrompt("copy-wuxia-prompt", WUXIA_PROMPT);
+    bindCopyPrompt("copy-kids-prompt", KIDS_PROMPT);
+
+    document.querySelectorAll("[data-upload-flow]").forEach((btn) => {
+      const orig = btn.textContent;
+      btn.addEventListener("click", async () => {
+        const theme = btn.dataset.uploadFlow;
+        btn.disabled = true;
+        btn.textContent = "⏳ 啟動本機 Chrome...";
+        try {
+          const resp = await fetch(`/api/upload-flow?theme=${encodeURIComponent(theme)}`, {
+            method: "POST",
+          });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          btn.textContent = "✅ 已開啟 Chrome 自動上傳中！";
+        } catch (err) {
+          btn.textContent = "❌ 請改雙擊 一鍵自動上傳Google_Flow.bat";
+        } finally {
+          setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = orig;
+          }, 4000);
+        }
+      });
+    });
+
+    animate();
+  </script>
+</body>
+</html>

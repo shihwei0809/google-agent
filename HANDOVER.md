@@ -1,5 +1,19 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-16 Blender 3D AI 自動建模與 FPV 白模運鏡工作室 `blender_3d_demo` 建置、Google Flow 全自動生片鎖定 10 秒 x 1)
+* **Blender 5.3 + Blender MCP (`uvx blender-mcp`) + Three.js 3D 數位孿生與 FPV 白模工作室 (`c:\GOOGLE ANGET\blender_3d_demo`)**:
+  - **無獨顯筆電輕量化 3D 雙看板 (`index.html` & `fpv_studio.html`)**:
+    - 安裝並設定 Blender 5.3、Astral `uv/uvx` 與 `blender_mcp_addon.py`（註冊於 `~/.gemini/config/mcp_config.json`）。
+    - 建立 [generate_warehouse_3d.py](file:///c:/GOOGLE%20ANGET/blender_3d_demo/generate_warehouse_3d.py) 自動生成 36 格儲位與巡航 AGV 之 `warehouse_3d.glb`，搭配 [index.html](file:///c:/GOOGLE%20ANGET/blender_3d_demo/index.html) 互動看板。
+    - 建立 [generate_fpv_white_model.py](file:///c:/GOOGLE%20ANGET/blender_3d_demo/generate_fpv_white_model.py) 使用 `BLENDER_WORKBENCH` 算圖輸出 5 秒 120 格 `fpv_white_model.mp4`、首尾幀與攝影機軌跡 `fpv_camera_path.json`，搭配 [fpv_studio.html](file:///c:/GOOGLE%20ANGET/blender_3d_demo/fpv_studio.html) 預覽賽博龐克、奇幻武俠、兒童卡通三套首尾幀。
+  - **Google Flow 自動上傳與一鍵生成影片 ([auto_upload_flow.py](file:///c:/GOOGLE%20ANGET/blender_3d_demo/auto_upload_flow.py) & [一鍵自動上傳Google_Flow.bat](file:///c:/GOOGLE%20ANGET/blender_3d_demo/%E4%B8%80%E9%8D%B5%E8%87%AA%E5%8B%95%E4%B8%8A%E5%82%B3Google_Flow.bat))**:
+    - 支援透過 Playwright CDP (`Port 9222`) 接管本機 Chrome 或於內建瀏覽器自動進入 Google Flow (`https://flow.google.com`)。
+    - 自動設定 `設定觸發條件` 為 **`影片 -> 影格 (Frames) · 720p · 10 秒 · x 1`**（透過滑桿步進精準鎖定 `10 秒`、單次生成 `x 1` 僅耗 30 點，不選 `x 2`），自動填入 Prompt 並點擊 **`開始生成`**。
+  - **標準四件套與操作手冊**:
+    - 已備齊 [README.md](file:///c:/GOOGLE%20ANGET/blender_3d_demo/README.md)、[SKILL.md](file:///c:/GOOGLE%20ANGET/blender_3d_demo/SKILL.md)、[setup_env.ps1](file:///c:/GOOGLE%20ANGET/blender_3d_demo/setup_env.ps1)、[build_manual_doc.py](file:///c:/GOOGLE%20ANGET/blender_3d_demo/build_manual_doc.py) 與 [Blender_3D_AI建模與白模運鏡系統_操作手冊.docx](file:///c:/GOOGLE%20ANGET/blender_3d_demo/Blender_3D_AI%E5%BB%BA%E6%A8%A1%E8%88%87%E7%99%BD%E6%A8%A1%E9%81%8B%E9%8F%A1%E7%B3%BB%E7%B5%B1_%E6%93%8D%E4%BD%9C%E6%89%8B%E5%86%8A.docx)。
+
+---
+
 ## 今日進度與交接事項 (2026-11-16 儲位記錄 PWA 升級 v1.0.20 ~ v1.0.22：人員帳號匯出/匯入、可輸入搜尋品名選單、依品號動態過濾批號)
 * **倉儲儲位 PWA 記錄系統 (`儲位記錄\2_PWA_App版` & `儲位記錄\3_Cloudflare_D1版`) 升級至 v1.0.22:**
   - **人員帳號 Excel 匯出與匯入 (`v1.0.20`)**:

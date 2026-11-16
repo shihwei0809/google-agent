@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<title>WSB 資料流架構（修正版）</title>
+<style>
+  @page {
+    size: 1440px 1020px;
+    margin: 0;
+  }
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  body {
+    width: 1440px;
+    height: 1020px;
+    background: #F5F4F0;
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+    color: #1F2937;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    position: absolute;
+    top: 28px;
+    left: 44px;
+    right: 44px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .header h1 {
+    font-size: 26px;
+    font-weight: 800;
+    color: #111827;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+  .header p {
+    font-size: 13.5px;
+    color: #4B5563;
+  }
+  .ntp-badge {
+    background: #E0F2FE;
+    border: 1px solid #7DD3FC;
+    color: #0369A1;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-top: 4px;
+  }
+
+  /* Stage containers */
+  .stage {
+    position: absolute;
+    top: 104px;
+    height: 696px;
+    background: #ECEAE3;
+    border: 1.5px dashed #9CA3AF;
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .stage-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .s1 { left: 44px; width: 274px; }
+  .s2 { left: 370px; width: 250px; }
+  .s3 { left: 672px; width: 374px; }
+  .s4 { left: 1098px; width: 298px; }
+
+  /* Cards */
+  .card {
+    background: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-radius: 8px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .card-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-sub {
+    font-size: 11.5px;
+    color: #4B5563;
+    line-height: 1.45;
+  }
+  .tag-new {
+    font-size: 10px;
+    font-weight: 700;
+    background: #DBEAFE;
+    color: #1D4ED8;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .tag-fix {
+    font-size: 10px;
+    font-weight: 700;
+    background: #FEF3C7;
+    color: #B45309;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .s1-note {
+    position: absolute;
+    bottom: 12px;
+    left: 14px;
+    right: 14px;
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+  .s1-note .red { color: #B91C1C; font-weight: 700; }
+  .s1-note .gray { color: #4B5563; }
+
+  .path-box {
+    background: #F3F4F6;
+    border: 1px solid #E5E7EB;
+    border-radius: 5px;
+    padding: 5px 8px;
+    margin-top: 6px;
+    font-family: "Consolas", "Microsoft JhengHei", monospace;
+    font-size: 11px;
+    color: #374151;
+    line-height: 1.4;
+  }
+
+  /* Stage 3 specific positioned boxes */
+  .etl-box {
+    position: absolute;
+    top: 42px;
+    left: 14px;
+    right: 14px;
+    background: #EFF6FF;
+    border: 2px solid #1D4ED8;
+    border-radius: 10px;
+    padding: 11px 14px;
+  }
+  .etl-box .card-title {
+    color: #1E40AF;
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .etl-list {
+    list-style: none;
+    font-size: 11.8px;
+    color: #1F2937;
+    line-height: 1.6;
+  }
+
+  .db-box {
+    position: absolute;
+    top: 306px;
+    left: 48px;
+    right: 48px;
+    background: #FFFFFF;
+    border: 1.5px solid #9CA3AF;
+    border-radius: 9px;
+    padding: 11px 14px;
+  }
+  .db-box .card-title {
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .pending-box {
+    position: absolute;
+    top: 544px;
+    left: 48px;
+    right: 48px;
+    background: #FFFBEB;
+    border: 1.5px solid #D97706;
+    border-radius: 9px;
+    padding: 10px 14px;
+  }
+  .pending-box .card-title {
+    color: #92400E;
+    font-size: 13.5px;
+    margin-bottom: 3px;
+  }
+  .pending-box .card-sub {
+    color: #78350F;
+  }
+
+  /* Stage 4 specific positioned boxes */
+  .rag-box {
+    position: absolute;
+    top: 42px;
+    left: 14px;
+    right: 14px;
+    background: #FFFFFF;
+    border: 1.5px solid #9CA3AF;
+    border-radius: 9px;
+    padding: 12px 14px;
+  }
+  .ai-box {
+    position: absolute;
+    top: 256px;
+    left: 14px;
+    right: 14px;
+    background: #FFFFFF;
+    border: 1.5px solid #1E293B;
+    border-radius: 9px;
+    padding: 12px 14px;
+  }
+  .user-box {
+    position: absolute;
+    top: 544px;
+    left: 14px;
+    right: 14px;
+    background: #FFFFFF;
+    border: 1.5px solid #6B7280;
+    border-radius: 9px;
+    padding: 14px;
+    text-align: center;
+  }
+  .user-box .card-title {
+    justify-content: center;
+    font-size: 14px;
+    margin-bottom: 3px;
+  }
+
+  /* Legend */
+  .legend {
+    position: absolute;
+    top: 810px;
+    left: 44px;
+    right: 44px;
+    font-size: 12px;
+    color: #4B5563;
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  .leg-item { display: flex; align-items: center; gap: 6px; }
+  .line-solid { width: 22px; height: 2px; background: #1F2937; display: inline-block; }
+  .line-orange { width: 22px; height: 0; border-top: 2px dashed #D97706; display: inline-block; }
+  .line-teal { width: 22px; height: 0; border-top: 2px dashed #0D9488; display: inline-block; }
+  .box-blue { width: 14px; height: 14px; border: 2px solid #1D4ED8; background: #EFF6FF; border-radius: 3px; display: inline-block; }
+
+  /* Bottom 4 principles */
+  .principles {
+    position: absolute;
+    top: 842px;
+    left: 44px;
+    right: 44px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  .p-card {
+    background: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-radius: 10px;
+    padding: 12px 15px;
+    height: 142px;
+  }
+  .p-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 6px;
+  }
+  .p-desc {
+    font-size: 12px;
+    color: #4B5563;
+    line-height: 1.55;
+  }
+
+  /* SVG Overlay for arrows */
+  svg.arrows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1440px;
+    height: 1020px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>WSB 資料流架構（修正版）</h1>
+      <p>資料從生產現場出發，經單向中繼校驗與平台治理整理後進入 RAG 與 AI，並形成「待處理重算」與「CAPA 根因回寫」雙閉環。</p>
+    </div>
+    <div class="ntp-badge">全廠前提：全設備 NTP 時間同步</div>
+  </div>
+
+  <!-- Stage 1 -->
+  <div class="stage s1">
+    <div class="stage-title">① 生產現場／實驗室</div>
+
+    <div class="card">
+      <div class="card-title">DCS <span class="tag-fix">補高頻</span></div>
+      <div class="card-sub">關鍵參數高頻時序 (Historian) ＋ 每日報表</div>
+    </div>
+    <div class="card">
+      <div class="card-title">PLC</div>
+      <div class="card-sub">高頻時序／完整數據</div>
+    </div>
+    <div class="card">
+      <div class="card-title">SPC</div>
+      <div class="card-sub">批次、管制項目、規格</div>
+    </div>
+    <div class="card">
+      <div class="card-title">GC 儀器 <span class="tag-fix">雙軌匯出</span></div>
+      <div class="card-sub">原始檔（廠商格式）＋ 開放格式 (CSV/CDF)</div>
+    </div>
+    <div class="card">
+      <div class="card-title">主數據／配方／設備 <span class="tag-new">新增</span></div>
+      <div class="card-sub">原物料批號 (COA)、配方、校準與維修紀錄</div>
+    </div>
+    <div class="card">
+      <div class="card-title">紙本生產日誌</div>
+      <div class="card-sub">掃描／電子化（保留原始掃描圖檔）</div>
+    </div>
+
+    <div class="s1-note">
+      <div class="red">只讀取，不回寫控制系統</div>
+      <div class="gray">AI 不直接連 DCS／PLC</div>
+    </div>
+  </div>
+
+  <!-- Stage 2 -->
+  <div class="stage s2">
+    <div class="stage-title">② 備份伺服器 (DMZ)</div>
+
+    <div class="card">
+      <div class="card-title">落地區 <span class="tag-fix">防跨日裂開</span></div>
+      <div class="card-sub">
+        單向唯讀定時上傳<br/>
+        依「來源系統／上傳日期」存放
+      </div>
+      <div class="path-box">
+        範例路徑：<br/>
+        /GC/2026-11-16/B241103_v1.cdf
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">完整性校驗 <span class="tag-new">新增</span></div>
+      <div class="card-sub">
+        • 檢查 .ok 寫入完成訊號<br/>
+        • SHA-256 雜湊校驗（防半殘檔）
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">保留原始檔</div>
+      <div class="card-sub">
+        不覆蓋、不修改<br/>
+        重測／重出帶 _v1、_v2 版本號
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">權限與稽核紀錄</div>
+      <div class="card-sub">誰在何時取用與下載</div>
+    </div>
+  </div>
+
+  <!-- Stage 3 -->
+  <div class="stage s3">
+    <div class="stage-title">③ 公司內網資料平台</div>
+
+    <div class="etl-box">
+      <div class="card-title">資料整理（關鍵步驟） <span class="tag-fix">可重算</span></div>
+      <ul class="etl-list">
+        <li>• 欄位別名對照表 ＋ 統一批號與時間（主鍵）</li>
+        <li>• 單位換算與品質檢核</li>
+        <li>• 記錄轉換規則版本（支援冪等重算）</li>
+        <li>• GC：滯留指數校正、峰對齊 ＋ <strong>未知峰保留標記</strong></li>
+        <li>• 日誌：OCR <strong>低信心度強制人工覆核</strong>（非僅抽檢）</li>
+        <li style="color:#1E40AF; font-weight:700; margin-top:2px;">　保留原始掃描截圖供佐證</li>
+      </ul>
+    </div>
+
+    <div class="db-box">
+      <div class="card-title">整合資料庫（分層儲存）</div>
+      <div class="card-sub">
+        每筆資料帶批號、時間、來源與轉換版本<br/>
+        • <strong>時序／關聯庫</strong>：DCS / PLC / SPC 數據<br/>
+        • <strong>物件儲存庫</strong>：GC 譜圖 ＋ 日誌掃描原圖<br/>
+        • <strong>CAPA 經驗庫</strong> <span class="tag-new">新增</span>：已驗證異常根因紀錄
+      </div>
+    </div>
+
+    <div class="pending-box">
+      <div class="card-title">待處理清單 <span class="tag-fix">補表閉環</span></div>
+      <div class="card-sub">
+        由人檢查後補進對照表，不硬配給 AI<br/>
+        補齊對照表後，<strong>自動觸發「資料整理」重算回流</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage 4 -->
+  <div class="stage s4">
+    <div class="stage-title">④ 應用</div>
+
+    <div class="rag-box">
+      <div class="card-title">日誌 RAG <span class="tag-fix">混合檢索</span></div>
+      <div class="card-sub">
+        • 建立索引（依批號／設備代號精確過濾）<br/>
+        • Hybrid Search：關鍵字 ＋ 向量語意<br/>
+        • 答案附日誌來源 ＋ <strong>原始掃描截圖</strong>
+      </div>
+    </div>
+
+    <div class="ai-box">
+      <div class="card-title">AI 分析 <span class="tag-new">串接 RAG</span></div>
+      <div class="card-sub">
+        • 串接 DCS／SPC／GC ＋ 日誌 RAG 上下文<br/>
+        • 結合 CAPA 經驗庫輔助歸因<br/>
+        • 異常追溯 → 決策支援（先追溯，再給建議）<br/>
+        • 附量化證據連結，參數調整須人工覆核
+      </div>
+    </div>
+
+    <div class="user-box">
+      <div class="card-title">生產部、品管、化驗人員</div>
+      <div class="card-sub">覆核建議、確認最終異常根因並執行處置</div>
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="leg-item"><span class="line-solid"></span> 正常資料流</div>
+    <div class="leg-item"><span class="line-orange"></span> 對不上資料 ＆ 補表重算閉環</div>
+    <div class="leg-item"><span class="line-teal"></span> 異常根因／CAPA 經驗回寫</div>
+    <div class="leg-item"><span class="box-blue"></span> 專案最容易出問題的關鍵步驟</div>
+  </div>
+
+  <!-- Bottom 4 Principles -->
+  <div class="principles">
+    <div class="p-card">
+      <div class="p-title">① 只讀不寫</div>
+      <div class="p-desc">全場 NTP 校時，所有來源經單向／DMZ 唯讀匯出，控制系統與 AI 之間隔著伺服器與資料庫。</div>
+    </div>
+    <div class="p-card">
+      <div class="p-title">② 原始檔不動</div>
+      <div class="p-desc">落地區依系統與上傳日保留原樣（含校驗與版本號），整理後另存並記錄規則版本，出問題可完整重算。</div>
+    </div>
+    <div class="p-card">
+      <div class="p-title">③ 對不上不進庫</div>
+      <div class="p-desc">批號或時間對不起來的資料放進待處理清單，不硬配給 AI；人工補齊對照表後觸發重算回流。</div>
+    </div>
+    <div class="p-card">
+      <div class="p-title">④ 先試點再擴大</div>
+      <div class="p-desc">用一條產線、一種產品走完整張圖（含異常追溯與 CAPA 回寫閉環），再複製到其他產線。</div>
+    </div>
+  </div>
+
+  <!-- SVG Arrows -->
+  <svg class="arrows" viewBox="0 0 1440 1020" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow-dark" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#1F2937"/>
+      </marker>
+      <marker id="arrow-orange" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#D97706"/>
+      </marker>
+      <marker id="arrow-teal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1 L 10 5 L 0 9 z" fill="#0D9488"/>
+      </marker>
+    </defs>
+
+    <!-- S1 -> S2 -->
+    <line x1="318" y1="240" x2="368" y2="240" stroke="#1F2937" stroke-width="2" marker-end="url(#arrow-dark)"/>
+    <text x="344" y="231" font-size="11" font-weight="700" fill="#374151" text-anchor="middle">唯讀推播</text>
+
+    <!-- S2 -> S3 -->
+    <line x1="620" y1="240" x2="670" y2="240" stroke="#1F2937" stroke-width="2" marker-end="url(#arrow-dark)"/>
+    <text x="646" y="231" font-size="11" font-weight="700" fill="#374151" text-anchor="middle">內網傳輸</text>
+
+    <!-- S3: ETL -> DB -->
+    <line x1="859" y1="358" x2="859" y2="406" stroke="#1F2937" stroke-width="2" marker-end="url(#arrow-dark)"/>
+
+    <!-- S3: ETL -> Pending (orange dashed, right corridor) -->
+    <path d="M 1018 358 L 1018 688 L 1002 688" fill="none" stroke="#D97706" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+    <text x="1024" y="495" font-size="10.5" font-weight="700" fill="#B45309">對不上</text>
+    <text x="1024" y="510" font-size="10.5" font-weight="700" fill="#B45309">的資料</text>
+
+    <!-- S3: Pending -> ETL (orange dashed reprocess loop, left corridor) -->
+    <path d="M 720 688 L 696 688 L 696 362" fill="none" stroke="#D97706" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-orange)"/>
+    <text x="702" y="495" font-size="10.5" font-weight="700" fill="#B45309">補表後</text>
+    <text x="702" y="510" font-size="10.5" font-weight="700" fill="#B45309">重算</text>
+
+    <!-- S3 DB -> S4 RAG & AI -->
+    <path d="M 998 462 L 1066 462 L 1066 218 L 1110 218" fill="none" stroke="#1F2937" stroke-width="2" marker-end="url(#arrow-dark)"/>
+    <line x1="998" y1="482" x2="1110" y2="482" stroke="#1F2937" stroke-width="2" marker-end="url(#arrow-dark)"/>
+
+    <!-- S4: RAG -> AI (NEW critical link!) -->
+    <line x1="1247" y1="286" x2="1247" y2="356" stroke="#1D4ED8" stroke-width="2.2" marker-end="url(#arrow-dark)"/>
+    <text x="1256" y="325" font-size="11" font-weight="700" fill="#1D4ED8">日誌上下文</text>
+
+    <!-- S4: AI -> Users -->
+    <line x1="1247" y1="538" x2="1247" y2="644" stroke="#1F2937" stroke-width="2" marker-end="url(#arrow-dark)"/>
+
+    <!-- S4: RAG -> Users (right edge) -->
+    <path d="M 1382 218 L 1408 218 L 1408 688 L 1386 688" fill="none" stroke="#6B7280" stroke-width="1.6" marker-end="url(#arrow-dark)"/>
+
+    <!-- Feedback loop: Users -> DB (CAPA) routed cleanly in gap between DB and Pending -->
+    <path d="M 1112 706 L 1066 706 L 1066 598 L 859 598 L 859 556" fill="none" stroke="#0D9488" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-teal)"/>
+    <rect x="874" y="588" width="166" height="20" rx="4" fill="#F0FDFA" stroke="#5EEAD4" stroke-width="1"/>
+    <text x="957" y="602" font-size="11" font-weight="700" fill="#0F766E" text-anchor="middle">確認異常根因／CAPA 回寫</text>
+  </svg>
+
+</body>
+</html>

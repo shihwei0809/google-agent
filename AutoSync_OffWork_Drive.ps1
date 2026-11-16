@@ -118,7 +118,7 @@ $syncedProjects = @()
 foreach ($dir in $subDirs) {
     $modifiedFiles = Get-ChildItem -Path $dir.FullName -Recurse -File -ErrorAction SilentlyContinue | Where-Object {
         $_.LastWriteTime -ge $todayStart -and
-        $_.FullName -notmatch "\\(\.git|node_modules|__pycache__|\.wrangler|build|venv|\.venv)\\" -and
+        $_.FullName -notmatch "\\(\.git|node_modules|__pycache__|\.wrangler|build|venv|\.venv|\.chrome_flow_profile)\\" -and
         $_.Extension -notmatch "^\.(sqlite|sqlite-wal|sqlite-shm|exe)$" -and
         $_.Name -ne "security_config.json"
     }
