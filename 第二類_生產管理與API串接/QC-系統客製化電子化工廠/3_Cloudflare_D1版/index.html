@@ -539,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.3.3 (排程項目勾選清除·已送樣防刪版)
+          🚀 v3.3.4 (修復腳本語法·登入解鎖正常運行版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -825,7 +825,7 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.3 (排程項目完整顯示·Checkbox批量勾選·單獨刪除·已送樣防刪保護·Cloudflare D1 旗艦版)</strong><br>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.4 (登入解鎖修復·排程項目完整顯示·Checkbox批量勾選·單獨刪除·已送樣防刪保護·Cloudflare D1 旗艦版)</strong><br>
     <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：單號字首嚴格對齊 (ESPM 進料 / ESXM 出貨) · 背景定時輪詢保護使用者動向不被重設 · 同車多單動向強制鎖定 · Cloudflare D1 即時同步</span>
   </div>
 </div>
@@ -3017,46 +3017,6 @@
   // 向下相容
   function confirmClearUnsubmittedDateOrders() {
     confirmClearCheckedUnsubmittedOrders();
-  }
-
-    // 2. 雲端同步清理
-    if (GAS_API_URL) {
-      try {
-        let payload = { action: 'clearOrders' };
-        if (unsubmittedIds.length > 0) {
-          payload.ids = unsubmittedIds;
-        } else {
-          // 若本機沒有 id 屬性，則若 submittedList 為 0，可直接清除該日期
-          if (submittedList.length === 0) {
-            payload.date = targetDate;
-          } else {
-            // 雲端以單號逐筆批次清
-            for (const doc of unsubmittedDocs) {
-              await fetch(GAS_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify({ action: 'clearOrders', doc_no: doc })
-              });
-            }
-          }
-        }
-
-        if (unsubmittedIds.length > 0 || submittedList.length === 0) {
-          await fetch(GAS_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-            body: JSON.stringify(payload)
-          });
-        }
-
-        showToast(`🗑️ 已成功清除 【${targetDate}】 未送樣排程共 ${unsubmittedList.length} 筆 (保留 ${submittedList.length} 筆已送樣)！`, 4500);
-      } catch(e) {
-        console.warn('雲端清理失敗：', e);
-        showToast(`🗑️ 本機已清除 【${targetDate}】 未送樣排程，但雲端同步失敗`, 4000);
-      }
-    } else {
-      showToast(`🗑️ 已清除 【${targetDate}】 未送樣排程共 ${unsubmittedList.length} 筆！`, 3000);
-    }
   }
 
   // ⚠️ 執行全部歷史清空
@@ -5394,7 +5354,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.3.3) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.3.4) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);
