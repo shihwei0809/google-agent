@@ -304,6 +304,43 @@ export async function onRequest(context) {
 
     if (action === "clearOrders" || action === "deleteOrders") {
       await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
+      
+      // 1. 支援單筆排程刪除 (依 id 或 doc_no)
+      const singleId = (payload && payload.id) || url.searchParams.get("id");
+      const singleDoc = (payload && payload.doc_no) || url.searchParams.get("doc_no");
+      if (singleId) {
+        const res = await env.DB.prepare("DELETE FROM T100_Orders WHERE id = ?").bind(singleId).run();
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: `Order #${singleId} deleted`, 
+          deletedId: singleId,
+          changes: res?.meta?.changes || 0
+        }), { headers: h });
+      } else if (singleDoc) {
+        const res = await env.DB.prepare("DELETE FROM T100_Orders WHERE doc_no = ?").bind(singleDoc).run();
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: `Order doc ${singleDoc} deleted`, 
+          deletedDoc: singleDoc,
+          changes: res?.meta?.changes || 0
+        }), { headers: h });
+      }
+
+      // 2. 支援指定多個 ID 批次刪除 (ids 陣列)
+      const ids = (payload && payload.ids) || [];
+      if (Array.isArray(ids) && ids.length > 0) {
+        // D1 批次執行
+        const placeholders = ids.map(() => '?').join(',');
+        const res = await env.DB.prepare(`DELETE FROM T100_Orders WHERE id IN (${placeholders})`).bind(...ids).run();
+        return new Response(JSON.stringify({ 
+          success: true, 
+          message: `${ids.length} orders deleted`, 
+          deletedIds: ids,
+          changes: res?.meta?.changes || 0
+        }), { headers: h });
+      }
+
+      // 3. 支援指定日期清除
       const targetDate = (payload && payload.date) || url.searchParams.get("date");
       if (targetDate && targetDate.trim() && targetDate.trim().toUpperCase() !== 'ALL') {
         const d = targetDate.trim();
