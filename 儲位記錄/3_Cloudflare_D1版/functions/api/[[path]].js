@@ -143,11 +143,12 @@ export async function onRequest(context) {
   if (path.startsWith("/api/warehouse/") && path.endsWith("/data")) {
     const whId = path.split("/")[3];
     const rows = await db.prepare("SELECT * FROM locations WHERE wh_id = ? ORDER BY location").bind(whId).all();
+    const natCmp = (a, b) => String(a || "").localeCompare(String(b || ""), "zh-Hant", { numeric: true });
     const locs = (rows.results || []).map(l => ({
       ...l,
       occupied: Boolean(l.item_name || l.lot_no || Number(l.qty || 0) > 0)
-    }));
-    const zones = [...new Set(locs.map(l => l.zone).filter(Boolean))];
+    })).sort((a, b) => natCmp(a.location, b.location));
+    const zones = [...new Set(locs.map(l => l.zone).filter(Boolean))].sort(natCmp);
     const lots = [...new Set(locs.map(l => l.lot_no).filter(Boolean))];
 
     const cfgRow = await db.prepare("SELECT items_json, packages_json FROM warehouse_settings WHERE wh_id = ?").bind(whId).first();

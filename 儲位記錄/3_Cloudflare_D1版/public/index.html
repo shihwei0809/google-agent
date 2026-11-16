@@ -444,6 +444,7 @@
       <div class="brand">
         <img src="/icons/icon-192.png" alt="Logo" />
         <span>倉儲儲位 PWA</span>
+        <span id="appVersionBadge" style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.18);color:#e2e8f0;padding:2px 7px;border-radius:999px;letter-spacing:0.3px;">v1.0.19</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span id="userHeaderBadge" style="font-size:12px;background:rgba(255,255,255,0.14);padding:4px 9px;border-radius:999px;cursor:pointer;" title="點擊登出">👤 未登入</span>
@@ -461,7 +462,7 @@
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <img src="/icons/icon-192.png" alt="Logo" style="width:48px;height:48px;border-radius:12px;" />
         <div>
-          <h3 style="margin:0;font-size:19px;">倉儲儲位系統登入</h3>
+          <h3 style="margin:0;font-size:19px;">倉儲儲位系統登入 <span style="font-size:11px;font-weight:700;color:var(--teal-dark);background:#ccfbf1;padding:2px 7px;border-radius:999px;vertical-align:middle;">v1.0.19</span></h3>
           <div style="font-size:12px;color:var(--muted);">請登入人員帳號以進行儲位作業</div>
         </div>
       </div>
@@ -500,6 +501,7 @@
         <div style="margin-bottom:6px;"><b>📦 有貨儲位：</b><span id="importOccupiedCount" style="color:var(--green);font-weight:700;">0</span> 筆</div>
         <div><b>🈳 空儲位數：</b><span id="importEmptyCount" style="color:var(--muted);font-weight:700;">0</span> 筆</div>
       </div>
+      <div id="importMismatchWarn" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 12px;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:12px;line-height:1.5;"></div>
       <div id="importProgressBar" style="display:none;margin-bottom:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--teal-dark);margin-bottom:4px;" id="importProgressText">正在寫入資料庫 (0%)...</div>
         <div style="width:100%;background:#e2e8f0;height:8px;border-radius:4px;overflow:hidden;">
@@ -1064,6 +1066,9 @@
     function renderWarehouseData() {
       const d = state.whData;
       if (!d) return;
+      const natCmp = (a, b) => String(a || '').localeCompare(String(b || ''), 'zh-Hant', { numeric: true });
+      if (Array.isArray(d.zones)) d.zones = [...d.zones].sort(natCmp);
+      if (Array.isArray(d.locations)) d.locations = [...d.locations].sort((a, b) => natCmp(a.location, b.location));
       document.getElementById('whSummaryText').textContent =
         `總儲位 ${d.summary.total_locations} | 有貨 ${d.summary.occupied_locations} | 空位 ${d.summary.empty_locations}`;
 
@@ -1263,12 +1268,17 @@
         const arrayBuffer = await file.arrayBuffer();
         const wb = XLSX.read(arrayBuffer, { type: 'array' });
 
+        // 同步目標倉庫下拉選單（支援動態新增的第 3、4 倉庫）
+        const targetWhSel = document.getElementById('importTargetWh');
+        if (state.warehouses && state.warehouses.length) {
+          targetWhSel.innerHTML = state.warehouses.map(w => `<option value="${w.id}">${w.icon || '🏬'} ${w.name}</option>`).join('');
+        }
         // 智慧判斷倉庫
         let defaultWh = state.whId || 'lunwei';
         const lowerName = file.name.toLowerCase();
         if (lowerName.includes('鴻勝') || lowerName.includes('hongsheng')) defaultWh = 'hongsheng';
         else if (lowerName.includes('崙尾') || lowerName.includes('lunwei')) defaultWh = 'lunwei';
-        document.getElementById('importTargetWh').value = defaultWh;
+        targetWhSel.value = defaultWh;
 
         // 智慧選擇工作表
         let targetSheetName = wb.SheetNames[0];
@@ -1285,19 +1295,34 @@
         const rawData = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
         if (rawData.length < 2) throw new Error('表格內無有效資料列');
 
-        // 智慧尋找 Header 列（含有「儲位」的列，通常在第 1 或 2 列）
+        // 智慧尋找 Header 列（以欄位關鍵字評分，避免第一列大標題「崙尾倉儲儲位表」誤判）
         let headerRowIdx = 0;
+        let bestScore = -1;
         for (let r = 0; r < Math.min(10, rawData.length); r++) {
-          const rowStr = rawData[r].map(c => String(c).trim()).join('|');
-          if (rowStr.includes('儲位') || rowStr.includes('品名') || rowStr.includes('批號')) {
+          const cells = rawData[r].map(c => String(c || '').trim());
+          let score = 0;
+          if (cells.some(c => c === '儲位' || c === '儲位代碼' || c === '儲位序號')) score += 3;
+          if (cells.some(c => c === '品名' || c.includes('品名') || c.includes('物料名稱'))) score += 2;
+          if (cells.some(c => c === '批號' || c.includes('批號'))) score += 2;
+          if (cells.some(c => c === '數量' || c.includes('數量'))) score += 2;
+          if (cells.some(c => c === '包材' || c === '品號' || c === '料號')) score += 1;
+          if (score > bestScore) {
+            bestScore = score;
             headerRowIdx = r;
-            break;
           }
         }
 
-        const headers = rawData[headerRowIdx].map(h => String(h).trim());
+        const headers = rawData[headerRowIdx].map(h => String(h || '').trim());
         const findCol = (...keywords) => {
-          return headers.findIndex(h => keywords.some(k => h.includes(k)));
+          for (const k of keywords) {
+            const exact = headers.findIndex(h => h === k);
+            if (exact >= 0) return exact;
+          }
+          for (const k of keywords) {
+            const partial = headers.findIndex(h => h.includes(k));
+            if (partial >= 0) return partial;
+          }
+          return -1;
         };
 
         const colLocCode = findCol('儲位代碼', '儲位');
@@ -1311,6 +1336,7 @@
 
         const parsedRows = [];
         let occupiedCount = 0;
+        let lastZone = '';
 
         for (let r = headerRowIdx + 1; r < rawData.length; r++) {
           const row = rawData[r];
@@ -1320,8 +1346,8 @@
           let zone = '';
 
           // 判斷儲位代碼與區域
-          if (headers[colLocCode] === '儲位' && colLocCode === 0 && row[1] && /^[A-Z0-9\-]+$/i.test(String(row[1]).trim())) {
-            // 鴻勝格式：A欄是區域（如 A區儲位），B欄是代碼（如 A01-前）
+          if (headers[colLocCode] === '儲位' && colLocCode === 0 && (!headers[1] || headers[1] === '')) {
+            // 鴻勝格式：A欄是區域（如 A區儲位，合併儲存格後續為空），B欄是代碼（如 A01-前）
             zone = String(row[0] || '').trim();
             loc = String(row[1] || '').trim();
           } else if (headers[colLocCode] === '儲位代碼' || (colLocCode >= 0 && row[colLocCode])) {
@@ -1333,10 +1359,13 @@
           }
 
           if (!loc || loc === '0' || loc.includes('儲位') || loc.includes('品號')) continue;
+          if (zone && zone !== '儲位') lastZone = zone;
+          else if (lastZone) zone = lastZone;
 
           const itemName = colItemName >= 0 ? String(row[colItemName] || '').trim() : '';
           const lotNo = colLotNo >= 0 ? String(row[colLotNo] || '').trim() : '';
-          const qty = colQty >= 0 ? Number(row[colQty] || 0) : 0;
+          const qtyRaw = colQty >= 0 ? String(row[colQty] || '').replace(/,/g, '').trim() : '';
+          const qty = qtyRaw ? (Number(qtyRaw) || 0) : 0;
           const pkg = colPkg >= 0 ? String(row[colPkg] || '').trim() : '';
           const itemNo = colItemNo >= 0 ? String(row[colItemNo] || '').trim() : '';
           const note = colNote >= 0 ? String(row[colNote] || '').trim() : '';
@@ -1358,14 +1387,27 @@
 
         if (parsedRows.length === 0) throw new Error('未從檔案中辨識出任何有效儲位代碼');
 
+        // 依儲位/區域內容特徵自動辨識所屬倉庫（防呆：即使檔名被改也不會誤匯）
+        let lunweiScore = 0, hongshengScore = 0;
+        for (const row of parsedRows) {
+          if (/^\d{5}$/.test(row.location) || /^\d+區\d+層$/.test(row.zone)) lunweiScore++;
+          if (/^[A-Z]\d+-[前後]/i.test(row.location) || /^[A-Z]區儲位$/i.test(row.zone) || row.zone === '暫存區') hongshengScore++;
+        }
+        window._detectedImportWh = null;
+        if (lunweiScore > hongshengScore && lunweiScore >= 5) window._detectedImportWh = 'lunwei';
+        else if (hongshengScore > lunweiScore && hongshengScore >= 5) window._detectedImportWh = 'hongsheng';
+
+        if (window._detectedImportWh && [...targetWhSel.options].some(o => o.value === window._detectedImportWh)) {
+          targetWhSel.value = window._detectedImportWh;
+        }
+
         pendingImportRows = parsedRows;
         document.getElementById('importFileName').textContent = file.name;
         document.getElementById('importTotalCount').textContent = parsedRows.length.toLocaleString();
         document.getElementById('importOccupiedCount').textContent = occupiedCount.toLocaleString();
         document.getElementById('importEmptyCount').textContent = (parsedRows.length - occupiedCount).toLocaleString();
         document.getElementById('importProgressBar').style.display = 'none';
-        document.getElementById('btnDoImportSubmit').disabled = false;
-        document.getElementById('btnDoImportSubmit').textContent = '⚡ 確認覆蓋更新';
+        validateImportTarget();
         modalImport.style.display = 'flex';
 
       } catch (err) {
@@ -1373,9 +1415,34 @@
       }
     });
 
+    function validateImportTarget() {
+      const targetWh = document.getElementById('importTargetWh').value;
+      const detected = window._detectedImportWh;
+      const warnBox = document.getElementById('importMismatchWarn');
+      const btn = document.getElementById('btnDoImportSubmit');
+      const whName = (id) => (state.warehouses.find(w => w.id === id) || {}).name || (id === 'lunwei' ? '崙尾倉儲' : id === 'hongsheng' ? '鴻勝倉庫' : id);
+
+      if (detected && targetWh !== detected) {
+        warnBox.style.display = 'block';
+        warnBox.textContent = `⚠️ 檔案內容偵測為「${whName(detected)}」格式，但目標倉庫選為「${whName(targetWh)}」！為防止誤覆蓋錯誤倉庫，已鎖定匯入，請改回正確目標倉庫。`;
+        btn.disabled = true;
+        btn.textContent = '🚫 倉庫不符已鎖定';
+        btn.style.opacity = '0.5';
+        return false;
+      }
+      warnBox.style.display = 'none';
+      btn.disabled = false;
+      btn.textContent = '⚡ 確認覆蓋更新';
+      btn.style.opacity = '1';
+      return true;
+    }
+
+    document.getElementById('importTargetWh').addEventListener('change', validateImportTarget);
+
     // 執行匯入
     document.getElementById('btnDoImportSubmit').addEventListener('click', async () => {
       if (!pendingImportRows || pendingImportRows.length === 0) return;
+      if (!validateImportTarget()) return;
       const targetWh = document.getElementById('importTargetWh').value;
       const btn = document.getElementById('btnDoImportSubmit');
       btn.disabled = true;

@@ -1,5 +1,21 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-16 儲位記錄 PWA 升級 v1.0.19：修復批次匯入有貨儲位歸零、區域排序錯亂、跨倉庫誤匯鎖定與公司環境 Wrangler 部署修正)
+* **倉儲儲位 PWA 記錄系統 (`儲位記錄\2_PWA_App版` & `儲位記錄\3_Cloudflare_D1版`) 升級至 v1.0.19:**
+  - **批次匯入有貨儲位顯示 0 筆修復**:
+    - **原因**：`崙尾倉儲儲位表.xlsm` 第 1 列大標題含「儲位」兩字導致 `headerRowIdx` 誤判為第 0 列，且 `findCol` 模糊比對誤中 `儲位序號`；另鴻勝 `A01-前` 含中文字導致正規式漏判及合併區域未繼承。
+    - **修復**：改為欄位關鍵字評分定位表頭、優先精準比對欄名、支援鴻勝中文儲位代碼與 `lastZone` 繼承，並以真實 `.xlsm` 驗證（崙尾 1,775 筆 / 有貨 577 筆；鴻勝 860 筆 / 有貨 321 筆）。
+  - **區域與儲位自然排序修復**:
+    - 後端 [functions/api/[[path]].js](file:///c:/GOOGLE%20ANGET/儲位記錄/3_Cloudflare_D1版/functions/api/%5B%5Bpath%5D%5D.js) 與前端 `renderWarehouseData()` 均加入 `localeCompare(..., 'zh-Hant', { numeric: true })`，修正 `1區4層` 排在 `1區1層` 前的問題。
+  - **跨倉庫誤匯防呆與版次顯示**:
+    - 依儲位/區域格式自動辨識所屬倉庫，若目標倉庫不符則顯示紅色警示 `#importMismatchWarn` 並鎖定匯入按鈕；頂部標題列與登入畫面同步顯示 `v1.0.19`（`sw.js` 快取同步為 `storage-pwa-v1.0.19`）。
+  - **公司網路與中文路徑 Wrangler 部署避坑指南**:
+    - 公司 SSL 代理環境需設定 `NODE_OPTIONS=--use-system-ca`（Node.js v24）才可正常 `wrangler login` 與呼叫 Cloudflare API。
+    - `wrangler` 在含中文目錄（`儲位記錄`）直接編譯 Functions 會發生 `-1073740791` 原生崩潰；已更新 `3_Cloudflare_D1版\一鍵自動部署上雲端.bat`，自動暫存至 `%TEMP%\storage_rack_cf_stage` 純英文路徑部署，並升級全域 `wrangler` 至 `4.162.0`。
+  - **線上部署驗證**：已部署至 `https://storage-rack-pwa.pages.dev`（`2d2a4dc4.storage-rack-pwa.pages.dev`），首頁 `v1.0.19` 與 `/api/warehouse/lunwei/data` 均驗證 200 OK。
+
+---
+
 ## 今日進度與交接事項 (2026-11-16 鴻勝化學 QC 看板升級 v3.3.4：修復腳本語法錯誤、徹底解決「登入解鎖 (QC放行)」按了沒反應問題)
 * **鴻勝化學 QC 檢驗即時看板系統升級至 v3.3.4 (`第二類_生產管理與API串接\QC-系統客製化電子化工廠\3_Cloudflare_D1版`):**
   - **按鈕按了沒反應根本原因查明與修復**:

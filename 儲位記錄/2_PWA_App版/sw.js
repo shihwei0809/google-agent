@@ -1,11 +1,12 @@
-const CACHE_NAME = 'storage-pwa-v1.0.13';
+const CACHE_NAME = 'storage-pwa-v1.0.19';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/pwa_offline_sync.js',
   '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-512.png',
+  '/xlsx.full.min.js'
 ];
 
 self.addEventListener('install', (event) => {
