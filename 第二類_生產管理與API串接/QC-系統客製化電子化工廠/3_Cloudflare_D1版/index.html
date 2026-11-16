@@ -539,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.3.0 (最新強化版)
+          🚀 v3.3.1 (動向防呆校正版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -630,7 +630,7 @@
       <div class="form-grid">
         <div>
           <label>出通/入庫單號<span class="label-hint">(選填，提前充填庫存留空自動帶入)</span></label>
-          <input type="text" id="barcode" placeholder="選填，留空自動設為日期-庫存">
+          <input type="text" id="barcode" placeholder="選填，留空自動設為日期-庫存" oninput="onBarcodeInput(this.value)">
         </div>
         <div>
           <label>動向</label>
@@ -825,8 +825,8 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.0 (同車多單彈性配置·重複送樣防呆·等級智慧判定·完成件近2天版)</strong><br>
-    <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：同車同日連續單號自動勾選 · 後台自由勾選合併品名 · 重複送樣自主判定視窗 · 完成件預設近2天 · Cloudflare D1 即時同步</span>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.1 (動向防呆校正·定時刷新保護·ESPM自動進料·雙軌對齊版)</strong><br>
+    <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：單號字首嚴格對齊 (ESPM 進料 / ESXM 出貨) · 背景定時輪詢保護使用者動向不被重設 · 同車多單動向強制鎖定 · Cloudflare D1 即時同步</span>
   </div>
 </div>
 
@@ -1778,6 +1778,19 @@
     renderT100Dropdown();
   }
 
+  // 單號輸入即時動向推導：輸入或掃描 ESPM 單號自動選取進料，ESXM 自動選取出貨
+  function onBarcodeInput(val) {
+    if (!val) return;
+    const upper = String(val).trim().toUpperCase();
+    const selFlow = document.getElementById('flowType');
+    if (!selFlow) return;
+    if (upper.includes('ESPM')) {
+      selFlow.value = '進料';
+    } else if (upper.includes('ESXM')) {
+      selFlow.value = '出貨';
+    }
+  }
+
   // 初始化與動態渲染 T100 下拉選單（依日期過濾、標記已送樣/待送樣）
   function renderT100Dropdown() {
     const sel = document.getElementById('t100Select');
@@ -1885,7 +1898,8 @@
 
           const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
           const boxBadge = o.container ? ` [車/櫃:${o.container}]` : '';
-          html += `<option value="${globalIdx}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
+          const optVal = o.doc_no ? `${o.doc_no}___${globalIdx}` : `${globalIdx}`;
+          html += `<option value="${optVal}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
         });
         html += `</optgroup>`;
       }
@@ -1912,7 +1926,8 @@
 
           const tankBadge = o.tankNo ? ` [槽:${o.tankNo}]` : '';
           const boxBadge = o.container ? ` [車:${o.container}]` : '';
-          html += `<option value="${globalIdx}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
+          const optVal = o.doc_no ? `${o.doc_no}___${globalIdx}` : `${globalIdx}`;
+          html += `<option value="${optVal}">${mark}${dtBadge}${o.doc_no} | ${o.productName}${tankBadge}${boxBadge} (${o.customer} ${o.quantity})</option>`;
         });
         html += `</optgroup>`;
       }
@@ -1931,7 +1946,13 @@
       if (alertBox) alertBox.style.display = 'none';
       return;
     }
-    const item = t100Orders[parseInt(val)];
+    let item = null;
+    if (typeof val === 'string' && val.includes('___')) {
+      const [doc, idxStr] = val.split('___');
+      item = t100Orders.find(o => o.doc_no === doc) || t100Orders[parseInt(idxStr)];
+    } else {
+      item = t100Orders[parseInt(val)] || t100Orders.find(o => String(o.id) === String(val) || o.doc_no === val);
+    }
     if (!item) return;
 
     // 檢查該單號是否已送過樣或已完成判定
@@ -2006,8 +2027,26 @@
     const alertText = document.getElementById('t100AlertText');
 
     // 先填妥基礎欄位
-    document.getElementById('barcode').value = item.doc_no || '';
-    document.getElementById('flowType').value = item.flowType || '出貨';
+    const docNo = String(item.doc_no || '').trim();
+    document.getElementById('barcode').value = docNo;
+
+    // 智慧嚴格判定動向：ESPM 必為進料，ESXM 必為出貨，容錯比對
+    let targetFlow = item.flowType || '出貨';
+    const docUpper = docNo.toUpperCase();
+    if (docUpper.includes('ESPM')) {
+      targetFlow = '進料';
+    } else if (docUpper.includes('ESXM')) {
+      targetFlow = '出貨';
+    } else if (targetFlow.includes('進')) {
+      targetFlow = '進料';
+    } else if (targetFlow.includes('出')) {
+      targetFlow = '出貨';
+    }
+    const selFlow = document.getElementById('flowType');
+    if (selFlow) {
+      selFlow.value = targetFlow;
+    }
+
     document.getElementById('productName').value = item.productName || '';
     autoSelectGrade(item.productName, item.grade); // 智慧等級判斷
     document.getElementById('tankNo').value = item.tankNo || '';
@@ -2173,8 +2212,20 @@
     if (!confirmed && activeTruckMergeContext && activeTruckMergeContext.targetItem) {
       // 若取消，則僅保留最初點選的那 1 筆單號
       const item = activeTruckMergeContext.targetItem;
-      document.getElementById('barcode').value = item.doc_no || '';
-      showToast(`已保留原單號：${item.doc_no}`);
+      const docNo = String(item.doc_no || '').trim();
+      document.getElementById('barcode').value = docNo;
+
+      // 嚴格確保動向不跑位
+      let targetFlow = item.flowType;
+      const docUpper = docNo.toUpperCase();
+      if (docUpper.includes('ESPM')) targetFlow = '進料';
+      else if (docUpper.includes('ESXM')) targetFlow = '出貨';
+      else if (targetFlow && targetFlow.includes('進')) targetFlow = '進料';
+      else if (targetFlow && targetFlow.includes('出')) targetFlow = '出貨';
+      const selFlow = document.getElementById('flowType');
+      if (selFlow && targetFlow) selFlow.value = targetFlow;
+
+      showToast(`已保留原單號：${docNo}`);
       document.getElementById('requester').focus();
     }
     activeTruckMergeContext = null;
@@ -2193,6 +2244,16 @@
     const docs = checked.map(c => c.getAttribute('data-doc')).filter(Boolean);
     const combinedBarcode = docs.join(', ');
     document.getElementById('barcode').value = combinedBarcode;
+
+    // 合併多單後，再次強制確保動向對齊（防止定時器或操作延遲重設）
+    let targetFlow = item.flowType;
+    const combinedUpper = combinedBarcode.toUpperCase();
+    if (combinedUpper.includes('ESPM')) targetFlow = '進料';
+    else if (combinedUpper.includes('ESXM')) targetFlow = '出貨';
+    else if (targetFlow && targetFlow.includes('進')) targetFlow = '進料';
+    else if (targetFlow && targetFlow.includes('出')) targetFlow = '出貨';
+    const selFlow = document.getElementById('flowType');
+    if (selFlow && targetFlow) selFlow.value = targetFlow;
 
     // 智慧累計數量
     let totalQty = 0;
@@ -2747,10 +2808,19 @@
     btn.disabled = true; 
     btn.innerText = "寫入結案紀錄中...";
     
+    let finalFlow = document.getElementById('flowType').value;
+    const bUpper = String(barcode || '').toUpperCase();
+    if (bUpper.includes('ESPM')) finalFlow = '進料';
+    else if (bUpper.includes('ESXM')) finalFlow = '出貨';
+    else if (finalFlow.includes('進')) finalFlow = '進料';
+    else if (finalFlow.includes('出')) finalFlow = '出貨';
+    const selFlow = document.getElementById('flowType');
+    if (selFlow) selFlow.value = finalFlow;
+
     const payload = { 
       id: 'ID-' + Date.now(),
       barcode: barcode, 
-      flowType: document.getElementById('flowType').value, 
+      flowType: finalFlow, 
       grade: document.getElementById('grade').value,
       productName: productName, 
       tankNo: tankNo, 
@@ -2819,12 +2889,16 @@
     const products = parseCommaSeparated(cfg.OPTIONS_PRODUCTS || cfg.products);
     const depts = parseCommaSeparated(cfg.OPTIONS_DEPTS || cfg.depts);
 
-    // 1. 動態填充「動向」
+    // 1. 動態填充「動向」（必須記憶保護當前選取值，避免每 30 秒輪詢時被強制重設為預設「出貨」）
     if(flowTypes.length) {
       const selFlow = document.getElementById('flowType');
       if(selFlow) {
+        const curVal = selFlow.value;
         selFlow.innerHTML = flowTypes.map(f => `<option value="${f}">${f}</option>`).join('');
+        if (curVal && Array.from(selFlow.options).some(o => o.value === curVal)) {
+          selFlow.value = curVal;
         }
+      }
     }
 
     // 2. 動態填充「等級」
@@ -2834,7 +2908,9 @@
         const curVal = selGrade.value;
         selGrade.innerHTML = `<option value="" disabled ${!curVal ? 'selected' : ''}>-- 系統判定等級 --</option>` +
           grades.map(g => `<option value="${g}">${g}</option>`).join('');
-        if (curVal) selGrade.value = curVal;
+        if (curVal && Array.from(selGrade.options).some(o => o.value === curVal)) {
+          selGrade.value = curVal;
+        }
       }
     }
 
@@ -2846,12 +2922,16 @@
       }
     }
 
-    // 4. 動態填充「送樣單位」
+    // 4. 動態填充「送樣單位」（保護 curVal）
     if(depts.length) {
       const selDept = document.getElementById('dept');
       if(selDept) {
+        const curVal = selDept.value;
         selDept.innerHTML = depts.map(d => `<option value="${d}">${d}</option>`).join('');
+        if (curVal && Array.from(selDept.options).some(o => o.value === curVal)) {
+          selDept.value = curVal;
         }
+      }
     }
   }
 
@@ -3458,22 +3538,36 @@
     btn.disabled = true; 
     btn.innerText = "寫入送樣紀錄中...";
     
-    
-      const payload = { 
-        id: 'ID-' + Date.now(),
-        barcode: barcode, 
-        flowType: document.getElementById('flowType').value, 
-        grade: document.getElementById('grade').value,
-        productName: productName, 
-        tankNo: tankNo, 
-        customer: customer, 
-        quantity: document.getElementById('quantity').value, 
-        dept: dept, 
-        requester: requester,
-        remark: remark,
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      };
+    // 提交前嚴格雙重防呆：若單號帶有 ESPM 必強制為進料，ESXM 必強制為出貨
+    let finalFlow = document.getElementById('flowType').value;
+    const bUpper = String(barcode || '').toUpperCase();
+    if (bUpper.includes('ESPM')) {
+      finalFlow = '進料';
+    } else if (bUpper.includes('ESXM')) {
+      finalFlow = '出貨';
+    } else if (finalFlow.includes('進')) {
+      finalFlow = '進料';
+    } else if (finalFlow.includes('出')) {
+      finalFlow = '出貨';
+    }
+    const selFlow = document.getElementById('flowType');
+    if (selFlow) selFlow.value = finalFlow;
+
+    const payload = { 
+      id: 'ID-' + Date.now(),
+      barcode: barcode, 
+      flowType: finalFlow, 
+      grade: document.getElementById('grade').value,
+      productName: productName, 
+      tankNo: tankNo, 
+      customer: customer, 
+      quantity: document.getElementById('quantity').value, 
+      dept: dept, 
+      requester: requester,
+      remark: remark,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
       
       if(currentPhotoBase64) {
          showToast("📷 正在上傳照片...");
@@ -4975,7 +5069,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.3.0) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.3.1) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);

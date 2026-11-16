@@ -1,5 +1,39 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-16 鴻勝化學 QC 檢驗即時看板 v3.3.1 升級：徹底根治進料單據跳成出貨 Bug、30秒背景輪詢保護、單號特徵嚴格自動對齊與 D1 自癒修復)
+* **鴻勝化學 QC 檢驗即時看板系統升級至 v3.3.1 (`第二類_生產管理與API串接\QC-系統客製化電子化工廠\3_Cloudflare_D1版`):**
+  - **進料單據跳成出貨根本原因查明與徹底根治**:
+    1. **根本原因一（定時輪詢無保護覆蓋）**：系統每 30 秒於背景呼叫 `load()` 取得系統最新配置 `getConfig`，執行 `applyDynamicDropdownOptions` 時直接以 `selFlow.innerHTML = ...` 重新渲染動向下拉選單，因未像 `grade` 一樣保存當前選取值 `curVal`，導致選單瞬間被重設為第一項「出貨」。現場人員若於拉單後等候超過數秒才點擊送出，動向便在背景無聲「跳成出貨」。
+    2. **根本原因二（同車多單合併未重新確認動向）**：`openTruckMergeModal` 勾選多單後呼叫 `confirmTruckMerge`，原先僅計算單號與總量，未強制重新鎖定 `flowType`。
+    3. **根本原因三（單號特徵缺乏自動推導）**：T100 ERP 中 `ESPM` 開頭必為進料入庫單，`ESXM` 必為出通出貨單。原表單手動貼上或掃描條碼時缺乏對單號前綴的自動動向連動。
+  - **全面修復防護措施實裝**:
+    1. **`applyDynamicDropdownOptions` 記憶保護**：對 `selFlow` (動向) 與 `selDept` (送樣單位) 全面導入 `curVal` 記憶保存機制，定時輪詢絕不洗掉使用者已選狀態。
+    2. **單號前綴嚴格自動對齊 (ESPM = 進料 / ESXM = 出貨)**：
+       - `barcode` 輸入框加入即時 `onBarcodeInput`，貼上或輸入 `ESPM` 即秒切「進料」。
+       - `applyT100OrderToForm`、`confirmTruckMerge`、`closeTruckMergeModal`、`skipSample` 及前端 `submitForm` 前置過濾全面強制雙重檢驗。
+       - 後端 Cloudflare D1 API (`submitSample`) 加入最後防線，凡單號含 `ESPM` 者 100% 強制落庫為「進料」。
+    3. **歷史紀錄自癒修復 (`fixFlowTypes`)**：
+       - API 成功執行 `UPDATE QC_Samples SET flowType = '進料' WHERE barcode LIKE '%ESPM%' AND flowType != '進料'`，即時將今天許原暢與昨天江承河誤標為出貨的 22 筆 ESPM 單號全數更正為「進料」。
+    4. **版本升級與發布**：全站升級至 `v3.3.1`，Service Worker 快取更新為 `qc-kanban-v3.3.1-offline`，已順利部署至 Cloudflare Pages：`https://qc-samples.pages.dev`。
+
+---
+
+## 今日進度與交接事項 (2026-11-16 系統修復：清除背景死循環 Git for Windows 孤兒進程、CPU 100% 釋放、建置每日 07:30 自動清理排程)
+* **Git for Windows 背景程序死循環與 CPU 100% 滿載修復**:
+  - **問題根因**：
+    1. 工作管理員中累積近 30 個 `Git for Windows` (`git.exe`) 程序，部分程序從 11/13 起已死循環運行超過 83,000 秒（近一天），造成 CPU 100%、記憶體 92% 嚴重卡死。
+    2. 主因為 IDE 背景 Git watcher / 超大型目錄索引 / 終端中止後遺留的孤兒進程（Orphaned Process），在 Windows 下未正常結束。
+  - **解決方案與防護機制**:
+    1. **立即清理**：已強制終止所有殘留孤兒進程，CPU 負載已瞬間從 100% 降回正常（0~5%）。
+    2. **每日自動清理排程 (`AutoClean_Stuck_Git`)**：
+       - 建立專屬清理腳本 `d:\GOOGLE ANGET\scripts\clean_stuck_git.ps1`。
+       - 已註冊 Windows 工作排程器，**設定於每天早上 07:30 準時自動於背景執行**，自動掃描並終止所有背景殘留/超時之 `git.exe`，並一併清除殘留的 `.git/index.lock`。
+       - 執行記錄自動記錄至 `d:\GOOGLE ANGET\scripts\clean_git.log`。
+    3. **手動一鍵清理工具**：
+       - 專案根目錄提供 `d:\GOOGLE ANGET\一鍵清理卡死Git.bat`，平時若察覺電腦異常卡頓，雙擊即可一秒釋放所有 Git 資源。
+
+---
+
 ## 今日進度與交接事項 (2026-11-14 LINE 飲食熱量精算師 GAS 系統全面升級：9項完整營養標示、每日累積與建議剩餘對照、文字直接記餐與單項刪改)
 * **LINE 飲食熱量精算師 (`C:\GOOGLE ANGET\專案生成工具\generate_docs.py` & `LINE_飲食熱量精算師_Code.gs`)**:
   - **完整 9 項營養標示 + 每日累積 vs 每日建議剩餘/超標**：

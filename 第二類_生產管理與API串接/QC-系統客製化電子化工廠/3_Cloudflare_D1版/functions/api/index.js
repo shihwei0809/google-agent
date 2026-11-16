@@ -74,8 +74,15 @@ export async function onRequest(context) {
 
     // --- Core QC Business Logic ---
     if (action === "getSamples") {
+      // 智慧自癒修復：若歷史紀錄中單號為 ESPM（進料單）但曾被沖回或誤寫為出貨者，自動校正回進料
+      await env.DB.prepare("UPDATE QC_Samples SET flowType = '進料' WHERE (barcode LIKE '%ESPM%' OR barcode LIKE '%espm%') AND flowType != '進料'").run().catch(()=>{});
       const { results } = await env.DB.prepare("SELECT * FROM QC_Samples ORDER BY createdAt DESC LIMIT 100").all();
       return new Response(JSON.stringify(results), { headers: h });
+    }
+
+    if (action === "fixFlowTypes") {
+      const resFix = await env.DB.prepare("UPDATE QC_Samples SET flowType = '進料' WHERE (barcode LIKE '%ESPM%' OR barcode LIKE '%espm%') AND flowType != '進料'").run().catch(()=>{});
+      return new Response(JSON.stringify({ success: true, updated: resFix?.meta?.changes || 0 }), { headers: h });
     }
     
     if ((action === "submitSample" || action === "createSample") && request.method === "POST") {
@@ -89,8 +96,22 @@ export async function onRequest(context) {
       const s_approver = data.qcApprover || null;
       const s_compAt = (s_status === 'completed') ? (data.completedAt || new Date().toISOString().replace('T', ' ').substring(0, 19)) : null;
 
+      // 智慧動向嚴格防呆校正：ESPM 必為進料，ESXM 必為出貨，容錯比對
+      let cleanFlowType = String(flowType || '').trim();
+      const bUpper = String(barcode || '').toUpperCase();
+      if (bUpper.includes('ESPM')) {
+        cleanFlowType = '進料';
+      } else if (bUpper.includes('ESXM')) {
+        cleanFlowType = '出貨';
+      } else if (cleanFlowType.includes('進')) {
+        cleanFlowType = '進料';
+      } else if (cleanFlowType.includes('出')) {
+        cleanFlowType = '出貨';
+      }
+      if (!cleanFlowType) cleanFlowType = '進料';
+
       await env.DB.prepare("INSERT INTO QC_Samples (id, barcode, productName, tankNo, customer, quantity, flowType, dept, requester, grade, remark, status, qcResult, qcNote, qcApprover, completedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now', '+8 hours'))")
-        .bind(id||null, barcode||null, productName||null, tankNo||null, customer||null, quantity||null, flowType||null, dept||null, requester||null, grade||null, remark||null, s_status, s_result, s_note, s_approver, s_compAt).run();
+        .bind(id||null, barcode||null, productName||null, tankNo||null, customer||null, quantity||null, cleanFlowType, dept||null, requester||null, grade||null, remark||null, s_status, s_result, s_note, s_approver, s_compAt).run();
       return new Response(JSON.stringify({ success: true }), { headers: h });
     }
 
