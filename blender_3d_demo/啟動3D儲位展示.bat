@@ -11,7 +11,9 @@ set DEFAULT_PORT=8088
 
 set "PKG[0]=docx|python-docx"
 set "PKG[1]=PIL|pillow"
-set PKG_COUNT=2
+set "PKG[2]=edge_tts|edge-tts"
+set "PKG[3]=imageio_ffmpeg|imageio-ffmpeg"
+set PKG_COUNT=4
 
 set AUTO_BROWSER=YES
 
@@ -107,6 +109,7 @@ for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /R "IPv4.*192\."') do (
 echo.
 echo   本機儲位看板: http://localhost:!PORT!/index.html
 echo   FPV 白模工作室: http://localhost:!PORT!/fpv_studio.html
+echo   BPM 分鏡工作台: http://localhost:!PORT!/bpm_storyboard_studio.html
 if defined LOCAL_IP echo   區網手機預覽: http://!LOCAL_IP!:!PORT!/index.html
 echo.
 echo   按 Ctrl+C 停止服務

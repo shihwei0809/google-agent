@@ -11,8 +11,8 @@ if (-not (Get-Command python -ErrorAction SilentlyContinue)) {
     exit 1
 }
 python -m pip install --upgrade pip -q
-python -m pip install python-docx pillow playwright -q
-Write-Host "[OK] Python 套件 (python-docx, pillow, playwright) 已就緒。" -ForegroundColor Green
+python -m pip install python-docx pillow playwright edge-tts imageio-ffmpeg -q
+Write-Host "[OK] Python 套件 (python-docx, pillow, playwright, edge-tts, imageio-ffmpeg) 已就緒。" -ForegroundColor Green
 
 Write-Host "`n=== [2/5] 檢查 Astral uv / uvx ===" -ForegroundColor Cyan
 $uvxPath = Join-Path $env:USERPROFILE ".local\bin\uvx.exe"

@@ -79,6 +79,19 @@ def build_manual():
     add_image_if_exists(doc, "kids_first_frame.png", "圖 7：兒童卡通版首幀 (kids_first_frame.png)")
     add_image_if_exists(doc, "kids_last_frame.png", "圖 8：兒童卡通版尾幀 (kids_last_frame.png)")
 
+    doc.add_heading("五、BPM 報銷單混合雙軌分鏡工作台 (方案 A)", level=1)
+    for step in [
+        "1. 執行 python build_bpm_sop_video.py 會自動從上層目錄之 BPM一般費用報銷單_私車公用操作流程.docx 抽取 11 張高清圖片，"
+        "並生成 Shot 01 / 05 / 08 首尾幀與 8 段台灣女聲旁白，合成 1080p 總片 (bpm_sop/BPM_一般費用報銷單_私車公用教學總片.mp4)。",
+        "2. 開啟 http://localhost:8088/bpm_storyboard_studio.html 可預覽完整 8 鏡卡片、跳轉章節、放大檢視原圖，或一鍵送出 3 個情境分鏡至 Google Flow（僅耗 90 點）。",
+        "3. Google Flow 生成完成並下載後，將影片放入 bpm_sop/flow_clips/ (shot01_flow.mp4、shot05_flow.mp4、shot08_flow.mp4)，"
+        "於工作台點擊「重新合成總片」即可自動嵌入實片並保留高清標題與字幕。",
+    ]:
+        doc.add_paragraph(step)
+
+    add_image_if_exists(doc, "bpm_sop/flow_frames/bpm_shot01_first.png", "圖 9：BPM 分鏡 01 首幀 (eTag 門架與出差行車)")
+    add_image_if_exists(doc, "bpm_sop/flow_frames/bpm_shot08_last.png", "圖 10：BPM 分鏡 08 尾幀 (申請人 → 人事核對 → 會計審核)")
+
     doc.save(str(OUT_DOCX))
     print(f"已產出 Word 操作手冊: {OUT_DOCX}")
 

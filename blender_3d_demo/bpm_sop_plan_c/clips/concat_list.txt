@@ -1,0 +1,6 @@
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop_plan_c/clips/c01.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop_plan_c/clips/c02.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop_plan_c/clips/c03.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop_plan_c/clips/c04.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop_plan_c/clips/c05.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop_plan_c/clips/c06.mp4'

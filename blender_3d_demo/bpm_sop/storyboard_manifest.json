@@ -1,0 +1,261 @@
+{
+  "title": "BPM 一般費用報銷單（出差與私車公用）實務教學總片（1.2x 語速版）",
+  "source_docx": "C:\\GOOGLE ANGET\\BPM一般費用報銷單_私車公用操作流程.docx",
+  "final_video_url": "./bpm_sop/BPM_一般費用報銷單_私車公用教學總片_1.2x.mp4",
+  "total_duration_sec": 226.38,
+  "flow_cost_credits": 90,
+  "voice_profile": "hsiaochen",
+  "shots": [
+    {
+      "id": "shot01",
+      "index": 1,
+      "title": "行前準備：核准出差單、實際路線圖與 eTag 明細",
+      "chapter": "一～二、流程總覽與申請前實務準備",
+      "engine": "ui",
+      "flow_theme": "",
+      "flow_prompt": "",
+      "first_frame": "",
+      "last_frame": "",
+      "used_real_flow_mp4": false,
+      "expected_flow_drop_path": "bpm_sop/flow_clips/shot01_flow.mp4",
+      "figures": [
+        {
+          "file": "./bpm_sop/figures/fig07_route_go.jpg",
+          "caption": "圖 7　去程路線與里程示例（約 188 公里）"
+        },
+        {
+          "file": "./bpm_sop/figures/fig08_route_back.jpg",
+          "caption": "圖 8　回程路線與里程示例（約 195 公里）"
+        },
+        {
+          "file": "./bpm_sop/figures/fig06_etag_record.jpg",
+          "caption": "圖 6　遠通電收 ETag 通行費明細紀錄示例"
+        }
+      ],
+      "narration": "要報銷開車出差的費用，出發前先準備好三項實際佐證資料：第一是本人已經核准的出差登記單；第二是用 Google 地圖截下當次實際去程與回程的路線里程圖，每個人的距離都不同，依實際跑多少公里計算；第三則是遠通 eTag 官方下載的通行費紀錄列印單，記得一定要有遠通電收的電子憑證專用章，不能只用線上即時截圖喔！",
+      "subtitle": "出差三寶：本人核准出差單 ＋ 實際去回程路線截圖 ＋ 含專用章之 eTag 官方紀錄",
+      "key_points": [
+        "本人核准出差單",
+        "依個人實距截圖計算",
+        "含專用章之 eTag 官方紀錄"
+      ],
+      "clip_url": "./bpm_sop/clips/shot01.mp4",
+      "audio_url": "./bpm_sop/audio/shot01.mp3",
+      "start_sec": 0.0,
+      "duration_sec": 24.29
+    },
+    {
+      "id": "shot02",
+      "index": 2,
+      "title": "開啟 BPM 報銷單並選取本人當次出差單號",
+      "chapter": "三～四、進入一般費用報銷單與帶入出差單",
+      "engine": "ui",
+      "flow_theme": "",
+      "flow_prompt": "",
+      "first_frame": "",
+      "last_frame": "",
+      "used_real_flow_mp4": false,
+      "expected_flow_drop_path": "bpm_sop/flow_clips/shot02_flow.mp4",
+      "figures": [
+        {
+          "file": "./bpm_sop/figures/fig01_entry_epm.png",
+          "caption": "圖 1　由流程處理頁進入 EPM 的一般費用報銷單"
+        },
+        {
+          "file": "./bpm_sop/figures/fig02_trip_selector.jpg",
+          "caption": "圖 2　出差登記單號資料選取與帶入欄位"
+        }
+      ],
+      "narration": "進到鼎新 BPM 系統後，點選 EPM 裡面的『一般費用報銷單』，先確認表頭的公司別、部門跟申請日期。接著到下方費用明細，點『出差登記單號』旁邊的查詢鈕，選擇你這趟實際出差的單號，不要選錯張，再核對帶入的日期、地點跟出差事由都與本人實際行程一致。",
+      "subtitle": "進入 EPM 一般費用報銷單 → 查詢並選取你所出差的登記單號（勿照抄範例）",
+      "key_points": [
+        "EPM 一般費用報銷單",
+        "選取本人當次出差單號",
+        "核對實際日期與地點"
+      ],
+      "clip_url": "./bpm_sop/clips/shot02.mp4",
+      "audio_url": "./bpm_sop/audio/shot02.mp3",
+      "start_sec": 24.29,
+      "duration_sec": 20.97
+    },
+    {
+      "id": "shot03",
+      "index": 3,
+      "title": "私車公用 A05：務必修改「憑證日期」並依實距填寫",
+      "chapter": "五、新增私車公用費用明細（含憑證日期修改提醒）",
+      "engine": "ui",
+      "flow_theme": "",
+      "flow_prompt": "",
+      "first_frame": "",
+      "last_frame": "",
+      "used_real_flow_mp4": false,
+      "expected_flow_drop_path": "bpm_sop/flow_clips/shot03_flow.mp4",
+      "figures": [
+        {
+          "file": "./bpm_sop/figures/fig03_a05_mileage.jpg",
+          "caption": "圖 3　A05 私車公用費用明細欄位"
+        }
+      ],
+      "narration": "接下來新增私車公用里程費。請先注意右上角的『憑證日期』，記得一定要修改為這筆費用的實際發生或憑證日期，不要漏掉喔！接著費用類別選 A05『國內出差私車公用』，金額依照你自己實際跑了幾公里、按公司核定單價計算後再填寫，稅別碼選 T05 免稅；最後選實際費用地區，並在費用說明寫上本人車牌號碼後按『新增』。",
+      "subtitle": "重點：右上角「憑證日期」必改為實際日期！A05 依個人實距計費並註明車號 → 按「新增」",
+      "key_points": [
+        "憑證日期須改為實際日期",
+        "A05 依個人實距計費",
+        "說明填本人車牌號碼"
+      ],
+      "clip_url": "./bpm_sop/clips/shot03.mp4",
+      "audio_url": "./bpm_sop/audio/shot03.mp3",
+      "start_sec": 45.26,
+      "duration_sec": 26.12
+    },
+    {
+      "id": "shot04",
+      "index": 4,
+      "title": "ETag 通行費獨立列示（費用類別 A07）",
+      "chapter": "六～七、新增通行費與 eTag 費用明細",
+      "engine": "ui",
+      "flow_theme": "",
+      "flow_prompt": "",
+      "first_frame": "",
+      "last_frame": "",
+      "used_real_flow_mp4": false,
+      "expected_flow_drop_path": "bpm_sop/flow_clips/shot04_flow.mp4",
+      "figures": [
+        {
+          "file": "./bpm_sop/figures/fig06_etag_record.jpg",
+          "caption": "圖 6　遠通電收 ETag 通行費明細紀錄示例"
+        },
+        {
+          "file": "./bpm_sop/figures/fig04_a05_list_check.jpg",
+          "caption": "圖 4　A07 eTag 明細輸入與下方 A05 列表對照"
+        }
+      ],
+      "narration": "這裡要特別注意，高速公路的 eTag 通行費不能跟里程費算在同一筆！而且會計規定，通行費佐證必須下載含有『遠通電收電子憑證專用章』的官方紀錄列印單，不能只用網站上的未出帳截圖。確認本筆憑證日期後，依照單據上的實際扣款金額，另外新增一筆 A07『國內出差交通 eTag』，照實登打並與下方 A05 分開列示。",
+      "subtitle": "eTag 通行費須附含專用章之官方紀錄 PDF 並另列 A07，嚴禁併入 A05 里程費",
+      "key_points": [
+        "下載含專用章之官方 PDF",
+        "依實際扣款金額登打",
+        "與 A05 里程費分開列示"
+      ],
+      "clip_url": "./bpm_sop/clips/shot04.mp4",
+      "audio_url": "./bpm_sop/audio/shot04.mp3",
+      "start_sec": 71.39,
+      "duration_sec": 25.08
+    },
+    {
+      "id": "shot05",
+      "index": 5,
+      "title": "A01 高鐵車資：13 碼票號與 T02 含稅金額登打",
+      "chapter": "十一之一、高鐵票（A01）憑證日期、特殊票號與稅別",
+      "engine": "ui",
+      "flow_theme": "",
+      "flow_prompt": "",
+      "first_frame": "",
+      "last_frame": "",
+      "used_real_flow_mp4": false,
+      "expected_flow_drop_path": "bpm_sop/flow_clips/shot05_flow.mp4",
+      "figures": [
+        {
+          "file": "./bpm_sop/figures/fig10_a01_hsr.png",
+          "caption": "圖 10　A01 高鐵費用明細示例"
+        }
+      ],
+      "narration": "接下來補充一般出差搭高鐵與停車費的實務填法，提醒大家，高鐵與停車費都不算在私車里程費裡面。先看高鐵 A01，第一點記得先把右上角的憑證日期改成高鐵票實際日期；第二點是會計特別提醒，高鐵票的號碼格式跟一般發票不同，沒有前面兩碼英文字軌，在發票號碼欄請直接輸入高鐵車票上的 13 碼數字票號。第三點看金額與稅別，高鐵通常選 T02 應稅內含百分之五，這時報銷金額要直接輸入含稅總額，就像畫面範例 Key 入 650 元，系統會自動算成未稅 619 加稅額 31 等於含稅 650，請核對最下方三個金額欄位跟實際車票完全一致。",
+      "subtitle": "A01 高鐵實務：改憑證日期 → 發票號碼填車票 13 碼數字 → T02 內含 5% 直接 Key 含稅總額",
+      "key_points": [
+        "憑證日期必改實際日期",
+        "高鐵發票欄填 13 碼票號",
+        "T02 內含 5% Key 含稅總額"
+      ],
+      "clip_url": "./bpm_sop/clips/shot05.mp4",
+      "audio_url": "./bpm_sop/audio/shot05.mp3",
+      "start_sec": 96.47,
+      "duration_sec": 43.34
+    },
+    {
+      "id": "shot06",
+      "index": 6,
+      "title": "A06 停車費與「未稅／含稅金額 Key 法」總整理",
+      "chapter": "十一之二、停車費（A06）與會計稅別金額對照",
+      "engine": "ui",
+      "flow_theme": "",
+      "flow_prompt": "",
+      "first_frame": "",
+      "last_frame": "",
+      "used_real_flow_mp4": false,
+      "expected_flow_drop_path": "bpm_sop/flow_clips/shot06_flow.mp4",
+      "figures": [
+        {
+          "file": "./bpm_sop/figures/fig11_a06_parking.png",
+          "caption": "圖 11　A06 停車費明細示例"
+        }
+      ],
+      "narration": "接著看停車費 A06，一樣先把右上角憑證日期改成停車發票實際日期，中間依照實際發票填入賣方統編八碼與英文開頭十碼發票號碼。這裡幫大家整理會計最常提醒的金額 Key 法：如果選 T01 應稅外加百分之五，像這張發票實付 160 元，報銷金額欄就要 Key 未稅金額 152 元，系統會外加 8 元稅額，變成含稅 160；相反地，如果選 T02 應稅內含百分之五，報銷金額就要直接 Key 含稅總額；至於 T05 或 T04 免稅則直接填實付金額。不管哪一種，都一定要核對下方『原幣未稅加稅額等於原幣含稅』跟手中紙本發票完全一樣！",
+      "subtitle": "必記對照：T01 應稅外加 5% Key 未稅金額｜T02 應稅內含 5% Key 含稅總額｜免稅 Key 實額",
+      "key_points": [
+        "T01 外加 5% Key 未稅金額",
+        "T02 內含 5% Key 含稅總額",
+        "核對未稅＋稅額＝含稅"
+      ],
+      "clip_url": "./bpm_sop/clips/shot06.mp4",
+      "audio_url": "./bpm_sop/audio/shot06.mp3",
+      "start_sec": 139.81,
+      "duration_sec": 41.97
+    },
+    {
+      "id": "shot07",
+      "index": 7,
+      "title": "多筆明細總檢核、附件上傳與送簽",
+      "chapter": "八～十、完成明細、送出前檢核與常見問題",
+      "engine": "ui",
+      "flow_theme": "",
+      "flow_prompt": "",
+      "first_frame": "",
+      "last_frame": "",
+      "used_real_flow_mp4": false,
+      "expected_flow_drop_path": "bpm_sop/flow_clips/shot07_flow.mp4",
+      "figures": [
+        {
+          "file": "./bpm_sop/figures/fig09_multi_list.jpg",
+          "caption": "圖 9　多筆費用明細完成後的列表檢查"
+        }
+      ],
+      "narration": "全部依照實際發生費用登打完之後，我們檢查一下底下的明細表，確認每一筆的憑證日期、費用類別、未稅與含稅金額都跟手中憑證一致，明細加起來跟表頭總金額一模一樣，也要把出差單、路線截圖跟相關明細全部上傳並確認檔案打得開。最後先按『儲存』，沒跳紅字錯誤再按『送出』，並把 BPM 單號記下來。",
+      "subtitle": "確認每筆憑證日期、未稅／含稅金額與合計無誤 → 附件上傳驗證 → 先儲存再送簽",
+      "key_points": [
+        "檢查每筆憑證日期",
+        "核對未稅＋稅額＝含稅",
+        "先儲存再送簽"
+      ],
+      "clip_url": "./bpm_sop/clips/shot07.mp4",
+      "audio_url": "./bpm_sop/audio/shot07.mp3",
+      "start_sec": 181.78,
+      "duration_sec": 24.08
+    },
+    {
+      "id": "shot08",
+      "index": 8,
+      "title": "紙本正本繳交：申請人 → 人事核對 → 會計審核",
+      "chapter": "十二、正本繳交與後續審核流程（實務交件流程）",
+      "engine": "ui",
+      "flow_theme": "",
+      "flow_prompt": "",
+      "first_frame": "",
+      "last_frame": "",
+      "used_real_flow_mp4": false,
+      "expected_flow_drop_path": "bpm_sop/flow_clips/shot08_flow.mp4",
+      "figures": [],
+      "narration": "線上送出還不算完全結束喔！請把申請單印出來，連同實際發生的發票、高鐵票或停車收據正本、路線截圖跟費用計算依據整理好，先交給人事單位核對；等人事確認正本金額與日期跟系統登打完全一致之後，就會幫你轉交給會計做最後審核與撥款囉！",
+      "subtitle": "交件鐵律：申請人備妥實際憑證正本 → 交由人事核對無誤 → 人事轉交會計最後審核",
+      "key_points": [
+        "檢附實際發票／高鐵／收據正本",
+        "先交人事核對系統與正本一致",
+        "人事無誤再轉會計"
+      ],
+      "clip_url": "./bpm_sop/clips/shot08.mp4",
+      "audio_url": "./bpm_sop/audio/shot08.mp3",
+      "start_sec": 205.86,
+      "duration_sec": 20.52
+    }
+  ]
+}

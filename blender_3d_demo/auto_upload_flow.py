@@ -5,6 +5,7 @@
 """
 
 import argparse
+import base64
 import os
 import re
 import subprocess
@@ -65,7 +66,81 @@ THEMES = {
             "Pixar 3D animation style, joyful bright daylight, 4k."
         ),
     },
+    "bpm_shot01": {
+        "label": "🚗 BPM 分鏡 01：私車公用出差行車與 ETag 佐證",
+        "first": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot01_first.png",
+        "last": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot01_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop" / "flow_clips" / "shot01_flow.mp4",
+        "prompt": (
+            "Clean modern corporate 3D animation, smooth camera tracking a silver sedan driving along a sunny "
+            "Taiwan highway passing underneath a glowing blue eTag electronic toll gantry, transitioning smoothly "
+            "to arriving cleanly at a modern steel material factory gate with a digital route map display, "
+            "bright daylight, crisp professional explainer video style, 4k."
+        ),
+    },
+    "bpm_shot05": {
+        "label": "🚄 BPM 分鏡 05：高鐵 A01 與停車場 A06 交通對比",
+        "first": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot05_first.png",
+        "last": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot05_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop" / "flow_clips" / "shot05_flow.mp4",
+        "prompt": (
+            "Clean modern corporate 3D animation transition, starting at a bright high-speed rail station platform "
+            "as a sleek streamlined bullet train arrives, smoothly gliding to a modern parking garage exit kiosk "
+            "with a rising green barrier gate and glowing receipt card, bright professional explainer style, 4k."
+        ),
+    },
+    "bpm_shot08": {
+        "label": "📋 BPM 分鏡 08：正本交件（申請人 → 人事核對 → 會計審核）",
+        "first": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot08_first.png",
+        "last": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot08_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop" / "flow_clips" / "shot08_flow.mp4",
+        "prompt": (
+            "Clean modern corporate office animation, starting with an employee neatly organizing printed BPM expense "
+            "forms and paper receipts on a desk, smoothly transitioning to a three-step glass workflow visualization "
+            "showing Applicant handing originals to HR for verification stamp, then forwarding to Accounting for final "
+            "approval, warm bright office lighting, crisp 4k."
+        ),
+    },
+    "bpm_c02": {
+        "label": "🖥️ 方案 C 分鏡 C02：進入 EPM 與選取本人出差單",
+        "first": BASE_DIR / "bpm_sop_plan_c" / "flow_frames" / "bpm_c02_first.png",
+        "last": BASE_DIR / "bpm_sop_plan_c" / "flow_frames" / "bpm_c02_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop_plan_c" / "flow_clips" / "c02_flow.mp4",
+        "prompt": (
+            "Clean modern corporate 3D explainer animation, smooth zoom toward a glowing glass desktop monitor "
+            "displaying a sleek blue BPM expense portal icon, then smoothly opening floating translucent trip selector "
+            "cards where an animated cursor highlights and selects the employee's matching business trip record, "
+            "crisp clean corporate tech aesthetic, soft studio lighting, 4k."
+        ),
+    },
+    "bpm_c03": {
+        "label": "🔀 方案 C 分鏡 C03：私車 A05 與 eTag A07 雙軌分流",
+        "first": BASE_DIR / "bpm_sop_plan_c" / "flow_frames" / "bpm_c03_first.png",
+        "last": BASE_DIR / "bpm_sop_plan_c" / "flow_frames" / "bpm_c03_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop_plan_c" / "flow_clips" / "c03_flow.mp4",
+        "prompt": (
+            "Clean modern corporate 3D infographic animation, starting with a glowing mileage odometer and sedan icon "
+            "flowing into a blue left track labeled A05, while a glowing highway eTag wave splits smoothly into a "
+            "separate green right track labeled A07, emphasizing two distinct parallel glass cards floating cleanly "
+            "side by side in a dark slate studio, crisp 4k."
+        ),
+    },
+    "bpm_c05": {
+        "label": "✅ 方案 C 分鏡 C05：明細總額對齊、上傳與先存再送",
+        "first": BASE_DIR / "bpm_sop_plan_c" / "flow_frames" / "bpm_c05_first.png",
+        "last": BASE_DIR / "bpm_sop_plan_c" / "flow_frames" / "bpm_c05_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop_plan_c" / "flow_clips" / "c05_flow.mp4",
+        "prompt": (
+            "Clean modern corporate 3D motion graphics animation, starting with floating invoice and map screenshot "
+            "documents flying neatly into a glowing digital upload folder beside a balanced scale icon, smoothly "
+            "transforming into three illuminated emerald milestone pills lighting up in sequence: Save, Submit, "
+            "and Approved Ticket Badge, crisp dark tech studio, 4k."
+        ),
+    },
 }
+
+BPM_BATCH_THEMES = ["bpm_shot01", "bpm_shot05", "bpm_shot08"]
+BPM_PLAN_C_THEMES = ["bpm_c02", "bpm_c03", "bpm_c05"]
 
 
 def find_browser_exe() -> str:
@@ -84,7 +159,8 @@ def find_browser_exe() -> str:
 
 def is_cdp_ready(port: int = CDP_PORT) -> bool:
     try:
-        with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=1.5) as resp:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(f"http://127.0.0.1:{port}/json/version", timeout=1.5) as resp:
             return resp.status == 200
     except Exception:
         return False
@@ -374,53 +450,174 @@ def trigger_generate(page):
     print("[OK] 已觸發 Google Flow 開始生成影片！")
 
 
-def main():
-    parser = argparse.ArgumentParser(description="一鍵自動上傳首尾幀與 Prompt 至本機 Chrome Google Flow")
-    parser.add_argument("--theme", choices=list(THEMES.keys()), default="kids", help="選擇風格套件 (預設 kids)")
-    parser.add_argument("--project-url", default=FLOW_URL, help="目標 Google Flow 網址")
-    parser.add_argument("--no-submit", action="store_true", help="僅填入首尾幀與 Prompt，不自動點擊開始生成")
-    args = parser.parse_args()
+def collect_video_urls(page) -> list[str]:
+    try:
+        return page.evaluate(
+            """
+            () => {
+              const out = [];
+              document.querySelectorAll('video').forEach(v => {
+                const s = v.currentSrc || v.src || '';
+                if (s) out.push(s);
+                v.querySelectorAll('source').forEach(srcEl => {
+                  if (srcEl.src) out.push(srcEl.src);
+                });
+              });
+              return Array.from(new Set(out));
+            }
+            """
+        )
+    except Exception:
+        return []
 
-    theme = THEMES[args.theme]
+
+def download_video_from_page(page, url: str, dest: Path) -> bool:
+    try:
+        b64_data = page.evaluate(
+            """
+            async (videoUrl) => {
+              const resp = await fetch(videoUrl);
+              if (!resp.ok) throw new Error('HTTP ' + resp.status);
+              const buf = await resp.arrayBuffer();
+              const bytes = new Uint8Array(buf);
+              let bin = '';
+              const chunk = 0x8000;
+              for (let i = 0; i < bytes.length; i += chunk) {
+                bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+              }
+              return btoa(bin);
+            }
+            """,
+            url,
+        )
+        raw = base64.b64decode(b64_data)
+        if len(raw) < 50_000:
+            return False
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(raw)
+        return True
+    except Exception as exc:
+        print(f"[警告] 下載影片失敗 ({url[:60]}...): {exc}")
+        return False
+
+
+def wait_and_download_flow_videos(submitted_pages: list, timeout_sec: int = 300) -> list[str]:
+    pending = [
+        (pg, key, known)
+        for (pg, key, known) in submitted_pages
+        if THEMES[key].get("out_mp4") is not None
+    ]
+    if not pending:
+        return []
+
+    print(f"\n[監聽] 等待 Google Flow 生成 {len(pending)} 支影片並自動下載 (最多 {timeout_sec} 秒)...")
+    done_keys: list[str] = []
+    deadline = time.time() + timeout_sec
+
+    while pending and time.time() < deadline:
+        still_waiting = []
+        for pg, key, known in pending:
+            out_mp4: Path = THEMES[key]["out_mp4"]
+            cur_urls = collect_video_urls(pg)
+            new_urls = [u for u in cur_urls if u not in known]
+            downloaded = False
+            for u in reversed(new_urls):
+                if download_video_from_page(pg, u, out_mp4):
+                    print(f"  ✅ [{key}] Google Flow 影片已自動下載：{out_mp4} ({out_mp4.stat().st_size:,} bytes)")
+                    done_keys.append(key)
+                    downloaded = True
+                    break
+            if not downloaded:
+                still_waiting.append((pg, key, known))
+        pending = still_waiting
+        if pending:
+            time.sleep(4.0)
+
+    for _pg, key, _known in pending:
+        print(f"  ⏳ [{key}] 超過 {timeout_sec} 秒尚未偵測到成品，請於 Chrome 視窗確認進度。")
+    return done_keys
+
+
+def upload_single_theme(context, theme_key: str, project_url: str, no_submit: bool, open_new_tab: bool = False):
+    theme = THEMES[theme_key]
     print(f"\n=== Google Flow 本機全自動上傳 CLI：{theme['label']} ===")
 
+    target_page = None
+    if not open_new_tab:
+        for pg in context.pages:
+            if "flow.google.com" in (pg.url or "") or "accounts.google.com" in (pg.url or ""):
+                target_page = pg
+                break
+    if target_page is None:
+        target_page = context.new_page() if open_new_tab or not context.pages else context.pages[0]
+        target_page.goto(project_url, wait_until="domcontentloaded")
+
+    target_page.bring_to_front()
+    wait_for_authenticated_flow(target_page)
+    ensure_in_project(target_page)
+    switch_to_frames_mode(target_page)
+
+    print("[上傳] 開始自動上傳 Start / End 首尾幀...")
+    upload_frame(target_page, r"^開始$|^Start$", theme["first"], "首幀 (Start)")
+    upload_frame(target_page, r"^結束$|^End$", theme["last"], "尾幀 (End)")
+    fill_prompt(target_page, theme["prompt"])
+
+    known_video_urls = set(collect_video_urls(target_page))
+    if not no_submit:
+        trigger_generate(target_page)
+        print(f"  ✅ [{theme_key}] 已送出生成 (影片 -> 影格 · 10 秒 · x 1)！")
+    else:
+        print(f"  ✅ [{theme_key}] 首尾幀與 Prompt 已填入！")
+    return (target_page, theme_key, known_video_urls)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="一鍵自動上傳首尾幀與 Prompt 至本機 Chrome Google Flow")
+    parser.add_argument(
+        "--theme",
+        choices=list(THEMES.keys()) + ["bpm_all", "bpm_plan_c"],
+        default="kids",
+        help="選擇風格或 BPM 情境分鏡 (預設 kids；bpm_all / bpm_plan_c 可批次送出)",
+    )
+    parser.add_argument("--project-url", default=FLOW_URL, help="目標 Google Flow 網址")
+    parser.add_argument("--no-submit", action="store_true", help="僅填入首尾幀與 Prompt，不自動點擊開始生成")
+    parser.add_argument("--no-wait", action="store_true", help="送出生成後立即結束，不等待自動下載 MP4")
+    args = parser.parse_args()
+
+    if args.theme == "bpm_all":
+        theme_keys = BPM_BATCH_THEMES
+    elif args.theme == "bpm_plan_c":
+        theme_keys = BPM_PLAN_C_THEMES
+    else:
+        theme_keys = [args.theme]
     ensure_chrome_running(args.project_url)
 
     with sync_playwright() as p:
         browser = p.chromium.connect_over_cdp(f"http://127.0.0.1:{CDP_PORT}")
         context = browser.contexts[0] if browser.contexts else browser.new_context()
 
-        # 優先尋找已經開著的 flow.google.com 分頁
-        target_page = None
-        for pg in context.pages:
-            if "flow.google.com" in (pg.url or "") or "accounts.google.com" in (pg.url or ""):
-                target_page = pg
-                break
-        if target_page is None:
-            target_page = context.pages[0] if context.pages else context.new_page()
-            target_page.goto(args.project_url, wait_until="domcontentloaded")
+        submitted = []
+        for idx, key in enumerate(theme_keys):
+            info = upload_single_theme(context, key, args.project_url, args.no_submit, open_new_tab=(idx > 0))
+            submitted.append(info)
+            if idx + 1 < len(theme_keys):
+                time.sleep(1.5)
 
-        target_page.bring_to_front()
-        wait_for_authenticated_flow(target_page)
-        ensure_in_project(target_page)
-        switch_to_frames_mode(target_page)
+        downloaded_keys = []
+        if not args.no_submit and not args.no_wait:
+            downloaded_keys = wait_and_download_flow_videos(submitted, timeout_sec=300)
 
-        print("[上傳] 開始自動上傳 Start / End 首尾幀...")
-        upload_frame(target_page, r"^開始$|^Start$", theme["first"], "首幀 (Start)")
-        upload_frame(target_page, r"^結束$|^End$", theme["last"], "尾幀 (End)")
-        fill_prompt(target_page, theme["prompt"])
-
+        print("\n" + "=" * 62)
         if not args.no_submit:
-            trigger_generate(target_page)
-            print("\n" + "=" * 62)
-            print("  ✅ 全自動上傳並送出生成！Google Flow 正在為你產生影片。")
-            print("  👉 請切換到 Chrome 視窗查看影片生成進度與成品！")
-            print("=" * 62)
+            print(f"  ✅ 已全自動送出 {len(theme_keys)} 支影片至 Google Flow 生成佇列！")
+            if downloaded_keys:
+                print(f"  📥 已自動下載完成：{', '.join(downloaded_keys)}")
+            else:
+                print("  👉 請切換到 Chrome 視窗查看生成進度，完成後可將 MP4 放進 bpm_sop/flow_clips/！")
         else:
-            print("\n" + "=" * 62)
-            print("  ✅ 全自動上傳完成！首幀、尾幀與 Prompt 都已填入 Google Flow。")
-            print("  👉 請切換到 Chrome 視窗確認圖片縮圖無誤，按下白色「→」開始生成！")
-            print("=" * 62)
+            print(f"  ✅ 已完成 {len(theme_keys)} 組首尾幀與 Prompt 填入！")
+            print("  👉 請切換到 Chrome 視窗確認縮圖無誤後點擊「開始生成」！")
+        print("=" * 62)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,10 @@
    - 使用 Blender `BLENDER_WORKBENCH` 白模引擎（免獨顯、約 20 秒內算完 120 格 1280×720 H.264 MP4），精準控制 AI 影片運鏡。
    - 支援 **Google Flow (`Frames to Video`)** 首尾幀輸出與 **Seedance / 可靈 Kling / Runway** 影片參考管線。
    - 內建賽博龐克 (Cyberpunk) 與奇幻武俠 (Fantasy Wuxia) 已對齊白模透視的電影級首尾幀圖組與一鍵複製 Prompt。
+4. **📑 BPM 一般費用報銷單（私車公用）混合雙軌分鏡工作室 (`bpm_storyboard_studio.html`)**：
+   - 由 `build_bpm_sop_video.py` 自動從 `BPM一般費用報銷單_私車公用操作流程.docx` 抽取 11 張高清截圖、生成 3 組 Google Flow 情境首尾幀，並以 `edge-tts` 台灣女聲配音合成 1080p 8 鏡有聲教學總片。
+   - **混合雙軌策略（方案 A）**：將 `Shot 01 / 05 / 08` 情境分鏡透過 `auto_upload_flow.py --theme bpm_all` 批次送進 Google Flow（共 90 點）；核心 BPM 表單操作 (`Shot 02, 03, 04, 06, 07`) 由 Python 原圖高清放大＋動態紅框導覽，確保代碼與數字 100% 清晰銳利。
+   - **全 Flow 概念動畫版（方案 C）**：由 `build_bpm_plan_c_video.py` 複用上述 3 支 Flow 實片並補齊 `C02 / C03 / C05` 三段 3D 概念分鏡，產出 6 鏡全 Flow 概念總片 (`bpm_sop_plan_c/`)，可在工作台一鍵切換方案 A / 方案 C 並切換多種台灣配音音色。
 
 ---
 
@@ -29,10 +33,15 @@ blender_3d_demo/
 ├── Blender_3D_AI建模與白模運鏡系統_操作手冊.docx        # 自動生成之圖文 Word 操作手冊
 ├── 啟動3D儲位展示.bat                                 # 一鍵環境檢查、Port 偵測並啟動展示伺服器
 ├── 一鍵自動上傳Google_Flow.bat                         # 免 API Key 開啟本機 Chrome 自動上傳首尾幀
-├── auto_upload_flow.py                              # Playwright CDP 接管本機 Chrome 自動上傳 CLI
-├── run_server.py                                    # 含 Port Fallback 與 /api/upload-flow 本地伺服器
+├── auto_upload_flow.py                              # Playwright CDP 接管本機 Chrome 自動上傳 CLI（含 bpm_all 批次）
+├── build_bpm_sop_video.py                           # BPM 報銷單方案 A 雙軌分鏡抽圖、配音與 1080p 總片合成腳本
+├── build_bpm_plan_c_video.py                        # BPM 報銷單方案 C 全 Flow 6 鏡概念動畫建置腳本
+├── run_server.py                                    # 含 Port Fallback、/api/upload-flow 與 /api/rebuild-bpm-video 伺服器
 ├── index.html                                       # 3D 智慧儲位數位孿生互動網頁
 ├── fpv_studio.html                                  # 3D 白模 FPV 運鏡工作室網頁
+├── bpm_storyboard_studio.html                       # BPM 報銷單方案 A / 方案 C 分鏡管理與教學播放工作台
+├── bpm_sop/                                         # 方案 A 工作目錄（figures / flow_frames / audio / clips / 總片）
+├── bpm_sop_plan_c/                                  # 方案 C 工作目錄（flow_frames / new_flow_frames / flow_clips / 總片）
 ├── generate_warehouse_3d.py                         # Blender 無頭腳本：生成智慧倉庫 .blend / .glb
 ├── generate_fpv_white_model.py                      # Blender 無頭腳本：算圖輸出 FPV 白模 MP4/首尾幀
 ├── blender_mcp_addon.py                             # Blender MCP 外掛腳本 (Socket localhost:9876)
@@ -61,10 +70,12 @@ blender_3d_demo/
    powershell -ExecutionPolicy Bypass -File .\setup_env.ps1
    ```
    *(會自動安裝 `python-docx`、`pillow`、`playwright`、`uv/uvx`、偵測/安裝 Blender 5.3、註冊 Blender MCP 外掛與生成 Word 手冊)*
-2. **一鍵啟動網頁 3D 雙看板**：
+2. **一鍵啟動網頁 3D 與雙軌分鏡看板**：
    - 直接雙擊 **`啟動3D儲位展示.bat`**
-   - 瀏覽器會自動開啟 `http://localhost:8088/index.html`（並可切換至 `/fpv_studio.html`），同時在終端機顯示區網 IP 供手機預覽。
+   - 瀏覽器會自動開啟 `http://localhost:8088/index.html`（並可切換至 `/fpv_studio.html` 與 `/bpm_storyboard_studio.html`），同時在終端機顯示區網 IP 供手機預覽。
 3. **免 API Key 一鍵自動上傳至 Google Flow**：
-   - 直接雙擊 **`一鍵自動上傳Google_Flow.bat`**（或在 `fpv_studio.html` 點擊「🚀 一鍵自動送進 Flow」），會透過本機 Chrome (`Port 9222`) 自動切換成 `影片 -> 影格`、上傳首尾幀並填入 Prompt（使用你帳號的 PRO / 免費點數）。
+   - 直接雙擊 **`一鍵自動上傳Google_Flow.bat`**（或在 `fpv_studio.html` / `bpm_storyboard_studio.html` 點擊一鍵送進 Flow），會透過本機 Chrome (`Port 9222`) 自動切換成 `影片 -> 影格 · 720p · 10 秒 · x 1`、上傳首尾幀並填入 Prompt（支援 `bpm_all` 三鏡批次送出）。
+4. **重新生成 BPM 有聲教學總片**：
+   - 若將 Google Flow 下載的實片放入 `bpm_sop/flow_clips/`（`shot01_flow.mp4`、`shot05_flow.mp4`、`shot08_flow.mp4`），可於網頁點擊「🔄 重新合成總片」或執行 `python build_bpm_sop_video.py`。
 4. **進階：用 Antigravity 遙控 Blender**：
    - 打開任意 `.blend` 檔 → 按 `N` 鍵叫出側邊欄 → 點選 `MCP for Blender` → 點擊 **Connect to MCP server**，即可直接用中文在 Antigravity 下指令改模型！

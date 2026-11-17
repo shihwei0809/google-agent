@@ -1,0 +1,8 @@
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop/clips_normal/shot01.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop/clips_normal/shot02.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop/clips_normal/shot03.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop/clips_normal/shot04.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop/clips_normal/shot05.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop/clips_normal/shot06.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop/clips_normal/shot07.mp4'
+file 'C:/GOOGLE ANGET/blender_3d_demo/bpm_sop/clips_normal/shot08.mp4'

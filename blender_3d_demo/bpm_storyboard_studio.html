@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BPM 報銷單混合雙軌分鏡工作台 | Storyboard Studio</title>
+  <style>
+    :root {
+      --bg: #070b14;
+      --panel: #0b1120;
+      --card: rgba(15, 23, 42, 0.88);
+      --border: rgba(56, 189, 248, 0.24);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", "Microsoft JhengHei", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 440px 1fr;
+    }
+
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+    }
+
+    .main-stage {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 45%), var(--bg);
+    }
+
+    .topbar {
+      padding: 14px 22px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      background: rgba(11, 17, 32, 0.85);
+      backdrop-filter: blur(10px);
+    }
+
+    .shots-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 22px 36px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+      gap: 16px;
+      align-content: start;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .title {
+      font-size: 1.06rem;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+
+    .sub {
+      font-size: 0.77rem;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-top: 3px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 12px;
+      padding: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #7dd3fc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 8px;
+      background: #020617;
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      aspect-ratio: 16 / 9;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 11px;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      background: rgba(30, 41, 59, 0.85);
+      color: #f8fafc;
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.16s ease;
+    }
+
+    .btn:hover:not(:disabled) {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.16);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      border-color: #38bdf8;
+      color: #fff;
+    }
+
+    .btn-green {
+      background: rgba(16, 185, 129, 0.16);
+      border-color: rgba(16, 185, 129, 0.55);
+      color: #6ee7b7;
+    }
+
+    .btn-amber {
+      background: rgba(245, 158, 11, 0.16);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #fcd34d;
+    }
+
+    .btn.active {
+      background: rgba(56, 189, 248, 0.22);
+      border-color: var(--accent);
+      color: #7dd3fc;
+    }
+
+    .chapter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chapter-chip {
+      padding: 4px 8px;
+      font-size: 0.72rem;
+      border-radius: 6px;
+      background: rgba(30, 41, 59, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+
+    .chapter-chip:hover {
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .checklist {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.76rem;
+      color: #cbd5e1;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 7px;
+      background: rgba(30, 41, 59, 0.55);
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    .check-item input {
+      margin-top: 3px;
+      accent-color: var(--green);
+    }
+
+    .check-item.done {
+      opacity: 0.58;
+      text-decoration: line-through;
+    }
+
+    .shot-card {
+      background: var(--card);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 14px;
+      padding: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+    }
+
+    .shot-card.flow {
+      border-color: rgba(16, 185, 129, 0.38);
+    }
+
+    .shot-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .shot-num {
+      font-family: Consolas, monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.16);
+      color: #7dd3fc;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    .badge-flow {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.18);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.45);
+    }
+
+    .badge-ui {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.16);
+      color: #7dd3fc;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .shot-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: #f8fafc;
+      margin-top: 6px;
+    }
+
+    .shot-chapter {
+      font-size: 0.76rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .pill {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      color: #e2e8f0;
+    }
+
+    .narration-box {
+      background: rgba(2, 6, 23, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 8px;
+      padding: 9px 11px;
+      font-size: 0.8rem;
+      line-height: 1.55;
+      color: #cbd5e1;
+    }
+
+    .thumb-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 8px;
+    }
+
+    .thumb-card {
+      background: rgba(2, 6, 23, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      border-radius: 8px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .thumb-card img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 5px;
+      cursor: zoom-in;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .thumb-cap {
+      font-size: 0.71rem;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+    .status-line {
+      font-size: 0.74rem;
+      color: #fcd34d;
+      min-height: 18px;
+    }
+
+    /* Lightbox */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, 0.88);
+      backdrop-filter: blur(8px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 24px;
+      z-index: 60;
+    }
+
+    .lightbox.open {
+      display: flex;
+    }
+
+    .lightbox img {
+      max-width: 92vw;
+      max-height: 82vh;
+      border-radius: 10px;
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+    }
+
+    @media (max-width: 980px) {
+      body {
+        grid-template-columns: 1fr;
+        height: auto;
+        overflow-y: auto;
+      }
+      .main-stage {
+        height: auto;
+        overflow: visible;
+      }
+      .shots-scroll {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="header-row">
+      <div>
+        <div class="title">📑 BPM 報銷單雙軌分鏡工作台</div>
+        <div class="sub">方案 A：Google Flow 情境 3 鏡 (90點) ＋ Python 1080p 高清 UI 聚焦 5 鏡 (0點)</div>
+      </div>
+      <div style="display:flex; gap:6px; flex-shrink:0;">
+        <a class="btn" href="./fpv_studio.html" title="FPV 白模工作室">🎥 FPV</a>
+        <a class="btn" href="./index.html" title="3D 儲位看板">🏭 儲位</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span id="master-card-title">🎬 完整合成教學總片 (1080p + 台灣配音)</span>
+        <span id="total-duration-label" style="font-size:0.72rem; color:#6ee7b7;">載入中...</span>
+      </div>
+      <div id="speed-selector-row" style="display:flex; gap:8px; align-items:center; margin:2px 0 8px;">
+        <label for="speed-select" style="font-size:0.74rem; color:#94a3b8; white-space:nowrap;">語速版本：</label>
+        <select id="speed-select" style="flex:1; background:#0f172a; color:#facc15; border:1px solid rgba(250,204,21,0.45); border-radius:7px; padding:5px 8px; font-size:0.76rem; font-weight:bold;">
+          <option value="1.2">⚡ 1.2x 快速版（約 3 分 41 秒，推薦）</option>
+          <option value="1.0">🐢 正常語速版（約 4 分 25 秒）</option>
+        </select>
+      </div>
+      <video id="master-player" src="./bpm_sop/BPM_一般費用報銷單_私車公用教學總片.mp4" controls playsinline></video>
+      <div id="chapter-jump-row" class="chapter-chips"></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label for="voice-select" style="font-size:0.74rem; color:#94a3b8; white-space:nowrap;">台灣配音：</label>
+        <select id="voice-select" style="flex:1; background:#0f172a; color:#e2e8f0; border:1px solid rgba(56,189,248,0.35); border-radius:7px; padding:5px 8px; font-size:0.76rem;">
+          <option value="hsiaochen">🎙️ 曉臻（台灣自然親切女聲）</option>
+          <option value="yunjhe">🎙️ 雲哲（台灣沉穩專業男聲）</option>
+          <option value="duet">🎙️ 曉臻＋雲哲（雙人搭檔講解）</option>
+          <option value="hsiaoyu">🎙️ 曉雨（台灣清亮女聲）</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <a id="master-download-link" class="btn btn-primary" href="./bpm_sop/BPM_一般費用報銷單_私車公用教學總片.mp4" download="BPM_一般費用報銷單_私車公用教學總片.mp4" style="flex:1;">
+          📥 下載完整教學總片 (.mp4)
+        </a>
+        <button class="btn btn-amber" id="btn-rebuild-video" title="套用選定台灣音色並嵌入 Flow 實片重新合成總片">
+          🔄 重新合成總片
+        </button>
+      </div>
+      <div class="status-line" id="rebuild-status"></div>
+    </div>
+
+    <div class="card" id="flow-upload-card">
+      <div class="card-title">
+        <span id="flow-card-title">🚀 Google Flow 情境 3 鏡一鍵送出</span>
+        <span id="flow-card-cost" style="font-size:0.7rem; color:#6ee7b7;">鎖定 影格·720p·10秒·x1 (共90點)</span>
+      </div>
+      <div id="flow-card-desc" style="font-size:0.74rem; color:#94a3b8; line-height:1.45;">
+        點擊下方按鈕會自動透過本機 Chrome (Port 9222) 開啟 Google Flow 並填入首尾幀與 Prompt。下載後將影片命名為
+        <code style="color:#7dd3fc;">shot01_flow.mp4</code> / <code style="color:#7dd3fc;">shot05_flow.mp4</code> / <code style="color:#7dd3fc;">shot08_flow.mp4</code>
+        放入 <code style="color:#7dd3fc;">bpm_sop/flow_clips/</code>，再按上方「🔄 重新合成總片」即可無縫替換！
+      </div>
+      <div id="flow-buttons-a" style="display:flex; flex-direction:column; gap:8px;">
+        <button class="btn btn-green" data-upload-flow="bpm_all">
+          🔥 方案 A 三鏡批次送進 Google Flow (90 點)
+        </button>
+        <div class="btn-row">
+          <button class="btn" data-upload-flow="bpm_shot01" style="flex:1;">🚗 Shot 01</button>
+          <button class="btn" data-upload-flow="bpm_shot05" style="flex:1;">🚄 Shot 05</button>
+          <button class="btn" data-upload-flow="bpm_shot08" style="flex:1;">📋 Shot 08</button>
+        </div>
+      </div>
+      <div id="flow-buttons-c" style="display:none; flex-direction:column; gap:8px;">
+        <button class="btn btn-green" data-upload-flow="bpm_plan_c">
+          🎬 方案 C 新增三鏡送進 Google Flow (90 點，其餘 3 鏡已複用)
+        </button>
+        <div class="btn-row">
+          <button class="btn" data-upload-flow="bpm_c02" style="flex:1;">🖥️ C02</button>
+          <button class="btn" data-upload-flow="bpm_c03" style="flex:1;">🔀 C03</button>
+          <button class="btn" data-upload-flow="bpm_c05" style="flex:1;">✅ C05</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>✅ 送出前檢核 & 正本交件流程</span>
+        <span style="font-size:0.7rem; color:#fcd34d;">申請人 → 人事核對 → 會計審核</span>
+      </div>
+      <div class="checklist" id="sop-checklist">
+        <label class="check-item"><input type="checkbox" /> <span>出差登記單號、日期、地點與出差原因正確</span></label>
+        <label class="check-item"><input type="checkbox" /> <span>去程／回程路線里程截圖清楚，且未重複計算</span></label>
+        <label class="check-item"><input type="checkbox" /> <span>私車公用使用 <b>A05</b>，車號說明已填寫</span></label>
+        <label class="check-item"><input type="checkbox" /> <span>ETag (<b>A07</b>)、高鐵 (<b>A01</b>)、停車費 (<b>A06</b>) 分開列示</span></label>
+        <label class="check-item"><input type="checkbox" /> <span>明細合計＝表頭本幣報銷總金額，附件皆可開啟</span></label>
+        <label class="check-item"><input type="checkbox" /> <span>先按「儲存」確認無誤再「送出」，並留存 BPM 單號</span></label>
+        <label class="check-item"><input type="checkbox" /> <span>紙本正本與佐證已交 <b>人事核對</b> → 確認轉交 <b>會計審核</b></span></label>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-stage">
+    <div class="topbar">
+      <div>
+        <div id="topbar-title" style="font-size:1.05rem; font-weight:800; color:#f8fafc;">
+          BPM 一般費用報銷單（私車公用）8 鏡混合雙軌分鏡板
+        </div>
+        <div id="topbar-sub" style="font-size:0.76rem; color:var(--muted); margin-top:2px;">
+          來源文件：<span style="color:#7dd3fc;">BPM一般費用報銷單_私車公用操作流程.docx</span>（已自動抽取 11 張原圖與台灣真人旁白）
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn active" data-plan="a">🔥 方案 A：混合雙軌實操 (8鏡)</button>
+        <button class="btn" data-plan="c">🎬 方案 C：全 Flow 概念動畫 (6鏡)</button>
+        <span style="width:1px; background:rgba(148,163,184,0.25); margin:0 2px;"></span>
+        <button class="btn active" data-filter="all">全部鏡次</button>
+        <button class="btn" data-filter="flow">🎬 Flow 情境</button>
+        <button class="btn" data-filter="ui">🖥️ UI 導覽</button>
+      </div>
+    </div>
+
+    <div class="shots-scroll" id="shots-container">
+      <div style="color:#94a3b8; font-size:0.9rem;">正在載入 storyboard_manifest.json ...</div>
+    </div>
+  </main>
+
+  <div class="lightbox" id="lightbox">
+    <img id="lightbox-img" src="" alt="Preview" />
+    <div id="lightbox-cap" style="color:#e2e8f0; font-size:0.9rem;"></div>
+    <button class="btn" id="lightbox-close">✕ 關閉大圖 (ESC)</button>
+  </div>
+
+  <script>
+    const masterPlayer = document.getElementById("master-player");
+    const shotsContainer = document.getElementById("shots-container");
+    const chapterJumpRow = document.getElementById("chapter-jump-row");
+    const totalDurLabel = document.getElementById("total-duration-label");
+    const rebuildBtn = document.getElementById("btn-rebuild-video");
+    const rebuildStatus = document.getElementById("rebuild-status");
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImg = document.getElementById("lightbox-img");
+    const lightboxCap = document.getElementById("lightbox-cap");
+
+    const masterDownloadLink = document.getElementById("master-download-link");
+    const topbarTitle = document.getElementById("topbar-title");
+    const topbarSub = document.getElementById("topbar-sub");
+    const flowCardTitle = document.getElementById("flow-card-title");
+    const flowCardCost = document.getElementById("flow-card-cost");
+    const flowCardDesc = document.getElementById("flow-card-desc");
+    const flowButtonsA = document.getElementById("flow-buttons-a");
+    const flowButtonsC = document.getElementById("flow-buttons-c");
+
+    let manifestData = null;
+    let currentFilter = "all";
+    let currentPlan = new URLSearchParams(window.location.search).get("plan") === "c" ? "c" : "a";
+
+    function syncPlanButtons() {
+      document.querySelectorAll("[data-plan]").forEach((b) => {
+        b.classList.toggle("active", b.dataset.plan === currentPlan);
+      });
+      if (currentPlan === "c") {
+        topbarTitle.textContent = "BPM 一般費用報銷單（方案 C：全 Google Flow 6 鏡 3D 概念動畫版）";
+        topbarSub.innerHTML = '專為宣導短片設計：複用既有 3 鏡實片 ＋ 新增 <span style="color:#6ee7b7;">C02 / C03 / C05</span>（全 6 鏡皆可嵌入 Flow 動畫）';
+        flowCardTitle.textContent = "🎬 方案 C：補齊剩餘 3 鏡 Flow 動畫";
+        flowCardCost.textContent = "3 鏡複用方案 A · 僅需再送 3 鏡 (90點)";
+        flowCardDesc.innerHTML = '將新生成的 <code style="color:#7dd3fc;">c02_flow.mp4</code> / <code style="color:#7dd3fc;">c03_flow.mp4</code> / <code style="color:#7dd3fc;">c05_flow.mp4</code> 放入 <code style="color:#7dd3fc;">bpm_sop_plan_c/flow_clips/</code> 再按「🔄 重新合成總片」即可！';
+        flowButtonsA.style.display = "none";
+        flowButtonsC.style.display = "flex";
+      } else {
+        topbarTitle.textContent = "BPM 一般費用報銷單（方案 A：8 鏡混合雙軌實操教學版）";
+        topbarSub.innerHTML = '來源文件：<span style="color:#7dd3fc;">BPM一般費用報銷單_私車公用操作流程.docx</span>（已自動抽取 11 張原圖與台灣真人旁白）';
+        flowCardTitle.textContent = "🚀 Google Flow 情境 3 鏡一鍵送出";
+        flowCardCost.textContent = "鎖定 影格·720p·10秒·x1 (共90點)";
+        flowCardDesc.innerHTML = '下載 Flow 影片命名為 <code style="color:#7dd3fc;">shot01_flow.mp4</code> / <code style="color:#7dd3fc;">shot05_flow.mp4</code> / <code style="color:#7dd3fc;">shot08_flow.mp4</code> 放入 <code style="color:#7dd3fc;">bpm_sop/flow_clips/</code> 再按「🔄 重新合成總片」即可無縫替換！';
+        flowButtonsA.style.display = "flex";
+        flowButtonsC.style.display = "none";
+      }
+    }
+
+    function fmtTime(sec) {
+      const s = Math.max(0, Math.round(sec));
+      const m = String(Math.floor(s / 60)).padStart(2, "0");
+      const r = String(s % 60).padStart(2, "0");
+      return `${m}:${r}`;
+    }
+
+    function openLightbox(src, cap) {
+      lightboxImg.src = src;
+      lightboxCap.textContent = cap || "";
+      lightbox.classList.add("open");
+    }
+
+    document.getElementById("lightbox-close").addEventListener("click", () => lightbox.classList.remove("open"));
+    lightbox.addEventListener("click", (e) => {
+      if (e.target === lightbox) lightbox.classList.remove("open");
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") lightbox.classList.remove("open");
+    });
+
+    document.querySelectorAll("#sop-checklist input[type='checkbox']").forEach((cb) => {
+      cb.addEventListener("change", () => {
+        cb.closest(".check-item").classList.toggle("done", cb.checked);
+      });
+    });
+
+    function bindUploadButton(btn) {
+      const orig = btn.textContent;
+      btn.addEventListener("click", async () => {
+        const theme = btn.dataset.uploadFlow;
+        btn.disabled = true;
+        btn.textContent = "⏳ 啟動 Chrome...";
+        try {
+          const resp = await fetch(`/api/upload-flow?theme=${encodeURIComponent(theme)}`, { method: "POST" });
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          btn.textContent = "✅ 已送至 Chrome！";
+        } catch (err) {
+          btn.textContent = "❌ 請改用 一鍵自動上傳Google_Flow.bat";
+        } finally {
+          setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = orig;
+          }, 4000);
+        }
+      });
+    }
+
+    document.querySelectorAll("[data-upload-flow]").forEach(bindUploadButton);
+
+    const speedSelect = document.getElementById("speed-select");
+    const speedRow = document.getElementById("speed-selector-row");
+
+    async function loadManifest() {
+      syncPlanButtons();
+      let manifestUrl = "";
+      if (currentPlan === "c") {
+        if (speedRow) speedRow.style.display = "none";
+        manifestUrl = `./bpm_sop_plan_c/storyboard_manifest_plan_c.json?t=${Date.now()}`;
+      } else {
+        if (speedRow) speedRow.style.display = "flex";
+        const sp = speedSelect ? speedSelect.value : "1.2";
+        manifestUrl = sp === "1.0"
+          ? `./bpm_sop/storyboard_manifest_normal.json?t=${Date.now()}`
+          : `./bpm_sop/storyboard_manifest.json?t=${Date.now()}`;
+      }
+      try {
+        const resp = await fetch(manifestUrl);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        manifestData = await resp.json();
+        if (manifestData.final_video_url) {
+          masterPlayer.src = `${manifestData.final_video_url}?t=${Date.now()}`;
+          masterDownloadLink.href = manifestData.final_video_url;
+          masterDownloadLink.download = manifestData.final_video_url.split("/").pop();
+        }
+        renderAll();
+      } catch (err) {
+        const cmdHint = currentPlan === "c" ? "python build_bpm_plan_c_video.py" : "python build_bpm_sop_video.py";
+        shotsContainer.innerHTML = `
+          <div class="shot-card">
+            <div class="shot-title">⚠️ 尚未找到分鏡成品 (${err.message})</div>
+            <div class="sub">請先於專案目錄執行 <code>${cmdHint}</code> 生成影片與 manifest。</div>
+          </div>
+        `;
+      }
+    }
+
+    function renderAll() {
+      if (!manifestData) return;
+      if (manifestData.voice_profile && voiceSelect) {
+        voiceSelect.value = manifestData.voice_profile;
+      }
+      totalDurLabel.textContent = `總片長 ${fmtTime(manifestData.total_duration_sec)} · ${manifestData.shots.length} 鏡`;
+
+      chapterJumpRow.innerHTML = "";
+      manifestData.shots.forEach((shot) => {
+        const chip = document.createElement("button");
+        chip.className = "chapter-chip";
+        chip.textContent = `#${shot.index} (${fmtTime(shot.start_sec)})`;
+        chip.title = shot.title;
+        chip.addEventListener("click", () => {
+          masterPlayer.currentTime = shot.start_sec;
+          masterPlayer.play();
+        });
+        chapterJumpRow.appendChild(chip);
+      });
+
+      const list = manifestData.shots.filter((s) => currentFilter === "all" || s.engine === currentFilter);
+      shotsContainer.innerHTML = "";
+
+      list.forEach((shot) => {
+        const card = document.createElement("article");
+        card.className = `shot-card ${shot.engine === "flow" ? "flow" : ""}`;
+
+        const engineBadge =
+          shot.engine === "flow"
+            ? `<span class="badge-flow">🎬 Google Flow 情境 (10秒·30點) ${shot.used_real_flow_mp4 ? "· ✅ 已嵌實片" : "· 動態預覽中"}</span>`
+            : `<span class="badge-ui">🖥️ Python 高清 UI 導覽 (0點·字體零失真)</span>`;
+
+        const keyPills = (shot.key_points || []).map((k) => `<span class="pill">${k}</span>`).join("");
+
+        let mediaGallery = "";
+        if (shot.engine === "flow") {
+          mediaGallery = `
+            <div class="thumb-strip">
+              <div class="thumb-card">
+                <img src="${shot.first_frame}?t=${Date.now()}" alt="Start Frame" data-lb-src="${shot.first_frame}" data-lb-cap="鏡次 ${shot.index} 首幀 (Start Frame)" />
+                <div class="thumb-cap" style="display:flex; justify-content:space-between; align-items:center;">
+                  <span>Flow 首幀 (Start)</span>
+                  <a class="btn" style="padding:2px 6px; font-size:0.68rem;" href="${shot.first_frame}" download>下載</a>
+                </div>
+              </div>
+              <div class="thumb-card">
+                <img src="${shot.last_frame}?t=${Date.now()}" alt="End Frame" data-lb-src="${shot.last_frame}" data-lb-cap="鏡次 ${shot.index} 尾幀 (End Frame)" />
+                <div class="thumb-cap" style="display:flex; justify-content:space-between; align-items:center;">
+                  <span>Flow 尾幀 (End)</span>
+                  <a class="btn" style="padding:2px 6px; font-size:0.68rem;" href="${shot.last_frame}" download>下載</a>
+                </div>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn copy-prompt-btn" style="flex:1; color:#7dd3fc;">📋 複製 Flow Prompt</button>
+              <button class="btn btn-green send-flow-btn" data-upload-flow="${shot.flow_theme}" style="flex:1;">🚀 一鍵送出此鏡至 Flow</button>
+            </div>
+          `;
+        } else if (shot.figures && shot.figures.length > 0) {
+          const thumbs = shot.figures
+            .map(
+              (f) => `
+              <div class="thumb-card">
+                <img src="${f.file}" alt="${f.caption}" data-lb-src="${f.file}" data-lb-cap="${f.caption}" />
+                <div class="thumb-cap">${f.caption}</div>
+              </div>
+            `
+            )
+            .join("");
+          mediaGallery = `<div class="thumb-strip">${thumbs}</div>`;
+        }
+
+        card.innerHTML = `
+          <div class="shot-head">
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span class="shot-num">SHOT 0${shot.index}</span>
+                ${engineBadge}
+                <span style="font-size:0.74rem; color:#94a3b8;">${shot.duration_sec}s</span>
+              </div>
+              <div class="shot-title">${shot.title}</div>
+              <div class="shot-chapter">${shot.chapter}</div>
+            </div>
+            <button class="btn jump-btn" style="font-size:0.72rem; padding:5px 9px;">▶ 跳轉 ${fmtTime(shot.start_sec)}</button>
+          </div>
+          <video controls preload="metadata" src="${shot.clip_url}?t=${Date.now()}"></video>
+          <div class="pill-list">${keyPills}</div>
+          <div class="narration-box">
+            <strong style="color:#7dd3fc;">🎙️ 台灣配音旁白：</strong>${shot.narration}
+          </div>
+          ${mediaGallery}
+          <div class="btn-row">
+            <a class="btn" href="${shot.clip_url}" download="bpm_${shot.id}.mp4" style="flex:1;">📥 下載此鏡 MP4</a>
+            <button class="btn copy-narr-btn" style="flex:1;">📝 複製旁白文字</button>
+          </div>
+        `;
+
+        card.querySelector(".jump-btn").addEventListener("click", () => {
+          masterPlayer.currentTime = shot.start_sec;
+          masterPlayer.play();
+        });
+
+        card.querySelector(".copy-narr-btn").addEventListener("click", async (e) => {
+          const btn = e.currentTarget;
+          await navigator.clipboard.writeText(shot.narration);
+          const orig = btn.textContent;
+          btn.textContent = "✅ 已複製旁白";
+          setTimeout(() => (btn.textContent = orig), 1800);
+        });
+
+        const cpBtn = card.querySelector(".copy-prompt-btn");
+        if (cpBtn) {
+          cpBtn.addEventListener("click", async () => {
+            await navigator.clipboard.writeText(shot.flow_prompt || "");
+            const orig = cpBtn.textContent;
+            cpBtn.textContent = "✅ 已複製 Prompt";
+            setTimeout(() => (cpBtn.textContent = orig), 1800);
+          });
+        }
+
+        const sfBtn = card.querySelector(".send-flow-btn");
+        if (sfBtn) bindUploadButton(sfBtn);
+
+        card.querySelectorAll("[data-lb-src]").forEach((img) => {
+          img.addEventListener("click", () => openLightbox(img.dataset.lbSrc, img.dataset.lbCap));
+        });
+
+        shotsContainer.appendChild(card);
+      });
+    }
+
+    document.querySelectorAll("[data-plan]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        currentPlan = btn.dataset.plan;
+        currentFilter = "all";
+        document.querySelectorAll("[data-filter]").forEach((b) => b.classList.toggle("active", b.dataset.filter === "all"));
+        loadManifest();
+      });
+    });
+
+    document.querySelectorAll("[data-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("[data-filter]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentFilter = btn.dataset.filter;
+        renderAll();
+      });
+    });
+
+    const voiceSelect = document.getElementById("voice-select");
+    if (speedSelect) {
+      speedSelect.addEventListener("change", () => {
+        loadManifest();
+      });
+    }
+
+    rebuildBtn.addEventListener("click", async () => {
+      const voice = voiceSelect ? voiceSelect.value : "hsiaochen";
+      rebuildBtn.disabled = true;
+      rebuildStatus.textContent = "⏳ 正在切換台灣真人語音並重新合成總片 (約 1~2 分鐘)...";
+      try {
+        const resp = await fetch(`/api/rebuild-bpm-video?plan=${encodeURIComponent(currentPlan)}&voice=${encodeURIComponent(voice)}&rebuild_audio=1`, { method: "POST" });
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) throw new Error(data.error || `HTTP ${resp.status}`);
+        rebuildStatus.textContent = "✅ 台灣真人語音總片重新合成完成！";
+        await loadManifest();
+      } catch (err) {
+        rebuildStatus.textContent = `❌ 重新合成失敗：${err.message}`;
+      } finally {
+        rebuildBtn.disabled = false;
+      }
+    });
+
+    loadManifest();
+  </script>
+</body>
+</html>
