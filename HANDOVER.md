@@ -1,5 +1,30 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-18 鴻勝化學 QC 看板升級 v3.3.5：TSC LAN 標籤機 90mm×60mm 行動列印支援、RawBT一鍵直印與iPad原吋鎖定)
+* **鴻勝化學 QC 檢驗即時看板系統升級至 v3.3.5 (`第二類_生產管理與API串接\QC-系統客製化電子化工廠\3_Cloudflare_D1版`):**
+  - **手機與 iPad 列印版面跑位根本問題解決方案**:
+    1. **預設貼紙規格鎖定 90mm × 60mm**：系統將標籤機列印設定預設值直接調整為 `90mm × 60mm`，包含寬度、高度、邊界與頁面斷頁，杜絕手機瀏覽器自作主張等比縮放導致的字體忽大忽小與跨頁走位。
+    2. **Android 專屬「📱 RawBT 一鍵直印」**：在標籤設定視窗加入一鍵直印按鈕，點擊瞬間自動組裝標準 TSPL 指令（包含單號 Code 128 條碼、品名、槽號、車牌、動向、水分/GC 或 Metal 水平框線手寫欄），以 `rawbt:data...` 協定秒傳給 Android 端 RawBT 服務直送 `192.168.3.128:9100`。
+    3. **iPad (iOS) 原吋列印引導**：提供 iPad 直連 `TSC Print Utility` 指南，避免 Safari 預設邊界干擾，1:1 精準停在標籤間隙 (GAP)。
+  - **發布與推送**：升級至 `v3.3.5`，更新 Service Worker 快取名稱為 `qc-kanban-v3.3.5-offline`，重新產出 Word 操作手冊，已順利部署至 Cloudflare Pages：`https://qc-samples.pages.dev`。
+
+---
+
+## 今日進度與交接事項 (2026-11-18 破案與徹底根治：Git for Windows 假成功 Bug 修復、改採 .NET 原生 API 強制終止、升級每小時智慧巡檢排程)
+* **Git for Windows 死循環佔用 100% CPU 徹底破案與根除**:
+  - **為什麼 11/17、11/18 排程有跑卻依然卡死？（真相破案）**：
+    1. **排程確實有準時在 07:30 執行**：查閱 [clean_git.log](file:///d:/GOOGLE%20ANGET/scripts/clean_git.log)，排程器每天 07:30 都有喚醒執行，日誌上也寫了「成功終止 9 個進程」。
+    2. **PowerShell `Stop-Process` 假成功陷阱**：原本腳本使用 `Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue`。當 Win32 進程處於 I/O 深度死鎖狀態時，PowerShell 的 `Stop-Process` 會無聲失敗（不拋出例外但進程依然存活）。後續代碼直接寫入「成功終止」，導致日誌產生假成功，那 9 個進程其實從 11/16 一路卡到 11/18，單一進程吃滿 88,000 秒 CPU！
+    3. **根因指令抓出**：透過 WMI 抓出卡死進程的 CommandLine 為 `git.exe --no-optional-locks status --porcelain=v2 --branch --untracked-files=all --ignore-submodules=dirty -z`，確認是 IDE（VS Code / Antigravity）Source Control 在超大型目錄下自動觸發遞迴掃描時卡死所致。
+  - **解決方案與雙重強化**:
+    1. **改採 .NET 原生 API 保證 100% 秒殺**：全面改用 `[System.Diagnostics.Process]::GetProcessById($targetId).Kill()` 與 `WaitForExit(3000)`，實測對 Windows 殭屍進程可達成 100% 徹底滅殺，絕不殘留！
+    2. **升級排程為「每天 07:30 起跑 ＋ 每 1 小時自動巡檢」**：
+       - 排程任務 `AutoClean_Stuck_Git` 已更新為：每天早上 07:30 起跑，每 60 分鐘自動在背景巡檢一次。
+       - 只要抓到運行超過 2 分鐘（正常 git status 僅需 1~2 秒）的死循環進程立即終止，使用者不再需要痛苦忍受整天直到隔天早上！
+    3. **實測驗證**：所有累積之卡死進程已全數消滅，CPU 負載直接從 100% 降回 25% 以下正常水位。
+
+---
+
 ## 今日進度與交接事項 (2026-11-17 BPM 一般費用報銷單教學影片實務升級：會計審核 5 大建議、個資打碼、ETC 專用章、移除鏡次標記、Lanczos 銳化雙版本輸出)
 * **BPM 一般費用報銷單（出差與私車公用）實務教學影片系統全面升級 (`c:\GOOGLE ANGET\blender_3d_demo\build_bpm_sop_video.py`)**:
   - **會計 5 大實務建議完整落實**:

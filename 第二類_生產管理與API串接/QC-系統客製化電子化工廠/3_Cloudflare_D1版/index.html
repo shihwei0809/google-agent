@@ -539,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.3.4 (修復腳本語法·登入解鎖正常運行版)
+          🚀 v3.3.5 (TSC 90x60mm 標籤行動列印優化版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -825,7 +825,7 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.4 (登入解鎖修復·排程項目完整顯示·Checkbox批量勾選·單獨刪除·已送樣防刪保護·Cloudflare D1 旗艦版)</strong><br>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.5 (TSC 90x60mm 標籤行動列印優化·RawBT一鍵直印·Cloudflare D1 旗艦版)</strong><br>
     <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：單號字首嚴格對齊 (ESPM 進料 / ESXM 出貨) · 背景定時輪詢保護使用者動向不被重設 · 同車多單動向強制鎖定 · Cloudflare D1 即時同步</span>
   </div>
 </div>
@@ -1251,17 +1251,28 @@
     <div style="margin-bottom:14px;">
       <!-- 貼紙實體尺寸設定 (支援自訂更換貼紙) -->
       <div style="background:#f1f5f9; padding:10px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; font-size:0.85rem;">
-        <span style="font-weight:bold; color:#334155;">📐 貼紙規格 (可自訂修改)：</span>
+        <span style="font-weight:bold; color:#334155;">📐 貼紙規格 (寬 × 高)：</span>
         <div style="display:flex; align-items:center; gap:5px;">
           <span>寬</span>
-          <input type="number" id="printLabelWidth" value="50" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
+          <input type="number" id="printLabelWidth" value="90" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
           <span>mm</span>
           <span style="color:#94a3b8; margin:0 2px;">×</span>
           <span>高</span>
-          <input type="number" id="printLabelHeight" value="90" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
+          <input type="number" id="printLabelHeight" value="60" min="20" max="200" style="width:58px; text-align:center; padding:5px; font-weight:bold; border-radius:4px; border:1px solid #cbd5e1;" onchange="updateTotalLabelCount()">
           <span>mm</span>
         </div>
       </div>
+
+      <!-- 行動裝置 / TSC LAN 專用提示區 -->
+      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:0.84rem; color:#1e40af; line-height:1.5;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <b>📱 行動端 TSC (LAN 192.168.3.128) 支援：</b>
+          <span style="background:#2563eb; color:white; font-size:0.72rem; padding:2px 6px; border-radius:4px;">90×60 mm 專用</span>
+        </div>
+        <div>• <b>Android 手機</b>：建議安裝 <b>RawBT</b>，可點擊下方「📱 RawBT 一鍵直印」零跑版輸出！</div>
+        <div>• <b>iPad 平板</b>：點「🖨️ 送出列印」後，直接分享至 <b>TSC Print Utility</b> 即可 1:1 鎖定原吋。</div>
+      </div>
+
       <div style="background:#fef2f2; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; font-size:0.85rem; border: 1px solid #fecaca; color: #991b1b; font-weight:bold;">
         <label style="cursor:pointer; display:flex; align-items:center; gap:6px;"><input type="checkbox" id="printFixOrientation" style="width:16px;height:16px;"> ☑ 修正 TSC 標籤機方向錯亂 (印出跨兩張請勾我)</label>
       </div>
@@ -1305,15 +1316,18 @@
       <!-- 總張數統計 -->
       <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1px solid #a7f3d0; padding:8px 12px; border-radius:6px; font-size:0.88rem; color:#065f46;">
         <span>📄 預計連續出紙總張數：</span>
-        <span style="font-size:1.1rem; font-weight:bold;" id="printTotalLabelCount">3 張 (50mm × 90mm)</span>
+        <span style="font-size:1.1rem; font-weight:bold;" id="printTotalLabelCount">3 張 (90mm × 60mm)</span>
       </div>
     </div>
 
-    <div style="margin-bottom:16px;">
+    <div style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
       <label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-size:0.83rem; color:#475569;">
         <input type="checkbox" id="rememberPrintSettings" style="width:auto;">
         <span>記住此設定，下次點擊「列印」直接快速出單 (免再彈出確認視窗)</span>
       </label>
+      <button type="button" id="btnRawbtDirectPrint" onclick="printViaRawbtDirect()" style="padding:4px 10px; background:#047857; color:white; border:none; border-radius:5px; font-size:0.78rem; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;" title="Android 手機透過 RawBT 直接發送 TSPL 至 192.168.3.128">
+        📱 RawBT 一鍵直印
+      </button>
     </div>
 
     <div style="display:flex; gap:8px;">
@@ -4031,7 +4045,7 @@
     const w = parseInt(document.getElementById('printQtyWaterGC').value || '0', 10);
     const m = parseInt(document.getElementById('printQtyMetal').value || '0', 10);
     const width = parseInt(document.getElementById('printLabelWidth').value || '90', 10);
-    const height = parseInt(document.getElementById('printLabelHeight').value || '50', 10);
+    const height = parseInt(document.getElementById('printLabelHeight').value || '60', 10);
     const total = w + m;
     document.getElementById('printTotalLabelCount').innerText = `${total} 張 (${width}mm × ${height}mm)`;
   }
@@ -4049,10 +4063,10 @@
     document.getElementById('printQtyWaterGC').value = '1';
     document.getElementById('printQtyMetal').value = '2';
     document.getElementById('printLabelWidth').value = '90';
-    document.getElementById('printLabelHeight').value = '50';
+    document.getElementById('printLabelHeight').value = '60';
     document.getElementById('rememberPrintSettings').checked = false;
     updateTotalLabelCount();
-    showToast("🔄 已恢復預設規格：90mm × 50mm，水分/GC 1張 + Metal 2張！");
+    showToast("🔄 已恢復預設規格：90mm × 60mm，水分/GC 1張 + Metal 2張！");
   }
 
   function confirmPrintLabels() {
@@ -4063,7 +4077,7 @@
     const wQty = parseInt(document.getElementById('printQtyWaterGC').value || '0', 10);
     const mQty = parseInt(document.getElementById('printQtyMetal').value || '0', 10);
     const width = parseInt(document.getElementById('printLabelWidth').value || '90', 10);
-    const height = parseInt(document.getElementById('printLabelHeight').value || '50', 10);
+    const height = parseInt(document.getElementById('printLabelHeight').value || '60', 10);
 
     if(wQty + mQty <= 0) {
       alert("請至少選擇列印 1 張標籤！");
@@ -4087,12 +4101,12 @@
     doPrintLabels(targetData, wQty, mQty, rotateMode);
   }
 
-  // 讀取並正規化標籤尺寸。TSC 直式標籤以「窄寬 × 長高」送紙，避免只旋轉畫面而沒有同步旋轉紙張尺寸。
+  // 讀取並正規化標籤尺寸。TSC 標籤預設 90mm × 60mm
   function getPrintDimensions(rotateMode = 'none') {
     const configuredWidth = parseInt(localStorage.getItem('HS_QC_PRINT_WIDTH') || '90', 10);
-    const configuredHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '50', 10);
+    const configuredHeight = parseInt(localStorage.getItem('HS_QC_PRINT_HEIGHT') || '60', 10);
     const labelWidth = (Number.isFinite(configuredWidth) && configuredWidth > 0) ? configuredWidth : 90;
-    const labelHeight = (Number.isFinite(configuredHeight) && configuredHeight > 0) ? configuredHeight : 50;
+    const labelHeight = (Number.isFinite(configuredHeight) && configuredHeight > 0) ? configuredHeight : 60;
 
     const fixOrientation = localStorage.getItem('HS_QC_PRINT_FIX') === 'true';
     const needsRotate = rotateMode === '90' || rotateMode === '-90';
@@ -4498,6 +4512,81 @@
       </html>
     `);
     printWindow.document.close();
+  }
+
+  // 📱 Android RawBT 一鍵直印 TSPL 指令至 192.168.3.128:9100 (90mm x 60mm)
+  function printViaRawbtDirect() {
+    const id = document.getElementById('printTargetId').value;
+    const targetData = allData.find(d => d.id === id);
+    if (!targetData) {
+      alert("找不到樣品資料！");
+      return;
+    }
+
+    const wQty = parseInt(document.getElementById('printQtyWaterGC').value || '1', 10);
+    const mQty = parseInt(document.getElementById('printQtyMetal').value || '2', 10);
+    const total = wQty + mQty;
+    if (total <= 0) {
+      alert("請至少選擇 1 張標籤！");
+      return;
+    }
+
+    // 組裝標準 90mm x 60mm TSPL 指令
+    let tsplCmd = '';
+    let curIdx = 1;
+
+    // 1. 水分/GC 標籤
+    for (let i = 1; i <= wQty; i++) {
+      tsplCmd += `SIZE 90 mm, 60 mm\r\n`;
+      tsplCmd += `GAP 3 mm, 0 mm\r\n`;
+      tsplCmd += `DIRECTION 1\r\n`;
+      tsplCmd += `CLS\r\n`;
+      tsplCmd += `TEXT 30,20,"TSS24.BF2",0,1.4,1.4,"鴻勝化學品管檢驗中心 (QC LAB)"\r\n`;
+      tsplCmd += `TEXT 30,55,"TSS24.BF2",0,1.2,1.2,"【水分 & GC】樣品 (${curIdx}/${total})"\r\n`;
+      tsplCmd += `BAR 30,85,660,2\r\n`;
+      tsplCmd += `BARCODE 30,95,"128",50,2,0,2,2,"${targetData.barcode}"\r\n`;
+      tsplCmd += `TEXT 30,175,"TSS24.BF2",0,1.1,1.1,"品名：${targetData.productName} [${targetData.grade || '-'}]"\r\n`;
+      tsplCmd += `TEXT 30,210,"TSS24.BF2",0,1.1,1.1,"槽號：${targetData.tankNo || '-'} | 車號：${targetData.customer || '-'}"\r\n`;
+      tsplCmd += `TEXT 30,245,"TSS24.BF2",0,1.1,1.1,"動向：${targetData.flowType} / 數量：${targetData.quantity || '-'}"\r\n`;
+      tsplCmd += `TEXT 30,280,"TSS24.BF2",0,1.1,1.1,"送樣：${targetData.dept} (${targetData.requester})"\r\n`;
+      tsplCmd += `TEXT 30,315,"TSS24.BF2",0,1.0,1.0,"時間：${formatSimpleDate(targetData.createdAt)}"\r\n`;
+      tsplCmd += `BOX 30,350,690,450,2\r\n`;
+      tsplCmd += `TEXT 40,360,"TSS24.BF2",0,1.0,1.0,"實測水分: ________ ppm | GC純度: ________ %"\r\n`;
+      tsplCmd += `TEXT 40,405,"TSS24.BF2",0,1.0,1.0,"化驗簽章: ______________ | 判定日期: ________"\r\n`;
+      tsplCmd += `PRINT 1,1\r\n`;
+      curIdx++;
+    }
+
+    // 2. Metal 標籤
+    for (let i = 1; i <= mQty; i++) {
+      const isSecond = (i >= 2);
+      const bTitle = isSecond ? "瓶 2 (留樣)" : "瓶 1 (正樣)";
+      tsplCmd += `SIZE 90 mm, 60 mm\r\n`;
+      tsplCmd += `GAP 3 mm, 0 mm\r\n`;
+      tsplCmd += `DIRECTION 1\r\n`;
+      tsplCmd += `CLS\r\n`;
+      tsplCmd += `TEXT 30,20,"TSS24.BF2",0,1.4,1.4,"鴻勝化學品管檢驗中心 (QC LAB)"\r\n`;
+      tsplCmd += `TEXT 30,55,"TSS24.BF2",0,1.2,1.2,"【Metal ICP-MS】${bTitle} (${curIdx}/${total})"\r\n`;
+      tsplCmd += `BAR 30,85,660,2\r\n`;
+      tsplCmd += `BARCODE 30,95,"128",50,2,0,2,2,"${targetData.barcode}"\r\n`;
+      tsplCmd += `TEXT 30,175,"TSS24.BF2",0,1.1,1.1,"品名：${targetData.productName} [${targetData.grade || '-'}]"\r\n`;
+      tsplCmd += `TEXT 30,210,"TSS24.BF2",0,1.1,1.1,"槽號：${targetData.tankNo || '-'} | 車號：${targetData.customer || '-'}"\r\n`;
+      tsplCmd += `TEXT 30,245,"TSS24.BF2",0,1.1,1.1,"動向：${targetData.flowType} / 數量：${targetData.quantity || '-'}"\r\n`;
+      tsplCmd += `TEXT 30,280,"TSS24.BF2",0,1.1,1.1,"送樣：${targetData.dept} (${targetData.requester})"\r\n`;
+      tsplCmd += `TEXT 30,315,"TSS24.BF2",0,1.0,1.0,"時間：${formatSimpleDate(targetData.createdAt)}"\r\n`;
+      tsplCmd += `BOX 30,350,690,450,2\r\n`;
+      tsplCmd += `TEXT 40,360,"TSS24.BF2",0,1.0,1.0,"ICP-MS 案號: ____________ [${isSecond ? '留樣' : '正樣'}]"\r\n`;
+      tsplCmd += `TEXT 40,405,"TSS24.BF2",0,1.0,1.0,"化驗簽章: ______________ | 判定日期: ________"\r\n`;
+      tsplCmd += `PRINT 1,1\r\n`;
+      curIdx++;
+    }
+
+    closePrintModal();
+
+    // 透過 rawbt: 協定傳送給 Android RawBT (零縮放直印)
+    const encodedData = encodeURIComponent(tsplCmd);
+    window.location.href = `rawbt:data:text/plain;base64,${btoa(unescape(encodedData))}`;
+    showToast(`📱 已透過 RawBT 送出 90×60 mm 標籤至 TSC (192.168.3.128)！`, 4000);
   }
 
   let pendingActionId = null;
@@ -5354,7 +5443,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.3.4) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.3.5) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);
