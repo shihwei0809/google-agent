@@ -539,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.3.5 (TSC 90x60mm 標籤行動列印優化版)
+          🚀 v3.3.6 (TSC 官方 App 90x60mm 直連免付費版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -825,7 +825,7 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.5 (TSC 90x60mm 標籤行動列印優化·RawBT一鍵直印·Cloudflare D1 旗艦版)</strong><br>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.6 (TSC 原廠 90x60mm 免費無廣告·TSC Print Utility直連·Cloudflare D1 旗艦版)</strong><br>
     <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：單號字首嚴格對齊 (ESPM 進料 / ESXM 出貨) · 背景定時輪詢保護使用者動向不被重設 · 同車多單動向強制鎖定 · Cloudflare D1 即時同步</span>
   </div>
 </div>
@@ -1266,11 +1266,12 @@
       <!-- 行動裝置 / TSC LAN 專用提示區 -->
       <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:0.84rem; color:#1e40af; line-height:1.5;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-          <b>📱 行動端 TSC (LAN 192.168.3.128) 支援：</b>
+          <b>📱 行動端 TSC 官方 App 直連指南 (LAN 192.168.3.128)：</b>
           <span style="background:#2563eb; color:white; font-size:0.72rem; padding:2px 6px; border-radius:4px;">90×60 mm 專用</span>
         </div>
-        <div>• <b>Android 手機</b>：建議安裝 <b>RawBT</b>，可點擊下方「📱 RawBT 一鍵直印」零跑版輸出！</div>
-        <div>• <b>iPad 平板</b>：點「🖨️ 送出列印」後，直接分享至 <b>TSC Print Utility</b> 即可 1:1 鎖定原吋。</div>
+        <div>• <b>iPad & Android 唯一官方免費首選</b>：安裝 <b>TSC Print Utility</b> (原廠 100% 免費、無廣告、無浮水印)。</div>
+        <div>• <b>連線方式</b>：App 內新增印表機選 <b>Wi-Fi/Ethernet</b>，填入 IP <code>192.168.3.128</code> (Port 9100)。</div>
+        <div>• <b>列印操作</b>：點擊下方「🖨️ 送出列印」後，長按預覽或分享傳送至 <b>TSC Print Utility</b>，即可 1:1 鎖定原吋列印，絕不跑版！</div>
       </div>
 
       <div style="background:#fef2f2; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; font-size:0.85rem; border: 1px solid #fecaca; color: #991b1b; font-weight:bold;">
@@ -1325,9 +1326,6 @@
         <input type="checkbox" id="rememberPrintSettings" style="width:auto;">
         <span>記住此設定，下次點擊「列印」直接快速出單 (免再彈出確認視窗)</span>
       </label>
-      <button type="button" id="btnRawbtDirectPrint" onclick="printViaRawbtDirect()" style="padding:4px 10px; background:#047857; color:white; border:none; border-radius:5px; font-size:0.78rem; font-weight:bold; cursor:pointer; display:flex; align-items:center; gap:4px;" title="Android 手機透過 RawBT 直接發送 TSPL 至 192.168.3.128">
-        📱 RawBT 一鍵直印
-      </button>
     </div>
 
     <div style="display:flex; gap:8px;">
@@ -5443,7 +5441,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.3.5) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.3.6) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);
