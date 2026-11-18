@@ -14,82 +14,90 @@ Write-Host "[資訊] 預設標籤貼紙規格    : 90mm x 60mm (Label with Gap)"
 Write-Host "[監聽] 列印代理服務位址   : http://${localIp}:${listenPort}/" -ForegroundColor Green
 Write-Host "[說明] 手機/iPad 在看板填入此電腦 IP ($localIp)，即可一鍵出紙！" -ForegroundColor Yellow
 Write-Host "========================================================" -ForegroundColor Cyan
-Write-Host "服務已就緒，請保持此視窗開啟 (縮小即可，請勿關閉)...`n" -ForegroundColor Green
-
-$listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add("http://+:$listenPort/")
 
 try {
-    $listener.Start()
+    $tcpListener = New-Object System.Net.Sockets.TcpListener([System.Net.IPAddress]::Any, $listenPort)
+    $tcpListener.Start()
+    Write-Host "[SUCCESS] 服務已成功於 Port $listenPort 啟動 (無需系統管理員權限)！" -ForegroundColor Green
+    Write-Host "請保持此視窗開啟 (縮小即可，請勿關閉)...`n" -ForegroundColor Green
 } catch {
-    # 若無管理員權限無法綁定 +，改綁 localhost 與本機 IP
-    $listener = New-Object System.Net.HttpListener
-    $listener.Prefixes.Add("http://localhost:$listenPort/")
-    $listener.Prefixes.Add("http://${localIp}:$listenPort/")
-    try {
-        $listener.Start()
-    } catch {
-        Write-Host "[錯誤] 無法啟動 HTTP 監聽服務：$($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "提示：請嘗試『以系統管理員身分執行』此批次檔。" -ForegroundColor Yellow
-        Read-Host "請按 Enter 鍵結束..."
-        exit
-    }
+    Write-Host "[錯誤] 無法啟動 Port $listenPort：$($_.Exception.Message)" -ForegroundColor Red
+    Read-Host "請按 Enter 鍵結束..."
+    exit
 }
 
-while ($listener.IsListening) {
+while ($true) {
     try {
-        $context = $listener.GetContext()
-        $req = $context.Request
-        $res = $context.Response
+        $client = $tcpListener.AcceptTcpClient()
+        $stream = $client.GetStream()
+        $buffer = New-Object byte[] 65536
+        $bytesRead = $stream.Read($buffer, 0, $buffer.Length)
+        if ($bytesRead -gt 0) {
+            $rawRequest = [System.Text.Encoding]::UTF8.GetString($buffer, 0, $bytesRead)
 
-        $res.Headers.Add('Access-Control-Allow-Origin', '*')
-        $res.Headers.Add('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        $res.Headers.Add('Access-Control-Allow-Headers', 'Content-Type')
-
-        if ($req.HttpMethod -eq 'OPTIONS') {
-            $res.StatusCode = 200
-            $res.Close()
-            continue
-        }
-
-        if ($req.HttpMethod -eq 'POST' -and $req.Url.AbsolutePath -eq '/print') {
-            $reader = New-Object System.IO.StreamReader($req.InputStream, [System.Text.Encoding]::UTF8)
-            $body = $reader.ReadToEnd()
-            try {
-                $json = $body | ConvertFrom-Json
-                $tspl = $json.tspl
-                $timeStr = Get-Date -Format 'HH:mm:ss'
-                Write-Host "[$timeStr] 收到列印請求：單號 $($json.barcode) ($($json.productName))" -ForegroundColor Cyan
-
-                $client = New-Object System.Net.Sockets.TcpClient
-                $client.Connect($printerIp, $printerPort)
-                $stream = $client.GetStream()
-                $bytes = [System.Text.Encoding]::GetEncoding('big5').GetBytes($tspl)
-                $stream.Write($bytes, 0, $bytes.Length)
-                $stream.Flush()
+            # 處理 CORS 預檢請求 OPTIONS
+            if ($rawRequest.StartsWith("OPTIONS")) {
+                $responseStr = "HTTP/1.1 200 OK`r`nAccess-Control-Allow-Origin: *`r`nAccess-Control-Allow-Methods: GET, POST, OPTIONS`r`nAccess-Control-Allow-Headers: Content-Type`r`nContent-Length: 0`r`n`r`n"
+                $respBytes = [System.Text.Encoding]::ASCII.GetBytes($responseStr)
+                $stream.Write($respBytes, 0, $respBytes.Length)
+                $stream.Close()
                 $client.Close()
-
-                Write-Host "[$timeStr] [OK] 90x60mm 標籤已成功傳送至 TSC 印表機！`n" -ForegroundColor Green
-
-                $msg = '{"success":true}'
-                $resBytes = [System.Text.Encoding]::UTF8.GetBytes($msg)
-                $res.ContentType = 'application/json'
-                $res.OutputStream.Write($resBytes, 0, $resBytes.Length)
-            } catch {
-                Write-Host "[錯誤] 傳送至 TSC 印表機失敗：$($_.Exception.Message)" -ForegroundColor Red
-                $msg = "{`"success`":false,`"error`":`"$($_.Exception.Message)`"}"
-                $resBytes = [System.Text.Encoding]::UTF8.GetBytes($msg)
-                $res.StatusCode = 500
-                $res.OutputStream.Write($resBytes, 0, $resBytes.Length)
+                continue
             }
-        } else {
-            $msg = "{`"status`":`"running`",`"printer`":`"${printerIp}:${printerPort}`"}"
-            $resBytes = [System.Text.Encoding]::UTF8.GetBytes($msg)
-            $res.ContentType = 'application/json'
-            $res.OutputStream.Write($resBytes, 0, $resBytes.Length)
+
+            # 解析 HTTP 內文 JSON
+            $bodyIdx = $rawRequest.IndexOf("`r`n`r`n")
+            if ($bodyIdx -ge 0) {
+                $body = $rawRequest.Substring($bodyIdx + 4)
+            } else {
+                $body = ""
+            }
+
+            if ($rawRequest.StartsWith("POST") -and $body) {
+                try {
+                    $json = $body | ConvertFrom-Json
+                    $tspl = $json.tspl
+                    $timeStr = Get-Date -Format 'HH:mm:ss'
+                    Write-Host "[$timeStr] 收到列印請求：單號 $($json.barcode) ($($json.productName))" -ForegroundColor Cyan
+
+                    # 傳送 TSPL 至 TSC 印表機 (Port 9100)
+                    $printerClient = New-Object System.Net.Sockets.TcpClient
+                    $printerClient.Connect($printerIp, $printerPort)
+                    $pStream = $printerClient.GetStream()
+                    $tsplBytes = [System.Text.Encoding]::GetEncoding('big5').GetBytes($tspl)
+                    $pStream.Write($tsplBytes, 0, $tsplBytes.Length)
+                    $pStream.Flush()
+                    $printerClient.Close()
+
+                    Write-Host "[$timeStr] [OK] 90x60mm 標籤已成功傳送至 TSC 印表機！`n" -ForegroundColor Green
+
+                    $jsonResp = '{"success":true}'
+                    $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+                    $headerStr = "HTTP/1.1 200 OK`r`nAccess-Control-Allow-Origin: *`r`nContent-Type: application/json`r`nContent-Length: $($jsonBytes.Length)`r`n`r`n"
+                    $headBytes = [System.Text.Encoding]::ASCII.GetBytes($headerStr)
+                    $stream.Write($headBytes, 0, $headBytes.Length)
+                    $stream.Write($jsonBytes, 0, $jsonBytes.Length)
+                } catch {
+                    Write-Host "[錯誤] 傳送至 TSC 印表機失敗：$($_.Exception.Message)" -ForegroundColor Red
+                    $jsonResp = "{`"success`":false,`"error`":`"$($_.Exception.Message)`"}"
+                    $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+                    $headerStr = "HTTP/1.1 500 Internal Error`r`nAccess-Control-Allow-Origin: *`r`nContent-Type: application/json`r`nContent-Length: $($jsonBytes.Length)`r`n`r`n"
+                    $headBytes = [System.Text.Encoding]::ASCII.GetBytes($headerStr)
+                    $stream.Write($headBytes, 0, $headBytes.Length)
+                    $stream.Write($jsonBytes, 0, $jsonBytes.Length)
+                }
+            } else {
+                $jsonResp = "{`"status`":`"running`",`"printer`":`"${printerIp}:${printerPort}`"}"
+                $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($jsonResp)
+                $headerStr = "HTTP/1.1 200 OK`r`nAccess-Control-Allow-Origin: *`r`nContent-Type: application/json`r`nContent-Length: $($jsonBytes.Length)`r`n`r`n"
+                $headBytes = [System.Text.Encoding]::ASCII.GetBytes($headerStr)
+                $stream.Write($headBytes, 0, $headBytes.Length)
+                $stream.Write($jsonBytes, 0, $jsonBytes.Length)
+            }
         }
-        $res.Close()
+        $stream.Close()
+        $client.Close()
     } catch {
-        # 忽略單次連線異常以保持常駐
+        # 忽略單次連線例外
     }
 }
