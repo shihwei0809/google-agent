@@ -1,12 +1,12 @@
 # 跨電腦交接日誌 (HANDOVER)
 
-## 今日進度與交接事項 (2026-11-18 鴻勝化學 QC 看板升級 v3.3.7：TSC LAN 192.168.3.128 雙軌直印、免裝Python零依賴電腦代理與手機秒出紙)
+## 今日進度與交接事項 (2026-11-18 鴻勝化學 QC 看板升級 v3.3.7：TSC LAN 192.168.3.128 雙軌直印、免管理員權限純TcpListener零依賴代理與手機秒出紙)
 * **鴻勝化學 QC 檢驗即時看板系統升級至 v3.3.7 (`第二類_生產管理與API串接\QC-系統客製化電子化工廠\3_Cloudflare_D1版`):**
   - **手機跨網段 (192.168.38.X -> 192.168.3.128) 終極解決方案**:
-    1. **免裝 Python/Node.js 零依賴 Windows 代理 (`一鍵啟動TSC標籤列印服務.bat`)**：
-       - 利用 Windows 原生 PowerShell 與 .NET `System.Net.HttpListener` + `TcpClient`，純雙擊即開。
-       - 自動偵測並顯示本機 IP，監聽 Port `8099`。
-       - 接收手機送來的樣品 JSON 後，在 0.1 秒內透過 Big5 編碼直通 `192.168.3.128:9100`。
+    1. **免管理員權限、零依賴 Windows 代理 (`一鍵啟動TSC標籤列印服務.bat` + `tsc_print_proxy.ps1`)**：
+       - 克服原 `System.Net.HttpListener` 在非管理員環境會被 Windows 權限封鎖（Access Denied）的問題，改採 .NET 原生 `System.Net.Sockets.TcpListener` 監聽 Port `8099`。
+       - 任何一般使用者帳號雙擊 BAT 即可秒啟動，自動偵測並印出電腦本機 IP（如 `192.168.11.199`）。
+       - 完美處理 HTTP POST `/print` 與 CORS 預檢請求（OPTIONS），接收 TSPL 字串後以 Big5 編碼直通印表機 `192.168.3.128:9100`。
     2. **看板新增綠色「🚀 TSC 90x60 一鍵直印」按鈕**：
        - 手機在列印視窗點擊綠色直印按鈕，直接將標準 TSPL 丟給電腦代理出紙。
        - 徹底避開手機瀏覽器邊距、等比縮放、紙張選項鎖死與跨網段連不到印表機的所有問題！
