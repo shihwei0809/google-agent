@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鴻勝 L02-1 危險品新倉庫建置專案 — 精簡工程甘特圖</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+        }
+        body {
+            background-color: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .slide {
+            width: 1200px;
+            height: 675px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            padding: 30px 45px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+        .slide::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 7px;
+            background: linear-gradient(90deg, #2563eb, #3b82f6, #10b981);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .header h1 {
+            font-size: 23px;
+            color: #0f172a;
+            font-weight: 800;
+        }
+        .header p {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 3px;
+        }
+        .tag {
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid #bfdbfe;
+        }
+        .table-container {
+            margin-top: 10px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 13px;
+        }
+        th {
+            background-color: #1e3a8a;
+            color: white;
+            padding: 8px 6px;
+            font-weight: 600;
+            font-size: 12px;
+            line-height: 1.3;
+        }
+        th:first-child {
+            text-align: left;
+            padding-left: 14px;
+            width: 34%;
+        }
+        td {
+            padding: 8px 6px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            font-size: 12.5px;
+        }
+        td:first-child {
+            text-align: left;
+            padding-left: 14px;
+            line-height: 1.35;
+        }
+        .bar-blue {
+            background-color: #3b82f6;
+            color: white;
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 3px 0;
+            font-size: 11.5px;
+        }
+        .bar-amber {
+            background-color: #f59e0b;
+            color: white;
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 3px 0;
+            font-size: 11.5px;
+        }
+        .bar-red {
+            background-color: #ef4444;
+            color: white;
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 3px 0;
+            font-size: 11.5px;
+        }
+        .bar-green {
+            background-color: #10b981;
+            color: white;
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 3px 0;
+            font-size: 11.5px;
+        }
+        .insights {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #2563eb;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+        .card.warning {
+            border-left-color: #f59e0b;
+            background: #fffdfa;
+        }
+        .card.success {
+            border-left-color: #10b981;
+            background: #fbfefc;
+        }
+        .card h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .card p {
+            font-size: 11.5px;
+            color: #475569;
+            line-height: 1.45;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide">
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h1>鴻勝 L02-1 危險品新倉庫建置專案 — 精簡工程甘特圖</h1>
+            <p>專案目標：2028 Q1 啟用 1,776 儲位新倉 ｜ 原 35 項細項整併為 6 大核心工程模組</p>
+        </div>
+        <div class="tag">專案時程 · 決策層甘特圖</div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>核心工程模組 (整併工項說明)</th>
+                    <th style="width: 10%;">2026 Q4<br><span style="font-size:10px; font-weight:normal;">(11~12月)</span></th>
+                    <th style="width: 10%;">2027 Q1<br><span style="font-size:10px; font-weight:normal;">(1~3月)</span></th>
+                    <th style="width: 10%;">2027 Q2<br><span style="font-size:10px; font-weight:normal;">(4~6月)</span></th>
+                    <th style="width: 10%;">2027 Q3<br><span style="font-size:10px; font-weight:normal;">(7~9月)</span></th>
+                    <th style="width: 10%;">2027 Q4<br><span style="font-size:10px; font-weight:normal;">(10~12月)</span></th>
+                    <th style="width: 10%;">2028 Q1<br><span style="font-size:10px; font-weight:normal;">(1~3月)</span></th>
+                    <th style="width: 13%;">主責 / 協同單位</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>一、發包規劃與建築設計</strong><br><span style="color:#64748b; font-size:11px;">• L02-1 決標、建物設計定稿、建照請領備查</span></td>
+                    <td><div class="bar-blue">■ 決標/設計</div></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td style="font-size:11.5px; color:#64748b;">工務課 / 採購課</td>
+                </tr>
+                <tr style="background-color: #fafbfc;">
+                    <td><strong>二、土木營造與基礎工程</strong><br><span style="color:#64748b; font-size:11px;">• 廠區道路地面、危倉結構(含降溫雨遮)、排水圍牆</span></td>
+                    <td></td>
+                    <td><div class="bar-blue">■ 基礎整地</div></td>
+                    <td><div class="bar-blue">■ 結構施作</div></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td style="font-size:11.5px; color:#64748b;">工務課 (營造廠)</td>
+                </tr>
+                <tr>
+                    <td><strong>三、機電與消防水電工程</strong><br><span style="color:#64748b; font-size:11px;">• 廠區/建物水電、危倉與貨架區消防系統、送電申請</span></td>
+                    <td></td>
+                    <td></td>
+                    <td><div class="bar-blue">■ 機電配管</div></td>
+                    <td><div class="bar-blue">■ 消防/送電</div></td>
+                    <td></td>
+                    <td></td>
+                    <td style="font-size:11.5px; color:#64748b;">工務課 / 機電商</td>
+                </tr>
+                <tr style="background-color: #fafbfc;">
+                    <td><strong>四、高架貨架系統與廠內設備</strong><br><span style="color:#64748b; font-size:11px;">• 貨架 Layout 定稿發包、備料安裝、堆高機充電站</span></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><div class="bar-amber">■ 備料發包</div></td>
+                    <td><div class="bar-amber">■ 貨架安裝</div></td>
+                    <td></td>
+                    <td style="font-size:11.5px; color:#64748b;">資材課 / 設備商</td>
+                </tr>
+                <tr>
+                    <td><strong>五、法定驗收與使用執照取得</strong><br><span style="color:#64748b; font-size:11px;">• 消防竣工查驗現勘、建管竣工審查、使照正式核發</span></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><div class="bar-red">■ 竣工使照</div></td>
+                    <td></td>
+                    <td style="font-size:11.5px; color:#64748b;">工務 / 環安 / 資材</td>
+                </tr>
+                <tr style="background-color: #fafbfc;">
+                    <td><strong>六、客戶認證審查與正式合規投產</strong><br><span style="color:#64748b; font-size:11px;">• 業務提出台積 PCN 審查、保全進駐、危倉正式啟用</span></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><div class="bar-green">★ PCN / 啟用</div></td>
+                    <td style="font-size:11.5px; color:#64748b;">業務部 / 資材課</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Insights Cards -->
+    <div class="insights">
+        <div class="card">
+            <h3>📦 為什麼整併？（報告不失焦）</h3>
+            <p>原表格將「道路、結構、雨遮、圍牆、水電、辦公室」等 35 個庶務與工項過度切碎；整併為 <strong>6 大模組</strong> 後，管理層可一眼綜觀全貌與主責權責。</p>
+        </div>
+        <div class="card warning">
+            <h3>⚡ 關鍵路徑管制（Critical Path）</h3>
+            <p><strong>貨架安裝（2027 Q4）需與機電消防完全密合進場</strong>；<strong>使用執照與正式送電（2027 Q4）</strong>為絕對死線，必須在年底前完成以利客戶認證。</p>
+        </div>
+        <div class="card success">
+            <h3>🎯 2028 Q1 產線放量對接保證</h3>
+            <p><strong>台積 PCN 審查需約 1~2 個月</strong>，規劃於 2028 年 1~2 月完成，剛好趕上 <strong>2028 年新產線放量暴增（3,445板需求）</strong>之時間點，無縫救援！</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <span>前置要件提醒：圍牆與保全系統必須於設備進場前完成；堆高機操作人員認證需於 2027 Q4 前完成受訓。</span>
+        <span>Confidential · L02-1 專案管理小組</span>
+    </div>
+</div>
+
+</body>
+</html>

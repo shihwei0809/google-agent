@@ -48,7 +48,7 @@
         <div class="flex items-center gap-2">
             <span class="text-xl">📲</span>
             <div class="text-xs">
-                <p class="font-bold">安裝 核對系統 V48 PWA</p>
+                <p class="font-bold">安裝 核對系統 V50 PWA (三合一防呆版)</p>
                 <p class="opacity-90">享有全螢幕快速開單與斷網即時防呆卡控</p>
             </div>
         </div>
@@ -111,10 +111,11 @@
                 </div>
                 <div>
                     <div class="flex items-center gap-2">
-                        <h2 class="text-xl font-black text-gray-900 tracking-tight">核對系統 V48</h2>
-                        <span class="bg-blue-100 text-blue-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full">雙軌旗艦版</span>
+                        <h2 class="text-xl font-black text-gray-900 tracking-tight">核對系統 V50</h2>
+                        <span class="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full">防呆升級版</span>
+                        <button onclick="forceUpdateApp()" title="強制清除快取並載入最新版" class="text-[10px] bg-amber-50 text-amber-800 font-bold px-2 py-0.5 rounded border border-amber-200 hover:bg-amber-100 active:scale-95 transition">🔄 檢查更新</button>
                     </div>
-                    <p class="text-[11px] text-gray-500">Cloud+R2 永存 &bull; 斷網離線即時卡控</p>
+                    <p class="text-[11px] text-gray-500">Cloud+R2 永存 &bull; 內建三合一嚴格防呆</p>
                 </div>
             </div>
             <a href="query.html" class="flex items-center gap-1 text-blue-600 font-bold text-xs bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg transition border border-blue-100">
@@ -213,16 +214,45 @@
     </div>
 
     <script>
-        const APP_VERSION = "V48";
-        const QUEUE_STORAGE_KEY = "COA_OFFLINE_VERIFIED_QUEUE_V48";
+        const APP_VERSION = "V50";
+        const QUEUE_STORAGE_KEY = "COA_OFFLINE_VERIFIED_QUEUE_V50";
 
-        // PWA 註冊與離線快取
+        // PWA 註冊與自動更新機制
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('✅ ServiceWorker Registered (V48)'))
+                    .then(reg => {
+                        console.log('✅ ServiceWorker Registered (V50)');
+                        reg.update(); // 強制檢查雲端是否有最新 sw.js
+                        reg.onupdatefound = () => {
+                            const newWorker = reg.installing;
+                            if (newWorker) {
+                                newWorker.onstatechange = () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        console.log('🔄 偵測到最新 V50 版本，自動刷新應用程式！');
+                                        window.location.reload();
+                                    }
+                                };
+                            }
+                        };
+                    })
                     .catch(err => console.warn('ServiceWorker Registration failed:', err));
             });
+        }
+
+        // 強制檢查更新與清除快取函式
+        async function forceUpdateApp() {
+            if (confirm("是否清除手機快取並強制載入最新 V50 防呆版本？")) {
+                if ('caches' in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map(k => caches.delete(k)));
+                }
+                if ('serviceWorker' in navigator) {
+                    const regs = await navigator.serviceWorker.getRegistrations();
+                    for (const r of regs) await r.unregister();
+                }
+                window.location.reload(true);
+            }
         }
 
         // 取得本機暫存佇列 (僅存現場離線核對「成功」的紀錄)
@@ -654,6 +684,30 @@
             const fuzzyCOA = localFuzzy(cleanCOA);
             const fuzzyWeigh = localFuzzy(cleanWeigh);
 
+            // 防呆 1: 地磅照片誤拍三合一單
+            const isSanheyiInLoc = /TSMCLORRY|LORRYMATERIAL|MATERIALBARCODE|LORRYBARCODE|符合出貨規格|CHEMICALLORRY|GASTRAILER|填表人|勝一化工/.test(cleanWeigh);
+            // 防呆 2: 地磅照片誤拍 COA 報告
+            const isCoaInLoc = /SCHEMANAME|COACOMPLETIONDATE|SHELFLIFETIME|SPECNO/.test(cleanWeigh);
+            // 防呆 3: COA 照片誤拍三合一單
+            const isSanheyiInCOA = /TSMCLORRY|LORRYMATERIAL|MATERIALBARCODE|符合出貨規格|填表人/.test(cleanCOA) && !cleanCOA.includes("SCHEMANAME");
+            // 防呆 4: 照片重複
+            const isDuplicate = cleanCOA.length > 30 && cleanWeigh.length > 30 && (cleanCOA === cleanWeigh || cleanCOA.includes(cleanWeigh.slice(0, 50)) || cleanWeigh.includes(cleanCOA.slice(0, 50)));
+            // 防呆 5: 地磅單必須具備地磅/過磅/ESXM 特徵
+            const hasWeighFeature = /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCKSCALE|WEIGH/.test(cleanWeigh);
+
+            let foolProofMsg = "";
+            if (isSanheyiInLoc) {
+                foolProofMsg = "❌ 地磅照片防呆攔截：檢測到拍成【三合一單條碼紙】，非台積電地磅單/過磅單！請拍攝地磅單(ESXM)或過磅螢幕！";
+            } else if (isCoaInLoc) {
+                foolProofMsg = "❌ 地磅照片防呆攔截：檢測到拍成【COA檢驗報告】，非地磅照片！";
+            } else if (isSanheyiInCOA) {
+                foolProofMsg = "❌ COA 照片防呆攔截：檢測到拍成【三合一單條碼紙】，非 COA 檢驗報告！";
+            } else if (isDuplicate) {
+                foolProofMsg = "❌ 照片重複防呆攔截：COA 照片與地磅照片內容高度雷同，請勿上傳同一張照片！";
+            } else if (!hasWeighFeature) {
+                foolProofMsg = "❌ 地磅照片防呆攔截：照片未讀取到台積電磅單編號 (ESXM201) 或地磅特徵，請對準地磅單或螢幕重拍！";
+            }
+
             // A. 批號目標
             const batchTargets = [rawBatch];
             if (rawBatch.startsWith('6') || rawBatch.length >= 11) batchTargets.push(rawBatch.substring(1));
@@ -682,9 +736,12 @@
             // 關卡 4: 地磅 系統批號
             let c4 = batchTargets.some(t => cleanWeigh.includes(t) || fuzzyWeigh.includes(localFuzzy(t)));
 
-            const success = c1 && c2 && c3 && c4;
+            const success = !foolProofMsg && c1 && c2 && c3 && c4;
             let msg = success ? "✅ [現場離線核對成功！] 全數相符" : "❌ [現場即時攔截] 核對不相符 (禁止入料！)";
             msg += "\n----------------";
+            if (foolProofMsg) {
+                msg += `\n🛑 智慧防呆攔截: ${foolProofMsg}\n`;
+            }
             msg += c1 ? "\n✅ COA批號: OK" : "\n❌ COA批號不符";
             msg += c2 ? "\n✅ 送達地點: OK" : ("\n❌ 地點不符 " + (locResult.debug || ""));
             msg += c3 ? "\n✅ 地磅槽號: OK" : "\n❌ 槽號不符";

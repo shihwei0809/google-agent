@@ -123,6 +123,43 @@ function applyFuzzy(text) {
   return text.split("").map(c => FUZZY_MAP[c] || c).join("");
 }
 
+// ==========================================
+// 防呆輔助函式：防拍錯單據與防重複拍攝
+// ==========================================
+function isSanheyiSheet(text, clean) {
+  if (!text && !clean) return false;
+  const t = (text || "").toUpperCase();
+  const c = (clean || "").toUpperCase();
+  
+  if (/TSMC\s*LORRY/i.test(t) || c.includes("TSMCLORRY")) return true;
+  if (/LORRY\s*MATERIAL/i.test(t) || c.includes("LORRYMATERIAL")) return true;
+  if (/MATERIAL\s*BARCODE/i.test(t) || c.includes("MATERIALBARCODE")) return true;
+  if (/LORRY\s*BARCODE/i.test(t) || c.includes("LORRYBARCODE")) return true;
+  if (/符合出貨規格|出貨規格\(SPEC\)|出貨規格/i.test(t) || c.includes("符合出貨規格")) return true;
+  if (/CHEMICAL\s*LORRY|GAS\s*TRAILER/i.test(t) || c.includes("CHEMICALLORRY") || c.includes("GASTRAILER")) return true;
+  if (/填表人\s*\(SUPPLIER\)|填表人/i.test(t) || c.includes("填表人")) return true;
+  if ((t.includes("勝一化工") || c.includes("勝一化工") || t.includes("SHINY CHEMICAL") || c.includes("SHINYCHEMICAL")) &&
+      (t.includes("條碼") || t.includes("BARCODE") || c.includes("BARCODE") || t.includes("送達地點") || c.includes("送達地點"))) {
+    return true;
+  }
+  return false;
+}
+
+function isCoaReportSheet(text, clean) {
+  if (!text && !clean) return false;
+  const c = (clean || "").toUpperCase();
+  return c.includes("SCHEMANAME") || c.includes("COACOMPLETIONDATE") || c.includes("SHELFLIFETIME") || 
+         (c.includes("SPECNO") && c.includes("FABPHASE"));
+}
+
+function checkWeighbridgeFeature(text, clean, weighbridgeNo, sourceDocNo) {
+  if (weighbridgeNo || sourceDocNo) return true;
+  const t = (text || "").toUpperCase();
+  const c = (clean || "").toUpperCase();
+  return /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCK\s*SCALE|WEIGH/i.test(t) ||
+         /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCKSCALE|WEIGH/.test(c);
+}
+
 // 完整對齊 GAS advancedFuzzyCheck + 螢幕摩爾紋單字漏讀容錯 (末4碼流水槽號必須100%相符)
 function advancedFuzzyCheck(ocrText, target, isBatchOnScreen = false) {
   if (!ocrText || !target) return false;
@@ -390,6 +427,10 @@ export async function onRequest(context) {
     if (docMatch) sourceDocNo = docMatch[1];
     const weighMatch = fixedOcr.match(/\b(ESXM2[A-Z0-9\-]+)/i) || cleanWeigh.match(/(ESXM201-[0-9A-Z]{8,11})/);
     if (weighMatch) weighbridgeNo = weighMatch[1];
+    if (!weighbridgeNo) {
+      const matchBackup = textWeigh.match(/(?:磅單編號|磅單)[^\w\d]*([A-Z0-9\-]+)/i) || cleanWeigh.match(/(?:磅單編號|磅單)([A-Z0-9\-]+)/);
+      if (matchBackup) weighbridgeNo = matchBackup[1];
+    }
 
     // 3. 供應商補償
     let finalSupplier = inputSupplier;
@@ -492,9 +533,37 @@ export async function onRequest(context) {
       }
     }
 
-    const isSuccess = check1_Batch && check2_Loc && check3_Tank && check4_SystemBatch;
+    // 🛑 關卡 0: 防呆攔截 (單據種類辨識、防拍錯單據與防重複拍攝)
+    let foolProofError = "";
+
+    // A. 地磅照片絕對不可拍成「三合一單條碼紙」
+    if (isSanheyiSheet(textWeigh, cleanWeigh)) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：檢測到您拍攝的是【三合一單條碼紙】，非台積電地磅單/過磅單！請拍攝地磅單(ESXM)或過磅螢幕！";
+    }
+    // B. 地磅照片不可拍成「COA報告」
+    else if (isCoaReportSheet(textWeigh, cleanWeigh)) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：檢測到您拍攝的是【COA檢驗報告】，非地磅照片！";
+    }
+    // C. COA 照片不可拍成「三合一單條碼紙」
+    else if (isSanheyiSheet(textCOA, cleanCOA) && !isCoaReportSheet(textCOA, cleanCOA)) {
+      foolProofError = "⚠️ COA 照片防呆攔截：檢測到您拍攝的是【三合一單條碼紙】，非 COA 檢驗報告！";
+    }
+    // D. 兩張照片不可重複
+    else if (cleanCOA.length > 30 && cleanWeigh.length > 30 && 
+            (cleanCOA === cleanWeigh || cleanCOA.includes(cleanWeigh.slice(0, 50)) || cleanWeigh.includes(cleanCOA.slice(0, 50)))) {
+      foolProofError = "⚠️ 照片重複防呆攔截：COA 照片與地磅照片內容高度雷同，請勿重複拍攝或上傳同一張照片！";
+    }
+    // E. 地磅照片必須具備台積電磅單(ESXM201)或地磅/過磅單特徵
+    else if (!checkWeighbridgeFeature(textWeigh, cleanWeigh, weighbridgeNo, sourceDocNo)) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：照片未讀取到台積電磅單編號 (ESXM201) 或地磅/過磅單特徵，請對準地磅單或過磅螢幕重拍！";
+    }
+
+    const isSuccess = !foolProofError && check1_Batch && check2_Loc && check3_Tank && check4_SystemBatch;
     let responseMsg = isSuccess ? "✅ 四重核對成功！" : "❌ 核對失敗 (禁止入料！此筆資料【未存檔】)";
     responseMsg += "\n----------------";
+    if (foolProofError) {
+      responseMsg += `\n🛑 智慧防呆攔截: ${foolProofError}\n`;
+    }
     responseMsg += check1_Batch ? "\n✅ COA批號: OK" : "\n❌ COA批號不符";
     responseMsg += check2_Loc ? "\n✅ 地點: OK" : `\n❌ 地點不符 ${locDebugMsg}`;
     responseMsg += check3_Tank ? "\n✅ 槽號: OK" : `\n❌ 槽號不符 ${tankErrorMsg}`;

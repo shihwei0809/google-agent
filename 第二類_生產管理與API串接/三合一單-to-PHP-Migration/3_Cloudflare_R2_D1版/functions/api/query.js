@@ -32,6 +32,15 @@ export async function onRequest(context) {
       }), { headers: corsHeaders });
     }
 
+    // 自動修正測試錯誤紀錄 (將誤拍三合一單的測試資料標記為防呆作廢，防止看板誤認)
+    try {
+      await env.DB.prepare(`
+        UPDATE coa_verification_logs 
+        SET verification_status = '防呆攔截-測試作廢 (誤拍三合一單)' 
+        WHERE (id = 266 OR id = 268) AND verification_status LIKE '%成功%'
+      `).run();
+    } catch (_) {}
+
     const url = new URL(request.url);
     const search = (url.searchParams.get("q") || "").trim();
     const startDate = (url.searchParams.get("start_date") || "").trim();

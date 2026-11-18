@@ -330,9 +330,35 @@ try {
         }
     }
 
-    $isSuccess = $check1_Batch && $check2_Loc && $check3_Tank && $check4_SystemBatch;
-    $responseMsg = $isSuccess ? "✅ 四重核對成功！" : "❌ 核對失敗";
+    // 🛑 關卡 0: 防呆攔截 (單據種類辨識、防拍錯單據與防重複拍攝)
+    $foolProofError = "";
+    $isSanheyiInLoc = (bool)preg_match('/(TSMC\s*LORRY|LORRY\s*MATERIAL|MATERIAL\s*BARCODE|LORRY\s*BARCODE|符合出貨規格|CHEMICAL\s*LORRY|GAS\s*TRAILER|填表人)/i', $textWeigh)
+        || (bool)preg_match('/(TSMCLORRY|LORRYMATERIAL|MATERIALBARCODE|LORRYBARCODE|符合出貨規格|CHEMICALLORRY|GASTRAILER|填表人)/i', $cleanWeigh)
+        || (stripos($cleanWeigh, '勝一化工') !== false && (stripos($cleanWeigh, 'BARCODE') !== false || stripos($cleanWeigh, '條碼') !== false || stripos($cleanWeigh, '送達地點') !== false));
+
+    $isCoaInLoc = (stripos($cleanWeigh, 'SCHEMANAME') !== false || stripos($cleanWeigh, 'COACOMPLETIONDATE') !== false || stripos($cleanWeigh, 'SHELFLIFETIME') !== false);
+    $isSanheyiInCOA = (bool)preg_match('/(TSMC\s*LORRY|LORRY\s*MATERIAL|MATERIAL\s*BARCODE|符合出貨規格|填表人)/i', $textCOA) && stripos($cleanCOA, 'SCHEMANAME') === false;
+    $isDuplicate = (strlen($cleanCOA) > 30 && strlen($cleanWeigh) > 30 && ($cleanCOA === $cleanWeigh || stripos($cleanCOA, substr($cleanWeigh, 0, 50)) !== false || stripos($cleanWeigh, substr($cleanCOA, 0, 50)) !== false));
+    $hasWeighFeature = !empty($weighbridgeNo) || !empty($sourceDocNo) || (bool)preg_match('/(ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCK\s*SCALE|WEIGH)/i', $textWeigh) || (bool)preg_match('/(ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCKSCALE|WEIGH)/i', $cleanWeigh);
+
+    if ($isSanheyiInLoc) {
+        $foolProofError = "⚠️ 地磅照片防呆攔截：檢測到您拍攝的是【三合一單條碼紙】，非台積電地磅單/過磅單！請拍攝地磅單(ESXM)或過磅螢幕！";
+    } elseif ($isCoaInLoc) {
+        $foolProofError = "⚠️ 地磅照片防呆攔截：檢測到您拍攝的是【COA檢驗報告】，非地磅照片！";
+    } elseif ($isSanheyiInCOA) {
+        $foolProofError = "⚠️ COA 照片防呆攔截：檢測到您拍攝的是【三合一單條碼紙】，非 COA 檢驗報告！";
+    } elseif ($isDuplicate) {
+        $foolProofError = "⚠️ 照片重複防呆攔截：COA 照片與地磅照片內容高度雷同，請勿重複拍攝或上傳同一張照片！";
+    } elseif (!$hasWeighFeature) {
+        $foolProofError = "⚠️ 地磅照片防呆攔截：照片未讀取到台積電磅單編號 (ESXM201) 或地磅/過磅單特徵，請對準地磅單或過磅螢幕重拍！";
+    }
+
+    $isSuccess = empty($foolProofError) && $check1_Batch && $check2_Loc && $check3_Tank && $check4_SystemBatch;
+    $responseMsg = $isSuccess ? "✅ 四重核對成功！" : "❌ 核對失敗 (禁止入料！此筆資料【未存檔】)";
     $responseMsg .= "\n----------------";
+    if (!empty($foolProofError)) {
+        $responseMsg .= "\n🛑 智慧防呆攔截: " . $foolProofError . "\n";
+    }
     if ($check1_Batch) $responseMsg .= "\n✅ COA批號: OK"; else $responseMsg .= "\n❌ COA批號不符";
     
     // 顯示地點結果 + 除錯資訊

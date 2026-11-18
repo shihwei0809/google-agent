@@ -497,7 +497,31 @@ function processFormAndVerify_V10(formObject) {
     var check4 = advancedFuzzyCheck(ocrTextLoc, targetBatch);
     var check5 = advancedFuzzyCheck(ocrTextLoc, targetMaterial);
 
-    var isSuccess = check1.pass && check2.pass && check3.pass && check4.pass && check5.pass;
+    // 🛑 關卡 0: 防呆攔截 (單據種類辨識、防拍錯單據與防重複拍攝)
+    var foolProofError = "";
+    var cleanWeigh = ocrTextLoc.replace(/\s+/g, "").toUpperCase();
+    var cleanBatch = ocrTextBatch.replace(/\s+/g, "").toUpperCase();
+    var isSanheyiInLoc = /TSMC\s*LORRY|LORRY\s*MATERIAL|MATERIAL\s*BARCODE|LORRY\s*BARCODE|符合出貨規格|CHEMICAL\s*LORRY|GAS\s*TRAILER|填表人/i.test(ocrTextLoc)
+      || /TSMCLORRY|LORRYMATERIAL|MATERIALBARCODE|LORRYBARCODE|符合出貨規格|CHEMICALLORRY|GASTRAILER|填表人/.test(cleanWeigh)
+      || (cleanWeigh.indexOf("勝一化工") !== -1 && (cleanWeigh.indexOf("BARCODE") !== -1 || cleanWeigh.indexOf("條碼") !== -1 || cleanWeigh.indexOf("送達地點") !== -1));
+    var isCoaInLoc = cleanWeigh.indexOf("SCHEMANAME") !== -1 || cleanWeigh.indexOf("COACOMPLETIONDATE") !== -1 || cleanWeigh.indexOf("SHELFLIFETIME") !== -1;
+    var isSanheyiInCOA = /TSMC\s*LORRY|LORRY\s*MATERIAL|MATERIAL\s*BARCODE|符合出貨規格|填表人/i.test(ocrTextBatch) && cleanBatch.indexOf("SCHEMANAME") === -1;
+    var isDuplicate = cleanBatch.length > 30 && cleanWeigh.length > 30 && (cleanBatch === cleanWeigh || cleanBatch.indexOf(cleanWeigh.substring(0, 50)) !== -1 || cleanWeigh.indexOf(cleanBatch.substring(0, 50)) !== -1);
+    var hasWeighFeature = Boolean(extractedDocOrder || extractedSourceOrder || /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCK\s*SCALE|WEIGH/i.test(ocrTextLoc) || /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCKSCALE|WEIGH/.test(cleanWeigh));
+
+    if (isSanheyiInLoc) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：檢測到拍成【三合一單條碼紙】，非台積電地磅單/過磅單！請拍攝地磅單(ESXM)或過磅螢幕！";
+    } else if (isCoaInLoc) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：檢測到拍成【COA檢驗報告】，非地磅照片！";
+    } else if (isSanheyiInCOA) {
+      foolProofError = "⚠️ COA 照片防呆攔截：檢測到拍成【三合一單條碼紙】，非 COA 檢驗報告！";
+    } else if (isDuplicate) {
+      foolProofError = "⚠️ 照片重複防呆攔截：COA 照片與地磅照片內容高度雷同，請勿重複拍攝或上傳同一張照片！";
+    } else if (!hasWeighFeature) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：照片未讀取到台積電磅單編號 (ESXM201) 或地磅/過磅單特徵，請對準地磅單或過磅螢幕重拍！";
+    }
+
+    var isSuccess = !foolProofError && check1.pass && check2.pass && check3.pass && check4.pass && check5.pass;
     var msg = "";
 
     if (isSuccess) {
@@ -552,6 +576,7 @@ function processFormAndVerify_V10(formObject) {
 
     } else {
       msg = "❌ 核對失敗 (未存檔)，請檢查：\n";
+      if (foolProofError) msg += "🛑 智慧防呆攔截：" + foolProofError + "\n";
       if (!check1.pass) msg += "⚠️ COA照片：找不到批號 (" + targetBatch + ")\n";
       if (!check2.pass) msg += "⚠️ 地磅照片：地點不符 (" + targetPlace + ")\n";
       if (!check3.pass) msg += "⚠️ 地磅照片：找不到槽號 (" + targetTank + ")\n";

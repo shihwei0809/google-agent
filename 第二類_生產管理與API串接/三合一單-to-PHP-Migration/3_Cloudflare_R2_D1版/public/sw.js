@@ -1,5 +1,5 @@
 // Service Worker for COA Check PWA
-const CACHE_NAME = 'coa-check-pwa-v49';
+const CACHE_NAME = 'coa-check-pwa-v50';
 const STATIC_ASSETS = [
   './',
   './index.html',

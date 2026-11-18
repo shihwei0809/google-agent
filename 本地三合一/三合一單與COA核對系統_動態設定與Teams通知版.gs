@@ -1,25 +1,20 @@
 // ==========================================
-// 檔名: 三合一單與COA核對系統_動態設定與Teams通知版
-// 基礎架構: 基於 code_original_backup.js 穩定核心擴充
+// 檔名: 三合一單與COA核對系統_動態設定與Teams通知版 (Cloudflare R2 + GAS 雙邊寫入加強版 V48)
+// 基礎架構: 基於既有穩定核心擴充，100% 向下相容原本所有分頁與功能
 // 核心升級:
-// 1. QR Code 前綴比對處理：
-//    - 前端畫面與 Google Sheets 存檔維持 100% 完整字串 (料號4, 槽號5, 批號6)。
-//    - 僅在執行 COA / 地磅照片比對時，系統自動去除第一碼前綴 (以乾淨目標精準比對)。
-// 2. Teams 工作流程 Webhook 網址全面移至 Google 試算表「設定」分頁：
-//    - 未來 Teams Workflow 流程若有改版或重製，只需在試算表修改該儲存格，【絕不需修改程式碼】！
-// 3. 核對失敗自動記錄至「Error_Log」分頁，並即時透過 Teams 推播詳細警報卡片。
+// 1. 支援 Cloudflare 邊緣向 GAS 讀取金鑰 (action: "getConfig")，並自動過濾有效 AIzaSy 金鑰。
+// 2. 支援 Cloudflare 雙邊同步寫入 (action: "sync_record")：
+//    - 【僅限核對成功】才會寫入 Data_YYYY_MM-MM 分頁（照片網址帶入 Cloudflare R2 高畫質連結）。
+//    - 【核對失敗時】絕不寫入 Data 分頁！僅同步寫入 Error_Log 分頁（含完整 OCR 辨識全文）並發送 Teams 通知！
+// 3. Vision API 多把金鑰自動輪替與容錯重試：第 1 把失敗自動切換第 2 把 Vision Key。
 // ==========================================
 
-// ==========================================
-// 系統設定區 (自動化動態讀取版)
-// ==========================================
 var DEFAULT_USAGE_LIMIT = 900; 
 var BACKUP_FOLDER_ID = "16lBdHf67N3QVfBEbnU2O5fgFa_6H1j4v"; 
-// 備援 Teams Webhook 網址 (若試算表「設定」分頁無設定時使用)
 var DEFAULT_TEAMS_WEBHOOK_URL = "https://defaulta46d9e33ad01451aaec52ee61979c6.d0.environment.api.powerplatform.com:443/powerautomate/automations/direct/cu/22/workflows/91b9b15b99a64990bf3f7116c031dea4/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=huhEyZ8m-m8EKJ7JXRmhR-CtuVI83kTLRADHB12g-7k";
 
 // ==========================================
-// 0. 動態設定管理機制
+// 0. 動態設定管理機制 (所有 API Key 統一由試算表「設定」分頁管理，不寫死於程式碼)
 // ==========================================
 function setupConfigSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -34,7 +29,7 @@ function setupConfigSheet() {
       ["VISION_API_KEY", "填入你的_Google_Vision_金鑰_1", "主力 OCR 金鑰 (每月前 1000 次)"],
       ["VISION_API_KEY", "填入你的_Google_Vision_金鑰_2", "備用 OCR 金鑰"],
       ["GEMINI_API_KEY", "填入你的_Gemini_專用金鑰_1", "Gemini 主力備援金鑰"],
-      ["GEMINI_MODEL", "gemini-3.6-flash", "第 1 順位 (每日 20 次)"],
+      ["GEMINI_MODEL", "gemini-3.8-flash", "第 1 順位 (每日 20 次)"],
       ["GEMINI_MODEL", "gemini-3.5-flash", "第 2 順位 (每日 20 次)"],
       ["GEMINI_MODEL", "gemini-3.5-flash-lite", "第 3 順位 (每日 500 次)"],
       ["GEMINI_MODEL", "gemini-3.1-flash-lite", "第 4 順位 (每日 500 次)"],
@@ -47,7 +42,6 @@ function setupConfigSheet() {
     sheet.setColumnWidth(2, 350);
     sheet.setColumnWidth(3, 250);
     
-    // 初始化 API_Log 分頁
     var logSheet = ss.getSheetByName("API_Log");
     if (!logSheet) {
       logSheet = ss.insertSheet("API_Log");
@@ -80,11 +74,20 @@ function getSystemConfig() {
   for (var i = 1; i < data.length; i++) {
     var key = data[i][0] ? String(data[i][0]).trim() : "";
     var val = data[i][1] ? String(data[i][1]).trim() : "";
-    if (!key || !val) continue;
+    if (!key || !val || val.indexOf("填入") !== -1) continue;
     
-    if (key === "VISION_API_KEY") config.visionKeys.push(val);
-    else if (key === "GEMINI_API_KEY") config.geminiKeys.push(val);
-    else if (key === "GEMINI_MODEL") config.geminiModels.push(val);
+    // 所有金鑰完全從「設定」分頁動態讀取，僅過濾非 AIzaSy 開頭的誤植格式
+    if (key === "VISION_API_KEY" && val.indexOf("AIzaSy") === 0) {
+      if (config.visionKeys.indexOf(val) === -1) config.visionKeys.push(val);
+    }
+    else if (key === "GEMINI_API_KEY") {
+      if (config.geminiKeys.indexOf(val) === -1) config.geminiKeys.push(val);
+    }
+    else if (key === "GEMINI_MODEL") {
+      // 3.6 與 3.7 已停用，若試算表仍填寫舊名稱則自動升級對應為 gemini-3.8-flash
+      var modelName = (val === "gemini-3.6-flash" || val === "gemini-3.7-flash") ? "gemini-3.8-flash" : val;
+      if (config.geminiModels.indexOf(modelName) === -1) config.geminiModels.push(modelName);
+    }
     else if (key === "USAGE_LIMIT") config.usageLimit = parseInt(val) || DEFAULT_USAGE_LIMIT;
     else if (key === "TEAMS_WEBHOOK_URL") config.teamsWebhookUrl = val;
   }
@@ -96,6 +99,21 @@ function getSystemConfig() {
 // 1. 路由控制
 // ==========================================
 function doGet(e) {
+  var action = (e && e.parameter && e.parameter.action) || "";
+  
+  // 若帶有 action=get_config，回傳 JSON 設定供 Cloudflare 讀取
+  if (action === "get_config" || action === "getConfig") {
+    var cfg = getSystemConfig();
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      visionKeys: cfg.visionKeys,
+      geminiKeys: cfg.geminiKeys,
+      geminiModels: cfg.geminiModels,
+      teamsWebhookUrl: cfg.teamsWebhookUrl
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // 預設回傳原本的網頁模板
   return HtmlService.createTemplateFromFile('Index')
       .evaluate()
       .setTitle('台積三合一單與COA 雙重核對系統')
@@ -228,11 +246,10 @@ function formatRowData(row) {
 }
 
 // ==========================================
-// 2.5 Teams (Power Automate) 專用通知模組
+// 2.5 Teams 通知模組
 // ==========================================
 function sendTeamsNotification(details) {
   var config = getSystemConfig();
-  // ★ 優先從 Google 試算表「設定」分頁讀取 Webhook 網址，免改程式碼！
   var webhookUrl = (config && config.teamsWebhookUrl) ? config.teamsWebhookUrl : DEFAULT_TEAMS_WEBHOOK_URL;
   if (!webhookUrl || webhookUrl.indexOf("http") !== 0) return;
 
@@ -330,7 +347,6 @@ function logVerificationError(formObject, errorReason, ocrLoc, ocrBatch) {
     var placeTank = location + (tank ? (" / " + tank) : "");
     var user = formObject && formObject.userName ? String(formObject.userName) : "現場作業員";
     
-    // 寫入 Error_Log 試算表
     errSheet.appendRow([
       timeStr,
       "'" + material,
@@ -342,7 +358,6 @@ function logVerificationError(formObject, errorReason, ocrLoc, ocrBatch) {
       ocrBatch || ""
     ]);
 
-    // 觸發 Teams 通知
     sendTeamsNotification({
       user: user,
       location: location,
@@ -357,7 +372,59 @@ function logVerificationError(formObject, errorReason, ocrLoc, ocrBatch) {
 }
 
 // ==========================================
-// 3. 掃描核對邏輯
+// 2.8 ★★★ Cloudflare 雙邊同步專用寫入函式 (修正：失敗絕不寫入 Data 表) ★★★
+// ==========================================
+function syncRecordFromCloudflare(data) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var isSuccess = data.status === "四重核對成功" || data.status === "核對成功" || data.success === true;
+
+  // ★★★ 核心鐵律：只有核對「成功」才寫入 Data_YYYY_MM-MM 分頁；核對「失敗」絕不寫入 Data！★★★
+  if (isSuccess) {
+    var targetSheetName = getTargetSheetName();
+    var ws = ss.getSheetByName(targetSheetName);
+    
+    if (!ws) { 
+      ws = ss.insertSheet(targetSheetName); 
+      try { ss.setActiveSheet(ws); ss.moveActiveSheet(2); } catch(e){} 
+      ws.appendRow(["時間","料號","槽號","批號","供應商","原始地點","比對用地點","原始QR","狀態","COA照片","地點照片", "來源單號", "磅單編號"]); 
+      ws.getRange("A1:M1").setFontWeight("bold").setBackground("#dbeafe");
+    }
+
+    // 寫入原本的 Data 分頁 (照片使用 Cloudflare R2 高畫質連結)
+    ws.appendRow([
+      new Date(), 
+      "'" + (data.materialNo || ""), 
+      "'" + (data.tankNo || ""), 
+      "'" + (data.batchNo || ""), 
+      data.supplier || "", 
+      data.deliveryPlace || "", 
+      data.deliveryPlace || "", 
+      "'" + (data.rawQr || ""), 
+      "核對成功", 
+      data.photoBatchUrl || "", 
+      data.photoLocUrl || "", 
+      data.sourceDocNo || "", 
+      data.weighbridgeNo || ""      
+    ]);
+
+    return { success: true, message: "雙邊寫入 Google 試算表 Data 成功！" };
+  } else {
+    // 若失敗：【絕不寫入 Data 分頁】，只寫入 Error_Log 分頁（含 OCR 全文）並發送 Teams 通知
+    logVerificationError({
+      materialNo: data.materialNo,
+      tankNo: data.tankNo,
+      batchNo: data.batchNo,
+      supplier: data.supplier,
+      deliveryPlace: data.deliveryPlace,
+      userName: "Cloudflare-PWA現場人員"
+    }, data.errorDetails || "四重驗證不符合", data.ocrLoc || "", data.ocrBatch || "");
+
+    return { success: true, message: "核對失敗已寫入 Error_Log 並通知 Teams（未寫入 Data 分頁）" };
+  }
+}
+
+// ==========================================
+// 3. 掃描核對邏輯 (保持原有完全相容)
 // ==========================================
 function processFormAndVerify_V10(formObject) {
   try {
@@ -371,7 +438,6 @@ function processFormAndVerify_V10(formObject) {
 
     var ocrTextBatch = "", ocrTextLoc = "";
     try {
-      // 讀取設定檔中的 Key 與 模型
       var config = getSystemConfig();
       ocrTextBatch = callVisionAPI(photoDataBatch, config); 
       ocrTextLoc   = callVisionAPI(photoDataLoc, config);   
@@ -394,7 +460,6 @@ function processFormAndVerify_V10(formObject) {
         if (matchBackup) extractedDocOrder = matchBackup[1];
     }
 
-    // 比對專用純淨值 (去除第一碼前綴: 批號6, 槽號5, 料號4，畫面與存檔仍保留完整值)
     var targetBatch = rawQrBatch;
     if (targetBatch.startsWith("6") && targetBatch.length > 1) {
         targetBatch = targetBatch.substring(1);
@@ -408,7 +473,6 @@ function processFormAndVerify_V10(formObject) {
     }
 
     var targetPlace = rawPlace; 
-
     var rawMaterial = formObject.materialNo ? formObject.materialNo.toString().trim() : "";
     var targetMaterial = rawMaterial;
     if (targetMaterial.startsWith("4") && targetMaterial.length > 1) {
@@ -418,13 +482,11 @@ function processFormAndVerify_V10(formObject) {
     var check1 = advancedFuzzyCheck(ocrTextBatch, targetBatch);
     var check2 = smartLocationCheck(ocrTextLoc, targetPlace); 
     
-    // 槽號比對：先嘗試排除批號以避免誤判
     var tempOcrForTank = ocrTextLoc;
     if (targetBatch.length > 5) {
         tempOcrForTank = ocrTextLoc.toUpperCase().split(targetBatch.toUpperCase()).join(""); 
     }
     var check3 = advancedFuzzyCheck(tempOcrForTank, targetTank);
-    // 防呆備援：若批號本身內嵌槽號（如 26A11E3181 內含 E318）導致排除後找不到，且全文確實包含槽號，則視為通過
     if (!check3.pass) {
         var fallbackCheckTank = advancedFuzzyCheck(ocrTextLoc, targetTank);
         if (fallbackCheckTank.pass) {
@@ -435,7 +497,31 @@ function processFormAndVerify_V10(formObject) {
     var check4 = advancedFuzzyCheck(ocrTextLoc, targetBatch);
     var check5 = advancedFuzzyCheck(ocrTextLoc, targetMaterial);
 
-    var isSuccess = check1.pass && check2.pass && check3.pass && check4.pass && check5.pass;
+    // 🛑 關卡 0: 防呆攔截 (單據種類辨識、防拍錯單據與防重複拍攝)
+    var foolProofError = "";
+    var cleanWeigh = ocrTextLoc.replace(/\s+/g, "").toUpperCase();
+    var cleanBatch = ocrTextBatch.replace(/\s+/g, "").toUpperCase();
+    var isSanheyiInLoc = /TSMC\s*LORRY|LORRY\s*MATERIAL|MATERIAL\s*BARCODE|LORRY\s*BARCODE|符合出貨規格|CHEMICAL\s*LORRY|GAS\s*TRAILER|填表人/i.test(ocrTextLoc)
+      || /TSMCLORRY|LORRYMATERIAL|MATERIALBARCODE|LORRYBARCODE|符合出貨規格|CHEMICALLORRY|GASTRAILER|填表人/.test(cleanWeigh)
+      || (cleanWeigh.indexOf("勝一化工") !== -1 && (cleanWeigh.indexOf("BARCODE") !== -1 || cleanWeigh.indexOf("條碼") !== -1 || cleanWeigh.indexOf("送達地點") !== -1));
+    var isCoaInLoc = cleanWeigh.indexOf("SCHEMANAME") !== -1 || cleanWeigh.indexOf("COACOMPLETIONDATE") !== -1 || cleanWeigh.indexOf("SHELFLIFETIME") !== -1;
+    var isSanheyiInCOA = /TSMC\s*LORRY|LORRY\s*MATERIAL|MATERIAL\s*BARCODE|符合出貨規格|填表人/i.test(ocrTextBatch) && cleanBatch.indexOf("SCHEMANAME") === -1;
+    var isDuplicate = cleanBatch.length > 30 && cleanWeigh.length > 30 && (cleanBatch === cleanWeigh || cleanBatch.indexOf(cleanWeigh.substring(0, 50)) !== -1 || cleanWeigh.indexOf(cleanBatch.substring(0, 50)) !== -1);
+    var hasWeighFeature = Boolean(extractedDocOrder || extractedSourceOrder || /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCK\s*SCALE|WEIGH/i.test(ocrTextLoc) || /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCKSCALE|WEIGH/.test(cleanWeigh));
+
+    if (isSanheyiInLoc) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：檢測到拍成【三合一單條碼紙】，非台積電地磅單/過磅單！請拍攝地磅單(ESXM)或過磅螢幕！";
+    } else if (isCoaInLoc) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：檢測到拍成【COA檢驗報告】，非地磅照片！";
+    } else if (isSanheyiInCOA) {
+      foolProofError = "⚠️ COA 照片防呆攔截：檢測到拍成【三合一單條碼紙】，非 COA 檢驗報告！";
+    } else if (isDuplicate) {
+      foolProofError = "⚠️ 照片重複防呆攔截：COA 照片與地磅照片內容高度雷同，請勿重複拍攝或上傳同一張照片！";
+    } else if (!hasWeighFeature) {
+      foolProofError = "⚠️ 地磅照片防呆攔截：照片未讀取到台積電磅單編號 (ESXM201) 或地磅/過磅單特徵，請對準地磅單或過磅螢幕重拍！";
+    }
+
+    var isSuccess = !foolProofError && check1.pass && check2.pass && check3.pass && check4.pass && check5.pass;
     var msg = "";
 
     if (isSuccess) {
@@ -458,6 +544,29 @@ function processFormAndVerify_V10(formObject) {
         formObject.supplier, formObject.deliveryPlace, targetPlace, "'" + (formObject.rawQr||""), 
         "核對成功", urlBatch, urlLoc, extractedSourceOrder, extractedDocOrder      
       ]);
+      try {
+        var cloudPayload = {
+          "時間": Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss"),
+          "料號": formObject.materialNo || "",
+          "槽號": formObject.tankNo || "",
+          "批號": formObject.batchNo || "",
+          "供應商": formObject.supplier || "",
+          "送達地點": formObject.deliveryPlace || targetPlace || "",
+          "狀態": "核對成功",
+          "COA照片": urlBatch || "",
+          "地磅照片": urlLoc || "",
+          "來源單號": extractedSourceOrder || "",
+          "磅單": extractedDocOrder || ""
+        };
+        UrlFetchApp.fetch("https://coa-check-pwa.pages.dev/api/sync-from-gas", {
+          method: "post",
+          contentType: "application/json",
+          payload: JSON.stringify(cloudPayload),
+          muteHttpExceptions: true
+        });
+      } catch (cloudErr) {
+        Logger.log("Cloudflare D1 同步略過: " + cloudErr.message);
+      }
 
       msg = "✅ 完美！全數核對成功\n--------------------\n";
       if(extractedSourceOrder) msg += "📄 來源單號：" + extractedSourceOrder + "\n";
@@ -467,15 +576,14 @@ function processFormAndVerify_V10(formObject) {
 
     } else {
       msg = "❌ 核對失敗 (未存檔)，請檢查：\n";
+      if (foolProofError) msg += "🛑 智慧防呆攔截：" + foolProofError + "\n";
       if (!check1.pass) msg += "⚠️ COA照片：找不到批號 (" + targetBatch + ")\n";
       if (!check2.pass) msg += "⚠️ 地磅照片：地點不符 (" + targetPlace + ")\n";
       if (!check3.pass) msg += "⚠️ 地磅照片：找不到槽號 (" + targetTank + ")\n";
       if (!check4.pass) msg += "⚠️ 地磅照片：畫面批號錯誤 (" + targetBatch + ")\n";
       if (!check5.pass) msg += "⚠️ 地磅照片：找不到料號 (" + targetMaterial + ")\n";
 
-      // ★ 核心修復：寫入 Error_Log 試算表，並自動發送 Teams 通知
       logVerificationError(formObject, msg, ocrTextLoc, ocrTextBatch);
-
       return { success: false, message: msg };
     }
   } catch (e) { 
@@ -486,34 +594,35 @@ function processFormAndVerify_V10(formObject) {
 }
 
 // ==========================================
-// 4. API 呼叫與瀑布流備援邏輯
+// 4. API 呼叫與備援 (支援多把 Vision 金鑰輪流分攤 + 每把 900 次免費上限防收費鎖定)
 // ==========================================
-function getSmartApiKey(visionKeys, usageLimit) {
-  if (!visionKeys || visionKeys.length === 0) return "";
-  
+function checkAndResetMonthlyUsage() {
   var props = PropertiesService.getScriptProperties();
   var currentMonth = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM");
   var lastResetMonth = props.getProperty("LAST_RESET_MONTH");
   if (lastResetMonth !== currentMonth) {
-    props.setProperty("USAGE_COUNT", "0");
+    var allProps = props.getProperties();
+    for (var k in allProps) {
+      if (k.indexOf("USAGE_COUNT") === 0 || k === "RR_INDEX") {
+        props.deleteProperty(k);
+      }
+    }
     props.setProperty("LAST_RESET_MONTH", currentMonth);
   }
-  
-  var usage = parseInt(props.getProperty("USAGE_COUNT") || "0");
-  var keyIndex = Math.floor(usage / usageLimit);
-  
-  // 如果超過所有 Key 的限制，預設使用最後一把，讓它自然報錯並進入 Gemini 備援
-  if (keyIndex >= visionKeys.length) {
-    keyIndex = visionKeys.length - 1;
-  }
-  
-  return visionKeys[keyIndex];
+  return props;
 }
 
-function incrementApiUsage() {
-  var props = PropertiesService.getScriptProperties();
-  var usage = parseInt(props.getProperty("USAGE_COUNT") || "0");
-  props.setProperty("USAGE_COUNT", String(usage + 1));
+function getKeyMonthlyUsage(props, keyIndex) {
+  return parseInt(props.getProperty("USAGE_COUNT_KEY_" + keyIndex) || "0");
+}
+
+function incrementKeyMonthlyUsage(props, keyIndex, totalKeys) {
+  var cur = getKeyMonthlyUsage(props, keyIndex) + 1;
+  props.setProperty("USAGE_COUNT_KEY_" + keyIndex, String(cur));
+  // 推進輪流指標 (Round-Robin)，讓下一張照片自動換下一把 Key
+  var nextIndex = (keyIndex + 1) % totalKeys;
+  props.setProperty("RR_INDEX", String(nextIndex));
+  return cur;
 }
 
 function logApiUsage(apiType, modelName, keyString, status, note) {
@@ -521,14 +630,12 @@ function logApiUsage(apiType, modelName, keyString, status, note) {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var logSheet = ss.getSheetByName("API_Log");
     if (!logSheet) return; 
-    
     var maskedKey = "N/A";
     if (keyString && keyString.length > 12) {
       maskedKey = keyString.substring(0, 8) + "..." + keyString.substring(keyString.length - 4);
     } else if (keyString) {
       maskedKey = keyString;
     }
-    
     var timeStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
     logSheet.appendRow([timeStr, apiType, modelName, maskedKey, status, note || ""]);
   } catch (e) {
@@ -536,100 +643,79 @@ function logApiUsage(apiType, modelName, keyString, status, note) {
   }
 }
 
-// ★ 主要辨識介面 (包含瀑布流機制)
 function callVisionAPI(base64Data, config) {
   if (!config) config = getSystemConfig();
-  
-  // 第一階段：Google Cloud Vision
   if (config.visionKeys && config.visionKeys.length > 0) {
-    var currentKey = getSmartApiKey(config.visionKeys, config.usageLimit);
-    var url = "https://vision.googleapis.com/v1/images:annotate?key=" + currentKey;
-    var payload = { "requests": [{ "image": { "content": base64Data.split(',')[1] }, "features": [{ "type": "TEXT_DETECTION" }] }] };
-    
-    try {
-      var response = UrlFetchApp.fetch(url, { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
-      var json = JSON.parse(response.getContentText());
-      
-      if (!json.error) {
-        incrementApiUsage(); 
-        logApiUsage("Google Vision", "default", currentKey, "✅ 成功", "");
-        return (json.responses && json.responses[0].fullTextAnnotation) ? json.responses[0].fullTextAnnotation.text : "";
-      } else {
-        Logger.log("Google Vision API 失敗或額度耗盡: " + json.error.message);
-        logApiUsage("Google Vision", "default", currentKey, "❌ 失敗", json.error.message);
-        // 如果報錯，主動進入 Catch 啟動備援
+    var props = checkAndResetMonthlyUsage();
+    var totalKeys = config.visionKeys.length;
+    var limit = config.usageLimit || DEFAULT_USAGE_LIMIT; // 預設 900 次防收費上限
+    var rrStart = parseInt(props.getProperty("RR_INDEX") || "0") % totalKeys;
+
+    // 輪流嘗試每一把尚未達到 900 次上限的 Vision API Key
+    for (var attempt = 0; attempt < totalKeys; attempt++) {
+      var idx = (rrStart + attempt) % totalKeys;
+      var keyUsage = getKeyMonthlyUsage(props, idx);
+
+      // ★ 防收費鐵律：單把 Key 當月達 900 次即強制略過，絕不超過 1000 次免費額度
+      if (keyUsage >= limit) {
+        continue;
       }
-    } catch (e) {
-      Logger.log("Google Vision API 連線失敗: " + e.message);
-      logApiUsage("Google Vision", "default", currentKey, "❌ 連線失敗", e.message);
+
+      var currentKey = config.visionKeys[idx];
+      var url = "https://vision.googleapis.com/v1/images:annotate?key=" + currentKey;
+      var payload = { "requests": [{ "image": { "content": base64Data.split(',')[1] }, "features": [{ "type": "TEXT_DETECTION" }] }] };
+      try {
+        var response = UrlFetchApp.fetch(url, { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
+        var json = JSON.parse(response.getContentText());
+        if (!json.error) {
+          var newCount = incrementKeyMonthlyUsage(props, idx, totalKeys);
+          logApiUsage("Google Vision", "default", currentKey, "✅ 成功", "輪流 Key#" + (idx + 1) + " (當月累計: " + newCount + "/" + limit + ")");
+          return (json.responses && json.responses[0].fullTextAnnotation) ? json.responses[0].fullTextAnnotation.text : "";
+        } else {
+          logApiUsage("Google Vision", "default", currentKey, "❌ 失敗", json.error.message);
+        }
+      } catch (e) {
+        logApiUsage("Google Vision", "default", currentKey, "❌ 連線失敗", e.message);
+      }
     }
   }
 
-  // 第二階段：Gemini 模型瀑布流降級機制 (雙迴圈支援多模型+多金鑰)
   if (config.geminiKeys && config.geminiKeys.length > 0 && config.geminiModels && config.geminiModels.length > 0) {
-    
     for (var i = 0; i < config.geminiModels.length; i++) {
       var modelName = config.geminiModels[i];
-      
       for (var k = 0; k < config.geminiKeys.length; k++) {
         var geminiKey = config.geminiKeys[k];
-        Logger.log("嘗試呼叫備援模型: " + modelName + " (使用第 " + (k + 1) + " 把金鑰)");
-        
         var geminiResult = callSpecificGeminiModel(base64Data, geminiKey, modelName);
         if (geminiResult !== null) {
           logApiUsage("Gemini Fallback", modelName, geminiKey, "✅ 成功", "備援接手成功");
-          return geminiResult; // 成功解析出文字，直接回傳
+          return geminiResult;
         }
-        // 如果失敗(null)，自動嘗試下一把金鑰；如果這模型的所有金鑰都用光，再換下一個更舊的模型
       }
     }
   }
-  
   throw new Error("所有辨識 API 皆已用盡或發生錯誤！請檢查試算表設定金鑰。");
 }
 
 function callSpecificGeminiModel(base64Data, apiKey, modelName) {
   var url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + apiKey;
   var rawBase64 = base64Data.split(',')[1];
-  
   var payload = {
     "contents": [
       {
         "parts": [
           { "text": "請將這張圖片裡的所有文字完整讀取出來，不要加上任何額外的說明或引號。" },
-          {
-            "inlineData": {
-              "mimeType": "image/jpeg",
-              "data": rawBase64
-            }
-          }
+          { "inlineData": { "mimeType": "image/jpeg", "data": rawBase64 } }
         ]
       }
     ]
   };
-  
   try {
-    var response = UrlFetchApp.fetch(url, {
-      "method": "post",
-      "contentType": "application/json",
-      "payload": JSON.stringify(payload),
-      "muteHttpExceptions": true
-    });
-    
+    var response = UrlFetchApp.fetch(url, { "method": "post", "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true });
     var json = JSON.parse(response.getContentText());
-    if (json.error) {
-      Logger.log("Gemini " + modelName + " 失敗：" + json.error.message);
-      logApiUsage("Gemini Fallback", modelName, apiKey, "❌ 失敗", json.error.message);
-      return null;
-    }
-    
     if (json.candidates && json.candidates.length > 0 && json.candidates[0].content && json.candidates[0].content.parts) {
       return json.candidates[0].content.parts[0].text;
     }
-  } catch (e) {
-    Logger.log("Gemini 連線異常：" + e.message);
-  }
-  
+  } catch (e) {}
   return null;
 }
 
@@ -676,44 +762,33 @@ function getTargetSheetName() {
   return "Data_" + year + "_" + pad(startMonth) + "-" + pad(endMonth);
 }
 
-// ★ V43 修正：嚴格移除 E 並拆分 8 碼（前四廠別、後四廠區）雙重相符判定
 function smartLocationCheck(ocrText, target) {
   if (!ocrText || !target) return { pass: false };
   var cleanOCR = ocrText.toUpperCase().replace(/[\s-]/g, ""); 
   var cleanTarget = target.toUpperCase().replace(/[\s-]/g, "");
-
-  // 1. 完全命中 (基本防呆)
   if (cleanOCR.includes(cleanTarget)) return { pass: true };
-
-  // 2. 移除開頭的 E
   var processedTarget = cleanTarget;
-  if (processedTarget.startsWith("E")) {
-      processedTarget = processedTarget.substring(1);
-  }
-
-  // 3. 核心邏輯：將剩下的 8 碼拆分為前四與後四
+  if (processedTarget.startsWith("E")) processedTarget = processedTarget.substring(1);
   if (processedTarget.length === 8) {
-      var part1 = processedTarget.substring(0, 4); // 前四碼：廠別 (如 F180 或 0070)
-      var part2 = processedTarget.substring(4);    // 後四碼：廠區 (如 183B 或 0001)
-      
-      // 廠別跟廠區都必須同時相符才算通過
-      if (cleanOCR.includes(part1) && cleanOCR.includes(part2)) {
-          return { pass: true };
+      var part1 = processedTarget.substring(0, 4);
+      var part2 = processedTarget.substring(4);
+      var p1Idx = cleanOCR.indexOf(part1);
+      if (p1Idx !== -1) {
+        var cleanRest = cleanOCR.slice(0, p1Idx) + " " + cleanOCR.slice(p1Idx + part1.length);
+        if (cleanRest.includes(part2)) return { pass: true };
       }
   }
-
-  // 4. 螢幕反光 2 與 3 的 OCR 雙向容錯處理 (維持原有的防誤判機制)
   var fuzzyOCR = cleanOCR.replace(/2/g, "3");
   var fuzzyTarget = processedTarget.replace(/2/g, "3");
-  
   if (fuzzyTarget.length === 8) {
       var fPart1 = fuzzyTarget.substring(0, 4);
       var fPart2 = fuzzyTarget.substring(4);
-      if (fuzzyOCR.includes(fPart1) && fuzzyOCR.includes(fPart2)) {
-          return { pass: true };
+      var fp1Idx = fuzzyOCR.indexOf(fPart1);
+      if (fp1Idx !== -1) {
+        var fRest = fuzzyOCR.slice(0, fp1Idx) + " " + fuzzyOCR.slice(fp1Idx + fPart1.length);
+        if (fRest.includes(fPart2)) return { pass: true };
       }
   }
-
   return { pass: false };
 }
 
@@ -737,20 +812,26 @@ function advancedFuzzyCheck(ocrText, target) {
     var fO = cleanOCR.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]});
     var fT = t.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]});
     if (fO.includes(fT)) return true;
+
+    // 針對地磅螢幕摩爾紋造成 10 碼批號前段漏 1 字元容錯 (鎖定末 4 碼流水槽號必須 100% 相符)
+    if (t.length >= 9) {
+      var suffix4 = t.slice(-4);
+      var prefix = t.slice(0, -4);
+      for (var i = 1; i < prefix.length; i++) {
+        var droppedOne = prefix.slice(0, i) + prefix.slice(i + 1) + suffix4;
+        if (cleanOCR.includes(droppedOne) || fO.includes(droppedOne.replace(/[OIZS]/g, function(m){return {'O':'0','I':'1','Z':'2','S':'5'}[m]}))) {
+          return true;
+        }
+      }
+    }
     return false;
   }
 
-  // 1. 完全或容錯比對 cleanTarget
   if (testMatch(cleanTarget)) return { pass: true };
-
-  // 2. 自動去除第一碼前綴比對 (若開頭為數字且長度 >= 3)
   if (cleanTarget.match(/^\d/)) {
     var noPrefix = cleanTarget.substring(1);
-    if (noPrefix.length >= 3 && testMatch(noPrefix)) {
-      return { pass: true };
-    }
+    if (noPrefix.length >= 3 && testMatch(noPrefix)) return { pass: true };
   }
-
   return { pass: false };
 }
 
@@ -763,10 +844,9 @@ function saveImageToDrive(base64Data, prefix) {
 }
 
 // ==========================================
-// 5. PWA 專用 API 接口 (支援外部 fetch 呼叫)
+// 5. PWA 與 Cloudflare 專用 API 接口
 // ==========================================
 function doPost(e) {
-  // 允許跨域請求 (CORS) 預檢
   if (typeof e === 'undefined') {
     return ContentService.createTextOutput(JSON.stringify({ error: 'No data' })).setMimeType(ContentService.MimeType.JSON);
   }
@@ -776,8 +856,16 @@ function doPost(e) {
     var action = requestData.action;
     var result = {};
 
-    // 根據 PWA 傳來的 action 執行對應的現有函式
-    if (action === "analyzeLabelPhoto") {
+    // ★ 1. Cloudflare 向 GAS 動態要最新設定與金鑰
+    if (action === "getConfig" || action === "get_config") {
+      result = Object.assign({ success: true }, getSystemConfig());
+    }
+    // ★ 2. Cloudflare 雙邊同步寫入核對紀錄 (帶 R2 照片網址)
+    else if (action === "sync_record") {
+      result = syncRecordFromCloudflare(requestData);
+    }
+    // 3. 原有功能完全相容
+    else if (action === "analyzeLabelPhoto") {
       result = analyzeLabelPhoto(requestData.base64Data);
     } 
     else if (action === "processFormAndVerify") {
@@ -793,7 +881,6 @@ function doPost(e) {
       result = { success: false, message: "未知的 API 動作: " + action };
     }
 
-    // 回傳 JSON 給 PWA
     return ContentService.createTextOutput(JSON.stringify(result))
       .setMimeType(ContentService.MimeType.JSON);
 

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>危險品儲位中長期供需推估與擴充評估</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+        }
+        body {
+            background-color: #0f172a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .slide {
+            width: 1200px;
+            height: 675px;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            padding: 30px 45px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+        }
+        .slide::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 7px;
+            background: linear-gradient(90deg, #2563eb, #10b981, #f59e0b);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .header h1 {
+            font-size: 24px;
+            color: #0f172a;
+            font-weight: 800;
+        }
+        .header p {
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 3px;
+        }
+        .tag {
+            background: #eff6ff;
+            color: #1d4ed8;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid #bfdbfe;
+        }
+        .unit-note {
+            text-align: right;
+            font-size: 11.5px;
+            color: #64748b;
+            margin-top: 4px;
+            margin-bottom: 2px;
+        }
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 13px;
+        }
+        th {
+            background-color: #1e3a8a;
+            color: white;
+            padding: 6px 10px;
+            font-weight: 600;
+        }
+        th:first-child {
+            text-align: left;
+            padding-left: 14px;
+            width: 35%;
+        }
+        td {
+            padding: 5.5px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+        }
+        td:first-child {
+            text-align: left;
+            padding-left: 14px;
+            font-weight: 500;
+        }
+        tr.highlight-new {
+            background-color: #fef3c7;
+            font-weight: 700;
+            color: #92400e;
+        }
+        tr.highlight-supply {
+            background-color: #eff6ff;
+            font-weight: 700;
+            color: #1e40af;
+        }
+        tr.highlight-demand {
+            background-color: #f8fafc;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        tr.highlight-olddiff {
+            background-color: #fef2f2;
+            font-weight: 600;
+        }
+        tr.highlight-finaldiff {
+            background-color: #f0fdf4;
+            font-weight: 800;
+        }
+        .text-red {
+            color: #dc2626 !important;
+            font-weight: 800;
+        }
+        .text-green {
+            color: #16a34a !important;
+            font-weight: 800;
+        }
+        .insights {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-top: 8px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #2563eb;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+        .card.warning {
+            border-left-color: #f59e0b;
+            background: #fffdfa;
+        }
+        .card.success {
+            border-left-color: #10b981;
+            background: #fbfefc;
+        }
+        .card h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .card p {
+            font-size: 11.5px;
+            color: #475569;
+            line-height: 1.45;
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #94a3b8;
+            margin-top: 4px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="slide">
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h1>危險品儲位中長期供需推估與擴充評估</h1>
+            <p>崙尾第6層擴充效益、2028新產線放量瓶頸及新增 1,776 儲位新倉之綜合評估</p>
+        </div>
+        <div class="tag">策略報告 · 經營分析</div>
+    </div>
+
+    <!-- Table -->
+    <div>
+        <div class="unit-note">單位：板</div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>項目 ＼ 年度</th>
+                        <th>2026</th>
+                        <th>2027</th>
+                        <th>2028</th>
+                        <th>2029</th>
+                        <th>2030</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>　• 彰濱一廠：第二庫房</td>
+                        <td>560</td>
+                        <td>560</td>
+                        <td>560</td>
+                        <td>560</td>
+                        <td>560</td>
+                    </tr>
+                    <tr>
+                        <td>　• 彰濱二廠：崙尾危倉 (1~5層)</td>
+                        <td>1,480</td>
+                        <td>1,480</td>
+                        <td>1,480</td>
+                        <td>1,480</td>
+                        <td>1,480</td>
+                    </tr>
+                    <tr>
+                        <td>　• 增闢方案：崙尾第6層放置效益</td>
+                        <td>+296</td>
+                        <td>+296</td>
+                        <td>+296</td>
+                        <td>+296</td>
+                        <td>+296</td>
+                    </tr>
+                    <tr class="highlight-new">
+                        <td>　• 2028 新增倉庫 (新增 +1,776 板)</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>+1,776</td>
+                        <td>+1,776</td>
+                        <td>+1,776</td>
+                    </tr>
+                    <tr class="highlight-supply">
+                        <td>總可用儲位供給 (含第6層與新倉)</td>
+                        <td>2,336</td>
+                        <td>2,336</td>
+                        <td>4,112</td>
+                        <td>4,112</td>
+                        <td>4,112</td>
+                    </tr>
+                    <tr class="highlight-demand">
+                        <td>預估儲位需求 (新產線2028放量)</td>
+                        <td>2,000</td>
+                        <td>2,227</td>
+                        <td>3,445</td>
+                        <td>3,576</td>
+                        <td>3,745</td>
+                    </tr>
+                    <tr class="highlight-olddiff">
+                        <td>未加新倉差額 (原2,336板)</td>
+                        <td class="text-green">+336</td>
+                        <td class="text-green">+109</td>
+                        <td class="text-red">-1,109</td>
+                        <td class="text-red">-1,240</td>
+                        <td class="text-red">-1,409</td>
+                    </tr>
+                    <tr class="highlight-finaldiff">
+                        <td>最終供需差額 (含2028新倉)</td>
+                        <td class="text-green">+336</td>
+                        <td class="text-green">+109</td>
+                        <td class="text-green">+667</td>
+                        <td class="text-green">+536</td>
+                        <td class="text-green">+367</td>
+                    </tr>
+                    <tr style="font-weight: 700;">
+                        <td>儲位充足性綜合判定</td>
+                        <td class="text-green">安全充裕</td>
+                        <td class="text-green">安全 (微幅充裕)</td>
+                        <td class="text-green">安全充裕</td>
+                        <td class="text-green">安全充裕</td>
+                        <td class="text-green">安全 (餘量遞減)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Insights Cards -->
+    <div class="insights">
+        <div class="card">
+            <h3>✅ 短期過渡（2026～2027）</h3>
+            <p>崙尾第 6 層開放增加 <strong>+296 板</strong>，總可用儲位達 2,336 板。2026 年盈餘 336 板、2027 年維持 <strong>+109 板安全盈餘</strong>，足以支撐新產線建置初期之存放需求。</p>
+        </div>
+        <div class="card warning">
+            <h3>🚀 2028 新產線放量與新倉救援</h3>
+            <p>2027 產線建置後於 2028 正式放量，需求跳升 55% 至 3,445 板（原將面臨 -1,109 板斷崖赤字）。<strong>2028 年新倉（+1,776 板）即時加入</strong>，總供給達 4,112 板，成功轉為 <strong>+667 板充裕水位</strong>。</p>
+        </div>
+        <div class="card success">
+            <h3>🎯 中長期策略建言（2028～2030）</h3>
+            <p>新倉加入後全期均為安全水位，但隨業務擴張，盈餘將由 <strong>+667 板逐年縮減至 +367 板</strong>。新倉工程須於 2027 年底前完工驗收，確保 2028 Q1 產線放量時無縫對接。</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <span>說明：新倉自 2028 年起納入計算（+1,776板）；若嚴格落實酸鹼隔離或淨空通道，可用儲位預計再減少約 300 板。</span>
+        <span>Confidential · Internal Only</span>
+    </div>
+</div>
+
+</body>
+</html>

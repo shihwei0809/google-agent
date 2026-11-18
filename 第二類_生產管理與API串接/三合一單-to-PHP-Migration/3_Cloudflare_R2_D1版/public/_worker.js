@@ -344,6 +344,33 @@ function applyFuzzy(text) {
   if (!text) return "";
   return text.split("").map((c) => FUZZY_MAP[c] || c).join("");
 }
+function isSanheyiSheet(text, clean) {
+  if (!text && !clean) return false;
+  const t = (text || "").toUpperCase();
+  const c = (clean || "").toUpperCase();
+  if (/TSMC\s*LORRY/i.test(t) || c.includes("TSMCLORRY")) return true;
+  if (/LORRY\s*MATERIAL/i.test(t) || c.includes("LORRYMATERIAL")) return true;
+  if (/MATERIAL\s*BARCODE/i.test(t) || c.includes("MATERIALBARCODE")) return true;
+  if (/LORRY\s*BARCODE/i.test(t) || c.includes("LORRYBARCODE")) return true;
+  if (/符合出貨規格|出貨規格\(SPEC\)|出貨規格/i.test(t) || c.includes("\u7B26\u5408\u51FA\u8CA8\u898F\u683C")) return true;
+  if (/CHEMICAL\s*LORRY|GAS\s*TRAILER/i.test(t) || c.includes("CHEMICALLORRY") || c.includes("GASTRAILER")) return true;
+  if (/填表人\s*\(SUPPLIER\)|填表人/i.test(t) || c.includes("\u586B\u8868\u4EBA")) return true;
+  if ((t.includes("\u52DD\u4E00\u5316\u5DE5") || c.includes("\u52DD\u4E00\u5316\u5DE5") || t.includes("SHINY CHEMICAL") || c.includes("SHINYCHEMICAL")) && (t.includes("\u689D\u78BC") || t.includes("BARCODE") || c.includes("BARCODE") || t.includes("\u9001\u9054\u5730\u9EDE") || c.includes("\u9001\u9054\u5730\u9EDE"))) {
+    return true;
+  }
+  return false;
+}
+function isCoaReportSheet(text, clean) {
+  if (!text && !clean) return false;
+  const c = (clean || "").toUpperCase();
+  return c.includes("SCHEMANAME") || c.includes("COACOMPLETIONDATE") || c.includes("SHELFLIFETIME") || c.includes("SPECNO") && c.includes("FABPHASE");
+}
+function checkWeighbridgeFeature(text, clean, weighbridgeNo, sourceDocNo) {
+  if (weighbridgeNo || sourceDocNo) return true;
+  const t = (text || "").toUpperCase();
+  const c = (clean || "").toUpperCase();
+  return /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCK\s*SCALE|WEIGH/i.test(t) || /ESXM|過磅|地磅|磅單|毛重|皮重|淨重|TRUCKSCALE|WEIGH/.test(c);
+}
 function advancedFuzzyCheck(ocrText, target, isBatchOnScreen = false) {
   if (!ocrText || !target) return false;
   const cleanOCR = ocrText.toUpperCase().replace(/[\s\-:：]/g, "");
@@ -561,6 +588,10 @@ async function onRequest(context) {
     if (docMatch) sourceDocNo = docMatch[1];
     const weighMatch = fixedOcr.match(/\b(ESXM2[A-Z0-9\-]+)/i) || cleanWeigh.match(/(ESXM201-[0-9A-Z]{8,11})/);
     if (weighMatch) weighbridgeNo = weighMatch[1];
+    if (!weighbridgeNo) {
+      const matchBackup = textWeigh.match(/(?:磅單編號|磅單)[^\w\d]*([A-Z0-9\-]+)/i) || cleanWeigh.match(/(?:磅單編號|磅單)([A-Z0-9\-]+)/);
+      if (matchBackup) weighbridgeNo = matchBackup[1];
+    }
     let finalSupplier = inputSupplier;
     if (!finalSupplier) {
       const sMatch1 = textWeigh.match(/供應商[\s:.]*([0-9]{5,})/);
@@ -646,9 +677,26 @@ async function onRequest(context) {
 \u{1F50D} AI \u8B80\u5230\u958B\u982D: ${cleanWeigh.slice(0, 15)}...`;
       }
     }
-    const isSuccess = check1_Batch && check2_Loc && check3_Tank && check4_SystemBatch;
+    let foolProofError = "";
+    if (isSanheyiSheet(textWeigh, cleanWeigh)) {
+      foolProofError = "\u26A0\uFE0F \u5730\u78C5\u7167\u7247\u9632\u5446\u6514\u622A\uFF1A\u6AA2\u6E2C\u5230\u60A8\u62CD\u651D\u7684\u662F\u3010\u4E09\u5408\u4E00\u55AE\u689D\u78BC\u7D19\u3011\uFF0C\u975E\u53F0\u7A4D\u96FB\u5730\u78C5\u55AE/\u904E\u78C5\u55AE\uFF01\u8ACB\u62CD\u651D\u5730\u78C5\u55AE(ESXM)\u6216\u904E\u78C5\u87A2\u5E55\uFF01";
+    } else if (isCoaReportSheet(textWeigh, cleanWeigh)) {
+      foolProofError = "\u26A0\uFE0F \u5730\u78C5\u7167\u7247\u9632\u5446\u6514\u622A\uFF1A\u6AA2\u6E2C\u5230\u60A8\u62CD\u651D\u7684\u662F\u3010COA\u6AA2\u9A57\u5831\u544A\u3011\uFF0C\u975E\u5730\u78C5\u7167\u7247\uFF01";
+    } else if (isSanheyiSheet(textCOA, cleanCOA) && !isCoaReportSheet(textCOA, cleanCOA)) {
+      foolProofError = "\u26A0\uFE0F COA \u7167\u7247\u9632\u5446\u6514\u622A\uFF1A\u6AA2\u6E2C\u5230\u60A8\u62CD\u651D\u7684\u662F\u3010\u4E09\u5408\u4E00\u55AE\u689D\u78BC\u7D19\u3011\uFF0C\u975E COA \u6AA2\u9A57\u5831\u544A\uFF01";
+    } else if (cleanCOA.length > 30 && cleanWeigh.length > 30 && (cleanCOA === cleanWeigh || cleanCOA.includes(cleanWeigh.slice(0, 50)) || cleanWeigh.includes(cleanCOA.slice(0, 50)))) {
+      foolProofError = "\u26A0\uFE0F \u7167\u7247\u91CD\u8907\u9632\u5446\u6514\u622A\uFF1ACOA \u7167\u7247\u8207\u5730\u78C5\u7167\u7247\u5167\u5BB9\u9AD8\u5EA6\u96F7\u540C\uFF0C\u8ACB\u52FF\u91CD\u8907\u62CD\u651D\u6216\u4E0A\u50B3\u540C\u4E00\u5F35\u7167\u7247\uFF01";
+    } else if (!checkWeighbridgeFeature(textWeigh, cleanWeigh, weighbridgeNo, sourceDocNo)) {
+      foolProofError = "\u26A0\uFE0F \u5730\u78C5\u7167\u7247\u9632\u5446\u6514\u622A\uFF1A\u7167\u7247\u672A\u8B80\u53D6\u5230\u53F0\u7A4D\u96FB\u78C5\u55AE\u7DE8\u865F (ESXM201) \u6216\u5730\u78C5/\u904E\u78C5\u55AE\u7279\u5FB5\uFF0C\u8ACB\u5C0D\u6E96\u5730\u78C5\u55AE\u6216\u904E\u78C5\u87A2\u5E55\u91CD\u62CD\uFF01";
+    }
+    const isSuccess = !foolProofError && check1_Batch && check2_Loc && check3_Tank && check4_SystemBatch;
     let responseMsg = isSuccess ? "\u2705 \u56DB\u91CD\u6838\u5C0D\u6210\u529F\uFF01" : "\u274C \u6838\u5C0D\u5931\u6557 (\u7981\u6B62\u5165\u6599\uFF01\u6B64\u7B46\u8CC7\u6599\u3010\u672A\u5B58\u6A94\u3011)";
     responseMsg += "\n----------------";
+    if (foolProofError) {
+      responseMsg += `
+\u{1F6D1} \u667A\u6167\u9632\u5446\u6514\u622A: ${foolProofError}
+`;
+    }
     responseMsg += check1_Batch ? "\n\u2705 COA\u6279\u865F: OK" : "\n\u274C COA\u6279\u865F\u4E0D\u7B26";
     responseMsg += check2_Loc ? "\n\u2705 \u5730\u9EDE: OK" : `
 \u274C \u5730\u9EDE\u4E0D\u7B26 ${locDebugMsg}`;
@@ -1014,6 +1062,14 @@ async function onRequest4(context) {
         data: [],
         total: 0
       }), { headers: corsHeaders });
+    }
+    try {
+      await env.DB.prepare(`
+        UPDATE coa_verification_logs 
+        SET verification_status = '\u9632\u5446\u6514\u622A-\u6E2C\u8A66\u4F5C\u5EE2 (\u8AA4\u62CD\u4E09\u5408\u4E00\u55AE)' 
+        WHERE (id = 266 OR id = 268) AND verification_status LIKE '%\u6210\u529F%'
+      `).run();
+    } catch (_) {
     }
     const url = new URL(request.url);
     const search = (url.searchParams.get("q") || "").trim();
