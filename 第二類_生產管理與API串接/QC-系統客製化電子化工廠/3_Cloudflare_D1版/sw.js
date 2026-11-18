@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qc-kanban-v3.3.6-offline';
+const CACHE_NAME = 'qc-kanban-v3.3.7-offline';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -539,7 +539,7 @@
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <span>進出貨樣品登錄</span>
         <span id="sysVersionBadge" class="mode-badge" style="background:#2563eb; color:white; font-size:0.75rem; padding:3px 9px; border-radius:12px; cursor:pointer; font-weight:bold; letter-spacing:0.5px; box-shadow:0 1px 3px rgba(37,99,235,0.3);" title="點擊強制重新整理並檢查雲端版本" onclick="forceCheckAppUpdate()">
-          🚀 v3.3.6 (TSC 官方 App 90x60mm 直連免付費版)
+          🚀 v3.3.7 (TSC 90x60mm 雙軌一鍵直印版)
         </span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -825,7 +825,7 @@
 
   <!-- 系統版本與運行資訊頁尾 (點擊可立即檢查更新) -->
   <div style="text-align:center; padding:22px 10px 10px; color:#64748b; font-size:0.82rem; line-height:1.7;">
-    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.6 (TSC 原廠 90x60mm 免費無廣告·TSC Print Utility直連·Cloudflare D1 旗艦版)</strong><br>
+    鴻勝化學 QC 檢驗即時看板系統 · 雲端部署版本：<strong id="footerVersionTag" style="color:#2563eb; background:#eff6ff; padding:3px 9px; border-radius:6px; cursor:pointer; border:1px solid #bfdbfe;" onclick="forceCheckAppUpdate()" title="點擊強制檢查雲端更新">🚀 v3.3.7 (TSC 90x60mm 雙軌直印·檢驗室電腦代理免裝環境·Cloudflare D1 旗艦版)</strong><br>
     <span style="font-size:0.76rem; color:#94a3b8;">✨ 包含：單號字首嚴格對齊 (ESPM 進料 / ESXM 出貨) · 背景定時輪詢保護使用者動向不被重設 · 同車多單動向強制鎖定 · Cloudflare D1 即時同步</span>
   </div>
 </div>
@@ -1264,14 +1264,18 @@
       </div>
 
       <!-- 行動裝置 / TSC LAN 專用提示區 -->
-      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:0.84rem; color:#1e40af; line-height:1.5;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-          <b>📱 行動端 TSC 官方 App 直連指南 (LAN 192.168.3.128)：</b>
-          <span style="background:#2563eb; color:white; font-size:0.72rem; padding:2px 6px; border-radius:4px;">90×60 mm 專用</span>
+      <div style="background:#f0fdf4; border:1.5px solid #86efac; border-radius:8px; padding:10px 12px; margin-bottom:12px; font-size:0.84rem; color:#166534; line-height:1.5;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <b style="font-size:0.88rem;">🚀 TSC 90x60mm 網路一鍵直印 (免裝 App)：</b>
+          <span style="background:#16a34a; color:white; font-size:0.72rem; padding:2px 6px; border-radius:4px; font-weight:bold;">LAN 192.168.3.128</span>
         </div>
-        <div>• <b>iPad & Android 唯一官方免費首選</b>：安裝 <b>TSC Print Utility</b> (原廠 100% 免費、無廣告、無浮水印)。</div>
-        <div>• <b>連線方式</b>：App 內新增印表機選 <b>Wi-Fi/Ethernet</b>，填入 IP <code>192.168.3.128</code> (Port 9100)。</div>
-        <div>• <b>列印操作</b>：點擊下方「🖨️ 送出列印」後，長按預覽或分享傳送至 <b>TSC Print Utility</b>，即可 1:1 鎖定原吋列印，絕不跑版！</div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+          <span style="color:#374151; font-weight:600;">檢驗室電腦代理 IP：</span>
+          <input type="text" id="tscProxyIpInput" placeholder="例如: 192.168.3.100 或 localhost" style="flex:1; padding:4px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.82rem; font-family:monospace;" onchange="saveTscProxyIp()">
+        </div>
+        <div style="font-size:0.78rem; color:#15803d;">
+          💡 <b>使用說明：</b>檢驗室電腦雙擊執行 <code>一鍵啟動TSC標籤列印服務.bat</code>，手機填入該電腦 IP，點下方<b>「🚀 TSC 一鍵直印」</b>，機器立刻吐出 90×60mm 完美貼紙！
+        </div>
       </div>
 
       <div style="background:#fef2f2; padding:8px 12px; border-radius:8px; margin-bottom:12px; display:flex; align-items:center; font-size:0.85rem; border: 1px solid #fecaca; color: #991b1b; font-weight:bold;">
@@ -1329,8 +1333,11 @@
     </div>
 
     <div style="display:flex; gap:8px;">
-      <button type="button" id="btnPrintLabels" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:2; padding:11px; font-size:0.95rem;">
-        🖨️ 送出列印
+      <button type="button" id="btnTscDirectPrint" onclick="sendTscDirectPrint()" class="btn-submit" style="background:#16a34a; flex:2.2; padding:11px; font-size:0.95rem; font-weight:bold; box-shadow:0 2px 4px rgba(22,163,74,0.3);">
+        🚀 TSC 90x60 一鍵直印
+      </button>
+      <button type="button" id="btnPrintLabels" onclick="confirmPrintLabels()" class="btn-submit" style="background:#0284c7; flex:1.5; padding:11px; font-size:0.92rem;">
+        🖨️ 瀏覽器列印
       </button>
       <button type="button" id="btnSavePrintSettingsOnly" onclick="savePrintSettingsOnly()" class="btn-submit" style="background:#10b981; flex:2; padding:11px; font-size:0.95rem; display:none;">
         💾 儲存設定
@@ -4512,13 +4519,32 @@
     printWindow.document.close();
   }
 
-  // 📱 Android RawBT 一鍵直印 TSPL 指令至 192.168.3.128:9100 (90mm x 60mm)
-  function printViaRawbtDirect() {
+  // 💾 記憶檢驗室電腦代理 IP
+  function saveTscProxyIp() {
+    const input = document.getElementById('tscProxyIpInput');
+    if (input) {
+      localStorage.setItem('HS_QC_TSC_PROXY_IP', input.value.trim());
+    }
+  }
+
+  // 🚀 TSC 90mm x 60mm 網路一鍵直印 (透過檢驗室電腦代理服務送至 192.168.3.128:9100)
+  async function sendTscDirectPrint() {
     const id = document.getElementById('printTargetId').value;
     const targetData = allData.find(d => d.id === id);
     if (!targetData) {
       alert("找不到樣品資料！");
       return;
+    }
+
+    let proxyHost = (document.getElementById('tscProxyIpInput')?.value || '').trim();
+    if (!proxyHost) {
+      proxyHost = localStorage.getItem('HS_QC_TSC_PROXY_IP') || '';
+    }
+    if (!proxyHost) {
+      proxyHost = prompt("請輸入檢驗室執行列印代理服務的電腦 IP 位址（例如 192.168.3.100 或 localhost）：", "localhost");
+      if (!proxyHost) return;
+      document.getElementById('tscProxyIpInput').value = proxyHost;
+      localStorage.setItem('HS_QC_TSC_PROXY_IP', proxyHost);
     }
 
     const wQty = parseInt(document.getElementById('printQtyWaterGC').value || '1', 10);
@@ -4579,12 +4605,39 @@
       curIdx++;
     }
 
-    closePrintModal();
+    const btn = document.getElementById('btnTscDirectPrint');
+    if (btn) {
+      btn.innerText = '出紙中...';
+      btn.disabled = true;
+    }
 
-    // 透過 rawbt: 協定傳送給 Android RawBT (零縮放直印)
-    const encodedData = encodeURIComponent(tsplCmd);
-    window.location.href = `rawbt:data:text/plain;base64,${btoa(unescape(encodedData))}`;
-    showToast(`📱 已透過 RawBT 送出 90×60 mm 標籤至 TSC (192.168.3.128)！`, 4000);
+    try {
+      const url = proxyHost.startsWith('http') ? `${proxyHost}/print` : `http://${proxyHost}:8099/print`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          barcode: targetData.barcode,
+          productName: targetData.productName,
+          tspl: tsplCmd
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        closePrintModal();
+        showToast(`🎉 成功！TSC 標籤機 (192.168.3.128) 已出紙 ${total} 張！`, 4500);
+      } else {
+        alert("列印失敗：" + (data.error || "未知錯誤"));
+      }
+    } catch (err) {
+      console.warn("無法連線至列印代理服務：", err);
+      alert(`⚠️ 連線失敗！無法連線至電腦代理服務 [${proxyHost}:8099]\n\n請確認檢驗室電腦已雙擊開啟「一鍵啟動TSC標籤列印服務.bat」！`);
+    } finally {
+      if (btn) {
+        btn.innerText = '🚀 TSC 90x60 一鍵直印';
+        btn.disabled = false;
+      }
+    }
   }
 
   let pendingActionId = null;
@@ -5441,7 +5494,7 @@
         });
       }
       if (typeof showToast === 'function') {
-        showToast('🔄 正在檢查雲端最新版本 (v3.3.6) 並強制重新載入...', 2000);
+        showToast('🔄 正在檢查雲端最新版本 (v3.3.7) 並強制重新載入...', 2000);
       }
       setTimeout(() => {
         location.reload(true);
