@@ -3079,6 +3079,10 @@ class App(tk.Tk):
     def get_report_loc_folder(self, output_dir, loc_raw, batch_no, target_date_str, mode, prod_name=""):
         c_loc = clean_location_str(loc_raw, getattr(self, "mapping_dict", {})) or str(loc_raw).strip().upper()
         safe_l = "".join(c for c in c_loc if c.isalnum() or c in (' ', '_', '-')).rstrip()
+        # 依代號表與使用者選項 A：若為 5 廠 (簡稱 5/5廠，或代號表 Phase 為 F5)，廠區資料夾與裡層資料夾代號統一使用 'F5' (與檔名 F5 保持一致)
+        phase_for_folder = deduce_fab_phase(loc_raw, getattr(self, "phase_mapping_dict", {}), prod_name=prod_name, short_code=c_loc)
+        if safe_l in ("5", "5廠") or phase_for_folder == "F5" or (("5" in str(loc_raw)) and ("15" not in str(loc_raw)) and safe_l == "5"):
+            safe_l = "F5"
         if not safe_l:
             safe_l = "未命名地點"
         if mode == 2:
