@@ -1,79 +1,116 @@
 @echo off
-chcp 950 >nul
-title ¤p¥]¨t²Î³øªí²£¥Í (³Ó¤@±M¥Îª©) - ¤@Áä¨t²Î§ó·sºëÆF
+chcp 65001 >nul
+title å°åŒ…ç³»çµ±å ±è¡¨ç”¢ç”Ÿ (å‹ä¸€å°ˆç”¨ç‰ˆ) - ä¸€éµç³»çµ±æ›´æ–°ç²¾éˆ
 
 echo ============================================================
-echo      ¤p¥]¨t²Î³øªí²£¥Í (³Ó¤@±M¥Îª©) - ¤@Áä¨t²Î§ó·sºëÆF
+echo      å°åŒ…ç³»çµ±å ±è¡¨ç”¢ç”Ÿ (å‹ä¸€å°ˆç”¨ç‰ˆ) - ä¸€éµç³»çµ±æ›´æ–°ç²¾éˆ
 echo ============================================================
 echo.
 
 cd /d "%~dp0"
 
 :: ------------------------------------------------------------
-:: ±¡ªp 1¡G­Y¥»¸ê®Æ§¨Äİ©ó Git ª©¥»®w¡Aª½±µ°õ¦æ¥¿³W git pull
+:: æƒ…æ³ 1ï¼šæª¢æŸ¥æ˜¯å¦è™•æ–¼ Git ç‰ˆæœ¬åº«ç’°å¢ƒ
 :: ------------------------------------------------------------
-if exist "%~dp0..\.git" goto GIT_PULL_MODE
 git rev-parse --is-inside-work-tree >nul 2>&1
 if "%ERRORLEVEL%"=="0" goto GIT_PULL_MODE
 
+if exist "%~dp0..\.git" (
+    cd /d "%~dp0.."
+    goto GIT_PULL_MODE
+)
+
 :: ------------------------------------------------------------
-:: ±¡ªp 2¡GµL Git ª©¥»®w (¤@¯ë¤H­û¹q¸£ / NAS / ÀH¨­ºĞ½Æ»s¸ê®Æ§¨)
-:: ª½±µ¨Ï¥Î Windows ¤º«Ø¤u¨ã¦Û°Ê±q GitHub ¤U¸ü³Ì·sµ{¦¡¡I
+:: æƒ…æ³ 2ï¼šç„¡ Git ç‰ˆæœ¬åº« (ç¨ç«‹è³‡æ–™å¤¾ / éš¨èº«ç¢Ÿè¤‡è£½ç‰ˆæœ¬)
+:: å„ªå…ˆä½¿ç”¨ curl æˆ– PowerShell ä¸‹è¼‰æœ€æ–°ä¸»ç¨‹å¼
 :: ------------------------------------------------------------
 :CLOUD_DIRECT_DOWNLOAD
-echo [ª¬ºA] °»´ú¨ì¥Ø«e¬°¿W¥ß¸ê®Æ§¨ («D Git ¥»¾÷®w)¡C
-echo [°Ê§@] ¥¿¦b¦Û°Ê³s½u GitHub ¶³ºİ¬°±z¤U¸ü³Ì·s³Ó¤@¤p¥]¨t²Î¥Dµ{¦¡...
+echo [ç‹€æ…‹] åµæ¸¬åˆ°ç›®å‰ç‚ºç¨ç«‹è³‡æ–™å¤¾æ¨¡å¼ã€‚
+echo [å‹•ä½œ] æ­£åœ¨é€£ç·š GitHub é›²ç«¯ç‚ºæ‚¨ä¸‹è¼‰æœ€æ–° main.py ä¸»ç¨‹å¼...
 echo.
 
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/shihwei0809/google-agent/main/%%E5%%B0%%8F%%E5%%8C%%85%%E7%%B3%%BB%%E7%%B5%%B1%%E5%%A0%%B1%%E8%%A1%%A8%%E7%%94%%A2%%E7%%94%%9F_%%E5%%8B%%9D%%E4%%B8%%80/main.py', 'main.py'); exit 0 } catch { exit 1 }"
+set "RAW_URL=https://raw.githubusercontent.com/shihwei0809/google-agent/main/%%E5%%B0%%8F%%E5%%8C%%85%%E7%%B3%%BB%%E7%%B5%%B1%%E5%%A0%%B1%%E8%%A1%%A8%%E7%%94%%A2%%E7%%94%%9F_%%E5%%8B%%9D%%E4%%B8%%80/main.py"
 
-if errorlevel 1 (
-    echo [Äµ§i] ¶³ºİª½±µ¤U¸ü¥¢±Ñ¡A½ĞÀË¬dºô¸ô³s½u¬O§_¥¿±`¡C
-    echo ±N¬°±z¹Á¸Õ±Ò°Ê²{¦³µ{¦¡...
-    pause
-    goto LAUNCH_APP
+:: å„ªå…ˆå˜—è©¦ curl
+curl.exe -fsSL "%RAW_URL%" -o "main.py.new" >nul 2>&1
+if exist "main.py.new" (
+    move /y "main.py.new" "main.py" >nul
+    goto DOWNLOAD_OK
 )
 
+:: å‚™ç”¨ PowerShell ä¸‹è¼‰
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('%RAW_URL%', 'main.py')" >nul 2>&1
+if "%ERRORLEVEL%"=="0" goto DOWNLOAD_OK
+
+echo [è­¦å‘Š] é›²ç«¯ç›´æ¥ä¸‹è¼‰å¤±æ•—ï¼Œè«‹æª¢æŸ¥ç¶²è·¯é€£ç·šæ˜¯å¦æ­£å¸¸ã€‚
+echo å°‡ç‚ºæ‚¨å˜—è©¦å•Ÿå‹•ç¾æœ‰ç¨‹å¼...
+pause
+goto LAUNCH_APP
+
+:DOWNLOAD_OK
 echo ============================================================
-echo  [¦¨¥\] ¤w¦Û°Ê±q GitHub ¶³ºİ¤U¸ü³Ì·s main.py ¨Ã§¹¦¨§ó·s¡I
+echo  [æˆåŠŸ] å·²è‡ªå‹•å¾ GitHub é›²ç«¯ä¸‹è¼‰æœ€æ–° main.py ä¸¦å®Œæˆæ›´æ–°ï¼
 echo ============================================================
 echo.
 timeout /t 2 >nul
 goto LAUNCH_APP
 
 :: ------------------------------------------------------------
-:: ±¡ªp 1 ªº°õ¦æ¬yµ{ (Git pull)
+:: æƒ…æ³ 1 çš„åŸ·è¡Œæµç¨‹ (Git pullï¼Œå…·å‚™é˜²å‘†èˆ‡è¡çªä¿è­·)
 :: ------------------------------------------------------------
 :GIT_PULL_MODE
-echo [ª¬ºA] °»´ú¨ì¥»¾÷ Git ¶}µo®w¡A¥¿¦b±q GitHub ¶³ºİ°õ¦æ git pull...
+echo [ç‹€æ…‹] åµæ¸¬åˆ°æœ¬æ©Ÿ Git ç‰ˆæœ¬åº«ï¼Œæ­£åœ¨å¾ GitHub é›²ç«¯åŒæ­¥æœ€æ–°ç‰ˆæœ¬...
 echo.
 
-cd /d "%~dp0.."
-git pull
-if errorlevel 1 (
+:: æš«å­˜æœ¬åœ°å¯èƒ½å­˜åœ¨çš„ä¿®æ”¹æˆ–æš«å­˜æª”ï¼Œé˜²æ­¢ git pull è¡çªä¸­æ–·
+git stash >nul 2>&1
+
+:: åŸ·è¡Œæ‹‰å–
+git pull origin main
+if "%ERRORLEVEL%"=="0" (
     echo.
-    echo [Äµ§i] git pull §ó·s¥¢±Ñ¡I½ĞÀË¬dºô¸ô³s½u©Î Git ª¬ºA¡C
-    echo ±N¹Á¸Õª½±µ±Ò°Ê²{¦³µ{¦¡...
-    pause
+    echo ============================================================
+    echo  [æˆåŠŸ] é›²ç«¯æ›´æ–°å®Œæˆï¼æœ¬æ©Ÿå·²ç‚ºæœ€æ–°ç‰ˆæœ¬ã€‚
+    echo ============================================================
+    echo.
+    timeout /t 2 >nul
+    goto LAUNCH_APP
+)
+
+:: è‹¥æ™®é€š pull å¤±æ•—ï¼Œå˜—è©¦ fetch + rebase
+git fetch origin main >nul 2>&1
+git rebase origin/main >nul 2>&1
+if "%ERRORLEVEL%"=="0" (
+    echo.
+    echo ============================================================
+    echo  [æˆåŠŸ] é›²ç«¯æ›´æ–°å®Œæˆ (å·²è‡ªå‹•å°é½Šæœ€æ–°ç‰ˆæœ¬)ï¼
+    echo ============================================================
+    echo.
+    timeout /t 2 >nul
     goto LAUNCH_APP
 )
 
 echo.
-echo ============================================================
-echo  [¦¨¥\] ¶³ºİ§ó·s§¹¦¨¡I¥»¾÷¤w¬°³Ì·sª©¥»¡C
-echo ============================================================
-echo.
+echo [è­¦å‘Š] åµæ¸¬åˆ°æœ¬åœ°æœ‰æœªåˆä½µä¹‹æª”æ¡ˆæˆ–ç¶²è·¯ä¸ç©©å®šã€‚
+echo æ­£åœ¨ç‚ºæ‚¨å¼·åˆ¶åŒæ­¥æœ€æ–°ä¸»ç¨‹å¼...
+git checkout origin/main -- "å°åŒ…ç³»çµ±å ±è¡¨ç”¢ç”Ÿ_å‹ä¸€/main.py" >nul 2>&1
+if "%ERRORLEVEL%"=="0" (
+    echo [æˆåŠŸ] å·²æˆåŠŸå¼·åˆ¶åŒæ­¥æœ€æ–° main.pyï¼
+    timeout /t 2 >nul
+    goto LAUNCH_APP
+)
+
+echo [æç¤º] å°‡ç›´æ¥ç‚ºæ‚¨å•Ÿå‹•ç¾æœ‰ç¨‹å¼...
 timeout /t 2 >nul
-goto LAUNCH_APP
 
 :: ------------------------------------------------------------
-:: ±Ò°Ê¥Dµ{¦¡
+:: å•Ÿå‹•ä¸»ç¨‹å¼
 :: ------------------------------------------------------------
 :LAUNCH_APP
 cd /d "%~dp0"
-if exist "±Ò°Ê¥»¾÷µøµ¡ª©.bat" (
-    start ±Ò°Ê¥»¾÷µøµ¡ª©.bat
+if exist "å•Ÿå‹•æœ¬æ©Ÿè¦–çª—ç‰ˆ.bat" (
+    start "" "å•Ÿå‹•æœ¬æ©Ÿè¦–çª—ç‰ˆ.bat"
 ) else (
-    start python main.py
+    start "" python main.py
 )
 exit
