@@ -1,83 +1,152 @@
 @echo off
-chcp 950 >nul
-title ³Ó¤@¤T¦X¤@³æ²£¥Í¨t²Î - ¤@Áä¨t²Î§ó·sºëÆF
+setlocal EnableDelayedExpansion
+chcp 65001 >nul
+title å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿç³»çµ± - ä¸€éµç³»çµ±æ›´æ–°ç²¾éˆ (å«è‡ªå‹•å‚™ä»½ä¿è­·)
 
 echo ============================================================
-echo         ³Ó¤@¤T¦X¤@³æ²£¥Í¨t²Î - ¤@Áä¨t²Î§ó·sºëÆF
+echo         å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿç³»çµ± - ä¸€éµç³»çµ±æ›´æ–°ç²¾éˆ
 echo ============================================================
 echo.
 
 cd /d "%~dp0"
 
 :: ------------------------------------------------------------
-:: ±¡ªp 1¡G­Y¥»¸ê®Æ§¨Äİ©ó Git ª©¥»®w¡Aª½±µ°õ¦æ¥¿³W git pull
+:: æ­¥é©Ÿ 0ï¼šæ›´æ–°å‰å¼·åˆ¶è‡ªå‹•å‚™ä»½ç¾æœ‰ main.py (é›™é‡å‚™ä»½ï¼šä¸Šä¸€ç‰ˆ + æ™‚é–“æˆ³è¨˜æ­·å²åº«)
 :: ------------------------------------------------------------
-if exist "%~dp0..\.git" goto GIT_PULL_MODE
+if exist "main.py" (
+    for %%A in ("main.py") do set "MAIN_SIZE=%%~zA"
+    if !MAIN_SIZE! GTR 5000 (
+        if not exist "backups" mkdir "backups"
+        set "TS=%date:~0,4%%date:~5,2%%date:~8,2%_%time:~0,2%%time:~3,2%%time:~6,2%"
+        set "TS=!TS: =0!"
+        for /f %%t in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd_HHmmss" 2^>nul') do set "TS=%%t"
+        copy /y "main.py" "main_backup_last.py" >nul
+        copy /y "main.py" "backups\main_backup_!TS!.py" >nul
+        echo [å®‰å…¨å‚™ä»½] å·²å°‡æ›´æ–°å‰ç‰ˆæœ¬å‚™ä»½ç‚ºï¼š
+        echo            1. main_backup_last.py ^(ä¾›ã€Œä¸€éµé‚„åŸä¸Šä¸€ç‰ˆç¨‹å¼.batã€å³æ™‚é‚„åŸ^)
+        echo            2. backups\main_backup_!TS!.py ^(æ­·å²ç‰ˆæœ¬ç•™å­˜^)
+        echo.
+    )
+)
+
+:: ------------------------------------------------------------
+:: æƒ…æ³ 1ï¼šæª¢æŸ¥æ˜¯å¦è™•æ–¼ Git ç‰ˆæœ¬åº«ç’°å¢ƒ
+:: ------------------------------------------------------------
 git rev-parse --is-inside-work-tree >nul 2>&1
 if "%ERRORLEVEL%"=="0" goto GIT_PULL_MODE
 
+if exist "%~dp0..\.git" (
+    cd /d "%~dp0.."
+    goto GIT_PULL_MODE
+)
+
 :: ------------------------------------------------------------
-:: ±¡ªp 2¡GµL Git ª©¥»®w (¤@¯ë¤H­û¹q¸£ / NAS / ÀH¨­ºĞ½Æ»s¸ê®Æ§¨)
-:: ª½±µ¨Ï¥Î Windows ¤º«Ø¤u¨ã¦Û°Ê±q GitHub ¤U¸ü³Ì·sµ{¦¡¡I
+:: æƒ…æ³ 2ï¼šç„¡ Git ç‰ˆæœ¬åº« (ç¨ç«‹è³‡æ–™å¤¾ / éš¨èº«ç¢Ÿè¤‡è£½ç‰ˆæœ¬)
+:: å…ˆä¸‹è¼‰è‡³æš«å­˜æª” main.py.newï¼Œé©—è­‰å®Œæ•´æ€§é€šéå¾Œæ‰è¦†è“‹ main.py
 :: ------------------------------------------------------------
 :CLOUD_DIRECT_DOWNLOAD
-echo [ª¬ºA] °»´ú¨ì¥Ø«e¬°¿W¥ß¸ê®Æ§¨ («D Git ¥»¾÷®w)¡C
-echo [°Ê§@] ¥¿¦b¦Û°Ê³s½u GitHub ¶³ºİ¬°±z¤U¸ü³Ì·s¡u³Ó¤@¤T¦X¤@³æ²£¥Í¨t²Î¡v¥Dµ{¦¡...
+cd /d "%~dp0"
+echo [ç‹€æ…‹] åµæ¸¬åˆ°ç›®å‰ç‚ºç¨ç«‹è³‡æ–™å¤¾æ¨¡å¼ã€‚
+echo [å‹•ä½œ] æ­£åœ¨é€£ç·š GitHub é›²ç«¯ç‚ºæ‚¨ä¸‹è¼‰æœ€æ–°ã€Œå‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿç³»çµ±ã€main.py...
 echo.
 
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object Net.WebClient).DownloadFile('https://raw.githubusercontent.com/shihwei0809/google-agent/main/%E5%8B%9D%E4%B8%80%E4%B8%89%E5%90%88%E4%B8%80%E5%96%AE%E7%94%A2%E7%94%9F%E7%B3%BB%E7%B5%B1/main.py', 'main.py'); exit 0 } catch { exit 1 }"
+set "RAW_URL=https://raw.githubusercontent.com/shihwei0809/google-agent/main/%%E5%%8B%%9D%%E4%%B8%%80%%E4%%B8%%89%%E5%%90%%88%%E4%%B8%%80%%E5%%96%%AE%%E7%%94%%A2%%E7%%94%%9F%%E7%%B3%%BB%%E7%%B5%%B1/main.py"
 
-if errorlevel 1 (
-    echo [Äµ§i] ¶³ºİª½±µ¤U¸ü¥¢±Ñ¡A½ĞÀË¬dºô¸ô³s½u¬O§_¥¿±`¡C
-    echo ±N¬°±z¹Á¸Õ±Ò°Ê²{¦³µ{¦¡...
+if exist "main.py.new" del /f /q "main.py.new" >nul 2>&1
+
+:: å„ªå…ˆå˜—è©¦ curl
+curl.exe -fsSL "%RAW_URL%" -o "main.py.new" >nul 2>&1
+if exist "main.py.new" goto VERIFY_NEW_FILE
+
+:: å‚™ç”¨ PowerShell ä¸‹è¼‰
+powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object Net.WebClient).DownloadFile('%RAW_URL%', 'main.py.new')" >nul 2>&1
+if exist "main.py.new" goto VERIFY_NEW_FILE
+
+echo [è­¦å‘Š] é›²ç«¯ä¸‹è¼‰å¤±æ•—ï¼Œå·²ä¿ç•™æ‚¨åŸæœ¬çš„ main.py ä¸è®Šã€‚
+echo è‹¥éœ€é‚„åŸèˆŠç‰ˆï¼Œå¯éš¨æ™‚é›™æ“Šã€Œä¸€éµé‚„åŸä¸Šä¸€ç‰ˆç¨‹å¼.batã€ã€‚
+pause
+goto LAUNCH_APP
+
+:VERIFY_NEW_FILE
+set "NEW_SIZE=0"
+for %%A in ("main.py.new") do set "NEW_SIZE=%%~zA"
+if !NEW_SIZE! LSS 5000 (
+    del /f /q "main.py.new" >nul 2>&1
+    echo [ä¿è­·æ””æˆª] ä¸‹è¼‰ä¹‹æª”æ¡ˆå¤§å°ç•°å¸¸ï¼Œå·²è‡ªå‹•å–æ¶ˆè¦†è“‹ä¸¦ä¿ç•™åŸæ­£å¸¸ç‰ˆæœ¬ï¼
     pause
     goto LAUNCH_APP
 )
 
+:: èªæ³•è‡ªæˆ‘æª¢æ¸¬
+python -m py_compile "main.py.new" >nul 2>&1
+if errorlevel 1 (
+    del /f /q "main.py.new" >nul 2>&1
+    echo [ä¿è­·æ””æˆª] åµæ¸¬åˆ°é›²ç«¯æ–°æª”èªæ³•æª¢æŸ¥æœªé€šéï¼Œå·²è‡ªå‹•æ””æˆªä¸¦ä¿ç•™åŸæ­£å¸¸ç‰ˆæœ¬ï¼
+    pause
+    goto LAUNCH_APP
+)
+
+move /y "main.py.new" "main.py" >nul
 echo ============================================================
-echo  [¦¨¥\] ¤w¦Û°Ê±q GitHub ¶³ºİ¤U¸ü³Ì·s main.py ¨Ã§¹¦¨§ó·s¡I
+echo  [æˆåŠŸ] å·²å®Œæˆå®‰å…¨é©—è­‰ä¸¦æ›´æ–°è‡³æœ€æ–° main.pyï¼
+echo  *(è‹¥ä½¿ç”¨ä¸Šæœ‰ä»»ä½•å•é¡Œï¼Œé›™æ“Šã€Œä¸€éµé‚„åŸä¸Šä¸€ç‰ˆç¨‹å¼.batã€å³å¯ç§’é€€å›ä¸Šä¸€ç‰ˆ)*
 echo ============================================================
 echo.
 timeout /t 2 >nul
 goto LAUNCH_APP
 
 :: ------------------------------------------------------------
-:: ±¡ªp 1 ªº°õ¦æ¬yµ{ (Git pull)
+:: æƒ…æ³ 1 çš„åŸ·è¡Œæµç¨‹ (Git pullï¼Œå…·å‚™é˜²å‘†èˆ‡è‡ªå‹•å›æ»¾ä¿è­·)
 :: ------------------------------------------------------------
 :GIT_PULL_MODE
-echo [ª¬ºA] °»´ú¨ì¥»¾÷ Git ¶}µo®w¡A¥¿¦b±q GitHub ¶³ºİ°õ¦æ git pull...
+echo [ç‹€æ…‹] åµæ¸¬åˆ°æœ¬æ©Ÿ Git ç‰ˆæœ¬åº«ï¼Œæ­£åœ¨å¾ GitHub é›²ç«¯åŒæ­¥æœ€æ–°ç‰ˆæœ¬...
 echo.
 
-cd /d "%~dp0.."
-git pull
+git stash >nul 2>&1
+git pull origin main
+if "%ERRORLEVEL%"=="0" goto VERIFY_GIT_MAIN
+
+git fetch origin main >nul 2>&1
+git checkout origin/main -- "å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿç³»çµ±/main.py" >nul 2>&1
+if "%ERRORLEVEL%"=="0" goto VERIFY_GIT_MAIN
+
+:: è‹¥ Git åŒæ­¥ç•°å¸¸ï¼Œæ”¹èµ°ç¨ç«‹ä¸‹è¼‰é©—è­‰æµç¨‹
+cd /d "%~dp0"
+goto CLOUD_DIRECT_DOWNLOAD
+
+:VERIFY_GIT_MAIN
+cd /d "%~dp0"
+python -m py_compile "main.py" >nul 2>&1
 if errorlevel 1 (
-    echo.
-    echo [Äµ§i] git pull §ó·s¥¢±Ñ¡I½ĞÀË¬dºô¸ô³s½u©Î Git ª¬ºA¡C
-    echo ±N¹Á¸Õª½±µ±Ò°Ê²{¦³µ{¦¡...
-    pause
-    goto LAUNCH_APP
+    if exist "main_backup_last.py" (
+        copy /y "main_backup_last.py" "main.py" >nul
+        echo [è‡ªå‹•ä¿è­·] åµæ¸¬åˆ°æ›´æ–°å¾Œèªæ³•ç•°å¸¸ï¼Œå·²è‡ªå‹•ç‚ºæ‚¨é‚„åŸå› main_backup_last.pyï¼
+        pause
+        goto LAUNCH_APP
+    )
 )
 
 echo.
 echo ============================================================
-echo  [¦¨¥\] ¶³ºİ§ó·s§¹¦¨¡I¥»¾÷¤w¬°³Ì·sª©¥»¡C
+echo  [æˆåŠŸ] é›²ç«¯æ›´æ–°å®Œæˆï¼æœ¬æ©Ÿå·²ç‚ºæœ€æ–°ç‰ˆæœ¬ã€‚
+echo  *(è‹¥ä½¿ç”¨ä¸Šæœ‰ä»»ä½•å•é¡Œï¼Œé›™æ“Šã€Œä¸€éµé‚„åŸä¸Šä¸€ç‰ˆç¨‹å¼.batã€å³å¯ç§’é€€å›ä¸Šä¸€ç‰ˆ)*
 echo ============================================================
 echo.
 timeout /t 2 >nul
 goto LAUNCH_APP
 
 :: ------------------------------------------------------------
-:: ±Ò°Ê¥Dµ{¦¡
+:: å•Ÿå‹•ä¸»ç¨‹å¼
 :: ------------------------------------------------------------
 :LAUNCH_APP
 cd /d "%~dp0"
-if exist "³Ó¤@¤T¦X¤@³æ²£¥Í¨t²Î.exe" (
-    start "" "³Ó¤@¤T¦X¤@³æ²£¥Í¨t²Î.exe"
-) else if exist "dist\³Ó¤@¤T¦X¤@³æ²£¥Í¨t²Î-§K¦w¸Ëª©.exe" (
-    start "" "dist\³Ó¤@¤T¦X¤@³æ²£¥Í¨t²Î-§K¦w¸Ëª©.exe"
-) else if exist "±Ò°Ê_³Ó¤@¤T¦X¤@³æ²£¥Í¾¹.bat" (
-    start "" "±Ò°Ê_³Ó¤@¤T¦X¤@³æ²£¥Í¾¹.bat"
+if exist "å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿç³»çµ±.exe" (
+    start "" "å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿç³»çµ±.exe"
+) else if exist "dist\å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿç³»çµ±-å…å®‰è£ç‰ˆ.exe" (
+    start "" "dist\å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿç³»çµ±-å…å®‰è£ç‰ˆ.exe"
+) else if exist "å•Ÿå‹•_å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿå™¨.bat" (
+    start "" "å•Ÿå‹•_å‹ä¸€ä¸‰åˆä¸€å–®ç”¢ç”Ÿå™¨.bat"
 ) else (
-    start python main.py
+    start "" python main.py
 )
 exit
