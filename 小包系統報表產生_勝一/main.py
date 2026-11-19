@@ -1661,26 +1661,22 @@ def deduce_fab_phase(loc_key, phase_dict=None, prod_name=None, short_code=None, 
                         if ("2" in lk_s and "12" not in lk_s) and ("2" in k_s and "12" not in k_s):
                             return str(v).strip()
 
-    if not loc_key and not short_code:
-        return ""
+    # 若未提供 phase_dict，才依標準廠區期別代碼格式推導 (例如 F20P1 -> 201A, 14P5 -> 145A)
+    # 絕不對普通廠名 (如 5廠、2廠 等) 硬猜或硬寫入！
+    if not phase_dict:
+        s = str(short_code or loc_key or "").upper().strip()
+        m = re.search(r'F?(\d+)P(\d+)([A-Z]*)', s)
+        if m:
+            return f"{m.group(1)}{m.group(2)}{m.group(3) or 'A'}"
+        if "AP7" in s:
+            return "AP71"
+        if "FB30" in s:
+            return "FB30"
+        if "VISERA" in s:
+            return "VISERA"
 
-    s = str(short_code or loc_key).upper().strip()
-    m = re.search(r'F?(\d+)P(\d+)([A-Z]*)', s)
-    if m:
-        return f"{m.group(1)}{m.group(2)}{m.group(3) or 'A'}"
-    if "AP7" in s:
-        return "AP71"
-    if "FB30" in s:
-        return "FB30"
-    if "VISERA" in s:
-        return "VISERA"
-    if "7F3E" in s or "F3E" in s:
-        return "F3E0"
-    if s == "2廠" or "二廠" in s:
-        return "1200"
-    if s == "5廠" or ("5廠" in s and "15廠" not in s):
-        return "F5"
-    return s
+    # 若真的查無對照資料，一律回傳空字串，絕不硬寫預設值！
+    return ""
 
 
 def is_fab_phase_match(cand_phase, loc_key, phase_dict=None):
@@ -5123,6 +5119,12 @@ class App(tk.Tk):
                                 short_code=short_for_phase,
                                 long_code=long_code_val
                             )
+                            if not phase_val:
+                                loc_disp = short_for_phase or loc_for_phase
+                                total_error_msgs.append(
+                                    f"⚠️ COA 提醒：地點「{loc_disp}」在代號表中找不到對應的 FabPhase 期別！"
+                                    f"請至【台積小包材地點代號對照表.xlsx】新增或維護該廠區之 FabPhase，未硬寫預設值。"
+                                )
                             cust_lot_val = matched_row["cust_batch_var"].get().strip() if matched_row and "cust_batch_var" in matched_row else matched_batch
                             raw_lot_val = matched_row["raw_batch_var"].get().strip() if matched_row and "raw_batch_var" in matched_row else cust_lot_val
                             exp_date_val = matched_row["exp_var"].get().strip() if matched_row and "exp_var" in matched_row else ""
