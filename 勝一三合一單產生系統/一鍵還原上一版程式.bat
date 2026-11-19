@@ -1,66 +1,30 @@
 @echo off
 setlocal EnableDelayedExpansion
-chcp 65001 >nul
-title 勝一三合一單產生系統 - 一鍵即時還原上一版程式
-
-echo ============================================================
-echo         勝一三合一單產生系統 - 一鍵還原上一版程式
-echo ============================================================
-echo.
-
 cd /d "%~dp0"
 
-if exist "main_backup_last.py" (
-    echo [偵測] 已找到更新前自動備份的穩定版本：main_backup_last.py
-    for %%A in ("main_backup_last.py") do echo        備份時間：%%~tA  檔案大小：%%~zA bytes
+set PYTHON_CMD=
+for %%c in (python py python3) do (
+    if not defined PYTHON_CMD (
+        %%c --version >nul 2>&1
+        if !errorlevel! == 0 set PYTHON_CMD=%%c
+    )
+)
+
+if not defined PYTHON_CMD (
+    echo [ERROR] Python not found on this computer!
+    pause
+    exit /b 1
+)
+
+%PYTHON_CMD% -c "import base64; exec(base64.b64decode('aW1wb3J0IG9zLCBzeXMsIHNodXRpbCwgdGltZSwgZ2xvYgoKVElUTEUgPSAn5Yud5LiA5bCI55So54mIIC0g5Yud5LiA5LiJ5ZCI5LiA5Zau55Si55Sf57O757WxJwoKcHJpbnQoIj0iICogNjQpCnByaW50KGYiICB7VElUTEV9IC0g5LiA6Y215Y2z5pmC6YKE5Y6f5LiK5LiA54mI56iL5byPIikKcHJpbnQoIj0iICogNjQpCnByaW50KGYiICDnm67liY3lt6XkvZznm67pjIQ6IHtvcy5nZXRjd2QoKX0iKQpwcmludCgpCgp0YXJnZXRfYmFrID0gTm9uZQppZiBvcy5wYXRoLmV4aXN0cygibWFpbl9iYWNrdXBfbGFzdC5weSIpIGFuZCBvcy5wYXRoLmdldHNpemUoIm1haW5fYmFja3VwX2xhc3QucHkiKSA+IDUwMDA6CiAgICB0YXJnZXRfYmFrID0gIm1haW5fYmFja3VwX2xhc3QucHkiCmVsc2U6CiAgICBjYW5kcyA9IHNvcnRlZChnbG9iLmdsb2Iob3MucGF0aC5qb2luKCJiYWNrdXBzIiwgIm1haW5fYmFja3VwXyoucHkiKSksIHJldmVyc2U9VHJ1ZSkKICAgIGZvciBjIGluIGNhbmRzOgogICAgICAgIGlmIG9zLnBhdGguZ2V0c2l6ZShjKSA+IDUwMDA6CiAgICAgICAgICAgIHRhcmdldF9iYWsgPSBjCiAgICAgICAgICAgIGJyZWFrCgppZiB0YXJnZXRfYmFrOgogICAgb3MubWFrZWRpcnMoImJhY2t1cHMiLCBleGlzdF9vaz1UcnVlKQogICAgaWYgb3MucGF0aC5leGlzdHMoIm1haW4ucHkiKToKICAgICAgICBzaHV0aWwuY29weTIoIm1haW4ucHkiLCBvcy5wYXRoLmpvaW4oImJhY2t1cHMiLCAibWFpbl9iZWZvcmVfcm9sbGJhY2sucHkiKSkKICAgIHNodXRpbC5jb3B5Mih0YXJnZXRfYmFrLCAibWFpbi5weSIpCiAgICBtdGltZV9zdHIgPSB0aW1lLnN0cmZ0aW1lKCIlWS0lbS0lZCAlSDolTTolUyIsIHRpbWUubG9jYWx0aW1lKG9zLnBhdGguZ2V0bXRpbWUodGFyZ2V0X2JhaykpKQogICAgcHJpbnQoZiJb6YKE5Y6f5oiQ5YqfXSDlt7Llvp7lgpnku73mqpQgKHt0YXJnZXRfYmFrfSB8IOWCmeS7veaZgumWkzoge210aW1lX3N0cn0pIOmChOWOn+iHsyBtYWluLnB577yBIikKICAgIHByaW50KCI9IiAqIDY0KQogICAgcHJpbnQoIuato+WcqOeCuuaCqOmHjeaWsOWVn+WLleezu+e1seimlueqly4uLiIpCiAgICB0aW1lLnNsZWVwKDEuMikKZWxzZToKICAgIHByaW50KCJb5o+Q56S6XSDnm67liY3lsJrmnKrmib7liLDku7vkvZXlgpnku73mqpQgKG1haW5fYmFja3VwX2xhc3QucHkg5oiWIGJhY2t1cHMvbWFpbl9iYWNrdXBfKi5weSnjgIIiKQogICAgcHJpbnQoIiAgICAgICDmr4/mrKHmgqjln7fooYzjgIzkuIDpjbXmm7TmlrDns7vntbHnqIvlvI8uYmF044CN5pmC77yM57O757Wx6YO95pyD6Ieq5YuV5bu656uL5YKZ5Lu944CCIikKICAgIHByaW50KCI9IiAqIDY0KQogICAgaW5wdXQoIuiri+aMiSBFbnRlciDpjbXntZDmnZ8uLi4iKQogICAgc3lzLmV4aXQoMSkK').decode('utf-8'))"
+if !errorlevel! neq 0 (
+    pause
+    exit /b 1
+)
+
+%PYTHON_CMD% main.py
+if !errorlevel! neq 0 (
     echo.
-    if not exist "backups" mkdir "backups"
-    if exist "main.py" (
-        copy /y "main.py" "backups\main_before_rollback.py" >nul 2>&1
-    )
-    copy /y "main_backup_last.py" "main.py" >nul
-    echo ============================================================
-    echo  [還原成功] 已將 main.py 即時還原回更新前的穩定版本！
-    echo ============================================================
-    echo.
-    timeout /t 2 >nul
-    goto LAUNCH_APP
+    echo [ERROR] main.py exited with an error.
+    pause
 )
-
-:: 若根目錄沒有 main_backup_last.py，自動去 backups 資料夾找最新的一份備份
-if exist "backups\main_backup_*.py" (
-    set "LATEST_BAK="
-    for /f "delims=" %%F in ('dir /b /o-d "backups\main_backup_*.py" 2^>nul') do (
-        if not defined LATEST_BAK set "LATEST_BAK=backups\%%F"
-    )
-    if defined LATEST_BAK (
-        echo [偵測] 已從 backups 歷史備份庫找到最近一次備份：!LATEST_BAK!
-        copy /y "!LATEST_BAK!" "main.py" >nul
-        copy /y "!LATEST_BAK!" "main_backup_last.py" >nul
-        echo ============================================================
-        echo  [還原成功] 已從 !LATEST_BAK! 還原回 main.py！
-        echo ============================================================
-        echo.
-        timeout /t 2 >nul
-        goto LAUNCH_APP
-    )
-)
-
-echo [提示] 目前尚未找到任何備份檔 (main_backup_last.py 或 backups\*)。
-echo        每次您點擊「一鍵更新系統程式.bat」時，系統都會自動建立備份。
-echo.
-pause
-exit
-
-:LAUNCH_APP
-cd /d "%~dp0"
-if exist "勝一三合一單產生系統.exe" (
-    start "" "勝一三合一單產生系統.exe"
-) else if exist "dist\勝一三合一單產生系統-免安裝版.exe" (
-    start "" "dist\勝一三合一單產生系統-免安裝版.exe"
-) else if exist "啟動_勝一三合一單產生器.bat" (
-    start "" "啟動_勝一三合一單產生器.bat"
-) else (
-    start "" python main.py
-)
-exit

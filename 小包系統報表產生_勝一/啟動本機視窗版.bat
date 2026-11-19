@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
 
-set PROJECT_NAME=N-Series-Report-Generator-Shengyi (勝一專用版)
+set PROJECT_NAME=N-Series-Report-Generator-Shengyi
 set START_CMD=python main.py
 
 set "PKG[0]=openpyxl|openpyxl"
