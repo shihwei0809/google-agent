@@ -1364,7 +1364,7 @@ class App(tk.Tk):
         self.imported_lorry_files = []
 
         # 記憶上次開檔路徑機制 (對齊 N 系列)
-        self._last_dirs = {}  # key: "excel", "lorry", "coa"
+        self._last_dirs = {}  # key: "excel", "lorry", "coa", "output_dir"
         self._dirs_file = os.path.join(self.base_dir, "last_dirs.json")
         if os.path.exists(self._dirs_file):
             try:
@@ -1372,6 +1372,8 @@ class App(tk.Tk):
                     self._last_dirs = json.load(f)
             except Exception:
                 pass
+        saved_out = self._last_dirs.get("output_dir", "")
+        self.custom_output_var = tk.StringVar(value=saved_out if (saved_out and os.path.exists(saved_out)) else self.base_dir)
 
         self.load_mapping()
 
@@ -1379,6 +1381,35 @@ class App(tk.Tk):
         self.entries = []
         self.coa_paths = []
         self.add_input_rows(20)
+
+    def get_effective_base_dir(self):
+        d = getattr(self, "custom_output_var", None)
+        if d:
+            val = d.get().strip()
+            if val and os.path.exists(val):
+                return val
+        return self.base_dir
+
+    def choose_output_dir(self):
+        cur = self.get_effective_base_dir()
+        selected = filedialog.askdirectory(initialdir=cur, title="選擇三合一單預設輸出放置位置")
+        if selected:
+            self.custom_output_var.set(selected)
+            self._last_dirs["output_dir"] = selected
+            try:
+                with open(self._dirs_file, "w", encoding="utf-8") as f:
+                    json.dump(self._last_dirs, f, ensure_ascii=False)
+            except Exception:
+                pass
+
+    def reset_output_dir(self):
+        self.custom_output_var.set(self.base_dir)
+        self._last_dirs["output_dir"] = ""
+        try:
+            with open(self._dirs_file, "w", encoding="utf-8") as f:
+                json.dump(self._last_dirs, f, ensure_ascii=False)
+        except Exception:
+            pass
 
     def _save_last_dir(self, key, filepath):
         if filepath:
@@ -1694,6 +1725,17 @@ class App(tk.Tk):
 
         tk.Checkbutton(report_opt_frame, text="✅ 產生三合一單 Excel (含 Barcode 與 COA)", variable=self.gen_3in1_var, font=("Microsoft JhengHei", 9, "bold"), fg="#1B5E20").pack(side="left", padx=(0, 20))
         tk.Checkbutton(report_opt_frame, text="✅ 產生單列生產履歷 Excel (Chemical_Lorry 槽車充填表)", variable=self.gen_lorry_var, font=("Microsoft JhengHei", 9, "bold"), fg="#E65100").pack(side="left", padx=20)
+
+        # 輸出設定區域 (預設放置位置選擇器)
+        export_opt_frame = tk.LabelFrame(self, text="⚙️ 輸出預設放置位置設定", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        export_opt_frame.pack(fill="x", pady=(0, 6))
+        dir_opt_row = tk.Frame(export_opt_frame)
+        dir_opt_row.pack(fill="x", pady=(1, 1))
+        tk.Label(dir_opt_row, text="📁 預設輸出放置位置：", font=("Microsoft JhengHei", 9, "bold")).pack(side="left")
+        self.custom_output_entry = tk.Entry(dir_opt_row, textvariable=self.custom_output_var, font=("Microsoft JhengHei", 9), bg="#F8F9FA")
+        self.custom_output_entry.pack(side="left", fill="x", expand=True, padx=(2, 6))
+        tk.Button(dir_opt_row, text="📂 選擇位置...", command=self.choose_output_dir, bg="#455A64", fg="white", font=("Microsoft JhengHei", 8, "bold"), padx=6, pady=1, cursor="hand2").pack(side="left", padx=(0, 4))
+        tk.Button(dir_opt_row, text="↺ 還原程式目錄", command=self.reset_output_dir, bg="#78909C", fg="white", font=("Microsoft JhengHei", 8), padx=6, pady=1, cursor="hand2").pack(side="left")
 
         # 5. 表格滾動容器
         table_container = tk.Frame(self)
@@ -2163,7 +2205,7 @@ class App(tk.Tk):
                     
                     # 依據您指定的格式重組檔名: [產品名稱] [出貨日期MMDD] [廠區代號]_[批號]
                     new_base = f"{product_prefix} {date_MMDD} {factory_code}_{matched_batch}"
-                    output_dir = os.path.join(self.base_dir, f"三合一單輸出_{formatted_date}")
+                    output_dir = os.path.join(self.get_effective_base_dir(), f"三合一單輸出_{formatted_date}")
                 
                     tank_str = row["tank_var"].get().strip()
                     date_MMDD = formatted_date[4:8] if len(formatted_date) >= 8 else formatted_date
@@ -2683,7 +2725,7 @@ class App(tk.Tk):
 
         for _g_date_str, _g_data in groups.items():
             valid_data = _g_data
-            output_dir = os.path.join(self.base_dir, f"三合一單輸出_{_g_date_str}")
+            output_dir = os.path.join(self.get_effective_base_dir(), f"三合一單輸出_{_g_date_str}")
             os.makedirs(output_dir, exist_ok=True)
             all_output_dirs.append(output_dir)
             success_3in1 = 0

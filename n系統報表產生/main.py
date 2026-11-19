@@ -1337,17 +1337,49 @@ class App(tk.Tk):
         self.imported_lorry_files = []
         self.load_mapping()
         
-        self.setup_ui()
-        self.entries = []
-        self.coa_paths = []
-        self._last_dirs = {}  # key: 'excel', 'lorry', 'coa'
+        self._last_dirs = {}  # key: 'excel', 'lorry', 'coa', 'output_dir'
         self._dirs_file = os.path.join(self.base_dir, 'last_dirs.json')
         try:
             with open(self._dirs_file, 'r', encoding='utf-8') as f:
                 self._last_dirs = json.load(f)
         except Exception:
             pass
+        saved_out = self._last_dirs.get('output_dir', '')
+        self.custom_output_var = tk.StringVar(value=saved_out if (saved_out and os.path.exists(saved_out)) else self.base_dir)
+
+        self.setup_ui()
+        self.entries = []
+        self.coa_paths = []
         self.add_input_rows(20)
+
+    def get_effective_base_dir(self):
+        d = getattr(self, "custom_output_var", None)
+        if d:
+            val = d.get().strip()
+            if val and os.path.exists(val):
+                return val
+        return self.base_dir
+
+    def choose_output_dir(self):
+        cur = self.get_effective_base_dir()
+        selected = filedialog.askdirectory(initialdir=cur, title="選擇報表預設輸出放置位置")
+        if selected:
+            self.custom_output_var.set(selected)
+            self._last_dirs['output_dir'] = selected
+            try:
+                with open(self._dirs_file, 'w', encoding='utf-8') as f:
+                    json.dump(self._last_dirs, f, ensure_ascii=False)
+            except Exception:
+                pass
+
+    def reset_output_dir(self):
+        self.custom_output_var.set(self.base_dir)
+        self._last_dirs['output_dir'] = ""
+        try:
+            with open(self._dirs_file, 'w', encoding='utf-8') as f:
+                json.dump(self._last_dirs, f, ensure_ascii=False)
+        except Exception:
+            pass
 
     def _save_last_dir(self, key, filepath):
         self._last_dirs[key] = os.path.dirname(filepath)
@@ -1618,12 +1650,22 @@ class App(tk.Tk):
         self.gen_lorry_var = tk.BooleanVar(value=True)
 
         # 輸出設定區域
-        export_opt_frame = tk.LabelFrame(self, text="⚙️ 輸出資料夾模式", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
+        export_opt_frame = tk.LabelFrame(self, text="⚙️ 輸出資料夾模式與預設放置位置", font=("Microsoft JhengHei", 9, "bold"), padx=10, pady=5)
         export_opt_frame.pack(fill="x", pady=(0, 6))
         
+        top_opt_row = tk.Frame(export_opt_frame)
+        top_opt_row.pack(fill="x", pady=(0, 3))
         self.folder_mode_var = tk.IntVar(value=1)
-        tk.Radiobutton(export_opt_frame, text="模式 1：依批號分子資料夾 (出貨日 -> 廠區 -> 批號_廠區 -> 檔案)", variable=self.folder_mode_var, value=1, font=("Microsoft JhengHei", 9)).pack(side="left", padx=(0, 15))
-        tk.Radiobutton(export_opt_frame, text="模式 2：集中在廠區資料夾 (出貨日 -> 廠區 -> 檔案)", variable=self.folder_mode_var, value=2, font=("Microsoft JhengHei", 9)).pack(side="left")
+        tk.Radiobutton(top_opt_row, text="模式 1：依批號分子資料夾 (出貨日 -> 廠區 -> 批號_廠區 -> 檔案)", variable=self.folder_mode_var, value=1, font=("Microsoft JhengHei", 9)).pack(side="left", padx=(0, 15))
+        tk.Radiobutton(top_opt_row, text="模式 2：集中在廠區資料夾 (出貨日 -> 廠區 -> 檔案)", variable=self.folder_mode_var, value=2, font=("Microsoft JhengHei", 9)).pack(side="left")
+
+        dir_opt_row = tk.Frame(export_opt_frame)
+        dir_opt_row.pack(fill="x", pady=(3, 1))
+        tk.Label(dir_opt_row, text="📁 預設輸出放置位置：", font=("Microsoft JhengHei", 9, "bold")).pack(side="left")
+        self.custom_output_entry = tk.Entry(dir_opt_row, textvariable=self.custom_output_var, font=("Microsoft JhengHei", 9), bg="#F8F9FA")
+        self.custom_output_entry.pack(side="left", fill="x", expand=True, padx=(2, 6))
+        tk.Button(dir_opt_row, text="📂 選擇位置...", command=self.choose_output_dir, bg="#455A64", fg="white", font=("Microsoft JhengHei", 8, "bold"), padx=6, pady=1, cursor="hand2").pack(side="left", padx=(0, 4))
+        tk.Button(dir_opt_row, text="↺ 還原程式目錄", command=self.reset_output_dir, bg="#78909C", fg="white", font=("Microsoft JhengHei", 8), padx=6, pady=1, cursor="hand2").pack(side="left")
 
         # 5. 表格滾動容器
         table_container = tk.Frame(self)
@@ -2627,7 +2669,7 @@ class App(tk.Tk):
 
         for _g_date_str, _g_data in groups.items():
             valid_data = _g_data
-            output_dir = os.path.join(self.base_dir, f"N系小包報表輸出_{_g_date_str}")
+            output_dir = os.path.join(self.get_effective_base_dir(), f"N系小包報表輸出_{_g_date_str}")
             os.makedirs(output_dir, exist_ok=True)
             all_output_dirs.append(output_dir)
             success_3in1 = 0
@@ -3165,7 +3207,7 @@ class App(tk.Tk):
                             new_base = f"{clean_base} {matched_batch} {date_MMDD} {factory_code}"
                             # 合併多餘空白
                             new_base = re.sub(r'\s+', ' ', new_base).strip()
-                            output_dir = os.path.join(self.base_dir, f"N系小包報表輸出_{formatted_ship_date}")
+                            output_dir = os.path.join(self.get_effective_base_dir(), f"N系小包報表輸出_{formatted_ship_date}")
                             if output_dir not in all_output_dirs:
                                 all_output_dirs.append(output_dir)
 
