@@ -1,0 +1,24 @@
+{
+  "name": "IPA (異丙醇) 報價與出貨單船期自動追蹤系統",
+  "short_name": "IPA報價與船期",
+  "description": "異丙醇 (IPA) 與上游原料 (丙酮/丙烯) 雙單位 (TWD/KG & USD/MT) 自動換算、價差預警及出貨單櫃號/船名自動追蹤看板",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0b1120",
+  "theme_color": "#0284c7",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

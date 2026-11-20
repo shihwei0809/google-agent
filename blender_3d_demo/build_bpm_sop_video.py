@@ -30,6 +30,19 @@ from typing import Dict, List, Optional, Tuple
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 BASE_DIR = Path(__file__).resolve().parent
+_CINEMA_SCRIPTS = BASE_DIR.parent / ".agents" / "skills" / "sop-cinema-video" / "scripts"
+if str(_CINEMA_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_CINEMA_SCRIPTS))
+
+from cinema_post_engine import (
+    concat_with_xfade,
+    export_voice_jobs_json,
+    mix_bgm_with_ducking,
+    render_cinema_flow_clip,
+    render_cover_clip,
+    render_ending_clip,
+    synthesize_gemini_tts,
+)
 SOP_DOCX = BASE_DIR.parent / "BPM一般費用報銷單_私車公用操作流程.docx"
 OUT_ROOT = BASE_DIR / "bpm_sop"
 FIG_DIR = OUT_ROOT / "figures"
@@ -294,7 +307,20 @@ def generate_flow_keyframes() -> Dict[str, Tuple[Path, Path]]:
     FLOW_FRAMES_DIR.mkdir(parents=True, exist_ok=True)
     paths: Dict[str, Tuple[Path, Path]] = {}
 
-    # --- Shot 01 First: Highway + eTag Gantry + Sedan ---
+    p1_f = FLOW_FRAMES_DIR / "bpm_shot01_first.png"
+    p1_l = FLOW_FRAMES_DIR / "bpm_shot01_last.png"
+    p5_f = FLOW_FRAMES_DIR / "bpm_shot05_first.png"
+    p5_l = FLOW_FRAMES_DIR / "bpm_shot05_last.png"
+    p8_f = FLOW_FRAMES_DIR / "bpm_shot08_first.png"
+    p8_l = FLOW_FRAMES_DIR / "bpm_shot08_last.png"
+
+    # 若已存在高階 3D 擬真首尾幀，優先保留不覆蓋
+    if p1_f.exists() and p1_l.exists() and p5_f.exists() and p5_l.exists() and p8_f.exists() and p8_l.exists():
+        paths["bpm_shot01"] = (p1_f, p1_l)
+        paths["bpm_shot05"] = (p5_f, p5_l)
+        paths["bpm_shot08"] = (p8_f, p8_l)
+        print(f"[2/5] 偵測到現有高階 3D 擬真 Google Flow 首尾幀，保留使用: {FLOW_FRAMES_DIR}")
+        return paths
     s1_first = Image.new("RGB", (FLOW_W, FLOW_H))
     draw_vertical_gradient(s1_first, (12, 32, 68), (56, 128, 196))
     d = ImageDraw.Draw(s1_first)
@@ -834,6 +860,46 @@ SHOTS: List[dict] = [
     },
 ]
 
+# 路線 B（電影混剪終極版）可選 Flow Agent 真人主角劇情過場
+ROUTE_B_TRANSITIONS: List[dict] = [
+    {
+        "id": "b01_intro",
+        "anchor_before": "shot01",
+        "flow_mp4": "b01_intro_flow.mp4",
+        "title": "出發！私車公用出差行前準備",
+        "badge": "情境開場｜行前準備",
+        "subtitle": "開車出差前，先把核准出差單、Google 地圖路線截圖與 eTag 紀錄備齊",
+        "narration": (
+            "早上開車出差去廠區，記得先把核准的出差單、Google 地圖去回程路線截圖，"
+            "還有遠通 eTag 官方紀錄這三樣準備齊全，報帳才會一次過！"
+        ),
+    },
+    {
+        "id": "b02_bridge",
+        "anchor_before": "shot04",
+        "flow_mp4": "b02_bridge_flow.mp4",
+        "title": "避開退件地雷：私車里程與 eTag 絕不合併",
+        "badge": "痛點提醒｜雙軌分流",
+        "subtitle": "避開退件地雷：A05 私車里程費與 A07 通行費必須分開列示！",
+        "narration": (
+            "等一下！千萬別把高速公路通行費跟私車里程費算在同一筆，"
+            "系統跟會計一定會退件，一定要分開建兩筆明細才不會白忙一場喔！"
+        ),
+    },
+    {
+        "id": "b03_outro",
+        "anchor_before": "shot08",
+        "flow_mp4": "b03_outro_flow.mp4",
+        "title": "正本交件：申請人 → 人事核對 → 會計審核",
+        "badge": "壓軸收尾｜正本送審",
+        "subtitle": "線上送出後，印出單據並附上發票正本先交給人事核對！",
+        "narration": (
+            "線上送出完成後，別忘了把單據印出來，連同所有發票跟收據正本拿給人事核對，"
+            "確認無誤再轉交會計審核入帳！"
+        ),
+    },
+]
+
 
 # ---------------------------------------------------------------------------
 # 4. 語音合成：優先 edge-tts，網路受阻時自動切換 Windows SAPI5 離線語音
@@ -906,12 +972,39 @@ def _sapi5_fallback_save(text: str, out_mp3: Path, ffmpeg_exe: str):
     tmp_wav.unlink(missing_ok=True)
 
 
+def _synth_single_audio(
+    sid: str,
+    text: str,
+    mp3_path: Path,
+    ffmpeg_exe: str,
+    rebuild_audio: bool,
+    voice_profile: str,
+    rate: str,
+    tts_engine: str,
+) -> str:
+    if not rebuild_audio and mp3_path.exists() and mp3_path.stat().st_size > 1000:
+        return "快取沿用"
+    if tts_engine == "gemini":
+        used_model = synthesize_gemini_tts(text, mp3_path, ffmpeg_exe)
+        return f"gemini-tts:{used_model}"
+    edge_voice = resolve_edge_voice(sid, voice_profile)
+    try:
+        asyncio.run(_edge_tts_save(text, mp3_path, edge_voice, rate=rate))
+        return f"edge-tts:{edge_voice} ({rate})"
+    except Exception as exc:
+        print(f"[提示] {sid} edge-tts 失敗 ({exc})，改用本機 Windows 離線語音...")
+        _sapi5_fallback_save(text, mp3_path, ffmpeg_exe)
+        return "SAPI5"
+
+
 def synthesize_all_audio(
     ffmpeg_exe: str,
     rebuild_audio: bool = False,
     voice_profile: str = "hsiaochen",
     rate: str = "+20%",
     audio_dir: Optional[Path] = None,
+    tts_engine: str = "edge",
+    include_transitions: bool = False,
 ) -> Dict[str, float]:
     target_audio_dir = audio_dir or AUDIO_DIR
     target_audio_dir.mkdir(parents=True, exist_ok=True)
@@ -919,21 +1012,28 @@ def synthesize_all_audio(
     for shot in SHOTS:
         sid = shot["id"]
         mp3_path = target_audio_dir / f"{sid}.mp3"
-        if not rebuild_audio and mp3_path.exists() and mp3_path.stat().st_size > 1000:
-            mode = "快取沿用"
-        else:
-            edge_voice = resolve_edge_voice(sid, voice_profile)
-            try:
-                asyncio.run(_edge_tts_save(shot["narration"], mp3_path, edge_voice, rate=rate))
-                mode = f"edge-tts:{edge_voice} ({rate})"
-            except Exception as exc:
-                print(f"[提示] {sid} edge-tts 失敗 ({exc})，改用本機 Windows 離線語音...")
-                _sapi5_fallback_save(shot["narration"], mp3_path, ffmpeg_exe)
-                mode = "SAPI5"
+        mode = _synth_single_audio(
+            sid, shot["narration"], mp3_path, ffmpeg_exe, rebuild_audio, voice_profile, rate, tts_engine
+        )
         dur = get_media_duration(ffmpeg_exe, mp3_path)
         durations[sid] = round(dur + 0.5, 2)
         print(f"      - {sid}.mp3 ({mode}): {dur:.2f}s -> 影片配長 {durations[sid]:.2f}s")
-    print(f"[3/5] 8 段台灣中文旁白配音準備完成！({rate})")
+
+    if include_transitions:
+        for tr in ROUTE_B_TRANSITIONS:
+            flow_mp4 = FLOW_CLIPS_DIR / tr["flow_mp4"]
+            if not flow_mp4.exists() and not rebuild_audio:
+                continue
+            tid = tr["id"]
+            mp3_path = target_audio_dir / f"{tid}.mp3"
+            mode = _synth_single_audio(
+                tid, tr["narration"], mp3_path, ffmpeg_exe, rebuild_audio, voice_profile, rate, tts_engine
+            )
+            dur = get_media_duration(ffmpeg_exe, mp3_path)
+            durations[tid] = round(dur + 0.45, 2)
+            print(f"      - {tid}.mp3 ({mode}): {dur:.2f}s -> 過場配長 {durations[tid]:.2f}s")
+
+    print(f"[3/5] 台灣中文旁白配音準備完成！({rate}, engine={tts_engine})")
     return durations
 
 
@@ -1351,7 +1451,7 @@ def draw_flow_fallback_frame(
     p_first, p_last = flow_pair
     for key, path in [(f"{shot['id']}_f", p_first), (f"{shot['id']}_l", p_last)]:
         if key not in img_cache:
-            img_cache[key] = Image.open(path).convert("RGB").resize((1856, 836), Image.Resampling.BILINEAR)
+            img_cache[key] = Image.open(path).convert("RGB").resize((1856, 836), Image.Resampling.LANCZOS)
 
     im_f = img_cache[f"{shot['id']}_f"]
     im_l = img_cache[f"{shot['id']}_l"]
@@ -1363,7 +1463,7 @@ def draw_flow_fallback_frame(
     # Subtle Ken Burns zoom (1.0 -> 1.07)
     zoom = 1.0 + 0.07 * t_norm
     zw, zh = int(1856 * zoom), int(836 * zoom)
-    z_scene = scene.resize((zw, zh), Image.Resampling.BILINEAR)
+    z_scene = scene.resize((zw, zh), Image.Resampling.LANCZOS)
     crop_x = (zw - 1856) // 2
     crop_y = (zh - 836) // 2
     vp = z_scene.crop((crop_x, crop_y, crop_x + 1856, crop_y + 836))
@@ -1663,6 +1763,92 @@ def render_all_clips_and_concat(
     print(f"[5/5] 總片合成完成！({elapsed:.2f}s) -> {target_final_path}")
 
 
+def build_cinema_hybrid_video(
+    ffmpeg_exe: str,
+    durations: Dict[str, float],
+    clips_dir: Path,
+    audio_dir: Path,
+    out_cinema_path: Path,
+    bgm_path: Optional[Path] = None,
+    fade_sec: float = 0.4,
+):
+    """組裝路線 B：電影 3s 封面 ＋ Flow 主角微電影過場 × 高清實務截圖 ＋ 0.4s xfade ＋ BGM 閃避 ＋ 3s 封底。"""
+    cinema_work = OUT_ROOT / "cinema_work"
+    cinema_work.mkdir(parents=True, exist_ok=True)
+    FLOW_CLIPS_DIR.mkdir(parents=True, exist_ok=True)
+
+    cover_mp4 = cinema_work / "00_cover.mp4"
+    render_cover_clip(
+        ffmpeg_exe,
+        cover_mp4,
+        title="BPM 一般費用報銷單｜私車公用全攻略",
+        subtitle="出差實務防呆 × 會計審核零退件完整指南",
+        cover_img=FLOW_FRAMES_DIR / "cover.png",
+        duration=3.0,
+        fps=FPS,
+    )
+    print(f"      ✓ 電影封面 (3.0s)")
+
+    sequence: List[Path] = [cover_mp4]
+    tr_by_anchor = {tr["anchor_before"]: tr for tr in ROUTE_B_TRANSITIONS}
+    flow_count = 0
+
+    for shot in SHOTS:
+        sid = shot["id"]
+        if sid in tr_by_anchor:
+            tr = tr_by_anchor[sid]
+            raw_flow = FLOW_CLIPS_DIR / tr["flow_mp4"]
+            if raw_flow.exists():
+                tid = tr["id"]
+                tr_audio = audio_dir / f"{tid}.mp3"
+                tr_dur = durations.get(tid)
+                tr_out = cinema_work / f"{tid}_cinema.mp4"
+                render_cinema_flow_clip(
+                    ffmpeg_exe,
+                    raw_flow,
+                    tr_audio if tr_audio.exists() else None,
+                    tr_out,
+                    tr_dur,
+                    subtitle=tr["subtitle"],
+                    chapter_badge=tr["badge"],
+                    fps=FPS,
+                )
+                sequence.append(tr_out)
+                flow_count += 1
+                print(f"      ✓ 插入 Flow 主角劇情過場：{raw_flow.name} -> {tr_out.name}")
+
+        ui_clip = clips_dir / f"{sid}.mp4"
+        if ui_clip.exists():
+            sequence.append(ui_clip)
+
+    ending_mp4 = cinema_work / "99_ending.mp4"
+    render_ending_clip(
+        ffmpeg_exe,
+        ending_mp4,
+        title="謝謝收看",
+        subtitle="申請人備齊正本 → 人事核對 → 會計審核入帳",
+        end_img=FLOW_FRAMES_DIR / "ending.png",
+        duration=3.0,
+        fps=FPS,
+    )
+    print(f"      ✓ 電影封底 (3.0s)")
+    sequence.append(ending_mp4)
+
+    resolved_bgm = bgm_path if (bgm_path and bgm_path.exists()) else (OUT_ROOT / "bgm.mp3")
+    if resolved_bgm.exists():
+        pre_bgm = cinema_work / "pre_bgm_xfade.mp4"
+        print(f"[Cinema] 執行 {len(sequence)} 段 xfade ({fade_sec}s) 柔順轉場合成...")
+        concat_with_xfade(ffmpeg_exe, sequence, pre_bgm, fade_sec=fade_sec, fps=FPS)
+        print(f"[Cinema] 偵測到 BGM ({resolved_bgm.name})，執行自動語音閃避混音...")
+        mix_bgm_with_ducking(ffmpeg_exe, pre_bgm, resolved_bgm, out_cinema_path)
+    else:
+        print(f"[Cinema] 執行 {len(sequence)} 段 xfade ({fade_sec}s) 柔順轉場合成（未放置 bgm.mp3，僅保留旁白）...")
+        concat_with_xfade(ffmpeg_exe, sequence, out_cinema_path, fade_sec=fade_sec, fps=FPS)
+
+    final_dur = get_media_duration(ffmpeg_exe, out_cinema_path)
+    print(f"[Cinema] ✅ 路線 B 電影混剪終極版完成！({final_dur:.2f}s, 已嵌入 {flow_count} 段 Flow 實片) -> {out_cinema_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(description="BPM 一般費用報銷單雙軌分鏡影片建置器")
     parser.add_argument("--only-flow", action="store_true", help="僅重新渲染 Flow 情境分鏡與缺漏片段並重新合成總片")
@@ -1680,7 +1866,35 @@ def main():
         default="both",
         help="輸出版本語速：1.2 (1.2x快)、1.0/normal (正常語速)、both (雙版本皆輸出)",
     )
+    parser.add_argument(
+        "--cinema",
+        action="store_true",
+        help="輸出路線 B 電影混剪終極版（3s 封面/封底＋Flow 主角過場＋0.4s xfade 轉場＋BGM 閃避）",
+    )
+    parser.add_argument(
+        "--export-voice-jobs",
+        action="store_true",
+        help="匯出台灣讀音正規化之 bpm_sop/bpm_voice_jobs.json 供免費 Colab T4 配音克隆使用",
+    )
+    parser.add_argument("--bgm", default="", help="指定無人聲背景音樂 BGM 檔案路徑（預設自動偵測 bpm_sop/bgm.mp3）")
+    parser.add_argument(
+        "--tts",
+        choices=["edge", "gemini"],
+        default="edge",
+        help="語音合成引擎（預設 edge；gemini 需設定 GEMINI_API_KEY 環境變數）",
+    )
     args = parser.parse_args()
+
+    if args.export_voice_jobs:
+        jobs_out = OUT_ROOT / "bpm_voice_jobs.json"
+        export_voice_jobs_json(
+            SHOTS + ROUTE_B_TRANSITIONS,
+            jobs_out,
+            project_name="BPM_一般費用報銷單_私車公用",
+        )
+        print(f"[匯出完成] Colab T4 配音工作單已輸出：{jobs_out}")
+        if not args.cinema and not args.rebuild_audio and not args.only:
+            return
 
     if args.only:
         only_shots = set(args.only)
@@ -1725,6 +1939,8 @@ def main():
             voice_profile=args.voice,
             rate=rate_val,
             audio_dir=a_dir,
+            tts_engine=args.tts,
+            include_transitions=args.cinema,
         )
         render_all_clips_and_concat(
             ffmpeg_exe,
@@ -1738,6 +1954,28 @@ def main():
             manifest_path=m_path,
             title_suffix=suffix,
         )
+        if args.cinema:
+            cinema_name = (
+                "BPM_一般費用報銷單_私車公用_電影混剪終極版.mp4"
+                if sp == "1.2"
+                else "BPM_一般費用報銷單_私車公用_電影混剪終極版_正常語速.mp4"
+            )
+            cinema_out = OUT_ROOT / cinema_name
+            bgm_arg = Path(args.bgm) if args.bgm else None
+            build_cinema_hybrid_video(
+                ffmpeg_exe,
+                durations=durations,
+                clips_dir=c_dir,
+                audio_dir=a_dir,
+                out_cinema_path=cinema_out,
+                bgm_path=bgm_arg,
+            )
+            try:
+                shutil.copy2(cinema_out, Path(r"C:\GOOGLE ANGET") / cinema_out.name)
+                print(f"[複製完成] -> C:\\GOOGLE ANGET\\{cinema_out.name}")
+            except Exception as e:
+                print(f"[警告] 複製電影混剪版到根目錄失敗: {e}")
+
         # 同步複製到根目錄供方便點選
         try:
             shutil.copy2(v_path, Path(r"C:\GOOGLE ANGET") / v_path.name)

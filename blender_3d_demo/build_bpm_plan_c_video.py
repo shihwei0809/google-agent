@@ -12,10 +12,26 @@ import asyncio
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from PIL import Image, ImageDraw
+
+BASE_DIR = Path(__file__).resolve().parent
+_CINEMA_SCRIPTS = BASE_DIR.parent / ".agents" / "skills" / "sop-cinema-video" / "scripts"
+if str(_CINEMA_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_CINEMA_SCRIPTS))
+
+from cinema_post_engine import (
+    concat_with_xfade,
+    export_voice_jobs_json,
+    mix_bgm_with_ducking,
+    render_cinema_flow_clip,
+    render_cover_clip,
+    render_ending_clip,
+    synthesize_gemini_tts,
+)
 
 from build_bpm_sop_video import (
     FLOW_H,
@@ -31,7 +47,6 @@ from build_bpm_sop_video import (
     resolve_edge_voice,
 )
 
-BASE_DIR = Path(__file__).resolve().parent
 PLAN_A_ROOT = BASE_DIR / "bpm_sop"
 OUT_ROOT = BASE_DIR / "bpm_sop_plan_c"
 FLOW_FRAMES_DIR = OUT_ROOT / "flow_frames"
@@ -211,6 +226,21 @@ def sync_reused_assets_from_plan_a() -> Dict[str, Tuple[Path, Path]]:
 def generate_new_plan_c_keyframes(pairs: Dict[str, Tuple[Path, Path]]) -> Dict[str, Tuple[Path, Path]]:
     """生成方案 C 新增 3 鏡 (C02 / C03 / C05) 之 1280x720 首尾幀圖檔。"""
 
+    # 若已有高階 3D 擬真圖檔，優先保留
+    p2_f = FLOW_FRAMES_DIR / "bpm_c02_first.png"
+    p2_l = FLOW_FRAMES_DIR / "bpm_c02_last.png"
+    p3_f = FLOW_FRAMES_DIR / "bpm_c03_first.png"
+    p3_l = FLOW_FRAMES_DIR / "bpm_c03_last.png"
+    p5_f = FLOW_FRAMES_DIR / "bpm_c05_first.png"
+    p5_l = FLOW_FRAMES_DIR / "bpm_c05_last.png"
+
+    if p2_f.exists() and p2_l.exists() and p3_f.exists() and p3_l.exists() and p5_f.exists() and p5_l.exists():
+        pairs["bpm_c02"] = (p2_f, p2_l)
+        pairs["bpm_c03"] = (p3_f, p3_l)
+        pairs["bpm_c05"] = (p5_f, p5_l)
+        print(f"[2/5] 方案 C 偵測到現有高階 3D 擬真首尾幀，保留使用: {FLOW_FRAMES_DIR}")
+        return pairs
+
     def save_both(name: str, img: Image.Image) -> Path:
         p_all = FLOW_FRAMES_DIR / name
         p_new = NEW_FLOW_FRAMES_DIR / name
@@ -335,7 +365,9 @@ def generate_new_plan_c_keyframes(pairs: Dict[str, Tuple[Path, Path]]) -> Dict[s
     return pairs
 
 
-def synthesize_plan_c_audio(ffmpeg_exe: str, rebuild_audio: bool, voice_profile: str) -> Dict[str, float]:
+def synthesize_plan_c_audio(
+    ffmpeg_exe: str, rebuild_audio: bool, voice_profile: str, tts_engine: str = "edge"
+) -> Dict[str, float]:
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     durations: Dict[str, float] = {}
     for shot in SHOTS_C:
@@ -343,6 +375,9 @@ def synthesize_plan_c_audio(ffmpeg_exe: str, rebuild_audio: bool, voice_profile:
         mp3_path = AUDIO_DIR / f"{sid}.mp3"
         if not rebuild_audio and mp3_path.exists() and mp3_path.stat().st_size > 1000:
             mode = "快取沿用"
+        elif tts_engine == "gemini":
+            used_model = synthesize_gemini_tts(shot["narration"], mp3_path, ffmpeg_exe)
+            mode = f"gemini-tts:{used_model}"
         else:
             edge_voice = resolve_edge_voice(sid, voice_profile)
             try:
@@ -355,7 +390,7 @@ def synthesize_plan_c_audio(ffmpeg_exe: str, rebuild_audio: bool, voice_profile:
         dur = get_media_duration(ffmpeg_exe, mp3_path)
         durations[sid] = round(dur + 0.5, 2)
         print(f"      - {sid}.mp3 ({mode}): {dur:.2f}s -> 影片配長 {durations[sid]:.2f}s")
-    print("[3/5] 方案 C 6 段台灣中文旁白配音完成！")
+    print(f"[3/5] 方案 C 6 段台灣中文旁白配音完成！(engine={tts_engine})")
     return durations
 
 
@@ -364,12 +399,27 @@ def render_plan_c_all_and_concat(
     durations: Dict[str, float],
     flow_pairs: Dict[str, Tuple[Path, Path]],
     voice_profile: str,
+    legacy_hud: bool = False,
+    bgm_path: Optional[Path] = None,
 ):
     CLIPS_DIR.mkdir(parents=True, exist_ok=True)
     concat_entries = []
     manifest_shots = []
+    cinema_clips: List[Path] = []
     elapsed = 0.0
     total_shots = len(SHOTS_C)
+
+    if not legacy_hud:
+        cover_mp4 = CLIPS_DIR / "00_cover.mp4"
+        render_cover_clip(
+            ffmpeg_exe,
+            cover_mp4,
+            title="BPM 一般費用報銷單｜微電影概念篇",
+            subtitle="私車公用出差報帳 6 步驟快速導覽",
+            cover_img=FLOW_FRAMES_DIR / "cover.png",
+            duration=3.0,
+        )
+        cinema_clips.append(cover_mp4)
 
     print(f"[4/5] 正在處理方案 C {total_shots} 段 1920x1080 (24fps) 概念動畫...")
     for shot in SHOTS_C:
@@ -381,16 +431,29 @@ def render_plan_c_all_and_concat(
 
         used_real_flow = real_flow_mp4.exists()
         if used_real_flow:
-            render_flow_clip_with_real_mp4(
-                ffmpeg_exe, shot, real_flow_mp4, audio_path, out_mp4, dur, total_shots=total_shots
-            )
+            if legacy_hud:
+                render_flow_clip_with_real_mp4(
+                    ffmpeg_exe, shot, real_flow_mp4, audio_path, out_mp4, dur, total_shots=total_shots
+                )
+            else:
+                render_cinema_flow_clip(
+                    ffmpeg_exe,
+                    real_flow_mp4,
+                    audio_path,
+                    out_mp4,
+                    dur,
+                    subtitle=shot["subtitle"],
+                    chapter_badge=shot["chapter"],
+                )
         else:
             pair = flow_pairs[shot["flow_theme"]]
             render_pipe_clip(ffmpeg_exe, shot, dur, audio_path, out_mp4, pair, total_shots=total_shots)
 
         actual_dur = get_media_duration(ffmpeg_exe, out_mp4)
-        print(f"      ✓ {out_mp4.name} ({actual_dur:.2f}s){' [已嵌入 Google Flow 實片]' if used_real_flow else ' [首尾幀動態預覽]'}")
+        mode_tag = " [電影滿版 Flow 實片]" if (used_real_flow and not legacy_hud) else (" [已嵌入 Google Flow 實片]" if used_real_flow else " [首尾幀動態預覽]")
+        print(f"      ✓ {out_mp4.name} ({actual_dur:.2f}s){mode_tag}")
         concat_entries.append(f"file '{out_mp4.as_posix()}'")
+        cinema_clips.append(out_mp4)
 
         pair_f, pair_l = flow_pairs[shot["flow_theme"]]
         manifest_shots.append(
@@ -421,24 +484,44 @@ def render_plan_c_all_and_concat(
     concat_list = CLIPS_DIR / "concat_list.txt"
     concat_list.write_text("\n".join(concat_entries), encoding="utf-8")
 
-    subprocess.run(
-        [
+    if legacy_hud:
+        subprocess.run(
+            [
+                ffmpeg_exe,
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(concat_list),
+                "-c",
+                "copy",
+                str(FINAL_VIDEO_PATH),
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=True,
+        )
+    else:
+        ending_mp4 = CLIPS_DIR / "99_ending.mp4"
+        render_ending_clip(
             ffmpeg_exe,
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            str(concat_list),
-            "-c",
-            "copy",
-            str(FINAL_VIDEO_PATH),
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        check=True,
-    )
+            ending_mp4,
+            title="謝謝收看",
+            subtitle="申請人備齊正本 → 人事核對 → 會計審核入帳",
+            end_img=FLOW_FRAMES_DIR / "ending.png",
+            duration=3.0,
+        )
+        cinema_clips.append(ending_mp4)
+        resolved_bgm = bgm_path if (bgm_path and bgm_path.exists()) else (OUT_ROOT / "bgm.mp3")
+        if resolved_bgm.exists():
+            pre_bgm = CLIPS_DIR / "pre_bgm_xfade.mp4"
+            concat_with_xfade(ffmpeg_exe, cinema_clips, pre_bgm, fade_sec=0.4)
+            mix_bgm_with_ducking(ffmpeg_exe, pre_bgm, resolved_bgm, FINAL_VIDEO_PATH)
+        else:
+            concat_with_xfade(ffmpeg_exe, cinema_clips, FINAL_VIDEO_PATH, fade_sec=0.4)
+        elapsed = get_media_duration(ffmpeg_exe, FINAL_VIDEO_PATH)
 
     real_count = sum(1 for s in manifest_shots if s["used_real_flow_mp4"])
     manifest = {
@@ -464,14 +547,35 @@ def main():
         default="hsiaochen",
         help="台灣語音音色",
     )
+    parser.add_argument("--export-voice-jobs", action="store_true", help="匯出 bpm_plan_c_voice_jobs.json 供 Colab T4 配音")
+    parser.add_argument("--legacy-hud", action="store_true", help="沿用舊版上下簡報邊框與硬切合成")
+    parser.add_argument("--bgm", default="", help="無人聲背景音樂 BGM 檔案路徑")
+    parser.add_argument("--tts", choices=["edge", "gemini"], default="edge", help="語音合成引擎")
     args = parser.parse_args()
+
+    if args.export_voice_jobs:
+        jobs_out = OUT_ROOT / "bpm_plan_c_voice_jobs.json"
+        export_voice_jobs_json(SHOTS_C, jobs_out, project_name="BPM_方案C_全Flow概念版")
+        print(f"[匯出完成] Colab T4 配音工作單已輸出：{jobs_out}")
+        if not args.rebuild_audio and not args.bgm:
+            return
 
     ffmpeg_exe = find_ffmpeg()
     print(f"使用 FFmpeg: {ffmpeg_exe}")
     pairs = sync_reused_assets_from_plan_a()
     pairs = generate_new_plan_c_keyframes(pairs)
-    durations = synthesize_plan_c_audio(ffmpeg_exe, rebuild_audio=args.rebuild_audio, voice_profile=args.voice)
-    render_plan_c_all_and_concat(ffmpeg_exe, durations, pairs, voice_profile=args.voice)
+    durations = synthesize_plan_c_audio(
+        ffmpeg_exe, rebuild_audio=args.rebuild_audio, voice_profile=args.voice, tts_engine=args.tts
+    )
+    bgm_arg = Path(args.bgm) if args.bgm else None
+    render_plan_c_all_and_concat(
+        ffmpeg_exe,
+        durations,
+        pairs,
+        voice_profile=args.voice,
+        legacy_hud=args.legacy_hud,
+        bgm_path=bgm_arg,
+    )
 
 
 if __name__ == "__main__":

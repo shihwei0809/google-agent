@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>鴻勝資材部｜進出貨與季年報智慧分析系統</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root { color-scheme: dark; }
+    body {
+      background: linear-gradient(135deg, #0b1120 0%, #0f172a 50%, #111827 100%);
+      color: #e2e8f0;
+      font-family: "Microsoft JhengHei", "Segoe UI", system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+    }
+    .glass {
+      background: rgba(30, 41, 59, 0.72);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+    .tab-btn {
+      transition: all 0.2s ease;
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+    }
+    .drop-zone {
+      border: 2px dashed rgba(56, 189, 248, 0.45);
+      transition: all 0.2s ease;
+    }
+    .drop-zone.dragover {
+      border-color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      transform: scale(1.01);
+    }
+    /* Executive PPT Slide Style (仿圖三高階企業簡報白底風格) */
+    .exec-slide {
+      background: #ffffff;
+      color: #1e293b;
+      font-family: "Microsoft JhengHei", "Segoe UI", sans-serif;
+      border-radius: 16px;
+      padding: 28px 32px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+    }
+    .exec-table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 13.5px;
+    }
+    .exec-table thead th {
+      background: #1b3668;
+      color: #ffffff;
+      font-weight: 700;
+      padding: 10px 12px;
+      text-align: center;
+      border-right: 1px solid rgba(255, 255, 255, 0.22);
+    }
+    .exec-table thead th:first-child { text-align: left; padding-left: 14px; }
+    .exec-table thead th:last-child { border-right: none; }
+    .exec-table tbody td {
+      padding: 9px 12px;
+      text-align: center;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .exec-table tbody td.item-col {
+      text-align: left;
+      padding-left: 14px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .exec-table tr.row-alt td { background: #f8fafc; }
+    .exec-table tr.row-highlight td { background: #fef3c7; color: #92400e; font-weight: 800; }
+    .exec-table tr.row-pos td { background: #ecfdf5; color: #047857; font-weight: 800; }
+    .exec-table tr.row-neg td { background: #fef2f2; color: #dc2626; font-weight: 800; }
+    .exec-table tr.row-blue td { background: #eff6ff; color: #1d4ed8; font-weight: 800; }
+    .exec-callout {
+      border-radius: 14px;
+      padding: 14px 16px;
+      border-width: 1.5px;
+      border-style: solid;
+    }
+    .exec-callout-blue { background: #f8fbff; border-color: #3b82f6; }
+    .exec-callout-amber { background: #fffbeb; border-color: #f59e0b; }
+    .exec-callout-green { background: #f0fdf4; border-color: #22c55e; }
+    /* Dark Dashboard Export Theme (仿圖二首頁深色戰情版) */
+    .dark-slide {
+      background: linear-gradient(135deg, #0b1120 0%, #0f172a 55%, #111827 100%);
+      color: #e2e8f0;
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      border-radius: 16px;
+      padding: 28px 32px;
+    }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .print-only-header { display: none; }
+    @media print {
+      @page { size: A4 landscape; margin: 10mm; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      header, nav, #pwa-install-banner, #updateBanner, #toastBox, #settingsModal, #editMetricModal, .no-print {
+        display: none !important;
+      }
+      .print-only-header { display: block !important; }
+      body { background: #0b1120 !important; color: #e2e8f0 !important; }
+      main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+      .glass, .print-card { break-inside: avoid; page-break-inside: avoid; }
+      body.print-light { background: #ffffff !important; color: #0f172a !important; }
+      body.print-light .glass {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #0f172a !important;
+        box-shadow: none !important;
+      }
+      body.print-light .text-white,
+      body.print-light .text-slate-100,
+      body.print-light .text-slate-200 { color: #0f172a !important; }
+      body.print-light .text-slate-300,
+      body.print-light .text-slate-400 { color: #475569 !important; }
+      body.print-light .bg-slate-800\/60,
+      body.print-light .bg-slate-900\/50,
+      body.print-light .bg-slate-900\/70 { background: #f8fafc !important; }
+      body.print-light th, body.print-light td { border-color: #cbd5e1 !important; }
+    }
+  </style>
+</head>
+<body class="antialiased">
+  <!-- PWA 版本自動更新橫幅 -->
+  <div id="updateBanner" onclick="window.location.reload(true)"
+       class="hidden fixed top-0 left-0 right-0 z-50 bg-emerald-600 hover:bg-emerald-500 text-white text-center py-2.5 px-4 font-bold cursor-pointer shadow-lg transition">
+    🎉 系統已發布新版本！點擊此處立即更新 🔄
+  </div>
+
+  <!-- PWA 智慧安裝橫幅 -->
+  <div id="pwa-install-banner"
+       class="hidden bg-gradient-to-r from-sky-700 to-indigo-700 text-white px-4 py-2.5 flex items-center justify-between gap-3 text-sm shadow">
+    <div class="flex items-center gap-2">
+      <span class="text-lg">📱</span>
+      <span>將「鴻勝資材部季年報分析系統」安裝為桌面 App，支援離線查詢與秒開！</span>
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <button id="btnPwaInstall" class="bg-white text-sky-800 font-bold px-3.5 py-1 rounded-lg hover:bg-sky-50 transition">立即安裝</button>
+      <button onclick="document.getElementById('pwa-install-banner').classList.add('hidden')" class="text-white/80 hover:text-white px-2">✕</button>
+    </div>
+  </div>
+
+  <!-- 頂部導覽列 -->
+  <header class="sticky top-0 z-40 glass border-b border-slate-700/60">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-xl shadow-lg">📊</div>
+        <div>
+          <h1 class="text-lg font-extrabold text-white tracking-wide flex items-center gap-2">
+            鴻勝資材部｜季年報智慧分析系統
+            <span id="modeBadge" class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 border border-sky-400/30">初始化中...</span>
+          </h1>
+          <p class="text-xs text-slate-400">BI PDF / Excel 自動解析・月/季/半年/年報 MoM・QoQ・YoY 差異分析・PPT 文案與圖卡一鍵產出</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5 flex-wrap">
+        <span id="syncBadge" class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">🟢 狀態檢查中</span>
+        <button onclick="openSettingsModal()" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition flex items-center gap-1.5">
+          ⚙️ 設定 / AI OCR
+        </button>
+        <button onclick="refreshFromServer(true)" class="text-xs px-3 py-1.5 rounded-lg bg-sky-600/80 hover:bg-sky-500 text-white font-semibold transition">
+          🔄 同步資料
+        </button>
+      </div>
+    </div>
+
+    <!-- 功能分頁列 -->
+    <nav class="max-w-7xl mx-auto px-4 pb-2.5 flex gap-2 overflow-x-auto">
+      <button data-tab="dashboard" class="tab-btn active px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-slate-800/70 text-slate-300 hover:text-white">
+        🚛 原料進出貨分析
+      </button>
+      <button data-tab="warehouse" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-slate-800/70 text-slate-300 hover:text-white">
+        🏭 倉庫棧板報表
+      </button>
+      <button data-tab="upload" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-slate-800/70 text-slate-300 hover:text-white">
+        📤 上傳解析 (PDF / Excel)
+      </button>
+      <button data-tab="report" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-slate-800/70 text-slate-300 hover:text-white">
+        📝 雙 PPT 簡報 & 匯出
+      </button>
+      <button data-tab="alerts" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-slate-800/70 text-slate-300 hover:text-white">
+        🚨 異常預警 <span id="alertCountBadge" class="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-rose-500 text-white hidden">0</span>
+      </button>
+      <button data-tab="management" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-slate-800/70 text-slate-300 hover:text-white">
+        📋 日常管理 (P.5)
+      </button>
+      <button data-tab="projects" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-slate-800/70 text-slate-300 hover:text-white">
+        🎯 重要工作進度 (P.6~8)
+      </button>
+      <button data-tab="admin" class="tab-btn px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap bg-slate-800/70 text-slate-300 hover:text-white">
+        🗄️ 資料管理後台
+      </button>
+    </nav>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <!-- ==================== TAB 1: 差異分析總覽 ==================== -->
+    <section id="tab-dashboard" class="space-y-6">
+      <!-- 控制篩選列 -->
+      <div class="glass rounded-2xl p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end no-print">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-semibold">資料口徑</label>
+          <select id="selScope" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+            <option value="merged">整合口徑 (官方基準 + 2026 BI / 新上傳)</option>
+            <option value="official">官方季報基準 (2022–2025 PPT版)</option>
+            <option value="bi">BI 原始明細口徑 (2025–2026 + 上傳)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-semibold">報表維度</label>
+          <select id="selPeriodType" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+            <option value="quarter">季報 (Q1 ~ Q4)</option>
+            <option value="month">月報 (單月查詢)</option>
+            <option value="half">半年報 (H1 / H2)</option>
+            <option value="year">年報 (全年度)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-semibold">查詢年份</label>
+          <select id="selYear" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"></select>
+        </div>
+        <div id="subPeriodWrap">
+          <label class="block text-xs text-slate-400 mb-1 font-semibold">查詢期別</label>
+          <select id="selSubPeriod" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white"></select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1 font-semibold">差異比較基準</label>
+          <select id="selCompareMode" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+            <option value="yoy">去年同期 (YoY)</option>
+            <option value="prev">上一期 (MoM / QoQ)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 列印專用標頭 -->
+      <div class="print-only-header border-b-2 border-sky-500 pb-2 mb-3">
+        <div id="printDashHeader" class="text-xl font-black text-white">鴻勝資材部｜原料大車進出貨戰情報表</div>
+      </div>
+
+      <!-- 首頁完整匯出 & 列印快捷工具列 -->
+      <div class="glass rounded-2xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 no-print border border-sky-500/25">
+        <div class="text-xs text-slate-300 flex items-center gap-2">
+          <span class="text-base">✨</span>
+          <span>首頁完整匯出（1:1 復刻 KPI 卡片、雙軸曲線圖、Top 5 與明細表，PPT 內所有圖表與數字皆可編輯）</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="exportDashboardEditablePptx('bulk')" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs shadow transition">
+            📑 匯出首頁原貌可編輯 PPT (.pptx)
+          </button>
+          <button onclick="printCurrentReport('dark')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-600 transition">
+            🖨️ 列印原貌 (深色)
+          </button>
+          <button onclick="printCurrentReport('light')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs border border-slate-600 transition">
+            📄 列印省墨版 (白底)
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 張原料大車核心 KPI 差異卡片 -->
+      <div id="kpiGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+      <!-- 雙圖表區 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-bold text-white">📦 進貨工作量對照 (MT & 車次)</h2>
+            <span id="inboundPeriodTag" class="text-xs text-sky-300 bg-sky-500/15 px-2.5 py-1 rounded-full"></span>
+          </div>
+          <div class="h-64"><canvas id="chartInbound"></canvas></div>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-bold text-white">🚚 出貨工作量對照 (MT & 車次)</h2>
+            <span id="outboundPeriodTag" class="text-xs text-emerald-300 bg-emerald-500/15 px-2.5 py-1 rounded-full"></span>
+          </div>
+          <div class="h-64"><canvas id="chartOutbound"></canvas></div>
+        </div>
+      </div>
+
+      <!-- BI 明細深度鑽取 -->
+      <div class="glass rounded-2xl p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="text-base font-bold text-white">🔍 BI 明細深度鑽取 (Top 5 進貨品名 & 出貨客戶)</h2>
+          <span class="text-xs text-slate-400">當選定期間具備 BI 原始明細時，自動呈現主要品名與交易對象佔比</span>
+        </div>
+        <div id="drilldownBox" class="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm"></div>
+      </div>
+
+      <!-- 月度完整數據表 -->
+      <div class="glass rounded-2xl p-5">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <h2 class="text-base font-bold text-white">📅 原料大車進出貨月度明細與差異表</h2>
+          <div class="flex items-center gap-2 text-xs text-slate-400">
+            <span>異常波動門檻：±<strong id="lblThreshold" class="text-rose-400">15</strong>%</span>
+            <input id="rngThreshold" type="range" min="5" max="50" step="1" value="15" class="w-24 accent-rose-500 no-print" />
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700 text-slate-400 text-xs">
+                <th class="py-2.5 px-3">月份</th>
+                <th class="py-2.5 px-3 text-right">進貨 (MT)</th>
+                <th class="py-2.5 px-3 text-right">進貨差異</th>
+                <th class="py-2.5 px-3 text-right">進貨車次</th>
+                <th class="py-2.5 px-3 text-right">出貨 (MT)</th>
+                <th class="py-2.5 px-3 text-right">出貨差異</th>
+                <th class="py-2.5 px-3 text-right">出貨車次</th>
+                <th class="py-2.5 px-3 text-center">來源口徑</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyTableBody" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 1B: 倉庫棧板報表專頁 ==================== -->
+    <section id="tab-warehouse" class="hidden space-y-6">
+      <!-- 頂部期別狀態 & 快速切換 / 獨立 PPT 匯出 -->
+      <div class="glass rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-xl">🏭</div>
+          <div>
+            <div class="text-base font-extrabold text-white flex items-center gap-2">
+              倉庫作業統計報表（7 大作業項目棧板數）
+              <span id="whActivePeriodLabel" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30"></span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">涵蓋：原料進貨、客供包材進貨、自用包材進貨、成品入庫、調撥、換標或理貨作業、出貨、平均工作日板數</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 no-print">
+          <select id="whQuickPeriodType" onchange="syncWarehouseFilter('type', this.value)" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white">
+            <option value="quarter">季報</option>
+            <option value="month">月報</option>
+            <option value="half">半年報</option>
+            <option value="year">年報</option>
+          </select>
+          <select id="whQuickYear" onchange="syncWarehouseFilter('year', this.value)" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"></select>
+          <select id="whQuickSub" onchange="syncWarehouseFilter('sub', this.value)" class="bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white"></select>
+          <button onclick="exportDashboardEditablePptx('warehouse')" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs shadow transition">
+            🌃 匯出戰情原貌可編輯 PPT (.pptx)
+          </button>
+          <button onclick="exportEditablePptx('warehouse')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold text-xs border border-amber-500/40 transition">
+            🏭 下載倉庫白底 PPT (.pptx)
+          </button>
+          <button onclick="printCurrentReport('dark')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-600 transition">
+            🖨️ 列印倉庫報表
+          </button>
+          <button onclick="printCurrentReport('light')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-bold text-xs border border-slate-600 transition">
+            📄 省墨列印
+          </button>
+          <button onclick="exportPptCardPng('warehouse')" class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition">
+            🖼️ 下載倉庫簡報圖卡 (PNG)
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 張倉庫專屬 KPI 卡片 -->
+      <div id="whKpiGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+
+      <!-- 倉庫雙圖表區 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-bold text-white">📊 倉庫 7 項作業結構堆疊圖</h2>
+            <span id="whPeriodTag" class="text-xs text-amber-300 bg-amber-500/15 px-2.5 py-1 rounded-full"></span>
+          </div>
+          <div class="h-72"><canvas id="chartWarehouse"></canvas></div>
+        </div>
+        <div class="glass rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-base font-bold text-white">📈 同期總棧板對照 & 日均作業板數趨勢</h2>
+            <span id="whTrendTag" class="text-xs text-sky-300 bg-sky-500/15 px-2.5 py-1 rounded-full"></span>
+          </div>
+          <div class="h-72"><canvas id="chartWarehouseTrend"></canvas></div>
+        </div>
+      </div>
+
+      <!-- 倉庫 7 大作業項目明細統計表（對齊 PPT 報表結構） -->
+      <div class="glass rounded-2xl p-5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-base font-bold text-white">📋 倉庫作業項目明細統計表 (棧板數)</h2>
+          <span class="text-xs text-slate-400">可於「📤 上傳解析」上傳倉庫棧板統計表或手動補登各月數據</span>
+        </div>
+        <div id="whDetailTableWrap" class="overflow-x-auto"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 2: 上傳解析 (PDF / Excel) ==================== -->
+    <section id="tab-upload" class="hidden space-y-6">
+      <div class="glass rounded-2xl p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-lg font-extrabold text-white">📤 拖曳上傳 BI PDF 或 Excel 自動解析</h2>
+            <p class="text-xs text-slate-400 mt-1">
+              支援：<code class="text-sky-300">04.日報表-進貨一覽表</code>、<code class="text-sky-300">08.進貨(無小計)</code>、<code class="text-sky-300">07.月報表-月出貨明細日報表-ALL</code>、舊版 <code>.xls</code>、倉庫棧板表、以及 <strong>BI 匯出 PDF / 掃描 PDF (AI Vision OCR)</strong>
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-2 text-xs text-slate-300 bg-slate-800/80 px-3 py-2 rounded-xl border border-slate-700 cursor-pointer">
+              <input id="chkForceOcr" type="checkbox" class="accent-sky-500" />
+              <span>🤖 PDF 強制啟用 Gemini AI 視覺解析</span>
+            </label>
+            <select id="selTripRule" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white" title="車次計算口徑">
+              <option value="weigh">車次口徑：不重複地磅單號 (預設)</option>
+              <option value="plate_day">車次口徑：同日同車牌合併計算</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="dropZone" class="drop-zone rounded-2xl p-10 text-center cursor-pointer bg-slate-900/50">
+          <input id="fileInput" type="file" multiple accept=".xlsx,.xls,.csv,.pdf" class="hidden" />
+          <div class="text-4xl mb-3">📂</div>
+          <p class="text-base font-bold text-white">將 Excel (.xlsx / .xls) 或 BI PDF 檔案拖曳至此，或點擊選取</p>
+          <p class="text-xs text-slate-400 mt-1.5">可一次多檔批次解析；文字型 PDF 零成本即時解析，掃描型 PDF 自動降級呼叫 Gemini 3.8→3.7→3.6→2.5 Flash Vision OCR</p>
+          <button type="button" onclick="document.getElementById('fileInput').click()"
+                  class="mt-4 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-sm shadow transition">
+            選擇檔案
+          </button>
+        </div>
+
+        <!-- 解析進度與訊息 -->
+        <div id="parseStatus" class="hidden mt-4 p-4 rounded-xl bg-slate-900 border border-slate-700 text-sm"></div>
+
+        <!-- 解析預覽與寫入確認 -->
+        <div id="previewPanel" class="hidden mt-6 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h3 class="text-base font-bold text-emerald-300">✅ 解析預覽（確認無誤後一鍵寫入資料庫）</h3>
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="selTargetSource" onchange="renderPreviewTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white">
+                <option value="BI_EXCEL">寫入為：BI 原始明細口徑</option>
+                <option value="OFFICIAL_PPT">寫入為：官方季報確認口徑</option>
+                <option value="BI_PDF">寫入為：BI PDF 解析口徑</option>
+              </select>
+              <select id="selMetricDupPolicy" onchange="renderPreviewTable()" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white">
+                <option value="skip_same">策略：覆蓋變更、略過相同</option>
+                <option value="overwrite_all">策略：全部覆蓋寫入</option>
+                <option value="skip_all">策略：僅寫入全新月份（略過已存在）</option>
+              </select>
+              <button onclick="commitParsedRecords()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow transition">
+                💾 確認寫入資料庫
+              </button>
+              <button onclick="clearPreview()" class="px-3 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-sm">
+                清除
+              </button>
+            </div>
+          </div>
+          <div id="metricDupBanner" class="hidden p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs space-y-1"></div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-700 text-slate-400 text-xs">
+                  <th class="py-2 px-3">比對狀態</th>
+                  <th class="py-2 px-3">月份 (YYYY-MM)</th>
+                  <th class="py-2 px-3">類型</th>
+                  <th class="py-2 px-3 text-right">重量 (MT)</th>
+                  <th class="py-2 px-3 text-right">車次</th>
+                  <th class="py-2 px-3 text-right">棧板數</th>
+                  <th class="py-2 px-3 text-right">明細筆數</th>
+                  <th class="py-2 px-3">來源檔案</th>
+                  <th class="py-2 px-2 text-center w-12">移除</th>
+                </tr>
+              </thead>
+              <tbody id="previewTableBody" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 手動單筆快速補登（針對倉庫棧板數或人工修正） -->
+      <div class="glass rounded-2xl p-6">
+        <h3 class="text-base font-bold text-white mb-3">✍️ 手動補登／修正月度數據（含倉庫 6 項棧板數）</h3>
+        <form id="manualForm" onsubmit="submitManualMetric(event)" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 items-end">
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">月份</label>
+            <input id="manYm" type="month" required value="2026-10" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">類別</label>
+            <select id="manCat" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+              <option value="inbound">進貨 (MT / 車次)</option>
+              <option value="outbound">出貨 (MT / 車次)</option>
+              <option value="warehouse">倉庫作業 (棧板數)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">重量 (MT)</label>
+            <input id="manMt" type="number" step="0.01" placeholder="選填" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">車次</label>
+            <input id="manTrips" type="number" step="1" placeholder="選填" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">棧板數</label>
+            <input id="manPallets" type="number" step="1" placeholder="倉庫類別填寫" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+          </div>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition">
+            ➕ 儲存此筆
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 3: 雙 PPT 簡報文案 & 一鍵匯出 ==================== -->
+    <section id="tab-report" class="hidden space-y-6">
+      <div class="glass rounded-2xl p-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-extrabold text-white">📝 雙 PPT 獨立簡報產生器 & 一鍵匯出中心</h2>
+          <p class="text-xs text-slate-400 mt-0.5">已自動拆分為「PPT①：原料大車進出貨（MT / 車次）」與「PPT②：倉庫棧板作業（7 大項目）」，各自產出獨立文案、圖卡與可編輯 .pptx</p>
+        </div>
+        <div class="flex flex-wrap gap-2 items-center">
+          <select id="selExportTheme" onchange="renderAll()" class="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-xs text-white font-semibold">
+            <option value="exec">🏛️ 企業高階簡報風格 (白底深藍表頭+三框建言)</option>
+            <option value="dark">🌃 戰情儀表板風格 (仿首頁深色發光卡片)</option>
+          </select>
+          <button onclick="exportEditablePptx('bulk')" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow transition">
+            🚛 下載 PPT①：原料大車進出貨 (.pptx)
+          </button>
+          <button onclick="exportEditablePptx('warehouse')" class="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow transition">
+            🏭 下載 PPT②：倉庫棧板作業 (.pptx)
+          </button>
+          <button onclick="exportFullExcel()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition">
+            📊 匯出完整 Excel (.xlsx)
+          </button>
+        </div>
+      </div>
+
+      <!-- 區塊 A：PPT① 原料大車進出貨簡報 -->
+      <div class="glass rounded-2xl p-6 space-y-4 border border-sky-500/30">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-extrabold text-sky-300">🚛 PPT①：原料大車進出貨簡報（進貨／出貨 MT 與車次 + 日常管理與專案進度）</h3>
+            <p class="text-xs text-slate-400">純淨聚焦大車進出貨數據，完全不混入倉庫棧板數字</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="copyPptText('bulk')" class="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition">
+              📋 複製原料進出貨文案
+            </button>
+            <button onclick="exportDashboardEditablePptx('bulk')" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs shadow transition">
+              🌃 首頁原貌可編輯 PPT
+            </button>
+            <button onclick="exportEditablePptx('bulk')" class="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition">
+              📑 下載 PPT① (.pptx)
+            </button>
+            <button onclick="exportPptCardPng('bulk')" class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition">
+              🖼️ 下載圖卡① (PNG)
+            </button>
+            <button onclick="exportDashboardPng()" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition">
+              📸 截圖首頁戰情
+            </button>
+          </div>
+        </div>
+        <textarea id="pptSummaryBulk" rows="7" readonly
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-xs text-slate-100 font-mono leading-relaxed"></textarea>
+        <div id="pptCardBulk" class="exec-slide space-y-5"></div>
+      </div>
+
+      <!-- 區塊 B：PPT② 倉庫棧板作業簡報 -->
+      <div class="glass rounded-2xl p-6 space-y-4 border border-amber-500/30">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-extrabold text-amber-300">🏭 PPT②：倉庫棧板作業簡報（7 項作業棧板數 + 日均作業板數）</h3>
+            <p class="text-xs text-slate-400">獨立呈現原料進貨、客供/自用包材、成品入庫、調撥、換標理貨、出貨及 YoY 板數差異</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="copyPptText('warehouse')" class="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition">
+              📋 複製倉庫作業文案
+            </button>
+            <button onclick="exportDashboardEditablePptx('warehouse')" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-bold text-xs shadow transition">
+              🌃 倉庫戰情原貌可編輯 PPT
+            </button>
+            <button onclick="exportEditablePptx('warehouse')" class="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition">
+              📑 下載 PPT② (.pptx)
+            </button>
+            <button onclick="exportPptCardPng('warehouse')" class="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition">
+              🖼️ 下載圖卡② (PNG)
+            </button>
+          </div>
+        </div>
+        <textarea id="pptSummaryWarehouse" rows="6" readonly
+                  class="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-xs text-slate-100 font-mono leading-relaxed"></textarea>
+        <div id="pptCardWarehouse" class="exec-slide space-y-5"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 4: 異常預警 ==================== -->
+    <section id="tab-alerts" class="hidden space-y-4">
+      <div class="glass rounded-2xl p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-lg font-extrabold text-white">🚨 異常波動預警中心</h2>
+            <p class="text-xs text-slate-400">自動偵測所有月度進貨 MT、進貨車次、出貨 MT、出貨車次、倉庫棧板數，超過設定門檻即標紅警示</p>
+          </div>
+          <span id="alertThresholdInfo" class="text-xs px-3 py-1.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold"></span>
+        </div>
+        <div id="alertList" class="space-y-3"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 5: 日常管理 (P.5) ==================== -->
+    <section id="tab-management" class="hidden space-y-6">
+      <div class="glass rounded-2xl p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-extrabold text-white">📋 日常管理紀錄（品質作業・工安異常・客戶稽核）</h2>
+            <p class="text-xs text-slate-400 mt-1">支援直接拖曳上傳 Excel / Word (.docx) / PPT (.pptx) / PDF / 截圖 (AI OCR) 自動解析匯入，亦可貼上多筆文字或單筆手動補登</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" onclick="downloadMgmtTemplate()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-600 text-xs font-bold transition">
+              📥 下載 Excel 範本
+            </button>
+            <button type="button" onclick="toggleQuickPaste('mgmt')" class="px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-bold transition">
+              📋 貼上文字批次解析
+            </button>
+          </div>
+        </div>
+
+        <!-- 批次上傳拖曳區 -->
+        <div id="mgmtDropZone" class="drop-zone rounded-2xl p-6 text-center cursor-pointer bg-slate-900/50">
+          <input id="mgmtFileInput" type="file" multiple accept=".xlsx,.xls,.csv,.docx,.pptx,.pdf,.png,.jpg,.jpeg,.txt" class="hidden" />
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <span class="text-3xl">📤</span>
+            <div class="text-left">
+              <p class="text-sm font-bold text-white">拖曳或點擊上傳日常管理檔案（支援多檔批次解析）</p>
+              <p class="text-xs text-slate-400 mt-0.5">支援：Excel (.xlsx/.xls/.csv)、Word (.docx)、簡報 (.pptx)、PDF、圖片截圖 (.png/.jpg AI OCR)、純文字 (.txt)</p>
+            </div>
+            <button type="button" onclick="document.getElementById('mgmtFileInput').click()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow transition shrink-0">
+              選擇檔案
+            </button>
+          </div>
+        </div>
+
+        <!-- 摺疊式快速貼上文字區 -->
+        <div id="mgmtPasteBox" class="hidden p-4 rounded-2xl bg-slate-900/80 border border-indigo-500/40 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <span class="text-xs font-bold text-indigo-300">📋 貼上多筆日常管理文字（可從 LINE / Email / PPT 直接複製整段）</span>
+            <div class="flex items-center gap-2">
+              <label class="text-xs text-slate-400">預設期別：</label>
+              <input id="mgmtPastePeriod" type="text" value="2026-Q3" class="w-28 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1 text-xs text-white" />
+            </div>
+          </div>
+          <textarea id="mgmtPasteText" rows="4" placeholder="例如：&#10;1. Q3品質相關作業無異常。&#10;2. 7/26 堆高機迴轉時，噸桶不慎碰撞67區鋼構防火板。&#10;3. 台積下半年度N系列庫存稽核與其他客戶Q3稽核無大缺失。"
+                    class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 leading-relaxed"></textarea>
+          <div class="flex justify-end gap-2">
+            <button type="button" onclick="toggleQuickPaste('mgmt')" class="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 text-xs">收起</button>
+            <button type="button" onclick="parsePastedText('mgmt')" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">🤖 解析貼上文字</button>
+          </div>
+        </div>
+
+        <div id="mgmtParseStatus" class="hidden p-3 rounded-xl bg-slate-900 border border-slate-700 text-xs"></div>
+
+        <!-- 預覽與批次寫入 -->
+        <div id="mgmtPreviewPanel" class="hidden space-y-3 p-4 rounded-2xl bg-slate-900/80 border border-emerald-500/40">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-sm font-bold text-emerald-300">✅ 解析預覽（請確認後再批次寫入雲端資料庫）</h3>
+            <div class="flex gap-2">
+              <button type="button" onclick="commitMgmtPreview()" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow transition">
+                💾 確認批次寫入
+              </button>
+              <button type="button" onclick="clearMgmtPreview()" class="px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs">
+                清除
+              </button>
+            </div>
+          </div>
+          <div id="mgmtDupBanner" class="hidden p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs"></div>
+          <div class="overflow-x-auto max-h-64 overflow-y-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-700 text-slate-400">
+                  <th class="py-2 px-2 w-12 text-center">匯入</th>
+                  <th class="py-2 px-2 w-28">重複判讀</th>
+                  <th class="py-2 px-2 w-24">期別</th>
+                  <th class="py-2 px-2 w-28">日期</th>
+                  <th class="py-2 px-2 w-24">類別</th>
+                  <th class="py-2 px-2">事件或稽核說明</th>
+                  <th class="py-2 px-2 w-20">狀態</th>
+                  <th class="py-2 px-2 w-12 text-center">移除</th>
+                </tr>
+              </thead>
+              <tbody id="mgmtPreviewBody" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 單筆手動補登 -->
+        <div class="pt-3 border-t border-slate-700/70">
+          <div class="text-xs font-bold text-slate-400 mb-2.5">✍️ 單筆手動補登</div>
+          <form onsubmit="addManagementItem(event)" class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-5">
+            <input id="mgmtPeriod" type="text" required placeholder="期別 (如 2026-Q3)" value="2026-Q3" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <input id="mgmtDate" type="date" required class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <select id="mgmtType" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+              <option value="品質作業">品質作業</option>
+              <option value="工安異常">工安異常</option>
+              <option value="客戶稽核">客戶稽核</option>
+              <option value="其他管理">其他管理</option>
+            </select>
+            <input id="mgmtContent" type="text" required placeholder="事件或稽核說明..." class="md:col-span-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <button type="submit" class="bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl px-4 py-2 text-sm transition">➕ 新增紀錄</button>
+          </form>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-slate-400 font-semibold">📅 年度篩選：</span>
+            <select id="mgmtYearFilter" onchange="renderManagementList()" class="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white"></select>
+          </div>
+          <span id="mgmtFilterCount" class="text-xs text-slate-400"></span>
+        </div>
+
+        <div id="mgmtList" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 6: 重要工作進度 (P.6~P.8) ==================== -->
+    <section id="tab-projects" class="hidden space-y-6">
+      <div class="glass rounded-2xl p-6 space-y-5">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-extrabold text-white">🎯 重要工作進度追蹤 (P.6 ~ P.8)</h2>
+            <p class="text-xs text-slate-400 mt-1">支援拖曳上傳 Excel / Word (.docx) / PPT (.pptx) / PDF / 截圖自動解析成工作項目表，並即時同步至簡報匯出</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <div id="projectProgressSummary" class="text-xs font-bold text-emerald-300 bg-emerald-500/15 px-3 py-1.5 rounded-full border border-emerald-500/30"></div>
+            <button type="button" onclick="downloadProjTemplate()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-600 text-xs font-bold transition">
+              📥 下載 Excel 範本
+            </button>
+            <button type="button" onclick="toggleQuickPaste('proj')" class="px-3 py-1.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-500 text-white text-xs font-bold transition">
+              📋 貼上文字批次解析
+            </button>
+          </div>
+        </div>
+
+        <!-- 批次上傳拖曳區 -->
+        <div id="projDropZone" class="drop-zone rounded-2xl p-6 text-center cursor-pointer bg-slate-900/50">
+          <input id="projFileInput" type="file" multiple accept=".xlsx,.xls,.csv,.docx,.pptx,.pdf,.png,.jpg,.jpeg,.txt" class="hidden" />
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <span class="text-3xl">📤</span>
+            <div class="text-left">
+              <p class="text-sm font-bold text-white">拖曳或點擊上傳重要工作進度檔案（支援多檔批次解析）</p>
+              <p class="text-xs text-slate-400 mt-0.5">支援：Excel (.xlsx/.xls/.csv)、Word (.docx)、簡報 (.pptx)、PDF、圖片截圖 (.png/.jpg AI OCR)、純文字 (.txt)</p>
+            </div>
+            <button type="button" onclick="document.getElementById('projFileInput').click()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow transition shrink-0">
+              選擇檔案
+            </button>
+          </div>
+        </div>
+
+        <!-- 摺疊式快速貼上文字區 -->
+        <div id="projPasteBox" class="hidden p-4 rounded-2xl bg-slate-900/80 border border-indigo-500/40 space-y-3">
+          <span class="block text-xs font-bold text-indigo-300">📋 貼上工作進度表格或條列文字（可從 Excel / PPT / 會議紀錄直接複製貼上）</span>
+          <textarea id="projPasteText" rows="4" placeholder="例如：&#10;1. TK669,670儲槽更改存放MEAUPS原料｜配合業務需求｜增加第二貨源｜2026Q2｜進行中&#10;2. 加裝儲槽電子式微壓表｜舊槽區32個儲槽加裝｜偵測氮封異常｜2026Q1｜進行中"
+                    class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-xs text-slate-100 leading-relaxed"></textarea>
+          <div class="flex justify-end gap-2">
+            <button type="button" onclick="toggleQuickPaste('proj')" class="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-200 text-xs">收起</button>
+            <button type="button" onclick="parsePastedText('proj')" class="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs">🤖 解析貼上文字</button>
+          </div>
+        </div>
+
+        <div id="projParseStatus" class="hidden p-3 rounded-xl bg-slate-900 border border-slate-700 text-xs"></div>
+
+        <!-- 預覽與批次寫入 -->
+        <div id="projPreviewPanel" class="hidden space-y-3 p-4 rounded-2xl bg-slate-900/80 border border-emerald-500/40">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-sm font-bold text-emerald-300">✅ 解析預覽（請確認後再批次寫入雲端資料庫）</h3>
+            <div class="flex gap-2">
+              <button type="button" onclick="commitProjPreview()" class="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow transition">
+                💾 確認批次寫入
+              </button>
+              <button type="button" onclick="clearProjPreview()" class="px-3 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs">
+                清除
+              </button>
+            </div>
+          </div>
+          <div id="projDupBanner" class="hidden p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs"></div>
+          <div class="overflow-x-auto max-h-64 overflow-y-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="border-b border-slate-700 text-slate-400">
+                  <th class="py-2 px-2 w-12 text-center">匯入</th>
+                  <th class="py-2 px-2 w-32">比對狀態</th>
+                  <th class="py-2 px-2">主題</th>
+                  <th class="py-2 px-2">說明</th>
+                  <th class="py-2 px-2">成效</th>
+                  <th class="py-2 px-2 w-24">預估時間</th>
+                  <th class="py-2 px-2 w-20">狀態</th>
+                  <th class="py-2 px-2 w-12 text-center">移除</th>
+                </tr>
+              </thead>
+              <tbody id="projPreviewBody" class="divide-y divide-slate-800"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 單筆手動新增專案 -->
+        <div class="pt-3 border-t border-slate-700/70">
+          <div class="text-xs font-bold text-slate-400 mb-2.5">✍️ 單筆手動新增專案</div>
+          <form onsubmit="addProjectItem(event)" class="grid grid-cols-1 md:grid-cols-6 gap-3 mb-2">
+            <input id="projTitle" type="text" required placeholder="主題名稱" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <input id="projDesc" type="text" required placeholder="工作說明" class="md:col-span-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <input id="projEffect" type="text" required placeholder="預期成效" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <input id="projEta" type="text" required placeholder="預估時間 (如 2026Q2)" class="bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white" />
+            <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl px-4 py-2 text-sm transition">➕ 新增專案</button>
+          </form>
+        </div>
+
+        <!-- 狀態子分頁膠囊 + 分年度篩選列 -->
+        <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-slate-900/70 border border-slate-800">
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" id="btnProjTabActive" onclick="setProjViewMode('active')"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-sky-600 text-white shadow transition flex items-center gap-1.5">
+              🔥 進行中 / 追蹤中 <span id="cntProjActive" class="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px]">0</span>
+            </button>
+            <button type="button" id="btnProjTabDone" onclick="setProjViewMode('done')"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5">
+              ✅ 已完成歸檔 <span id="cntProjDone" class="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px]">0</span>
+            </button>
+            <button type="button" id="btnProjTabAll" onclick="setProjViewMode('all')"
+                    class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:text-white transition flex items-center gap-1.5">
+              📋 全部項目 <span id="cntProjAll" class="px-1.5 py-0.5 rounded-full bg-black/25 text-[10px]">0</span>
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5 text-xs">
+            <select id="projYearFilter" onchange="renderProjectsTable()" class="bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white font-semibold"></select>
+            <label class="flex items-center gap-1.5 text-slate-300 cursor-pointer select-none">
+              <input id="chkProjIncludeOngoing" type="checkbox" checked onchange="renderProjectsTable()" class="accent-sky-500" />
+              <span>含全年持續常態</span>
+            </label>
+            <input id="projSearch" oninput="renderProjectsTable()" type="text" placeholder="搜尋主題或說明..."
+                   class="w-40 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white" />
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left border-collapse">
+            <thead>
+              <tr class="border-b border-slate-700 text-slate-400 text-xs">
+                <th class="py-2.5 px-2 w-12">項次</th>
+                <th class="py-2.5 px-3">主題</th>
+                <th class="py-2.5 px-3">說明</th>
+                <th class="py-2.5 px-3">成效</th>
+                <th class="py-2.5 px-3 w-28">預估時間</th>
+                <th class="py-2.5 px-3 w-32">狀態</th>
+                <th class="py-2.5 px-2 w-16 text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody id="projectTableBody" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== TAB 7: 資料管理後台 (稽核 / 修改 / 刪除錯檔) ==================== -->
+    <section id="tab-admin" class="hidden space-y-6">
+      <div class="glass rounded-2xl p-6 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-extrabold text-white">🗄️ 雲端資料庫管理後台（稽核・修改・撤銷錯誤上傳）</h2>
+            <p class="text-xs text-slate-400">可檢視目前 D1 / SQLite 內每一筆月度數據與來源檔名；若同仁抓錯檔案，可單筆修正、勾選批次刪除，或直接「依來源檔名一鍵整批撤銷」。</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="deleteSelectedMetrics()" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow transition">
+              🗑️ 刪除已勾選 (<span id="selectedAdminCount">0</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- 篩選與依檔名整批撤銷列 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">年份篩選</label>
+            <select id="admYear" onchange="renderAdminTable()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white"></select>
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">類別篩選</label>
+            <select id="admCat" onchange="renderAdminTable()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+              <option value="ALL">全部類別</option>
+              <option value="inbound">📦 進貨</option>
+              <option value="outbound">🚚 出貨</option>
+              <option value="warehouse">🏭 倉庫棧板</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">來源口徑</label>
+            <select id="admSource" onchange="renderAdminTable()" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+              <option value="ALL">全部口徑</option>
+              <option value="BI_EXCEL">BI_EXCEL (上傳 Excel)</option>
+              <option value="BI_PDF">BI_PDF (上傳 PDF)</option>
+              <option value="MANUAL">MANUAL (手動補登)</option>
+              <option value="OFFICIAL_PPT">OFFICIAL_PPT (官方基準)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[11px] text-slate-400 mb-1">搜尋月份 / 檔名</label>
+            <input id="admQuery" oninput="renderAdminTable()" type="text" placeholder="如 2026-09 或 08.進貨"
+                   class="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white" />
+          </div>
+          <div>
+            <label class="block text-[11px] text-amber-300 mb-1 font-semibold">🧹 依來源檔名一鍵整批撤銷</label>
+            <div class="flex gap-1.5">
+              <select id="admBatchFile" class="flex-1 min-w-0 bg-slate-950 border border-amber-500/40 rounded-lg px-2 py-1.5 text-xs text-white"></select>
+              <button onclick="rollbackByFilename()" class="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs whitespace-nowrap">撤銷</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span id="admSummaryText">共 0 筆資料</span>
+          <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+            <input id="admCheckAll" type="checkbox" onchange="toggleAdminCheckAll(this.checked)" class="accent-rose-500" />
+            全選目前篩選結果
+          </label>
+        </div>
+
+        <div class="overflow-x-auto max-h-[480px] overflow-y-auto">
+          <table class="w-full text-sm text-left border-collapse">
+            <thead class="sticky top-0 bg-slate-900 z-10">
+              <tr class="border-b border-slate-700 text-slate-400 text-xs">
+                <th class="py-2.5 px-2 w-10 text-center">選取</th>
+                <th class="py-2.5 px-3">月份</th>
+                <th class="py-2.5 px-3">類別</th>
+                <th class="py-2.5 px-3">來源口徑</th>
+                <th class="py-2.5 px-3">來源檔案</th>
+                <th class="py-2.5 px-3 text-right">重量 (MT)</th>
+                <th class="py-2.5 px-3 text-right">車次</th>
+                <th class="py-2.5 px-3 text-right">棧板數</th>
+                <th class="py-2.5 px-3 text-center w-28">操作</th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody" class="divide-y divide-slate-800"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 單筆數據快速編修視窗 -->
+  <div id="editMetricModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-2xl max-w-md w-full p-6 space-y-4 border border-slate-600">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-extrabold text-white">✏️ 修改單筆月度數據</h3>
+        <button onclick="closeEditMetricModal()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+      <div id="editMetricMeta" class="text-xs text-sky-300 bg-sky-500/10 px-3 py-2 rounded-lg border border-sky-500/30"></div>
+      <form onsubmit="saveEditedMetric(event)" class="space-y-3 text-sm">
+        <input id="edYm" type="hidden" />
+        <input id="edCat" type="hidden" />
+        <input id="edSource" type="hidden" />
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">重量 (MT)</label>
+          <input id="edMt" type="number" step="0.01" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">車次</label>
+          <input id="edTrips" type="number" step="1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">倉庫棧板數</label>
+          <input id="edPallets" type="number" step="1" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" />
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeEditMetricModal()" class="px-4 py-2 rounded-xl bg-slate-700 text-slate-200 text-xs">取消</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs">💾 儲存修改</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 設定視窗 (Gemini API Key / 資料庫重置) -->
+  <div id="settingsModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="glass rounded-2xl max-w-lg w-full p-6 space-y-4 border border-slate-600">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-extrabold text-white">⚙️ 系統設定與 AI Vision OCR</h3>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs text-slate-300 font-semibold mb-1">Gemini API Key（僅於純前端模式掃描 PDF OCR 使用；雲端 D1 / 本機伺服器版會自動使用後端環境變數）</label>
+          <input id="inpGeminiKey" type="password" placeholder="AIzaSy...（存於本機瀏覽器，絕不上傳 Git）"
+                 class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white" />
+          <p class="text-[11px] text-slate-400 mt-1">模型降級鏈：<code>gemini-3.8-flash → 3.7 → 3.6 → 2.5 → 1.5</code></p>
+        </div>
+        <div class="pt-3 border-t border-slate-700 flex items-center justify-between">
+          <button onclick="resetToSeedData()" class="text-xs px-3 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/40 text-rose-300 border border-rose-500/40">
+            🗑️ 重置為初始預載數據
+          </button>
+          <button onclick="saveSettings()" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold">
+            儲存設定
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 輕量 Toast 容器 -->
+  <div id="toastBox" class="fixed bottom-5 right-5 z-50 space-y-2"></div>
+
+  <script src="seed_data.js"></script>
+  <script src="pwa_offline_sync.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -149,6 +149,21 @@
 
     }
 
+    input[type="datetime-local"] {
+      min-width: 0;
+      font-size: 12px;
+    }
+
+    @media (max-width: 640px) {
+      .sticky-col {
+        min-width: 108px !important;
+        max-width: 108px !important;
+        width: 108px !important;
+        padding: 5px 6px !important;
+        font-size: 10px !important;
+      }
+    }
+
   </style>
 
 </head>
@@ -165,13 +180,15 @@
 
       <span class="text-xl">⚡</span>
 
+      <div>
+
         <h1 class="text-base font-bold tracking-wide flex items-center flex-wrap gap-1.5">
 
           <span id="txtHeaderProductBadge" class="bg-indigo-600 text-white text-xs px-2 py-0.5 rounded font-extrabold shadow-sm">ACT</span>
 
           <span>動態生產排程與進耗存整合系統</span>
 
-          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.3 (2026/11/10 存檔清單字體白色對比優化)</span>
+          <span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-semibold px-2 py-0.5 rounded shadow-sm">v2.9 (2026/11/20 全裝置響應式版面優化：自適應時間區塊、看板與導覽列)</span>
 
         </h1>
 
@@ -185,34 +202,34 @@
 
     <div class="flex flex-wrap items-center gap-2">
 
-      <div class="flex items-center gap-1.5 bg-slate-800 p-1 rounded border border-slate-700">
-        <span class="text-slate-300">歷史存檔區:</span>
-        <select id="historySelect" style="color:#ffffff;background-color:#0f172a;" class="bg-slate-900 text-white border border-slate-600 rounded px-1.5 py-0.5 text-xs outline-none">
+      <div class="flex flex-wrap items-center gap-1.5 max-w-full bg-slate-800 p-1 rounded border border-slate-700">
+        <span class="text-slate-300 whitespace-nowrap">歷史存檔區:</span>
+        <select id="historySelect" style="color:#ffffff;background-color:#0f172a;" class="bg-slate-900 text-white border border-slate-600 rounded px-1.5 py-0.5 text-xs outline-none max-w-[200px] sm:max-w-[240px]">
           <option value="">-- 選擇歷史紀錄 --</option>
         </select>
-        <button onclick="loadHistoryRecord()" class="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white font-medium cursor-pointer" title="載入選中的歷史存檔">讀取</button>
-        <button onclick="renameHistoryRecord()" class="bg-amber-600 hover:bg-amber-500 px-2 py-0.5 rounded text-white font-medium flex items-center gap-1 shadow-sm cursor-pointer" title="修改選中存檔的名稱">
+        <button onclick="loadHistoryRecord()" class="bg-slate-700 hover:bg-slate-600 px-2 py-0.5 rounded text-white font-medium cursor-pointer whitespace-nowrap" title="載入選中的歷史存檔">讀取</button>
+        <button onclick="renameHistoryRecord()" class="bg-amber-600 hover:bg-amber-500 px-2 py-0.5 rounded text-white font-medium flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap" title="修改選中存檔的名稱">
           <span>✏️</span> 改名
         </button>
-        <button onclick="overwriteHistoryRecord()" class="bg-blue-600 hover:bg-blue-500 px-2 py-0.5 rounded text-white font-medium flex items-center gap-1 shadow-sm cursor-pointer" title="以目前排程數據直接覆蓋更新選中的存檔（不產生新紀錄）">
+        <button onclick="overwriteHistoryRecord()" class="bg-blue-600 hover:bg-blue-500 px-2 py-0.5 rounded text-white font-medium flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap" title="以目前排程數據直接覆蓋更新選中的存檔（不產生新紀錄）">
           <span>🔄</span> 覆蓋
         </button>
-        <button onclick="deleteHistoryRecord()" class="bg-rose-700 hover:bg-rose-600 px-2 py-0.5 rounded text-white font-medium ml-0.5 flex items-center gap-1 shadow-sm cursor-pointer" title="刪除選中的歷史存檔 (需安全密碼)">
+        <button onclick="deleteHistoryRecord()" class="bg-rose-700 hover:bg-rose-600 px-2 py-0.5 rounded text-white font-medium ml-0.5 flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap" title="刪除選中的歷史存檔 (需安全密碼)">
           <span>🗑️</span> 刪除
         </button>
       </div>
 
-      <button onclick="saveHistoryRecord()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded font-bold text-white flex items-center gap-1 shadow-sm cursor-pointer" title="儲存為全新的歷史存檔">
+      <button onclick="saveHistoryRecord()" class="bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded font-bold text-white flex items-center gap-1 shadow-sm cursor-pointer whitespace-nowrap" title="儲存為全新的歷史存檔">
         <span>➕</span> 另存新檔
       </button>
 
-      <button onclick="resetAllData()" class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-white font-semibold shadow-sm">
+      <button onclick="resetAllData()" class="bg-rose-600 hover:bg-rose-500 px-3 py-1 rounded text-white font-semibold shadow-sm whitespace-nowrap">
 
         全清空重來
 
       </button>
 
-      <button onclick="saveToCloud()" id="btnSaveCloud" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white font-semibold shadow-sm flex items-center gap-1">
+      <button onclick="saveToCloud()" id="btnSaveCloud" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white font-semibold shadow-sm flex items-center gap-1 whitespace-nowrap">
 
         <span>☁️</span> 寫入試算表
 
@@ -220,7 +237,7 @@
 
 
 
-      <button id="pwaInstallBtn" onclick="installPWA()" class="hidden bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white font-semibold shadow-sm flex items-center gap-1 animate-pulse">
+      <button id="pwaInstallBtn" onclick="installPWA()" class="hidden bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white font-semibold shadow-sm flex items-center gap-1 animate-pulse whitespace-nowrap">
 
         <span>📲</span> 安裝桌面 App
 
@@ -228,7 +245,7 @@
 
       
 
-      <div id="cloudStatusBadge" class="flex items-center space-x-1 pl-2 text-emerald-400 font-medium">
+      <div id="cloudStatusBadge" class="flex items-center space-x-1 pl-2 text-emerald-400 font-medium whitespace-nowrap">
 
         <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
 
@@ -246,7 +263,7 @@
 
   <main class="p-3 max-w-[1920px] mx-auto space-y-3">
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
 
       
 
@@ -264,21 +281,61 @@
 
 
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        <div class="space-y-2.5">
 
-          <div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
 
-            <label class="block text-slate-500 text-[11px] mb-0.5">預計開機時間 (排程表起始日)</label>
+            <div>
 
-            <input type="datetime-local" id="startBootTime" class="w-full border rounded px-2 py-1 font-semibold text-slate-700 bg-slate-50 focus:bg-white" onchange="onParamChange()">
+              <label class="block text-slate-500 text-[11px] mb-0.5 whitespace-nowrap">預計開機時間 (排程表起始日)</label>
+
+              <input type="datetime-local" id="startBootTime" class="w-full border rounded px-2 py-1 font-semibold text-slate-700 bg-slate-50 focus:bg-white" onchange="onParamChange()" oninput="onParamChange()">
+
+            </div>
+
+            <div>
+
+              <label class="block text-slate-500 text-[11px] mb-0.5 whitespace-nowrap">製程出料時間 (耗用與生產起點)</label>
+
+              <input type="datetime-local" id="startProduceTime" class="w-full border rounded px-2 py-1 font-semibold text-purple-700 bg-purple-50 focus:bg-white" onchange="onParamChange()" oninput="onParamChange()">
+
+            </div>
 
           </div>
 
-          <div>
+          <div class="bg-rose-50/50 border border-rose-200 rounded-lg p-2.5 space-y-1.5">
 
-            <label class="block text-slate-500 text-[11px] mb-0.5">製程出料時間 (耗用與生產起點)</label>
+            <div class="flex flex-wrap items-center justify-between gap-1.5">
 
-            <input type="datetime-local" id="startProduceTime" class="w-full border rounded px-2 py-1 font-semibold text-purple-700 bg-purple-50 focus:bg-white" onchange="onParamChange()">
+              <label class="text-rose-700 font-bold text-[11px] whitespace-nowrap">🛑 製程停車時間 <span class="font-normal text-rose-500">(選填，實際停機點)</span></label>
+
+              <div class="flex items-center gap-1 shrink-0">
+
+                <button type="button" onclick="applyIdealStopTime()" class="text-[10px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded font-semibold cursor-pointer transition whitespace-nowrap" title="一鍵填入理想目標產量的預估達標時間">⚡ 帶入達標點</button>
+
+                <button type="button" onclick="clearStopProduceTime()" class="text-[10px] bg-slate-100 hover:bg-rose-100 text-slate-600 hover:text-rose-700 border border-slate-300 px-1.5 py-0.5 rounded font-semibold cursor-pointer transition whitespace-nowrap" title="清空製程停車時間，完全依總目標產量推算">✕ 清空</button>
+
+              </div>
+
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+
+              <input type="datetime-local" id="stopProduceTime" class="w-full sm:flex-1 min-w-0 border border-rose-300 rounded px-2 py-1 font-semibold text-rose-800 bg-white focus:outline-none focus:border-rose-500" onchange="onParamChange()" oninput="onParamChange()">
+
+              <div class="flex flex-wrap items-center gap-1 shrink-0">
+
+                <span class="text-[10px] text-slate-500 whitespace-nowrap">快速設時:</span>
+
+                <button type="button" onclick="setStopTimeHour(8, 0)" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded border border-slate-200 cursor-pointer whitespace-nowrap" title="設為所選停車日期的早上 08:00">08:00</button>
+
+                <button type="button" onclick="setStopTimeHour(16, 0)" class="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-0.5 rounded border border-slate-200 cursor-pointer whitespace-nowrap" title="設為所選停車日期的下午 16:00">16:00</button>
+
+                <button type="button" onclick="setStopTimeHour(23, 59)" class="text-[10px] bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-2 py-0.5 rounded border border-rose-200 cursor-pointer whitespace-nowrap" title="設為所選停車日期的 23:59 (代表該日全天做完)">23:59 (含當日全天)</button>
+
+              </div>
+
+            </div>
 
           </div>
 
@@ -324,23 +381,40 @@
 
 
 
-        <div class="flex items-center justify-between bg-slate-50 px-3 py-2 rounded border border-slate-200">
+        <div class="flex flex-wrap items-center justify-between bg-slate-50 px-3 py-2 rounded border border-slate-200 gap-2">
 
-          <div>
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 
-            <span class="text-slate-500">預估原料總量(T): </span>
+            <div>
 
-            <span id="txtRawTotalNeeded" class="text-blue-700 font-extrabold text-sm ml-1">0.0</span>
+              <span class="text-slate-500">理想目標原料總量(T): </span>
+
+              <span id="txtRawTotalNeeded" class="text-blue-700 font-extrabold text-sm ml-1">0.0</span>
+
+            </div>
+
+            <div class="hidden sm:block text-slate-300">|</div>
+
+            <div>
+
+              <span class="text-slate-500">🎯 達標預估完工時間: </span>
+
+              <span id="txtIdealFinishTime" class="text-indigo-700 font-extrabold text-xs sm:text-sm ml-1">-</span>
+
+            </div>
 
           </div>
 
-          <button onclick="recalculateAll(true)" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-0.5 rounded text-[11px] font-semibold" title="強制清除所有手動鎖定，全表自動重新推算">
+          <button onclick="recalculateAll(true)" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-0.5 rounded text-[11px] font-semibold cursor-pointer whitespace-nowrap" title="強制清除所有手動鎖定，全表自動重新推算">
 
             全部還原自動計算
 
           </button>
 
         </div>
+
+        <!-- 理想目標 vs 製程實際停車產量與落差即時對照看板 -->
+        <div id="scheduleCompareDashboard" class="rounded-lg border border-slate-200 bg-slate-50/70 p-2.5 transition-all"></div>
 
 
 
@@ -374,21 +448,21 @@
 
           <!-- 產品設定檔切換器 -->
 
-          <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded">
+          <div class="flex flex-wrap items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded">
 
-            <span class="text-[11px] text-slate-500 font-medium">產品配置:</span>
+            <span class="text-[11px] text-slate-500 font-medium whitespace-nowrap">產品配置:</span>
 
             <select id="productProfileSelect" class="bg-white border border-slate-300 rounded px-2 py-0.5 text-xs font-bold text-indigo-700 outline-none" onchange="switchProductProfile(this.value)">
 
             </select>
 
-            <button onclick="openNewProfileModal()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded text-[11px] font-semibold" title="新增自訂產品型號">
+            <button onclick="openNewProfileModal()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap" title="新增自訂產品型號">
 
               ➕ 新增產品
 
             </button>
 
-            <button onclick="deleteCurrentProfile()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded text-[11px] font-semibold" title="刪除當前產品配置">
+            <button onclick="deleteCurrentProfile()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-1.5 py-0.5 rounded text-[11px] font-semibold whitespace-nowrap" title="刪除當前產品配置">
 
               🗑️
 
@@ -460,7 +534,7 @@
 
             <!-- 總容量滿位資訊標籤 (動態渲染) -->
 
-            <div id="tankCapacityBadgeContainer" class="text-[11px] text-emerald-900 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-sm flex items-center gap-1.5">
+            <div id="tankCapacityBadgeContainer" class="text-[11px] text-emerald-900 font-bold bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 shadow-sm flex flex-wrap items-center gap-1.5">
 
             </div>
 
@@ -480,9 +554,9 @@
 
           <!-- 底部即時加總列 (動態渲染) -->
 
-          <div class="flex justify-between items-center bg-slate-50 px-3 py-1.5 rounded border border-slate-200 text-xs">
+          <div class="flex flex-wrap justify-between items-center bg-slate-50 px-3 py-1.5 rounded border border-slate-200 text-xs gap-2">
 
-            <div id="stockSummaryComponents" class="text-slate-500 font-medium flex items-center gap-2">
+            <div id="stockSummaryComponents" class="text-slate-500 font-medium flex flex-wrap items-center gap-2">
 
             </div>
 
@@ -500,7 +574,7 @@
 
         <!-- 預排進貨總計 (T) 卡片 (動態讀取 30 日排程進貨量合計，對齊圖二設計) -->
 
-        <div class="bg-sky-50/80 border border-sky-200 rounded-lg p-2.5 flex items-center justify-between shadow-sm">
+        <div class="bg-sky-50/80 border border-sky-200 rounded-lg p-2.5 flex flex-wrap items-center justify-between shadow-sm gap-2">
 
           <div>
 
@@ -518,7 +592,7 @@
 
           <div class="flex items-center gap-2">
 
-            <button onclick="recalculateAll(false)" class="bg-sky-200 hover:bg-sky-300 text-sky-800 text-xs font-bold px-3 py-1.5 rounded-md shadow-sm border border-sky-300 flex items-center gap-1 transition cursor-pointer" title="點擊重新動態讀取下方 30 日進貨量 (+) 之合計">
+            <button onclick="recalculateAll(false)" class="bg-sky-200 hover:bg-sky-300 text-sky-800 text-xs font-bold px-3 py-1.5 rounded-md shadow-sm border border-sky-300 flex items-center gap-1 transition cursor-pointer whitespace-nowrap" title="點擊重新動態讀取下方 30 日進貨量 (+) 之合計">
 
               <span class="text-sky-600 text-sm">⚡</span>
 
@@ -526,7 +600,7 @@
 
             </button>
 
-            <button onclick="recalculateAll(false)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition">
+            <button onclick="recalculateAll(false)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-md text-xs font-bold shadow-sm transition whitespace-nowrap">
 
               重新運算
 
@@ -550,7 +624,7 @@
 
       <div class="px-4 py-2.5 border-b flex flex-wrap items-center justify-between bg-slate-50 gap-2">
 
-        <div class="flex items-center space-x-2 font-bold text-slate-700 text-sm">
+        <div class="flex flex-wrap items-center space-x-2 font-bold text-slate-700 text-sm">
 
           <span>📅</span>
 
@@ -560,7 +634,7 @@
 
         </div>
 
-        <button onclick="exportToExcel()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1 rounded text-xs font-semibold flex items-center gap-1">
+        <button onclick="exportToExcel()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 whitespace-nowrap">
 
           <span>📊</span> 匯出 Excel
 
@@ -764,6 +838,10 @@
 
       startProduceTime: "2026-10-16T16:09",
 
+      stopProduceTime: "",
+
+      tableScheduleMode: "STOP_TIME",
+
       totalTarget: 190.0,
 
       flowRate: 1.2,
@@ -852,7 +930,11 @@
 
       manualCarOverrides: {},
 
-      sequenceShiftOverrides: {}
+      sequenceShiftOverrides: {},
+
+      manualTruckStartOverrides: {},
+
+      manualTruckEndOverrides: {}
 
     };
 
@@ -1004,9 +1086,18 @@
 
           if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
 
+          if (!appState.manualTruckStartOverrides) appState.manualTruckStartOverrides = {};
+
+          if (!appState.manualTruckEndOverrides) appState.manualTruckEndOverrides = {};
+
           if (appState.startBootTime) appState.startBootTime = formatDateTimeLocal(appState.startBootTime);
 
           if (appState.startProduceTime) appState.startProduceTime = formatDateTimeLocal(appState.startProduceTime);
+
+          if (appState.stopProduceTime) appState.stopProduceTime = formatDateTimeLocal(appState.stopProduceTime);
+          else appState.stopProduceTime = "";
+
+          if (!appState.tableScheduleMode) appState.tableScheduleMode = "STOP_TIME";
 
 
 
@@ -1251,6 +1342,10 @@
         appState.startProduceTime = formatDateTimeLocal(prof.startProduceTime);
 
       }
+
+      appState.stopProduceTime = prof.stopProduceTime ? formatDateTimeLocal(prof.stopProduceTime) : "";
+
+      appState.tableScheduleMode = prof.tableScheduleMode || "STOP_TIME";
 
       if (prof.totalTarget !== undefined) appState.totalTarget = prof.totalTarget;
 
@@ -2160,6 +2255,10 @@
 
       productProfiles[currentProfileKey].startProduceTime = appState.startProduceTime;
 
+      productProfiles[currentProfileKey].stopProduceTime = appState.stopProduceTime || "";
+
+      productProfiles[currentProfileKey].tableScheduleMode = appState.tableScheduleMode || "STOP_TIME";
+
       productProfiles[currentProfileKey].totalTarget = appState.totalTarget;
 
       productProfiles[currentProfileKey].flowRate = appState.flowRate;
@@ -2232,11 +2331,15 @@
 
       const prodVal = formatDateTimeLocal(appState.startProduceTime) || "2026-10-16T16:09";
 
+      const stopVal = appState.stopProduceTime ? formatDateTimeLocal(appState.stopProduceTime) : "";
+
       
 
       appState.startBootTime = bootVal;
 
       appState.startProduceTime = prodVal;
+
+      appState.stopProduceTime = stopVal;
 
 
 
@@ -2244,9 +2347,13 @@
 
       const prodEl = document.getElementById("startProduceTime");
 
+      const stopEl = document.getElementById("stopProduceTime");
+
       if (bootEl) bootEl.value = bootVal;
 
       if (prodEl) prodEl.value = prodVal;
+
+      if (stopEl) stopEl.value = stopVal;
 
 
 
@@ -2322,6 +2429,8 @@
 
       const prodEl = document.getElementById("startProduceTime");
 
+      const stopEl = document.getElementById("stopProduceTime");
+
       if (bootEl && bootEl.value) {
 
         appState.startBootTime = bootEl.value;
@@ -2331,6 +2440,12 @@
       if (prodEl && prodEl.value) {
 
         appState.startProduceTime = prodEl.value;
+
+      }
+
+      if (stopEl) {
+
+        appState.stopProduceTime = stopEl.value ? formatDateTimeLocal(stopEl.value) : "";
 
       }
 
@@ -2382,6 +2497,216 @@
 
 
 
+    // 依表格每日進位邏輯，精準推算達成「總目標產量 (totalProdTarget)」的預計完工時間
+    function computeIdealCompletionDate(prodDate, totalProdTarget, flow) {
+
+      if (!prodDate || isNaN(prodDate.getTime()) || flow <= 0 || totalProdTarget <= 0) return null;
+
+      let rem = round1D(totalProdTarget);
+
+      const fullDayProd = round1D(24 * flow);
+
+      let curDayStart = new Date(prodDate.getFullYear(), prodDate.getMonth(), prodDate.getDate());
+
+      const nextDayStart = new Date(curDayStart.getFullYear(), curDayStart.getMonth(), curDayStart.getDate() + 1);
+
+      const firstDayMaxHours = Math.max(0, (nextDayStart.getTime() - prodDate.getTime()) / (3600 * 1000));
+
+      const firstDayMaxProd = round1D(firstDayMaxHours * flow);
+
+
+
+      if (rem <= firstDayMaxProd) {
+
+        const needHours = rem / flow;
+
+        return new Date(prodDate.getTime() + Math.round(needHours * 3600 * 1000));
+
+      }
+
+      rem = round1D(rem - firstDayMaxProd);
+
+      curDayStart = nextDayStart;
+
+
+
+      let guard = 0;
+
+      while (rem > fullDayProd && guard < 3650) {
+
+        guard++;
+
+        rem = round1D(rem - fullDayProd);
+
+        curDayStart = new Date(curDayStart.getFullYear(), curDayStart.getMonth(), curDayStart.getDate() + 1);
+
+      }
+
+      const needHours = rem / flow;
+
+      return new Date(curDayStart.getTime() + Math.round(needHours * 3600 * 1000));
+
+    }
+
+
+
+    // 依表格每日進位邏輯，精準推算自 startD 至 endD 期間可產出的製程實際總產量 (與下方 30 日表每日加總 100% 一致)
+    function computeProdBetweenDates(startD, endD, flow) {
+
+      if (!startD || !endD || isNaN(startD.getTime()) || isNaN(endD.getTime()) || flow <= 0) return 0;
+
+      if (endD.getTime() <= startD.getTime()) return 0;
+
+      const fullDayProd = round1D(24 * flow);
+
+      let curDay = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate());
+
+      let total = 0;
+
+      let guard = 0;
+
+      while (curDay.getTime() < endD.getTime() && guard < 3650) {
+
+        guard++;
+
+        const nextDay = new Date(curDay.getFullYear(), curDay.getMonth(), curDay.getDate() + 1);
+
+        const wStart = Math.max(curDay.getTime(), startD.getTime());
+
+        const wEnd = Math.min(nextDay.getTime(), endD.getTime());
+
+        if (wEnd > wStart) {
+
+          if (wStart === curDay.getTime() && wEnd === nextDay.getTime()) {
+
+            total = round1D(total + fullDayProd);
+
+          } else {
+
+            const hrs = (wEnd - wStart) / (3600 * 1000);
+
+            total = round1D(total + round1D(hrs * flow));
+
+          }
+
+        }
+
+        curDay = nextDay;
+
+      }
+
+      return round1D(total);
+
+    }
+
+
+
+    function fmtFullDateTime(d) {
+
+      if (!d || isNaN(d.getTime())) return "-";
+
+      const pad = (n) => String(n).padStart(2, "0");
+
+      return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+    }
+
+
+
+    function applyIdealStopTime() {
+
+      const prodDate = new Date(appState.startProduceTime);
+
+      const target = Number(appState.totalTarget) || 0;
+
+      const flow = Number(appState.flowRate) || 0;
+
+      const idealD = computeIdealCompletionDate(prodDate, target, flow);
+
+      if (!idealD) return;
+
+      const isoStr = formatDateTimeLocal(idealD);
+
+      appState.stopProduceTime = isoStr;
+
+      appState.tableScheduleMode = "STOP_TIME";
+
+      const stopEl = document.getElementById("stopProduceTime");
+
+      if (stopEl) stopEl.value = isoStr;
+
+      saveCurrentProfileToMemory();
+
+      recalculateAll(false);
+
+    }
+
+
+
+    function clearStopProduceTime() {
+
+      appState.stopProduceTime = "";
+
+      const stopEl = document.getElementById("stopProduceTime");
+
+      if (stopEl) stopEl.value = "";
+
+      saveCurrentProfileToMemory();
+
+      recalculateAll(false);
+
+    }
+
+
+
+    function setStopTimeHour(hh, mm) {
+
+      let baseD = appState.stopProduceTime ? new Date(appState.stopProduceTime) : null;
+
+      if (!baseD || isNaN(baseD.getTime())) {
+
+        const prodDate = new Date(appState.startProduceTime);
+
+        const target = Number(appState.totalTarget) || 0;
+
+        const flow = Number(appState.flowRate) || 0;
+
+        baseD = computeIdealCompletionDate(prodDate, target, flow) || new Date(prodDate.getTime() + 7 * 24 * 3600 * 1000);
+
+      }
+
+      const updatedD = new Date(baseD.getFullYear(), baseD.getMonth(), baseD.getDate(), hh, mm, 0, 0);
+
+      const isoStr = formatDateTimeLocal(updatedD);
+
+      appState.stopProduceTime = isoStr;
+
+      appState.tableScheduleMode = "STOP_TIME";
+
+      const stopEl = document.getElementById("stopProduceTime");
+
+      if (stopEl) stopEl.value = isoStr;
+
+      saveCurrentProfileToMemory();
+
+      recalculateAll(false);
+
+    }
+
+
+
+    function setTableScheduleMode(mode) {
+
+      appState.tableScheduleMode = mode;
+
+      saveCurrentProfileToMemory();
+
+      recalculateAll(false);
+
+    }
+
+
+
     function recalculateAll(forceClearManual = false) {
 
       if (forceClearManual) {
@@ -2393,6 +2718,10 @@
         appState.manualCarOverrides = {};
 
         appState.sequenceShiftOverrides = {};
+
+        appState.manualTruckStartOverrides = {};
+
+        appState.manualTruckEndOverrides = {};
 
         saveLocalCache();
 
@@ -2516,6 +2845,44 @@
 
       const prodDate = new Date(appState.startProduceTime);
 
+      const stopDate = appState.stopProduceTime ? new Date(appState.stopProduceTime) : null;
+
+      const hasValidStopDate = Boolean(stopDate && !isNaN(stopDate.getTime()));
+
+      const useStopTimeForTable = Boolean(hasValidStopDate && (appState.tableScheduleMode || "STOP_TIME") === "STOP_TIME");
+
+
+
+      // 計算理想目標達標完工時間
+      const idealEndDate = computeIdealCompletionDate(prodDate, totalProdTarget, flow);
+
+      const idealHours = (idealEndDate && !isNaN(prodDate.getTime()))
+
+        ? Math.max(0, (idealEndDate.getTime() - prodDate.getTime()) / (3600 * 1000))
+
+        : 0;
+
+      const idealDays = idealHours / 24;
+
+      const elIdealFinish = document.getElementById("txtIdealFinishTime");
+
+      if (elIdealFinish) {
+
+        elIdealFinish.innerText = idealEndDate
+
+          ? `${fmtFullDateTime(idealEndDate)} (約 ${idealDays.toFixed(1)} 天 / ${idealHours.toFixed(1)} hr)`
+
+          : "-";
+
+      }
+
+
+
+      // 計算製程停車時間可產出之實際總產量
+      const stopLimitProd = hasValidStopDate ? computeProdBetweenDates(prodDate, stopDate, flow) : totalProdTarget;
+
+      const stopLimitRaw = round1D(stopLimitProd / yieldPct);
+
 
 
       let curRawStock = rawSum;
@@ -2574,35 +2941,84 @@
 
         let nominalProd = 0;
 
+        let prodRawNeed = 0;
 
 
-        if (nextDate <= bootDate) {
 
-          nominalRaw = 0;
+        // 1. 先推算當日「預估生產量 (+)」(effectiveProdGen)：嚴格以「製程出料時間 (prodDate)」為起點
+        // 若啟用「製程停車時間」模式，則同時以 stopDate 作為停機截止點
+        const winStartMs = Math.max(curDate.getTime(), prodDate.getTime());
+
+        const winEndMs = useStopTimeForTable ? Math.min(nextDate.getTime(), stopDate.getTime()) : nextDate.getTime();
+
+
+
+        if (winEndMs <= winStartMs) {
 
           nominalProd = 0;
 
-        } else if (isBootDay || isProdDay) {
-
-          const prodStartMs = Math.max(curDate.getTime(), prodDate.getTime());
-
-          const prodHours = Math.max(0, (nextDate.getTime() - prodStartMs) / (3600 * 1000));
-
-          nominalProd = round1D(prodHours * flow);
-
-          const prodRawNeed = nominalProd / yieldPct;
-
-          const prepRawNeed = (prodDate.getTime() > bootDate.getTime()) ? 4.1 : 0;
-
-          nominalRaw = round1D(prodRawNeed + prepRawNeed);
-
-        } else {
-
-          nominalRaw = fullDayRaw;
+        } else if (winStartMs === curDate.getTime() && winEndMs === nextDate.getTime()) {
 
           nominalProd = fullDayProd;
 
+        } else {
+
+          const prodHours = Math.max(0, (winEndMs - winStartMs) / (3600 * 1000));
+
+          nominalProd = round1D(prodHours * flow);
+
         }
+
+
+
+        let effectiveProdGen = 0;
+
+        let isProdManual = false;
+
+
+
+        if (appState.manualProdGenOverrides[dKey] !== undefined && 
+
+            appState.manualProdGenOverrides[dKey] !== null && 
+
+            appState.manualProdGenOverrides[dKey] !== "") {
+
+          effectiveProdGen = Number(appState.manualProdGenOverrides[dKey]);
+
+          isProdManual = true;
+
+        } else if (useStopTimeForTable) {
+
+          // 依製程停車時間推算時，直接算至停車時間截止點
+          effectiveProdGen = nominalProd;
+
+        } else {
+
+          if (accumProdGen >= totalProdTarget) {
+
+            effectiveProdGen = 0;
+
+          } else {
+
+            const prodRemain = round1D(totalProdTarget - accumProdGen);
+
+            effectiveProdGen = Math.min(nominalProd, prodRemain);
+
+          }
+
+        }
+
+        accumProdGen = round1D(accumProdGen + effectiveProdGen);
+
+
+
+        // 2. 再依據當日實際「預估生產量 (+)」(effectiveProdGen) 直接連動換算當日「預估使用量 (-)」(effectiveRawUsage)
+        // 只要下方有出料生產 (effectiveProdGen > 0)，上方原料使用量必定依 (當日生產量 / 良率) 自動算出，絕不因前期耗料而提早截斷歸零！
+        prodRawNeed = (effectiveProdGen > 0) ? (effectiveProdGen / yieldPct) : 0;
+
+        const prepRawNeed = (isBootDay && prodDate.getTime() > bootDate.getTime()) ? 4.1 : 0;
+
+        nominalRaw = round1D(prodRawNeed + prepRawNeed);
 
 
 
@@ -2624,57 +3040,11 @@
 
         } else {
 
-          if (accumRawUsage >= totalRawNeeded) {
-
-            effectiveRawUsage = 0;
-
-          } else {
-
-            const rawRemain = round1D(totalRawNeeded - accumRawUsage);
-
-            effectiveRawUsage = Math.min(nominalRaw, rawRemain);
-
-          }
+          effectiveRawUsage = nominalRaw;
 
         }
 
         accumRawUsage = round1D(accumRawUsage + effectiveRawUsage);
-
-
-
-        let effectiveProdGen = 0;
-
-        let isProdManual = false;
-
-
-
-        if (appState.manualProdGenOverrides[dKey] !== undefined && 
-
-            appState.manualProdGenOverrides[dKey] !== null && 
-
-            appState.manualProdGenOverrides[dKey] !== "") {
-
-          effectiveProdGen = Number(appState.manualProdGenOverrides[dKey]);
-
-          isProdManual = true;
-
-        } else {
-
-          if (accumProdGen >= totalProdTarget) {
-
-            effectiveProdGen = 0;
-
-          } else {
-
-            const prodRemain = round1D(totalProdTarget - accumProdGen);
-
-            effectiveProdGen = Math.min(nominalProd, prodRemain);
-
-          }
-
-        }
-
-        accumProdGen = round1D(accumProdGen + effectiveProdGen);
 
 
 
@@ -2726,9 +3096,277 @@
 
 
 
+      window.lastEffectiveScheduleTarget = useStopTimeForTable ? stopLimitProd : totalProdTarget;
+
+      renderScheduleCompareDashboard({
+
+        totalProdTarget,
+
+        totalRawNeeded,
+
+        idealEndDate,
+
+        idealHours,
+
+        idealDays,
+
+        hasValidStopDate,
+
+        stopDate,
+
+        stopLimitProd,
+
+        stopLimitRaw,
+
+        useStopTimeForTable,
+
+        batchCap: Number(appState.batchCap) || 18.0,
+
+        prodDate
+
+      });
+
       renderTableDOM(calcGrid);
 
       renderTruckScheduleDOM();
+
+    }
+
+
+
+    function renderScheduleCompareDashboard(info) {
+
+      const box = document.getElementById("scheduleCompareDashboard");
+
+      if (!box) return;
+
+      const {
+
+        totalProdTarget,
+
+        totalRawNeeded,
+
+        idealEndDate,
+
+        idealHours,
+
+        idealDays,
+
+        hasValidStopDate,
+
+        stopDate,
+
+        stopLimitProd,
+
+        stopLimitRaw,
+
+        useStopTimeForTable,
+
+        batchCap,
+
+        prodDate
+
+      } = info;
+
+
+
+      const idealEndStr = idealEndDate ? fmtFullDateTime(idealEndDate) : "-";
+
+      const idealTrucks = batchCap > 0 ? Math.ceil(totalProdTarget / batchCap) : 0;
+
+
+
+      if (!hasValidStopDate) {
+
+        box.className = "rounded-lg border border-indigo-200 bg-indigo-50/50 p-2.5 transition-all";
+
+        box.innerHTML = `
+
+          <div class="flex flex-wrap items-center justify-between gap-2">
+
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+
+              <span class="bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[11px]">🎯 理想目標排程</span>
+
+              <span class="text-slate-700">目標產量 <b class="text-indigo-700 font-black">${totalProdTarget.toFixed(1)} T</b> (需原料 <b class="text-blue-700 font-bold">${totalRawNeeded.toFixed(1)} T</b> / 約 <b class="text-slate-800">${idealTrucks} 車</b>)</span>
+
+              <span class="text-slate-400">➔</span>
+
+              <span class="text-slate-700">依出料時間預估將生產至：<b class="text-indigo-800 font-black underline">${idealEndStr}</b> (共 ${idealDays.toFixed(1)} 天 / ${idealHours.toFixed(1)} 小時)</span>
+
+            </div>
+
+            <div class="text-[11px] text-slate-500">
+
+              💡 若製程無法配合做到該時間，請於上方填入<b class="text-rose-700">【🛑 製程停車時間】</b>即可即時試算實際產量與落差
+
+            </div>
+
+          </div>
+
+        `;
+
+        return;
+
+      }
+
+
+
+      const diffProd = round1D(stopLimitProd - totalProdTarget);
+
+      const diffRaw = round1D(stopLimitRaw - totalRawNeeded);
+
+      const actualHours = (!isNaN(prodDate.getTime()) && stopDate.getTime() > prodDate.getTime())
+
+        ? ((stopDate.getTime() - prodDate.getTime()) / (3600 * 1000))
+
+        : 0;
+
+      const actualDays = actualHours / 24;
+
+      const achievePct = totalProdTarget > 0 ? ((stopLimitProd / totalProdTarget) * 100).toFixed(1) : "0.0";
+
+      const actualTrucks = batchCap > 0 ? Math.ceil(stopLimitProd / batchCap) : 0;
+
+      const diffTrucks = actualTrucks - idealTrucks;
+
+      const isShortfall = diffProd < 0;
+
+      const isExact = Math.abs(diffProd) < 0.05;
+
+
+
+      box.className = isShortfall
+
+        ? "rounded-lg border-2 border-rose-300 bg-rose-50/60 p-2.5 shadow-sm transition-all"
+
+        : "rounded-lg border-2 border-emerald-300 bg-emerald-50/60 p-2.5 shadow-sm transition-all";
+
+
+
+      const diffTitle = isExact
+
+        ? "✅ 剛好達成目標產量"
+
+        : (isShortfall ? `⚠️ 較目標少產 ${Math.abs(diffProd).toFixed(1)} T` : `✅ 超出目標 +${diffProd.toFixed(1)} T`);
+
+      const diffSub = isExact
+
+        ? `達成率 100% | 原料與車次無落差`
+
+        : (isShortfall
+
+            ? `達成率 ${achievePct}% | 原料少用 ${Math.abs(diffRaw).toFixed(1)} T | 槽車少出 ${Math.abs(diffTrucks)} 車 (${actualTrucks}車 vs ${idealTrucks}車)`
+
+            : `達成率 ${achievePct}% | 原料多用 +${diffRaw.toFixed(1)} T | 槽車多出 +${diffTrucks} 車 (${actualTrucks}車 vs ${idealTrucks}車)`);
+
+
+
+      box.innerHTML = `
+
+        <div class="space-y-2">
+
+          <div class="grid gap-2" style="grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));">
+
+            <!-- 1. 理想目標卡片 -->
+            <div class="bg-white rounded-md p-2 border border-indigo-200 shadow-xs">
+
+              <div class="flex items-center justify-between gap-1 text-[11px] text-indigo-700 font-bold mb-0.5">
+
+                <span>🎯 理想目標產量</span>
+
+                <span class="bg-indigo-50 text-indigo-700 px-1.5 py-0.2 rounded border border-indigo-200 whitespace-nowrap">${idealTrucks} 車</span>
+
+              </div>
+
+              <div class="text-base font-black text-slate-800">${totalProdTarget.toFixed(1)} <span class="text-xs font-semibold text-slate-500">T</span> <span class="text-[11px] font-normal text-slate-500">(需原料 ${totalRawNeeded.toFixed(1)} T)</span></div>
+
+              <div class="text-[11px] text-slate-600 mt-0.5">預估需做到：<b class="text-indigo-700 font-extrabold">${idealEndStr}</b> (${idealDays.toFixed(1)}天)</div>
+
+            </div>
+
+
+
+            <!-- 2. 製程實際可生產卡片 -->
+            <div class="bg-white rounded-md p-2 border border-purple-300 shadow-xs">
+
+              <div class="flex items-center justify-between gap-1 text-[11px] text-purple-800 font-bold mb-0.5">
+
+                <span>🛑 製程實際產量</span>
+
+                <span class="bg-purple-50 text-purple-800 px-1.5 py-0.2 rounded border border-purple-200 whitespace-nowrap">${actualTrucks} 車</span>
+
+              </div>
+
+              <div class="text-base font-black text-purple-800">${stopLimitProd.toFixed(1)} <span class="text-xs font-semibold text-purple-600">T</span> <span class="text-[11px] font-normal text-slate-500">(實際耗料 ${stopLimitRaw.toFixed(1)} T)</span></div>
+
+              <div class="text-[11px] text-slate-600 mt-0.5">製程停車點：<b class="text-rose-700 font-extrabold">${fmtFullDateTime(stopDate)}</b> (${actualDays.toFixed(1)}天)</div>
+
+            </div>
+
+
+
+            <!-- 3. 落差辨識卡片 -->
+            <div class="rounded-md p-2 border shadow-xs ${isShortfall ? 'bg-rose-100/80 border-rose-400 text-rose-950' : 'bg-emerald-100/80 border-emerald-400 text-emerald-950'}">
+
+              <div class="flex items-center justify-between gap-1 text-[11px] font-bold mb-0.5">
+
+                <span>⚖️ 目標與實際落差</span>
+
+                <span class="px-1.5 py-0.2 rounded text-[10px] font-extrabold whitespace-nowrap ${isShortfall ? 'bg-rose-600 text-white' : 'bg-emerald-600 text-white'}">達成率 ${achievePct}%</span>
+
+              </div>
+
+              <div class="text-base font-black ${isShortfall ? 'text-rose-700' : 'text-emerald-700'}">${diffTitle}</div>
+
+              <div class="text-[11px] font-medium mt-0.5">${diffSub}</div>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- 下表排程推算基準切換列 -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/80 text-[11px]">
+
+            <div class="font-semibold text-slate-700 flex flex-wrap items-center gap-1.5">
+
+              <span>📊 下方 30 日進耗存表與槽車排程目前推算基準：</span>
+
+              <span class="font-black ${useStopTimeForTable ? 'text-rose-700' : 'text-indigo-700'}">
+
+                ${useStopTimeForTable ? `🛑 依製程停車時間 (${stopLimitProd.toFixed(1)} T / 做到 ${fmtFullDateTime(stopDate)})` : `🎯 依理想目標產量 (${totalProdTarget.toFixed(1)} T / 做到 ${idealEndStr})`}
+
+              </span>
+
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1.5">
+
+              <button type="button" onclick="setTableScheduleMode('STOP_TIME')"
+
+                class="px-2.5 py-0.5 rounded font-bold border transition cursor-pointer whitespace-nowrap ${useStopTimeForTable ? 'bg-rose-600 text-white border-rose-700 shadow-xs' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}">
+
+                🛑 下表套用製程實際 (${stopLimitProd.toFixed(1)} T)
+
+              </button>
+
+              <button type="button" onclick="setTableScheduleMode('IDEAL_TARGET')"
+
+                class="px-2.5 py-0.5 rounded font-bold border transition cursor-pointer whitespace-nowrap ${!useStopTimeForTable ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-100'}">
+
+                🎯 下表套用理想目標 (${totalProdTarget.toFixed(1)} T)
+
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      `;
 
     }
 
@@ -2785,9 +3423,11 @@
 
       grid.rawTrans.forEach(item => {
 
+        const colorCls = item.val < 0 ? 'text-rose-600' : 'text-blue-600';
+
         html += `<td class="date-col border-l">
 
-          <input type="number" step="0.1" class="table-cell-input text-blue-600 font-semibold" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+          <input type="number" step="0.1" class="table-cell-input ${colorCls} font-semibold" value="${item.val !== 0 ? item.val.toFixed(1) : ''}" 
 
             onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
 
@@ -2809,9 +3449,11 @@
 
       grid.rawIn.forEach(item => {
 
+        const colorCls = item.val < 0 ? 'text-rose-600' : 'text-blue-700';
+
         html += `<td class="date-col border-l">
 
-          <input type="number" step="0.1" class="table-cell-input text-blue-700 font-extrabold" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+          <input type="number" step="0.1" class="table-cell-input ${colorCls} font-extrabold" value="${item.val !== 0 ? item.val.toFixed(1) : ''}" 
 
             onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
 
@@ -2835,9 +3477,9 @@
 
         const isM = item.isManual;
 
-        const displayVal = (item.val > 0) ? item.val.toFixed(1) : "";
+        const displayVal = (item.val !== 0 || isM) ? item.val.toFixed(1) : "";
 
-        html += `<td class="date-col border-l ${item.val > 0 ? 'bg-amber-50/70' : ''}">
+        html += `<td class="date-col border-l ${(item.val !== 0 || isM) ? 'bg-amber-50/70' : ''}">
 
           <div class="relative flex items-center justify-center">
 
@@ -2877,9 +3519,11 @@
 
       grid.rawPipe.forEach(item => {
 
+        const colorCls = item.val < 0 ? 'text-rose-600' : 'text-teal-700';
+
         html += `<td class="date-col border-l">
 
-          <input type="number" step="0.1" class="table-cell-input font-bold text-teal-700" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+          <input type="number" step="0.1" class="table-cell-input font-bold ${colorCls}" value="${item.val !== 0 ? item.val.toFixed(1) : ''}" 
 
             onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
 
@@ -2947,9 +3591,9 @@
 
         const isM = item.isManual;
 
-        const displayVal = (item.val > 0) ? item.val.toFixed(1) : "";
+        const displayVal = (item.val !== 0 || isM) ? item.val.toFixed(1) : "";
 
-        html += `<td class="date-col border-l ${item.val > 0 ? 'bg-emerald-50/70' : ''}">
+        html += `<td class="date-col border-l ${(item.val !== 0 || isM) ? 'bg-emerald-50/70' : ''}">
 
           <div class="relative flex items-center justify-center">
 
@@ -2991,7 +3635,7 @@
 
         html += `<td class="date-col border-l">
 
-          <input type="number" step="0.1" class="table-cell-input font-bold text-rose-700" value="${item.val > 0 ? item.val.toFixed(1) : ''}" 
+          <input type="number" step="0.1" class="table-cell-input font-bold text-rose-700" value="${item.val !== 0 ? item.val.toFixed(1) : ''}" 
 
             onkeydown="if(event.key==='Enter') this.blur();" onfocus="this.select()"
 
@@ -3061,7 +3705,9 @@
 
       const truckTable = document.getElementById("truckTable");
 
-      const target = Number(appState.totalTarget) || 0;
+      const idealTarget = Number(appState.totalTarget) || 0;
+
+      const target = (window.lastEffectiveScheduleTarget !== undefined) ? Number(window.lastEffectiveScheduleTarget) : idealTarget;
 
       const batchCap = Number(appState.batchCap) || 18.0;
 
@@ -3071,13 +3717,21 @@
 
 
 
-      document.getElementById("txtTruckTarget").innerText = target.toFixed(1);
+      document.getElementById("txtTruckTarget").innerText = (target !== idealTarget)
+
+        ? `${target.toFixed(1)} (製程實際 | 原目標 ${idealTarget.toFixed(1)})`
+
+        : target.toFixed(1);
 
 
 
       if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
 
       if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+
+      if (!appState.manualTruckStartOverrides) appState.manualTruckStartOverrides = {};
+
+      if (!appState.manualTruckEndOverrides) appState.manualTruckEndOverrides = {};
 
 
 
@@ -3207,11 +3861,49 @@
 
 
 
-        const startD = new Date(curTruckStartMs);
+        const defaultStartMs = curTruckStartMs;
 
-        const endD = new Date(curTruckStartMs + (truckLoad / flow) * 3600 * 1000);
+        const hasStartOverride = Boolean(
+
+          appState.manualTruckStartOverrides &&
+
+          appState.manualTruckStartOverrides[i] &&
+
+          !isNaN(new Date(appState.manualTruckStartOverrides[i]).getTime())
+
+        );
+
+        const startD = hasStartOverride ? new Date(appState.manualTruckStartOverrides[i]) : new Date(defaultStartMs);
+
+
+
+        const defaultEndMs = startD.getTime() + (truckLoad / flow) * 3600 * 1000;
+
+        const hasEndOverride = Boolean(
+
+          appState.manualTruckEndOverrides &&
+
+          appState.manualTruckEndOverrides[i] &&
+
+          !isNaN(new Date(appState.manualTruckEndOverrides[i]).getTime())
+
+        );
+
+        const endD = hasEndOverride ? new Date(appState.manualTruckEndOverrides[i]) : new Date(defaultEndMs);
 
         const fmtDate = (d) => `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+
+
+
+        const noteParts = [];
+
+        if (i === totalTrucks) noteParts.push('★ 目標批次末車');
+
+        if (hasOverride) noteParts.push(isShiftActive ? '手動車號(已接續)' : '手動指定車號');
+
+        if (hasStartOverride || hasEndOverride) noteParts.push('手動時間(桶底/接續)');
+
+        const rowNoteText = noteParts.length > 0 ? noteParts.join(' | ') : '正常出車';
 
 
 
@@ -3279,15 +3971,99 @@
 
           </td>
 
-          <td class="p-2 border-r text-slate-600 text-center">${fmtDate(startD)}</td>
+          <td class="p-1.5 border-r text-center ${hasStartOverride ? 'bg-amber-50/70' : ''}">
 
-          <td class="p-2 border-r font-bold text-emerald-700 bg-emerald-50/40 text-center">${fmtDate(endD)}</td>
+            ${hasStartOverride ? `
+
+              <div class="inline-flex items-center justify-center gap-1">
+
+                <input type="text" value="${fmtDate(startD)}" 
+
+                  class="w-28 text-center font-black text-amber-950 bg-amber-100 border border-amber-400 focus:border-blue-500 rounded px-1.5 py-1 shadow-xs focus:outline-none text-[12px]"
+
+                  title="人員手動指定開始灌裝時間 (支援 M/D HH:mm 或 HH:mm，按 Enter 儲存，後續時間自動接續推算)"
+
+                  onkeydown="if(event.key==='Enter') this.blur();"
+
+                  onchange="onTruckTimeChange('start', ${i}, this.value, ${defaultStartMs})">
+
+                <button type="button" onclick="clearTruckTimeOverride('start', ${i})" 
+
+                  class="px-1.5 py-0.5 text-[11px] font-bold bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 border border-slate-300 rounded shadow-xs active:scale-95 transition" 
+
+                  title="清除手動時間，恢復自動推算">
+
+                  ✕
+
+                </button>
+
+              </div>
+
+            ` : `
+
+              <input type="text" value="${fmtDate(startD)}" 
+
+                class="w-28 text-center font-medium text-slate-600 bg-transparent hover:bg-slate-100 border border-transparent hover:border-slate-300 focus:bg-white focus:border-blue-400 rounded px-1.5 py-1 transition cursor-pointer text-[12px] focus:outline-none"
+
+                title="點擊可手動修改開始灌裝時間 (支援 M/D HH:mm 或 HH:mm，後續時間將自動接續推算)"
+
+                onkeydown="if(event.key==='Enter') this.blur();"
+
+                onchange="onTruckTimeChange('start', ${i}, this.value, ${defaultStartMs})">
+
+            `}
+
+          </td>
+
+          <td class="p-1.5 border-r text-center ${hasEndOverride ? 'bg-amber-50/70' : 'bg-emerald-50/40'}">
+
+            ${hasEndOverride ? `
+
+              <div class="inline-flex items-center justify-center gap-1">
+
+                <input type="text" value="${fmtDate(endD)}" 
+
+                  class="w-28 text-center font-black text-amber-950 bg-amber-100 border border-amber-400 focus:border-blue-500 rounded px-1.5 py-1 shadow-xs focus:outline-none text-[12px]"
+
+                  title="人員手動指定預計出車時間 (例如槽車有桶底提早完成，後續車次已自動接續推算)"
+
+                  onkeydown="if(event.key==='Enter') this.blur();"
+
+                  onchange="onTruckTimeChange('end', ${i}, this.value, ${defaultEndMs})">
+
+                <button type="button" onclick="clearTruckTimeOverride('end', ${i})" 
+
+                  class="px-1.5 py-0.5 text-[11px] font-bold bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-600 border border-slate-300 rounded shadow-xs active:scale-95 transition" 
+
+                  title="清除手動時間，恢復自動推算">
+
+                  ✕
+
+                </button>
+
+              </div>
+
+            ` : `
+
+              <input type="text" value="${fmtDate(endD)}" 
+
+                class="w-28 text-center font-bold text-emerald-700 bg-transparent hover:bg-emerald-100/70 border border-transparent hover:border-emerald-300 focus:bg-white focus:border-blue-400 rounded px-1.5 py-1 transition cursor-pointer text-[12px] focus:outline-none"
+
+                title="點擊可手動修改預計出車時間 (例如槽車有桶底提早完成，後續車次將自動接續推算)"
+
+                onkeydown="if(event.key==='Enter') this.blur();"
+
+                onchange="onTruckTimeChange('end', ${i}, this.value, ${defaultEndMs})">
+
+            `}
+
+          </td>
 
           <td class="p-2 border-r font-extrabold text-slate-800 text-right pr-4">${truckLoad.toFixed(1)}</td>
 
           <td class="p-2 border-r font-black text-blue-700 text-right pr-4">${accumWeight.toFixed(1)}</td>
 
-          <td class="p-2 text-slate-500 text-center text-[11px]">${i === totalTrucks ? '★ 目標批次末車' : (hasOverride ? (isShiftActive ? '手動指定 (已接續順序)' : '手動指定車號') : '正常出車')}</td>
+          <td class="p-2 text-slate-500 text-center text-[11px]">${rowNoteText}</td>
 
         </tr>`;
 
@@ -3350,6 +4126,192 @@
       if (appState.manualCarOverrides) delete appState.manualCarOverrides[truckIndex];
 
       if (appState.sequenceShiftOverrides) delete appState.sequenceShiftOverrides[truckIndex];
+
+      saveLocalCache();
+
+      renderTruckScheduleDOM();
+
+    }
+
+
+
+    function parseTruckTimeInput(rawVal, refMs) {
+
+      const s = (rawVal || "").trim();
+
+      if (!s) return null;
+
+      const refDate = new Date(refMs || Date.now());
+
+      const pad = (n) => String(n).padStart(2, "0");
+
+      const toIsoLocal = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+
+
+      // 1. 完整年月日時間: YYYY/M/D HH:mm 或 YYYY-M-D HH:mm
+
+      let m = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})[\sT]+(\d{1,2}):(\d{1,2})$/);
+
+      if (m) {
+
+        const d = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10), parseInt(m[4], 10), parseInt(m[5], 10));
+
+        return isNaN(d.getTime()) ? null : toIsoLocal(d);
+
+      }
+
+
+
+      // 2. 月/日 時間: M/D HH:mm 或 M-D HH:mm (例如 11/19 08:30)
+
+      m = s.match(/^(\d{1,2})[\/\-](\d{1,2})\s+(\d{1,2}):(\d{1,2})$/);
+
+      if (m) {
+
+        const month = parseInt(m[1], 10);
+
+        const day = parseInt(m[2], 10);
+
+        const hh = parseInt(m[3], 10);
+
+        const mm = parseInt(m[4], 10);
+
+        let year = refDate.getFullYear();
+
+        if (refDate.getMonth() === 11 && month === 1) year += 1;
+
+        else if (refDate.getMonth() === 0 && month === 12) year -= 1;
+
+        const d = new Date(year, month - 1, day, hh, mm);
+
+        return isNaN(d.getTime()) ? null : toIsoLocal(d);
+
+      }
+
+
+
+      // 3. 月/日 4碼時間: M/D HHmm (例如 11/19 0830)
+
+      m = s.match(/^(\d{1,2})[\/\-](\d{1,2})\s+(\d{2})(\d{2})$/);
+
+      if (m) {
+
+        const month = parseInt(m[1], 10);
+
+        const day = parseInt(m[2], 10);
+
+        const hh = parseInt(m[3], 10);
+
+        const mm = parseInt(m[4], 10);
+
+        let year = refDate.getFullYear();
+
+        if (refDate.getMonth() === 11 && month === 1) year += 1;
+
+        else if (refDate.getMonth() === 0 && month === 12) year -= 1;
+
+        const d = new Date(year, month - 1, day, hh, mm);
+
+        return isNaN(d.getTime()) ? null : toIsoLocal(d);
+
+      }
+
+
+
+      // 4. 純時間: HH:mm 或 H:mm (沿用該車次原日期，例如直接輸入 08:30)
+
+      m = s.match(/^(\d{1,2}):(\d{1,2})$/);
+
+      if (m) {
+
+        const d = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), parseInt(m[1], 10), parseInt(m[2], 10));
+
+        return isNaN(d.getTime()) ? null : toIsoLocal(d);
+
+      }
+
+
+
+      // 5. 純 4 碼時間: HHmm (例如直接輸入 0830)
+
+      m = s.match(/^(\d{2})(\d{2})$/);
+
+      if (m) {
+
+        const d = new Date(refDate.getFullYear(), refDate.getMonth(), refDate.getDate(), parseInt(m[1], 10), parseInt(m[2], 10));
+
+        return isNaN(d.getTime()) ? null : toIsoLocal(d);
+
+      }
+
+
+
+      const fallback = new Date(s);
+
+      return isNaN(fallback.getTime()) ? null : toIsoLocal(fallback);
+
+    }
+
+
+
+    function onTruckTimeChange(type, truckIndex, val, refMs) {
+
+      const clean = (val || "").trim();
+
+      if (clean === "") {
+
+        clearTruckTimeOverride(type, truckIndex);
+
+        return;
+
+      }
+
+      const isoStr = parseTruckTimeInput(clean, refMs);
+
+      if (!isoStr) {
+
+        alert("時間格式無法辨識！請輸入如「11/19 08:30」或「08:30」格式。");
+
+        renderTruckScheduleDOM();
+
+        return;
+
+      }
+
+      if (type === "start") {
+
+        if (!appState.manualTruckStartOverrides) appState.manualTruckStartOverrides = {};
+
+        appState.manualTruckStartOverrides[truckIndex] = isoStr;
+
+      } else {
+
+        if (!appState.manualTruckEndOverrides) appState.manualTruckEndOverrides = {};
+
+        appState.manualTruckEndOverrides[truckIndex] = isoStr;
+
+      }
+
+      saveLocalCache();
+
+      renderTruckScheduleDOM();
+
+    }
+
+
+
+    function clearTruckTimeOverride(type, truckIndex) {
+
+      if (type === "start") {
+
+        if (appState.manualTruckStartOverrides) delete appState.manualTruckStartOverrides[truckIndex];
+
+      } else {
+
+        if (appState.manualTruckEndOverrides) delete appState.manualTruckEndOverrides[truckIndex];
+
+      }
 
       saveLocalCache();
 
@@ -3625,9 +4587,25 @@
 
           }
 
+          if (cloudData.stopProduceTime) {
+
+            appState.stopProduceTime = formatDateTimeLocal(cloudData.stopProduceTime);
+
+          } else {
+
+            appState.stopProduceTime = "";
+
+          }
+
+          if (!appState.tableScheduleMode) appState.tableScheduleMode = "STOP_TIME";
+
           if (!appState.manualCarOverrides) appState.manualCarOverrides = {};
 
           if (!appState.sequenceShiftOverrides) appState.sequenceShiftOverrides = {};
+
+          if (!appState.manualTruckStartOverrides) appState.manualTruckStartOverrides = {};
+
+          if (!appState.manualTruckEndOverrides) appState.manualTruckEndOverrides = {};
 
           if (appState.otherProdStock === undefined) appState.otherProdStock = 0.0;
 
@@ -4513,7 +5491,8 @@
       // ----------------------------------------------------
       const ws2 = wb.addWorksheet('槽車出車動態排程');
 
-      const target = Number(appState.totalTarget) || 0;
+      const idealTarget = Number(appState.totalTarget) || 0;
+      const target = (window.lastEffectiveScheduleTarget !== undefined) ? Number(window.lastEffectiveScheduleTarget) : idealTarget;
       const batchCap = Number(appState.batchCap) || 18.0;
       const flow = Number(appState.flowRate) || 1.2;
       const prodStart = new Date(appState.startProduceTime);
@@ -4586,13 +5565,29 @@
           const isShiftActive = Boolean(appState.sequenceShiftOverrides && appState.sequenceShiftOverrides[i]);
           currentCycleIdx++;
 
-          const startD = new Date(curTruckStartMs);
-          const endD = new Date(curTruckStartMs + (truckLoad / flow) * 3600 * 1000);
+          const defaultStartMs = curTruckStartMs;
+          const hasStartOverride = Boolean(
+            appState.manualTruckStartOverrides &&
+            appState.manualTruckStartOverrides[i] &&
+            !isNaN(new Date(appState.manualTruckStartOverrides[i]).getTime())
+          );
+          const startD = hasStartOverride ? new Date(appState.manualTruckStartOverrides[i]) : new Date(defaultStartMs);
+
+          const defaultEndMs = startD.getTime() + (truckLoad / flow) * 3600 * 1000;
+          const hasEndOverride = Boolean(
+            appState.manualTruckEndOverrides &&
+            appState.manualTruckEndOverrides[i] &&
+            !isNaN(new Date(appState.manualTruckEndOverrides[i]).getTime())
+          );
+          const endD = hasEndOverride ? new Date(appState.manualTruckEndOverrides[i]) : new Date(defaultEndMs);
           const fmtDate = (d) => `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
           
-          let note = '依序輪替';
-          if (isShiftActive) note = '接續排序已套用';
-          else if (hasOverride) note = '手動指定車號';
+          const noteParts = [];
+          if (i === totalTrucks) noteParts.push('★ 目標批次末車');
+          if (isShiftActive) noteParts.push('接續排序已套用');
+          else if (hasOverride) noteParts.push('手動指定車號');
+          if (hasStartOverride || hasEndOverride) noteParts.push('手動時間(桶底/接續)');
+          const note = noteParts.length > 0 ? noteParts.join(' | ') : '依序輪替';
 
           const rowNum = 2 + i;
           const r = ws2.getRow(rowNum);
@@ -4616,8 +5611,9 @@
           // C: 開始時間
           const cC = r.getCell(3);
           cC.value = fmtDate(startD);
-          cC.font = fontNum;
+          cC.font = hasStartOverride ? fontNumBold : fontNum;
           cC.alignment = { vertical: 'middle', horizontal: 'center' };
+          cC.fill = hasStartOverride ? fillUse : null;
           cC.border = borderThin;
 
           // D: 完成時間
@@ -4625,6 +5621,7 @@
           cD.value = fmtDate(endD);
           cD.font = fontNumBold;
           cD.alignment = { vertical: 'middle', horizontal: 'center' };
+          cD.fill = hasEndOverride ? fillUse : null;
           cD.border = borderThin;
 
           // E: 本車預計載重 (T)

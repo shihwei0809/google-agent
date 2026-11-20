@@ -1,0 +1,23 @@
+{
+  "name": "鴻勝資材部｜季年報智慧分析系統",
+  "short_name": "資材部季年報",
+  "description": "BI PDF / Excel 自動解析・月/季/半年/年報 MoM・QoQ・YoY 差異比較與簡報產出系統",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

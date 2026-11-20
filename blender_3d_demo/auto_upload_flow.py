@@ -137,10 +137,47 @@ THEMES = {
             "and Approved Ticket Badge, crisp dark tech studio, 4k."
         ),
     },
+    "bpm_b_intro": {
+        "label": "🎬 路線 B 過場 01：主角開車出差＋手機路線截圖",
+        "first": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot01_first.png",
+        "last": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot01_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop" / "flow_clips" / "b01_intro_flow.mp4",
+        "prompt": (
+            "35mm電影鏡頭寫實微電影風格，晴朗台灣清晨陽光下，32歲身穿淺藍牛津襯衫與深色西裝褲、"
+            "胸前掛著員工識別證的台灣男性工程師駕駛銀色商務房車平穩駛過國道 eTag 門架，"
+            "鏡頭低角度流暢推進並無縫轉場至主角抵達現代化廠區大門旁，"
+            "微笑拿出手機檢視去回程地圖路線截圖與 eTag 紀錄，自然日光光斑與細膩皮膚衣物紋理，4K。"
+        ),
+    },
+    "bpm_b_bridge": {
+        "label": "🎬 路線 B 過場 02：里程與 eTag 混淆退件反轉",
+        "first": BASE_DIR / "bpm_sop_plan_c" / "flow_frames" / "bpm_c03_first.png",
+        "last": BASE_DIR / "bpm_sop_plan_c" / "flow_frames" / "bpm_c03_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop" / "flow_clips" / "b02_bridge_flow.mp4",
+        "prompt": (
+            "35mm電影寫實職場微電影，延續同一位穿淺藍牛津襯衫與識別證的台灣男性工程師，"
+            "坐在明亮現代辦公桌前皺眉看著螢幕跳出退件提醒，隨即靈光一閃點頭微笑，"
+            "雙手俐落將桌上的私車里程紀錄卡與高速公路 eTag 憑證清楚分置左右兩側，"
+            "暖色窗光與桌面螢幕柔光對比，鏡頭緩慢推進特寫手部與神情轉變，無雜亂文字，4K。"
+        ),
+    },
+    "bpm_b_outro": {
+        "label": "🎬 路線 B 過場 03：正本交人事核對 → 轉會計核准",
+        "first": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot08_first.png",
+        "last": BASE_DIR / "bpm_sop" / "flow_frames" / "bpm_shot08_last.png",
+        "out_mp4": BASE_DIR / "bpm_sop" / "flow_clips" / "b03_outro_flow.mp4",
+        "prompt": (
+            "35mm暖色日光商業微電影，同一位穿淺藍牛津襯衫的台灣男性工程師把裝訂整齊的報銷申請單、"
+            "實體發票與高鐵車票正本雙手遞給櫃檯前親切微笑的人事同仁核對，"
+            "鏡頭流暢平移轉場至會計主管檢視無誤後蓋下綠色核准章並點頭微笑，"
+            "寫實辦公室玻璃景深與自然肌膚光影，無失真亂碼字，4K。"
+        ),
+    },
 }
 
 BPM_BATCH_THEMES = ["bpm_shot01", "bpm_shot05", "bpm_shot08"]
 BPM_PLAN_C_THEMES = ["bpm_c02", "bpm_c03", "bpm_c05"]
+BPM_ROUTE_B_THEMES = ["bpm_b_intro", "bpm_b_bridge", "bpm_b_outro"]
 
 
 def find_browser_exe() -> str:
@@ -276,15 +313,19 @@ def ensure_in_project(page):
         pass
 
 
-def switch_to_frames_mode(page):
-    print("[4/6] 切換為「影片 -> 影格 (首尾幀) · 10 秒 · x 1」模式...")
+def switch_to_frames_mode(page, model: str = "omni12", resolution: str = "360p", duration: int = 10):
+    print(f"[4/6] 切換為「影片 -> 影格 · {model} · {resolution} · {duration} 秒 · x 1」省點模式...")
     start_btn = page.get_by_role("button", name=re.compile(r"^開始$|^Start$", re.I)).first
-    trigger_btn = page.get_by_role("button", name=re.compile(r"設定觸發條件|圖片|影片|Image|Video", re.I)).first
+    trigger_btn = page.get_by_role("button", name=re.compile(r"設定觸發條件|圖片|影片|Image|Video|Omni|Veo", re.I)).first
     try:
         if start_btn.is_visible(timeout=1500) and trigger_btn.is_visible(timeout=1000):
             trigger_text = trigger_btn.inner_text() or ""
-            if re.search(r"10\s*(?:秒|s)", trigger_text, re.I) and re.search(r"x\s*1\b", trigger_text, re.I):
-                print("[OK] 目前已經是首尾幀 (10 秒 · x 1) 模式。")
+            if (
+                re.search(rf"{duration}\s*(?:秒|s)", trigger_text, re.I)
+                and re.search(r"x\s*1\b", trigger_text, re.I)
+                and (resolution == "auto" or resolution.lower() in trigger_text.lower())
+            ):
+                print(f"[OK] 目前已經是 {resolution} · {duration} 秒 · x 1 模式。")
                 return
     except Exception:
         pass
@@ -311,32 +352,72 @@ def switch_to_frames_mode(page):
     for role_pattern in [r"^影片$|^Video$", r"^影格$|^Frames$", r"^x\s*1$"]:
         try:
             opt = page.get_by_role("radio", name=re.compile(role_pattern, re.I)).first
-            if opt.is_visible(timeout=2000):
+            if opt.is_visible(timeout=1500):
                 opt.click()
-                time.sleep(0.4)
+                time.sleep(0.35)
         except Exception:
             pass
 
-    # 調整影片長度為 10 秒
+    # 嘗試選擇模型 (Omni 1.2 Flash 或 Veo 3.1 - Lite)
+    model_patterns = {
+        "omni12": r"Omni\s*1\.2\s*Flash|Omni\s*1\.2",
+        "veo31lite": r"Veo\s*3\.1\s*-?\s*Lite|Veo\s*3\.1",
+    }
+    if model in model_patterns:
+        pat = re.compile(model_patterns[model], re.I)
+        for locator_fn in [
+            lambda: page.get_by_role("combobox", name=re.compile(r"模型|Model", re.I)).first,
+            lambda: page.locator("button:has-text('Veo'), button:has-text('Omni'), [role='menuitemradio'], [role='option'], [role='radio']").filter(has_text=pat).first,
+        ]:
+            try:
+                el = locator_fn()
+                if el.is_visible(timeout=1200):
+                    el.click()
+                    time.sleep(0.35)
+                    choice = page.get_by_role("option", name=pat).or_(page.locator("[role='menuitem'], [role='menuitemradio'], button").filter(has_text=pat)).first
+                    if choice.is_visible(timeout=1000):
+                        choice.click()
+                        time.sleep(0.3)
+                    break
+            except Exception:
+                pass
+
+    # 嘗試選擇解析度 (360p 省點 / 720p)
+    if resolution in ("360p", "720p"):
+        res_pat = re.compile(rf"\b{resolution}\b", re.I)
+        for res_loc in [
+            page.get_by_role("radio", name=res_pat).first,
+            page.get_by_role("button", name=res_pat).first,
+            page.locator("[role='option'], [role='menuitemradio']").filter(has_text=res_pat).first,
+        ]:
+            try:
+                if res_loc.is_visible(timeout=1000):
+                    res_loc.click()
+                    time.sleep(0.3)
+                    break
+            except Exception:
+                pass
+
+    # 調整影片長度為指定秒數 (預設 10 秒)
     try:
         slider = page.get_by_role("slider", name=re.compile(r"長度|Duration|Length", re.I)).first
         if slider.is_visible(timeout=2000):
             slider.focus()
-            for _ in range(12):
+            for _ in range(15):
                 body_text = page.locator("body").inner_text()
                 m = re.search(r"(?:長度|Duration|Length)\s*[·・:]?\s*(\d+)\s*(?:秒|s)", body_text, re.I)
                 if m:
                     cur_sec = int(m.group(1))
-                    if cur_sec == 10:
+                    if cur_sec == duration:
                         break
-                    slider.press("ArrowRight" if cur_sec < 10 else "ArrowLeft")
+                    slider.press("ArrowRight" if cur_sec < duration else "ArrowLeft")
                     time.sleep(0.25)
                 else:
                     slider.press("End")
                     time.sleep(0.3)
                     break
     except Exception as exc:
-        print(f"[警告] 設定影片長度為 10 秒時略過：{exc}")
+        print(f"[警告] 設定影片長度為 {duration} 秒時略過：{exc}")
 
     page.keyboard.press("Escape")
     time.sleep(0.5)
@@ -538,7 +619,16 @@ def wait_and_download_flow_videos(submitted_pages: list, timeout_sec: int = 300)
     return done_keys
 
 
-def upload_single_theme(context, theme_key: str, project_url: str, no_submit: bool, open_new_tab: bool = False):
+def upload_single_theme(
+    context,
+    theme_key: str,
+    project_url: str,
+    no_submit: bool,
+    open_new_tab: bool = False,
+    model: str = "omni12",
+    resolution: str = "360p",
+    duration: int = 10,
+):
     theme = THEMES[theme_key]
     print(f"\n=== Google Flow 本機全自動上傳 CLI：{theme['label']} ===")
 
@@ -555,7 +645,7 @@ def upload_single_theme(context, theme_key: str, project_url: str, no_submit: bo
     target_page.bring_to_front()
     wait_for_authenticated_flow(target_page)
     ensure_in_project(target_page)
-    switch_to_frames_mode(target_page)
+    switch_to_frames_mode(target_page, model=model, resolution=resolution, duration=duration)
 
     print("[上傳] 開始自動上傳 Start / End 首尾幀...")
     upload_frame(target_page, r"^開始$|^Start$", theme["first"], "首幀 (Start)")
@@ -565,7 +655,7 @@ def upload_single_theme(context, theme_key: str, project_url: str, no_submit: bo
     known_video_urls = set(collect_video_urls(target_page))
     if not no_submit:
         trigger_generate(target_page)
-        print(f"  ✅ [{theme_key}] 已送出生成 (影片 -> 影格 · 10 秒 · x 1)！")
+        print(f"  ✅ [{theme_key}] 已送出生成 ({model} · {resolution} · {duration} 秒 · x 1)！")
     else:
         print(f"  ✅ [{theme_key}] 首尾幀與 Prompt 已填入！")
     return (target_page, theme_key, known_video_urls)
@@ -575,11 +665,14 @@ def main():
     parser = argparse.ArgumentParser(description="一鍵自動上傳首尾幀與 Prompt 至本機 Chrome Google Flow")
     parser.add_argument(
         "--theme",
-        choices=list(THEMES.keys()) + ["bpm_all", "bpm_plan_c"],
+        choices=list(THEMES.keys()) + ["bpm_all", "bpm_plan_c", "bpm_route_b"],
         default="kids",
-        help="選擇風格或 BPM 情境分鏡 (預設 kids；bpm_all / bpm_plan_c 可批次送出)",
+        help="選擇風格或 BPM 情境分鏡 (預設 kids；bpm_all / bpm_plan_c / bpm_route_b 可批次送出)",
     )
     parser.add_argument("--project-url", default=FLOW_URL, help="目標 Google Flow 網址")
+    parser.add_argument("--model", choices=["omni12", "veo31lite", "auto"], default="omni12", help="Google Flow 影片模型")
+    parser.add_argument("--res", choices=["360p", "720p"], default="360p", help="解析度（360p 僅耗 10 點/10秒，下載可免費升 720p）")
+    parser.add_argument("--duration", type=int, default=10, help="生成秒數（預設 10 秒）")
     parser.add_argument("--no-submit", action="store_true", help="僅填入首尾幀與 Prompt，不自動點擊開始生成")
     parser.add_argument("--no-wait", action="store_true", help="送出生成後立即結束，不等待自動下載 MP4")
     args = parser.parse_args()
@@ -588,6 +681,8 @@ def main():
         theme_keys = BPM_BATCH_THEMES
     elif args.theme == "bpm_plan_c":
         theme_keys = BPM_PLAN_C_THEMES
+    elif args.theme == "bpm_route_b":
+        theme_keys = BPM_ROUTE_B_THEMES
     else:
         theme_keys = [args.theme]
     ensure_chrome_running(args.project_url)
@@ -598,7 +693,16 @@ def main():
 
         submitted = []
         for idx, key in enumerate(theme_keys):
-            info = upload_single_theme(context, key, args.project_url, args.no_submit, open_new_tab=(idx > 0))
+            info = upload_single_theme(
+                context,
+                key,
+                args.project_url,
+                args.no_submit,
+                open_new_tab=(idx > 0),
+                model=args.model,
+                resolution=args.res,
+                duration=args.duration,
+            )
             submitted.append(info)
             if idx + 1 < len(theme_keys):
                 time.sleep(1.5)

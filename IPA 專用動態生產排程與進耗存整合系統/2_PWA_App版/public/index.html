@@ -279,7 +279,7 @@
 
     // 系統最新版別標籤
 
-    const SYSTEM_VERSION = "v4.3.1 (系統就緒燈號優化版)";
+    const SYSTEM_VERSION = "v4.3.2 (雙系統一鍵切換版)";
 
 
 
@@ -3847,11 +3847,19 @@
 
             <div className="bg-slate-800 text-white p-3.5 rounded-xl shadow-lg flex flex-wrap lg:flex-nowrap justify-between items-center gap-3">
 
-              <h1 className="text-base md:text-lg font-bold flex items-center shrink-0">
+              <h1 className="text-base md:text-lg font-bold flex flex-wrap items-center gap-2 shrink-0">
 
-                <span className="mr-2 text-xl">🛢️</span> 
+                <span className="text-xl">🛢️</span> 
 
-                IPA 生產排程與進耗存整合系統 <span className="ml-2 text-xs bg-blue-600 px-2 py-0.5 rounded-full font-bold text-blue-100">{SYSTEM_VERSION}</span>
+                <span>IPA 生產排程與進耗存整合系統</span> <span className="text-xs bg-blue-600 px-2 py-0.5 rounded-full font-bold text-blue-100">{SYSTEM_VERSION}</span>
+
+                <a
+                  href="https://ipa-quote-vessel-tracker.pages.dev"
+                  className="ml-1 inline-flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 shadow-md border border-cyan-400/40 transition-all"
+                  title="一鍵切換至 IPA 報價與出貨單船期自動追蹤系統"
+                >
+                  🚢 切換至：IPA 報價與船期追蹤 ➔
+                </a>
 
               </h1>
 

@@ -18,7 +18,8 @@
 4. **📑 BPM 一般費用報銷單（私車公用）混合雙軌分鏡工作室 (`bpm_storyboard_studio.html`)**：
    - 由 `build_bpm_sop_video.py` 自動從 `BPM一般費用報銷單_私車公用操作流程.docx` 抽取 11 張高清截圖、生成 3 組 Google Flow 情境首尾幀，並以 `edge-tts` 台灣女聲配音合成 1080p 8 鏡有聲教學總片。
    - **混合雙軌策略（方案 A）**：將 `Shot 01 / 05 / 08` 情境分鏡透過 `auto_upload_flow.py --theme bpm_all` 批次送進 Google Flow（共 90 點）；核心 BPM 表單操作 (`Shot 02, 03, 04, 06, 07`) 由 Python 原圖高清放大＋動態紅框導覽，確保代碼與數字 100% 清晰銳利。
-   - **全 Flow 概念動畫版（方案 C）**：由 `build_bpm_plan_c_video.py` 複用上述 3 支 Flow 實片並補齊 `C02 / C03 / C05` 三段 3D 概念分鏡，產出 6 鏡全 Flow 概念總片 (`bpm_sop_plan_c/`)，可在工作台一鍵切換方案 A / 方案 C 並切換多種台灣配音音色。
+   - **全 Flow 概念動畫版（方案 C）**：由 `build_bpm_plan_c_video.py` 複用上述 3 支 Flow 實片並補齊 `C02 / C03 / C05` 三段 3D 概念分鏡，產出 6 鏡全 Flow 概念總片 (`bpm_sop_plan_c/`)，支援滿版電影字幕、3 秒封面/封底、`0.4s xfade` 轉場與 BGM 自動語音閃避。
+   - **路線 B 電影混剪終極版 (`--cinema`) 與免費 Colab T4 語音克隆**：支援整合 `bpm_sop/flow_clips/b01_intro_flow.mp4`、`b02_bridge_flow.mp4`、`b03_outro_flow.mp4` 主角微電影過場，並透過 `一鍵開啟Colab_T4配音工作站.bat` 直接使用免費 Google Colab T4 GPU（可選 **BreezyVoice** 台灣國語或 **VoxCPM2** 48kHz）克隆真人配音。
 
 ---
 
@@ -33,14 +34,15 @@ blender_3d_demo/
 ├── Blender_3D_AI建模與白模運鏡系統_操作手冊.docx        # 自動生成之圖文 Word 操作手冊
 ├── 啟動3D儲位展示.bat                                 # 一鍵環境檢查、Port 偵測並啟動展示伺服器
 ├── 一鍵自動上傳Google_Flow.bat                         # 免 API Key 開啟本機 Chrome 自動上傳首尾幀
-├── auto_upload_flow.py                              # Playwright CDP 接管本機 Chrome 自動上傳 CLI（含 bpm_all 批次）
-├── build_bpm_sop_video.py                           # BPM 報銷單方案 A 雙軌分鏡抽圖、配音與 1080p 總片合成腳本
-├── build_bpm_plan_c_video.py                        # BPM 報銷單方案 C 全 Flow 6 鏡概念動畫建置腳本
+├── 一鍵開啟Colab_T4配音工作站.bat                      # 一鍵匯出台灣讀音腳本並開啟免費 Colab T4 克隆配音站
+├── auto_upload_flow.py                              # Playwright CDP 接管本機 Chrome 自動上傳 CLI（支援 Omni 1.2 360p 與 bpm_route_b）
+├── build_bpm_sop_video.py                           # BPM 報銷單雙軌分鏡／路線 B 電影混剪終極版建置腳本
+├── build_bpm_plan_c_video.py                        # BPM 報銷單方案 C 全 Flow 6 鏡電影動畫建置腳本
 ├── run_server.py                                    # 含 Port Fallback、/api/upload-flow 與 /api/rebuild-bpm-video 伺服器
 ├── index.html                                       # 3D 智慧儲位數位孿生互動網頁
 ├── fpv_studio.html                                  # 3D 白模 FPV 運鏡工作室網頁
 ├── bpm_storyboard_studio.html                       # BPM 報銷單方案 A / 方案 C 分鏡管理與教學播放工作台
-├── bpm_sop/                                         # 方案 A 工作目錄（figures / flow_frames / audio / clips / 總片）
+├── bpm_sop/                                         # 方案 A & 路線 B 工作目錄（figures / flow_frames / flow_clips / audio / 總片 / BPM_Flow_Agent_電影混剪指令包.md）
 ├── bpm_sop_plan_c/                                  # 方案 C 工作目錄（flow_frames / new_flow_frames / flow_clips / 總片）
 ├── generate_warehouse_3d.py                         # Blender 無頭腳本：生成智慧倉庫 .blend / .glb
 ├── generate_fpv_white_model.py                      # Blender 無頭腳本：算圖輸出 FPV 白模 MP4/首尾幀

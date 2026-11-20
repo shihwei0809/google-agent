@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>IPA (異丙醇) 報價與出貨單船期自動追蹤系統</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #1e293b;
+      --card-hover: #263449;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #38bdf8;
+      --primary-dark: #0284c7;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --violet: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding-bottom: 60px;
+    }
+    /* 強制必備：PWA 新版本自動派送與一鍵更新橫幅 */
+    #updateBanner {
+      display: none;
+      background: linear-gradient(90deg, #059669, #10b981);
+      color: #fff;
+      text-align: center;
+      padding: 10px 16px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      position: sticky;
+      top: 0;
+      z-index: 10001;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+    /* 強制必備：HTML 頂部內建智慧安裝橫幅 */
+    #pwa-install-banner {
+      display: none;
+      background: linear-gradient(90deg, #0284c7, #2563eb);
+      color: #fff;
+      padding: 10px 20px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 14px;
+      position: sticky;
+      top: 0;
+      z-index: 10000;
+    }
+    #pwa-install-banner button {
+      background: #fff;
+      color: #0284c7;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .container {
+      max-width: 1360px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    /* 頂部導覽列 */
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      background: rgba(30, 41, 59, 0.85);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 22px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 800;
+      box-shadow: 0 4px 14px rgba(56, 189, 248, 0.3);
+    }
+    .brand h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .brand p {
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .top-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .fx-pill {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      color: #bae6fd;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 15px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #0ea5e9);
+      color: #fff;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-emerald {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #fff;
+    }
+    .btn-outline {
+      background: #0f172a;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+
+    /* 價差預警橫幅 */
+    .alert-box {
+      border-radius: 12px;
+      padding: 14px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid;
+    }
+    .alert-GREEN { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.4); color: #a7f3d0; }
+    .alert-YELLOW { background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.45); color: #fde68a; }
+    .alert-RED { background: rgba(244, 63, 94, 0.16); border-color: rgba(244, 63, 94, 0.5); color: #fecdd3; }
+    .spread-metrics {
+      display: flex;
+      gap: 14px;
+      font-size: 13px;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.65);
+      padding: 6px 14px;
+      border-radius: 8px;
+    }
+
+    /* 四大化學品雙單位行情卡片 */
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+    .quote-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+    .quote-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: var(--primary);
+    }
+    .quote-card.upstream::before { background: var(--amber); }
+    .card-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .card-title { font-size: 15px; font-weight: 700; color: #f1f5f9; }
+    .card-cat {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--primary);
+    }
+    .quote-card.upstream .card-cat {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber);
+    }
+    .dual-price-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(51, 65, 85, 0.8);
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .price-col { display: flex; flex-direction: column; }
+    .price-col.right { border-left: 1px solid var(--border); padding-left: 12px; }
+    .price-label { font-size: 11.5px; color: var(--muted); margin-bottom: 2px; }
+    .price-val-twd { font-size: 22px; font-weight: 800; color: #38bdf8; }
+    .price-val-usd { font-size: 22px; font-weight: 800; color: #34d399; }
+    .price-unit { font-size: 11px; font-weight: 600; color: var(--muted); }
+    .card-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .delta-up { color: #fb7185; font-weight: 700; }
+    .delta-down { color: #34d399; font-weight: 700; }
+    .delta-flat { color: #94a3b8; }
+
+    /* 雙欄主工作區 */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 1024px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+    .panel-header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-title {
+      font-size: 16.5px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 表單與即時換算器 */
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    .field input, .field select {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13.5px;
+    }
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* 櫃號即時識別預覽卡 */
+    .auto-detect-banner {
+      background: rgba(2, 132, 199, 0.14);
+      border: 1px dashed #38bdf8;
+      border-radius: 10px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .badge-tank { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.4); }
+    .badge-box { background: rgba(56, 189, 248, 0.18); color: #bae6fd; border: 1px solid rgba(56, 189, 248, 0.4); }
+    .badge-eta-ok { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+    .badge-eta-warn { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+    .badge-eta-delay { background: rgba(244, 63, 94, 0.2); color: #fda4af; }
+
+    /* 船期追蹤表格 */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    th, td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: rgba(15, 23, 42, 0.5);
+    }
+    tr:hover td { background: rgba(38, 52, 73, 0.45); }
+    .track-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .chart-box {
+      width: 100%;
+      height: 270px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      position: relative;
+    }
+    .calc-result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 強制必備 1：PWA 新版本自動派送與一鍵更新橫幅 -->
+  <div id="updateBanner" onclick="applyNewVersion()">
+    🎉 系統已發布新版本！點擊此處立即更新 🔄
+  </div>
+
+  <!-- 強制必備 2：HTML 頂部內建智慧安裝橫幅 -->
+  <div id="pwa-install-banner">
+    <span>📲 將「<strong>IPA 報價與出貨單船期自動追蹤系統</strong>」安裝至桌面或手機，支援離線查看與即時預警！</span>
+    <div style="display:flex; gap:8px;">
+      <button id="pwa-install-btn">立即安裝</button>
+      <button onclick="document.getElementById('pwa-install-banner').style.display='none'" style="background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.4);">稍後</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <!-- 頂部列 -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">🧪</div>
+        <div>
+          <h1>IPA (異丙醇) 報價與出貨單船期自動追蹤系統</h1>
+          <p>雙單位即時換算 (台幣/公斤 TWD/KG ⇄ 美金/公噸 USD/MT) ・ 櫃號前4碼自動反查船公司與 AIS 船位</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a href="https://ipa-pwa-app.pages.dev" class="btn" style="background:linear-gradient(135deg, #4f46e5, #6366f1); color:#fff; box-shadow:0 4px 12px rgba(99,102,241,0.35);">🛢️ 切換至：IPA 生產排程與進耗存系統 ➔</a>
+        <span id="syncBadge">🟢 雲端已同步</span>
+        <div class="fx-pill" id="fxDisplay">💱 匯率載入中...</div>
+        <button class="btn btn-primary" onclick="triggerLiveSync()">🔄 立即同步今日匯率與行情</button>
+        <button class="btn btn-outline" onclick="exportToCSV()">📥 匯出 Excel (CSV)</button>
+      </div>
+    </header>
+
+    <!-- 上游丙酮 -> IPA 價差預警橫幅 -->
+    <div id="spreadAlertBox" class="alert-box alert-GREEN">
+      <div>
+        <strong style="font-size:15px;">🔍 【上游成本價差雷達 (丙酮 Acetone ➔ 異丙醇 IPA)】</strong>
+        <p id="spreadAdviceText" style="font-size:13.5px; margin-top:3px;">正在計算今日上下游加工價差...</p>
+      </div>
+      <div class="spread-metrics">
+        <span>美金價差：<strong id="spreadUsdVal">-- USD/MT</strong></span>
+        <span>|</span>
+        <span>台幣價差：<strong id="spreadTwdVal">-- TWD/KG</strong></span>
+      </div>
+    </div>
+
+    <!-- 四大指標雙單位卡片 (TWD/KG & USD/MT 並列顯示) -->
+    <section class="grid-4" id="quoteCardsContainer"></section>
+
+    <!-- 主工作區：左欄趨勢圖 + 每日報價登錄；右欄雙單位快速試算器 -->
+    <div class="main-grid">
+      <!-- 左欄：可自選天數 (7/14/30/60/90日) 歷史走勢圖 -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title" id="chartTitleText">📈 IPA 異丙醇 vs 上游原料 (丙酮 / 丙烯) 近 14 日趨勢分析</div>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:4px; background:#0f172a; padding:3px 6px; border-radius:8px; border:1px solid var(--border);">
+              <span style="font-size:11.5px; color:var(--muted); padding:0 4px;">區間:</span>
+              <button id="btnDays7" class="btn btn-sm btn-outline" style="padding:3px 8px;" onclick="switchChartDays(7)">7日</button>
+              <button id="btnDays14" class="btn btn-sm btn-primary" style="padding:3px 8px;" onclick="switchChartDays(14)">14日</button>
+              <button id="btnDays30" class="btn btn-sm btn-outline" style="padding:3px 8px;" onclick="switchChartDays(30)">30日</button>
+              <button id="btnDays60" class="btn btn-sm btn-outline" style="padding:3px 8px;" onclick="switchChartDays(60)">60日</button>
+              <button id="btnDays90" class="btn btn-sm btn-outline" style="padding:3px 8px;" onclick="switchChartDays(90)">90日</button>
+            </div>
+            <div style="display:flex; gap:4px;">
+              <button id="btnUnitTwd" class="btn btn-sm btn-primary" onclick="switchChartUnit('twd_kg')">台幣/公斤 (TWD/KG)</button>
+              <button id="btnUnitUsd" class="btn btn-sm btn-outline" onclick="switchChartUnit('usd_mt')">美金/公噸 (USD/MT)</button>
+            </div>
+          </div>
+        </div>
+        <div class="chart-box" id="chartContainer"></div>
+        <div style="display:flex; flex-wrap:wrap; gap:16px; margin-top:10px; font-size:12.5px; color:var(--muted);">
+          <span><strong style="color:#38bdf8;">● 實線(藍)</strong>：異丙醇 IPA (東北亞 CFR)</span>
+          <span><strong style="color:#34d399;">● 實線(綠)</strong>：異丙醇 IPA (華東現貨)</span>
+          <span><strong style="color:#f59e0b;">● 虛線(橘)</strong>：上游丙酮 (Acetone)</span>
+          <span><strong style="color:#a855f7;">● 虛線(紫)</strong>：上游丙烯 (Propylene)</span>
+        </div>
+      </div>
+
+      <!-- 右欄：供應商報價秒速雙單位換算器 & 每日報價寫入 -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🧮 供應商報價秒速換算 & 寫入歷史庫</div>
+          <span style="font-size:12px; color:var(--muted);">支援任意幣別輸入</span>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>化學品項目</label>
+            <select id="qChemKey">
+              <option value="IPA_CFR">異丙醇 IPA (東北亞 CFR 進口盤)</option>
+              <option value="IPA_CN">異丙醇 IPA (華東現貨出廠)</option>
+              <option value="ACETONE">丙酮 Acetone (上游原料)</option>
+              <option value="PROPYLENE">丙烯 Propylene (上游原料)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>報價日期</label>
+            <input type="date" id="qDate" />
+          </div>
+          <div class="field">
+            <label>供應商/網站原始報價</label>
+            <input type="number" id="qRawPrice" value="1028" step="0.1" oninput="updateLiveConverter()" />
+          </div>
+          <div class="field">
+            <label>原始報價單位</label>
+            <select id="qRawUnit" onchange="updateLiveConverter()">
+              <option value="USD/MT">美金/公噸 (USD/MT)</option>
+              <option value="RMB/MT">人民幣/公噸 (RMB/MT)</option>
+              <option value="TWD/KG">台幣/公斤 (TWD/KG)</option>
+              <option value="TWD/MT">台幣/公噸 (TWD/MT)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 即時雙單位試算結果預覽 -->
+        <div class="calc-result-grid">
+          <div>
+            <div style="font-size:11.5px; color:var(--muted);">折合台幣每公斤 (TWD/KG)</div>
+            <div id="calcTwdKg" style="font-size:21px; font-weight:800; color:#38bdf8;">NT$ 33.89 /KG</div>
+            <div id="calcDrumCost" style="font-size:11.5px; color:var(--muted); margin-top:2px;">160KG 桶裝成本: NT$ 5,422 /桶</div>
+          </div>
+          <div style="border-left:1px solid var(--border); padding-left:12px;">
+            <div style="font-size:11.5px; color:var(--muted);">折合美金每公噸 (USD/MT)</div>
+            <div id="calcUsdMt" style="font-size:21px; font-weight:800; color:#34d399;">$ 1,028.00 /MT</div>
+            <div id="calcTankCost" style="font-size:11.5px; color:var(--muted); margin-top:2px;">20MT ISO Tank 貨值: $ 20,560</div>
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:12px;">
+          <label>備註 / 報價來源說明</label>
+          <input type="text" id="qNote" placeholder="例如：李長榮/德山/華東供應商今日報價..." />
+        </div>
+        <button class="btn btn-emerald" style="width:100%; justify-content:center; margin-top:12px;" onclick="submitQuote()">
+          💾 記錄今日報價並更新趨勢分析
+        </button>
+      </div>
+    </div>
+
+    <!-- 出貨單「櫃號 / 船名 (Vessel Name)」自動反查船公司與船期追蹤中心 -->
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">🚢 出貨單「櫃號 (Container No.) / 船名 (Vessel Name)」自動反查船公司與船期追蹤</div>
+          <p style="font-size:12.5px; color:var(--muted); margin-top:2px;">
+            不知道哪家船公司？直接輸入出貨單上的<strong>櫃號（如 WHLU5581920、EXFU8839201、NRSU2849102）</strong>，系統自動依據前 4 碼辨識船公司與是否為 ISO Tank 槽罐櫃！
+          </p>
+        </div>
+      </div>
+
+      <!-- 新增出貨單追蹤表單 + 採購 Email 表格一鍵貼上解析器 -->
+      <div style="background:rgba(15,23,42,0.55); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:18px;">
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border);">
+          <div>
+            <strong style="color:#38bdf8; font-size:14.5px;">📋 鴻勝採購 Email「進口 IPA / NMP 預計入廠日期表」一鍵解析匯入</strong>
+            <span style="font-size:12px; color:var(--muted); margin-left:8px;">直接從 Outlook / Excel 複製採購表格貼上，自動拆解【貿易條件、批次案號、噸數/槽車數(17.5MT/槽)、開航日(ETD)、到港日(ETA)、預計入廠日】並標記紅字改期！</span>
+          </div>
+          <button class="btn btn-sm btn-emerald" onclick="togglePasteBox()">📥 貼上採購 Email 表格更新</button>
+        </div>
+
+        <div id="emailPasteBox" style="display:none; margin-bottom:16px; background:#0b1120; padding:14px; border-radius:10px; border:1px solid #38bdf8;">
+          <label style="font-size:12.5px; color:#bae6fd; font-weight:700; display:block; margin-bottom:6px;">
+            請將採購信件中的表格文字直接貼在下方（格式範例：<code>CIF-3 2610-I03 175MT   11/17   11/20   11/24-25</code>）：
+          </label>
+          <textarea id="rawEmailTableText" rows="6" style="width:100%; background:#1e293b; color:#f8fafc; border:1px solid #334155; border-radius:8px; padding:10px; font-family:monospace; font-size:13px;" placeholder="CIF-3 2610-I03 175MT&#9;11/17&#9;11/20&#9;11/24-25&#10;FOB-4 2610-I04 175MT&#9;11/21&#9;11/26&#9;12/1-2&#10;FOB-5 2610-I05 175MT&#9;11/21&#9;11/26&#9;12/2-4"></textarea>
+          <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+            <button class="btn btn-sm btn-outline" onclick="loadSampleProcurementText()">載入採購最新 15 批範例</button>
+            <button class="btn btn-sm btn-primary" onclick="parseAndImportEmailTable()">⚡ 立即解析並比對改期異動</button>
+          </div>
+        </div>
+
+        <!-- 鴻勝 11-12 月進口 IPA 入廠噸數與槽車數統計摘要條 -->
+        <div id="batchSummaryBar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:14px;"></div>
+
+        <!-- 新增：📅 每日預計入廠槽車負荷日曆 & 三段式船期甘特圖 -->
+        <div style="background:#0b1120; border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:16px;">
+          <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px;">
+            <div>
+              <strong style="font-size:15px; color:#f8fafc;">📅 每日預計入廠槽車負荷日曆 & 航程甘特圖 (1槽 = 17.5 MT)</strong>
+              <p style="font-size:12px; color:var(--muted); margin-top:2px;">
+                自動將跨日入廠批次（如 <code>11/24-25</code> 10槽）平均拆算至每日進廠槽車數，當單日進廠 <strong>≥ 10 槽 (175 MT)</strong> 自動亮紅燈提醒儲槽與品管 (QC)！
+              </p>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button id="btnViewCal" class="btn btn-sm btn-primary" onclick="switchScheduleView('calendar')">📅 每日入廠槽車日曆</button>
+              <button id="btnViewGantt" class="btn btn-sm btn-outline" onclick="switchScheduleView('gantt')">📊 開航➔到港➔入廠甘特圖</button>
+            </div>
+          </div>
+
+          <!-- 視圖 1：每日入廠槽車日曆卡 -->
+          <div id="scheduleCalendarView" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(195px, 1fr)); gap:10px;"></div>
+
+          <!-- 視圖 2：三段式甘特圖 (ETD -> ETA -> 入廠) -->
+          <div id="scheduleGanttView" style="display:none; overflow-x:auto;"></div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field">
+            <label>① 櫃號 (Container / ISO Tank No.) *</label>
+            <input type="text" id="sContainerNo" placeholder="例如: NRSU2849102 或 WHLU5581920" oninput="previewContainerDetect()" />
+          </div>
+          <div class="field">
+            <label>② 船名 (Vessel Name) *</label>
+            <input type="text" id="sVesselName" placeholder="例如: YM MOBILITY 或 WAN HAI 285" oninput="previewContainerDetect()" />
+          </div>
+          <div class="field">
+            <label>③ 航次 / 採購單號 (PO)</label>
+            <input type="text" id="sOrderNo" placeholder="例如: PO-202611-092" />
+          </div>
+          <div class="field">
+            <label>④ 採購單價 & 單位 (自動雙向換算)</label>
+            <div style="display:flex; gap:6px;">
+              <input type="number" id="sBuyPrice" value="1020" step="0.5" style="flex:1.2;" />
+              <select id="sBuyUnit" style="flex:1;">
+                <option value="USD/MT">USD/MT</option>
+                <option value="TWD/KG">TWD/KG</option>
+                <option value="RMB/MT">RMB/MT</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>⑤ 起運港 (POL)</label>
+            <input type="text" id="sPol" value="日本德山港 (JPTKY)" />
+          </div>
+          <div class="field">
+            <label>⑥ 目的港與碼頭 (POD)</label>
+            <select id="sPod">
+              <option value="高雄港 (TWKHH - 61號石化碼頭)">高雄港 (TWKHH - 石化碼頭)</option>
+              <option value="台中港 (TWTXG - 西碼頭石化區)">台中港 (TWTXG - 西碼頭石化區)</option>
+              <option value="基隆港 (TWKEL)">基隆港 (TWKEL)</option>
+              <option value="台北港 (TWTPE)">台北港 (TWTPE)</option>
+              <option value="麥寮工業專用港 (TWMLI)">麥寮港 (TWMLI)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>⑦ 預計到港日 (ETA)</label>
+            <input type="date" id="sEta" />
+          </div>
+          <div class="field">
+            <label>⑧ 航班狀態</label>
+            <select id="sStatus">
+              <option value="航行中 (準點)">🟢 航行中 (準點)</option>
+              <option value="即將到港 (ETA 明日)">🔵 即將到港</option>
+              <option value="船期延誤 (+2天)">🔴 船期延誤</option>
+              <option value="已到港卸櫃">⚪ 已到港卸櫃</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 即時櫃號反查預覽條 -->
+        <div class="auto-detect-banner" id="detectPreviewBanner">
+          <div>
+            <span>🤖 <strong>櫃號智慧識別結果：</strong></span>
+            <span id="detectCarrierText" style="color:#38bdf8; font-weight:700;">請在上方輸入櫃號前 4 碼（例如 WHLU、EGLV、YMLU、EXFU、NRSU）...</span>
+          </div>
+          <button class="btn btn-primary" onclick="submitShipment()">➕ 加入出貨單船期追蹤看板</button>
+        </div>
+      </div>
+
+      <!-- 到期自動歸檔分頁切換與一鍵清理控制列 -->
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; padding:10px 14px; background:rgba(15,23,42,0.75); border:1px solid var(--border); border-radius:10px;">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+          <span style="font-size:12.5px; color:var(--muted); font-weight:700;">🕒 到期自動過濾：</span>
+          <button id="tabActiveBtn" class="btn btn-sm btn-primary" onclick="switchShipmentTab('active')">🟢 進行中 / 待入廠 (<span id="countActive">0</span>)</button>
+          <button id="tabArchivedBtn" class="btn btn-sm btn-outline" onclick="switchShipmentTab('archived')">📂 已過期 / 已入廠自動歸檔 (<span id="countArchived">0</span>)</button>
+          <button id="tabAllBtn" class="btn btn-sm btn-outline" onclick="switchShipmentTab('all')">📋 顯示全部 (<span id="countAll">0</span>)</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:12px; color:#94a3b8;">💡 超過「預計最後入廠日」之批次會自動移入歸檔區免人工刪除</span>
+          <button class="btn btn-sm btn-outline" style="color:#fb7185; border-color:rgba(244,63,94,0.4);" onclick="purgeExpiredShipments()">🧹 一鍵徹底清除已到期批次</button>
+        </div>
+      </div>
+
+      <!-- 船期追蹤清單表格 -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>採購單號 / 品項</th>
+              <th>櫃號 (Container No.)</th>
+              <th>自動反查船公司 / 櫃型</th>
+              <th>船名與 IMO 船籍編號 (點擊可改船名)</th>
+              <th>航線 (起運港 ➔ 目的港)</th>
+              <th>採購成本 (雙單位)</th>
+              <th>預計到港 (ETA) / 倒數</th>
+              <th>一鍵即時追蹤 (直達單船海圖免打字)</th>
+            </tr>
+          </thead>
+          <tbody id="shipmentTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 內建即時 AIS 單船衛星海圖與一鍵綁定船名彈窗 -->
+  <div id="aisMapModal" style="display:none; position:fixed; inset:0; background:rgba(11,17,32,0.85); z-index:20000; align-items:center; justify-content:center; padding:18px; backdrop-filter:blur(6px);">
+    <div style="background:#1e293b; border:1px solid #38bdf8; border-radius:14px; width:100%; max-width:960px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.6);">
+      <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; padding:14px 20px; background:#0f172a; border-bottom:1px solid #334155;">
+        <div>
+          <strong id="aisModalTitle" style="font-size:16px; color:#38bdf8;">🛰️ 即時 AIS 單船海圖定位</strong>
+          <p id="aisModalSub" style="font-size:12px; color:#94a3b8; margin-top:2px;">已透過國際 IMO 船籍碼直接鎖定該船即時座標（免手動輸入船名）</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <a id="aisDirectExternalBtn" href="#" target="_blank" class="btn btn-sm btn-primary">🚀 新分頁開全螢幕單船海圖 (免打字直達)</a>
+          <button class="btn btn-sm btn-outline" onclick="closeAisModal()">✕ 關閉視窗</button>
+        </div>
+      </div>
+
+      <!-- 快速切換或綁定該批次船名工具列 -->
+      <div style="padding:10px 20px; background:rgba(15,23,42,0.55); border-bottom:1px solid #334155; display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:12.5px;">
+        <span style="color:#bae6fd; font-weight:700;">✏️ 鴻勝台中港主力船名一鍵切換：</span>
+        <button class="btn btn-sm btn-outline" onclick="quickAssignVessel('KMTC SINGAPORE', '9217412')">KMTC SINGAPORE (IMO:9217412)</button>
+        <button class="btn btn-sm btn-outline" onclick="quickAssignVessel('WAN HAI 315', '9302695')">WAN HAI 315 (IMO:9302695)</button>
+        <button class="btn btn-sm btn-outline" onclick="quickAssignVessel('TS PUSAN', '9854844')">TS PUSAN (IMO:9854844)</button>
+        <button class="btn btn-sm btn-outline" onclick="quickAssignVessel('WAN HAI 308', '9536985')">WAN HAI 308 (IMO:9536985)</button>
+      </div>
+
+      <div id="aisIframeContainer" style="width:100%; height:500px; background:#0b1120; position:relative;"></div>
+    </div>
+  </div>
+
+  <!-- 引入標準離線優先佇列模組 -->
+  <script src="pwa_offline_sync_template.js"></script>
+  <script>
+    // =========================================================================
+    // 1. 全域狀態與離線優先佇列初始化
+    // =========================================================================
+    let dashboardState = {
+      fx: { USD_TWD: 32.97, USD_CNY: 6.68, CNY_TWD: 4.94 },
+      cards: [],
+      spread_analysis: {},
+      shipments: []
+    };
+    let currentChartUnit = 'twd_kg'; // 預設看台幣/公斤 (TWD/KG)
+    let currentChartDays = 14;       // 預設看近 14 日 (可切換 7 / 14 / 30 / 60 / 90 日)
+
+    // 船公司與 ISO Tank 前 4 碼前端即時識別字典
+    const PREFIX_DICT = {
+      "EGLV": { carrier: "長榮海運 (Evergreen)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "EISU": { carrier: "長榮海運 (Evergreen)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "YMLU": { carrier: "陽明海運 (Yang Ming)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "WHLU": { carrier: "萬海航運 (Wan Hai)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "TSLU": { carrier: "德翔海運 (T.S. Lines)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "SITU": { carrier: "海豐國際 (SITC)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "KMTU": { carrier: "高麗海運 (KMTC)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "ONEY": { carrier: "海洋網聯 (ONE)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "MAEU": { carrier: "馬士基 (Maersk)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "CMAU": { carrier: "達飛海運 (CMA CGM)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "COSU": { carrier: "中遠海運 (COSCO)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "OOLU": { carrier: "東方海外 (OOCL)", type: "一般危險品貨櫃 (桶裝)", isTank: false },
+      "EXFU": { carrier: "EXSIF Worldwide (全球最大化工槽罐商)", type: "ISO Tank 液體槽罐櫃", isTank: true },
+      "STTU": { carrier: "Stolt Tank Containers (思多而特化學槽車)", type: "ISO Tank 液體槽罐櫃", isTank: true },
+      "HOYU": { carrier: "Hoyer Global (霍耶化工物流)", type: "ISO Tank 液體槽罐櫃", isTank: true },
+      "NRSU": { carrier: "NRS 日陸物流 (日本 IPA 主力槽罐)", type: "ISO Tank 液體槽罐櫃", isTank: true },
+      "SGCU": { carrier: "Seaco Global (化工槽罐租賃)", type: "ISO Tank 液體槽罐櫃", isTank: true },
+      "BGLU": { carrier: "Bertschi (貝爾奇化工物流)", type: "ISO Tank 液體槽罐櫃", isTank: true },
+      "JOTU": { carrier: "JOT 日本石油輸送 (日本 IPA 槽罐)", type: "ISO Tank 液體槽罐櫃", isTank: true }
+    };
+
+    const syncMgr = new OfflineSyncManager({
+      storageKey: 'ipa_tracker_offline_queue',
+      badgeElementId: 'syncBadge',
+      onSyncSuccess: () => loadDashboard()
+    });
+
+    // 初始化日期欄位
+    document.getElementById('qDate').value = new Date().toISOString().slice(0, 10);
+    const defaultEta = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+    document.getElementById('sEta').value = defaultEta;
+
+    // =========================================================================
+    // 2. 載入儀表板資料 (支援後端 API、前端直連公開匯率 API 與 LocalStorage 離線無縫降級)
+    // =========================================================================
+    function getDefaultSeedState(fx) {
+      const uTwd = fx.USD_TWD || 32.98;
+      const cTwd = fx.CNY_TWD || 4.93;
+      const uCny = fx.USD_CNY || 6.69;
+      const hIpaCfr = [], hIpaCn = [], hAce = [], hPro = [];
+      for (let i = 89; i >= 0; i--) {
+        const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+        const prog = (89 - i) / 89.0;
+        const wave = Math.sin(i * 0.22) * 14.0 + Math.cos(i * 0.11) * 8.0;
+        let vIpaU = Number((955.0 + prog * 73.0 + wave).toFixed(1));
+        let vIpaR = Number((6420.0 + prog * 480.0 + wave * 6.2).toFixed(1));
+        let vAceR = Number((5450.0 + prog * 680.0 + wave * 5.5).toFixed(1));
+        let vProU = Number((795.0 + prog * 60.0 + wave * 0.7).toFixed(1));
+        if (i === 0) { vIpaU = 1028.0; vIpaR = 6900.0; vAceR = 6130.0; vProU = 855.0; }
+        if (i === 1) { vIpaU = 1022.0; vIpaR = 6860.0; vAceR = 6090.0; vProU = 850.0; }
+        hIpaCfr.push({ date: d, raw_price: vIpaU, usd_mt: vIpaU, twd_kg: Number(((vIpaU * uTwd) / 1000).toFixed(2)) });
+        hIpaCn.push({ date: d, raw_price: vIpaR, usd_mt: Number((vIpaR / uCny).toFixed(2)), twd_kg: Number(((vIpaR * cTwd) / 1000).toFixed(2)) });
+        hAce.push({ date: d, raw_price: vAceR, usd_mt: Number((vAceR / uCny).toFixed(2)), twd_kg: Number(((vAceR * cTwd) / 1000).toFixed(2)) });
+        hPro.push({ date: d, raw_price: vProU, usd_mt: vProU, twd_kg: Number(((vProU * uTwd) / 1000).toFixed(2)) });
+      }
+      const today = new Date().toISOString().slice(0, 10);
+
+      const buildCard = (key, name, cat, unit, hist) => {
+        const curr = hist[hist.length - 1];
+        const prev = hist[hist.length - 2];
+        const wk = hist[hist.length - 8];
+        const diff1d = Number((curr.usd_mt - prev.usd_mt).toFixed(2));
+        const pct1d = Number(((diff1d / prev.usd_mt) * 100).toFixed(2));
+        const diff7d = Number((curr.usd_mt - wk.usd_mt).toFixed(2));
+        const pct7d = Number(((diff7d / wk.usd_mt) * 100).toFixed(2));
+        return {
+          chem_key: key, chem_name: name, category: cat, record_date: today,
+          raw_price: curr.raw_price, raw_unit: unit, usd_mt: curr.usd_mt, twd_kg: curr.twd_kg,
+          diff_usd_1d: diff1d, pct_1d: pct1d, diff_usd_7d: diff7d, pct_7d: pct7d, history: hist
+        };
+      };
+
+      const cards = [
+        buildCard('IPA_CFR', '異丙醇 IPA (東北亞 CFR 進口盤)', '主力標的', 'USD/MT', hIpaCfr),
+        buildCard('IPA_CN', '異丙醇 IPA (華東現貨出廠)', '主力標的', 'RMB/MT', hIpaCn),
+        buildCard('ACETONE', '丙酮 Acetone (上游原料)', '上游原料', 'RMB/MT', hAce),
+        buildCard('PROPYLENE', '丙烯 Propylene (上游原料)', '上游原料', 'USD/MT', hPro)
+      ];
+      const spUsd = Number((cards[1].usd_mt - cards[2].usd_mt).toFixed(2));
+      const spTwd = Number((cards[1].twd_kg - cards[2].twd_kg).toFixed(2));
+      return {
+        fx,
+        cards,
+        spread_analysis: {
+          spread_usd_mt: spUsd,
+          spread_twd_kg: spTwd,
+          alert_level: spUsd < 125 ? 'RED' : (spUsd < 160 ? 'YELLOW' : 'GREEN'),
+          advice: spUsd < 160
+            ? '⚠️ 【上游成本偏緊】丙酮連日上漲，丙酮與 IPA 加工價差收斂至 $' + spUsd + ' USD/MT，建議密切關注供應商下週報價並適時鎖單！'
+            : '✅ 【價差充裕】目前 IPA 與上游丙酮維持健康加工利潤區間，原料端暫無急漲推力。'
+        },
+        shipments: [
+          { order_no: 'IPA-2610-I02', container_no: 'IPA-2610-I02 (10槽)', carrier: '高麗海運 (KMTC / 台中港)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'KMTC SINGAPORE (IMO:9217412)', imo: '9217412', voyage: '航次: 2614S | 結關:10/29', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1020.0, buy_price_twd_kg: Number(((1020 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-10-27)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-08)', eta: '2026-11-08', days_left: -12, status: '✅ 已入廠結案 (11/12-13)', note: '10/27開航 ➔ 11/08到台中港 (已到期自動歸檔)', ais_url: 'https://www.vesselfinder.com/?imo=9217412', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.ekmtc.com/index.html#/cargo-tracking' },
+          { order_no: 'CIF-3 2610-I03', container_no: 'IPA-2610-I03 (10槽)', carrier: '高麗海運 (CIF / KMTC)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'KMTC SINGAPORE (IMO:9217412)', imo: '9217412', voyage: '航次: 2615S | 結關:11/06', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1020.0, buy_price_twd_kg: Number(((1020 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-17)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-20)', eta: '2026-11-20', days_left: 0, status: '預計入廠: 11/24-25', note: 'PI/PO: IPA-2610-I03 | 11/17開航 ➔ 11/20到台中港 ➔ 11/24-25入廠', ais_url: 'https://www.vesselfinder.com/?imo=9217412', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.ekmtc.com/index.html#/cargo-tracking' },
+          { order_no: 'FOB-4 2610-I04', container_no: 'IPA-2610-I04 (10槽)', carrier: '萬海航運 (FOB / WAN HAI)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'WAN HAI 315 (IMO:9302695)', imo: '9302695', voyage: '航次: V.S271 | 結關:11/02', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1015.0, buy_price_twd_kg: Number(((1015 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-21)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-26)', eta: '2026-11-26', days_left: 6, status: '預計入廠: 12/1-2', note: 'PI/PO: IPA-2610-I04 | 11/21開航 ➔ 11/26到台中港 ➔ 12/1-2入廠', ais_url: 'https://www.vesselfinder.com/?imo=9302695', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.wanhai.com/views/cargo_track_v2/tracking_query.xhtml' },
+          { order_no: 'FOB-5 2610-I05', container_no: 'IPA-2610-I05 (10槽)', carrier: '萬海航運 (FOB / WAN HAI)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'WAN HAI 315 (IMO:9302695)', imo: '9302695', voyage: '航次: V.S271 | 結關:11/02', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1015.0, buy_price_twd_kg: Number(((1015 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-21)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-26)', eta: '2026-11-26', days_left: 6, status: '🔴 異動延後入廠: 12/2-4', note: 'PI/PO: IPA-2610-I05 | ⚠️ 採購紅字更新：入廠日異動為 12/2-4', ais_url: 'https://www.vesselfinder.com/?imo=9302695', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.wanhai.com/views/cargo_track_v2/tracking_query.xhtml' },
+          { order_no: 'CIF-6 2610-I06', container_no: 'IPA-2610-I06 (10槽)', carrier: '高麗海運 (CIF / KMTC)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'KMTC SINGAPORE (IMO:9217412)', imo: '9217412', voyage: '航次: 2615S | 結關:10/29', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1020.0, buy_price_twd_kg: Number(((1020 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-17)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-20)', eta: '2026-11-20', days_left: 0, status: '預計入廠: 11/25-26', note: 'PI/PO: IPA-2610-I06 | 11/17開航 ➔ 11/20到台中港 ➔ 11/25-26入廠', ais_url: 'https://www.vesselfinder.com/?imo=9217412', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.ekmtc.com/index.html#/cargo-tracking' },
+          { order_no: 'CIF-11 2610-I11', container_no: 'IPA-2610-I11 (10槽)', carrier: '德翔海運 (CIF / T.S. Lines)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'TS PUSAN (IMO:9854844)', imo: '9854844', voyage: '航次: 2619S | 結關:10/29', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1020.0, buy_price_twd_kg: Number(((1020 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-23)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-25)', eta: '2026-11-25', days_left: 5, status: '預計入廠: 11/27', note: 'PI/PO: IPA-2610-I11 | 11/23開航 ➔ 11/25到台中港 ➔ 11/27入廠', ais_url: 'https://www.vesselfinder.com/?imo=9854844', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.tslines.com/tw/e-service-list/cargo-tracking' },
+          { order_no: 'CIF-1 2611-I01(A)', container_no: 'LGCBEN-261103-01 CIF', carrier: '高麗海運 (CIF / KMTC)', box_type: 'ISO-Tank (5槽 / 87.5MT)', vessel_name: 'KMTC SINGAPORE (IMO:9217412)', imo: '9217412', voyage: '航次: 2615S | 結關:11/13', chem_item: 'E-SHINE 進口 IPA (5槽×17.5MT)', qty_mt: 87.5, buy_price_usd_mt: 1028.0, buy_price_twd_kg: Number(((1028 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-17)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-20)', eta: '2026-11-20', days_left: 0, status: '預計入廠: 11/26', note: 'SC/PO: LGCBEN-261103-01 CIF | PI: IPA-2611-I01 (第一批87.5T)', ais_url: 'https://www.vesselfinder.com/?imo=9217412', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.ekmtc.com/index.html#/cargo-tracking' },
+          { order_no: 'CIF-1 2611-I01(B)', container_no: 'IPA-2611-I01B (5槽)', carrier: '賣方安排船運 (CIF)', box_type: 'ISO-Tank (5槽 / 87.5MT)', vessel_name: '待定船班 (點擊可綁定船名)', imo: '', voyage: 'PI: IPA-2611-I01 | 待定', chem_item: 'E-SHINE 進口 IPA (5槽×17.5MT)', qty_mt: 87.5, buy_price_usd_mt: 1028.0, buy_price_twd_kg: Number(((1028 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港', pod: 'TAICHUNG 台中港 (ETA: 待定)', eta: '待定', days_left: 99, status: '⏳ 船期與入廠待定', note: 'PI: IPA-2611-I01 拆批第二批 (87.5MT 船期待定)', ais_url: 'https://www.vesselfinder.com/?p=TWTXG', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.track-trace.com/container' },
+          { order_no: 'CIF-2 2611-I02', container_no: 'LGCBEN-261103-03', carrier: '德翔海運 (CIF / T.S. Lines)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'TS PUSAN (IMO:9854844)', imo: '9854844', voyage: '航次: 2620S | 結關:12/04', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1028.0, buy_price_twd_kg: Number(((1028 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (🔴ETD: 2026-12-08)', pod: 'TAICHUNG 台中港 (ETA: 2026-12-11)', eta: '2026-12-11', days_left: 21, status: '🔴 異動延後入廠: 12/15-17', note: 'SC/PO: LGCBEN-261103-03 | PI: IPA-2611-I02 (12/8開航➔12/11到台中港)', ais_url: 'https://www.vesselfinder.com/?imo=9854844', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.tslines.com/tw/e-service-list/cargo-tracking' },
+          { order_no: 'CIF-3 2611-I03', container_no: 'LGCBEN-261103-04', carrier: '德翔海運 (CIF / T.S. Lines)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'TS PUSAN (IMO:9854844)', imo: '9854844', voyage: '航次: 2620S | 預排船期', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1028.0, buy_price_twd_kg: Number(((1028 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (🔴ETD: 2026-12-07)', pod: 'TAICHUNG 台中港 (ETA: 2026-12-10)', eta: '2026-12-10', days_left: 20, status: '🔴 異動延後入廠: 12/14-15', note: 'SC/PO: LGCBEN-261103-04 | PI: IPA-2611-I03 (12/7開航➔12/10到台中港)', ais_url: 'https://www.vesselfinder.com/?imo=9854844', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.tslines.com/tw/e-service-list/cargo-tracking' },
+          { order_no: 'FOB-4 2611-I04', container_no: 'LGCBEN-261103-02 FOB', carrier: '萬海航運 (FOB / WAN HAI)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'WAN HAI 315 (IMO:9302695)', imo: '9302695', voyage: '航次: S271 | 結關:11/16', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1022.0, buy_price_twd_kg: Number(((1022 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-21)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-26)', eta: '2026-11-26', days_left: 6, status: '預計入廠: 11/30', note: 'SC/PO: LGCBEN-261103-02 FOB | PI: IPA-2611-I04 (11/21開航➔11/26到台中港)', ais_url: 'https://www.vesselfinder.com/?imo=9302695', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.wanhai.com/views/cargo_track_v2/tracking_query.xhtml' },
+          { order_no: 'FOB-5 2611-I05', container_no: 'LGCBEN-261103-05 FOB', carrier: '萬海航運 (FOB / WAN HAI)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: 'WAN HAI 308 (IMO:9536985)', imo: '9536985', voyage: '航次: WH308 | 結關:11/19', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1022.0, buy_price_twd_kg: Number(((1022 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-21)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-26)', eta: '2026-11-26', days_left: 6, status: '🔴 異動延後入廠: 12/4-7', note: 'SC/PO: LGCBEN-261103-05 FOB | PI: IPA-2611-I05 (入廠日紅字更新 12/4-7)', ais_url: 'https://www.vesselfinder.com/?imo=9536985', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.wanhai.com/views/cargo_track_v2/tracking_query.xhtml' },
+          { order_no: 'FOB-5 2611-I06(A)', container_no: 'LGCBEN-261103-01 FOB', carrier: '萬海航運 (FOB / WAN HAI)', box_type: 'ISO-Tank (5槽 / 87.5MT)', vessel_name: 'WAN HAI 308 (IMO:9536985)', imo: '9536985', voyage: '航次: WH308 | 結關:11/19', chem_item: 'E-SHINE 進口 IPA (5槽×17.5MT)', qty_mt: 87.5, buy_price_usd_mt: 1022.0, buy_price_twd_kg: Number(((1022 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港 (ETD: 2026-11-21)', pod: 'TAICHUNG 台中港 (ETA: 2026-11-26)', eta: '2026-11-26', days_left: 6, status: '🔴 異動延後入廠: 12/8', note: 'SC/PO: LGCBEN-261103-01 FOB | PI: IPA-2611-I06 (入廠日紅字更新 12/8)', ais_url: 'https://www.vesselfinder.com/?imo=9536985', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.wanhai.com/views/cargo_track_v2/tracking_query.xhtml' },
+          { order_no: 'FOB-6 2611-I06(B)', container_no: 'IPA-2611-I06B (5槽)', carrier: '買方指定貨代 (FOB)', box_type: 'ISO-Tank (5槽 / 87.5MT)', vessel_name: '待定船班 (點擊可綁定船名)', imo: '', voyage: 'PI: IPA-2611-I06 | 待定', chem_item: 'E-SHINE 進口 IPA (5槽×17.5MT)', qty_mt: 87.5, buy_price_usd_mt: 1022.0, buy_price_twd_kg: Number(((1022 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港', pod: 'TAICHUNG 台中港 (ETA: 待定)', eta: '待定', days_left: 99, status: '⏳ 船期與入廠待定', note: 'PI: IPA-2611-I06 拆批第二批 (87.5MT 船期待定)', ais_url: 'https://www.vesselfinder.com/?p=TWTXG', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.track-trace.com/container' },
+          { order_no: 'FOB-7 2611-I07', container_no: 'IPA-2611-I07 (10槽)', carrier: '買方指定貨代 (FOB)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: '待定船班 (點擊可綁定船名)', imo: '', voyage: 'PI: IPA-2611-I07 | 待定', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1022.0, buy_price_twd_kg: Number(((1022 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港', pod: 'TAICHUNG 台中港 (ETA: 待定)', eta: '待定', days_left: 99, status: '⏳ 船期與入廠待定', note: 'PI: IPA-2611-I07 (175MT 船期待定)', ais_url: 'https://www.vesselfinder.com/?p=TWTXG', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.track-trace.com/container' },
+          { order_no: 'FOB-8 2611-I08', container_no: 'IPA-2611-I08 (10槽)', carrier: '買方指定貨代 (FOB)', box_type: 'ISO-Tank (10槽 / 175MT)', vessel_name: '待定船班 (點擊可綁定船名)', imo: '', voyage: 'PI: IPA-2611-I08 | 待定', chem_item: 'E-SHINE 進口 IPA (10槽×17.5MT)', qty_mt: 175.0, buy_price_usd_mt: 1022.0, buy_price_twd_kg: Number(((1022 * uTwd) / 1000).toFixed(2)), pol: '韓國起運港', pod: 'TAICHUNG 台中港 (ETA: 待定)', eta: '待定', days_left: 99, status: '⏳ 船期與入廠待定', note: 'PI: IPA-2611-I08 (175MT 船期待定)', ais_url: 'https://www.vesselfinder.com/?p=TWTXG', twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk', carrier_url: 'https://www.track-trace.com/container' }
+        ]
+      };
+    }
+
+    async function loadDashboard() {
+      try {
+        const res = await fetch('/api/dashboard');
+        if (!res.ok) throw new Error('API unreachable');
+        const data = await res.json();
+        if (!data.cards || !data.cards.length) throw new Error('Empty payload');
+        dashboardState = data;
+        localStorage.setItem('ipa_dashboard_cache', JSON.stringify(data));
+      } catch (err) {
+        const cached = localStorage.getItem('ipa_dashboard_cache');
+        let parsedCache = cached ? JSON.parse(cached) : null;
+        // 若舊快取尚未包含最新台中港真實船名或 90 天歷史軌跡，自動升級快取
+        const hasRealShips = parsedCache && (parsedCache.shipments || []).some(s => (s.vessel_name || '').includes('KMTC SINGAPORE'));
+        const has90Days = parsedCache && parsedCache.cards && parsedCache.cards[0] && (parsedCache.cards[0].history || []).length >= 30;
+        if (parsedCache && hasRealShips && has90Days) {
+          dashboardState = parsedCache;
+        } else {
+          let fx = { USD_TWD: 32.97, USD_CNY: 6.68, CNY_TWD: 4.94 };
+          try {
+            const fxRes = await fetch('https://open.er-api.com/v6/latest/USD');
+            const fxJson = await fxRes.json();
+            const uTwd = Number(fxJson.rates.TWD.toFixed(4));
+            const uCny = Number(fxJson.rates.CNY.toFixed(4));
+            fx = { USD_TWD: uTwd, USD_CNY: uCny, CNY_TWD: Number((uTwd / uCny).toFixed(4)) };
+          } catch (e) {}
+          dashboardState = getDefaultSeedState(fx);
+          localStorage.setItem('ipa_dashboard_cache', JSON.stringify(dashboardState));
+        }
+      }
+      renderAll();
+    }
+
+    function renderAll() {
+      const fx = dashboardState.fx || { USD_TWD: 32.97, USD_CNY: 6.68, CNY_TWD: 4.94 };
+      document.getElementById('fxDisplay').innerHTML =
+        `💱 即時匯率：<strong>1 USD = ${fx.USD_TWD} TWD</strong> ｜ <strong>1 RMB = ${fx.CNY_TWD} TWD</strong>`;
+
+      renderSpreadAlert(dashboardState.spread_analysis);
+      renderQuoteCards(dashboardState.cards || []);
+      renderChart(dashboardState.cards || [], currentChartUnit);
+      renderBatchSummary(dashboardState.shipments || []);
+      renderScheduleCalendarAndGantt(dashboardState.shipments || []);
+      renderShipmentTable(dashboardState.shipments || []);
+      updateLiveConverter();
+    }
+
+    let currentScheduleView = 'calendar';
+    function switchScheduleView(mode) {
+      currentScheduleView = mode;
+      document.getElementById('btnViewCal').className = mode === 'calendar' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      document.getElementById('btnViewGantt').className = mode === 'gantt' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      document.getElementById('scheduleCalendarView').style.display = mode === 'calendar' ? 'grid' : 'none';
+      document.getElementById('scheduleGanttView').style.display = mode === 'gantt' ? 'block' : 'none';
+    }
+
+    // 解析採購表格的入廠日期字串 (例如 "預計入廠: 11/24-25" 或 "🔴 異動延後入廠: 12/4-7" 或 "11/27")
+    function extractDateRangeList(text) {
+      if (!text || text.includes('待定')) return [];
+      const m = text.match(/(\d{1,2})\/(\d{1,2})(?:\s*-\s*(?:(\d{1,2})\/)?(\d{1,2}))?/);
+      if (!m) return [];
+      const month = parseInt(m[1], 10);
+      const startDay = parseInt(m[2], 10);
+      const endDay = m[4] ? parseInt(m[4], 10) : startDay;
+      const list = [];
+      for (let d = startDay; d <= endDay; d++) {
+        const mm = String(month).padStart(2, '0');
+        const dd = String(d).padStart(2, '0');
+        list.push(`2026-${mm}-${dd}`);
+      }
+      return list;
+    }
+
+    function extractSingleDate(text) {
+      if (!text || text.includes('待定')) return null;
+      const iso = text.match(/202\d-(\d{2})-(\d{2})/);
+      if (iso) return `2026-${iso[1]}-${iso[2]}`;
+      const m = text.match(/(\d{1,2})\/(\d{1,2})/);
+      if (!m) return null;
+      return `2026-${String(m[1]).padStart(2, '0')}-${String(m[2]).padStart(2, '0')}`;
+    }
+
+    function renderScheduleCalendarAndGantt(shipments) {
+      const calBox = document.getElementById('scheduleCalendarView');
+      const ganttBox = document.getElementById('scheduleGanttView');
+      if (!calBox || !ganttBox) return;
+
+      const dayMap = {};
+      const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+
+      shipments.filter(s => !isShipmentExpired(s)).forEach(s => {
+        const dates = extractDateRangeList(s.status || '').length
+          ? extractDateRangeList(s.status || '')
+          : extractDateRangeList(s.note || '');
+        if (!dates.length) return;
+
+        const totalTanks = Math.round((Number(s.qty_mt) || 0) / 17.5) || 1;
+        const tanksPerDay = Number((totalTanks / dates.length).toFixed(1));
+        const mtPerDay = Number(((Number(s.qty_mt) || 0) / dates.length).toFixed(1));
+        const isChanged = (s.status || '').includes('異動') || (s.note || '').includes('紅字');
+
+        dates.forEach(dStr => {
+          if (!dayMap[dStr]) {
+            dayMap[dStr] = { tanks: 0, mt: 0, items: [] };
+          }
+          dayMap[dStr].tanks = Number((dayMap[dStr].tanks + tanksPerDay).toFixed(1));
+          dayMap[dStr].mt = Number((dayMap[dStr].mt + mtPerDay).toFixed(1));
+          dayMap[dStr].items.push({
+            order_no: s.order_no,
+            tanks: tanksPerDay,
+            mt: mtPerDay,
+            isChanged
+          });
+        });
+      });
+
+      const sortedDates = Object.keys(dayMap).sort();
+      if (!sortedDates.length) {
+        calBox.innerHTML = '<div style="color:var(--muted); padding:12px;">尚無已排定之入廠日期</div>';
+      } else {
+        calBox.innerHTML = sortedDates.map(dStr => {
+          const info = dayMap[dStr];
+          const dt = new Date(dStr + 'T00:00:00');
+          const wk = weekDays[dt.getDay()];
+          const shortDate = dStr.slice(5).replace('-', '/');
+
+          let borderCol = '#334155', bgCol = '#1e293b', loadBadge = '';
+          if (info.tanks >= 10) {
+            borderCol = '#f43f5e';
+            bgCol = 'rgba(244, 63, 94, 0.12)';
+            loadBadge = '<span class="badge badge-eta-delay">🔥 洪峰負荷</span>';
+          } else if (info.tanks >= 5) {
+            borderCol = '#f59e0b';
+            bgCol = 'rgba(245, 158, 11, 0.1)';
+            loadBadge = '<span class="badge badge-eta-warn">⚡ 中度負荷</span>';
+          } else {
+            borderCol = '#10b981';
+            bgCol = 'rgba(16, 185, 129, 0.08)';
+            loadBadge = '<span class="badge badge-eta-ok">✅ 正常進廠</span>';
+          }
+
+          const itemsHtml = info.items.map(it => `
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:11.5px; padding:3px 6px; border-radius:4px; margin-top:4px; background:rgba(15,23,42,0.75); border-left:3px solid ${it.isChanged ? '#f43f5e' : '#38bdf8'};">
+              <span style="font-weight:700; color:${it.isChanged ? '#fda4af' : '#e2e8f0'};">${it.isChanged ? '🔴 ' : ''}${it.order_no}</span>
+              <span style="color:#38bdf8; font-weight:700;">${it.tanks}槽 (${it.mt}T)</span>
+            </div>
+          `).join('');
+
+          return `
+            <div style="background:${bgCol}; border:1px solid ${borderCol}; border-radius:10px; padding:11px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <strong style="font-size:15px; color:#f8fafc;">📅 ${shortDate} (${wk})</strong>
+                ${loadBadge}
+              </div>
+              <div style="font-size:18px; font-weight:800; color:#38bdf8; margin-bottom:6px;">
+                🚚 ${info.tanks} 槽車 <span style="font-size:12.5px; color:#94a3b8; font-weight:600;">(${info.mt} MT)</span>
+              </div>
+              <div>${itemsHtml}</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // 渲染視圖 2：開航(ETD) ➔ 到港(ETA) ➔ 入廠日 三段式甘特圖 (11/17 ~ 12/18)
+      const axisStart = new Date('2026-11-17T00:00:00');
+      const totalDays = 32; // 11/17 ~ 12/18
+      const dayLabels = [];
+      for (let i = 0; i < totalDays; i++) {
+        const d = new Date(axisStart.getTime() + i * 86400000);
+        dayLabels.push(`${d.getMonth() + 1}/${d.getDate()}`);
+      }
+
+      const dayIdx = (isoStr) => {
+        if (!isoStr) return -1;
+        const d = new Date(isoStr + 'T00:00:00');
+        return Math.round((d - axisStart) / 86400000);
+      };
+
+      let ganttHtml = `
+        <div style="min-width:920px; font-size:12px;">
+          <div style="display:flex; gap:16px; margin-bottom:8px; color:var(--muted);">
+            <span><strong style="color:#38bdf8;">■ 藍色段</strong>：海上航程 (開航 ETD ➔ 到港 ETA)</span>
+            <span><strong style="color:#f59e0b;">■ 橘色段</strong>：港區報關與拖車排程 (ETA ➔ 入廠前)</span>
+            <span><strong style="color:#10b981;">■ 綠色段</strong>：正常預計入廠日</span>
+            <span><strong style="color:#f43f5e;">■ 紅色段</strong>：採購紅字改期/延後入廠日</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 185px 1fr; border-bottom:1px solid #334155; padding-bottom:6px; font-weight:700; color:#94a3b8;">
+            <div>採購批次 (槽數 / 噸數)</div>
+            <div style="display:grid; grid-template-columns: repeat(${totalDays}, 1fr); text-align:center; font-size:10px;">
+              ${dayLabels.map((lbl, idx) => `<span>${idx % 2 === 0 ? lbl : ''}</span>`).join('')}
+            </div>
+          </div>
+      `;
+
+      shipments.forEach(s => {
+        const etdIso = extractSingleDate(s.vessel_name || '') || extractSingleDate(s.etd || '');
+        const etaIso = extractSingleDate(s.pod || '') || extractSingleDate(s.eta || '');
+        const inDates = extractDateRangeList(s.status || '');
+        const isChanged = (s.status || '').includes('異動') || (s.vessel_name || '').includes('異動');
+        const tanks = Math.round((Number(s.qty_mt) || 0) / 17.5);
+
+        const etdI = dayIdx(etdIso);
+        const etaI = dayIdx(etaIso);
+        const inStartI = inDates.length ? dayIdx(inDates[0]) : -1;
+        const inEndI = inDates.length ? dayIdx(inDates[inDates.length - 1]) : -1;
+
+        let cells = '';
+        if (inStartI === -1) {
+          cells = `<div style="grid-column: 1 / span ${totalDays}; color:#64748b; padding:3px 8px; background:rgba(30,41,59,0.4); border-radius:4px;">⏳ 船期與入廠日待定</div>`;
+        } else {
+          for (let i = 0; i < totalDays; i++) {
+            let bg = 'transparent', title = dayLabels[i];
+            if (i >= inStartI && i <= inEndI) {
+              bg = isChanged ? '#f43f5e' : '#10b981';
+              title = `${dayLabels[i]} 預計入廠`;
+            } else if (etaI !== -1 && i >= etaI && i < inStartI) {
+              bg = 'rgba(245, 158, 11, 0.55)';
+              title = `${dayLabels[i]} 到港報關/拆提中`;
+            } else if (etdI !== -1 && etaI !== -1 && i >= etdI && i < etaI) {
+              bg = 'rgba(56, 189, 248, 0.65)';
+              title = `${dayLabels[i]} 海上航行中`;
+            }
+            cells += `<div title="${s.order_no}: ${title}" style="height:18px; background:${bg}; border-right:1px solid rgba(51,65,85,0.35);"></div>`;
+          }
+        }
+
+        ganttHtml += `
+          <div style="display:grid; grid-template-columns: 185px 1fr; align-items:center; padding:5px 0; border-bottom:1px solid rgba(51,65,85,0.45);">
+            <div style="font-weight:700; color:${isChanged ? '#fda4af' : '#e2e8f0'};">
+              ${isChanged ? '🔴 ' : ''}${s.order_no} <span style="font-size:11px; color:#38bdf8;">(${tanks}槽)</span>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(${totalDays}, 1fr); border-radius:4px; overflow:hidden; background:rgba(15,23,42,0.5);">
+              ${cells}
+            </div>
+          </div>
+        `;
+      });
+
+      ganttHtml += `</div>`;
+      ganttBox.innerHTML = ganttHtml;
+    }
+
+    function renderBatchSummary(shipments) {
+      const bar = document.getElementById('batchSummaryBar');
+      if (!bar) return;
+      let totalMt = 0, confirmedMt = 0, pendingMt = 0, changedCount = 0;
+      shipments.forEach(s => {
+        const q = Number(s.qty_mt) || 0;
+        totalMt += q;
+        if ((s.status || '').includes('待定') || (s.eta || '').includes('待定')) {
+          pendingMt += q;
+        } else {
+          confirmedMt += q;
+        }
+        if ((s.status || '').includes('異動') || (s.status || '').includes('延誤') || (s.vessel_name || '').includes('異動')) {
+          changedCount++;
+        }
+      });
+      const totalTanks = Math.round(totalMt / 17.5);
+      const confirmedTanks = Math.round(confirmedMt / 17.5);
+      const pendingTanks = Math.round(pendingMt / 17.5);
+
+      bar.innerHTML = `
+        <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px 14px;">
+          <div style="font-size:11.5px; color:var(--muted);">10-11月採購總量 (共 ${shipments.length} 批)</div>
+          <div style="font-size:18px; font-weight:800; color:#38bdf8;">${totalMt.toLocaleString()} MT <span style="font-size:13px; color:#bae6fd;">(約 ${totalTanks} 槽車)</span></div>
+        </div>
+        <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px 14px;">
+          <div style="font-size:11.5px; color:var(--muted);">已排定船期與入廠日</div>
+          <div style="font-size:18px; font-weight:800; color:#34d399;">${confirmedMt.toLocaleString()} MT <span style="font-size:13px;">(${confirmedTanks} 槽車)</span></div>
+        </div>
+        <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px 14px;">
+          <div style="font-size:11.5px; color:var(--muted);">船期/入廠日「待定」批次</div>
+          <div style="font-size:18px; font-weight:800; color:#f59e0b;">${pendingMt.toLocaleString()} MT <span style="font-size:13px;">(${pendingTanks} 槽車)</span></div>
+        </div>
+        <div style="background:#0f172a; border:1px solid rgba(244,63,94,0.45); border-radius:8px; padding:10px 14px;">
+          <div style="font-size:11.5px; color:#fda4af;">🔴 採購紅字改期/延後批次</div>
+          <div style="font-size:18px; font-weight:800; color:#fb7185;">${changedCount} 批異動 <span style="font-size:12px; font-weight:600;">(點擊下方明細檢視)</span></div>
+        </div>
+      `;
+    }
+
+    function togglePasteBox() {
+      const box = document.getElementById('emailPasteBox');
+      box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function loadSampleProcurementText() {
+      document.getElementById('rawEmailTableText').value = [
+        "\tISO-Tank\t175.000\tE-SHINE\tIPA-2610-I02\tTAICHUNG\t2026-10-29\t2026-10-27\t2026-11-08\tKMTC SINGAPORE/ 2614S",
+        "\tISO-Tank\t175.000\tE-SHINE\tIPA-2610-I03\tTAICHUNG\t2026-11-06\t2026-11-17\t2026-11-20\tKMTC SINGAPORE/ 2615S",
+        "\tISO-Tank\t175.000\tE-SHINE\tIPA-2610-I04\tTAICHUNG\t2026-11-02\t2026-11-21\t2026-11-26\tWAN HAI 315 V.S271",
+        "\tISO-Tank\t175.000\tE-SHINE\tIPA-2610-I05\tTAICHUNG\t2026-11-02\t2026-11-21\t2026-11-26\tWAN HAI 315 V.S271",
+        "\tISO-Tank\t175.000\tE-SHINE\tIPA-2610-I06\tTAICHUNG\t2026-10-29\t2026-11-17\t2026-11-20\tKMTC SINGAPORE/ 2615S",
+        "\tISO-Tank\t175.000\tE-SHINE\tIPA-2610-I11\tTAICHUNG\t2026-10-29\t2026-11-23\t2026-11-25\tTS PUSAN/ 2619S",
+        "LGCBEN-261103-01 CIF\tISO-Tank\t87.500\tE-SHINE\tIPA-2611-I01\tTAICHUNG\t2026-11-13\t2026-11-17\t2026-11-20\tKMTC SINGAPORE/ 2615S",
+        "\tISO-Tank\t87.500\tE-SHINE\tIPA-2611-I01\tTAICHUNG\t\t\t\t",
+        "LGCBEN-261103-03\tISO-Tank\t175.000\tE-SHINE\tIPA-2611-I02\tTAICHUNG\t2026-12-04\t2026-12-08\t2026-12-11\tTS PUSAN 2620S",
+        "LGCBEN-261103-04\tISO-Tank\t175.000\tE-SHINE\tIPA-2611-I03\tTAICHUNG\t\t2026-12-07\t2026-12-10\tTS PUSAN 2620S",
+        "LGCBEN-261103-02 FOB\tISO-Tank\t175.000\tE-SHINE\tIPA-2611-I04\tTAICHUNG\t2026-11-16\t2026-11-21\t2026-11-26\tWAN HAI 315/ S271",
+        "LGCBEN-261103-05 FOB\tISO-Tank\t175.000\tE-SHINE\tIPA-2611-I05\tTAICHUNG\t2026-11-19\t2026-11-21\t2026-11-26\tWAN HAI 308",
+        "LGCBEN-261103-01 FOB\tISO-Tank\t87.500\tE-SHINE\tIPA-2611-I06\tTAICHUNG\t2026-11-19\t2026-11-21\t2026-11-26\tWAN HAI 308",
+        "\tISO-Tank\t87.500\tE-SHINE\tIPA-2611-I06\tTAICHUNG\t\t\t\t",
+        "\tISO-Tank\t175.000\tE-SHINE\tIPA-2611-I07\tTAICHUNG\t\t\t\t",
+        "\tISO-Tank\t175.000\tE-SHINE\tIPA-2611-I08\tTAICHUNG\t\t\t\t"
+      ].join("\n");
+    }
+
+    async function parseAndImportEmailTable() {
+      const raw = document.getElementById('rawEmailTableText').value.trim();
+      if (!raw) {
+        alert('請先貼上採購 Email 或 Excel 船期總表文字！');
+        return;
+      }
+      const fx = dashboardState.fx || { USD_TWD: 32.97 };
+      const lines = raw.split(/\r?\n/).filter(l => l.trim().length > 0);
+      const oldMap = {};
+      (dashboardState.shipments || []).forEach(s => {
+        oldMap[s.order_no] = s;
+        const mPi = (s.order_no || '').match(/(\d{4}-I\d+)/);
+        if (mPi) oldMap[mPi[1]] = s;
+      });
+
+      const parsedList = [];
+      const seenOrders = {};
+      let diffCount = 0;
+
+      lines.forEach((line) => {
+        if (line.includes('SC/PO') || line.includes('Packing') || line.includes('Vessel & Voyage')) return;
+
+        // 格式 B：10 欄完整船期總表 (SC/PO | Packing | Q'ty | Customer | PI/PO | POD | CLOSED | ETD | ETA | Vessel & Voyage)
+        if (line.includes('ISO-Tank') || line.includes('E-SHINE') || line.includes('TAICHUNG')) {
+          const cols = line.split('\t');
+          if (cols.length >= 6) {
+            const scPo = (cols[0] || '').trim();
+            const qtyMt = parseFloat(cols[2]) || 175.0;
+            const piPo = (cols[4] || '').trim();
+            const podRaw = (cols[5] || 'TAICHUNG').trim();
+            const closedRaw = (cols[6] || '').trim();
+            const etdRaw = (cols[7] || '').trim();
+            const etaRaw = (cols[8] || '').trim();
+            const vesselVoy = (cols[9] || '').trim();
+
+            seenOrders[piPo] = (seenOrders[piPo] || 0) + 1;
+            const suffix = qtyMt === 87.5 ? (seenOrders[piPo] === 1 ? '(A)' : '(B)') : '';
+            const orderNo = `${piPo}${suffix}`;
+            const tanks = Math.round(qtyMt / 17.5);
+            const isFob = scPo.includes('FOB');
+
+            const imo = extractImoFromVessel(vesselVoy, '');
+            const vDisplay = vesselVoy
+              ? (imo ? `${vesselVoy} (IMO:${imo})` : vesselVoy)
+              : '待定船班 (點擊可綁定船名)';
+
+            const shortKey = (piPo.match(/(\d{4}-I\d+)/) || [])[1] || piPo;
+            const prev = oldMap[orderNo] || oldMap[shortKey];
+            let statusStr = '⏳ 船期與入廠待定';
+            if (etaRaw) {
+              if (etaRaw < new Date().toISOString().slice(0, 10) && (!prev || prev.status.includes('已入廠'))) {
+                statusStr = `✅ 已入廠結案 (ETA:${etaRaw.slice(5)})`;
+              } else if (prev && !prev.status.includes('待定')) {
+                statusStr = prev.status;
+              } else {
+                const etaDt = new Date(etaRaw + 'T00:00:00');
+                const inDt1 = new Date(etaDt.getTime() + 4 * 86400000);
+                const inDt2 = new Date(etaDt.getTime() + 5 * 86400000);
+                statusStr = `預計入廠: ${inDt1.getMonth()+1}/${inDt1.getDate()}-${inDt2.getDate()}`;
+              }
+            }
+
+            parsedList.push({
+              order_no: orderNo,
+              container_no: scPo || `${piPo} (${tanks}槽)`,
+              carrier: vesselVoy.includes('KMTC') ? '高麗海運 (KMTC)' : (vesselVoy.includes('WAN HAI') ? '萬海航運 (WAN HAI)' : (vesselVoy.includes('TS ') ? '德翔海運 (T.S. Lines)' : (isFob ? '買方指定貨代 (FOB)' : '賣方安排船運 (CIF)'))),
+              box_type: `ISO-Tank (${tanks}槽 / ${qtyMt}MT)`,
+              vessel_name: vDisplay,
+              imo: imo,
+              voyage: closedRaw ? `結關 CLOSED: ${closedRaw}` : '待排結關',
+              chem_item: `E-SHINE 進口 IPA (${tanks}槽×17.5MT)`,
+              qty_mt: qtyMt,
+              buy_price_usd_mt: isFob ? 1018.0 : 1025.0,
+              buy_price_twd_kg: Number((((isFob ? 1018.0 : 1025.0) * fx.USD_TWD) / 1000).toFixed(2)),
+              pol: `韓國起運港 (ETD: ${etdRaw || '待定'})`,
+              pod: `${podRaw} 台中港 (ETA: ${etaRaw || '待定'})`,
+              eta: etaRaw || '待定',
+              days_left: etaRaw ? Math.round((new Date(etaRaw) - new Date()) / 86400000) : 99,
+              status: statusStr,
+              note: `SC/PO: ${scPo || '標準合約'} | PI/PO: ${piPo} | 船名航次: ${vesselVoy || '待定'}`,
+              ais_url: imo ? `https://www.vesselfinder.com/?imo=${imo}` : 'https://www.vesselfinder.com/?p=TWTXG',
+              twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk',
+              carrier_url: 'https://www.track-trace.com/container'
+            });
+            return;
+          }
+        }
+
+        // 格式 A：採購 4 欄入廠通知表
+        const m = line.trim().match(/^((?:CIF|FOB)-\d+\s+\d{4}-[A-Z]\d+)\s+([\d.]+)\s*MT[\s\t]+(\S+)[\s\t]+(\S+)[\s\t]+(.+)$/i);
+        if (!m) return;
+        let orderNo = m[1].toUpperCase().trim();
+        const qtyMt = parseFloat(m[2]) || 175.0;
+        const etdRaw = m[3].trim();
+        const etaRaw = m[4].trim();
+        const inPlantRaw = m[5].trim();
+
+        seenOrders[orderNo] = (seenOrders[orderNo] || 0) + 1;
+        if (seenOrders[orderNo] > 1) {
+          orderNo = `${orderNo}(B)`;
+        } else if (qtyMt === 87.5) {
+          orderNo = `${orderNo}(A)`;
+        }
+
+        const tanks = Math.round(qtyMt / 17.5);
+        const isCif = orderNo.startsWith('CIF');
+        const isPending = etaRaw.includes('待定') || inPlantRaw.includes('待定');
+        const shortKey = (orderNo.match(/(\d{4}-I\d+)/) || [])[1] || orderNo;
+        const prev = oldMap[orderNo] || oldMap[shortKey];
+        const isChanged = inPlantRaw.includes('紅字') || inPlantRaw.includes('異動') ||
+          (prev && !prev.status.includes(inPlantRaw.replace(/\s*\(.*?\)/g, '')));
+        if (isChanged) diffCount++;
+
+        const cleanInPlant = inPlantRaw.replace(/\s*\(.*?\)/g, '');
+        const statusStr = isPending
+          ? '⏳ 船期與入廠待定'
+          : (isChanged ? `🔴 異動延後入廠: ${cleanInPlant}` : `預計入廠: ${cleanInPlant}`);
+
+        parsedList.push({
+          order_no: orderNo,
+          container_no: prev ? prev.container_no : `${orderNo.split(' ')[1] || orderNo} (${tanks}槽)`,
+          carrier: prev ? prev.carrier : (isCif ? '賣方安排船運 (CIF)' : '買方指定貨代 (FOB)'),
+          box_type: `ISO-Tank (${tanks}槽 / ${qtyMt}MT)`,
+          vessel_name: prev ? prev.vessel_name : `開航 ETD: ${etdRaw}`,
+          imo: prev ? prev.imo : '',
+          voyage: prev ? prev.voyage : (orderNo.includes('2610') ? '10月批次 (綠)' : '11月批次 (藍)'),
+          chem_item: `E-SHINE 進口 IPA (${tanks}槽×17.5MT)`,
+          qty_mt: qtyMt,
+          buy_price_usd_mt: isCif ? 1025.0 : 1018.0,
+          buy_price_twd_kg: Number((((isCif ? 1025.0 : 1018.0) * fx.USD_TWD) / 1000).toFixed(2)),
+          pol: `韓國起運港 (ETD: ${etdRaw})`,
+          pod: `TAICHUNG 台中港 (ETA: ${etaRaw})`,
+          eta: isPending ? '待定' : `2026-${etaRaw.replace('/', '-')}`,
+          days_left: isPending ? 99 : 3,
+          status: statusStr,
+          note: `${etdRaw}開航 ➔ ${etaRaw}到台中港 ➔ ${cleanInPlant}入廠`,
+          ais_url: prev && prev.ais_url ? prev.ais_url : 'https://www.vesselfinder.com/?p=TWTXG',
+          twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk',
+          carrier_url: 'https://www.track-trace.com/container'
+        });
+      });
+
+      if (!parsedList.length) {
+        alert('未偵測到標準格式，請點擊「載入採購最新 15 批範例」查看標準格式！');
+        return;
+      }
+
+      dashboardState.shipments = parsedList;
+      localStorage.setItem('ipa_dashboard_cache', JSON.stringify(dashboardState));
+      renderAll();
+      document.getElementById('emailPasteBox').style.display = 'none';
+      try {
+        await fetch('/api/shipments/batch_sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shipments: parsedList })
+        });
+      } catch (e) {}
+      syncMgr.showToast(`✅ 成功解析匯入 ${parsedList.length} 批鴻勝台中港 IPA 船期排程並同步至雲端 D1！`, 'success');
+    }
+
+    function renderSpreadAlert(sp) {
+      if (!sp || sp.spread_usd_mt === undefined) return;
+      const box = document.getElementById('spreadAlertBox');
+      box.className = `alert-box alert-${sp.alert_level || 'GREEN'}`;
+      document.getElementById('spreadAdviceText').textContent = sp.advice;
+      document.getElementById('spreadUsdVal').textContent = `+$${sp.spread_usd_mt} USD/MT`;
+      document.getElementById('spreadTwdVal').textContent = `+NT$${sp.spread_twd_kg} TWD/KG`;
+    }
+
+    function renderQuoteCards(cards) {
+      const container = document.getElementById('quoteCardsContainer');
+      container.innerHTML = cards.map(c => {
+        const isUp = c.diff_usd_1d > 0;
+        const isDown = c.diff_usd_1d < 0;
+        const deltaClass = isUp ? 'delta-up' : (isDown ? 'delta-down' : 'delta-flat');
+        const sign1d = isUp ? '+' : '';
+        const sign7d = c.diff_usd_7d > 0 ? '+' : '';
+        const upstreamClass = c.category === '上游原料' ? 'upstream' : '';
+
+        return `
+          <div class="quote-card ${upstreamClass}">
+            <div class="card-head">
+              <div>
+                <div class="card-title">${c.chem_name}</div>
+                <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">原始報價: ${c.raw_price} ${c.raw_unit} (${c.record_date})</div>
+              </div>
+              <span class="card-cat">${c.category}</span>
+            </div>
+            <div class="dual-price-box">
+              <div class="price-col">
+                <span class="price-label">台幣/公斤 (TWD/KG)</span>
+                <span class="price-val-twd">NT$ ${c.twd_kg.toFixed(2)}</span>
+                <span class="price-unit">每公斤到廠參考價</span>
+              </div>
+              <div class="price-col right">
+                <span class="price-label">美金/公噸 (USD/MT)</span>
+                <span class="price-val-usd">$ ${c.usd_mt.toFixed(1)}</span>
+                <span class="price-unit">每公噸國際盤價</span>
+              </div>
+            </div>
+            <div class="card-foot">
+              <span>較前日: <strong class="${deltaClass}">${sign1d}${c.diff_usd_1d} USD (${sign1d}${c.pct_1d}%)</strong></span>
+              <span>近7日: <strong>${sign7d}${c.pct_7d}%</strong></span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 3. SVG 多重折線趨勢圖 (可一鍵切換 7/14/30/60/90 天數區間 & TWD/KG 或 USD/MT 單位)
+    // =========================================================================
+    function switchChartDays(days) {
+      currentChartDays = days;
+      [7, 14, 30, 60, 90].forEach(d => {
+        const btn = document.getElementById('btnDays' + d);
+        if (btn) btn.className = d === days ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      });
+      const titleEl = document.getElementById('chartTitleText');
+      if (titleEl) titleEl.textContent = `📈 IPA 異丙醇 vs 上游原料 (丙酮 / 丙烯) 近 ${days} 日趨勢分析`;
+      renderChart(dashboardState.cards || [], currentChartUnit);
+    }
+
+    function switchChartUnit(unit) {
+      currentChartUnit = unit;
+      document.getElementById('btnUnitTwd').className = unit === 'twd_kg' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      document.getElementById('btnUnitUsd').className = unit === 'usd_mt' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      renderChart(dashboardState.cards || [], unit);
+    }
+
+    function renderChart(cards, unitKey) {
+      const box = document.getElementById('chartContainer');
+      if (!cards.length) {
+        box.innerHTML = '<p style="color:var(--muted); padding:20px;">尚無歷史資料</p>';
+        return;
+      }
+      const w = box.clientWidth - 24 || 680;
+      const h = 235;
+      const padL = 58, padR = 24, padT = 18, padB = 32;
+
+      let allVals = [];
+      let dates = [];
+      cards.forEach(c => {
+        const sliced = (c.history || []).slice(-currentChartDays);
+        sliced.forEach(pt => {
+          allVals.push(pt[unitKey]);
+          if (!dates.includes(pt.date)) dates.push(pt.date);
+        });
+      });
+      dates.sort();
+      const minV = Math.min(...allVals) * 0.96;
+      const maxV = Math.max(...allVals) * 1.03;
+
+      const getX = (idx) => padL + (idx / Math.max(1, dates.length - 1)) * (w - padL - padR);
+      const getY = (val) => padT + (1 - (val - minV) / Math.max(0.01, maxV - minV)) * (h - padT - padB);
+
+      const colorMap = {
+        "IPA_CFR": { color: "#38bdf8", dash: "" },
+        "IPA_CN": { color: "#34d399", dash: "" },
+        "ACETONE": { color: "#f59e0b", dash: "6,4" },
+        "PROPYLENE": { color: "#a855f7", dash: "4,4" }
+      };
+
+      let gridHtml = '';
+      for (let i = 0; i <= 4; i++) {
+        const val = minV + ((maxV - minV) * (4 - i)) / 4;
+        const y = padT + ((h - padT - padB) * i) / 4;
+        const label = unitKey === 'twd_kg' ? `NT$${val.toFixed(1)}` : `$${val.toFixed(0)}`;
+        gridHtml += `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#334155" stroke-dasharray="3,3" />`;
+        gridHtml += `<text x="${padL - 6}" y="${y + 4}" fill="#94a3b8" font-size="11" text-anchor="end">${label}</text>`;
+      }
+
+      let pathsHtml = '';
+      cards.forEach(c => {
+        const cfg = colorMap[c.chem_key] || { color: "#38bdf8", dash: "" };
+        const sliced = (c.history || []).slice(-currentChartDays);
+        const pts = sliced.map((pt, idx) => `${getX(idx)},${getY(pt[unitKey])}`);
+        if (pts.length > 1) {
+          pathsHtml += `<polyline fill="none" stroke="${cfg.color}" stroke-width="2.5" stroke-dasharray="${cfg.dash}" points="${pts.join(' ')}" />`;
+          // 7日與14日顯示每個每日節點圓點，30/60/90日顯示關鍵節點與最後今日圓點
+          sliced.forEach((pt, idx) => {
+            if (currentChartDays <= 14 || idx === sliced.length - 1 || idx % 5 === 0) {
+              const cx = getX(idx);
+              const cy = getY(pt[unitKey]);
+              const r = idx === sliced.length - 1 ? 4.5 : 2.8;
+              const uLabel = unitKey === 'twd_kg' ? `NT$${pt[unitKey]}/KG` : `$${pt[unitKey]} USD/MT`;
+              pathsHtml += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${cfg.color}"><title>${pt.date} | ${c.chem_name}: ${uLabel}</title></circle>`;
+            }
+          });
+        }
+      });
+
+      // 動態計算 X 軸日期刻度間距：7日每天都顯示，14日每1~2天顯示，30/60/90日均分顯示約 8~10 個日期刻度
+      let step = 1;
+      if (dates.length > 14 && dates.length <= 30) step = 3;
+      else if (dates.length > 30 && dates.length <= 60) step = 6;
+      else if (dates.length > 60) step = 10;
+
+      let dateLabels = '';
+      dates.forEach((d, idx) => {
+        if (dates.length <= 14 || idx % step === 0 || idx === dates.length - 1) {
+          const x = getX(idx);
+          dateLabels += `<line x1="${x}" y1="${h - padB}" x2="${x}" y2="${h - padB + 4}" stroke="#475569" />`;
+          dateLabels += `<text x="${x}" y="${h - 8}" fill="#94a3b8" font-size="${dates.length === 14 ? '10' : '11'}" text-anchor="middle">${d.slice(5)}</text>`;
+        }
+      });
+
+      box.innerHTML = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}">${gridHtml}${pathsHtml}${dateLabels}</svg>`;
+    }
+
+    // =========================================================================
+    // 4. 供應商報價即時雙單位換算器
+    // =========================================================================
+    function updateLiveConverter() {
+      const fx = dashboardState.fx || { USD_TWD: 32.97, USD_CNY: 6.68, CNY_TWD: 4.94 };
+      const rawPrice = parseFloat(document.getElementById('qRawPrice').value) || 0;
+      const rawUnit = document.getElementById('qRawUnit').value;
+
+      let usdMt = 0, twdKg = 0;
+      if (rawUnit === 'USD/MT') {
+        usdMt = rawPrice;
+        twdKg = (rawPrice * fx.USD_TWD) / 1000;
+      } else if (rawUnit === 'RMB/MT') {
+        usdMt = rawPrice / fx.USD_CNY;
+        twdKg = (rawPrice * fx.CNY_TWD) / 1000;
+      } else if (rawUnit === 'TWD/KG') {
+        twdKg = rawPrice;
+        usdMt = (rawPrice * 1000) / fx.USD_TWD;
+      } else if (rawUnit === 'TWD/MT') {
+        twdKg = rawPrice / 1000;
+        usdMt = rawPrice / fx.USD_TWD;
+      }
+
+      document.getElementById('calcTwdKg').textContent = `NT$ ${twdKg.toFixed(2)} /KG`;
+      document.getElementById('calcUsdMt').textContent = `$ ${usdMt.toFixed(2)} /MT`;
+      document.getElementById('calcDrumCost').textContent = `160KG 桶裝成本: NT$ ${Math.round(twdKg * 160).toLocaleString()} /桶`;
+      document.getElementById('calcTankCost').textContent = `20MT ISO Tank 貨值: $ ${Math.round(usdMt * 20).toLocaleString()} USD`;
+    }
+
+    // =========================================================================
+    // 5. 出貨單「櫃號 + 船名」即時反查船公司與表格渲染
+    // =========================================================================
+    function previewContainerDetect() {
+      const rawNo = (document.getElementById('sContainerNo').value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const vessel = (document.getElementById('sVesselName').value || '').toUpperCase().trim();
+      const prefix = rawNo.slice(0, 4);
+      const el = document.getElementById('detectCarrierText');
+
+      if (prefix.length < 4) {
+        el.innerHTML = '請輸入完整櫃號前 4 碼英文（例如 <code>WHLU</code>=萬海、<code>EGLV</code>=長榮、<code>NRSU</code>=日陸槽罐、<code>EXFU</code>=EXSIF槽罐）';
+        return;
+      }
+      const match = PREFIX_DICT[prefix];
+      const isTank = (match && match.isTank) || prefix[3] === 'K' || prefix[3] === 'T';
+      const carrierName = match ? match.carrier : `國際標準箱主代碼 (${prefix})`;
+      const boxType = isTank ? '🟣 ISO Tank 液體化學槽罐櫃' : '🔵 一般危險品貨櫃 (桶裝 IPA)';
+
+      el.innerHTML = `已識別船公司/箱主：【<strong>${carrierName}</strong>】 ｜ 櫃型：【<strong>${boxType}</strong>】 ${vessel ? `｜ 船名：<strong>${vessel}</strong>` : ''}`;
+    }
+
+    // 船名自動對應 7 碼國際 IMO 船籍碼字典（點開直接鎖定單船衛星海圖，免手動打字）
+    const FRONTEND_VESSEL_IMO = {
+      "KMTC SINGAPORE": "9217412",
+      "WAN HAI 315": "9302695",
+      "TS PUSAN": "9854844",
+      "WAN HAI 308": "9536985",
+      "TS KAOHSIUNG": "9810068",
+      "WAN HAI 285": "9871323",
+      "EVER BUILD": "9790062",
+      "YM MOBILITY": "9457737",
+      "SITC KEELUNG": "9712761",
+      "KMTC KEELUNG": "9157741",
+      "MATSU MARU": "9821079",
+      "STOLT": "9272668"
+    };
+
+    function extractImoFromVessel(vesselStr, fallbackImo) {
+      if (fallbackImo) return fallbackImo;
+      const v = (vesselStr || '').toUpperCase();
+      const m = v.match(/\b(9\d{6})\b/);
+      if (m) return m[1];
+      for (const [k, imo] of Object.entries(FRONTEND_VESSEL_IMO)) {
+        if (v.includes(k)) return imo;
+      }
+      return '';
+    }
+
+    let currentModalContainerNo = '';
+
+    function openAisModal(containerNo) {
+      const s = (dashboardState.shipments || []).find(x => x.container_no === containerNo);
+      if (!s) return;
+      currentModalContainerNo = containerNo;
+      const imo = extractImoFromVessel(s.vessel_name, s.imo);
+      const directUrl = imo
+        ? `https://www.vesselfinder.com/?imo=${imo}`
+        : `https://www.vesselfinder.com/vessels?name=${encodeURIComponent((s.vessel_name || '').replace(/\(.*?\)/g, '').trim())}`;
+
+      document.getElementById('aisModalTitle').textContent =
+        `🛰️ 【${s.order_no}】${s.vessel_name} 即時 AIS 衛星海圖`;
+      document.getElementById('aisModalSub').textContent = imo
+        ? `✅ 已鎖定國際船籍號 IMO: ${imo}（下方海圖已自動對焦該船，或點擊右上角藍鈕開啟全螢幕單船海圖，完全免打船名！）`
+        : `⚠️ 此批次目前為「待定船班」，請點擊下方常用船名按鈕一鍵綁定，或點「✏️ 改船名」輸入提單上的船名！`;
+      document.getElementById('aisDirectExternalBtn').href = directUrl;
+
+      // 使用 VesselFinder 官方內嵌即時海圖 (自動鎖定 IMO 或台灣海峽高雄/台中港座標)
+      const box = document.getElementById('aisIframeContainer');
+      const srcDoc = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body,html{margin:0;padding:0;height:100%;overflow:hidden;background:#0b1120;}</style></head><body>
+        <script type="text/javascript">
+          var width="100%"; var height="500"; var names=true;
+          ${imo ? `var imo="${imo}"; var zoom=9; var show_track=true;` : `var latitude="22.61"; var longitude="120.29"; var zoom=8;`}
+        <\/script>
+        <script type="text/javascript" src="https://www.vesselfinder.com/aismap.js"><\/script>
+      </body></html>`;
+      box.innerHTML = `<iframe style="width:100%; height:500px; border:none;" srcdoc='${srcDoc.replace(/'/g, "&#39;")}'></iframe>`;
+      document.getElementById('aisMapModal').style.display = 'flex';
+    }
+
+    function closeAisModal() {
+      document.getElementById('aisMapModal').style.display = 'none';
+      document.getElementById('aisIframeContainer').innerHTML = '';
+    }
+
+    async function quickAssignVessel(vesselName, imoCode) {
+      if (!currentModalContainerNo) return;
+      await applyVesselToShipment(currentModalContainerNo, vesselName, imoCode);
+      openAisModal(currentModalContainerNo);
+    }
+
+    async function promptChangeVessel(containerNo, currentName) {
+      const cleanCurr = (currentName || '').replace(/\(.*?\)/g, '').replace('待定船班', '').trim();
+      const input = prompt(
+        '請輸入出貨單 / 提單 (B/L) 上的船名 (Vessel Name) 或 7 碼 IMO 編號：\n（例如：WAN HAI 285、EVER BUILD、TS KAOHSIUNG、YM MOBILITY、SITC KEELUNG）',
+        cleanCurr || 'WAN HAI 285'
+      );
+      if (!input) return;
+      const vUpper = input.trim().toUpperCase();
+      const imo = extractImoFromVessel(vUpper, '');
+      await applyVesselToShipment(containerNo, vUpper, imo);
+    }
+
+    async function applyVesselToShipment(containerNo, vesselName, imoCode) {
+      const s = (dashboardState.shipments || []).find(x => x.container_no === containerNo);
+      if (!s) return;
+      const imo = imoCode || extractImoFromVessel(vesselName, '');
+      const displayV = imo && !vesselName.includes('IMO') ? `${vesselName} (IMO:${imo})` : vesselName;
+      const directUrl = imo
+        ? `https://www.vesselfinder.com/?imo=${imo}`
+        : `https://www.vesselfinder.com/vessels?name=${encodeURIComponent(vesselName)}`;
+
+      s.vessel_name = displayV;
+      s.imo = imo;
+      s.ais_url = directUrl;
+      localStorage.setItem('ipa_dashboard_cache', JSON.stringify(dashboardState));
+      renderAll();
+
+      try {
+        const res = await fetch('/api/shipments/update_vessel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ container_no: containerNo, vessel_name: vesselName })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.shipments) {
+            dashboardState = data;
+            localStorage.setItem('ipa_dashboard_cache', JSON.stringify(data));
+            renderAll();
+          }
+        }
+      } catch (e) {}
+      syncMgr.showToast(`🚢 已將 ${s.order_no} 綁定船名 ${displayV}，點擊 AIS 即可直達單船海圖！`, 'success');
+    }
+
+    let currentShipmentTab = 'active'; // 'active' (進行中), 'archived' (已到期自動歸檔), 'all' (全部)
+
+    function isShipmentExpired(s) {
+      if (!s) return false;
+      const st = s.status || '';
+      if (st.includes('已入廠') || st.includes('已到港卸櫃') || st.includes('已結案')) return true;
+      if (st.includes('待定')) return false;
+
+      const todayIso = new Date().toISOString().slice(0, 10);
+      const inDates = extractDateRangeList(st).length ? extractDateRangeList(st) : extractDateRangeList(s.note || '');
+      if (inDates.length > 0) {
+        const lastInPlantDate = inDates[inDates.length - 1];
+        return lastInPlantDate < todayIso;
+      }
+      const etaIso = extractSingleDate(s.eta || '') || extractSingleDate(s.pod || '');
+      if (etaIso) {
+        // 若無入廠日但有 ETA，則以 ETA + 5 天作為自動歸檔基準
+        const etaPlus5 = new Date(new Date(etaIso + 'T00:00:00').getTime() + 5 * 86400000).toISOString().slice(0, 10);
+        return etaPlus5 < todayIso;
+      }
+      return false;
+    }
+
+    function switchShipmentTab(tab) {
+      currentShipmentTab = tab;
+      document.getElementById('tabActiveBtn').className = tab === 'active' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      document.getElementById('tabArchivedBtn').className = tab === 'archived' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      document.getElementById('tabAllBtn').className = tab === 'all' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+      renderShipmentTable(dashboardState.shipments || []);
+    }
+
+    async function purgeExpiredShipments() {
+      const all = dashboardState.shipments || [];
+      const expired = all.filter(s => isShipmentExpired(s));
+      if (!expired.length) {
+        syncMgr.showToast('✨ 目前沒有已過期或已入廠的批次需要清除！', 'info');
+        return;
+      }
+      if (!confirm(`確定要徹底清除 ${expired.length} 筆已過期/已入廠的歷史批次嗎？`)) return;
+      for (const s of expired) {
+        try {
+          await fetch('/api/shipments/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ container_no: s.container_no })
+          });
+        } catch (e) {}
+      }
+      dashboardState.shipments = all.filter(s => !isShipmentExpired(s));
+      localStorage.setItem('ipa_dashboard_cache', JSON.stringify(dashboardState));
+      renderAll();
+      syncMgr.showToast(`🧹 已自動清除 ${expired.length} 筆到期歷史批次！`, 'success');
+    }
+
+    async function markShipmentCompleted(containerNo) {
+      const s = (dashboardState.shipments || []).find(x => x.container_no === containerNo);
+      if (!s) return;
+      s.status = `✅ 已完成入廠 (${new Date().toISOString().slice(5, 10).replace('-', '/')})`;
+      localStorage.setItem('ipa_dashboard_cache', JSON.stringify(dashboardState));
+      renderAll();
+      try {
+        await fetch('/api/shipments/mark_completed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ container_no: containerNo, status: s.status })
+        });
+      } catch (e) {}
+      syncMgr.showToast(`📂 已將 ${s.order_no} 移入「已入廠自動歸檔區」！`, 'success');
+    }
+
+    function renderShipmentTable(shipments) {
+      const tbody = document.getElementById('shipmentTableBody');
+      const activeList = shipments.filter(s => !isShipmentExpired(s));
+      const archivedList = shipments.filter(s => isShipmentExpired(s));
+
+      const elAct = document.getElementById('countActive');
+      const elArc = document.getElementById('countArchived');
+      const elAll = document.getElementById('countAll');
+      if (elAct) elAct.textContent = activeList.length;
+      if (elArc) elArc.textContent = archivedList.length;
+      if (elAll) elAll.textContent = shipments.length;
+
+      let displayList = activeList;
+      if (currentShipmentTab === 'archived') displayList = archivedList;
+      if (currentShipmentTab === 'all') displayList = shipments;
+
+      if (!displayList.length) {
+        const emptyMsg = currentShipmentTab === 'archived'
+          ? '📂 目前尚無已過期或已完成入廠之歸檔批次（當系統日期超過各批次「預計最後入廠日」時，會自動移入此處）'
+          : '🟢 目前沒有進行中之船期批次';
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:22px;">${emptyMsg}</td></tr>`;
+        return;
+      }
+      const todayIso = new Date().toISOString().slice(0, 10);
+      tbody.innerHTML = displayList.map(s => {
+        const isTank = (s.box_type || '').includes('Tank') || (s.box_type || '').includes('槽');
+        const boxBadge = isTank
+          ? `<span class="badge badge-tank">🟣 ${s.box_type}</span>`
+          : `<span class="badge badge-box">🔵 ${s.box_type}</span>`;
+
+        const expired = isShipmentExpired(s);
+        const etaIso = extractSingleDate(s.eta || '') || extractSingleDate(s.pod || '');
+        const arrivedPort = !expired && etaIso && etaIso <= todayIso;
+
+        let etaBadge = '';
+        if (expired) {
+          etaBadge = `<span class="badge badge-eta-ok">📂 已到期/已入廠歸檔 (${s.status})</span>`;
+        } else if (s.status.includes('延誤') || s.status.includes('異動')) {
+          etaBadge = `<span class="badge badge-eta-delay">⚠️ ${s.status}</span>`;
+        } else if (s.status.includes('待定')) {
+          etaBadge = `<span class="badge badge-eta-warn">${s.status}</span>`;
+        } else {
+          etaBadge = `<span class="badge badge-eta-ok">⏳ ${s.status}</span>`;
+        }
+        if (arrivedPort) {
+          etaBadge = `<div style="margin-bottom:4px;"><span class="badge" style="background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid #38bdf8;">⚓ 船已到港報關中</span></div>` + etaBadge;
+        }
+
+        const imo = extractImoFromVessel(s.vessel_name, s.imo);
+        const directAisUrl = imo
+          ? `https://www.vesselfinder.com/?imo=${imo}`
+          : (s.ais_url && s.ais_url !== 'https://www.vesselfinder.com/' ? s.ais_url : `https://www.vesselfinder.com/?p=TWKHH`);
+
+        return `
+          <tr style="${expired ? 'opacity:0.68;' : ''}">
+            <td>
+              <div style="font-weight:700; color:#f8fafc;">${s.order_no}</div>
+              <div style="font-size:12px; color:var(--muted);">${s.chem_item} (${s.qty_mt} MT)</div>
+            </td>
+            <td>
+              <code style="font-size:13.5px; font-weight:800; color:#38bdf8; background:#0f172a; padding:4px 8px; border-radius:6px; border:1px solid #334155;">${s.container_no}</code>
+            </td>
+            <td>
+              <div style="font-weight:700; margin-bottom:4px;">${s.carrier}</div>
+              ${boxBadge}
+            </td>
+            <td>
+              <div style="font-weight:700; color:${imo ? '#fde68a' : '#94a3b8'}; cursor:pointer;" onclick="promptChangeVessel('${s.container_no}', '${s.vessel_name}')" title="點擊可修改或綁定提單船名">
+                🚢 ${s.vessel_name}
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+                <span style="font-size:11.5px; color:var(--muted);">${s.voyage || ''}</span>
+                <button class="btn btn-sm btn-outline" style="padding:1px 7px; font-size:11px;" onclick="promptChangeVessel('${s.container_no}', '${s.vessel_name}')">✏️ 改船名</button>
+              </div>
+            </td>
+            <td>
+              <div style="font-size:12.5px;">起: ${s.pol}</div>
+              <div style="font-size:12.5px; color:#38bdf8; font-weight:600;">迄: ${s.pod}</div>
+            </td>
+            <td>
+              <div style="font-weight:800; color:#38bdf8;">NT$ ${Number(s.buy_price_twd_kg).toFixed(2)} /KG</div>
+              <div style="font-size:12px; color:#34d399; font-weight:700;">$ ${Number(s.buy_price_usd_mt).toFixed(1)} USD/MT</div>
+            </td>
+            <td>
+              ${etaBadge}
+              <div style="font-size:11.5px; color:var(--muted); margin-top:4px;">${s.note || ''}</div>
+            </td>
+            <td>
+              <div class="track-links">
+                <button class="btn btn-sm btn-primary" onclick="openAisModal('${s.container_no}')" title="直接在看板內彈出該船即時 AIS 衛星海圖">🗺️ 看板內看船位</button>
+                <a href="${directAisUrl}" target="_blank" class="btn btn-sm btn-emerald" title="新分頁直接鎖定該船海圖座標 (?imo=${imo || 'TWKHH'})，免自己打字">🛰️ 直達單船海圖</a>
+                <a href="${s.twport_url}" target="_blank" class="btn btn-sm btn-outline" title="查詢台灣港務公司靠泊預報">⚓ 港務局</a>
+                ${!expired ? `<button class="btn btn-sm btn-outline" style="color:#34d399;" title="提早入廠完畢可點此一鍵歸檔" onclick="markShipmentCompleted('${s.container_no}')">✅ 完畢歸檔</button>` : ''}
+                <button class="btn btn-sm btn-outline" style="color:#fb7185;" title="永久刪除此筆" onclick="deleteShipment('${s.container_no}')">✕</button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // =========================================================================
+    // 6. 表單送出與爬蟲觸發 (全支援離線暫存與自動重連補傳)
+    // =========================================================================
+    async function triggerLiveSync() {
+      try {
+        const res = await syncMgr.request('/api/scrape', {
+          method: 'POST',
+          body: JSON.stringify({ trigger: 'manual' }),
+          title: '同步今日匯率與行情'
+        });
+        if (!res.offline && res.data) {
+          dashboardState = res.data;
+          renderAll();
+          syncMgr.showToast(res.data.message || '✅ 今日匯率與雙單位行情同步完成！', 'success');
+        }
+      } catch (e) {
+        syncMgr.showToast('目前處於離線模式，已使用本機最新快取匯率計算', 'warning');
+      }
+    }
+
+    async function submitQuote() {
+      const payload = {
+        chem_key: document.getElementById('qChemKey').value,
+        record_date: document.getElementById('qDate').value,
+        raw_price: parseFloat(document.getElementById('qRawPrice').value) || 0,
+        raw_unit: document.getElementById('qRawUnit').value,
+        note: document.getElementById('qNote').value || '每日報價更新'
+      };
+      const res = await syncMgr.request('/api/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        title: `報價登錄 (${payload.chem_key})`
+      });
+      if (!res.offline && res.data && res.data.cards) {
+        dashboardState = res.data;
+      } else {
+        // 離線或純靜態模式：直接在前端更新狀態與雙單位換算
+        const fx = dashboardState.fx || { USD_TWD: 32.97, USD_CNY: 6.68, CNY_TWD: 4.94 };
+        let usdMt = payload.raw_price, twdKg = (payload.raw_price * fx.USD_TWD) / 1000;
+        if (payload.raw_unit === 'RMB/MT') {
+          usdMt = payload.raw_price / fx.USD_CNY;
+          twdKg = (payload.raw_price * fx.CNY_TWD) / 1000;
+        } else if (payload.raw_unit === 'TWD/KG') {
+          twdKg = payload.raw_price;
+          usdMt = (payload.raw_price * 1000) / fx.USD_TWD;
+        }
+        const card = (dashboardState.cards || []).find(c => c.chem_key === payload.chem_key);
+        if (card) {
+          card.raw_price = payload.raw_price;
+          card.raw_unit = payload.raw_unit;
+          card.usd_mt = Number(usdMt.toFixed(2));
+          card.twd_kg = Number(twdKg.toFixed(2));
+          card.record_date = payload.record_date;
+          card.history.push({ date: payload.record_date, raw_price: payload.raw_price, usd_mt: card.usd_mt, twd_kg: card.twd_kg });
+        }
+      }
+      localStorage.setItem('ipa_dashboard_cache', JSON.stringify(dashboardState));
+      renderAll();
+      syncMgr.showToast('✅ 已記錄最新報價並完成 USD/MT 與 TWD/KG 換算！', 'success');
+    }
+
+    async function submitShipment() {
+      const cNo = document.getElementById('sContainerNo').value.trim().toUpperCase();
+      const vName = document.getElementById('sVesselName').value.trim().toUpperCase();
+      if (!cNo && !vName) {
+        alert('請至少輸入出貨單上的「櫃號」或「船名」其中一項！');
+        return;
+      }
+      const payload = {
+        container_no: cNo || 'TANK-' + Math.floor(1000 + Math.random() * 9000),
+        vessel_name: vName || '待確認船名',
+        order_no: document.getElementById('sOrderNo').value.trim() || `PO-${new Date().toISOString().slice(0,7).replace('-','')}-${Math.floor(100+Math.random()*899)}`,
+        buy_price: parseFloat(document.getElementById('sBuyPrice').value) || 1020,
+        buy_unit: document.getElementById('sBuyUnit').value,
+        pol: document.getElementById('sPol').value,
+        pod: document.getElementById('sPod').value,
+        eta: document.getElementById('sEta').value,
+        status: document.getElementById('sStatus').value,
+        chem_item: '異丙醇 (IPA 99.9%)',
+        qty_mt: 20.0,
+        note: '出貨單自動識別追蹤'
+      };
+      const res = await syncMgr.request('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        title: `新增船期 (${payload.container_no})`
+      });
+      if (!res.offline && res.data && res.data.shipments) {
+        dashboardState = res.data;
+      } else {
+        const fx = dashboardState.fx || { USD_TWD: 32.97, USD_CNY: 6.68, CNY_TWD: 4.94 };
+        const prefix = payload.container_no.slice(0, 4);
+        const match = PREFIX_DICT[prefix];
+        const isTank = (match && match.isTank) || prefix[3] === 'K' || prefix[3] === 'T';
+        let usdMt = payload.buy_price, twdKg = (payload.buy_price * fx.USD_TWD) / 1000;
+        if (payload.buy_unit === 'TWD/KG') { twdKg = payload.buy_price; usdMt = (payload.buy_price * 1000) / fx.USD_TWD; }
+        if (payload.buy_unit === 'RMB/MT') { usdMt = payload.buy_price / fx.USD_CNY; twdKg = (payload.buy_price * fx.CNY_TWD) / 1000; }
+        const daysLeft = Math.round((new Date(payload.eta) - new Date(new Date().toISOString().slice(0,10))) / 86400000);
+        const imo = extractImoFromVessel(payload.vessel_name, '');
+        const displayV = imo && !payload.vessel_name.includes('IMO') ? `${payload.vessel_name} (IMO:${imo})` : payload.vessel_name;
+        const directAis = imo
+          ? `https://www.vesselfinder.com/?imo=${imo}`
+          : `https://www.vesselfinder.com/vessels?name=${encodeURIComponent(payload.vessel_name)}`;
+        dashboardState.shipments.unshift({
+          order_no: payload.order_no,
+          container_no: payload.container_no,
+          carrier: match ? match.carrier : `自動識別代碼 (${prefix})`,
+          box_type: isTank ? 'ISO Tank 液體槽罐櫃' : '一般危險品貨櫃 (桶裝)',
+          vessel_name: displayV,
+          imo: imo,
+          voyage: '最新航次',
+          chem_item: payload.chem_item,
+          qty_mt: payload.qty_mt,
+          buy_price_usd_mt: Number(usdMt.toFixed(2)),
+          buy_price_twd_kg: Number(twdKg.toFixed(2)),
+          pol: payload.pol,
+          pod: payload.pod,
+          eta: payload.eta,
+          days_left: isNaN(daysLeft) ? 3 : daysLeft,
+          status: payload.status,
+          note: payload.note,
+          ais_url: directAis,
+          twport_url: 'https://tpnet.twport.com.tw/IFAWeb/Function/ShipTrk',
+          carrier_url: 'https://www.track-trace.com/container'
+        });
+      }
+      localStorage.setItem('ipa_dashboard_cache', JSON.stringify(dashboardState));
+      renderAll();
+      document.getElementById('sContainerNo').value = '';
+      document.getElementById('sVesselName').value = '';
+      syncMgr.showToast(`🚢 已加入櫃號 ${payload.container_no} 自動船期追蹤！`, 'success');
+    }
+
+    async function deleteShipment(containerNo) {
+      const res = await syncMgr.request('/api/shipments/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ container_no: containerNo }),
+        title: `移除船期 (${containerNo})`
+      });
+      if (!res.offline && res.data && res.data.shipments) {
+        dashboardState = res.data;
+      } else {
+        dashboardState.shipments = (dashboardState.shipments || []).filter(s => s.container_no !== containerNo);
+      }
+      localStorage.setItem('ipa_dashboard_cache', JSON.stringify(dashboardState));
+      renderAll();
+    }
+
+    // =========================================================================
+    // 7. 匯出 Excel 相容 CSV 報表
+    // =========================================================================
+    function exportToCSV() {
+      let csv = '\uFEFF【一、IPA 異丙醇與上游原料每日雙單位報價表】\n';
+      csv += '日期,化學品名稱,類別,原始報價,原始單位,台幣/公斤 (TWD/KG),美金/公噸 (USD/MT),較前日漲跌(USD),近7日漲跌(%)\n';
+      (dashboardState.cards || []).forEach(c => {
+        csv += `${c.record_date},"${c.chem_name}",${c.category},${c.raw_price},${c.raw_unit},${c.twd_kg},${c.usd_mt},${c.diff_usd_1d},${c.pct_7d}%\n`;
+      });
+
+      csv += '\n【二、出貨單櫃號與船名自動追蹤清單】\n';
+      csv += '採購單號,櫃號(Container No.),自動識別船公司/箱主,櫃型,船名(Vessel Name),起運港(POL),目的港(POD),台幣單價(TWD/KG),美金單價(USD/MT),預計到港日(ETA),狀態\n';
+      (dashboardState.shipments || []).forEach(s => {
+        csv += `${s.order_no},${s.container_no},"${s.carrier}","${s.box_type}","${s.vessel_name}","${s.pol}","${s.pod}",${s.buy_price_twd_kg},${s.buy_price_usd_mt},${s.eta},"${s.status}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `IPA報價與船期追蹤報表_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+    }
+
+    // =========================================================================
+    // 8. PWA 安裝提示與 Service Worker 自動更新監聽 (Rule 8 強制必備)
+    // =========================================================================
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('pwa-install-banner').style.display = 'flex';
+    });
+
+    document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      document.getElementById('pwa-install-banner').style.display = 'none';
+    });
+
+    function applyNewVersion() {
+      window.location.reload(true);
+    }
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('sw.js');
+          reg.update();
+          reg.onupdatefound = () => {
+            const newWorker = reg.installing;
+            newWorker.onstatechange = () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                document.getElementById('updateBanner').style.display = 'block';
+              }
+            };
+          };
+        } catch (err) {
+          console.warn('SW registration skipped:', err);
+        }
+      });
+    }
+
+    window.addEventListener('resize', () => renderChart(dashboardState.cards || [], currentChartUnit));
+    loadDashboard();
+  </script>
+</body>
+</html>

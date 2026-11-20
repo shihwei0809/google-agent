@@ -1,5 +1,33 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-20 企業SOP微電影混剪雙軌系統上線：Colab T4免費語音克隆、Google Flow Agent角色一致性提示詞包、後期自動化引擎與BPM一般費用報銷單終極混剪版)
+* **新增跨專案共用技能 `sop-cinema-video` (SOP 微電影化與混合雙軌教學影片技能):**
+  - **雙軌架構整合**:
+    1. **路線 B（推薦：微電影過場 × 會計驗證實務混剪）**：真人主角電影過場 (Google Flow) 穿插 ERP/BPM 系統真實操作畫面。全片僅需 3 段 Flow 實拍 (約 30 點數)，大幅節省算力並維持 100% 報銷防呆嚴謹度。
+    2. **路線 A（全 Flow 電影宣導片）**：6 段純概念與象徵鏡頭，適合大會宣導與企業形象。
+  - **核心組件與自動化腳本**:
+    - `cinema_post_engine.py`: 涵蓋文字正規化 (`A05->A零五`、`eTag->一Tag`、`BPM->B P M`)、任務匯出、滿版 1080p Flow 畫面、3 秒推入封面/封底、0.4 秒交叉溶解 (`xfade`) 與側鏈壓縮背景音樂自動閃避 (`sidechaincompress ducking`)。
+    - `colab_t4_voice_clone.ipynb`: 零設定 Google Colab T4 語音克隆筆記本。整合 BreezyVoice (聯發科+台大 台灣國語) 與 VoxCPM2 (48kHz)，具備自動 Whisper 標註、Whisper 多挑一與 `-16 LUFS` 音量標準化，執行完畢自動打包下載 `cloned_audio_ready.zip`。
+    - `colab_t4_voice.py`: 本機 CLI 封裝，自動檢測配額並於 0.00 時引導一鍵開啟免點數 Web 版 Colab。
+  - **技能四端同步備份**:
+    - 專案端：`C:\GOOGLE ANGET\.agents\skills\sop-cinema-video\`
+    - 全域端：`C:\Users\C606\.gemini\config\skills\sop-cinema-video\`
+    - 中央大腦：`C:\Users\C606\.ai\skills\sop-cinema-video.md`
+    - Gemini Web 匯入包：`C:\GOOGLE ANGET\.agents\skills\sop-cinema-video\sop-cinema-video-gemini.zip`
+* **升級 `blender_3d_demo` 影片合成管線:**
+  - `build_bpm_sop_video.py`：新增 `--cinema` 微電影混剪模式、`--export-voice-jobs` 任務匯出、`--bgm` 背景音樂與 `--tts` 自動容錯機制。
+  - `build_bpm_plan_c_video.py`：升級為全螢幕 1080p Flow 畫面、3 秒推入封面/封底與 0.4 秒交叉溶解過渡。
+  - `auto_upload_flow.py`：新增 `--theme bpm_route_b`、`--model omni12`、`--res 360p`、`--duration 10`。
+  - 產出 `bpm_sop\BPM_Flow_Agent_電影混剪指令包.md`（主角人物設定卡、路線 B 3 段鏡頭指令共耗 30 點數、封面/封底/BGM 指令）。
+  - 產出純 ASCII + 嚴格 CRLF 的 `一鍵開啟Colab_T4配音工作站.bat`。
+  - 匯出 `bpm_voice_jobs.json`（11 個任務）與 `bpm_plan_c_voice_jobs.json`（6 個任務）。
+  - 成功生成並驗證 `C:\GOOGLE ANGET\BPM_一般費用報銷單_私車公用_電影混剪終極版.mp4`（1080p、24fps、228.88s）。
+* **Google Flow Character Builder 角色一致性建立與排錯指南:**
+  - 建立專案主角 `Mark Chen`（30歲台灣男性專案經理，海軍藍Polo衫搭配卡其褲）。
+  - **身體抽樣不一致排查**：在 Flow 產生身體三面圖時若臉部被重新抽樣為外國人或淺藍襯衫，會造成臉部變形混亂。解決方式為直接刪除三面圖，利用半身肖像本身包含的高解析度上半身特徵即可達成一致性（或將肖像圖直接上傳至身體欄位）。
+
+---
+
 ## 今日進度與交接事項 (2026-11-19 勝一/鴻勝四大報表系統全面升級：勝一小包三重核對與F5標準化、COA回推1天、自訂預設輸出位置、一鍵更新雙重備份與一鍵秒還原保護)
 * **勝一專用版 - 小包系統報表產生 (`小包系統報表產生_勝一\main.py`):**
   - **COA `ShipQty` 與 `CoACompletionDate` 規則更新**:
