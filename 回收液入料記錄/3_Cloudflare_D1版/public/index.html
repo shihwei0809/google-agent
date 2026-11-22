@@ -25,6 +25,12 @@
         button:active:not(:disabled) { background: #218838; }
         .record-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #ffc107; }
         .btn-select { background: #007bff; margin-top: 10px; }
+        .btn-admin-group { display: flex; gap: 8px; margin-top: 10px; border-top: 1px dashed #e0e0e0; padding-top: 8px; }
+        .btn-admin-complete { flex: 1; background: #f39c12; color: white; border: none; padding: 8px 10px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top: 0; }
+        .btn-admin-complete:hover { background: #d68910; }
+        .btn-admin-delete { flex: 1; background: #dc3545; color: white; border: none; padding: 8px 10px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top: 0; }
+        .btn-admin-delete:hover { background: #c82333; }
+        .btn-admin-delete-sm { background: none; border: none; color: #dc3545; font-size: 12px; cursor: pointer; text-decoration: underline; padding: 0; margin-top: 0; width: auto; font-weight: normal; }
         #loading { display: none; text-align: center; margin-top: 20px; color: #666; font-weight: bold; }
         #offlineBanner { background: #dc3545; color: white; text-align: center; padding: 5px; font-size: 14px; display: none; }
         #updateBanner { background: #28a745; color: white; text-align: center; padding: 8px 12px; font-size: 14px; display: none; font-weight: bold; cursor: pointer; }
@@ -45,7 +51,7 @@
 <div id="updateBanner" onclick="applySystemUpdate()">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 <div id="offlineBanner">⚠ 目前離線模式，操作將暫存於手機中</div>
 <div class="header" id="appHeader" style="user-select:none; -webkit-user-select:none;">
-    <span id="appHeaderTitle">入料記錄 App</span> <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v19-D1 (雙向回寫強化)</span>
+    <span id="appHeaderTitle">入料記錄 App</span> <span id="versionBadge" style="font-size:12px; background:rgba(255,255,255,0.25); color:white; padding:2px 8px; border-radius:12px; margin-left:6px; cursor:pointer;" onclick="forceCheckUpdate()">v20-D1 (作廢刪除與強制結案)</span>
     <button id="syncBtn" style="display:none; cursor:pointer;" onclick="handleSyncBtnClick()">雲端同步中...</button>
 </div>
 
@@ -89,6 +95,10 @@
                 <input type="file" id="tankLevelAfter" accept="image/*" capture="environment" required>
                 <button type="submit" id="afterSubmitBtn">完成入料記錄</button>
             </form>
+            <div class="btn-admin-group" style="margin-top:15px;">
+                <button type="button" class="btn-admin-complete" onclick="adminQuickAction(document.getElementById('selectedRecordId').value, document.getElementById('selectedRecordInfo').innerText.replace('處理中：',''), 'force_complete')">⚡ 管理員強制結案 (免拍照)</button>
+                <button type="button" class="btn-admin-delete" onclick="adminQuickAction(document.getElementById('selectedRecordId').value, document.getElementById('selectedRecordInfo').innerText.replace('處理中：',''), 'delete')">🗑️ 作廢刪除</button>
+            </div>
         </div>
     </div>
 </div>
@@ -416,6 +426,16 @@
                         ${r.vPhotoUrl ? `<a href="${r.vPhotoUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">車輛照</a>` : ''}
                         ${r.tAfterUrl ? `<a href="${r.tAfterUrl}" target="_blank" style="color:#007bff; text-decoration:underline;">後液位照</a>` : ''}
                     </div>
+                    ${r.status === 'pending' ? `
+                    <div class="btn-admin-group">
+                        <button type="button" class="btn-admin-complete" onclick="adminQuickAction('${r.id}', '${r.license_plate}', 'force_complete')">⚡ 強制完成 (免拍照)</button>
+                        <button type="button" class="btn-admin-delete" onclick="adminQuickAction('${r.id}', '${r.license_plate}', 'delete')">🗑️ 作廢刪除</button>
+                    </div>
+                    ` : `
+                    <div style="display:flex; justify-content:flex-end; margin-top:8px; border-top:1px dashed #eee; padding-top:6px;">
+                        <button type="button" class="btn-admin-delete-sm" onclick="adminQuickAction('${r.id}', '${r.license_plate}', 'delete')">🗑️ 刪除此筆歷史</button>
+                    </div>
+                    `}
                 </div>
             `;
         });
@@ -614,6 +634,10 @@
                     <p><strong>車號：</strong>${r.license_plate} ${badge}</p>
                     <p><strong>入料前時間：</strong>${timeText}</p>
                     <button class="btn-select" onclick="selectRecord('${r.id}', '${r.license_plate}')">選擇完成入料</button>
+                    <div class="btn-admin-group">
+                        <button type="button" class="btn-admin-complete" onclick="adminQuickAction('${r.id}', '${r.license_plate}', 'force_complete')">⚡ 管理員強制結案 (免拍照)</button>
+                        <button type="button" class="btn-admin-delete" onclick="adminQuickAction('${r.id}', '${r.license_plate}', 'delete')">🗑️ 作廢刪除</button>
+                    </div>
                 </div>
             `;
         });
@@ -742,6 +766,135 @@
     function cancelAfter() {
         document.getElementById('afterFormContainer').style.display = 'none';
         document.getElementById('pendingList').style.display = 'block';
+    }
+
+    // 管理員快捷操作：作廢刪除 與 免拍照強制結案
+    async function adminQuickAction(id, plate, actionType) {
+        if (!id) {
+            alert('⚠️ 無效的紀錄 ID');
+            return;
+        }
+
+        // 1. 權限檢查（共用查詢授權密碼 QUERY_PASSWORD）
+        let isAuth = sessionStorage.getItem('queryUnlocked') === 'true';
+        if (!isAuth) {
+            const inputPwd = prompt(`【管理員操作驗證】\n執行此操作需要授權，請輸入管理密碼：`);
+            if (inputPwd === null) return;
+            if (inputPwd.trim() !== QUERY_PASSWORD) {
+                alert('❌ 密碼錯誤，操作取消！');
+                return;
+            }
+            sessionStorage.setItem('queryUnlocked', 'true');
+            checkQueryAuth();
+        }
+
+        // 2. 執行作廢刪除 (delete)
+        if (actionType === 'delete') {
+            if (!confirm(`⚠️ 確定要【作廢並徹底刪除】此筆紀錄嗎？\n\n車號/儲槽：${plate}\n紀錄 ID：${id}\n\n※ 此操作將同步從 Cloudflare 雲端資料庫、Google 試算表與手機中永久清除！`)) {
+                return;
+            }
+
+            try {
+                // 發送至 Cloudflare D1
+                await fetch(D1_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete_record', id: id })
+                });
+
+                // 備援雙寫 GAS 刪除
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'delete_record', id: id })
+                }).catch(() => {});
+
+                // 清理本機 IndexedDB 快取
+                if (db) {
+                    const tx = db.transaction(["records"], "readwrite");
+                    tx.objectStore("records").delete(id);
+                }
+
+                // 清理歷史查詢記憶體
+                cachedQueryRecords = cachedQueryRecords.filter(r => String(r.id).trim() !== String(id).trim());
+
+                // 若當前在 afterForm 內，返回待入料清單
+                cancelAfter();
+
+                alert(`✅ 車號【${plate}】紀錄已成功作廢刪除！`);
+                loadPendingRecords();
+                applyQueryFilters();
+            } catch (err) {
+                alert(`❌ 刪除失敗：` + err.message);
+            }
+
+        // 3. 執行強制結案 (force_complete)
+        } else if (actionType === 'force_complete') {
+            if (!confirm(`⚡ 確定要將車號【${plate}】【免拍照強制結案】嗎？\n\n（系統將以目前時間登記為入料完成，免拍後液位照）`)) {
+                return;
+            }
+
+            try {
+                const aTime = new Date().toLocaleString('zh-TW', { hour12: false });
+
+                // 發送至 Cloudflare D1
+                await fetch(D1_API, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'after_feed',
+                        id: id,
+                        client_after_time: aTime,
+                        a_url: ''
+                    })
+                });
+
+                // 備援雙寫 GAS 完成
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'after_feed',
+                        id: id,
+                        client_after_time: aTime,
+                        a_url: ''
+                    })
+                }).catch(() => {});
+
+                // 更新本機 IndexedDB 狀態為 completed
+                if (db) {
+                    const tx = db.transaction(["records"], "readwrite");
+                    const store = tx.objectStore("records");
+                    const getReq = store.get(id);
+                    getReq.onsuccess = () => {
+                        if (getReq.result) {
+                            const rec = getReq.result;
+                            rec.status = 'completed';
+                            rec.after_time = aTime;
+                            store.put(rec);
+                        }
+                    };
+                }
+
+                // 更新歷史查詢記憶體中的狀態
+                const target = cachedQueryRecords.find(r => String(r.id).trim() === String(id).trim());
+                if (target) {
+                    target.status = 'completed';
+                    target.after_time = aTime;
+                }
+
+                // 若當前在 afterForm 內，返回待入料清單
+                cancelAfter();
+
+                alert(`✅ 車號【${plate}】已成功強制結案！`);
+                loadPendingRecords();
+                applyQueryFilters();
+            } catch (err) {
+                alert(`❌ 強制結案失敗：` + err.message);
+            }
+        }
     }
 
     // 提交入料後：即時更新、清單秒清、按鈕絕不卡死

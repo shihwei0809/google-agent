@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recycle-d1-v19-gas-sync';
+const CACHE_NAME = 'recycle-d1-v20-admin-ops';
 const urlsToCache = [
   './',
   './index.html',

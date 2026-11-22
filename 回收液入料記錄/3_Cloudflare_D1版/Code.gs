@@ -110,6 +110,8 @@ function doPost(e) {
       return handleCompleteFeed(params);
     } else if (action === "sync_from_d1") {
       return handleSyncFromD1(params);
+    } else if (action === "delete_record") {
+      return handleDeleteRecord(params);
     }
     
     return jsonResponse({ success: false, detail: "未知的 action" }, 400);
@@ -451,6 +453,20 @@ function organizeExistingPhotosToWeeklyFolders() {
   }
 
   return { success: true, movedCount: movedCount, log: log };
+}
+
+function handleDeleteRecord(params) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const id = String(params.id || "").trim();
+  if (!id) return jsonResponse({ success: false, detail: "缺少 ID" }, 400);
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]).trim() === id) {
+      sheet.deleteRow(i + 1);
+      return jsonResponse({ success: true, message: "已從試算表刪除該筆紀錄" });
+    }
+  }
+  return jsonResponse({ success: true, message: "試算表中無此紀錄，略過" });
 }
 
 function jsonResponse(data, code=200) {

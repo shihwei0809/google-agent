@@ -1,0 +1,374 @@
+{
+  "title": "Peace and Love",
+  "audio_file": "audio/peace_and_love.mp3",
+  "duration_sec": 203.16,
+  "style": "35mm cinematic photorealism, anamorphic bokeh, cool midnight blue urban neon transitioning to warm golden sunrise lighthouse",
+  "characters": {
+    "female": {
+      "name": "女角（微光）",
+      "ref_image": "refs/char_female_ref.jpg",
+      "anchor_en": "26-year-old Taiwanese young woman with shoulder-length dark brown softly layered hair and side-swept bangs, wearing a cream chunky-knit turtleneck sweater under a tailored camel wool trench coat and a thin silver necklace"
+    },
+    "male": {
+      "name": "男角（晨）",
+      "ref_image": "refs/char_male_ref.jpg",
+      "anchor_en": "27-year-old Taiwanese young man with neat short textured dark hair, clean-shaven, wearing a tailored charcoal wool overcoat open over a muted slate-grey cotton hoodie and a minimalist silver wristwatch"
+    }
+  },
+  "scenes": [
+    {
+      "id": "s01",
+      "section": "Intro A",
+      "start": 0.0,
+      "end": 11.0,
+      "chars": [],
+      "shot_type": "空拍大遠景・推進",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s01.jpg",
+      "flow_clip": "flow_clips/s01_flow.mp4",
+      "lyrics": [
+        {"t0": 4.2, "t1": 8.0, "zh": "Peace and love", "en": ""}
+      ],
+      "prompt_zh": "黃昏藍調時刻的城市空拍，薄霧中冷藍高樓漸漸亮起溫暖金色街燈，電影級 35mm 質感。",
+      "keyframe_prompt_en": "Cinematic 35mm film wide aerial establishing shot over a modern East Asian metropolis skyline at blue hour dusk, soft evening mist, cool midnight-blue skyscrapers contrasting with warm amber streetlights and glowing traffic ribbons below, shallow atmospheric haze, anamorphic lens aesthetic, 4K photorealistic, no text.",
+      "flow_prompt_en": "Smooth slow cinematic aerial drone glide forward over a misty modern East Asian city skyline at blue hour dusk, cool midnight-blue glass towers slowly lighting up with warm golden streetlights and soft moving traffic bokeh far below, gentle drifting evening clouds, 35mm cinema lens, photorealistic 4K, steady fluid motion, no text."
+    },
+    {
+      "id": "s02",
+      "section": "Intro B",
+      "start": 11.0,
+      "end": 22.0,
+      "chars": ["female"],
+      "shot_type": "中景・窗畔剪影",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s02.jpg",
+      "flow_clip": "flow_clips/s02_flow.mp4",
+      "lyrics": [
+        {"t0": 11.5, "t1": 16.5, "zh": "Oh oh oh...", "en": ""},
+        {"t0": 18.0, "t1": 21.8, "zh": "Peace and love", "en": ""}
+      ],
+      "prompt_zh": "微雨落地窗前，女角站在溫暖檯燈光影中望向窗外冷藍霓虹雨滴，緩慢推鏡。",
+      "keyframe_prompt_en": "Cinematic 35mm film medium shot inside a quiet modern apartment at twilight, the exact 26-year-old Taiwanese young woman from the reference (shoulder-length dark brown layered hair, cream chunky-knit turtleneck sweater) standing gently by a tall rain-streaked floor-to-ceiling window, warm amber table lamp lighting one side of her face while cool blue city neon bokeh glows outside the glass, shallow depth of field, photorealistic 4K, no text.",
+      "flow_prompt_en": "Slow intimate 35mm cinematic dolly-in toward the 26-year-old Taiwanese woman in a cream turtleneck standing peacefully by a rain-streaked apartment window at blue hour, raindrops trickling softly down the glass, warm golden indoor lamp light glowing softly on her cheek as she gazes out at blurred city neon lights, gentle breathing motion, photorealistic 4K, no text."
+    },
+    {
+      "id": "s03",
+      "section": "Verse 1",
+      "start": 22.0,
+      "end": 33.0,
+      "chars": ["female"],
+      "shot_type": "跟拍中景・人海孤獨",
+      "motion": "pan_right",
+      "keyframe": "keyframes/s03.jpg",
+      "flow_clip": "flow_clips/s03_flow.mp4",
+      "lyrics": [
+        {"t0": 22.2, "t1": 24.8, "zh": "窗外城市的喧囂與繁華", "en": ""},
+        {"t0": 24.8, "t1": 27.6, "zh": "遮蔽了心中溫暖的陽光", "en": ""},
+        {"t0": 27.6, "t1": 30.2, "zh": "我們在人海加快了步伐", "en": ""},
+        {"t0": 30.2, "t1": 32.9, "zh": "卻忘了當初純真的模樣", "en": ""}
+      ],
+      "prompt_zh": "女角穿駝色大衣獨自走在繁忙霓虹斑馬線人潮中，周遭行人動態模糊，她略顯疲憊回望。",
+      "keyframe_prompt_en": "Cinematic 35mm film medium tracking shot on a bustling Taipei city crosswalk at dusk, the exact 26-year-old Taiwanese woman from the reference (shoulder-length dark brown hair, cream turtleneck sweater under camel wool trench coat) walking slowly amid rushing blurred commuters, cool blue-teal city neon reflections on damp pavement, wistful thoughtful expression, anamorphic bokeh, photorealistic 4K, no text.",
+      "flow_prompt_en": "Smooth 35mm Steadicam tracking shot following the 26-year-old Taiwanese woman in a camel wool trench coat and cream turtleneck walking steadily through a busy city crosswalk at dusk, surrounding commuters rushing past in soft motion blur, cool neon city reflections on wet asphalt, she pauses slightly with a wistful gaze, photorealistic 4K, no text."
+    },
+    {
+      "id": "s04",
+      "section": "Pre-Chorus 1",
+      "start": 33.0,
+      "end": 44.0,
+      "chars": ["female"],
+      "shot_type": "極近特寫・靜坐微光醒悟",
+      "motion": "zoom_focus",
+      "keyframe": "keyframes/s04.jpg",
+      "flow_clip": "flow_clips/s04_flow.mp4",
+      "lyrics": [
+        {"t0": 33.0, "t1": 35.8, "zh": "直到這一刻我才終於懂", "en": ""},
+        {"t0": 35.8, "t1": 38.6, "zh": "平靜的力量藏在心最深", "en": ""},
+        {"t0": 38.6, "t1": 41.2, "zh": "讓世界轉動 靈魂更清醒", "en": ""},
+        {"t0": 41.2, "t1": 44.0, "zh": "這份愛才能溫暖你和我", "en": ""}
+      ],
+      "prompt_zh": "女角靜坐在灑滿夕陽金光的靜謐木頭窗台咖啡廳裡，右手輕放胸口閉眼深呼吸，金色微塵在逆光中飄動，緩緩睜眼微笑。",
+      "keyframe_prompt_en": "Intimate 35mm cinema close-up inside a quiet warm wooden sunlit cafe by a window at golden sunset, the exact 26-year-old Taiwanese woman from the reference (shoulder-length dark brown hair, cream turtleneck and camel coat) sitting peacefully at a wooden table, resting one hand gently over her heart with eyes softly closed as warm golden sunbeams and floating dust motes glow around her, shallow depth of field, photorealistic 4K, no text.",
+      "flow_prompt_en": "Intimate 35mm cinema close-up orbiting slowly around the 26-year-old Taiwanese woman in a cream turtleneck and camel coat seated peacefully inside a quiet warm sunlit cafe beside a wooden window, she gently places her hand over her heart and exhales calmly as golden sunset sunbeams and glowing dust motes illuminate her face, then slowly opens her eyes with a serene radiant smile, completely stationary seated pose, photorealistic 4K, no text."
+    },
+    {
+      "id": "s05",
+      "section": "Chorus 1A",
+      "start": 44.0,
+      "end": 54.0,
+      "chars": [],
+      "shot_type": "史詩遠景・燈塔光芒",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s05.jpg",
+      "flow_clip": "flow_clips/s05_flow.mp4",
+      "lyrics": [
+        {"t0": 44.2, "t1": 48.5, "zh": "和平在心裡 像一座燈塔", "en": ""},
+        {"t0": 48.5, "t1": 53.5, "zh": "指引著迷途靈魂找到家", "en": ""}
+      ],
+      "prompt_zh": "海岸懸崖上的白色燈塔在暮色海霧中旋轉出溫暖金色光束，照亮通往海岸的小徑。",
+      "keyframe_prompt_en": "Epic 35mm cinematic wide shot of a majestic white coastal cliffside lighthouse standing against deep twilight blue sky and swirling ocean mist, its lantern room casting a brilliant warm golden volumetric light beam sweeping across dark waves and illuminating a winding coastal path, dramatic atmospheric lighting, photorealistic 4K, no text.",
+      "flow_prompt_en": "Sweeping 35mm cinematic aerial push-in toward a majestic white coastal lighthouse perched on a misty ocean cliff at twilight, a radiant warm golden volumetric beam rotating smoothly through the sea mist and casting warm highlights over rolling waves below, epic emotional atmosphere, photorealistic 4K, no text."
+    },
+    {
+      "id": "s06",
+      "section": "Chorus 1B",
+      "start": 54.0,
+      "end": 61.8,
+      "chars": [],
+      "shot_type": "微距特寫・冰霜融化",
+      "motion": "zoom_focus",
+      "keyframe": "keyframes/s06.jpg",
+      "flow_clip": "flow_clips/s06_flow.mp4",
+      "lyrics": [
+        {"t0": 54.2, "t1": 58.2, "zh": "愛是道光芒 溫柔且偉大", "en": ""},
+        {"t0": 58.2, "t1": 61.8, "zh": "融化了世間所有的冰霜", "en": ""}
+      ],
+      "prompt_zh": "深藍玻璃窗上的精緻冰霜結晶在暖金色陽光湧入瞬間融化成閃耀水珠，電影微距鏡頭。",
+      "keyframe_prompt_en": "Cinematic 35mm macro close-up of intricate crystalline winter frost patterns on a dark glass pane beginning to melt into sparkling golden water droplets as radiant warm amber sunlight floods across from the upper right, rich bokeh sparkles, poetic visual metaphor of warmth melting coldness, photorealistic 4K, no text.",
+      "flow_prompt_en": "Poetic 35mm macro cinema shot of delicate ice frost crystals on a dark window glass rapidly and smoothly melting into shimmering golden dew droplets as warm glowing amber sunlight washes across the glass, luminous bokeh lens flare, ultra-crisp photorealistic 4K, no text."
+    },
+    {
+      "id": "s07",
+      "section": "Chorus 1C",
+      "start": 61.8,
+      "end": 76.5,
+      "chars": ["female", "male"],
+      "shot_type": "特寫轉中景・暖光牽手",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s07.jpg",
+      "flow_clip": "flow_clips/s07_flow.mp4",
+      "lyrics": [
+        {"t0": 61.8, "t1": 64.5, "zh": "擁抱這份愛 我們不孤單", "en": ""},
+        {"t0": 64.5, "t1": 67.2, "zh": "手牽手走過風雨和黑暗", "en": ""},
+        {"t0": 67.2, "t1": 70.5, "zh": "讓這份平靜 永遠留心房", "en": ""},
+        {"t0": 70.5, "t1": 76.2, "zh": "Peace and love 是唯一的答案", "en": ""}
+      ],
+      "prompt_zh": "細雨微光街燈下，男女主角牽手並肩向前走的溫暖剪影與雙手緊握特寫，背景金色散景。",
+      "keyframe_prompt_en": "Cinematic 35mm film medium close-up in light evening rain under warm golden streetlamps, the exact Taiwanese woman in camel trench coat and Taiwanese man in charcoal wool overcoat from the references walking side by side from a slight rear-three-quarter angle, their hands warmly intertwined in the foreground, shimmering golden rain droplets and glowing amber bokeh lights, photorealistic 4K, no text.",
+      "flow_prompt_en": "Smooth 35mm cinema tracking shot following a couple—woman in camel wool trench coat and man in charcoal wool overcoat—walking forward together through gentle shimmering evening rain under warm golden streetlamps, camera gliding gently down to their warmly clasped hands against rich glowing bokeh lights, photorealistic 4K, no text."
+    },
+    {
+      "id": "s08",
+      "section": "Verse 2 Rap A",
+      "start": 76.5,
+      "end": 87.0,
+      "chars": ["male"],
+      "shot_type": "快節奏跟拍・都市追趕",
+      "motion": "pan_left",
+      "keyframe": "keyframes/s08.jpg",
+      "flow_clip": "flow_clips/s08_flow.mp4",
+      "lyrics": [
+        {"t0": 76.8, "t1": 79.5, "zh": "看著時鐘滴答轉 腳步不停在追趕", "en": ""},
+        {"t0": 79.5, "t1": 82.2, "zh": "滑著滿屏的喧鬧 到底誰能給答案", "en": ""},
+        {"t0": 82.2, "t1": 84.8, "zh": "我們築起了高牆 以為這樣才安全", "en": ""},
+        {"t0": 84.8, "t1": 87.0, "zh": "卻把最在乎的人 擋在心門的外面", "en": ""}
+      ],
+      "prompt_zh": "男角穿深灰大衣疾步走在冷藍霓虹地下道，低頭滑手機並看手錶，鏡頭緊湊節奏感跟拍。",
+      "keyframe_prompt_en": "Dynamic 35mm cinematic medium tracking shot of the exact 27-year-old Taiwanese young man from the reference (neat short dark hair, charcoal wool overcoat open over slate-grey hoodie, silver wristwatch) striding briskly through a sleek modern urban subway walkway at night, scrolling a glowing smartphone that casts cool blue screen light across his tense thoughtful face, blurred neon streaks in background, photorealistic 4K, no text.",
+      "flow_prompt_en": "Energetic rhythmic 35mm Steadicam backward tracking shot leading the 27-year-old Taiwanese man in a charcoal overcoat and slate hoodie walking briskly through a cool blue neon subway corridor, glancing at his silver wristwatch and scrolling his glowing phone screen with a stressed expression, fast urban background streaks, photorealistic 4K, no text."
+    },
+    {
+      "id": "s09",
+      "section": "Verse 2 Rap B",
+      "start": 87.0,
+      "end": 98.0,
+      "chars": ["male"],
+      "shot_type": "高空拉遠・河濱張開雙臂釋放",
+      "motion": "dolly_out",
+      "keyframe": "keyframes/s09.jpg",
+      "flow_clip": "flow_clips/s09_flow.mp4",
+      "lyrics": [
+        {"t0": 87.5, "t1": 90.0, "zh": "深呼吸一口氣 把防備卸下", "en": ""},
+        {"t0": 90.0, "t1": 92.6, "zh": "少一點偏見 就多一點體諒", "en": ""},
+        {"t0": 92.6, "t1": 95.3, "zh": "寬容不是認輸 是給自己一條路", "en": ""},
+        {"t0": 95.3, "t1": 98.0, "zh": "當你張開了雙手 才能擁抱住幸福", "en": ""}
+      ],
+      "prompt_zh": "切換至開闊暖金黃昏河濱木棧道，男角停下收起手機，面向閃耀金色晚霞的寬闊河面張開雙臂深呼吸，鏡頭由近拉遠升空。",
+      "keyframe_prompt_en": "Wide cinematic 35mm shot on an open sunlit riverside wooden boardwalk at warm golden sunset, the exact 27-year-old Taiwanese man from the reference (charcoal wool overcoat open over slate hoodie) standing facing a wide shimmering golden river and warm sunset sky, putting his phone away and opening his arms gently to embrace the evening breeze with a genuine relieved smile, expansive warm atmosphere, photorealistic 4K, no text.",
+      "flow_prompt_en": "Sweeping 35mm crane shot pulling back and rising smoothly from the 27-year-old Taiwanese man in a charcoal wool overcoat and slate hoodie standing on a wide open riverside boardwalk at warm golden sunset, he tucks his phone away, spreads his arms wide facing the glowing golden river water and sunset clouds, tilting his head up with a huge relieved smile as warm wind blows his coat open, dramatic contrast from indoor subway, photorealistic 4K, no text."
+    },
+    {
+      "id": "s10",
+      "section": "Pre-Chorus 2",
+      "start": 98.0,
+      "end": 110.5,
+      "chars": ["female", "male"],
+      "shot_type": "遠中景・天橋交會",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s10.jpg",
+      "flow_clip": "flow_clips/s10_flow.mp4",
+      "lyrics": [
+        {"t0": 98.2, "t1": 101.0, "zh": "直到這一刻我才終於懂", "en": ""},
+        {"t0": 101.0, "t1": 103.8, "zh": "平靜的力量藏在心最深", "en": ""},
+        {"t0": 103.8, "t1": 106.5, "zh": "讓世界轉動 靈魂更清醒", "en": ""},
+        {"t0": 106.5, "t1": 110.2, "zh": "這份愛才能溫暖你和我", "en": ""}
+      ],
+      "prompt_zh": "黃昏天橋上，女角從左側、男角從右側各自望向放晴的暖橘晚霞，兩人距離漸漸拉近。",
+      "keyframe_prompt_en": "Cinematic 35mm wide-medium shot on a scenic modern pedestrian skybridge at golden twilight, the exact Taiwanese woman in camel trench coat on the left and the exact Taiwanese man in charcoal wool overcoat on the right walking toward each other along the bridge railing, both looking up at a clearing warm amber-and-lavender sunset sky over the city skyline, poetic cinematic framing, photorealistic 4K, no text.",
+      "flow_prompt_en": "Graceful 35mm lateral crane glide along a scenic city pedestrian skybridge at golden sunset, the woman in a camel trench coat and the man in a charcoal wool overcoat slowly approaching from opposite sides, pausing gently as warm amber twilight bathes the sky and skyline behind them, photorealistic 4K, no text."
+    },
+    {
+      "id": "s11",
+      "section": "Bridge A",
+      "start": 110.5,
+      "end": 121.5,
+      "chars": ["female", "male"],
+      "shot_type": "中特寫・天台釋放",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s11.jpg",
+      "flow_clip": "flow_clips/s11_flow.mp4",
+      "lyrics": [
+        {"t0": 111.0, "t1": 115.5, "zh": "放下無謂的掙扎 卸下冷漠的防備 (Let it go)", "en": ""},
+        {"t0": 115.5, "t1": 121.0, "zh": "讓疲憊的靈魂 今晚能安然入睡", "en": ""}
+      ],
+      "prompt_zh": "寧靜夜晚天台，男女主角並肩靠在欄杆邊迎著微風，望向平靜閃爍的城市燈海，表情徹底安詳。",
+      "keyframe_prompt_en": "Intimate 35mm cinematic medium shot on a tranquil city rooftop at night, the exact Taiwanese woman in camel trench coat and the exact Taiwanese man in charcoal wool overcoat standing side by side leaning gently against the rooftop railing, soft night breeze moving their hair, looking peacefully out over a sea of soft golden twinkling city lights under a deep starry sky, warm rim lighting, photorealistic 4K, no text.",
+      "flow_prompt_en": "Slow serene 35mm camera orbit around the Taiwanese woman in a camel coat and Taiwanese man in a charcoal overcoat standing peacefully side by side on a quiet night rooftop, gentle wind ruffling their hair and coats as they exhale and gaze calmly at the glowing warm city lights below, photorealistic 4K, no text."
+    },
+    {
+      "id": "s12",
+      "section": "Bridge B",
+      "start": 121.5,
+      "end": 132.0,
+      "chars": ["female", "male"],
+      "shot_type": "壯闊仰拍・萬盞天燈微光照亮夜空",
+      "motion": "dolly_out",
+      "keyframe": "keyframes/s12.jpg",
+      "flow_clip": "flow_clips/s12_flow.mp4",
+      "lyrics": [
+        {"t0": 121.8, "t1": 126.5, "zh": "只要你我心裡面 留著一點點微光", "en": ""},
+        {"t0": 126.5, "t1": 131.8, "zh": "匯聚在一起 就能把整個夜空照亮", "en": ""}
+      ],
+      "prompt_zh": "夜晚高樓天台，男女主角一同親手放飛一盞暖金色天燈，鏡頭隨天燈仰拍拉遠，數百盞金色天燈從城市各處緩緩升空照亮整片深藍星空。",
+      "keyframe_prompt_en": "Epic 35mm cinematic wide shot on a Taipei city rooftop at night: the exact Taiwanese woman in camel trench coat and exact Taiwanese man in charcoal wool overcoat together gently releasing a glowing warm golden paper sky lantern upward into the deep starry night sky, as hundreds of other warm glowing golden sky lanterns rise across the entire city horizon illuminating the night sky, no frost, no glass, photorealistic 4K, no text.",
+      "flow_prompt_en": "Epic 35mm cinematic crane tilt-up starting from the Taiwanese woman in a camel wool trench coat and Taiwanese man in a charcoal wool overcoat standing side by side on a night rooftop gently releasing a glowing warm golden paper sky lantern from their hands; camera smoothly rises with the lantern to reveal hundreds of warm glowing golden sky lanterns ascending across the entire Taipei city skyline, illuminating the deep indigo starry night sky in breathtaking warmth, photorealistic 4K, no text."
+    },
+    {
+      "id": "s13",
+      "section": "Final Chorus A",
+      "start": 132.0,
+      "end": 142.5,
+      "chars": ["female", "male"],
+      "shot_type": "壯闊遠景・日出燈塔重逢",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s13.jpg",
+      "flow_clip": "flow_clips/s13_flow.mp4",
+      "lyrics": [
+        {"t0": 132.2, "t1": 137.0, "zh": "和平在心裡 像一座燈塔", "en": ""},
+        {"t0": 137.0, "t1": 142.2, "zh": "指引著迷途靈魂找到家", "en": ""}
+      ],
+      "prompt_zh": "壯麗金色日出灑滿海岸懸崖與白色燈塔，男女主角站在金色草坡上望見彼此，陽光耀眼溫暖。",
+      "keyframe_prompt_en": "Grand 35mm cinematic wide shot of a breathtaking golden-hour sunrise over a coastal cliffside white lighthouse and sparkling ocean, the exact Taiwanese woman in camel trench coat and exact Taiwanese man in charcoal wool overcoat standing on the sunlit grassy headland walking toward each other, radiant golden sunbeams bursting over the horizon with warm anamorphic lens flare, photorealistic 4K, no text.",
+      "flow_prompt_en": "Majestic 35mm cinematic wide tracking shot across a sunlit coastal cliffside grassy headland beside a white lighthouse at radiant golden sunrise, the woman in a camel trench coat and man in a charcoal overcoat walking eagerly toward each other bathed in glorious warm golden morning sunbeams and gentle sea breeze, photorealistic 4K, no text."
+    },
+    {
+      "id": "s14",
+      "section": "Final Chorus B",
+      "start": 142.5,
+      "end": 153.0,
+      "chars": ["female", "male"],
+      "shot_type": "情感中特寫・晨光擁抱",
+      "motion": "zoom_focus",
+      "keyframe": "keyframes/s14.jpg",
+      "flow_clip": "flow_clips/s14_flow.mp4",
+      "lyrics": [
+        {"t0": 142.5, "t1": 147.5, "zh": "愛是道光芒 溫柔且偉大", "en": ""},
+        {"t0": 147.5, "t1": 152.8, "zh": "融化了世間所有的冰霜", "en": ""}
+      ],
+      "prompt_zh": "金色晨光逆光中，男女主角溫暖相擁並露出真摯燦爛的笑容，微風吹動髮絲，電影感耀斑。",
+      "keyframe_prompt_en": "Heartwarming 35mm cinematic medium close-up at golden sunrise by the coast, the exact Taiwanese woman in camel wool trench coat and cream turtleneck and the exact Taiwanese man in charcoal wool overcoat and slate hoodie embracing warmly with genuine joyful relieved smiles, radiant golden morning sunlight backlighting their hair and shoulders with soft anamorphic lens flare, ocean shimmer blurred behind, photorealistic 4K, no text.",
+      "flow_prompt_en": "Emotional slow-motion 35mm cinema push-in as the Taiwanese woman in a camel trench coat and Taiwanese man in a charcoal overcoat wrap each other in a warm joyful embrace in radiant golden sunrise backlight, wind gently moving hair, glowing golden lens flare and sparkling sea bokeh behind them, photorealistic 4K, no text."
+    },
+    {
+      "id": "s15",
+      "section": "Final Chorus C",
+      "start": 153.0,
+      "end": 163.5,
+      "chars": ["female", "male"],
+      "shot_type": "360環繞運鏡・牽手奔向光亮",
+      "motion": "pan_right",
+      "keyframe": "keyframes/s15.jpg",
+      "flow_clip": "flow_clips/s15_flow.mp4",
+      "lyrics": [
+        {"t0": 153.0, "t1": 156.0, "zh": "擁抱這份愛 我們不孤單", "en": ""},
+        {"t0": 156.0, "t1": 158.8, "zh": "手牽手走過風雨和黑暗", "en": ""},
+        {"t0": 158.8, "t1": 161.2, "zh": "讓這份平靜 永遠留心房", "en": ""},
+        {"t0": 161.2, "t1": 163.5, "zh": "Peace and love 是唯一的答案", "en": ""}
+      ],
+      "prompt_zh": "鏡頭流暢環繞海邊燈塔旁牽手微笑前行的男女主角，背後金色海浪與壯闊日出天空。",
+      "keyframe_prompt_en": "Joyful 35mm cinematic medium-wide shot orbiting around the exact Taiwanese woman in camel trench coat and exact Taiwanese man in charcoal wool overcoat walking hand in hand along the sunlit stone path near the white coastal lighthouse, turning to smile warmly at each other, vast sparkling golden ocean and radiant sunrise clouds behind them, crisp film grain, photorealistic 4K, no text.",
+      "flow_prompt_en": "Dynamic fluid 35mm Steadicam 180-degree orbit around the smiling Taiwanese couple—woman in camel trench coat and man in charcoal overcoat—walking hand in hand along a sunlit cliffside path beside a white lighthouse, radiant golden sunrise sky and sparkling ocean waves sweeping dramatically in the background, photorealistic 4K, no text."
+    },
+    {
+      "id": "s16",
+      "section": "Post-Chorus",
+      "start": 163.5,
+      "end": 173.5,
+      "chars": ["female", "male"],
+      "shot_type": "中景・海風並肩相視",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s16.jpg",
+      "flow_clip": "flow_clips/s16_flow.mp4",
+      "lyrics": [
+        {"t0": 163.5, "t1": 166.0, "zh": "Peace in my mind", "en": ""},
+        {"t0": 166.0, "t1": 168.5, "zh": "Love in my heart", "en": ""},
+        {"t0": 168.5, "t1": 173.5, "zh": "就讓這份溫暖 永遠不散場", "en": ""}
+      ],
+      "prompt_zh": "男女主角靠在燈塔石欄邊並肩看海，手指相扣、相視而笑，溫柔晨光包圍兩人。",
+      "keyframe_prompt_en": "Warm 35mm cinematic medium shot of the exact Taiwanese woman in camel trench coat and exact Taiwanese man in charcoal overcoat standing closely side by side leaning on the white lighthouse stone balustrade overlooking the shimmering golden sunrise sea, fingers gently laced together on the stone ledge, sharing a soft genuine laugh in warm golden morning light, photorealistic 4K, no text.",
+      "flow_prompt_en": "Gentle 35mm cinema push-in on the Taiwanese woman in a camel coat and Taiwanese man in a charcoal overcoat leaning side by side on a sunlit lighthouse stone rail, looking out over the sparkling golden ocean then turning to share a soft warm laugh as sea breeze gently lifts her hair, photorealistic 4K, no text."
+    },
+    {
+      "id": "s17",
+      "section": "Outro A",
+      "start": 173.5,
+      "end": 186.0,
+      "chars": ["female", "male"],
+      "shot_type": "慢動作特寫・依偎心安",
+      "motion": "zoom_focus",
+      "keyframe": "keyframes/s17.jpg",
+      "flow_clip": "flow_clips/s17_flow.mp4",
+      "lyrics": [
+        {"t0": 174.0, "t1": 179.5, "zh": "Peace and love", "en": ""},
+        {"t0": 179.5, "t1": 185.5, "zh": "永遠在心上", "en": ""}
+      ],
+      "prompt_zh": "慢動作溫柔特寫，女角輕輕靠在男角肩頭，金色晨光灑落兩人臉龐，滿滿平靜與幸福感。",
+      "keyframe_prompt_en": "Tender 35mm cinematic close-up portrait of the exact Taiwanese woman in camel wool trench coat resting her head softly on the shoulder of the exact Taiwanese man in charcoal wool overcoat, both eyes softly smiling in deep tranquility, bathed in luminous warm golden morning sunlight with soft lens flare and blurred sparkling sea horizon, photorealistic 4K, no text.",
+      "flow_prompt_en": "Ultra-gentle slow-motion 35mm cinema close-up of the Taiwanese woman in a camel trench coat resting her head peacefully on the Taiwanese man's charcoal overcoat shoulder, warm golden morning light wrapping gently around their serene smiling faces, subtle drifting sea breeze, photorealistic 4K, no text."
+    },
+    {
+      "id": "s18",
+      "section": "Outro B",
+      "start": 186.0,
+      "end": 195.0,
+      "chars": ["female", "male"],
+      "shot_type": "航拍拉遠・燈塔背影",
+      "motion": "dolly_out",
+      "keyframe": "keyframes/s18.jpg",
+      "flow_clip": "flow_clips/s18_flow.mp4",
+      "lyrics": [
+        {"t0": 186.5, "t1": 194.5, "zh": "Oh oh oh...", "en": ""}
+      ],
+      "prompt_zh": "鏡頭從燈塔邊牽手看海的男女背影緩緩向後升空拉遠，展現波光粼粼的金色海面。",
+      "keyframe_prompt_en": "Cinematic 35mm aerial drone shot pulling back behind the exact Taiwanese woman in camel trench coat and Taiwanese man in charcoal overcoat standing hand in hand beside the sunlit white coastal lighthouse overlooking an endless sparkling golden sunrise ocean, warm peaceful golden-hour glow, photorealistic 4K, no text.",
+      "flow_prompt_en": "Slow majestic 35mm aerial drone pullback rising smoothly behind the couple standing hand in hand next to the white coastal cliffside lighthouse, revealing the sunlit headland and vast shimmering golden ocean stretching to the morning horizon, serene uplifting finale, photorealistic 4K, no text."
+    },
+    {
+      "id": "s19",
+      "section": "Outro C (Piano Fade)",
+      "start": 195.0,
+      "end": 203.16,
+      "chars": [],
+      "shot_type": "高空遠景・日出餘暉淡出",
+      "motion": "dolly_out",
+      "keyframe": "keyframes/s19.jpg",
+      "flow_clip": "flow_clips/s19_flow.mp4",
+      "lyrics": [
+        {"t0": 195.5, "t1": 202.0, "zh": "Peace and Love", "en": "永遠在心上"}
+      ],
+      "prompt_zh": "高空俯瞰金色海平線與溫暖日出雲海，白色燈塔沐浴在和平晨光中，隨鋼琴尾奏緩緩淡出。",
+      "keyframe_prompt_en": "Serene 35mm cinematic high-altitude aerial wide shot of the sunlit white coastal lighthouse tiny on a dramatic green cliff overlooking a vast tranquil golden-lit ocean and glowing pastel sunrise horizon, soft drifting morning clouds, pure peaceful closing frame, photorealistic 4K, no text.",
+      "flow_prompt_en": "Ultra-smooth slow high-altitude aerial drift backward above a peaceful sunlit coastal lighthouse and endless glittering golden ocean under soft pastel morning clouds, tranquil cinematic closing shot gradually settling into calm stillness, photorealistic 4K, no text."
+    }
+  ]
+}

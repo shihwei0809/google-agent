@@ -248,13 +248,13 @@ def wait_for_authenticated_flow(page):
     while time.time() < deadline:
         url = page.url or ""
         if "flow.google.com" in url and "/about" not in url and "accounts.google.com" not in url:
-            # 確認頁面確實已進入登入後工作區（有專案列表、建立專案或工具列）
+            if "/project/" in url:
+                print(f"[OK] 已在 Google Flow 專案內：{url}")
+                return
+            # 確認頁面確實已進入登入後工作區（以 body 文字或可見專案按鈕判斷，避免 .first 撞到隱藏元素）
             try:
-                authed_marker = page.locator(
-                    "a[href*='/project/'], button:has-text('新專案'), button:has-text('建立專案'), "
-                    "button:has-text('New project'), button[aria-label*='帳戶'], button:has-text('設定觸發條件')"
-                ).first
-                if authed_marker.is_visible(timeout=800):
+                body_text = page.locator("body").inner_text(timeout=1500) or ""
+                if re.search(r"新增專案|新專案|建立專案|New project|Flow Music|設定觸發條件|上次修改時間|所有媒體|你想製作什麼內容", body_text, re.I):
                     print(f"[OK] 已進入已登入的 Google Flow：{url}")
                     return
             except Exception:
@@ -293,12 +293,15 @@ def ensure_in_project(page):
 
     for pattern in [r"新增專案|建立專案|New project|Create project|\+ 新建", r"建立|New|Create"]:
         try:
-            btn = page.get_by_role("button", name=re.compile(pattern, re.I)).first
-            if btn.is_visible(timeout=1500):
-                btn.click()
-                page.wait_for_url(re.compile(r".*/project/.*"), timeout=12000)
-                print(f"[OK] 已進入專案：{page.url}")
-                return
+            for loc in [
+                page.get_by_role("button", name=re.compile(pattern, re.I)).first,
+                page.locator("button, a, [role='button']").filter(has_text=re.compile(pattern, re.I)).first,
+            ]:
+                if loc.is_visible(timeout=1500):
+                    loc.click()
+                    page.wait_for_url(re.compile(r".*/project/.*"), timeout=15000)
+                    print(f"[OK] 已進入專案：{page.url}")
+                    return
         except Exception:
             pass
 
@@ -553,6 +556,19 @@ def collect_video_urls(page) -> list[str]:
 
 
 def download_video_from_page(page, url: str, dest: Path) -> bool:
+    # 做法 A（優先）：使用 Playwright APIRequestContext 直接帶 Cookie 下載，完全不受瀏覽器 CORS 限制
+    try:
+        resp = page.context.request.get(url, timeout=90_000)
+        if resp.ok:
+            raw = resp.body()
+            if len(raw) >= 50_000:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_bytes(raw)
+                return True
+    except Exception as exc:
+        print(f"[提示] APIRequestContext 下載略過，改試頁面 fetch ({url[:50]}...): {exc}")
+
+    # 做法 B（備援）：頁面內 fetch (適用於 blob: URL)
     try:
         b64_data = page.evaluate(
             """

@@ -1,5 +1,22 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-22 《Peace and Love》AI 電影級 19 鏡 MV 完片上架 YT/IG ＋ Google Flow 2026 新版全自動引擎與通用 MV 工廠上線)
+* **專案位置**：`blender_3d_demo`（專用專案 `peace_love_mv/` 與通用引擎 `mv_flow_runner.py`、`mv_builder.py`、`一鍵通用MV工廠.bat`、`Colab_T4_MV畫質超分升級.ipynb`）
+* **《和平與愛 Peace and Love》完整 19 鏡 MV 製作與雙平台發布**:
+  - **人物前後一致鎖定**：先產出女角（`refs/char_female_ref.jpg`：米白粗針高領＋駝色羊毛大衣＋銀項鍊）與男角（`refs/char_male_ref.jpg`：深灰羊毛大衣＋灰帽 T＋銀腕錶）雙視角 16:9 定妝參考表，再依鏡位分別採首幀 (`keyframes/s01..s07.jpg`) 與雙角參考圖鎖臉送入 Google Flow `Omni 1.2 Flash`。
+  - **19 / 19 全滿血 Flow 雲端 720p 升級與字幕對拍**：完成全部 19 鏡之 Google Flow 雲端免費「`720p 已提升畫質`」收集並壓製最終 1080p 24fps MV（`peace_love_mv/Peace_and_Love_MV_Flow720p_1080p.mp4`，`170.56 MB`）及 IG Reels 9:16 直式精華版（`peace_love_mv/Peace_and_Love_IG_Reels_9x16.mp4`，`25.88 MB`）。
+  - **雙平台發佈上線**：完整版已上傳 YouTube（`https://youtu.be/-4axdZoBil8`），直式精華版已透過瀏覽器自動化發佈至 Instagram Reels（風格 2 文案＋YT 導流連結）。
+* **攻克 2026 新版 Google Flow Agent 工作區五大自動化避坑與通用 MV 工廠**:
+  1. **登入偵測升級 (`auto_upload_flow.py`)**：加入 `/project/` URL 放行與頁面可見文字偵測（`新增專案|Flow Music|所有媒體|你想製作什麼內容`），避開 `.first` 撞到隱藏元素。
+  2. **圖片 chip 防誤刪 (`mv_flow_runner.py`)**：先對輸入框執行 `Ctrl+A + Backspace` 清空，**之後**再附加首幀或人物參考圖 chip 並於末尾 `insert_text`，避免把剛附加的圖片 chip 刪掉。
+  3. **自動核准生成確認**：偵測並自動點擊「`一律核准專案中的要求`」/「`核准`」按鈕。
+  4. **虛擬媒體格 hover 觸發與抗 CORS 下載**：新版 Flow 媒體格預設僅顯示縮圖，須 hover `360p`/`720p` 標籤才掛載 `<video>`；並改用 `page.context.request.get()` 帶 Cookie 直拉 MP4 繞過 GCS 302 CORS 阻擋。
+  5. **免費 720p 雲端升頻下載與 3 幀像素校驗 (`pull_all_19_flow_720p.py`)**：自動觸發「`更多選項 → 下載 → 720p 已提升畫質`」，並以 3 幀 `32×18` RGB MSE（對照 `flow_clips_to_upscale.zip` 基準）自動驗證歸位，徹底杜絕虛擬捲動錯位問題。
+* **雲端環境準備**:
+  - 已透過 `uv tool install google-colab-cli` 安裝 `google-colab-cli v0.8.0` 並驗證 `colab_cli_windows_patch.py`（無 `termios` 錯誤），另備有 `Colab_T4_MV畫質超分升級.ipynb`（`spandrel` FP16 + FFmpeg 管線）。
+
+---
+
 ## 今日進度與交接事項 (2026-11-20 企業SOP微電影混剪雙軌系統上線：Colab T4免費語音克隆、Google Flow Agent角色一致性提示詞包、後期自動化引擎與BPM一般費用報銷單終極混剪版)
 * **新增跨專案共用技能 `sop-cinema-video` (SOP 微電影化與混合雙軌教學影片技能):**
   - **雙軌架構整合**:

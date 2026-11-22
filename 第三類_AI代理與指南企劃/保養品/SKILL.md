@@ -1,18 +1,19 @@
 ---
 name: 保養品-manager
-description: 協助使用者初始化與運行「保養品」專案環境
+description: 管理與部署 AI 個人保養網站 V8（Cloudflare Pages + 共用 D1 weather-monitor-db + Workers AI/Gemini）
 ---
 
-# 保養品 專案管理技能
+# AI 個人保養網站 V8 專案管理技能
 
-本專案是「保養品」的實作專案。
+- **正式網址**：https://skincare-ai-website.pages.dev
+- **Cloudflare Pages 專案名**：`skincare-ai-website`
+- **共用 D1 資料庫**：`weather-monitor-db` (`521c2592-1953-42a3-a559-bd403c8d3017`)
+- **資料表前綴**：`sk_*`（已登記於 `_system_registry` 與 `C:\GOOGLE ANGET\D1_資料庫與資料表全域對照總表.md`）
 
-## 🛠️ 環境依賴需求
-1. **Node.js (npm)**：用於執行網頁伺服器或管理套件依賴。
-
-## 🚀 AI 助理執行指引
-1. **環境檢查**：
-   - 檢查系統中是否已安裝相關依賴。
-   - 若未安裝，請建議使用者執行 `powershell -ExecutionPolicy Bypass -File setup_env.ps1`。
-2. **初始化與執行**：
-   - 本專案可以直接雙擊 HTML 開啟，或使用本機 HTTP 伺服器託管運行。
+## 環境與部署
+1. **初始化或重灌 D1 資料**：
+   `npx wrangler d1 execute weather-monitor-db --remote --yes --file="3_Cloudflare_D1版\schema.sql"`
+2. **部署上線**：
+   執行 `3_Cloudflare_D1版\一鍵自動部署上雲端.bat` 或 `powershell -ExecutionPolicy Bypass -File 3_Cloudflare_D1版\setup_env.ps1`。
+3. **Gemini API Key（選用備援）**：
+   已透過 `npx wrangler pages secret put GEMINI_API_KEY --project-name=skincare-ai-website` 加密存放於 Cloudflare 環境變數，切勿寫入程式碼。

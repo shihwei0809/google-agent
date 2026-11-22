@@ -319,6 +319,13 @@ export async function onRequest(context) {
               console.warn("R2 照片清理略過", r2Err);
             }
           }
+          // 伺服器端非同步雙寫至 Google Sheets 刪除該筆
+          if (context.waitUntil) {
+            context.waitUntil(forwardToGas({
+              action: "delete_record",
+              id: id
+            }, url.origin));
+          }
         }
         return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
       }

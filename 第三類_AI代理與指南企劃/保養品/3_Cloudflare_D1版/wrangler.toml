@@ -1,0 +1,11 @@
+name = "skincare-ai-website"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "./public"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "weather-monitor-db"
+database_id = "521c2592-1953-42a3-a559-bd403c8d3017"
+
+[ai]
+binding = "AI"

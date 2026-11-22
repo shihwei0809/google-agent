@@ -114,3 +114,9 @@ claude-motion-explainer/
 
 # Chrome automated flow profile (session cookies & cache)
 .chrome_flow_profile/
+blender_3d_demo/.chrome_flow_profile/
+blender_3d_demo/**/*.mp4
+blender_3d_demo/**/*.zip
+blender_3d_demo/**/clips/
+blender_3d_demo/**/flow_clips*/
+

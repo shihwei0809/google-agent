@@ -1,0 +1,1256 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#3b82f6">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<title>AI個人保養網站 V8.1｜AI 拍照辨識 × Cloudflare D1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-color: #0b0f19;
+  --panel-bg: rgba(17, 24, 39, 0.75);
+  --panel-border: rgba(51, 65, 85, 0.55);
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --accent: #8b5cf6;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+  background-color: var(--bg-color);
+  background-image:
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-main);
+  line-height: 1.6;
+}
+
+/* PWA 橫幅 */
+#pwa-install-banner, #updateBanner {
+  display: none;
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+#pwa-install-banner {
+  background: linear-gradient(90deg, #1d4ed8, #7c3aed);
+  color: #fff;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+#pwa-install-banner button {
+  background: #fff;
+  color: #1e3a8a;
+  border: none;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#updateBanner {
+  background: #10b981;
+  color: #064e3b;
+}
+
+header {
+  padding: 40px 20px 32px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--panel-border);
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(10px);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #60a5fa, #c084fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
+}
+
+header p {
+  margin: 8px 0 0 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(11, 15, 25, 0.85);
+  backdrop-filter: blur(12px);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--panel-border);
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab-btn {
+  white-space: nowrap;
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid var(--panel-border);
+  color: var(--text-muted);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.tab-btn:hover {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--text-main);
+  border-color: rgba(59, 130, 246, 0.45);
+}
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+.sync-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.btn-sync {
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid var(--panel-border);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.25s;
+}
+.btn-sync:hover { background: var(--panel-border); }
+
+.tab-page { display: none; animation: fadeIn 0.35s ease; }
+.tab-page.active { display: block; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  padding: 24px;
+  margin-bottom: 22px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+.card h2 {
+  margin-top: 0;
+  font-size: 1.4rem;
+  color: #60a5fa;
+  border-left: 4px solid var(--primary);
+  padding-left: 12px;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+}
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { padding: 13px 15px; border-bottom: 1px solid var(--panel-border); }
+th { background-color: rgba(30, 41, 59, 0.85); color: #93c5fd; font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.badge-good { background: rgba(52, 211, 153, 0.15); color: var(--success); }
+.badge-wait { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+.badge-stop { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
+
+.alert { padding: 14px 18px; border-radius: 12px; margin: 12px 0; display: flex; flex-direction: column; }
+.alert-danger { background: rgba(248, 113, 113, 0.1); border-left: 4px solid var(--danger); color: #fca5a5; }
+.alert-info { background: rgba(52, 211, 153, 0.1); border-left: 4px solid var(--success); color: #a7f3d0; }
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  background: rgba(30, 41, 59, 0.45);
+  border: 1px solid var(--panel-border);
+  padding: 12px 16px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.checklist-item:hover { background: rgba(30, 41, 59, 0.75); }
+.checklist-item input[type="checkbox"] {
+  width: 20px; height: 20px; margin-right: 14px; accent-color: var(--primary); cursor: pointer;
+}
+.checklist-item.checked { opacity: 0.6; text-decoration: line-through; border-color: transparent; }
+
+.btn-clear {
+  width: 100%; padding: 12px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: #fff; font-weight: 600; cursor: pointer; margin-top: 14px;
+}
+
+.chat-container {
+  display: flex; flex-direction: column; height: 500px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid var(--panel-border); border-radius: 16px; overflow: hidden;
+}
+.chat-messages { flex: 1; padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.chat-bubble { max-width: 82%; padding: 12px 16px; border-radius: 16px; font-size: 0.94rem; line-height: 1.55; }
+.chat-bubble.user { background: linear-gradient(135deg, var(--primary), #1d4ed8); color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.chat-bubble.ai { background: rgba(30, 41, 59, 0.85); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid var(--panel-border); }
+.chat-bubble.system { background: rgba(52, 211, 153, 0.12); color: #6ee7b7; align-self: center; font-size: 0.85rem; border: 1px solid rgba(52, 211, 153, 0.35); }
+.chat-input-area { display: flex; padding: 14px; background: rgba(15, 23, 42, 0.85); border-top: 1px solid var(--panel-border); gap: 10px; }
+.chat-input { flex: 1; background: #0f172a; border: 1px solid var(--panel-border); border-radius: 8px; color: #fff; padding: 11px 13px; font-size: 0.95rem; outline: none; }
+.chat-input:focus { border-color: var(--primary); }
+.btn-send { background: var(--primary); border: none; color: #fff; padding: 0 20px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btn-send:hover { background: var(--primary-hover); }
+
+.ai-engine-bar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.ai-engine-bar select {
+  background: #0f172a; color: #f8fafc; border: 1px solid var(--panel-border);
+  padding: 7px 12px; border-radius: 8px; font-size: 0.9rem; outline: none;
+}
+
+.loading-spinner {
+  display: inline-block; width: 15px; height: 15px;
+  border: 2px solid rgba(255,255,255,0.3); border-radius: 50%;
+  border-top-color: #fff; animation: spin 0.8s linear infinite; margin-right: 5px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.skeleton {
+  background: linear-gradient(90deg, rgba(30,41,59,0.5) 25%, rgba(51,65,85,0.5) 50%, rgba(30,41,59,0.5) 75%);
+  background-size: 200% 100%; animation: loading 1.5s infinite;
+  height: 20px; border-radius: 4px; margin: 10px 0;
+}
+@keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+.footer { text-align: center; color: var(--text-muted); padding: 36px 20px; font-size: 0.88rem; }
+
+#login-overlay {
+  position: fixed; inset: 0; background: rgba(11, 15, 25, 0.88);
+  backdrop-filter: blur(15px); z-index: 10000;
+  display: flex; justify-content: center; align-items: center;
+}
+.login-card {
+  background: var(--panel-bg); border: 1px solid var(--panel-border);
+  border-radius: 22px; padding: 36px; width: 90%; max-width: 390px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5); text-align: center;
+}
+.login-card h2 {
+  margin: 0 0 8px; font-size: 1.7rem;
+  background: linear-gradient(135deg, #60a5fa, #c084fc);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.login-card p { color: var(--text-muted); font-size: 0.92rem; margin-bottom: 24px; }
+.login-card .input-group { text-align: left; margin-bottom: 18px; }
+.login-card label { display: block; font-size: 0.88rem; color: #93c5fd; margin-bottom: 6px; }
+.login-card input {
+  width: 100%; box-sizing: border-box; background: #0f172a;
+  border: 1px solid var(--panel-border); border-radius: 10px;
+  color: #fff; padding: 12px 14px; font-size: 1rem; outline: none;
+}
+.login-card input:focus { border-color: var(--primary); }
+#btn-login-submit {
+  width: 100%; background: linear-gradient(135deg, var(--primary), var(--accent));
+  border: none; color: #fff; padding: 13px; border-radius: 10px;
+  font-size: 1rem; font-weight: 600; cursor: pointer;
+  display: flex; justify-content: center; align-items: center; gap: 8px;
+}
+.login-error-msg { color: var(--danger); font-size: 0.88rem; margin-top: 12px; min-height: 20px; }
+
+.user-status-bar {
+  position: absolute; top: 14px; right: 18px;
+  display: flex; align-items: center; gap: 12px; z-index: 90;
+}
+.user-badge {
+  font-size: 0.88rem; color: #93c5fd; background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.35); padding: 6px 14px; border-radius: 999px; font-weight: 600;
+}
+.btn-logout {
+  background: rgba(248, 113, 113, 0.15); border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fca5a5; padding: 6px 14px; border-radius: 999px; font-size: 0.85rem; cursor: pointer;
+}
+.btn-del-sm {
+  background: rgba(248, 113, 113, 0.15); border: 1px solid rgba(248, 113, 113, 0.35);
+  color: #fca5a5; padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;
+}
+.prod-cell {
+  display: flex; align-items: center; gap: 12px; min-width: 190px;
+}
+.prod-thumb {
+  width: 56px; height: 56px; border-radius: 10px; object-fit: cover;
+  border: 1px solid var(--panel-border); cursor: zoom-in; flex-shrink: 0;
+  background: rgba(15, 23, 42, 0.7); transition: transform 0.2s;
+}
+.prod-thumb:hover { transform: scale(1.08); border-color: var(--primary); }
+.prod-thumb-empty {
+  width: 56px; height: 56px; border-radius: 10px; flex-shrink: 0;
+  border: 1px dashed rgba(148, 163, 184, 0.4); background: rgba(30, 41, 59, 0.45);
+  color: var(--text-muted); font-size: 0.72rem; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  transition: all 0.2s;
+}
+.prod-thumb-empty:hover { border-color: var(--primary); color: #93c5fd; background: rgba(59, 130, 246, 0.12); }
+.ai-upload-box {
+  border: 1.5px dashed rgba(96, 165, 250, 0.55); border-radius: 14px;
+  padding: 14px; margin-bottom: 16px; background: rgba(30, 58, 138, 0.16);
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.ai-upload-preview {
+  width: 76px; height: 76px; border-radius: 10px; object-fit: cover;
+  border: 1px solid var(--panel-border); display: none; flex-shrink: 0;
+}
+.ai-upload-actions { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px; }
+.btn-ai-scan {
+  background: linear-gradient(135deg, #10b981, #059669); border: none; color: #fff;
+  padding: 8px 14px; border-radius: 8px; font-size: 0.88rem; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.btn-ai-scan:disabled { opacity: 0.6; cursor: not-allowed; }
+#img-lightbox {
+  display: none; position: fixed; inset: 0; z-index: 20000;
+  background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(8px);
+  flex-direction: column; align-items: center; justify-content: center; padding: 20px; gap: 14px;
+}
+#img-lightbox img {
+  max-width: 92vw; max-height: 76vh; border-radius: 14px;
+  border: 1px solid var(--panel-border); box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+@media (max-width: 600px) {
+  header { padding-top: 66px; }
+  .user-status-bar { top: 10px; right: 10px; left: 10px; justify-content: space-between; }
+}
+</style>
+</head>
+<body>
+
+<div id="pwa-install-banner">
+  <span>📲 可將「AI個人保養網站 V8.1」安裝成桌面獨立 App</span>
+  <button id="btn-pwa-install">立即安裝</button>
+</div>
+<div id="updateBanner" onclick="window.location.reload(true)">
+  🎉 系統已發布新版本！點擊此處立即更新 🔄
+</div>
+
+<div id="login-overlay" style="display:none;">
+  <div class="login-card">
+    <h2>🔒 AI個人保養網站 V8.1</h2>
+    <p>Cloudflare D1 × AI 拍照辨識專屬版</p>
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <div class="input-group">
+        <label for="login-username">使用者名稱</label>
+        <input type="text" id="login-username" required placeholder="例如：shihwei">
+      </div>
+      <div class="input-group">
+        <label for="login-pin">4 位數 PIN 碼</label>
+        <input type="password" id="login-pin" required pattern="\d{4}" maxlength="4" placeholder="••••">
+      </div>
+      <button type="submit" id="btn-login-submit">
+        <span id="login-spinner" class="loading-spinner" style="display:none;"></span> 登入
+      </button>
+      <div id="login-error" class="login-error-msg"></div>
+    </form>
+  </div>
+</div>
+
+<header>
+  <div class="user-status-bar" id="user-status-bar" style="display:none;">
+    <span class="user-badge" id="current-user-badge">👤 使用者: </span>
+    <button class="btn-logout" onclick="handleLogout()">登出 / 切換</button>
+  </div>
+  <h1>AI個人保養網站 V8.1</h1>
+  <p>Cloudflare Pages + 共用 D1 (`weather-monitor-db`) × AI 拍照辨識 / 實拍縮圖</p>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('summary', this)">總覽</button>
+    <button class="tab-btn" onclick="showTab('products', this)">所有產品</button>
+    <button class="tab-btn" onclick="showTab('howto', this)">使用方法</button>
+    <button class="tab-btn" onclick="showTab('routine', this)">早晚流程</button>
+    <button class="tab-btn" onclick="showTab('sunscreen', this)">防曬比較</button>
+    <button class="tab-btn" onclick="showTab('avoid', this)">避雷與平替</button>
+    <button class="tab-btn" onclick="showTab('check', this)">每日勾選</button>
+    <button class="tab-btn" onclick="showTab('ai-advisor', this)">💬 AI 諮詢</button>
+    <button class="tab-btn" onclick="showTab('db-registry', this); loadRegistry();">🗄️ D1 防忘總表</button>
+  </div>
+
+  <div class="sync-bar">
+    <span id="offline-queue-badge" style="font-size:0.85rem; color:var(--warning); display:none;"></span>
+    <div style="display:flex; gap:10px; margin-left:auto;">
+      <button class="btn-sync" onclick="openAddProductModal()" style="background:linear-gradient(135deg, var(--primary), var(--accent)); border:none; color:#fff;">
+        ➕ 快速新增產品
+      </button>
+      <button class="btn-sync" onclick="reloadData()">
+        <span id="sync-icon">🔄</span> 重整資料
+      </button>
+    </div>
+  </div>
+
+  <!-- 總覽 -->
+  <section id="summary" class="tab-page active">
+    <div class="card">
+      <h2>皮膚狀態指標</h2>
+      <div id="summary-states"><div class="skeleton"></div><div class="skeleton"></div></div>
+    </div>
+    <div class="card">
+      <h2>主力保養順序</h2>
+      <div id="summary-main"><div class="skeleton"></div></div>
+    </div>
+  </section>
+
+  <!-- 所有產品 -->
+  <section id="products" class="tab-page">
+    <div class="card">
+      <h2>保養品資料庫與適合度</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>產品名稱</th><th>評估</th><th>用途說明</th><th style="width:70px;">操作</th></tr></thead>
+          <tbody id="products-tbody"><tr><td colspan="4"><div class="skeleton"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 使用方法 -->
+  <section id="howto" class="tab-page">
+    <div class="card">
+      <h2>個別產品使用指南</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>產品</th><th>建議用量</th><th>使用方法</th><th>間隔時間</th><th>注意事項</th></tr></thead>
+          <tbody id="howto-tbody"><tr><td colspan="5"><div class="skeleton"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 早晚流程 -->
+  <section id="routine" class="tab-page">
+    <div class="card">
+      <h2>系統推薦保養程序</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th style="width:120px;">時段</th><th>保養步驟流程</th></tr></thead>
+          <tbody id="routine-tbody"><tr><td colspan="2"><div class="skeleton"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 防曬比較 -->
+  <section id="sunscreen" class="tab-page">
+    <div class="card">
+      <h2>主力臉部防曬評分排行</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>排行</th><th>產品名稱</th><th>適合度</th><th>主要定位</th><th>AI 特色解析</th></tr></thead>
+          <tbody id="sunscreen-tbody"><tr><td colspan="5"><div class="skeleton"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 避雷與平替 -->
+  <section id="avoid" class="tab-page">
+    <div class="card">
+      <h2>避雷警示事項</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>不要這樣做</th><th>潛在原因</th><th>正確的保養做法</th></tr></thead>
+          <tbody id="avoid-tbody"><tr><td colspan="3"><div class="skeleton"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>高CP值平替清單</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>原創主力產品</th><th>平替推薦名單</th><th>類別</th></tr></thead>
+          <tbody id="dupes-tbody"><tr><td colspan="3"><div class="skeleton"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- 每日勾選 -->
+  <section id="check" class="tab-page">
+    <div class="card">
+      <h2 style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <span>我的每日保養清單紀錄</span>
+        <span id="cloud-sync-status" style="font-size:0.85rem; color:var(--text-muted); font-weight:normal;">☁️ 雲端已同步</span>
+      </h2>
+      <h3>🌅 早上保養步驟</h3>
+      <div id="check-morning"></div>
+      <h3>🌙 晚上保養步驟</h3>
+      <div id="check-night"></div>
+      <h3>⚠️ 乾燥刺痛警戒日</h3>
+      <div id="check-warning-days"></div>
+      <button class="btn-clear" onclick="clearChecklist()">清除今日所有紀錄</button>
+    </div>
+  </section>
+
+  <!-- AI 諮詢 -->
+  <section id="ai-advisor" class="tab-page">
+    <div class="card">
+      <h2>💬 AI 智慧保養助理 (DeepSeek R1 × Gemini)</h2>
+      <div class="ai-engine-bar">
+        <label for="ai-engine-select" style="color:var(--text-muted); font-size:0.9rem;">🤖 選擇 AI 引擎：</label>
+        <select id="ai-engine-select">
+          <option value="deepseek-r1" selected>⚡ Cloudflare Workers AI (免費推理/Llama 3.3 自動降級)</option>
+          <option value="gemini">✨ Google Gemini Flash (3.8 → 2.5 多階降級)</option>
+        </select>
+      </div>
+      <div class="chat-container">
+        <div class="chat-messages" id="chat-box">
+          <div class="chat-bubble ai" id="ai-welcome-bubble">您好！我是您的雲端保養助理，已即時連線 D1 資料庫讀取您的最新保養品清單與避雷規則。請問今天皮膚有什麼狀況，或想評估哪款新產品嗎？</div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" class="chat-input" id="chat-input" placeholder="例如：臉現在微紅刺痛該擦什麼？或幫我評估並新增某產品..." onkeypress="if(event.key==='Enter') sendChatMessage()">
+          <button class="btn-send" onclick="sendChatMessage()">送出</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- D1 防忘總表 -->
+  <section id="db-registry" class="tab-page">
+    <div class="card">
+      <h2>🗄️ 共用 D1 (`weather-monitor-db`) 資料表防忘登記總表</h2>
+      <p style="color:var(--text-muted); margin-top:0;">即時從 D1 的 <code>_system_registry</code> 資料表讀取，避免多系統共用資料庫時遺忘或撞表。</p>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>系統代號</th><th>所屬系統</th><th>資料表名稱</th><th>用途說明</th></tr></thead>
+          <tbody id="registry-tbody"><tr><td colspan="4"><div class="skeleton"></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- 新增產品 Modal -->
+<div id="add-product-modal" style="display:none; position:fixed; inset:0; background:rgba(11,15,25,0.82); backdrop-filter:blur(8px); z-index:1000; align-items:center; justify-content:center; padding:12px;">
+  <div class="card" style="width:94%; max-width:520px; max-height:92vh; overflow-y:auto; margin:0;">
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+      <span>➕ 新增保養品至 D1 資料庫</span>
+      <span onclick="closeAddProductModal()" style="cursor:pointer; font-size:1.8rem; color:var(--text-muted); line-height:1;">&times;</span>
+    </h2>
+
+    <!-- AI 拍照辨識區 -->
+    <div class="ai-upload-box">
+      <img id="new-prod-preview" class="ai-upload-preview" alt="產品預覽">
+      <div class="ai-upload-actions">
+        <div style="font-size:0.9rem; font-weight:600; color:#93c5fd;">📸 拍照 / 上傳瓶身照片 → AI 自動辨識填表</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <label class="btn-sync" style="margin:0; cursor:pointer; background:rgba(59,130,246,0.2); border-color:rgba(96,165,250,0.45);">
+            📷 選擇照片 / 拍照
+            <input type="file" id="new-prod-photo-input" accept="image/*" style="display:none;" onchange="handleNewProductPhoto(event)">
+          </label>
+          <button type="button" id="btn-ai-analyze" class="btn-ai-scan" onclick="runAiPhotoAnalyze()" disabled>
+            ✨ AI 重新判讀
+          </button>
+        </div>
+        <div id="ai-scan-status" style="font-size:0.8rem; color:var(--text-muted);">上傳照片後將自動辨識品名、適合度與用法，並將縮圖存進資料庫。</div>
+      </div>
+    </div>
+
+    <form id="add-product-form" onsubmit="submitNewProduct(event)">
+      <div style="margin-bottom:14px;">
+        <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">產品名稱 *</label>
+        <input type="text" id="new-prod-name" class="chat-input" style="width:100%; box-sizing:border-box;" required>
+      </div>
+      <div style="margin-bottom:14px; display:flex; gap:10px;">
+        <div style="flex:1;">
+          <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">適合度評估</label>
+          <select id="new-prod-status" class="chat-input" style="width:100%; box-sizing:border-box; height:42px;">
+            <option value="非常適合">非常適合</option>
+            <option value="適合">適合</option>
+            <option value="穩定後再用">穩定後再用</option>
+            <option value="目前不建議">目前不建議</option>
+          </select>
+        </div>
+        <div style="flex:1;">
+          <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">建議用量</label>
+          <input type="text" id="new-prod-dosage" class="chat-input" style="width:100%; box-sizing:border-box;" placeholder="例如：1～2滴">
+        </div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">用途說明</label>
+        <input type="text" id="new-prod-desc" class="chat-input" style="width:100%; box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:14px; display:flex; gap:10px;">
+        <div style="flex:1;">
+          <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">使用方法</label>
+          <input type="text" id="new-prod-method" class="chat-input" style="width:100%; box-sizing:border-box;">
+        </div>
+        <div style="flex:1;">
+          <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">間隔時間</label>
+          <input type="text" id="new-prod-interval" class="chat-input" style="width:100%; box-sizing:border-box;">
+        </div>
+      </div>
+      <div style="margin-bottom:18px;">
+        <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">注意事項</label>
+        <input type="text" id="new-prod-attention" class="chat-input" style="width:100%; box-sizing:border-box;">
+      </div>
+      <button type="submit" class="btn-clear" style="background:linear-gradient(135deg, var(--primary), var(--accent)); margin-top:0;">確認新增</button>
+    </form>
+  </div>
+</div>
+
+<!-- 既有產品補傳照片用隱藏 input -->
+<input type="file" id="existing-prod-photo-input" accept="image/*" style="display:none;" onchange="handleExistingProductPhoto(event)">
+
+<!-- 圖片大圖預覽 Lightbox -->
+<div id="img-lightbox" onclick="closeLightbox(event)">
+  <div id="lightbox-title" style="font-size:1.05rem; font-weight:600; color:#f8fafc;"></div>
+  <img id="lightbox-img" src="" alt="產品大圖">
+  <div style="display:flex; gap:10px;">
+    <button class="btn-sync" onclick="triggerReplacePhotoFromLightbox()">📷 更換照片</button>
+    <button class="btn-sync" onclick="document.getElementById('img-lightbox').style.display='none'">關閉</button>
+  </div>
+</div>
+
+<div class="footer">AI個人保養網站 V8.1｜Cloudflare Pages + D1 + AI 視覺辨識</div>
+
+<script>
+const API_URL = "/api/skincare";
+let cachedData = null;
+let currentUsername = "";
+let currentPin = "";
+let deferredPrompt = null;
+
+// PWA 安裝與自動更新監聽
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    reg.update();
+    reg.onupdatefound = () => {
+      const nw = reg.installing;
+      nw.onstatechange = () => {
+        if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+          document.getElementById('updateBanner').style.display = 'block';
+        }
+      };
+    };
+  }).catch(() => {});
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const banner = document.getElementById('pwa-install-banner');
+  banner.style.display = 'flex';
+  document.getElementById('btn-pwa-install').onclick = async () => {
+    banner.style.display = 'none';
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+  };
+});
+
+// 離線補傳佇列
+const QUEUE_KEY = "skincare_offline_queue";
+function enqueueOffline(action, data) {
+  const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+  q.push({ action, data, ts: Date.now() });
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  updateOfflineBadge();
+}
+function updateOfflineBadge() {
+  const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+  const el = document.getElementById("offline-queue-badge");
+  if (q.length > 0) {
+    el.style.display = "inline-block";
+    el.textContent = `⏳ 離線暫存 ${q.length} 筆，連網自動補傳`;
+  } else {
+    el.style.display = "none";
+  }
+}
+async function flushOfflineQueue() {
+  if (!navigator.onLine || !currentUsername || !currentPin) return;
+  const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+  if (!q.length) return;
+  const remaining = [];
+  for (const item of q) {
+    try { await callApi(item.action, item.data, true); }
+    catch { remaining.push(item); }
+  }
+  localStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+  updateOfflineBadge();
+  if (remaining.length === 0) updateSyncStatus("cloud");
+}
+window.addEventListener("online", flushOfflineQueue);
+
+async function callApi(action, data = {}, skipQueue = false) {
+  const payload = { action, username: currentUsername, pin: currentPin, ...data };
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || "API 錯誤");
+    return json;
+  } catch (err) {
+    if (!skipQueue && !navigator.onLine && ["saveChecklist", "clearChecklist", "addNewProduct"].includes(action)) {
+      enqueueOffline(action, data);
+      return { success: true, offlineQueued: true, data: { success: true, message: "離線已暫存，連網自動同步" } };
+    }
+    throw err;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  updateOfflineBadge();
+  currentUsername = localStorage.getItem("skincare_username") || "";
+  currentPin = localStorage.getItem("skincare_pin") || "";
+  if (currentUsername && currentPin) autoLogin(currentUsername, currentPin);
+  else showLoginModal();
+});
+
+function showLoginModal() {
+  document.getElementById("login-overlay").style.display = "flex";
+  document.getElementById("user-status-bar").style.display = "none";
+}
+function hideLoginModal() {
+  document.getElementById("login-overlay").style.display = "none";
+  document.getElementById("user-status-bar").style.display = "flex";
+  document.getElementById("current-user-badge").textContent = `👤 ${currentUsername}`;
+}
+
+function handleLogin(event) {
+  event.preventDefault();
+  const u = document.getElementById("login-username").value.trim();
+  const p = document.getElementById("login-pin").value.trim();
+  doLogin(u, p);
+}
+function autoLogin(u, p) {
+  document.getElementById("login-username").value = u;
+  document.getElementById("login-pin").value = p;
+  document.getElementById("login-overlay").style.display = "flex";
+  doLogin(u, p);
+}
+function doLogin(u, p) {
+  const spinner = document.getElementById("login-spinner");
+  const errEl = document.getElementById("login-error");
+  const btn = document.getElementById("btn-login-submit");
+  errEl.textContent = "";
+  spinner.style.display = "inline-block";
+  btn.disabled = true;
+  currentUsername = u;
+  currentPin = p;
+
+  callApi("login")
+    .then(res => {
+      spinner.style.display = "none";
+      btn.disabled = false;
+      localStorage.setItem("skincare_username", u);
+      localStorage.setItem("skincare_pin", p);
+      cachedData = res.data;
+      localStorage.setItem("skincare_cached_data", JSON.stringify(cachedData));
+      renderUI(cachedData);
+      initChecklist();
+      hideLoginModal();
+      flushOfflineQueue();
+    })
+    .catch(err => {
+      spinner.style.display = "none";
+      btn.disabled = false;
+      const fallback = localStorage.getItem("skincare_cached_data");
+      if (!navigator.onLine && fallback) {
+        cachedData = JSON.parse(fallback);
+        renderUI(cachedData);
+        initChecklist();
+        hideLoginModal();
+        updateSyncStatus("error");
+      } else {
+        currentUsername = "";
+        currentPin = "";
+        errEl.textContent = "❌ 登入失敗: " + err.message;
+      }
+    });
+}
+
+function handleLogout() {
+  localStorage.removeItem("skincare_username");
+  localStorage.removeItem("skincare_pin");
+  currentUsername = "";
+  currentPin = "";
+  document.getElementById("login-username").value = "";
+  document.getElementById("login-pin").value = "";
+  document.getElementById("login-error").textContent = "";
+  showLoginModal();
+}
+
+function showTab(tabId, btn) {
+  document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function reloadData() {
+  if (!currentUsername || !currentPin) return showLoginModal();
+  const icon = document.getElementById("sync-icon");
+  icon.classList.add("loading-spinner");
+  callApi("login")
+    .then(res => {
+      icon.classList.remove("loading-spinner");
+      cachedData = res.data;
+      localStorage.setItem("skincare_cached_data", JSON.stringify(cachedData));
+      renderUI(cachedData);
+      initChecklist();
+    })
+    .catch(err => {
+      icon.classList.remove("loading-spinner");
+      alert("資料載入失敗: " + err.message);
+    });
+}
+
+function escHtml(s) {
+  return String(s || "").replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+function renderUI(data) {
+  if (!data) return;
+
+  let statesHtml = "", mainHtml = "";
+  (data.summary || []).forEach(r => {
+    const cat = r.Category || "", content = r.Content || "";
+    if (cat.includes("狀態") || cat.includes("警告")) {
+      statesHtml += `<div class="alert ${cat.includes("警告") ? 'alert-danger' : 'alert-info'}"><strong>${escHtml(cat)}：</strong><span>${escHtml(content)}</span></div>`;
+    } else {
+      mainHtml += `<p><strong>${escHtml(cat)}：</strong>${escHtml(content)}</p>`;
+    }
+  });
+  document.getElementById("summary-states").innerHTML = statesHtml || "<p>暫無設定</p>";
+  document.getElementById("summary-main").innerHTML = mainHtml || "<p>暫無設定</p>";
+
+  const prodCount = (data.products || []).length;
+  const welcomeEl = document.getElementById("ai-welcome-bubble");
+  if (welcomeEl) {
+    welcomeEl.textContent = `您好！我是您的雲端保養助理，已即時讀取 D1 資料庫中目前的 ${prodCount} 項產品與避雷規則。請問今天皮膚有什麼狀況，或想評估哪款新產品嗎？`;
+  }
+
+  const imgMap = {};
+  (data.products || []).forEach(r => {
+    if (r.Product && r.ImageData) imgMap[r.Product] = r.ImageData;
+  });
+
+  const makeThumbHtml = (prodName, imgData) => {
+    const safeName = escHtml(prodName).replace(/'/g, "\\'");
+    if (imgData) {
+      return `<img class="prod-thumb" src="${imgData}" alt="${escHtml(prodName)}" onclick="openLightbox('${safeName}', this.src)">`;
+    }
+    return `<button type="button" class="prod-thumb-empty" title="點擊補拍/上傳照片" onclick="triggerUploadForProduct('${safeName}')"><span>📷</span><span>補拍</span></button>`;
+  };
+
+  document.getElementById("products-tbody").innerHTML = (data.products || []).map(r => {
+    let cls = "badge-good";
+    const st = r.Status || "";
+    if (st.includes("穩定") || st.includes("少用") || st.includes("優先") || st.includes("未購買")) cls = "badge-wait";
+    if (st.includes("停用") || st.includes("不建議") || st.includes("最後")) cls = "badge-stop";
+    const safeDel = escHtml(r.Product).replace(/'/g, "\\'");
+    return `<tr>
+      <td><div class="prod-cell">${makeThumbHtml(r.Product, r.ImageData)}<strong>${escHtml(r.Product)}</strong></div></td>
+      <td><span class="badge ${cls}">${escHtml(st)}</span></td>
+      <td>${escHtml(r.Description)}</td>
+      <td><button class="btn-del-sm" onclick="deleteProduct('${safeDel}')">刪除</button></td>
+    </tr>`;
+  }).join("") || "<tr><td colspan='4'>無產品資料</td></tr>";
+
+  document.getElementById("howto-tbody").innerHTML = (data.instructions || []).map(r => {
+    const matchedImg = imgMap[r.Product] || Object.entries(imgMap).find(([k]) => k.includes(r.Product) || r.Product.includes(k))?.[1] || "";
+    return `<tr>
+      <td><div class="prod-cell">${matchedImg ? `<img class="prod-thumb" src="${matchedImg}" alt="${escHtml(r.Product)}" onclick="openLightbox('${escHtml(r.Product).replace(/'/g, "\\'")}', this.src)">` : ""}<strong>${escHtml(r.Product)}</strong></div></td>
+      <td>${escHtml(r.Dosage)}</td>
+      <td>${escHtml(r.UsageMethod)}</td>
+      <td>${escHtml(r.Interval)}</td>
+      <td style="color:#fdba74;">${escHtml(r.Attention)}</td>
+    </tr>`;
+  }).join("") || "<tr><td colspan='5'>無使用方法資料</td></tr>";
+
+  document.getElementById("routine-tbody").innerHTML = (data.routines || []).map(r => `<tr>
+    <td><strong>${escHtml(r.TimeOfDay)}</strong></td>
+    <td>${escHtml(r.Flow)}</td>
+  </tr>`).join("") || "<tr><td colspan='2'>無流程資料</td></tr>";
+
+  document.getElementById("sunscreen-tbody").innerHTML = (data.sunscreens || []).map(r => `<tr>
+    <td><strong>${escHtml(r.Rank)}</strong></td>
+    <td><strong>${escHtml(r.Product)}</strong></td>
+    <td><span class="badge badge-good">${escHtml(r.Score)}</span></td>
+    <td>${escHtml(r.Position)}</td>
+    <td>${escHtml(r.Recommendation)}</td>
+  </tr>`).join("") || "<tr><td colspan='5'>無防曬資料</td></tr>";
+
+  document.getElementById("avoid-tbody").innerHTML = (data.avoidRules || []).map(r => `<tr>
+    <td style="color:#f87171;">❌ ${escHtml(r.DoNot)}</td>
+    <td>${escHtml(r.Reason)}</td>
+    <td style="color:#34d399;">✔️ ${escHtml(r.CorrectWay)}</td>
+  </tr>`).join("") || "<tr><td colspan='3'>無避雷規則</td></tr>";
+
+  document.getElementById("dupes-tbody").innerHTML = (data.dupes || []).map(r => `<tr>
+    <td><strong>${escHtml(r.OriginalProduct)}</strong></td>
+    <td>${escHtml(r.DupeProduct)}</td>
+    <td><span class="badge badge-good">${escHtml(r.Category)}</span></td>
+  </tr>`).join("") || "<tr><td colspan='3'>無平替資料</td></tr>";
+
+  setupChecklistUI();
+}
+
+const morningSteps = ["清水或溫和洗臉", "雅漾活泉水 或 SD噴霧", "神經醯胺精華", "1%玻尿酸原液", "SD能量霜薄擦", "主力臉部防曬（理膚寶水/雅漾/DR.WU 擇一）"];
+const nightSteps = ["溫和洗面乳清潔", "雅漾活泉水 或 SD噴霧", "SD舒緩精華 或 神經醯胺", "1%玻尿酸原液", "SD能量霜"];
+const warnSteps = ["停用白/橘/黃瓶 (穀胱甘肽、維C、亮白產品)", "停用A醛/A醇等視黃醇", "停用酸類/水楊酸洗面膜", "停用泥膜"];
+
+function initChecklist() {
+  if (cachedData && cachedData.checklistState) {
+    localStorage.setItem("skincare_checklist", JSON.stringify(cachedData.checklistState));
+  }
+  setupChecklistUI();
+  updateSyncStatus("cloud");
+}
+
+function setupChecklistUI() {
+  const s = JSON.parse(localStorage.getItem("skincare_checklist") || "{}");
+  const render = (arr, type) => arr.map((t, i) => {
+    const key = `${type}_${i}`, chk = !!s[key];
+    return `<div class="checklist-item ${chk ? 'checked' : ''}" onclick="toggleCheck('${key}', this)">
+      <input type="checkbox" ${chk ? 'checked' : ''} onclick="event.stopPropagation(); toggleCheck('${key}', this.parentNode)">
+      <span>${t}</span>
+    </div>`;
+  }).join('');
+  document.getElementById("check-morning").innerHTML = render(morningSteps, "morning");
+  document.getElementById("check-night").innerHTML = render(nightSteps, "night");
+  document.getElementById("check-warning-days").innerHTML = render(warnSteps, "warn");
+}
+
+function toggleCheck(key, el) {
+  const cb = el.querySelector('input[type="checkbox"]');
+  const checked = !cb.checked;
+  cb.checked = checked;
+  el.classList.toggle('checked', checked);
+  const s = JSON.parse(localStorage.getItem("skincare_checklist") || "{}");
+  s[key] = checked;
+  localStorage.setItem("skincare_checklist", JSON.stringify(s));
+  updateSyncStatus("syncing");
+  callApi("saveChecklist", { key, value: checked })
+    .then(r => updateSyncStatus(r.offlineQueued ? "error" : "cloud"))
+    .catch(() => updateSyncStatus("error"));
+}
+
+function clearChecklist() {
+  localStorage.setItem("skincare_checklist", "{}");
+  setupChecklistUI();
+  updateSyncStatus("syncing");
+  callApi("clearChecklist")
+    .then(r => updateSyncStatus(r.offlineQueued ? "error" : "cloud"))
+    .catch(() => updateSyncStatus("error"));
+}
+
+function updateSyncStatus(st) {
+  const el = document.getElementById("cloud-sync-status");
+  if (!el) return;
+  if (st === "syncing") { el.innerHTML = `<span class="loading-spinner"></span> 雲端同步中...`; el.style.color = "var(--warning)"; }
+  else if (st === "cloud") { el.textContent = "☁️ D1 雲端已同步"; el.style.color = "var(--success)"; }
+  else { el.textContent = "⚠️ 離線暫存 (連網自動同步)"; el.style.color = "var(--danger)"; }
+}
+
+function sendChatMessage() {
+  const input = document.getElementById("chat-input");
+  const msg = input.value.trim();
+  if (!msg) return;
+  const engine = document.getElementById("ai-engine-select").value;
+  appendChatBubble(escHtml(msg), "user");
+  input.value = "";
+  const id = appendChatBubble(`<div class="loading-spinner"></div> ${engine === 'deepseek-r1' ? 'DeepSeek R1' : 'Gemini'} 正在讀取 D1 資料庫思考中...`, "ai");
+  const bubble = document.getElementById(id);
+
+  callApi("askAi", { question: msg, engine })
+    .then(res => {
+      let text = res.data || "";
+      const m = text.match(/\[\[ADD_PRODUCT_JSON:\s*({[\s\S]*?})\s*\]\]/);
+      if (m && m[1]) {
+        try {
+          const pData = JSON.parse(m[1]);
+          text = text.replace(/\[\[ADD_PRODUCT_JSON:[\s\S]*?\]\]/g, "").trim();
+          callApi("addNewProduct", { productData: pData }).then(() => {
+            appendChatBubble(`✨ 已自動將 <strong>${escHtml(pData.Product)}</strong> 寫入 Cloudflare D1 資料庫！`, "system");
+            reloadData();
+          });
+        } catch (e) {}
+      }
+      const tag = res.model ? `<div style="margin-top:8px; font-size:0.78rem; color:var(--text-muted);">🤖 模型：${escHtml(res.model)}</div>` : "";
+      bubble.innerHTML = formatMarkdown(text) + tag;
+      scrollToBottom();
+    })
+    .catch(err => {
+      bubble.innerHTML = `❌ 呼叫失敗: ${escHtml(err.message)}`;
+      bubble.className = "chat-bubble system";
+    });
+}
+
+function appendChatBubble(html, sender) {
+  const box = document.getElementById("chat-box");
+  const id = "b_" + Date.now() + "_" + Math.floor(Math.random() * 999);
+  const div = document.createElement("div");
+  div.id = id;
+  div.className = `chat-bubble ${sender}`;
+  div.innerHTML = html;
+  box.appendChild(div);
+  scrollToBottom();
+  return id;
+}
+function scrollToBottom() { const b = document.getElementById("chat-box"); b.scrollTop = b.scrollHeight; }
+function formatMarkdown(text) {
+  return escHtml(text)
+    .replace(/\n/g, "<br>")
+    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.*?)\*/g, "<em>$1</em>")
+    .replace(/`(.*?)`/g, "<code>$1</code>");
+}
+
+function loadRegistry() {
+  callApi("getRegistry").then(res => {
+    document.getElementById("registry-tbody").innerHTML = (res.data || []).map(r => `<tr>
+      <td><code>${escHtml(r.system_code)}</code></td>
+      <td><strong>${escHtml(r.system_name)}</strong></td>
+      <td><span class="badge badge-good">${escHtml(r.table_name)}</span></td>
+      <td>${escHtml(r.description)}</td>
+    </tr>`).join("");
+  }).catch(() => {});
+}
+
+// 圖片壓縮工具（同時產出高解析 AI 辨識版與輕量 D1 縮圖版）
+function compressImage(file, maxDim = 400, quality = 0.72) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("讀取圖片失敗"));
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("圖片格式無法解析"));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+let pendingAiImageBase64 = "";
+let pendingThumbBase64 = "";
+let uploadTargetProductName = "";
+
+function openAddProductModal() {
+  document.getElementById("add-product-modal").style.display = "flex";
+}
+function closeAddProductModal() {
+  document.getElementById("add-product-modal").style.display = "none";
+  document.getElementById("add-product-form").reset();
+  pendingAiImageBase64 = "";
+  pendingThumbBase64 = "";
+  const prev = document.getElementById("new-prod-preview");
+  prev.style.display = "none";
+  prev.src = "";
+  document.getElementById("btn-ai-analyze").disabled = true;
+  document.getElementById("ai-scan-status").textContent = "上傳照片後將自動辨識品名、適合度與用法，並將縮圖存進資料庫。";
+  document.getElementById("ai-scan-status").style.color = "var(--text-muted)";
+}
+
+async function handleNewProductPhoto(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const statusEl = document.getElementById("ai-scan-status");
+  try {
+    statusEl.textContent = "⏳ 正在壓縮照片並準備 AI 辨識...";
+    statusEl.style.color = "var(--warning)";
+    const [hiRes, thumb] = await Promise.all([
+      compressImage(file, 960, 0.82),
+      compressImage(file, 360, 0.72)
+    ]);
+    pendingAiImageBase64 = hiRes;
+    pendingThumbBase64 = thumb;
+    const prev = document.getElementById("new-prod-preview");
+    prev.src = thumb;
+    prev.style.display = "block";
+    document.getElementById("btn-ai-analyze").disabled = false;
+    // 上傳完自動觸發 AI 判讀填表
+    await runAiPhotoAnalyze();
+  } catch (err) {
+    statusEl.textContent = "❌ 圖片處理失敗：" + err.message;
+    statusEl.style.color = "var(--danger)";
+  }
+}
+
+async function runAiPhotoAnalyze() {
+  if (!pendingAiImageBase64) return;
+  const btn = document.getElementById("btn-ai-analyze");
+  const statusEl = document.getElementById("ai-scan-status");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="loading-spinner"></span> AI 辨識中...`;
+  statusEl.textContent = "🤖 AI 正在判讀瓶身文字、成分並比對您的膚況與避雷清單...";
+  statusEl.style.color = "var(--warning)";
+
+  try {
+    const res = await callApi("analyzeProductImage", { imageBase64: pendingAiImageBase64 });
+    const d = res.data || {};
+    if (d.Product) document.getElementById("new-prod-name").value = d.Product;
+    if (d.Status) {
+      const sel = document.getElementById("new-prod-status");
+      const opts = [...sel.options].map(o => o.value);
+      const matched = opts.find(o => d.Status.includes(o) || o.includes(d.Status));
+      if (matched) sel.value = matched;
+    }
+    if (d.Dosage) document.getElementById("new-prod-dosage").value = d.Dosage;
+    if (d.Description) document.getElementById("new-prod-desc").value = d.Description;
+    if (d.UsageMethod) document.getElementById("new-prod-method").value = d.UsageMethod;
+    if (d.Interval) document.getElementById("new-prod-interval").value = d.Interval;
+    if (d.Attention) document.getElementById("new-prod-attention").value = d.Attention;
+
+    statusEl.textContent = `✅ AI 判讀完成（${res.model || "Vision"}）！確認內容無誤後按「確認新增」即可連同照片存檔。`;
+    statusEl.style.color = "var(--success)";
+  } catch (err) {
+    statusEl.textContent = "❌ AI 判讀失敗：" + err.message + "（您仍可手動填寫，照片會一併保留）";
+    statusEl.style.color = "var(--danger)";
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "✨ AI 重新判讀";
+  }
+}
+
+function submitNewProduct(e) {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = "寫入 D1 中...";
+  const productData = {
+    Product: document.getElementById("new-prod-name").value.trim(),
+    Status: document.getElementById("new-prod-status").value,
+    Description: document.getElementById("new-prod-desc").value.trim(),
+    Dosage: document.getElementById("new-prod-dosage").value.trim(),
+    UsageMethod: document.getElementById("new-prod-method").value.trim(),
+    Interval: document.getElementById("new-prod-interval").value.trim(),
+    Attention: document.getElementById("new-prod-attention").value.trim(),
+    ImageData: pendingThumbBase64 || ""
+  };
+  callApi("addNewProduct", { productData })
+    .then(res => {
+      btn.disabled = false;
+      btn.textContent = "確認新增";
+      alert(res.data?.message || "新增成功");
+      closeAddProductModal();
+      reloadData();
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = "確認新增";
+      alert("新增失敗: " + err.message);
+    });
+}
+
+// 既有產品 1 鍵補拍/更換照片
+function triggerUploadForProduct(productName) {
+  uploadTargetProductName = productName;
+  const input = document.getElementById("existing-prod-photo-input");
+  input.value = "";
+  input.click();
+}
+
+async function handleExistingProductPhoto(event) {
+  const file = event.target.files?.[0];
+  if (!file || !uploadTargetProductName) return;
+  try {
+    const thumb = await compressImage(file, 360, 0.72);
+    await callApi("updateProductImage", { productName: uploadTargetProductName, imageData: thumb });
+    document.getElementById("img-lightbox").style.display = "none";
+    reloadData();
+  } catch (err) {
+    alert("照片上傳失敗：" + err.message);
+  }
+}
+
+function openLightbox(prodName, imgSrc) {
+  uploadTargetProductName = prodName;
+  document.getElementById("lightbox-title").textContent = prodName;
+  document.getElementById("lightbox-img").src = imgSrc;
+  document.getElementById("img-lightbox").style.display = "flex";
+}
+function closeLightbox(e) {
+  if (e.target.id === "img-lightbox") {
+    document.getElementById("img-lightbox").style.display = "none";
+  }
+}
+function triggerReplacePhotoFromLightbox() {
+  if (!uploadTargetProductName) return;
+  const input = document.getElementById("existing-prod-photo-input");
+  input.value = "";
+  input.click();
+}
+
+function deleteProduct(name) {
+  if (!confirm(`確定要刪除「${name}」嗎？`)) return;
+  callApi("deleteProduct", { productName: name })
+    .then(() => reloadData())
+    .catch(err => alert("刪除失敗: " + err.message));
+}
+</script>
+</body>
+</html>
