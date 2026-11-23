@@ -173,11 +173,48 @@ THEMES = {
             "寫實辦公室玻璃景深與自然肌膚光影，無失真亂碼字，4K。"
         ),
     },
+    "tank_b_intro": {
+        "label": "🏭 儲槽進貨第1部 過場 01：一般檢查 PPE 與引導槽車入廠接地",
+        "first": BASE_DIR / "tank_inbound_sop" / "flow_frames" / "b01_intro_first.png",
+        "last": None,
+        "out_mp4": BASE_DIR / "tank_inbound_sop" / "flow_clips" / "b01_intro_flow.mp4",
+        "prompt": (
+            "35mm電影級寫實跟拍，清晨金黃陽光下的台灣現代化精密化工廠儲槽卸貨區，銀白色不鏽鋼化學儲槽整齊排列。"
+            "穿戴亮黃色工程安全帽、透明護目鏡、深藍色防靜電工作服、螢光黃反光背心與防毒面具的台灣男性現場操作員，"
+            "先仔細核對手上的進貨檢點夾板並巡視滅火器與管線閥門，接著以標準俐落手勢引導銀白色化學油罐槽車緩慢駛入黃黑標線車位停妥熄火，"
+            "最後俯身放置輪檔、三角錐並將綠色靜電接地線夾妥於槽車接地銅柱，光影真實自然，無雜亂文字，4K。"
+        ),
+    },
+    "tank_b_bridge": {
+        "label": "🦺 儲槽進貨第1部 過場 02：ISO TANK 兩公尺高處防墜安全帶掛勾",
+        "first": BASE_DIR / "tank_inbound_sop" / "flow_frames" / "b02_bridge_first.png",
+        "last": None,
+        "out_mp4": BASE_DIR / "tank_inbound_sop" / "flow_clips" / "b02_bridge_flow.mp4",
+        "prompt": (
+            "35mm工業寫實電影升鏡運鏡，正午明亮自然光下的台灣化工廠 ISO TANK 卸料工位，白色框架式二十呎化學貨櫃已拔除車頭並放妥輪檔與接地線。"
+            "同一位穿戴亮黃色安全帽、透明護目鏡、深藍防靜電服、螢光背心與背負式全身安全帶的台灣男性操作員，"
+            "穩健站立於兩公尺以上之 ISO TANK 頂部防滑走道，雙手將背負式安全帶的金屬大掛勾確實扣緊於上方不鏽鋼防墜桿並拉動確認牢靠，"
+            "隨後專注檢查頂部氮氣軟管接頭與閥門，金屬反光與人物動作俐落真實，無亂碼文字，4K。"
+        ),
+    },
+    "tank_b_outro": {
+        "label": "🚛 儲槽進貨第1部 過場 03：泵空洩壓歸位與安全送槽車開往地磅",
+        "first": BASE_DIR / "tank_inbound_sop" / "flow_frames" / "b03_outro_first.png",
+        "last": None,
+        "out_mp4": BASE_DIR / "tank_inbound_sop" / "flow_clips" / "b03_outro_flow.mp4",
+        "prompt": (
+            "35mm溫暖金橘色夕陽電影橫移運鏡，整潔無滴漏的台灣化工廠儲槽卸貨區。"
+            "同一位穿戴黃色安全帽、護目鏡與螢光反光背心的台灣男性現場操作員，蹲身確認卸貨口壓力表指針歸零、管線已完成洩壓，"
+            "俐落將化學品軟管蓋上保護塞頭並扣緊掛耳，起身將接地線與輪檔整齊收納歸位，"
+            "最後拿著簽核完成的檢點夾板站在安全黃線外微笑揮手放行，銀白色化學槽車平穩駛向遠方地磅站，畫面溫暖安心，無亂碼文字，4K。"
+        ),
+    },
 }
 
 BPM_BATCH_THEMES = ["bpm_shot01", "bpm_shot05", "bpm_shot08"]
 BPM_PLAN_C_THEMES = ["bpm_c02", "bpm_c03", "bpm_c05"]
 BPM_ROUTE_B_THEMES = ["bpm_b_intro", "bpm_b_bridge", "bpm_b_outro"]
+TANK_INBOUND_ROUTE_B_THEMES = ["tank_b_intro", "tank_b_bridge", "tank_b_outro"]
 
 
 def find_browser_exe() -> str:
@@ -663,9 +700,11 @@ def upload_single_theme(
     ensure_in_project(target_page)
     switch_to_frames_mode(target_page, model=model, resolution=resolution, duration=duration)
 
-    print("[上傳] 開始自動上傳 Start / End 首尾幀...")
-    upload_frame(target_page, r"^開始$|^Start$", theme["first"], "首幀 (Start)")
-    upload_frame(target_page, r"^結束$|^End$", theme["last"], "尾幀 (End)")
+    print("[上傳] 開始自動上傳首幀 / 尾幀...")
+    if theme.get("first"):
+        upload_frame(target_page, r"^開始$|^Start$", theme["first"], "首幀 (Start)")
+    if theme.get("last") and Path(theme["last"]).exists():
+        upload_frame(target_page, r"^結束$|^End$", theme["last"], "尾幀 (End)")
     fill_prompt(target_page, theme["prompt"])
 
     known_video_urls = set(collect_video_urls(target_page))
@@ -681,9 +720,9 @@ def main():
     parser = argparse.ArgumentParser(description="一鍵自動上傳首尾幀與 Prompt 至本機 Chrome Google Flow")
     parser.add_argument(
         "--theme",
-        choices=list(THEMES.keys()) + ["bpm_all", "bpm_plan_c", "bpm_route_b"],
+        choices=list(THEMES.keys()) + ["bpm_all", "bpm_plan_c", "bpm_route_b", "tank_inbound_route_b"],
         default="kids",
-        help="選擇風格或 BPM 情境分鏡 (預設 kids；bpm_all / bpm_plan_c / bpm_route_b 可批次送出)",
+        help="選擇風格或 SOP 情境分鏡 (預設 kids；tank_inbound_route_b 可批次送出儲槽進貨第 1 部 3 鏡)",
     )
     parser.add_argument("--project-url", default=FLOW_URL, help="目標 Google Flow 網址")
     parser.add_argument("--model", choices=["omni12", "veo31lite", "auto"], default="omni12", help="Google Flow 影片模型")
@@ -699,6 +738,8 @@ def main():
         theme_keys = BPM_PLAN_C_THEMES
     elif args.theme == "bpm_route_b":
         theme_keys = BPM_ROUTE_B_THEMES
+    elif args.theme == "tank_inbound_route_b":
+        theme_keys = TANK_INBOUND_ROUTE_B_THEMES
     else:
         theme_keys = [args.theme]
     ensure_chrome_running(args.project_url)
