@@ -1,0 +1,8 @@
+name = "sales-planner-pwa"
+compatibility_date = "2025-05-01"
+pages_build_output_dir = "public"
+
+[[d1_databases]]
+binding = "sales_planner_db"
+database_name = "sales-planner-db"
+database_id = "24ff2b96-529d-4337-bc00-8ef99ea41551"

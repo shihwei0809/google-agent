@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>鴻勝產銷動態計畫系統 (多人線上協作版)</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="pwaInstallBanner" class="pwa-banner">
+    <span>📱 可將「鴻勝產銷動態計畫系統」安裝至桌面/平板，支援離線檢視與排程編輯</span>
+    <div style="display:flex;gap:6px;">
+      <button id="btnInstallPwa">立即安裝</button>
+      <button id="btnDismissInstall">稍後</button>
+    </div>
+  </div>
+  <div id="pwaUpdateBanner" class="pwa-banner update">
+    <span>🔄 偵測到新版系統程式已部署完成，點擊重新整理即可取得最新功能</span>
+    <button id="btnReloadPwa">立即更新</button>
+  </div>
+
+  <header class="app-header">
+    <div class="header-top">
+      <div class="brand-wrap">
+        <div class="brand-title">🏭 鴻勝產銷動態計畫系統</div>
+        <span class="pill">v1.0.0</span>
+        <span id="cloudVerBadge" class="pill">版本讀取中...</span>
+        <span id="syncBadge" class="pill sync-ok">🟢 就緒</span>
+      </div>
+      <div class="header-actions">
+        <div class="operator-box" title="記錄每次線上修改與快照的人員名稱">
+          <span style="font-size:11.5px;color:#cbd5e1;">👤 人員</span>
+          <input id="operatorInput" type="text" placeholder="姓名" />
+        </div>
+        <div class="date-box" title="變更計畫基準日後點擊「重算月份」可滾動至下四個月">
+          <span style="font-size:11.5px;color:#cbd5e1;">📅 基準日</span>
+          <input id="baseDateInput" type="date" />
+          <button id="btnApplyBaseDate" class="btn btn-xs btn-primary">套用</button>
+        </div>
+        <label class="btn btn-teal" style="cursor:pointer;" title="直接上傳精餾/初餾/調配/秏料 .xlsx 自動解析">
+          📥 匯入 Excel
+          <input id="excelFileInput" type="file" accept=".xlsx,.xls" style="display:none;" />
+        </label>
+        <button id="btnExportExcel" class="btn btn-amber" title="匯出零 #REF! 跨頁公式著色報表 (.xlsx)">📤 匯出公式 Excel</button>
+        <button id="btnOpenArchives" class="btn btn-ghost-dark">📸 歷史快照</button>
+        <button id="btnPullCloud" class="btn btn-ghost-dark" title="從雲端/SQLite重新拉取最新計畫">🔄 同步重整</button>
+        <button id="btnForceSave" class="btn btn-primary" title="立即儲存目前計畫至雲端與本機">☁️ 儲存計畫</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-container">
+    <!-- KPI Strip -->
+    <section class="kpi-grid" id="kpiGrid"></section>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-bar" id="tabsBar">
+      <button class="tab-btn active" data-tab="summary">📊 產銷總表</button>
+      <button class="tab-btn" data-tab="rectification">🏭 精餾／充填產銷</button>
+      <button class="tab-btn" data-tab="primary">🧪 初餾產銷</button>
+      <button class="tab-btn" data-tab="blending">⚗️ 調配產銷</button>
+      <button class="tab-btn" data-tab="schedule">📅 產線排程與甘特圖</button>
+      <button class="tab-btn" data-tab="bom">🧬 秏料公式 (BOM) 與主檔</button>
+    </nav>
+
+    <!-- Dynamic Tab Workspace -->
+    <section id="workspace"></section>
+  </main>
+
+  <!-- Modal -->
+  <div id="appModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-hdr">
+        <span id="modalTitle">詳細視窗</span>
+        <button id="btnCloseModal" class="btn btn-xs btn-ghost-dark">✕ 關閉</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-ftr" id="modalFooter"></div>
+    </div>
+  </div>
+
+  <div id="toastMsg" class="toast-msg"></div>
+
+  <!-- Scripts (non-module so 1_Web_網頁版 file:// & PWA/Cloudflare all work uniformly) -->
+  <script src="vendor/xlsx.full.min.js"></script>
+  <script src="vendor/exceljs.min.js"></script>
+  <script src="pwa_offline_sync.js"></script>
+  <script src="seed_data.js"></script>
+  <script src="calc_engine.js"></script>
+  <script src="excel_parser.js"></script>
+  <script src="excel_exporter.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
