@@ -279,7 +279,7 @@
 
     // 系統最新版別標籤
 
-    const SYSTEM_VERSION = "v4.3.2 (雙系統一鍵切換版)";
+    const SYSTEM_VERSION = "v4.3.3 (支援單日使用量手動微調)";
 
 
 
@@ -1455,6 +1455,78 @@
                 [dayIdx]: { ...dData, [field]: cleanedVal }
 
               }
+
+            }
+
+          };
+
+        });
+
+      };
+
+
+
+      // 🌟 單日使用量手動覆寫（支援 0 停機或半載數值；清空即恢復由上方產線自動推算）
+
+      const handleUsageOverrideChange = (mKey, targetId, dayIdx, rawVal) => {
+
+        if (rawVal === '' || rawVal === null || rawVal === undefined) {
+
+          handleGridInputChange(mKey, targetId, 'use', dayIdx, '');
+
+          return;
+
+        }
+
+        const str = String(rawVal).trim();
+
+        if (str.startsWith('-')) return; // 使用量不可為負數
+
+        const num = parseFloat(str);
+
+        if (!isNaN(num) && num < 0) return;
+
+        handleGridInputChange(mKey, targetId, 'use', dayIdx, rawVal);
+
+      };
+
+
+
+      // 🌟 一鍵還原指定月份/目標之所有單日手動使用量覆寫
+
+      const handleResetMonthUseOverrides = (mKey, targetId) => {
+
+        setManualGridData(prev => {
+
+          if (!prev[mKey] || !prev[mKey][targetId]) return prev;
+
+          const nextTarget = { ...prev[mKey][targetId] };
+
+          let changed = false;
+
+          Object.keys(nextTarget).forEach(dIdx => {
+
+            if (nextTarget[dIdx] && nextTarget[dIdx].use !== undefined && nextTarget[dIdx].use !== '') {
+
+              nextTarget[dIdx] = { ...nextTarget[dIdx], use: '' };
+
+              changed = true;
+
+            }
+
+          });
+
+          if (!changed) return prev;
+
+          return {
+
+            ...prev,
+
+            [mKey]: {
+
+              ...prev[mKey],
+
+              [targetId]: nextTarget
 
             }
 
@@ -2898,6 +2970,10 @@
 
             let dailyScrapGen = {};
 
+            let poolScrapByTank = {};
+
+            let dedicatedScrapBySource = {};
+
 
 
             tanksList.filter(t => t.type === 'SUPPLY').forEach(st => dailyDedicatedDemand[st.id] = 0);
@@ -2962,9 +3038,17 @@
 
                   const src = line.source || 'SHARED_POOL';
 
+                  const scrapT = line.scrap;
+
                   if (src === 'SHARED_POOL') {
 
                     dailyPlant1PoolDemand += rawNeed;
+
+                    if (scrapT && dailyScrapGen[scrapT] !== undefined) {
+
+                      poolScrapByTank[scrapT] = (poolScrapByTank[scrapT] || 0) + scrapOut;
+
+                    }
 
                   } else {
 
@@ -2972,13 +3056,15 @@
 
                     dailyDedicatedDemand[src] += rawNeed;
 
+                    if (scrapT && dailyScrapGen[scrapT] !== undefined) {
+
+                      if (!dedicatedScrapBySource[src]) dedicatedScrapBySource[src] = {};
+
+                      dedicatedScrapBySource[src][scrapT] = (dedicatedScrapBySource[src][scrapT] || 0) + scrapOut;
+
+                    }
+
                   }
-
-
-
-                  const scrapT = line.scrap;
-
-                  if (scrapT && dailyScrapGen[scrapT] !== undefined) dailyScrapGen[scrapT] += scrapOut;
 
                 }
 
@@ -3016,7 +3102,33 @@
 
 
 
-            let remPoolDemand = dailyPlant1PoolDemand;
+            const autoPoolDemand = dailyPlant1PoolDemand;
+
+            const poolUseRaw = manualGridData[mKey] && manualGridData[mKey]['SHARED_POOL'] && manualGridData[mKey]['SHARED_POOL'][dayIdx] ? manualGridData[mKey]['SHARED_POOL'][dayIdx].use : undefined;
+
+            const hasPoolUseOverride = poolUseRaw !== undefined && poolUseRaw !== null && String(poolUseRaw).trim() !== '' && !isNaN(parseFloat(poolUseRaw));
+
+            const effectivePoolDemand = hasPoolUseOverride ? Math.max(0, parseFloat(poolUseRaw)) : autoPoolDemand;
+
+
+
+            // 下腳料依手動覆寫比例同步縮放（停機輸入 0 → 下腳料同步歸 0）
+
+            const poolScrapRatio = hasPoolUseOverride ? (autoPoolDemand > 0 ? effectivePoolDemand / autoPoolDemand : 0) : 1;
+
+            Object.keys(poolScrapByTank).forEach(scId => {
+
+              if (dailyScrapGen[scId] !== undefined) {
+
+                dailyScrapGen[scId] += poolScrapByTank[scId] * poolScrapRatio;
+
+              }
+
+            });
+
+
+
+            let remPoolDemand = effectivePoolDemand;
 
 
 
@@ -3029,6 +3141,22 @@
               const inVal = parseFloat(mInputs.in) || 0;
 
               const trVal = parseFloat(mInputs.trans) || 0;
+
+
+
+              if (dedicatedScrapBySource[sId]) {
+
+                Object.keys(dedicatedScrapBySource[sId]).forEach(scId => {
+
+                  if (dailyScrapGen[scId] !== undefined) {
+
+                    dailyScrapGen[scId] += dedicatedScrapBySource[sId][scId];
+
+                  }
+
+                });
+
+              }
 
 
 
@@ -3050,7 +3178,7 @@
 
               let endVal = currentStock[sId] + inVal + trVal - totalUse;
 
-              result[mKey][sId].push({ start: currentStock[sId], in: inVal, trans: trVal, use: totalUse, end: endVal });
+              result[mKey][sId].push({ start: currentStock[sId], in: inVal, trans: trVal, use: totalUse, autoUse: totalUse, isUseOverridden: false, end: endVal });
 
               currentStock[sId] = endVal;
 
@@ -3098,7 +3226,7 @@
 
 
 
-            let poolEndSum = poolStartSum + poolInSum + poolTransSum - dailyPlant1PoolDemand;
+            let poolEndSum = poolStartSum + poolInSum + poolTransSum - effectivePoolDemand;
 
             poolSummary[mKey].push({
 
@@ -3108,7 +3236,11 @@
 
               trans: poolTransSum,
 
-              use: dailyPlant1PoolDemand, // 每日機台實體耗料 (如 36T/33T)
+              use: effectivePoolDemand, // 每日機台實體耗料 (如 36T/33T，支援單日手動覆寫)
+
+              autoUse: autoPoolDemand,
+
+              isUseOverridden: hasPoolUseOverride,
 
               salesRawWeight: p1SalesRawWeight,
 
@@ -3134,7 +3266,33 @@
 
 
 
-              let useVal = dailyDedicatedDemand[sId] || 0;
+              const autoUseVal = dailyDedicatedDemand[sId] || 0;
+
+              const tankUseRaw = mInputs.use;
+
+              const hasTankUseOverride = tankUseRaw !== undefined && tankUseRaw !== null && String(tankUseRaw).trim() !== '' && !isNaN(parseFloat(tankUseRaw));
+
+              const useVal = hasTankUseOverride ? Math.max(0, parseFloat(tankUseRaw)) : autoUseVal;
+
+
+
+              const tankScrapRatio = hasTankUseOverride ? (autoUseVal > 0 ? useVal / autoUseVal : 0) : 1;
+
+              if (dedicatedScrapBySource[sId]) {
+
+                Object.keys(dedicatedScrapBySource[sId]).forEach(scId => {
+
+                  if (dailyScrapGen[scId] !== undefined) {
+
+                    dailyScrapGen[scId] += dedicatedScrapBySource[sId][scId] * tankScrapRatio;
+
+                  }
+
+                });
+
+              }
+
+
 
               let tempVal = currentStock[sId] + inVal + trVal;
 
@@ -3142,7 +3300,23 @@
 
 
 
-              result[mKey][sId].push({ start: currentStock[sId], in: inVal, trans: trVal, use: useVal, end: endVal });
+              result[mKey][sId].push({
+
+                start: currentStock[sId],
+
+                in: inVal,
+
+                trans: trVal,
+
+                use: useVal,
+
+                autoUse: autoUseVal,
+
+                isUseOverridden: hasTankUseOverride,
+
+                end: endVal
+
+              });
 
               currentStock[sId] = endVal;
 
@@ -3544,12 +3718,13 @@
 
               // 預估使用(-)
               const cellUse = rUse.getCell(colIdx);
-              cellUse.value = Math.round(dRec.use);
+              const useExportVal = dRec.isUseOverridden ? (Math.round(dRec.use * 10) / 10) : Math.round(dRec.use);
+              cellUse.value = useExportVal;
               cellUse.font = fontNegative;
               cellUse.fill = fillUse;
               cellUse.alignment = { vertical: 'middle', horizontal: 'center' };
               cellUse.border = borderThin;
-              cellUse.numFmt = '#,##0';
+              cellUse.numFmt = Number.isInteger(useExportVal) ? '#,##0' : '#,##0.0';
 
               // 結存 (公式：期初 + 調撥 + 進貨 - 預估使用)
               const cellEnd = rEnd.getCell(colIdx);
@@ -3775,7 +3950,7 @@
 
             rows.push(["進貨量(+)", ...displayDaysArr.map(i => daysData[i].in || 0)]);
 
-            rows.push(["預估使用(-)", ...displayDaysArr.map(i => Math.round(daysData[i].use))]);
+            rows.push(["預估使用(-)", ...displayDaysArr.map(i => daysData[i].isUseOverridden ? (Math.round(daysData[i].use * 10) / 10) : Math.round(daysData[i].use))]);
 
           } else {
 
@@ -5686,33 +5861,103 @@
 
 
 
-                              {/* 2. ⚙️ 製程耗用原料總量 (-) (機台實體耗用量，例如 33 噸 / 36 噸) */}
+                              {/* 2. ⚙️ 製程耗用原料總量 (-) (機台實體耗用量，例如 33 噸 / 36 噸，支援單日手動覆寫) */}
 
-                              <tr className="bg-orange-100/70 font-black">
+                              {(() => {
 
-                                <td className="sticky-col p-2 pl-4 text-left font-black border-b text-orange-950">
+                                const poolUseOverrideCount = displayDaysArr.filter(i => calculatedData.poolSummary[activeMonthKey]?.[i]?.isUseOverridden).length;
 
-                                  ⚙️ 製程耗用原料總量 (-)
+                                return (
 
-                                </td>
+                                  <tr className="bg-orange-100/70 font-black">
 
-                                {displayDaysArr.map((i) => {
+                                    <td className="sticky-col p-2 pl-4 text-left font-black border-b text-orange-950" title="可單日直接輸入數字修改（例如停機 1~2 天輸入 0）；清空即恢復上方產線自動推算">
 
-                                  const rawUse = calculatedData.poolSummary[activeMonthKey][i].use || 0;
+                                      <div className="flex items-center justify-between gap-1.5">
 
-                                  return (
+                                        <span>
 
-                                    <td key={i} className="p-1 border-b text-sm font-black text-orange-900">
+                                          ⚙️ 製程耗用原料總量 (-)
 
-                                      {rawUse > 0 ? Number(rawUse).toFixed(1) : '0.0'}
+                                          <span className="ml-1 text-[10px] text-orange-700 font-normal">✎可單日改</span>
+
+                                        </span>
+
+                                        {poolUseOverrideCount > 0 && (
+
+                                          <button
+
+                                            type="button"
+
+                                            onClick={() => handleResetMonthUseOverrides(activeMonthKey, 'SHARED_POOL')}
+
+                                            className="px-1.5 py-0.5 rounded bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shadow-sm cursor-pointer"
+
+                                            title="一鍵還原本月共用池所有手動修改之使用量，恢復由上方產線自動推算"
+
+                                          >
+
+                                            ↺ 還原({poolUseOverrideCount})
+
+                                          </button>
+
+                                        )}
+
+                                      </div>
 
                                     </td>
 
-                                  );
+                                    {displayDaysArr.map((i) => {
 
-                                })}
+                                      const d = calculatedData.poolSummary[activeMonthKey][i] || {};
 
-                              </tr>
+                                      const manualVal = manualGridData[activeMonthKey]?.['SHARED_POOL']?.[i]?.use ?? '';
+
+                                      const autoPlaceholder = Number(d.autoUse || 0).toFixed(1);
+
+                                      const isOverridden = Boolean(d.isUseOverridden);
+
+                                      return (
+
+                                        <td key={i} className="p-0 border-b">
+
+                                          <input
+
+                                            type="number"
+
+                                            min="0"
+
+                                            step="any"
+
+                                            value={cleanNumStr(manualVal)}
+
+                                            onFocus={e => e.target.select()}
+
+                                            onChange={e => handleUsageOverrideChange(activeMonthKey, 'SHARED_POOL', i, e.target.value)}
+
+                                            placeholder={autoPlaceholder}
+
+                                            className={`table-input text-sm font-black py-1 ${isOverridden ? 'text-purple-800 bg-purple-100/70 ring-1 ring-inset ring-purple-400' : 'text-orange-900 placeholder-orange-900 placeholder:opacity-100 focus:placeholder:opacity-40'}`}
+
+                                            title={isOverridden
+
+                                              ? `✏️ 已手動修改為 ${Number(d.use || 0).toFixed(1)} T（上方排程原算 ${autoPlaceholder} T）｜清空數值即恢復自動計算`
+
+                                              : `自動推算 ${autoPlaceholder} T｜點擊可直接輸入該日使用量（如停機輸入 0）`}
+
+                                          />
+
+                                        </td>
+
+                                      );
+
+                                    })}
+
+                                  </tr>
+
+                                );
+
+                              })()}
 
 
 
@@ -6148,17 +6393,129 @@
 
                                     </tr>
 
-                                    <tr className="bg-orange-50/40">
+                                    {(() => {
 
-                                      <td className="sticky-col p-2 pl-4 text-left font-bold text-orange-700 border-b">預估使用量 (-)</td>
+                                      if (tank.isSharedPool) {
 
-                                      {displayDaysArr.map((i) => (
+                                        return (
 
-                                        <td key={i} className="p-1 border-b text-orange-600 font-bold">{tankDaysData[i] && tankDaysData[i].use > 0 ? Math.round(tankDaysData[i].use) : 0}</td>
+                                          <tr className="bg-orange-50/40">
 
-                                      ))}
+                                            <td className="sticky-col p-2 pl-4 text-left font-bold text-orange-700 border-b" title="此槽納入一廠共用池，單日耗用請直接於上方【共用原料池合計總量預估表 → 製程耗用原料總量 (-)】修改">
 
-                                    </tr>
+                                              預估使用量 (-)
+
+                                            </td>
+
+                                            {displayDaysArr.map((i) => (
+
+                                              <td key={i} className="p-1 border-b text-orange-600 font-bold" title="此槽納入一廠共用池，單日耗用請於上方共用原料池總表修改">
+
+                                                {tankDaysData[i] && tankDaysData[i].use > 0 ? Math.round(tankDaysData[i].use) : 0}
+
+                                              </td>
+
+                                            ))}
+
+                                          </tr>
+
+                                        );
+
+                                      }
+
+                                      const tankUseOverrideCount = displayDaysArr.filter(i => tankDaysData[i]?.isUseOverridden).length;
+
+                                      return (
+
+                                        <tr className="bg-orange-50/40">
+
+                                          <td className="sticky-col p-2 pl-4 text-left font-bold text-orange-700 border-b" title="可單日直接輸入數字修改（例如停機 1~2 天輸入 0）；清空即恢復上方產線自動推算">
+
+                                            <div className="flex items-center justify-between gap-1.5">
+
+                                              <span>
+
+                                                預估使用量 (-)
+
+                                                <span className="ml-1 text-[10px] text-orange-600 font-normal">✎可單日改</span>
+
+                                              </span>
+
+                                              {tankUseOverrideCount > 0 && (
+
+                                                <button
+
+                                                  type="button"
+
+                                                  onClick={() => handleResetMonthUseOverrides(activeMonthKey, tank.id)}
+
+                                                  className="px-1.5 py-0.5 rounded bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold shadow-sm cursor-pointer"
+
+                                                  title={`一鍵還原本月 ${tank.id} 所有手動修改之使用量，恢復由上方產線自動推算`}
+
+                                                >
+
+                                                  ↺ 還原({tankUseOverrideCount})
+
+                                                </button>
+
+                                              )}
+
+                                            </div>
+
+                                          </td>
+
+                                          {displayDaysArr.map((i) => {
+
+                                            const dRec = tankDaysData[i] || {};
+
+                                            const manualVal = manualGridData[activeMonthKey]?.[tank.id]?.[i]?.use ?? '';
+
+                                            const autoPlaceholder = dRec.autoUse > 0 ? String(Math.round(dRec.autoUse)) : '0';
+
+                                            const isOverridden = Boolean(dRec.isUseOverridden);
+
+                                            return (
+
+                                              <td key={i} className="p-0 border-b">
+
+                                                <input
+
+                                                  type="number"
+
+                                                  min="0"
+
+                                                  step="any"
+
+                                                  value={cleanNumStr(manualVal)}
+
+                                                  onFocus={e => e.target.select()}
+
+                                                  onChange={e => handleUsageOverrideChange(activeMonthKey, tank.id, i, e.target.value)}
+
+                                                  placeholder={autoPlaceholder}
+
+                                                  className={`table-input py-1 ${isOverridden ? 'text-purple-800 font-black bg-purple-100/70 ring-1 ring-inset ring-purple-400' : 'text-orange-600 font-bold placeholder-orange-600 placeholder:opacity-100 focus:placeholder:opacity-40'}`}
+
+                                                  title={isOverridden
+
+                                                    ? `✏️ 已手動修改為 ${Number(dRec.use || 0)} T（上方排程原算 ${Math.round((dRec.autoUse || 0) * 10) / 10} T）｜清空數值即恢復自動計算`
+
+                                                    : `自動推算 ${Math.round((dRec.autoUse || 0) * 10) / 10} T｜點擊可直接輸入該日使用量（如停機輸入 0）`}
+
+                                                />
+
+                                              </td>
+
+                                            );
+
+                                          })}
+
+                                        </tr>
+
+                                      );
+
+                                    })()}
 
                                   </>
 

@@ -3429,18 +3429,24 @@
     showToast('⚠️ 網路中斷，已自動切換至【離線作業模式】', 4000);
   });
 
+  let _lastLoadAt = 0;
+  let _lastOrdersSyncAt = 0;
+  let _lastStaticSyncAt = 0;
+
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && navigator.onLine) {
       autoSyncOfflineQueue();
+      if (Date.now() - _lastLoadAt > 30000) load(false);
     }
   });
 
   setInterval(() => {
-    if (navigator.onLine) autoSyncOfflineQueue();
-  }, 30000);
+    if (!document.hidden && navigator.onLine) autoSyncOfflineQueue();
+  }, 60000);
 
   // 雙模數據載入（GAS 模式 / Cloudflare Pages PWA API 連線 / 離線快取模式）
-  function load() {
+  function load(forceFull = false) {
+    _lastLoadAt = Date.now();
     loadTeamsConfig();
     if(IS_GAS) {
       document.getElementById('envBadge').innerText = "☁️ GAS 雲端連線中";
@@ -3482,40 +3488,50 @@
           render();
         });
 
-      // 2. 抓取試算表系統配置 (選單與 PIN 碼)
-      fetch(`${GAS_API_URL}?action=getConfig&_t=${Date.now()}`, { cache: "no-store" })
-        .then(res => res.json())
-        .then(cfg => {
-          if(cfg) {
-            applyDynamicDropdownOptions(cfg);
-            localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
-            if(cfg.QC_PIN) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.QC_PIN);
-            if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
-          }
-        })
-        .catch(err => {
-          console.warn("API 取得選單失敗，使用快取", err);
-          applyDynamicDropdownOptions(getLocalDynamicOptions());
-        });
+      const nowMs = Date.now();
+      const shouldSyncStatic = forceFull || (nowMs - _lastStaticSyncAt > 1800000); // 30 分鐘
+      const shouldSyncOrders = forceFull || (nowMs - _lastOrdersSyncAt > 300000);  // 5 分鐘
 
-      // 3. 從 Google Sheets 載入排程（供所有設備共享下拉選單）
-      loadOrdersFromCloud();
-
-      // 4. 抓取雲端員工名單
-      fetch(`${GAS_API_URL}?action=getEmployees&_t=${Date.now()}`, { cache: "no-store" })
-        .then(res => res.json())
-        .then(res => {
-          if (res && res.success && res.data) {
-            let empDict = {};
-            if (Array.isArray(res.data)) {
-              res.data.forEach(r => { if (r.emp_id) empDict[r.emp_id] = r.name; });
-            } else {
-              empDict = res.data;
+      // 2. 抓取試算表系統配置 (選單與 PIN 碼，每 30 分鐘或強制刷新時更新)
+      if (shouldSyncStatic) {
+        _lastStaticSyncAt = nowMs;
+        fetch(`${GAS_API_URL}?action=getConfig&_t=${nowMs}`, { cache: "no-store" })
+          .then(res => res.json())
+          .then(cfg => {
+            if(cfg) {
+              applyDynamicDropdownOptions(cfg);
+              localStorage.setItem('HS_QC_DYNAMIC_OPTIONS', JSON.stringify(cfg));
+              if(cfg.QC_PIN) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.QC_PIN);
+              if(cfg.pin) localStorage.setItem('HS_QC_ADMIN_PIN', cfg.pin);
             }
-            localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(empDict));
-          }
-        })
-        .catch(err => console.warn("API 取得員工名單失敗", err));
+          })
+          .catch(err => {
+            console.warn("API 取得選單失敗，使用快取", err);
+            applyDynamicDropdownOptions(getLocalDynamicOptions());
+          });
+
+        // 4. 抓取雲端員工名單 (每 30 分鐘或強制刷新時更新)
+        fetch(`${GAS_API_URL}?action=getEmployees&_t=${nowMs}`, { cache: "no-store" })
+          .then(res => res.json())
+          .then(res => {
+            if (res && res.success && res.data) {
+              let empDict = {};
+              if (Array.isArray(res.data)) {
+                res.data.forEach(r => { if (r.emp_id) empDict[r.emp_id] = r.name; });
+              } else {
+                empDict = res.data;
+              }
+              localStorage.setItem('HS_QC_EMP_MAP', JSON.stringify(empDict));
+            }
+          })
+          .catch(err => console.warn("API 取得員工名單失敗", err));
+      }
+
+      // 3. 從雲端載入排程（每 5 分鐘或強制刷新時更新，降低 D1 讀取量）
+      if (shouldSyncOrders) {
+        _lastOrdersSyncAt = nowMs;
+        loadOrdersFromCloud();
+      }
 
     } else {
       document.getElementById('envBadge').innerText = "💻 獨立 PWA 運作模式";
@@ -5377,20 +5393,20 @@
     setBarcodePlaceholder();
     renderT100Dropdown();
     checkAdminUnlockOnStartup();
-    load();
-    setInterval(load, 30000);
+    load(true);
+    setInterval(() => { if (!document.hidden && navigator.onLine) load(false); }, 60000);
     
     // 定時刷新等候時長動畫與 KPI
-    setInterval(render, 60000);
+    setInterval(() => { if (!document.hidden) render(); }, 60000);
 
     // 自動定時觸發雲端超時巡檢 (支援 Cloudflare D1 + Teams Webhook 推播)
     function autoCheckOverdueCloud() {
-      if (navigator.onLine) {
+      if (navigator.onLine && !document.hidden) {
         fetch('/api?action=checkOverdue').catch(e => console.warn('checkOverdue background error:', e));
       }
     }
     setTimeout(autoCheckOverdueCloud, 3000);
-    setInterval(autoCheckOverdueCloud, 300000);
+    setInterval(autoCheckOverdueCloud, 600000);
 
     // 註冊 Service Worker (強制檢查更新，保證每次載入最新版本)
     if ('serviceWorker' in navigator) {

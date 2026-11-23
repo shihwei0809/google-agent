@@ -74,8 +74,6 @@ export async function onRequest(context) {
 
     // --- Core QC Business Logic ---
     if (action === "getSamples") {
-      // 智慧自癒修復：若歷史紀錄中單號為 ESPM（進料單）但曾被沖回或誤寫為出貨者，自動校正回進料
-      await env.DB.prepare("UPDATE QC_Samples SET flowType = '進料' WHERE (barcode LIKE '%ESPM%' OR barcode LIKE '%espm%') AND flowType != '進料'").run().catch(()=>{});
       const { results } = await env.DB.prepare("SELECT * FROM QC_Samples ORDER BY createdAt DESC LIMIT 100").all();
       return new Response(JSON.stringify(results), { headers: h });
     }
@@ -358,11 +356,10 @@ export async function onRequest(context) {
     }
 
     if (action === "getOrders") {
-      await env.DB.prepare("CREATE TABLE IF NOT EXISTS T100_Orders (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_no TEXT, flowType TEXT, productName TEXT, tankNo TEXT, container TEXT, quantity TEXT, customer TEXT, grade TEXT, targetDate TEXT, date TEXT, time TEXT, note TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP)").run();
-      // 取得近 45 天排程，並按日期降序、時間升序排列
+      // 取得近 45 天排程，利用 idx_t100_date_time 索引避免全表掃描
       const { results } = await env.DB.prepare(`
         SELECT * FROM T100_Orders 
-        WHERE date >= date('now', '-45 days') OR createdAt >= datetime('now', '-45 days') 
+        WHERE date >= date('now', '-45 days')
         ORDER BY date DESC, time ASC, id DESC 
         LIMIT 800
       `).all();

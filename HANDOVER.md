@@ -1,5 +1,21 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-23 Cloudflare D1 每日讀取超量根因排查與瘦身優化)
+* **事件原因**：11/20–11/23 連續觸發 Cloudflare D1 每日 500 萬列（5M rows read）讀取上限警報。經 `wrangler d1 info` 與 `wrangler d1 insights` 實測，**90.4%** 流量集中於兩顆資料庫：
+  1. **`qc-db`（65.4%，24h 讀 327 萬列 / 22,829 次查詢）**：QC 前端 `index.html` 每 30 秒無條件輪詢（背景分頁未暫停），每次觸發 `getSamples`、`getOrders`、`getConfig`、`getEmployees` 四支 API；後端 `getSamples` 還夾帶全表 `UPDATE QC_Samples ... LIKE '%ESPM%'`，`getOrders` 的 `OR createdAt >= ...` 導致索引失效全表掃描。
+  2. **`weather-monitor-db`（25.0%，24h 僅 261 次卻讀 125 萬列）**：`temperature_logs.obs_time` 未建索引，每次 Cron 查重全表掃描 10,057 列（7 天耗 576 萬列）。
+* **已完成修復與上線**:
+  - **遠端 D1 補建索引（已透過 `EXPLAIN QUERY PLAN` 驗證命中）**：
+    - `weather-monitor-db`：建立 `idx_temp_obs_time (obs_time)`（Covering Index，0.36ms，單次讀取 10,057 列 → 1 列）並同步更新 `第二類_生產管理與API串接/溫度通報/3_Cloudflare_D1版/schema.sql`。
+    - `qc-db`：建立 `idx_qc_created`、`idx_qc_status`、`idx_t100_date_time`。
+  - **QC 後端瘦身 (`第二類_生產管理與API串接/QC-系統客製化電子化工廠/3_Cloudflare_D1版/functions/api/index.js`)**：移除 `getSamples` 內 GET 階段的全表 `UPDATE`；移除 `getOrders` 內的 `CREATE TABLE IF NOT EXISTS` 與 `OR createdAt >= ...`。
+  - **QC 前端降頻與背景暫停 (`index.html` / `sw.js`)**：輪詢改為 60 秒且 `document.hidden` 時完全暫停、切回頁籤 > 30 秒自動補抓；`getOrders` 降頻為 5 分鐘、`getConfig`/`getEmployees` 降頻為 30 分鐘、`checkOverdue` 改 10 分鐘且背景不打；Service Worker 升版 `qc-kanban-v3.3.8-offline` 並已部署至 `qc-samples.pages.dev`（`https://02cfe728.qc-samples.pages.dev`）。
+* **避坑指南**：
+  - 凡是 Cloudflare D1 資料表用於 `WHERE` / `ORDER BY` 查重或輪詢的欄位（尤其是定時寫入的 log 表如 `obs_time`、`createdAt`、`date`），務必於 `schema.sql` 補建 `INDEX`，並避免在 `WHERE` 混用跨欄位 `OR` 或於 GET 路由執行 `UPDATE`。
+  - 前端定時輪詢務必檢查 `!document.hidden`，靜態資料（員工/設定）與低頻資料（排程）應分頻快取，不可跟高頻狀態一起 30 秒狂刷。
+
+---
+
 ## 今日進度與交接事項 (2026-11-22 《Peace and Love》AI 電影級 19 鏡 MV 完片上架 YT/IG ＋ Google Flow 2026 新版全自動引擎與通用 MV 工廠上線)
 * **專案位置**：`blender_3d_demo`（專用專案 `peace_love_mv/` 與通用引擎 `mv_flow_runner.py`、`mv_builder.py`、`一鍵通用MV工廠.bat`、`Colab_T4_MV畫質超分升級.ipynb`）
 * **《和平與愛 Peace and Love》完整 19 鏡 MV 製作與雙平台發布**:

@@ -25,6 +25,7 @@ CREATE TABLE temperature_logs (
     obs_time TEXT NOT NULL,
     status TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_temp_obs_time ON temperature_logs (obs_time);
 
 DROP TABLE IF EXISTS alert_logs;
 CREATE TABLE alert_logs (
