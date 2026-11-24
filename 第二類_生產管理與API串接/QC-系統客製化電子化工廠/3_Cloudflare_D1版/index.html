@@ -1488,8 +1488,12 @@
 
   let allData = [];
   const IS_GAS = (typeof google !== 'undefined' && google.script && google.script.run);
-  const DEFAULT_GAS_API_URL = '/api';
+  const IS_LOCAL_PRINT_PROXY = (location.protocol === 'http:' && (parseInt(location.port, 10) >= 8099 && parseInt(location.port, 10) <= 8150));
+  const DEFAULT_GAS_API_URL = IS_LOCAL_PRINT_PROXY ? 'https://qc-samples.pages.dev/api' : '/api';
   let GAS_API_URL = localStorage.getItem('HS_QC_GAS_API_URL') || DEFAULT_GAS_API_URL;
+  if (IS_LOCAL_PRINT_PROXY && GAS_API_URL === '/api') {
+    GAS_API_URL = 'https://qc-samples.pages.dev/api';
+  }
 
   // 優先讀取曾匯入過的排程快取
   const cachedOrders = localStorage.getItem('HS_QC_T100_ORDERS');
@@ -4627,16 +4631,21 @@
       btn.disabled = true;
     }
 
+    const payloadObj = {
+      barcode: targetData.barcode,
+      productName: targetData.productName,
+      tspl: tsplCmd
+    };
+    const proxyBase = IS_LOCAL_PRINT_PROXY
+      ? ''
+      : (proxyHost.startsWith('http') ? proxyHost.replace(/\/+$/, '') : `http://${proxyHost}:8099`);
+
     try {
-      const url = proxyHost.startsWith('http') ? `${proxyHost}/print` : `http://${proxyHost}:8099/print`;
+      const url = `${proxyBase}/print`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          barcode: targetData.barcode,
-          productName: targetData.productName,
-          tspl: tsplCmd
-        })
+        body: JSON.stringify(payloadObj)
       });
       const data = await res.json();
       if (data.success) {
@@ -4647,7 +4656,31 @@
       }
     } catch (err) {
       console.warn("無法連線至列印代理服務：", err);
-      alert(`⚠️ 連線失敗！無法連線至電腦代理服務 [${proxyHost}:8099]\n\n請確認檢驗室電腦已雙擊開啟「一鍵啟動TSC標籤列印服務.bat」！`);
+      const isHttpsToHttp = (location.protocol === 'https:' && proxyBase.startsWith('http://'));
+      if (isHttpsToHttp) {
+        const useForm = confirm(
+          `⚠️ iOS / 瀏覽器基於 HTTPS 安全機制，封鎖了背景連線至內網 HTTP [${proxyBase}]！\n\n` +
+          `✅ 按「確定」立即透過「純內網直連跳轉」送出列印\n` +
+          `💡 或直接將手機網址改開：${proxyBase}/`
+        );
+        if (useForm) {
+          const f = document.createElement('form');
+          f.method = 'POST';
+          f.action = `${proxyBase}/quick-print`;
+          f.target = '_blank';
+          const inp = document.createElement('input');
+          inp.type = 'hidden';
+          inp.name = 'payload';
+          inp.value = JSON.stringify(payloadObj);
+          f.appendChild(inp);
+          document.body.appendChild(f);
+          f.submit();
+          document.body.removeChild(f);
+          closePrintModal();
+        }
+      } else {
+        alert(`⚠️ 連線失敗！無法連線至電腦代理服務 [${proxyBase || location.origin}]\n\n請確認檢驗室電腦已雙擊開啟「一鍵啟動TSC標籤列印服務.bat」，且手機與電腦網段互通！`);
+      }
     } finally {
       if (btn) {
         btn.innerText = '🚀 TSC 90x60 一鍵直印';
@@ -5401,8 +5434,8 @@
 
     // 自動定時觸發雲端超時巡檢 (支援 Cloudflare D1 + Teams Webhook 推播)
     function autoCheckOverdueCloud() {
-      if (navigator.onLine && !document.hidden) {
-        fetch('/api?action=checkOverdue').catch(e => console.warn('checkOverdue background error:', e));
+      if (navigator.onLine && !document.hidden && GAS_API_URL) {
+        fetch(`${GAS_API_URL}?action=checkOverdue`).catch(e => console.warn('checkOverdue background error:', e));
       }
     }
     setTimeout(autoCheckOverdueCloud, 3000);
