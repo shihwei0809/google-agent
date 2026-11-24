@@ -1,5 +1,4 @@
-$env:CLOUDFLARE_API_TOKEN = $null
-$env:CLOUDFLARE_ACCOUNT_ID = $null
+$env:NODE_OPTIONS = "--use-system-ca"
 $env:NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
 # Fix for Node 24 Windows libuv assertion crash: prefer stable Node v22 if available
@@ -11,28 +10,24 @@ if (Test-Path "$node22Dir\node.exe") {
 $ErrorActionPreference = "Stop"
 Write-Host "Deploying QC System to Cloudflare Pages + D1..." -ForegroundColor Cyan
 
-if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
-    Write-Host "Error: Node.js (npx) not found" -ForegroundColor Red
-    exit 1
+$src = $PSScriptRoot
+$stage = Join-Path $env:TEMP "qc_cf_stage"
+if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+New-Item -ItemType Directory -Path $stage -Force | Out-Null
+
+Copy-Item (Join-Path $src "index.html") $stage
+if (Test-Path (Join-Path $src "admin.html")) { Copy-Item (Join-Path $src "admin.html") $stage }
+if (Test-Path (Join-Path $src "manifest.json")) { Copy-Item (Join-Path $src "manifest.json") $stage }
+if (Test-Path (Join-Path $src "sw.js")) { Copy-Item (Join-Path $src "sw.js") $stage }
+if (Test-Path (Join-Path $src "xlsx.full.min.js")) { Copy-Item (Join-Path $src "xlsx.full.min.js") $stage }
+if (Test-Path (Join-Path $src "icons")) { Copy-Item (Join-Path $src "icons") $stage -Recurse }
+if (Test-Path (Join-Path $src "functions")) { Copy-Item (Join-Path $src "functions") $stage -Recurse }
+if (Test-Path (Join-Path $src "wrangler.toml")) { Copy-Item (Join-Path $src "wrangler.toml") $stage }
+
+Push-Location $stage
+try {
+    wrangler pages deploy ./ --project-name="qc-samples" --branch="main" --commit-dirty=true
+} finally {
+    Pop-Location
 }
-
-$d1_list = npx wrangler d1 list
-if ($d1_list -match "qc-db") {
-    Write-Host "D1 Database (qc-db) already exists." -ForegroundColor Green
-} else {
-    Write-Host "Creating new D1 Database (qc-db)..." -ForegroundColor Yellow
-    npx wrangler d1 create qc-db
-}
-
-# The ID is a4cbfe74-f067-462b-b70a-be242f9fafb9
-$db_id = "a4cbfe74-f067-462b-b70a-be242f9fafb9"
-Write-Host "Found Database ID: $db_id" -ForegroundColor Green
-
-$toml_path = "wrangler.toml"
-$toml_content = Get-Content $toml_path -Raw
-$toml_content = $toml_content -replace 'database_id\s*=\s*".*"', ('database_id = "' + $db_id + '"')
-Set-Content $toml_path -Value $toml_content -Encoding UTF8
-
-# npx wrangler d1 execute qc-db --remote --file=schema.sql
-npx wrangler pages deploy ./ --project-name="qc-samples" --branch="main" --commit-dirty=true
 Write-Host "Deployment completed successfully!" -ForegroundColor Cyan
