@@ -1,5 +1,20 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-24 鴻勝化學 QC 看板 v3.3.8 顯示修正與 TSC 純內網 HTTP 行動列印代理升級)
+* **專案位置**：`第二類_生產管理與API串接\QC-系統客製化電子化工廠\3_Cloudflare_D1版`（線上網址：`https://qc-samples.pages.dev`）
+* **已完成修復與升級**:
+  1. **修正 v3.3.8 畫面版本標籤未同步顯示**：前次僅升級 `sw.js` 快取名與後端瘦身邏輯，遺漏 `index.html` 頂部徽章、頁尾與提示文字仍顯示 `v3.3.7`；已全面對齊為 `v3.3.8` 並修復 `setup_env.ps1` / `一鍵部署至Cloudflare_D1.bat` 誤清空 `CLOUDFLARE_API_TOKEN` 及中文路徑部署問題（改走 `%TEMP%\qc_cf_stage` 與 `NODE_OPTIONS=--use-system-ca`）。
+  2. **根治 iOS 手機代理列印失敗（方案 B：純內網 HTTP 代理伺服器）**：
+     - **問題根因**：手機開啟 `https://qc-samples.pages.dev` 後 `fetch('http://192.168.11.199:8099/print')` 會被 iOS Mixed Content 安全機制直接封鎖；另原版 `tsc_print_proxy.ps1` 單次 `Read()` 在 Wi-Fi 下易漏讀 TCP 分封包內文，且缺少 `Access-Control-Allow-Private-Network: true`。
+     - **升級 `tsc_print_proxy.ps1`**：內建純內網 HTTP 靜態網頁伺服器（手機直接開 `http://192.168.11.199:8099/` 即可 HTTP 同源直印，不經外網、免開外網權限）、依 `Content-Length` 完整讀取封包、支援 `POST /quick-print` 跨頁表單直印救援、自動列出所有本機 IPv4 與 Port 8099 佔用自動順延切換（符合 Rule 6）。
+     - **升級 `index.html`**：偵測自內網代理 (`IS_LOCAL_PRINT_PROXY`) 開啟時，API 自動指向 `https://qc-samples.pages.dev/api`、直印自動走同源 `/print` 並**免再彈窗詢問代理 IP**；若從 HTTPS 頁面誤按直印，亦提供一鍵跨頁表單救援與預設 IP `192.168.11.199`。
+     - **Service Worker 升版與部署**：更新至 `qc-kanban-v3.3.8.3-offline` 並完成 Cloudflare Pages 線上部署。
+* **避坑指南**：
+  - 部署 Cloudflare Pages 的 `.ps1`/`.bat` 腳本不可清空 `CLOUDFLARE_API_TOKEN`，並須加 `NODE_OPTIONS=--use-system-ca` 與純英文暫存路徑（`%TEMP%\...`）以避開公司 SSL 代理與中文目錄 wrangler 崩潰。
+  - 從 `https://` 頁面呼叫區網 `http://192.168.x.x` 會被 iOS/Android Mixed Content 阻擋；純內網列印應讓手機改開代理伺服器的 `http://<PC-IP>:8099/` 同源頁。
+
+---
+
 ## 今日進度與交接事項 (2026-11-23 Cloudflare D1 每日讀取超量根因排查與瘦身優化)
 * **事件原因**：11/20–11/23 連續觸發 Cloudflare D1 每日 500 萬列（5M rows read）讀取上限警報。經 `wrangler d1 info` 與 `wrangler d1 insights` 實測，**90.4%** 流量集中於兩顆資料庫：
   1. **`qc-db`（65.4%，24h 讀 327 萬列 / 22,829 次查詢）**：QC 前端 `index.html` 每 30 秒無條件輪詢（背景分頁未暫停），每次觸發 `getSamples`、`getOrders`、`getConfig`、`getEmployees` 四支 API；後端 `getSamples` 還夾帶全表 `UPDATE QC_Samples ... LIKE '%ESPM%'`，`getOrders` 的 `OR createdAt >= ...` 導致索引失效全表掃描。

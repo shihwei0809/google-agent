@@ -4557,14 +4557,21 @@
     }
 
     let proxyHost = (document.getElementById('tscProxyIpInput')?.value || '').trim();
-    if (!proxyHost) {
-      proxyHost = localStorage.getItem('HS_QC_TSC_PROXY_IP') || '';
-    }
-    if (!proxyHost) {
-      proxyHost = prompt("請輸入檢驗室執行列印代理服務的電腦 IP 位址（例如 192.168.3.100 或 localhost）：", "localhost");
-      if (!proxyHost) return;
-      document.getElementById('tscProxyIpInput').value = proxyHost;
-      localStorage.setItem('HS_QC_TSC_PROXY_IP', proxyHost);
+    if (IS_LOCAL_PRINT_PROXY) {
+      proxyHost = location.host;
+      const ipInp = document.getElementById('tscProxyIpInput');
+      if (ipInp && !ipInp.value.trim()) ipInp.value = location.hostname;
+    } else {
+      if (!proxyHost) {
+        proxyHost = localStorage.getItem('HS_QC_TSC_PROXY_IP') || '';
+      }
+      if (!proxyHost) {
+        proxyHost = prompt("請輸入檢驗室執行列印代理服務的電腦 IP 位址（例如 192.168.11.199）：", "192.168.11.199");
+        if (!proxyHost) return;
+        const ipInp = document.getElementById('tscProxyIpInput');
+        if (ipInp) ipInp.value = proxyHost;
+        localStorage.setItem('HS_QC_TSC_PROXY_IP', proxyHost);
+      }
     }
 
     const wQty = parseInt(document.getElementById('printQtyWaterGC').value || '1', 10);
