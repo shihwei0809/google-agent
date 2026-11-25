@@ -13,7 +13,8 @@
      - 核對清單（`showChecklistCard`）與獨立備註／警語（`showDiversionCard`）拆分為兩張獨立卡片，互不連動；兩者標題（`checklistTitle`、`diversionTitle`）皆可於後台自由修改，後台編輯器標題與開關文字亦即時同步。
   5. **後台登入安全性修正**：徹底移除登入視窗密碼提示（`2027`）與預填值，每次開啟清空並聚焦。
   6. **台灣時間 (UTC+8) 定時自動切換滿意度調查**：後台可設定活動結束日期時間（強制 `+08:00` 解析 + 後端回傳 `serverTimeMs` 校時 + `Asia/Taipei` 時間戳），時間一到前台自動切為滿意度調查（含每 15 秒即時檢查），`sw.js` 升版至 `hr-checkin-pwa-v10`。
-  7. **全域 AI 規則升級 (`my-ai-brain`)**：已將 PWA「稍後」關閉鈕、SW 放行 `/api/`、D1 單列原子寫入 + 20/50 人壓測、以及 Cloudflare + D1 強制台灣時間 (UTC+8) 鐵律寫入 `C:\Users\C606\.ai\INSTRUCTIONS.md` 並推送（`499afb3`、`6f4ff2a`）。
+  7. **全域 AI 規則升級 (`my-ai-brain`)**：已將 PWA「稍後」關閉鈕、SW 放行 `/api/`、D1 單列原子寫入 + 20/50 人壓測、Cloudflare + D1 強制台灣時間 (UTC+8) 鐵律、全系統右下角版次＋`製作人 shihwei0809` 署名規範、以及第 10 節改為 Google `/v1beta/models` 動態查詢可用模型（移除過期固定版號）寫入 `C:\Users\C606\.ai\INSTRUCTIONS.md` 並推送（`5673a94`）。
+  8. **雲端狀態標示、版次與署名 (`v2.1.0`)**：簽到系統後台標頭改顯示 `☁️ Cloudflare D1 雲端正式版（跨裝置即時同步）` 與 `v2.1.0` 徽章，前後台右下角加上 `v2.1.0 ｜ 製作人 shihwei0809`，`sw.js` 升版至 `hr-checkin-pwa-v11` 並已重新部署上線。
 * **避坑指南**：
   - Cloudflare Workers / Pages Functions 預設為 UTC 時區，所有 D1 專案時間戳與定時切換一律強制使用 `Asia/Taipei` / `+08:00` 與 `serverTimeMs` 校時。
   - 多人併發寫入（如現場同時報到）嚴禁整表 `DELETE + INSERT` 覆蓋，務必走單列原子 SQL 並在 SQL 內配號。
