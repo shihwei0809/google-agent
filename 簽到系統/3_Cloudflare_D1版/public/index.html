@@ -1,0 +1,3433 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>2027 家庭日活動指南・數位簽到系統</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --hero-bg: #114b42;
+      --hero-top: #0d3b34;
+      --primary: #177265;
+      --primary-hover: #11584e;
+      --primary-light: #edf7f5;
+      --primary-border: #c6e6e0;
+      --accent-orange: #d97706;
+      --accent-orange-hover: #b45309;
+      --bg-page: #f5f3ec;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-sub: #475569;
+      --text-muted: #64748b;
+      --border: #e5e7eb;
+      --warn-bg: #fffbeb;
+      --warn-border: #f59e0b;
+      --warn-text: #92400e;
+      --danger: #dc2626;
+      --success: #15803d;
+      --success-bg: #f0fdf4;
+      --success-border: #bbf7d0;
+      --radius-xl: 20px;
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --shadow-card: 0 8px 24px -8px rgba(15, 23, 42, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-main);
+      min-height: 100vh;
+      line-height: 1.55;
+      padding-bottom: 92px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Live Status Bar */
+    .status-bar {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--hero-top);
+      color: #e2f1ee;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .pulse-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #34d399;
+      box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.25);
+      flex-shrink: 0;
+    }
+    .status-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+    .status-link {
+      background: none;
+      border: none;
+      color: #fcd34d;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: inherit;
+    }
+    .admin-trigger {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .admin-trigger:hover { background: rgba(255,255,255,0.22); }
+
+    /* Hero Section */
+    .hero-wrap {
+      background: var(--hero-bg);
+      color: #fff;
+      padding: 34px 16px 56px;
+      border-radius: 0 0 32px 32px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+    .hero-wrap::before, .hero-wrap::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.06);
+      pointer-events: none;
+    }
+    .hero-wrap::before { width: 170px; height: 170px; left: -45px; top: -15px; }
+    .hero-wrap::after { width: 220px; height: 220px; right: -55px; top: -25px; }
+
+    .hero-inner {
+      max-width: 680px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 2;
+    }
+    .hero-company {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      opacity: 0.9;
+      margin-bottom: 6px;
+    }
+    .hero-title {
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+    .hero-tagline {
+      font-size: 14.5px;
+      color: #a7f3d0;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      margin-bottom: 24px;
+    }
+
+    /* Floating Event Info Card inside Hero */
+    .hero-info-card {
+      background: #fff;
+      color: var(--text-main);
+      border-radius: 18px;
+      padding: 20px 22px;
+      display: grid;
+      grid-template-columns: 1fr 1.45fr;
+      gap: 18px;
+      text-align: left;
+      box-shadow: 0 14px 32px -10px rgba(0, 0, 0, 0.28);
+    }
+    .hero-info-left {
+      border-right: 1px solid #e5e7eb;
+      padding-right: 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .info-kicker {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 4px;
+    }
+    .info-date {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+    .info-time {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-orange);
+      margin-top: 3px;
+    }
+    .info-place {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+    .info-addr {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin: 2px 0 10px;
+    }
+
+    /* Main Column */
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Safety Alert Box overlapping Hero */
+    .safety-card {
+      margin-top: -26px;
+      position: relative;
+      z-index: 5;
+      background: var(--warn-bg);
+      border: 1.5px solid #fcd34d;
+      border-radius: 16px;
+      padding: 16px 18px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      box-shadow: var(--shadow-card);
+    }
+    .safety-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: #f59e0b;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .safety-title {
+      font-size: 15.5px;
+      font-weight: 900;
+      color: var(--warn-text);
+      margin-bottom: 3px;
+    }
+    .safety-body {
+      font-size: 13.5px;
+      color: #78350f;
+      font-weight: 500;
+    }
+    .safety-highlight {
+      color: var(--danger);
+      font-weight: 900;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+    .safety-note {
+      font-size: 12px;
+      color: #b45309;
+      margin-top: 4px;
+    }
+
+    /* General Section Card */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid #eceae2;
+      border-radius: var(--radius-xl);
+      padding: 22px;
+      box-shadow: var(--shadow-card);
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card-head-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 19px;
+      flex-shrink: 0;
+    }
+    .card-icon.orange { background: #d97706; }
+    .card-title { font-size: 18px; font-weight: 900; color: var(--text-main); }
+    .card-sub { font-size: 12.5px; color: var(--text-muted); }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 11px;
+      border-radius: 999px;
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      white-space: nowrap;
+    }
+    .pill-warn { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+    .pill-success { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
+    .pill-gray { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14.5px;
+      padding: 11px 16px;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      font-family: inherit;
+      text-decoration: none;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px -2px rgba(23, 114, 101, 0.32);
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-orange {
+      background: var(--accent-orange);
+      color: #fff;
+      box-shadow: 0 4px 12px -2px rgba(217, 119, 6, 0.32);
+    }
+    .btn-orange:hover { background: var(--accent-orange-hover); }
+    .btn-outline {
+      background: #fff;
+      color: var(--text-main);
+      border: 1.5px solid #cbd5e1;
+    }
+    .btn-outline:hover { background: #f8fafc; }
+    .btn-soft {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+    }
+    .btn-danger-soft {
+      background: #fef2f2;
+      color: var(--danger);
+      border: 1px solid #fecaca;
+    }
+    .btn-sm { padding: 6px 12px; font-size: 12.5px; border-radius: 9px; }
+    .btn-full { width: 100%; padding: 13px 18px; font-size: 15.5px; }
+
+    /* Form Inputs */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+    }
+    .input, .select, .textarea {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1.5px solid #d1d5db;
+      border-radius: 11px;
+      font-size: 14.5px;
+      font-family: inherit;
+      color: var(--text-main);
+      background: #f9fafb;
+      transition: all 0.15s;
+    }
+    .input:focus, .select:focus, .textarea:focus {
+      outline: none;
+      background: #fff;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(23, 114, 101, 0.14);
+    }
+
+    /* Quick Demo Chips */
+    .demo-row {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed #e2e8f0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    .chip {
+      background: var(--primary-light);
+      color: var(--primary);
+      border: 1px solid var(--primary-border);
+      border-radius: 999px;
+      padding: 5px 11px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .chip:hover { background: var(--primary); color: #fff; }
+
+    /* Step 2: Confirm & Dependents */
+    .profile-box {
+      background: var(--primary-light);
+      border: 1.5px solid var(--primary-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .dep-list { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+    .dep-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .dep-item.checked { border-color: var(--primary); background: var(--primary-light); }
+    .dep-left { display: flex; align-items: center; gap: 11px; }
+    .dep-checkbox { width: 20px; height: 20px; accent-color: var(--primary); }
+
+    .extra-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 14px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+    .stepper { display: inline-flex; align-items: center; gap: 10px; }
+    .stepper button {
+      width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid #cbd5e1;
+      background: #fff; font-size: 17px; font-weight: 800; cursor: pointer;
+    }
+    .stepper span { min-width: 22px; text-align: center; font-weight: 900; font-size: 16px; }
+
+    .summary-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 16px;
+      border-radius: 12px;
+      background: var(--hero-bg);
+      color: #fff;
+      margin-bottom: 14px;
+    }
+
+    /* Step 3: Digital QR Pass */
+    .pass-card {
+      background: linear-gradient(180deg, #edf7f5 0%, #ffffff 42%);
+      border: 2px solid var(--primary-border);
+      border-radius: 18px;
+      padding: 22px 18px;
+      text-align: center;
+    }
+    .qr-box {
+      background: #fff;
+      border: 2px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 14px;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 14px auto;
+      box-shadow: 0 6px 16px -6px rgba(0,0,0,0.1);
+    }
+    .pass-big-count {
+      background: var(--hero-bg);
+      color: #fff;
+      border-radius: 14px;
+      padding: 12px 16px;
+      max-width: 340px;
+      margin: 0 auto 14px;
+    }
+    .pass-detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      text-align: left;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+
+    /* Schedule Timeline (HR Design) */
+    .schedule-list { display: flex; flex-direction: column; gap: 10px; }
+    .schedule-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      border-radius: 13px;
+      background: #f1f7f5;
+      border: 1px solid #dfece8;
+    }
+    .schedule-time {
+      background: var(--primary);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 9px;
+      min-width: 104px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .schedule-title { font-size: 15px; font-weight: 800; color: var(--text-main); }
+    .schedule-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
+
+    /* Checklist Card (HR Design) */
+    .guide-box {
+      background: #f1f7f5;
+      border: 1px solid #d5e8e2;
+      border-radius: 13px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: var(--text-sub);
+      margin-bottom: 14px;
+    }
+    .guide-box ul { padding-left: 18px; margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .check-list { display: flex; flex-direction: column; gap: 9px; }
+    .check-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .check-row.done { background: #f1f7f5; border-color: var(--primary-border); }
+    .check-row.done .check-text { text-decoration: line-through; color: var(--text-muted); }
+    .check-left { display: flex; align-items: center; gap: 11px; }
+    .check-left input { width: 19px; height: 19px; accent-color: var(--primary); cursor: pointer; }
+    .check-text { font-size: 14px; font-weight: 700; color: var(--text-main); }
+    .tag-mini {
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: var(--primary);
+      border: 1px solid #dbe7e4;
+      white-space: nowrap;
+    }
+
+    /* Eligibility & Fee Card (HR Design) */
+    .fee-card {
+      background: #fdfaf0;
+      border: 1.5px solid #f0dfb4;
+      border-radius: var(--radius-xl);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-card);
+    }
+    .fee-inner {
+      background: #fff;
+      border: 1px solid #f0e4c3;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: var(--text-sub);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    /* Sticky Bottom Action Bar (HR Design) */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 45;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid #e5e7eb;
+      padding: 12px 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .bottom-bar-inner {
+      max-width: 520px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Alerts & Links */
+    .alert-err {
+      background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+      border-radius: 10px; padding: 10px 13px; font-size: 13px; font-weight: 600; margin-top: 10px;
+    }
+    .alert-warn {
+      background: #fffbeb; border: 1px solid #fde68a; color: #92400e;
+      border-radius: 10px; padding: 10px 13px; font-size: 13px; font-weight: 600; margin-bottom: 12px;
+    }
+    .switch-link {
+      background: none; border: none; color: var(--primary); font-weight: 700; font-size: 13px;
+      cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-family: inherit;
+    }
+
+    /* Modal & Admin Panel */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); backdrop-filter: blur(4px);
+      z-index: 60; display: none; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 20px; width: 100%; max-width: 420px; padding: 22px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .admin-overlay {
+      position: fixed; inset: 0; background: #f1f5f9; z-index: 70;
+      display: none; flex-direction: column; overflow-y: auto;
+    }
+    .admin-overlay.open { display: flex; }
+    .admin-header {
+      position: sticky; top: 0; z-index: 10; background: #0f172a; color: #fff;
+      padding: 14px 20px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .admin-body { max-width: 1120px; width: 100%; margin: 0 auto; padding: 20px 16px 60px; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .tab-btn {
+      padding: 9px 15px; border-radius: 10px; border: 1px solid #cbd5e1;
+      background: #fff; color: var(--text-sub); font-weight: 700; font-size: 13.5px; cursor: pointer; font-family: inherit;
+    }
+    .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .kpi-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 15px 17px; }
+    .kpi-label { font-size: 12.5px; color: var(--text-sub); font-weight: 700; }
+    .kpi-val { font-size: 27px; font-weight: 900; margin-top: 3px; }
+    .kpi-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .dept-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(195px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .dept-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; }
+    .progress-track { height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; background: var(--primary); border-radius: 999px; transition: width 0.3s; }
+    .table-wrap { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th, td { padding: 10px 13px; text-align: left; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+    th { background: #f8fafc; font-weight: 700; color: var(--text-sub); }
+    .swatch-list { display: flex; gap: 10px; flex-wrap: wrap; }
+    .swatch {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 13px; border-radius: 11px;
+      border: 2px solid #e2e8f0; background: #fff; cursor: pointer; font-weight: 700; font-size: 13px; font-family: inherit;
+    }
+    .swatch.active { border-color: #0f172a; background: #f8fafc; }
+    .swatch-dot { width: 16px; height: 16px; border-radius: 50%; }
+
+    .toast {
+      position: fixed; bottom: 82px; left: 50%; transform: translateX(-50%) translateY(16px);
+      background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 999px;
+      font-size: 13.5px; font-weight: 700; z-index: 100; opacity: 0; pointer-events: none; transition: all 0.22s;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .hidden { display: none !important; }
+
+    /* Survey Stars & Mode Switcher */
+    .star-group { display: flex; gap: 6px; margin-top: 4px; }
+    .star-btn {
+      background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 10px;
+      padding: 6px 11px; font-size: 16px; cursor: pointer; transition: all 0.15s;
+      color: #94a3b8; font-weight: 800; font-family: inherit;
+    }
+    .star-btn.active { background: #fef3c7; border-color: #f59e0b; color: #d97706; }
+    .fav-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .fav-chip {
+      padding: 6px 12px; border-radius: 999px; border: 1.5px solid #cbd5e1;
+      background: #fff; font-size: 13px; font-weight: 700; color: var(--text-sub);
+      cursor: pointer; transition: all 0.15s; font-family: inherit;
+    }
+    .fav-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .mode-switch-box {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;
+    }
+    .mode-option {
+      padding: 14px; border-radius: 14px; border: 2px solid #cbd5e1; background: #fff;
+      cursor: pointer; text-align: left; font-family: inherit; transition: all 0.15s;
+    }
+    .mode-option.active-run { border-color: #15803d; background: #f0fdf4; }
+    .mode-option.active-end { border-color: #d97706; background: #fffbeb; }
+    .recap-toggle {
+      width: 100%; background: #fff; border: 1.5px dashed #cbd5e1; border-radius: 14px;
+      padding: 12px 16px; font-size: 14px; font-weight: 800; color: var(--text-sub);
+      cursor: pointer; font-family: inherit;
+    }
+    .recap-toggle:hover { border-color: var(--primary); color: var(--primary); }
+
+    @media (max-width: 620px) {
+      .hero-info-card { grid-template-columns: 1fr; gap: 14px; }
+      .hero-info-left { border-right: none; border-bottom: 1px solid #e5e7eb; padding-right: 0; padding-bottom: 12px; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .hero-title { font-size: 25px; }
+      .schedule-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+    }
+  </style>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0f766e" />
+  <script src="./pwa_offline_sync_template.js"></script>
+</head>
+<body>
+  <!-- PWA 智慧安裝橫幅 -->
+  <div id="pwa-install-banner" style="display:none;background:#0f766e;color:#fff;padding:10px 16px;font-size:13px;font-weight:700;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;">
+    <span>📱 安裝「企業活動簽到」到桌面，支援離線快速報到</span>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button id="pwa-install-btn" style="background:#fff;color:#0f766e;border:none;border-radius:8px;padding:5px 12px;font-weight:800;cursor:pointer;">立即安裝</button>
+      <button id="pwa-dismiss-btn" style="background:rgba(255,255,255,0.16);color:#fff;border:1px solid rgba(255,255,255,0.35);border-radius:8px;padding:5px 12px;font-weight:700;cursor:pointer;">稍後</button>
+    </div>
+  </div>
+  <!-- PWA 新版本更新橫幅 -->
+  <div id="updateBanner" onclick="window.location.reload(true)" style="display:none;background:#16a34a;color:#fff;padding:10px 16px;font-size:13px;font-weight:800;text-align:center;cursor:pointer;">
+    🎉 系統已發布新版本！點擊此處立即更新 🔄
+  </div>
+  <!-- Top Status Bar -->
+  <header class="status-bar">
+    <div class="status-left">
+      <span class="pulse-dot"></span>
+      <span id="statusBannerText">09:30 集合報到進行中</span>
+    </div>
+    <div class="status-right">
+      <button class="status-link" onclick="openHrModal()">📞 <span id="topServiceBtnText">HR 服務台專線</span></button>
+      <button class="admin-trigger" onclick="openAdminLogin()">🔒 管理後台</button>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-wrap">
+    <div class="hero-inner">
+      <div class="hero-company" id="heroCompany">鴻勝化學科技股份有限公司</div>
+      <h1 class="hero-title" id="heroTitle">2027 家庭日活動指南</h1>
+      <div class="hero-tagline" id="heroTagline">一起出遊・親子同樂・共享美好時光</div>
+
+      <div class="hero-info-card" id="heroInfoActive">
+        <div class="hero-info-left">
+          <div class="info-kicker">📅 活動日期</div>
+          <div class="info-date" id="heroDate">2027/01/16 (六)</div>
+          <div class="info-time" id="heroTime">09:30 準時集合報到</div>
+        </div>
+        <div>
+          <div class="info-kicker" style="color: #dc2626;">📍 活動地點</div>
+          <div class="info-place" id="heroPlace">竹子坑－文山休閒農場</div>
+          <div class="info-addr" id="heroAddr">臺中市大里區健民里健東路123號</div>
+          <a id="heroMapBtn" href="https://www.google.com/maps/search/?api=1&query=臺中市大里區健民里健東路123號" target="_blank" rel="noopener" class="btn btn-primary btn-full" style="padding: 9px 14px; font-size: 13.5px;">
+            🧭 開啟 Google Maps 導航
+          </a>
+        </div>
+      </div>
+
+      <!-- 活動結束後 Hero 資訊卡（獨立於活動開始） -->
+      <div class="hero-info-card hidden" id="heroInfoEnded" style="grid-template-columns: 1fr;">
+        <div>
+          <div class="info-kicker" style="color: #b45309;">📝 滿意度問卷開放時間</div>
+          <div class="info-date" id="heroSurveyDeadline" style="font-size: 18px;">即日起至 2027/01/24 (日) 23:59 止</div>
+          <div style="font-size: 13.5px; color: var(--text-sub); margin-top: 6px; white-space: pre-line;" id="heroSurveyNotice">
+            感謝各位同仁與眷屬熱情參與本次家庭日！請花 1 分鐘填寫寶貴回饋，讓我們下次活動辦得更精彩。
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="container">
+    <!-- ==================== 活動結束後：滿意度調查模式區塊 ==================== -->
+    <section class="card hidden" id="surveySection" style="margin-top: -26px; position: relative; z-index: 6; border: 2px solid #fcd34d;">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-icon orange">📝</div>
+          <div>
+            <div class="card-title" id="surveyCardTitle">活動圓滿結束・滿意度調查</div>
+            <div class="card-sub" id="surveyCardSub">感謝各位同仁與眷屬熱情參與！花 1 分鐘回饋讓我們下次辦得更好</div>
+          </div>
+        </div>
+        <span class="pill pill-warn" id="surveyCountPill">已收集 0 份</span>
+      </div>
+
+      <!-- 若後台有填外部問卷連結 (如 Google 表單) 顯示快速入口 -->
+      <div id="externalSurveyBox" class="hidden" style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div>
+          <div style="font-weight:900;color:#92400e;font-size:14.5px;">🔗 官方外部滿意度問卷已開放</div>
+          <div style="font-size:12.5px;color:#b45309;">您可直接前往外部表單填寫，或於下方填寫快速回饋</div>
+        </div>
+        <a id="externalSurveyLink" href="#" target="_blank" rel="noopener" class="btn btn-orange btn-sm">前往外部問卷 →</a>
+      </div>
+
+      <!-- Step S1: 工號驗證 (防重複) -->
+      <div id="surveyStepVerify">
+        <div style="background:var(--primary-light);border:1px solid var(--primary-border);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--text-sub);margin-bottom:14px;">
+          🔒 <strong>個資保護</strong>：僅核對工號確認參加資格與避免重複填答，問卷內容將以匿名統計呈現。
+        </div>
+        <form onsubmit="handleSurveyVerify(event)">
+          <div class="grid-2">
+            <div class="field">
+              <label>輸入員工編號 或 姓名（選填匿名可留空）</label>
+              <input type="text" id="surveyEmpInput" class="input" placeholder="例如：HS001、001 或 王小明" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label>所屬部門</label>
+              <select id="surveyDeptSelect" class="select">
+                <option value="">自動帶入 / 不限</option>
+                <option value="管理部">管理部</option>
+                <option value="業務部">業務部</option>
+                <option value="研發部">研發部</option>
+                <option value="生產部">生產部</option>
+                <option value="品保部">品保部</option>
+              </select>
+            </div>
+          </div>
+          <div id="surveyVerifyErr" class="alert-err hidden" style="margin-bottom:10px;"></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="submit" class="btn btn-primary" style="flex:1;">確認身分並開始填寫問卷</button>
+            <button type="button" class="btn btn-outline" onclick="startAnonymousSurvey()">匿名直接填寫</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Step S2: 問卷題目表單 -->
+      <div id="surveyStepForm" class="hidden">
+        <div class="profile-box" style="margin-bottom:16px;">
+          <div>
+            <div style="font-size:12px;font-weight:700;color:var(--primary);">✅ 填答身分確認</div>
+            <div style="font-size:17px;font-weight:900;" id="surveyResponderLabel">王○明（管理部 / HS001）</div>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="resetSurveyView()">更換身分</button>
+        </div>
+
+        <form onsubmit="submitSurvey(event)">
+          <div class="field">
+            <label id="surveyQ1Label">1. 本次家庭日「整體滿意度」 *</label>
+            <div class="star-group" data-rating-key="overall"></div>
+          </div>
+          <div class="field">
+            <label id="surveyQ2Label">2. 活動場地環境與午餐（竹筒飯／風味餐）滿意度 *</label>
+            <div class="star-group" data-rating-key="venue"></div>
+          </div>
+          <div class="field">
+            <label id="surveyQ3Label">3. 體驗流程（堆土窯、封窯、DIY 活動）滿意度 *</label>
+            <div class="star-group" data-rating-key="activity"></div>
+          </div>
+          <div class="field">
+            <label id="surveyQ4Label">4. 現場報到動線與 HR 服務引導滿意度 *</label>
+            <div class="star-group" data-rating-key="service"></div>
+          </div>
+          <div class="field">
+            <label>5. 您與家人最喜歡的活動環節（可複選）</label>
+            <div class="fav-chips" id="surveyFavChips"></div>
+          </div>
+          <div class="field">
+            <label>6. 給主辦單位的鼓勵或明年活動建議（選填）</label>
+            <textarea id="surveyComment" class="textarea" rows="3" placeholder="例如：小孩很喜歡堆土窯！希望明年也能辦戶外親子體驗..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-orange btn-full">📨 送出滿意度問卷</button>
+        </form>
+      </div>
+
+      <!-- Step S3: 完成感謝卡 -->
+      <div id="surveyStepDone" class="hidden">
+        <div class="pass-card" style="background:linear-gradient(180deg,#fffbeb 0%,#ffffff 45%);border-color:#fde68a;">
+          <div style="font-size:44px;margin-bottom:6px;">🎉</div>
+          <h3 style="font-size:22px;font-weight:900;color:#92400e;">感謝您的寶貴回饋！</h3>
+          <p style="font-size:13.5px;color:var(--text-sub);margin:6px 0 16px;white-space:pre-line;" id="surveyDoneMsg">
+            您的滿意度問卷已成功送出，祝您與家人平安順心，期待明年家庭日再相見！
+          </p>
+          <button type="button" class="btn btn-outline btn-sm" onclick="resetSurveyView()">填寫另一份問卷</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 活動進行中：主指南與簽到區塊 ==================== -->
+    <div id="activeEventWrap" style="display:flex;flex-direction:column;gap:18px;">
+    <!-- Safety Reminder Card -->
+    <section class="safety-card" id="safetyCardBlock">
+      <div class="safety-icon">!</div>
+      <div>
+        <div class="safety-title" id="heroSafetyTitle">戶外體驗重要穿著與安全提醒</div>
+        <div class="safety-body" id="heroSafetyBody" style="white-space: pre-line;"></div>
+      </div>
+    </section>
+
+    <!-- Card 1: Digital Check-in & QR Code -->
+    <section class="card" id="checkinCard">
+      <!-- Step 1: Lookup -->
+      <div id="stepLookup">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-icon">⊞</div>
+            <div>
+              <div class="card-title">數位報到憑證查詢</div>
+              <div class="card-sub">請由員工本人代表報到，眷屬可先至休息區等候</div>
+            </div>
+          </div>
+          <span class="pill" id="liveCounterPill">已報到 0 戶</span>
+        </div>
+
+        <form onsubmit="handleLookup(event)">
+          <div class="grid-2">
+            <div class="field">
+              <label for="empQueryInput">員工編號 或 姓名</label>
+              <input type="text" id="empQueryInput" class="input" placeholder="例如：HS001 或 王小明" autocomplete="off" required />
+            </div>
+            <div class="field">
+              <label for="deptFilterSelect">所屬部門</label>
+              <select id="deptFilterSelect" class="select">
+                <option value="">不限部門（自動比對）</option>
+                <option value="管理部">管理部 (第 1 報到組)</option>
+                <option value="業務部">業務部 (第 1 報到組)</option>
+                <option value="研發部">研發部 (第 2 報到組)</option>
+                <option value="生產部">生產部 (第 2 報到組)</option>
+                <option value="品保部">品保部 (第 2 報到組)</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">
+            🎫 查詢並產生報到 QR Code
+          </button>
+        </form>
+
+        <div id="lookupError" class="alert-err hidden"></div>
+
+        <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <button type="button" class="switch-link" onclick="switchToManual()">
+            不在名單內？改手動填寫部門＋姓名補簽 →
+          </button>
+          <span style="font-size: 12px; color: var(--text-muted);">🔒 個資遮罩保護</span>
+        </div>
+
+        <div class="demo-row">
+          <span>HR 快速測試範例：</span>
+          <button type="button" class="chip" onclick="quickFill('HS001', '管理部')">管理部 王小明 (4人)</button>
+          <button type="button" class="chip" onclick="quickFill('HS012', '研發部')">研發部 陳雅婷 (3大1幼)</button>
+          <button type="button" class="chip" onclick="quickFill('HS025', '生產部')">生產部 林志豪 (2人)</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Confirm Identity & Dependents -->
+      <div id="stepConfirm" class="hidden">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-icon">✓</div>
+            <div>
+              <div class="card-title">核對身分與實到眷屬人數</div>
+              <div class="card-sub">確認後立即產生現場報到 QR Code 憑證</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="resetToLookup()">← 返回查詢</button>
+        </div>
+
+        <div class="profile-box">
+          <div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--primary);" id="confirmGroupBadge">✅ 第 1 報到組（已遮罩個資）</div>
+            <div style="font-size: 22px; font-weight: 900;" id="confirmMaskedName">王○明</div>
+            <div style="font-size: 13px; color: var(--text-sub);" id="confirmMeta">管理部 ｜ 工號 HS001</div>
+          </div>
+          <span class="pill" id="confirmRegBadge">預報 4 人</span>
+        </div>
+
+        <div style="font-size: 13.5px; font-weight: 800; margin-bottom: 8px;">請勾選「今日實際到場」的同行眷屬：</div>
+        <div class="dep-list" id="depChecklist"></div>
+
+        <div class="extra-row">
+          <div>
+            <div style="font-weight: 700; font-size: 13.5px;">臨時新增同行人數（未預報）</div>
+            <div style="font-size: 12px; color: var(--text-muted);">若現場多帶親友或幼童可於此微調</div>
+          </div>
+          <div class="stepper">
+            <button type="button" onclick="adjustExtra(-1)">−</button>
+            <span id="extraDepCount">0</span>
+            <button type="button" onclick="adjustExtra(1)">+</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="checkinNote">備註（選填，如：素食、3歲以下幼童）</label>
+          <input type="text" id="checkinNote" class="input" placeholder="無特殊需求可留空" />
+        </div>
+
+        <div class="summary-bar">
+          <div>
+            <div style="font-size: 12px; opacity: 0.85;">本次實際報到總人數（含員工本人）</div>
+            <div style="font-size: 13px; font-weight: 700;" id="summaryBreakdown">同仁 1 人 ＋ 眷屬 3 人</div>
+          </div>
+          <div style="font-size: 22px; font-weight: 900; color: #6ee7b7;" id="summaryTotal">共 4 人</div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-full" onclick="submitCheckin()">
+          🎫 確認報到並產生數位 QR Code
+        </button>
+      </div>
+
+      <!-- Step 3: Manual Fallback -->
+      <div id="stepManual" class="hidden">
+        <div class="card-head">
+          <div class="card-head-left">
+            <div class="card-icon orange">✎</div>
+            <div>
+              <div class="card-title">不在名單內・手動補簽</div>
+              <div class="card-sub">送出後將自動標註「待人工核對」</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="resetToLookup()">← 返回查詢</button>
+        </div>
+
+        <div class="alert-warn">
+          ⚠️ 現場僅提供已報名人員核對報到；若系統查無資料，可先手動補填並至「大會服務台」由 HR 核對。
+        </div>
+
+        <form onsubmit="submitManualCheckin(event)">
+          <div class="grid-2">
+            <div class="field">
+              <label>所屬部門 *</label>
+              <select id="manualDept" class="select" required>
+                <option value="管理部">管理部 (第 1 報到組)</option>
+                <option value="業務部">業務部 (第 1 報到組)</option>
+                <option value="研發部">研發部 (第 2 報到組)</option>
+                <option value="生產部">生產部 (第 2 報到組)</option>
+                <option value="品保部">品保部 (第 2 報到組)</option>
+                <option value="其他部門">其他部門</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>中文姓名 *</label>
+              <input type="text" id="manualName" class="input" placeholder="請輸入真實姓名" required />
+            </div>
+          </div>
+          <div class="grid-2">
+            <div class="field">
+              <label>員工編號（選填）</label>
+              <input type="text" id="manualEmpId" class="input" placeholder="例如：HS099" />
+            </div>
+            <div class="field">
+              <label>同行眷屬人數（不含本人）</label>
+              <select id="manualDepCount" class="select">
+                <option value="0">0 人（僅本人）</option>
+                <option value="1">1 人</option>
+                <option value="2">2 人</option>
+                <option value="3">3 人</option>
+                <option value="4">4 人</option>
+                <option value="5">5 人以上</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>備註（選填）</label>
+            <input type="text" id="manualNote" class="input" placeholder="例如：已透過 UOF 報名但名單漏列" />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">送出補簽並產生憑證</button>
+        </form>
+      </div>
+
+      <!-- Step 4: Digital QR Pass -->
+      <div id="stepPass" class="hidden">
+        <div class="pass-card">
+          <div id="passStatusBadge" style="margin-bottom: 6px;"></div>
+          <h2 style="font-size: 22px; font-weight: 900;" id="passTitle">數位報到憑證已產生</h2>
+          <div style="font-size: 13px; color: var(--text-sub); margin-top: 2px;" id="passCounterGuide">
+            請出示此 QR Code 至「第 1 報到組」核對並領取竹筒飯材料
+          </div>
+
+          <div class="qr-box">
+            <canvas id="qrCanvas" width="168" height="168"></canvas>
+            <div style="font-size: 12px; font-weight: 800; color: var(--primary); margin-top: 6px; letter-spacing: 0.08em;" id="qrCodeLabel">HS001-#001</div>
+          </div>
+
+          <div class="pass-big-count">
+            <div style="font-size: 12px; opacity: 0.85;">實際報到總人數（物資／材料領取依據）</div>
+            <div style="font-size: 30px; font-weight: 900; color: #6ee7b7;" id="passTotalBig">共 4 人</div>
+            <div style="font-size: 12.5px; opacity: 0.9;" id="passBreakdownBig">同仁 1 人 ＋ 眷屬 3 人</div>
+          </div>
+
+          <div class="pass-detail-grid">
+            <div><div style="font-size: 11px; color: var(--text-muted);">同仁姓名（遮罩）</div><strong id="passName">王○明</strong></div>
+            <div><div style="font-size: 11px; color: var(--text-muted);">部門 / 報到組別</div><strong id="passDeptGroup">管理部（第 1 組）</strong></div>
+            <div><div style="font-size: 11px; color: var(--text-muted);">報到時間</div><strong id="passTime">09:30:12</strong></div>
+            <div><div style="font-size: 11px; color: var(--text-muted);">報到序號</div><strong id="passSeq">#001</strong></div>
+          </div>
+
+          <div id="passDepDetail" style="font-size: 12.5px; color: var(--text-sub); margin-bottom: 14px;"></div>
+
+          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-outline btn-sm" id="btnEditPass" onclick="editCurrentPass()">✏️ 修改同行人數</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="resetToLookup()">查詢下一位同仁</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card 2: Daily Schedule -->
+    <section class="card">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-icon">🕒</div>
+          <div>
+            <div class="card-title">當日活動流程</div>
+            <div class="card-sub" id="scheduleSub">竹子坑－文山休閒農場 體驗時程表</div>
+          </div>
+        </div>
+        <span class="pill" id="scheduleCountPill">共 8 項行程</span>
+      </div>
+
+      <div class="schedule-list" id="scheduleListContainer"></div>
+    </section>
+
+    <!-- Card 3: Material Checklist (可於後台開關顯示與自訂標題) -->
+    <section class="card" id="checklistSectionCard">
+      <div class="card-head">
+        <div class="card-head-left">
+          <div class="card-icon orange">📋</div>
+          <div>
+            <div class="card-title" id="checklistCardTitle">報到與物資領取核對</div>
+            <div class="card-sub">點擊項目打勾紀錄（自動儲存於手機中）</div>
+          </div>
+        </div>
+        <span class="pill" id="materialProgressPill">0 / 5 完成</span>
+      </div>
+
+      <div class="check-list" id="materialChecklist"></div>
+    </section>
+
+    <!-- Card 3B: Standalone Notice / Diversion Rules (獨立備註／警語區塊，可單獨開關與改名) -->
+    <section class="card" id="diversionSectionCard" style="padding: 18px 20px;">
+      <div class="guide-box" style="margin-bottom: 0;">
+        <div style="font-weight: 800; color: var(--primary);" id="diversionTitle">📌 現場報到分流原則：</div>
+        <ul id="diversionRulesList"></ul>
+      </div>
+    </section>
+
+    <!-- Card 4: Eligibility & Fee (可於後台開關顯示) -->
+    <section class="fee-card hidden" id="feeSectionCard">
+      <div class="card-head" style="margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 16.5px; font-weight: 900; color: #78350f;">
+          <span>ℹ️</span> 參加資格與費用說明
+        </div>
+        <span class="pill pill-warn" id="feeBudgetPill">預算 1,000 元 / 人</span>
+      </div>
+      <div style="font-size: 13px; color: #78350f; margin-bottom: 12px;" id="feeStatusText"></div>
+      <div style="border-top: 1px solid #ecd9a8; padding-top: 12px; font-size: 16px; font-weight: 900; color: #1e293b; margin-bottom: 10px;" id="feeHighlightText"></div>
+      <div class="fee-inner" id="feeDetailsBox" style="white-space: pre-line;"></div>
+    </section>
+    </div> <!-- /#activeEventWrap -->
+  </main>
+
+  <!-- Fixed Bottom Bar -->
+  <div class="bottom-bar" id="bottomActionBar">
+    <div class="bottom-bar-inner" id="bottomBarInner">
+      <a id="bottomMapBtn" href="https://www.google.com/maps/search/?api=1&query=臺中市大里區健民里健東路123號" target="_blank" rel="noopener" class="btn btn-primary">
+        ✈️ 導航至文山農場
+      </a>
+      <button type="button" class="btn btn-orange" onclick="openHrModal()">
+        🎧 <span id="bottomServiceBtnText">現場 HR 服務台</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- HR Service Desk Modal -->
+  <div class="modal-backdrop" id="hrModal">
+    <div class="modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="font-size: 18px; font-weight: 900;">🎧 <span id="hrModalTitle">現場 HR 服務台專線</span></h3>
+        <button class="btn btn-outline btn-sm" onclick="closeHrModal()">✕</button>
+      </div>
+      <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; font-size: 13.5px; margin-bottom: 14px;">
+        <div><strong>主辦／聯絡人：</strong><span id="hrContactName">人資部 活動服務台</span></div>
+        <div style="margin-top: 4px;"><strong>聯絡專線：</strong><span id="hrContactPhone">0912-345-678</span></div>
+        <div style="margin-top: 4px; color: var(--text-muted); font-size: 12.5px; white-space: pre-line;" id="hrContactNote">晚到補辦報到、臨時身體不適或遺失物品請隨時聯繫。</div>
+      </div>
+      <a id="hrTelLink" href="tel:0912345678" class="btn btn-orange btn-full">📞 立即撥打服務專線</a>
+    </div>
+  </div>
+
+  <!-- Admin Login Modal -->
+  <div class="modal-backdrop" id="adminLoginModal">
+    <div class="modal-box">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <h3 style="font-size: 18px; font-weight: 900;">🔒 HR 管理後台登入</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeAdminLogin()">✕</button>
+      </div>
+      <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 12px;">
+        查看即時報到看板、匯入 UOF 名單、編輯活動行程與打包匯出。
+      </p>
+      <form onsubmit="handleAdminLogin(event)">
+        <div class="field">
+          <input type="password" id="adminPwdInput" class="input" placeholder="請輸入管理後台密碼" autocomplete="off" required />
+        </div>
+        <div id="adminLoginErr" class="alert-err hidden" style="margin-bottom: 10px;"></div>
+        <button type="submit" class="btn btn-primary btn-full">登入管理後台</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Admin Fullscreen Overlay -->
+  <div class="admin-overlay" id="adminOverlay">
+    <div class="admin-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 20px;">📊</span>
+        <div>
+          <div style="font-weight: 900; font-size: 16px;">家庭日簽到管理後台</div>
+          <div style="font-size: 12px; opacity: 0.75;">本機預覽版（即時儲存於瀏覽器）</div>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" style="color: #fff; background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.25);" onclick="closeAdmin()">返回前台</button>
+    </div>
+
+    <div class="admin-body">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchAdminTab('dashboard', this)">📈 即時看板與名單</button>
+        <button class="tab-btn" onclick="switchAdminTab('import', this)">📥 匯入名單 / 匯出打包</button>
+        <button class="tab-btn" onclick="switchAdminTab('settings', this)">🎨 活動模式與內容設定</button>
+        <button class="tab-btn" onclick="switchAdminTab('survey', this)">📝 滿意度調查統計</button>
+      </div>
+
+      <!-- Tab 1: Dashboard -->
+      <div id="adminTab-dashboard">
+        <div class="kpi-grid" id="adminKpis"></div>
+        <div style="font-weight: 800; font-size: 14px; margin-bottom: 8px; color: var(--text-sub);">各部門報到進度（依名單動態統計）</div>
+        <div class="dept-grid" id="adminDeptStats"></div>
+
+        <div class="card" style="padding: 16px;">
+          <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; flex: 1;">
+              <input type="text" id="adminSearch" class="input" style="max-width: 240px; padding: 8px 12px;" placeholder="搜尋工號、姓名、部門..." oninput="renderAdminTable()" />
+              <select id="adminFilter" class="select" style="max-width: 170px; padding: 8px 12px;" onchange="renderAdminTable()">
+                <option value="all">全部狀態</option>
+                <option value="checked">✅ 已簽到</option>
+                <option value="unchecked">⬜ 未簽到</option>
+                <option value="pending">⚠️ 待人工核對</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="exportExcel()">⬇️ 匯出簽到清冊 Excel (.xlsx)</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>序號</th><th>工號</th><th>部門 / 組別</th><th>姓名</th><th>預報人數</th><th>實到人數</th><th>狀態</th><th>報到時間</th><th>備註</th><th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="adminTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Import / Export -->
+      <div id="adminTab-import" class="hidden">
+        <!-- 單筆新增員工 -->
+        <div class="card" style="margin-bottom: 16px;">
+          <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 10px;">➕ 單筆新增員工名單</h3>
+          <form onsubmit="handleAddSingleEmployee(event)">
+            <div class="grid-2" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+              <div class="field"><label>工號 *</label><input type="text" id="addEmpId" class="input" placeholder="如 HS088" required /></div>
+              <div class="field"><label>姓名 *</label><input type="text" id="addEmpName" class="input" placeholder="王大明" required /></div>
+              <div class="field">
+                <label>所屬部門</label>
+                <select id="addEmpDept" class="select">
+                  <option value="管理部">管理部 (第1組)</option>
+                  <option value="業務部">業務部 (第1組)</option>
+                  <option value="研發部">研發部 (第2組)</option>
+                  <option value="生產部">生產部 (第2組)</option>
+                  <option value="品保部">品保部 (第2組)</option>
+                </select>
+              </div>
+              <div class="field"><label>眷屬名單（分號分隔）</label><input type="text" id="addEmpDeps" class="input" placeholder="配偶名(配偶);子女名(子女)" /></div>
+              <div class="field"><label>備註</label><input type="text" id="addEmpNote" class="input" placeholder="竹筒飯3份 / 素食" /></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">➕ 加入名單</button>
+          </form>
+        </div>
+
+        <div class="grid-2" style="margin-bottom: 16px;">
+          <div class="card">
+            <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 8px;">📋 直接貼上 Excel / CSV 批次匯入</h3>
+            <p style="font-size: 12.5px; color: var(--text-sub); margin-bottom: 8px;">
+              <strong>支援自動辨識表頭名稱</strong>（欄位順序可調）：<code>工號(員工編號)</code>、<code>部門</code>、<code>姓名</code>、<code>眷屬名單(或人數)</code>、<code>備註</code>。<br>
+              眷屬欄可填明細（如 <code>王美華(配偶);王小寶(子女)</code>）或直接填數字（如 <code>2</code>）。
+            </p>
+            <textarea id="bulkPasteInput" class="textarea" rows="4" placeholder="HS051,管理部,林美玲,陳先生(配偶);陳小弟(子女)&#10;HS052,生產部,周建國,"></textarea>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="handleBulkPasteImport()">📥 執行貼上匯入（累加）</button>
+              <button type="button" class="btn btn-soft btn-sm" onclick="downloadTemplateExcel()">📄 下載 Excel 範本檔 (.xlsx)</button>
+            </div>
+            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e2e8f0;">
+              <label style="display:block;font-size:12.5px;font-weight:700;color:var(--text-sub);margin-bottom:6px;">或上傳整份 Excel / CSV 名單（覆蓋目前名單）：</label>
+              <input type="file" id="csvFileInput" accept=".xlsx,.xls,.csv" class="input" onchange="handleImportFile(event)" />
+            </div>
+          </div>
+          <div class="card">
+            <h3 style="font-size: 16px; font-weight: 900; margin-bottom: 8px;">📦 Excel 報表匯出與獨立網站打包</h3>
+            <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 14px;">
+              • <strong>簽到清冊 Excel (.xlsx)</strong>：內含「簽到明細」與「各部門統計」雙工作表，自動欄寬。<br>
+              • <strong>打包獨立 HTML</strong>：將您修改好的最新行程、設定與名單直接打包成單一 <code>index.html</code>，可直接發給人資或上傳任何靜態主機！
+            </p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <button class="btn btn-primary" onclick="exportExcel()">⬇️ 匯出完整簽到清冊 (.xlsx)</button>
+              <button class="btn btn-orange" onclick="exportStandaloneHTML()">📦 下載最新完整獨立網站 (index.html)</button>
+              <button class="btn btn-danger-soft" onclick="resetDemoData()">🔄 重置為預設 2027 家庭日 Demo 資料</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Settings & Schedule/Checklist Editors -->
+      <div id="adminTab-settings" class="hidden">
+        <!-- 網站階段模式切換 (核心防錯亂控制) -->
+        <div class="card" style="margin-bottom: 16px; border: 2px solid var(--primary-border);">
+          <h3 style="font-size: 16.5px; font-weight: 900; margin-bottom: 6px;">🚦 網站階段模式切換（同網址自動切換專屬頁面）</h3>
+          <p style="font-size: 13px; color: var(--text-sub); margin-bottom: 12px;">
+            點選不同階段，下方將自動切換成<strong>該階段專屬的設定畫面</strong>（活動簽到與滿意度調查完全獨立設定，互不混雜）。
+          </p>
+          <div class="mode-switch-box" style="margin-bottom:0;">
+            <button type="button" id="modeBtnActive" class="mode-option" onclick="setSiteMode('active')">
+              <div style="font-size:15px;font-weight:900;color:#15803d;">🟢 活動進行中（簽到指南設定頁）</div>
+              <div style="font-size:12px;color:var(--text-sub);margin-top:3px;">設定數位報到、行程時間軸、物資核對、分流原則與費用說明</div>
+            </button>
+            <button type="button" id="modeBtnEnded" class="mode-option" onclick="setSiteMode('ended')">
+              <div style="font-size:15px;font-weight:900;color:#b45309;">📝 活動已結束（滿意度調查設定頁）</div>
+              <div style="font-size:12px;color:var(--text-sub);margin-top:3px;">獨立設定滿意度主標、截止日、抽獎公告、4 題評分題目與選項</div>
+            </button>
+          </div>
+
+          <div style="margin-top:12px;padding:12px 14px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;font-weight:800;color:var(--text-main);">
+              <input type="checkbox" id="setAutoEndEnabled" style="width:18px;height:18px;accent-color:var(--primary);" onchange="saveAutoEndSchedule()" />
+              <span>⏰ 設定活動結束時間自動切換為「滿意度調查」（時間一到前台自動切換，免人工登入操作）</span>
+            </label>
+            <div id="autoEndFieldsWrap" class="hidden" style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <label for="setAutoEndAt" style="font-size:12.5px;font-weight:700;color:var(--text-sub);margin:0;">自動切換日期與時間（台灣時間 UTC+8）：</label>
+                <input type="datetime-local" id="setAutoEndAt" class="input" style="max-width:240px;padding:7px 10px;" onchange="saveAutoEndSchedule()" />
+              </div>
+              <div id="autoEndStatusBadge" style="font-size:12.5px;font-weight:700;color:var(--primary);"></div>
+              <div style="font-size:11.5px;color:var(--text-muted);">※ 預先編輯完滿意度題目後，請點回上方左側「🟢 活動進行中」，系統就會在設定時間一到自動把前台切換成滿意度調查。</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== 設定頁 A：活動進行中（簽到與指南） ==================== -->
+        <div id="settingsPaneActive">
+        <div class="card" style="margin-bottom: 16px;">
+          <h3 style="font-size: 16.5px; font-weight: 900; margin-bottom: 14px;">🟢 活動進行中・基本資訊與備註設定</h3>
+          <form onsubmit="saveSettings(event)">
+            <div class="grid-2">
+              <div class="field"><label>公司 / 主辦單位名稱</label><input type="text" id="setCompany" class="input" required /></div>
+              <div class="field"><label>活動主標題</label><input type="text" id="setTitle" class="input" required /></div>
+            </div>
+            <div class="grid-2">
+              <div class="field">
+                <label>公司名稱字體大小：<strong id="lblCompanySize" style="color:var(--primary);">20px</strong></label>
+                <input type="range" id="setCompanySize" min="14" max="36" step="1" value="20" style="width:100%;accent-color:var(--primary);" oninput="previewHeroFonts()" />
+              </div>
+              <div class="field">
+                <label>主標題字體大小：<strong id="lblTitleSize" style="color:var(--primary);">32px</strong></label>
+                <input type="range" id="setTitleSize" min="22" max="46" step="1" value="32" style="width:100%;accent-color:var(--primary);" oninput="previewHeroFonts()" />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label>活動副標語</label><input type="text" id="setTagline" class="input" /></div>
+              <div class="field"><label>頂部即時狀態文字</label><input type="text" id="setStatusText" class="input" /></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label>活動日期</label><input type="text" id="setDate" class="input" required /></div>
+              <div class="field"><label>集合時間提醒</label><input type="text" id="setTime" class="input" required /></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label>活動地點名稱</label><input type="text" id="setPlace" class="input" required /></div>
+              <div class="field"><label>活動地址（自動套用 Google Maps 導航）</label><input type="text" id="setAddr" class="input" required /></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label>服務台按鈕顯示名稱（換主辦可改）</label><input type="text" id="setHrBtnLabel" class="input" placeholder="如：現場 HR 服務台 / 福委會服務台" /></div>
+              <div class="field"><label>主辦單位／緊急聯絡人</label><input type="text" id="setHrContactName" class="input" placeholder="如：人資部 王小姐 / 福委會" /></div>
+            </div>
+            <div class="grid-2">
+              <div class="field"><label>現場服務台聯絡電話</label><input type="text" id="setHrPhone" class="input" /></div>
+              <div class="field"><label>管理後台密碼</label><input type="text" id="setAdminPwd" class="input" required /></div>
+            </div>
+            <div class="field">
+              <label>服務台彈窗說明備註</label>
+              <input type="text" id="setHrContactNote" class="input" placeholder="晚到補辦報到、臨時身體不適或遺失物品請隨時聯繫。" />
+            </div>
+            <div class="field">
+              <label>戶外穿著與安全提醒備註</label>
+              <textarea id="setSafetyBody" class="textarea" rows="2"></textarea>
+            </div>
+            <div class="field" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;">
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:0;cursor:pointer;color:var(--text-main);">
+                <input type="checkbox" id="setShowDiversionCard" style="width:18px;height:18px;accent-color:var(--primary);" onchange="toggleDiversionCardEditor()" />
+                <span>在前台顯示獨立「備註／警語」區塊（可單獨存在，不與 DIY 物資核對連動）</span>
+              </label>
+              <div id="diversionFieldsWrap" style="margin-top:12px;padding-top:12px;border-top:1px dashed #cbd5e1;">
+                <div class="field">
+                  <label>備註／警語區塊標題（可自由修改名稱）</label>
+                  <input type="text" id="setDiversionTitle" class="input" placeholder="例如：📌 現場報到分流原則： 或 ⚠️ 活動注意事項：" />
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                  <label>備註／警語內容（每行一項條列顯示，冒號前自動加粗）</label>
+                  <textarea id="setDiversionRules" class="textarea" rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="field" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;">
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:0;cursor:pointer;color:var(--text-main);">
+                <input type="checkbox" id="setShowFeeCard" style="width:18px;height:18px;accent-color:var(--primary);" onchange="toggleFeeFieldsEditor()" />
+                <span>在前台顯示「參加資格與費用說明」區塊（預設隱藏）</span>
+              </label>
+              <div id="feeFieldsWrap" class="hidden" style="margin-top:12px;padding-top:12px;border-top:1px dashed #cbd5e1;">
+                <div class="grid-2">
+                  <div class="field"><label>費用預算標籤</label><input type="text" id="setFeeBudget" class="input" /></div>
+                  <div class="field"><label>參加資格重點標語</label><input type="text" id="setFeeHighlight" class="input" /></div>
+                </div>
+                <div class="field">
+                  <label>報名狀態說明</label>
+                  <input type="text" id="setFeeStatus" class="input" />
+                </div>
+                <div class="field" style="margin-bottom:0;">
+                  <label>眷屬與幼童收費細項備註（每行一項）</label>
+                  <textarea id="setFeeDetails" class="textarea" rows="2"></textarea>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label>系統主題色</label>
+              <div class="swatch-list" id="themeSwatches"></div>
+            </div>
+            <button type="submit" class="btn btn-primary">💾 儲存所有設定、行程與物資清單</button>
+          </form>
+        </div>
+
+        <!-- 活動行程時間軸編輯器 -->
+        <div class="card" style="margin-bottom: 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div>
+              <h3 style="font-size:16px;font-weight:900;">🕒 活動行程時間軸編輯器</h3>
+              <div style="font-size:12px;color:var(--text-muted);">編輯完請點下方「儲存行程與物資修改」立即同步前台</div>
+            </div>
+            <button type="button" class="btn btn-soft btn-sm" onclick="addScheduleRow()">+ 新增時段</button>
+          </div>
+          <div id="adminScheduleEditor" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+
+        <!-- 自訂核對清單項目編輯器 -->
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap;">
+            <h3 style="font-size:16px;font-weight:900;">📋 <span id="adminChecklistHeadingText">報到與物資領取核對</span>（項目編輯器）</h3>
+            <button type="button" id="addChecklistRowBtn" class="btn btn-soft btn-sm" onclick="addChecklistRow()">+ 新增核對項目</button>
+          </div>
+          <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:700;color:var(--text-main);">
+            <input type="checkbox" id="setShowChecklistCard" style="width:18px;height:18px;accent-color:var(--primary);" onchange="toggleChecklistCardEditor()" />
+            <span>在前台顯示「<span id="adminChecklistToggleName">報到與物資領取核對</span>」區塊（取消勾選即關閉隱藏）</span>
+          </label>
+          <div id="adminChecklistEditorWrap">
+            <div class="field" style="margin-bottom:10px;">
+              <label>此區塊名稱（修改後前台與此編輯器標題同步更新）</label>
+              <input type="text" id="setChecklistTitle" class="input" placeholder="例如：報到與物資領取核對、伴手禮領取清單" oninput="syncChecklistTitleLive()" />
+            </div>
+            <div id="adminChecklistEditor" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="saveSettings()">💾 儲存活動進行中設定並同步前台</button>
+        </div>
+        </div> <!-- /#settingsPaneActive -->
+
+        <!-- ==================== 設定頁 B：活動已結束（滿意度調查專屬設定） ==================== -->
+        <div id="settingsPaneEnded" class="hidden">
+          <div class="card" style="border: 1.5px solid #fde68a;">
+            <h3 style="font-size: 16.5px; font-weight: 900; color: #92400e; margin-bottom: 14px;">📝 活動已結束・滿意度調查頁面專屬設定</h3>
+            <form onsubmit="saveSurveySettings(event)">
+              <div class="grid-2">
+                <div class="field"><label>頂部狀態列文字</label><input type="text" id="setSurveyTopStatus" class="input" required /></div>
+                <div class="field"><label>滿意度頁面主標題</label><input type="text" id="setSurveyMainTitle" class="input" required /></div>
+              </div>
+              <div class="grid-2">
+                <div class="field"><label>滿意度頁面副標語</label><input type="text" id="setSurveyTagline" class="input" /></div>
+                <div class="field"><label>問卷開放與截止時間</label><input type="text" id="setSurveyDeadline" class="input" /></div>
+              </div>
+              <div class="field">
+                <label>問卷說明／填寫抽獎獎勵公告</label>
+                <textarea id="setSurveyNotice" class="textarea" rows="2"></textarea>
+              </div>
+              <div class="field">
+                <label>外部滿意度問卷連結（選填，如 Google 表單網址；留空則純用系統內建問卷）</label>
+                <input type="url" id="setExternalSurveyUrl" class="input" placeholder="https://forms.gle/..." />
+              </div>
+              <div class="grid-2">
+                <div class="field"><label>評分題目 1</label><input type="text" id="setSurveyQ1" class="input" required /></div>
+                <div class="field"><label>評分題目 2</label><input type="text" id="setSurveyQ2" class="input" required /></div>
+              </div>
+              <div class="grid-2">
+                <div class="field"><label>評分題目 3</label><input type="text" id="setSurveyQ3" class="input" required /></div>
+                <div class="field"><label>評分題目 4</label><input type="text" id="setSurveyQ4" class="input" required /></div>
+              </div>
+              <div class="field">
+                <label>第 5 題「最喜歡的活動環節」複選項目（每行一個選項）</label>
+                <textarea id="setSurveyFavOptions" class="textarea" rows="3"></textarea>
+              </div>
+              <div class="field">
+                <label>送出問卷後的感謝訊息</label>
+                <textarea id="setSurveyDoneMsg" class="textarea" rows="2"></textarea>
+              </div>
+              <div class="field">
+                <label>系統主題色</label>
+                <div class="swatch-list" id="themeSwatchesEnded"></div>
+              </div>
+              <button type="submit" class="btn btn-orange">💾 儲存滿意度頁面設定並同步前台</button>
+            </form>
+          </div>
+        </div> <!-- /#settingsPaneEnded -->
+      </div>
+
+      <!-- Tab 4: Survey Results -->
+      <div id="adminTab-survey" class="hidden">
+        <div class="kpi-grid" id="surveyKpis"></div>
+        <div class="card" style="padding: 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+            <h3 style="font-size:16px;font-weight:900;">📝 滿意度問卷填答明細</h3>
+            <button type="button" class="btn btn-primary btn-sm" onclick="exportSurveyExcel()">⬇️ 匯出滿意度統計 Excel (.xlsx)</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>填寫時間</th><th>工號 / 姓名</th><th>部門</th><th>整體</th><th>場地餐食</th><th>流程DIY</th><th>HR服務</th><th>最喜歡環節</th><th>建議與留言</th>
+                </tr>
+              </thead>
+              <tbody id="surveyTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // =========================================================================
+    // 主題色設定（預設採用人資截圖的鴻勝深森綠＋暖米白）
+    // =========================================================================
+    const THEMES = {
+      hrForest: { name: '鴻勝深森綠 (預設)', hero: '#114b42', top: '#0d3b34', primary: '#177265', hover: '#11584e', light: '#edf7f5', border: '#c6e6e0', bg: '#f5f3ec' },
+      blue:     { name: '商務深海藍', hero: '#1e3a8a', top: '#172554', primary: '#1d4ed8', hover: '#1e40af', light: '#eff6ff', border: '#bfdbfe', bg: '#f4f6fa' },
+      teal:     { name: '清新薄荷綠', hero: '#0f766e', top: '#134e4a', primary: '#0d9488', hover: '#0f766e', light: '#f0fdfa', border: '#99f6e4', bg: '#f4f7f6' },
+      indigo:   { name: '質感企業靛', hero: '#312e81', top: '#1e1b4b', primary: '#4338ca', hover: '#3730a3', light: '#eef2ff', border: '#c7d2fe', bg: '#f5f6fb' },
+      amber:    { name: '暖陽大地棕', hero: '#78350f', top: '#451a03', primary: '#b45309', hover: '#92400e', light: '#fffbeb', border: '#fde68a', bg: '#faf6ee' }
+    };
+
+    const STORAGE_KEYS = {
+      ROSTER: 'hs_checkin_roster_v2',
+      SETTINGS: 'hs_checkin_settings_v2',
+      MATERIALS: 'hs_checkin_materials_v2',
+      SURVEYS: 'hs_checkin_surveys_v2'
+    };
+
+    const DEFAULT_SETTINGS = {
+      siteMode: 'active', // 'active' (活動進行中/簽到) | 'ended' (活動結束/滿意度調查)
+      autoEndEnabled: false,
+      autoEndAt: '',
+      externalSurveyUrl: '',
+      surveyTopStatus: '✨ 活動圓滿結束・誠摯邀請填寫滿意度調查',
+      surveyMainTitle: '2027 家庭日・活動滿意度調查',
+      surveyTagline: '感謝各位同仁與眷屬熱情參與・您的回饋是我們進步的動力',
+      surveyDeadline: '即日起至 2027/01/24 (日) 23:59 止',
+      surveyNotice: '感謝各位同仁與眷屬熱情參與本次家庭日！請花 1 分鐘填寫寶貴回饋，完成填寫即可參加精美小禮抽獎。',
+      surveyQ1: '1. 本次家庭日「整體滿意度」 *',
+      surveyQ2: '2. 活動場地環境與午餐（竹筒飯／風味餐）滿意度 *',
+      surveyQ3: '3. 體驗流程（堆土窯、封窯、DIY 活動）滿意度 *',
+      surveyQ4: '4. 現場報到動線與 HR 服務引導滿意度 *',
+      surveyFavOptions: '竹筒飯 DIY\n堆土窯／開窯美食\n多肉陶盆 DIY\n陀螺彩繪 DIY\n農場草地親子時光',
+      surveyDoneMsg: '您的滿意度問卷已成功送出，祝您與家人平安順心，期待明年家庭日再相見！',
+      company: '鴻勝化學科技股份有限公司',
+      companyFontSize: 20,
+      titleFontSize: 32,
+      title: '2027 家庭日活動指南',
+      tagline: '一起出遊・親子同樂・共享美好時光',
+      statusText: '09:30 集合報到進行中',
+      date: '2027/01/16 (六)',
+      time: '09:30 準時集合報到',
+      place: '竹子坑－文山休閒農場',
+      addr: '臺中市大里區健民里健東路123號',
+      hrBtnLabel: '現場 HR 服務台',
+      hrContactName: '人資部 活動服務台',
+      hrPhone: '0912-345-678',
+      hrContactNote: '晚到補辦報到、臨時身體不適或遺失物品請隨時聯繫。',
+      adminPwd: '2027',
+      theme: 'hrForest',
+      safetyBody: '戶外活動請穿著長褲、球鞋，並攜帶防蚊用品。\n※ 今日包含「堆土窯、封窯」與農場草地活動，請留意高溫窯爐防燙與田間蚊蟲防護。',
+      showDiversionCard: true,
+      diversionTitle: '📌 現場報到分流原則：',
+      diversionRules: '代表報到：請由員工本人排隊核對，眷屬可先至樹蔭休息區等候。\n櫃檯分流：管理部／業務部請至「第 1 組」；研發／生產／品保部請至「第 2 組」。\n晚到處理：超過 09:30 抵達者，請直接至「大會服務台」補辦報到與領取材料。',
+      showFeeCard: false,
+      showChecklistCard: true,
+      checklistTitle: '報到與物資領取核對',
+      feeBudget: '預算 1,000 元 / 人',
+      feeStatus: '報名狀態：已於 2026 / 11 / 23 透過 UOF 系統截止（現場僅提供已報名人員核對報到）。',
+      feeHighlight: '員工本人及眷屬免費 ｜ 其他參加者半價',
+      feeDetails: '● 免費眷屬定義：配偶、父母、子女、祖父母及孫子女。\n● 幼童收費標準：3 歲以下不收費（含平安保險）。',
+      schedule: [
+        { time: '09:30', title: '集合報到', desc: '領取分組牌、竹筒飯材料與平安保險確認' },
+        { time: '09:30-10:00', title: '竹筒飯 DIY', desc: '親子填裝糯米與配料，準備送入蒸煮' },
+        { time: '10:00-11:30', title: '堆土窯', desc: '親子協力搬土塊、架設窯爐與生火燒窯' },
+        { time: '11:30-12:00', title: '封窯', desc: '放入食材並覆土封窯悶烤（請留意窯邊高溫）' },
+        { time: '12:00-13:30', title: '午餐｜竹筒飯', desc: '享用親自製作的香氣竹筒飯與農場風味餐' },
+        { time: '13:30-14:30', title: '開窯 + 品嚐土窯美食', desc: '期待已久的開窯時刻！熱騰騰土窯美味出爐' },
+        { time: '14:30-15:00', title: 'DIY｜多肉陶盆 5 份 + 陀螺彩繪 5 份', desc: '※ 每組/家庭依分配數量領取，現場限量供應喔！' },
+        { time: '15:00', title: '活動結束，返回溫暖的家', desc: '請檢查隨身物品，祝各位同仁與家人平安返家' }
+      ],
+      checklist: [
+        { id: 'm1', text: '09:30 集合報到與平安保險名單確認', tag: '報到必辦' },
+        { id: 'm2', text: '領取「竹筒飯 DIY」竹筒與糯米材料組', tag: '上午體驗' },
+        { id: 'm3', text: '確認「堆土窯／封窯」分組爐位號碼牌', tag: '上午體驗' },
+        { id: 'm4', text: '領取 14:30「多肉陶盆 DIY」材料（限量5份）', tag: '午後DIY' },
+        { id: 'm5', text: '領取 14:30「陀螺彩繪 DIY」材料（限量5份）', tag: '午後DIY' }
+      ]
+    };
+
+    const DEFAULT_ROSTER = [
+      {
+        id: 'HS001', dept: '管理部', name: '王小明',
+        dependents: [
+          { name: '王美華', relation: '配偶' },
+          { name: '王大寶', relation: '子女' },
+          { name: '王小寶', relation: '子女' }
+        ],
+        checkedIn: false, arrivedDependents: [], extraCount: 0, totalArrived: 0,
+        checkinTime: null, seq: null, verifyStatus: 'verified', note: ''
+      },
+      {
+        id: 'HS012', dept: '研發部', name: '陳雅婷',
+        dependents: [
+          { name: '林志明', relation: '配偶' },
+          { name: '陳媽媽', relation: '父母' },
+          { name: '林小晴', relation: '子女・3歲以下幼童' }
+        ],
+        checkedIn: false, arrivedDependents: [], extraCount: 0, totalArrived: 0,
+        checkinTime: null, seq: null, verifyStatus: 'verified', note: '含1名幼童免收費'
+      },
+      {
+        id: 'HS025', dept: '生產部', name: '林志豪',
+        dependents: [
+          { name: '張佩珊', relation: '配偶' }
+        ],
+        checkedIn: false, arrivedDependents: [], extraCount: 0, totalArrived: 0,
+        checkinTime: null, seq: null, verifyStatus: 'verified', note: ''
+      },
+      {
+        id: 'HS008', dept: '業務部', name: '劉淑香',
+        dependents: [
+          { name: '黃建國', relation: '配偶' },
+          { name: '黃小宇', relation: '子女' }
+        ],
+        checkedIn: true, arrivedDependents: ['黃建國', '黃小宇'], extraCount: 0, totalArrived: 3,
+        checkinTime: '2027/01/16 09:18:22', seq: 1, verifyStatus: 'verified', note: '素食1份'
+      },
+      {
+        id: 'HS033', dept: '品保部', name: '蔡宗翰',
+        dependents: [
+          { name: '吳雅婷', relation: '配偶' }
+        ],
+        checkedIn: true, arrivedDependents: ['吳雅婷'], extraCount: 0, totalArrived: 2,
+        checkinTime: '2027/01/16 09:22:05', seq: 2, verifyStatus: 'verified', note: ''
+      }
+    ];
+
+    const DEFAULT_SURVEYS = [
+      {
+        empId: 'HS008', name: '劉淑香', dept: '業務部',
+        overall: 5, venue: 5, activity: 5, service: 5,
+        favorites: ['竹筒飯 DIY', '堆土窯／開窯美食'],
+        comment: '小朋友玩堆土窯超開心，竹筒飯很香！HR 動線引導非常順暢。',
+        submittedAt: '2027/01/16 15:12:08'
+      },
+      {
+        empId: 'HS033', name: '蔡宗翰', dept: '品保部',
+        overall: 5, venue: 4, activity: 5, service: 5,
+        favorites: ['多肉陶盆 DIY', '堆土窯／開窯美食'],
+        comment: '場地很棒，建議明年可以多加一組遮陽休憩區！',
+        submittedAt: '2027/01/16 15:24:31'
+      }
+    ];
+
+    const SURVEY_FAV_OPTIONS = ['竹筒飯 DIY', '堆土窯／開窯美食', '多肉陶盆 DIY', '陀螺彩繪 DIY', '農場草地親子時光'];
+
+    let roster = [];
+    let settings = {};
+    let materialChecks = {};
+    let surveys = [];
+    let currentRecord = null;
+    let extraCountState = 0;
+    let surveyResponder = null;
+    let surveyRatings = { overall: 5, venue: 5, activity: 5, service: 5 };
+    let surveyFavs = new Set();
+
+    function getGroupLabel(dept) {
+      return ['管理部', '業務部'].includes(dept) ? '第 1 報到組' : '第 2 報到組';
+    }
+
+    function loadState() {
+      try { roster = JSON.parse(localStorage.getItem(STORAGE_KEYS.ROSTER)) || structuredClone(DEFAULT_ROSTER); }
+      catch { roster = structuredClone(DEFAULT_ROSTER); }
+      try { settings = { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem(STORAGE_KEYS.SETTINGS)) || {}) }; }
+      catch { settings = { ...DEFAULT_SETTINGS }; }
+      try { materialChecks = JSON.parse(localStorage.getItem(STORAGE_KEYS.MATERIALS)) || {}; }
+      catch { materialChecks = {}; }
+      try { surveys = JSON.parse(localStorage.getItem(STORAGE_KEYS.SURVEYS)) || structuredClone(DEFAULT_SURVEYS); }
+      catch { surveys = structuredClone(DEFAULT_SURVEYS); }
+
+      initSurveyControls();
+      applySettings();
+      updateLiveCounter();
+      renderMaterialChecklist();
+    }
+
+    // =========================================================================
+    // Cloudflare D1 雲端即時同步層（含離線佇列防漏）
+    // =========================================================================
+    const CLOUD_API_URL = '/api/state';
+    const CLOUD_ENABLED = location.protocol === 'http:' || location.protocol === 'https:';
+    const CLOUD_OFFLINE_KEY = 'hs_checkin_d1_pending_v1';
+    let _cloudSyncTimer = null;
+
+    function _enqueueCloudOp(payload) {
+      try {
+        const q = JSON.parse(localStorage.getItem(CLOUD_OFFLINE_KEY) || '[]');
+        if (payload.action === 'sync_roster' || payload.action === 'save_settings') {
+          const filtered = q.filter(x => x.action !== payload.action);
+          filtered.push(payload);
+          localStorage.setItem(CLOUD_OFFLINE_KEY, JSON.stringify(filtered));
+        } else {
+          q.push(payload);
+          localStorage.setItem(CLOUD_OFFLINE_KEY, JSON.stringify(q));
+        }
+      } catch {}
+    }
+
+    async function _postCloudState(payload) {
+      if (!CLOUD_ENABLED) return null;
+      try {
+        const res = await fetch(CLOUD_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'D1 write failed');
+        return data;
+      } catch (err) {
+        _enqueueCloudOp(payload);
+        console.warn('[D1 Sync queued offline]', err);
+        return null;
+      }
+    }
+
+    async function flushCloudQueue() {
+      if (!CLOUD_ENABLED || !navigator.onLine) return;
+      let q = [];
+      try { q = JSON.parse(localStorage.getItem(CLOUD_OFFLINE_KEY) || '[]'); } catch { return; }
+      if (!q.length) return;
+      const remain = [];
+      for (const op of q) {
+        try {
+          const res = await fetch(CLOUD_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(op)
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+        } catch {
+          remain.push(op);
+        }
+      }
+      try { localStorage.setItem(CLOUD_OFFLINE_KEY, JSON.stringify(remain)); } catch {}
+      if (remain.length === 0) {
+        showToast('已自動補傳離線資料至 Cloudflare D1 雲端！');
+      }
+    }
+
+    function cloudSyncRoster() {
+      if (!CLOUD_ENABLED) return;
+      clearTimeout(_cloudSyncTimer);
+      _cloudSyncTimer = setTimeout(() => {
+        _postCloudState({ action: 'sync_roster', roster });
+      }, 150);
+    }
+
+    function cloudSyncSettings() {
+      if (!CLOUD_ENABLED) return;
+      _postCloudState({ action: 'save_settings', settings });
+    }
+
+    function cloudSubmitSurvey(rec) {
+      if (!CLOUD_ENABLED) return;
+      _postCloudState({ action: 'submit_survey', survey: rec });
+    }
+
+    async function cloudPullState(silent = true) {
+      if (!CLOUD_ENABLED || !navigator.onLine) return;
+      try {
+        await flushCloudQueue();
+        const res = await fetch(CLOUD_API_URL, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.success) return;
+        if (typeof data.serverTimeMs === 'number') _serverClockOffsetMs = data.serverTimeMs - Date.now();
+        if (!data.initialized) {
+          await _postCloudState({ action: 'seed_or_reset', settings, roster, surveys });
+          return;
+        }
+        if (data.settings && typeof data.settings === 'object') {
+          settings = { ...DEFAULT_SETTINGS, ...data.settings };
+          try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+        }
+        if (Array.isArray(data.roster)) {
+          roster = data.roster;
+          try { localStorage.setItem(STORAGE_KEYS.ROSTER, JSON.stringify(roster)); } catch {}
+        }
+        if (Array.isArray(data.surveys)) {
+          surveys = data.surveys;
+          try { localStorage.setItem(STORAGE_KEYS.SURVEYS, JSON.stringify(surveys)); } catch {}
+        }
+        initSurveyControls();
+        applySettings();
+        updateLiveCounter();
+        renderMaterialChecklist();
+        if (document.getElementById('adminModal') && !document.getElementById('adminModal').classList.contains('hidden')) {
+          renderAdminAll();
+          renderSurveyAdmin();
+        }
+        if (!silent) showToast('已同步 Cloudflare D1 最新雲端資料');
+      } catch (err) {
+        console.warn('[D1 Pull skipped]', err);
+      }
+    }
+
+    window.addEventListener('online', () => {
+      flushCloudQueue().then(() => cloudPullState(true));
+    });
+
+    function saveRosterLocalOnly() {
+      try { localStorage.setItem(STORAGE_KEYS.ROSTER, JSON.stringify(roster)); } catch {}
+      updateLiveCounter();
+    }
+
+    function saveRoster() {
+      saveRosterLocalOnly();
+      cloudSyncRoster();
+    }
+
+    async function cloudAtomicCheckin(rec, updatePassUi = false) {
+      const res = await _postCloudState({
+        action: 'checkin',
+        empId: rec.id,
+        arrivedDependents: rec.arrivedDependents || [],
+        extraCount: rec.extraCount || 0,
+        checkinTime: rec.checkinTime,
+        note: rec.note || ''
+      });
+      if (res && res.seq != null) {
+        rec.seq = res.seq;
+        rec.checkinTime = res.checkinTime || rec.checkinTime;
+        rec.totalArrived = res.totalArrived || rec.totalArrived;
+        saveRosterLocalOnly();
+        if (updatePassUi && currentRecord && currentRecord.id === rec.id) {
+          renderPassCard(rec, false);
+        }
+      }
+    }
+
+    async function cloudAtomicManualCheckin(rec) {
+      const res = await _postCloudState({
+        action: 'manual_checkin',
+        empId: rec.id,
+        dept: rec.dept,
+        name: rec.name,
+        extraCount: rec.extraCount || 0,
+        checkinTime: rec.checkinTime,
+        note: rec.note || '[手動補簽]'
+      });
+      if (res && res.seq != null) {
+        rec.seq = res.seq;
+        rec.checkinTime = res.checkinTime || rec.checkinTime;
+        saveRosterLocalOnly();
+        if (currentRecord && currentRecord.id === rec.id) {
+          renderPassCard(rec, false);
+        }
+      }
+    }
+
+    function applySettings() {
+      const t = THEMES[settings.theme] || THEMES.hrForest;
+      const root = document.documentElement;
+      root.style.setProperty('--hero-bg', t.hero);
+      root.style.setProperty('--hero-top', t.top);
+      root.style.setProperty('--primary', t.primary);
+      root.style.setProperty('--primary-hover', t.hover);
+      root.style.setProperty('--primary-light', t.light);
+      root.style.setProperty('--primary-border', t.border);
+      root.style.setProperty('--bg-page', t.bg);
+
+      document.title = `${settings.title}・數位簽到系統`;
+      document.getElementById('statusBannerText').textContent = settings.statusText;
+      document.getElementById('heroCompany').textContent = settings.company;
+      document.getElementById('heroCompany').style.fontSize = `${settings.companyFontSize || 20}px`;
+      document.getElementById('heroTitle').textContent = settings.title;
+      document.getElementById('heroTitle').style.fontSize = `${settings.titleFontSize || 32}px`;
+      document.getElementById('heroTagline').textContent = settings.tagline;
+      document.getElementById('heroDate').textContent = settings.date;
+      document.getElementById('heroTime').textContent = settings.time;
+      document.getElementById('heroPlace').textContent = settings.place;
+      document.getElementById('heroAddr').textContent = settings.addr;
+      document.getElementById('scheduleSub').textContent = `${settings.place} 體驗時程表`;
+
+      const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.addr || settings.place)}`;
+      document.getElementById('heroMapBtn').href = mapUrl;
+      document.getElementById('bottomMapBtn').href = mapUrl;
+      const srvLabel = settings.hrBtnLabel || DEFAULT_SETTINGS.hrBtnLabel;
+      document.getElementById('topServiceBtnText').textContent = srvLabel;
+      document.getElementById('bottomServiceBtnText').textContent = srvLabel;
+      document.getElementById('hrModalTitle').textContent = srvLabel;
+      document.getElementById('hrContactName').textContent = settings.hrContactName || DEFAULT_SETTINGS.hrContactName;
+      document.getElementById('hrContactPhone').textContent = settings.hrPhone || '0912-345-678';
+      document.getElementById('hrContactNote').textContent = settings.hrContactNote || DEFAULT_SETTINGS.hrContactNote;
+      document.getElementById('hrTelLink').href = `tel:${String(settings.hrPhone || '').replace(/[^0-9+]/g, '')}`;
+      document.getElementById('hrTelLink').textContent = `📞 立即撥打${srvLabel}`;
+      document.getElementById('heroSafetyBody').textContent = settings.safetyBody || DEFAULT_SETTINGS.safetyBody;
+
+      const divTitleEl = document.getElementById('diversionTitle');
+      if (divTitleEl) divTitleEl.textContent = settings.diversionTitle || DEFAULT_SETTINGS.diversionTitle;
+      const showDiv = settings.showDiversionCard !== false;
+      const divCard = document.getElementById('diversionSectionCard');
+      if (divCard) divCard.classList.toggle('hidden', !showDiv);
+      const chkTitle = settings.checklistTitle || DEFAULT_SETTINGS.checklistTitle;
+      const chkTitleEl = document.getElementById('checklistCardTitle');
+      if (chkTitleEl) chkTitleEl.textContent = chkTitle;
+      const admHeadingEl = document.getElementById('adminChecklistHeadingText');
+      if (admHeadingEl) admHeadingEl.textContent = chkTitle;
+      const admToggleEl = document.getElementById('adminChecklistToggleName');
+      if (admToggleEl) admToggleEl.textContent = chkTitle;
+      const divLines = String(settings.diversionRules || DEFAULT_SETTINGS.diversionRules)
+        .split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      document.getElementById('diversionRulesList').innerHTML = divLines.map(line => {
+        const idx = line.indexOf('：');
+        if (idx > 0 && idx <= 8) {
+          const head = escapeHtml(line.slice(0, idx));
+          const body = escapeHtml(line.slice(idx + 1));
+          const color = head.includes('晚到') ? ' style="color:var(--danger);"' : '';
+          return `<li><strong${color}>${head}</strong>：${body}</li>`;
+        }
+        return `<li>${escapeHtml(line)}</li>`;
+      }).join('');
+
+      const showFee = Boolean(settings.showFeeCard);
+      document.getElementById('feeSectionCard').classList.toggle('hidden', !showFee);
+      const showChecklist = settings.showChecklistCard !== false;
+      const checklistCard = document.getElementById('checklistSectionCard');
+      if (checklistCard) checklistCard.classList.toggle('hidden', !showChecklist);
+      document.getElementById('feeBudgetPill').textContent = settings.feeBudget || DEFAULT_SETTINGS.feeBudget;
+      document.getElementById('feeStatusText').textContent = settings.feeStatus || DEFAULT_SETTINGS.feeStatus;
+      document.getElementById('feeHighlightText').textContent = settings.feeHighlight || DEFAULT_SETTINGS.feeHighlight;
+      document.getElementById('feeDetailsBox').textContent = settings.feeDetails || DEFAULT_SETTINGS.feeDetails;
+
+      renderSchedule();
+      renderMaterialChecklist();
+      applySiteMode();
+    }
+
+    let _serverClockOffsetMs = 0;
+    function getAuthoritativeNowMs() {
+      return Date.now() + _serverClockOffsetMs;
+    }
+
+    function parseTaiwanDateTimeMs(val) {
+      if (!val) return NaN;
+      const raw = String(val).trim();
+      const iso = /([zZ]|[+-]\d{2}:\d{2})$/.test(raw)
+        ? raw
+        : (raw.length === 16 ? `${raw}:00+08:00` : `${raw}+08:00`);
+      return new Date(iso).getTime();
+    }
+
+    function isAutoEndedNow() {
+      if (!settings.autoEndEnabled || !settings.autoEndAt) return false;
+      const t = parseTaiwanDateTimeMs(settings.autoEndAt);
+      return !Number.isNaN(t) && getAuthoritativeNowMs() >= t;
+    }
+
+    function isSiteEndedEffective() {
+      return settings.siteMode === 'ended' || isAutoEndedNow();
+    }
+
+    function applySiteMode() {
+      const isEnded = isSiteEndedEffective();
+      const surveySec = document.getElementById('surveySection');
+      const activeWrap = document.getElementById('activeEventWrap');
+      const heroInfoActive = document.getElementById('heroInfoActive');
+      const heroInfoEnded = document.getElementById('heroInfoEnded');
+      const bottomMapBtn = document.getElementById('bottomMapBtn');
+      const bottomBarInner = document.getElementById('bottomBarInner');
+      const pulseDot = document.querySelector('.pulse-dot');
+
+      document.getElementById('surveyCountPill').textContent = `已收集 ${surveys.length} 份`;
+      document.getElementById('heroSurveyDeadline').textContent = settings.surveyDeadline || DEFAULT_SETTINGS.surveyDeadline;
+      document.getElementById('heroSurveyNotice').textContent = settings.surveyNotice || DEFAULT_SETTINGS.surveyNotice;
+      document.getElementById('surveyQ1Label').textContent = settings.surveyQ1 || DEFAULT_SETTINGS.surveyQ1;
+      document.getElementById('surveyQ2Label').textContent = settings.surveyQ2 || DEFAULT_SETTINGS.surveyQ2;
+      document.getElementById('surveyQ3Label').textContent = settings.surveyQ3 || DEFAULT_SETTINGS.surveyQ3;
+      document.getElementById('surveyQ4Label').textContent = settings.surveyQ4 || DEFAULT_SETTINGS.surveyQ4;
+      document.getElementById('surveyDoneMsg').textContent = settings.surveyDoneMsg || DEFAULT_SETTINGS.surveyDoneMsg;
+      renderFavChips();
+
+      if (isEnded) {
+        document.title = `${settings.surveyMainTitle || DEFAULT_SETTINGS.surveyMainTitle}`;
+        document.getElementById('statusBannerText').textContent = settings.surveyTopStatus || DEFAULT_SETTINGS.surveyTopStatus;
+        document.getElementById('heroTitle').textContent = settings.surveyMainTitle || DEFAULT_SETTINGS.surveyMainTitle;
+        document.getElementById('heroTagline').textContent = settings.surveyTagline || DEFAULT_SETTINGS.surveyTagline;
+        if (pulseDot) pulseDot.style.background = '#fbbf24';
+
+        heroInfoActive.classList.add('hidden');
+        heroInfoEnded.classList.remove('hidden');
+        surveySec.classList.remove('hidden');
+        activeWrap.classList.add('hidden');
+        bottomMapBtn.classList.add('hidden');
+        bottomBarInner.style.gridTemplateColumns = '1fr';
+
+        const extUrl = (settings.externalSurveyUrl || '').trim();
+        const extBox = document.getElementById('externalSurveyBox');
+        if (extUrl) {
+          document.getElementById('externalSurveyLink').href = extUrl;
+          extBox.classList.remove('hidden');
+          extBox.style.display = 'flex';
+        } else {
+          extBox.classList.add('hidden');
+        }
+      } else {
+        document.title = `${settings.title}・數位簽到系統`;
+        document.getElementById('statusBannerText').textContent = settings.statusText;
+        document.getElementById('heroTitle').textContent = settings.title;
+        document.getElementById('heroTagline').textContent = settings.tagline;
+        if (pulseDot) pulseDot.style.background = '#34d399';
+
+        heroInfoActive.classList.remove('hidden');
+        heroInfoEnded.classList.add('hidden');
+        surveySec.classList.add('hidden');
+        activeWrap.classList.remove('hidden');
+        bottomMapBtn.classList.remove('hidden');
+        bottomBarInner.style.gridTemplateColumns = '1fr 1fr';
+      }
+    }
+
+    // =========================================================================
+    // 滿意度調查互動邏輯
+    // =========================================================================
+    function initSurveyControls() {
+      document.querySelectorAll('.star-group').forEach(grp => {
+        const key = grp.getAttribute('data-rating-key');
+        renderStarGroup(grp, key);
+      });
+      renderFavChips();
+    }
+
+    function renderStarGroup(grp, key) {
+      const cur = surveyRatings[key] || 5;
+      grp.innerHTML = [1, 2, 3, 4, 5].map(n => `
+        <button type="button" class="star-btn ${n <= cur ? 'active' : ''}" onclick="setRating('${key}', ${n})">★ ${n}</button>
+      `).join('');
+    }
+
+    function setRating(key, val) {
+      surveyRatings[key] = val;
+      const grp = document.querySelector(`.star-group[data-rating-key="${key}"]`);
+      if (grp) renderStarGroup(grp, key);
+    }
+
+    function renderFavChips() {
+      const opts = String(settings.surveyFavOptions || DEFAULT_SETTINGS.surveyFavOptions)
+        .split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      document.getElementById('surveyFavChips').innerHTML = opts.map(opt => `
+        <button type="button" class="fav-chip ${surveyFavs.has(opt) ? 'active' : ''}" onclick="toggleFavChip('${escapeHtml(opt)}')">
+          ${surveyFavs.has(opt) ? '✓ ' : ''}${escapeHtml(opt)}
+        </button>
+      `).join('');
+    }
+
+    function toggleFavChip(opt) {
+      if (surveyFavs.has(opt)) surveyFavs.delete(opt);
+      else surveyFavs.add(opt);
+      renderFavChips();
+    }
+
+    function showSurveyStep(stepId) {
+      ['surveyStepVerify', 'surveyStepForm', 'surveyStepDone'].forEach(id => {
+        document.getElementById(id).classList.toggle('hidden', id !== stepId);
+      });
+    }
+
+    function handleSurveyVerify(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('surveyVerifyErr');
+      errEl.classList.add('hidden');
+      const q = document.getElementById('surveyEmpInput').value.trim();
+      const dept = document.getElementById('surveyDeptSelect').value;
+
+      if (!q) { startAnonymousSurvey(); return; }
+
+      const hit = findEmployee(q, dept);
+      if (hit && !hit.ambiguous) {
+        const dup = surveys.find(s => normalizeId(s.empId) === normalizeId(hit.id));
+        if (dup) {
+          errEl.textContent = `工號 ${hit.id}（${maskName(hit.name)}）已於 ${dup.submittedAt} 完成填答，感謝您的參與！`;
+          errEl.classList.remove('hidden');
+          return;
+        }
+        surveyResponder = { empId: hit.id, name: hit.name, dept: hit.dept };
+        document.getElementById('surveyResponderLabel').textContent = `${maskName(hit.name)}（${hit.dept} / ${hit.id}）`;
+      } else {
+        surveyResponder = { empId: normalizeId(q) || '匿名', name: q, dept: dept || '未指定部門' };
+        document.getElementById('surveyResponderLabel').textContent = `${maskName(q)}（${surveyResponder.dept}）`;
+      }
+      showSurveyStep('surveyStepForm');
+    }
+
+    function startAnonymousSurvey() {
+      const dept = document.getElementById('surveyDeptSelect').value || '匿名同仁';
+      surveyResponder = { empId: '匿名', name: '匿名填答', dept };
+      document.getElementById('surveyResponderLabel').textContent = `匿名填答（${dept}）`;
+      showSurveyStep('surveyStepForm');
+    }
+
+    function submitSurvey(e) {
+      e.preventDefault();
+      const rec = {
+        empId: surveyResponder?.empId || '匿名',
+        name: surveyResponder?.name || '匿名填答',
+        dept: surveyResponder?.dept || '未指定',
+        overall: surveyRatings.overall,
+        venue: surveyRatings.venue,
+        activity: surveyRatings.activity,
+        service: surveyRatings.service,
+        favorites: Array.from(surveyFavs),
+        comment: document.getElementById('surveyComment').value.trim(),
+        submittedAt: formatNow()
+      };
+      surveys.unshift(rec);
+      try { localStorage.setItem(STORAGE_KEYS.SURVEYS, JSON.stringify(surveys)); } catch {}
+      cloudSubmitSurvey(rec);
+      document.getElementById('surveyCountPill').textContent = `已收集 ${surveys.length} 份`;
+      showSurveyStep('surveyStepDone');
+      showToast('滿意度問卷已送出，感謝您的回饋！');
+    }
+
+    function resetSurveyView() {
+      surveyResponder = null;
+      surveyRatings = { overall: 5, venue: 5, activity: 5, service: 5 };
+      surveyFavs = new Set();
+      document.getElementById('surveyEmpInput').value = '';
+      document.getElementById('surveyComment').value = '';
+      document.getElementById('surveyVerifyErr').classList.add('hidden');
+      initSurveyControls();
+      showSurveyStep('surveyStepVerify');
+    }
+
+    function renderSchedule() {
+      const list = Array.isArray(settings.schedule) ? settings.schedule : DEFAULT_SETTINGS.schedule;
+      document.getElementById('scheduleCountPill').textContent = `共 ${list.length} 項行程`;
+      document.getElementById('scheduleListContainer').innerHTML = list.map(item => `
+        <div class="schedule-item">
+          <div class="schedule-time">${escapeHtml(item.time)}</div>
+          <div>
+            <div class="schedule-title">${escapeHtml(item.title)}</div>
+            ${item.desc ? `<div class="schedule-desc">${escapeHtml(item.desc)}</div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateLiveCounter() {
+      const checkedEmp = roster.filter(r => r.checkedIn).length;
+      const totalPeople = roster.reduce((s, r) => s + (r.checkedIn ? (r.totalArrived || 1) : 0), 0);
+      document.getElementById('liveCounterPill').textContent = `已報到 ${checkedEmp} 戶 / ${totalPeople} 人`;
+    }
+
+    // =========================================================================
+    // 遮罩與彈性工號／姓名比對
+    // =========================================================================
+    function maskName(name) {
+      const s = String(name || '').trim();
+      if (s.length <= 1) return s;
+      if (s.length === 2) return s[0] + '○';
+      return s[0] + '○'.repeat(s.length - 2) + s[s.length - 1];
+    }
+
+    function normalizeId(raw) {
+      return String(raw || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    }
+
+    function findEmployee(queryRaw, deptFilter) {
+      const qTrim = String(queryRaw || '').trim();
+      if (!qTrim) return null;
+      const pool = deptFilter ? roster.filter(r => r.dept === deptFilter) : roster;
+      const qId = normalizeId(qTrim);
+
+      // 1. 完全比對工號或姓名
+      let hit = pool.find(r => normalizeId(r.id) === qId || r.name === qTrim);
+      if (hit) return hit;
+
+      // 2. 純數字簡碼比對 (如 001 或 1 比對 HS001)
+      if (/^\d+$/.test(qId)) {
+        const qNum = qId.replace(/^0+/, '');
+        const matches = pool.filter(r => {
+          const digits = normalizeId(r.id).replace(/^[A-Z]+/, '');
+          return digits === qId || digits.replace(/^0+/, '') === qNum;
+        });
+        if (matches.length === 1) return matches[0];
+        if (matches.length > 1) return { ambiguous: true };
+      }
+      return null;
+    }
+
+    // =========================================================================
+    // 前台簽到流程
+    // =========================================================================
+    function showStep(id) {
+      ['stepLookup', 'stepConfirm', 'stepManual', 'stepPass'].forEach(s => {
+        document.getElementById(s).classList.toggle('hidden', s !== id);
+      });
+    }
+
+    function quickFill(code, dept) {
+      document.getElementById('empQueryInput').value = code;
+      document.getElementById('deptFilterSelect').value = dept || '';
+      handleLookup();
+    }
+
+    function handleLookup(e) {
+      if (e) e.preventDefault();
+      const errEl = document.getElementById('lookupError');
+      errEl.classList.add('hidden');
+      const query = document.getElementById('empQueryInput').value;
+      const dept = document.getElementById('deptFilterSelect').value;
+
+      const res = findEmployee(query, dept);
+      if (!res) {
+        errEl.textContent = `查無「${query}」${dept ? `（${dept}）` : ''}，請確認工號／姓名或改選「不限部門」，亦可點擊下方手動補簽。`;
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (res.ambiguous) {
+        errEl.textContent = `簡碼「${query}」對應多位同仁，請輸入完整工號或選擇所屬部門。`;
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      currentRecord = res;
+      if (currentRecord.checkedIn) {
+        renderPassCard(currentRecord, true);
+        showStep('stepPass');
+        return;
+      }
+      openConfirmStep(currentRecord);
+    }
+
+    function openConfirmStep(rec) {
+      const grp = getGroupLabel(rec.dept);
+      document.getElementById('confirmGroupBadge').textContent = `✅ ${grp}（名單核對成功・已遮罩個資）`;
+      document.getElementById('confirmMaskedName').textContent = maskName(rec.name);
+      document.getElementById('confirmMeta').textContent = `${rec.dept} ｜ 工號 ${rec.id}`;
+      const depLen = (rec.dependents || []).length;
+      document.getElementById('confirmRegBadge').textContent = `預報共 ${1 + depLen} 人`;
+
+      const listEl = document.getElementById('depChecklist');
+      if (depLen === 0) {
+        listEl.innerHTML = `<div style="padding: 11px 14px; border-radius: 11px; background: #f8fafc; color: var(--text-sub); font-size: 13px;">僅報名同仁本人參加（無預報眷屬）。</div>`;
+      } else {
+        const preChecked = rec.checkedIn ? new Set(rec.arrivedDependents || []) : null;
+        listEl.innerHTML = rec.dependents.map(d => {
+          const checked = preChecked ? preChecked.has(d.name) : true;
+          return `
+            <label class="dep-item ${checked ? 'checked' : ''}" onclick="toggleDepStyle(this)">
+              <div class="dep-left">
+                <input type="checkbox" class="dep-checkbox" data-dep-name="${escapeHtml(d.name)}" ${checked ? 'checked' : ''} onchange="updateSummary()" />
+                <div>
+                  <div style="font-weight: 800; font-size: 14.5px;">${escapeHtml(maskName(d.name))}</div>
+                  <div style="font-size: 12px; color: var(--text-muted);">關係：${escapeHtml(d.relation || '眷屬')}</div>
+                </div>
+              </div>
+              <span class="pill dep-tag ${checked ? '' : 'pill-gray'}">${checked ? '今日到場' : '未到場'}</span>
+            </label>
+          `;
+        }).join('');
+      }
+
+      extraCountState = rec.extraCount || 0;
+      document.getElementById('extraDepCount').textContent = extraCountState;
+      document.getElementById('checkinNote').value = rec.note || '';
+      updateSummary();
+      showStep('stepConfirm');
+    }
+
+    function toggleDepStyle(labelEl) {
+      setTimeout(() => {
+        const cb = labelEl.querySelector('input[type="checkbox"]');
+        labelEl.classList.toggle('checked', cb.checked);
+        const tag = labelEl.querySelector('.dep-tag');
+        tag.textContent = cb.checked ? '今日到場' : '未到場';
+        tag.className = `pill dep-tag ${cb.checked ? '' : 'pill-gray'}`;
+        updateSummary();
+      }, 0);
+    }
+
+    function adjustExtra(delta) {
+      extraCountState = Math.max(0, Math.min(10, extraCountState + delta));
+      document.getElementById('extraDepCount').textContent = extraCountState;
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const checkedDeps = document.querySelectorAll('#depChecklist input[type="checkbox"]:checked').length;
+      const totalDeps = checkedDeps + extraCountState;
+      const total = 1 + totalDeps;
+      const extraText = extraCountState > 0 ? `（含臨時新增 ${extraCountState} 人）` : '';
+      document.getElementById('summaryBreakdown').textContent = `同仁 1 人 ＋ 眷屬 ${totalDeps} 人 ${extraText}`;
+      document.getElementById('summaryTotal').textContent = `共 ${total} 人`;
+    }
+
+    function getNextSeq() {
+      return roster.reduce((m, r) => Math.max(m, r.seq || 0), 0) + 1;
+    }
+
+    function formatNow() {
+      const d = new Date();
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+    }
+
+    function submitCheckin() {
+      if (!currentRecord) return;
+      const arrivedDeps = Array.from(document.querySelectorAll('#depChecklist input[type="checkbox"]:checked'))
+        .map(cb => cb.getAttribute('data-dep-name'));
+
+      const wasChecked = currentRecord.checkedIn;
+      currentRecord.checkedIn = true;
+      currentRecord.arrivedDependents = arrivedDeps;
+      currentRecord.extraCount = extraCountState;
+      currentRecord.totalArrived = 1 + arrivedDeps.length + extraCountState;
+      if (!wasChecked) {
+        currentRecord.checkinTime = formatNow();
+        currentRecord.seq = getNextSeq();
+      }
+      currentRecord.note = document.getElementById('checkinNote').value.trim();
+
+      // 自動勾選第一項「集合報到與平安保險名單確認」
+      materialChecks['m1'] = true;
+      saveMaterialChecks();
+
+      saveRosterLocalOnly();
+      renderPassCard(currentRecord, false);
+      showStep('stepPass');
+      showToast(wasChecked ? '已更新同行報到人數！' : '報到成功！已產生數位 QR Code');
+      cloudAtomicCheckin(currentRecord, true);
+    }
+
+    function switchToManual() {
+      document.getElementById('manualName').value = '';
+      document.getElementById('manualEmpId').value = '';
+      document.getElementById('manualDepCount').value = '0';
+      document.getElementById('manualNote').value = '';
+      showStep('stepManual');
+    }
+
+    function submitManualCheckin(e) {
+      e.preventDefault();
+      const dept = document.getElementById('manualDept').value;
+      const name = document.getElementById('manualName').value.trim();
+      const empId = normalizeId(document.getElementById('manualEmpId').value) || `TEMP-${String(Date.now()).slice(-4)}`;
+      const depCount = parseInt(document.getElementById('manualDepCount').value, 10) || 0;
+      const note = document.getElementById('manualNote').value.trim();
+
+      const newRec = {
+        id: empId, dept, name, dependents: [],
+        checkedIn: true, arrivedDependents: [], extraCount: depCount, totalArrived: 1 + depCount,
+        checkinTime: formatNow(), seq: getNextSeq(), verifyStatus: 'pending',
+        note: note ? `[手動補簽] ${note}` : '[手動補簽]'
+      };
+      roster.unshift(newRec);
+      currentRecord = newRec;
+      saveRosterLocalOnly();
+      renderPassCard(newRec, false);
+      showStep('stepPass');
+      showToast('已送出手動補簽，請至大會服務台核對');
+      cloudAtomicManualCheckin(newRec);
+    }
+
+    // 簡易高對比數位憑證 QR 圖樣產生器 (免外部 CDN，離線也能顯示)
+    function drawVisualQR(canvas, seedText) {
+      const ctx = canvas.getContext('2d');
+      const size = canvas.width;
+      const cells = 21;
+      const cell = Math.floor(size / cells);
+      const offset = Math.floor((size - cell * cells) / 2);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#0f172a';
+
+      function drawFinder(cx, cy) {
+        for (let r = 0; r < 7; r++) {
+          for (let c = 0; c < 7; c++) {
+            const border = r === 0 || r === 6 || c === 0 || c === 6;
+            const inner = r >= 2 && r <= 4 && c >= 2 && c <= 4;
+            if (border || inner) {
+              ctx.fillRect(offset + (cx + c) * cell, offset + (cy + r) * cell, cell, cell);
+            }
+          }
+        }
+      }
+      drawFinder(0, 0);
+      drawFinder(cells - 7, 0);
+      drawFinder(0, cells - 7);
+
+      let hash = 2166136261;
+      for (let i = 0; i < seedText.length; i++) {
+        hash ^= seedText.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+
+      for (let r = 0; r < cells; r++) {
+        for (let c = 0; c < cells; c++) {
+          const inTL = r < 8 && c < 8;
+          const inTR = r < 8 && c >= cells - 8;
+          const inBL = r >= cells - 8 && c < 8;
+          if (inTL || inTR || inBL) continue;
+          hash ^= (r * 31 + c * 17);
+          hash = Math.imul(hash, 16777619);
+          if ((hash >>> 0) % 2 === 0) {
+            ctx.fillRect(offset + c * cell, offset + r * cell, cell, cell);
+          }
+        }
+      }
+    }
+
+    function renderPassCard(rec, alreadyDone) {
+      const grp = getGroupLabel(rec.dept);
+      const badgeEl = document.getElementById('passStatusBadge');
+      if (rec.verifyStatus === 'pending') {
+        badgeEl.innerHTML = `<span class="pill pill-warn">⚠️ 手動補簽（待服務台人工核對）</span>`;
+      } else if (alreadyDone) {
+        badgeEl.innerHTML = `<span class="pill pill-success">✅ 您已完成報到（重複查詢憑證）</span>`;
+      } else {
+        badgeEl.innerHTML = `<span class="pill pill-success">✅ 報到核對完成</span>`;
+      }
+
+      document.getElementById('passTitle').textContent = alreadyDone ? '您已完成報到！' : '數位報到憑證已產生';
+      document.getElementById('passCounterGuide').textContent = rec.verifyStatus === 'pending'
+        ? '請出示此畫面至「大會服務台」由 HR 人員人工核對領取材料'
+        : `請出示此 QR Code 至「${grp}」櫃檯領取分組牌與竹筒飯材料`;
+
+      const seqStr = `#${String(rec.seq || 0).padStart(3, '0')}`;
+      const qrText = `${rec.id}-${seqStr}-${rec.totalArrived}`;
+      drawVisualQR(document.getElementById('qrCanvas'), qrText);
+      document.getElementById('qrCodeLabel').textContent = `${rec.id} ｜ ${seqStr}`;
+
+      const depTotal = (rec.totalArrived || 1) - 1;
+      document.getElementById('passTotalBig').textContent = `共 ${rec.totalArrived || 1} 人`;
+      document.getElementById('passBreakdownBig').textContent = `同仁 1 人 ＋ 眷屬 ${depTotal} 人`;
+      document.getElementById('passName').textContent = maskName(rec.name);
+      document.getElementById('passDeptGroup').textContent = `${rec.dept}（${grp}）`;
+      document.getElementById('passTime').textContent = rec.checkinTime || '-';
+      document.getElementById('passSeq').textContent = seqStr;
+
+      const arrivedList = (rec.arrivedDependents || []).map(maskName);
+      const parts = [];
+      if (arrivedList.length) parts.push(`實到眷屬：${arrivedList.join('、')}`);
+      if (rec.extraCount > 0) parts.push(`臨時新增：${rec.extraCount} 人`);
+      document.getElementById('passDepDetail').textContent = parts.join(' ｜ ');
+
+      document.getElementById('btnEditPass').classList.toggle('hidden', rec.verifyStatus === 'pending');
+    }
+
+    function editCurrentPass() {
+      if (currentRecord) openConfirmStep(currentRecord);
+    }
+
+    function resetToLookup() {
+      currentRecord = null;
+      document.getElementById('empQueryInput').value = '';
+      document.getElementById('lookupError').classList.add('hidden');
+      showStep('stepLookup');
+    }
+
+    // =========================================================================
+    // 物資領取核對表 (自動儲存於本機)
+    // =========================================================================
+    function renderMaterialChecklist() {
+      const items = Array.isArray(settings.checklist) ? settings.checklist : DEFAULT_SETTINGS.checklist;
+      const doneCount = items.filter(item => materialChecks[item.id]).length;
+      document.getElementById('materialProgressPill').textContent = `${doneCount} / ${items.length} 完成`;
+
+      document.getElementById('materialChecklist').innerHTML = items.map(item => {
+        const checked = Boolean(materialChecks[item.id]);
+        return `
+          <label class="check-row ${checked ? 'done' : ''}" onclick="toggleMaterial('${escapeHtml(item.id)}', event)">
+            <div class="check-left">
+              <input type="checkbox" ${checked ? 'checked' : ''} />
+              <span class="check-text">${escapeHtml(item.text)}</span>
+            </div>
+            <span class="tag-mini">${escapeHtml(item.tag || '現場核對')}</span>
+          </label>
+        `;
+      }).join('');
+    }
+
+    function toggleMaterial(id, e) {
+      e.preventDefault();
+      materialChecks[id] = !materialChecks[id];
+      saveMaterialChecks();
+      renderMaterialChecklist();
+    }
+
+    function saveMaterialChecks() {
+      try { localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(materialChecks)); } catch {}
+    }
+
+    // =========================================================================
+    // HR 專線 & 管理後台
+    // =========================================================================
+    function openHrModal() { document.getElementById('hrModal').classList.add('open'); }
+    function closeHrModal() { document.getElementById('hrModal').classList.remove('open'); }
+
+    function openAdminLogin() {
+      document.getElementById('adminLoginErr').classList.add('hidden');
+      const pwdEl = document.getElementById('adminPwdInput');
+      pwdEl.value = '';
+      document.getElementById('adminLoginModal').classList.add('open');
+      setTimeout(() => pwdEl.focus(), 60);
+    }
+    function closeAdminLogin() { document.getElementById('adminLoginModal').classList.remove('open'); }
+
+    function handleAdminLogin(e) {
+      e.preventDefault();
+      if (document.getElementById('adminPwdInput').value !== settings.adminPwd) {
+        const err = document.getElementById('adminLoginErr');
+        err.textContent = '管理密碼錯誤，請重新輸入。';
+        err.classList.remove('hidden');
+        return;
+      }
+      closeAdminLogin();
+      document.getElementById('adminOverlay').classList.add('open');
+      renderAdminAll();
+    }
+
+    function closeAdmin() { document.getElementById('adminOverlay').classList.remove('open'); }
+
+    function switchAdminTab(tab, btnEl) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      if (btnEl) btnEl.classList.add('active');
+      ['dashboard', 'import', 'settings', 'survey'].forEach(t => {
+        document.getElementById(`adminTab-${t}`).classList.toggle('hidden', t !== tab);
+      });
+      if (tab === 'settings') populateSettingsForm();
+      if (tab === 'survey') renderSurveyAdmin();
+    }
+
+    function renderSurveyAdmin() {
+      const n = surveys.length;
+      const avg = key => n ? (surveys.reduce((s, r) => s + (Number(r[key]) || 0), 0) / n).toFixed(1) : '0.0';
+      const rate = roster.length ? Math.round((n / roster.length) * 100) : 0;
+
+      document.getElementById('surveyKpis').innerHTML = `
+        <div class="kpi-card"><div class="kpi-label">問卷回收份數</div><div class="kpi-val" style="color:var(--primary);">${n} 份</div><div class="kpi-sub">回收率參考約 ${rate}%</div></div>
+        <div class="kpi-card"><div class="kpi-label">整體滿意度平均</div><div class="kpi-val" style="color:#d97706;">★ ${avg('overall')}</div><div class="kpi-sub">滿分 5.0 分</div></div>
+        <div class="kpi-card"><div class="kpi-label">場地與餐食平均</div><div class="kpi-val">★ ${avg('venue')}</div><div class="kpi-sub">竹筒飯與農場環境</div></div>
+        <div class="kpi-card"><div class="kpi-label">流程 DIY / HR 服務</div><div class="kpi-val">★ ${avg('activity')} / ${avg('service')}</div><div class="kpi-sub">體驗流程 / 現場服務</div></div>
+      `;
+
+      const tbody = document.getElementById('surveyTableBody');
+      if (!n) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);">尚無滿意度問卷填答資料</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = surveys.map(s => `
+        <tr>
+          <td style="font-size:12px;color:var(--text-sub);">${escapeHtml(s.submittedAt)}</td>
+          <td><strong>${escapeHtml(s.empId)}</strong> / ${escapeHtml(s.name)}</td>
+          <td>${escapeHtml(s.dept)}</td>
+          <td><strong style="color:#d97706;">★ ${s.overall}</strong></td>
+          <td>★ ${s.venue}</td>
+          <td>★ ${s.activity}</td>
+          <td>★ ${s.service}</td>
+          <td style="font-size:12px;">${escapeHtml((s.favorites || []).join('、') || '-')}</td>
+          <td style="max-width:240px;white-space:normal;">${escapeHtml(s.comment || '-')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function saveWorkbookExcel(sheets, filename) {
+      if (typeof XLSX !== 'undefined') {
+        const wb = XLSX.utils.book_new();
+        sheets.forEach(s => {
+          const ws = XLSX.utils.aoa_to_sheet(s.data);
+          ws['!cols'] = (s.colWidths || []).map(w => ({ wch: w }));
+          XLSX.utils.book_append_sheet(wb, ws, s.name);
+        });
+        XLSX.writeFile(wb, filename);
+        return;
+      }
+      // 離線無 CDN 時的 SpreadsheetML .xls 備援（免依賴外部函式庫）
+      const xmlSheets = sheets.map(s => {
+        const rowsXml = s.data.map(row =>
+          '<Row>' + row.map(cell => {
+            const isNum = typeof cell === 'number' && !Number.isNaN(cell);
+            const t = isNum ? 'Number' : 'String';
+            const v = escapeHtml(String(cell ?? ''));
+            return `<Cell><Data ss:Type="${t}">${v}</Data></Cell>`;
+          }).join('') + '</Row>'
+        ).join('');
+        return `<Worksheet ss:Name="${escapeHtml(s.name)}"><Table>${rowsXml}</Table></Worksheet>`;
+      }).join('');
+      const xml = `<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>` +
+        `<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">${xmlSheets}</Workbook>`;
+      const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename.replace(/\.xlsx$/i, '.xls');
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportSurveyExcel() {
+      const n = surveys.length;
+      const avg = key => n ? Number((surveys.reduce((s, r) => s + (Number(r[key]) || 0), 0) / n).toFixed(2)) : 0;
+      const detailHeader = ['填寫時間', '工號', '姓名', '部門', '整體滿意度', '場地與餐食', '活動流程DIY', 'HR服務引導', '最喜歡環節', '建議與留言'];
+      const detailRows = surveys.map(s => [
+        s.submittedAt, s.empId, s.name, s.dept,
+        Number(s.overall) || 0, Number(s.venue) || 0, Number(s.activity) || 0, Number(s.service) || 0,
+        (s.favorites || []).join('、'), s.comment || ''
+      ]);
+
+      const summaryData = [
+        ['統計項目', '分數 / 數值'],
+        ['總回收份數', n],
+        ['整體滿意度平均 (滿分5)', avg('overall')],
+        ['場地與餐食平均 (滿分5)', avg('venue')],
+        ['活動流程與DIY平均 (滿分5)', avg('activity')],
+        ['現場報到與HR服務平均 (滿分5)', avg('service')]
+      ];
+
+      saveWorkbookExcel([
+        { name: '滿意度填答明細', data: [detailHeader, ...detailRows], colWidths: [20, 10, 12, 12, 12, 12, 14, 14, 28, 40] },
+        { name: '滿意度統計摘要', data: summaryData, colWidths: [28, 16] }
+      ], `家庭日滿意度調查結果_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast('已匯出滿意度調查 Excel (.xlsx) 報表');
+    }
+
+    function renderAdminAll() {
+      renderAdminKPIs();
+      renderAdminDeptStats();
+      renderAdminTable();
+    }
+
+    function renderAdminKPIs() {
+      const totalEmp = roster.length;
+      const checkedEmp = roster.filter(r => r.checkedIn).length;
+      const rate = totalEmp ? Math.round((checkedEmp / totalEmp) * 100) : 0;
+      const expectedPeople = roster.reduce((s, r) => s + 1 + (r.dependents || []).length, 0);
+      const arrivedPeople = roster.reduce((s, r) => s + (r.checkedIn ? (r.totalArrived || 1) : 0), 0);
+      const pendingCount = roster.filter(r => r.verifyStatus === 'pending').length;
+
+      document.getElementById('adminKpis').innerHTML = `
+        <div class="kpi-card"><div class="kpi-label">員工報到率</div><div class="kpi-val" style="color:var(--primary);">${rate}%</div><div class="kpi-sub">實到 ${checkedEmp} / 應到 ${totalEmp} 戶</div></div>
+        <div class="kpi-card"><div class="kpi-label">現場實到總人數（含眷屬）</div><div class="kpi-val">${arrivedPeople} <span style="font-size:14px;color:var(--text-muted);">/ 預估 ${expectedPeople}</span></div><div class="kpi-sub">竹筒飯與 DIY 材料發放依據</div></div>
+        <div class="kpi-card"><div class="kpi-label">尚未報到戶數</div><div class="kpi-val">${totalEmp - checkedEmp}</div><div class="kpi-sub">可於下方篩選「未簽到」追蹤</div></div>
+        <div class="kpi-card"><div class="kpi-label">待人工核對（補簽）</div><div class="kpi-val" style="color:${pendingCount > 0 ? '#d97706' : 'var(--text-main)'};">${pendingCount}</div><div class="kpi-sub">核對 UOF 名單後一鍵核准</div></div>
+      `;
+    }
+
+    function renderAdminDeptStats() {
+      const map = {};
+      roster.forEach(r => {
+        const d = r.dept || '未分類';
+        if (!map[d]) map[d] = { total: 0, checked: 0, people: 0 };
+        map[d].total++;
+        if (r.checkedIn) { map[d].checked++; map[d].people += (r.totalArrived || 1); }
+      });
+      document.getElementById('adminDeptStats').innerHTML = Object.entries(map).map(([dept, st]) => {
+        const pct = st.total ? Math.round((st.checked / st.total) * 100) : 0;
+        return `
+          <div class="dept-card">
+            <div style="display:flex;justify-content:space-between;font-size:13.5px;font-weight:800;">
+              <span>${escapeHtml(dept)}</span>
+              <span style="color:var(--primary);">${st.checked}/${st.total} (${pct}%)</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">${getGroupLabel(dept)} ｜ 實到 ${st.people} 人</div>
+            <div class="progress-track"><div class="progress-fill" style="width:${pct}%;"></div></div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAdminTable() {
+      const q = (document.getElementById('adminSearch').value || '').trim().toLowerCase();
+      const filter = document.getElementById('adminFilter').value;
+      const filtered = roster.filter(r => {
+        if (filter === 'checked' && !r.checkedIn) return false;
+        if (filter === 'unchecked' && r.checkedIn) return false;
+        if (filter === 'pending' && r.verifyStatus !== 'pending') return false;
+        if (q && !`${r.id} ${r.dept} ${r.name} ${r.note || ''}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+      const tbody = document.getElementById('adminTableBody');
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-muted);">查無符合條件資料</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = filtered.map(r => {
+        const idx = roster.indexOf(r);
+        const badge = !r.checkedIn ? `<span class="pill pill-gray">⬜ 未簽到</span>`
+          : r.verifyStatus === 'pending' ? `<span class="pill pill-warn">⚠️ 待核對</span>`
+          : `<span class="pill pill-success">✅ 已簽到</span>`;
+        const btns = [];
+        if (r.verifyStatus === 'pending') btns.push(`<button class="btn btn-soft btn-sm" onclick="approveRecord(${idx})">核准</button>`);
+        if (r.checkedIn) btns.push(`<button class="btn btn-outline btn-sm" onclick="undoCheckin(${idx})">取消</button>`);
+        else btns.push(`<button class="btn btn-soft btn-sm" onclick="adminQuickCheckin(${idx})">代簽到</button>`);
+        return `
+          <tr>
+            <td>${r.seq ? '#' + String(r.seq).padStart(3, '0') : '-'}</td>
+            <td><strong>${escapeHtml(r.id)}</strong></td>
+            <td>${escapeHtml(r.dept)} <span style="font-size:11px;color:var(--text-muted);">(${getGroupLabel(r.dept)})</span></td>
+            <td><strong>${escapeHtml(r.name)}</strong></td>
+            <td>${1 + (r.dependents || []).length} 人</td>
+            <td>${r.checkedIn ? `<strong>${r.totalArrived} 人</strong>` : '-'}</td>
+            <td>${badge}</td>
+            <td style="font-size:12px;color:var(--text-sub);">${r.checkinTime || '-'}</td>
+            <td>${escapeHtml(r.note || '-')}</td>
+            <td style="display:flex;gap:5px;">${btns.join('')}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function approveRecord(idx) {
+      const r = roster[idx];
+      r.verifyStatus = 'verified';
+      saveRosterLocalOnly();
+      _postCloudState({ action: 'approve', empId: r.id });
+      renderAdminAll();
+      showToast('已核准此筆補簽');
+    }
+    function undoCheckin(idx) {
+      const r = roster[idx];
+      if (!confirm(`確定要取消「${r.name}」的簽到紀錄？`)) return;
+      Object.assign(r, { checkedIn: false, arrivedDependents: [], extraCount: 0, totalArrived: 0, checkinTime: null, seq: null });
+      saveRosterLocalOnly();
+      _postCloudState({ action: 'undo_checkin', empId: r.id });
+      renderAdminAll();
+      showToast('已取消簽到');
+    }
+    function adminQuickCheckin(idx) {
+      const r = roster[idx];
+      r.checkedIn = true; r.arrivedDependents = (r.dependents || []).map(d => d.name);
+      r.extraCount = 0; r.totalArrived = 1 + r.arrivedDependents.length;
+      r.checkinTime = formatNow(); r.seq = getNextSeq();
+      saveRosterLocalOnly();
+      cloudAtomicCheckin(r, false).then(() => renderAdminAll());
+      renderAdminAll();
+      showToast(`已為 ${r.name} 完成代簽到`);
+    }
+
+    // Excel (.xlsx) 匯入 / 匯出
+    function downloadTemplateExcel() {
+      const data = [
+        ['工號', '部門', '姓名', '眷屬名單', '備註'],
+        ['HS001', '管理部', '王小明', '王美華(配偶);王大寶(子女);王小寶(子女)', '竹筒飯4份'],
+        ['HS012', '研發部', '陳雅婷', '林志明(配偶);陳媽媽(父母);林小晴(子女・3歲以下幼童)', '含1幼童'],
+        ['HS025', '生產部', '林志豪', '張佩珊(配偶)', '素食1份']
+      ];
+      saveWorkbookExcel([{ name: '名單匯入範本', data, colWidths: [12, 14, 12, 42, 18] }], '家庭日簽到_名單匯入範本.xlsx');
+      showToast('已下載 Excel 名單範本 (.xlsx)');
+    }
+
+    function applyImportedRows(rows) {
+      if (!rows || !rows.length) return alert('檔案沒有資料。');
+      const headerRow = rows[0].map(c => String(c ?? '').trim().toLowerCase());
+      const findCol = keywords => headerRow.findIndex(h => keywords.some(k => h.includes(k)));
+
+      let idxId = findCol(['工號', '員工編號', '編號', 'empid', 'emp_id', 'id']);
+      let idxDept = findCol(['部門', '單位', '課別', 'dept']);
+      let idxName = findCol(['姓名', '同仁', 'name']);
+      let idxDep = findCol(['眷屬', '同行', '家人', '人數', 'dependent', 'family']);
+      let idxNote = findCol(['備註', '餐食', '說明', 'note', 'remark']);
+
+      // 判斷第一列是否為表頭（至少命中工號或姓名其中一欄）
+      const hasHeader = idxId >= 0 || idxName >= 0;
+      if (!hasHeader) {
+        idxId = 0; idxDept = 1; idxName = 2; idxDep = 3; idxNote = 4;
+      } else {
+        if (idxId < 0) idxId = 0;
+        if (idxName < 0) idxName = idxDept === 1 ? 2 : 1;
+      }
+
+      const startRow = hasHeader ? 1 : 0;
+      const imported = [];
+      for (let i = startRow; i < rows.length; i++) {
+        const cols = rows[i].map(c => String(c ?? '').trim());
+        const idVal = idxId >= 0 ? cols[idxId] : '';
+        const nameVal = idxName >= 0 ? cols[idxName] : '';
+        if (!idVal || !nameVal) continue;
+        imported.push({
+          id: idVal.toUpperCase(),
+          dept: (idxDept >= 0 && cols[idxDept]) ? cols[idxDept] : '管理部',
+          name: nameVal,
+          dependents: idxDep >= 0 ? parseDepsString(cols[idxDep] || '') : [],
+          checkedIn: false, arrivedDependents: [], extraCount: 0, totalArrived: 0,
+          checkinTime: null, seq: null, verifyStatus: 'verified',
+          note: idxNote >= 0 ? (cols[idxNote] || '') : ''
+        });
+      }
+      if (!imported.length) return alert('未解析到有效名單，請確認包含「工號」與「姓名」欄位，或下載 Excel 範本檔。');
+      roster = imported;
+      saveRoster();
+      renderAdminAll();
+      showToast(`成功匯入 ${imported.length} 筆員工名單！（${hasHeader ? '已自動辨識表頭' : '依預設欄位順序'}）`);
+    }
+
+    function handleImportFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const isExcel = /\.(xlsx|xls)$/i.test(file.name);
+      const reader = new FileReader();
+
+      if (isExcel && typeof XLSX !== 'undefined') {
+        reader.onload = e => {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+          applyImportedRows(rows);
+          event.target.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.onload = e => {
+          const lines = e.target.result.replace(/^\uFEFF/, '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+          const rows = lines.map(l => l.split(',').map(c => c.trim()));
+          applyImportedRows(rows);
+          event.target.value = '';
+        };
+        reader.readAsText(file, 'UTF-8');
+      }
+    }
+
+    function exportExcel() {
+      const header = ['報到序號', '工號', '部門', '報到組別', '姓名', '預報總人數', '實到總人數', '實到眷屬', '臨時新增', '簽到狀態', '核對狀態', '報到時間', '備註'];
+      const rows = roster.map(r => [
+        r.seq || '', r.id, r.dept, getGroupLabel(r.dept), r.name,
+        1 + (r.dependents || []).length, r.checkedIn ? (r.totalArrived || 1) : 0,
+        (r.arrivedDependents || []).join('、'), r.extraCount || 0,
+        r.checkedIn ? '已簽到' : '未簽到', r.verifyStatus === 'pending' ? '待人工核對' : '已核對',
+        r.checkinTime || '', r.note || ''
+      ]);
+
+      // 工作表 2：各部門報到統計
+      const deptMap = {};
+      roster.forEach(r => {
+        const d = r.dept || '未分類';
+        if (!deptMap[d]) deptMap[d] = { totalEmp: 0, checkedEmp: 0, expectedPeople: 0, arrivedPeople: 0 };
+        deptMap[d].totalEmp++;
+        deptMap[d].expectedPeople += 1 + (r.dependents || []).length;
+        if (r.checkedIn) {
+          deptMap[d].checkedEmp++;
+          deptMap[d].arrivedPeople += (r.totalArrived || 1);
+        }
+      });
+      const deptHeader = ['部門', '報到組別', '應到戶數', '實到戶數', '報到率', '預報總人數', '實到總人數'];
+      const deptRows = Object.entries(deptMap).map(([d, st]) => [
+        d, getGroupLabel(d), st.totalEmp, st.checkedEmp,
+        `${st.totalEmp ? Math.round((st.checkedEmp / st.totalEmp) * 100) : 0}%`,
+        st.expectedPeople, st.arrivedPeople
+      ]);
+
+      saveWorkbookExcel([
+        { name: '簽到明細清冊', data: [header, ...rows], colWidths: [10, 10, 12, 12, 12, 12, 12, 26, 10, 10, 12, 20, 24] },
+        { name: '各部門報到統計', data: [deptHeader, ...deptRows], colWidths: [14, 14, 10, 10, 10, 12, 12] }
+      ], `家庭日簽到清冊_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast('已匯出簽到清冊 Excel (.xlsx)');
+    }
+
+    function resetDemoData() {
+      if (!confirm('確定要重置為預設 2027 家庭日 Demo 資料嗎？')) return;
+      roster = structuredClone(DEFAULT_ROSTER);
+      settings = { ...DEFAULT_SETTINGS };
+      materialChecks = {};
+      surveys = structuredClone(DEFAULT_SURVEYS);
+      try {
+        localStorage.setItem(STORAGE_KEYS.ROSTER, JSON.stringify(roster));
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+        localStorage.setItem(STORAGE_KEYS.MATERIALS, JSON.stringify(materialChecks));
+        localStorage.setItem(STORAGE_KEYS.SURVEYS, JSON.stringify(surveys));
+      } catch {}
+      _postCloudState({ action: 'seed_or_reset', settings, roster, surveys });
+      applySettings(); updateLiveCounter(); renderMaterialChecklist(); renderAdminAll(); renderSurveyAdmin();
+      showToast('已重置為預設 Demo 資料');
+    }
+
+    function parseDepsString(raw) {
+      if (!raw) return [];
+      const s = String(raw).trim();
+      // 若人資直接填純數字（例如 3），自動展開 3 位眷屬勾選項
+      if (/^\d+$/.test(s)) {
+        const n = Math.min(15, parseInt(s, 10));
+        return Array.from({ length: n }, (_, i) => ({ name: `眷屬 ${i + 1}`, relation: '同行眷屬' }));
+      }
+      return s.split(/[;；、]/).map(x => x.trim()).filter(Boolean).map(item => {
+        const m = item.match(/^(.+?)[(（](.+?)[)）]$/);
+        return m ? { name: m[1].trim(), relation: m[2].trim() } : { name: item, relation: '眷屬' };
+      });
+    }
+
+    function handleAddSingleEmployee(e) {
+      e.preventDefault();
+      const id = normalizeId(document.getElementById('addEmpId').value);
+      const name = document.getElementById('addEmpName').value.trim();
+      const dept = document.getElementById('addEmpDept').value;
+      const dependents = parseDepsString(document.getElementById('addEmpDeps').value.trim());
+      const note = document.getElementById('addEmpNote').value.trim();
+      if (!id || !name) return;
+
+      const rec = {
+        id, dept, name, dependents,
+        checkedIn: false, arrivedDependents: [], extraCount: 0, totalArrived: 0,
+        checkinTime: null, seq: null, verifyStatus: 'verified', note
+      };
+      const idx = roster.findIndex(r => normalizeId(r.id) === id);
+      if (idx >= 0) roster[idx] = rec;
+      else roster.push(rec);
+
+      saveRoster();
+      renderAdminAll();
+      e.target.reset();
+      showToast(`已加入員工：${name} (${id})`);
+    }
+
+    function handleBulkPasteImport() {
+      const text = (document.getElementById('bulkPasteInput').value || '').trim();
+      if (!text) return showToast('請先貼上要匯入的員工資料');
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      let count = 0;
+      lines.forEach(line => {
+        const cols = line.split(/[,\t]/).map(c => c.trim());
+        if (cols.length < 3 || !cols[0] || !cols[2] || cols[0] === '工號') return;
+        const id = normalizeId(cols[0]);
+        const rec = {
+          id, dept: cols[1] || '管理部', name: cols[2],
+          dependents: parseDepsString(cols[3] || ''),
+          checkedIn: false, arrivedDependents: [], extraCount: 0, totalArrived: 0,
+          checkinTime: null, seq: null, verifyStatus: 'verified', note: cols[4] || ''
+        };
+        const idx = roster.findIndex(r => normalizeId(r.id) === id);
+        if (idx >= 0) roster[idx] = rec;
+        else roster.push(rec);
+        count++;
+      });
+      if (!count) return showToast('未解析到有效資料，格式為：工號,部門,姓名,眷屬名單');
+      saveRoster();
+      renderAdminAll();
+      document.getElementById('bulkPasteInput').value = '';
+      showToast(`已批次匯入 ${count} 筆員工名單！`);
+    }
+
+    // 一鍵打包下載獨立完整 HTML（含最新設定、行程、物資與名單，零外部依賴）
+    function exportStandaloneHTML() {
+      syncEditorsToSettings();
+      const parser = new DOMParser();
+      const docClone = parser.parseFromString('<!DOCTYPE html>\n' + document.documentElement.outerHTML, 'text/html');
+      ['adminOverlay', 'adminLoginModal', 'hrModal'].forEach(id => {
+        const el = docClone.getElementById(id);
+        if (el) el.classList.remove('open');
+      });
+      const toastEl = docClone.getElementById('toast');
+      if (toastEl) toastEl.classList.remove('show');
+
+      let htmlOut = '<!DOCTYPE html>\n' + docClone.documentElement.outerHTML;
+      htmlOut = htmlOut.replace(
+        /const DEFAULT_SETTINGS = \{[\s\S]*?\n    \};/,
+        `const DEFAULT_SETTINGS = ${JSON.stringify(settings, null, 6)};`
+      );
+      htmlOut = htmlOut.replace(
+        /const DEFAULT_ROSTER = \[[\s\S]*?\n    \];/,
+        `const DEFAULT_ROSTER = ${JSON.stringify(roster, null, 6)};`
+      );
+      htmlOut = htmlOut.replace(
+        /const DEFAULT_SURVEYS = \[[\s\S]*?\n    \];/,
+        `const DEFAULT_SURVEYS = ${JSON.stringify(surveys, null, 6)};`
+      );
+      const blob = new Blob([htmlOut], { type: 'text/html;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `家庭日簽到系統_${new Date().toISOString().slice(0, 10)}.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('已打包下載最新完整獨立網頁 (.html)！');
+    }
+
+    // 設定表單（含活動進行中 / 滿意度調查兩套完全獨立設定頁）
+    function renderThemeSwatches() {
+      const html = Object.entries(THEMES).map(([key, t]) => `
+        <button type="button" class="swatch ${settings.theme === key ? 'active' : ''}" onclick="selectTheme('${key}')">
+          <span class="swatch-dot" style="background:${t.hero};"></span>
+          <span>${t.name}</span>
+        </button>
+      `).join('');
+      const el1 = document.getElementById('themeSwatches');
+      const el2 = document.getElementById('themeSwatchesEnded');
+      if (el1) el1.innerHTML = html;
+      if (el2) el2.innerHTML = html;
+    }
+
+    function renderAdminScheduleEditor() {
+      const list = Array.isArray(settings.schedule) ? settings.schedule : [];
+      document.getElementById('adminScheduleEditor').innerHTML = list.map((item, i) => `
+        <div style="display:grid;grid-template-columns:120px 1fr 1.3fr auto;gap:8px;align-items:center;background:#f8fafc;padding:8px;border-radius:11px;border:1px solid #e2e8f0;">
+          <input type="text" class="input" style="padding:7px 9px;font-size:12.5px;font-weight:700;" data-sch-idx="${i}" data-sch-field="time" value="${escapeHtml(item.time)}" placeholder="時間" />
+          <input type="text" class="input" style="padding:7px 9px;font-size:12.5px;font-weight:800;" data-sch-idx="${i}" data-sch-field="title" value="${escapeHtml(item.title)}" placeholder="行程標題" />
+          <input type="text" class="input" style="padding:7px 9px;font-size:12.5px;" data-sch-idx="${i}" data-sch-field="desc" value="${escapeHtml(item.desc || '')}" placeholder="說明" />
+          <div style="display:flex;gap:4px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="moveScheduleRow(${i}, -1)" title="上移">↑</button>
+            <button type="button" class="btn btn-danger-soft btn-sm" onclick="removeScheduleRow(${i})" title="刪除">✕</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderAdminChecklistEditor() {
+      const list = Array.isArray(settings.checklist) ? settings.checklist : [];
+      document.getElementById('adminChecklistEditor').innerHTML = list.map((item, i) => `
+        <div style="display:grid;grid-template-columns:120px 1fr auto;gap:8px;align-items:center;background:#f8fafc;padding:8px;border-radius:11px;border:1px solid #e2e8f0;">
+          <input type="text" class="input" style="padding:7px 9px;font-size:12.5px;font-weight:700;" data-chk-idx="${i}" data-chk-field="tag" value="${escapeHtml(item.tag || '')}" placeholder="標籤" />
+          <input type="text" class="input" style="padding:7px 9px;font-size:12.5px;font-weight:700;" data-chk-idx="${i}" data-chk-field="text" value="${escapeHtml(item.text || '')}" placeholder="物資核對項目" />
+          <button type="button" class="btn btn-danger-soft btn-sm" onclick="removeChecklistRow(${i})" title="刪除">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function syncEditorsToSettings() {
+      document.querySelectorAll('[data-sch-idx]').forEach(inp => {
+        const idx = parseInt(inp.getAttribute('data-sch-idx'), 10);
+        const f = inp.getAttribute('data-sch-field');
+        if (settings.schedule && settings.schedule[idx]) settings.schedule[idx][f] = inp.value;
+      });
+      document.querySelectorAll('[data-chk-idx]').forEach(inp => {
+        const idx = parseInt(inp.getAttribute('data-chk-idx'), 10);
+        const f = inp.getAttribute('data-chk-field');
+        if (settings.checklist && settings.checklist[idx]) settings.checklist[idx][f] = inp.value;
+      });
+    }
+
+    function addScheduleRow() {
+      syncEditorsToSettings();
+      settings.schedule.push({ time: '15:30', title: '新增行程項目', desc: '請輸入補充說明' });
+      renderAdminScheduleEditor();
+    }
+    function removeScheduleRow(i) {
+      syncEditorsToSettings();
+      settings.schedule.splice(i, 1);
+      renderAdminScheduleEditor();
+    }
+    function moveScheduleRow(i, dir) {
+      syncEditorsToSettings();
+      const t = i + dir;
+      if (t < 0 || t >= settings.schedule.length) return;
+      [settings.schedule[i], settings.schedule[t]] = [settings.schedule[t], settings.schedule[i]];
+      renderAdminScheduleEditor();
+    }
+    function addChecklistRow() {
+      syncEditorsToSettings();
+      settings.checklist.push({ id: `m_${Date.now()}`, text: '領取紀念禮品', tag: '現場領取' });
+      renderAdminChecklistEditor();
+    }
+    function removeChecklistRow(i) {
+      syncEditorsToSettings();
+      settings.checklist.splice(i, 1);
+      renderAdminChecklistEditor();
+    }
+
+    function renderModeButtons() {
+      const isEnded = settings.siteMode === 'ended';
+      document.getElementById('modeBtnActive').className = `mode-option ${!isEnded ? 'active-run' : ''}`;
+      document.getElementById('modeBtnEnded').className = `mode-option ${isEnded ? 'active-end' : ''}`;
+      document.getElementById('settingsPaneActive').classList.toggle('hidden', isEnded);
+      document.getElementById('settingsPaneEnded').classList.toggle('hidden', !isEnded);
+    }
+
+    function updateAutoEndBadge() {
+      const wrap = document.getElementById('autoEndFieldsWrap');
+      const badge = document.getElementById('autoEndStatusBadge');
+      if (!wrap || !badge) return;
+      const enabled = Boolean(settings.autoEndEnabled);
+      wrap.classList.toggle('hidden', !enabled);
+      if (!enabled) return;
+      if (!settings.autoEndAt) {
+        badge.style.color = '#b45309';
+        badge.textContent = '⚠️ 請選擇活動結束日期與時間（例如 2026/11/26 15:00）';
+        return;
+      }
+      const targetMs = parseTaiwanDateTimeMs(settings.autoEndAt);
+      if (Number.isNaN(targetMs)) {
+        badge.style.color = 'var(--danger)';
+        badge.textContent = '⚠️ 日期時間格式不正確，請重新選擇';
+        return;
+      }
+      const label = settings.autoEndAt.replace('T', ' ').replace(/-/g, '/');
+      const diffMs = targetMs - getAuthoritativeNowMs();
+      if (diffMs <= 0) {
+        badge.style.color = '#15803d';
+        badge.textContent = `✅ 已到達台灣時間 ${label} (UTC+8)，前台現已自動顯示「滿意度調查」`;
+      } else {
+        const mins = Math.ceil(diffMs / 60000);
+        const days = Math.floor(mins / 1440);
+        const hrs = Math.floor((mins % 1440) / 60);
+        const remMins = mins % 60;
+        const parts = [];
+        if (days > 0) parts.push(`${days} 天`);
+        if (hrs > 0) parts.push(`${hrs} 小時`);
+        parts.push(`${remMins} 分`);
+        badge.style.color = 'var(--primary)';
+        badge.textContent = `⏳ 將於台灣時間 ${label} (UTC+8) 自動切換為「滿意度調查」（距離現在約 ${parts.join(' ')}）`;
+      }
+    }
+
+    function saveAutoEndSchedule() {
+      const enabled = document.getElementById('setAutoEndEnabled').checked;
+      const atVal = document.getElementById('setAutoEndAt').value;
+      settings.autoEndEnabled = enabled;
+      settings.autoEndAt = atVal;
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      cloudSyncSettings();
+      updateAutoEndBadge();
+      applySiteMode();
+      if (enabled && atVal) {
+        showToast(`已設定於 ${atVal.replace('T', ' ').replace(/-/g, '/')} 自動切換為滿意度調查`);
+      } else if (!enabled) {
+        showToast('已關閉定時自動切換');
+      }
+    }
+
+    function setSiteMode(mode) {
+      settings.siteMode = mode;
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      cloudSyncSettings();
+      const autoCb = document.getElementById('setAutoEndEnabled');
+      const autoInp = document.getElementById('setAutoEndAt');
+      if (autoCb) autoCb.checked = Boolean(settings.autoEndEnabled);
+      if (autoInp) autoInp.value = settings.autoEndAt || '';
+      updateAutoEndBadge();
+      renderModeButtons();
+      applySiteMode();
+      showToast(mode === 'ended' ? '已切換為「活動已結束・滿意度調查」專屬設定頁！' : '已切換為「活動進行中・簽到指南」專屬設定頁！');
+    }
+
+    function populateSettingsForm() {
+      // 設定頁 A：活動進行中
+      document.getElementById('setCompany').value = settings.company;
+      document.getElementById('setTitle').value = settings.title;
+      const cSize = settings.companyFontSize || 20;
+      const tSize = settings.titleFontSize || 32;
+      document.getElementById('setCompanySize').value = cSize;
+      document.getElementById('setTitleSize').value = tSize;
+      document.getElementById('lblCompanySize').textContent = `${cSize}px`;
+      document.getElementById('lblTitleSize').textContent = `${tSize}px`;
+      document.getElementById('setTagline').value = settings.tagline;
+      document.getElementById('setStatusText').value = settings.statusText;
+      document.getElementById('setDate').value = settings.date;
+      document.getElementById('setTime').value = settings.time;
+      document.getElementById('setPlace').value = settings.place;
+      document.getElementById('setAddr').value = settings.addr;
+      document.getElementById('setHrBtnLabel').value = settings.hrBtnLabel || DEFAULT_SETTINGS.hrBtnLabel;
+      document.getElementById('setHrContactName').value = settings.hrContactName || DEFAULT_SETTINGS.hrContactName;
+      document.getElementById('setHrPhone').value = settings.hrPhone;
+      document.getElementById('setHrContactNote').value = settings.hrContactNote || DEFAULT_SETTINGS.hrContactNote;
+      document.getElementById('setAdminPwd').value = settings.adminPwd;
+      document.getElementById('setSafetyBody').value = settings.safetyBody || DEFAULT_SETTINGS.safetyBody;
+      const showDiv = settings.showDiversionCard !== false;
+      document.getElementById('setShowDiversionCard').checked = showDiv;
+      document.getElementById('diversionFieldsWrap').classList.toggle('hidden', !showDiv);
+      document.getElementById('setDiversionTitle').value = settings.diversionTitle || DEFAULT_SETTINGS.diversionTitle;
+      document.getElementById('setDiversionRules').value = settings.diversionRules || DEFAULT_SETTINGS.diversionRules;
+      document.getElementById('setChecklistTitle').value = settings.checklistTitle || DEFAULT_SETTINGS.checklistTitle;
+      document.getElementById('setShowFeeCard').checked = Boolean(settings.showFeeCard);
+      document.getElementById('feeFieldsWrap').classList.toggle('hidden', !settings.showFeeCard);
+      const showChecklist = settings.showChecklistCard !== false;
+      document.getElementById('setShowChecklistCard').checked = showChecklist;
+      document.getElementById('adminChecklistEditorWrap').classList.toggle('hidden', !showChecklist);
+      document.getElementById('addChecklistRowBtn').classList.toggle('hidden', !showChecklist);
+      document.getElementById('setFeeBudget').value = settings.feeBudget || DEFAULT_SETTINGS.feeBudget;
+      document.getElementById('setFeeStatus').value = settings.feeStatus || DEFAULT_SETTINGS.feeStatus;
+      document.getElementById('setFeeHighlight').value = settings.feeHighlight || DEFAULT_SETTINGS.feeHighlight;
+      document.getElementById('setFeeDetails').value = settings.feeDetails || DEFAULT_SETTINGS.feeDetails;
+
+      // 設定頁 B：活動已結束（滿意度調查專屬）
+      document.getElementById('setSurveyTopStatus').value = settings.surveyTopStatus || DEFAULT_SETTINGS.surveyTopStatus;
+      document.getElementById('setSurveyMainTitle').value = settings.surveyMainTitle || DEFAULT_SETTINGS.surveyMainTitle;
+      document.getElementById('setSurveyTagline').value = settings.surveyTagline || DEFAULT_SETTINGS.surveyTagline;
+      document.getElementById('setSurveyDeadline').value = settings.surveyDeadline || DEFAULT_SETTINGS.surveyDeadline;
+      document.getElementById('setSurveyNotice').value = settings.surveyNotice || DEFAULT_SETTINGS.surveyNotice;
+      document.getElementById('setExternalSurveyUrl').value = settings.externalSurveyUrl || '';
+      document.getElementById('setSurveyQ1').value = settings.surveyQ1 || DEFAULT_SETTINGS.surveyQ1;
+      document.getElementById('setSurveyQ2').value = settings.surveyQ2 || DEFAULT_SETTINGS.surveyQ2;
+      document.getElementById('setSurveyQ3').value = settings.surveyQ3 || DEFAULT_SETTINGS.surveyQ3;
+      document.getElementById('setSurveyQ4').value = settings.surveyQ4 || DEFAULT_SETTINGS.surveyQ4;
+      document.getElementById('setSurveyFavOptions').value = settings.surveyFavOptions || DEFAULT_SETTINGS.surveyFavOptions;
+      document.getElementById('setSurveyDoneMsg').value = settings.surveyDoneMsg || DEFAULT_SETTINGS.surveyDoneMsg;
+
+      renderModeButtons();
+      renderThemeSwatches();
+      renderAdminScheduleEditor();
+      renderAdminChecklistEditor();
+    }
+
+    function selectTheme(key) {
+      settings.theme = key;
+      applySettings();
+      renderThemeSwatches();
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      cloudSyncSettings();
+    }
+
+    function toggleFeeFieldsEditor() {
+      const checked = document.getElementById('setShowFeeCard').checked;
+      document.getElementById('feeFieldsWrap').classList.toggle('hidden', !checked);
+      settings.showFeeCard = checked;
+      document.getElementById('feeSectionCard').classList.toggle('hidden', !checked);
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      cloudSyncSettings();
+    }
+
+    function toggleDiversionCardEditor() {
+      const checked = document.getElementById('setShowDiversionCard').checked;
+      document.getElementById('diversionFieldsWrap').classList.toggle('hidden', !checked);
+      settings.showDiversionCard = checked;
+      const card = document.getElementById('diversionSectionCard');
+      if (card) card.classList.toggle('hidden', !checked);
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      cloudSyncSettings();
+      showToast(checked ? '已開啟前台獨立「備註／警語」區塊' : '已關閉隱藏前台「備註／警語」區塊');
+    }
+
+    function syncChecklistTitleLive() {
+      const val = document.getElementById('setChecklistTitle').value.trim() || DEFAULT_SETTINGS.checklistTitle;
+      const h = document.getElementById('adminChecklistHeadingText');
+      const t = document.getElementById('adminChecklistToggleName');
+      const c = document.getElementById('checklistCardTitle');
+      if (h) h.textContent = val;
+      if (t) t.textContent = val;
+      if (c) c.textContent = val;
+    }
+
+    function toggleChecklistCardEditor() {
+      const checked = document.getElementById('setShowChecklistCard').checked;
+      document.getElementById('adminChecklistEditorWrap').classList.toggle('hidden', !checked);
+      document.getElementById('addChecklistRowBtn').classList.toggle('hidden', !checked);
+      settings.showChecklistCard = checked;
+      const card = document.getElementById('checklistSectionCard');
+      if (card) card.classList.toggle('hidden', !checked);
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      cloudSyncSettings();
+      showToast(checked ? '已開啟前台「報到與物資領取核對」區塊' : '已關閉隱藏前台「報到與物資領取核對」區塊');
+    }
+
+    function previewHeroFonts() {
+      const cSize = parseInt(document.getElementById('setCompanySize').value, 10) || 20;
+      const tSize = parseInt(document.getElementById('setTitleSize').value, 10) || 32;
+      document.getElementById('lblCompanySize').textContent = `${cSize}px`;
+      document.getElementById('lblTitleSize').textContent = `${tSize}px`;
+      document.getElementById('heroCompany').style.fontSize = `${cSize}px`;
+      document.getElementById('heroTitle').style.fontSize = `${tSize}px`;
+    }
+
+    function saveSettings(e) {
+      if (e) e.preventDefault();
+      syncEditorsToSettings();
+      settings.company = document.getElementById('setCompany').value.trim();
+      settings.companyFontSize = parseInt(document.getElementById('setCompanySize').value, 10) || 20;
+      settings.titleFontSize = parseInt(document.getElementById('setTitleSize').value, 10) || 32;
+      settings.title = document.getElementById('setTitle').value.trim();
+      settings.tagline = document.getElementById('setTagline').value.trim();
+      settings.statusText = document.getElementById('setStatusText').value.trim();
+      settings.date = document.getElementById('setDate').value.trim();
+      settings.time = document.getElementById('setTime').value.trim();
+      settings.place = document.getElementById('setPlace').value.trim();
+      settings.addr = document.getElementById('setAddr').value.trim();
+      settings.hrBtnLabel = document.getElementById('setHrBtnLabel').value.trim() || DEFAULT_SETTINGS.hrBtnLabel;
+      settings.hrContactName = document.getElementById('setHrContactName').value.trim() || DEFAULT_SETTINGS.hrContactName;
+      settings.hrPhone = document.getElementById('setHrPhone').value.trim();
+      settings.hrContactNote = document.getElementById('setHrContactNote').value.trim();
+      settings.adminPwd = document.getElementById('setAdminPwd').value.trim() || '2027';
+      settings.safetyBody = document.getElementById('setSafetyBody').value.trim();
+      settings.showDiversionCard = document.getElementById('setShowDiversionCard').checked;
+      settings.diversionTitle = document.getElementById('setDiversionTitle').value.trim() || DEFAULT_SETTINGS.diversionTitle;
+      settings.diversionRules = document.getElementById('setDiversionRules').value.trim();
+      settings.showFeeCard = document.getElementById('setShowFeeCard').checked;
+      settings.showChecklistCard = document.getElementById('setShowChecklistCard').checked;
+      settings.checklistTitle = document.getElementById('setChecklistTitle').value.trim() || DEFAULT_SETTINGS.checklistTitle;
+      settings.feeBudget = document.getElementById('setFeeBudget').value.trim();
+      settings.feeStatus = document.getElementById('setFeeStatus').value.trim();
+      settings.feeHighlight = document.getElementById('setFeeHighlight').value.trim();
+      settings.feeDetails = document.getElementById('setFeeDetails').value.trim();
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      cloudSyncSettings();
+      applySettings();
+      showToast('活動進行中設定已儲存並即時套用！');
+    }
+
+    function saveSurveySettings(e) {
+      if (e) e.preventDefault();
+      settings.surveyTopStatus = document.getElementById('setSurveyTopStatus').value.trim();
+      settings.surveyMainTitle = document.getElementById('setSurveyMainTitle').value.trim();
+      settings.surveyTagline = document.getElementById('setSurveyTagline').value.trim();
+      settings.surveyDeadline = document.getElementById('setSurveyDeadline').value.trim();
+      settings.surveyNotice = document.getElementById('setSurveyNotice').value.trim();
+      settings.externalSurveyUrl = document.getElementById('setExternalSurveyUrl').value.trim();
+      settings.surveyQ1 = document.getElementById('setSurveyQ1').value.trim();
+      settings.surveyQ2 = document.getElementById('setSurveyQ2').value.trim();
+      settings.surveyQ3 = document.getElementById('setSurveyQ3').value.trim();
+      settings.surveyQ4 = document.getElementById('setSurveyQ4').value.trim();
+      settings.surveyFavOptions = document.getElementById('setSurveyFavOptions').value.trim();
+      settings.surveyDoneMsg = document.getElementById('setSurveyDoneMsg').value.trim();
+      try { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); } catch {}
+      cloudSyncSettings();
+      applySettings();
+      showToast('滿意度調查頁面設定已儲存並即時套用！');
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+    }
+
+    // 啟動
+    loadState();
+    setInterval(() => { applySiteMode(); updateAutoEndBadge(); }, 15000);
+    cloudPullState(true);
+    setInterval(() => { if (document.visibilityState === 'visible') cloudPullState(true); }, 25000);
+    // PWA Service Worker 與離線同步初始化
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (sessionStorage.getItem('hs_checkin_pwa_dismissed') === '1') return;
+      const b = document.getElementById('pwa-install-banner');
+      if (b) b.style.display = 'flex';
+    });
+    const instBtn = document.getElementById('pwa-install-btn');
+    if (instBtn) {
+      instBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        document.getElementById('pwa-install-banner').style.display = 'none';
+      });
+    }
+    const dismissBtn = document.getElementById('pwa-dismiss-btn');
+    if (dismissBtn) {
+      dismissBtn.addEventListener('click', () => {
+        sessionStorage.setItem('hs_checkin_pwa_dismissed', '1');
+        document.getElementById('pwa-install-banner').style.display = 'none';
+      });
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        reg.update();
+        reg.onupdatefound = () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.onstatechange = () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              document.getElementById('updateBanner').style.display = 'block';
+            }
+          };
+        };
+      }).catch(() => {});
+    }
+    if (typeof OfflineSyncManager !== 'undefined') {
+      window.checkinSyncMgr = new OfflineSyncManager({ storageKey: 'hr_checkin_offline_queue' });
+    }
+  </script>
+</body>
+</html>

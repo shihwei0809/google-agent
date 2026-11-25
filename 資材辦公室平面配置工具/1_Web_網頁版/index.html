@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>資材辦公室 2D/3D 互動平面配置工具</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-light: #334155;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --primary: #10b981;
+      --primary-hover: #059669;
+      --accent: #38bdf8;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans TC', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Header Toolbar */
+    .topbar {
+      height: 56px;
+      background: #0b1120;
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-badge {
+      width: 34px; height: 34px; border-radius: 9px; background: var(--primary);
+      display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 16px; color: #052e16;
+    }
+    .brand h1 { font-size: 15.5px; font-weight: 900; }
+    .brand p { font-size: 11.5px; color: var(--muted); }
+
+    .toolbar-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 5px;
+      border: 1px solid #475569; background: var(--panel); color: var(--text);
+      padding: 6px 11px; border-radius: 8px; font-size: 12.5px; font-weight: 700;
+      cursor: pointer; font-family: inherit; transition: all 0.15s;
+    }
+    .btn:hover { background: var(--panel-light); border-color: #64748b; }
+    .btn.active { background: var(--primary); color: #022c22; border-color: var(--primary); }
+    .btn-accent { background: #0284c7; border-color: #0284c7; color: #fff; }
+    .btn-accent:hover { background: #0369a1; }
+    .btn-warn { background: #d97706; border-color: #d97706; color: #fff; }
+    .btn-danger { background: rgba(239,68,68,0.15); border-color: #ef4444; color: #fca5a5; }
+    .btn-danger:hover { background: #ef4444; color: #fff; }
+
+    /* Workspace Layout */
+    .workspace {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    /* Left Sidebar: Presets & Add Furniture */
+    .sidebar-left {
+      width: 248px;
+      background: #111827;
+      border-right: 1px solid var(--border);
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .side-section-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 7px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .stat-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .stat-row { display: flex; justify-content: space-between; }
+    .stat-dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; }
+
+    .preset-btn {
+      width: 100%; text-align: left; padding: 9px 11px; border-radius: 9px;
+      border: 1px solid #334155; background: var(--panel); color: var(--text);
+      cursor: pointer; font-family: inherit; margin-bottom: 6px; transition: all 0.15s;
+    }
+    .preset-btn:hover { border-color: var(--primary); }
+    .preset-btn.active { border-color: var(--primary); background: rgba(16,185,129,0.14); }
+    .preset-btn strong { display: block; font-size: 12.5px; }
+    .preset-btn span { font-size: 11px; color: var(--muted); }
+
+    .add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .add-item-btn {
+      padding: 7px 8px; border-radius: 8px; border: 1px solid #334155;
+      background: var(--panel); color: var(--text); font-size: 11.5px; font-weight: 700;
+      cursor: pointer; font-family: inherit; text-align: left;
+    }
+    .add-item-btn:hover { border-color: var(--accent); background: #1e3a5f; }
+
+    /* Center Viewport (2D / 3D / Split) */
+    .viewport {
+      flex: 1;
+      display: flex;
+      min-width: 0;
+      position: relative;
+      background: #0b1120;
+    }
+    .pane {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .pane-2d {
+      background: #f8fafc;
+      border-right: 2px solid var(--border);
+    }
+    .pane-3d {
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    }
+    .pane-badge {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.85);
+      color: #fff;
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      pointer-events: none;
+    }
+    .pane-hint {
+      position: absolute;
+      bottom: 10px;
+      left: 12px;
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.78);
+      color: #cbd5e1;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      pointer-events: none;
+    }
+
+    #canvas2d {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    #canvas2d:active { cursor: grabbing; }
+    #container3d { width: 100%; height: 100%; }
+
+    /* Right Inspector */
+    .sidebar-right {
+      width: 268px;
+      background: #111827;
+      border-left: 1px solid var(--border);
+      padding: 14px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .field { margin-bottom: 9px; }
+    .field label { display: block; font-size: 11.5px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+    .input {
+      width: 100%; padding: 7px 9px; border-radius: 7px; border: 1px solid #475569;
+      background: #0f172a; color: #fff; font-size: 12.5px; font-family: inherit;
+    }
+    .input:focus { outline: none; border-color: var(--primary); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+
+    .item-list {
+      display: flex; flex-direction: column; gap: 4px; max-height: 250px; overflow-y: auto;
+    }
+    .item-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 8px; border-radius: 7px; background: var(--panel); border: 1px solid transparent;
+      font-size: 12px; cursor: pointer;
+    }
+    .item-row:hover { border-color: #475569; }
+    .item-row.selected { border-color: var(--primary); background: rgba(16,185,129,0.16); }
+    .item-row.collide { border-color: var(--danger); background: rgba(239,68,68,0.16); }
+
+    .alert-box {
+      padding: 8px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700;
+      background: rgba(239,68,68,0.16); border: 1px solid #ef4444; color: #fecaca;
+    }
+    .ok-box {
+      padding: 8px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700;
+      background: rgba(16,185,129,0.14); border: 1px solid #10b981; color: #a7f3d0;
+    }
+
+    .hidden { display: none !important; }
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #10b981; color: #022c22; padding: 8px 16px; border-radius: 999px;
+      font-size: 13px; font-weight: 800; z-index: 99; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-badge">3D</div>
+      <div>
+        <h1>資材辦公室 2D/3D 互動平面配置工具</h1>
+        <p>2027 空間不足改善規劃 ｜ 刀把形格局 585 × 1295 cm（1 cm 精準比例）</p>
+      </div>
+    </div>
+
+    <div class="toolbar-group">
+      <button class="btn" id="btnView2d" onclick="setViewMode('2d')">📐 純 2D</button>
+      <button class="btn active" id="btnViewSplit" onclick="setViewMode('split')">⚡ 2D + 3D 同屏</button>
+      <button class="btn" id="btnView3d" onclick="setViewMode('3d')">🧊 純 3D</button>
+      <span style="width:1px;height:20px;background:#334155;margin:0 4px;"></span>
+      <button class="btn active" id="btnSnap" onclick="toggleSnap()">🧲 5cm 吸附</button>
+      <button class="btn btn-warn" onclick="exportEditablePPTX()">📊 匯出可編輯 PPTX</button>
+      <button class="btn btn-accent" onclick="exportPNG()">📸 匯出 2D 圖檔</button>
+      <button class="btn" onclick="exportJSON()">💾 匯出方案 JSON</button>
+      <label class="btn" style="cursor:pointer;">
+        📂 匯入 JSON
+        <input type="file" accept=".json" style="display:none;" onchange="importJSON(event)" />
+      </label>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- Left Sidebar -->
+    <aside class="sidebar-left">
+      <div>
+        <div class="side-section-title">📐 格局牆面尺寸（可直接拖線或輸入）</div>
+        <div class="stat-card">
+          <div class="grid-2" style="gap:6px;">
+            <div><span style="font-size:10.5px;color:var(--muted);">上方寬 (cm)</span><input type="number" id="rmTopW" class="input" style="padding:4px 6px;font-size:12px;" step="5" min="200" oninput="updateRoomInput()" /></div>
+            <div><span style="font-size:10.5px;color:var(--muted);">儲藏深 (cm)</span><input type="number" id="rmStorageD" class="input" style="padding:4px 6px;font-size:12px;" step="5" min="50" oninput="updateRoomInput()" /></div>
+            <div><span style="font-size:10.5px;color:var(--muted);">主區深 (cm)</span><input type="number" id="rmMainD" class="input" style="padding:4px 6px;font-size:12px;" step="5" min="150" oninput="updateRoomInput()" /></div>
+            <div><span style="font-size:10.5px;color:var(--muted);">延伸寬 (cm)</span><input type="number" id="rmExtW" class="input" style="padding:4px 6px;font-size:12px;" step="5" min="150" oninput="updateRoomInput()" /></div>
+            <div style="grid-column:span 2;"><span style="font-size:10.5px;color:var(--muted);">延伸區長 (cm)</span><input type="number" id="rmExtD" class="input" style="padding:4px 6px;font-size:12px;" step="5" min="150" oninput="updateRoomInput()" /></div>
+          </div>
+          <div style="border-top:1px solid #334155;padding-top:6px;margin-top:4px;display:flex;flex-direction:column;gap:3px;">
+            <div class="stat-row"><span><i class="stat-dot" style="background:#3b82f6;"></i>儲藏區</span><strong id="areaStorageStat">4.78 坪</strong></div>
+            <div class="stat-row"><span><i class="stat-dot" style="background:#15803d;"></i>主要辦公區</span><strong id="areaMainStat">8.85 坪</strong></div>
+            <div class="stat-row"><span><i class="stat-dot" style="background:#86efac;"></i>辦公延伸區</span><strong id="areaExtStat">5.48 坪</strong></div>
+            <div class="stat-row"><span>純辦公 / 全區合計</span><strong id="areaTotalStat" style="color:#38bdf8;">14.33 / 19.11 坪</strong></div>
+            <div class="stat-row"><span>目前總座位數</span><strong id="seatCountStat" style="color:#fbbf24;">23 位</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="side-section-title">🗂️ 配置方案切換</div>
+        <button class="preset-btn active" id="presetCurrent" onclick="loadPreset('current')">
+          <strong>📌 現況配置 (v6 原始)</strong>
+          <span>7人桌＋10人桌＋6人桌（23位）</span>
+        </button>
+        <button class="preset-btn" id="presetPlanA" onclick="loadPreset('planA')">
+          <strong>✨ 2027 改善提案 A（動線釋放）</strong>
+          <span>高櫃移入上方儲藏區，釋放中央走道</span>
+        </button>
+        <button class="preset-btn" id="presetPlanB" onclick="loadPreset('planB')">
+          <strong>🚀 2027 改善提案 B（擴編 26 位）</strong>
+          <span>儲藏區精簡＋延伸區改雙排高效工位</span>
+        </button>
+      </div>
+
+      <div>
+        <div class="side-section-title">➕ 新增桌櫃物件</div>
+        <div class="add-grid">
+          <button class="add-item-btn" onclick="addNewItem('desk4')">🪑 4人桌</button>
+          <button class="add-item-btn" onclick="addNewItem('desk6')">🪑 6人桌</button>
+          <button class="add-item-btn" onclick="addNewItem('desk1')">💻 個人桌</button>
+          <button class="add-item-btn" onclick="addNewItem('cabinet')">🗄️ 系統高櫃</button>
+          <button class="add-item-btn" onclick="addNewItem('lowcab')">📦 矮櫃</button>
+          <button class="add-item-btn" onclick="addNewItem('plant')">🪴 盆栽</button>
+          <button class="add-item-btn" onclick="addNewItem('pillar')">⬛ 結構柱</button>
+          <button class="add-item-btn" onclick="addNewItem('door')">🚪 出入口門</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="side-section-title">
+          <span>📋 物件清單</span>
+          <span id="itemCountBadge" style="color:#38bdf8;">0 件</span>
+        </div>
+        <div class="item-list" id="itemList"></div>
+      </div>
+    </aside>
+
+    <!-- Center 2D / 3D Viewport -->
+    <main class="viewport">
+      <div class="pane pane-2d" id="pane2d">
+        <div class="pane-badge">📐 2D 互動配置（點物件可拖拉＋拉藍點縮放 ｜ 直接拖拉牆線／隔線調格局 ｜ R 旋轉）</div>
+        <canvas id="canvas2d"></canvas>
+        <div class="pane-hint" id="coordHint">滑鼠座標：X 0 cm, Y 0 cm</div>
+      </div>
+      <div class="pane pane-3d" id="pane3d">
+        <div class="pane-badge">🧊 3D 即時立體預覽（左鍵旋轉 ｜ 右鍵平移 ｜ 滾輪縮放）</div>
+        <div id="container3d"></div>
+        <div class="pane-hint">真實高度比例：高櫃 280cm ｜ 矮櫃 110cm ｜ 辦公桌 75cm</div>
+      </div>
+    </main>
+
+    <!-- Right Inspector -->
+    <aside class="sidebar-right">
+      <div class="side-section-title">⚠️ 空間碰撞偵測</div>
+      <div id="collisionStatus" class="ok-box">✅ 所有桌櫃皆在合法空間內，無重疊衝突</div>
+
+      <div class="side-section-title" style="margin-top:4px;">🔧 選取物件屬性</div>
+      <div id="noSelectionMsg" style="font-size:12.5px;color:var(--muted);background:var(--panel);padding:14px;border-radius:10px;line-height:1.6;">
+        請在左側 2D 平面圖中<strong>點選任一辦公桌、櫃體或設備</strong>，即可拖拉位置、旋轉 90° 或微調長寬高公分尺寸。
+      </div>
+
+      <div id="inspectorForm" class="hidden" style="background:var(--panel);padding:12px;border-radius:10px;border:1px solid var(--border);">
+        <div class="field">
+          <label>物件名稱</label>
+          <input type="text" id="propName" class="input" oninput="updateSelectedProp()" />
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>X 座標 (cm)</label><input type="number" id="propX" class="input" step="5" oninput="updateSelectedProp()" /></div>
+          <div class="field"><label>Y 座標 (cm)</label><input type="number" id="propY" class="input" step="5" oninput="updateSelectedProp()" /></div>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label>寬 W (cm)</label><input type="number" id="propW" class="input" step="5" min="20" oninput="updateSelectedProp()" /></div>
+          <div class="field"><label>深 D (cm)</label><input type="number" id="propD" class="input" step="5" min="20" oninput="updateSelectedProp()" /></div>
+          <div class="field"><label>高 H (cm)</label><input type="number" id="propH" class="input" step="5" min="20" oninput="updateSelectedProp()" /></div>
+        </div>
+        <div class="grid-2">
+          <div class="field"><label>座位數</label><input type="number" id="propSeats" class="input" min="0" max="20" oninput="updateSelectedProp()" /></div>
+          <div class="field"><label>顯示顏色</label><input type="color" id="propColor" class="input" style="padding:2px;height:33px;" oninput="updateSelectedProp()" /></div>
+        </div>
+        <div class="field">
+          <label>備註規格</label>
+          <input type="text" id="propNote" class="input" oninput="updateSelectedProp()" />
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;">
+          <button class="btn btn-warn" onclick="rotateSelected()">🔄 旋轉 90°</button>
+          <button class="btn" onclick="duplicateSelected()">📋 複製</button>
+        </div>
+        <button class="btn btn-danger" style="width:100%;margin-top:6px;justify-content:center;" onclick="deleteSelected()">🗑️ 刪除此物件</button>
+      </div>
+
+      <div class="side-section-title" style="margin-top:auto;">🏷️ 圖例與固定結構</div>
+      <div class="stat-card" style="font-size:11.5px;color:#cbd5e1;">
+        <div>⬛ <strong>結構柱 (2處)</strong>：左上 60×60、交界轉角 60×70</div>
+        <div>🚪 <strong>出入口 (2處)</strong>：主區上牆右端、延伸區下牆右端</div>
+        <div>🟥 <strong>紅框警示</strong>：物件重疊或超出刀把形牆面</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // =========================================================================
+    // 空間幾何定義（單位：公分，依資材辦公室平面配置說明.md 精準還原）
+    // 刀把形外框：(0,0) -> (585,0) -> (585,770) -> (345,770) -> (345,1295) -> (0,1295)
+    // =========================================================================
+    const DEFAULT_ROOM = {
+      topW: 585,
+      storageD: 270,
+      mainD: 500,     // y: 270..770
+      extW: 345,      // x: 0..345
+      extD: 525,      // y: 770..1295
+      totalH: 1295,
+      wallHeight: 300
+    };
+    let ROOM = { ...DEFAULT_ROOM };
+
+    const DEFAULT_PILLARS = [
+      { id: 'pillar1', name: '結構柱(左上)', type: 'pillar', x: 65, y: 270, w: 60, d: 60, h: 300, seats: 0, color: '#475569', note: '結構柱(可拖拉調整)' },
+      { id: 'pillar2', name: '結構柱(交界)', type: 'pillar', x: 285, y: 700, w: 60, d: 70, h: 300, seats: 0, color: '#475569', note: '60×70 交界柱' }
+    ];
+
+    const DEFAULT_DOORS = [
+      { id: 'door1', name: '門(主區上右)', type: 'door', x: 490, y: 262, w: 90, d: 18, h: 210, seats: 0, color: '#94a3b8', note: '出入口門' },
+      { id: 'door2', name: '門(延伸下右)', type: 'door', x: 245, y: 1280, w: 90, d: 18, h: 210, seats: 0, color: '#94a3b8', note: '出入口門' }
+    ];
+    let PILLARS = [];
+    let DOORS = [];
+
+    // =========================================================================
+    // 預設配置方案
+    // =========================================================================
+    const PRESETS = {
+      current: [
+        // 门字型系統櫃（左/中/右，沿主要辦公區上方/儲藏區交界）
+        { id: 'cab_u_l', name: '门字櫃-左', type: 'cabinet', x: 0, y: 0, w: 100, d: 65, h: 280, seats: 0, color: '#475569', note: '下櫃100×65×180＋上櫃100' },
+        { id: 'cab_u_m', name: '门字櫃-中', type: 'cabinet', x: 100, y: 0, w: 400, d: 45, h: 285, seats: 0, color: '#64748b', note: '下櫃400×45×210＋上櫃75' },
+        { id: 'cab_u_r', name: '门字櫃-右', type: 'cabinet', x: 520, y: 45, w: 65, d: 215, h: 285, seats: 0, color: '#475569', note: '215×65×285' },
+
+        // 主要辦公區固定櫃與設備
+        { id: 'cab_new', name: '新增單門櫃', type: 'cabinet', x: 0, y: 270, w: 45, d: 70, h: 280, seats: 0, color: '#0284c7', note: '70×45×280(柱左側)' },
+        { id: 'printer', name: '印表機', type: 'equip', x: 0, y: 350, w: 65, d: 60, h: 95, seats: 0, color: '#334155', note: '左上角柱子旁' },
+        { id: 'water', name: '飲水機', type: 'equip', x: 0, y: 710, w: 45, d: 45, h: 135, seats: 0, color: '#0ea5e9', note: '左牆交界處' },
+        { id: 'cab_6h', name: '六門高櫃', type: 'cabinet', x: 520, y: 340, w: 65, d: 310, h: 280, seats: 0, color: '#6366f1', note: '310×65×280 上下各6門' },
+        { id: 'cab_app', name: '家電收納櫃', type: 'cabinet', x: 375, y: 705, w: 210, d: 65, h: 280, seats: 0, color: '#8b5cf6', note: '210×65×280 右下角' },
+
+        // 主要辦公區 7 人辦公桌（主管在左面向同事，上下各 3 位）
+        { id: 'desk_7', name: '7人辦公桌(含主管)', type: 'desk', x: 175, y: 440, w: 240, d: 130, h: 75, seats: 7, color: '#d97706', note: '上下各3位＋左側主管位' },
+        { id: 'plant_1', name: '盆栽(主區)', type: 'plant', x: 465, y: 285, w: 45, d: 45, h: 120, seats: 0, color: '#16a34a', note: '綠化盆栽' },
+
+        // 辦公延伸區（10人桌 + 6人桌直向擺放 + 六門三層矮櫃）
+        { id: 'desk_10', name: '10人辦公桌', type: 'desk', x: 25, y: 810, w: 120, d: 300, h: 75, seats: 10, color: '#f59e0b', note: '直向擺放 5×2 位' },
+        { id: 'desk_6', name: '6人辦公桌', type: 'desk', x: 175, y: 810, w: 115, d: 185, h: 75, seats: 6, color: '#f59e0b', note: '直向擺放 3×2 位' },
+        { id: 'cab_6l', name: '六門三層矮櫃', type: 'lowcab', x: 315, y: 810, w: 30, d: 330, h: 110, seats: 0, color: '#14b8a6', note: '330×30×110 沿右牆' },
+        { id: 'plant_2', name: '盆栽(延伸區)', type: 'plant', x: 185, y: 1230, w: 45, d: 45, h: 120, seats: 0, color: '#16a34a', note: '綠化盆栽' }
+      ],
+
+      planA: [
+        // 提案 A：將六門高櫃與家電櫃往儲藏區整合，主區走道放大至 120cm+
+        { id: 'cab_u_l', name: '门字櫃-左', type: 'cabinet', x: 0, y: 0, w: 100, d: 65, h: 280, seats: 0, color: '#475569', note: '儲藏區上牆' },
+        { id: 'cab_u_m', name: '门字櫃-中', type: 'cabinet', x: 100, y: 0, w: 400, d: 45, h: 285, seats: 0, color: '#64748b', note: '儲藏區上牆' },
+        { id: 'cab_u_r', name: '门字櫃-右', type: 'cabinet', x: 520, y: 0, w: 65, d: 215, h: 285, seats: 0, color: '#475569', note: '儲藏區右牆' },
+        { id: 'cab_6h', name: '六門高櫃(移至儲藏區)', type: 'cabinet', x: 0, y: 150, w: 310, d: 65, h: 280, seats: 0, color: '#6366f1', note: '移入儲藏區釋放主區右牆' },
+        { id: 'cab_new', name: '新增單門櫃', type: 'cabinet', x: 0, y: 270, w: 45, d: 70, h: 280, seats: 0, color: '#0284c7', note: '柱左側' },
+        { id: 'printer', name: '印表機', type: 'equip', x: 0, y: 350, w: 65, d: 60, h: 95, seats: 0, color: '#334155', note: '公共事務角' },
+        { id: 'water', name: '飲水機', type: 'equip', x: 0, y: 420, w: 45, d: 45, h: 135, seats: 0, color: '#0ea5e9', note: '集中茶水事務區' },
+        { id: 'cab_app', name: '家電收納櫃', type: 'cabinet', x: 375, y: 705, w: 210, d: 65, h: 280, seats: 0, color: '#8b5cf6', note: '右下角茶水點心區' },
+        { id: 'desk_7', name: '7人辦公桌(含主管)', type: 'desk', x: 245, y: 430, w: 240, d: 130, h: 75, seats: 7, color: '#d97706', note: '右移後左側動線達180cm' },
+        { id: 'plant_1', name: '盆栽(主區)', type: 'plant', x: 530, y: 300, w: 45, d: 45, h: 120, seats: 0, color: '#16a34a', note: '入口視覺端景' },
+        { id: 'desk_10', name: '10人辦公桌', type: 'desk', x: 15, y: 800, w: 120, d: 300, h: 75, seats: 10, color: '#f59e0b', note: '貼左牆留出中央大走道' },
+        { id: 'desk_6', name: '6人辦公桌', type: 'desk', x: 185, y: 800, w: 115, d: 185, h: 75, seats: 6, color: '#f59e0b', note: '靠右側配置' },
+        { id: 'cab_6l', name: '六門三層矮櫃', type: 'lowcab', x: 315, y: 920, w: 30, d: 330, h: 110, seats: 0, color: '#14b8a6', note: '下移避開轉角瓶頸' },
+        { id: 'plant_2', name: '盆栽(延伸區)', type: 'plant', x: 15, y: 1230, w: 45, d: 45, h: 120, seats: 0, color: '#16a34a', note: '綠化盆栽' }
+      ],
+
+      planB: [
+        // 提案 B：儲藏區精簡＋延伸區改雙排高效工位（總座位擴編至 26 位）
+        { id: 'cab_u_m', name: '门字櫃-中', type: 'cabinet', x: 80, y: 0, w: 400, d: 45, h: 285, seats: 0, color: '#64748b', note: '儲藏區上牆' },
+        { id: 'cab_u_r', name: '门字櫃-右', type: 'cabinet', x: 520, y: 0, w: 65, d: 215, h: 285, seats: 0, color: '#475569', note: '儲藏區右牆' },
+        { id: 'cab_6h', name: '六門高櫃', type: 'cabinet', x: 0, y: 100, w: 310, d: 65, h: 280, seats: 0, color: '#6366f1', note: '集中收納於上方' },
+        { id: 'cab_new', name: '新增單門櫃', type: 'cabinet', x: 0, y: 270, w: 45, d: 70, h: 280, seats: 0, color: '#0284c7', note: '柱左側' },
+        { id: 'printer', name: '印表機', type: 'equip', x: 0, y: 350, w: 65, d: 60, h: 95, seats: 0, color: '#334155', note: '印表機' },
+        { id: 'water', name: '飲水機', type: 'equip', x: 0, y: 420, w: 45, d: 45, h: 135, seats: 0, color: '#0ea5e9', note: '飲水機' },
+        { id: 'cab_app', name: '家電收納櫃', type: 'cabinet', x: 375, y: 705, w: 210, d: 65, h: 280, seats: 0, color: '#8b5cf6', note: '家電收納櫃' },
+        { id: 'desk_7', name: '8人主區辦公島', type: 'desk', x: 220, y: 390, w: 280, d: 130, h: 75, seats: 8, color: '#d97706', note: '擴編為 8 人島桌' },
+        { id: 'desk_m', name: '討論/機動 2人桌', type: 'desk', x: 220, y: 560, w: 130, d: 70, h: 75, seats: 2, color: '#fb923c', note: '新增臨時討論位' },
+        { id: 'desk_10', name: '10人辦公桌', type: 'desk', x: 15, y: 800, w: 120, d: 300, h: 75, seats: 10, color: '#f59e0b', note: '左排 10 位' },
+        { id: 'desk_6', name: '6人辦公桌', type: 'desk', x: 185, y: 800, w: 115, d: 185, h: 75, seats: 6, color: '#f59e0b', note: '右排 6 位' },
+        { id: 'cab_6l', name: '六門三層矮櫃', type: 'lowcab', x: 315, y: 880, w: 30, d: 330, h: 110, seats: 0, color: '#14b8a6', note: '矮櫃' },
+        { id: 'plant_1', name: '盆栽', type: 'plant', x: 530, y: 300, w: 45, d: 45, h: 120, seats: 0, color: '#16a34a', note: '綠化盆栽' }
+      ]
+    };
+
+    const STORAGE_KEY = 'materials_office_layout_v2';
+    let items = [];
+    let selectedId = null;
+    let snapEnabled = true;
+    let viewMode = 'split';
+
+    // 2D Viewport transform & interactive drag/resize/wall state
+    let zoom2d = 0.48;
+    let panX = 70;
+    let panY = 30;
+    let interactionMode = null; // 'move' | 'resize' | 'wall' | 'pan'
+    let activeResizeHandle = null; // 'nw','n','ne','e','se','s','sw','w'
+    let activeWallKey = null; // 'topW' | 'storageD' | 'mainBottom' | 'extW' | 'totalH'
+    let dragOffsetX = 0;
+    let dragOffsetY = 0;
+    let resizeStartRect = null;
+    let panStartX = 0;
+    let panStartY = 0;
+
+    // 3D Three.js state
+    let scene, camera, renderer, roomGroup, furnitureGroup;
+    let orbitTheta = 0.65, orbitPhi = 0.92, orbitRadius = 1650;
+    let orbitTarget = { x: 290, y: 60, z: 620 };
+    let is3dOrbit = false, is3dPan = false, prev3d = { x: 0, y: 0 };
+
+    function withStructuralDefaults(list) {
+      return [...structuredClone(list), ...structuredClone(DEFAULT_PILLARS), ...structuredClone(DEFAULT_DOORS)];
+    }
+
+    function init() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          ROOM = { ...DEFAULT_ROOM, ...(parsed.room || {}) };
+          ROOM.totalH = ROOM.storageD + ROOM.mainD + ROOM.extD;
+          items = Array.isArray(parsed.items) ? parsed.items : withStructuralDefaults(PRESETS.current);
+        } else {
+          ROOM = { ...DEFAULT_ROOM };
+          items = withStructuralDefaults(PRESETS.current);
+        }
+      } catch {
+        ROOM = { ...DEFAULT_ROOM };
+        items = withStructuralDefaults(PRESETS.current);
+      }
+
+      init2D();
+      init3D();
+      syncAll();
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('keydown', e => {
+        if ((e.key === 'r' || e.key === 'R') && selectedId && document.activeElement.tagName !== 'INPUT') {
+          rotateSelected();
+        }
+        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && document.activeElement.tagName !== 'INPUT') {
+          deleteSelected();
+        }
+      });
+    }
+
+    function saveLocal() {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ room: ROOM, items })); } catch {}
+    }
+
+    function updateRoomInput() {
+      ROOM.topW = Math.max(200, Number(document.getElementById('rmTopW').value) || 585);
+      ROOM.storageD = Math.max(50, Number(document.getElementById('rmStorageD').value) || 270);
+      ROOM.mainD = Math.max(150, Number(document.getElementById('rmMainD').value) || 500);
+      ROOM.extW = Math.max(150, Math.min(ROOM.topW, Number(document.getElementById('rmExtW').value) || 345));
+      ROOM.extD = Math.max(150, Number(document.getElementById('rmExtD').value) || 525);
+      ROOM.totalH = ROOM.storageD + ROOM.mainD + ROOM.extD;
+      saveLocal();
+      buildStaticRoom3D();
+      syncAll();
+    }
+
+    // =========================================================================
+    // 幾何碰撞偵測（檢查是否在刀把形內 ＋ 是否與其他物件或柱子重疊）
+    // =========================================================================
+    function isInsideRoom(rect) {
+      if (rect.x < 0 || rect.y < 0 || rect.y + rect.d > ROOM.totalH) return false;
+      // 上半部 (y < 770) 最大寬度 585；下半部 (y + d > 770) 最大寬度 345
+      if (rect.x + rect.w > ROOM.topW) return false;
+      if (rect.y + rect.d > ROOM.storageD + ROOM.mainD && rect.x + rect.w > ROOM.extW) return false;
+      return true;
+    }
+
+    function rectsOverlap(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.d && a.y + a.d > b.y;
+    }
+
+    function computeCollisions() {
+      const badIds = new Set();
+      for (let i = 0; i < items.length; i++) {
+        const a = items[i];
+        if (a.type === 'door') continue; // 門可壓在牆線上不報錯
+        if (!isInsideRoom(a)) badIds.add(a.id);
+        for (let j = i + 1; j < items.length; j++) {
+          const b = items[j];
+          if (b.type === 'door') continue;
+          if (rectsOverlap(a, b)) {
+            badIds.add(a.id);
+            badIds.add(b.id);
+          }
+        }
+      }
+      return badIds;
+    }
+
+    // 8 向縮放控制點計算
+    function getHandles(it) {
+      const mx = it.x + it.w / 2, my = it.y + it.d / 2;
+      return [
+        { k: 'nw', x: it.x, y: it.y, cur: 'nwse-resize' },
+        { k: 'n',  x: mx,   y: it.y, cur: 'ns-resize' },
+        { k: 'ne', x: it.x + it.w, y: it.y, cur: 'nesw-resize' },
+        { k: 'e',  x: it.x + it.w, y: my, cur: 'ew-resize' },
+        { k: 'se', x: it.x + it.w, y: it.y + it.d, cur: 'nwse-resize' },
+        { k: 's',  x: mx,   y: it.y + it.d, cur: 'ns-resize' },
+        { k: 'sw', x: it.x, y: it.y + it.d, cur: 'nesw-resize' },
+        { k: 'w',  x: it.x, y: my, cur: 'ew-resize' }
+      ];
+    }
+
+    function hitResizeHandle(pt) {
+      if (!selectedId) return null;
+      const sel = items.find(i => i.id === selectedId);
+      if (!sel) return null;
+      const tol = 14 / zoom2d;
+      for (const h of getHandles(sel)) {
+        if (Math.abs(pt.x - h.x) <= tol && Math.abs(pt.y - h.y) <= tol) return h;
+      }
+      return null;
+    }
+
+    function hitWallLine(pt) {
+      const tol = 12 / zoom2d;
+      const mainBottom = ROOM.storageD + ROOM.mainD;
+      // 藍色隔線 (儲藏室深)
+      if (Math.abs(pt.y - ROOM.storageD) <= tol && pt.x >= 0 && pt.x <= ROOM.topW) return { key: 'storageD', cur: 'ns-resize' };
+      // 綠色隔線 / 內凹橫牆 (主區下緣)
+      if (Math.abs(pt.y - mainBottom) <= tol && pt.x >= 0 && pt.x <= ROOM.topW) return { key: 'mainBottom', cur: 'ns-resize' };
+      // 底部外牆 (延伸區長)
+      if (Math.abs(pt.y - ROOM.totalH) <= tol && pt.x >= 0 && pt.x <= ROOM.extW) return { key: 'totalH', cur: 'ns-resize' };
+      // 上方右外牆 (上方寬)
+      if (Math.abs(pt.x - ROOM.topW) <= tol && pt.y >= 0 && pt.y <= mainBottom) return { key: 'topW', cur: 'ew-resize' };
+      // 下方延伸區右牆 (延伸區寬)
+      if (Math.abs(pt.x - ROOM.extW) <= tol && pt.y >= mainBottom && pt.y <= ROOM.totalH) return { key: 'extW', cur: 'ew-resize' };
+      return null;
+    }
+
+    // =========================================================================
+    // 2D Canvas 繪製與互動（支援拖拉物件、8向縮放物件、拖拉牆面與隔線）
+    // =========================================================================
+    const canvas2d = document.getElementById('canvas2d');
+    const ctx = canvas2d.getContext('2d');
+
+    function init2D() {
+      resize2D();
+      fit2DView();
+
+      canvas2d.addEventListener('pointerdown', e => {
+        canvas2d.setPointerCapture(e.pointerId);
+        const rect = canvas2d.getBoundingClientRect();
+        const pt = screenToWorld2D(e.clientX - rect.left, e.clientY - rect.top);
+
+        // 1. 優先偵測已選取物件的 8 向縮放點
+        const h = hitResizeHandle(pt);
+        if (h && e.button === 0) {
+          const sel = items.find(i => i.id === selectedId);
+          interactionMode = 'resize';
+          activeResizeHandle = h.k;
+          resizeStartRect = { ...sel };
+          return;
+        }
+
+        // 2. 偵測物件點擊（反向找最上層）
+        let hit = null;
+        for (let i = items.length - 1; i >= 0; i--) {
+          const it = items[i];
+          if (pt.x >= it.x && pt.x <= it.x + it.w && pt.y >= it.y && pt.y <= it.y + it.d) {
+            hit = it;
+            break;
+          }
+        }
+        if (hit && e.button === 0) {
+          selectedId = hit.id;
+          interactionMode = 'move';
+          dragOffsetX = pt.x - hit.x;
+          dragOffsetY = pt.y - hit.y;
+          syncAll();
+          return;
+        }
+
+        // 3. 偵測牆面或區域分隔線拖拉
+        const wall = hitWallLine(pt);
+        if (wall && e.button === 0) {
+          selectedId = null;
+          interactionMode = 'wall';
+          activeWallKey = wall.key;
+          syncAll();
+          return;
+        }
+
+        // 4. 空白處拖拉平移畫布
+        selectedId = null;
+        interactionMode = 'pan';
+        panStartX = e.clientX - panX;
+        panStartY = e.clientY - panY;
+        syncAll();
+      });
+
+      canvas2d.addEventListener('pointermove', e => {
+        const rect = canvas2d.getBoundingClientRect();
+        const pt = screenToWorld2D(e.clientX - rect.left, e.clientY - rect.top);
+        document.getElementById('coordHint').textContent = `滑鼠座標：X ${Math.round(pt.x)} cm, Y ${Math.round(pt.y)} cm`;
+
+        const snap = v => snapEnabled ? Math.round(v / 5) * 5 : Math.round(v);
+
+        if (interactionMode === 'move' && selectedId) {
+          const it = items.find(i => i.id === selectedId);
+          if (!it) return;
+          it.x = snap(pt.x - dragOffsetX);
+          it.y = snap(pt.y - dragOffsetY);
+          saveLocal();
+          syncAll();
+          return;
+        }
+
+        if (interactionMode === 'resize' && selectedId && resizeStartRect) {
+          const it = items.find(i => i.id === selectedId);
+          if (!it) return;
+          const k = activeResizeHandle;
+          const r = resizeStartRect;
+          let x1 = r.x, y1 = r.y, x2 = r.x + r.w, y2 = r.y + r.d;
+          if (k.includes('w')) x1 = Math.min(x2 - 20, snap(pt.x));
+          if (k.includes('e')) x2 = Math.max(x1 + 20, snap(pt.x));
+          if (k.includes('n')) y1 = Math.min(y2 - 20, snap(pt.y));
+          if (k.includes('s')) y2 = Math.max(y1 + 20, snap(pt.y));
+          it.x = x1; it.y = y1; it.w = x2 - x1; it.d = y2 - y1;
+          saveLocal();
+          syncAll();
+          return;
+        }
+
+        if (interactionMode === 'wall' && activeWallKey) {
+          if (activeWallKey === 'topW') {
+            ROOM.topW = Math.max(ROOM.extW + 20, Math.max(250, snap(pt.x)));
+          } else if (activeWallKey === 'extW') {
+            ROOM.extW = Math.max(150, Math.min(ROOM.topW, snap(pt.x)));
+          } else if (activeWallKey === 'storageD') {
+            const newS = Math.max(60, Math.min(ROOM.storageD + ROOM.mainD - 150, snap(pt.y)));
+            const mainBottom = ROOM.storageD + ROOM.mainD;
+            ROOM.storageD = newS;
+            ROOM.mainD = mainBottom - newS;
+          } else if (activeWallKey === 'mainBottom') {
+            ROOM.mainD = Math.max(150, snap(pt.y) - ROOM.storageD);
+          } else if (activeWallKey === 'totalH') {
+            ROOM.extD = Math.max(150, snap(pt.y) - (ROOM.storageD + ROOM.mainD));
+          }
+          ROOM.totalH = ROOM.storageD + ROOM.mainD + ROOM.extD;
+          saveLocal();
+          buildStaticRoom3D();
+          syncAll();
+          return;
+        }
+
+        if (interactionMode === 'pan') {
+          panX = e.clientX - panStartX;
+          panY = e.clientY - panStartY;
+          draw2D();
+          return;
+        }
+
+        // Hover 游標提示
+        const h = hitResizeHandle(pt);
+        if (h) { canvas2d.style.cursor = h.cur; return; }
+        const overItem = items.some(it => pt.x >= it.x && pt.x <= it.x + it.w && pt.y >= it.y && pt.y <= it.y + it.d);
+        if (overItem) { canvas2d.style.cursor = 'move'; return; }
+        const wall = hitWallLine(pt);
+        if (wall) { canvas2d.style.cursor = wall.cur; return; }
+        canvas2d.style.cursor = 'grab';
+      });
+
+      window.addEventListener('pointerup', () => {
+        interactionMode = null;
+        activeResizeHandle = null;
+        activeWallKey = null;
+        resizeStartRect = null;
+      });
+
+      canvas2d.addEventListener('wheel', e => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        const before = screenToWorld2D(e.offsetX, e.offsetY);
+        zoom2d = Math.max(0.2, Math.min(2.2, zoom2d * factor));
+        panX = e.offsetX - before.x * zoom2d;
+        panY = e.offsetY - before.y * zoom2d;
+        draw2D();
+      }, { passive: false });
+    }
+
+    function screenToWorld2D(sx, sy) {
+      return { x: (sx - panX) / zoom2d, y: (sy - panY) / zoom2d };
+    }
+
+    function resize2D() {
+      const pane = document.getElementById('pane2d');
+      canvas2d.width = pane.clientWidth;
+      canvas2d.height = pane.clientHeight;
+    }
+
+    function fit2DView() {
+      const pad = 64;
+      const sx = (canvas2d.width - pad * 2) / ROOM.topW;
+      const sy = (canvas2d.height - pad * 2) / ROOM.totalH;
+      zoom2d = Math.max(0.25, Math.min(sx, sy));
+      panX = (canvas2d.width - ROOM.topW * zoom2d) / 2;
+      panY = (canvas2d.height - ROOM.totalH * zoom2d) / 2;
+    }
+
+    function draw2D(targetCtx = ctx, w = canvas2d.width, h = canvas2d.height, z = zoom2d, px = panX, py = panY) {
+      const collisions = computeCollisions();
+      targetCtx.clearRect(0, 0, w, h);
+      targetCtx.fillStyle = '#f8fafc';
+      targetCtx.fillRect(0, 0, w, h);
+
+      targetCtx.save();
+      targetCtx.translate(px, py);
+      targetCtx.scale(z, z);
+
+      // 1. 三大區域色塊（對應 MD 藍 / 深綠 / 淺綠）
+      targetCtx.fillStyle = '#dbeafe'; // 儲藏室 (藍)
+      targetCtx.fillRect(0, 0, ROOM.topW, ROOM.storageD);
+
+      targetCtx.fillStyle = '#bbf7d0'; // 主要辦公區 (深綠)
+      targetCtx.fillRect(0, ROOM.storageD, ROOM.topW, ROOM.mainD);
+
+      targetCtx.fillStyle = '#dcfce7'; // 辦公延伸區 (淺綠)
+      targetCtx.fillRect(0, ROOM.storageD + ROOM.mainD, ROOM.extW, ROOM.extD);
+
+      // 2. 50cm 參考網格
+      targetCtx.strokeStyle = 'rgba(15, 23, 42, 0.08)';
+      targetCtx.lineWidth = 1 / z;
+      for (let x = 0; x <= ROOM.topW; x += 50) {
+        const maxY = x <= ROOM.extW ? ROOM.totalH : ROOM.storageD + ROOM.mainD;
+        targetCtx.beginPath(); targetCtx.moveTo(x, 0); targetCtx.lineTo(x, maxY); targetCtx.stroke();
+      }
+      for (let y = 0; y <= ROOM.totalH; y += 50) {
+        const maxX = y <= ROOM.storageD + ROOM.mainD ? ROOM.topW : ROOM.extW;
+        targetCtx.beginPath(); targetCtx.moveTo(0, y); targetCtx.lineTo(maxX, y); targetCtx.stroke();
+      }
+
+      // 區域虛線分隔（儲藏區不設門）
+      targetCtx.setLineDash([10, 8]);
+      targetCtx.strokeStyle = '#3b82f6';
+      targetCtx.lineWidth = 2;
+      targetCtx.beginPath(); targetCtx.moveTo(0, ROOM.storageD); targetCtx.lineTo(ROOM.topW, ROOM.storageD); targetCtx.stroke();
+      targetCtx.strokeStyle = '#15803d';
+      targetCtx.beginPath(); targetCtx.moveTo(0, ROOM.storageD + ROOM.mainD); targetCtx.lineTo(ROOM.extW, ROOM.storageD + ROOM.mainD); targetCtx.stroke();
+      targetCtx.setLineDash([]);
+
+      // 區域浮水印標籤（即時坪數）
+      const pStorage = ((ROOM.topW * ROOM.storageD) / 33057.85).toFixed(2);
+      const pMain = ((ROOM.topW * ROOM.mainD) / 33057.85).toFixed(2);
+      const pExt = ((ROOM.extW * ROOM.extD) / 33057.85).toFixed(2);
+      targetCtx.fillStyle = 'rgba(30, 58, 138, 0.45)';
+      targetCtx.font = 'bold 20px "Noto Sans TC"';
+      targetCtx.textAlign = 'center';
+      targetCtx.fillText(`儲藏室＋置物櫃＋文件櫃 (${pStorage} 坪)`, ROOM.topW / 2, ROOM.storageD / 2);
+      targetCtx.fillStyle = 'rgba(20, 83, 45, 0.35)';
+      targetCtx.fillText(`主要辦公區 (${pMain} 坪)`, ROOM.topW / 2, ROOM.storageD + ROOM.mainD / 2);
+      targetCtx.fillText(`辦公延伸區 (${pExt} 坪)`, ROOM.extW / 2, ROOM.storageD + ROOM.mainD + ROOM.extD / 2);
+
+      // 3. 刀把形實牆粗框
+      targetCtx.strokeStyle = '#0f172a';
+      targetCtx.lineWidth = 8;
+      targetCtx.beginPath();
+      targetCtx.moveTo(0, 0);
+      targetCtx.lineTo(ROOM.topW, 0);
+      targetCtx.lineTo(ROOM.topW, ROOM.storageD + ROOM.mainD);
+      targetCtx.lineTo(ROOM.extW, ROOM.storageD + ROOM.mainD);
+      targetCtx.lineTo(ROOM.extW, ROOM.totalH);
+      targetCtx.lineTo(0, ROOM.totalH);
+      targetCtx.closePath();
+      targetCtx.stroke();
+
+      // 4. 全部物件（桌櫃、結構柱、門、設備、盆栽皆可選取拖拉縮放）
+      items.forEach(it => {
+        const isSel = it.id === selectedId;
+        const isBad = collisions.has(it.id);
+
+        targetCtx.fillStyle = it.color;
+        targetCtx.globalAlpha = it.type === 'door' ? 0.95 : 0.88;
+        if (it.type === 'plant') {
+          targetCtx.beginPath();
+          targetCtx.arc(it.x + it.w / 2, it.y + it.d / 2, Math.min(it.w, it.d) / 2, 0, Math.PI * 2);
+          targetCtx.fill();
+        } else {
+          targetCtx.fillRect(it.x, it.y, it.w, it.d);
+        }
+        targetCtx.globalAlpha = 1;
+
+        targetCtx.strokeStyle = isBad ? '#ef4444' : (isSel ? '#0284c7' : '#0f172a');
+        targetCtx.lineWidth = isBad || isSel ? 5 : 2;
+        if (it.type === 'plant') {
+          targetCtx.beginPath();
+          targetCtx.arc(it.x + it.w / 2, it.y + it.d / 2, Math.min(it.w, it.d) / 2, 0, Math.PI * 2);
+          targetCtx.stroke();
+        } else {
+          targetCtx.strokeRect(it.x, it.y, it.w, it.d);
+        }
+
+        // 物件文字標籤
+        targetCtx.fillStyle = it.type === 'door' ? '#0f172a' : '#ffffff';
+        targetCtx.font = 'bold 14px "Noto Sans TC"';
+        targetCtx.textAlign = 'center';
+        const cx = it.x + it.w / 2;
+        const cy = it.y + it.d / 2;
+        targetCtx.fillText(it.name, cx, cy + (it.d < 35 ? 5 : -2));
+        if (it.d >= 35) {
+          targetCtx.font = '12px "Noto Sans TC"';
+          targetCtx.fillStyle = 'rgba(255,255,255,0.9)';
+          targetCtx.fillText(`${it.w}×${it.d}`, cx, cy + 15);
+        }
+
+        // 選取時繪製 8 向藍色縮放控制點
+        if (isSel && targetCtx === ctx) {
+          const hs = 9 / z;
+          getHandles(it).forEach(h => {
+            targetCtx.fillStyle = '#ffffff';
+            targetCtx.strokeStyle = '#0284c7';
+            targetCtx.lineWidth = 2.5 / z;
+            targetCtx.fillRect(h.x - hs / 2, h.y - hs / 2, hs, hs);
+            targetCtx.strokeRect(h.x - hs / 2, h.y - hs / 2, hs, hs);
+          });
+        }
+      });
+
+      // 5. 外部動態尺寸標註 (cm)
+      targetCtx.fillStyle = '#0f172a';
+      targetCtx.font = 'bold 18px "Noto Sans TC"';
+      targetCtx.textAlign = 'center';
+      targetCtx.fillText(`${ROOM.topW} cm`, ROOM.topW / 2, -16);
+      targetCtx.fillText(`${ROOM.extW} cm`, ROOM.extW / 2, ROOM.totalH + 28);
+      if (ROOM.topW > ROOM.extW) {
+        targetCtx.fillText(`${ROOM.topW - ROOM.extW} cm`, ROOM.extW + (ROOM.topW - ROOM.extW) / 2, ROOM.storageD + ROOM.mainD + 26);
+      }
+
+      targetCtx.save();
+      targetCtx.translate(-22, ROOM.storageD / 2); targetCtx.rotate(-Math.PI / 2);
+      targetCtx.fillText(String(ROOM.storageD), 0, 0); targetCtx.restore();
+
+      targetCtx.save();
+      targetCtx.translate(-22, ROOM.storageD + ROOM.mainD / 2); targetCtx.rotate(-Math.PI / 2);
+      targetCtx.fillText(String(ROOM.mainD), 0, 0); targetCtx.restore();
+
+      targetCtx.save();
+      targetCtx.translate(-22, ROOM.storageD + ROOM.mainD + ROOM.extD / 2); targetCtx.rotate(-Math.PI / 2);
+      targetCtx.fillText(String(ROOM.extD), 0, 0); targetCtx.restore();
+
+      targetCtx.restore();
+    }
+
+    // =========================================================================
+    // 3D Three.js 即時渲染
+    // =========================================================================
+    function init3D() {
+      const container = document.getElementById('container3d');
+      if (typeof THREE === 'undefined') {
+        container.innerHTML = '<div style="color:#94a3b8;padding:24px;text-align:center;">目前離線未載入 Three.js，仍可完整使用 2D 互動配置。</div>';
+        return;
+      }
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0f172a);
+
+      camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 10, 8000);
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+
+      // Lights
+      scene.add(new THREE.AmbientLight(0xffffff, 0.72));
+      const dir = new THREE.DirectionalLight(0xffffff, 0.85);
+      dir.position.set(700, 1400, 600);
+      dir.castShadow = true;
+      scene.add(dir);
+
+      roomGroup = new THREE.Group();
+      scene.add(roomGroup);
+      buildStaticRoom3D();
+      furnitureGroup = new THREE.Group();
+      scene.add(furnitureGroup);
+
+      // Orbit / Pan / Zoom mouse handlers
+      const dom = renderer.domElement;
+      dom.addEventListener('contextmenu', e => e.preventDefault());
+      dom.addEventListener('mousedown', e => {
+        if (e.button === 0) is3dOrbit = true;
+        if (e.button === 2) is3dPan = true;
+        prev3d = { x: e.clientX, y: e.clientY };
+      });
+      window.addEventListener('mousemove', e => {
+        if (!is3dOrbit && !is3dPan) return;
+        const dx = e.clientX - prev3d.x;
+        const dy = e.clientY - prev3d.y;
+        prev3d = { x: e.clientX, y: e.clientY };
+        if (is3dOrbit) {
+          orbitTheta -= dx * 0.008;
+          orbitPhi = Math.max(0.15, Math.min(1.48, orbitPhi - dy * 0.008));
+        } else if (is3dPan) {
+          orbitTarget.x -= dx * 1.6;
+          orbitTarget.z -= dy * 1.6;
+        }
+        updateCamera3D();
+      });
+      window.addEventListener('mouseup', () => { is3dOrbit = false; is3dPan = false; });
+      dom.addEventListener('wheel', e => {
+        e.preventDefault();
+        orbitRadius = Math.max(450, Math.min(3400, orbitRadius + e.deltaY * 1.1));
+        updateCamera3D();
+      }, { passive: false });
+
+      updateCamera3D();
+      animate3D();
+    }
+
+    function buildStaticRoom3D() {
+      if (!roomGroup || typeof THREE === 'undefined') return;
+      while (roomGroup.children.length) roomGroup.remove(roomGroup.children[0]);
+
+      const addFloor = (x, z, w, d, color) => {
+        const mesh = new THREE.Mesh(
+          new THREE.BoxGeometry(w, 6, d),
+          new THREE.MeshStandardMaterial({ color, roughness: 0.85 })
+        );
+        mesh.position.set(x + w / 2, -3, z + d / 2);
+        mesh.receiveShadow = true;
+        roomGroup.add(mesh);
+      };
+      addFloor(0, 0, ROOM.topW, ROOM.storageD, 0xbfdbfe);
+      addFloor(0, ROOM.storageD, ROOM.topW, ROOM.mainD, 0x86efac);
+      addFloor(0, ROOM.storageD + ROOM.mainD, ROOM.extW, ROOM.extD, 0xbbf7d0);
+
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.55 });
+      const addWall = (x, z, w, d, h = 150) => {
+        if (w <= 0 || d <= 0) return;
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+        m.position.set(x + w / 2, h / 2, z + d / 2);
+        roomGroup.add(m);
+      };
+      addWall(0, -10, ROOM.topW, 10);
+      addWall(-10, 0, 10, ROOM.totalH);
+      addWall(ROOM.topW, 0, 10, ROOM.storageD + ROOM.mainD);
+      if (ROOM.topW > ROOM.extW) addWall(ROOM.extW, ROOM.storageD + ROOM.mainD, ROOM.topW - ROOM.extW + 10, 10);
+      addWall(ROOM.extW, ROOM.storageD + ROOM.mainD, 10, ROOM.extD);
+      addWall(0, ROOM.totalH, ROOM.extW, 10);
+    }
+
+    function rebuildFurniture3D() {
+      if (!furnitureGroup || typeof THREE === 'undefined') return;
+      while (furnitureGroup.children.length) furnitureGroup.remove(furnitureGroup.children[0]);
+
+      const collisions = computeCollisions();
+      items.forEach(it => {
+        const isSel = it.id === selectedId;
+        const isBad = collisions.has(it.id);
+        const colHex = isBad ? 0xef4444 : new THREE.Color(it.color).getHex();
+        const mat = new THREE.MeshStandardMaterial({
+          color: colHex,
+          roughness: 0.6,
+          emissive: isSel ? 0x0369a1 : 0x000000,
+          emissiveIntensity: isSel ? 0.35 : 0
+        });
+
+        let mesh;
+        if (it.type === 'plant') {
+          const grp = new THREE.Group();
+          const pot = new THREE.Mesh(new THREE.CylinderGeometry(16, 12, 35, 16), new THREE.MeshStandardMaterial({ color: 0x92400e }));
+          pot.position.y = 17.5;
+          const crown = new THREE.Mesh(new THREE.SphereGeometry(24, 16, 16), mat);
+          crown.position.y = 75;
+          grp.add(pot, crown);
+          grp.position.set(it.x + it.w / 2, 0, it.y + it.d / 2);
+          mesh = grp;
+        } else {
+          mesh = new THREE.Mesh(new THREE.BoxGeometry(it.w, it.h, it.d), mat);
+          mesh.position.set(it.x + it.w / 2, it.h / 2, it.y + it.d / 2);
+          mesh.castShadow = true;
+          mesh.receiveShadow = true;
+
+          // Edge outline for crisp architectural look
+          const edges = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.BoxGeometry(it.w, it.h, it.d)),
+            new THREE.LineBasicMaterial({ color: isSel ? 0x38bdf8 : 0x0f172a })
+          );
+          mesh.add(edges);
+        }
+        furnitureGroup.add(mesh);
+      });
+    }
+
+    function updateCamera3D() {
+      if (!camera) return;
+      camera.position.x = orbitTarget.x + orbitRadius * Math.sin(orbitPhi) * Math.sin(orbitTheta);
+      camera.position.y = orbitTarget.y + orbitRadius * Math.cos(orbitPhi);
+      camera.position.z = orbitTarget.z + orbitRadius * Math.sin(orbitPhi) * Math.cos(orbitTheta);
+      camera.lookAt(orbitTarget.x, orbitTarget.y, orbitTarget.z);
+    }
+
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+      if (renderer && scene && camera) renderer.render(scene, camera);
+    }
+
+    // =========================================================================
+    // UI 同步與操作
+    // =========================================================================
+    function syncAll() {
+      const collisions = computeCollisions();
+      draw2D();
+      rebuildFurniture3D();
+
+      // 同步左側牆面尺寸與坪數統計
+      if (document.activeElement.id !== 'rmTopW') document.getElementById('rmTopW').value = ROOM.topW;
+      if (document.activeElement.id !== 'rmStorageD') document.getElementById('rmStorageD').value = ROOM.storageD;
+      if (document.activeElement.id !== 'rmMainD') document.getElementById('rmMainD').value = ROOM.mainD;
+      if (document.activeElement.id !== 'rmExtW') document.getElementById('rmExtW').value = ROOM.extW;
+      if (document.activeElement.id !== 'rmExtD') document.getElementById('rmExtD').value = ROOM.extD;
+
+      const aS = (ROOM.topW * ROOM.storageD) / 33057.85;
+      const aM = (ROOM.topW * ROOM.mainD) / 33057.85;
+      const aE = (ROOM.extW * ROOM.extD) / 33057.85;
+      document.getElementById('areaStorageStat').textContent = `${aS.toFixed(2)} 坪`;
+      document.getElementById('areaMainStat').textContent = `${aM.toFixed(2)} 坪`;
+      document.getElementById('areaExtStat').textContent = `${aE.toFixed(2)} 坪`;
+      document.getElementById('areaTotalStat').textContent = `${(aM + aE).toFixed(2)} / ${(aS + aM + aE).toFixed(2)} 坪`;
+
+      // 座位統計
+      const totalSeats = items.reduce((s, i) => s + (Number(i.seats) || 0), 0);
+      document.getElementById('seatCountStat').textContent = `${totalSeats} 位`;
+      document.getElementById('itemCountBadge').textContent = `${items.length} 件`;
+
+      // 碰撞警示
+      const colBox = document.getElementById('collisionStatus');
+      if (collisions.size > 0) {
+        colBox.className = 'alert-box';
+        colBox.textContent = `⚠️ 偵測到 ${collisions.size} 件桌櫃超出牆界或互相重疊（紅框標示）`;
+      } else {
+        colBox.className = 'ok-box';
+        colBox.textContent = '✅ 所有桌櫃皆在合法空間內，無重疊衝突';
+      }
+
+      // 物件清單
+      document.getElementById('itemList').innerHTML = items.map(it => {
+        const cls = [
+          'item-row',
+          it.id === selectedId ? 'selected' : '',
+          collisions.has(it.id) ? 'collide' : ''
+        ].join(' ');
+        return `
+          <div class="${cls}" onclick="selectItem('${it.id}')">
+            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${it.name}</span>
+            <span style="font-size:10.5px;color:var(--muted);flex-shrink:0;">${it.w}×${it.d}</span>
+          </div>
+        `;
+      }).join('');
+
+      // 右側屬性欄
+      const sel = items.find(i => i.id === selectedId);
+      document.getElementById('noSelectionMsg').classList.toggle('hidden', Boolean(sel));
+      document.getElementById('inspectorForm').classList.toggle('hidden', !sel);
+      if (sel) {
+        document.getElementById('propName').value = sel.name;
+        document.getElementById('propX').value = sel.x;
+        document.getElementById('propY').value = sel.y;
+        document.getElementById('propW').value = sel.w;
+        document.getElementById('propD').value = sel.d;
+        document.getElementById('propH').value = sel.h;
+        document.getElementById('propSeats').value = sel.seats || 0;
+        document.getElementById('propColor').value = sel.color;
+        document.getElementById('propNote').value = sel.note || '';
+      }
+    }
+
+    function selectItem(id) {
+      selectedId = id;
+      syncAll();
+    }
+
+    function updateSelectedProp() {
+      const sel = items.find(i => i.id === selectedId);
+      if (!sel) return;
+      sel.name = document.getElementById('propName').value;
+      sel.x = Number(document.getElementById('propX').value) || 0;
+      sel.y = Number(document.getElementById('propY').value) || 0;
+      sel.w = Math.max(20, Number(document.getElementById('propW').value) || 60);
+      sel.d = Math.max(20, Number(document.getElementById('propD').value) || 60);
+      sel.h = Math.max(20, Number(document.getElementById('propH').value) || 75);
+      sel.seats = Math.max(0, Number(document.getElementById('propSeats').value) || 0);
+      sel.color = document.getElementById('propColor').value;
+      sel.note = document.getElementById('propNote').value;
+      saveLocal();
+      syncAll();
+    }
+
+    function rotateSelected() {
+      const sel = items.find(i => i.id === selectedId);
+      if (!sel) return;
+      [sel.w, sel.d] = [sel.d, sel.w];
+      saveLocal();
+      syncAll();
+      showToast('已旋轉 90°');
+    }
+
+    function duplicateSelected() {
+      const sel = items.find(i => i.id === selectedId);
+      if (!sel) return;
+      const copy = { ...sel, id: `item_${Date.now()}`, name: `${sel.name}(複製)`, x: sel.x + 25, y: sel.y + 25 };
+      items.push(copy);
+      selectedId = copy.id;
+      saveLocal();
+      syncAll();
+      showToast('已複製物件');
+    }
+
+    function deleteSelected() {
+      if (!selectedId) return;
+      items = items.filter(i => i.id !== selectedId);
+      selectedId = null;
+      saveLocal();
+      syncAll();
+      showToast('已刪除物件');
+    }
+
+    function addNewItem(kind) {
+      const templates = {
+        desk4: { name: '4人辦公桌', type: 'desk', w: 160, d: 120, h: 75, seats: 4, color: '#f59e0b', note: '新增4人桌' },
+        desk6: { name: '6人辦公桌', type: 'desk', w: 180, d: 120, h: 75, seats: 6, color: '#d97706', note: '新增6人桌' },
+        desk1: { name: '個人工作桌', type: 'desk', w: 120, d: 60, h: 75, seats: 1, color: '#fb923c', note: '個人位' },
+        cabinet: { name: '系統高櫃', type: 'cabinet', w: 90, d: 45, h: 240, seats: 0, color: '#6366f1', note: '新增高櫃' },
+        lowcab: { name: '三層矮櫃', type: 'lowcab', w: 120, d: 40, h: 110, seats: 0, color: '#14b8a6', note: '新增矮櫃' },
+        plant: { name: '綠化盆栽', type: 'plant', w: 45, d: 45, h: 120, seats: 0, color: '#16a34a', note: '盆栽' },
+        pillar: { name: '結構柱', type: 'pillar', w: 60, d: 60, h: 300, seats: 0, color: '#475569', note: '結構柱' },
+        door: { name: '出入口門', type: 'door', w: 90, d: 18, h: 210, seats: 0, color: '#94a3b8', note: '出入口門' }
+      };
+      const t = templates[kind];
+      const newObj = { id: `obj_${Date.now()}`, x: 160, y: 320, ...t };
+      items.push(newObj);
+      selectedId = newObj.id;
+      saveLocal();
+      syncAll();
+      showToast(`已新增「${t.name}」`);
+    }
+
+    function loadPreset(key) {
+      ROOM = { ...DEFAULT_ROOM };
+      items = withStructuralDefaults(PRESETS[key]);
+      selectedId = null;
+      ['presetCurrent', 'presetPlanA', 'presetPlanB'].forEach(id => document.getElementById(id).classList.remove('active'));
+      const map = { current: 'presetCurrent', planA: 'presetPlanA', planB: 'presetPlanB' };
+      document.getElementById(map[key]).classList.add('active');
+      saveLocal();
+      buildStaticRoom3D();
+      syncAll();
+      showToast('已切換配置方案');
+    }
+
+    function toggleSnap() {
+      snapEnabled = !snapEnabled;
+      document.getElementById('btnSnap').classList.toggle('active', snapEnabled);
+    }
+
+    function setViewMode(mode) {
+      viewMode = mode;
+      ['btnView2d', 'btnViewSplit', 'btnView3d'].forEach(id => document.getElementById(id).classList.remove('active'));
+      document.getElementById(mode === '2d' ? 'btnView2d' : mode === '3d' ? 'btnView3d' : 'btnViewSplit').classList.add('active');
+      document.getElementById('pane2d').classList.toggle('hidden', mode === '3d');
+      document.getElementById('pane3d').classList.toggle('hidden', mode === '2d');
+      handleResize();
+    }
+
+    function handleResize() {
+      resize2D();
+      fit2DView();
+      draw2D();
+      if (renderer && camera) {
+        const c = document.getElementById('container3d');
+        if (c.clientWidth > 0 && c.clientHeight > 0) {
+          camera.aspect = c.clientWidth / c.clientHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(c.clientWidth, c.clientHeight);
+        }
+      }
+    }
+
+    // =========================================================================
+    // 匯出 100% 原生向量可編輯 PowerPoint (.pptx) — 一次產出【圖二 室內平面配置圖】＋【圖一 系統櫃設計圖】＋【明細表】
+    // 完全同步網頁目前拖拉的最新牆面尺寸、坪數、座位數與全部物件！
+    // =========================================================================
+    function exportEditablePPTX() {
+      if (typeof PptxGenJS === 'undefined') {
+        alert('目前處於離線環境未載入 PptxGenJS，請連網後再匯出。');
+        return;
+      }
+
+      const pptx = new PptxGenJS();
+      pptx.layout = 'LAYOUT_WIDE'; // 13.333 x 7.5 in
+      pptx.author = '資材辦公室 2D/3D 互動平面配置工具';
+      pptx.title = '資材辦公室 室內平面配置與系統櫃設計圖';
+
+      const NAVY = '1D4B83';
+      const NAVY_CAB = '1B4965';
+      const BLUE_HDR = '2867AB';
+      const BLUE_BG = 'DEE9F7';
+      const CARD_BD = 'A6C2DF';
+      const CALLOUT_BD = '5B9BD5';
+      const SLATE_BG = 'F4F7FA';
+      const DARK = '1E293B';
+      const WALL = '3F464F';
+      const MUTED = '475569';
+      const RED = 'DC2626';
+      const WOOD = 'C8A97E';
+      const WOOD_DARK = 'A68459';
+      const DOOR_W = 'FAF8F5';
+      const FONT = 'Microsoft JhengHei';
+
+      // 即時計算目前坪數與座位
+      const areaS = ((ROOM.topW * ROOM.storageD) / 33057.85).toFixed(2);
+      const areaM = ((ROOM.topW * ROOM.mainD) / 33057.85).toFixed(2);
+      const areaE = ((ROOM.extW * ROOM.extD) / 33057.85).toFixed(2);
+      const areaOffice = (Number(areaM) + Number(areaE)).toFixed(1);
+      const totalSeats = items.reduce((s, i) => s + (Number(i.seats) || 0), 0);
+      const stepW = Math.max(0, ROOM.topW - ROOM.extW);
+
+      function addNumBadge(slide, num, x, y, size = 0.24) {
+        slide.addShape(pptx.ShapeType.ellipse, { x, y, w: size, h: size, fill: { color: RED }, line: { color: 'FFFFFF', pt: 1 } });
+        slide.addText(String(num), { x, y, w: size, h: size, fontFace: FONT, fontSize: 10, bold: true, color: 'FFFFFF', align: 'center', valign: 'middle', margin: 0 });
+      }
+
+      function drawVectorCabinet(slide, x, y, w, h, cols, rows, openCols = []) {
+        slide.addShape(pptx.ShapeType.rect, { x, y, w, h, fill: { color: WOOD }, line: { color: WOOD_DARK, pt: 1 } });
+        const pad = 0.05;
+        const cw = (w - pad * 2) / cols;
+        const rh = (h - pad * 2) / rows;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const cx = x + pad + c * cw + 0.015;
+            const cy = y + pad + r * rh + 0.015;
+            const isOpen = openCols.includes(c) && r === rows - 1;
+            slide.addShape(pptx.ShapeType.rect, {
+              x: cx, y: cy, w: cw - 0.03, h: rh - 0.03,
+              fill: { color: isOpen ? 'B08B5B' : DOOR_W },
+              line: { color: WOOD_DARK, pt: 0.75 }
+            });
+            if (!isOpen) {
+              slide.addShape(pptx.ShapeType.rect, {
+                x: cx + cw * 0.44, y: cy + rh * 0.42, w: 0.035, h: Math.min(0.16, rh * 0.28),
+                fill: { color: '9A6B3F' }, line: { transparency: 100 }
+              });
+            } else {
+              for (let s = 1; s <= 2; s++) {
+                slide.addShape(pptx.ShapeType.line, {
+                  x: cx, y: cy + (rh - 0.03) * (s / 3), w: cw - 0.03, h: 0,
+                  line: { color: WOOD_DARK, pt: 1 }
+                });
+              }
+            }
+          }
+        }
+      }
+
+      function drawDynamicFloorplan(slide, ox, oy, sx, sy, styleMode) {
+        const wTop = ROOM.topW * sx;
+        const wExt = ROOM.extW * sx;
+        const hSto = ROOM.storageD * sy;
+        const hMain = ROOM.mainD * sy;
+        const hExt = ROOM.extD * sy;
+        const hTot = hSto + hMain + hExt;
+
+        // 3 Floor zones
+        slide.addShape(pptx.ShapeType.rect, { x: ox, y: oy, w: wTop, h: hSto, fill: { color: styleMode === 'plan' ? 'D2E4F5' : 'EFF6FF' }, line: { transparency: 100 } });
+        slide.addShape(pptx.ShapeType.rect, { x: ox, y: oy + hSto, w: wTop, h: hMain, fill: { color: styleMode === 'plan' ? 'CBE5B4' : 'FEFCE8' }, line: { transparency: 100 } });
+        slide.addShape(pptx.ShapeType.rect, { x: ox, y: oy + hSto + hMain, w: wExt, h: hExt, fill: { color: styleMode === 'plan' ? 'E2F0D3' : 'F0FDF4' }, line: { transparency: 100 } });
+
+        if (styleMode === 'plan') {
+          const pillW = Math.min(2.1, wTop * 0.6);
+          slide.addShape(pptx.ShapeType.roundRect, { x: ox + (wTop - pillW) / 2, y: oy + Math.max(0.06, (hSto - 0.28) / 2), w: pillW, h: 0.28, rectRadius: 0.45, fill: { color: 'FFFFFF' }, line: { color: CALLOUT_BD, pt: 1 } });
+          slide.addText('儲藏室＋置物櫃＋文件櫃', { x: ox + (wTop - pillW) / 2, y: oy + Math.max(0.06, (hSto - 0.28) / 2), w: pillW, h: 0.28, fontFace: FONT, fontSize: 8.5, bold: true, color: NAVY, align: 'center', valign: 'middle', margin: 0 });
+        }
+
+        // Exterior thick dark walls (individually editable rectangles)
+        const wt = styleMode === 'plan' ? 0.08 : 0.035;
+        slide.addShape(pptx.ShapeType.rect, { x: ox - wt / 2, y: oy - wt / 2, w: wTop + wt, h: wt, fill: { color: WALL }, line: { transparency: 100 } });
+        slide.addShape(pptx.ShapeType.rect, { x: ox - wt / 2, y: oy - wt / 2, w: wt, h: hTot + wt, fill: { color: WALL }, line: { transparency: 100 } });
+        slide.addShape(pptx.ShapeType.rect, { x: ox + wTop - wt / 2, y: oy - wt / 2, w: wt, h: hSto + hMain + wt, fill: { color: WALL }, line: { transparency: 100 } });
+        if (stepW > 0) {
+          slide.addShape(pptx.ShapeType.rect, { x: ox + wExt - wt / 2, y: oy + hSto + hMain - wt / 2, w: wTop - wExt + wt, h: wt, fill: { color: WALL }, line: { transparency: 100 } });
+        }
+        slide.addShape(pptx.ShapeType.rect, { x: ox + wExt - wt / 2, y: oy + hSto + hMain - wt / 2, w: wt, h: hExt + wt, fill: { color: WALL }, line: { transparency: 100 } });
+        slide.addShape(pptx.ShapeType.rect, { x: ox - wt / 2, y: oy + hTot - wt / 2, w: wExt + wt, h: wt, fill: { color: WALL }, line: { transparency: 100 } });
+        // Storage divider line
+        slide.addShape(pptx.ShapeType.line, { x: ox, y: oy + hSto, w: wTop, h: 0, line: { color: WALL, pt: 1.5, dashType: styleMode === 'plan' ? 'solid' : 'dash' } });
+
+        // Render all items (desks, cabinets, pillars, doors, equipment, plants)
+        items.forEach(it => {
+          const ix = ox + it.x * sx;
+          const iy = oy + it.y * sy;
+          const iw = Math.max(0.12, it.w * sx);
+          const ih = Math.max(0.10, it.d * sy);
+
+          let fillHex = (it.color || '#64748b').replace('#', '');
+          let lineHex = DARK;
+          let txtColor = 'FFFFFF';
+          let shapeT = pptx.ShapeType.rect;
+
+          if (styleMode === 'plan') {
+            if (it.type === 'desk') { fillHex = 'E5C9A3'; lineHex = 'B5946B'; txtColor = '6B4E2E'; shapeT = pptx.ShapeType.roundRect; }
+            else if (it.type === 'cabinet' || it.type === 'lowcab') { fillHex = 'F7F3EA'; lineHex = 'B8AE9C'; txtColor = '475569'; }
+            else if (it.type === 'pillar') { fillHex = '5E6773'; lineHex = '3F464F'; txtColor = 'FFFFFF'; }
+            else if (it.type === 'door') { fillHex = 'B4BAC4'; lineHex = '5E6773'; txtColor = '1E293B'; }
+            else if (it.type === 'plant') { fillHex = '4ADE80'; lineHex = '15803D'; txtColor = '14532D'; shapeT = pptx.ShapeType.ellipse; }
+          } else {
+            if (it.type === 'plant') shapeT = pptx.ShapeType.ellipse;
+            if (it.type === 'door') txtColor = '1E293B';
+          }
+
+          slide.addShape(shapeT, { x: ix, y: iy, w: iw, h: ih, fill: { color: fillHex }, line: { color: lineHex, pt: 0.75 } });
+
+          const label = it.type === 'pillar' ? '柱' : it.type === 'door' ? '門' : it.name;
+          if (iw >= 0.22 && ih >= 0.14) {
+            slide.addText(label, {
+              x: ix, y: iy, w: iw, h: ih,
+              fontFace: FONT, fontSize: it.type === 'desk' ? 9.5 : 6.5, bold: true,
+              color: txtColor, align: 'center', valign: 'middle', margin: 0
+            });
+          }
+        });
+
+        return { wTop, wExt, hSto, hMain, hExt, hTot };
+      }
+
+      // ==================== SLIDE 1（比照圖二）：室內平面配置圖（俯視圖） ====================
+      const sPlan = pptx.addSlide();
+      sPlan.background = { color: 'FFFFFF' };
+
+      // Top Banner
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: 0.2, y: 0.16, w: 12.93, h: 0.56, rectRadius: 0.06, fill: { color: BLUE_BG }, line: { transparency: 100 } });
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: 0.2, y: 0.16, w: 8.45, h: 0.56, rectRadius: 0.06, fill: { color: NAVY }, line: { transparency: 100 } });
+      sPlan.addText('室內平面配置圖（俯視圖）', { x: 0.42, y: 0.17, w: 7.5, h: 0.54, fontFace: FONT, fontSize: 22, bold: true, color: 'FFFFFF', valign: 'middle' });
+
+      // Left Column: 辦公室人數 & 空間說明
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: 0.2, y: 0.98, w: 2.45, h: 0.36, rectRadius: 0.18, fill: { color: BLUE_HDR }, line: { transparency: 100 } });
+      sPlan.addText('辦公室人數', { x: 0.34, y: 0.98, w: 2.2, h: 0.36, fontFace: FONT, fontSize: 12, bold: true, color: 'FFFFFF', valign: 'middle' });
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: 0.2, y: 1.42, w: 2.58, h: 0.72, rectRadius: 0.12, fill: { color: 'FFFFFF' }, line: { color: CARD_BD, pt: 1 } });
+      sPlan.addText('合計：', { x: 0.38, y: 1.54, w: 0.85, h: 0.48, fontFace: FONT, fontSize: 14, color: DARK, valign: 'middle' });
+      sPlan.addText(String(totalSeats), { x: 1.25, y: 1.48, w: 0.78, h: 0.56, fontFace: FONT, fontSize: 24, bold: true, underline: true, color: NAVY, align: 'center', valign: 'middle' });
+      sPlan.addText('人', { x: 2.05, y: 1.54, w: 0.45, h: 0.48, fontFace: FONT, fontSize: 14, color: DARK, valign: 'middle' });
+
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: 0.2, y: 2.38, w: 1.5, h: 0.34, rectRadius: 0.18, fill: { color: BLUE_HDR }, line: { transparency: 100 } });
+      sPlan.addText('空間說明', { x: 0.34, y: 2.38, w: 1.3, h: 0.34, fontFace: FONT, fontSize: 11.5, bold: true, color: 'FFFFFF', valign: 'middle' });
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: 0.2, y: 2.78, w: 3.15, h: 1.32, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: CARD_BD, pt: 1 } });
+      sPlan.addText('●  主要辦公／作業區（綠色區域）\n●  儲藏室＋置物櫃＋文件櫃（藍色區域）\n●  兩處出入口（門），結構柱配置如圖', {
+        x: 0.32, y: 2.86, w: 2.95, h: 1.18, fontFace: FONT, fontSize: 10, color: DARK, valign: 'middle', paraSpaceAfter: 6
+      });
+
+      // Center Dynamic Floor Plan (fit inside x: 3.85..8.85, y: 1.02..6.90)
+      const planMaxW = 4.95, planMaxH = 5.88;
+      const sx1 = Math.min(planMaxW / ROOM.topW, 0.0095);
+      const sy1 = Math.min(planMaxH / ROOM.totalH, 0.0052);
+      const ox1 = 3.92, oy1 = 1.02;
+      const g1 = drawDynamicFloorplan(sPlan, ox1, oy1, sx1, sy1, 'plan');
+
+      // 3 Dynamic Area Callout Boxes
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: 2.86, y: 1.02, w: 0.94, h: 0.58, rectRadius: 0.14, fill: { color: 'FFFFFF' }, line: { color: CALLOUT_BD, pt: 1.2 } });
+      sPlan.addText(`面積\n${areaS} 坪`, { x: 2.86, y: 1.02, w: 0.94, h: 0.58, fontFace: FONT, fontSize: 10, bold: true, color: NAVY, align: 'center', valign: 'middle' });
+      sPlan.addShape(pptx.ShapeType.line, { x: 3.80, y: 1.31, w: 0.55, h: 0, line: { color: MUTED, pt: 1 } });
+
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: ox1 + g1.wExt + 0.35, y: oy1 + g1.hSto + g1.hMain + 0.55, w: 1.0, h: 0.58, rectRadius: 0.14, fill: { color: 'FFFFFF' }, line: { color: CALLOUT_BD, pt: 1.2 } });
+      sPlan.addText(`面積\n${areaM} 坪`, { x: ox1 + g1.wExt + 0.35, y: oy1 + g1.hSto + g1.hMain + 0.55, w: 1.0, h: 0.58, fontFace: FONT, fontSize: 10, bold: true, color: NAVY, align: 'center', valign: 'middle' });
+
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: 2.15, y: oy1 + g1.hSto + g1.hMain + g1.hExt * 0.45, w: 0.98, h: 0.58, rectRadius: 0.14, fill: { color: 'FFFFFF' }, line: { color: CALLOUT_BD, pt: 1.2 } });
+      sPlan.addText(`面積\n${areaE} 坪`, { x: 2.15, y: oy1 + g1.hSto + g1.hMain + g1.hExt * 0.45, w: 0.98, h: 0.58, fontFace: FONT, fontSize: 10, bold: true, color: NAVY, align: 'center', valign: 'middle' });
+      sPlan.addShape(pptx.ShapeType.line, { x: 3.13, y: oy1 + g1.hSto + g1.hMain + g1.hExt * 0.45 + 0.29, w: 1.15, h: 0, line: { color: MUTED, pt: 1 } });
+
+      // Dynamic Dimension Arrows on Slide 1
+      sPlan.addShape(pptx.ShapeType.line, { x: ox1, y: oy1 - 0.16, w: g1.wTop, h: 0, line: { color: WALL, pt: 1, beginArrowType: 'triangle', endArrowType: 'triangle' } });
+      sPlan.addShape(pptx.ShapeType.rect, { x: ox1 + g1.wTop / 2 - 0.28, y: oy1 - 0.27, w: 0.56, h: 0.20, fill: { color: 'FFFFFF' }, line: { transparency: 100 } });
+      sPlan.addText(String(ROOM.topW), { x: ox1 + g1.wTop / 2 - 0.28, y: oy1 - 0.27, w: 0.56, h: 0.20, fontFace: FONT, fontSize: 10, bold: true, color: DARK, align: 'center', valign: 'middle', margin: 0 });
+
+      const rx1 = ox1 + g1.wTop + 0.18;
+      sPlan.addShape(pptx.ShapeType.line, { x: rx1, y: oy1, w: 0, h: g1.hSto, line: { color: WALL, pt: 1, beginArrowType: 'triangle', endArrowType: 'triangle' } });
+      sPlan.addText(String(ROOM.storageD), { x: rx1 + 0.05, y: oy1 + g1.hSto / 2 - 0.11, w: 0.44, h: 0.22, fontFace: FONT, fontSize: 9.5, bold: true, color: DARK, margin: 0 });
+
+      sPlan.addShape(pptx.ShapeType.line, { x: rx1, y: oy1 + g1.hSto, w: 0, h: g1.hMain, line: { color: WALL, pt: 1, beginArrowType: 'triangle', endArrowType: 'triangle' } });
+      sPlan.addText(String(ROOM.mainD), { x: rx1 + 0.05, y: oy1 + g1.hSto + g1.hMain / 2 - 0.11, w: 0.44, h: 0.22, fontFace: FONT, fontSize: 9.5, bold: true, color: DARK, margin: 0 });
+
+      sPlan.addShape(pptx.ShapeType.line, { x: rx1, y: oy1 + g1.hSto + g1.hMain, w: 0, h: g1.hExt, line: { color: WALL, pt: 1, beginArrowType: 'triangle', endArrowType: 'triangle' } });
+      sPlan.addText(String(ROOM.extD), { x: rx1 + 0.05, y: oy1 + g1.hSto + g1.hMain + g1.hExt / 2 - 0.11, w: 0.44, h: 0.22, fontFace: FONT, fontSize: 9.5, bold: true, color: DARK, margin: 0 });
+
+      const rx2 = rx1 + 0.52;
+      sPlan.addShape(pptx.ShapeType.line, { x: rx2, y: oy1, w: 0, h: g1.hTot, line: { color: WALL, pt: 1, beginArrowType: 'triangle', endArrowType: 'triangle' } });
+      sPlan.addText(String(ROOM.totalH), { x: rx2 + 0.04, y: oy1 + g1.hTot / 2 - 0.12, w: 0.52, h: 0.24, fontFace: FONT, fontSize: 10.5, bold: true, color: DARK, margin: 0 });
+
+      const by1 = oy1 + g1.hTot + 0.18;
+      sPlan.addShape(pptx.ShapeType.line, { x: ox1, y: by1, w: g1.wExt, h: 0, line: { color: WALL, pt: 1, beginArrowType: 'triangle', endArrowType: 'triangle' } });
+      sPlan.addText(String(ROOM.extW), { x: ox1 + g1.wExt / 2 - 0.25, y: by1 + 0.03, w: 0.50, h: 0.20, fontFace: FONT, fontSize: 10, bold: true, color: DARK, align: 'center', margin: 0 });
+      if (stepW > 0) {
+        sPlan.addShape(pptx.ShapeType.line, { x: ox1 + g1.wExt, y: by1, w: g1.wTop - g1.wExt, h: 0, line: { color: WALL, pt: 1, beginArrowType: 'triangle', endArrowType: 'triangle' } });
+        sPlan.addText(String(stepW), { x: ox1 + g1.wExt + (g1.wTop - g1.wExt) / 2 - 0.25, y: by1 + 0.03, w: 0.50, h: 0.20, fontFace: FONT, fontSize: 10, bold: true, color: DARK, align: 'center', margin: 0 });
+      }
+
+      // Right Column: 面積統計 & 圖例說明
+      const rColX = 10.18, rColW = 2.95;
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: rColX, y: 0.98, w: rColW, h: 0.36, rectRadius: 0.14, fill: { color: BLUE_HDR }, line: { transparency: 100 } });
+      sPlan.addText('面積統計', { x: rColX + 0.14, y: 0.98, w: 2.0, h: 0.36, fontFace: FONT, fontSize: 12, bold: true, color: 'FFFFFF', valign: 'middle' });
+      sPlan.addShape(pptx.ShapeType.rect, { x: rColX, y: 1.32, w: rColW, h: 1.94, fill: { color: 'FFFFFF' }, line: { color: CARD_BD, pt: 1 } });
+      [
+        ['CBE5B4', '主要辦公區', `${areaM} 坪`],
+        ['E2F0D3', '辦公延伸區', `${areaE} 坪`],
+        ['D2E4F5', '儲藏室＋置物櫃＋文件櫃', `${areaS} 坪`]
+      ].forEach(([col, lbl, val], i) => {
+        const ry = 1.32 + i * 0.39;
+        sPlan.addShape(pptx.ShapeType.line, { x: rColX, y: ry + 0.39, w: rColW, h: 0, line: { color: CARD_BD, pt: 0.6 } });
+        sPlan.addShape(pptx.ShapeType.rect, { x: rColX + 0.12, y: ry + 0.11, w: 0.22, h: 0.17, fill: { color: col }, line: { color: MUTED, pt: 0.6 } });
+        sPlan.addText(lbl, { x: rColX + 0.40, y: ry + 0.03, w: 1.72, h: 0.33, fontFace: FONT, fontSize: 9, color: DARK, valign: 'middle' });
+        sPlan.addText(val, { x: rColX + 2.08, y: ry + 0.03, w: 0.80, h: 0.33, fontFace: FONT, fontSize: 9.5, color: DARK, align: 'right', valign: 'middle' });
+      });
+      sPlan.addText('辦公面積合計', { x: rColX + 0.25, y: 2.66, w: 1.35, h: 0.42, fontFace: FONT, fontSize: 11.5, bold: true, color: DARK, valign: 'middle' });
+      sPlan.addText(areaOffice, { x: rColX + 1.95, y: 2.62, w: 0.65, h: 0.46, fontFace: FONT, fontSize: 15, bold: true, underline: true, color: NAVY, align: 'right', valign: 'middle' });
+      sPlan.addText('坪', { x: rColX + 2.62, y: 2.66, w: 0.28, h: 0.42, fontFace: FONT, fontSize: 11, color: DARK, valign: 'middle' });
+
+      sPlan.addShape(pptx.ShapeType.roundRect, { x: rColX, y: 3.52, w: rColW, h: 0.36, rectRadius: 0.14, fill: { color: BLUE_HDR }, line: { transparency: 100 } });
+      sPlan.addText('圖例說明', { x: rColX + 0.14, y: 3.52, w: 2.0, h: 0.36, fontFace: FONT, fontSize: 12, bold: true, color: 'FFFFFF', valign: 'middle' });
+      sPlan.addShape(pptx.ShapeType.rect, { x: rColX, y: 3.86, w: rColW, h: 2.14, fill: { color: 'FFFFFF' }, line: { color: CARD_BD, pt: 1 } });
+      [
+        ['wall', '實牆／隔間'],
+        ['green', '辦公／作業空間'],
+        ['blue', '儲藏／收納空間'],
+        ['door', '門（出入口）'],
+        ['pillar', '柱子（結構柱）']
+      ].forEach(([k, lbl], i) => {
+        const ly = 4.02 + i * 0.38, ix = rColX + 0.22;
+        if (k === 'wall') sPlan.addShape(pptx.ShapeType.rect, { x: ix, y: ly + 0.03, w: 0.40, h: 0.24, fill: { color: 'FFFFFF' }, line: { color: WALL, pt: 2 } });
+        else if (k === 'green') sPlan.addShape(pptx.ShapeType.rect, { x: ix, y: ly + 0.03, w: 0.40, h: 0.24, fill: { color: 'CBE5B4' }, line: { color: MUTED, pt: 0.75 } });
+        else if (k === 'blue') sPlan.addShape(pptx.ShapeType.rect, { x: ix, y: ly + 0.03, w: 0.40, h: 0.24, fill: { color: 'D2E4F5' }, line: { color: MUTED, pt: 0.75 } });
+        else if (k === 'door') {
+          sPlan.addShape(pptx.ShapeType.rect, { x: ix, y: ly + 0.03, w: 0.40, h: 0.24, fill: { color: 'B4BAC4' }, line: { color: MUTED, pt: 0.75 } });
+          sPlan.addText('門', { x: ix, y: ly + 0.03, w: 0.40, h: 0.24, fontFace: FONT, fontSize: 8.5, bold: true, color: DARK, align: 'center', valign: 'middle', margin: 0 });
+        } else sPlan.addShape(pptx.ShapeType.rect, { x: ix, y: ly + 0.03, w: 0.40, h: 0.24, fill: { color: '5E6773' }, line: { transparency: 100 } });
+        sPlan.addText(lbl, { x: ix + 0.56, y: ly, w: 1.95, h: 0.30, fontFace: FONT, fontSize: 10.5, color: DARK, valign: 'middle' });
+      });
+
+      // ==================== SLIDE 2（比照圖一）：系統櫃設計圖（更新位置圖） ====================
+      const s1 = pptx.addSlide();
+      s1.background = { color: SLATE_BG };
+      s1.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 0.65, fill: { color: NAVY_CAB }, line: { transparency: 100 } });
+      s1.addText('系統櫃設計圖（更新位置圖）', { x: 0.3, y: 0.08, w: 7.5, h: 0.5, fontFace: FONT, fontSize: 22, bold: true, color: 'FFFFFF', valign: 'middle' });
+      s1.addText('單位：公分（尺寸順序：長×寬×高）', { x: 8.5, y: 0.12, w: 4.5, h: 0.42, fontFace: FONT, fontSize: 12, bold: true, color: 'E2E8F0', align: 'right', valign: 'middle' });
+
+      s1.addShape(pptx.ShapeType.roundRect, { x: 0.2, y: 0.8, w: 4.95, h: 6.45, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: 'CBD5E1', pt: 1 } });
+      s1.addShape(pptx.ShapeType.rect, { x: 0.36, y: 0.96, w: 0.07, h: 0.26, fill: { color: NAVY_CAB }, line: { transparency: 100 } });
+      s1.addText('平面配置圖（俯視圖）', { x: 0.48, y: 0.92, w: 3.5, h: 0.34, fontFace: FONT, fontSize: 14, bold: true, color: NAVY_CAB });
+      s1.addText('依現場尺寸繪製，數字為主要牆面尺寸，彩色區塊代表櫃體與桌位。', { x: 0.36, y: 1.24, w: 4.65, h: 0.25, fontFace: FONT, fontSize: 8.5, color: MUTED });
+
+      const sc2 = Math.min(2.38 / ROOM.topW, 5.15 / ROOM.totalH);
+      const ox2 = 0.72, oy2 = 1.78;
+      const g2 = drawDynamicFloorplan(s1, ox2, oy2, sc2, sc2, 'cab');
+
+      addNumBadge(s1, 1, ox2 + g2.wTop * 0.45, oy2 + 0.12, 0.22);
+      addNumBadge(s1, 2, ox2 + g2.wTop * 0.78, oy2 + g2.hSto + g2.hMain * 0.42, 0.22);
+      addNumBadge(s1, 3, ox2 + g2.wTop * 0.70, oy2 + g2.hSto + g2.hMain - 0.32, 0.22);
+      addNumBadge(s1, 4, ox2 + g2.wExt * 0.70, oy2 + g2.hSto + g2.hMain + g2.hExt * 0.45, 0.22);
+      addNumBadge(s1, 5, ox2 + 0.06, oy2 + g2.hSto + 0.14, 0.22);
+
+      s1.addText(`${ROOM.topW} (上方牆面)`, { x: ox2, y: oy2 - 0.24, w: g2.wTop, h: 0.2, fontFace: FONT, fontSize: 8.5, bold: true, color: DARK, align: 'center' });
+      s1.addText(String(ROOM.totalH), { x: ox2 - 0.45, y: oy2 + g2.hTot / 2 - 0.1, w: 0.42, h: 0.22, fontFace: FONT, fontSize: 8.5, bold: true, color: DARK, align: 'right' });
+      s1.addText(String(ROOM.mainD), { x: ox2 + g2.wTop + 0.04, y: oy2 + g2.hSto + g2.hMain / 2 - 0.1, w: 0.38, h: 0.2, fontFace: FONT, fontSize: 8, bold: true, color: DARK });
+      s1.addText(String(ROOM.extD), { x: ox2 + g2.wExt + 0.05, y: oy2 + g2.hSto + g2.hMain + g2.hExt / 2 - 0.1, w: 0.38, h: 0.2, fontFace: FONT, fontSize: 8, bold: true, color: DARK });
+      s1.addText(`${ROOM.extW} (下方牆面)`, { x: ox2, y: oy2 + g2.hTot + 0.04, w: g2.wExt, h: 0.2, fontFace: FONT, fontSize: 8, bold: true, color: DARK, align: 'center' });
+      if (stepW > 0) s1.addText(String(stepW), { x: ox2 + g2.wExt, y: oy2 + g2.hTot + 0.04, w: g2.wTop - g2.wExt, h: 0.2, fontFace: FONT, fontSize: 8, bold: true, color: DARK, align: 'center' });
+
+      const lx = 3.45, ly = 1.78, lw = 1.56;
+      s1.addShape(pptx.ShapeType.roundRect, { x: lx, y: ly, w: lw, h: 2.85, rectRadius: 0.06, fill: { color: 'F8FAFC' }, line: { color: 'CBD5E1', pt: 0.75 } });
+      s1.addShape(pptx.ShapeType.rect, { x: lx, y: ly, w: lw, h: 0.3, fill: { color: NAVY_CAB }, line: { transparency: 100 } });
+      s1.addText('平面圖例與櫃體對照', { x: lx, y: ly, w: lw, h: 0.3, fontFace: FONT, fontSize: 8.5, bold: true, color: 'FFFFFF', align: 'center', valign: 'middle' });
+      s1.addText('□  出入口（門 ×2）\n■  結構柱（柱子 ×2）\n①  门字型系統櫃\n②  六門高櫃（右側）\n③  家電收納櫃（內凹）\n④  六門三層矮櫃\n⑤  新增單門櫃（柱左）', {
+        x: lx + 0.08, y: ly + 0.36, w: lw - 0.14, h: 2.4, fontFace: FONT, fontSize: 8.5, color: DARK, valign: 'top', paraSpaceAfter: 6
+      });
+
+      // Right 5 Cabinet Spec Cards
+      s1.addShape(pptx.ShapeType.roundRect, { x: 5.3, y: 0.8, w: 4.55, h: 3.15, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: 'CBD5E1', pt: 1 } });
+      addNumBadge(s1, 1, 5.45, 0.92, 0.26);
+      s1.addText('门字型系統櫃（原設計）', { x: 5.76, y: 0.88, w: 3.8, h: 0.32, fontFace: FONT, fontSize: 13, bold: true, color: NAVY_CAB });
+      s1.addText(`沿上方 ${ROOM.topW} 牆面，左右兩端轉角組合`, { x: 5.45, y: 1.2, w: 4.2, h: 0.22, fontFace: FONT, fontSize: 8.5, color: MUTED });
+      [
+        { t: '左側櫃體\n下櫃：100×65×180\n上櫃：100×65×100', x: 5.45, w: 1.38 },
+        { t: '中間櫃體\n下櫃：400×45×210\n上櫃：400×45×75', x: 6.9, w: 1.48 },
+        { t: '右側櫃體\n215×65×285', x: 8.45, w: 1.25 }
+      ].forEach(p => {
+        s1.addShape(pptx.ShapeType.roundRect, { x: p.x, y: 1.46, w: p.w, h: 0.62, rectRadius: 0.05, fill: { color: 'EFF6FF' }, line: { color: 'BFDBFE', pt: 0.75 } });
+        s1.addText(p.t, { x: p.x + 0.04, y: 1.48, w: p.w - 0.08, h: 0.58, fontFace: FONT, fontSize: 7.5, bold: true, color: NAVY_CAB, align: 'center', valign: 'middle' });
+      });
+      drawVectorCabinet(s1, 5.45, 2.18, 4.25, 1.62, 7, 2, [1, 2, 3, 4]);
+
+      s1.addShape(pptx.ShapeType.roundRect, { x: 10.0, y: 0.8, w: 3.13, h: 3.15, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: 'CBD5E1', pt: 1 } });
+      addNumBadge(s1, 2, 10.15, 0.92, 0.26);
+      s1.addText('六門高櫃（原設計）', { x: 10.46, y: 0.88, w: 2.5, h: 0.32, fontFace: FONT, fontSize: 13, bold: true, color: NAVY_CAB });
+      s1.addText('沿右側直牆 310 公分段', { x: 10.15, y: 1.2, w: 2.8, h: 0.22, fontFace: FONT, fontSize: 8.5, color: MUTED });
+      drawVectorCabinet(s1, 10.22, 1.5, 2.68, 1.82, 6, 2, []);
+      s1.addText('310×65×280（下櫃 180＋上櫃 100）\n上下各 6 門・下櫃 3 層・上櫃 2 層', { x: 10.1, y: 3.4, w: 2.93, h: 0.48, fontFace: FONT, fontSize: 8.5, bold: true, color: DARK, align: 'center', valign: 'middle' });
+
+      s1.addShape(pptx.ShapeType.roundRect, { x: 5.3, y: 4.1, w: 2.52, h: 3.15, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: 'CBD5E1', pt: 1 } });
+      addNumBadge(s1, 3, 5.44, 4.22, 0.24);
+      s1.addText('家電收納櫃（原設計）', { x: 5.72, y: 4.18, w: 2.0, h: 0.32, fontFace: FONT, fontSize: 11.5, bold: true, color: NAVY_CAB });
+      s1.addText('沿內凹右側 210 公分橫牆', { x: 5.44, y: 4.48, w: 2.2, h: 0.22, fontFace: FONT, fontSize: 8, color: MUTED });
+      drawVectorCabinet(s1, 5.48, 4.82, 2.16, 1.85, 4, 2, [0, 1, 2]);
+      s1.addText('下櫃 210×65×180 ｜ 上櫃 200×65×100', { x: 5.35, y: 6.76, w: 2.42, h: 0.4, fontFace: FONT, fontSize: 8, bold: true, color: DARK, align: 'center', valign: 'middle' });
+
+      s1.addShape(pptx.ShapeType.roundRect, { x: 7.97, y: 4.1, w: 2.52, h: 3.15, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: 'CBD5E1', pt: 1 } });
+      addNumBadge(s1, 4, 8.11, 4.22, 0.24);
+      s1.addText('六門三層矮櫃（原設計）', { x: 8.39, y: 4.18, w: 2.05, h: 0.32, fontFace: FONT, fontSize: 11.5, bold: true, color: NAVY_CAB });
+      s1.addText('沿內側 470 公分直牆配置', { x: 8.11, y: 4.48, w: 2.2, h: 0.22, fontFace: FONT, fontSize: 8, color: MUTED });
+      drawVectorCabinet(s1, 8.15, 5.35, 2.16, 1.15, 6, 1, []);
+      s1.addText('330×30×110（六門・內部三層）', { x: 8.02, y: 6.76, w: 2.42, h: 0.4, fontFace: FONT, fontSize: 8.5, bold: true, color: DARK, align: 'center', valign: 'middle' });
+
+      s1.addShape(pptx.ShapeType.roundRect, { x: 10.64, y: 4.1, w: 2.49, h: 3.15, rectRadius: 0.08, fill: { color: 'FFFFFF' }, line: { color: 'CBD5E1', pt: 1 } });
+      addNumBadge(s1, 5, 10.78, 4.22, 0.24);
+      s1.addText('新增單門櫃（柱左）', { x: 11.06, y: 4.18, w: 2.0, h: 0.32, fontFace: FONT, fontSize: 11.5, bold: true, color: NAVY_CAB });
+      s1.addText('位於柱子左側，單門上下組', { x: 10.78, y: 4.48, w: 2.2, h: 0.22, fontFace: FONT, fontSize: 8, color: MUTED });
+      drawVectorCabinet(s1, 10.82, 4.82, 0.68, 2.05, 1, 2, []);
+      drawVectorCabinet(s1, 11.6, 4.82, 0.68, 2.05, 1, 2, [0]);
+      s1.addText('上櫃\n70×45×100\n單門・2層\n\n下櫃\n70×45×180\n單門・3層', { x: 12.32, y: 4.82, w: 0.78, h: 2.15, fontFace: FONT, fontSize: 7.5, bold: true, color: NAVY_CAB, valign: 'middle' });
+
+      // ==================== SLIDE 3：最新配置明細表 ====================
+      const s2 = pptx.addSlide();
+      s2.background = { color: SLATE_BG };
+      s2.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 13.333, h: 0.65, fill: { color: NAVY_CAB }, line: { transparency: 100 } });
+      s2.addText('資材辦公室 2027 配置明細表（可編輯物件清單）', { x: 0.3, y: 0.08, w: 9, h: 0.5, fontFace: FONT, fontSize: 20, bold: true, color: 'FFFFFF', valign: 'middle' });
+
+      const tableRows = [
+        [
+          { text: '物件名稱', options: { bold: true, fill: NAVY_CAB, color: 'FFFFFF' } },
+          { text: '座標 (X, Y) cm', options: { bold: true, fill: NAVY_CAB, color: 'FFFFFF' } },
+          { text: '尺寸 W×D×H (cm)', options: { bold: true, fill: NAVY_CAB, color: 'FFFFFF' } },
+          { text: '座位數', options: { bold: true, fill: NAVY_CAB, color: 'FFFFFF' } },
+          { text: '備註規格', options: { bold: true, fill: NAVY_CAB, color: 'FFFFFF' } }
+        ],
+        ...items.map((it, idx) => [
+          { text: it.name, options: { fill: idx % 2 ? 'F8FAFC' : 'FFFFFF', bold: true } },
+          { text: `${it.x}, ${it.y}`, options: { fill: idx % 2 ? 'F8FAFC' : 'FFFFFF' } },
+          { text: `${it.w} × ${it.d} × ${it.h}`, options: { fill: idx % 2 ? 'F8FAFC' : 'FFFFFF' } },
+          { text: String(it.seats || 0), options: { fill: idx % 2 ? 'F8FAFC' : 'FFFFFF', align: 'center' } },
+          { text: it.note || '-', options: { fill: idx % 2 ? 'F8FAFC' : 'FFFFFF' } }
+        ])
+      ];
+      s2.addTable(tableRows, {
+        x: 0.4, y: 0.9, w: 12.53,
+        fontFace: FONT, fontSize: 10, color: DARK,
+        border: { pt: 0.5, color: 'CBD5E1' },
+        colW: [2.6, 1.8, 2.3, 1.0, 4.83]
+      });
+
+      pptx.writeFile({ fileName: `資材辦公室_平面配置與系統櫃設計圖_${new Date().toISOString().slice(0, 10)}.pptx` });
+      showToast('已匯出三頁合一原生可編輯 PowerPoint (.pptx)！');
+    }
+
+    function exportPNG() {
+      const off = document.createElement('canvas');
+      off.width = 1400;
+      off.height = 2400;
+      const octx = off.getContext('2d');
+      const prevSel = selectedId;
+      selectedId = null;
+      draw2D(octx, off.width, off.height, 1.65, 210, 120);
+      selectedId = prevSel;
+      const a = document.createElement('a');
+      a.download = `資材辦公室配置圖_${new Date().toISOString().slice(0, 10)}.png`;
+      a.href = off.toDataURL('image/png');
+      a.click();
+      showToast('已匯出高清 2D 平面配置圖 (.png)');
+    }
+
+    function exportJSON() {
+      const blob = new Blob([JSON.stringify({ room: ROOM, items }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `資材辦公室配置方案_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('已匯出配置方案 JSON（含牆面尺寸與全部物件）');
+    }
+
+    function importJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          if (Array.isArray(parsed)) {
+            items = parsed;
+          } else if (parsed && Array.isArray(parsed.items)) {
+            ROOM = { ...DEFAULT_ROOM, ...(parsed.room || {}) };
+            ROOM.totalH = ROOM.storageD + ROOM.mainD + ROOM.extD;
+            items = parsed.items;
+          } else {
+            throw new Error();
+          }
+          selectedId = null;
+          saveLocal();
+          buildStaticRoom3D();
+          syncAll();
+          showToast('已成功匯入配置方案！');
+        } catch {
+          alert('JSON 格式錯誤，請選擇本系統匯出之配置檔。');
+        }
+        e.target.value = '';
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    }
+
+    init();
+  </script>
+</body>
+</html>

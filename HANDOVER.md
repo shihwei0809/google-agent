@@ -1,5 +1,25 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-25 企業活動簽到與滿意度系統上雲 Cloudflare Pages + D1、50 人高併發壓測與全項目客製化升級)
+* **專案位置**：`簽到系統\`（三軌架構 `1_Web_網頁版` / `2_PWA_App版` / `3_Cloudflare_D1版`）
+* **正式站與雲端資料庫**：
+  - **正式網址**：`https://event-checkin-system.pages.dev`（後台預設密碼 `2027`）
+  - **Cloudflare D1**：`event-checkin-db`（ID: `586b3f3a-4682-4282-9e9c-f2a96ab14847`，APAC 區域，Binding: `DB`）
+* **已完成功能與驗證**:
+  1. **Cloudflare Pages + D1 正式部署與跨裝置同步**：補齊 `surveys` 資料表（`schema.sql`）、建立 `/api/state` Pages Function，前端 `index.html` 全面串接 D1（開頁拉取 + 每 25 秒背景同步 + 斷網佇列自動補傳），並更新 `一鍵自動部署上雲端.bat`。
+  2. **高併發原子寫入與 20 人 / 50 人實測通過**：單筆報到、手動補簽、代簽、核准、取消改為單列原子 SQL（`UPDATE`/`INSERT ON CONFLICT` + SQL 內原子配號 `RETURNING`）。實測三波同時併發（20 人 INSERT 386ms、50 人 INSERT 371ms、50 人 UPDATE 192ms）**100% 零錯誤、零覆蓋、零撞號**，壓測列已全數清除。
+  3. **PWA 安裝橫幅新增「稍後」關閉鈕**：點擊立即隱藏並寫入 `sessionStorage`，同次瀏覽不重複彈出。
+  4. **後台區塊全面獨立開關與動態改名**：
+     - 核對清單（`showChecklistCard`）與獨立備註／警語（`showDiversionCard`）拆分為兩張獨立卡片，互不連動；兩者標題（`checklistTitle`、`diversionTitle`）皆可於後台自由修改，後台編輯器標題與開關文字亦即時同步。
+  5. **後台登入安全性修正**：徹底移除登入視窗密碼提示（`2027`）與預填值，每次開啟清空並聚焦。
+  6. **台灣時間 (UTC+8) 定時自動切換滿意度調查**：後台可設定活動結束日期時間（強制 `+08:00` 解析 + 後端回傳 `serverTimeMs` 校時 + `Asia/Taipei` 時間戳），時間一到前台自動切為滿意度調查（含每 15 秒即時檢查），`sw.js` 升版至 `hr-checkin-pwa-v10`。
+  7. **全域 AI 規則升級 (`my-ai-brain`)**：已將 PWA「稍後」關閉鈕、SW 放行 `/api/`、D1 單列原子寫入 + 20/50 人壓測、以及 Cloudflare + D1 強制台灣時間 (UTC+8) 鐵律寫入 `C:\Users\C606\.ai\INSTRUCTIONS.md` 並推送（`499afb3`、`6f4ff2a`）。
+* **避坑指南**：
+  - Cloudflare Workers / Pages Functions 預設為 UTC 時區，所有 D1 專案時間戳與定時切換一律強制使用 `Asia/Taipei` / `+08:00` 與 `serverTimeMs` 校時。
+  - 多人併發寫入（如現場同時報到）嚴禁整表 `DELETE + INSERT` 覆蓋，務必走單列原子 SQL 並在 SQL 內配號。
+
+---
+
 ## 今日進度與交接事項 (2026-11-24 鴻勝化學 QC 看板 v3.3.8 顯示修正與 TSC 純內網 HTTP 行動列印代理升級)
 * **專案位置**：`第二類_生產管理與API串接\QC-系統客製化電子化工廠\3_Cloudflare_D1版`（線上網址：`https://qc-samples.pages.dev`）
 * **已完成修復與升級**:

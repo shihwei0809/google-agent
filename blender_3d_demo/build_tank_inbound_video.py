@@ -198,7 +198,7 @@ def get_shots() -> List[dict]:
         {
             "id": "shot01",
             "type": "flow",
-            "flow_clip": "b01_intro_flow.mp4",
+            "flow_clips": ["b01_intro_flow.mp4", "s01_b.mp4"],
             "theme": "cyan",
             "chapter": "01｜進貨前一般檢查 & PPE",
             "form_badge": "WI 5.1 一般檢查 / 5.4.1 PPE",
@@ -233,6 +233,7 @@ def get_shots() -> List[dict]:
         {
             "id": "shot02",
             "type": "form_spotlight",
+            "flow_clips": ["s02_a.mp4", "s02_b.mp4"],
             "theme": "cyan",
             "chapter": "02｜Part A 一般槽車入廠與取樣規則",
             "form_badge": "WI 5.2.1 槽車入廠流程",
@@ -306,8 +307,9 @@ def get_shots() -> List[dict]:
                     "weight": 0.33,
                     "box": (0.02, 0.24, 0.98, 0.415),
                     "color": "cyan",
-                    "badge_tag": "紅線 1｜≤ 10Ω 必抄數值",
+                    "badge_tag": "紅線 1｜10Ω 以下必抄數值",
                     "zoom_title": "入料前檢查（第 1–6 項）",
+                    "pip_clip": "s03_a.mp4",
                     "check_points": [
                         "車輛鑰匙掛至指定位置、輪檔定位、三角錐與滅火器備妥",
                         "接地線接妥且電阻【10 歐姆以下】→ 必須實填歐姆值",
@@ -320,6 +322,7 @@ def get_shots() -> List[dict]:
                     "color": "emerald",
                     "badge_tag": "紅線 2｜掃描對刷防混料",
                     "zoom_title": "入料前檢查（第 7–12 項）",
+                    "pip_clip": "s03_b.mp4",
                     "check_points": [
                         "核對品名與進貨通知單相符、入料泵浦清潔、管線無破損",
                         "★ 必做：使用掃描設備【對刷確認】入料軟管與儲槽相符",
@@ -350,6 +353,7 @@ def get_shots() -> List[dict]:
                     "color": "amber",
                     "badge_tag": "入料中｜> 2 kg/cm² 換濾袋",
                     "zoom_title": "入料中檢查（4 項＋5.2.3 泵浦口訣）",
+                    "pip_clip": "s04_a.mp4",
                     "check_points": [
                         "泵浦口訣：開 1/3 洩壓排氣 → 關洩壓啟電 → 開 1/3 出口閥確認壓力 → 全開",
                         "同步開槽車排氣閥防負壓，入料後沿管線巡查至儲槽、緊盯液位",
@@ -362,6 +366,7 @@ def get_shots() -> List[dict]:
                     "color": "emerald",
                     "badge_tag": "入料後｜排空洩壓＋填表規範",
                     "zoom_title": "入料後檢查（5 項）＋備註與三級簽核",
+                    "pip_clip": "s04_b.mp4",
                     "check_points": [
                         "停泵後先氮氣排空＋洩壓才拆管（化學品不落地），塞頭蓋妥扣緊掛耳",
                         "閥件關妥、接地線收納、輪檔歸位、氮氣源頭關閉拔除",
@@ -373,7 +378,7 @@ def get_shots() -> List[dict]:
         {
             "id": "shot05",
             "type": "flow",
-            "flow_clip": "b02_bridge_flow.mp4",
+            "flow_clips": ["s05_b.mp4", "b02_bridge_flow.mp4"],
             "theme": "orange",
             "chapter": "05｜Part B ISO TANK 進場與高處防墜",
             "form_badge": "WI 5.2.5 ISO TANK 卸貨安全紅線",
@@ -402,7 +407,7 @@ def get_shots() -> List[dict]:
             "figure": "fig05_form_6_4.png",
             "narration": (
                 "進行 ISO TANK 頂部出料取樣前，請拿出第二張核心表單：附件六之四，ISO TANK 取樣作業檢點表。"
-                "這張表單採「接合前」與「拆卸後」雙欄對照設計，填寫符號要注意：正常打勾 V，異常打叉 X 並寫明備註。"
+                "這張表單採「接合前」與「拆卸後」雙欄對照設計，填寫符號要注意：正常打勾，異常打叉並寫明備註。"
                 "接合前先逐項檢查第一到第十五項：輪檔、接地線實測十歐姆以下、三角錐與滅火器、"
                 "氮氣與化學品閥關閉、軟管管帽與接頭無異常折損、槽頂箱無殘液、安全閥與外觀完好，並簽上實施者姓名。"
                 "接著將化學品軟管接妥取樣箱，氮氣管接上槽頂前先對外排吹三到五次，再對槽內料品進行 Flush。"
@@ -428,6 +433,7 @@ def get_shots() -> List[dict]:
                     "color": "emerald",
                     "badge_tag": "強制停等｜品管簽章才放行",
                     "zoom_title": "中段粗框：ISO TANK 內部判定合格簽章",
+                    "pip_clip": "s06_a.mp4",
                     "check_points": [
                         "氮氣管接妥前先對外排吹 3–5 次，Flush 壓出 40L 後請品管取樣",
                         "若檢驗不合格，必須重複 Flush 取樣步驟直到合格",
@@ -471,6 +477,7 @@ def get_shots() -> List[dict]:
                     "color": "amber",
                     "badge_tag": "5.2.5 Flush 數值鐵律",
                     "zoom_title": "附註規範＋ISO TANK 卸貨 Flush 基準",
+                    "pip_clip": "s06_a.mp4",
                     "check_points": [
                         "工業級 Flush 約 40L（1–2 輪認證操作員取樣，第 3 輪品管取樣）",
                         "電子級 Flush 至 1T 桶約 200L（品管取樣）；超過 3 個月未入廠須 Flush 400L",
@@ -482,7 +489,7 @@ def get_shots() -> List[dict]:
         {
             "id": "shot08",
             "type": "flow",
-            "flow_clip": "b03_outro_flow.mp4",
+            "flow_clips": ["b03_outro_flow.mp4"],
             "theme": "emerald",
             "chapter": "08｜泵空洩壓、設備歸位與安全送行",
             "form_badge": "零洩漏・零混料・雙表單完整簽核",
@@ -625,6 +632,7 @@ def build_spotlight_frame(
     theme_name: str,
     step: dict,
     subtitle: str,
+    has_pip: bool = False,
 ) -> Image.Image:
     accent = PALETTE.get(theme_name, PALETTE["cyan"])
     hl_color = PALETTE.get(step.get("color", "amber"), PALETTE["amber"])
@@ -697,23 +705,43 @@ def build_spotlight_frame(
     canvas.paste(crop_resized, (zx, zy))
 
     # 右側下半：白話檢點動作卡 (x: 1088..1884, y: 536..944)
+    # 若 has_pip=True，左半保留 360x202 真人實作 PiP 視窗 (1108, 608)-(1468, 810)，右半精簡條列檢點重點
     ck_l, ck_t, ck_r, ck_b = 1088, 536, 1884, 944
     draw = ImageDraw.Draw(canvas)
     draw_rounded_rect(draw, (ck_l, ck_t, ck_r, ck_b), radius=16, fill=COLOR_CARD_BG, outline=COLOR_BORDER_SUB, width=2)
     f_ck_h = get_font(25, bold=True)
-    draw.text((ck_l + 24, ck_t + 30), "● 現場檢點怎麼做？", font=f_ck_h, fill=PALETTE["emerald"], anchor="lm")
+    header_txt = "● 現場實作 × 檢點重點" if has_pip else "● 現場檢點怎麼做？"
+    draw.text((ck_l + 24, ck_t + 30), header_txt, font=f_ck_h, fill=PALETTE["emerald"], anchor="lm")
     draw.line((ck_l + 20, ck_t + 54, ck_r - 20, ck_t + 54), fill=COLOR_BORDER_SUB, width=2)
 
-    f_pt = get_font(23, bold=False)
-    cur_y = ck_t + 74
-    for idx, pt in enumerate(step.get("check_points", []), 1):
-        # 編號圓球
-        draw.ellipse((ck_l + 24, cur_y + 2, ck_l + 54, cur_y + 32), fill=hl_color)
-        draw.text((ck_l + 39, cur_y + 17), str(idx), font=get_font(18, bold=True), fill=(12, 18, 28), anchor="mm")
-        wrapped = wrap_text(draw, pt, f_pt, ck_r - ck_l - 94)
-        for j, wline in enumerate(wrapped):
-            draw.text((ck_l + 68, cur_y + j * 34), wline, font=f_pt, fill=COLOR_TEXT_MAIN)
-        cur_y += max(1, len(wrapped)) * 34 + 18
+    if has_pip:
+        # 繪製 PiP 外框與底部標籤
+        px1, py1, px2, py2 = 1108, 608, 1468, 810
+        draw.rectangle((px1 - 3, py1 - 3, px2 + 3, py2 + 3), outline=hl_color, width=3)
+        draw_rounded_rect(draw, (px1, py2 + 10, px2, py2 + 44), radius=8, fill=(24, 38, 60), outline=hl_color, width=1)
+        draw.text(((px1 + px2) // 2, py2 + 27), "LIVE 現場滿配 PPE 實演", font=get_font(18, bold=True), fill=hl_color, anchor="mm")
+
+        # 右半精簡 3 條檢點紅線
+        f_pt = get_font(19, bold=False)
+        tx_start = 1486
+        cur_y = ck_t + 72
+        for idx, pt in enumerate(step.get("check_points", []), 1):
+            draw.ellipse((tx_start, cur_y + 2, tx_start + 26, cur_y + 28), fill=hl_color)
+            draw.text((tx_start + 13, cur_y + 15), str(idx), font=get_font(15, bold=True), fill=(12, 18, 28), anchor="mm")
+            wrapped = wrap_text(draw, pt, f_pt, ck_r - tx_start - 48)
+            for j, wline in enumerate(wrapped):
+                draw.text((tx_start + 34, cur_y + j * 27), wline, font=f_pt, fill=COLOR_TEXT_MAIN)
+            cur_y += max(1, len(wrapped)) * 27 + 14
+    else:
+        f_pt = get_font(23, bold=False)
+        cur_y = ck_t + 74
+        for idx, pt in enumerate(step.get("check_points", []), 1):
+            draw.ellipse((ck_l + 24, cur_y + 2, ck_l + 54, cur_y + 32), fill=hl_color)
+            draw.text((ck_l + 39, cur_y + 17), str(idx), font=get_font(18, bold=True), fill=(12, 18, 28), anchor="mm")
+            wrapped = wrap_text(draw, pt, f_pt, ck_r - ck_l - 94)
+            for j, wline in enumerate(wrapped):
+                draw.text((ck_l + 68, cur_y + j * 34), wline, font=f_pt, fill=COLOR_TEXT_MAIN)
+            cur_y += max(1, len(wrapped)) * 34 + 18
 
     render_subtitle_bar(canvas, subtitle)
     return canvas
@@ -789,61 +817,7 @@ def split_subtitles(text: str, n_chunks: int) -> List[str]:
 # Step 5：單鏡影片編碼（FFmpeg 1080p 24fps + 音軌對齊）
 # ---------------------------------------------------------------------------
 
-def render_still_sequence_clip(
-    ffmpeg_exe: str,
-    frame_items: List[Tuple[Path, float]],
-    audio_path: Path,
-    out_mp4: Path,
-) -> Path:
-    """
-    以個別 -loop 1 -t 精準輸入 + filter_complex concat 合成 1080p 24fps 影片，
-    並以 apad + -t 硬鎖定 video 與 audio 長度完全一致（誤差 < 0.02s），徹底杜絕影音不同步。
-    """
-    total_dur = sum(dur for _, dur in frame_items)
-    cmd: List[str] = [ffmpeg_exe, "-y"]
-    v_inputs: List[str] = []
-    for idx, (img_p, dur) in enumerate(frame_items):
-        cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur:.4f}", "-i", str(img_p)]
-        v_inputs.append(f"[{idx}:v]")
-
-    audio_idx = len(frame_items)
-    cmd += ["-i", str(audio_path)]
-
-    n = len(frame_items)
-    fc = (
-        f"{''.join(v_inputs)}concat=n={n}:v=1:a=0,fps={FPS},format=yuv420p[vout];"
-        f"[{audio_idx}:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo,apad[aout]"
-    )
-    cmd += [
-        "-filter_complex", fc,
-        "-map", "[vout]",
-        "-map", "[aout]",
-        "-t", f"{total_dur:.4f}",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "17", "-pix_fmt", "yuv420p",
-        "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "192k",
-        str(out_mp4),
-    ]
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return out_mp4
-
-
-def render_hybrid_flow_clip(
-    ffmpeg_exe: str,
-    flow_mp4: Path,
-    still_items: List[Tuple[Path, float]],
-    audio_path: Path,
-    out_mp4: Path,
-    flow_dur: float,
-    intro_subtitle: str,
-    chapter_badge: str,
-    accent_rgb: Tuple[int, int, int],
-) -> Path:
-    """
-    黃金雙段無縫接力：
-    - 前 flow_dur 秒（約 10s）：滿版 1920x1080 Google Flow 真人微電影實片 + 極簡章節膠囊 & 玻璃字幕條
-    - 後段：無縫切入高清流程圖 + 工安重點卡，全程單一連續音軌並以 apad + -t 硬鎖定影音完全同步。
-    """
-    # 繪製前段滿版電影透明 HUD（僅保留右上章節膠囊與底部微透明字幕條）
+def _make_flow_hud_png(out_png: Path, chapter_badge: str, subtitle: str, accent_rgb: Tuple[int, int, int]) -> Path:
     hud = Image.new("RGBA", (VIDEO_W, VIDEO_H), (0, 0, 0, 0))
     od = ImageDraw.Draw(hud)
     if chapter_badge:
@@ -852,45 +826,75 @@ def render_hybrid_flow_clip(
         bx1 = VIDEO_W - bw - 32
         od.rounded_rectangle((bx1, 24, VIDEO_W - 32, 68), radius=12, fill=(11, 18, 32, 195), outline=(*accent_rgb, 230), width=2)
         od.text((bx1 + bw // 2, 46), chapter_badge, font=f_b, fill=(248, 250, 252, 255), anchor="mm")
-
-    if intro_subtitle.strip():
+    if subtitle.strip():
         bar_y1, bar_y2 = VIDEO_H - 118, VIDEO_H - 22
         od.rounded_rectangle((120, bar_y1, VIDEO_W - 120, bar_y2), radius=16, fill=(8, 14, 26, 205), outline=(*accent_rgb, 170), width=2)
         f_sub = get_font(30, bold=True)
-        lines = wrap_text(od, intro_subtitle.strip(), f_sub, VIDEO_W - 300)[:2]
+        lines = wrap_text(od, subtitle.strip(), f_sub, VIDEO_W - 300)[:2]
         total_h = len(lines) * 40
         start_y = (bar_y1 + bar_y2 - total_h) // 2 + 18
         for i, line in enumerate(lines):
             od.text((VIDEO_W // 2, start_y + i * 40), line, font=f_sub, fill=(250, 252, 255, 255), anchor="mm")
+    hud.save(out_png)
+    return out_png
 
-    hud_png = out_mp4.with_suffix(".flow_hud.png")
-    hud.save(hud_png)
 
-    total_dur = flow_dur + sum(d for _, d in still_items)
-    cmd: List[str] = [
-        ffmpeg_exe, "-y",
-        "-stream_loop", "-1", "-t", f"{flow_dur:.4f}", "-i", str(flow_mp4),
-        "-loop", "1", "-framerate", str(FPS), "-t", f"{flow_dur:.4f}", "-i", str(hud_png),
-    ]
-    still_v_tags: List[str] = []
-    for idx, (img_p, sdur) in enumerate(still_items):
-        in_idx = 2 + idx
-        cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{sdur:.4f}", "-i", str(img_p)]
-        still_v_tags.append(f"[{in_idx}:v]")
+def render_mixed_segments_clip(
+    ffmpeg_exe: str,
+    segments: List[dict],
+    audio_path: Path,
+    out_mp4: Path,
+) -> Path:
+    """
+    通用電影混剪分段編碼器（支援 3 種分段自由串接 + apad/-t 硬鎖定 0.01s 同步）：
+    - kind == 'flow_full': {'kind': 'flow_full', 'mp4': Path, 'hud': Path, 'dur': float}
+    - kind == 'still_pip': {'kind': 'still_pip', 'img': Path, 'pip': Path, 'dur': float}
+    - kind == 'still':     {'kind': 'still',     'img': Path, 'dur': float}
+    """
+    total_dur = sum(seg["dur"] for seg in segments)
+    cmd: List[str] = [ffmpeg_exe, "-y"]
+    fc_parts: List[str] = []
+    v_tags: List[str] = []
+    in_idx = 0
 
-    audio_idx = 2 + len(still_items)
+    for i, seg in enumerate(segments):
+        d = seg["dur"]
+        tag = f"[vseg{i}]"
+        if seg["kind"] == "flow_full":
+            cmd += ["-stream_loop", "-1", "-t", f"{d:.4f}", "-i", str(seg["mp4"])]
+            i_mp4 = in_idx; in_idx += 1
+            cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{d:.4f}", "-i", str(seg["hud"])]
+            i_hud = in_idx; in_idx += 1
+            fc_parts.append(
+                f"[{i_mp4}:v]scale={VIDEO_W}:{VIDEO_H}:force_original_aspect_ratio=increase:flags=lanczos,"
+                f"crop={VIDEO_W}:{VIDEO_H},fps={FPS},format=rgba[fb{i}];"
+                f"[fb{i}][{i_hud}:v]overlay=0:0:shortest=1,format=yuv420p{tag}"
+            )
+        elif seg["kind"] == "still_pip":
+            cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{d:.4f}", "-i", str(seg["img"])]
+            i_img = in_idx; in_idx += 1
+            cmd += ["-stream_loop", "-1", "-t", f"{d:.4f}", "-i", str(seg["pip"])]
+            i_pip = in_idx; in_idx += 1
+            fc_parts.append(
+                f"[{i_img}:v]fps={FPS},format=rgba[bg{i}];"
+                f"[{i_pip}:v]scale=360:202:force_original_aspect_ratio=increase:flags=lanczos,"
+                f"crop=360:202,fps={FPS},format=rgba[pp{i}];"
+                f"[bg{i}][pp{i}]overlay=1108:608:shortest=1,format=yuv420p{tag}"
+            )
+        else:
+            cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{d:.4f}", "-i", str(seg["img"])]
+            i_img = in_idx; in_idx += 1
+            fc_parts.append(f"[{i_img}:v]fps={FPS},format=yuv420p{tag}")
+        v_tags.append(tag)
+
+    audio_idx = in_idx
     cmd += ["-i", str(audio_path)]
 
-    n_concat = 1 + len(still_v_tags)
-    fc = (
-        f"[0:v]scale={VIDEO_W}:{VIDEO_H}:force_original_aspect_ratio=increase:flags=lanczos,"
-        f"crop={VIDEO_W}:{VIDEO_H},fps={FPS},format=rgba[fbg];"
-        f"[fbg][1:v]overlay=0:0:shortest=1,format=yuv420p[vflow];"
-        f"[vflow]{''.join(still_v_tags)}concat=n={n_concat}:v=1:a=0,fps={FPS},format=yuv420p[vout];"
-        f"[{audio_idx}:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo,apad[aout]"
-    )
+    fc_parts.append(f"{''.join(v_tags)}concat=n={len(v_tags)}:v=1:a=0,fps={FPS},format=yuv420p[vout]")
+    fc_parts.append(f"[{audio_idx}:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo,apad[aout]")
+
     cmd += [
-        "-filter_complex", fc,
+        "-filter_complex", ";".join(fc_parts),
         "-map", "[vout]",
         "-map", "[aout]",
         "-t", f"{total_dur:.4f}",
@@ -900,6 +904,64 @@ def render_hybrid_flow_clip(
     ]
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return out_mp4
+
+
+def detect_speech_pauses(ffmpeg_exe: str, audio_path: Path, noise_db: str = "-30dB", min_dur: float = 0.22) -> List[float]:
+    """用 FFmpeg silencedetect 抓出真實語音的句間換氣停頓中點（秒），讓畫面永遠在講完該句才切換。"""
+    cmd = [
+        ffmpeg_exe, "-i", str(audio_path),
+        "-af", f"silencedetect=noise={noise_db}:d={min_dur}",
+        "-f", "null", "-",
+    ]
+    proc = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+    starts: List[float] = []
+    mids: List[float] = []
+    for line in proc.stderr.splitlines():
+        m1 = re.search(r"silence_start:\s*([0-9.]+)", line)
+        if m1:
+            starts.append(float(m1.group(1)))
+        m2 = re.search(r"silence_end:\s*([0-9.]+)", line)
+        if m2 and starts:
+            s_t = starts.pop(0)
+            e_t = float(m2.group(1))
+            mids.append((s_t + e_t) / 2.0)
+    return mids
+
+
+def compute_speech_aligned_durations(
+    ffmpeg_exe: str,
+    audio_path: Path,
+    total_dur: float,
+    subtitles: List[str],
+) -> List[float]:
+    """
+    依各字幕實際字數比例算出理論切點，再把每個切點精準吸附至最接近的真實語音停頓中點，
+    確保 100% 唸完整段文字後才換畫面（絕不搶拍截斷語句）。
+    """
+    n = len(subtitles)
+    if n <= 1:
+        return [total_dur]
+
+    pauses = detect_speech_pauses(ffmpeg_exe, audio_path)
+    weights = [max(1, len(t)) for t in subtitles]
+    tot_w = sum(weights)
+
+    cuts: List[float] = [0.0]
+    acc = 0
+    for i in range(n - 1):
+        acc += weights[i]
+        target = total_dur * (acc / tot_w)
+        # 在目標切點 ±4.5 秒範圍內尋找最接近的真實句間停頓（且必須大於前一個切點 + 2.0s）
+        lo = max(cuts[-1] + 2.0, target - 4.5)
+        hi = min(total_dur - 2.0 * (n - 1 - i), target + 4.5)
+        cands = [p for p in pauses if lo <= p <= hi]
+        if cands:
+            best = min(cands, key=lambda p: abs(p - target))
+            cuts.append(best)
+        else:
+            cuts.append(max(cuts[-1] + 2.0, min(hi, target)))
+    cuts.append(total_dur)
+    return [cuts[i + 1] - cuts[i] for i in range(n)]
 
 
 def render_all_clips(shots: List[dict], audio_map: Dict[str, Path], ffmpeg_exe: str) -> List[Path]:
@@ -915,59 +977,39 @@ def render_all_clips(shots: List[dict], audio_map: Dict[str, Path], ffmpeg_exe: 
         dur = probe_duration(ffmpeg_exe, audio_p) + 0.35
         out_mp4 = CLIPS_DIR / f"{sid}.mp4"
         fig_p = FIG_DIR / s["figure"]
+        accent = PALETTE.get(s["theme"], PALETTE["cyan"])
 
-        # 優先檢查是否有外部 Google Flow 真人實片 -> 採用「前段滿版真人實片 + 後段流程圖要點卡」無縫接力
-        if s["type"] == "flow" and s.get("flow_clip"):
-            flow_p = FLOW_CLIPS_DIR / s["flow_clip"]
-            if flow_p.exists() and flow_p.stat().st_size > 50_000:
-                raw_flow_dur = probe_duration(ffmpeg_exe, flow_p)
-                flow_seg_dur = min(raw_flow_dur, max(8.0, dur * 0.35))
-                subs = split_subtitles(s["narration"], 3)
-                intro_sub = subs[0]
-                rem_subs = subs[1:]
-                rem_dur = max(2.0, dur - flow_seg_dur)
-                char_w = [max(1, len(t)) for t in rem_subs]
-                tot_w = sum(char_w)
-                still_items: List[Tuple[Path, float]] = []
-                for idx, (stxt, cw) in enumerate(zip(rem_subs, char_w)):
-                    img = build_flow_fallback_frame(
-                        fig_path=fig_p,
-                        chapter=s["chapter"],
-                        form_badge=s["form_badge"],
-                        theme_name=s["theme"],
-                        card_title=s["card_title"],
-                        card_points=s["card_points"],
-                        subtitle=stxt,
-                    )
-                    img_out = WORK_DIR / f"{sid}_post{idx+1}.png"
-                    img.save(img_out)
-                    still_items.append((img_out, rem_dur * (cw / tot_w)))
+        # 偵測本鏡頭可用的滿版 Flow 真人實片清單
+        avail_flows: List[Path] = []
+        for fn in s.get("flow_clips", []):
+            p = FLOW_CLIPS_DIR / fn
+            if p.exists() and p.stat().st_size > 50_000:
+                avail_flows.append(p)
 
-                print(f"[Render] {sid} 偵測到 Google Flow 實片：{flow_p.name} -> 滿版真人({flow_seg_dur:.1f}s) + 流程卡({rem_dur:.1f}s)")
-                render_hybrid_flow_clip(
-                    ffmpeg_exe=ffmpeg_exe,
-                    flow_mp4=flow_p,
-                    still_items=still_items,
-                    audio_path=audio_p,
-                    out_mp4=out_mp4,
-                    flow_dur=flow_seg_dur,
-                    intro_subtitle=intro_sub,
-                    chapter_badge=s["chapter"],
-                    accent_rgb=PALETTE.get(s["theme"], PALETTE["cyan"]),
-                )
-                clip_paths.append(out_mp4)
-                continue
+        # 統一先決定總段數與各段字幕，再用真實語音停頓點計算每段精準秒數（不再死鎖 10 秒導致提前換畫面！）
+        post_count = len(s["focus_steps"]) if s["type"] == "form_spotlight" else 2
+        total_segs = len(avail_flows) + post_count
+        all_subs = split_subtitles(s["narration"], total_segs)
+        seg_durs = compute_speech_aligned_durations(ffmpeg_exe, audio_p, dur, all_subs)
 
-        # 表單聚光燈分段渲染
-        frame_items: List[Tuple[Path, float]] = []
+        segments: List[dict] = []
+
+        # 1. 前段：滿版 Flow 真人實片（依該句實際唸完的真實停頓時間切換，絕不搶拍！）
+        for idx, fp in enumerate(avail_flows):
+            sd = seg_durs[idx]
+            hud_p = _make_flow_hud_png(WORK_DIR / f"{sid}_hud{idx+1}.png", s["chapter"], all_subs[idx], accent)
+            segments.append({"kind": "flow_full", "mp4": fp, "hud": hud_p, "dur": sd})
+
+        # 2. 後段：表單聚光燈（支援 PiP 動態真人視窗）或 流程圖要點卡
+        rem_subs = all_subs[len(avail_flows):]
+        rem_durs = seg_durs[len(avail_flows):]
 
         if s["type"] == "form_spotlight":
             steps = s["focus_steps"]
-            subs = split_subtitles(s["narration"], len(steps))
-            char_weights = [max(1, len(t)) for t in subs]
-            total_w = sum(char_weights)
-            for idx, (st, sub_txt, cw) in enumerate(zip(steps, subs, char_weights)):
-                seg_dur = dur * (cw / total_w)
+            for idx, (st, sub_txt, seg_dur) in enumerate(zip(steps, rem_subs, rem_durs)):
+                pip_name = st.get("pip_clip")
+                pip_p = (FLOW_CLIPS_DIR / pip_name) if pip_name else None
+                has_pip = bool(pip_p and pip_p.exists() and pip_p.stat().st_size > 50_000)
                 img = build_spotlight_frame(
                     fig_path=fig_p,
                     chapter=s["chapter"],
@@ -975,16 +1017,16 @@ def render_all_clips(shots: List[dict], audio_map: Dict[str, Path], ffmpeg_exe: 
                     theme_name=s["theme"],
                     step=st,
                     subtitle=sub_txt,
+                    has_pip=has_pip,
                 )
                 img_out = WORK_DIR / f"{sid}_step{idx+1}.png"
                 img.save(img_out)
-                frame_items.append((img_out, seg_dur))
+                if has_pip:
+                    segments.append({"kind": "still_pip", "img": img_out, "pip": pip_p, "dur": seg_dur})
+                else:
+                    segments.append({"kind": "still", "img": img_out, "dur": seg_dur})
         else:
-            # Flow 尚未匯入時的流程圖 + 要點卡補位（依字數比例切分 2 句字幕）
-            subs = split_subtitles(s["narration"], 2)
-            char_weights = [max(1, len(t)) for t in subs]
-            total_w = sum(char_weights)
-            for idx, (sub_txt, cw) in enumerate(zip(subs, char_weights)):
+            for idx, (sub_txt, seg_dur) in enumerate(zip(rem_subs, rem_durs)):
                 img = build_flow_fallback_frame(
                     fig_path=fig_p,
                     chapter=s["chapter"],
@@ -994,12 +1036,15 @@ def render_all_clips(shots: List[dict], audio_map: Dict[str, Path], ffmpeg_exe: 
                     card_points=s["card_points"],
                     subtitle=sub_txt,
                 )
-                img_out = WORK_DIR / f"{sid}_fb{idx+1}.png"
+                img_out = WORK_DIR / f"{sid}_post{idx+1}.png"
                 img.save(img_out)
-                frame_items.append((img_out, dur * (cw / total_w)))
+                segments.append({"kind": "still", "img": img_out, "dur": seg_dur})
 
-        render_still_sequence_clip(ffmpeg_exe, frame_items, audio_p, out_mp4)
-        print(f"[Render] {sid} 完成：{out_mp4.name} ({dur:.1f}s, {len(frame_items)} 段焦點)")
+        n_flow = sum(1 for x in segments if x["kind"] == "flow_full")
+        n_pip = sum(1 for x in segments if x["kind"] == "still_pip")
+        dur_str = " / ".join(f"{d:.1f}s" for d in seg_durs)
+        print(f"[Render] {sid} 語音停頓對齊 ({dur:.1f}s｜段長=[{dur_str}]｜滿版真人={n_flow}｜PiP={n_pip})")
+        render_mixed_segments_clip(ffmpeg_exe, segments, audio_p, out_mp4)
         clip_paths.append(out_mp4)
 
     return clip_paths
@@ -1015,7 +1060,15 @@ def main() -> None:
     parser.add_argument("--cinema", action="store_true", help="啟用完整電影後製（封面/封底 + xfade + BGM 閃避）")
     parser.add_argument("--speed", type=float, default=1.12, help="edge-tts 旁白倍速（預設 1.12）")
     parser.add_argument("--gemini-tts", action="store_true", help="改用 Gemini TTS 合成旁白")
+    parser.add_argument("--audio-dir", type=str, default="", help="指定外部音檔目錄（如 audio_myvoice）")
+    parser.add_argument("--out-video", type=str, default="", help="指定輸出影片路徑（避免覆蓋原版）")
     args = parser.parse_args()
+
+    global AUDIO_DIR, FINAL_VIDEO_PATH
+    if args.audio_dir:
+        AUDIO_DIR = Path(args.audio_dir).resolve()
+    if args.out_video:
+        FINAL_VIDEO_PATH = Path(args.out_video).resolve()
 
     OUT_ROOT.mkdir(parents=True, exist_ok=True)
     shots = get_shots()

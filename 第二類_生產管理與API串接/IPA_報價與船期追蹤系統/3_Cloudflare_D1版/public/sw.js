@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ipa-quote-vessel-tracker-v1.8.0';
+const CACHE_NAME = 'ipa-quote-vessel-tracker-v1.9.1';
 const ASSETS = [
   './',
   './index.html',

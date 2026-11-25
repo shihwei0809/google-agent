@@ -546,16 +546,50 @@
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid var(--border);">
           <div>
             <strong style="color:#38bdf8; font-size:14.5px;">📋 鴻勝採購 Email「進口 IPA / NMP 預計入廠日期表」一鍵解析匯入</strong>
-            <span style="font-size:12px; color:var(--muted); margin-left:8px;">直接從 Outlook / Excel 複製採購表格貼上，自動拆解【貿易條件、批次案號、噸數/槽車數(17.5MT/槽)、開航日(ETD)、到港日(ETA)、預計入廠日】並標記紅字改期！</span>
+            <span style="font-size:12px; color:var(--muted); margin-left:8px;">直接從 Outlook / Excel 複製表格，或 <strong>直接 Ctrl+V 貼上船期截圖 / 上傳圖片 (AI 視覺辨識)</strong>，自動拆解【貿易條件、批次案號、噸數/槽車數(17.5MT/槽)、開航日(ETD)、到港日(ETA)、預計入廠日】並標記紅字改期！</span>
           </div>
-          <button class="btn btn-sm btn-emerald" onclick="togglePasteBox()">📥 貼上採購 Email 表格更新</button>
+          <button class="btn btn-sm btn-emerald" onclick="togglePasteBox()">📥 貼上採購表格 / 截圖更新</button>
         </div>
 
         <div id="emailPasteBox" style="display:none; margin-bottom:16px; background:#0b1120; padding:14px; border-radius:10px; border:1px solid #38bdf8;">
+          <!-- AI 圖片辨識 / Ctrl+V 截圖匯入區 -->
+          <div id="imgDropZone" style="border:1.5px dashed #38bdf8; border-radius:8px; padding:10px 12px; margin-bottom:10px; background:rgba(56,189,248,0.06); display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; cursor:pointer;"
+               onclick="if(event.target.tagName!=='BUTTON' && event.target.tagName!=='INPUT') document.getElementById('emailImgFileInput').click();"
+               ondragover="event.preventDefault(); this.style.background='rgba(56,189,248,0.18)';"
+               ondragleave="this.style.background='rgba(56,189,248,0.06)';"
+               ondrop="handleScheduleImageDrop(event)">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:20px;">🖼️</span>
+              <div>
+                <div style="font-size:12.5px; color:#e0f2fe; font-weight:700;">人員只丟圖片？直接 <kbd style="background:#1e293b; padding:1px 5px; border-radius:4px; border:1px solid #475569;">Ctrl+V</kbd> 貼上截圖，或拖曳 / 點擊上傳圖片</div>
+                <div style="font-size:11px; color:#94a3b8;">透過 Gemini Flash Vision 自動辨識表格（支援 8 欄 / 10 欄船期表與 4 欄入廠通知），辨識後自動填入下方文字框供核對</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input type="file" id="emailImgFileInput" accept="image/*" style="display:none;" onchange="handleScheduleImageSelect(event)" />
+              <button type="button" class="btn btn-sm btn-outline" onclick="event.stopPropagation(); document.getElementById('emailImgFileInput').click();">📂 選擇圖片</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="event.stopPropagation(); toggleGeminiKeyBox();" title="設定本機 Gemini API Key（僅存於瀏覽器 localStorage）">🔑 API Key</button>
+            </div>
+          </div>
+
+          <div id="geminiKeyBox" style="display:none; margin-bottom:10px; padding:10px; background:#1e293b; border:1px solid #475569; border-radius:8px;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+              <span style="font-size:12px; color:#fde68a; font-weight:700;">🔑 Gemini API Key：</span>
+              <input type="password" id="geminiApiKeyInput" placeholder="貼上 AIzaSy...（僅存於本機瀏覽器，絕不上傳 Git）" style="flex:1; min-width:220px; background:#0f172a; color:#f8fafc; border:1px solid #334155; border-radius:6px; padding:5px 8px; font-size:12px;" />
+              <button type="button" class="btn btn-sm btn-emerald" onclick="saveGeminiApiKey()">💾 儲存金鑰</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="clearGeminiApiKey()">🗑️ 清除</button>
+            </div>
+          </div>
+
+          <div id="imgOcrStatusBox" style="display:none; margin-bottom:10px; padding:8px 10px; border-radius:8px; background:#0f172a; border:1px solid #334155; font-size:12px; color:#e2e8f0; align-items:center; gap:10px;">
+            <img id="imgOcrPreview" src="" alt="預覽" style="display:none; max-height:54px; max-width:120px; border-radius:4px; border:1px solid #475569; object-fit:cover;" />
+            <div id="imgOcrStatusText" style="flex:1; word-break:break-word;"></div>
+          </div>
+
           <label style="font-size:12.5px; color:#bae6fd; font-weight:700; display:block; margin-bottom:6px;">
-            請將採購信件中的表格文字直接貼在下方（格式範例：<code>CIF-3 2610-I03 175MT   11/17   11/20   11/24-25</code>）：
+            請將採購信件中的表格文字直接貼在下方，或直接於此按 <code>Ctrl+V</code> 貼上截圖（支援 4 欄入廠通知、8 欄及 10 欄船期總表）：
           </label>
-          <textarea id="rawEmailTableText" rows="6" style="width:100%; background:#1e293b; color:#f8fafc; border:1px solid #334155; border-radius:8px; padding:10px; font-family:monospace; font-size:13px;" placeholder="CIF-3 2610-I03 175MT&#9;11/17&#9;11/20&#9;11/24-25&#10;FOB-4 2610-I04 175MT&#9;11/21&#9;11/26&#9;12/1-2&#10;FOB-5 2610-I05 175MT&#9;11/21&#9;11/26&#9;12/2-4"></textarea>
+          <textarea id="rawEmailTableText" rows="6" style="width:100%; background:#1e293b; color:#f8fafc; border:1px solid #334155; border-radius:8px; padding:10px; font-family:monospace; font-size:13px;" placeholder="CIF-3 2610-I03 175MT&#9;11/17&#9;11/20&#9;11/24-25&#10;或直接貼上 8 欄 / 10 欄船期表，或直接 Ctrl+V 貼上表格截圖！"></textarea>
           <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
             <button class="btn btn-sm btn-outline" onclick="loadSampleProcurementText()">載入採購最新 15 批範例</button>
             <button class="btn btn-sm btn-primary" onclick="parseAndImportEmailTable()">⚡ 立即解析並比對改期異動</button>
@@ -1148,10 +1182,229 @@
       ].join("\n");
     }
 
+    const GEMINI_VISION_FALLBACK_MODELS = [
+      'gemini-3.8-flash',
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-2.5-flash',
+      'gemini-1.5-flash'
+    ];
+    const GEMINI_KEY_STORAGE = 'ipa_gemini_api_key';
+    let cachedDynamicGeminiModels = null;
+
+    async function fetchLatestGeminiFlashModels(apiKey) {
+      if (cachedDynamicGeminiModels && cachedDynamicGeminiModels.length) {
+        return cachedDynamicGeminiModels;
+      }
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+        if (!res.ok) return GEMINI_VISION_FALLBACK_MODELS;
+        const data = await res.json();
+        const models = (data.models || [])
+          .filter(m => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => (m.name || '').replace(/^models\//, ''))
+          .filter(id => /^gemini-\d+(\.\d+)?-flash/i.test(id))
+          .filter(id => !/(tts|audio|image|live|embedding|aqa|robotics|computer-use)/i.test(id));
+
+        if (!models.length) return GEMINI_VISION_FALLBACK_MODELS;
+
+        const scoreModel = (id) => {
+          const verMatch = id.match(/^gemini-(\d+)(?:\.(\d+))?/i);
+          const major = verMatch ? parseInt(verMatch[1], 10) : 0;
+          const minor = verMatch && verMatch[2] ? parseInt(verMatch[2], 10) : 0;
+          const isLite = /lite/i.test(id) ? 0 : 2;
+          const isStable = /(preview|exp|beta|-\d{3,})/i.test(id) ? 0 : 1;
+          return major * 10000 + minor * 100 + isLite * 10 + isStable;
+        };
+
+        const sorted = [...new Set(models)].sort((a, b) => scoreModel(b) - scoreModel(a));
+        cachedDynamicGeminiModels = [...new Set([...sorted, ...GEMINI_VISION_FALLBACK_MODELS])];
+        return cachedDynamicGeminiModels;
+      } catch (_) {
+        return GEMINI_VISION_FALLBACK_MODELS;
+      }
+    }
+
+    function toggleGeminiKeyBox(forceOpen) {
+      const box = document.getElementById('geminiKeyBox');
+      const input = document.getElementById('geminiApiKeyInput');
+      if (!box) return;
+      const shouldShow = forceOpen === true ? true : (box.style.display === 'none');
+      box.style.display = shouldShow ? 'block' : 'none';
+      if (shouldShow && input) {
+        input.value = localStorage.getItem(GEMINI_KEY_STORAGE) || '';
+        input.focus();
+      }
+    }
+
+    function saveGeminiApiKey() {
+      const input = document.getElementById('geminiApiKeyInput');
+      const val = (input ? input.value : '').trim();
+      if (!val) {
+        alert('請輸入有效的 Gemini API Key！');
+        return;
+      }
+      localStorage.setItem(GEMINI_KEY_STORAGE, val);
+      cachedDynamicGeminiModels = null;
+      document.getElementById('geminiKeyBox').style.display = 'none';
+      if (typeof syncMgr !== 'undefined' && syncMgr.showToast) {
+        syncMgr.showToast('✅ 已儲存 Gemini API Key 至本機瀏覽器，現在可直接 Ctrl+V 貼上截圖辨識！', 'success');
+      }
+    }
+
+    function clearGeminiApiKey() {
+      localStorage.removeItem(GEMINI_KEY_STORAGE);
+      const input = document.getElementById('geminiApiKeyInput');
+      if (input) input.value = '';
+      if (typeof syncMgr !== 'undefined' && syncMgr.showToast) {
+        syncMgr.showToast('🗑️ 已清除本機 Gemini API Key', 'info');
+      }
+    }
+
+    function setImgOcrStatus(htmlMsg, color = '#e2e8f0', previewDataUrl = null) {
+      const box = document.getElementById('imgOcrStatusBox');
+      const textEl = document.getElementById('imgOcrStatusText');
+      const imgEl = document.getElementById('imgOcrPreview');
+      if (!box || !textEl) return;
+      box.style.display = 'flex';
+      textEl.innerHTML = htmlMsg;
+      textEl.style.color = color;
+      if (previewDataUrl && imgEl) {
+        imgEl.src = previewDataUrl;
+        imgEl.style.display = 'block';
+      }
+    }
+
+    function handleScheduleImageSelect(event) {
+      const file = event.target.files && event.target.files[0];
+      if (file) recognizeScheduleImage(file);
+      event.target.value = '';
+    }
+
+    function handleScheduleImageDrop(event) {
+      event.preventDefault();
+      const dz = document.getElementById('imgDropZone');
+      if (dz) dz.style.background = 'rgba(56,189,248,0.06)';
+      const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        recognizeScheduleImage(file);
+      } else {
+        setImgOcrStatus('⚠️ 請拖曳圖片檔案（PNG / JPG / WEBP）。', '#fbbf24');
+      }
+    }
+
+    document.addEventListener('paste', (event) => {
+      const pasteBox = document.getElementById('emailPasteBox');
+      if (!pasteBox || pasteBox.style.display === 'none') return;
+      const items = (event.clipboardData && event.clipboardData.items) || [];
+      for (const item of items) {
+        if (item.type && item.type.startsWith('image/')) {
+          event.preventDefault();
+          const file = item.getAsFile();
+          if (file) recognizeScheduleImage(file);
+          return;
+        }
+      }
+    });
+
+    async function recognizeScheduleImage(file) {
+      const apiKey = (localStorage.getItem(GEMINI_KEY_STORAGE) || '').trim();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('讀取圖片失敗'));
+        reader.readAsDataURL(file);
+      });
+
+      if (!apiKey) {
+        setImgOcrStatus('⚠️ 尚未設定 Gemini API Key，請先在上方貼上您的 API Key 並點擊「儲存金鑰」，再重新貼上或上傳截圖。', '#fbbf24', dataUrl);
+        toggleGeminiKeyBox(true);
+        return;
+      }
+
+      const mimeType = file.type || 'image/png';
+      const base64Data = String(dataUrl).split(',')[1] || '';
+
+      const promptText = [
+        '你是一位精密的化工船期表格 OCR 專家。請將圖片中的船期/採購表格完整逐列轉為純文字 Tab 分隔 (TSV)。',
+        '規則：',
+        '1. 只輸出純 TSV 內容，絕對不要加任何說明文字、不要用 ``` 程式碼區塊包裹。',
+        '2. 若圖片是船期總表（含 Q\'ty, Customer, PI/PO, POD, CLOSED, ETD, ETA, Vessel & Voyage，無論原本是 8 欄或 10 欄），統一輸出 10 欄格式：',
+        '   第1行表頭固定為：SC/PO\\tPacking\\tQ\'ty (MT)\\tCustomer\\tPI/PO\\tPOD\\tCLOSED\\tETD\\tETA\\tVessel & Voyage',
+        '   資料列若原圖沒有 SC/PO 欄，第 1 欄留空；若原圖沒有 Packing 欄，第 2 欄固定填 ISO-Tank。',
+        '   若某列 CLOSED 或其他欄位為空白，請保留空字串（連續兩個 Tab），切勿省略欄位造成錯位。',
+        '   日期保持 YYYY-MM-DD，船名與航次完全照原圖字元輸出。',
+        '3. 若圖片是 4 欄採購預計入廠通知（如 CIF-3 2610-I03 175MT | ETD | ETA | 預計入廠日），每列輸出 4 欄以 Tab 分隔：單號與噸數\\tETD\\tETA\\t預計入廠日。'
+      ].join('\n');
+
+      setImgOcrStatus('🔍 正在向 Google API 查詢最新可用的 Gemini Flash 模型...', '#7dd3fc', dataUrl);
+      const modelCandidates = await fetchLatestGeminiFlashModels(apiKey);
+
+      let lastError = '未知錯誤';
+      for (const model of modelCandidates) {
+        setImgOcrStatus(`🤖 正在使用最新模型 <strong>${model}</strong> 辨識船期表格圖片，請稍候...`, '#7dd3fc', dataUrl);
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: promptText },
+                  { inline_data: { mime_type: mimeType, data: base64Data } }
+                ]
+              }],
+              generationConfig: { temperature: 0.0 }
+            })
+          });
+
+          if (!res.ok) {
+            let errBody = '';
+            try {
+              const errJson = await res.json();
+              errBody = (errJson.error && errJson.error.message) ? errJson.error.message : JSON.stringify(errJson);
+            } catch (_) {
+              errBody = await res.text();
+            }
+            lastError = `[${model}] HTTP ${res.status}: ${errBody}`;
+            continue;
+          }
+
+          const json = await res.json();
+          const rawText = (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts)
+            ? json.candidates[0].content.parts.map(p => p.text || '').join('\n').trim()
+            : '';
+
+          if (!rawText) {
+            lastError = `[${model}] 模型未回傳任何文字內容`;
+            continue;
+          }
+
+          const cleaned = rawText
+            .replace(/^```[\w-]*\r?\n?/i, '')
+            .replace(/\r?\n?```$/i, '')
+            .replace(/^\r?\n+|\r?\n+$/g, '');
+
+          document.getElementById('rawEmailTableText').value = cleaned;
+          const rowCount = cleaned.split(/\r?\n/).filter(l => l.trim() && !l.includes('SC/PO') && !l.includes('Vessel & Voyage')).length;
+          setImgOcrStatus(`✅ <strong>${model}</strong> 辨識完成（共擷取 <strong>${rowCount}</strong> 列）！已自動填入下方文字框，請快速核對後點擊「⚡ 立即解析並比對改期異動」。`, '#4ade80', dataUrl);
+          if (typeof syncMgr !== 'undefined' && syncMgr.showToast) {
+            syncMgr.showToast(`✅ AI 圖片辨識完成 (${model})，共擷取 ${rowCount} 筆船期資料`, 'success');
+          }
+          return;
+        } catch (err) {
+          lastError = `[${model}] ${err.message || err}`;
+        }
+      }
+
+      setImgOcrStatus(`❌ 所有 Gemini 模型皆辨識失敗。最後錯誤訊息：<code>${lastError}</code>`, '#f87171', dataUrl);
+    }
+
     async function parseAndImportEmailTable() {
-      const raw = document.getElementById('rawEmailTableText').value.trim();
-      if (!raw) {
-        alert('請先貼上採購 Email 或 Excel 船期總表文字！');
+      const raw = document.getElementById('rawEmailTableText').value.replace(/^\r?\n+|\r?\n+$/g, '');
+      if (!raw.trim()) {
+        alert('請先貼上採購 Email / Excel 船期總表文字，或直接 Ctrl+V 貼上截圖進行 AI 辨識！');
         return;
       }
       const fx = dashboardState.fx || { USD_TWD: 32.97 };
@@ -1168,23 +1421,26 @@
       let diffCount = 0;
 
       lines.forEach((line) => {
-        if (line.includes('SC/PO') || line.includes('Packing') || line.includes('Vessel & Voyage')) return;
+        if (line.includes('SC/PO') || line.includes('Packing') || line.includes('Vessel & Voyage') || line.includes("Q'ty") || line.includes('PI/PO')) return;
 
-        // 格式 B：10 欄完整船期總表 (SC/PO | Packing | Q'ty | Customer | PI/PO | POD | CLOSED | ETD | ETA | Vessel & Voyage)
+        // 格式 B：支援 10 欄完整船期總表 (SC/PO | Packing | Q'ty | Customer | PI/PO | POD | CLOSED | ETD | ETA | Vessel & Voyage)
+        // 以及 8 欄精簡船期表 (Q'ty | Customer | PI/PO | POD | CLOSED | ETD | ETA | Vessel & Voyage)
         if (line.includes('ISO-Tank') || line.includes('E-SHINE') || line.includes('TAICHUNG')) {
           const cols = line.split('\t');
           if (cols.length >= 6) {
-            const scPo = (cols[0] || '').trim();
-            const qtyMt = parseFloat(cols[2]) || 175.0;
-            const piPo = (cols[4] || '').trim();
-            const podRaw = (cols[5] || 'TAICHUNG').trim();
-            const closedRaw = (cols[6] || '').trim();
-            const etdRaw = (cols[7] || '').trim();
-            const etaRaw = (cols[8] || '').trim();
-            const vesselVoy = (cols[9] || '').trim();
+            const isEightCol = /^\s*\d+(?:\.\d+)?\s*$/.test(cols[0] || '') && (cols[1] || '').toUpperCase().includes('E-SHINE');
+            const scPo = isEightCol ? '' : (cols[0] || '').trim();
+            const qtyMt = parseFloat(isEightCol ? cols[0] : cols[2]) || 175.0;
+            const piPo = (isEightCol ? cols[2] : cols[4] || '').trim();
+            const podRaw = (isEightCol ? cols[3] : cols[5] || 'TAICHUNG').trim() || 'TAICHUNG';
+            const closedRaw = (isEightCol ? cols[4] : cols[6] || '').trim();
+            const etdRaw = (isEightCol ? cols[5] : cols[7] || '').trim();
+            const etaRaw = (isEightCol ? cols[6] : cols[8] || '').trim();
+            const vesselVoy = (isEightCol ? cols[7] : cols[9] || '').trim();
 
             seenOrders[piPo] = (seenOrders[piPo] || 0) + 1;
-            const suffix = qtyMt === 87.5 ? (seenOrders[piPo] === 1 ? '(A)' : '(B)') : '';
+            const hasBatchLetter = /[AB]$/i.test(piPo);
+            const suffix = (qtyMt === 87.5 && !hasBatchLetter) ? (seenOrders[piPo] === 1 ? '(A)' : '(B)') : '';
             const orderNo = `${piPo}${suffix}`;
             const tanks = Math.round(qtyMt / 17.5);
             const isFob = scPo.includes('FOB');
