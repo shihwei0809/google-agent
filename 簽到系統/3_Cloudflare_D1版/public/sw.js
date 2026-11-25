@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hr-checkin-pwa-v10';
+const CACHE_NAME = 'hr-checkin-pwa-v11';
 const ASSETS = [
   './',
   './index.html',
