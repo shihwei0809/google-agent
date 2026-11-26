@@ -4,7 +4,10 @@
 * **專案位置**：`SOP與WI 檢查表電子化檢點\`（三軌架構 `1_Web_網頁版` / `2_PWA_App版` / `3_Cloudflare_D1版` + 四件套 `README.md`、`SKILL.md`、`setup_env.ps1`、`build_manual_doc.py`、`SOP與WI檢查表電子化檢點系統_操作手冊.docx`）
 * **正式站與雲端資料庫**：
   - **正式網址**：`https://wi-checklist-system.pages.dev`
-  - **Cloudflare D1（共用主庫＋表前綴隔離）**：併入 `hs-material-report-db`（ID：`59cf5d46-4aa5-401a-bc57-29996b4b25c9`，APAC 區域，Binding：`DB`），以 `wi_templates`、`wi_records`、`wi_saved_signatures`、`wi_drafts` 四張獨立表隔離；並已刪除空的 `wi-checklist-db` 與測試用 `sales-planner-db`，D1 總數由 9 庫降至 **7 / 10 庫**。
+  - **Cloudflare D1（共用主庫＋表前綴隔離，已瘦身至 6 / 10 庫）**：
+    - `SOP與WI 檢查表電子化檢點` 併入 `hs-material-report-db`（ID：`59cf5d46-4aa5-401a-bc57-29996b4b25c9`，APAC 區域，Binding：`DB`），以 `wi_templates`、`wi_records`、`wi_saved_signatures`、`wi_drafts` 四張獨立表隔離。
+    - `IPA_報價與船期追蹤系統`（`fx_rates` 2 筆、`chemical_quotes` 364 筆、`shipment_tracking` 17 筆）完整無損搬入 `egups-db`（ID：`b87a145c-937d-430b-94f0-1962255abd04`，合併後 0.45 MB）並已重新部署 `https://ipa-quote-vessel-tracker.pages.dev` 驗證通過。
+    - 已刪除 `wi-checklist-db`、`sales-planner-db`、`ipa_tracker_db` 三個多餘/已合併資料庫，D1 總數由 9 庫降至 **6 / 10 庫**。
 * **已完成功能與驗證**：
   1. **完整解析 `C50110-INV-02-01 儲槽進出貨作業方法(3.1版).doc`（27 頁）並建置全 5 張表單與檢點大廳**：涵蓋 `6.1 槽車泵料入儲槽檢查表`、`6.2 運輸油槽車安檢清潔度檢核表`、`6.3 ISO TANK 作業檢點表`、`6.4 ISO TANK 取樣作業檢點表`、`6.5 油罐車放櫃作業前檢點表`（3 種通用版型引擎：`single_stage` / `dual_compare` / `before_after`）。
   2. **現場作業防呆與多台並行暫存**：6.1 支援容積 `(A)-(B)=(C)` 與 `M/T` 溢槽自動試算、泵浦「＼ 無此項」快捷聯動、第 5 項反向異常判定與必填備註、原地更新數值防游標失焦；支援多台作業中暫存（`wi_drafts` 雲端共享、品管可跨機補簽、廠區篩選、刪除二次確認 Modal）。
