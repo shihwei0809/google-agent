@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS locations (
   package TEXT NOT NULL DEFAULT '',
   qty REAL NOT NULL DEFAULT 0,
   note TEXT NOT NULL DEFAULT '',
+  lot_dates_json TEXT NOT NULL DEFAULT '{}',
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (wh_id, location)
 );
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS warehouse_settings (
   wh_id TEXT PRIMARY KEY,
   items_json TEXT NOT NULL DEFAULT '[]',
   packages_json TEXT NOT NULL DEFAULT '[]',
+  alert_days INTEGER NOT NULL DEFAULT 60,
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

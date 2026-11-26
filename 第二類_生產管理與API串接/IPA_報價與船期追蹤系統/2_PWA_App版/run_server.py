@@ -129,6 +129,108 @@ def resolve_vessel_imo(vessel_name: str) -> str:
     return ""
 
 
+PORT_NAME_ZH = {
+    "KAOHSIUNG": "高雄港",
+    "TAICHUNG": "台中港",
+    "KEELUNG": "基隆港",
+    "CHILUNG": "基隆港",
+    "TAIPEI": "台北港",
+    "MAILIAO": "麥寮港",
+    "ULSAN": "韓國蔚山港(LG起運港)",
+    "BUSAN": "韓國釜山港",
+    "PUSAN": "韓國釜山港",
+    "TOKUYAMA": "日本德山港",
+    "SHANGHAI": "上海港",
+    "NINGBO": "寧波港",
+    "HONG KONG": "香港",
+    "SINGAPORE": "新加坡港",
+}
+
+
+def translate_port_zh(port_en: str) -> str:
+    if not port_en:
+        return "海上航行中"
+    up = port_en.upper()
+    for k, zh in PORT_NAME_ZH.items():
+        if k in up:
+            return f"{zh} ({port_en.strip()})"
+    return port_en.strip()
+
+
+def fetch_single_vessel_live_eta(imo: str, vessel_name: str = "") -> dict:
+    """
+    免船公司帳密、免港務局帳密！
+    直接透過 7 碼 IMO 抓取全球 AIS 公開廣播之最新靠泊港口、預計到港時間 (ETA)、實際到港時間 (ATA) 與即時航速。
+    """
+    clean_imo = re.sub(r"\D", "", imo or "")
+    if not clean_imo:
+        clean_imo = resolve_vessel_imo(vessel_name)
+    if not clean_imo:
+        return {
+            "imo": "",
+            "live_summary": "⏳ 尚未排定船名，待綁定船名後即可一鍵抓取即時港務 ETA",
+            "state": "PENDING",
+        }
+    try:
+        url = f"https://www.vesselfinder.com/vessels/details/{clean_imo}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        html = urllib.request.urlopen(req, timeout=8).read().decode("utf-8", errors="ignore")
+        m_tb = re.search(r'<p class="text2">(.*?)</p>', html, re.S)
+        raw_text = re.sub(r"<[^>]+>", " ", m_tb.group(1)) if m_tb else ""
+        raw_text = re.sub(r"\s+", " ", raw_text).strip()
+
+        rep_m = re.search(r"reported\s+([^.]+?)\s+by AIS", raw_text, re.I)
+        rep_str = rep_m.group(1).strip() if rep_m else "即時"
+
+        speed_m = re.search(r"sailing at a speed of\s+([\d.]+\s*knots)", raw_text, re.I)
+        speed_str = speed_m.group(1).replace("knots", "節") if speed_m else "在港/低速"
+
+        arr_m = re.search(r"arrived at the port of\s+([^.]+?)\s+on\s+([A-Za-z]+\s+\d+,\s*[\d:]+(?:\s*UTC)?)", raw_text, re.I)
+        enroute_m = re.search(r"en route to the port of\s+([^,]+(?:,\s*[^,]+)?)\s*,.*?expected to arrive there on\s+([A-Za-z]+\s+\d+,\s*[\d:]+)", raw_text, re.I)
+
+        if arr_m:
+            port_zh = translate_port_zh(arr_m.group(1))
+            arr_time = arr_m.group(2).strip()
+            summary = f"⚓ 已靠泊【{port_zh}】｜實際到港: {arr_time} (AIS更新: {rep_str})"
+            return {
+                "imo": clean_imo,
+                "state": "ARRIVED",
+                "port": port_zh,
+                "eta_or_ata": arr_time,
+                "speed": speed_str,
+                "reported": rep_str,
+                "live_summary": summary,
+                "raw_text": raw_text,
+            }
+        elif enroute_m:
+            port_zh = translate_port_zh(enroute_m.group(1))
+            eta_time = enroute_m.group(2).strip()
+            summary = f"🚢 航向【{port_zh}】｜最新AIS預計到港(ETA): {eta_time}｜航速: {speed_str} ({rep_str})"
+            return {
+                "imo": clean_imo,
+                "state": "EN_ROUTE",
+                "port": port_zh,
+                "eta_or_ata": eta_time,
+                "speed": speed_str,
+                "reported": rep_str,
+                "live_summary": summary,
+                "raw_text": raw_text,
+            }
+        else:
+            return {
+                "imo": clean_imo,
+                "state": "INFO",
+                "live_summary": f"🛰️ AIS 即時廣播: {raw_text[:120]}",
+                "raw_text": raw_text,
+            }
+    except Exception as e:
+        return {
+            "imo": clean_imo,
+            "state": "ERROR",
+            "live_summary": f"⚠️ 連線逾時 ({e})",
+        }
+
+
 def identify_shipment(container_no: str, vessel_name: str = "", pod: str = "高雄港 (TWKHH)"):
     """根據櫃號前 4 碼自動反查船公司/槽罐商，並自動解析船名 IMO 產生『單船直達即時海圖』連結"""
     clean_no = re.sub(r"[^A-Z0-9]", "", (container_no or "").upper())
@@ -725,7 +827,44 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(build_dashboard_payload())
             return
 
-        # 4. 單筆出貨單直接綁定/修改船名並自動反查 IMO 直達海圖座標
+        # 4. 免帳密一鍵批次查詢所有船隻最新港務動態與 AIS 到港時間 (ETA / ATA)
+        if path == "/api/live_port_status":
+            target_cno = data.get("container_no", "")
+            conn = get_db()
+            cur = conn.cursor()
+            if target_cno:
+                cur.execute("SELECT * FROM shipment_tracking WHERE container_no=?", (target_cno,))
+            else:
+                cur.execute("SELECT * FROM shipment_tracking")
+            rows = [dict(r) for r in cur.fetchall()]
+
+            imo_cache = {}
+            updated_count = 0
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            for r in rows:
+                v_name = r.get("vessel_name", "")
+                m_imo = re.search(r"\b(9\d{6})\b", v_name)
+                imo = m_imo.group(1) if m_imo else resolve_vessel_imo(v_name)
+                if not imo:
+                    continue
+                if imo not in imo_cache:
+                    imo_cache[imo] = fetch_single_vessel_live_eta(imo, v_name)
+                live_info = imo_cache[imo]
+                if live_info.get("live_summary"):
+                    cur.execute(
+                        "UPDATE shipment_tracking SET note=?, updated_at=? WHERE container_no=?",
+                        (live_info["live_summary"], now_str, r["container_no"]),
+                    )
+                    updated_count += 1
+            conn.commit()
+            conn.close()
+            payload = build_dashboard_payload()
+            payload["live_vessels"] = imo_cache
+            payload["message"] = f"⚡ 已免帳密完成 {updated_count} 批出貨單之即時港務靠泊與 AIS 到港時間 (ETA) 同步！"
+            self._send_json(payload)
+            return
+
+        # 5. 單筆出貨單直接綁定/修改船名並自動反查 IMO 直達海圖座標
         if path == "/api/shipments/update_vessel":
             c_no = data.get("container_no", "")
             new_v = (data.get("vessel_name", "") or "").strip().upper()

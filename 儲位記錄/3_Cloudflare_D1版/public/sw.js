@@ -1,4 +1,4 @@
-const CACHE_NAME = 'storage-pwa-v1.0.22';
+const CACHE_NAME = 'storage-pwa-v1.0.26';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

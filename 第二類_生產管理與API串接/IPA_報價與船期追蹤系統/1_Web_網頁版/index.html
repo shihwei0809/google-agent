@@ -684,7 +684,7 @@
         </div>
       </div>
 
-      <!-- 到期自動歸檔分頁切換與一鍵清理控制列 -->
+      <!-- 到期自動歸檔分頁切換與一鍵全查港務動態控制列 -->
       <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; padding:10px 14px; background:rgba(15,23,42,0.75); border:1px solid var(--border); border-radius:10px;">
         <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
           <span style="font-size:12.5px; color:var(--muted); font-weight:700;">🕒 到期自動過濾：</span>
@@ -692,11 +692,14 @@
           <button id="tabArchivedBtn" class="btn btn-sm btn-outline" onclick="switchShipmentTab('archived')">📂 已過期 / 已入廠自動歸檔 (<span id="countArchived">0</span>)</button>
           <button id="tabAllBtn" class="btn btn-sm btn-outline" onclick="switchShipmentTab('all')">📋 顯示全部 (<span id="countAll">0</span>)</button>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:12px; color:#94a3b8;">💡 超過「預計最後入廠日」之批次會自動移入歸檔區免人工刪除</span>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+          <button id="btnBatchPortEta" class="btn btn-sm btn-emerald" style="box-shadow:0 4px 12px rgba(16,185,129,0.35);" onclick="queryAllLivePortStatus('')">⚡ 一鍵全查所有船隻最新港務靠泊 & AIS ETA (免帳密)</button>
           <button class="btn btn-sm btn-outline" style="color:#fb7185; border-color:rgba(244,63,94,0.4);" onclick="purgeExpiredShipments()">🧹 一鍵徹底清除已到期批次</button>
         </div>
       </div>
+
+      <!-- 一鍵全查港務與 AIS 最新到港動態結果面板 -->
+      <div id="livePortResultBox" style="display:none; margin-bottom:14px; background:rgba(16,185,129,0.1); border:1px solid #10b981; border-radius:10px; padding:12px 16px;"></div>
 
       <!-- 船期追蹤清單表格 -->
       <div class="table-wrap">
@@ -2040,7 +2043,7 @@
               <div class="track-links">
                 <button class="btn btn-sm btn-primary" onclick="openAisModal('${s.container_no}')" title="直接在看板內彈出該船即時 AIS 衛星海圖">🗺️ 看板內看船位</button>
                 <a href="${directAisUrl}" target="_blank" class="btn btn-sm btn-emerald" title="新分頁直接鎖定該船海圖座標 (?imo=${imo || 'TWKHH'})，免自己打字">🛰️ 直達單船海圖</a>
-                <a href="${s.twport_url}" target="_blank" class="btn btn-sm btn-outline" title="查詢台灣港務公司靠泊預報">⚓ 港務局</a>
+                <button class="btn btn-sm btn-outline" style="color:#38bdf8; border-color:rgba(56,189,248,0.45);" onclick="queryAllLivePortStatus('${s.container_no}')" title="免帳密一鍵抓取該船最新靠泊港口、航速與 AIS 預計到港時間 (ETA)">⚓ 即時查港務ETA</button>
                 ${!expired ? `<button class="btn btn-sm btn-outline" style="color:#34d399;" title="提早入廠完畢可點此一鍵歸檔" onclick="markShipmentCompleted('${s.container_no}')">✅ 完畢歸檔</button>` : ''}
                 <button class="btn btn-sm btn-outline" style="color:#fb7185;" title="永久刪除此筆" onclick="deleteShipment('${s.container_no}')">✕</button>
               </div>
@@ -2048,6 +2051,53 @@
           </tr>
         `;
       }).join('');
+    }
+
+    // 免船公司帳密、免港務局帳密：一鍵全自動批次查詢所有船隻最新靠泊港口與 AIS ETA
+    async function queryAllLivePortStatus(targetContainerNo = '') {
+      const btn = document.getElementById('btnBatchPortEta');
+      const box = document.getElementById('livePortResultBox');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ 正在連線全球 AIS 衛星抓取各船最新靠泊港口與 ETA...';
+      }
+      try {
+        const res = await fetch('/api/live_port_status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ container_no: targetContainerNo })
+        });
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        if (data && data.shipments) {
+          dashboardState = data;
+          localStorage.setItem('ipa_dashboard_cache', JSON.stringify(data));
+          renderAll();
+        }
+        if (box && data.live_vessels) {
+          const itemsHtml = Object.values(data.live_vessels).map(v => `
+            <div style="padding:6px 10px; background:rgba(15,23,42,0.75); border-radius:6px; border-left:3px solid #10b981; font-size:12.5px;">
+              <strong style="color:#fde68a;">IMO ${v.imo}</strong>：${v.live_summary}
+            </div>
+          `).join('');
+          box.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <strong style="color:#6ee7b7; font-size:14px;">⚡ 免帳密即時港務靠泊 & AIS 船長廣播 ETA 查詢結果（已自動寫入下方各批次明細）</strong>
+              <button class="btn btn-sm btn-outline" onclick="document.getElementById('livePortResultBox').style.display='none'">✕ 收合</button>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:8px;">${itemsHtml}</div>
+          `;
+          box.style.display = 'block';
+        }
+        syncMgr.showToast(data.message || '⚡ 已免帳密更新所有船隻最新港務靠泊與 AIS ETA！', 'success');
+      } catch (e) {
+        syncMgr.showToast('⚠️ 請在連網環境或透過雲端正式站執行即時 AIS 港務查詢', 'warning');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '⚡ 一鍵全查所有船隻最新港務靠泊 & AIS ETA (免帳密)';
+        }
+      }
     }
 
     // =========================================================================

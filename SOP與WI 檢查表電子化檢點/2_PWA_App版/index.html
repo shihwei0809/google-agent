@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>鴻勝化學 SOP / WI 線上電子化檢點系統</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+  <style>
+    :root {
+      --background: #0f172a;
+      --card: #1e293b;
+      --border: #334155;
+      --foreground: #f8fafc;
+      --muted-foreground: #94a3b8;
+      --primary: #3b82f6;
+      --primary-foreground: #ffffff;
+    }
+    .sig-canvas { touch-action: none; cursor: crosshair; }
+    .a4-paper {
+      background: #ffffff; color: #000000;
+      font-family: "DFKai-SB", "BiauKai", "PMingLiU", "Microsoft JhengHei", serif;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .wi-outer-table { width: 100%; border-collapse: collapse; border: 2.5px double #000; }
+    .wi-outer-table th, .wi-outer-table td { border: 1px solid #000; padding: 3px 6px; font-size: 11.5px; line-height: 1.35; vertical-align: middle; }
+    .v-text { writing-mode: vertical-rl; text-orientation: upright; letter-spacing: 2px; text-align: center; font-weight: 600; }
+    @media print {
+      body * { visibility: hidden !important; }
+      #a4-print-area, #a4-print-area * { visibility: visible !important; }
+      #a4-print-area { position: fixed; inset: 0; width: 100%; box-shadow: none !important; margin: 0 !important; padding: 8mm !important; }
+    }
+  </style>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#3b82f6" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased min-h-screen">
+  <div id="pwa-install-banner" class="hidden bg-blue-600 text-white px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2">
+    <span>📲 可安裝為桌面/平板獨立 App，支援無網路離線檢點與簽名！</span>
+    <div class="flex gap-2">
+      <button id="btn-pwa-install" class="px-2.5 py-1 rounded bg-white text-blue-700 font-bold">立即安裝</button>
+      <button id="btn-pwa-dismiss" class="px-2.5 py-1 rounded bg-blue-800 text-white">稍後</button>
+    </div>
+  </div>
+  <div id="updateBanner" onclick="window.location.reload(true)" class="hidden cursor-pointer bg-emerald-600 text-white text-center px-4 py-2 text-xs font-bold">
+    🎉 系統已發布新版本！點擊此處立即更新 🔄
+  </div>
+  <div id="toast" class="fixed top-4 right-4 z-50 hidden max-w-sm rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3 shadow-lg text-xs">
+    <div class="flex items-center gap-2"><span id="toast-icon">✅</span><span id="toast-msg" class="font-medium"></span></div>
+  </div>
+
+  <header class="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--card)]/95 backdrop-blur px-4 py-3">
+    <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] flex items-center justify-center font-bold text-xs font-mono">WI</div>
+        <div>
+          <h1 class="text-sm font-bold leading-tight">SOP / WI 電子化檢點與模板控管系統</h1>
+          <p class="text-xs text-[var(--muted-foreground)]">C50110-INV-02-01（6.1～6.5 全 5 表）｜手寫簽名・主管常用簽名檔・一鍵改版鎖版</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs">
+        <span id="role-badge" class="hidden px-2.5 py-1 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 font-semibold"></span>
+        <button id="btn-logout-role" onclick="logoutRole()" class="hidden px-2 py-1 rounded-md border border-[var(--border)] bg-[var(--background)] text-[11px] hover:opacity-80">🔒 鎖定登出</button>
+        <button onclick="toggleNetwork()" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-[var(--border)] bg-[var(--background)]">
+          <span id="net-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+          <span id="net-label">連線中 (PWA 離線 App 版)</span>
+        </button>
+        <span id="queue-badge" class="hidden px-2 py-1 rounded-md bg-amber-500/20 text-amber-400 font-semibold border border-amber-500/40">
+          離線暫存: <span id="queue-count">0</span>
+        </span>
+      </div>
+    </div>
+
+    <nav class="max-w-5xl mx-auto mt-3 flex flex-wrap gap-1.5">
+      <button data-tab="lobby" onclick="switchTab('lobby')" class="tab-btn px-3 py-1.5 rounded-md text-xs font-semibold">🏠 檢點大廳 (5張表)</button>
+      <button data-tab="check" onclick="switchTab('check')" class="tab-btn px-3 py-1.5 rounded-md text-xs font-semibold">📋 現場檢點與簽名</button>
+      <button data-tab="review" onclick="switchTab('review')" class="tab-btn px-3 py-1.5 rounded-md text-xs font-semibold">🔒 主管補簽與簽名庫 <span id="pending-badge" class="px-1.5 py-0.5 rounded-full text-[11px] bg-amber-500/20 text-amber-400">0</span></button>
+      <button data-tab="template" onclick="switchTab('template')" class="tab-btn px-3 py-1.5 rounded-md text-xs font-semibold">🔒 模板編輯與改版</button>
+      <button data-tab="export" onclick="switchTab('export')" class="tab-btn px-3 py-1.5 rounded-md text-xs font-semibold">📄 1:1 匯出 PDF / .xlsx</button>
+    </nav>
+  </header>
+
+  <main class="max-w-5xl mx-auto p-4 space-y-4">
+    <!-- TAB 0: LOBBY -->
+    <section id="tab-lobby" class="tab-panel space-y-4">
+      <!-- 作業中暫存區（雲端版全體連線共享，支援廠區篩選、品管補簽與換班交接） -->
+      <div id="lobby-drafts-panel" class="hidden rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="text-sm font-bold text-amber-400">⏳ 作業中暫存區（雲端共享｜支援多台並行、品管跨機補簽與換班交接）</h2>
+            <p class="text-xs text-[var(--muted-foreground)]">已填寫的數值、選項與部分手寫簽名皆完整保留，全部完成後再正式送出</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <select id="draft-plant-filter" onchange="draftPlantFilter=this.value; renderLobby();" class="px-2 py-1 rounded border border-amber-500/40 bg-[var(--card)] text-xs"></select>
+            <button type="button" onclick="refreshCloudDrafts()" class="px-2.5 py-1 rounded border border-amber-500/40 bg-[var(--card)] hover:opacity-85 text-xs font-semibold">🔄 同步最新</button>
+            <span id="drafts-count-badge" class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-mono text-xs font-bold">0 筆作業中</span>
+          </div>
+        </div>
+        <div id="lobby-drafts-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5"></div>
+      </div>
+
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+        <h2 class="text-sm font-bold">🏭 選擇本次作業檢點表（C50110-INV-02-01 儲槽進出貨作業方法 版別 3.1）</h2>
+        <p class="text-xs text-[var(--muted-foreground)] mt-0.5">點擊下方任一張表單即可開始新檢點，未來新增其他 SOP/WI 表單也會自動出現在此大廳</p>
+      </div>
+      <div id="lobby-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </section>
+
+    <!-- TAB 1: CHECK -->
+    <section id="tab-check" class="tab-panel hidden space-y-4">
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--border)]">
+          <div>
+            <div class="flex flex-wrap items-center gap-2">
+              <select id="check-form-switcher" onchange="startChecklist(this.value)" class="px-2 py-1 rounded border border-[var(--border)] bg-[var(--background)] text-xs font-semibold"></select>
+              <span id="chk-form-code" class="px-2 py-0.5 rounded bg-[var(--primary)]/15 text-[var(--primary)] font-mono text-xs font-bold"></span>
+              <span id="chk-wi-ver" class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-mono text-xs font-bold"></span>
+            </div>
+            <h2 id="chk-title" class="text-base font-bold mt-1.5"></h2>
+          </div>
+          <button id="btn-demo-autofill" type="button" onclick="quickFillNormal()" class="hidden px-3 py-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 text-xs font-bold">⚡ 一鍵帶入示範正常值（僅模擬）</button>
+        </div>
+        <div id="dynamic-meta-box"></div>
+      </div>
+
+      <div id="checklist-sections" class="space-y-3"></div>
+
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-4">
+        <div class="text-xs space-y-1">
+          <label class="font-bold block">整表備註 / 異常補充</label>
+          <input oninput="currentMeta.remark=this.value" placeholder="選填：其他異常處置或交班備註..." class="w-full px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--background)] text-xs" />
+        </div>
+        <div id="stage1-sigs-box" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-[var(--border)]"></div>
+        <div id="submit-guard" class="hidden rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400 font-medium"></div>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <span id="progress-text" class="text-xs text-[var(--muted-foreground)]"></span>
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" onclick="saveAsDraft()" class="px-3.5 py-2 rounded-lg border border-amber-500/50 bg-amber-500/15 text-amber-400 text-xs font-bold hover:opacity-90">
+              💾 暫存進度（稍後繼續 / 切別台）
+            </button>
+            <button id="btn-submit" onclick="submitChecklist()" class="px-4 py-2 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-bold disabled:opacity-40">送出檢點表（進入主管補簽）→</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: REVIEW & SAVED SIG VAULT -->
+    <section id="tab-review" class="tab-panel hidden space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-4 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-2.5">
+          <h2 class="text-sm font-bold">📋 已送出紀錄清單</h2>
+          <div id="review-list" class="space-y-2 max-h-[420px] overflow-y-auto"></div>
+        </div>
+        <div id="review-detail" class="md:col-span-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-4"></div>
+      </div>
+
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[var(--border)]">
+          <div>
+            <h3 class="text-sm font-bold">🖊️ 主管常用簽名檔庫（存一次，往後一鍵呼叫）</h3>
+            <p class="text-xs text-[var(--muted-foreground)]">組長、課(副)長／主管可手寫存入或上傳簽名圖檔，簽核時點一下直接套用（品管人員改於現場檢點頁當場簽名）</p>
+          </div>
+          <label class="flex items-center gap-1.5 text-xs cursor-pointer">
+            <input type="checkbox" onchange="requirePin=this.checked; showToast(this.checked?'已啟用 PIN 碼保護 (1234)':'已關閉 PIN 驗證','🔐')" />
+            <span>呼叫需輸入 PIN 碼（預設 1234）</span>
+          </label>
+        </div>
+        <div id="sig-vault-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
+    </section>
+
+    <!-- TAB 3: TEMPLATE EDITOR -->
+    <section id="tab-template" class="tab-panel hidden space-y-4">
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
+          <div>
+            <h2 class="text-sm font-bold">🛠️ 模板編輯與改版次控管（6.1～6.5 皆可改版）</h2>
+            <p class="text-xs text-[var(--muted-foreground)]">修改廠區、項目或一鍵升版後，新紀錄套用新版，歷史紀錄永久鎖定舊版面</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <select id="tpl-select" onchange="editingTplId=this.value; renderTemplateTab();" class="px-2.5 py-1.5 rounded-md border border-[var(--border)] bg-[var(--background)] text-xs font-mono"></select>
+            <button onclick="upgradeVersion()" class="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-bold">🚀 一鍵改版升版</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
+          <label class="space-y-1"><span class="text-[var(--muted-foreground)] block">公司名稱</span><input id="ed-company" class="w-full px-2.5 py-1.5 rounded border border-[var(--border)] bg-[var(--background)]" /></label>
+          <label class="space-y-1"><span class="text-[var(--muted-foreground)] block">表單標題</span><input id="ed-title" class="w-full px-2.5 py-1.5 rounded border border-[var(--border)] bg-[var(--background)]" /></label>
+          <label class="space-y-1"><span class="text-[var(--muted-foreground)] block">表單編號</span><input id="ed-formcode" class="w-full px-2.5 py-1.5 rounded border border-[var(--border)] bg-[var(--background)] font-mono" /></label>
+          <label class="space-y-1"><span class="text-[var(--muted-foreground)] block">WI 版別</span><input id="ed-wiver" class="w-full px-2.5 py-1.5 rounded border border-[var(--border)] bg-[var(--background)] font-mono" /></label>
+          <label class="space-y-1 sm:col-span-3"><span class="text-[var(--muted-foreground)] block">廠區下拉清單（逗號分隔）</span><input id="ed-plants" class="w-full px-2.5 py-1.5 rounded border border-[var(--border)] bg-[var(--background)]" /></label>
+          <label class="space-y-1"><span class="text-[var(--muted-foreground)] block">匯出表頭廠區樣式</span>
+            <select id="ed-plantmode" class="w-full px-2.5 py-1.5 rounded border border-[var(--border)] bg-[var(--background)]">
+              <option value="checkbox">全部列出勾選 (☑/☐)</option>
+              <option value="text">僅顯示所選 (廠區：XX)</option>
+            </select>
+          </label>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold">檢點項目明細</h3>
+            <button onclick="addTplItem()" class="px-2.5 py-1 rounded border border-[var(--border)] bg-[var(--background)] text-xs font-semibold">+ 新增項目</button>
+          </div>
+          <div id="ed-items" class="space-y-1.5 max-h-[320px] overflow-y-auto pr-1"></div>
+        </div>
+        <div class="flex justify-end pt-2 border-t border-[var(--border)]">
+          <button onclick="saveTpl()" class="px-4 py-2 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-bold">💾 儲存模板修改</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: EXPORT -->
+    <section id="tab-export" class="tab-panel hidden space-y-4">
+      <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2 text-xs">
+          <span class="font-bold">預覽 / 匯出對象：</span>
+          <select id="export-select" onchange="renderExportPreview()" class="px-2.5 py-1.5 rounded border border-[var(--border)] bg-[var(--background)] font-mono text-xs"></select>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-bold">🖨️ 匯出 / 列印 A4 PDF</button>
+          <button onclick="handleExportXlsx()" class="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs font-bold">📥 匯出原生 Excel (.xlsx 含簽名圖)</button>
+        </div>
+      </div>
+      <div class="overflow-x-auto pb-6">
+        <div id="a4-print-area" class="a4-paper mx-auto w-full max-w-[780px] rounded p-6 sm:p-8"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Delete Draft Confirmation Modal (防止誤刪他人或作業中暫存單) -->
+  <div id="delete-draft-modal" class="fixed inset-0 z-50 hidden bg-black/65 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeDeleteDraftModal()">
+    <div class="rounded-xl border border-red-500/40 bg-[var(--card)] p-5 max-w-sm w-full space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-red-400">⚠️ 確認刪除暫存檢點單？</h3>
+        <button onclick="closeDeleteDraftModal()" class="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]">✕</button>
+      </div>
+      <p id="delete-draft-desc" class="text-xs text-[var(--muted-foreground)] leading-relaxed"></p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeDeleteDraftModal()" class="px-3 py-1.5 rounded-md border border-[var(--border)] bg-[var(--background)] text-xs font-semibold">取消保留</button>
+        <button onclick="confirmDeleteDraft()" class="px-4 py-1.5 rounded-md bg-red-600 text-white text-xs font-bold hover:opacity-90">🗑️ 確認刪除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Role / PIN Access Gate Modal (保護第 2 頁主管補簽 & 第 3 頁模板改版) -->
+  <div id="auth-modal" class="fixed inset-0 z-50 hidden bg-black/65 backdrop-blur-sm flex items-center justify-center p-4" onclick="if(event.target===this) closeAuthModal()">
+    <div class="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 max-w-sm w-full space-y-3 shadow-2xl">
+      <div class="flex items-center justify-between">
+        <h3 id="auth-modal-title" class="text-sm font-bold">🔒 權限驗證</h3>
+        <button onclick="closeAuthModal()" class="text-xs text-[var(--muted-foreground)] hover:text-[var(--foreground)]">✕</button>
+      </div>
+      <p id="auth-modal-desc" class="text-xs text-[var(--muted-foreground)]"></p>
+      <input id="auth-pin-input" type="password" inputmode="numeric" placeholder="請輸入授權密碼"
+        onkeydown="if(event.key==='Enter') submitAuthPin()"
+        class="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--background)] text-sm font-mono tracking-widest text-center" />
+      <div id="auth-error-msg" class="hidden text-xs text-red-400 font-semibold text-center"></div>
+      <div class="flex justify-end gap-2 pt-1">
+        <button onclick="closeAuthModal()" class="px-3 py-1.5 rounded-md border border-[var(--border)] bg-[var(--background)] text-xs">取消</button>
+        <button onclick="submitAuthPin()" class="px-4 py-1.5 rounded-md bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-bold">驗證進入</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="max-w-5xl mx-auto px-4 pb-6 pt-2 flex flex-wrap items-center justify-between text-xs text-[var(--muted-foreground)]">
+    <span>鴻勝化學 C50110-INV-02-01 電子化檢點系統 ｜ PWA 離線 App 版</span>
+    <span class="font-mono">v1.0.0 ｜ 製作人 shihwei0809</span>
+  </footer>
+
+  <script>window.APP_CONFIG = { mode: 'pwa', envLabel: 'PWA 離線 App 版', apiBase: '', demoMode: false };</script>
+  <script src="templates.js"></script>
+  <script src="export_xlsx.js"></script>
+  <script src="app.js"></script>
+  <script>
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      if (sessionStorage.getItem('pwa_banner_dismissed')) return;
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('pwa-install-banner')?.classList.remove('hidden');
+    });
+    document.getElementById('btn-pwa-install')?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      document.getElementById('pwa-install-banner')?.classList.add('hidden');
+    });
+    document.getElementById('btn-pwa-dismiss')?.addEventListener('click', () => {
+      sessionStorage.setItem('pwa_banner_dismissed', '1');
+      document.getElementById('pwa-install-banner')?.classList.add('hidden');
+    });
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').then((reg) => {
+        reg.update();
+        reg.onupdatefound = () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.onstatechange = () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+              document.getElementById('updateBanner')?.classList.remove('hidden');
+            }
+          };
+        };
+      }).catch(() => {});
+    }
+  </script>
+</body>
+</html>

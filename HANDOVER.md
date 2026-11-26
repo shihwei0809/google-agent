@@ -1,5 +1,22 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-26 鴻勝化學 SOP / WI 檢查表電子化檢點系統 6.1～6.5 三軌建置、Cloudflare Pages + D1 上線與共用主庫瘦身)
+* **專案位置**：`SOP與WI 檢查表電子化檢點\`（三軌架構 `1_Web_網頁版` / `2_PWA_App版` / `3_Cloudflare_D1版` + 四件套 `README.md`、`SKILL.md`、`setup_env.ps1`、`build_manual_doc.py`、`SOP與WI檢查表電子化檢點系統_操作手冊.docx`）
+* **正式站與雲端資料庫**：
+  - **正式網址**：`https://wi-checklist-system.pages.dev`
+  - **Cloudflare D1（共用主庫＋表前綴隔離）**：併入 `hs-material-report-db`（ID：`59cf5d46-4aa5-401a-bc57-29996b4b25c9`，APAC 區域，Binding：`DB`），以 `wi_templates`、`wi_records`、`wi_saved_signatures`、`wi_drafts` 四張獨立表隔離；並已刪除空的 `wi-checklist-db` 與測試用 `sales-planner-db`，D1 總數由 9 庫降至 **7 / 10 庫**。
+* **已完成功能與驗證**：
+  1. **完整解析 `C50110-INV-02-01 儲槽進出貨作業方法(3.1版).doc`（27 頁）並建置全 5 張表單與檢點大廳**：涵蓋 `6.1 槽車泵料入儲槽檢查表`、`6.2 運輸油槽車安檢清潔度檢核表`、`6.3 ISO TANK 作業檢點表`、`6.4 ISO TANK 取樣作業檢點表`、`6.5 油罐車放櫃作業前檢點表`（3 種通用版型引擎：`single_stage` / `dual_compare` / `before_after`）。
+  2. **現場作業防呆與多台並行暫存**：6.1 支援容積 `(A)-(B)=(C)` 與 `M/T` 溢槽自動試算、泵浦「＼ 無此項」快捷聯動、第 5 項反向異常判定與必填備註、原地更新數值防游標失焦；支援多台作業中暫存（`wi_drafts` 雲端共享、品管可跨機補簽、廠區篩選、刪除二次確認 Modal）。
+  3. **權限控管與主管常用簽名檔庫**：正式版徹底隱藏示範一鍵帶入（`demoMode: false`）；品管簽名歸位至現場檢點頁；第 2 頁「主管補簽與簽名庫」（預設密碼 `8888`）與第 3 頁「模板編輯與改版」（管理員密碼 `9999`）採密碼視窗鎖定；組長／課(副)長支援手寫或上傳存入常用簽名檔並一鍵呼叫（可選 PIN 驗證）。
+  4. **模板改版與 1:1 原格式匯出**：支援廠區下拉清單維護與匯出表頭樣式切換（`☑/☐` 或 `廠區：XX`）、一鍵升版且歷史紀錄永久鎖定舊版面、A4 PDF 列印與 `ExcelJS` 原生 `.xlsx` 匯出（含透明手寫簽名 PNG 圖片嵌入）。
+  5. **高併發壓測與雲端驗證通過**：上線後執行 20 人（0.45s）與 50 人（0.47s）同時併發寫入壓測 **100% 零失敗、零覆蓋、零撞號**，壓測資料已清除；併入 `hs-material-report-db` 後已重新部署並實測 4 支 API 全數通過。
+* **避坑指南**：
+  - Cloudflare D1 免費版上限為 10 個資料庫（單庫可達 500 MB），往後新專案請直接共用 `hs-material-report-db` 並以專屬表前綴（如 `wi_*`）隔離，避免重複開新庫。
+  - 解析 `.doc` 舊版 Word 檔時，須先複製並 `Unblock-File` 且於 Word COM 傳入 `ConfirmConversions=False, ReadOnly=True, NoEncodingDialog=True` 以避免背景隱藏視窗卡死。
+
+---
+
 ## 今日進度與交接事項 (2026-11-25 企業活動簽到與滿意度系統上雲 Cloudflare Pages + D1、50 人高併發壓測與全項目客製化升級)
 * **專案位置**：`簽到系統\`（三軌架構 `1_Web_網頁版` / `2_PWA_App版` / `3_Cloudflare_D1版`）
 * **正式站與雲端資料庫**：

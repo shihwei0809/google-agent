@@ -35,9 +35,13 @@ if (Test-Path ".\build_manual_doc.py") {
 }
 
 if ($DeployCloudflare) {
-    Write-Host "`n[Cloudflare 部署] 準備部署 3_Cloudflare_D1版 至 Cloudflare Pages..." -ForegroundColor Cyan
-    Set-Location "$ProjectRoot\3_Cloudflare_D1版"
-    npx wrangler pages deploy public --project-name ipa-quote-vessel-tracker
+    Write-Host "`n[Cloudflare 部署] 準備透過純英文暫存路徑部署 3_Cloudflare_D1版 至 Cloudflare Pages..." -ForegroundColor Cyan
+    $env:NODE_OPTIONS = "--use-system-ca"
+    $StageDir = "$env:TEMP\ipa_cf_stage"
+    if (Test-Path $StageDir) { Remove-Item $StageDir -Recurse -Force }
+    Copy-Item "$ProjectRoot\3_Cloudflare_D1版" $StageDir -Recurse -Force
+    Set-Location $StageDir
+    npx wrangler pages deploy public --project-name ipa-quote-vessel-tracker --branch main --commit-dirty=true
     Set-Location $ProjectRoot
 }
 
