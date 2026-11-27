@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS daily_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_logs_date ON daily_logs(log_date);
+CREATE INDEX IF NOT EXISTS idx_logs_wh_date ON daily_logs(wh_id, log_date);
 CREATE INDEX IF NOT EXISTS idx_logs_lot ON daily_logs(lot_no);
 
 CREATE TABLE IF NOT EXISTS warehouse_settings (

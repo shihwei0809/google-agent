@@ -568,21 +568,38 @@ export async function onRequest(context) {
     return json({ ok: true });
   }
 
-  if (path === "/api/daily-stats") {
-    const dt = url.searchParams.get("date") || getTaiwanNowParts().date;
-    const whId = (url.searchParams.get("wh_id") || "").trim();
-    const rows = (whId && whId !== "ALL"
-      ? await db.prepare("SELECT * FROM daily_logs WHERE log_date = ? AND wh_id = ? ORDER BY log_time DESC").bind(dt, whId).all()
-      : await db.prepare("SELECT * FROM daily_logs WHERE log_date = ? ORDER BY log_time DESC").bind(dt).all()
-    ).results || [];
+  const queryLogsByRange = async (startDate, endDate, whId) => {
+    const isSingle = startDate === endDate;
+    if (whId && whId !== "ALL") {
+      return isSingle
+        ? ((await db.prepare("SELECT * FROM daily_logs WHERE log_date = ? AND wh_id = ? ORDER BY log_time DESC").bind(startDate, whId).all()).results || [])
+        : ((await db.prepare("SELECT * FROM daily_logs WHERE log_date >= ? AND log_date <= ? AND wh_id = ? ORDER BY log_date DESC, log_time DESC").bind(startDate, endDate, whId).all()).results || []);
+    }
+    return isSingle
+      ? ((await db.prepare("SELECT * FROM daily_logs WHERE log_date = ? ORDER BY log_time DESC").bind(startDate).all()).results || [])
+      : ((await db.prepare("SELECT * FROM daily_logs WHERE log_date >= ? AND log_date <= ? ORDER BY log_date DESC, log_time DESC").bind(startDate, endDate).all()).results || []);
+  };
+
+  const aggregateLogs = (rows) => {
     let inP = 0, outP = 0, setP = 0, inQ = 0, outQ = 0;
     const bMap = new Map();
     const pkgMap = new Map();
+    const prodMap = new Map();
+    const opMap = new Map();
+    const monthMap = new Map();
+
     for (const r of rows) {
       const pkg = (r.package || "").trim() || "(未指定)";
-      const key = `${r.lot_no}||${r.item_name}||${pkg}`;
-      if (!bMap.has(key)) bMap.set(key, {
-        lot_no: r.lot_no || "(無批號)", item_name: r.item_name || "(未填)", package: pkg,
+      const itemName = (r.item_name || "").trim() || "(未填)";
+      const lotNo = (r.lot_no || "").trim() || "(無批號)";
+      const operator = (r.operator || "").trim() || "未填人員";
+      const month = String(r.log_date || "").slice(0, 7) || "未知月份";
+      const pallets = Number(r.pallets || 0);
+      const qty = Number(r.op_qty || 0);
+
+      const bKey = `${lotNo}||${itemName}||${pkg}`;
+      if (!bMap.has(bKey)) bMap.set(bKey, {
+        lot_no: lotNo, item_name: itemName, package: pkg,
         in_pallets: 0, in_qty: 0, in_count: 0,
         out_pallets: 0, out_qty: 0, out_count: 0,
         set_pallets: 0, record_count: 0
@@ -590,59 +607,156 @@ export async function onRequest(context) {
       if (!pkgMap.has(pkg)) pkgMap.set(pkg, {
         package: pkg, in_qty: 0, out_qty: 0, net_qty: 0, in_pallets: 0, out_pallets: 0
       });
-      const b = bMap.get(key);
+      const pKey = `${itemName}||${pkg}`;
+      if (!prodMap.has(pKey)) prodMap.set(pKey, {
+        item_name: itemName, package: pkg,
+        in_pallets: 0, in_qty: 0, in_count: 0,
+        out_pallets: 0, out_qty: 0, out_count: 0,
+        net_qty: 0, set_pallets: 0, record_count: 0
+      });
+      if (!opMap.has(operator)) opMap.set(operator, {
+        operator,
+        in_pallets: 0, in_qty: 0, in_count: 0,
+        out_pallets: 0, out_qty: 0, out_count: 0,
+        set_pallets: 0, set_count: 0, record_count: 0
+      });
+      if (!monthMap.has(month)) monthMap.set(month, {
+        month,
+        in_pallets: 0, in_qty: 0, in_count: 0,
+        out_pallets: 0, out_qty: 0, out_count: 0,
+        net_qty: 0, set_pallets: 0, record_count: 0
+      });
+
+      const b = bMap.get(bKey);
       const pm = pkgMap.get(pkg);
+      const pr = prodMap.get(pKey);
+      const op = opMap.get(operator);
+      const mo = monthMap.get(month);
+
       b.record_count++;
+      pr.record_count++;
+      op.record_count++;
+      mo.record_count++;
+
       if (r.action === "in") {
-        inP += r.pallets; inQ += r.op_qty;
-        b.in_pallets += r.pallets; b.in_qty += r.op_qty; b.in_count++;
-        pm.in_pallets += r.pallets; pm.in_qty += r.op_qty; pm.net_qty += r.op_qty;
+        inP += pallets; inQ += qty;
+        b.in_pallets += pallets; b.in_qty += qty; b.in_count++;
+        pm.in_pallets += pallets; pm.in_qty += qty; pm.net_qty += qty;
+        pr.in_pallets += pallets; pr.in_qty += qty; pr.in_count++; pr.net_qty += qty;
+        op.in_pallets += pallets; op.in_qty += qty; op.in_count++;
+        mo.in_pallets += pallets; mo.in_qty += qty; mo.in_count++; mo.net_qty += qty;
       } else if (r.action === "out") {
-        outP += r.pallets; outQ += r.op_qty;
-        b.out_pallets += r.pallets; b.out_qty += r.op_qty; b.out_count++;
-        pm.out_pallets += r.pallets; pm.out_qty += r.op_qty; pm.net_qty -= r.op_qty;
+        outP += pallets; outQ += qty;
+        b.out_pallets += pallets; b.out_qty += qty; b.out_count++;
+        pm.out_pallets += pallets; pm.out_qty += qty; pm.net_qty -= qty;
+        pr.out_pallets += pallets; pr.out_qty += qty; pr.out_count++; pr.net_qty -= qty;
+        op.out_pallets += pallets; op.out_qty += qty; op.out_count++;
+        mo.out_pallets += pallets; mo.out_qty += qty; mo.out_count++; mo.net_qty -= qty;
       } else {
-        setP += r.pallets; b.set_pallets += r.pallets;
+        setP += pallets;
+        b.set_pallets += pallets;
+        pr.set_pallets += pallets;
+        op.set_pallets += pallets; op.set_count++;
+        mo.set_pallets += pallets;
       }
     }
-    const by_package = [...pkgMap.values()].sort((a, b) => (b.in_qty + b.out_qty) - (a.in_qty + a.out_qty));
-    return json({
-      date: dt,
-      wh_id: whId || "ALL",
+
+    return {
       total_records: rows.length,
       total_pallets: inP + outP + setP,
       in_pallets: inP, out_pallets: outP, set_pallets: setP,
       in_qty: inQ, out_qty: outQ, net_qty: inQ - outQ,
-      by_package,
+      by_package: [...pkgMap.values()].sort((a, b) => (b.in_qty + b.out_qty) - (a.in_qty + a.out_qty)),
       by_batch: [...bMap.values()],
-      records: rows.map(r => ({ ...r, time: r.log_time, wh_name: r.wh_name }))
+      by_product: [...prodMap.values()].sort((a, b) => (b.in_qty + b.out_qty) - (a.in_qty + a.out_qty)),
+      by_operator: [...opMap.values()].sort((a, b) => b.record_count - a.record_count),
+      by_month: [...monthMap.values()].sort((a, b) => a.month.localeCompare(b.month))
+    };
+  };
+
+  if (path === "/api/daily-stats") {
+    const today = getTaiwanNowParts().date;
+    const dt = (url.searchParams.get("date") || today).trim();
+    let startDate = (url.searchParams.get("start_date") || dt).trim();
+    let endDate = (url.searchParams.get("end_date") || startDate).trim();
+    if (startDate > endDate) { const t = startDate; startDate = endDate; endDate = t; }
+    const whId = (url.searchParams.get("wh_id") || "").trim();
+    const rows = await queryLogsByRange(startDate, endDate, whId);
+    const agg = aggregateLogs(rows);
+    return json({
+      date: startDate,
+      start_date: startDate,
+      end_date: endDate,
+      wh_id: whId || "ALL",
+      ...agg,
+      records: rows.map(r => ({ ...r, date: r.log_date, time: r.log_time, wh_name: r.wh_name }))
     });
   }
 
   if (path === "/api/daily-export") {
-    const dt = url.searchParams.get("date") || getTaiwanNowParts().date;
+    const today = getTaiwanNowParts().date;
+    const dt = (url.searchParams.get("date") || today).trim();
+    let startDate = (url.searchParams.get("start_date") || dt).trim();
+    let endDate = (url.searchParams.get("end_date") || startDate).trim();
+    if (startDate > endDate) { const t = startDate; startDate = endDate; endDate = t; }
     const whId = (url.searchParams.get("wh_id") || "").trim();
-    const rows = (whId && whId !== "ALL"
-      ? await db.prepare("SELECT * FROM daily_logs WHERE log_date = ? AND wh_id = ? ORDER BY log_time DESC").bind(dt, whId).all()
-      : await db.prepare("SELECT * FROM daily_logs WHERE log_date = ? ORDER BY log_time DESC").bind(dt).all()
-    ).results || [];
+    const mode = (url.searchParams.get("mode") || "detail").trim();
+    const label = (url.searchParams.get("label") || "").trim();
+    const rows = await queryLogsByRange(startDate, endDate, whId);
+
     let whLabel = "全部倉庫";
     if (whId && whId !== "ALL") {
       const whRow = await db.prepare("SELECT name FROM warehouses WHERE id = ?").bind(whId).first();
       whLabel = whRow ? whRow.name : whId;
     }
-    const actMap = { in: "入庫", out: "出庫", set: "盤點覆寫" };
+    const periodTag = label || (startDate === endDate ? startDate : `${startDate}_${endDate}`);
     const esc = (v) => {
       const s = String(v ?? "");
       return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const headers = ["日期", "時間", "倉庫", "區域", "儲位", "動作", "品號", "品名", "批號", "包材", "異動前數量", "異動數量", "異動後數量", "板數", "備註", "操作人員"];
-    const lines = [headers.join(",")].concat(rows.map(r => [
-      r.log_date, r.log_time, r.wh_name, r.zone, r.location, actMap[r.action] || r.action,
-      r.item_no, r.item_name, r.lot_no, r.package, r.before_qty, r.op_qty, r.after_qty,
-      r.pallets, r.note, r.operator
-    ].map(esc).join(",")));
-    const filename = encodeURIComponent(`${whLabel}_每日作業明細_${dt}.csv`);
+
+    let lines = [];
+    let filePrefix = "作業明細";
+    if (mode === "summary") {
+      filePrefix = "統計彙總報表";
+      const agg = aggregateLogs(rows);
+      lines.push(["倉庫", "查詢區間", "總筆數", "總板數", "入庫板數", "入庫總數量", "出庫板數", "出庫總數量", "淨異動量", "盤點板數"].map(esc).join(","));
+      lines.push([whLabel, `${startDate} ~ ${endDate}`, agg.total_records, agg.total_pallets, agg.in_pallets, agg.in_qty, agg.out_pallets, agg.out_qty, agg.net_qty, agg.set_pallets].map(esc).join(","));
+      lines.push("");
+      lines.push(["=== 按月趨勢彙總 ==="].map(esc).join(","));
+      lines.push(["月份", "入庫筆數", "入庫板數", "入庫數量", "出庫筆數", "出庫板數", "出庫數量", "淨異動量", "盤點板數", "總筆數"].map(esc).join(","));
+      for (const m of agg.by_month) {
+        lines.push([m.month, m.in_count, m.in_pallets, m.in_qty, m.out_count, m.out_pallets, m.out_qty, m.net_qty, m.set_pallets, m.record_count].map(esc).join(","));
+      }
+      lines.push("");
+      lines.push(["=== 依品名／包材彙總排行 ==="].map(esc).join(","));
+      lines.push(["品名", "包材", "入庫筆數", "入庫板數", "入庫數量", "出庫筆數", "出庫板數", "出庫數量", "淨異動量", "盤點板數", "總筆數"].map(esc).join(","));
+      for (const p of agg.by_product) {
+        lines.push([p.item_name, p.package, p.in_count, p.in_pallets, p.in_qty, p.out_count, p.out_pallets, p.out_qty, p.net_qty, p.set_pallets, p.record_count].map(esc).join(","));
+      }
+      lines.push("");
+      lines.push(["=== 依操作人員作業量彙總 ==="].map(esc).join(","));
+      lines.push(["操作人員", "總筆數", "入庫筆數", "入庫板數", "入庫數量", "出庫筆數", "出庫板數", "出庫數量", "盤點筆數", "盤點板數"].map(esc).join(","));
+      for (const o of agg.by_operator) {
+        lines.push([o.operator, o.record_count, o.in_count, o.in_pallets, o.in_qty, o.out_count, o.out_pallets, o.out_qty, o.set_count, o.set_pallets].map(esc).join(","));
+      }
+      lines.push("");
+      lines.push(["=== 依批號核對彙總 ==="].map(esc).join(","));
+      lines.push(["批號", "品名", "包材", "入庫板數", "入庫數量", "出庫板數", "出庫數量", "盤點板數", "總筆數"].map(esc).join(","));
+      for (const b of agg.by_batch) {
+        lines.push([b.lot_no, b.item_name, b.package, b.in_pallets, b.in_qty, b.out_pallets, b.out_qty, b.set_pallets, b.record_count].map(esc).join(","));
+      }
+    } else {
+      const actMap = { in: "入庫", out: "出庫", set: "盤點覆寫" };
+      const headers = ["日期", "時間", "倉庫", "區域", "儲位", "動作", "品號", "品名", "批號", "包材", "異動前數量", "異動數量", "異動後數量", "板數", "備註", "操作人員"];
+      lines = [headers.join(",")].concat(rows.map(r => [
+        r.log_date, r.log_time, r.wh_name, r.zone, r.location, actMap[r.action] || r.action,
+        r.item_no, r.item_name, r.lot_no, r.package, r.before_qty, r.op_qty, r.after_qty,
+        r.pallets, r.note, r.operator
+      ].map(esc).join(",")));
+    }
+
+    const filename = encodeURIComponent(`${whLabel}_${filePrefix}_${periodTag}.csv`);
     return new Response("\uFEFF" + lines.join("\r\n"), {
       status: 200,
       headers: {

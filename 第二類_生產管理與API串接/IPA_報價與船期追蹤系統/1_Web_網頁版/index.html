@@ -1952,6 +1952,56 @@
       syncMgr.showToast(`📂 已將 ${s.order_no} 移入「已入廠自動歸檔區」！`, 'success');
     }
 
+    function parseLiveAisEta(note, refEtaIso = '') {
+      if (!note) return null;
+      const etaMatch = note.match(/最新AIS預計到港\(ETA\)\s*[:：]\s*([A-Za-z]{3,9}\s+\d{1,2}(?:,\s*\d{1,2}:\d{2})?(?:\s*UTC)?|\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?)/i);
+      const ataMatch = note.match(/實際到港\s*[:：]\s*([A-Za-z]{3,9}\s+\d{1,2}(?:,\s*\d{1,2}:\d{2})?(?:\s*UTC)?|\d{4}-\d{2}-\d{2}(?:\s+\d{2}:\d{2})?)/i);
+      const match = etaMatch || ataMatch;
+      if (!match) return null;
+
+      const type = etaMatch ? 'ETA' : 'ATA';
+      const raw = match[1].trim();
+      const monthMap = {
+        jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+        jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12
+      };
+
+      const isoDirect = raw.match(/^(\d{4}-\d{2}-\d{2})(?:\s+(\d{2}:\d{2}))?/);
+      if (isoDirect) {
+        return {
+          type,
+          raw,
+          isoDate: isoDirect[1],
+          formatted: isoDirect[2] ? `${isoDirect[1]} ${isoDirect[2]}` : isoDirect[1]
+        };
+      }
+
+      const enParts = raw.match(/^([A-Za-z]{3})[A-Za-z]*\s+(\d{1,2})(?:,\s*(\d{1,2}:\d{2}))?(?:\s*(UTC))?/i);
+      if (enParts) {
+        const monNum = monthMap[enParts[1].toLowerCase()];
+        if (monNum) {
+          let year = refEtaIso && /^\d{4}/.test(refEtaIso) ? parseInt(refEtaIso.slice(0, 4), 10) : new Date().getFullYear();
+          if (refEtaIso && /^\d{4}-\d{2}/.test(refEtaIso)) {
+            const refMon = parseInt(refEtaIso.slice(5, 7), 10);
+            if (refMon === 12 && monNum === 1) year += 1;
+            else if (refMon === 1 && monNum === 12) year -= 1;
+          }
+          const mm = String(monNum).padStart(2, '0');
+          const dd = String(parseInt(enParts[2], 10)).padStart(2, '0');
+          const hhmm = enParts[3] ? ` ${enParts[3].padStart(5, '0')}` : '';
+          const tz = enParts[4] ? ' UTC' : '';
+          const isoDate = `${year}-${mm}-${dd}`;
+          return {
+            type,
+            raw,
+            isoDate,
+            formatted: `${isoDate}${hhmm}${tz}`
+          };
+        }
+      }
+      return { type, raw, isoDate: '', formatted: raw };
+    }
+
     function renderShipmentTable(shipments) {
       const tbody = document.getElementById('shipmentTableBody');
       const activeList = shipments.filter(s => !isShipmentExpired(s));
@@ -1984,7 +2034,27 @@
 
         const expired = isShipmentExpired(s);
         const etaIso = extractSingleDate(s.eta || '') || extractSingleDate(s.pod || '');
-        const arrivedPort = !expired && etaIso && etaIso <= todayIso;
+        const liveAis = parseLiveAisEta(s.note || '', etaIso);
+        const effectiveEtaIso = (liveAis && liveAis.isoDate) ? liveAis.isoDate : etaIso;
+        const arrivedPort = !expired && (
+          (liveAis && liveAis.type === 'ATA') ||
+          (effectiveEtaIso && effectiveEtaIso <= todayIso)
+        );
+
+        let podHtml = `<div style="font-size:12.5px; color:#38bdf8; font-weight:600;">迄: ${s.pod}</div>`;
+        if (liveAis) {
+          const podWithStrike = (s.pod || '').replace(
+            /(\(ETA\s*[:：][^)]+\))/i,
+            '<span style="text-decoration:line-through; color:#94a3b8; font-weight:400; opacity:0.85;">$1</span>'
+          );
+          const updatedTitle = s.updated_at ? `最後更新: ${s.updated_at}` : 'AIS即時更新';
+          const liveColor = liveAis.type === 'ATA' ? '#34d399' : '#fbbf24';
+          const liveLabel = liveAis.type === 'ATA' ? '⚓ 實際到港' : '🔄 最新ETA';
+          podHtml = `
+            <div style="font-size:12.5px; color:#38bdf8; font-weight:600;">迄: ${podWithStrike}</div>
+            <div style="font-size:12px; color:${liveColor}; font-weight:700; margin-top:2px;" title="${updatedTitle}">${liveLabel}: ${liveAis.formatted}</div>
+          `;
+        }
 
         let etaBadge = '';
         if (expired) {
@@ -2029,7 +2099,7 @@
             </td>
             <td>
               <div style="font-size:12.5px;">起: ${s.pol}</div>
-              <div style="font-size:12.5px; color:#38bdf8; font-weight:600;">迄: ${s.pod}</div>
+              ${podHtml}
             </td>
             <td>
               <div style="font-weight:800; color:#38bdf8;">NT$ ${Number(s.buy_price_twd_kg).toFixed(2)} /KG</div>

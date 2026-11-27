@@ -480,7 +480,7 @@
       <div class="brand">
         <img src="/icons/icon-192.png" alt="Logo" />
         <span>倉儲儲位 PWA</span>
-        <span id="appVersionBadge" style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.18);color:#e2e8f0;padding:2px 7px;border-radius:999px;letter-spacing:0.3px;">v1.0.26</span>
+        <span id="appVersionBadge" style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.18);color:#e2e8f0;padding:2px 7px;border-radius:999px;letter-spacing:0.3px;">v1.0.27</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span id="userHeaderBadge" style="font-size:12px;background:rgba(255,255,255,0.14);padding:4px 9px;border-radius:999px;cursor:pointer;" title="點擊登出">👤 未登入</span>
@@ -498,7 +498,7 @@
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <img src="/icons/icon-192.png" alt="Logo" style="width:48px;height:48px;border-radius:12px;" />
         <div>
-          <h3 style="margin:0;font-size:19px;">倉儲儲位系統登入 <span style="font-size:11px;font-weight:700;color:var(--teal-dark);background:#ccfbf1;padding:2px 7px;border-radius:999px;vertical-align:middle;">v1.0.26</span></h3>
+          <h3 style="margin:0;font-size:19px;">倉儲儲位系統登入 <span style="font-size:11px;font-weight:700;color:var(--teal-dark);background:#ccfbf1;padding:2px 7px;border-radius:999px;vertical-align:middle;">v1.0.27</span></h3>
           <div style="font-size:12px;color:var(--muted);">請登入人員帳號以進行儲位作業</div>
         </div>
       </div>
@@ -710,41 +710,117 @@
       </div>
     </section>
 
-    <!-- TAB 2: 今日統計與批號核對 -->
+    <!-- TAB 2: 統計報表與批號核對 -->
     <section id="tab-stats" class="tab-page">
       <div class="card">
-        <div class="grid-2" style="align-items:end;">
-          <div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="filter-pills" id="statsPeriodPills" style="margin:0;">
+            <button type="button" class="pill active" data-period="day">📅 日</button>
+            <button type="button" class="pill" data-period="month">🗓️ 月</button>
+            <button type="button" class="pill" data-period="quarter">📊 季</button>
+            <button type="button" class="pill" data-period="half">📆 半年</button>
+            <button type="button" class="pill" data-period="year">🏆 年</button>
+            <button type="button" class="pill" data-period="custom">🎯 自訂區間</button>
+          </div>
+          <div id="statsRangeBadge" style="font-size:12px;font-weight:700;color:var(--teal-dark);background:#f0fdfa;border:1px solid #99f6e4;padding:4px 10px;border-radius:999px;">
+            📌 查詢區間：載入中...
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;align-items:end;">
+          <!-- 日 -->
+          <div id="statsPickerDay">
             <label>查詢日期</label>
             <input id="statsDate" type="date" />
           </div>
-          <div style="display:flex;gap:8px;">
-            <button id="btnRefreshStats" class="wh-btn active" style="flex:1;">🔄 重新整理</button>
-            <button id="btnExportCsv" class="wh-btn" style="flex:1;background:var(--navy);color:#fff;">📥 匯出CSV</button>
+          <!-- 月 -->
+          <div id="statsPickerMonth" style="display:none;">
+            <label>查詢月份</label>
+            <input id="statsMonth" type="month" />
+          </div>
+          <!-- 季 -->
+          <div id="statsPickerQuarter" style="display:none;">
+            <label>查詢年份 / 季度</label>
+            <div style="display:flex;gap:6px;">
+              <select id="statsQuarterYear" style="flex:1;"></select>
+              <select id="statsQuarter" style="flex:1.2;">
+                <option value="1">Q1 (1~3月)</option>
+                <option value="2">Q2 (4~6月)</option>
+                <option value="3">Q3 (7~9月)</option>
+                <option value="4">Q4 (10~12月)</option>
+              </select>
+            </div>
+          </div>
+          <!-- 半年 -->
+          <div id="statsPickerHalf" style="display:none;">
+            <label>查詢年份 / 半年</label>
+            <div style="display:flex;gap:6px;">
+              <select id="statsHalfYear" style="flex:1;"></select>
+              <select id="statsHalf" style="flex:1.3;">
+                <option value="1">上半年 (1~6月)</option>
+                <option value="2">下半年 (7~12月)</option>
+              </select>
+            </div>
+          </div>
+          <!-- 年 -->
+          <div id="statsPickerYear" style="display:none;">
+            <label>查詢年度</label>
+            <select id="statsYear"></select>
+          </div>
+          <!-- 自訂區間 -->
+          <div id="statsPickerCustom" style="display:none;">
+            <label>起訖日期</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input id="statsCustomStart" type="date" style="flex:1;" />
+              <span style="color:var(--muted);font-weight:700;">~</span>
+              <input id="statsCustomEnd" type="date" style="flex:1;" />
+            </div>
+          </div>
+
+          <!-- 特定結算日設定（月/季/半年/年適用） -->
+          <div id="statsCutoffWrap" style="display:none;">
+            <label>月結算日（對帳週期基準）</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <select id="statsCutoffDay" style="flex:1;">
+                <option value="0">月底（自然月 1日～月底）</option>
+                <option value="25">每月 25 日結算（上月26日～本月25日）</option>
+                <option value="20">每月 20 日結算（上月21日～本月20日）</option>
+                <option value="15">每月 15 日結算（上月16日～本月15日）</option>
+                <option value="10">每月 10 日結算（上月11日～本月10日）</option>
+                <option value="custom">自訂結算日 (1~28日)...</option>
+              </select>
+              <input id="statsCutoffCustom" type="number" min="1" max="28" value="25" style="display:none;width:72px;" title="輸入 1~28 日" />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button id="btnRefreshStats" class="wh-btn active" style="flex:1;min-width:92px;">🔄 重新整理</button>
+            <button id="btnExportSummaryCsv" class="wh-btn" style="flex:1;min-width:110px;background:#0f766e;color:#fff;">📊 匯出彙總CSV</button>
+            <button id="btnExportCsv" class="wh-btn" style="flex:1;min-width:110px;background:var(--navy);color:#fff;">📥 匯出明細CSV</button>
           </div>
         </div>
       </div>
 
       <div class="stat-grid">
         <div class="stat-card">
-          <div class="lbl">今日總錄入板數</div>
+          <div class="lbl"><span class="statsPeriodPrefix">今日</span>總錄入板數</div>
           <div class="val" id="stTotalPallets" style="color:var(--navy);">0</div>
           <div class="sub" id="stPalletBreak">入庫 0 板 / 出庫 0 板</div>
         </div>
         <div class="stat-card">
-          <div class="lbl">今日入庫總數量</div>
+          <div class="lbl"><span class="statsPeriodPrefix">今日</span>入庫總數量</div>
           <div class="val" id="stInQty" style="color:var(--green);">0</div>
           <div class="sub" id="stRecordsCount">共 0 筆作業</div>
           <div class="sub" id="stInPkgBreak" style="color:#166534;font-weight:700;margin-top:3px;"></div>
         </div>
         <div class="stat-card">
-          <div class="lbl">今日出庫總數量</div>
+          <div class="lbl"><span class="statsPeriodPrefix">今日</span>出庫總數量</div>
           <div class="val" id="stOutQty" style="color:var(--red);">0</div>
           <div class="sub">供出貨單核對</div>
           <div class="sub" id="stOutPkgBreak" style="color:#991b1b;font-weight:700;margin-top:3px;"></div>
         </div>
         <div class="stat-card">
-          <div class="lbl">今日淨異動量</div>
+          <div class="lbl"><span class="statsPeriodPrefix">今日</span>淨異動量</div>
           <div class="val" id="stNetQty" style="color:var(--blue);">0</div>
           <div class="sub">入庫 - 出庫</div>
           <div class="sub" id="stNetPkgBreak" style="color:#1d4ed8;font-weight:700;margin-top:3px;"></div>
@@ -798,16 +874,82 @@
         </div>
       </div>
 
+      <!-- 按月趨勢彙總（季/半年/年/跨月區間自動展開） -->
+      <div class="card" id="monthlyTrendCard" style="display:none;border-top:4px solid var(--blue);">
+        <div class="card-title">
+          <span>📈 <span class="statsWhName">崙尾倉儲</span>｜按月進出貨趨勢彙總</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>月份</th>
+                <th>入庫（板數 / 數量）</th>
+                <th>出庫（板數 / 數量）</th>
+                <th>淨異動量</th>
+                <th>盤點板數</th>
+                <th>總筆數</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyTrendBody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="card" style="padding:10px 14px;">
-        <input id="batchFilterInput" type="text" placeholder="🔍 搜尋批號、品名或包材（如 200L、20L）..." />
+        <input id="batchFilterInput" type="text" placeholder="🔍 搜尋品名、批號、包材或操作人員（同步篩選下方所有統計表）..." />
+      </div>
+
+      <!-- 依品名／包材彙總 & 依操作人員彙總 -->
+      <div class="stats-layout">
+        <div class="card" style="border-top:4px solid var(--teal-dark);">
+          <div class="card-title">
+            <span style="color:var(--teal-dark);">📦 <span class="statsWhName">崙尾倉儲</span>｜<span class="statsPeriodPrefix">今日</span>依品名／包材彙總排行</span>
+          </div>
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>品名</th>
+                  <th>包材</th>
+                  <th>入庫 (板/量)</th>
+                  <th>出庫 (板/量)</th>
+                  <th>淨異動</th>
+                  <th>筆數</th>
+                </tr>
+              </thead>
+              <tbody id="productStatsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="border-top:4px solid #7c3aed;">
+          <div class="card-title">
+            <span style="color:#6d28d9;">👤 <span class="statsWhName">崙尾倉儲</span>｜<span class="statsPeriodPrefix">今日</span>依操作人員作業量彙總</span>
+          </div>
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>操作人員</th>
+                  <th>總筆數</th>
+                  <th>入庫 (筆/板/量)</th>
+                  <th>出庫 (筆/板/量)</th>
+                  <th>盤點 (筆/板)</th>
+                </tr>
+              </thead>
+              <tbody id="operatorStatsBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div class="stats-layout">
         <div class="card" style="border-top:4px solid var(--green);">
           <div class="card-title">
-            <span style="color:#166534;">📥 <span class="statsWhName">崙尾倉儲</span>｜今日入庫批號彙整（依包材細分）</span>
+            <span style="color:#166534;">📥 <span class="statsWhName">崙尾倉儲</span>｜<span class="statsPeriodPrefix">今日</span>入庫批號彙整（依包材細分）</span>
           </div>
-          <div style="overflow-x:auto;">
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
             <table>
               <thead>
                 <tr>
@@ -825,9 +967,9 @@
 
         <div class="card" style="border-top:4px solid var(--red);">
           <div class="card-title">
-            <span style="color:#991b1b;">📤 <span class="statsWhName">崙尾倉儲</span>｜今日出庫批號彙整（依包材細分）</span>
+            <span style="color:#991b1b;">📤 <span class="statsWhName">崙尾倉儲</span>｜<span class="statsPeriodPrefix">今日</span>出庫批號彙整（依包材細分）</span>
           </div>
-          <div style="overflow-x:auto;">
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
             <table>
               <thead>
                 <tr>
@@ -845,12 +987,15 @@
       </div>
 
       <div class="card">
-        <div class="card-title"><span>🕒 今日作業明細</span></div>
-        <div style="overflow-x:auto;">
+        <div class="card-title" style="flex-wrap:wrap;gap:8px;">
+          <span>🕒 <span class="statsPeriodPrefix">今日</span>作業明細 <span id="recordsCountTag" style="font-size:12px;color:var(--muted);font-weight:600;"></span></span>
+          <button type="button" id="btnToggleAllRecords" class="pill" style="display:none;padding:4px 10px;font-size:12px;">展開全部明細</button>
+        </div>
+        <div style="overflow-x:auto;max-height:460px;overflow-y:auto;">
           <table>
             <thead>
               <tr>
-                <th>時間/儲位</th>
+                <th>日期時間/儲位</th>
                 <th>動作/品名</th>
                 <th>批號/數量</th>
                 <th></th>
@@ -1017,7 +1162,7 @@
   <nav class="bottom-nav">
     <button class="nav-btn active" data-tab="entry"><span class="ico">📝</span><span>儲位錄入</span></button>
     <button class="nav-btn" data-tab="board"><span class="ico">📋</span><span>總表/儲位圖</span></button>
-    <button class="nav-btn" data-tab="stats"><span class="ico">📊</span><span>今日統計</span></button>
+    <button class="nav-btn" data-tab="stats"><span class="ico">📊</span><span>統計報表</span></button>
     <button class="nav-btn" data-tab="lookup"><span class="ico">⚙️</span><span>查詢/設定</span></button>
   </nav>
 
@@ -2193,30 +2338,164 @@
       showToast(`✅ 已匯出 ${rows.length} 筆久置清單`);
     });
 
-    // 今日統計與批號核對
-    const todayStr = new Date().toISOString().slice(0, 10);
-    document.getElementById('statsDate').value = todayStr;
+    // 統計報表與批號核對（支援日／月／季／半年／年／自訂區間與特定結算日）
+    const getTaiwanTodayStr = () => {
+      try {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(new Date()).map(p => [p.type, p.value]));
+        return `${parts.year}-${parts.month}-${parts.day}`;
+      } catch {
+        return new Date().toISOString().slice(0, 10);
+      }
+    };
+    const todayStr = getTaiwanTodayStr();
+    const todayYear = parseInt(todayStr.slice(0, 4), 10);
+    const todayMonth = parseInt(todayStr.slice(5, 7), 10);
+    const todayQuarter = Math.ceil(todayMonth / 3);
+    const todayHalf = todayMonth <= 6 ? 1 : 2;
+
+    const statsUi = {
+      period: 'day',
+      showAllRecords: false
+    };
+
+    const fmtYmdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    const initStatsPickers = () => {
+      document.getElementById('statsDate').value = todayStr;
+      document.getElementById('statsMonth').value = todayStr.slice(0, 7);
+      document.getElementById('statsCustomStart').value = `${todayStr.slice(0, 7)}-01`;
+      document.getElementById('statsCustomEnd').value = todayStr;
+
+      const yearOpts = [];
+      for (let y = todayYear + 1; y >= todayYear - 4; y--) {
+        yearOpts.push(`<option value="${y}"${y === todayYear ? ' selected' : ''}>${y} 年</option>`);
+      }
+      const yearHtml = yearOpts.join('');
+      document.getElementById('statsQuarterYear').innerHTML = yearHtml;
+      document.getElementById('statsHalfYear').innerHTML = yearHtml;
+      document.getElementById('statsYear').innerHTML = yearHtml;
+      document.getElementById('statsQuarter').value = String(todayQuarter);
+      document.getElementById('statsHalf').value = String(todayHalf);
+
+      const savedCutoff = localStorage.getItem('storage_stats_cutoff') || '0';
+      const sel = document.getElementById('statsCutoffDay');
+      const customInp = document.getElementById('statsCutoffCustom');
+      if (['0', '25', '20', '15', '10'].includes(savedCutoff)) {
+        sel.value = savedCutoff;
+        customInp.style.display = 'none';
+      } else {
+        sel.value = 'custom';
+        customInp.value = Math.max(1, Math.min(28, parseInt(savedCutoff, 10) || 25));
+        customInp.style.display = '';
+      }
+    };
+    initStatsPickers();
+
+    function getActiveCutoffDay() {
+      const sel = document.getElementById('statsCutoffDay').value;
+      if (sel === 'custom') {
+        const v = Math.max(1, Math.min(28, parseInt(document.getElementById('statsCutoffCustom').value, 10) || 25));
+        return v;
+      }
+      return parseInt(sel, 10) || 0;
+    }
+
+    function calcRangeByMonths(year, startMonth, endMonth, cutoffDay) {
+      if (!cutoffDay || cutoffDay <= 0) {
+        const start = new Date(year, startMonth - 1, 1);
+        const end = new Date(year, endMonth, 0);
+        return { startDate: fmtYmdLocal(start), endDate: fmtYmdLocal(end) };
+      }
+      const start = new Date(year, startMonth - 2, cutoffDay + 1);
+      const lastEndDay = new Date(year, endMonth, 0).getDate();
+      const end = new Date(year, endMonth - 1, Math.min(cutoffDay, lastEndDay));
+      return { startDate: fmtYmdLocal(start), endDate: fmtYmdLocal(end) };
+    }
+
+    function getStatsQueryInfo() {
+      const p = statsUi.period;
+      const cutoff = getActiveCutoffDay();
+      const cutoffText = cutoff > 0 ? `｜每月${cutoff}日結算` : '';
+      if (p === 'day') {
+        const dt = document.getElementById('statsDate').value || todayStr;
+        return { startDate: dt, endDate: dt, prefix: dt === todayStr ? '今日' : '當日', label: dt, desc: `${dt}` };
+      }
+      if (p === 'month') {
+        const ym = document.getElementById('statsMonth').value || todayStr.slice(0, 7);
+        const [y, m] = ym.split('-').map(n => parseInt(n, 10));
+        const r = calcRangeByMonths(y, m, m, cutoff);
+        return { ...r, prefix: '本月', label: `${ym}${cutoff > 0 ? `_結算${cutoff}日` : ''}`, desc: `${y}年${m}月${cutoffText}` };
+      }
+      if (p === 'quarter') {
+        const y = parseInt(document.getElementById('statsQuarterYear').value, 10) || todayYear;
+        const q = parseInt(document.getElementById('statsQuarter').value, 10) || 1;
+        const r = calcRangeByMonths(y, (q - 1) * 3 + 1, q * 3, cutoff);
+        return { ...r, prefix: '本季', label: `${y}Q${q}${cutoff > 0 ? `_結算${cutoff}日` : ''}`, desc: `${y}年 Q${q}${cutoffText}` };
+      }
+      if (p === 'half') {
+        const y = parseInt(document.getElementById('statsHalfYear').value, 10) || todayYear;
+        const h = parseInt(document.getElementById('statsHalf').value, 10) || 1;
+        const r = calcRangeByMonths(y, h === 1 ? 1 : 7, h === 1 ? 6 : 12, cutoff);
+        return { ...r, prefix: '半年', label: `${y}H${h}${cutoff > 0 ? `_結算${cutoff}日` : ''}`, desc: `${y}年${h === 1 ? '上半年' : '下半年'}${cutoffText}` };
+      }
+      if (p === 'year') {
+        const y = parseInt(document.getElementById('statsYear').value, 10) || todayYear;
+        const r = calcRangeByMonths(y, 1, 12, cutoff);
+        return { ...r, prefix: '年度', label: `${y}全年${cutoff > 0 ? `_結算${cutoff}日` : ''}`, desc: `${y}全年${cutoffText}` };
+      }
+      let s = document.getElementById('statsCustomStart').value || todayStr;
+      let e = document.getElementById('statsCustomEnd').value || todayStr;
+      if (s > e) { const t = s; s = e; e = t; }
+      return { startDate: s, endDate: e, prefix: '區間', label: `${s}_${e}`, desc: '自訂區間' };
+    }
+
+    function syncStatsPickerVisibility() {
+      const p = statsUi.period;
+      document.querySelectorAll('#statsPeriodPills [data-period]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === p);
+      });
+      document.getElementById('statsPickerDay').style.display = p === 'day' ? '' : 'none';
+      document.getElementById('statsPickerMonth').style.display = p === 'month' ? '' : 'none';
+      document.getElementById('statsPickerQuarter').style.display = p === 'quarter' ? '' : 'none';
+      document.getElementById('statsPickerHalf').style.display = p === 'half' ? '' : 'none';
+      document.getElementById('statsPickerYear').style.display = p === 'year' ? '' : 'none';
+      document.getElementById('statsPickerCustom').style.display = p === 'custom' ? '' : 'none';
+      document.getElementById('statsCutoffWrap').style.display = ['month', 'quarter', 'half', 'year'].includes(p) ? '' : 'none';
+    }
 
     async function loadDailyStats() {
-      const dt = document.getElementById('statsDate').value || todayStr;
+      syncStatsPickerVisibility();
+      const qInfo = getStatsQueryInfo();
+      statsUi.showAllRecords = false;
+      const badge = document.getElementById('statsRangeBadge');
+      if (badge) {
+        badge.textContent = qInfo.startDate === qInfo.endDate
+          ? `📌 查詢日期：${qInfo.startDate}`
+          : `📌 查詢區間：${qInfo.startDate} ～ ${qInfo.endDate}（${qInfo.desc}）`;
+      }
+      document.querySelectorAll('.statsPeriodPrefix').forEach(el => { el.textContent = qInfo.prefix; });
       try {
-        const res = await fetch(`/api/daily-stats?date=${dt}&wh_id=${encodeURIComponent(state.whId)}`);
+        const res = await fetch(`/api/daily-stats?start_date=${encodeURIComponent(qInfo.startDate)}&end_date=${encodeURIComponent(qInfo.endDate)}&wh_id=${encodeURIComponent(state.whId)}`);
         const st = await res.json();
         state.dailyStats = st;
         renderDailyStats();
       } catch (e) {
-        showToast('無法讀取今日統計');
+        showToast('無法讀取統計資料');
       }
     }
 
     function renderDailyStats() {
       const st = state.dailyStats;
       if (!st) return;
+      const qInfo = getStatsQueryInfo();
       const wObj = state.warehouses.find(w => w.id === state.whId);
       const wLabel = wObj ? `${wObj.icon || '🏬'} ${wObj.name}` : state.whId;
       document.querySelectorAll('.statsWhName').forEach(el => { el.textContent = wLabel; });
+      document.querySelectorAll('.statsPeriodPrefix').forEach(el => { el.textContent = qInfo.prefix; });
       document.getElementById('stTotalPallets').textContent = st.total_pallets;
-      document.getElementById('stPalletBreak').textContent = `入庫 ${st.in_pallets} 板 / 出庫 ${st.out_pallets} 板`;
+      document.getElementById('stPalletBreak').textContent = `入庫 ${st.in_pallets} 板 / 出庫 ${st.out_pallets} 板${st.set_pallets ? ` / 盤點 ${st.set_pallets} 板` : ''}`;
       document.getElementById('stInQty').textContent = st.in_qty;
       document.getElementById('stOutQty').textContent = st.out_qty;
       document.getElementById('stNetQty').textContent = st.net_qty;
@@ -2233,8 +2512,65 @@
       if (outPkgEl) outPkgEl.textContent = outPkgTxt || '無包材明細';
       if (netPkgEl) netPkgEl.textContent = netPkgTxt || '無淨異動';
 
+      // 按月趨勢彙總（季/半年/年或跨月時顯示）
+      const months = Array.isArray(st.by_month) ? st.by_month : [];
+      const showMonthly = ['quarter', 'half', 'year'].includes(statsUi.period) || months.length > 1;
+      const monthlyCard = document.getElementById('monthlyTrendCard');
+      if (monthlyCard) {
+        monthlyCard.style.display = showMonthly ? '' : 'none';
+        if (showMonthly) {
+          document.getElementById('monthlyTrendBody').innerHTML = months.map(m => `
+            <tr>
+              <td><strong>${m.month}</strong></td>
+              <td style="color:var(--green);font-weight:800;">${m.in_pallets} 板 / ${m.in_qty}</td>
+              <td style="color:var(--red);font-weight:800;">${m.out_pallets} 板 / ${m.out_qty}</td>
+              <td style="color:${m.net_qty >= 0 ? 'var(--blue)' : 'var(--red)'};font-weight:800;">${m.net_qty > 0 ? '+' : ''}${m.net_qty}</td>
+              <td>${m.set_pallets} 板</td>
+              <td>${m.record_count}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);">此區間尚無月份紀錄</td></tr>';
+        }
+      }
+
       const q = document.getElementById('batchFilterInput').value.trim().toLowerCase();
-      const batches = st.by_batch.filter(b =>
+
+      // 依品名／包材彙總排行
+      const products = (Array.isArray(st.by_product) ? st.by_product : []).filter(p =>
+        !q || (p.item_name || '').toLowerCase().includes(q) || (p.package || '').toLowerCase().includes(q)
+      );
+      const prodBody = document.getElementById('productStatsBody');
+      if (prodBody) {
+        prodBody.innerHTML = products.map(p => `
+          <tr>
+            <td><strong>${p.item_name}</strong></td>
+            <td><span class="badge" style="background:#f1f5f9;color:#334155;">${p.package || '(未指定)'}</span></td>
+            <td style="color:var(--green);font-weight:800;">${p.in_pallets}板 / ${p.in_qty}</td>
+            <td style="color:var(--red);font-weight:800;">${p.out_pallets}板 / ${p.out_qty}</td>
+            <td style="color:${p.net_qty >= 0 ? 'var(--blue)' : 'var(--red)'};font-weight:800;">${p.net_qty > 0 ? '+' : ''}${p.net_qty}</td>
+            <td>${p.record_count}</td>
+          </tr>
+        `).join('') || `<tr><td colspan="6" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無品名進出紀錄</td></tr>`;
+      }
+
+      // 依操作人員作業量彙總
+      const operators = (Array.isArray(st.by_operator) ? st.by_operator : []).filter(o =>
+        !q || (o.operator || '').toLowerCase().includes(q)
+      );
+      const opBody = document.getElementById('operatorStatsBody');
+      if (opBody) {
+        opBody.innerHTML = operators.map(o => `
+          <tr>
+            <td><strong>👤 ${o.operator}</strong></td>
+            <td style="font-weight:800;color:var(--navy);">${o.record_count} 筆</td>
+            <td style="color:var(--green);font-weight:700;">${o.in_count}筆 / ${o.in_pallets}板 / ${o.in_qty}</td>
+            <td style="color:var(--red);font-weight:700;">${o.out_count}筆 / ${o.out_pallets}板 / ${o.out_qty}</td>
+            <td style="color:var(--muted);">${o.set_count}筆 / ${o.set_pallets}板</td>
+          </tr>
+        `).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無操作人員紀錄</td></tr>`;
+      }
+
+      // 依批號核對
+      const batches = (Array.isArray(st.by_batch) ? st.by_batch : []).filter(b =>
         !q || b.lot_no.toLowerCase().includes(q) || b.item_name.toLowerCase().includes(q) || (b.package || '').toLowerCase().includes(q)
       );
 
@@ -2249,7 +2585,7 @@
           <td style="color:var(--green);font-weight:900;">${b.in_qty}</td>
           <td>${b.in_count ?? b.record_count}</td>
         </tr>
-      `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);">今日尚無入庫批號</td></tr>';
+      `).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無入庫批號</td></tr>`;
 
       document.getElementById('outBatchStatsBody').innerHTML = outBatches.map(b => `
         <tr>
@@ -2259,21 +2595,44 @@
           <td style="color:var(--red);font-weight:900;">${b.out_qty}</td>
           <td>${b.out_count ?? b.record_count}</td>
         </tr>
-      `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);">今日尚無出庫批號</td></tr>';
+      `).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無出庫批號</td></tr>`;
 
+      // 明細表（支援關鍵字過濾與超過 100 筆自動收折防卡頓）
       const actBadge = {
         in: '<span class="badge b-in">入庫</span>',
         out: '<span class="badge b-out">出庫</span>',
         set: '<span class="badge b-set">盤點</span>'
       };
-      document.getElementById('recordsBody').innerHTML = st.records.map(r => `
+      const allRecs = (Array.isArray(st.records) ? st.records : []).filter(r =>
+        !q ||
+        (r.lot_no || '').toLowerCase().includes(q) ||
+        (r.item_name || '').toLowerCase().includes(q) ||
+        (r.package || '').toLowerCase().includes(q) ||
+        (r.operator || '').toLowerCase().includes(q) ||
+        (r.location || '').toLowerCase().includes(q)
+      );
+      const limit = 100;
+      const shownRecs = statsUi.showAllRecords ? allRecs : allRecs.slice(0, limit);
+      const cntTag = document.getElementById('recordsCountTag');
+      if (cntTag) cntTag.textContent = `(顯示 ${shownRecs.length} / 共 ${allRecs.length} 筆)`;
+      const toggleBtn = document.getElementById('btnToggleAllRecords');
+      if (toggleBtn) {
+        if (allRecs.length > limit) {
+          toggleBtn.style.display = '';
+          toggleBtn.textContent = statsUi.showAllRecords ? '收合為前 100 筆' : `展開全部明細 (共 ${allRecs.length} 筆)`;
+        } else {
+          toggleBtn.style.display = 'none';
+        }
+      }
+      const isMultiDay = qInfo.startDate !== qInfo.endDate;
+      document.getElementById('recordsBody').innerHTML = shownRecs.map(r => `
         <tr>
-          <td><strong>${r.location}</strong><br><span style="color:var(--muted);font-size:11px;">${r.time} · ${r.wh_name} · 👤${r.operator || '-'}</span></td>
+          <td><strong>${r.location}</strong><br><span style="color:var(--muted);font-size:11px;">${isMultiDay && (r.date || r.log_date) ? `${r.date || r.log_date} ` : ''}${r.time} · ${r.wh_name} · 👤${r.operator || '-'}</span></td>
           <td>${actBadge[r.action] || r.action} ${r.package ? `<span class="badge" style="background:#f1f5f9;color:#334155;">${r.package}</span>` : ''}<br><span style="font-size:12px;">${r.item_name}</span></td>
           <td><strong>${r.lot_no}</strong><br><span style="font-size:12px;">異動 ${r.op_qty} (${r.pallets}板) → ${r.after_qty}</span></td>
           <td><button onclick="deleteLog('${r.id}')" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button></td>
         </tr>
-      `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">今日尚無操作明細</td></tr>';
+      `).join('') || `<tr><td colspan="4" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無操作明細</td></tr>`;
     }
 
     async function deleteLog(id) {
@@ -2282,12 +2641,47 @@
       loadDailyStats();
     }
 
+    document.querySelectorAll('#statsPeriodPills [data-period]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        statsUi.period = btn.dataset.period;
+        loadDailyStats();
+      });
+    });
+    ['statsDate', 'statsMonth', 'statsQuarterYear', 'statsQuarter', 'statsHalfYear', 'statsHalf', 'statsYear', 'statsCustomStart', 'statsCustomEnd'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', loadDailyStats);
+    });
+    document.getElementById('statsCutoffDay').addEventListener('change', () => {
+      const val = document.getElementById('statsCutoffDay').value;
+      const customInp = document.getElementById('statsCutoffCustom');
+      if (val === 'custom') {
+        customInp.style.display = '';
+        localStorage.setItem('storage_stats_cutoff', String(getActiveCutoffDay()));
+      } else {
+        customInp.style.display = 'none';
+        localStorage.setItem('storage_stats_cutoff', val);
+      }
+      loadDailyStats();
+    });
+    document.getElementById('statsCutoffCustom').addEventListener('change', () => {
+      const v = getActiveCutoffDay();
+      document.getElementById('statsCutoffCustom').value = v;
+      localStorage.setItem('storage_stats_cutoff', String(v));
+      loadDailyStats();
+    });
+    document.getElementById('btnToggleAllRecords').addEventListener('click', () => {
+      statsUi.showAllRecords = !statsUi.showAllRecords;
+      renderDailyStats();
+    });
     document.getElementById('btnRefreshStats').addEventListener('click', loadDailyStats);
-    document.getElementById('statsDate').addEventListener('change', loadDailyStats);
     document.getElementById('batchFilterInput').addEventListener('input', renderDailyStats);
     document.getElementById('btnExportCsv').addEventListener('click', () => {
-      const dt = document.getElementById('statsDate').value || todayStr;
-      window.open(`/api/daily-export?date=${dt}&wh_id=${encodeURIComponent(state.whId)}`, '_blank');
+      const qInfo = getStatsQueryInfo();
+      window.open(`/api/daily-export?start_date=${encodeURIComponent(qInfo.startDate)}&end_date=${encodeURIComponent(qInfo.endDate)}&wh_id=${encodeURIComponent(state.whId)}&label=${encodeURIComponent(qInfo.label)}&mode=detail`, '_blank');
+    });
+    document.getElementById('btnExportSummaryCsv').addEventListener('click', () => {
+      const qInfo = getStatsQueryInfo();
+      window.open(`/api/daily-export?start_date=${encodeURIComponent(qInfo.startDate)}&end_date=${encodeURIComponent(qInfo.endDate)}&wh_id=${encodeURIComponent(state.whId)}&label=${encodeURIComponent(qInfo.label)}&mode=summary`, '_blank');
     });
 
     // 全域反查

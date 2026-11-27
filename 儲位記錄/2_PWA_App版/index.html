@@ -44,8 +44,15 @@
       padding: 10px 14px;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
       gap: 10px;
       font-size: 13px;
+    }
+    #pwa-install-banner .pwa-banner-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
     }
     #pwa-install-banner button {
       background: #fbbf24;
@@ -56,6 +63,11 @@
       font-weight: 700;
       cursor: pointer;
       white-space: nowrap;
+    }
+    #pwa-install-banner button.btn-dismiss {
+      background: rgba(255,255,255,0.16);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.32);
     }
     #updateBanner {
       display: none;
@@ -364,7 +376,28 @@
     }
     .rack-table td.has-item { background: #f0fdfa; }
     .rack-table td.is-hold { background: #fef2f2; border-color: #fca5a5; }
-    .rack-cell-loc { font-weight: 800; color: var(--navy); border-bottom: 1px solid #e2e8f0; margin-bottom: 2px; padding-bottom: 1px; }
+    .rack-table td.age-warning { background: #fffbeb !important; border: 2px solid #d97706 !important; }
+    .rack-table td.age-danger { background: #fef2f2 !important; border: 2px solid #dc2626 !important; }
+    .loc-chip.age-warning { background: #fffbeb; border-color: #d97706; }
+    .loc-chip.age-danger { background: #fef2f2; border-color: #dc2626; }
+    .age-badge { display: inline-block; padding: 1px 5px; border-radius: 5px; font-size: 10px; font-weight: 800; line-height: 1.3; white-space: nowrap; }
+    .age-badge-danger { background: #dc2626; color: #fff; }
+    .age-badge-warning { background: #d97706; color: #fff; }
+    .age-badge-ok { background: #e2e8f0; color: #475569; }
+    .aging-summary-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+    .rack-cell-loc { display: flex; justify-content: space-between; align-items: center; gap: 3px; font-weight: 800; color: var(--navy); border-bottom: 1px solid #e2e8f0; margin-bottom: 2px; padding-bottom: 1px; }
     .rack-cell-name { color: #dc2626; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 96px; }
     .rack-cell-lot { color: #334155; font-size: 10px; }
     .rack-cell-qty { font-weight: 800; color: #0f766e; }
@@ -435,7 +468,10 @@
 <body>
   <div id="pwa-install-banner">
     <span>📲 安裝「儲位記錄 App」到手機桌面，操作更順手！</span>
-    <button id="btnInstallPwa">立即安裝</button>
+    <div class="pwa-banner-actions">
+      <button id="btnInstallPwa">立即安裝</button>
+      <button id="btnDismissPwa" class="btn-dismiss" type="button">稍後</button>
+    </div>
   </div>
   <div id="updateBanner">🎉 系統已發布新版本！點擊此處立即更新 🔄</div>
 
@@ -444,7 +480,7 @@
       <div class="brand">
         <img src="/icons/icon-192.png" alt="Logo" />
         <span>倉儲儲位 PWA</span>
-        <span id="appVersionBadge" style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.18);color:#e2e8f0;padding:2px 7px;border-radius:999px;letter-spacing:0.3px;">v1.0.22</span>
+        <span id="appVersionBadge" style="font-size:11px;font-weight:700;background:rgba(255,255,255,0.18);color:#e2e8f0;padding:2px 7px;border-radius:999px;letter-spacing:0.3px;">v1.0.27</span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span id="userHeaderBadge" style="font-size:12px;background:rgba(255,255,255,0.14);padding:4px 9px;border-radius:999px;cursor:pointer;" title="點擊登出">👤 未登入</span>
@@ -462,7 +498,7 @@
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <img src="/icons/icon-192.png" alt="Logo" style="width:48px;height:48px;border-radius:12px;" />
         <div>
-          <h3 style="margin:0;font-size:19px;">倉儲儲位系統登入 <span style="font-size:11px;font-weight:700;color:var(--teal-dark);background:#ccfbf1;padding:2px 7px;border-radius:999px;vertical-align:middle;">v1.0.22</span></h3>
+          <h3 style="margin:0;font-size:19px;">倉儲儲位系統登入 <span style="font-size:11px;font-weight:700;color:var(--teal-dark);background:#ccfbf1;padding:2px 7px;border-radius:999px;vertical-align:middle;">v1.0.27</span></h3>
           <div style="font-size:12px;color:var(--muted);">請登入人員帳號以進行儲位作業</div>
         </div>
       </div>
@@ -540,6 +576,7 @@
           <button class="pill active" data-filter="all">全部儲位</button>
           <button class="pill" data-filter="empty">僅看空位</button>
           <button class="pill" data-filter="occupied">僅看有貨</button>
+          <button class="pill" data-filter="aging" style="border-color:#fca5a5;color:#b91c1c;">⚠️ 久置預警</button>
         </div>
         <div id="locGrid" class="loc-grid"></div>
       </div>
@@ -629,10 +666,12 @@
             <input type="file" id="fileExcelImport" accept=".xlsm,.xlsx,.csv" style="display:none;" />
           </div>
         </div>
+        <div id="dashAgingSummary" class="aging-summary-bar" style="display:none;"></div>
+        <div id="dashPkgSummary" class="aging-summary-bar" style="display:none;background:#f8fafc;border-color:var(--border);"></div>
         <div class="grid-2" style="margin-bottom:10px;">
           <div>
             <table>
-              <thead><tr><th>品名</th><th>合計桶數</th><th>板數</th></tr></thead>
+              <thead><tr><th>品名</th><th>包材</th><th>合計數量</th><th>板數</th></tr></thead>
               <tbody id="dashProductBody"></tbody>
             </table>
           </div>
@@ -671,58 +710,251 @@
       </div>
     </section>
 
-    <!-- TAB 2: 今日統計與批號核對 -->
+    <!-- TAB 2: 統計報表與批號核對 -->
     <section id="tab-stats" class="tab-page">
       <div class="card">
-        <div class="grid-2" style="align-items:end;">
-          <div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div class="filter-pills" id="statsPeriodPills" style="margin:0;">
+            <button type="button" class="pill active" data-period="day">📅 日</button>
+            <button type="button" class="pill" data-period="month">🗓️ 月</button>
+            <button type="button" class="pill" data-period="quarter">📊 季</button>
+            <button type="button" class="pill" data-period="half">📆 半年</button>
+            <button type="button" class="pill" data-period="year">🏆 年</button>
+            <button type="button" class="pill" data-period="custom">🎯 自訂區間</button>
+          </div>
+          <div id="statsRangeBadge" style="font-size:12px;font-weight:700;color:var(--teal-dark);background:#f0fdfa;border:1px solid #99f6e4;padding:4px 10px;border-radius:999px;">
+            📌 查詢區間：載入中...
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;align-items:end;">
+          <!-- 日 -->
+          <div id="statsPickerDay">
             <label>查詢日期</label>
             <input id="statsDate" type="date" />
           </div>
-          <div style="display:flex;gap:8px;">
-            <button id="btnRefreshStats" class="wh-btn active" style="flex:1;">🔄 重新整理</button>
-            <button id="btnExportCsv" class="wh-btn" style="flex:1;background:var(--navy);color:#fff;">📥 匯出CSV</button>
+          <!-- 月 -->
+          <div id="statsPickerMonth" style="display:none;">
+            <label>查詢月份</label>
+            <input id="statsMonth" type="month" />
+          </div>
+          <!-- 季 -->
+          <div id="statsPickerQuarter" style="display:none;">
+            <label>查詢年份 / 季度</label>
+            <div style="display:flex;gap:6px;">
+              <select id="statsQuarterYear" style="flex:1;"></select>
+              <select id="statsQuarter" style="flex:1.2;">
+                <option value="1">Q1 (1~3月)</option>
+                <option value="2">Q2 (4~6月)</option>
+                <option value="3">Q3 (7~9月)</option>
+                <option value="4">Q4 (10~12月)</option>
+              </select>
+            </div>
+          </div>
+          <!-- 半年 -->
+          <div id="statsPickerHalf" style="display:none;">
+            <label>查詢年份 / 半年</label>
+            <div style="display:flex;gap:6px;">
+              <select id="statsHalfYear" style="flex:1;"></select>
+              <select id="statsHalf" style="flex:1.3;">
+                <option value="1">上半年 (1~6月)</option>
+                <option value="2">下半年 (7~12月)</option>
+              </select>
+            </div>
+          </div>
+          <!-- 年 -->
+          <div id="statsPickerYear" style="display:none;">
+            <label>查詢年度</label>
+            <select id="statsYear"></select>
+          </div>
+          <!-- 自訂區間 -->
+          <div id="statsPickerCustom" style="display:none;">
+            <label>起訖日期</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input id="statsCustomStart" type="date" style="flex:1;" />
+              <span style="color:var(--muted);font-weight:700;">~</span>
+              <input id="statsCustomEnd" type="date" style="flex:1;" />
+            </div>
+          </div>
+
+          <!-- 特定結算日設定（月/季/半年/年適用） -->
+          <div id="statsCutoffWrap" style="display:none;">
+            <label>月結算日（對帳週期基準）</label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <select id="statsCutoffDay" style="flex:1;">
+                <option value="0">月底（自然月 1日～月底）</option>
+                <option value="25">每月 25 日結算（上月26日～本月25日）</option>
+                <option value="20">每月 20 日結算（上月21日～本月20日）</option>
+                <option value="15">每月 15 日結算（上月16日～本月15日）</option>
+                <option value="10">每月 10 日結算（上月11日～本月10日）</option>
+                <option value="custom">自訂結算日 (1~28日)...</option>
+              </select>
+              <input id="statsCutoffCustom" type="number" min="1" max="28" value="25" style="display:none;width:72px;" title="輸入 1~28 日" />
+            </div>
+          </div>
+
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button id="btnRefreshStats" class="wh-btn active" style="flex:1;min-width:92px;">🔄 重新整理</button>
+            <button id="btnExportSummaryCsv" class="wh-btn" style="flex:1;min-width:110px;background:#0f766e;color:#fff;">📊 匯出彙總CSV</button>
+            <button id="btnExportCsv" class="wh-btn" style="flex:1;min-width:110px;background:var(--navy);color:#fff;">📥 匯出明細CSV</button>
           </div>
         </div>
       </div>
 
       <div class="stat-grid">
         <div class="stat-card">
-          <div class="lbl">今日總錄入板數</div>
+          <div class="lbl"><span class="statsPeriodPrefix">今日</span>總錄入板數</div>
           <div class="val" id="stTotalPallets" style="color:var(--navy);">0</div>
           <div class="sub" id="stPalletBreak">入庫 0 板 / 出庫 0 板</div>
         </div>
         <div class="stat-card">
-          <div class="lbl">今日入庫總數量</div>
+          <div class="lbl"><span class="statsPeriodPrefix">今日</span>入庫總數量</div>
           <div class="val" id="stInQty" style="color:var(--green);">0</div>
           <div class="sub" id="stRecordsCount">共 0 筆作業</div>
+          <div class="sub" id="stInPkgBreak" style="color:#166534;font-weight:700;margin-top:3px;"></div>
         </div>
         <div class="stat-card">
-          <div class="lbl">今日出庫總數量</div>
+          <div class="lbl"><span class="statsPeriodPrefix">今日</span>出庫總數量</div>
           <div class="val" id="stOutQty" style="color:var(--red);">0</div>
           <div class="sub">供出貨單核對</div>
+          <div class="sub" id="stOutPkgBreak" style="color:#991b1b;font-weight:700;margin-top:3px;"></div>
         </div>
         <div class="stat-card">
-          <div class="lbl">今日淨異動量</div>
+          <div class="lbl"><span class="statsPeriodPrefix">今日</span>淨異動量</div>
           <div class="val" id="stNetQty" style="color:var(--blue);">0</div>
           <div class="sub">入庫 - 出庫</div>
+          <div class="sub" id="stNetPkgBreak" style="color:#1d4ed8;font-weight:700;margin-top:3px;"></div>
+        </div>
+      </div>
+
+      <div class="card" style="border-top:4px solid var(--red);">
+        <div class="card-title" style="flex-wrap:wrap;gap:8px;">
+          <span>⏱️ 儲位批號放置時間與久置警示 <span id="agingRuleLabel" style="font-size:12px;font-weight:600;color:var(--muted);">(🟡 ≥45天 / 🔴 ≥60天)</span></span>
+          <button type="button" id="btnExportAgingCsv" class="pill" style="background:var(--navy);color:#fff;border-color:var(--navy);padding:5px 12px;">📥 匯出久置CSV</button>
+        </div>
+        <div class="grid-3" style="margin-bottom:10px;">
+          <div class="stat-card" style="border-left:4px solid var(--red);padding:10px;">
+            <div class="lbl" id="agingDangerLbl">🔴 紅燈警示 (≥60天)</div>
+            <div class="val" id="agingDangerVal" style="color:var(--red);font-size:22px;">0</div>
+            <div class="sub">需優先處理</div>
+          </div>
+          <div class="stat-card" style="border-left:4px solid var(--amber);padding:10px;">
+            <div class="lbl" id="agingWarnLbl">🟡 黃燈預警 (45~59天)</div>
+            <div class="val" id="agingWarnVal" style="color:var(--amber);font-size:22px;">0</div>
+            <div class="sub">提前15天提醒</div>
+          </div>
+          <div class="stat-card" style="border-left:4px solid var(--green);padding:10px;">
+            <div class="lbl" id="agingOkLbl">🟢 正常 (&lt;45天)</div>
+            <div class="val" id="agingOkVal" style="color:var(--green);font-size:22px;">0</div>
+            <div class="sub">目前倉庫有貨儲位</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div class="filter-pills" style="margin:0;">
+            <button type="button" class="pill active" data-aging-filter="alert">⚠️ 全部警示 (紅+黃)</button>
+            <button type="button" class="pill" data-aging-filter="danger">🔴 僅紅燈</button>
+            <button type="button" class="pill" data-aging-filter="warning">🟡 僅黃燈</button>
+            <button type="button" class="pill" data-aging-filter="all">📦 全部有貨</button>
+          </div>
+          <input id="agingSearchInput" type="text" placeholder="🔍 搜尋儲位 / 批號 / 品名..." style="max-width:260px;padding:6px 10px;font-size:13px;" />
+        </div>
+        <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>儲位 / 區域</th>
+                <th>批號 / 品名</th>
+                <th>數量</th>
+                <th>起算日 / 來源</th>
+                <th>放置天數</th>
+              </tr>
+            </thead>
+            <tbody id="agingStatsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 按月趨勢彙總（季/半年/年/跨月區間自動展開） -->
+      <div class="card" id="monthlyTrendCard" style="display:none;border-top:4px solid var(--blue);">
+        <div class="card-title">
+          <span>📈 <span class="statsWhName">崙尾倉儲</span>｜按月進出貨趨勢彙總</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>月份</th>
+                <th>入庫（板數 / 數量）</th>
+                <th>出庫（板數 / 數量）</th>
+                <th>淨異動量</th>
+                <th>盤點板數</th>
+                <th>總筆數</th>
+              </tr>
+            </thead>
+            <tbody id="monthlyTrendBody"></tbody>
+          </table>
         </div>
       </div>
 
       <div class="card" style="padding:10px 14px;">
-        <input id="batchFilterInput" type="text" placeholder="🔍 搜尋批號或品名（同時過濾下方入庫與出庫彙整）..." />
+        <input id="batchFilterInput" type="text" placeholder="🔍 搜尋品名、批號、包材或操作人員（同步篩選下方所有統計表）..." />
+      </div>
+
+      <!-- 依品名／包材彙總 & 依操作人員彙總 -->
+      <div class="stats-layout">
+        <div class="card" style="border-top:4px solid var(--teal-dark);">
+          <div class="card-title">
+            <span style="color:var(--teal-dark);">📦 <span class="statsWhName">崙尾倉儲</span>｜<span class="statsPeriodPrefix">今日</span>依品名／包材彙總排行</span>
+          </div>
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>品名</th>
+                  <th>包材</th>
+                  <th>入庫 (板/量)</th>
+                  <th>出庫 (板/量)</th>
+                  <th>淨異動</th>
+                  <th>筆數</th>
+                </tr>
+              </thead>
+              <tbody id="productStatsBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="border-top:4px solid #7c3aed;">
+          <div class="card-title">
+            <span style="color:#6d28d9;">👤 <span class="statsWhName">崙尾倉儲</span>｜<span class="statsPeriodPrefix">今日</span>依操作人員作業量彙總</span>
+          </div>
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>操作人員</th>
+                  <th>總筆數</th>
+                  <th>入庫 (筆/板/量)</th>
+                  <th>出庫 (筆/板/量)</th>
+                  <th>盤點 (筆/板)</th>
+                </tr>
+              </thead>
+              <tbody id="operatorStatsBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <div class="stats-layout">
         <div class="card" style="border-top:4px solid var(--green);">
           <div class="card-title">
-            <span style="color:#166534;">📥 今日入庫批號彙整（不管儲位加總）</span>
+            <span style="color:#166534;">📥 <span class="statsWhName">崙尾倉儲</span>｜<span class="statsPeriodPrefix">今日</span>入庫批號彙整（依包材細分）</span>
           </div>
-          <div style="overflow-x:auto;">
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
             <table>
               <thead>
                 <tr>
                   <th>批號 / 品名</th>
+                  <th>包材</th>
                   <th>入庫板數</th>
                   <th>入庫總數量</th>
                   <th>筆數</th>
@@ -735,13 +967,14 @@
 
         <div class="card" style="border-top:4px solid var(--red);">
           <div class="card-title">
-            <span style="color:#991b1b;">📤 今日出庫批號彙整（不管儲位加總）</span>
+            <span style="color:#991b1b;">📤 <span class="statsWhName">崙尾倉儲</span>｜<span class="statsPeriodPrefix">今日</span>出庫批號彙整（依包材細分）</span>
           </div>
-          <div style="overflow-x:auto;">
+          <div style="overflow-x:auto;max-height:380px;overflow-y:auto;">
             <table>
               <thead>
                 <tr>
                   <th>批號 / 品名</th>
+                  <th>包材</th>
                   <th>出庫板數</th>
                   <th>出庫總數量</th>
                   <th>筆數</th>
@@ -754,12 +987,15 @@
       </div>
 
       <div class="card">
-        <div class="card-title"><span>🕒 今日作業明細</span></div>
-        <div style="overflow-x:auto;">
+        <div class="card-title" style="flex-wrap:wrap;gap:8px;">
+          <span>🕒 <span class="statsPeriodPrefix">今日</span>作業明細 <span id="recordsCountTag" style="font-size:12px;color:var(--muted);font-weight:600;"></span></span>
+          <button type="button" id="btnToggleAllRecords" class="pill" style="display:none;padding:4px 10px;font-size:12px;">展開全部明細</button>
+        </div>
+        <div style="overflow-x:auto;max-height:460px;overflow-y:auto;">
           <table>
             <thead>
               <tr>
-                <th>時間/儲位</th>
+                <th>日期時間/儲位</th>
                 <th>動作/品名</th>
                 <th>批號/數量</th>
                 <th></th>
@@ -781,9 +1017,16 @@
         <p style="font-size:12px;color:var(--muted);margin:0 0 8px 0;">
           勾選要顯示在「儲位錄入」下拉選單的品項（取消勾選即隱藏），並可獨立設定各倉庫的品號與預設包材。切換頂部倉庫頁籤可分別設定崙尾／鴻勝。
         </p>
-        <div style="margin-bottom:10px;">
-          <label>此倉庫可用包材（逗號分隔）</label>
-          <input id="cfgPackagesInput" type="text" placeholder="例如：200L, 20L, GAL" />
+        <div class="grid-2" style="margin-bottom:10px;">
+          <div>
+            <label>此倉庫可用包材（逗號分隔）</label>
+            <input id="cfgPackagesInput" type="text" placeholder="例如：200L, 20L, GAL" />
+          </div>
+          <div>
+            <label>久置紅燈警示天數（黃燈自動為 紅燈 - 15 天）</label>
+            <input id="cfgAlertDaysInput" type="number" min="16" max="3650" value="60" />
+            <div id="cfgAlertPreview" style="font-size:11px;color:var(--muted);margin-top:3px;">目前規則：🟡 黃燈 ≥ 45 天 ｜ 🔴 紅燈 ≥ 60 天</div>
+          </div>
         </div>
         <div style="display:grid;grid-template-columns:1.2fr 1fr 0.8fr auto;gap:6px;margin-bottom:8px;">
           <input id="newCfgName" type="text" placeholder="新品名" style="padding:7px;font-size:13px;" />
@@ -919,7 +1162,7 @@
   <nav class="bottom-nav">
     <button class="nav-btn active" data-tab="entry"><span class="ico">📝</span><span>儲位錄入</span></button>
     <button class="nav-btn" data-tab="board"><span class="ico">📋</span><span>總表/儲位圖</span></button>
-    <button class="nav-btn" data-tab="stats"><span class="ico">📊</span><span>今日統計</span></button>
+    <button class="nav-btn" data-tab="stats"><span class="ico">📊</span><span>統計報表</span></button>
     <button class="nav-btn" data-tab="lookup"><span class="ico">⚙️</span><span>查詢/設定</span></button>
   </nav>
 
@@ -935,6 +1178,7 @@
       selectedLoc: null,
       action: 'in',
       filterMode: 'all',
+      agingFilter: 'alert',
       dailyStats: null,
       deferredPrompt: null,
       recentLots: JSON.parse(localStorage.getItem('pwa_recent_lots') || '[]')
@@ -971,16 +1215,23 @@
     });
 
     // PWA 安裝橫幅與更新橫幅
+    const PWA_DISMISS_KEY = 'pwa_install_banner_dismissed';
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       state.deferredPrompt = e;
-      document.getElementById('pwa-install-banner').style.display = 'flex';
+      if (!sessionStorage.getItem(PWA_DISMISS_KEY)) {
+        document.getElementById('pwa-install-banner').style.display = 'flex';
+      }
     });
     document.getElementById('btnInstallPwa').addEventListener('click', async () => {
       if (!state.deferredPrompt) return;
       state.deferredPrompt.prompt();
       await state.deferredPrompt.userChoice;
       state.deferredPrompt = null;
+      document.getElementById('pwa-install-banner').style.display = 'none';
+    });
+    document.getElementById('btnDismissPwa').addEventListener('click', () => {
+      sessionStorage.setItem(PWA_DISMISS_KEY, '1');
       document.getElementById('pwa-install-banner').style.display = 'none';
     });
 
@@ -1009,7 +1260,7 @@
         document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-        if (btn.dataset.tab === 'stats') loadDailyStats();
+        if (btn.dataset.tab === 'stats') { loadDailyStats(); renderAgingStats(); }
         if (btn.dataset.tab === 'lookup') loadWarehouseSettings();
       });
     });
@@ -1030,6 +1281,7 @@
           state.selectedLoc = null;
           updateSelectedLocUI();
           loadWarehouseData(state.whId).then(() => loadWarehouseSettings());
+          loadDailyStats();
         });
       });
     }
@@ -1114,14 +1366,59 @@
       renderGlobalSearch();
       renderDashboardBoard();
       renderRackMap();
+      renderAgingStats();
+    }
+
+    function formatAgeBadge(days, level, showOk = false) {
+      if (level === 'danger') return `<span class="age-badge age-badge-danger">🔴 ${days}天</span>`;
+      if (level === 'warning') return `<span class="age-badge age-badge-warning">🟡 ${days}天</span>`;
+      if (showOk && level === 'ok') return `<span class="age-badge age-badge-ok">${days}天</span>`;
+      return '';
+    }
+
+    function ageSourceLabel(src) {
+      if (src === 'lot') return '批號日期';
+      if (src === 'recorded') return '入庫紀錄';
+      return '更新時間';
     }
 
     function renderDashboardBoard() {
       const dash = state.whData && state.whData.dashboard;
       if (!dash) return;
+      const aging = state.whData.aging_summary;
+      const agingBar = document.getElementById('dashAgingSummary');
+      if (aging && agingBar) {
+        agingBar.style.display = 'flex';
+        const hasAlert = (aging.danger_count || 0) > 0 || (aging.warning_count || 0) > 0;
+        agingBar.style.background = aging.danger_count > 0 ? '#fef2f2' : (aging.warning_count > 0 ? '#fffbeb' : '#f0fdf4');
+        agingBar.style.borderColor = aging.danger_count > 0 ? '#fca5a5' : (aging.warning_count > 0 ? '#fcd34d' : '#bbf7d0');
+        agingBar.innerHTML = `
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+            <strong>⏱️ 久置預警：</strong>
+            <span style="color:#dc2626;font-weight:800;">🔴 紅燈 (≥${aging.alert_days}天)：${aging.danger_count} 格</span>
+            <span style="color:#b45309;font-weight:800;">🟡 黃燈 (${aging.warn_days}~${aging.alert_days - 1}天)：${aging.warning_count} 格</span>
+            <span style="color:#15803d;font-weight:700;">🟢 正常：${aging.ok_count} 格</span>
+          </div>
+          ${hasAlert ? `<button type="button" class="pill" style="background:#dc2626;color:#fff;border-color:#dc2626;" onclick="document.querySelector('.nav-btn[data-tab=\\'stats\\']').click()">查看久置明細 →</button>` : ''}
+        `;
+      }
+      const pkgBar = document.getElementById('dashPkgSummary');
+      if (pkgBar && Array.isArray(dash.package_totals) && dash.package_totals.length) {
+        pkgBar.style.display = 'flex';
+        pkgBar.innerHTML = `
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+            <strong>📦 庫存包材合計：</strong>
+            ${dash.package_totals.map(pk => `<span class="badge" style="background:#e2e8f0;color:#0f172a;font-size:12px;padding:3px 8px;">${pk.package}: <strong>${pk.total_qty}</strong> (${pk.pallets}板)</span>`).join('')}
+          </div>
+        `;
+      } else if (pkgBar) {
+        pkgBar.style.display = 'none';
+      }
+
       document.getElementById('dashProductBody').innerHTML = dash.product_totals.map(p => `
         <tr>
           <td style="color:#dc2626;font-weight:700;">${p.item_name}</td>
+          <td><span class="badge" style="background:#f1f5f9;color:#334155;">${p.package || '(未指定)'}</span></td>
           <td style="font-weight:800;">${p.total_qty}</td>
           <td style="color:var(--muted);">${p.pallets}</td>
         </tr>
@@ -1188,9 +1485,11 @@
               continue;
             }
             const isHold = (loc.note || '').toUpperCase().includes('HOLD') || (loc.item_name || '').includes('HOLD');
-            const cls = `${loc.occupied ? 'has-item' : ''} ${isHold ? 'is-hold' : ''}`;
-            html += `<td class="${cls}" onclick="jumpToLoc('${loc.location}')">
-              <div class="rack-cell-loc">${loc.location}</div>
+            const ageCls = loc.age_level === 'danger' ? 'age-danger' : (loc.age_level === 'warning' ? 'age-warning' : '');
+            const cls = `${loc.occupied ? 'has-item' : ''} ${isHold ? 'is-hold' : ''} ${ageCls}`;
+            const ageBadge = loc.occupied ? formatAgeBadge(loc.max_age_days, loc.age_level, false) : '';
+            html += `<td class="${cls}" onclick="jumpToLoc('${loc.location}')" title="${loc.occupied ? `${loc.location} | ${loc.item_name} | 放置 ${loc.max_age_days} 天 (${loc.oldest_date})` : loc.location}">
+              <div class="rack-cell-loc"><span>${loc.location}</span>${ageBadge}</div>
               <div class="rack-cell-name">${loc.item_name || '&nbsp;'}</div>
               <div class="rack-cell-lot">${loc.lot_no || '&nbsp;'}</div>
               <div class="rack-cell-qty">${loc.occupied ? `${loc.qty} ${loc.package}` : '空'}</div>
@@ -1206,9 +1505,12 @@
         let html = '<table class="rack-table"><tbody><tr>';
         zoneLocs.forEach((loc, idx) => {
           if (idx > 0 && idx % 6 === 0) html += '</tr><tr>';
-          const cls = loc.occupied ? 'has-item' : '';
-          html += `<td class="${cls}" onclick="jumpToLoc('${loc.location}')">
-            <div class="rack-cell-loc">${loc.location}</div>
+          const isHold = (loc.note || '').toUpperCase().includes('HOLD') || (loc.item_name || '').includes('HOLD');
+          const ageCls = loc.age_level === 'danger' ? 'age-danger' : (loc.age_level === 'warning' ? 'age-warning' : '');
+          const cls = `${loc.occupied ? 'has-item' : ''} ${isHold ? 'is-hold' : ''} ${ageCls}`;
+          const ageBadge = loc.occupied ? formatAgeBadge(loc.max_age_days, loc.age_level, false) : '';
+          html += `<td class="${cls}" onclick="jumpToLoc('${loc.location}')" title="${loc.occupied ? `${loc.location} | ${loc.item_name} | 放置 ${loc.max_age_days} 天 (${loc.oldest_date})` : loc.location}">
+            <div class="rack-cell-loc"><span>${loc.location}</span>${ageBadge}</div>
             <div class="rack-cell-name">${loc.item_name || '&nbsp;'}</div>
             <div class="rack-cell-lot">${loc.lot_no || '&nbsp;'}</div>
             <div class="rack-cell-qty">${loc.occupied ? `${loc.qty} ${loc.package}` : '空'}</div>
@@ -1546,6 +1848,7 @@
         if (zone !== 'ALL' && loc.zone !== zone) return false;
         if (state.filterMode === 'empty' && loc.occupied) return false;
         if (state.filterMode === 'occupied' && !loc.occupied) return false;
+        if (state.filterMode === 'aging' && loc.age_level !== 'danger' && loc.age_level !== 'warning') return false;
         if (q) {
           const hay = `${loc.location} ${loc.item_name} ${loc.lot_no}`.toLowerCase();
           if (!hay.includes(q)) return false;
@@ -1556,7 +1859,8 @@
       const grid = document.getElementById('locGrid');
       grid.innerHTML = filtered.map(loc => {
         const isSel = state.selectedLoc && state.selectedLoc.location === loc.location;
-        const cls = `loc-chip ${loc.occupied ? 'occupied' : ''} ${isSel ? 'selected' : ''}`;
+        const ageCls = (!isSel && loc.age_level === 'danger') ? 'age-danger' : ((!isSel && loc.age_level === 'warning') ? 'age-warning' : '');
+        const cls = `loc-chip ${loc.occupied ? 'occupied' : ''} ${ageCls} ${isSel ? 'selected' : ''}`;
         if (!loc.occupied) {
           return `<div class="${cls}" data-loc="${loc.location}">
             <div class="code-row"><span class="code">${loc.location}</span></div>
@@ -1564,10 +1868,11 @@
           </div>`;
         }
         const lotDisplay = (loc.lot_no || '(無批號)').replace(/\n/g, ' / ');
-        return `<div class="${cls}" data-loc="${loc.location}" title="${loc.item_name} | ${lotDisplay} | ${loc.qty}">
+        const ageBadge = formatAgeBadge(loc.max_age_days, loc.age_level, false);
+        return `<div class="${cls}" data-loc="${loc.location}" title="${loc.item_name} | ${lotDisplay} | ${loc.qty} | 放置 ${loc.max_age_days || 0} 天">
           <div class="code-row">
             <span class="code">${loc.location}</span>
-            <span class="qty-pill">${loc.qty}</span>
+            <span style="display:flex;align-items:center;gap:3px;">${ageBadge}<span class="qty-pill">${loc.qty}</span></span>
           </div>
           <div class="sub">${loc.item_name || ''}</div>
           <div class="lot">${lotDisplay}</div>
@@ -1600,10 +1905,22 @@
       badge.textContent = `${loc.zone} · ${loc.location}`;
       btn.disabled = false;
       box.style.display = 'block';
+      const lotAgesHtml = (loc.occupied && Array.isArray(loc.lot_ages) && loc.lot_ages.length)
+        ? `<div class="row-kv" style="flex-direction:column;gap:3px;margin-top:4px;padding-top:4px;border-top:1px dashed #cbd5e1;">
+            <span>放置天數明細：</span>
+            ${loc.lot_ages.map(la => `
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;">
+                <span><strong>${la.lot_no}</strong> <span style="color:var(--muted);">(${la.placed_date} · ${ageSourceLabel(la.date_source)})</span></span>
+                ${formatAgeBadge(la.days, la.level, true)}
+              </div>
+            `).join('')}
+          </div>`
+        : '';
       box.innerHTML = `
         <div class="row-kv"><span>目前品名 / 品號：</span><strong>${loc.item_name || '(空)'} ${loc.item_no ? `/ ${loc.item_no}` : ''}</strong></div>
         <div class="row-kv"><span>目前批號 / 包材：</span><strong>${loc.lot_no || '(無)'} / ${loc.package || '-'}</strong></div>
         <div class="row-kv"><span>目前數量 / 備註：</span><strong>${loc.qty} ${loc.note ? `(${loc.note})` : ''}</strong></div>
+        ${lotAgesHtml}
       `;
 
       // 自動帶入現有欄位方便出庫或追加
@@ -1887,6 +2204,7 @@
               updateSelectedLocUI();
               renderLocGrid();
               renderRackMap();
+              renderAgingStats();
             }
           }
           document.getElementById('qtyInput').value = '';
@@ -1899,35 +2217,361 @@
       }
     }
 
-    // 今日統計與批號核對
-    const todayStr = new Date().toISOString().slice(0, 10);
-    document.getElementById('statsDate').value = todayStr;
+    // 儲位批號放置時間與久置警示統計
+    function getAgingRows() {
+      const d = state.whData;
+      if (!d || !Array.isArray(d.locations)) return [];
+      const rows = [];
+      for (const loc of d.locations) {
+        if (!loc.occupied) continue;
+        const ages = Array.isArray(loc.lot_ages) && loc.lot_ages.length
+          ? loc.lot_ages
+          : [{ lot_no: loc.lot_no || '(無批號)', placed_date: (loc.updated_at || '').slice(0, 10), date_source: 'updated_at', days: loc.max_age_days || 0, level: loc.age_level || 'ok' }];
+        for (const la of ages) {
+          rows.push({
+            location: loc.location,
+            zone: loc.zone || '',
+            item_name: loc.item_name || '(未填)',
+            lot_no: la.lot_no,
+            qty: loc.qty,
+            package: loc.package || '',
+            placed_date: la.placed_date || '-',
+            date_source: la.date_source || 'updated_at',
+            days: Number(la.days || 0),
+            level: la.level || 'ok'
+          });
+        }
+      }
+      rows.sort((a, b) => b.days - a.days || a.location.localeCompare(b.location, 'zh-Hant', { numeric: true }));
+      return rows;
+    }
+
+    function renderAgingStats() {
+      const d = state.whData;
+      if (!d) return;
+      const alertDays = Number(d.alert_days || 60);
+      const warnDays = Number(d.warn_days || Math.max(1, alertDays - 15));
+      const allRows = getAgingRows();
+
+      const dangerRows = allRows.filter(r => r.level === 'danger');
+      const warnRows = allRows.filter(r => r.level === 'warning');
+      const okRows = allRows.filter(r => r.level === 'ok');
+
+      const ruleEl = document.getElementById('agingRuleLabel');
+      if (ruleEl) ruleEl.textContent = `(🟡 ≥${warnDays}天 / 🔴 ≥${alertDays}天)`;
+      document.getElementById('agingDangerLbl').textContent = `🔴 紅燈警示 (≥${alertDays}天)`;
+      document.getElementById('agingWarnLbl').textContent = `🟡 黃燈預警 (${warnDays}~${alertDays - 1}天)`;
+      document.getElementById('agingOkLbl').textContent = `🟢 正常 (<${warnDays}天)`;
+      document.getElementById('agingDangerVal').textContent = dangerRows.length;
+      document.getElementById('agingWarnVal').textContent = warnRows.length;
+      document.getElementById('agingOkVal').textContent = okRows.length;
+
+      const q = (document.getElementById('agingSearchInput')?.value || '').trim().toLowerCase();
+      const filtered = allRows.filter(r => {
+        if (state.agingFilter === 'alert' && r.level !== 'danger' && r.level !== 'warning') return false;
+        if (state.agingFilter === 'danger' && r.level !== 'danger') return false;
+        if (state.agingFilter === 'warning' && r.level !== 'warning') return false;
+        if (q) {
+          const hay = `${r.location} ${r.zone} ${r.lot_no} ${r.item_name}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      const tbody = document.getElementById('agingStatsBody');
+      if (!tbody) return;
+      tbody.innerHTML = filtered.map(r => {
+        const rowBg = r.level === 'danger' ? 'background:#fef2f2;' : (r.level === 'warning' ? 'background:#fffbeb;' : '');
+        return `
+          <tr style="${rowBg}cursor:pointer;" onclick="jumpToLoc('${r.location}')" title="點擊跳轉至此儲位">
+            <td><strong>${r.location}</strong><br><span style="font-size:11px;color:var(--muted);">${r.zone}</span></td>
+            <td><strong>${r.lot_no}</strong><br><span style="font-size:11px;color:var(--muted);">${r.item_name}</span></td>
+            <td style="font-weight:700;white-space:nowrap;">${r.qty} ${r.package}</td>
+            <td><strong>${r.placed_date}</strong><br><span style="font-size:11px;color:var(--muted);">${ageSourceLabel(r.date_source)}</span></td>
+            <td>${formatAgeBadge(r.days, r.level, true)}</td>
+          </tr>
+        `;
+      }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:14px;">目前無符合條件的久置儲位</td></tr>`;
+    }
+
+    document.querySelectorAll('.pill[data-aging-filter]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.pill[data-aging-filter]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.agingFilter = btn.dataset.agingFilter;
+        renderAgingStats();
+      });
+    });
+    document.getElementById('agingSearchInput').addEventListener('input', renderAgingStats);
+    document.getElementById('btnExportAgingCsv').addEventListener('click', () => {
+      const d = state.whData;
+      if (!d) return showToast('尚無儲位資料');
+      const allRows = getAgingRows();
+      const q = (document.getElementById('agingSearchInput')?.value || '').trim().toLowerCase();
+      const rows = allRows.filter(r => {
+        if (state.agingFilter === 'alert' && r.level !== 'danger' && r.level !== 'warning') return false;
+        if (state.agingFilter === 'danger' && r.level !== 'danger') return false;
+        if (state.agingFilter === 'warning' && r.level !== 'warning') return false;
+        if (q && !`${r.location} ${r.zone} ${r.lot_no} ${r.item_name}`.toLowerCase().includes(q)) return false;
+        return true;
+      });
+      if (!rows.length) return showToast('目前篩選條件下無可匯出資料');
+      const esc = (v) => {
+        const s = String(v ?? '');
+        return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const lvlText = (l) => l === 'danger' ? '紅燈警示' : (l === 'warning' ? '黃燈預警' : '正常');
+      const header = ['倉庫', '區域', '儲位', '批號', '品名', '數量', '包材', '起算日', '日期來源', '放置天數', '警示狀態'];
+      const whName = d.warehouse?.name || state.whId;
+      const lines = [header.join(',')].concat(rows.map(r => [
+        whName, r.zone, r.location, r.lot_no, r.item_name, r.qty, r.package, r.placed_date, ageSourceLabel(r.date_source), r.days, lvlText(r.level)
+      ].map(esc).join(',')));
+      const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${whName}_久置預警清單_${d.server_date || todayStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`✅ 已匯出 ${rows.length} 筆久置清單`);
+    });
+
+    // 統計報表與批號核對（支援日／月／季／半年／年／自訂區間與特定結算日）
+    const getTaiwanTodayStr = () => {
+      try {
+        const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(new Date()).map(p => [p.type, p.value]));
+        return `${parts.year}-${parts.month}-${parts.day}`;
+      } catch {
+        return new Date().toISOString().slice(0, 10);
+      }
+    };
+    const todayStr = getTaiwanTodayStr();
+    const todayYear = parseInt(todayStr.slice(0, 4), 10);
+    const todayMonth = parseInt(todayStr.slice(5, 7), 10);
+    const todayQuarter = Math.ceil(todayMonth / 3);
+    const todayHalf = todayMonth <= 6 ? 1 : 2;
+
+    const statsUi = {
+      period: 'day',
+      showAllRecords: false
+    };
+
+    const fmtYmdLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    const initStatsPickers = () => {
+      document.getElementById('statsDate').value = todayStr;
+      document.getElementById('statsMonth').value = todayStr.slice(0, 7);
+      document.getElementById('statsCustomStart').value = `${todayStr.slice(0, 7)}-01`;
+      document.getElementById('statsCustomEnd').value = todayStr;
+
+      const yearOpts = [];
+      for (let y = todayYear + 1; y >= todayYear - 4; y--) {
+        yearOpts.push(`<option value="${y}"${y === todayYear ? ' selected' : ''}>${y} 年</option>`);
+      }
+      const yearHtml = yearOpts.join('');
+      document.getElementById('statsQuarterYear').innerHTML = yearHtml;
+      document.getElementById('statsHalfYear').innerHTML = yearHtml;
+      document.getElementById('statsYear').innerHTML = yearHtml;
+      document.getElementById('statsQuarter').value = String(todayQuarter);
+      document.getElementById('statsHalf').value = String(todayHalf);
+
+      const savedCutoff = localStorage.getItem('storage_stats_cutoff') || '0';
+      const sel = document.getElementById('statsCutoffDay');
+      const customInp = document.getElementById('statsCutoffCustom');
+      if (['0', '25', '20', '15', '10'].includes(savedCutoff)) {
+        sel.value = savedCutoff;
+        customInp.style.display = 'none';
+      } else {
+        sel.value = 'custom';
+        customInp.value = Math.max(1, Math.min(28, parseInt(savedCutoff, 10) || 25));
+        customInp.style.display = '';
+      }
+    };
+    initStatsPickers();
+
+    function getActiveCutoffDay() {
+      const sel = document.getElementById('statsCutoffDay').value;
+      if (sel === 'custom') {
+        const v = Math.max(1, Math.min(28, parseInt(document.getElementById('statsCutoffCustom').value, 10) || 25));
+        return v;
+      }
+      return parseInt(sel, 10) || 0;
+    }
+
+    function calcRangeByMonths(year, startMonth, endMonth, cutoffDay) {
+      if (!cutoffDay || cutoffDay <= 0) {
+        const start = new Date(year, startMonth - 1, 1);
+        const end = new Date(year, endMonth, 0);
+        return { startDate: fmtYmdLocal(start), endDate: fmtYmdLocal(end) };
+      }
+      const start = new Date(year, startMonth - 2, cutoffDay + 1);
+      const lastEndDay = new Date(year, endMonth, 0).getDate();
+      const end = new Date(year, endMonth - 1, Math.min(cutoffDay, lastEndDay));
+      return { startDate: fmtYmdLocal(start), endDate: fmtYmdLocal(end) };
+    }
+
+    function getStatsQueryInfo() {
+      const p = statsUi.period;
+      const cutoff = getActiveCutoffDay();
+      const cutoffText = cutoff > 0 ? `｜每月${cutoff}日結算` : '';
+      if (p === 'day') {
+        const dt = document.getElementById('statsDate').value || todayStr;
+        return { startDate: dt, endDate: dt, prefix: dt === todayStr ? '今日' : '當日', label: dt, desc: `${dt}` };
+      }
+      if (p === 'month') {
+        const ym = document.getElementById('statsMonth').value || todayStr.slice(0, 7);
+        const [y, m] = ym.split('-').map(n => parseInt(n, 10));
+        const r = calcRangeByMonths(y, m, m, cutoff);
+        return { ...r, prefix: '本月', label: `${ym}${cutoff > 0 ? `_結算${cutoff}日` : ''}`, desc: `${y}年${m}月${cutoffText}` };
+      }
+      if (p === 'quarter') {
+        const y = parseInt(document.getElementById('statsQuarterYear').value, 10) || todayYear;
+        const q = parseInt(document.getElementById('statsQuarter').value, 10) || 1;
+        const r = calcRangeByMonths(y, (q - 1) * 3 + 1, q * 3, cutoff);
+        return { ...r, prefix: '本季', label: `${y}Q${q}${cutoff > 0 ? `_結算${cutoff}日` : ''}`, desc: `${y}年 Q${q}${cutoffText}` };
+      }
+      if (p === 'half') {
+        const y = parseInt(document.getElementById('statsHalfYear').value, 10) || todayYear;
+        const h = parseInt(document.getElementById('statsHalf').value, 10) || 1;
+        const r = calcRangeByMonths(y, h === 1 ? 1 : 7, h === 1 ? 6 : 12, cutoff);
+        return { ...r, prefix: '半年', label: `${y}H${h}${cutoff > 0 ? `_結算${cutoff}日` : ''}`, desc: `${y}年${h === 1 ? '上半年' : '下半年'}${cutoffText}` };
+      }
+      if (p === 'year') {
+        const y = parseInt(document.getElementById('statsYear').value, 10) || todayYear;
+        const r = calcRangeByMonths(y, 1, 12, cutoff);
+        return { ...r, prefix: '年度', label: `${y}全年${cutoff > 0 ? `_結算${cutoff}日` : ''}`, desc: `${y}全年${cutoffText}` };
+      }
+      let s = document.getElementById('statsCustomStart').value || todayStr;
+      let e = document.getElementById('statsCustomEnd').value || todayStr;
+      if (s > e) { const t = s; s = e; e = t; }
+      return { startDate: s, endDate: e, prefix: '區間', label: `${s}_${e}`, desc: '自訂區間' };
+    }
+
+    function syncStatsPickerVisibility() {
+      const p = statsUi.period;
+      document.querySelectorAll('#statsPeriodPills [data-period]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === p);
+      });
+      document.getElementById('statsPickerDay').style.display = p === 'day' ? '' : 'none';
+      document.getElementById('statsPickerMonth').style.display = p === 'month' ? '' : 'none';
+      document.getElementById('statsPickerQuarter').style.display = p === 'quarter' ? '' : 'none';
+      document.getElementById('statsPickerHalf').style.display = p === 'half' ? '' : 'none';
+      document.getElementById('statsPickerYear').style.display = p === 'year' ? '' : 'none';
+      document.getElementById('statsPickerCustom').style.display = p === 'custom' ? '' : 'none';
+      document.getElementById('statsCutoffWrap').style.display = ['month', 'quarter', 'half', 'year'].includes(p) ? '' : 'none';
+    }
 
     async function loadDailyStats() {
-      const dt = document.getElementById('statsDate').value || todayStr;
+      syncStatsPickerVisibility();
+      const qInfo = getStatsQueryInfo();
+      statsUi.showAllRecords = false;
+      const badge = document.getElementById('statsRangeBadge');
+      if (badge) {
+        badge.textContent = qInfo.startDate === qInfo.endDate
+          ? `📌 查詢日期：${qInfo.startDate}`
+          : `📌 查詢區間：${qInfo.startDate} ～ ${qInfo.endDate}（${qInfo.desc}）`;
+      }
+      document.querySelectorAll('.statsPeriodPrefix').forEach(el => { el.textContent = qInfo.prefix; });
       try {
-        const res = await fetch(`/api/daily-stats?date=${dt}`);
+        const res = await fetch(`/api/daily-stats?start_date=${encodeURIComponent(qInfo.startDate)}&end_date=${encodeURIComponent(qInfo.endDate)}&wh_id=${encodeURIComponent(state.whId)}`);
         const st = await res.json();
         state.dailyStats = st;
         renderDailyStats();
       } catch (e) {
-        showToast('無法讀取今日統計');
+        showToast('無法讀取統計資料');
       }
     }
 
     function renderDailyStats() {
       const st = state.dailyStats;
       if (!st) return;
+      const qInfo = getStatsQueryInfo();
+      const wObj = state.warehouses.find(w => w.id === state.whId);
+      const wLabel = wObj ? `${wObj.icon || '🏬'} ${wObj.name}` : state.whId;
+      document.querySelectorAll('.statsWhName').forEach(el => { el.textContent = wLabel; });
+      document.querySelectorAll('.statsPeriodPrefix').forEach(el => { el.textContent = qInfo.prefix; });
       document.getElementById('stTotalPallets').textContent = st.total_pallets;
-      document.getElementById('stPalletBreak').textContent = `入庫 ${st.in_pallets} 板 / 出庫 ${st.out_pallets} 板`;
+      document.getElementById('stPalletBreak').textContent = `入庫 ${st.in_pallets} 板 / 出庫 ${st.out_pallets} 板${st.set_pallets ? ` / 盤點 ${st.set_pallets} 板` : ''}`;
       document.getElementById('stInQty').textContent = st.in_qty;
       document.getElementById('stOutQty').textContent = st.out_qty;
       document.getElementById('stNetQty').textContent = st.net_qty;
       document.getElementById('stRecordsCount').textContent = `共 ${st.total_records} 筆作業`;
 
+      const pkgs = Array.isArray(st.by_package) ? st.by_package : [];
+      const inPkgTxt = pkgs.filter(p => p.in_qty > 0).map(p => `${p.package}: ${p.in_qty}`).join(' ｜ ');
+      const outPkgTxt = pkgs.filter(p => p.out_qty > 0).map(p => `${p.package}: ${p.out_qty}`).join(' ｜ ');
+      const netPkgTxt = pkgs.filter(p => p.net_qty !== 0).map(p => `${p.package}: ${p.net_qty > 0 ? '+' : ''}${p.net_qty}`).join(' ｜ ');
+      const inPkgEl = document.getElementById('stInPkgBreak');
+      const outPkgEl = document.getElementById('stOutPkgBreak');
+      const netPkgEl = document.getElementById('stNetPkgBreak');
+      if (inPkgEl) inPkgEl.textContent = inPkgTxt || '無包材明細';
+      if (outPkgEl) outPkgEl.textContent = outPkgTxt || '無包材明細';
+      if (netPkgEl) netPkgEl.textContent = netPkgTxt || '無淨異動';
+
+      // 按月趨勢彙總（季/半年/年或跨月時顯示）
+      const months = Array.isArray(st.by_month) ? st.by_month : [];
+      const showMonthly = ['quarter', 'half', 'year'].includes(statsUi.period) || months.length > 1;
+      const monthlyCard = document.getElementById('monthlyTrendCard');
+      if (monthlyCard) {
+        monthlyCard.style.display = showMonthly ? '' : 'none';
+        if (showMonthly) {
+          document.getElementById('monthlyTrendBody').innerHTML = months.map(m => `
+            <tr>
+              <td><strong>${m.month}</strong></td>
+              <td style="color:var(--green);font-weight:800;">${m.in_pallets} 板 / ${m.in_qty}</td>
+              <td style="color:var(--red);font-weight:800;">${m.out_pallets} 板 / ${m.out_qty}</td>
+              <td style="color:${m.net_qty >= 0 ? 'var(--blue)' : 'var(--red)'};font-weight:800;">${m.net_qty > 0 ? '+' : ''}${m.net_qty}</td>
+              <td>${m.set_pallets} 板</td>
+              <td>${m.record_count}</td>
+            </tr>
+          `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);">此區間尚無月份紀錄</td></tr>';
+        }
+      }
+
       const q = document.getElementById('batchFilterInput').value.trim().toLowerCase();
-      const batches = st.by_batch.filter(b =>
-        !q || b.lot_no.toLowerCase().includes(q) || b.item_name.toLowerCase().includes(q)
+
+      // 依品名／包材彙總排行
+      const products = (Array.isArray(st.by_product) ? st.by_product : []).filter(p =>
+        !q || (p.item_name || '').toLowerCase().includes(q) || (p.package || '').toLowerCase().includes(q)
+      );
+      const prodBody = document.getElementById('productStatsBody');
+      if (prodBody) {
+        prodBody.innerHTML = products.map(p => `
+          <tr>
+            <td><strong>${p.item_name}</strong></td>
+            <td><span class="badge" style="background:#f1f5f9;color:#334155;">${p.package || '(未指定)'}</span></td>
+            <td style="color:var(--green);font-weight:800;">${p.in_pallets}板 / ${p.in_qty}</td>
+            <td style="color:var(--red);font-weight:800;">${p.out_pallets}板 / ${p.out_qty}</td>
+            <td style="color:${p.net_qty >= 0 ? 'var(--blue)' : 'var(--red)'};font-weight:800;">${p.net_qty > 0 ? '+' : ''}${p.net_qty}</td>
+            <td>${p.record_count}</td>
+          </tr>
+        `).join('') || `<tr><td colspan="6" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無品名進出紀錄</td></tr>`;
+      }
+
+      // 依操作人員作業量彙總
+      const operators = (Array.isArray(st.by_operator) ? st.by_operator : []).filter(o =>
+        !q || (o.operator || '').toLowerCase().includes(q)
+      );
+      const opBody = document.getElementById('operatorStatsBody');
+      if (opBody) {
+        opBody.innerHTML = operators.map(o => `
+          <tr>
+            <td><strong>👤 ${o.operator}</strong></td>
+            <td style="font-weight:800;color:var(--navy);">${o.record_count} 筆</td>
+            <td style="color:var(--green);font-weight:700;">${o.in_count}筆 / ${o.in_pallets}板 / ${o.in_qty}</td>
+            <td style="color:var(--red);font-weight:700;">${o.out_count}筆 / ${o.out_pallets}板 / ${o.out_qty}</td>
+            <td style="color:var(--muted);">${o.set_count}筆 / ${o.set_pallets}板</td>
+          </tr>
+        `).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無操作人員紀錄</td></tr>`;
+      }
+
+      // 依批號核對
+      const batches = (Array.isArray(st.by_batch) ? st.by_batch : []).filter(b =>
+        !q || b.lot_no.toLowerCase().includes(q) || b.item_name.toLowerCase().includes(q) || (b.package || '').toLowerCase().includes(q)
       );
 
       const inBatches = batches.filter(b => b.in_qty > 0 || b.in_pallets > 0);
@@ -1936,34 +2580,59 @@
       document.getElementById('inBatchStatsBody').innerHTML = inBatches.map(b => `
         <tr>
           <td><strong>${b.lot_no}</strong><br><span style="color:var(--muted);font-size:11px;">${b.item_name}</span></td>
+          <td><span class="badge" style="background:#f1f5f9;color:#334155;">${b.package || '(未指定)'}</span></td>
           <td style="color:var(--green);font-weight:800;">${b.in_pallets} 板</td>
           <td style="color:var(--green);font-weight:900;">${b.in_qty}</td>
           <td>${b.in_count ?? b.record_count}</td>
         </tr>
-      `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">今日尚無入庫批號</td></tr>';
+      `).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無入庫批號</td></tr>`;
 
       document.getElementById('outBatchStatsBody').innerHTML = outBatches.map(b => `
         <tr>
           <td><strong>${b.lot_no}</strong><br><span style="color:var(--muted);font-size:11px;">${b.item_name}</span></td>
+          <td><span class="badge" style="background:#f1f5f9;color:#334155;">${b.package || '(未指定)'}</span></td>
           <td style="color:var(--red);font-weight:800;">${b.out_pallets} 板</td>
           <td style="color:var(--red);font-weight:900;">${b.out_qty}</td>
           <td>${b.out_count ?? b.record_count}</td>
         </tr>
-      `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">今日尚無出庫批號</td></tr>';
+      `).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無出庫批號</td></tr>`;
 
+      // 明細表（支援關鍵字過濾與超過 100 筆自動收折防卡頓）
       const actBadge = {
         in: '<span class="badge b-in">入庫</span>',
         out: '<span class="badge b-out">出庫</span>',
         set: '<span class="badge b-set">盤點</span>'
       };
-      document.getElementById('recordsBody').innerHTML = st.records.map(r => `
+      const allRecs = (Array.isArray(st.records) ? st.records : []).filter(r =>
+        !q ||
+        (r.lot_no || '').toLowerCase().includes(q) ||
+        (r.item_name || '').toLowerCase().includes(q) ||
+        (r.package || '').toLowerCase().includes(q) ||
+        (r.operator || '').toLowerCase().includes(q) ||
+        (r.location || '').toLowerCase().includes(q)
+      );
+      const limit = 100;
+      const shownRecs = statsUi.showAllRecords ? allRecs : allRecs.slice(0, limit);
+      const cntTag = document.getElementById('recordsCountTag');
+      if (cntTag) cntTag.textContent = `(顯示 ${shownRecs.length} / 共 ${allRecs.length} 筆)`;
+      const toggleBtn = document.getElementById('btnToggleAllRecords');
+      if (toggleBtn) {
+        if (allRecs.length > limit) {
+          toggleBtn.style.display = '';
+          toggleBtn.textContent = statsUi.showAllRecords ? '收合為前 100 筆' : `展開全部明細 (共 ${allRecs.length} 筆)`;
+        } else {
+          toggleBtn.style.display = 'none';
+        }
+      }
+      const isMultiDay = qInfo.startDate !== qInfo.endDate;
+      document.getElementById('recordsBody').innerHTML = shownRecs.map(r => `
         <tr>
-          <td><strong>${r.location}</strong><br><span style="color:var(--muted);font-size:11px;">${r.time} · ${r.wh_name} · 👤${r.operator || '-'}</span></td>
-          <td>${actBadge[r.action] || r.action}<br><span style="font-size:12px;">${r.item_name}</span></td>
+          <td><strong>${r.location}</strong><br><span style="color:var(--muted);font-size:11px;">${isMultiDay && (r.date || r.log_date) ? `${r.date || r.log_date} ` : ''}${r.time} · ${r.wh_name} · 👤${r.operator || '-'}</span></td>
+          <td>${actBadge[r.action] || r.action} ${r.package ? `<span class="badge" style="background:#f1f5f9;color:#334155;">${r.package}</span>` : ''}<br><span style="font-size:12px;">${r.item_name}</span></td>
           <td><strong>${r.lot_no}</strong><br><span style="font-size:12px;">異動 ${r.op_qty} (${r.pallets}板) → ${r.after_qty}</span></td>
           <td><button onclick="deleteLog('${r.id}')" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:14px;">🗑️</button></td>
         </tr>
-      `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">今日尚無操作明細</td></tr>';
+      `).join('') || `<tr><td colspan="4" style="text-align:center;color:var(--muted);">${qInfo.prefix}尚無操作明細</td></tr>`;
     }
 
     async function deleteLog(id) {
@@ -1972,12 +2641,47 @@
       loadDailyStats();
     }
 
+    document.querySelectorAll('#statsPeriodPills [data-period]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        statsUi.period = btn.dataset.period;
+        loadDailyStats();
+      });
+    });
+    ['statsDate', 'statsMonth', 'statsQuarterYear', 'statsQuarter', 'statsHalfYear', 'statsHalf', 'statsYear', 'statsCustomStart', 'statsCustomEnd'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', loadDailyStats);
+    });
+    document.getElementById('statsCutoffDay').addEventListener('change', () => {
+      const val = document.getElementById('statsCutoffDay').value;
+      const customInp = document.getElementById('statsCutoffCustom');
+      if (val === 'custom') {
+        customInp.style.display = '';
+        localStorage.setItem('storage_stats_cutoff', String(getActiveCutoffDay()));
+      } else {
+        customInp.style.display = 'none';
+        localStorage.setItem('storage_stats_cutoff', val);
+      }
+      loadDailyStats();
+    });
+    document.getElementById('statsCutoffCustom').addEventListener('change', () => {
+      const v = getActiveCutoffDay();
+      document.getElementById('statsCutoffCustom').value = v;
+      localStorage.setItem('storage_stats_cutoff', String(v));
+      loadDailyStats();
+    });
+    document.getElementById('btnToggleAllRecords').addEventListener('click', () => {
+      statsUi.showAllRecords = !statsUi.showAllRecords;
+      renderDailyStats();
+    });
     document.getElementById('btnRefreshStats').addEventListener('click', loadDailyStats);
-    document.getElementById('statsDate').addEventListener('change', loadDailyStats);
     document.getElementById('batchFilterInput').addEventListener('input', renderDailyStats);
     document.getElementById('btnExportCsv').addEventListener('click', () => {
-      const dt = document.getElementById('statsDate').value || todayStr;
-      window.open(`/api/daily-export?date=${dt}`, '_blank');
+      const qInfo = getStatsQueryInfo();
+      window.open(`/api/daily-export?start_date=${encodeURIComponent(qInfo.startDate)}&end_date=${encodeURIComponent(qInfo.endDate)}&wh_id=${encodeURIComponent(state.whId)}&label=${encodeURIComponent(qInfo.label)}&mode=detail`, '_blank');
+    });
+    document.getElementById('btnExportSummaryCsv').addEventListener('click', () => {
+      const qInfo = getStatsQueryInfo();
+      window.open(`/api/daily-export?start_date=${encodeURIComponent(qInfo.startDate)}&end_date=${encodeURIComponent(qInfo.endDate)}&wh_id=${encodeURIComponent(state.whId)}&label=${encodeURIComponent(qInfo.label)}&mode=summary`, '_blank');
     });
 
     // 全域反查
@@ -2236,6 +2940,16 @@
 
     // 倉庫品名與包材設定
     let currentCfgItems = [];
+    function updateCfgAlertPreview() {
+      const inp = document.getElementById('cfgAlertDaysInput');
+      const prev = document.getElementById('cfgAlertPreview');
+      if (!inp || !prev) return;
+      const alertDays = Math.max(16, Math.min(3650, parseInt(inp.value, 10) || 60));
+      const warnDays = Math.max(1, alertDays - 15);
+      prev.textContent = `目前規則：🟡 黃燈 ≥ ${warnDays} 天 ｜ 🔴 紅燈 ≥ ${alertDays} 天`;
+    }
+    document.getElementById('cfgAlertDaysInput').addEventListener('input', updateCfgAlertPreview);
+
     async function loadWarehouseSettings(reset = false) {
       const wObj = state.warehouses.find(w => w.id === state.whId);
       document.getElementById('cfgWhLabel').textContent = wObj ? `${wObj.icon || '🏬'} ${wObj.name}` : state.whId;
@@ -2245,6 +2959,8 @@
         const cfg = await res.json();
         currentCfgItems = cfg.items || [];
         document.getElementById('cfgPackagesInput').value = (cfg.packages || []).join(', ');
+        document.getElementById('cfgAlertDaysInput').value = cfg.alert_days || 60;
+        updateCfgAlertPreview();
         renderCfgTable();
       } catch (e) {
         // 若後端尚未重啟，先用目前載入的 Excel 清單顯示出來
@@ -2256,6 +2972,8 @@
             enabled: true
           }));
           document.getElementById('cfgPackagesInput').value = (state.whData.packages || []).join(', ');
+          document.getElementById('cfgAlertDaysInput').value = state.whData.alert_days || 60;
+          updateCfgAlertPreview();
           renderCfgTable();
           showToast('⚠️ 偵測到後端為舊版，請重啟 啟動PWA儲位系統.bat 以儲存設定', 4000);
         }
@@ -2299,10 +3017,13 @@
     document.getElementById('btnSaveCfg').addEventListener('click', async () => {
       const pkgs = document.getElementById('cfgPackagesInput').value
         .split(/[,，、]+/).map(s => s.trim()).filter(Boolean);
+      const alertDays = Math.max(16, Math.min(3650, parseInt(document.getElementById('cfgAlertDaysInput').value, 10) || 60));
+      document.getElementById('cfgAlertDaysInput').value = alertDays;
+      updateCfgAlertPreview();
       const res = await fetch(`/api/warehouse/${state.whId}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: currentCfgItems, packages: pkgs })
+        body: JSON.stringify({ items: currentCfgItems, packages: pkgs, alert_days: alertDays })
       });
       const out = await res.json();
       if (res.ok) {

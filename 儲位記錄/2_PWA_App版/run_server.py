@@ -202,12 +202,23 @@ class WarehouseSettingsPayload(BaseModel):
     packages: list[str]
 
 
-def build_daily_stats(target_date: str, wh_id: Optional[str] = None) -> dict:
+def build_daily_stats(
+    target_date: str,
+    wh_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+) -> dict:
+    s_date = (start_date or target_date or datetime.now().strftime("%Y-%m-%d")).strip()
+    e_date = (end_date or s_date).strip()
+    if s_date > e_date:
+        s_date, e_date = e_date, s_date
+
     logs = load_logs()
     filtered = [
         r
         for r in logs
-        if r.get("date") == target_date and (not wh_id or r.get("wh_id") == wh_id)
+        if s_date <= str(r.get("date", "")) <= e_date
+        and (not wh_id or wh_id.upper() == "ALL" or r.get("wh_id") == wh_id)
     ]
 
     in_pallets = 0
@@ -216,10 +227,11 @@ def build_daily_stats(target_date: str, wh_id: Optional[str] = None) -> dict:
     in_qty = 0.0
     out_qty = 0.0
 
-    batch_map: dict[tuple[str, str], dict] = defaultdict(
+    batch_map: dict[tuple[str, str, str], dict] = defaultdict(
         lambda: {
             "lot_no": "",
             "item_name": "",
+            "package": "(未指定)",
             "in_pallets": 0,
             "in_qty": 0.0,
             "in_count": 0,
@@ -231,13 +243,56 @@ def build_daily_stats(target_date: str, wh_id: Optional[str] = None) -> dict:
             "record_count": 0,
         }
     )
-    product_map: dict[str, dict] = defaultdict(
+    pkg_map: dict[str, dict] = defaultdict(
+        lambda: {
+            "package": "(未指定)",
+            "in_qty": 0.0,
+            "out_qty": 0.0,
+            "net_qty": 0.0,
+            "in_pallets": 0,
+            "out_pallets": 0,
+        }
+    )
+    product_map: dict[tuple[str, str], dict] = defaultdict(
         lambda: {
             "item_name": "",
+            "package": "(未指定)",
             "in_pallets": 0,
             "in_qty": 0.0,
+            "in_count": 0,
             "out_pallets": 0,
             "out_qty": 0.0,
+            "out_count": 0,
+            "net_qty": 0.0,
+            "set_pallets": 0,
+            "record_count": 0,
+        }
+    )
+    op_map: dict[str, dict] = defaultdict(
+        lambda: {
+            "operator": "未填人員",
+            "in_pallets": 0,
+            "in_qty": 0.0,
+            "in_count": 0,
+            "out_pallets": 0,
+            "out_qty": 0.0,
+            "out_count": 0,
+            "set_pallets": 0,
+            "set_count": 0,
+            "record_count": 0,
+        }
+    )
+    month_map: dict[str, dict] = defaultdict(
+        lambda: {
+            "month": "",
+            "in_pallets": 0,
+            "in_qty": 0.0,
+            "in_count": 0,
+            "out_pallets": 0,
+            "out_qty": 0.0,
+            "out_count": 0,
+            "net_qty": 0.0,
+            "set_pallets": 0,
             "record_count": 0,
         }
     )
@@ -248,15 +303,31 @@ def build_daily_stats(target_date: str, wh_id: Optional[str] = None) -> dict:
         q = float(r.get("op_qty", 0) or 0)
         lot = r.get("lot_no") or "(無批號)"
         item = r.get("item_name") or "(未填品名)"
+        pkg = (r.get("package") or "").strip() or "(未指定)"
+        operator = (r.get("operator") or "").strip() or "未填人員"
+        month = str(r.get("date") or "")[:7] or "未知月份"
 
-        b = batch_map[(lot, item)]
+        b = batch_map[(lot, item, pkg)]
         b["lot_no"] = lot
         b["item_name"] = item
+        b["package"] = pkg
         b["record_count"] += 1
 
-        p = product_map[item]
+        pm = pkg_map[pkg]
+        pm["package"] = pkg
+
+        p = product_map[(item, pkg)]
         p["item_name"] = item
+        p["package"] = pkg
         p["record_count"] += 1
+
+        op = op_map[operator]
+        op["operator"] = operator
+        op["record_count"] += 1
+
+        mo = month_map[month]
+        mo["month"] = month
+        mo["record_count"] += 1
 
         if act == "in":
             in_pallets += pallets
@@ -264,20 +335,48 @@ def build_daily_stats(target_date: str, wh_id: Optional[str] = None) -> dict:
             b["in_pallets"] += pallets
             b["in_qty"] += q
             b["in_count"] += 1
+            pm["in_pallets"] += pallets
+            pm["in_qty"] += q
+            pm["net_qty"] += q
             p["in_pallets"] += pallets
             p["in_qty"] += q
+            p["in_count"] += 1
+            p["net_qty"] += q
+            op["in_pallets"] += pallets
+            op["in_qty"] += q
+            op["in_count"] += 1
+            mo["in_pallets"] += pallets
+            mo["in_qty"] += q
+            mo["in_count"] += 1
+            mo["net_qty"] += q
         elif act == "out":
             out_pallets += pallets
             out_qty += q
             b["out_pallets"] += pallets
             b["out_qty"] += q
             b["out_count"] += 1
+            pm["out_pallets"] += pallets
+            pm["out_qty"] += q
+            pm["net_qty"] -= q
             p["out_pallets"] += pallets
             p["out_qty"] += q
+            p["out_count"] += 1
+            p["net_qty"] -= q
+            op["out_pallets"] += pallets
+            op["out_qty"] += q
+            op["out_count"] += 1
+            mo["out_pallets"] += pallets
+            mo["out_qty"] += q
+            mo["out_count"] += 1
+            mo["net_qty"] -= q
         else:
             set_pallets += pallets
             b["set_pallets"] += pallets
             b["set_qty"] += q
+            p["set_pallets"] += pallets
+            op["set_pallets"] += pallets
+            op["set_count"] += 1
+            mo["set_pallets"] += pallets
 
     def fmt_num(v: float) -> int | float:
         return int(v) if float(v).is_integer() else round(v, 3)
@@ -288,13 +387,39 @@ def build_daily_stats(target_date: str, wh_id: Optional[str] = None) -> dict:
         row["out_qty"] = fmt_num(row["out_qty"])
         row["set_qty"] = fmt_num(row["set_qty"])
 
-    by_product = sorted(product_map.values(), key=lambda x: x["item_name"])
+    by_package = sorted(pkg_map.values(), key=lambda x: -(x["in_qty"] + x["out_qty"]))
+    for row in by_package:
+        row["in_qty"] = fmt_num(row["in_qty"])
+        row["out_qty"] = fmt_num(row["out_qty"])
+        row["net_qty"] = fmt_num(row["net_qty"])
+
+    by_product = sorted(product_map.values(), key=lambda x: -(x["in_qty"] + x["out_qty"]))
     for row in by_product:
         row["in_qty"] = fmt_num(row["in_qty"])
         row["out_qty"] = fmt_num(row["out_qty"])
+        row["net_qty"] = fmt_num(row["net_qty"])
+
+    by_operator = sorted(op_map.values(), key=lambda x: -x["record_count"])
+    for row in by_operator:
+        row["in_qty"] = fmt_num(row["in_qty"])
+        row["out_qty"] = fmt_num(row["out_qty"])
+
+    by_month = sorted(month_map.values(), key=lambda x: x["month"])
+    for row in by_month:
+        row["in_qty"] = fmt_num(row["in_qty"])
+        row["out_qty"] = fmt_num(row["out_qty"])
+        row["net_qty"] = fmt_num(row["net_qty"])
+
+    sorted_records = sorted(
+        filtered,
+        key=lambda r: (str(r.get("date", "")), str(r.get("time", ""))),
+        reverse=True,
+    )
 
     return {
-        "date": target_date,
+        "date": s_date,
+        "start_date": s_date,
+        "end_date": e_date,
         "wh_id": wh_id or "all",
         "total_records": len(filtered),
         "total_pallets": in_pallets + out_pallets + set_pallets,
@@ -304,9 +429,12 @@ def build_daily_stats(target_date: str, wh_id: Optional[str] = None) -> dict:
         "in_qty": fmt_num(in_qty),
         "out_qty": fmt_num(out_qty),
         "net_qty": fmt_num(in_qty - out_qty),
+        "by_package": by_package,
         "by_batch": by_batch,
         "by_product": by_product,
-        "records": list(reversed(filtered)),
+        "by_operator": by_operator,
+        "by_month": by_month,
+        "records": sorted_records,
     }
 
 
@@ -734,10 +862,17 @@ def api_record(payload: RecordPayload):
 @app.get("/api/daily-stats")
 def api_daily_stats(
     date: Optional[str] = Query(default=None),
+    start_date: Optional[str] = Query(default=None),
+    end_date: Optional[str] = Query(default=None),
     wh_id: Optional[str] = Query(default=None),
 ):
     target_date = date or datetime.now().strftime("%Y-%m-%d")
-    return build_daily_stats(target_date, None if wh_id in (None, "", "all") else wh_id)
+    return build_daily_stats(
+        target_date,
+        None if wh_id in (None, "", "all", "ALL") else wh_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
 
 
 @app.delete("/api/record/{log_id}")
@@ -753,35 +888,65 @@ def api_delete_log(log_id: str):
 @app.get("/api/daily-export")
 def api_daily_export(
     date: Optional[str] = Query(default=None),
+    start_date: Optional[str] = Query(default=None),
+    end_date: Optional[str] = Query(default=None),
     wh_id: Optional[str] = Query(default=None),
+    mode: str = Query(default="detail"),
+    label: Optional[str] = Query(default=None),
 ):
     target_date = date or datetime.now().strftime("%Y-%m-%d")
-    stats = build_daily_stats(target_date, None if wh_id in (None, "", "all") else wh_id)
+    stats = build_daily_stats(
+        target_date,
+        None if wh_id in (None, "", "all", "ALL") else wh_id,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    period_tag = (label or "").strip() or (
+        stats["start_date"]
+        if stats["start_date"] == stats["end_date"]
+        else f"{stats['start_date']}_{stats['end_date']}"
+    )
 
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow([f"倉儲儲位每日對帳表 - {target_date}"])
-    writer.writerow(["總板數", stats["total_pallets"], "入庫板數", stats["in_pallets"], "入庫總數量", stats["in_qty"], "出庫板數", stats["out_pallets"], "出庫總數量", stats["out_qty"]])
-    writer.writerow([])
-    writer.writerow(["=== 依批號彙整核對 ==="])
-    writer.writerow(["批號", "品名", "入庫板數", "入庫數量", "出庫板數", "出庫數量", "盤點板數", "操作筆數"])
-    for b in stats["by_batch"]:
-        writer.writerow([b["lot_no"], b["item_name"], b["in_pallets"], b["in_qty"], b["out_pallets"], b["out_qty"], b["set_pallets"], b["record_count"]])
-    writer.writerow([])
-    writer.writerow(["=== 今日作業明細 ==="])
-    writer.writerow(["時間", "倉庫", "區域", "儲位", "動作", "品號", "品名", "批號", "包材", "異動數量", "操作前", "操作後", "板數", "備註", "人員"])
-    act_label = {"in": "入庫", "out": "出庫", "set": "盤點覆寫"}
-    for r in stats["records"]:
-        writer.writerow([
-            r["time"], r["wh_name"], r["zone"], r["location"],
-            act_label.get(r["action"], r["action"]),
-            r["item_no"], r["item_name"], r["lot_no"], r["package"],
-            r["op_qty"], r["before_qty"], r["after_qty"], r["pallets"],
-            r["note"], r["operator"],
-        ])
+    if mode == "summary":
+        writer.writerow([f"倉儲儲位統計彙總報表 - {stats['start_date']} ~ {stats['end_date']}"])
+        writer.writerow(["總筆數", stats["total_records"], "總板數", stats["total_pallets"], "入庫板數", stats["in_pallets"], "入庫總數量", stats["in_qty"], "出庫板數", stats["out_pallets"], "出庫總數量", stats["out_qty"], "淨異動量", stats["net_qty"]])
+        writer.writerow([])
+        writer.writerow(["=== 按月趨勢彙總 ==="])
+        writer.writerow(["月份", "入庫筆數", "入庫板數", "入庫數量", "出庫筆數", "出庫板數", "出庫數量", "淨異動量", "盤點板數", "總筆數"])
+        for m in stats["by_month"]:
+            writer.writerow([m["month"], m["in_count"], m["in_pallets"], m["in_qty"], m["out_count"], m["out_pallets"], m["out_qty"], m["net_qty"], m["set_pallets"], m["record_count"]])
+        writer.writerow([])
+        writer.writerow(["=== 依品名／包材彙總排行 ==="])
+        writer.writerow(["品名", "包材", "入庫筆數", "入庫板數", "入庫數量", "出庫筆數", "出庫板數", "出庫數量", "淨異動量", "盤點板數", "總筆數"])
+        for p in stats["by_product"]:
+            writer.writerow([p["item_name"], p["package"], p["in_count"], p["in_pallets"], p["in_qty"], p["out_count"], p["out_pallets"], p["out_qty"], p["net_qty"], p["set_pallets"], p["record_count"]])
+        writer.writerow([])
+        writer.writerow(["=== 依操作人員作業量彙總 ==="])
+        writer.writerow(["操作人員", "總筆數", "入庫筆數", "入庫板數", "入庫數量", "出庫筆數", "出庫板數", "出庫數量", "盤點筆數", "盤點板數"])
+        for o in stats["by_operator"]:
+            writer.writerow([o["operator"], o["record_count"], o["in_count"], o["in_pallets"], o["in_qty"], o["out_count"], o["out_pallets"], o["out_qty"], o["set_count"], o["set_pallets"]])
+        writer.writerow([])
+        writer.writerow(["=== 依批號核對彙總 ==="])
+        writer.writerow(["批號", "品名", "包材", "入庫板數", "入庫數量", "出庫板數", "出庫數量", "盤點板數", "總筆數"])
+        for b in stats["by_batch"]:
+            writer.writerow([b["lot_no"], b["item_name"], b["package"], b["in_pallets"], b["in_qty"], b["out_pallets"], b["out_qty"], b["set_pallets"], b["record_count"]])
+        filename = f"storage_summary_{period_tag}.csv"
+    else:
+        writer.writerow(["日期", "時間", "倉庫", "區域", "儲位", "動作", "品號", "品名", "批號", "包材", "異動前數量", "異動數量", "異動後數量", "板數", "備註", "操作人員"])
+        act_label = {"in": "入庫", "out": "出庫", "set": "盤點覆寫"}
+        for r in stats["records"]:
+            writer.writerow([
+                r.get("date", ""), r.get("time", ""), r.get("wh_name", ""), r.get("zone", ""), r.get("location", ""),
+                act_label.get(r.get("action"), r.get("action")),
+                r.get("item_no", ""), r.get("item_name", ""), r.get("lot_no", ""), r.get("package", ""),
+                r.get("before_qty", 0), r.get("op_qty", 0), r.get("after_qty", 0), r.get("pallets", 1),
+                r.get("note", ""), r.get("operator", ""),
+            ])
+        filename = f"storage_detail_{period_tag}.csv"
 
     csv_bytes = ("\ufeff" + buf.getvalue()).encode("utf-8")
-    filename = f"storage_daily_{target_date}.csv"
     return StreamingResponse(
         io.BytesIO(csv_bytes),
         media_type="text/csv; charset=utf-8",
