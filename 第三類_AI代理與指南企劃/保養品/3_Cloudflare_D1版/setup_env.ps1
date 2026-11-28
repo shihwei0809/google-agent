@@ -9,6 +9,15 @@ if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host "[1/2] Deploying to Cloudflare Pages (skincare-ai-website)..." -ForegroundColor Yellow
-npx wrangler pages deploy public --project-name=skincare-ai-website --commit-dirty=true
+$tmp = Join-Path $env:TEMP "skincare_deploy"
+if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
+Copy-Item $PSScriptRoot $tmp -Recurse
+try {
+    Set-Location $tmp
+    npx wrangler pages deploy public --project-name=skincare-ai-website --branch=main --commit-dirty=true
+} finally {
+    Set-Location $PSScriptRoot
+    if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+}
 
 Write-Host "[2/2] Done! URL: https://skincare-ai-website.pages.dev" -ForegroundColor Green

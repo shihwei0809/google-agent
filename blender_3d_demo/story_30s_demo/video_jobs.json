@@ -1,0 +1,46 @@
+[
+  {
+    "name": "s01_push_door",
+    "chain_prev": false,
+    "image": "s01_cafe_door.jpg",
+    "seed": 101,
+    "prompt": "Cinematic 35mm film footage, continuous Steadicam tracking shot following a 25-year-old Taiwanese woman in a beige trench coat pushing open a warm wooden cafe door at rainy twilight and stepping inside, soft amber tungsten light spilling onto her face, natural realistic motion, 24fps film look.",
+    "negative_prompt": "blurry, distorted face, extra fingers, changing clothes, text, watermark, subtitle, logo, low quality, jitter, flicker, cartoon, anime"
+  },
+  {
+    "name": "s02_look_around",
+    "chain_prev": true,
+    "seed": 102,
+    "prompt": "Seamless continuation from the exact last frame: the same 25-year-old Taiwanese woman in the beige trench coat gently closes her clear umbrella, looks up across the cozy dimly lit wooden cafe interior, and turns her gaze toward a sunlit corner window table on the right, smooth continuous camera glide, photorealistic 24fps.",
+    "negative_prompt": "blurry, distorted face, extra fingers, changing clothes, text, watermark, subtitle, logo, low quality, jitter, flicker, cartoon, anime"
+  },
+  {
+    "name": "s03_approach_letter",
+    "chain_prev": true,
+    "seed": 103,
+    "prompt": "Seamless continuation from the exact last frame: the same 25-year-old Taiwanese woman walks calmly to the wooden corner table by the window, pauses softly, and reaches her right hand down to pick up a sealed kraft-paper envelope resting beside a warm ceramic coffee cup, smooth camera follow, photorealistic 24fps.",
+    "negative_prompt": "blurry, distorted face, extra fingers, changing clothes, text, watermark, subtitle, logo, low quality, jitter, flicker, cartoon, anime"
+  },
+  {
+    "name": "s04_open_letter_reverse",
+    "chain_prev": false,
+    "image": "s04_letter_closeup.jpg",
+    "seed": 204,
+    "prompt": "Intimate 35mm reverse-angle medium close-up at the same wooden cafe window table: the 25-year-old Taiwanese woman in the beige trench coat carefully opens the kraft-paper envelope, pulls out a handwritten card, reads it quietly, and a gentle relieved smile softens her eyes under warm window light, photorealistic 24fps.",
+    "negative_prompt": "blurry, distorted face, extra fingers, changing clothes, text, watermark, subtitle, logo, low quality, jitter, flicker, cartoon, anime"
+  },
+  {
+    "name": "s05_window_sunlight",
+    "chain_prev": true,
+    "seed": 205,
+    "prompt": "Seamless continuation from the exact last frame: holding the handwritten card gently to her chest, she slowly turns her head toward the cafe glass window as outside rain stops and warm golden-hour sunset light breaks through the clouds, illuminating her hair and cheek, slow gentle tilt-up, photorealistic 24fps.",
+    "negative_prompt": "blurry, distorted face, extra fingers, changing clothes, text, watermark, subtitle, logo, low quality, jitter, flicker, cartoon, anime"
+  },
+  {
+    "name": "s06_walk_to_sunset",
+    "chain_prev": true,
+    "seed": 206,
+    "prompt": "Seamless continuation from the exact last frame: she tucks the card safely into her beige trench coat pocket, stands up with a hopeful smile, walks toward the cafe exit, and steps out onto the glowing golden-hour wet street as the camera gently pulls back in a peaceful closing shot, photorealistic 24fps.",
+    "negative_prompt": "blurry, distorted face, extra fingers, changing clothes, text, watermark, subtitle, logo, low quality, jitter, flicker, cartoon, anime"
+  }
+]

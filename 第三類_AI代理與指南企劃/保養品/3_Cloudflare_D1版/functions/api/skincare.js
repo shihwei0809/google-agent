@@ -17,50 +17,43 @@ export async function onRequest(context) {
     const payload = request.method === "POST"
       ? await request.json()
       : Object.fromEntries(url.searchParams);
-    const { action, username, pin } = payload;
+    const { action, username } = payload;
+    const pin = payload.password !== undefined ? payload.password : payload.pin;
     const db = env.DB;
 
     if (!db) {
       throw new Error("D1 資料庫 (DB) 尚未綁定，請檢查 Cloudflare Pages 設定");
     }
 
-    // 1. 登入並讀取個人資料
-    if (action === "login") {
-      if (!username || !pin) throw new Error("請輸入使用者名稱與 PIN 碼");
-      const user = await db.prepare(
-        "SELECT username FROM sk_users WHERE LOWER(username) = LOWER(?) AND pin = ?"
-      ).bind(username.trim(), pin.trim()).first();
+    // 0. 自助註冊新帳號（完全開放）
+    if (action === "register") {
+      const cleanUser = String(username || "").trim();
+      const cleanPwd = String(pin || "").trim();
+      validateUsernameFormat(cleanUser);
+      validatePasswordFormat(cleanPwd);
 
-      if (!user) throw new Error("帳號或 PIN 碼錯誤");
+      const exists = await db.prepare(
+        "SELECT username FROM sk_users WHERE LOWER(username) = LOWER(?)"
+      ).bind(cleanUser).first();
+      if (exists) throw new Error("此使用者名稱已被註冊，請換一個名稱");
 
-      const uname = user.username;
-      const [summary, products, instructions, routines, sunscreens, avoidRules, dupes, checklist] = await Promise.all([
-        db.prepare("SELECT id, category as Category, content as Content FROM sk_summary WHERE LOWER(username)=LOWER(?) ORDER BY id").bind(uname).all(),
-        db.prepare("SELECT id, product as Product, status as Status, description as Description, COALESCE(image_data, '') as ImageData FROM sk_products WHERE LOWER(username)=LOWER(?) ORDER BY id").bind(uname).all(),
-        db.prepare("SELECT id, product as Product, dosage as Dosage, usage_method as UsageMethod, interval_time as Interval, attention as Attention FROM sk_instructions WHERE LOWER(username)=LOWER(?) ORDER BY id").bind(uname).all(),
-        db.prepare("SELECT id, time_of_day as TimeOfDay, flow as Flow FROM sk_routines WHERE LOWER(username)=LOWER(?) ORDER BY id").bind(uname).all(),
-        db.prepare("SELECT id, rank as Rank, product as Product, score as Score, position as Position, recommendation as Recommendation FROM sk_sunscreens ORDER BY id").all(),
-        db.prepare("SELECT id, do_not as DoNot, reason as Reason, correct_way as CorrectWay FROM sk_avoid_rules ORDER BY id").all(),
-        db.prepare("SELECT id, original_product as OriginalProduct, dupe_product as DupeProduct, category as Category FROM sk_dupes ORDER BY id").all(),
-        db.prepare("SELECT step_key, value FROM sk_checklist WHERE LOWER(username)=LOWER(?)").bind(uname).all()
+      const hashed = await hashPassword(cleanPwd);
+      await db.batch([
+        db.prepare("INSERT INTO sk_users (username, pin) VALUES (?, ?)").bind(cleanUser, hashed),
+        db.prepare("INSERT INTO sk_summary (category, content, username) VALUES (?, ?, ?)")
+          .bind("目前狀態", "新建立的個人保養空間！可按右上角「➕ 快速新增產品」拍照建檔，或到「💬 AI 諮詢」讓助理幫你規劃流程。", cleanUser)
       ]);
 
-      const checklistMap = {};
-      checklist.results.forEach(r => { checklistMap[r.step_key] = (r.value === 1); });
+      const data = await loadUserData(db, cleanUser);
+      return jsonResp({ success: true, username: cleanUser, data }, corsHeaders);
+    }
 
-      return jsonResp({
-        success: true,
-        data: {
-          summary: summary.results,
-          products: products.results,
-          instructions: instructions.results,
-          routines: routines.results,
-          sunscreens: sunscreens.results,
-          avoidRules: avoidRules.results,
-          dupes: dupes.results,
-          checklistState: checklistMap
-        }
-      }, corsHeaders);
+    // 1. 登入並讀取個人資料
+    if (action === "login") {
+      if (!username || !pin) throw new Error("請輸入使用者名稱與密碼");
+      const uname = await validateUser(db, username, pin);
+      const data = await loadUserData(db, uname);
+      return jsonResp({ success: true, username: uname, data }, corsHeaders);
     }
 
     // 2. 查詢資料庫防忘登記總表（公開唯讀摘要）
@@ -71,8 +64,19 @@ export async function onRequest(context) {
       return jsonResp({ success: true, data: reg.results }, corsHeaders);
     }
 
-    // 以下所有敏感操作均須驗證 PIN 碼
+    // 以下所有敏感操作均須驗證密碼
     const uname = await validateUser(db, username, pin);
+
+    // 2.5 修改密碼
+    if (action === "changePassword") {
+      const newPwd = String(payload.newPassword || "").trim();
+      validatePasswordFormat(newPwd);
+      const hashed = await hashPassword(newPwd);
+      await db.prepare(
+        "UPDATE sk_users SET pin = ? WHERE LOWER(username) = LOWER(?)"
+      ).bind(hashed, uname).run();
+      return jsonResp({ success: true, data: { success: true, message: "密碼已更新成功" } }, corsHeaders);
+    }
 
     // 3. 儲存勾選狀態
     if (action === "saveChecklist") {
@@ -248,12 +252,115 @@ function jsonResp(obj, headers, status = 200) {
   return new Response(JSON.stringify(obj), { status, headers });
 }
 
+function validateUsernameFormat(username) {
+  if (!username || username.length < 2 || username.length > 32) {
+    throw new Error("使用者名稱長度需為 2～32 字元");
+  }
+  if (!/^[a-zA-Z0-9_\u4e00-\u9fff.-]+$/.test(username)) {
+    throw new Error("使用者名稱僅支援中英文、數字與 _ . -");
+  }
+}
+
+function validatePasswordFormat(password) {
+  if (!password || password.length < 4 || password.length > 64) {
+    throw new Error("密碼長度需為 4～64 字元");
+  }
+}
+
+function toHex(buf) {
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function fromHex(hex) {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+async function hashPassword(password, saltBytes = null, iterations = 10000) {
+  const salt = saltBytes || crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    key,
+    256
+  );
+  return `pbkdf2$${iterations}$${toHex(salt)}$${toHex(bits)}`;
+}
+
+async function verifyPassword(password, stored) {
+  if (!stored) return { ok: false, needsUpgrade: false };
+  if (stored.startsWith("pbkdf2$")) {
+    const parts = stored.split("$");
+    if (parts.length !== 4) return { ok: false, needsUpgrade: false };
+    const iterations = parseInt(parts[1], 10);
+    const salt = fromHex(parts[2]);
+    const expected = parts[3];
+    const computed = await hashPassword(password, salt, iterations);
+    const computedHash = computed.split("$")[3];
+    if (computedHash.length !== expected.length) return { ok: false, needsUpgrade: false };
+    let diff = 0;
+    for (let i = 0; i < expected.length; i++) {
+      diff |= expected.charCodeAt(i) ^ computedHash.charCodeAt(i);
+    }
+    return { ok: diff === 0, needsUpgrade: false };
+  }
+  return { ok: stored === password, needsUpgrade: stored === password };
+}
+
+async function loadUserData(db, uname) {
+  const [summary, products, instructions, routines, sunscreens, avoidRules, dupes, checklist] = await Promise.all([
+    db.prepare("SELECT id, category as Category, content as Content FROM sk_summary WHERE LOWER(username)=LOWER(?) ORDER BY id").bind(uname).all(),
+    db.prepare("SELECT id, product as Product, status as Status, description as Description, COALESCE(image_data, '') as ImageData FROM sk_products WHERE LOWER(username)=LOWER(?) ORDER BY id").bind(uname).all(),
+    db.prepare("SELECT id, product as Product, dosage as Dosage, usage_method as UsageMethod, interval_time as Interval, attention as Attention FROM sk_instructions WHERE LOWER(username)=LOWER(?) ORDER BY id").bind(uname).all(),
+    db.prepare("SELECT id, time_of_day as TimeOfDay, flow as Flow FROM sk_routines WHERE LOWER(username)=LOWER(?) ORDER BY id").bind(uname).all(),
+    db.prepare("SELECT id, rank as Rank, product as Product, score as Score, position as Position, recommendation as Recommendation FROM sk_sunscreens ORDER BY id").all(),
+    db.prepare("SELECT id, do_not as DoNot, reason as Reason, correct_way as CorrectWay FROM sk_avoid_rules ORDER BY id").all(),
+    db.prepare("SELECT id, original_product as OriginalProduct, dupe_product as DupeProduct, category as Category FROM sk_dupes ORDER BY id").all(),
+    db.prepare("SELECT step_key, value FROM sk_checklist WHERE LOWER(username)=LOWER(?)").bind(uname).all()
+  ]);
+
+  const checklistMap = {};
+  checklist.results.forEach(r => { checklistMap[r.step_key] = (r.value === 1); });
+
+  return {
+    summary: summary.results,
+    products: products.results,
+    instructions: instructions.results,
+    routines: routines.results,
+    sunscreens: sunscreens.results,
+    avoidRules: avoidRules.results,
+    dupes: dupes.results,
+    checklistState: checklistMap
+  };
+}
+
 async function validateUser(db, username, pin) {
-  if (!username || !pin) throw new Error("認證失敗：未提供帳號或 PIN 碼");
+  if (!username || !pin) throw new Error("認證失敗：未提供帳號或密碼");
   const user = await db.prepare(
-    "SELECT username FROM sk_users WHERE LOWER(username) = LOWER(?) AND pin = ?"
-  ).bind(username.trim(), pin.trim()).first();
-  if (!user) throw new Error("認證失敗：無效的帳號或 PIN 碼");
+    "SELECT username, pin FROM sk_users WHERE LOWER(username) = LOWER(?)"
+  ).bind(String(username).trim()).first();
+  if (!user) throw new Error("帳號或密碼錯誤");
+
+  const check = await verifyPassword(String(pin).trim(), user.pin);
+  if (!check.ok) throw new Error("帳號或密碼錯誤");
+
+  // 舊明碼帳號於首次驗證通過時無痛升級為 PBKDF2 雜湊
+  if (check.needsUpgrade) {
+    try {
+      const upgraded = await hashPassword(String(pin).trim());
+      await db.prepare("UPDATE sk_users SET pin = ? WHERE username = ?")
+        .bind(upgraded, user.username).run();
+    } catch (_) {}
+  }
   return user.username;
 }
 

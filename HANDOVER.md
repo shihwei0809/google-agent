@@ -1,5 +1,21 @@
 # 跨電腦交接日誌 (HANDOVER)
 
+## 今日進度與交接事項 (2026-11-28 Colab T4 商用影視/配音自動化產線、Blender 白模分鏡引擎與保養品 D1 版更新)
+* **專案位置**：`.agents\skills\sop-cinema-video\`、`blender_3d_demo\`、`第三類_AI代理與指南企劃\保養品\3_Cloudflare_D1版\`
+* **已完成開發與更新**:
+  1. **Colab T4 商用影視與語音自動化 (`sop-cinema-video`)**：
+     - 語音克隆 (`colab_t4_voice_clone.ipynb`)：整合 3 模式 Apache-2.0 選擇器與 VoxCPM2 → BreezyVoice 虛擬主播接力。
+     - 商用圖生影 (`colab_wan22_sop_cinema.ipynb` & `colab_wan22_cli.py`)：新增 Apache-2.0 Wan 2.2 I2V 筆記本與零瀏覽器無頭 CLI Runner（`一鍵全自動CLI_Wan22商用短片.bat`、`一鍵開啟Colab_Wan22商用劇情短片.bat`），內建雙重 NT$50 預算自動關機防呆。
+  2. **Blender 3D / Google Flow MV 與 SOP 產線擴充 (`blender_3d_demo/`)**：
+     - 擴充 `mv_flow_runner.py`、新增 `actor_library/`（固定演員班底庫）、`mv_white_models/`（Blender 白模運鏡首尾幀與攝影機路徑）、`create_mv_storyboard.py`、`generate_mv_white_models.py`。
+     - 完成 `peace_love_rnb_mv/`（《用愛點亮星空》MV）、`new_mv/`（清晨微光版分鏡）、`tank_outbound_sop/`（第 2 部儲槽出貨與灌裝篇與 `build_tank_outbound_video.py`）。
+  3. **保養品系統 Cloudflare D1 版更新 (`第三類_AI代理與指南企劃/保養品/3_Cloudflare_D1版/`)**：
+     - 更新 `functions/api/skincare.js`、`public/index.html`、`public/sw.js` 與 `setup_env.ps1`。
+* **避坑指南**：
+  - `blender_3d_demo/` 產出之 `.mp4`、`.zip`、`.chrome_flow_profile/` 與 `clips/` 均已由 `.gitignore` 排除，避免大型影音與暫存檔入庫拖慢 Git 效能。
+
+---
+
 ## 今日進度與交接事項 (2026-11-27 2026 數位轉型與 AI 系統八大專案成果發表 PPT 製作：高管量化儀表板版)
 * **專案位置**：`專案成果發表_PPT\`
   - 高管量化儀表板版簡報：`2026_AI與數位轉型八大專案成果發表_高管量化版.pptx`（12 頁、7.14 MB）

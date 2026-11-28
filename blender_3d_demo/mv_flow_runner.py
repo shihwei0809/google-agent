@@ -15,7 +15,10 @@
 
 import argparse
 import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -27,6 +30,81 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 import auto_upload_flow as flow_core  # noqa: E402
+
+
+ACTOR_LIBRARY_DIR = BASE_DIR / "actor_library"
+
+
+def load_actor_library() -> dict[str, dict]:
+    """載入共用固定演員班底庫 actor_library/actors.json，回傳 {id: {..., abs_ref_image: Path}}"""
+    lib_path = ACTOR_LIBRARY_DIR / "actors.json"
+    if not lib_path.exists():
+        return {}
+    raw = json.loads(lib_path.read_text(encoding="utf-8"))
+    out: dict[str, dict] = {}
+    for actor in raw.get("actors", []):
+        aid = actor["id"]
+        entry = dict(actor)
+        entry["abs_ref_image"] = (ACTOR_LIBRARY_DIR / actor["ref_image"]).resolve()
+        out[aid] = entry
+    return out
+
+
+def merge_characters_cfg(project_dir: Path, data: dict, cli_actors: list[str] | None = None) -> dict[str, dict]:
+    """合併 actor_library 與 storyboard.json 的 characters 設定，支援直接指定 f25/m25/f35/m35/f45/m45"""
+    lib = load_actor_library()
+    merged: dict[str, dict] = {}
+
+    # 1. 先將全部固定班底註冊進去（可用 f25/m25/f35/m35/f45/m45 直接呼叫）
+    for aid, actor in lib.items():
+        merged[aid] = {
+            "ref_image": str(actor["abs_ref_image"]),
+            "anchor_en": actor.get("anchor_en", ""),
+            "name_zh": actor.get("name_zh", aid),
+            "gender": actor.get("gender", ""),
+        }
+
+    # 2. 合併 storyboard.json 原本的 characters（保留舊專案 100% 相容）
+    for key, cfg in (data.get("characters") or {}).items():
+        item = dict(cfg)
+        actor_ref = item.get("actor_id")
+        if actor_ref and actor_ref in lib:
+            item.setdefault("ref_image", str(lib[actor_ref]["abs_ref_image"]))
+            item.setdefault("anchor_en", lib[actor_ref].get("anchor_en", ""))
+            item.setdefault("name_zh", lib[actor_ref].get("name_zh", actor_ref))
+        elif item.get("ref_image"):
+            rp = Path(item["ref_image"])
+            if not rp.is_absolute():
+                item["ref_image"] = str((project_dir / rp).resolve())
+        merged[key] = item
+
+    # 3. 若 storyboard.json 頂層有 "actors": ["f35", "m35"] 或 CLI 傳入 --actors f35 m35
+    #    自動綁定為 "female" / "male" 捷徑（CLI 優先權最高）
+    raw_ids = []
+    if data.get("actors"):
+        raw_ids.extend(data["actors"])
+    if cli_actors:
+        for tok in cli_actors:
+            raw_ids.extend([x.strip() for x in tok.split(",") if x.strip()])
+
+    for aid in raw_ids:
+        if aid in lib:
+            actor = lib[aid]
+            gender_key = actor.get("gender")
+            bound = {
+                "actor_id": aid,
+                "ref_image": str(actor["abs_ref_image"]),
+                "anchor_en": actor.get("anchor_en", ""),
+                "name_zh": actor.get("name_zh", aid),
+                "gender": gender_key,
+            }
+            merged[aid] = bound
+            if gender_key in ("female", "male"):
+                merged[gender_key] = bound
+        else:
+            print(f"  [警告] actor_library 中找不到演員代號：{aid}")
+
+    return merged
 
 
 def load_storyboard(project_dir: Path) -> dict:
@@ -112,12 +190,25 @@ def attach_image_new_flow_ui(page, image_path: Path, label: str) -> bool:
     return True
 
 
-def build_agent_prompt(scene: dict, mode: str, model: str, resolution: str, duration: int) -> str:
+def build_agent_prompt(
+    scene: dict,
+    mode: str,
+    model: str,
+    resolution: str,
+    duration: int,
+    actor_anchors: list[str] | None = None,
+    has_last_frame: bool = False,
+) -> str:
     model_name = "Omni 1.2 Flash" if model == "omni12" else ("Veo 3.1 Lite" if model == "veo31lite" else "Omni 1.2 Flash")
     if mode == "frames":
+        frame_desc = (
+            "using the first attached image as the exact start frame and the second attached image as the exact end frame"
+            if has_last_frame
+            else "using the attached image as the exact start frame"
+        )
         prefix = (
             f"Do not ask questions. Immediately generate 1 cinematic 16:9 video ({duration} seconds, {resolution}, {model_name}) "
-            f"using the attached image as the exact start frame. Maintain exact character face, hair, and clothing consistency. "
+            f"{frame_desc}. Maintain exact character face, hair, and clothing consistency. "
         )
     elif mode == "ingredients":
         prefix = (
@@ -126,7 +217,14 @@ def build_agent_prompt(scene: dict, mode: str, model: str, resolution: str, dura
         )
     else:
         prefix = f"Do not ask questions. Immediately generate 1 cinematic 16:9 video ({duration} seconds, {resolution}, {model_name}). "
-    return prefix + scene["flow_prompt_en"]
+
+    body = scene["flow_prompt_en"]
+    anchor_block = ""
+    if actor_anchors and mode == "ingredients":
+        missing = [a for a in actor_anchors if a and a[:40].lower() not in body.lower()]
+        if missing:
+            anchor_block = "Character identity lock: " + "; ".join(missing) + ". "
+    return prefix + anchor_block + body
 
 
 def collect_flow_video_urls_with_hover(page, max_cards: int = 4) -> list[str]:
@@ -161,6 +259,8 @@ def submit_scene_on_page(
     sid = scene["id"]
     first_img = project_dir / scene["keyframe"] if scene.get("keyframe") else None
     has_keyframe = first_img is not None and first_img.exists()
+    last_img = project_dir / scene["last_keyframe"] if scene.get("last_keyframe") else None
+    has_last = last_img is not None and last_img.exists()
     chars = scene.get("chars", [])
 
     if has_keyframe:
@@ -175,31 +275,54 @@ def submit_scene_on_page(
     flow_core.ensure_in_project(page)
     time.sleep(0.8)
 
-    new_add_btn = page.get_by_role("button", name=re.compile(r"在提示詞輸入框新增素材|Add asset", re.I)).first
+    new_add_btn = page.get_by_role("button", name=re.compile(r"在提示詞輸入框新增素材|Add asset|Add media", re.I)).first
     is_new_ui = False
     try:
-        is_new_ui = new_add_btn.is_visible(timeout=2500)
+        new_add_btn.wait_for(state="visible", timeout=15000)
+        is_new_ui = True
     except Exception:
         is_new_ui = False
 
     if is_new_ui:
-        box = page.get_by_role("textbox", name=re.compile(r"你想製作什麼內容|What do you want|prompt", re.I)).first
+        # 確保「Flow 代理」開關已開啟（新專案預設 spark_off 會跑到 Nano Banana 圖片模式）
+        try:
+            agent_btn = page.locator("button[aria-label='Flow 代理'], button[aria-label='Flow Agent']").first
+            if agent_btn.is_visible(timeout=1500) and "spark_off" in (agent_btn.inner_text() or ""):
+                agent_btn.click()
+                print("  [切換] 已開啟「Flow 代理」模式（避免誤用圖片生成模式）！")
+                time.sleep(1.8)
+        except Exception:
+            pass
+
+        box = page.locator('[contenteditable="true"], textarea:not([name="g-recaptcha-response"])').locator("visible=true").last
+        box.wait_for(state="visible", timeout=15000)
         box.click(force=True)
         page.keyboard.press("Control+A")
         page.keyboard.press("Backspace")
         time.sleep(0.3)
 
+        actor_anchors: list[str] = []
         if mode == "frames" and first_img is not None:
             attach_image_new_flow_ui(page, first_img, f"{sid} 鎖定首幀")
+            if has_last and last_img is not None:
+                attach_image_new_flow_ui(page, last_img, f"{sid} 鎖定尾幀")
         elif mode == "ingredients":
             for c in chars:
-                ref_rel = (characters_cfg.get(c) or {}).get("ref_image")
+                c_cfg = characters_cfg.get(c) or {}
+                ref_rel = c_cfg.get("ref_image")
                 if ref_rel:
-                    rp = project_dir / ref_rel
+                    rp = Path(ref_rel)
+                    if not rp.is_absolute():
+                        rp = project_dir / rp
                     if rp.exists():
-                        attach_image_new_flow_ui(page, rp, f"角色參考({c})")
+                        label = f"角色參考({c_cfg.get('name_zh', c)})"
+                        attach_image_new_flow_ui(page, rp, label)
+                if c_cfg.get("anchor_en"):
+                    actor_anchors.append(c_cfg["anchor_en"])
 
-        prompt_text = build_agent_prompt(scene, mode, model, resolution, duration)
+        prompt_text = build_agent_prompt(
+            scene, mode, model, resolution, duration, actor_anchors=actor_anchors, has_last_frame=has_last
+        )
         box.click(force=True)
         page.keyboard.press("End")
         page.keyboard.insert_text(" " + prompt_text)
@@ -208,9 +331,11 @@ def submit_scene_on_page(
         flow_core.switch_to_frames_mode(page, model=model, resolution=resolution, duration=duration)
         if mode == "frames" and first_img is not None:
             flow_core.upload_frame(page, r"^開始$|^Start$", first_img, f"{sid} 首幀")
+            if has_last and last_img is not None:
+                flow_core.upload_frame(page, r"^結束$|^End$", last_img, f"{sid} 尾幀")
         flow_core.fill_prompt(page, scene["flow_prompt_en"])
 
-    known_urls = set(collect_flow_video_urls_with_hover(page, max_cards=4))
+    known_urls = set(collect_flow_video_urls_with_hover(page, max_cards=14))
     if not no_submit:
         flow_core.trigger_generate(page)
         print(f"  ✅ [{sid}] 已送出生成 ({mode} · {model} · {resolution} · {duration}s)！")
@@ -260,7 +385,11 @@ def wait_and_download_one(page, sid: str, known_urls: set, out_mp4: Path, timeou
     while time.time() < deadline:
         for pat in [r"一律核准專案中的要求|Always approve", r"^核准$|^Approve$"]:
             try:
-                abtn = page.get_by_role("button", name=re.compile(pat, re.I)).first
+                abtn = (
+                    page.get_by_role("button", name=re.compile(pat, re.I))
+                    .or_(page.get_by_role("radio", name=re.compile(pat, re.I)))
+                    .last
+                )
                 if abtn.is_visible(timeout=300):
                     abtn.click()
                     print(f"  [自動核准] 已點擊「{pat}」，開始扣點生成！")
@@ -286,21 +415,54 @@ def wait_and_download_one(page, sid: str, known_urls: set, out_mp4: Path, timeou
     return False
 
 
+def extract_last_frame(mp4_path: Path, out_img: Path) -> bool:
+    """從前一支 MP4 抽出最後一幀，供 chain_prev 尾幀接龍使用。"""
+    ffmpeg_exe = shutil.which("ffmpeg")
+    if not ffmpeg_exe:
+        local_app = os.environ.get("LOCALAPPDATA", "")
+        if local_app:
+            for p in (Path(local_app) / "Microsoft" / "WinGet" / "Packages").rglob("ffmpeg.exe"):
+                ffmpeg_exe = str(p)
+                break
+    if not ffmpeg_exe or not mp4_path.exists():
+        return False
+    out_img.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        ffmpeg_exe, "-y", "-sseof", "-0.12", "-i", str(mp4_path),
+        "-frames:v", "1", "-q:v", "2", str(out_img),
+    ]
+    res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return res.returncode == 0 and out_img.exists() and out_img.stat().st_size > 5_000
+
+
 def main():
     parser = argparse.ArgumentParser(description="通用 AI MV 工廠 — Google Flow 批次生片引擎")
-    parser.add_argument("--project", required=True, help="MV 專案資料夾（內含 storyboard.json），例如 peace_love_mv")
+    parser.add_argument("--project", help="MV 專案資料夾（內含 storyboard.json），例如 peace_love_mv")
     parser.add_argument("--start", type=int, default=1)
     parser.add_argument("--end", type=int, default=999)
     parser.add_argument("--only", nargs="+", help="只跑指定鏡號，例如 --only s04 s09 s12")
     parser.add_argument("--model", choices=["omni12", "veo31lite", "auto"], default="omni12")
     parser.add_argument("--res", choices=["360p", "720p"], default="360p")
-    parser.add_argument("--duration", type=int, default=10)
+    parser.add_argument("--upscale-720p", action="store_true", help="360p 生成後立即自動觸發雲端 720p 升頻下載（預設 --res 360p 僅抓 360p 預覽以省時省點數）")
+    parser.add_argument("--duration", type=int, default=8)
     parser.add_argument("--timeout", type=int, default=300)
     parser.add_argument("--force", action="store_true", help="強制重跑已存在的 flow_clips/sXX_flow.mp4")
     parser.add_argument("--no-submit", action="store_true")
     parser.add_argument("--no-wait", action="store_true")
+    parser.add_argument("--actors", nargs="+", help="指定共用固定演員班底代號（如 --actors f35 m35），自動掛載 actor_library 定裝照與鎖臉描述")
+    parser.add_argument("--list-actors", action="store_true", help="列出 actor_library 可用的固定演員班底後結束")
     parser.add_argument("--project-url", default=flow_core.FLOW_URL)
     args = parser.parse_args()
+
+    if args.list_actors:
+        lib = load_actor_library()
+        print("=== 共用固定演員班底庫 (actor_library) ===")
+        for aid, a in lib.items():
+            print(f"  [{aid}] {a['name_zh']} ({a['name_en']}) · {a['age']}歲 · {a['height_cm']}cm -> {a['abs_ref_image']}")
+        return
+
+    if not args.project:
+        parser.error("必須提供 --project <專案資料夾>（或使用 --list-actors 查看固定班底）")
 
     project_dir = Path(args.project)
     if not project_dir.is_absolute():
@@ -308,7 +470,7 @@ def main():
 
     data = load_storyboard(project_dir)
     scenes = data["scenes"]
-    characters_cfg = data.get("characters", {})
+    characters_cfg = merge_characters_cfg(project_dir, data, cli_actors=args.actors)
 
     if args.only:
         only_set = set(args.only)
@@ -346,7 +508,20 @@ def main():
             page = context.pages[0] if context.pages else context.new_page()
             page.goto(args.project_url, wait_until="domcontentloaded")
 
+        scene_idx_map = {s["id"]: i for i, s in enumerate(scenes)}
         for scene in selected:
+            if scene.get("chain_prev"):
+                idx_in_all = scene_idx_map.get(scene["id"], 0)
+                if idx_in_all > 0:
+                    prev_sc = scenes[idx_in_all - 1]
+                    prev_mp4 = project_dir / prev_sc["flow_clip"]
+                    target_kf = project_dir / (scene.get("keyframe") or f"keyframes/{scene['id']}.png")
+                    if prev_mp4.exists() and extract_last_frame(prev_mp4, target_kf):
+                        scene["keyframe"] = str(target_kf.relative_to(project_dir)).replace("\\", "/")
+                        print(f"  🔗 [chain_prev] 已抽取 {prev_sc['id']} 尾幀 -> {scene['keyframe']}")
+                    else:
+                        print(f"  ⚠️ [chain_prev] 找不到前鏡影片 {prev_mp4.name}，改用預設模式")
+
             pg, sid, known, out_mp4 = submit_scene_on_page(
                 page=page,
                 project_dir=project_dir,
@@ -358,7 +533,8 @@ def main():
                 no_submit=args.no_submit,
             )
             if not args.no_submit and not args.no_wait:
-                if wait_and_download_one(pg, sid, known, out_mp4, timeout_sec=args.timeout):
+                want_720 = (args.res == "720p") or args.upscale_720p
+                if wait_and_download_one(pg, sid, known, out_mp4, timeout_sec=args.timeout, prefer_720p_upscale=want_720):
                     done_ids.append(sid)
             time.sleep(2.0)
 

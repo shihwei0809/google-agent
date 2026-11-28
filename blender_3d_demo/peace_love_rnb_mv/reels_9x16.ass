@@ -1,0 +1,29 @@
+[Script Info]
+Title: 用愛點亮星空 IG Reels 9x16
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: TopTitle,Microsoft JhengHei,68,&H00FFFFFF,&H0000D7FF,&H00101010,&H80000000,1,0,0,0,100,100,6,0,1,3.0,2.5,8,60,60,260,1
+Style: TopSub,Microsoft JhengHei,32,&H00BAE6FD,&H00FFFFFF,&H00101010,&H80000000,0,0,0,0,100,100,4,0,1,2.0,1.5,8,60,60,348,1
+Style: ReelsLyric,Microsoft JhengHei,54,&H00FFFFFF,&H0000D7FF,&H00141414,&H80000000,1,0,0,0,100,100,3,0,1,3.0,2.0,2,70,70,450,1
+Style: ReelsCTA,Microsoft JhengHei,34,&H00FDE68A,&H00FFFFFF,&H00141414,&H80000000,1,0,0,0,100,100,3,0,1,2.0,1.5,2,70,70,340,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 1,0:00:00.20,0:00:41.50,TopTitle,,0,0,0,,{\fad(500,600)}用愛點亮星空
+Dialogue: 1,0:00:00.20,0:00:41.50,TopSub,,0,0,0,,{\fad(500,600)}Peace and Love · AI 音樂微電影
+Dialogue: 1,0:00:37.00,0:00:41.80,ReelsCTA,,0,0,0,,{\fad(400,600)}完整 3 分鐘 MV 請見主頁連結 ✨
+Dialogue: 0,0:00:00.00,0:00:03.00,ReelsLyric,,0,0,0,,{\fad(180,180)}Peace and love 讓愛包圍這世界
+Dialogue: 0,0:00:03.00,0:00:06.00,ReelsLyric,,0,0,0,,{\fad(180,180)}抹去眼淚 告別所有的傷悲
+Dialogue: 0,0:00:06.00,0:00:09.70,ReelsLyric,,0,0,0,,{\fad(180,180)}用最溫柔的擁抱 融化所有冰雪
+Dialogue: 0,0:00:09.70,0:00:14.00,ReelsLyric,,0,0,0,,{\fad(180,180)}我們的愛 永不熄滅
+Dialogue: 0,0:00:15.00,0:00:18.70,ReelsLyric,,0,0,0,,{\fad(180,180)}Peace and love 手牽手走向明天
+Dialogue: 0,0:00:18.70,0:00:22.00,ReelsLyric,,0,0,0,,{\fad(180,180)}每一個微笑 都是最美的誓言
+Dialogue: 0,0:00:22.50,0:00:29.00,ReelsLyric,,0,0,0,,{\fad(180,180)}讓這首歌傳遍世界的每一個角落
+Dialogue: 0,0:00:29.30,0:00:35.50,ReelsLyric,,0,0,0,,{\fad(180,180)}用愛 用愛點亮星空
+Dialogue: 0,0:00:35.50,0:00:40.00,ReelsLyric,,0,0,0,,{\fad(180,180)}當黑夜降臨 繁星點點 (Peace and love)

@@ -1,0 +1,82 @@
+{
+  "version": "1.0",
+  "description": "固定 AI 演員班底庫（25 / 35 / 45 歲台灣男女各 1 位，萬用棚拍正面＋微側臉定裝照，適用 MV 與企業 SOP 微電影）",
+  "global_casting_specs": {
+    "female": "身高 172cm、長髮清秀、右眼下有一顆精緻小淚痣、自然台灣氣質",
+    "male": "身高 178cm、短髮幹練、25/35 歲完全無鬍子、45 歲極淡成熟短鬚"
+  },
+  "actors": [
+    {
+      "id": "f25",
+      "name_zh": "林若晴",
+      "name_en": "Ruo-Qing",
+      "gender": "female",
+      "age": 25,
+      "height_cm": 172,
+      "ref_image": "refs/f25_ref.jpg",
+      "use_cases": ["青春都會 MV", "R&B / 抒情情歌", "新進員工 SOP 教學"],
+      "appearance_zh": "25 歲台灣女性，172cm 高挑纖細，長直深棕黑髮過肩、清秀五官、右眼下有一顆精緻小痣、自然淡妝、溫柔清甜微笑",
+      "anchor_en": "the exact 25-year-old Taiwanese woman from the reference image, tall slender 172cm build, long straight silky dark-brown hair past her shoulders with light natural side-swept strands, delicate refined facial features with a tiny subtle natural dark-brown beauty mark just beneath her right eye, clear bright eyes, natural minimal makeup, warm gentle expression"
+    },
+    {
+      "id": "m25",
+      "name_zh": "許承恩",
+      "name_en": "Cheng-En",
+      "gender": "male",
+      "age": 25,
+      "height_cm": 178,
+      "ref_image": "refs/m25_ref.jpg",
+      "use_cases": ["青春都會 MV", "R&B / 流行男主", "年輕工程師 / 現場人員 SOP"],
+      "appearance_zh": "25 歲台灣男性，178cm 精實挺拔，俐落短髮、完全無鬍子、眼神清亮幹練",
+      "anchor_en": "the exact 25-year-old Taiwanese man from the reference image, tall lean athletic 178cm build, short sharp neatly tapered haircut, COMPLETELY CLEAN-SHAVEN smooth jaw and upper lip (NO beard, NO mustache, NO stubble), crisp jawline, bright capable young-professional expression"
+    },
+    {
+      "id": "f35",
+      "name_zh": "蘇品妍",
+      "name_en": "Pin-Yan",
+      "gender": "female",
+      "age": 35,
+      "height_cm": 172,
+      "ref_image": "refs/f35_ref.jpg",
+      "use_cases": ["輕熟抒情 MV", "職場主管 / 簡報講師", "品管 / 行政 SOP"],
+      "appearance_zh": "35 歲台灣女性，172cm 優雅挺拔，深栗長髮微捲尾端、知性清秀、右眼下有一顆精緻小痣、從容自信微笑",
+      "anchor_en": "the exact 35-year-old Taiwanese woman from the reference image, tall poised slender 172cm build, long smooth dark chestnut hair past her shoulders with soft natural wave at the ends, refined elegant intellectual features with a tiny subtle natural dark-brown beauty mark just beneath her right eye, calm intelligent eyes, understated warm confidence"
+    },
+    {
+      "id": "m35",
+      "name_zh": "林致遠",
+      "name_en": "Zhi-Yuan",
+      "gender": "male",
+      "age": 35,
+      "height_cm": 178,
+      "ref_image": "refs/m35_ref.jpg",
+      "use_cases": ["輕熟都會 MV", "資深工程師 / 課長主管", "企業 SOP 示範主角"],
+      "appearance_zh": "35 歲台灣男性，178cm 寬肩挺拔，俐落現代旁分短髮、完全無鬍子、穩重幹練",
+      "anchor_en": "the exact 35-year-old Taiwanese man from the reference image, tall fit broad-shouldered 178cm build, short sharp neat modern side-parted haircut, COMPLETELY CLEAN-SHAVEN smooth jaw and upper lip (NO beard, NO mustache, NO stubble), confident mature Taiwanese features, sharp trustworthy gaze"
+    },
+    {
+      "id": "f45",
+      "name_zh": "陳雅慧",
+      "name_en": "Ya-Hui",
+      "gender": "female",
+      "age": 45,
+      "height_cm": 172,
+      "ref_image": "refs/f45_ref.jpg",
+      "use_cases": ["親情 / 人生故事 MV", "高階女主管 / 資深講師", "企業形象宣導"],
+      "appearance_zh": "45 歲台灣女性，172cm 氣質挺拔，整齊深黑長髮過肩、清秀溫婉、右眼下有一顆精緻小痣、自然眼角細紋與端莊親和力",
+      "anchor_en": "the exact 45-year-old Taiwanese woman from the reference image, tall graceful upright 172cm build, long neat dark espresso-black hair styled cleanly past her shoulders, refined mature Taiwanese beauty with a tiny subtle natural dark-brown beauty mark just beneath her right eye and gentle natural smile lines around her eyes, serene dignified warmth"
+    },
+    {
+      "id": "m45",
+      "name_zh": "張維誠",
+      "name_en": "Wei-Cheng",
+      "gender": "male",
+      "age": 45,
+      "height_cm": 178,
+      "ref_image": "refs/m45_ref.jpg",
+      "use_cases": ["成熟情感 / 人生故事 MV", "資深廠長 / 資深職人", "工安與管理階層 SOP"],
+      "appearance_zh": "45 歲台灣男性，178cm 穩健挺拔，俐落短髮微帶自然鬢角銀絲、極淡整齊成熟短鬚、沉穩可信賴",
+      "anchor_en": "the exact 45-year-old Taiwanese man from the reference image, tall steady upright 178cm build, short sharp neatly trimmed black hair with very subtle natural silver-gray strands at the temples, VERY LIGHT neatly trimmed mature short stubble (subtle 2mm groomed short stubble along jaw and chin, NOT a thick beard), warm authoritative eyes with natural mature laugh lines"
+    }
+  ]
+}

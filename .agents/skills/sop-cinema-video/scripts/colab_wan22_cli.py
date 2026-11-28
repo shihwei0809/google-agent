@@ -131,6 +131,7 @@ def main():
 
         jobs = json.loads((UP / "video_jobs.json").read_text(encoding="utf-8-sig"))
         avg_sec = 55.0 if vram_gb >= 75 else 170.0
+        last_frame_pil = None
 
         for idx, j in enumerate(jobs, start=1):
             ok, el, spent, rem = budget_ok(est_next_sec=avg_sec * 0.85)
@@ -139,14 +140,20 @@ def main():
                 log(f"BUDGET_BRAKE before shot {idx}/{len(jobs)} ({j['name']}): spent=NT${spent:.2f} / cap=NT${MAX_BUDGET_NTD:.1f}")
                 break
 
-            img_path = UP / j["image"]
-            if not img_path.exists():
-                log(f"SKIP missing image: {j['image']}")
-                continue
+            use_chain = bool(j.get("chain_prev")) and (last_frame_pil is not None)
+            if use_chain:
+                image = last_frame_pil.copy()
+                log(f"CHAIN {j['name']} <- previous shot last frame")
+            else:
+                img_rel = j.get("image", "")
+                img_path = UP / Path(img_rel).name if img_rel else None
+                if not img_path or not img_path.exists():
+                    log(f"SKIP missing image: {img_rel}")
+                    continue
+                image = load_image(str(img_path))
 
             out_raw = OUT / f"{j['name']}_16fps.mp4"
             out_final = OUT / f"{j['name']}.mp4"
-            image = load_image(str(img_path))
             ar = image.height / image.width
             mod = pipe.vae_scale_factor_spatial * pipe.transformer.config.patch_size[1]
             h = max(mod, round(np.sqrt(MAX_AREA * ar)) // mod * mod)
@@ -169,6 +176,16 @@ def main():
                 generator=gen,
             ).frames[0]
             export_to_video(frames, str(out_raw), fps=16)
+            from PIL import Image as _PILImage
+            _lf = frames[-1]
+            if isinstance(_lf, _PILImage.Image):
+                last_frame_pil = _lf.convert("RGB")
+            else:
+                _arr = np.asarray(_lf)
+                if _arr.dtype != np.uint8:
+                    _arr = np.clip(_arr * 255.0, 0, 255).astype(np.uint8)
+                last_frame_pil = _PILImage.fromarray(_arr).convert("RGB")
+            last_frame_pil.save(OUT / f"{j['name']}_last.png")
             subprocess.run([
                 "ffmpeg", "-y", "-i", str(out_raw),
                 "-vf", "fps=24", "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -342,7 +359,11 @@ def build_upload_bundle(frames_dir: Path, jobs_path: Path | None) -> tuple[Path,
         zf.writestr("video_jobs.json", json.dumps(jobs, ensure_ascii=False, indent=2))
         added = set()
         for j in jobs:
-            img_name = j["image"]
+            img_name = j.get("image", "")
+            if not img_name:
+                if j.get("chain_prev"):
+                    continue
+                sys.exit(f"分鏡 {j.get('name')} 未設定 image 且非 chain_prev")
             if img_name in added:
                 continue
             p = Path(img_name)

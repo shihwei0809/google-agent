@@ -1,0 +1,113 @@
+{
+  "title": "雨停後的信（30秒副歌故事版）",
+  "audio_file": "audio/chorus_30s.mp3",
+  "duration_sec": 30.0,
+  "style": "35mm warm cinematic Taiwanese urban romance, cozy amber cafe interior contrasting with rainy blue dusk turning into golden-hour sunset, anamorphic bokeh, photorealistic",
+  "actors": ["f25"],
+  "scenes": [
+    {
+      "id": "s01",
+      "section": "錨點 1・推門進咖啡廳",
+      "start": 0.0,
+      "end": 5.0,
+      "chain_prev": false,
+      "chars": ["f25"],
+      "shot_type": "跟拍中景・推門進店",
+      "motion": "dolly_in",
+      "keyframe": "frames/s01_cafe_door.png",
+      "flow_clip": "flow_clips/s01_flow.mp4",
+      "lyrics": [
+        {"t0": 1.5, "t1": 5.0, "zh": "Peace and love 把溫柔留給世界", "en": ""}
+      ],
+      "prompt_zh": "微雨黃昏，女角推開溫暖木質咖啡廳大門走進店內。",
+      "flow_prompt_en": "Smooth 35mm Steadicam tracking shot following the 25-year-old Taiwanese woman in a beige trench coat pushing open a warm wooden cafe door at rainy twilight and stepping inside, soft amber tungsten light spilling onto her face, natural realistic motion, 24fps film look, no text."
+    },
+    {
+      "id": "s02",
+      "section": "接龍・收傘環顧店內",
+      "start": 5.0,
+      "end": 10.0,
+      "chain_prev": true,
+      "chars": [],
+      "shot_type": "連續接龍・抬頭望向窗邊",
+      "motion": "pan_right",
+      "keyframe": "keyframes/s02_chain.png",
+      "flow_clip": "flow_clips/s02_flow.mp4",
+      "lyrics": [
+        {"t0": 5.0, "t1": 7.5, "zh": "Peace and love 把溫柔留給世界", "en": ""},
+        {"t0": 8.0, "t1": 10.0, "zh": "讓每顆心都能找到停歇", "en": ""}
+      ],
+      "prompt_zh": "延續上鏡尾幀，她收起雨傘抬頭環顧溫暖店內，視線望向右側靠窗木桌。",
+      "flow_prompt_en": "Seamless continuation from the exact start frame: the same 25-year-old Taiwanese woman in the beige trench coat gently folds her clear umbrella, looks up across the cozy wooden cafe interior, and turns her gaze toward a corner window table on the right, smooth continuous camera glide, photorealistic 24fps, no text."
+    },
+    {
+      "id": "s03",
+      "section": "接龍・走近桌邊拿信",
+      "start": 10.0,
+      "end": 15.0,
+      "chain_prev": true,
+      "chars": [],
+      "shot_type": "連續接龍・伸手取信",
+      "motion": "dolly_in",
+      "keyframe": "keyframes/s03_chain.png",
+      "flow_clip": "flow_clips/s03_flow.mp4",
+      "lyrics": [
+        {"t0": 10.0, "t1": 14.0, "zh": "讓每顆心都能找到停歇", "en": ""},
+        {"t0": 14.5, "t1": 15.0, "zh": "Peace and love 就算路途有一些黑", "en": ""}
+      ],
+      "prompt_zh": "延續上鏡尾幀，她走到靠窗木桌旁，伸手拿起桌上的牛皮紙信封。",
+      "flow_prompt_en": "Seamless continuation from the exact start frame: the same 25-year-old Taiwanese woman walks calmly to the wooden corner table by the window, pauses softly, and reaches her right hand down to pick up a sealed kraft-paper envelope resting beside a warm ceramic coffee cup, smooth follow shot, photorealistic 24fps, no text."
+    },
+    {
+      "id": "s04",
+      "section": "錨點 2・反打近景拆信",
+      "start": 15.0,
+      "end": 20.0,
+      "chain_prev": false,
+      "chars": ["f25"],
+      "shot_type": "反打重錨・近景拆信微笑",
+      "motion": "zoom_focus",
+      "keyframe": "frames/s04_letter_closeup.png",
+      "flow_clip": "flow_clips/s04_flow.mp4",
+      "lyrics": [
+        {"t0": 15.0, "t1": 20.0, "zh": "Peace and love 就算路途有一些黑", "en": ""}
+      ],
+      "prompt_zh": "切近景反打重新錨定畫質，她拆開信封抽出手寫卡片，嘴角露出溫柔微笑。",
+      "flow_prompt_en": "Intimate 35mm reverse-angle medium close-up at the wooden cafe window table: the 25-year-old Taiwanese woman in the beige trench coat carefully opens the kraft-paper envelope, pulls out a handwritten card, reads it quietly, and a gentle relieved smile softens her eyes under warm window light, photorealistic 24fps, no text."
+    },
+    {
+      "id": "s05",
+      "section": "接龍・窗外放晴夕陽",
+      "start": 20.0,
+      "end": 25.0,
+      "chain_prev": true,
+      "chars": [],
+      "shot_type": "連續接龍・仰望金色餘暉",
+      "motion": "dolly_out",
+      "keyframe": "keyframes/s05_chain.png",
+      "flow_clip": "flow_clips/s05_flow.mp4",
+      "lyrics": [
+        {"t0": 21.0, "t1": 25.0, "zh": "我們仍能為彼此點亮明天", "en": ""}
+      ],
+      "prompt_zh": "延續上鏡尾幀，她轉頭望向玻璃窗外，雨剛好停了，金色夕陽穿透雲層灑進來。",
+      "flow_prompt_en": "Seamless continuation from the exact start frame: holding the handwritten card gently to her chest, she slowly turns her head toward the cafe glass window as outside rain stops and warm golden-hour sunset light breaks through the clouds, illuminating her hair and cheek, slow gentle tilt-up, photorealistic 24fps, no text."
+    },
+    {
+      "id": "s06",
+      "section": "接龍・走出門迎向夕陽",
+      "start": 25.0,
+      "end": 30.0,
+      "chain_prev": true,
+      "chars": [],
+      "shot_type": "連續接龍・推門離場拉遠",
+      "motion": "dolly_out",
+      "keyframe": "keyframes/s06_chain.png",
+      "flow_clip": "flow_clips/s06_flow.mp4",
+      "lyrics": [
+        {"t0": 25.0, "t1": 27.5, "zh": "我們仍能為彼此點亮明天", "en": ""}
+      ],
+      "prompt_zh": "延續上鏡尾幀，她將信收進風衣口袋，推開咖啡廳門步入金色夕陽街道，鏡頭溫柔拉遠。",
+      "flow_prompt_en": "Seamless continuation from the exact start frame: she tucks the card safely into her beige trench coat pocket, stands up with a hopeful smile, walks out the cafe exit onto the glowing golden-hour wet street as the camera gently pulls back in a peaceful closing shot, photorealistic 24fps, no text."
+    }
+  ]
+}

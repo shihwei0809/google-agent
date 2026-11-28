@@ -1,4 +1,4 @@
-const CACHE_NAME = 'skincare-ai-v8.1.2';
+const CACHE_NAME = 'skincare-ai-v8.2.0';
 const ASSETS = [
   '/',
   '/index.html',

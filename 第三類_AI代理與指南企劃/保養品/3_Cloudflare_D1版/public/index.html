@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#3b82f6">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/icon-192.png">
-<title>AI個人保養網站 V8.1｜AI 拍照辨識 × Cloudflare D1</title>
+<title>AI個人保養網站 V8.2｜AI 拍照辨識 × Cloudflare D1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -298,21 +298,39 @@ tr:last-child td { border-bottom: none; }
   color: #fff; padding: 12px 14px; font-size: 1rem; outline: none;
 }
 .login-card input:focus { border-color: var(--primary); }
-#btn-login-submit {
+#btn-login-submit, #btn-register-submit {
   width: 100%; background: linear-gradient(135deg, var(--primary), var(--accent));
   border: none; color: #fff; padding: 13px; border-radius: 10px;
   font-size: 1rem; font-weight: 600; cursor: pointer;
   display: flex; justify-content: center; align-items: center; gap: 8px;
 }
+.auth-tabs {
+  display: flex; gap: 8px; margin-bottom: 20px;
+  background: rgba(15, 23, 42, 0.7); padding: 5px; border-radius: 12px;
+  border: 1px solid var(--panel-border);
+}
+.auth-tab-btn {
+  flex: 1; padding: 9px 10px; border: none; border-radius: 8px;
+  background: transparent; color: var(--text-muted); font-size: 0.92rem;
+  font-weight: 600; cursor: pointer; transition: all 0.2s;
+}
+.auth-tab-btn.active {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: #fff; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
 .login-error-msg { color: var(--danger); font-size: 0.88rem; margin-top: 12px; min-height: 20px; }
 
 .user-status-bar {
   position: absolute; top: 14px; right: 18px;
-  display: flex; align-items: center; gap: 12px; z-index: 90;
+  display: flex; align-items: center; gap: 10px; z-index: 90; flex-wrap: wrap;
 }
 .user-badge {
   font-size: 0.88rem; color: #93c5fd; background: rgba(59, 130, 246, 0.15);
   border: 1px solid rgba(59, 130, 246, 0.35); padding: 6px 14px; border-radius: 999px; font-weight: 600;
+}
+.btn-pwd {
+  background: rgba(139, 92, 246, 0.18); border: 1px solid rgba(139, 92, 246, 0.4);
+  color: #c4b5fd; padding: 6px 12px; border-radius: 999px; font-size: 0.85rem; cursor: pointer;
 }
 .btn-logout {
   background: rgba(248, 113, 113, 0.15); border: 1px solid rgba(248, 113, 113, 0.35);
@@ -373,7 +391,7 @@ tr:last-child td { border-bottom: none; }
 <body>
 
 <div id="pwa-install-banner">
-  <span>📲 可將「AI個人保養網站 V8.1」安裝成桌面獨立 App</span>
+  <span>📲 可將「AI個人保養網站 V8.2」安裝成桌面獨立 App</span>
   <button id="btn-pwa-install">立即安裝</button>
 </div>
 <div id="updateBanner" onclick="window.location.reload(true)">
@@ -382,21 +400,46 @@ tr:last-child td { border-bottom: none; }
 
 <div id="login-overlay" style="display:none;">
   <div class="login-card">
-    <h2>🔒 AI個人保養網站 V8.1</h2>
+    <h2>🔒 AI個人保養網站 V8.2</h2>
     <p>Cloudflare D1 × AI 拍照辨識專屬版</p>
+
+    <div class="auth-tabs">
+      <button type="button" id="tab-auth-login" class="auth-tab-btn active" onclick="switchAuthMode('login')">登入</button>
+      <button type="button" id="tab-auth-register" class="auth-tab-btn" onclick="switchAuthMode('register')">註冊新帳號</button>
+    </div>
+
     <form id="login-form" onsubmit="handleLogin(event)">
       <div class="input-group">
         <label for="login-username">使用者名稱</label>
-        <input type="text" id="login-username" required placeholder="例如：shihwei">
+        <input type="text" id="login-username" required minlength="2" maxlength="32" autocomplete="username" placeholder="請輸入帳號">
       </div>
       <div class="input-group">
-        <label for="login-pin">4 位數 PIN 碼</label>
-        <input type="password" id="login-pin" required pattern="\d{4}" maxlength="4" placeholder="••••">
+        <label for="login-pin">密碼（4～64 字元，支援英數符號）</label>
+        <input type="password" id="login-pin" required minlength="4" maxlength="64" autocomplete="current-password" placeholder="請輸入密碼">
       </div>
       <button type="submit" id="btn-login-submit">
         <span id="login-spinner" class="loading-spinner" style="display:none;"></span> 登入
       </button>
       <div id="login-error" class="login-error-msg"></div>
+    </form>
+
+    <form id="register-form" onsubmit="handleRegister(event)" style="display:none;">
+      <div class="input-group">
+        <label for="reg-username">自訂使用者名稱（2～32 字元）</label>
+        <input type="text" id="reg-username" required minlength="2" maxlength="32" autocomplete="username" placeholder="中英文、數字或 _ . -">
+      </div>
+      <div class="input-group">
+        <label for="reg-password">設定密碼（4～64 字元，任意字元）</label>
+        <input type="password" id="reg-password" required minlength="4" maxlength="64" autocomplete="new-password" placeholder="至少 4 碼">
+      </div>
+      <div class="input-group">
+        <label for="reg-password-confirm">確認密碼</label>
+        <input type="password" id="reg-password-confirm" required minlength="4" maxlength="64" autocomplete="new-password" placeholder="請再輸入一次密碼">
+      </div>
+      <button type="submit" id="btn-register-submit">
+        <span id="reg-spinner" class="loading-spinner" style="display:none;"></span> 立即註冊並登入
+      </button>
+      <div id="reg-error" class="login-error-msg"></div>
     </form>
   </div>
 </div>
@@ -404,9 +447,10 @@ tr:last-child td { border-bottom: none; }
 <header>
   <div class="user-status-bar" id="user-status-bar" style="display:none;">
     <span class="user-badge" id="current-user-badge">👤 使用者: </span>
+    <button class="btn-pwd" onclick="openChangePwdModal()">🔑 改密碼</button>
     <button class="btn-logout" onclick="handleLogout()">登出 / 切換</button>
   </div>
-  <h1>AI個人保養網站 V8.1</h1>
+  <h1>AI個人保養網站 V8.2</h1>
   <p>Cloudflare Pages + 共用 D1 (`weather-monitor-db`) × AI 拍照辨識 / 實拍縮圖</p>
 </header>
 
@@ -645,6 +689,32 @@ tr:last-child td { border-bottom: none; }
   </div>
 </div>
 
+<!-- 修改密碼 Modal -->
+<div id="change-pwd-modal" style="display:none; position:fixed; inset:0; background:rgba(11,15,25,0.82); backdrop-filter:blur(8px); z-index:1001; align-items:center; justify-content:center; padding:12px;">
+  <div class="card" style="width:94%; max-width:420px; margin:0;">
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+      <span>🔑 修改個人密碼</span>
+      <span onclick="closeChangePwdModal()" style="cursor:pointer; font-size:1.8rem; color:var(--text-muted); line-height:1;">&times;</span>
+    </h2>
+    <form id="change-pwd-form" onsubmit="handleChangePassword(event)">
+      <div style="margin-bottom:14px;">
+        <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">目前密碼 *</label>
+        <input type="password" id="chg-old-pwd" class="chat-input" style="width:100%; box-sizing:border-box;" required minlength="4" maxlength="64" autocomplete="current-password">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">新密碼（4～64 字元）*</label>
+        <input type="password" id="chg-new-pwd" class="chat-input" style="width:100%; box-sizing:border-box;" required minlength="4" maxlength="64" autocomplete="new-password">
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block; margin-bottom:5px; color:var(--text-muted); font-size:0.88rem;">確認新密碼 *</label>
+        <input type="password" id="chg-new-pwd-confirm" class="chat-input" style="width:100%; box-sizing:border-box;" required minlength="4" maxlength="64" autocomplete="new-password">
+      </div>
+      <div id="chg-pwd-error" class="login-error-msg" style="margin-top:0; margin-bottom:12px;"></div>
+      <button type="submit" id="btn-chg-pwd-submit" class="btn-clear" style="background:linear-gradient(135deg, var(--primary), var(--accent)); margin-top:0;">確認修改密碼</button>
+    </form>
+  </div>
+</div>
+
 <!-- 既有產品補傳照片用隱藏 input -->
 <input type="file" id="existing-prod-photo-input" accept="image/*" style="display:none;" onchange="handleExistingProductPhoto(event)">
 
@@ -658,7 +728,7 @@ tr:last-child td { border-bottom: none; }
   </div>
 </div>
 
-<div class="footer">AI個人保養網站 V8.1｜Cloudflare Pages + D1 + AI 視覺辨識</div>
+<div class="footer">AI個人保養網站 v8.2.0 ｜ 製作人 shihwei0809 ｜ Cloudflare D1 雲端正式版</div>
 
 <script>
 const API_URL = "/api/skincare";
@@ -766,12 +836,108 @@ function hideLoginModal() {
   document.getElementById("current-user-badge").textContent = `👤 ${currentUsername}`;
 }
 
+function switchAuthMode(mode) {
+  const isLogin = mode === "login";
+  document.getElementById("login-form").style.display = isLogin ? "block" : "none";
+  document.getElementById("register-form").style.display = isLogin ? "none" : "block";
+  document.getElementById("tab-auth-login").classList.toggle("active", isLogin);
+  document.getElementById("tab-auth-register").classList.toggle("active", !isLogin);
+  document.getElementById("login-error").textContent = "";
+  document.getElementById("reg-error").textContent = "";
+}
+
 function handleLogin(event) {
   event.preventDefault();
   const u = document.getElementById("login-username").value.trim();
   const p = document.getElementById("login-pin").value.trim();
   doLogin(u, p);
 }
+
+function handleRegister(event) {
+  event.preventDefault();
+  const u = document.getElementById("reg-username").value.trim();
+  const p = document.getElementById("reg-password").value.trim();
+  const p2 = document.getElementById("reg-password-confirm").value.trim();
+  const errEl = document.getElementById("reg-error");
+  const spinner = document.getElementById("reg-spinner");
+  const btn = document.getElementById("btn-register-submit");
+
+  errEl.textContent = "";
+  if (p !== p2) {
+    errEl.textContent = "❌ 兩次輸入的密碼不一致";
+    return;
+  }
+
+  spinner.style.display = "inline-block";
+  btn.disabled = true;
+  currentUsername = u;
+  currentPin = p;
+
+  callApi("register", { username: u, password: p })
+    .then(res => {
+      spinner.style.display = "none";
+      btn.disabled = false;
+      currentUsername = res.username || u;
+      currentPin = p;
+      localStorage.setItem("skincare_username", currentUsername);
+      localStorage.setItem("skincare_pin", p);
+      cachedData = res.data;
+      localStorage.setItem("skincare_cached_data", JSON.stringify(cachedData));
+      document.getElementById("register-form").reset();
+      switchAuthMode("login");
+      renderUI(cachedData);
+      initChecklist();
+      hideLoginModal();
+    })
+    .catch(err => {
+      spinner.style.display = "none";
+      btn.disabled = false;
+      currentUsername = "";
+      currentPin = "";
+      errEl.textContent = "❌ 註冊失敗: " + err.message;
+    });
+}
+
+function openChangePwdModal() {
+  document.getElementById("change-pwd-form").reset();
+  document.getElementById("chg-pwd-error").textContent = "";
+  document.getElementById("change-pwd-modal").style.display = "flex";
+}
+function closeChangePwdModal() {
+  document.getElementById("change-pwd-modal").style.display = "none";
+}
+function handleChangePassword(event) {
+  event.preventDefault();
+  const oldPwd = document.getElementById("chg-old-pwd").value.trim();
+  const newPwd = document.getElementById("chg-new-pwd").value.trim();
+  const newPwd2 = document.getElementById("chg-new-pwd-confirm").value.trim();
+  const errEl = document.getElementById("chg-pwd-error");
+  const btn = document.getElementById("btn-chg-pwd-submit");
+
+  errEl.textContent = "";
+  if (newPwd !== newPwd2) {
+    errEl.textContent = "❌ 兩次輸入的新密碼不一致";
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "更新中...";
+
+  callApi("changePassword", { password: oldPwd, newPassword: newPwd })
+    .then(() => {
+      btn.disabled = false;
+      btn.textContent = "確認修改密碼";
+      currentPin = newPwd;
+      localStorage.setItem("skincare_pin", newPwd);
+      closeChangePwdModal();
+      alert("✅ 密碼已成功更新！");
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.textContent = "確認修改密碼";
+      errEl.textContent = "❌ 修改失敗: " + err.message;
+    });
+}
+
 function autoLogin(u, p) {
   document.getElementById("login-username").value = u;
   document.getElementById("login-pin").value = p;
@@ -792,7 +958,8 @@ function doLogin(u, p) {
     .then(res => {
       spinner.style.display = "none";
       btn.disabled = false;
-      localStorage.setItem("skincare_username", u);
+      currentUsername = res.username || u;
+      localStorage.setItem("skincare_username", currentUsername);
       localStorage.setItem("skincare_pin", p);
       cachedData = res.data;
       localStorage.setItem("skincare_cached_data", JSON.stringify(cachedData));
