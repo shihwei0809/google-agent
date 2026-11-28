@@ -15,8 +15,9 @@ description: 企業 SOP 微電影化與混合雙軌教學影片技能。整合�
 |---|---|---|
 | `mode` | **`B`（預設推薦）** | **真人主角微電影過場 × 會計驗證實務畫面混剪**。用 Google Flow Agent 生 3 段關鍵劇情過場（開場 / 痛點反轉 / 結尾交件，360p 合計僅 30 點），中間無縫穿插 Lanczos 銳化真實系統截圖與聚光燈提醒卡。 |
 | | `A` | **全 Flow 微電影概念宣導片**（5–6 段全 AI 真人主角劇情，360p 約 50–60 點，下載自動升頻 720p），適合大廳宣傳、對外展示或行前導覽。 |
-| `voice` | **`colab-breezy`（推薦克隆）** | 免費 Colab T4 跑聯發科＋台大 **BreezyVoice**（Apache-2.0 可商用），台灣國語最道地，支援注音糾音（`連假[:ㄐㄧㄚ4]`）。 |
-| | **`colab-voxcpm2`** | 免費 Colab T4 跑 OpenBMB **VoxCPM2**（48kHz 超高音質），支援克隆或無參考音純文字設計聲線。 |
+| `voice` | **`colab-breezy`（真人克隆）** | 免費 Colab T4 跑聯發科＋台大 **BreezyVoice**（Apache-2.0 可商用），上傳 6–10 秒 `ref.wav`，台灣國語最道地，支援注音糾音（`連假[:ㄐㄧㄚ4]`）。 |
+| | **`colab-prompt-relay`（免錄音推薦）** | 免費 Colab T4 模式 2：**VoxCPM2 (Apache-2.0)** 先依中文 Prompt 生成 6–8 秒虛擬講師定妝音 `virtual_ref.wav`，自動釋放顯存後交給 **聯發科 BreezyVoice** 跑全片（100% 可商用＋免錄音＋全片音色鎖死不飄）。 |
+| | **`colab-voxcpm2`** | 免費 Colab T4 跑 OpenBMB **VoxCPM2**（Apache-2.0，48kHz 超高音質），支援克隆或純文字 Prompt 捏聲。 |
 | | **`gemini`** | 呼叫 Gemini TTS API（Rule 10 模型降級鏈 `3.8 -> 3.7 -> 3.6 -> 2.5`，讀取環境變數 `GEMINI_API_KEY`）。 |
 | | **`edge`（預設保底）** | 本機零 GPU 秒出 `edge-tts` 台灣女聲（1.0x / 1.2x）。 |
 | `flow` | **`agent`（推薦）** | 產出「主角三視圖定妝照＋150–200 字長篇中文首尾幀／運鏡＋海報封面／封底＋BGM」指令包，一鍵貼入 `flow.google.com` Agent 模式。 |
@@ -38,7 +39,7 @@ python build_bpm_plan_c_video.py --export-voice-jobs
 - **方式 1（免費 Web 版，一般同事最推薦）**：
   - 雙擊 `blender_3d_demo\一鍵開啟Colab_T4配音工作站.bat`，或開啟：
     `templates/colab_t4_voice_clone.ipynb`
-  - 右上角切到 `T4 GPU` → 第 1 格選 `BreezyVoice`（需上傳 6–10 秒安靜 `ref.wav`）或 `VoxCPM2`（可免錄音捏聲音）→ `執行階段 -> 全部執行`。
+  - 右上角切到 `T4 GPU` → 第 1 格 `VOICE_MODE` 三選一（全 Apache-2.0 可商用）：`1_真人克隆_聯發科BreezyVoice`（需 `ref.wav`）、`2_Prompt捏聲接力_聯發科BreezyVoice`（免錄音，先用 VoxCPM2 捏定妝音再交給 BreezyVoice 鎖聲跑全片）或 `3_純Prompt或克隆_VoxCPM2_48kHz` → `執行階段 -> 全部執行`。
   - 自動完成：建立隔離 venv → T4 批次生 3 個 seed → Whisper 自動驗字挑出 0 錯字音檔 → 去靜音＋響度標準化 `-16 LUFS` → 自動下載 `cloned_audio_ready.zip`。
   - 解壓將 `final_audio/*.mp3` 覆蓋放入目標專案的 `audio/`（例如 `bpm_sop/audio/`）。
 - **方式 2（Colab CLI 自動化，適合進階或有算力帳號）**：
