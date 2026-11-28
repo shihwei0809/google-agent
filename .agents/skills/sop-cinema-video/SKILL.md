@@ -76,7 +76,8 @@ python build_bpm_plan_c_video.py
 ## 三、核心共用資源位置
 - 電影後製共用模組：`.agents/skills/sop-cinema-video/scripts/cinema_post_engine.py`
 - Colab T4 CLI 工具：`.agents/skills/sop-cinema-video/scripts/colab_t4_voice.py`
-- Colab T4 免費版 Notebook：`.agents/skills/sop-cinema-video/templates/colab_t4_voice_clone.ipynb`
+- Colab T4 免費版語音工作站 Notebook：`.agents/skills/sop-cinema-video/templates/colab_t4_voice_clone.ipynb`
+- Colab 商用劇情短片工作站 Notebook（Wan 2.2 Apache-2.0＋NT$50 自動停機煞車）：`.agents/skills/sop-cinema-video/templates/colab_wan22_sop_cinema.ipynb`
 - Flow Agent 與省點公式：`.agents/skills/sop-cinema-video/references/flow_agent_formula.md`
 - 企業實務混剪防呆規範：`.agents/skills/sop-cinema-video/references/sop_hybrid_rules.md`
 - Gemini 網頁版可直接匯入之 Skill 包：`.agents/skills/sop-cinema-video/sop-cinema-video-gemini.zip`
