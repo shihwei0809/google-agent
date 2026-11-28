@@ -78,6 +78,7 @@ python build_bpm_plan_c_video.py
 - Colab T4 CLI 工具：`.agents/skills/sop-cinema-video/scripts/colab_t4_voice.py`
 - Colab T4 免費版語音工作站 Notebook：`.agents/skills/sop-cinema-video/templates/colab_t4_voice_clone.ipynb`
 - Colab 商用劇情短片工作站 Notebook（Wan 2.2 Apache-2.0＋NT$50 自動停機煞車）：`.agents/skills/sop-cinema-video/templates/colab_wan22_sop_cinema.ipynb`
+- Colab 商用劇情短片全自動 CLI 遙控器（免開瀏覽器、山獅霸同款 `google-colab-cli`＋雙重 NT$50 煞車＋`finally` 強制關機）：`.agents/skills/sop-cinema-video/scripts/colab_wan22_cli.py`
 - Flow Agent 與省點公式：`.agents/skills/sop-cinema-video/references/flow_agent_formula.md`
 - 企業實務混剪防呆規範：`.agents/skills/sop-cinema-video/references/sop_hybrid_rules.md`
 - Gemini 網頁版可直接匯入之 Skill 包：`.agents/skills/sop-cinema-video/sop-cinema-video-gemini.zip`
